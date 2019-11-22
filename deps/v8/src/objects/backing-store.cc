@@ -605,8 +605,14 @@ std::shared_ptr<BackingStore> GlobalBackingStoreRegistry::Lookup(
     return std::shared_ptr<BackingStore>();
   }
   auto backing_store = result->second.lock();
-  DCHECK_EQ(buffer_start, backing_store->buffer_start());
-  DCHECK_EQ(length, backing_store->byte_length());
+  CHECK_EQ(buffer_start, backing_store->buffer_start());
+  if (backing_store->is_wasm_memory()) {
+    // Grow calls to shared WebAssembly threads can be triggered from different
+    // workers, length equality cannot be guaranteed here.
+    CHECK_LE(length, backing_store->byte_length());
+  } else {
+    CHECK_EQ(length, backing_store->byte_length());
+  }
   return backing_store;
 }
 

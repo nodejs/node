@@ -1375,7 +1375,12 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                                     new_pages);
         // Broadcasting the update should update this memory object too.
         CHECK_NE(*old_buffer, memory_object->array_buffer());
-        CHECK_EQ(new_byte_length, memory_object->array_buffer().byte_length());
+        // This is a less than check, as it is not guaranteed that the SAB
+        // length here will be equal to the stashed length above as calls to
+        // grow the same memory object can come in from different workers.
+        // It is also possible that a call to Grow was in progress when
+        // handling this call.
+        CHECK_LE(new_byte_length, memory_object->array_buffer().byte_length());
         return static_cast<int32_t>(old_pages);  // success
       }
     }

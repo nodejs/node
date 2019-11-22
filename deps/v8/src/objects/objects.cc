@@ -3951,6 +3951,20 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
   return array;
 }
 
+Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
+                                              Handle<WeakArrayList> array,
+                                              const MaybeObjectHandle& value1,
+                                              const MaybeObjectHandle& value2) {
+  int length = array->length();
+  array = EnsureSpace(isolate, array, length + 2);
+  // Reload length; GC might have removed elements from the array.
+  length = array->length();
+  array->Set(length, *value1);
+  array->Set(length + 1, *value2);
+  array->set_length(length + 2);
+  return array;
+}
+
 bool WeakArrayList::IsFull() { return length() == capacity(); }
 
 // static

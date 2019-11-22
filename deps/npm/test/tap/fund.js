@@ -92,9 +92,7 @@ const fixture = new Tacks(Dir({
             node_modules: Dir({
               'sub-bar': getFixturePackage({
                 name: 'sub-bar',
-                funding: {
-                  url: 'https://example.com/sponsor'
-                }
+                funding: 'https://example.com/sponsor'
               })
             })
           })

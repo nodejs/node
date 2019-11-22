@@ -4,7 +4,7 @@ title: orgs
 description: Working with Teams & Orgs
 ---
 
-# orgs
+# orgs(7)
 
 ## Working with Teams & Orgs
 
@@ -24,8 +24,8 @@ The developer will be able to access packages based on the teams they are on. Ac
 
 There are two main commands:
 
-1. `npm team` see [npm-team](/docs/cli-commands/npm-team) for more details
-2. `npm access` see [npm-access](/docs/cli-commands/npm-access) for more details
+1. `npm team` see [npm team](/cli-commands/npm-team) for more details
+2. `npm access` see [npm access](/cli-commands/npm-access) for more details
 
 ### Team Admins create teams
 

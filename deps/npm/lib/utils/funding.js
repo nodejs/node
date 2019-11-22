@@ -8,12 +8,10 @@ exports.validFundingUrl = validFundingUrl
 // Is the value of a `funding` property of a `package.json`
 // a valid type+url for `npm fund` to display?
 function validFundingUrl (funding) {
-  if (!funding || !funding.url) {
-    return false
-  }
+  if (!funding) return false
 
   try {
-    var parsed = new URL(funding.url)
+    var parsed = new URL(funding.url || funding)
   } catch (error) {
     return false
   }
@@ -62,6 +60,14 @@ function getFundingInfo (idealTree, opts) {
     )
   }
 
+  function retrieveFunding (funding) {
+    return typeof funding === 'string'
+      ? {
+        url: funding
+      }
+      : funding
+  }
+
   function getFundingDependencies (tree) {
     const deps = tree && tree.dependencies
     if (!deps) return empty()
@@ -82,7 +88,7 @@ function getFundingInfo (idealTree, opts) {
       }
 
       if (funding && validFundingUrl(funding)) {
-        fundingItem.funding = funding
+        fundingItem.funding = retrieveFunding(funding)
         length++
       }
 
@@ -134,7 +140,7 @@ function getFundingInfo (idealTree, opts) {
     }
 
     if (idealTree && idealTree.funding) {
-      result.funding = idealTree.funding
+      result.funding = retrieveFunding(idealTree.funding)
     }
 
     result.dependencies =

@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-start
 description: Start a package
 ---
 
-# npm-start
+# npm-start(1)
 
 ## Start a package
 
@@ -21,8 +21,7 @@ its `"scripts"` object. If no `"start"` property is specified on the
 `"scripts"` object, it will run `node server.js`.
 
 As of [`npm@2.0.0`](https://blog.npmjs.org/post/98131109725/npm-2-0-0), you can
-use custom arguments when executing scripts. Refer to [`npm-run-script`](npm-run-script) for
-more details.
+use custom arguments when executing scripts. Refer to [`npm run-script`](/cli-commands/npm-run-script) for more details.
 
 ### See Also
 

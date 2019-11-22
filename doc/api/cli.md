@@ -172,7 +172,7 @@ Please see [customizing ESM specifier resolution][] for example usage.
 
 ### `--experimental-conditional-exports`
 <!-- YAML
-added: REPLACEME
+added: v13.2.0
 -->
 
 Enable experimental support for the `"require"` and `"node"` conditional
@@ -679,6 +679,15 @@ added: v4.0.0
 Specify an alternative default TLS cipher list. Requires Node.js to be built
 with crypto support (default).
 
+### `--tls-keylog=file`
+<!-- YAML
+added: v13.2.0
+-->
+
+Log TLS key material to a file. The key material is in NSS `SSLKEYLOGFILE`
+format and can be used by software (such as Wireshark) to decrypt the TLS
+traffic.
+
 ### `--tls-max-v1.2`
 <!-- YAML
 added: v12.0.0
@@ -1073,6 +1082,7 @@ Node.js options that are allowed are:
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
+* `--tls-keylog`
 * `--tls-max-v1.2`
 * `--tls-max-v1.3`
 * `--tls-min-v1.0`

@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-profile
 description: Change settings on your registry profile
 ---
 
-# npm-profile
+# npm-profile(1)
 ## Change settings on your registry profile
 
 ### Synopsis
@@ -49,7 +49,7 @@ you're using a non-npmjs registry.
 | updated         | 2017-10-02T21:29:45.922Z  |
 +-----------------+---------------------------+
 ```
-
+  
 * `npm profile set <property> <value>`:
   Set the value of a profile property. You can set the following properties this way:
     email, fullname, homepage, freenode, twitter, github

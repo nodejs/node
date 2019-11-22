@@ -1,7 +1,6 @@
-.TH "DEVELOPERS" "" "November 2019" "" ""
+.TH "DEVELOPERS" "7" "November 2019" "" ""
 .SH "NAME"
-\fBdevelopers\fR
-.SH Developer Guide
+\fBdevelopers\fR \- Developer Guide
 .SS Description
 .P
 So, you've decided to use npm to develop (and maybe publish/deploy)
@@ -60,7 +59,7 @@ an argument to \fBgit checkout\fP\|\.  The default is \fBmaster\fP\|\.
 You need to have a \fBpackage\.json\fP file in the root of your project to do
 much of anything with npm\.  That is basically the whole interface\.
 .P
-See \fBpackage\.json\fP \fI/docs/configuring\-npm/package\-json\fR for details about what goes in that file\.  At the very
+See npm help \fBpackage\.json\fP for details about what goes in that file\.  At the very
 least, you need:
 .RS 0
 .IP \(bu 2
@@ -88,7 +87,7 @@ scripts:
 If you have a special compilation or installation script, then you
 should put it in the \fBscripts\fP object\.  You should definitely have at
 least a basic smoke\-test command as the "scripts\.test" field\.
-See npm\-scripts \fI/docs/using\-npm/scripts\fR\|\.
+See npm help scripts\.
 .IP \(bu 2
 main:
 If you have a single module that serves as the entry point to your
@@ -103,7 +102,7 @@ they'll get installed just like these ones\.
 .RE
 .P
 You can use \fBnpm init\fP in the root of your package in order to get you
-started with a pretty basic package\.json file\.  See \fBnpm\-init\fP \fI/docs/cli\-commands/npm\-init\fR for
+started with a pretty basic package\.json file\.  See npm help \fBinit\fP for
 more info\.
 .SS Keeping files \fIout\fR of your package
 .P
@@ -195,7 +194,7 @@ changes in real time without having to keep re\-installing it\.  (You do
 need to either re\-link or \fBnpm rebuild \-g\fP to update compiled packages,
 of course\.)
 .P
-More info at \fBnpm\-link\fP \fI/docs/cli\-commands/npm\-link\fR\|\.
+More info at npm help \fBlink\fP\|\.
 .SS Before Publishing: Make Sure Your Package Installs and Works
 .P
 \fBThis is important\.\fR
@@ -249,7 +248,7 @@ npm adduser
 .P
 and then follow the prompts\.
 .P
-This is documented better in npm\-adduser \fI/docs/cli\-commands/npm\-adduser\fR\|\.
+This is documented better in npm help adduser\.
 .SS Publish your package
 .P
 This part's easy\.  In the root of your folder, do this:
@@ -277,15 +276,15 @@ Tell the world how easy it is to install your program!
 .IP \(bu 2
 npm help npm
 .IP \(bu 2
-npm help npm\-init
+npm help init
 .IP \(bu 2
-npm help package\-json
+npm help package\.json
 .IP \(bu 2
 npm help scripts
 .IP \(bu 2
-npm help npm\-publish
+npm help publish
 .IP \(bu 2
-npm help npm\-adduser
+npm help adduser
 .IP \(bu 2
 npm help registry
 

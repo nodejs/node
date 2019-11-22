@@ -1,14 +1,13 @@
-.TH "SCRIPTS" "" "November 2019" "" ""
+.TH "SCRIPTS" "7" "November 2019" "" ""
 .SH "NAME"
-\fBscripts\fR
-.SH How npm handles the "scripts" field
+\fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
 .P
 npm supports the "scripts" property of the package\.json file, for the
 following scripts:
 .RS 0
 .IP \(bu 2
-\fBprepublish\fR:
+\fBprepublish\fR (\fIas of npm@5, \fBprepublish\fP is deprecated\. Use \fBprepare\fP for build steps and \fBprepublishOnly\fP for upload\-only\.\fR):
 Run BEFORE the package is packed and published, as well as on local \fBnpm
 install\fP without any arguments\. (See below)
 .IP \(bu 2
@@ -73,7 +72,7 @@ Run by the \fBnpm shrinkwrap\fP command\.
 Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with 
 \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SS Prepublish and Prepare
 .SS Deprecation Note
@@ -170,8 +169,8 @@ The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
 for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
 package\.json file, then your package scripts would have the
 \fBnpm_package_name\fP environment variable set to "foo", and the
-\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
-in your code with \fBprocess\.env\.npm_package_name\fP and
+\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables 
+in your code with \fBprocess\.env\.npm_package_name\fP and 
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
 .SS configuration
 .P
@@ -290,7 +289,7 @@ only will prevent some optional features, then it's better to just
 print a warning and exit successfully\.
 .IP \(bu 2
 Try not to use scripts to do what npm can do for you\.  Read through
-\fBpackage\.json\fP \fI/docs/configuring\-npm/package\-json\fR to see all the things that you can specify and enable
+npm help \fBpackage\.json\fP to see all the things that you can specify and enable
 by simply describing your package appropriately\.  In general, this
 will lead to a more robust and consistent state\.
 .IP \(bu 2
@@ -313,12 +312,12 @@ scripts is for compilation which must be done on the target architecture\.
 .SS See Also
 .RS 0
 .IP \(bu 2
-npm help npm\-run\-script
+npm help run\-script
 .IP \(bu 2
-npm help package\-json
+npm help package\.json
 .IP \(bu 2
 npm help developers
 .IP \(bu 2
-npm help npm\-install
+npm help install
 
 .RE

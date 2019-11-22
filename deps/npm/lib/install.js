@@ -26,6 +26,7 @@ install.usage = usage(
   '\nnpm install [<@scope>/]<pkg>@<tag>' +
   '\nnpm install [<@scope>/]<pkg>@<version>' +
   '\nnpm install [<@scope>/]<pkg>@<version range>' +
+  '\nnpm install <alias>@npm:<name>' +
   '\nnpm install <folder>' +
   '\nnpm install <tarball file>' +
   '\nnpm install <tarball url>' +
@@ -877,9 +878,6 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   report += ' in ' + ((Date.now() - this.started) / 1000) + 's'
 
   output(report)
-  if (auditResult) {
-    audit.printInstallReport(auditResult)
-  }
 
   function packages (num) {
     return num + ' package' + (num > 1 ? 's' : '')
@@ -909,6 +907,10 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   })
   if (printFundingReport.length) {
     output(printFundingReport)
+  }
+
+  if (auditResult) {
+    return audit.printInstallReport(auditResult)
   }
 }
 

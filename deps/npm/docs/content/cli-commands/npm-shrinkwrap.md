@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-shrinkwrap
 description: Lock down dependency versions for publication
 ---
 
-# npm-shrinkwrap
+# npm-shrinkwrap(1)
 
 ## Lock down dependency versions for publication
 
@@ -20,7 +20,7 @@ This command repurposes `package-lock.json` into a publishable
 `npm-shrinkwrap.json` or simply creates a new one. The file created and updated
 by this command will then take precedence over any other existing or future
 `package-lock.json` files. For a detailed explanation of the design and purpose
-of package locks in npm, see [npm-package-locks](npm-package-locks).
+of package locks in npm, see [package-locks](/configuring-npm/package-locks).
 
 ### See Also
 

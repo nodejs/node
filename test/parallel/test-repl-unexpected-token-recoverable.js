@@ -10,7 +10,7 @@ const spawn = require('child_process').spawn;
 const args = [ '-i' ];
 const child = spawn(process.execPath, args);
 
-const input = 'var foo = "bar\\\nbaz"';
+const input = 'const foo = "bar\\\nbaz"';
 // Match '...' as well since it marks a multi-line statement
 const expectOut = /> \.\.\. undefined\n/;
 

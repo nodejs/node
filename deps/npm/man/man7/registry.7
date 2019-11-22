@@ -1,7 +1,6 @@
-.TH "REGISTRY" "" "November 2019" "" ""
+.TH "REGISTRY" "7" "November 2019" "" ""
 .SH "NAME"
-\fBregistry\fR
-.SH The JavaScript Package Registry
+\fBregistry\fR \- The JavaScript Package Registry
 .SS Description
 .P
 To resolve packages by name and version, npm talks to a registry website
@@ -26,9 +25,9 @@ https://skimdb\.npmjs\.com/registry\|\.  The code for the couchapp is
 available at https://github\.com/npm/npm\-registry\-couchapp\|\.
 .P
 The registry URL used is determined by the scope of the package (see
-\fBnpm\-scope\fP \fIscope\fR\|\. If no scope is specified, the default registry is used, which is
-supplied by the \fBregistry\fP config parameter\.  See \fBnpm\-config\fP \fI/docs/cli\-commands/npm\-config\fR,
-\fBnpmrc\fP \fI/docs/configuring\-npm/npmrc\fR, and \fBnpm\-config\fP \fI/docs/using\-npm/config\fR for more on managing npm's configuration\.
+npm help \fBscope\fP\|\. If no scope is specified, the default registry is used, which is
+supplied by the \fBregistry\fP config parameter\.  See npm help \fBconfig\fP,
+npm help \fBnpmrc\fP, and npm help \fBconfig\fP for more on managing npm's configuration\.
 .SS Does npm send any information about me back to the registry?
 .P
 Yes\.
@@ -76,7 +75,7 @@ published at all, or
 \fB"publishConfig":{"registry":"http://my\-internal\-registry\.local"}\fP
 to force it to be published only to your internal registry\.
 .P
-See \fBpackage\.json\fP \fI/docs/configuring\-npm/package\-json\fR for more info on what goes in the package\.json file\.
+See npm help \fBpackage\.json\fP for more info on what goes in the package\.json file\.
 .SS Will you replicate from my registry into the public one?
 .P
 No\.  If you want things to be public, then publish them into the public
@@ -92,7 +91,7 @@ Yes, head over to https://www\.npmjs\.com/
 .SS See also
 .RS 0
 .IP \(bu 2
-npm help npm\-config
+npm help config
 .IP \(bu 2
 npm help config
 .IP \(bu 2

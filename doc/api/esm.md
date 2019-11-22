@@ -178,6 +178,19 @@ unspecified.
 
 ### Package Entry Points
 
+There are two fields that can define entry points for a package: `"main"` and
+`"exports"`. The `"main"` field is supported in all versions of Node.js, but its
+capabilities are limited: it only defines the main entry point of the package.
+The `"exports"` field, part of [Package Exports][], provides an alternative to
+`"main"` where the package main entry point can be defined while also
+encapsulating the package, preventing any other entry points besides those
+defined in `"exports"`. If package entry points are defined in both `"main"` and
+`"exports"`, the latter takes precedence in versions of Node.js that support
+`"exports"`. [Conditional Exports][] can also be used within `"exports"` to
+define different package entry points per environment.
+
+#### <code>package.json</code> <code>"main"</code>
+
 The `package.json` `"main"` field defines the entry point for a package,
 whether the package is included into CommonJS via `require` or into an ES
 module via `import`.
@@ -213,7 +226,7 @@ The `"main"` field can point to exactly one file, regardless of whether the
 package is referenced via `require` (in a CommonJS context) or `import` (in an
 ES module context).
 
-### Package Exports
+#### Package Exports
 
 By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
 Custom subpath aliasing and encapsulation can be provided through the
@@ -417,9 +430,6 @@ thrown:
 
 ### Dual CommonJS/ES Module Packages
 
-_These patterns are currently experimental and only work under the
-`--experimental-conditional-exports` flag._
-
 Prior to the introduction of support for ES modules in Node.js, it was a common
 pattern for package authors to include both CommonJS and ES module JavaScript
 sources in their package, with `package.json` `"main"` specifying the CommonJS
@@ -428,61 +438,36 @@ This enabled Node.js to run the CommonJS entry point while build tools such as
 bundlers used the ES module entry point, since Node.js ignored (and still
 ignores) the top-level `"module"` field.
 
-Node.js can now run ES module entry points, and using [Conditional Exports][]
-with the `--experimental-conditional-exports` flag it is possible to define
-separate package entry points for CommonJS and ES module consumers. Unlike in
-the scenario where `"module"` is only used by bundlers, or ES module files are
+Node.js can now run ES module entry points, and a package can contain both
+CommonJS and ES module entry points (either via separate specifiers such as
+`'pkg'` and `'pkg/es-module'`, or both at the same specifier via [Conditional
+Exports][] with the `--experimental-conditional-exports` flag). Unlike in the
+scenario where `"module"` is only used by bundlers, or ES module files are
 transpiled into CommonJS on the fly before evaluation by Node.js, the files
 referenced by the ES module entry point are evaluated as ES modules.
 
-#### Divergent Specifier Hazard
+#### Dual Package Hazard
 
 When an application is using a package that provides both CommonJS and ES module
 sources, there is a risk of certain bugs if both versions of the package get
-loaded (for example, because one version is imported by the application and the
-other version is required by one of the application’s dependencies). Such a
-package might look like this:
+loaded. This potential comes from the fact that the `pkgInstance` created by
+`const pkgInstance = require('pkg')` is not the same as the `pkgInstance`
+created by `import pkgInstance from 'pkg'` (or an alternative main path like
+`'pkg/module'`). This is the “dual package hazard,” where two versions of the
+same package can be loaded within the same runtime environment. While it is
+unlikely that an application or package would intentionally load both versions
+directly, it is common for an application to load one version while a dependency
+of the application loads the other version. This hazard can happen because
+Node.js supports intermixing CommonJS and ES modules, and can lead to unexpected
+behavior.
 
-<!-- eslint-skip -->
-```js
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "main": "./pkg.cjs",
-  "exports": {
-    "require": "./pkg.cjs",
-    "default": "./pkg.mjs"
-  }
-}
-```
-
-In this example, `require('pkg')` always resolves to `pkg.cjs`, including in
-versions of Node.js where ES modules are unsupported. In Node.js where ES
-modules are supported, `import 'pkg'` references `pkg.mjs`.
-
-The potential for bugs comes from the fact that the `pkg` created by `const pkg
-= require('pkg')` is not the same as the `pkg` created by `import pkg from
-'pkg'`. This is the “divergent specifier hazard,” where one specifer (`'pkg'`)
-resolves to separate files (`pkg.cjs` and `pkg.mjs`) in separate module systems,
-yet both versions might get loaded within an application because Node.js
-supports intermixing CommonJS and ES modules.
-
-If the export is a constructor, an `instanceof` comparison of instances created
-by the two returns `false`, and if the export is an object, properties added to
-one (like `pkg.foo = 3`) are not present on the other. This differs from how
-`import` and `require` statements work in all-CommonJS or all-ES module
-environments, respectively, and therefore is surprising to users. It also
-differs from the behavior users are familiar with when using transpilation via
-tools like [Babel][] or [`esm`][].
-
-Even if the user consistently uses either `require` or `import` to refer to
-`pkg`, if any dependencies of the application use the other method the hazard is
-still present.
-
-The `--experimental-conditional-exports` flag should be set for modern Node.js
-for this behavior to work out. If it is not set, only the ES module version can
-be used in modern Node.js and the package will throw when accessed via
-`require()`.
+If the package main export is a constructor, an `instanceof` comparison of
+instances created by the two versions returns `false`, and if the export is an
+object, properties added to one (like `pkgInstance.foo = 3`) are not present on
+the other. This differs from how `import` and `require` statements work in
+all-CommonJS or all-ES module environments, respectively, and therefore is
+surprising to users. It also differs from the behavior users are familiar with
+when using transpilation via tools like [Babel][] or [`esm`][].
 
 #### Writing Dual Packages While Avoiding or Minimizing Hazards
 
@@ -518,8 +503,14 @@ following conditions:
 
 Write the package in CommonJS or transpile ES module sources into CommonJS, and
 create an ES module wrapper file that defines the named exports. Using
-[Conditional Exports][], the ES module wrapper is used for `import` and the
-CommonJS entry point for `require`.
+[Conditional Exports][] via the `--experimental-conditional-exports` flag, the
+ES module wrapper is used for `import` and the CommonJS entry point for
+`require`.
+
+> Note: While `--experimental-conditional-exports` is flagged, a package
+> using this pattern will throw when loaded via `require()` in modern
+> Node.js, unless package consumers use the `--experimental-conditional-exports`
+> flag.
 
 <!-- eslint-skip -->
 ```js
@@ -575,17 +566,37 @@ This approach is appropriate for any of the following use cases:
 * The package stores internal state, and the package author would prefer not to
   refactor the package to isolate its state management. See the next section.
 
-A variant of this approach would add an export, e.g. `"./module"`, to point to
-an all-ES module-syntax version the package. This could be used via `import
+A variant of this approach not requiring `--experimental-conditional-exports`
+for consumers could be to add an export, e.g. `"./module"`, to point to an
+all-ES module-syntax version of the package. This could be used via `import
 'pkg/module'` by users who are certain that the CommonJS version will not be
 loaded anywhere in the application, such as by dependencies; or if the CommonJS
 version can be loaded but doesn’t affect the ES module version (for example,
-because the package is stateless).
+because the package is stateless):
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/pkg/package.json
+{
+  "type": "module",
+  "main": "./index.cjs",
+  "exports": {
+    ".": "./index.cjs",
+    "./module": "./wrapper.mjs"
+  }
+}
+```
+
+If the `--experimental-conditional-exports` flag is dropped and therefore
+[Conditional Exports][] become available without a flag, this variant could be
+easily updated to use conditional exports by adding conditions to the `"."`
+path; while keeping `"./module"` for backward compatibility.
 
 ##### Approach #2: Isolate State
 
 The most straightforward `package.json` would be one that defines the separate
-CommonJS and ES module entry points directly:
+CommonJS and ES module entry points directly (requires
+`--experimental-conditional-exports`):
 
 <!-- eslint-skip -->
 ```js
@@ -665,6 +676,28 @@ This approach is appropriate for any of the following use cases:
 
 Even with isolated state, there is still the cost of possible extra code
 execution between the CommonJS and ES module versions of a package.
+
+As with the previous approach, a variant of this approach not requiring
+`--experimental-conditional-exports` for consumers could be to add an export,
+e.g. `"./module"`, to point to an all-ES module-syntax version of the package:
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/pkg/package.json
+{
+  "type": "module",
+  "main": "./index.cjs",
+  "exports": {
+    ".": "./index.cjs",
+    "./module": "./index.mjs"
+  }
+}
+```
+
+If the `--experimental-conditional-exports` flag is dropped and therefore
+[Conditional Exports][] become available without a flag, this variant could be
+easily updated to use conditional exports by adding conditions to the `"."`
+path; while keeping `"./module"` for backward compatibility.
 
 ## <code>import</code> Specifiers
 
@@ -801,9 +834,9 @@ To include an ES module into CommonJS, use [`import()`][].
 
 ### <code>import</code> statements
 
-An `import` statement can reference an ES module, a CommonJS module, or JSON.
-Other file types such as Native modules are not supported. For those,
-use [`module.createRequire()`][].
+An `import` statement can reference an ES module or a CommonJS module. Other
+file types such as JSON or Native modules are not supported. For those, use
+[`module.createRequire()`][].
 
 `import` statements are permitted only in ES modules. For similar functionality
 in CommonJS, see [`import()`][].
@@ -813,23 +846,22 @@ can either be an URL-style relative path like `'./file.mjs'` or a package name
 like `'fs'`.
 
 Like in CommonJS, files within packages can be accessed by appending a path to
-the package name.
+the package name; unless the package’s `package.json` contains an [`"exports"`
+field][], in which case files within packages need to be accessed via the path
+defined in `"exports"`.
 
 ```js
 import { sin, cos } from 'geometry/trigonometry-functions.mjs';
 ```
 
-> Currently only the “default export” is supported for CommonJS files or
-> packages:
->
-> <!-- eslint-disable no-duplicate-imports -->
-> ```js
-> import packageMain from 'commonjs-package'; // Works
->
-> import { method } from 'commonjs-package'; // Errors
-> ```
->
-> There are ongoing efforts to make the latter code possible.
+Only the “default export” is supported for CommonJS files or packages:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+import packageMain from 'commonjs-package'; // Works
+
+import { method } from 'commonjs-package'; // Errors
+```
 
 ### <code>import()</code> expressions
 
@@ -848,16 +880,15 @@ CommonJS, JSON, and Native modules can be used with
 [`module.createRequire()`][].
 
 ```js
-// cjs.js
+// cjs.cjs
 module.exports = 'cjs';
 
 // esm.mjs
 import { createRequire } from 'module';
-import { fileURLToPath as fromURL } from 'url';
 
-const require = createRequire(fromURL(import.meta.url));
+const require = createRequire(import.meta.url);
 
-const cjs = require('./cjs');
+const cjs = require('./cjs.cjs');
 cjs === 'cjs'; // true
 ```
 
@@ -1305,8 +1336,7 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. Return _"module"_.
 >    1. Throw an _Unsupported File Extension_ error.
 > 1. Otherwise,
->    1. If _isMain_ is **true** or _url_ ends in _".js"_, _".json"_ or
->       _".node"_, then
+>    1. If _isMain_ is **true**, then
 >       1. Return _"commonjs"_.
 >    1. Throw an _Unsupported File Extension_ error.
 
@@ -1360,8 +1390,10 @@ success!
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[Package Exports]: #esm_package_exports
 [Terminology]: #esm_terminology
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
+[`"exports"` field]: #esm_package_exports
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export

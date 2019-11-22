@@ -1,4 +1,4 @@
-globalconfig = /Users/ruyadorno/Documents/workspace/cli/test/fixtures/config/globalconfig
+globalconfig = /Users/claudiahdz/npm/cli/test/fixtures/config/globalconfig
 email = i@izs.me
 env-thing = ${random_env_var}
 init.author.name = Isaac Z. Schlueter

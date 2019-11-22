@@ -9,19 +9,19 @@ const Container = styled.nav`
   display: none;
   width: 380px;
   position: sticky;
-  overflow: scroll;
+  overflow: scroll; 
   padding-bottom: 200px;
   top: 54px;
   background-color: ${(props) => props.theme.colors.white};
 
   @media screen and (min-width: ${(props) => props.theme.breakpoints.TABLET}) {
     display: block;
-  }
+  } 
 `
 
 const Sidebar = () => {
   return (
-    <Container>
+    <Container className='sidebar'>
       <DocLinks />
     </Container>
   )

@@ -575,10 +575,6 @@ class QueryWrap : public AsyncWrap {
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
         channel_(channel),
         trace_name_(name) {
-    // Make sure the channel object stays alive during the query lifetime.
-    req_wrap_obj->Set(env()->context(),
-                      env()->channel_string(),
-                      channel->object()).Check();
   }
 
   ~QueryWrap() override {
@@ -631,8 +627,6 @@ class QueryWrap : public AsyncWrap {
     } else {
       Parse(response_data_->host.get());
     }
-
-    delete this;
   }
 
   void* MakeCallbackPointer() {
@@ -690,9 +684,13 @@ class QueryWrap : public AsyncWrap {
   }
 
   void QueueResponseCallback(int status) {
-    env()->SetImmediate([this](Environment*) {
+    BaseObjectPtr<QueryWrap> strong_ref{this};
+    env()->SetImmediate([this, strong_ref](Environment*) {
       AfterResponse();
-    }, object());
+
+      // Delete once strong_ref goes out of scope.
+      Detach();
+    });
 
     channel_->set_query_last_ok(status != ARES_ECONNREFUSED);
     channel_->ModifyActivityQueryCount(-1);
@@ -735,7 +733,7 @@ class QueryWrap : public AsyncWrap {
     UNREACHABLE();
   }
 
-  ChannelWrap* channel_;
+  BaseObjectPtr<ChannelWrap> channel_;
 
  private:
   std::unique_ptr<ResponseData> response_data_;

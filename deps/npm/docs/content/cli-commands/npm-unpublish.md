@@ -1,10 +1,10 @@
 ---
-section: cli-commands
+section: cli-commands 
 title: npm-unpublish
 description: Remove a package from the registry
 ---
 
-# npm-unpublish
+# npm-unpublish(1)
 
 ## Remove a package from the registry
 
@@ -43,7 +43,7 @@ only allowed with versions published in the last 72 hours. If you
 are trying to unpublish a version published longer ago than that,
 contact support@npmjs.com.
 
-The scope is optional and follows the usual rules for [`npm-scope`](/docs/using-npm/scope).
+The scope is optional and follows the usual rules for [`scope`](/using-npm/scope).
 
 ### See Also
 
