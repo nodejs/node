@@ -752,6 +752,11 @@ napi_get_all_property_names(napi_env env,
 NAPI_EXTERN napi_status
 napi_detach_arraybuffer(napi_env env,
                         napi_value arraybuffer);
+
+NAPI_EXTERN napi_status
+napi_is_detached_arraybuffer(napi_env env,
+                             napi_value value,
+                             bool* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END
