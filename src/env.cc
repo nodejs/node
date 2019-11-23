@@ -457,8 +457,17 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   // will be recorded with state=IDLE.
   uv_prepare_init(event_loop(), &idle_prepare_handle_);
   uv_check_init(event_loop(), &idle_check_handle_);
+  uv_async_init(
+      event_loop(),
+      &cleanup_finalization_groups_async_,
+      [](uv_async_t* async) {
+        Environment* env = ContainerOf(
+            &Environment::cleanup_finalization_groups_async_, async);
+        env->CleanupFinalizationGroups();
+      });
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_));
 
   thread_stopper()->Install(
     this, static_cast<void*>(this), [](uv_async_t* handle) {
@@ -519,6 +528,10 @@ void Environment::RegisterHandleCleanups() {
       nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
+      close_and_finish,
+      nullptr);
+  RegisterHandleCleanup(
+      reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_),
       close_and_finish,
       nullptr);
 }
@@ -1052,19 +1065,27 @@ void Environment::AddArrayBufferAllocatorToKeepAliveUntilIsolateDispose(
   keep_alive_allocators_->insert(allocator);
 }
 
-bool Environment::RunWeakRefCleanup() {
+void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
+}
 
-  while (!cleanup_finalization_groups_.empty()) {
+void Environment::CleanupFinalizationGroups() {
+  HandleScope handle_scope(isolate());
+  Context::Scope context_scope(context());
+  TryCatchScope try_catch(this);
+
+  while (!cleanup_finalization_groups_.empty() && can_call_into_js()) {
     Local<FinalizationGroup> fg =
         cleanup_finalization_groups_.front().Get(isolate());
     cleanup_finalization_groups_.pop_front();
     if (!FinalizationGroup::Cleanup(fg).FromMaybe(false)) {
-      return false;
+      if (try_catch.HasCaught() && !try_catch.HasTerminated())
+        errors::TriggerUncaughtException(isolate(), try_catch);
+      // Re-schedule the execution of the remainder of the queue.
+      uv_async_send(&cleanup_finalization_groups_async_);
+      return;
     }
   }
-
-  return true;
 }
 
 void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
