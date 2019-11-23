@@ -518,6 +518,10 @@ NAPI_EXTERN napi_status napi_get_instance_data(napi_env env,
 // ArrayBuffer detaching
 NAPI_EXTERN napi_status napi_detach_arraybuffer(napi_env env,
                                                 napi_value arraybuffer);
+
+NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
+                                                     napi_value value,
+                                                     bool* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END
