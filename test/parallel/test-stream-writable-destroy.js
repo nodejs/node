@@ -366,3 +366,24 @@ const assert = require('assert');
   }));
   write.uncork();
 }
+
+{
+  // Ensure callback order.
+
+  let state = 0;
+  const write = new Writable({
+    write(chunk, enc, cb) {
+      // `setImmediate()` is used on purpose to ensure the callback is called
+      // after `process.nextTick()` callbacks.
+      setImmediate(cb);
+    }
+  });
+  write.write('asd', common.mustCall(() => {
+    assert.strictEqual(state++, 0);
+  }));
+  write.write('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(state++, 1);
+  }));
+  write.destroy();
+}
