@@ -9,6 +9,8 @@ rules:
     - groups: [[ "&&", "||" ]]
   no-restricted-globals:
     - error
+    - name: Array
+      message: "Use `const { Array } = primordials;` instead of the global."
     - name: JSON
       message: "Use `const { JSON } = primordials;` instead of the global."
     - name: Math
