@@ -1123,6 +1123,7 @@ void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
 inline void Environment::RegisterFinalizationGroupForCleanup(
     v8::Local<v8::FinalizationGroup> group) {
   cleanup_finalization_groups_.emplace_back(isolate(), group);
+  uv_async_send(&cleanup_finalization_groups_async_);
 }
 
 size_t CleanupHookCallback::Hash::operator()(
