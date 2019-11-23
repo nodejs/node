@@ -97,6 +97,14 @@ static napi_value External(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
+
+static napi_value EmptyArrayBuffer(napi_env env, napi_callback_info info) {
+  void* null_data = NULL;
+  napi_value array_buffer;
+  NAPI_CALL(env, napi_create_arraybuffer(env, 0, &null_data, &array_buffer));
+  return array_buffer;
+}
+
 static napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
   size_t argc = 4;
   napi_value args[4];
@@ -183,13 +191,35 @@ static napi_value Detach(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
+static napi_value IsDetached(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NAPI_ASSERT(env, argc == 1, "Wrong number of arguments.");
+
+  napi_value array_buffer = args[0];
+  bool is_arraybuffer;
+  NAPI_CALL(env, napi_is_arraybuffer(env, array_buffer, &is_arraybuffer));
+  NAPI_ASSERT(env, is_arraybuffer, "Wrong type of arguments. Expects an array buffer as first argument.");
+
+  bool is_detached;
+  NAPI_CALL(env, napi_is_detached_arraybuffer(env, array_buffer, &is_detached));
+
+  napi_value result;
+  NAPI_CALL(env, napi_get_boolean(env, is_detached, &result));
+
+  return result;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Multiply", Multiply),
     DECLARE_NAPI_PROPERTY("External", External),
+    DECLARE_NAPI_PROPERTY("EmptyArrayBuffer", EmptyArrayBuffer),
     DECLARE_NAPI_PROPERTY("CreateTypedArray", CreateTypedArray),
     DECLARE_NAPI_PROPERTY("Detach", Detach),
+    DECLARE_NAPI_PROPERTY("IsDetached", IsDetached),
   };
 
   NAPI_CALL(env, napi_define_properties(

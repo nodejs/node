@@ -3039,3 +3039,17 @@ napi_status napi_detach_arraybuffer(napi_env env, napi_value arraybuffer) {
 
   return napi_clear_last_error(env);
 }
+
+napi_status napi_is_detached_arraybuffer(napi_env env,
+                                         napi_value arraybuffer,
+                                         bool* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, arraybuffer);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
+
+  *result = value->IsArrayBuffer() &&
+      value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
+
+  return napi_clear_last_error(env);
+}
