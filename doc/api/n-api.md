@@ -2972,6 +2972,31 @@ that is, created with [`napi_create_external_arraybuffer`][].
 This API represents the invocation of the `ArrayBuffer` detach operation as
 defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
 
+### napi_is_detached_arraybuffer
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```C
+napi_status napi_is_detached_arraybuffer(napi_env env,
+                                         napi_value arraybuffer,
+                                         bool* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] arraybuffer`: The JavaScript `ArrayBuffer` to be checked.
+* `[out] result`: Whether the `arraybuffer` is detached.
+
+Returns `napi_ok` if the API succeeded.
+
+The `ArrayBuffer` is considered detached if its internal data is `null`.
+
+This API represents the invocation of the `ArrayBuffer` `IsDetachedBuffer`
+operation as defined in [Section 24.1.1.2][] of the ECMAScript Language
+Specification.
+
 ## Working with JavaScript Properties
 
 N-API exposes a set of APIs to get and set properties on JavaScript
@@ -4924,6 +4949,7 @@ This API may only be called from the main thread.
 [Section 8.7]: https://tc39.es/ecma262/#sec-agents
 [Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Working with JavaScript Functions]: #n_api_working_with_javascript_functions
+[Section 24.1.1.2]: https://tc39.es/ecma262/#sec-isdetachedbuffer
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
