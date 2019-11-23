@@ -1946,7 +1946,7 @@ changes:
     description: Added maxSessionRejectedStreams option with a default of 100.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
-    description: Added maxSessionInvalidFrames option with a default of 1000.
+    description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29144
     description: The `PADDING_STRATEGY_CALLBACK` has been made equivalent to
@@ -2073,7 +2073,7 @@ changes:
     description: Added maxSessionRejectedStreams option with a default of 100.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
-    description: Added maxSessionInvalidFrames option with a default of 1000.
+    description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29144
     description: The `PADDING_STRATEGY_CALLBACK` has been made equivalent to
