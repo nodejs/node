@@ -1,6 +1,6 @@
 // Flags: --harmony-weak-refs
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // Test that finalization callbacks do not crash when caused through a regular
