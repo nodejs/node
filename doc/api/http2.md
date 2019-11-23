@@ -1943,7 +1943,7 @@ added: v8.4.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
-    description: Added maxSessionRejectedStreams option with a default of 100.
+    description: Added `maxSessionRejectedStreams` option with a default of 100.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionInvalidFrames` option with a default of 1000.
@@ -2070,7 +2070,7 @@ added: v8.4.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
-    description: Added maxSessionRejectedStreams option with a default of 100.
+    description: Added `maxSessionRejectedStreams` option with a default of 100.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionInvalidFrames` option with a default of 1000.
