@@ -18,6 +18,10 @@ setTimeout(() => {
     name: 'Error',
     message: 'test',
   });
+
+  // Give the callbacks scheduled by global.gc() time to run, as the underlying
+  // uv_async_t is unref’ed.
+  setTimeout(() => {}, 200);
 }, 200);
 
 process.on('uncaughtException', common.mustCall());
