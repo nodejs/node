@@ -983,6 +983,7 @@ napi_status napi_has_own_property(napi_env env,
                                   bool* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, key);
+  CHECK_ARG(env, result);
 
   v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
