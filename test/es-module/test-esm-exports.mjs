@@ -1,7 +1,9 @@
 // Flags: --experimental-modules --experimental-resolve-self --experimental-conditional-exports
 
 import { mustCall } from '../common/index.mjs';
+import { path } from '../common/fixtures.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
+import { spawn } from 'child_process';
 
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
 import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
@@ -150,3 +152,37 @@ function assertIncludes(actual, expected) {
   ok(actual.toString().indexOf(expected) !== -1,
      `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
 }
+
+// Test warning message
+[
+  [
+    '--experimental-conditional-exports',
+    '/es-modules/conditional-exports.js',
+    'Conditional exports',
+  ],
+  [
+    '--experimental-resolve-self',
+    '/node_modules/pkgexports/resolve-self.js',
+    'Package name self resolution',
+  ],
+].forEach(([flag, file, message]) => {
+  const child = spawn(process.execPath, [
+    '--experimental-modules',
+    flag,
+    path(file)
+  ]);
+
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (data) => {
+    stderr += data;
+  });
+  child.on('close', (code, signal) => {
+    strictEqual(code, 0);
+    strictEqual(signal, null);
+    ok(stderr.toString().includes(
+      `ExperimentalWarning: ${message} is an experimental feature. ` +
+      'This feature could change at any time'
+    ));
+  });
+});
