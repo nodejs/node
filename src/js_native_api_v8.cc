@@ -3045,6 +3045,7 @@ napi_status napi_is_detached_arraybuffer(napi_env env,
                                          bool* result) {
   CHECK_ENV(env);
   CHECK_ARG(env, arraybuffer);
+  CHECK_ARG(env, result);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
 
