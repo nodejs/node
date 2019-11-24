@@ -284,7 +284,6 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
 
   PrintLibuvHandleInformation(loop, stderr);
 
-  fflush(stderr);
   // Finally, abort.
   CHECK(0 && "uv_loop_close() while having open handles");
 }

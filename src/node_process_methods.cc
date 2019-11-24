@@ -217,7 +217,6 @@ void RawDebug(const FunctionCallbackInfo<Value>& args) {
         "must be called with a single string");
   Utf8Value message(args.GetIsolate(), args[0]);
   PrintErrorString("%s\n", *message);
-  fflush(stderr);
 }
 
 static void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {

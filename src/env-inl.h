@@ -162,11 +162,9 @@ inline bool AsyncHooks::pop_async_id(double async_id) {
             async_id_fields_.GetValue(kExecutionAsyncId),
             async_id);
     DumpBacktrace(stderr);
-    fflush(stderr);
     if (!env()->abort_on_uncaught_exception())
       exit(1);
     fprintf(stderr, "\n");
-    fflush(stderr);
     ABORT_NO_BACKTRACE();
   }
 

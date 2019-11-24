@@ -172,7 +172,6 @@ void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
               column);
     }
   }
-  fflush(stderr);
 }
 
 void PrintException(Isolate* isolate,
@@ -244,7 +243,6 @@ void AppendExceptionLine(Environment* env,
 
 [[noreturn]] void Abort() {
   DumpBacktrace(stderr);
-  fflush(stderr);
   ABORT_NO_BACKTRACE();
 }
 
@@ -259,7 +257,6 @@ void AppendExceptionLine(Environment* env,
           info.function,
           *info.function ? ":" : "",
           info.message);
-  fflush(stderr);
 
   Abort();
 }
@@ -394,8 +391,6 @@ static void ReportFatalException(Environment* env,
       PrintStackTrace(env->isolate(), trace);
     }
   }
-
-  fflush(stderr);
 }
 
 void PrintErrorString(const char* format, ...) {
@@ -452,7 +447,6 @@ void OnFatalError(const char* location, const char* message) {
         isolate, env, message, "FatalError", "", Local<String>());
   }
 #endif  // NODE_REPORT
-  fflush(stderr);
   ABORT();
 }
 

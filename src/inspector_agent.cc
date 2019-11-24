@@ -140,7 +140,6 @@ static int StartDebugSignalHandler() {
   if (err != 0) {
     fprintf(stderr, "node[%u]: pthread_create: %s\n",
             uv_os_getpid(), strerror(err));
-    fflush(stderr);
     // Leave SIGUSR1 blocked.  We don't install a signal handler,
     // receiving the signal would terminate the process.
     return -err;
@@ -852,7 +851,6 @@ void Agent::WaitForDisconnect() {
   parent_handle_.reset();
   if (client_->hasConnectedSessions() && !is_worker) {
     fprintf(stderr, "Waiting for the debugger to disconnect...\n");
-    fflush(stderr);
   }
   if (!client_->notifyWaitingForDisconnect()) {
     client_->contextDestroyed(parent_env_->context());
