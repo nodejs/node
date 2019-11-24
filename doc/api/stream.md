@@ -432,7 +432,7 @@ file.end('world!');
 // Writing more now is not allowed!
 ```
 
-[`stream.end()`][stream-end] will call it's callback and emit `'error'`
+[`stream.end()`][stream-end] will call its callback and emit `'error'`
 with (in order of precedence):
 * `ERR_STREAM_WRITE_AFTER_END` if `chunk` is not nully and
 [`stream.end()`][stream-end] has been called.
