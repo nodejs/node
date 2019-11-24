@@ -3049,7 +3049,7 @@ napi_status napi_is_detached_arraybuffer(napi_env env,
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
 
   *result = value->IsArrayBuffer() &&
-      value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
+            value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
 
   return napi_clear_last_error(env);
 }

@@ -101,7 +101,7 @@ arrayTypes.forEach((currentType) => {
 }
 
 {
-  const buffer = test_typedarray.EmptyArrayBuffer();
+  const buffer = test_typedarray.NullArrayBuffer();
   assert.ok(buffer instanceof ArrayBuffer);
   assert.ok(test_typedarray.IsDetached(buffer));
 }
