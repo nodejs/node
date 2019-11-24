@@ -275,7 +275,7 @@ const helloWorldBuffer = Buffer.from('hello world');
 
 {
   // Verify writables cannot be piped
-  const w = new W();
+  const w = new W({ autoDestroy: false });
   w._write = common.mustNotCall();
   let gotError = false;
   w.on('error', function() {

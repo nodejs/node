@@ -32,7 +32,7 @@ const assert = require('assert');
 
 const stream = require('stream');
 const hwm = 10;
-const r = stream.Readable({ highWaterMark: hwm });
+const r = stream.Readable({ highWaterMark: hwm, autoDestroy: false });
 const chunks = 10;
 
 const data = Buffer.allocUnsafe(chunks * hwm + Math.ceil(hwm / 2));

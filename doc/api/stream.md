@@ -277,8 +277,8 @@ added: v0.9.4
 The `'error'` event is emitted if an error occurred while writing or piping
 data. The listener callback is passed a single `Error` argument when called.
 
-The stream is not closed when the `'error'` event is emitted unless the
-[`autoDestroy`][writable-new] option was set to `true` when creating the
+The stream is closed when the `'error'` event is emitted unless the
+[`autoDestroy`][writable-new] option was set to `false` when creating the
 stream.
 
 After `'error'`, no further events other than `'close'` *should* be emitted
@@ -1667,11 +1667,7 @@ const { Writable } = require('stream');
 
 class MyWritable extends Writable {
   constructor({ highWaterMark, ...options }) {
-    super({
-      highWaterMark,
-      autoDestroy: true,
-      emitClose: true
-    });
+    super({ highWaterMark });
     // ...
   }
 }
@@ -1745,6 +1741,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22795
     description: Add `autoDestroy` option to automatically `destroy()` the
                  stream when it emits `'finish'` or errors.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30623
+    description: Change `autoDestroy` option default to `true`.
 -->
 
 * `options` {Object}
@@ -1776,7 +1775,7 @@ changes:
   * `final` {Function} Implementation for the
     [`stream._final()`][stream-_final] method.
   * `autoDestroy` {boolean} Whether this stream should automatically call
-    `.destroy()` on itself after ending. **Default:** `false`.
+    `.destroy()` on itself after ending. **Default:** `true`.
 
 <!-- eslint-disable no-useless-constructor -->
 ```js
@@ -2021,6 +2020,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22795
     description: Add `autoDestroy` option to automatically `destroy()` the
                  stream when it emits `'end'` or errors.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30623
+    description: Change `autoDestroy` option default to `true`.
 -->
 
 * `options` {Object}
@@ -2039,7 +2041,7 @@ changes:
   * `destroy` {Function} Implementation for the
     [`stream._destroy()`][readable-_destroy] method.
   * `autoDestroy` {boolean} Whether this stream should automatically call
-    `.destroy()` on itself after ending. **Default:** `false`.
+    `.destroy()` on itself after ending. **Default:** `true`.
 
 <!-- eslint-disable no-useless-constructor -->
 ```js

@@ -62,8 +62,8 @@ const Stream = require('stream').Stream;
   const R = Stream.Readable;
   const W = Stream.Writable;
 
-  const r = new R();
-  const w = new W();
+  const r = new R({ autoDestroy: false });
+  const w = new W({ autoDestroy: false });
   let removed = false;
 
   r._read = common.mustCall(function() {

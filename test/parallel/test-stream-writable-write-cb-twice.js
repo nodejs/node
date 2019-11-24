@@ -1,20 +1,20 @@
 'use strict';
 const common = require('../common');
 const { Writable } = require('stream');
-const assert = require('assert');
 
 {
   // Sync + Sync
   const writable = new Writable({
     write: common.mustCall((buf, enc, cb) => {
       cb();
-      assert.throws(cb, {
-        code: 'ERR_MULTIPLE_CALLBACK',
-        name: 'Error'
-      });
+      cb();
     })
   });
   writable.write('hi');
+  writable.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK',
+    name: 'Error'
+  }));
 }
 
 {
@@ -23,14 +23,15 @@ const assert = require('assert');
     write: common.mustCall((buf, enc, cb) => {
       cb();
       process.nextTick(() => {
-        assert.throws(cb, {
-          code: 'ERR_MULTIPLE_CALLBACK',
-          name: 'Error'
-        });
+        cb();
       });
     })
   });
   writable.write('hi');
+  writable.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK',
+    name: 'Error'
+  }));
 }
 
 {
@@ -39,12 +40,13 @@ const assert = require('assert');
     write: common.mustCall((buf, enc, cb) => {
       process.nextTick(cb);
       process.nextTick(() => {
-        assert.throws(cb, {
-          code: 'ERR_MULTIPLE_CALLBACK',
-          name: 'Error'
-        });
+        cb();
       });
     })
   });
   writable.write('hi');
+  writable.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK',
+    name: 'Error'
+  }));
 }
