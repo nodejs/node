@@ -435,15 +435,15 @@ file.end('world!');
 [`stream.end()`][stream-end] will call its callback and emit `'error'`
 with (in order of precedence):
 * `ERR_STREAM_WRITE_AFTER_END` if `chunk` is not nully and
-[`stream.end()`][stream-end] has been called.
+ [`stream.end()`][stream-end] has been called.
 * `ERR_STREAM_DESTROYED` if `chunk` is not nully and
-[`stream.destroy()`][writable-destroy] has been called.
+ [`stream.destroy()`][writable-destroy] has been called.
 * `ERR_INVALID_ARG_TYPE` if `chunk` is not nully and
-`chunk` is not a `string` when not in `objectMode`.
+ `chunk` is not a `string` when not in `objectMode`.
 * `ERR_STREAM_ALREADY_FINISHED` if
-[`writable.writableFinished`][] is `true`.
+ [`writable.writableFinished`][] is `true`.
 * Any error emitted by the instance through `'error'` before
-[`writable.writableFinished`][] is set to `true`.
+ [`writable.writableFinished`][] is set to `true`.
 
 ##### writable.setDefaultEncoding(encoding)
 <!-- YAML
@@ -632,7 +632,7 @@ write('hello', () => {
 
 A `Writable` stream in object mode will always ignore the `encoding` argument.
 
-`stream.write()`  will call it's callback and emit `'error'`
+[`stream.write()`][stream-write] will call its callback and emit `'error'`
 with (in order of precedence):
 * `ERR_STREAM_WRITE_AFTER_END` if [`stream.end()`][stream-end] has been called.
 * `ERR_STREAM_DESTROYED` if [`stream.destroy()`][writable-destroy] has been
