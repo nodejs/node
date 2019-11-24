@@ -432,7 +432,8 @@ file.end('world!');
 // Writing more now is not allowed!
 ```
 
-[`stream.end()`][stream-end] will error with (in order of precedence):
+[`stream.end()`][stream-end] will call it's callback and emit `'error'`
+with (in order of precedence):
 * `ERR_STREAM_WRITE_AFTER_END` if `chunk` is not nully and
 [`stream.end()`][stream-end] has been called.
 * `ERR_STREAM_DESTROYED` if `chunk` is not nully and
@@ -631,7 +632,8 @@ write('hello', () => {
 
 A `Writable` stream in object mode will always ignore the `encoding` argument.
 
-`stream.write()` will error with (in order of precedence):
+`stream.write()`  will call it's callback and emit `'error'`
+with (in order of precedence):
 * `ERR_STREAM_WRITE_AFTER_END` if [`stream.end()`][stream-end] has been called.
 * `ERR_STREAM_DESTROYED` if [`stream.destroy()`][writable-destroy] has been
   called.
