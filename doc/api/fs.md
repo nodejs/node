@@ -1687,7 +1687,7 @@ changes:
   * `end` {integer} **Default:** `Infinity`
   * `highWaterMark` {integer} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
-* Returns: {fs.ReadStream} See [Readable Streams][].
+* Returns: {fs.ReadStream} See [Readable Stream][].
 
 Unlike the 16 kb default `highWaterMark` for a readable stream, the stream
 returned by this method has a default `highWaterMark` of 64 kb.
