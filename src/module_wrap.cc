@@ -7,6 +7,7 @@
 #include "util-inl.h"
 #include "node_contextify.h"
 #include "node_watchdog.h"
+#include "node_process.h"
 
 #include <sys/stat.h>  // S_IFDIR
 
@@ -962,6 +963,7 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
       Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
             conditionalTarget, subpath, pkg_subpath, base, false);
       if (!resolved.IsNothing()) {
+        ProcessEmitExperimentalWarning(env, "Conditional exports");
         return resolved;
       }
     }
@@ -1267,6 +1269,7 @@ Maybe<URL> PackageResolve(Environment* env,
 
   Maybe<URL> self_url = ResolveSelf(env, specifier, base);
   if (self_url.IsJust()) {
+    ProcessEmitExperimentalWarning(env, "Package name self resolution");
     return self_url;
   }
 
