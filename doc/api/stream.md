@@ -442,7 +442,7 @@ with (in order of precedence):
  `chunk` is not a `string` when not in `objectMode`.
 * `ERR_STREAM_ALREADY_FINISHED` if
  [`writable.writableFinished`][] is `true`.
-* Any error emitted by the instance through `'error'` before
+* Last error emitted by the instance through `'error'` before
  [`writable.writableFinished`][] is set to `true`.
 
 ##### writable.setDefaultEncoding(encoding)
