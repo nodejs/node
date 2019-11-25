@@ -2047,6 +2047,34 @@ assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
     `\u001b[${string[0]}m'Oh no!'\u001b[${string[1]}m }`
   );
   rejection.catch(() => {});
+
+  // Verify that aliases do not show up as key while checking `inspect.colors`.
+  const colors = Object.keys(inspect.colors);
+  const aliases = Object.getOwnPropertyNames(inspect.colors)
+                  .filter((c) => !colors.includes(c));
+  assert(!colors.includes('grey'));
+  assert(colors.includes('gray'));
+  // Verify that all aliases are correctly mapped.
+  for (const alias of aliases) {
+    assert(Array.isArray(inspect.colors[alias]));
+  }
+  // Check consistent naming.
+  [
+    'black',
+    'red',
+    'green',
+    'yellow',
+    'blue',
+    'magenta',
+    'cyan',
+    'white'
+  ].forEach((color, i) => {
+    assert.deepStrictEqual(inspect.colors[color], [30 + i, 39]);
+    assert.deepStrictEqual(inspect.colors[`${color}Bright`], [90 + i, 39]);
+    const bgColor = `bg${color[0].toUpperCase()}${color.slice(1)}`;
+    assert.deepStrictEqual(inspect.colors[bgColor], [40 + i, 49]);
+    assert.deepStrictEqual(inspect.colors[`${bgColor}Bright`], [100 + i, 49]);
+  });
 }
 
 assert.strictEqual(
