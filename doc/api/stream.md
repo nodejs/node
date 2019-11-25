@@ -1668,7 +1668,7 @@ of a stream that are intended for use by consumers (as described in the
 in application code consuming the stream.
 
 Avoid overriding public methods such as `write()`, `end()`, `cork()`,
-`uncork()`, `read()` and `destroy()`, or emitting an internal event such
+`uncork()`, `read()` and `destroy()`, or emitting internal events such
 as `'error'`, `'data'`, `'end'`, `'finish'` and `'close'` through `.emit()`.
 Doing so can break current and future stream invariants leading to behavior
 and/or compatibility issues with other streams, stream utilities, and user
