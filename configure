@@ -20,7 +20,7 @@ del _
 import sys
 from distutils.spawn import find_executable
 
-print('Node configure: Found Python {0}.{1}.{2}...'.format(*sys.version_info))
+print('Node.js configure: Found Python {0}.{1}.{2}...'.format(*sys.version_info))
 acceptable_pythons = ((3, 8), (3, 7), (3, 6), (3, 5), (2, 7))
 if sys.version_info[:2] in acceptable_pythons:
   import configure
