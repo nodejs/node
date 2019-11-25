@@ -155,10 +155,12 @@ function removeAsync(dir) {
 // Test input validation.
 {
   const defaults = {
+    retryDelay: 100,
     maxRetries: 0,
     recursive: false
   };
   const modified = {
+    retryDelay: 953,
     maxRetries: 5,
     recursive: true
   };
@@ -169,6 +171,7 @@ function removeAsync(dir) {
   assert.deepStrictEqual(validateRmdirOptions({
     maxRetries: 99
   }), {
+    retryDelay: 100,
     maxRetries: 99,
     recursive: false
   });
@@ -191,6 +194,14 @@ function removeAsync(dir) {
       type: TypeError,
       message: /^The "recursive" argument must be of type boolean\./
     });
+  });
+
+  common.expectsError(() => {
+    validateRmdirOptions({ retryDelay: -1 });
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+    type: RangeError,
+    message: /^The value of "retryDelay" is out of range\./
   });
 
   common.expectsError(() => {
