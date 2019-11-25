@@ -156,7 +156,7 @@ function removeAsync(dir) {
 {
   const defaults = {
     emfileWait: 1000,
-    maxRetries: 3,
+    maxRetries: 0,
     recursive: false
   };
   const modified = {
