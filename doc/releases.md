@@ -32,7 +32,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [17. Cleanup](#17-cleanup)
   * [18. Announce](#18-announce)
   * [19. Celebrate](#19-celebrate)
-* [Major Releases](#major-Releases)
+* [Major Releases](#major-releases)
 
 ## Who can make a release?
 
@@ -81,11 +81,11 @@ access to individuals authorized by the TSC.
 
 ### 3. A Publicly Listed GPG Key
 
-A SHASUMS256.txt file is produced for every promoted build, nightly, and
+A `SHASUMS256.txt` file is produced for every promoted build, nightly, and
 releases. Additionally for releases, this file is signed by the individual
 responsible for that release. In order to be able to verify downloaded binaries,
-the public should be able to check that the SHASUMS256.txt file has been signed
-by someone who has been authorized to create a release.
+the public should be able to check that the `SHASUMS256.txt` file has been
+signed by someone who has been authorized to create a release.
 
 The GPG keys should be fetchable from a known third-party keyserver. The SKS
 Keyservers at <https://sks-keyservers.net> are recommended. Use the
@@ -179,12 +179,13 @@ Carefully review the list of commits:
 should only be cherry-picked when appropriate for the type of release being
 made.
 * If you think it's risky so should wait for a while, add the `baking-for-lts`
-   tag.
+tag.
 
 When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
 and post a comment stating that it does not land cleanly and will require a
-backport PR.
+backport PR. You can refer the owner of the PR to the "[Backporting to Release
+ Lines](https://github.com/nodejs/node/blob/master/doc/guides/backporting-to-release-lines.md)" guide.
 
 If commits were cherry-picked in this step, check that the test still pass and
 push to the staging branch to keep it up-to-date.
@@ -483,7 +484,14 @@ $ npm install -g git-secure-tag
 Create a tag using the following command:
 
 ```console
-$ git secure-tag <vx.y.z> <commit-sha> -sm 'YYYY-MM-DD Node.js vx.y.z (Release Type) Release'
+$ git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-type>) Release"
+```
+
+`release-type` is either "Current" or "LTS". For LTS releases, you should also
+ include the release codename, for example:
+
+```txt
+2019-10-22 Node.js v10.17.0 'Dubnium' (LTS) Release
 ```
 
 The tag **must** be signed using the GPG key that's listed for you on the
@@ -541,7 +549,7 @@ formatting passes the lint rules on `master`.
 ### 13. Promote and Sign the Release Builds
 
 **The same individual who signed the release tag must be the one
-to promote the builds as the SHASUMS256.txt file needs to be signed with the
+to promote the builds as the `SHASUMS256.txt` file needs to be signed with the
 same GPG key!**
 
 Use `tools/release.sh` to promote and sign the build. When run, it will perform
@@ -549,10 +557,9 @@ the following actions:
 
 **a.** Select a GPG key from your private keys. It will use a command similar
 to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it
-will bail. (Why are you releasing? Your tag should be signed!) If you have only
-one key, it will use that. If you have more than one key it will ask you to
-select one from the list. Be sure to use the same key that you signed your git
-tag with.
+will bail. If you have only one key, it will use that. If you have more than
+one key it will ask you to select one from the list. Be sure to use the same
+key that you signed your git tag with.
 
 **b.** Log in to the server via SSH and check for releases that can be promoted,
 along with the list of artifacts. It will use the `dist-promotable` command on
@@ -563,15 +570,15 @@ shouldn't be), be sure to only promote the release you are responsible for.
 **c.** Log in to the server via SSH and run the promote script for the given
 release. The command on the server will be similar to: `dist-promote vx.y.z`.
 After this step, the release artifacts will be available for download and a
-SHASUMS256.txt file will be present. The release will still be unsigned,
+`SHASUMS256.txt` file will be present. The release will still be unsigned,
 however.
 
-**d.** Use `scp` to download SHASUMS256.txt to a temporary directory on your
+**d.** Use `scp` to download `SHASUMS256.txt` to a temporary directory on your
 computer.
 
-**e.** Sign the SHASUMS256.txt file using a command similar to: `gpg
+**e.** Sign the `SHASUMS256.txt` file using a command similar to: `gpg
 --default-key YOURKEY --clearsign /path/to/SHASUMS256.txt`. You will be prompted
-by GPG for your password. The signed file will be named SHASUMS256.txt.asc.
+by GPG for your password. The signed file will be named `SHASUMS256.txt.asc`.
 
 **f.** Output an ASCII armored version of your public GPG key using a command
 similar to: `gpg --default-key YOURKEY --armor --export --output
@@ -579,13 +586,13 @@ similar to: `gpg --default-key YOURKEY --armor --export --output
 a convenience for users, although not the recommended way to get a copy of your
 key.
 
-**g.** Upload the SHASUMS256.txt files back to the server into the release
+**g.** Upload the `SHASUMS256.txt` files back to the server into the release
 directory.
 
 If you didn't wait for ARM builds in the previous step before promoting the
 release, you should re-run `tools/release.sh` after the ARM builds have
 finished. That will move the ARM artifacts into the correct location. You will
-be prompted to re-sign SHASUMS256.txt.
+be prompted to re-sign `SHASUMS256.txt`.
 
 It is possible to only sign a release by running `./tools/release.sh -s
 vX.Y.Z`.
@@ -608,7 +615,7 @@ release. However, the blog post is not yet fully automatic.
 Create a new blog post by running the [nodejs.org release-post.js script][].
 This script will use the promoted builds and changelog to generate the post. Run
 `npm run serve` to preview the post locally before pushing to the
-[nodejs.org](https://github.com/nodejs/nodejs.org) repo.
+[nodejs.org repository][].
 
 * You can add a short blurb just under the main heading if you want to say
   something important, otherwise the text should be publication ready.
@@ -616,13 +623,12 @@ This script will use the promoted builds and changelog to generate the post. Run
   ARMv6 builds. Any downloads that are missing will have `*Coming soon*` next to
   them. It's your responsibility to manually update these later when you have
   the outstanding builds.
-* The SHASUMS256.txt.asc content is at the bottom of the post. When you update
+* The `SHASUMS256.txt.asc` content is at the bottom of the post. When you update
   the list of tarballs you'll need to copy/paste the new contents of this file
   to reflect those changes.
-* Always use pull-requests on the nodejs.org repo. Be respectful of that working
-  group, but you shouldn't have to wait for PR sign-off. Opening a PR and
-  merging it immediately _should_ be fine. However, please follow the following
-  commit message format:
+* Always use pull-requests on the [nodejs.org repository][]. Be respectful
+  of the website team, but you do not have to wait for PR sign-off. Please
+  use the following commit message format:
 
   ```console
   Blog: vX.Y.Z release post
@@ -630,8 +636,8 @@ This script will use the promoted builds and changelog to generate the post. Run
   Refs: <full URL to your release proposal PR>
   ```
 
-* Changes to `master` on the nodejs.org repo will trigger a new build of
-  nodejs.org so your changes should appear in a few minutes after pushing.
+* Changes to `master` on the [nodejs.org repository][] will trigger a new build
+  of nodejs.org so your changes should appear a few minutes after pushing.
 
 ### 16. Create the release on GitHub
 
@@ -681,7 +687,7 @@ New Node.js Major releases happen twice per year:
 Major releases should be targeted for the third Tuesday of the release month.
 
 A major release must not slip beyond the release month. In other words, major
- releases must not slip into May or November.
+releases must not slip into May or November.
 
 The release date for the next major release should be announced immediately
 following the current release (e.g. the release date for 13.0.0 should be
@@ -708,6 +714,10 @@ A draft release proposal should be created two months before the release. A
 separate `vN.x-proposal` branch should be created that tracks the `vN.x`
 branch. This branch will contain the draft release commit (with the draft
 changelog).
+
+Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
+upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
+that will need updating to include the new major release.
 
 ### Test Releases and Release Candidates
 
@@ -761,5 +771,6 @@ judgment there.
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
+[nodejs.org repository]: https://github.com/nodejs/nodejs.org
 [Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
 [webchat.freenode.net]: https://webchat.freenode.net/
