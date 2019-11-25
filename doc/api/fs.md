@@ -3220,6 +3220,9 @@ Synchronous rename(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30644
+    description: The `maxBusyTries` option is renamed to `maxRetries`.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
@@ -3246,7 +3249,7 @@ changes:
   retry the operation with a linear backoff of 1ms longer on each try until the
   timeout duration passes this limit. This option is ignored if the `recursive`
   option is not `true`. **Default:** `1000`.
-  * `maxBusyTries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
+  * `maxRetries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
   encountered, Node.js will retry the operation with a linear backoff wait of
   100ms longer on each try. This option represents the number of retries. This
   option is ignored if the `recursive` option is not `true`. **Default:** `3`.
@@ -3266,6 +3269,9 @@ Windows and an `ENOTDIR` error on POSIX.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30644
+    description: The `maxBusyTries` option is renamed to `maxRetries`.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
@@ -4990,6 +4996,9 @@ upon success.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30644
+    description: The `maxBusyTries` option is renamed to `maxRetries`.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
@@ -5004,7 +5013,7 @@ changes:
   retry the operation with a linear backoff of 1ms longer on each try until the
   timeout duration passes this limit. This option is ignored if the `recursive`
   option is not `true`. **Default:** `1000`.
-  * `maxBusyTries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
+  * `maxRetries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
   encountered, Node.js will retry the operation with a linear backoff wait of
   100ms longer on each try. This option represents the number of retries. This
   option is ignored if the `recursive` option is not `true`. **Default:** `3`.
