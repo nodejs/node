@@ -5038,19 +5038,17 @@ static AllocatedBuffer ConvertSignatureToP1363(Environment* env,
   const unsigned char* sig_data =
       reinterpret_cast<unsigned char*>(signature.data());
 
-  ECDSA_SIG* asn1_sig = d2i_ECDSA_SIG(nullptr, &sig_data, signature.size());
-  if (asn1_sig == nullptr)
+  ECDSASigPointer asn1_sig(d2i_ECDSA_SIG(nullptr, &sig_data, signature.size()));
+  if (!asn1_sig)
     return AllocatedBuffer();
 
   AllocatedBuffer buf = env->AllocateManaged(2 * n);
   unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
 
-  const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig);
-  const BIGNUM* s = ECDSA_SIG_get0_s(asn1_sig);
+  const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig.get());
+  const BIGNUM* s = ECDSA_SIG_get0_s(asn1_sig.get());
   CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(r, data, n)));
   CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(s, data + n, n)));
-
-  ECDSA_SIG_free(asn1_sig);
 
   return buf;
 }
@@ -5068,19 +5066,18 @@ static ByteSource ConvertSignatureToDER(
   if (signature.length() != 2 * n)
     return ByteSource();
 
-  ECDSA_SIG* asn1_sig = ECDSA_SIG_new();
-  CHECK_NOT_NULL(asn1_sig);
+  ECDSASigPointer asn1_sig(ECDSA_SIG_new());
+  CHECK(asn1_sig);
   BIGNUM* r = BN_new();
   CHECK_NOT_NULL(r);
   BIGNUM* s = BN_new();
   CHECK_NOT_NULL(s);
   CHECK_EQ(r, BN_bin2bn(sig_data, n, r));
   CHECK_EQ(s, BN_bin2bn(sig_data + n, n, s));
-  CHECK_EQ(1, ECDSA_SIG_set0(asn1_sig, r, s));
+  CHECK_EQ(1, ECDSA_SIG_set0(asn1_sig.get(), r, s));
 
   unsigned char* data = nullptr;
-  int len = i2d_ECDSA_SIG(asn1_sig, &data);
-  ECDSA_SIG_free(asn1_sig);
+  int len = i2d_ECDSA_SIG(asn1_sig.get(), &data);
 
   if (len <= 0)
     return ByteSource();
