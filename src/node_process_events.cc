@@ -34,6 +34,8 @@ Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
                                       const char* warning,
                                       const char* type,
                                       const char* code) {
+  if (!env->can_call_into_js()) return Just(false);
+
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 

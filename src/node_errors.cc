@@ -278,6 +278,9 @@ static void ReportFatalException(Environment* env,
                                  Local<Value> error,
                                  Local<Message> message,
                                  EnhanceFatalException enhance_stack) {
+  if (!env->can_call_into_js())
+    enhance_stack = EnhanceFatalException::kDontEnhance;
+
   Isolate* isolate = env->isolate();
   CHECK(!error.IsEmpty());
   CHECK(!message.IsEmpty());
@@ -956,7 +959,7 @@ void TriggerUncaughtException(Isolate* isolate,
   }
 
   MaybeLocal<Value> handled;
-  {
+  if (env->can_call_into_js()) {
     // We do not expect the global uncaught exception itself to throw any more
     // exceptions. If it does, exit the current Node.js instance.
     errors::TryCatchScope try_catch(env,
