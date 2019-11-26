@@ -5,8 +5,8 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const { ifError, strictEqual } = require('assert');
-const { createContext, runInNewContext } = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 const { Session } = require('inspector');
 
 const session = new Session();
@@ -31,18 +31,18 @@ async function testContextCreatedAndDestroyed() {
       // "Administrator: Windows PowerShell[42]" because of a GetConsoleTitle()
       // quirk. Not much we can do about either, just verify that it contains
       // the PID.
-      strictEqual(name.includes(`[${process.pid}]`), true);
+      assert.strictEqual(name.includes(`[${process.pid}]`), true);
     } else {
       let expects = `${process.argv0}[${process.pid}]`;
       if (!common.isMainThread) {
         expects = `Worker[${require('worker_threads').threadId}]`;
       }
-      strictEqual(expects, name);
+      assert.strictEqual(expects, name);
     }
-    strictEqual(origin, '',
-                JSON.stringify(contextCreated));
-    strictEqual(auxData.isDefault, true,
-                JSON.stringify(contextCreated));
+    assert.strictEqual(origin, '',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(auxData.isDefault, true,
+                       JSON.stringify(contextCreated));
   }
 
   {
@@ -53,23 +53,23 @@ async function testContextCreatedAndDestroyed() {
     session.once('Runtime.executionContextDestroyed',
                  (notification) => contextDestroyed = notification);
 
-    runInNewContext('1 + 1');
+    vm.runInNewContext('1 + 1');
 
     const contextCreated = await vmContextCreatedPromise;
     const { id, name, origin, auxData } = contextCreated.params.context;
-    strictEqual(name, 'VM Context 1',
-                JSON.stringify(contextCreated));
-    strictEqual(origin, '',
-                JSON.stringify(contextCreated));
-    strictEqual(auxData.isDefault, false,
-                JSON.stringify(contextCreated));
+    assert.strictEqual(name, 'VM Context 1',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(origin, '',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(auxData.isDefault, false,
+                       JSON.stringify(contextCreated));
 
     // GC is unpredictable...
     while (!contextDestroyed)
       global.gc();
 
-    strictEqual(contextDestroyed.params.executionContextId, id,
-                JSON.stringify(contextDestroyed));
+    assert.strictEqual(contextDestroyed.params.executionContextId, id,
+                       JSON.stringify(contextDestroyed));
   }
 
   {
@@ -80,19 +80,19 @@ async function testContextCreatedAndDestroyed() {
     session.once('Runtime.executionContextDestroyed',
                  (notification) => contextDestroyed = notification);
 
-    runInNewContext('1 + 1', {}, {
+    vm.runInNewContext('1 + 1', {}, {
       contextName: 'Custom context',
       contextOrigin: 'https://origin.example'
     });
 
     const contextCreated = await vmContextCreatedPromise;
     const { name, origin, auxData } = contextCreated.params.context;
-    strictEqual(name, 'Custom context',
-                JSON.stringify(contextCreated));
-    strictEqual(origin, 'https://origin.example',
-                JSON.stringify(contextCreated));
-    strictEqual(auxData.isDefault, false,
-                JSON.stringify(contextCreated));
+    assert.strictEqual(name, 'Custom context',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(origin, 'https://origin.example',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(auxData.isDefault, false,
+                       JSON.stringify(contextCreated));
 
     // GC is unpredictable...
     while (!contextDestroyed)
@@ -107,16 +107,16 @@ async function testContextCreatedAndDestroyed() {
     session.once('Runtime.executionContextDestroyed',
                  (notification) => contextDestroyed = notification);
 
-    createContext({}, { origin: 'https://nodejs.org' });
+    vm.createContext({}, { origin: 'https://nodejs.org' });
 
     const contextCreated = await vmContextCreatedPromise;
     const { name, origin, auxData } = contextCreated.params.context;
-    strictEqual(name, 'VM Context 2',
-                JSON.stringify(contextCreated));
-    strictEqual(origin, 'https://nodejs.org',
-                JSON.stringify(contextCreated));
-    strictEqual(auxData.isDefault, false,
-                JSON.stringify(contextCreated));
+    assert.strictEqual(name, 'VM Context 2',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(origin, 'https://nodejs.org',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(auxData.isDefault, false,
+                       JSON.stringify(contextCreated));
 
     // GC is unpredictable...
     while (!contextDestroyed)
@@ -131,14 +131,14 @@ async function testContextCreatedAndDestroyed() {
     session.once('Runtime.executionContextDestroyed',
                  (notification) => contextDestroyed = notification);
 
-    createContext({}, { name: 'Custom context 2' });
+    vm.createContext({}, { name: 'Custom context 2' });
 
     const contextCreated = await vmContextCreatedPromise;
     const { name, auxData } = contextCreated.params.context;
-    strictEqual(name, 'Custom context 2',
-                JSON.stringify(contextCreated));
-    strictEqual(auxData.isDefault, false,
-                JSON.stringify(contextCreated));
+    assert.strictEqual(name, 'Custom context 2',
+                       JSON.stringify(contextCreated));
+    assert.strictEqual(auxData.isDefault, false,
+                       JSON.stringify(contextCreated));
 
     // GC is unpredictable...
     while (!contextDestroyed)
@@ -151,7 +151,7 @@ async function testBreakpointHit() {
   session.post('Debugger.enable', assert.ifError);
 
   const pausedPromise = notificationPromise('Debugger.paused');
-  runInNewContext('debugger', {});
+  vm.runInNewContext('debugger', {});
   await pausedPromise;
 }
 
