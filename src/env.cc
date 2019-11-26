@@ -543,6 +543,8 @@ void Environment::CleanupHandles() {
   Isolate::DisallowJavascriptExecutionScope disallow_js(isolate(),
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
 
+  RunAndClearNativeImmediates(true /* skip SetUnrefImmediate()s */);
+
   for (ReqWrapBase* request : req_wrap_queue_)
     request->Cancel();
 
@@ -658,7 +660,7 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_front(ExitCallback{cb, arg});
 }
 
-void Environment::RunAndClearNativeImmediates() {
+void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
   size_t ref_count = 0;
@@ -675,7 +677,9 @@ void Environment::RunAndClearNativeImmediates() {
       if (head->is_refed())
         ref_count++;
 
-      head->Call(this);
+      if (head->is_refed() || !only_refed)
+        head->Call(this);
+
       if (UNLIKELY(try_catch.HasCaught())) {
         if (!try_catch.HasTerminated() && can_call_into_js())
           errors::TriggerUncaughtException(isolate(), try_catch);
