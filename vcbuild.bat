@@ -24,6 +24,8 @@ set target_env=
 set noprojgen=
 set projgen=
 set nobuild=
+set nossl=
+set nonpm=
 set sign=
 set nosnapshot=
 set cctest_args=
@@ -82,6 +84,8 @@ if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
+if /i "%1"=="nossl"    		set nossl=1&goto arg-ok
+if /i "%1"=="nonpm"    		set nonpm=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
@@ -141,6 +145,7 @@ if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
 if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
 
+
 echo Error: invalid command line option `%1`.
 exit /b 1
 
@@ -179,6 +184,8 @@ if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
+if defined nossl       		set configure_flags=%configure_flags% --without-ssl
+if defined nonpm       		set configure_flags=%configure_flags% --without-npm
 if defined noetw            set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
@@ -211,7 +218,7 @@ call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
 
 REM NASM is only needed on IA32 and x86_64.
-if not defined openssl_no_asm if "%target_arch%" NEQ "arm64" call tools\msvs\find_nasm.cmd
+if not defined nossl if not defined openssl_no_asm if "%target_arch%" NEQ "arm64" call tools\msvs\find_nasm.cmd
 if errorlevel 1 echo Could not find NASM, install it or build with openssl-no-asm. See BUILDING.md.
 
 call :getnodeversion || exit /b 1
