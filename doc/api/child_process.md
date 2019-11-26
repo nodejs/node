@@ -1044,10 +1044,12 @@ added: v0.1.90
 -->
 
 * `signal` {number|string}
+* Returns: {boolean}
 
 The `subprocess.kill()` method sends a signal to the child process. If no
 argument is given, the process will be sent the `'SIGTERM'` signal. See
-signal(7) for a list of available signals.
+signal(7) for a list of available signals. This function returns `true` if
+kill(2) succeeds, and `false` otherwise.
 
 ```js
 const { spawn } = require('child_process');
