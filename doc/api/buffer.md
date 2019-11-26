@@ -612,11 +612,11 @@ console.log(buf);
 
 A `TypeError` will be thrown if `size` is not a number.
 
-The `Buffer` module pre-allocates an internal `Buffer` instance of
-size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
-`Buffer` instances created using [`Buffer.allocUnsafe()`][] and the deprecated
-`new Buffer(size)` constructor only when `size` is less than or equal to
-`Buffer.poolSize >> 1` (floor of [`Buffer.poolSize`][] divided by two).
+The `Buffer` module uses an internal `Buffer` instance as pool for the fast
+allocation of new `Buffer` instances created using [`Buffer.allocUnsafe()`][]
+and the deprecated `new Buffer(size)` constructor. The `size` of that pool is
+dynamically changed depending on the allocation frequency and allocation size.
+The maximum pool size is equal to `Buffer.poolSize`.
 
 Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
@@ -983,11 +983,17 @@ console.log(Buffer.isEncoding(''));
 ### Class Property: Buffer.poolSize
 <!-- YAML
 added: v0.11.3
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30661
+    description: The default changed to 2MB and the pool is not pre-allocated
+                 anymore. Instead, it's increased or decreased in size depending
+                 on the allocation frequency up to the size of this value.
 -->
 
-* {integer} **Default:** `8192`
+* {integer} **Default:** `2 * 1024 * 1024` (2 MB)
 
-This is the size (in bytes) of pre-allocated internal `Buffer` instances used
+This is the maximum size (in bytes) of an internal `Buffer` instance used
 for pooling. This value may be modified.
 
 ### buf\[index\]
