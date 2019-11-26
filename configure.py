@@ -979,13 +979,14 @@ def configure_node(o):
 
   if not options.without_node_snapshot:
     o['variables']['node_use_node_snapshot'] = b(
-        not cross_compiling and want_snapshots)
+      not cross_compiling and want_snapshots and not options.shared)
   else:
     o['variables']['node_use_node_snapshot'] = 'false'
 
   if not options.without_node_code_cache:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-    o['variables']['node_use_node_code_cache'] = b(not cross_compiling)
+    o['variables']['node_use_node_code_cache'] = b(
+      not cross_compiling and not options.shared)
   else:
     o['variables']['node_use_node_code_cache'] = 'false'
 
