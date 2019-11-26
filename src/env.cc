@@ -540,6 +540,9 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
+  Isolate::DisallowJavascriptExecutionScope disallow_js(isolate(),
+      Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+
   for (ReqWrapBase* request : req_wrap_queue_)
     request->Cancel();
 
@@ -674,7 +677,7 @@ void Environment::RunAndClearNativeImmediates() {
 
       head->Call(this);
       if (UNLIKELY(try_catch.HasCaught())) {
-        if (!try_catch.HasTerminated())
+        if (!try_catch.HasTerminated() && can_call_into_js())
           errors::TriggerUncaughtException(isolate(), try_catch);
 
         // We are done with the current callback. Move one iteration along,
