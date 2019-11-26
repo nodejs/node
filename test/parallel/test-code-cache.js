@@ -33,6 +33,8 @@ const loadedModules = process.moduleLoadList
 // are all compiled without cache and we are doing the bookkeeping right.
 if (!process.features.cached_builtins) {
   console.log('The binary is not configured with code cache');
+  assert(!process.config.variables.node_use_node_code_cache);
+
   if (isMainThread) {
     assert.deepStrictEqual(compiledWithCache, new Set());
     for (const key of loadedModules) {
@@ -46,10 +48,7 @@ if (!process.features.cached_builtins) {
     assert.notDeepStrictEqual(compiledWithCache, new Set());
   }
 } else {  // Native compiled
-  assert.strictEqual(
-    process.config.variables.node_code_cache,
-    'yes'
-  );
+  assert(process.config.variables.node_use_node_code_cache);
 
   if (!isMainThread) {
     for (const key of [ 'internal/bootstrap/pre_execution' ]) {
