@@ -192,7 +192,7 @@ added: v8.5.0
 -->
 
 Enable latest experimental modules features (currently
-`--experimental-conditional-exports` and `--experimental-self-resolve`).
+`--experimental-conditional-exports` and `--experimental-resolve-self`).
 
 ### `--experimental-policy`
 <!-- YAML
