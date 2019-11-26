@@ -218,12 +218,19 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
 
-// TODO(addaleax): Officially deprecate this and replace it with something
-// better suited for a public embedder API.
+// Support multithread eval
+// Firstly must call InitFully(int argc, char* argv[])
+NODE_EXTERN int EvalScript(const char* script); 
+
+// After all script done, call TearDown()
+NODE_EXTERN int InitFully(int argc, char* argv[]);
+
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
                       const char*** exec_argv);
+
+NODE_EXTERN void TearDown();
 
 enum OptionEnvvarSettings {
   kAllowedInEnvironment,

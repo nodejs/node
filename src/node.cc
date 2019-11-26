@@ -617,6 +617,9 @@ inline void PlatformInit() {
 #endif  // _WIN32
 }
 
+NODE_EXTERN void TearDown() {
+  TearDownOncePerProcess();
+}
 
 // Safe to call more than once and from signal handlers.
 void ResetStdio() {
@@ -891,11 +894,19 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   return 0;
 }
 
-// TODO(addaleax): Deprecate and eventually remove this.
-void Init(int* argc,
-          const char** argv,
-          int* exec_argc,
-          const char*** exec_argv) {
+NODE_EXTERN int InitFully(int argc, char* argv[]) {
+  InitializationResult result = InitializeOncePerProcess(argc, argv);
+  if (result.early_return) {
+    return result.exit_code;
+  }
+
+  return 0;
+}
+
+NODE_EXTERN void Init(int* argc,
+                      const char** argv,
+                      int* exec_argc,
+                      const char*** exec_argv) {
   std::vector<std::string> argv_(argv, argv + *argc);  // NOLINT
   std::vector<std::string> exec_argv_;
   std::vector<std::string> errors;
@@ -927,8 +938,7 @@ void Init(int* argc,
   *exec_argv = Malloc<const char*>(*exec_argc);
   for (int i = 0; i < *exec_argc; ++i)
     (*exec_argv)[i] = strdup(exec_argv_[i].c_str());
-  for (int i = 0; i < *argc; ++i)
-    argv[i] = strdup(argv_[i].c_str());
+  for (int i = 0; i < *argc; ++i) argv[i] = strdup(argv_[i].c_str());
 }
 
 InitializationResult InitializeOncePerProcess(int argc, char** argv) {
@@ -1054,6 +1064,43 @@ int Start(int argc, char** argv) {
 int Stop(Environment* env) {
   env->ExitEnv();
   return 0;
+}
+
+
+NODE_EXTERN int EvalScript(const char* script) {
+  Isolate::CreateParams params;
+  const std::vector<size_t>* indexes = nullptr;
+  std::vector<intptr_t> external_references;
+
+  bool force_no_snapshot =
+      per_process::cli_options->per_isolate->no_node_snapshot;
+  if (!force_no_snapshot) {
+    v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
+    if (blob != nullptr) {
+      // TODO(joyeecheung): collect external references and set it in
+      // params.external_references.
+      external_references.push_back(reinterpret_cast<intptr_t>(nullptr));
+      params.external_references = external_references.data();
+      params.snapshot_blob = blob;
+      indexes = NodeMainInstance::GetIsolateDataIndexes();
+    }
+  }
+
+  auto uv_loop = uv_loop_new();
+
+  NodeMainInstance main_instance(&params,
+                                 uv_loop,
+                                 per_process::v8_platform.Platform(),
+                                 {"eval_script"},
+                                 {"--eval", script},
+                                 indexes);
+  main_instance.SetScript(script);
+
+  auto result = main_instance.Run();
+
+  uv_loop_close(uv_loop);
+
+  return result;
 }
 
 }  // namespace node

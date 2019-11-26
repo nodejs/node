@@ -67,6 +67,9 @@ NodeMainInstance::NodeMainInstance(
   params->array_buffer_allocator = array_buffer_allocator_.get();
   isolate_ = Isolate::Allocate();
   CHECK_NOT_NULL(isolate_);
+
+  Locker locker(isolate_);
+
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate_, event_loop);
@@ -101,6 +104,10 @@ NodeMainInstance::~NodeMainInstance() {
   }
   isolate_->Dispose();
   platform_->UnregisterIsolate(isolate_);
+}
+
+void NodeMainInstance::SetScript(const std::string& script) {
+  this->script = script;
 }
 
 int NodeMainInstance::Run() {

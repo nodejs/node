@@ -54,6 +54,8 @@ class NodeMainInstance {
       const std::vector<size_t>* per_isolate_data_indexes = nullptr);
   ~NodeMainInstance();
 
+  void SetScript(const std::string& script);
+
   // Start running the Node.js instances, return the exit code when finished.
   int Run();
 
@@ -89,6 +91,8 @@ class NodeMainInstance {
   std::unique_ptr<IsolateData> isolate_data_;
   bool owns_isolate_ = false;
   bool deserialize_mode_ = false;
+
+  std::string script;
 };
 
 }  // namespace node
