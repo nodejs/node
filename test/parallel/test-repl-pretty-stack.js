@@ -58,9 +58,8 @@ const tests = [
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: '\u001b[91m\u001b[1m' +
-              'Uncaught Error: Whoops!\n    at repl:*:* {\n  foo: ' +
-              "\u001b[32m'bar'\u001b[39m\n}\n\u001b[39m\u001b[22m",
+    expected: 'Uncaught Error: Whoops!\n    at repl:*:* {\n  foo: ' +
+              "\u001b[32m'bar'\u001b[39m\n}\n",
     useColors: true
   },
   {
