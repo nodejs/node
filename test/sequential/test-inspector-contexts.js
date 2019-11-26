@@ -5,7 +5,7 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const { strictEqual } = require('assert');
+const { ifError, strictEqual } = require('assert');
 const { createContext, runInNewContext } = require('vm');
 const { Session } = require('inspector');
 
@@ -22,7 +22,7 @@ async function testContextCreatedAndDestroyed() {
     const mainContextPromise =
         notificationPromise('Runtime.executionContextCreated');
 
-    session.post('Runtime.enable');
+    session.post('Runtime.enable', assert.ifError);
     const contextCreated = await mainContextPromise;
     const { name, origin, auxData } = contextCreated.params.context;
     if (common.isSunOS || common.isWindows) {
@@ -148,7 +148,7 @@ async function testContextCreatedAndDestroyed() {
 
 async function testBreakpointHit() {
   console.log('Testing breakpoint is hit in a new context');
-  session.post('Debugger.enable');
+  session.post('Debugger.enable', assert.ifError);
 
   const pausedPromise = notificationPromise('Debugger.paused');
   runInNewContext('debugger', {});
