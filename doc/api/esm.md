@@ -92,6 +92,9 @@ if the nearest parent `package.json` contains `"type": "module"`.
 ```js
 // my-app.js, part of the same example as above
 import './startup.js'; // Loaded as ES module because of package.json
+
+// Extensionless. Requires 'node --es-module-specifier-resolution=node'
+import './startup'; // Loaded as ES module because of package.json
 ```
 
 Package authors should include the `"type"` field, even in packages where all
