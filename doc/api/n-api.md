@@ -4380,7 +4380,7 @@ allows them to avoid blocking overall execution of the Node.js application.
 N-API provides an ABI-stable interface for these
 supporting functions which covers the most common asynchronous use cases.
 
-N-API defines the `napi_work` structure which is used to manage
+N-API defines the `napi_async_work` structure which is used to manage
 asynchronous workers. Instances are created/deleted with
 [`napi_create_async_work`][] and [`napi_delete_async_work`][].
 
@@ -4947,7 +4947,7 @@ napiVersion: 2
 
 ```C
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
-                                               uv_loop_t** loop);
+                                               struct uv_loop_s** loop);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
