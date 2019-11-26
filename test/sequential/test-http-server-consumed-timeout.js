@@ -31,7 +31,7 @@ server.listen(0, common.mustCall(() => {
   const req = http.request({
     port: server.address().port,
     method: 'POST'
-  }, (res) => {
+  }, () => {
     const interval = setInterval(() => {
       intervalWasInvoked = true;
       // If machine is busy enough that the interval takes more than TIMEOUT ms
