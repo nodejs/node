@@ -5,47 +5,48 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-let time = Date.now();
 let intervalWasInvoked = false;
-const TIMEOUT = common.platformTimeout(200);
+const TIMEOUT = common.platformTimeout(50);
 
-const server = http.createServer((req, res) => {
-  server.close();
+runTest(TIMEOUT);
 
-  res.writeHead(200);
-  res.flushHeaders();
+function runTest(timeoutDuration) {
+  const server = http.createServer((req, res) => {
+    server.close();
 
-  req.setTimeout(TIMEOUT, () => {
-    if (!intervalWasInvoked)
-      return common.skip('interval was not invoked quickly enough for test');
-    assert.fail('Request timeout should not fire');
+    res.writeHead(200);
+    res.flushHeaders();
+
+    req.setTimeout(timeoutDuration, () => {
+      if (!intervalWasInvoked) {
+        // Interval wasn't invoked, probably because the machine is busy with
+        // other things. Try again with a longer timeout.
+        console.error(`Retrying with timeout of ${timeoutDuration * 2}.`);
+        return setImmediate(() => { runTest(timeoutDuration * 2); });
+      }
+      assert.fail('Request timeout should not fire');
+    });
+
+    req.resume();
+    req.once('end', () => {
+      res.end();
+    });
   });
 
-  req.resume();
-  req.once('end', () => {
-    res.end();
-  });
-});
-
-server.listen(0, common.mustCall(() => {
-  const req = http.request({
-    port: server.address().port,
-    method: 'POST'
-  }, () => {
-    const interval = setInterval(() => {
-      intervalWasInvoked = true;
-      // If machine is busy enough that the interval takes more than TIMEOUT ms
-      // to be invoked, skip the test.
-      const now = Date.now();
-      if (now - time > TIMEOUT)
-        return common.skip('interval is not invoked quickly enough for test');
-      time = now;
-      req.write('a');
-    }, common.platformTimeout(25));
-    setTimeout(() => {
-      clearInterval(interval);
-      req.end();
-    }, TIMEOUT);
-  });
-  req.write('.');
-}));
+  server.listen(0, common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port,
+      method: 'POST'
+    }, () => {
+      const interval = setInterval(() => {
+        intervalWasInvoked = true;
+        req.write('a');
+      }, common.platformTimeout(25));
+      setTimeout(() => {
+        clearInterval(interval);
+        req.end();
+      }, timeoutDuration);
+    });
+    req.write('.');
+  }));
+}
