@@ -162,7 +162,7 @@ When this function is used, no `'message'` event will be emitted and the
 added: v13.2.0
 -->
 
-* {Object|undefined}
+* {Object}
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
