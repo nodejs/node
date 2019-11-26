@@ -1145,7 +1145,6 @@ static void IsExtraRootCertsFileLoaded(
   return args.GetReturnValue().Set(extra_root_certs_loaded);
 }
 
-
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
@@ -2173,6 +2172,39 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   info->Set(context, env->raw_string(), buff).Check();
 
   return scope.Escape(info);
+}
+
+
+static void ParseX509(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsArrayBufferView());
+  ArrayBufferViewContents<unsigned char> buf(args[0].As<ArrayBufferView>());
+  const unsigned char* data = buf.data();
+  unsigned data_len = buf.length();
+
+  ClearErrorOnReturn clear_error_on_return;
+  BIOPointer bio(LoadBIO(env, args[0]));
+  if (!bio)
+    return ThrowCryptoError(env, ERR_get_error());
+
+  X509Pointer pem(PEM_read_bio_X509_AUX(
+      bio.get(), nullptr, NoPasswordCallback, nullptr));
+
+  if (!pem) {
+    // Try as DER, but return the original PEM failure if it isn't DER.
+    MarkPopErrorOnReturn mark_here;
+
+    X509Pointer der(d2i_X509(nullptr, &data, data_len));
+    if (der) {
+      args.GetReturnValue().Set(X509ToObject(env, der.get()));
+    }
+  }
+  if (!pem) {
+    return ThrowCryptoError(env, ERR_get_error());
+  }
+
+  args.GetReturnValue().Set(X509ToObject(env, pem.get()));
 }
 
 
@@ -7358,6 +7390,8 @@ void Initialize(Local<Object> target,
   // Exposed for testing purposes only.
   env->SetMethodNoSideEffect(target, "isExtraRootCertsFileLoaded",
                              IsExtraRootCertsFileLoaded);
+  env->SetMethodNoSideEffect(target, "parseX509",
+                             ParseX509);
 
   env->SetMethodNoSideEffect(target, "ECDHConvertKey", ConvertKey);
 #ifndef OPENSSL_NO_ENGINE
