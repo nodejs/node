@@ -72,7 +72,7 @@ void StreamPipe::Unpipe() {
   // inside the garbage collector, so we can’t run JS here.
   HandleScope handle_scope(env()->isolate());
   BaseObjectPtr<StreamPipe> strong_ref{this};
-  env()->SetImmediate([this](Environment* env) {
+  env()->SetImmediate([this, strong_ref](Environment* env) {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
     Local<Object> object = this->object();
