@@ -1995,8 +1995,11 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     X509_EXTENSION* ext = X509_get_ext(cert, index);
     CHECK_NOT_NULL(ext);
 
-    if (!SafeX509ExtPrint(bio.get(), ext)) {
-      CHECK_EQ(1, X509V3_EXT_print(bio.get(), ext, 0, 0));
+    if (!SafeX509ExtPrint(bio.get(), ext) &&
+        X509V3_EXT_print(bio.get(), ext, 0, 0) != 1) {
+      info->Set(context, keys[i], Null(env->isolate())).Check();
+      USE(BIO_reset(bio.get()));
+      continue;
     }
 
     BIO_get_mem_ptr(bio.get(), &mem);
