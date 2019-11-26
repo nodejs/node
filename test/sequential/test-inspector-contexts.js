@@ -155,4 +155,4 @@ async function testBreakpointHit() {
   await pausedPromise;
 }
 
-testContextCreatedAndDestroyed().then(testBreakpointHit);
+testContextCreatedAndDestroyed().then(common.mustCall(testBreakpointHit));
