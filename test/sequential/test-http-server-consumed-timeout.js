@@ -41,7 +41,7 @@ function runTest(timeoutDuration) {
       const interval = setInterval(() => {
         intervalWasInvoked = true;
         req.write('a');
-      }, common.platformTimeout(25));
+      }, 25);
       setTimeout(() => {
         clearInterval(interval);
         req.end();
