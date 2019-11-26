@@ -12,7 +12,7 @@ class StreamPipe : public AsyncWrap {
   StreamPipe(StreamBase* source, StreamBase* sink, v8::Local<v8::Object> obj);
   ~StreamPipe() override;
 
-  void Unpipe();
+  void Unpipe(bool is_in_deletion = false);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
