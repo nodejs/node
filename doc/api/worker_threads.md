@@ -162,7 +162,7 @@ When this function is used, no `'message'` event will be emitted and the
 added: REPLACEME
 -->
 
-* {Object|undefined}
+* {Object}
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
