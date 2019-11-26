@@ -42,7 +42,7 @@ StreamPipe::StreamPipe(StreamBase* source,
 }
 
 StreamPipe::~StreamPipe() {
-  Unpipe();
+  Unpipe(true);
 }
 
 StreamBase* StreamPipe::source() {
@@ -53,7 +53,7 @@ StreamBase* StreamPipe::sink() {
   return static_cast<StreamBase*>(writable_listener_.stream());
 }
 
-void StreamPipe::Unpipe() {
+void StreamPipe::Unpipe(bool is_in_deletion) {
   if (is_closed_)
     return;
 
@@ -68,6 +68,8 @@ void StreamPipe::Unpipe() {
   source()->RemoveStreamListener(&readable_listener_);
   if (pending_writes_ == 0)
     sink()->RemoveStreamListener(&writable_listener_);
+
+  if (is_in_deletion) return;
 
   // Delay the JS-facing part with SetImmediate, because this might be from
   // inside the garbage collector, so we can’t run JS here.
