@@ -480,7 +480,6 @@ of the plaintext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
-Example: Using decipher.setAAD() method:
 
 ```js
 const crypto = require('crypto');
