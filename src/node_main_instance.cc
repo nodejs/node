@@ -68,8 +68,6 @@ NodeMainInstance::NodeMainInstance(
   isolate_ = Isolate::Allocate();
   CHECK_NOT_NULL(isolate_);
 
-  Locker locker(isolate_);
-
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate_, event_loop);
@@ -79,6 +77,9 @@ NodeMainInstance::NodeMainInstance(
   deserialize_mode_ = per_isolate_data_indexes != nullptr;
   // If the indexes are not nullptr, we are not deserializing
   CHECK_IMPLIES(deserialize_mode_, params->external_references != nullptr);
+
+  Locker locker(isolate_);
+
   isolate_data_.reset(new IsolateData(isolate_,
                                       event_loop,
                                       platform,
