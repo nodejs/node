@@ -1417,7 +1417,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<NativeImmediateCallback> native_immediate_callbacks_head_;
   NativeImmediateCallback* native_immediate_callbacks_tail_ = nullptr;
 
-  void RunAndClearNativeImmediates();
+  void RunAndClearNativeImmediates(bool only_refed = false);
   static void CheckImmediate(uv_check_t* handle);
 
   // Use an unordered_set, so that we have efficient insertion and removal.
