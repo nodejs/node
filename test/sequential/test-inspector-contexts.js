@@ -65,8 +65,10 @@ async function testContextCreatedAndDestroyed() {
                        JSON.stringify(contextCreated));
 
     // GC is unpredictable...
+    console.log('Checking/waiting for GC.');
     while (!contextDestroyed)
       global.gc();
+    console.log('Context destroyed.');
 
     assert.strictEqual(contextDestroyed.params.executionContextId, id,
                        JSON.stringify(contextDestroyed));
@@ -95,8 +97,10 @@ async function testContextCreatedAndDestroyed() {
                        JSON.stringify(contextCreated));
 
     // GC is unpredictable...
+    console.log('Checking/waiting for GC again.');
     while (!contextDestroyed)
       global.gc();
+    console.log('Other context destroyed.');
   }
 
   {
@@ -119,8 +123,10 @@ async function testContextCreatedAndDestroyed() {
                        JSON.stringify(contextCreated));
 
     // GC is unpredictable...
+    console.log('Checking/waiting for GC a third time.');
     while (!contextDestroyed)
       global.gc();
+    console.log('Context destroyed once again.');
   }
 
   {
@@ -141,8 +147,10 @@ async function testContextCreatedAndDestroyed() {
                        JSON.stringify(contextCreated));
 
     // GC is unpredictable...
+    console.log('Checking/waiting for GC a fourth time.');
     while (!contextDestroyed)
       global.gc();
+    console.log('Context destroyed a fourth time.');
   }
 }
 
