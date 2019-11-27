@@ -110,9 +110,6 @@ Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
 .Sy ./configure --openssl-fips .
 .
-.It Fl -es-module-specifier-resolution
-Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
-.
 .It Fl -experimental-conditional-exports
 Enable experimental support for "require" and "node" conditional export targets.
 .
@@ -129,6 +126,9 @@ Use the specified file as a security policy.
 Enable experimental top-level
 .Sy await
 keyword support in REPL.
+.
+.It Fl -experimental-specifier-resolution
+Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
 .
 .It Fl -experimental-report
 Enable experimental

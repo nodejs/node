@@ -789,7 +789,7 @@ inline Maybe<URL> ResolveIndex(const URL& search) {
 Maybe<URL> FinalizeResolution(Environment* env,
                               const URL& resolved,
                               const URL& base) {
-  if (env->options()->es_module_specifier_resolution == "node") {
+  if (env->options()->experimental_specifier_resolution == "node") {
     Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(resolved);
     if (!file.IsNothing()) {
       return file;
@@ -1053,7 +1053,7 @@ Maybe<URL> PackageMainResolve(Environment* env,
         return Just(resolved);
       }
     }
-    if (env->options()->es_module_specifier_resolution == "node") {
+    if (env->options()->experimental_specifier_resolution == "node") {
       if (pcfg.has_main == HasMain::Yes) {
         return FinalizeResolution(env, URL(pcfg.main, pjson_url), base);
       } else {
