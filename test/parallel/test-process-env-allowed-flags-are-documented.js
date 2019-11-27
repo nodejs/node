@@ -85,6 +85,7 @@ const undocumented = difference(process.allowedNodeEnvironmentFlags,
                                 documented);
 // Remove intentionally undocumented options.
 assert(undocumented.delete('--debug-arraybuffer-allocations'));
+assert(undocumented.delete('--es-module-specifier-resolution'));
 assert(undocumented.delete('--experimental-worker'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--loader'));
