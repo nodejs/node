@@ -467,8 +467,7 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
         Environment* env = ContainerOf(
             &Environment::cleanup_finalization_groups_async_, async);
         env->CleanupFinalizationGroups();
-      }
-     );
+      });
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_));
