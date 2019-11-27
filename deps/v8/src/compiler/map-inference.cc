@@ -91,6 +91,13 @@ MapHandles const& MapInference::GetMaps() {
   return maps_;
 }
 
+bool MapInference::Is(Handle<Map> expected_map) {
+  if (!HaveMaps()) return false;
+  const MapHandles& maps = GetMaps();
+  if (maps.size() != 1) return false;
+  return maps[0].equals(expected_map);
+}
+
 void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
                                    Node* control,
                                    const FeedbackSource& feedback) {
