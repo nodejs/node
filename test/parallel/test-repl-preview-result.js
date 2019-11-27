@@ -82,7 +82,7 @@ const tests = [
            'aObj.a', CLEAR],
     expected: [
       wrapWithColorCode('aObj',
-                        '{ a: { b: { c: [ {}, \'test\' ] } } }'),
+                        '{ a: { b: { c: [Array] } } }'),
       wrapWithColorCode('aObj.a',
                         '{ b: { c: [ {}, \'test\' ] } }')]
   }
@@ -98,30 +98,32 @@ function runTest() {
   const env = opts.env;
   const test = opts.test;
   const expected = opts.expected;
+  const ouput = new stream.Writable({
+    write(chunk, _, next) {
+      const output = chunk.toString();
+
+      // Ignore everything except eval result
+      if (!output.includes('//')) {
+        return next();
+      }
+
+      const toBeAsserted = expected[0];
+      try {
+        assert.strictEqual(output, toBeAsserted);
+        expected.shift();
+      } catch (err) {
+        console.error(`Failed test # ${numtests - tests.length}`);
+        throw err;
+      }
+
+      next();
+    },
+  });
+  ouput.hasColors = () => true;
 
   REPL.createInternalRepl(env, {
     input: new ActionStream(),
-    output: new stream.Writable({
-      write(chunk, _, next) {
-        const output = chunk.toString();
-
-        // Ignore everything except eval result
-        if (!output.includes('//')) {
-          return next();
-        }
-
-        const toBeAsserted = expected[0];
-        try {
-          assert.strictEqual(output, toBeAsserted);
-          expected.shift();
-        } catch (err) {
-          console.error(`Failed test # ${numtests - tests.length}`);
-          throw err;
-        }
-
-        next();
-      }
-    }),
+    output: ouput,
     prompt: prompt,
     useColors: false,
     terminal: true

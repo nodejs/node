@@ -90,7 +90,7 @@ const tests = [
     env: {},
     test: [UP, '\'42\'', ENTER],
     expected: [prompt, '\'', '4', '2', '\'',
-               `${prompt}'42'\u001b[90m // '42'\u001b[39m`,
+               `${prompt}'42' //'42'`,
                '\'42\'\n', prompt, prompt],
     clean: false
   },
