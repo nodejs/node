@@ -37,7 +37,7 @@ const ctrlU = { ctrl: true, name: 'u' };
 
   for (const [cursor, string] of tests) {
     rl.write(string);
-    assert.strictEqual(rl._getCursorPos().cols, cursor);
+    assert.strictEqual(rl.getCursorPos().cols, cursor);
     rl.write(null, ctrlU);
   }
 }
