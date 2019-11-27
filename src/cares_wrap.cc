@@ -906,7 +906,8 @@ int ParseTxtReply(Environment* env,
   uint32_t i = 0, j;
   uint32_t offset = ret->Length();
   for (j = 0; current != nullptr; current = current->next) {
-    Local<String> txt = OneByteString(env->isolate(), current->txt);
+    Local<String> txt =
+        OneByteString(env->isolate(), current->txt, current->length);
 
     // New record found - write out the current chunk
     if (current->record_start) {
