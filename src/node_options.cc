@@ -127,10 +127,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     }
   }
 
-  if (!es_module_specifier_resolution.empty()) {
-    if (es_module_specifier_resolution != "node" &&
-        es_module_specifier_resolution != "explicit") {
-      errors->push_back("invalid value for --es-module-specifier-resolution");
+  if (!experimental_specifier_resolution.empty()) {
+    if (experimental_specifier_resolution != "node" &&
+        experimental_specifier_resolution != "explicit") {
+      errors->push_back(
+        "invalid value for --experimental-specifier-resolution");
     }
   }
 
@@ -361,10 +362,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set module type for string input",
             &EnvironmentOptions::module_type,
             kAllowedInEnvironment);
-  AddOption("--es-module-specifier-resolution",
+  AddOption("--experimental-specifier-resolution",
             "Select extension resolution algorithm for es modules; "
             "either 'explicit' (default) or 'node'",
-            &EnvironmentOptions::es_module_specifier_resolution,
+            &EnvironmentOptions::experimental_specifier_resolution,
             kAllowedInEnvironment);
   AddOption("--no-deprecation",
             "silence deprecation warnings",

@@ -104,7 +104,7 @@ class EnvironmentOptions : public Options {
   bool experimental_conditional_exports = false;
   bool experimental_json_modules = false;
   bool experimental_resolve_self = false;
-  std::string es_module_specifier_resolution;
+  std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;
   std::string module_type;
   std::string experimental_policy;

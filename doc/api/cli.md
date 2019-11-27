@@ -156,20 +156,6 @@ Enable experimental Source Map V3 support for stack traces.
 Currently, overriding `Error.prepareStackTrace` is ignored when the
 `--enable-source-maps` flag is set.
 
-### `--es-module-specifier-resolution=mode`
-<!-- YAML
-added: v12.0.0
--->
-
-Sets the resolution algorithm for resolving ES module specifiers. Valid options
-are `explicit` and `node`.
-
-The default is `explicit`, which requires providing the full path to a
-module. The `node` mode will enable support for optional file extensions and
-the ability to import a directory that has an index file.
-
-Please see [customizing ESM specifier resolution][] for example usage.
-
 ### `--experimental-conditional-exports`
 <!-- YAML
 added: v13.2.0
@@ -222,6 +208,20 @@ added: v13.1.0
 
 Enable experimental support for a package using `require` or `import` to load
 itself.
+
+### `--experimental-specifier-resolution=mode`
+<!-- YAML
+added: REPLACEME
+-->
+
+Sets the resolution algorithm for resolving ES module specifiers. Valid options
+are `explicit` and `node`.
+
+The default is `explicit`, which requires providing the full path to a
+module. The `node` mode will enable support for optional file extensions and
+the ability to import a directory that has an index file.
+
+Please see [customizing ESM specifier resolution][] for example usage.
 
 ### `--experimental-vm-modules`
 <!-- YAML
@@ -1038,7 +1038,6 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 * `--enable-fips`
 * `--enable-source-maps`
-* `--es-module-specifier-resolution`
 * `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -1047,6 +1046,7 @@ Node.js options that are allowed are:
 * `--experimental-repl-await`
 * `--experimental-report`
 * `--experimental-resolve-self`
+* `--experimental-specifier-resolution`
 * `--experimental-vm-modules`
 * `--experimental-wasm-modules`
 * `--force-context-aware`
