@@ -1937,7 +1937,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     buf = uv_buf_init(new_buf, nread);
     stream_buf_offset_ = 0;
     stream_buf_ab_.Reset();
-    DecrementCurrentSessionMemory(stream_buf_offset_);
+
+    // We have now fully processed the stream_buf_ input chunk (by moving the
+    // remaining part into buf, which will be accounted for below).
+    DecrementCurrentSessionMemory(stream_buf_.len);
   }
 
   // Shrink to the actual amount of used data.
