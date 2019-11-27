@@ -398,6 +398,19 @@ reading input from a TTY stream.  The position of cursor determines the
 portion of the input string that will be modified as input is processed,
 as well as the column where the terminal caret will be rendered.
 
+### `rl.getCursorPos()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+  * `rows` {number} the row of the prompt the cursor currently lands on
+  * `cols` {number} the screen column the cursor currently lands on
+
+Returns the real position of the cursor in relation to the input
+prompt + string.  Long input (wrapping) strings, as well as multiple
+line prompts are included in the calculations.
+
 ## `readline.clearLine(stream, dir[, callback])`
 <!-- YAML
 added: v0.7.7
