@@ -446,12 +446,12 @@ static void InitializeProcessMethods(Local<Object> target,
   // define various internal methods
   if (env->owns_process_state()) {
     env->SetMethod(target, "_debugProcess", DebugProcess);
-    env->SetMethod(target, "_debugEnd", DebugEnd);
     env->SetMethod(target, "abort", Abort);
     env->SetMethod(target, "causeSegfault", CauseSegfault);
     env->SetMethod(target, "chdir", Chdir);
   }
 
+  env->SetMethod(target, "_debugEnd", DebugEnd);
   env->SetMethod(
       target, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
   env->SetMethod(target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);

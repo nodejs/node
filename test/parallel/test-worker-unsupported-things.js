@@ -48,7 +48,6 @@ if (!process.env.HAS_STARTED_WORKER) {
   assert.strictEqual('_stopProfilerIdleNotifier' in process, false);
   assert.strictEqual('_debugProcess' in process, false);
   assert.strictEqual('_debugPause' in process, false);
-  assert.strictEqual('_debugEnd' in process, false);
 
   parentPort.postMessage(true);
 }
