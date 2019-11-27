@@ -389,6 +389,7 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, object_function)                                      \
   V(JSFunction, promise_function)                                     \
   V(JSFunction, promise_then)                                         \
+  V(JSFunction, regexp_function)                                      \
   V(JSFunction, string_function)                                      \
   V(JSFunction, symbol_function)                                      \
   V(JSGlobalObject, global_object)                                    \

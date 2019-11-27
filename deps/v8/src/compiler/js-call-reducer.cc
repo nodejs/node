@@ -7098,11 +7098,14 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* regexp = NodeProperties::GetValueInput(node, 1);
 
+  // Only the initial JSRegExp map is valid here, since the following lastIndex
+  // check as well as the lowered builtin call rely on a known location of the
+  // lastIndex field.
+  Handle<Map> regexp_initial_map =
+      native_context().regexp_function().initial_map().object();
+
   MapInference inference(broker(), regexp, effect);
-  if (!inference.HaveMaps() ||
-      !inference.AllOfInstanceTypes(InstanceTypeChecker::IsJSRegExp)) {
-    return inference.NoChange();
-  }
+  if (!inference.Is(regexp_initial_map)) return inference.NoChange();
   MapHandles const& regexp_maps = inference.GetMaps();
 
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
