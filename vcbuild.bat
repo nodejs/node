@@ -11,6 +11,14 @@ if /i "%1"=="/?" goto help
 
 cd %~dp0
 
+@rem CI_* variables should be kept synchronized with the ones in Makefile
+set CI_NATIVE_SUITES=addons addons-napi
+set CI_ASYNC_HOOKS=async-hooks
+set CI_JS_SUITES=default
+set CI_DOC=doctool
+@rem Same as the test-ci target in Makefile
+set "common_test_suites=%CI_ASYNC_HOOKS% %CI_JS_SUITES% %CI_NATIVE_SUITES% %CI_DOC% known_issues&set build_addons=1&set build_addons_napi=1"
+
 @rem Process arguments.
 set config=Release
 set target=Build
@@ -44,10 +52,8 @@ set enable_static=
 set build_addons_napi=
 set test_node_inspect=
 set test_check_deopts=
-set js_test_suites=default async-hooks known_issues
 set v8_test_options=
 set v8_build_options=
-set "common_test_suites=%js_test_suites% doctool addons addons-napi&set build_addons=1&set build_addons_napi=1"
 set http2_debug=
 set nghttp2_debug=
 set link_module=
@@ -74,6 +80,8 @@ if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %common_test_suites%&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
+if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -J -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_addons_napi=1&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
+if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -J -p tap --logfile test.tap %CI_ASYNC_HOOKS% %CI_JS_SUITES% known_issues&set skip_cctest=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
@@ -474,9 +482,11 @@ if errorlevel 1 goto exit
 if "%test_args%"=="" goto test-v8
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
+if defined skip_cctest goto run-test-py
 if not exist %config%\cctest.exe goto run-test-py
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
+:run-test-py
 REM when building a static library there's no binary to run tests
 if defined enable_static goto test-v8
 call :run-python tools\test.py %test_args%

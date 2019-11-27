@@ -395,6 +395,7 @@ test-all: test-build test/gc/build/Release/binding.node ## Run everything in tes
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
+# CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= addons addons-napi
 CI_ASYNC_HOOKS := async-hooks
 CI_JS_SUITES ?= default
