@@ -3225,7 +3225,8 @@ changes:
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
                  `EMFILE` errors use the same retry logic as other errors. The
-                 `retryDelay` option is now supported.
+                 `retryDelay` option is now supported. `ENFILE` errors are now
+                 retried.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
@@ -3248,11 +3249,11 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENOTEMPTY`, or `EPERM`
-  error is encountered, Node.js will retry the operation with a linear backoff
-  wait of `retryDelay` ms longer on each try. This option represents the number
-  of retries. This option is ignored if the `recursive` option is not `true`.
-  **Default:** `0`.
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  `EPERM` error is encountered, Node.js will retry the operation with a linear
+  backoff wait of `retryDelay` ms longer on each try. This option represents the
+  number of retries. This option is ignored if the `recursive` option is not
+  `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
   recursive mode, errors are not reported if `path` does not exist, and
   operations are retried on failure. **Default:** `false`.
@@ -3277,7 +3278,8 @@ changes:
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
                  `EMFILE` errors use the same retry logic as other errors. The
-                 `retryDelay` option is now supported.
+                 `retryDelay` option is now supported. `ENFILE` errors are now
+                 retried.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
@@ -3292,8 +3294,9 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `ENOTEMPTY`, or `EPERM` error is
-  encountered, Node.js will retry the operation. This option represents the
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  `EPERM` error is encountered, Node.js will retry the operation with a linear
+  backoff wait of `retryDelay` ms longer on each try. This option represents the
   number of retries. This option is ignored if the `recursive` option is not
   `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
@@ -5014,7 +5017,8 @@ changes:
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
                  `EMFILE` errors use the same retry logic as other errors. The
-                 `retryDelay` option is now supported.
+                 `retryDelay` option is now supported. `ENFILE` errors are now
+                 retried.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/29168
     description: The `recursive`, `maxBusyTries`, and `emfileWait` options are
@@ -5025,11 +5029,11 @@ changes:
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENOTEMPTY`, or `EPERM`
-  error is encountered, Node.js will retry the operation with a linear backoff
-  wait of `retryDelay` ms longer on each try. This option represents the number
-  of retries. This option is ignored if the `recursive` option is not `true`.
-  **Default:** `0`.
+  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  `EPERM` error is encountered, Node.js will retry the operation with a linear
+  backoff wait of `retryDelay` ms longer on each try. This option represents the
+  number of retries. This option is ignored if the `recursive` option is not
+  `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
   recursive mode, errors are not reported if `path` does not exist, and
   operations are retried on failure. **Default:** `false`.
