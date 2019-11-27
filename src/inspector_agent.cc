@@ -60,6 +60,8 @@ static uv_async_t start_io_thread_async;
 // This is just an additional check to make sure start_io_thread_async
 // is not accidentally re-used or used when uninitialized.
 static std::atomic_bool start_io_thread_async_initialized { false };
+// Protects the Agent* stored in start_io_thread_async.data.
+static Mutex start_io_thread_async_mutex;
 
 class StartIoTask : public Task {
  public:
@@ -97,6 +99,8 @@ static void StartIoThreadWakeup(int signo, siginfo_t* info, void* ucontext) {
 inline void* StartIoThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&start_io_thread_semaphore);
+    Mutex::ScopedLock lock(start_io_thread_async_mutex);
+
     CHECK(start_io_thread_async_initialized);
     Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
     if (agent != nullptr)
@@ -157,6 +161,7 @@ static int StartDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI StartIoThreadProc(void* arg) {
+  Mutex::ScopedLock lock(start_io_thread_async_mutex);
   CHECK(start_io_thread_async_initialized);
   Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
   if (agent != nullptr)
@@ -748,8 +753,7 @@ Agent::Agent(Environment* env)
       debug_options_(env->options()->debug_options()),
       host_port_(env->inspector_host_port()) {}
 
-Agent::~Agent() {
-}
+Agent::~Agent() {}
 
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
@@ -762,6 +766,7 @@ bool Agent::Start(const std::string& path,
 
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
   if (parent_env_->owns_inspector()) {
+    Mutex::ScopedLock lock(start_io_thread_async_mutex);
     CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                               &start_io_thread_async,
@@ -774,9 +779,13 @@ bool Agent::Start(const std::string& path,
     parent_env_->AddCleanupHook([](void* data) {
       Environment* env = static_cast<Environment*>(data);
 
+      {
+        Mutex::ScopedLock lock(start_io_thread_async_mutex);
+        start_io_thread_async.data = nullptr;
+      }
+
       // This is global, will never get freed
       env->CloseHandle(&start_io_thread_async, [](uv_async_t*) {
-        start_io_thread_async.data = nullptr;
         CHECK(start_io_thread_async_initialized.exchange(false));
       });
     }, parent_env_);
