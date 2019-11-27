@@ -650,9 +650,9 @@ For both types, available `options` include:
 
 * `onread` {Object} If specified, incoming data is stored in a single `buffer`
   and passed to the supplied `callback` when data arrives on the socket.
-  Note: this will cause the streaming functionality to not provide any data,
-  however events like `'error'`, `'end'`, and `'close'` will still be emitted
-  as normal and methods like `pause()` and `resume()` will also behave as
+  This will cause the streaming functionality to not provide any data.
+  The socket will emit events like `'error'`, `'end'`, and `'close'`
+  as usual. Methods like `pause()` and `resume()` will also behave as
   expected.
   * `buffer` {Buffer|Uint8Array|Function} Either a reusable chunk of memory to
     use for storing incoming data or a function that returns such.
