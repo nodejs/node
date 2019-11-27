@@ -92,7 +92,7 @@ Also running
 <!-- eslint-disable strict -->
 
 ```js
-new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
+new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 ```
 
 …Should return `enero` not `January`.
@@ -120,7 +120,7 @@ make
 
 ```js
 process.versions.icu;
-new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
+new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 ```
 
 (This should print your updated ICU version number, and also `January` again.)
