@@ -3,13 +3,14 @@
 require('../common');
 const assert = require('assert');
 
-const { createContext, runInContext, runInNewContext } = require('vm');
+const { Context, runInContext, runInNewContext } = require('vm');
 
 const WASM_BYTES = Buffer.from(
   [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
 
 {
-  const ctx = createContext({ WASM_BYTES });
+  const ctx = new Context();
+  ctx.global.WASM_BYTES = WASM_BYTES;
   const test = 'eval(""); new WebAssembly.Module(WASM_BYTES);';
   runInContext(test, ctx);
 
@@ -19,7 +20,7 @@ const WASM_BYTES = Buffer.from(
 }
 
 {
-  const ctx = createContext({}, {
+  const ctx = new Context({
     codeGeneration: {
       strings: false,
     },
@@ -32,11 +33,12 @@ const WASM_BYTES = Buffer.from(
 }
 
 {
-  const ctx = createContext({ WASM_BYTES }, {
+  const ctx = new Context({
     codeGeneration: {
       wasm: false,
     },
   });
+  ctx.global.WASM_BYTES = WASM_BYTES;
 
   const CompileError = runInContext('WebAssembly.CompileError', ctx);
   assert.throws(() => {
@@ -65,7 +67,7 @@ assert.throws(() => {
 });
 
 assert.throws(() => {
-  createContext({}, {
+  new Context({
     codeGeneration: {
       strings: 0,
     },
@@ -85,7 +87,7 @@ assert.throws(() => {
 });
 
 assert.throws(() => {
-  createContext({}, {
+  new Context({
     codeGeneration: 1,
   });
 }, {
@@ -93,7 +95,7 @@ assert.throws(() => {
 });
 
 assert.throws(() => {
-  createContext({}, {
+  new Context({
     codeGeneration: null,
   });
 }, {

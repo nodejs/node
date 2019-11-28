@@ -5,10 +5,10 @@
 const common = require('../common');
 
 const assert = require('assert');
-const { Script, SourceTextModule, createContext } = require('vm');
+const { Script, SourceTextModule, Context } = require('vm');
 
 async function testNoCallback() {
-  const m = new SourceTextModule('import("foo")', { context: createContext() });
+  const m = new SourceTextModule('import("foo")', { context: new Context() });
   await m.link(common.mustNotCall());
   const { result } = await m.evaluate();
   let threw = false;

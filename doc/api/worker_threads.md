@@ -76,14 +76,13 @@ if (isMainThread) {
 }
 ```
 
-## `worker.moveMessagePortToContext(port, contextifiedSandbox)`
+## `worker.moveMessagePortToContext(port, context)`
 <!-- YAML
 added: v11.13.0
 -->
 
 * `port` {MessagePort} The message port which will be transferred.
-* `contextifiedSandbox` {Object} A [contextified][] object as returned by the
-  `vm.createContext()` method.
+* `context` {vm.Context} A [`vm.Context`][] instance.
 
 * Returns: {MessagePort}
 
@@ -768,6 +767,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`trace_events`]: tracing.html
 [`v8.getHeapSnapshot()`]: v8.html#v8_v8_getheapsnapshot
 [`vm`]: vm.html
+[`vm.Context`]: vm.html#vm_class_vm_context
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`worker.SHARE_ENV`]: #worker_threads_worker_share_env
@@ -780,5 +780,4 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.html
-[contextified]: vm.html#vm_what_does_it_mean_to_contextify_an_object
 [v8.serdes]: v8.html#v8_serialization_api

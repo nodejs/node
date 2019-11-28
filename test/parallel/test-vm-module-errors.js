@@ -6,7 +6,7 @@ const common = require('../common');
 
 const assert = require('assert');
 
-const { SourceTextModule, createContext } = require('vm');
+const { SourceTextModule, Context } = require('vm');
 
 async function createEmptyLinkedModule() {
   const m = new SourceTextModule('');
@@ -125,7 +125,8 @@ async function checkLinking() {
   });
 
   await assert.rejects(async () => {
-    const c = createContext({ a: 1 });
+    const c = new Context();
+    c.global.a = 1;
     const foo = new SourceTextModule('', { context: c });
     await foo.link(common.mustNotCall());
     const bar = new SourceTextModule('import "foo";');

@@ -8,16 +8,15 @@ const {
   Module,
   SourceTextModule,
   SyntheticModule,
-  createContext
+  Context,
 } = require('vm');
 const util = require('util');
 
 (async function test1() {
-  const context = createContext({
-    foo: 'bar',
-    baz: undefined,
-    typeofProcess: undefined,
-  });
+  const context = new Context();
+  context.global.foo = 'bar';
+  context.global.baz = undefined;
+  context.global.typeofProcess = undefined;
   const m = new SourceTextModule(
     'baz = foo; typeofProcess = typeof process; typeof Object;',
     { context }
@@ -28,12 +27,10 @@ const util = require('util');
   const result = await m.evaluate();
   assert.strictEqual(m.status, 'evaluated');
   assert.strictEqual(Object.getPrototypeOf(result), null);
-  assert.deepStrictEqual(context, {
-    foo: 'bar',
-    baz: 'bar',
-    typeofProcess: 'undefined'
-  });
   assert.strictEqual(result.result, 'function');
+  assert.strictEqual(context.global.foo, 'bar');
+  assert.strictEqual(context.global.baz, 'bar');
+  assert.strictEqual(context.global.typeofProcess, 'undefined');
 }());
 
 (async () => {
@@ -56,8 +53,8 @@ const util = require('util');
 
 // Check the generated identifier for each module
 (async () => {
-  const context1 = createContext({ });
-  const context2 = createContext({ });
+  const context1 = new Context();
+  const context2 = new Context();
 
   const m1 = new SourceTextModule('1', { context: context1 });
   assert.strictEqual(m1.identifier, 'vm:module(0)');
@@ -69,7 +66,8 @@ const util = require('util');
 
 // Check inspection of the instance
 {
-  const context = createContext({ foo: 'bar' });
+  const context = new Context();
+  context.global.foo = 'bar';
   const m = new SourceTextModule('1', { context });
 
   assert.strictEqual(
@@ -77,7 +75,7 @@ const util = require('util');
     `SourceTextModule {
   status: 'unlinked',
   identifier: 'vm:module(0)',
-  context: { foo: 'bar' }
+  context: Context {}
 }`
   );
 
@@ -90,7 +88,8 @@ const util = require('util');
 }
 
 {
-  const context = createContext({ foo: 'bar' });
+  const context = new Context();
+  context.global.foo = 'bar';
   const m = new SyntheticModule([], () => {}, { context });
 
   assert.strictEqual(
@@ -98,7 +97,7 @@ const util = require('util');
     `SyntheticModule {
   status: 'unlinked',
   identifier: 'vm:module(0)',
-  context: { foo: 'bar' }
+  context: Context {}
 }`
   );
 

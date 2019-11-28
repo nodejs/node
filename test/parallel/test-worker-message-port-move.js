@@ -7,12 +7,11 @@ const {
   MessagePort, MessageChannel, moveMessagePortToContext
 } = require('worker_threads');
 
-const context = vm.createContext();
+const context = new vm.Context();
 const { port1, port2 } = new MessageChannel();
-context.port = moveMessagePortToContext(port1, context);
-context.global = context;
-Object.assign(context, {
-  global: context,
+Object.assign(context.global, {
+  global: context.global,
+  port: moveMessagePortToContext(port1, context),
   assert,
   MessagePort,
   MessageChannel

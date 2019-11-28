@@ -151,40 +151,44 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
     Local<Object> sandbox_obj,
     const ContextOptions& options) {
   EscapableHandleScope scope(env->isolate());
-  Local<FunctionTemplate> function_template =
-      FunctionTemplate::New(env->isolate());
 
-  function_template->SetClassName(sandbox_obj->GetConstructorName());
+  Local<ObjectTemplate> object_template;
 
-  Local<ObjectTemplate> object_template =
-      function_template->InstanceTemplate();
+  if (!sandbox_obj.IsEmpty()) {
+    Local<FunctionTemplate> function_template =
+        FunctionTemplate::New(env->isolate());
 
-  Local<Object> data_wrapper;
-  if (!CreateDataWrapper(env).ToLocal(&data_wrapper))
-    return MaybeLocal<Context>();
+    function_template->SetClassName(sandbox_obj->GetConstructorName());
 
-  NamedPropertyHandlerConfiguration config(
-      PropertyGetterCallback,
-      PropertySetterCallback,
-      PropertyDescriptorCallback,
-      PropertyDeleterCallback,
-      PropertyEnumeratorCallback,
-      PropertyDefinerCallback,
-      data_wrapper,
-      PropertyHandlerFlags::kHasNoSideEffect);
+    object_template = function_template->InstanceTemplate();
 
-  IndexedPropertyHandlerConfiguration indexed_config(
-      IndexedPropertyGetterCallback,
-      IndexedPropertySetterCallback,
-      IndexedPropertyDescriptorCallback,
-      IndexedPropertyDeleterCallback,
-      PropertyEnumeratorCallback,
-      IndexedPropertyDefinerCallback,
-      data_wrapper,
-      PropertyHandlerFlags::kHasNoSideEffect);
+    Local<Object> data_wrapper;
+    if (!CreateDataWrapper(env).ToLocal(&data_wrapper))
+      return MaybeLocal<Context>();
 
-  object_template->SetHandler(config);
-  object_template->SetHandler(indexed_config);
+    NamedPropertyHandlerConfiguration config(
+        PropertyGetterCallback,
+        PropertySetterCallback,
+        PropertyDescriptorCallback,
+        PropertyDeleterCallback,
+        PropertyEnumeratorCallback,
+        PropertyDefinerCallback,
+        data_wrapper,
+        PropertyHandlerFlags::kHasNoSideEffect);
+
+    IndexedPropertyHandlerConfiguration indexed_config(
+        IndexedPropertyGetterCallback,
+        IndexedPropertySetterCallback,
+        IndexedPropertyDescriptorCallback,
+        IndexedPropertyDeleterCallback,
+        PropertyEnumeratorCallback,
+        IndexedPropertyDefinerCallback,
+        data_wrapper,
+        PropertyHandlerFlags::kHasNoSideEffect);
+
+    object_template->SetHandler(config);
+    object_template->SetHandler(indexed_config);
+  }
 
   Local<Context> ctx = NewContext(env->isolate(), object_template);
 
@@ -194,16 +198,18 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 
   ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
-  // We need to tie the lifetime of the sandbox object with the lifetime of
-  // newly created context. We do this by making them hold references to each
-  // other. The context can directly hold a reference to the sandbox as an
-  // embedder data field. However, we cannot hold a reference to a v8::Context
-  // directly in an Object, we instead hold onto the new context's global
-  // object instead (which then has a reference to the context).
-  ctx->SetEmbedderData(ContextEmbedderIndex::kSandboxObject, sandbox_obj);
-  sandbox_obj->SetPrivate(env->context(),
-                          env->contextify_global_private_symbol(),
-                          ctx->Global());
+  if (!sandbox_obj.IsEmpty()) {
+    // We need to tie the lifetime of the sandbox object with the lifetime of
+    // newly created context. We do this by making them hold references to each
+    // other. The context can directly hold a reference to the sandbox as an
+    // embedder data field. However, we cannot hold a reference to a v8::Context
+    // directly in an Object, we instead hold onto the new context's global
+    // object instead (which then has a reference to the context).
+    ctx->SetEmbedderData(ContextEmbedderIndex::kSandboxObject, sandbox_obj);
+    sandbox_obj->SetPrivate(env->context(),
+                            env->contextify_global_private_symbol(),
+                            ctx->Global());
+  }
 
   Utf8Value name_val(env->isolate(), options.name);
   ctx->AllowCodeGenerationFromStrings(options.allow_code_gen_strings->IsTrue());
@@ -236,19 +242,23 @@ void ContextifyContext::Init(Environment* env, Local<Object> target) {
 }
 
 
-// makeContext(sandbox, name, origin, strings, wasm);
+// makeContext(sandbox, name, origin, strings, wasm, instance);
 void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_EQ(args.Length(), 5);
-  CHECK(args[0]->IsObject());
-  Local<Object> sandbox = args[0].As<Object>();
+  CHECK_EQ(args.Length(), 6);
 
-  // Don't allow contextifying a sandbox multiple times.
-  CHECK(
-      !sandbox->HasPrivate(
-          env->context(),
-          env->contextify_context_private_symbol()).FromJust());
+  Local<Object> sandbox;
+  if (args[5]->IsUndefined()) {
+    CHECK(args[0]->IsObject());
+    sandbox = args[0].As<Object>();
+
+    // Don't allow contextifying a sandbox multiple times.
+    CHECK(
+        !sandbox->HasPrivate(
+            env->context(),
+            env->contextify_context_private_symbol()).FromJust());
+  }
 
   ContextOptions options;
 
@@ -278,7 +288,15 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   if (context_ptr->context().IsEmpty())
     return;
 
-  sandbox->SetPrivate(
+  Local<Object> instance;
+  if (args[5]->IsUndefined()) {
+    instance = sandbox;
+  } else {
+    CHECK(args[5]->IsObject());
+    args.GetReturnValue().Set(context_ptr->global_proxy());
+    instance = args[5].As<Object>();
+  }
+  instance->SetPrivate(
       env->context(),
       env->contextify_context_private_symbol(),
       External::New(env->isolate(), context_ptr.release()));

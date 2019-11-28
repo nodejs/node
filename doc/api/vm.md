@@ -10,35 +10,74 @@ The `vm` module enables compiling and running code within V8 Virtual
 Machine contexts. **The `vm` module is not a security mechanism. Do
 not use it to run untrusted code**.
 
-JavaScript code can be compiled and run immediately or
-compiled, saved, and run later.
+JavaScript code can be compiled and run immediately or compiled, saved, and run
+later.
 
-A common use case is to run the code in a different V8 Context. This means
-invoked code has a different global object than the invoking code.
-
-One can provide the context by [_contextifying_][contextified] an
-object. The invoked code treats any property in the context like a
-global variable. Any changes to global variables caused by the invoked
-code are reflected in the context object.
+A common use case is to run code within a different environment. Each context
+uses a different V8 Context, meaning that it has a different global object than
+the rest of the code. One can provide a context by using the [`vm.Context`][]
+constructor.
 
 ```js
 const vm = require('vm');
 
 const x = 1;
 
-const context = { x: 2 };
-vm.createContext(context); // Contextify the object.
+const context = new vm.Context();
+context.global.x = 2;
 
 const code = 'x += 40; var y = 17;';
-// `x` and `y` are global variables in the context.
-// Initially, x has the value 2 because that is the value of context.x.
-vm.runInContext(code, context);
+// `x` and `y` are global variables in the context environment.
+// Initially, x has the value 2 because that is the value of context.global.x.
+const script = new vm.Script(code);
+script.runInContext(context);
 
-console.log(context.x); // 42
-console.log(context.y); // 17
+console.log(context.global.x); // 42
+console.log(context.global.y); // 17
 
 console.log(x); // 1; y is not defined.
 ```
+
+## Class: `vm.Context`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+### Constructor: `new vm.Context([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `name` {string} Human-readable name of the newly created context.
+    **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
+    the created context.
+  * `origin` {string} [Origin][origin] corresponding to the newly created
+    context for display purposes. The origin should be formatted like a URL,
+    but with only the scheme, host, and port (if necessary), like the value of
+    the [`url.origin`][] property of a [`URL`][] object. Most notably, this
+    string should omit the trailing slash, as that denotes a path.
+    **Default:** `''`.
+  * `codeGeneration` {Object}
+    * `strings` {boolean} If set to false any calls to `eval` or function
+      constructors (`Function`, `GeneratorFunction`, etc) will throw an
+      `EvalError`. **Default:** `true`.
+    * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
+      module will throw a `WebAssembly.CompileError`. **Default:** `true`.
+
+Create a new VM Context. This context will have a unique global object and
+variable environment.
+
+### `context.global`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+The global object of this context.
 
 ## Class: `vm.Script`
 <!-- YAML
@@ -126,7 +165,7 @@ script.runInThisContext();
 const cacheWithX = script.createCachedData();
 ```
 
-### `script.runInContext(contextifiedObject[, options])`
+### `script.runInContext(context[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -135,8 +174,7 @@ changes:
     description: The `breakOnSigint` option is supported now.
 -->
 
-* `contextifiedObject` {Object} A [contextified][] object as returned by the
-  `vm.createContext()` method.
+* `context` {vm.Context} A [`vm.Context`][] instance.
 * `options` {Object}
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
@@ -152,30 +190,28 @@ changes:
 * Returns: {any} the result of the very last statement executed in the script.
 
 Runs the compiled code contained by the `vm.Script` object within the given
-`contextifiedObject` and returns the result. Running code does not have access
-to local scope.
+`context` and returns the result. Running code does not have access to local
+scope.
 
 The following example compiles code that increments a global variable, sets
 the value of another global variable, then execute the code multiple times.
-The globals are contained in the `context` object.
+The globals are contained in the `context`'s global object.
 
 ```js
 const util = require('util');
 const vm = require('vm');
 
-const context = {
-  animal: 'cat',
-  count: 2
-};
+const context = new vm.Context();
+context.global.animal = 'cat';
+context.global.count = 2;
 
 const script = new vm.Script('count += 1; name = "kitty";');
 
-vm.createContext(context);
 for (let i = 0; i < 10; ++i) {
   script.runInContext(context);
 }
 
-console.log(context);
+console.log(context.global);
 // Prints: { animal: 'cat', count: 12, name: 'kitty' }
 ```
 
@@ -225,6 +261,9 @@ changes:
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
 * Returns: {any} the result of the very last statement executed in the script.
+
+**Warning!** This API exhibits quite a few performance and correctness issues.
+If possible, use the [`vm.Context`][] API instead.
 
 First contextifies the given `contextObject`, runs the compiled code contained
 by the `vm.Script` object within the created context, and returns the result.
@@ -327,7 +366,8 @@ support is planned.
 ```js
 const vm = require('vm');
 
-const contextifiedObject = vm.createContext({ secret: 42 });
+const context = new vm.Context();
+context.global.secret = 42;
 
 (async () => {
   // Step 1
@@ -335,7 +375,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   // Create a Module by constructing a new `vm.SourceTextModule` object. This
   // parses the provided source text, throwing a `SyntaxError` if anything goes
   // wrong. By default, a Module is created in the top context. But here, we
-  // specify `contextifiedObject` as the context this Module belongs to.
+  // specify `context` as the context this Module belongs to.
   //
   // Here, we attempt to obtain the default export from the module "foo", and
   // put it into local binding "secret".
@@ -343,7 +383,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   const bar = new vm.SourceTextModule(`
     import s from 'foo';
     s;
-  `, { context: contextifiedObject });
+  `, { context });
 
   // Step 2
   //
@@ -372,11 +412,11 @@ const contextifiedObject = vm.createContext({ secret: 42 });
     if (specifier === 'foo') {
       return new vm.SourceTextModule(`
         // The "secret" variable refers to the global variable we added to
-        // "contextifiedObject" when creating the context.
+        // "context" when creating the context.
         export default secret;
       `, { context: referencingModule.context });
 
-      // Using `contextifiedObject` instead of `referencingModule.context`
+      // Using `context` instead of `referencingModule.context`
       // here would work as well.
     }
     throw new Error(`Unable to resolve dependency: ${specifier}`);
@@ -568,8 +608,8 @@ defined in the ECMAScript specification.
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
      source. The `code` must be the same as the module from which this
      `cachedData` was created.
-  * `context` {Object} The [contextified][] object as returned by the
-    `vm.createContext()` method, to compile and evaluate this `Module` in.
+  * `context` {vm.Context} A [`vm.Context`][] instance, to compile and evaluate
+    this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this `Module`. **Default:** `0`.
   * `columnOffset` {integer} Specifies the column number offset that is
@@ -590,13 +630,13 @@ defined in the ECMAScript specification.
 Creates a new `SourceTextModule` instance.
 
 Properties assigned to the `import.meta` object that are objects may
-allow the module to access information outside the specified `context`. Use
-`vm.runInContext()` to create objects in a specific context.
+allow the module to access information outside the specified `context`.
 
 ```js
 const vm = require('vm');
 
-const contextifiedObject = vm.createContext({ secret: 42 });
+const context = new vm.Context();
+context.global.secret = 42;
 
 (async () => {
   const module = new vm.SourceTextModule(
@@ -606,7 +646,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
         // Note: this object is created in the top context. As such,
         // Object.getPrototypeOf(import.meta.prop) points to the
         // Object.prototype in the top context rather than that in
-        // the contextified object.
+        // `context`.
         meta.prop = {};
       }
     });
@@ -619,7 +659,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   // To fix this problem, replace
   //     meta.prop = {};
   // above with
-  //     meta.prop = vm.runInContext('{}', contextifiedObject);
+  //     meta.prop = vm.runInContext('{}', context);
 })();
 ```
 
@@ -685,14 +725,13 @@ added: v13.0.0
   * `identifier` {string} String used in stack traces.
    **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
     index.
-  * `context` {Object} The [contextified][] object as returned by the
-    `vm.createContext()` method, to compile and evaluate this `Module` in.
+  * `context` {vm.Context} A [`vm.Context`][] instance, to compile and evaluate
+    this `Module` in.
 
 Creates a new `SyntheticModule` instance.
 
 Objects assigned to the exports of this instance may allow importers of
-the module to access information outside the specified `context`. Use
-`vm.runInContext()` to create objects in a specific context.
+the module to access information outside the specified `context`.
 
 ### `syntheticModule.setExport(name, value)`
 <!-- YAML
@@ -741,16 +780,16 @@ added: v10.10.0
      source.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
-  * `parsingContext` {Object} The [contextified][] object in which the said
-    function should be compiled in.
+  * `parsingContext` {vm.Context} The [`vm.Context`][] in which the function
+    code should be compiled in.
   * `contextExtensions` {Object[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
 * Returns: {Function}
 
-Compiles the given code into the provided context (if no context is
-supplied, the current context is used), and returns it wrapped inside a
-function with the given `params`.
+Compiles the given code into the provided context (if no context is supplied,
+the current context is used), and returns it wrapped inside a function with the
+given `params`.
 
 ## `vm.createContext([contextObject[, options]])`
 <!-- YAML
@@ -783,13 +822,16 @@ changes:
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
 * Returns: {Object} contextified object.
 
+**Warning!** This API exhibits quite a few performance and correctness issues.
+If possible, use the [`vm.Context`][] API instead.
+
 If given a `contextObject`, the `vm.createContext()` method will [prepare
 that object][contextified] so that it can be used in calls to
 [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
-the `contextObject` will be the global object, retaining all of its existing
-properties but also having the built-in objects and functions any standard
-[global object][] has. Outside of scripts run by the vm module, global variables
-will remain unchanged.
+the `contextObject` object will be the global object, retaining all of its
+existing properties but also having the built-in objects and functions any
+standard [global object][] has. Outside of scripts run by the vm module, global
+variables will remain unchanged.
 
 ```js
 const util = require('util');
@@ -810,13 +852,13 @@ console.log(global.globalVar);
 ```
 
 If `contextObject` is omitted (or passed explicitly as `undefined`), a new,
-empty [contextified][] object will be returned.
+empty [contextified][] context object will be returned.
 
 The `vm.createContext()` method is primarily useful for creating a single
 context that can be used to run multiple scripts. For instance, if emulating a
 web browser, the method can be used to create a single context representing a
-window's global object, then run all `<script>` tags together within that
-context.
+window's global object, then run all `<script>` tags together within the context
+of that context.
 
 The provided `name` and `origin` of the context are made visible through the
 Inspector API.
@@ -829,10 +871,10 @@ added: v0.11.7
 * `object` {Object}
 * Returns: {boolean}
 
-Returns `true` if the given `oject` object has been [contextified][] using
+Returns `true` if the given `object` object has been [contextified][] using
 [`vm.createContext()`][].
 
-## `vm.runInContext(code, contextifiedObject[, options])`
+## `vm.runInContext(code, context[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -842,8 +884,8 @@ changes:
 -->
 
 * `code` {string} The JavaScript code to compile and run.
-* `contextifiedObject` {Object} The [contextified][] object that will be used
-  as the `global` when the `code` is compiled and run.
+* `context` {vm.Context} The [`vm.Context`][] that will be used when the `code`
+  is compiled and run.
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `'evalmachine.<anonymous>'`.
@@ -887,9 +929,8 @@ changes:
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
-the `contextifiedObject`, then returns the result. Running code does not have
-access to the local scope. The `contextifiedObject` object *must* have been
-previously [contextified][] using the [`vm.createContext()`][] method.
+the `context`, then returns the result. Running code does not have access to
+the local scope.
 
 If `options` is a string, then it specifies the filename.
 
@@ -897,16 +938,15 @@ The following example compiles and executes different scripts using a single
 [contextified][] object:
 
 ```js
-const util = require('util');
 const vm = require('vm');
 
-const contextObject = { globalVar: 1 };
-vm.createContext(contextObject);
+const context = new vm.Context();
+context.global.globalVar = 1;
 
 for (let i = 0; i < 10; ++i) {
-  vm.runInContext('globalVar *= 2;', contextObject);
+  vm.runInContext('globalVar *= 2;', context);
 }
-console.log(contextObject);
+console.log(context.global);
 // Prints: { globalVar: 1024 }
 ```
 
@@ -982,15 +1022,18 @@ changes:
       issues with namespaces that contain `then` function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
+**Warning!** This API exhibits quite a few performance and correctness issues.
+If possible, use the [`vm.Context`][] API instead.
+
 The `vm.runInNewContext()` first contextifies the given `contextObject` (or
 creates a new `contextObject` if passed as `undefined`), compiles the `code`,
-runs it within the created context, then returns the result. Running code
-does not have access to the local scope.
+runs it within the context of the created context, then returns the result.
+Running code does not have access to the local scope.
 
 If `options` is a string, then it specifies the filename.
 
 The following example compiles and executes code that increments a global
-variable and sets a new one. These globals are contained in the `contextObject`.
+variable and sets a new one. These globals are contained in the context.
 
 ```js
 const util = require('util');
@@ -1129,38 +1172,37 @@ According to the [V8 Embedder's Guide][]:
 > JavaScript applications to run in a single instance of V8. You must explicitly
 > specify the context in which you want any JavaScript code to be run.
 
-When the method `vm.createContext()` is called, the `contextObject` argument
-(or a newly-created object if `contextObject` is `undefined`) is associated
-internally with a new instance of a V8 Context. This V8 Context provides the
-`code` run using the `vm` module's methods with an isolated global environment
-within which it can operate. The process of creating the V8 Context and
-associating it with the `contextObject` is what this document refers to as
-"contextifying" the object.
+When the method `vm.createContext()` is called, the `contextObject` object that
+is passed in (or a newly created object if `contextObject` is `undefined`) is
+associated internally with a new instance of a V8 Context. This V8 Context
+provides the `code` run using the `vm` module's methods with an isolated global
+environment within which it can operate. The process of creating the V8 Context
+and associating it with the `contextObject` object is what this document refers
+to as "contextifying" the `contextObject`.
 
 ## Timeout limitations when using `process.nextTick()`, Promises, and `queueMicrotask()`
 
 Because of the internal mechanics of how the `process.nextTick()` queue and
 the microtask queue that underlies Promises are implemented within V8 and
 Node.js, it is possible for code running within a context to "escape" the
-`timeout` set using `vm.runInContext()`, `vm.runInNewContext()`, and
-`vm.runInThisContext()`.
+`timeout` set using `vm.runInContext()` and `vm.runInThisContext()`.
 
-For example, the following code executed by `vm.runInNewContext()` with a
-timeout of 5 milliseconds schedules an infinite loop to run after a promise
-resolves. The scheduled loop is never interrupted by the timeout:
+For example, the following code executed by `vm.runInContext()` with a timeout
+of 5 milliseconds schedules an infinite loop to run after a promise resolves.
+The scheduled loop is never interrupted by the timeout:
 
 ```js
 const vm = require('vm');
 
-function loop() {
-  while (1) console.log(Date.now());
-}
+const context = new vm.Context();
 
-vm.runInNewContext(
-  'Promise.resolve().then(loop);',
-  { loop, console },
-  { timeout: 5 }
-);
+context.global.loop = () => {
+  while (1) {
+    console.log(Date.now());
+  }
+};
+
+vm.runInContext('Promise.resolve().then(loop)', context, { timeout: 5 });
 ```
 
 This issue also occurs when the `loop()` call is scheduled using
@@ -1174,11 +1216,12 @@ queues.
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-[`script.runInContext()`]: #vm_script_runincontext_contextifiedobject_options
+[`script.runInContext()`]: #vm_script_runincontext_context_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`url.origin`]: url.html#url_url_origin
+[`vm.Context`]: #vm_class_vm_context
 [`vm.createContext()`]: #vm_vm_createcontext_contextobject_options
-[`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedobject_options
+[`vm.runInContext()`]: #vm_vm_runincontext_code_context_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.html#esm_ecmascript_modules

@@ -147,6 +147,7 @@ const customTypesMap = {
   'URL': 'url.html#url_the_whatwg_url_api',
   'URLSearchParams': 'url.html#url_class_urlsearchparams',
 
+  'vm.Context': 'vm.html#vm_class_vm_context',
   'vm.Module': 'vm.html#vm_class_vm_module',
   'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
 

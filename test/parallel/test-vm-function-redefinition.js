@@ -3,7 +3,7 @@
 require('../common');
 const assert = require('assert');
 const vm = require('vm');
-const context = vm.createContext();
+const context = new vm.Context();
 
 vm.runInContext('function test() { return 0; }', context);
 vm.runInContext('function test() { return 1; }', context);

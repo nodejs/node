@@ -27,19 +27,21 @@ const assert = require('assert');
 const vm = require('vm');
 
 // Run in a new empty context
-let context = vm.createContext();
+let context = new vm.Context();
 let result = vm.runInContext('"passed";', context);
 assert.strictEqual(result, 'passed');
 
 // Create a new pre-populated context
-context = vm.createContext({ 'foo': 'bar', 'thing': 'lala' });
-assert.strictEqual(context.foo, 'bar');
-assert.strictEqual(context.thing, 'lala');
+context = new vm.Context();
+context.global.foo = 'bar';
+context.global.thing = 'lala';
+assert.strictEqual(context.global.foo, 'bar');
+assert.strictEqual(context.global.thing, 'lala');
 
 // Test updating context
 result = vm.runInContext('var foo = 3;', context);
-assert.strictEqual(context.foo, 3);
-assert.strictEqual(context.thing, 'lala');
+assert.strictEqual(context.global.foo, 3);
+assert.strictEqual(context.global.thing, 'lala');
 
 // https://github.com/nodejs/node/issues/5768
 // Run in contextified sandbox without referencing the context

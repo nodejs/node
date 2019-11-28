@@ -84,7 +84,7 @@ const vm = require('vm');
 {
   const script = 'throw new Error("boom")';
   const filename = 'test-boom-error';
-  const context = vm.createContext();
+  const context = new vm.Context();
 
   function checkErr(err) {
     return err.stack.startsWith('test-boom-error:1');
