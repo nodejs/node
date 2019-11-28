@@ -681,7 +681,8 @@ The default styles and associated colors are:
 Color styling uses ANSI control codes that may not be supported on all
 terminals. To verify color support use [`tty.hasColors()`][].
 
-The predefined color codes are:
+Predefined control codes are listed below (grouped as "Modifiers", "Foreground
+colors", and "Background colors").
 
 #### Modifiers
 
@@ -705,7 +706,7 @@ ignored, if not supported.
   double underlined (Alias: `doubleUnderline`)
 * <span style="border: 1px">framed</span> - Draw a frame around the text
 
-#### Colors
+#### Foreground colors
 
 * `black`
 * `red`
