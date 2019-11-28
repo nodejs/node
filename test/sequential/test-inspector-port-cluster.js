@@ -205,6 +205,7 @@ function testRunnerMain() {
     });
   });
 }
+
 function masterProcessMain() {
   const workers = JSON.parse(process.env.workers);
   const clusterSettings = JSON.parse(process.env.clusterSettings) || {};

@@ -5,6 +5,7 @@ const assert = require('assert');
 function createURL(mime, body) {
   return `data:${mime},${body}`;
 }
+
 function createBase64URL(mime, body) {
   return `data:${mime};base64,${Buffer.from(body).toString('base64')}`;
 }

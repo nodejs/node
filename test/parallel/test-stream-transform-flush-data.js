@@ -12,6 +12,7 @@ const expected = 'asdf';
 function _transform(d, e, n) {
   n();
 }
+
 function _flush(n) {
   n(null, expected);
 }
