@@ -746,6 +746,7 @@
           'libraries': [
             'Dbghelp',
             'Psapi',
+            'Winmm',
           ],
         }],
         [ 'node_use_etw=="true"', {
