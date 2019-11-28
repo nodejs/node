@@ -282,6 +282,10 @@ module.exports = {
     'one-var': ['error', { initialized: 'never' }],
     'one-var-declaration-per-line': 'error',
     'operator-linebreak': ['error', 'after'],
+    'padding-line-between-statements': [
+      'error',
+      { blankLine: 'always', prev: 'function', next: 'function' },
+    ],
     'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
     'quotes': ['error', 'single', { avoidEscape: true }],
     'quote-props': ['error', 'consistent'],
