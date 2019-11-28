@@ -2159,6 +2159,8 @@ added: v0.1.90
 
 Decodes `buf` to a string according to the specified character encoding in
 `encoding`. `start` and `end` may be passed to decode only a subset of `buf`.
+If a byte sequence in the input is not valid in the given `encoding` then
+it is replaced with the replacement character `u+FFFD`.
 
 The maximum length of a string instance (in UTF-16 code units) is available
 as [`buffer.constants.MAX_STRING_LENGTH`][].
