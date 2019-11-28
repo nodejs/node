@@ -490,6 +490,7 @@ function test_abs_with_kids(realpath, realpathSync, cb) {
       try { fs.rmdirSync(root + folder); } catch {}
     });
   }
+
   function setup() {
     cleanup();
     ['',
