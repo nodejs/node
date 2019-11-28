@@ -49,7 +49,7 @@ Looking for help? Check out the
   each October.
 * **LTS**: Releases that receive Long-term Support, with a focus on stability
   and security. Every even-numbered major version will become an LTS release.
-  LTS releases receive 18 months of _Active LTS_ support and a further 12 months
+  LTS releases receive 12 months of _Active LTS_ support and a further 18 months
   of _Maintenance_. LTS release lines have alphabetically-ordered codenames,
   beginning with v4 Argon. There are no breaking changes or feature additions,
   except in some special circumstances.
