@@ -593,7 +593,7 @@ such as `std::string` and track their memory usage.
 
 This can be useful for debugging memory leaks.
 
-The [`memory_retainer.h`][] header file explains how to use this class.
+The [`memory_tracker.h`][] header file explains how to use this class.
 
 <a id="baseobject"></a>
 ### `BaseObject`
@@ -795,7 +795,7 @@ heap if it is larger. This can be useful for performantly allocating temporary
 data if it is typically expected to be small (e.g. file paths).
 
 The `Utf8Value`, `TwoByteValue` (i.e. UTF-16 value) and `BufferValue`
-(`Utf8Value` but copy data from a `Buffer` is that is passed) helpers
+(`Utf8Value` but copy data from a `Buffer` if one is passed) helpers
 inherit from this class and allow accessing the characters in a JavaScript
 string this way.
 
@@ -873,7 +873,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
 [`handle_wrap.h`]: handle_wrap.h
-[`memory_retainer.h`]: memory_retainer.h
+[`memory_tracker.h`]: memory_tracker.h
 [`req_wrap.h`]: req_wrap.h
 [`util.h`]: util.h
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
@@ -888,7 +888,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [cleanup hooks]: #cleanup-hooks
 [event loop]: #event-loop
 [exception handling]: #exception-handling
-[internal field]: #internal-field
+[internal field]: #internal-fields
 [introduction for V8 embedders]: https://v8.dev/docs/embed
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
