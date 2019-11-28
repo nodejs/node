@@ -3239,6 +3239,8 @@ defined in [Section 7.2.14][] of the ECMAScript Language Specification.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 ```C
 napi_status napi_detach_arraybuffer(napi_env env,
                                     napi_value arraybuffer)
