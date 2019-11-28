@@ -33,7 +33,3 @@ test-async-hooks-http-parser-destroy: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
-
-[$mode==debug]
-# https://github.com/nodejs/node/issues/30498
-test-domain-error-types: PASS,FLAKY
