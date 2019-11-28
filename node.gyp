@@ -251,14 +251,16 @@
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
         'conditions': [
-          ['OS=="aix"', {
+          ['OS in ("aix", "win")', {
             # For AIX, always generate static library first,
             # It needs an extra step to generate exp and
             # then use both static lib and exp to create
             # shared lib.
-            'node_intermediate_lib_type': 'static_library',
+            # For Windows, always generate static library,
+            # which is necessary to compile node.dll
+            'node_intermediate_lib_type%': 'static_library',
           }, {
-            'node_intermediate_lib_type': 'shared_library',
+            'node_intermediate_lib_type%': 'shared_library',
           }],
         ],
       }, {
