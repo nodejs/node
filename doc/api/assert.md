@@ -1266,9 +1266,11 @@ a string as the second argument gets considered:
 function throwingFirst() {
   throw new Error('First');
 }
+
 function throwingSecond() {
   throw new Error('Second');
 }
+
 function notThrowing() {}
 
 // The second argument is a string and the input function threw an Error.

@@ -20,6 +20,7 @@ function main({ n }) {
     if (count === n)
       bench.end(n);
   }
+
   function cb2() {
     count++;
     if (count === n)

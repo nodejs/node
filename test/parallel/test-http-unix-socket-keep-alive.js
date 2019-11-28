@@ -27,6 +27,7 @@ function asyncLoop(fn, times, cb) {
     }
   });
 }
+
 function makeKeepAliveRequest(cb) {
   http.get({
     socketPath: common.PIPE,

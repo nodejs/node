@@ -62,6 +62,7 @@ assert.strictEqual(r1.useColors, r1.rli.terminal);
 
 // 2
 function writer() {}
+
 function evaler() {}
 const r2 = repl.start({
   input: stream,
