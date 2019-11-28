@@ -3263,6 +3263,8 @@ defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 ```C
 napi_status napi_is_detached_arraybuffer(napi_env env,
                                          napi_value arraybuffer,
