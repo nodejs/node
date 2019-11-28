@@ -23,6 +23,7 @@
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
     'node_core_target_name%': 'node',
+    'node_target_type%': 'executable',
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
@@ -315,7 +316,7 @@
   'targets': [
     {
       'target_name': '<(node_core_target_name)',
-      'type': 'executable',
+      'type': '<(node_target_type)',
 
       'defines': [
         'NODE_WANT_INTERNALS=1',
