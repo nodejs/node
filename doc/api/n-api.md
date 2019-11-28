@@ -4920,7 +4920,7 @@ napiVersion: 2
 
 ```C
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
-                                               uv_loop_s** loop);
+                                               struct uv_loop_s** loop);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
