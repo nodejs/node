@@ -795,7 +795,7 @@ heap if it is larger. This can be useful for performantly allocating temporary
 data if it is typically expected to be small (e.g. file paths).
 
 The `Utf8Value`, `TwoByteValue` (i.e. UTF-16 value) and `BufferValue`
-(`Utf8Value` but copy data from a `Buffer` is that is passed) helpers
+(`Utf8Value` but copy data from a `Buffer` if one is passed) helpers
 inherit from this class and allow accessing the characters in a JavaScript
 string this way.
 
