@@ -3068,20 +3068,22 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
     Handle<String> module_name, Handle<FixedArray> export_names,
     v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
   ReadOnlyRoots roots(isolate());
-  Handle<SyntheticModule> module(
-      SyntheticModule::cast(New(synthetic_module_map(), AllocationType::kOld)),
-      isolate());
+
   Handle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
   Handle<Foreign> evaluation_steps_foreign =
       NewForeign(reinterpret_cast<i::Address>(evaluation_steps));
-  module->set_exports(*exports);
+
+  Handle<SyntheticModule> module(
+      SyntheticModule::cast(New(synthetic_module_map(), AllocationType::kOld)),
+      isolate());
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(roots.undefined_value());
   module->set_status(Module::kUninstantiated);
   module->set_exception(roots.the_hole_value());
   module->set_name(*module_name);
   module->set_export_names(*export_names);
+  module->set_exports(*exports);
   module->set_evaluation_steps(*evaluation_steps_foreign);
   return module;
 }
