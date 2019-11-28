@@ -25,6 +25,7 @@ const assert = require('assert');
 const EventEmitter = require('events');
 
 function listener1() {}
+
 function listener2() {}
 
 {

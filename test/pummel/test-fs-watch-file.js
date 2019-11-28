@@ -89,6 +89,7 @@ assert.throws(
     fs.unwatchFile(filepathTwo, a);
     ++watchSeenTwo;
   }
+
   function b() {
     fs.unwatchFile(filepathTwo, b);
     ++watchSeenTwo;
