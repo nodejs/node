@@ -1,8 +1,8 @@
 (node:*) ExperimentalWarning: The ESM module loader is experimental.
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
 internal/modules/esm/default_resolve.js:*
-  let url = moduleWrapResolve(specifier, parentURL);
-            ^
+    url = moduleWrapResolve(specifier, parentURL);
+          ^
 
 Error: Cannot find package 'i-dont-exist' imported from *
     at Loader.resolve [as _resolve] (internal/modules/esm/default_resolve.js:*:*)
