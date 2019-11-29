@@ -37,8 +37,7 @@ test(function(cb) {
     NODE_DEBUG: 'http'
   });
 
-  // Validate that the test fails if the max header size is too small.
-  // Validate that the test now passes if the same limit becomes large enough.
+  // Validate that the test now passes if the same limit is large enough.
   const args = ['--expose-internals',
                 '--max-http-header-size=1024',
                 testName,
@@ -76,8 +75,7 @@ if (!process.config.variables.node_without_node_options) {
   });
 
   test(function(cb) {
-    // Validate that the test now passes if the same limit
-    // becomes large enough.
+    // Validate that the test now passes if the same limit is large enough.
     const args = ['--expose-internals', testName, '1024'];
     const cp = spawn(process.execPath, args, { env, stdio: 'inherit' });
 
