@@ -237,6 +237,11 @@ Attempts to 'kill' `pid`
 
 Platform check for Free BSD.
 
+### isIBMi
+* [&lt;boolean>][]
+
+Platform check for IBMi.
+
 ### isLinux
 * [&lt;boolean>][]
 
