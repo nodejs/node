@@ -1809,6 +1809,14 @@ recommended to use 2048 bits or larger for stronger security.
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
 
+<a id="ERR_TLS_INVALID_CONTEXT">
+### ERR_TLS_INVALID_CONTEXT
+<!-- YAML
+added: REPLACEME
+-->
+
+The context must be a `SecureContext`.
+
 <a id="ERR_TLS_INVALID_PROTOCOL_METHOD"></a>
 ### ERR_TLS_INVALID_PROTOCOL_METHOD
 

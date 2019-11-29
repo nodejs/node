@@ -78,9 +78,13 @@ common.expectsError(
 assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }),
               /TypeError: Ticket keys length must be 48 bytes/);
 
-common.expectsInternalAssertion(
+assert.throws(
   () => tls.createSecurePair({}),
-  'context.context must be a NativeSecureContext'
+  {
+    message: 'context must be a SecureContext',
+    code: 'ERR_TLS_INVALID_CONTEXT',
+    name: 'TypeError',
+  }
 );
 
 {
