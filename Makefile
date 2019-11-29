@@ -425,6 +425,7 @@ test-all: test-build ## Run everything in test/.
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
 
+# CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= addons addons-napi
 CI_JS_SUITES ?= default
 CI_DOC := doctool
