@@ -25,7 +25,7 @@ function once(cb) {
 }
 
 function finished(client, callback) {
-  'abort error end'.split(' ').forEach((e) => {
+  ['abort', 'error', 'end'].forEach((e) => {
     client.on(e, once(() => setImmediate(callback)));
   });
 }
