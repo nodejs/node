@@ -139,7 +139,7 @@ const test2 = common.mustCall(() => {
       client.resume();
     });
 
-    finished(client, common.mustCall((err) => {
+    finished(client, common.mustCall(() => {
       server.close(test3);
     }));
   }));
