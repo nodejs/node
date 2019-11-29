@@ -89,7 +89,7 @@ function test1() {
   headers = fillHeaders(headers, currentSize);
 
   const server = net.createServer((sock) => {
-    sock.once('data', (chunk) => {
+    sock.once('data', () => {
       writeHeaders(sock, headers);
       sock.resume();
     });
