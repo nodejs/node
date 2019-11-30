@@ -1,9 +1,11 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const httpCommon = require('_http_common');
-const checkIsHttpToken = httpCommon._checkIsHttpToken;
-const checkInvalidHeaderChar = httpCommon._checkInvalidHeaderChar;
+const {
+  _checkInvalidHeaderChar: checkInvalidHeaderChar,
+  _checkIsHttpToken: checkIsHttpToken,
+  parsers
+} = require('_http_common');
 
 // checkIsHttpToken
 assert(checkIsHttpToken('t'));
@@ -31,3 +33,13 @@ assert.strictEqual(checkInvalidHeaderChar('tt'), false);
 assert.strictEqual(checkInvalidHeaderChar('ttt'), false);
 assert.strictEqual(checkInvalidHeaderChar('tttt'), false);
 assert.strictEqual(checkInvalidHeaderChar('ttttt'), false);
+
+// parsers
+{
+  const dummyParser = { id: 'fhqwhgads' };
+  assert.strictEqual(parsers.hasItems(), false);
+  assert.strictEqual(parsers.free(dummyParser), true);
+  assert.strictEqual(parsers.hasItems(), true);
+  assert.strictEqual(parsers.alloc(), dummyParser);
+  assert.strictEqual(parsers.hasItems(), false);
+}
