@@ -43,9 +43,12 @@ util.inspect(proxyObj, opts);
 
 // getProxyDetails is an internal method, not intended for public use.
 // This is here to test that the internals are working correctly.
-const details = processUtil.getProxyDetails(proxyObj);
+let details = processUtil.getProxyDetails(proxyObj, true);
 assert.strictEqual(target, details[0]);
 assert.strictEqual(handler, details[1]);
+
+details = processUtil.getProxyDetails(proxyObj, false);
+assert.strictEqual(target, details);
 
 assert.strictEqual(
   util.inspect(proxyObj, opts),
@@ -105,7 +108,7 @@ const expected6 = 'Proxy [\n' +
                   '  ]\n' +
                   ']';
 assert.strictEqual(
-  util.inspect(proxy1, { showProxy: true, depth: null }),
+  util.inspect(proxy1, { showProxy: 1, depth: null }),
   expected1);
 assert.strictEqual(util.inspect(proxy2, opts), expected2);
 assert.strictEqual(util.inspect(proxy3, opts), expected3);

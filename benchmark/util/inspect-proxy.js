@@ -4,7 +4,7 @@ const util = require('util');
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  n: [2e4],
+  n: [1e5],
   showProxy: [0, 1],
   isProxy: [0, 1]
 });
