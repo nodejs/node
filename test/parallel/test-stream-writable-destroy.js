@@ -238,13 +238,15 @@ const assert = require('assert');
   // called again.
   const write = new Writable({
     write: common.mustNotCall(),
-    final: common.mustCall((cb) => cb(), 2)
+    final: common.mustCall((cb) => cb(), 2),
+    autoDestroy: true
   });
 
   write.end();
-  write.destroy();
-  write._undestroy();
-  write.end();
+  write.once('close', common.mustCall(() => {
+    write._undestroy();
+    write.end();
+  }));
 }
 
 {
