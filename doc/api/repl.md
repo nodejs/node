@@ -151,10 +151,9 @@ REPL session.
 
 This use of the [`domain`][] module in the REPL has these side effects:
 
-* Uncaught exceptions only emit the [`'uncaughtException'`][] event if the
-  `repl` is used as standalone program. If the `repl` is included anywhere in
-  another application, adding a listener for this event will throw an
-  [`ERR_INVALID_REPL_INPUT`][] exception.
+* Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
+  standalone REPL. Adding a listener for this event in a REPL within
+  another Node.js program throws [`ERR_INVALID_REPL_INPUT`][].
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
 
