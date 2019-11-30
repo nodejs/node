@@ -391,8 +391,24 @@ assert.strictEqual(
 {
   class CustomArray extends Array {}
   CustomArray.prototype[5] = 'foo';
+  CustomArray.prototype[49] = 'bar';
+  CustomArray.prototype.foo = true;
   const arr = new CustomArray(50);
-  assert.strictEqual(util.inspect(arr), 'CustomArray [ <50 empty items> ]');
+  arr[49] = 'I win';
+  assert.strictEqual(
+    util.inspect(arr),
+    "CustomArray [ <49 empty items>, 'I win' ]"
+  );
+  assert.strictEqual(
+    util.inspect(arr, { showHidden: true }),
+    'CustomArray [\n' +
+    '  <49 empty items>,\n' +
+    "  'I win',\n" +
+    '  [length]: 50,\n' +
+    "  '5': 'foo',\n" +
+    '  foo: true\n' +
+    ']'
+  );
 }
 
 // Array with extra properties.
@@ -2584,4 +2600,66 @@ assert.strictEqual(
     if (err.code !== 'ERR_TRACE_EVENTS_UNAVAILABLE')
       throw err;
   }
+}
+
+// Inspect prototype properties.
+{
+  class Foo extends Map {
+    prop = false;
+    prop2 = true;
+    get abc() {
+      return true;
+    }
+    get def() {
+      return false;
+    }
+    set def(v) {}
+    get xyz() {
+      return 'Should be ignored';
+    }
+    func(a) {}
+    [util.inspect.custom]() {
+      return this;
+    }
+  }
+
+  class Bar extends Foo {
+    abc = true;
+    prop = true;
+    get xyz() {
+      return 'YES!';
+    }
+    [util.inspect.custom]() {
+      return this;
+    }
+  }
+
+  const bar = new Bar();
+
+  assert.strictEqual(
+    inspect(bar),
+    'Bar [Map] { prop: true, prop2: true, abc: true }'
+  );
+  assert.strictEqual(
+    inspect(bar, { showHidden: true, getters: true, colors: false }),
+    'Bar [Map] {\n' +
+    '  [size]: 0,\n' +
+    '  prop: true,\n' +
+    '  prop2: true,\n' +
+    '  abc: true,\n' +
+    "  [xyz]: [Getter: 'YES!'],\n" +
+    '  [def]: [Getter/Setter: false]\n' +
+    '}'
+  );
+  assert.strictEqual(
+    inspect(bar, { showHidden: true, getters: false, colors: true }),
+    'Bar [Map] {\n' +
+    '  [size]: \x1B[33m0\x1B[39m,\n' +
+    '  prop: \x1B[33mtrue\x1B[39m,\n' +
+    '  prop2: \x1B[33mtrue\x1B[39m,\n' +
+    '  abc: \x1B[33mtrue\x1B[39m,\n' +
+    '  \x1B[2m[xyz]: \x1B[36m[Getter]\x1B[39m\x1B[22m,\n' +
+    '  \x1B[2m[def]: \x1B[36m[Getter/Setter]\x1B[39m\x1B[22m\n' +
+    '}'
+  );
 }
