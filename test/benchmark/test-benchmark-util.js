@@ -14,5 +14,7 @@ runBenchmark('util',
               'size=1',
               'type=',
               'len=1',
-              'version=native'],
+              'version=native',
+              'isProxy=1',
+              'showProxy=1'],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
