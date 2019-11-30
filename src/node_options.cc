@@ -436,7 +436,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "profile generated with --heap-prof. (default: 512 * 1024)",
             &EnvironmentOptions::heap_prof_interval);
   AddOption("--max-http-header-size",
-            "set the maximum size of HTTP headers (default: 8KB)",
+            "set the maximum size of HTTP headers (default: 8192 (8KB))",
             &EnvironmentOptions::max_http_header_size,
             kAllowedInEnvironment);
 #endif  // HAVE_INSPECTOR
