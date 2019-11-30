@@ -114,3 +114,15 @@ common.expectsInternalAssertion(
     }
   );
 }
+
+assert.throws(() => { tls.createSecureContext({ minVersion: 'fhqwhgads' }); },
+              {
+                code: 'ERR_TLS_INVALID_PROTOCOL_VERSION',
+                name: 'TypeError'
+              });
+
+assert.throws(() => { tls.createSecureContext({ maxVersion: 'fhqwhgads' }); },
+              {
+                code: 'ERR_TLS_INVALID_PROTOCOL_VERSION',
+                name: 'TypeError'
+              });
