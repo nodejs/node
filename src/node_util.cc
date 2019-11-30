@@ -93,13 +93,19 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
-  Local<Value> ret[] = {
-    proxy->GetTarget(),
-    proxy->GetHandler()
-  };
+  if (args[1]->IsTrue()) {
+    Local<Value> ret[] = {
+      proxy->GetTarget(),
+      proxy->GetHandler()
+    };
 
-  args.GetReturnValue().Set(
-      Array::New(args.GetIsolate(), ret, arraysize(ret)));
+    args.GetReturnValue().Set(
+        Array::New(args.GetIsolate(), ret, arraysize(ret)));
+  } else {
+    Local<Value> ret = proxy->GetTarget();
+
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
