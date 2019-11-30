@@ -547,7 +547,7 @@ The standard deviation of the recorded event loop delays.
 ### Measuring the duration of async operations
 
 The following example uses the [Async Hooks][] and Performance APIs to measure
-the actual duration of a Timeout operation (including the amount of time it
+the actual duration of a Timeout operation (including the amount of time it took
 to execute the callback).
 
 ```js
