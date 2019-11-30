@@ -398,6 +398,10 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/???????????????????????
+    description: Prototype properties will be inspected from now in case
+                 `showHidden` is truthy.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27685
     description: Circular references now include a marker to the reference.
@@ -461,7 +465,8 @@ changes:
 * `options` {Object}
   * `showHidden` {boolean} If `true`, `object`'s non-enumerable symbols and
     properties are included in the formatted result. [`WeakMap`][] and
-    [`WeakSet`][] entries are also included. **Default:** `false`.
+    [`WeakSet`][] entries are also included as well as prototype properties.
+    **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
     `object`. This is useful for inspecting large objects. To recurse up to
     the maximum call stack size pass `Infinity` or `null`.
