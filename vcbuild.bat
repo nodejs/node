@@ -57,6 +57,7 @@ set v8_build_options=
 set http2_debug=
 set nghttp2_debug=
 set link_module=
+set exit_code=0
 
 :next-arg
 if "%1"=="" goto args-done
@@ -486,10 +487,12 @@ if defined skip_cctest goto run-test-py
 if not exist %config%\cctest.exe goto run-test-py
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
+if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 REM when building a static library there's no binary to run tests
 if defined enable_static goto test-v8
 call :run-python tools\test.py %test_args%
+if %errorlevel% neq 0 set exit_code=%errorlevel%
 
 :test-v8
 if not defined custom_v8_test goto lint-cpp
@@ -587,7 +590,7 @@ echo %cmd1%
 exit /b %ERRORLEVEL%
 
 :exit
-goto :EOF
+exit /b %exit_code%
 
 
 rem ***************
