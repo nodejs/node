@@ -435,11 +435,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "specified sampling interval in bytes for the V8 heap "
             "profile generated with --heap-prof. (default: 512 * 1024)",
             &EnvironmentOptions::heap_prof_interval);
+#endif  // HAVE_INSPECTOR
   AddOption("--max-http-header-size",
             "set the maximum size of HTTP headers (default: 8192 (8KB))",
             &EnvironmentOptions::max_http_header_size,
             kAllowedInEnvironment);
-#endif  // HAVE_INSPECTOR
   AddOption("--redirect-warnings",
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,
