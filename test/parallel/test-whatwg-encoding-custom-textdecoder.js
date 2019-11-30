@@ -113,10 +113,19 @@ if (common.hasIntl) {
   } else {
     assert.strictEqual(
       util.inspect(dec, { showHidden: true }),
-      "TextDecoder {\n  encoding: 'utf-8',\n  fatal: false,\n  " +
-      'ignoreBOM: true,\n  [Symbol(flags)]: 4,\n  [Symbol(handle)]: ' +
-      "StringDecoder {\n    encoding: 'utf8',\n    " +
-      '[Symbol(kNativeDecoder)]: <Buffer 00 00 00 00 00 00 01>\n  }\n}'
+      'TextDecoder {\n' +
+      "  encoding: 'utf-8',\n" +
+      '  fatal: false,\n' +
+      '  ignoreBOM: true,\n' +
+      '  [Symbol(flags)]: 4,\n' +
+      '  [Symbol(handle)]: StringDecoder {\n' +
+      "    encoding: 'utf8',\n" +
+      '    [Symbol(kNativeDecoder)]: <Buffer 00 00 00 00 00 00 01>,\n' +
+      '    lastChar: [Getter],\n' +
+      '    lastNeed: [Getter],\n' +
+      '    lastTotal: [Getter]\n' +
+      '  }\n' +
+      '}'
     );
   }
 }
