@@ -1231,6 +1231,8 @@ class Environment : public MemoryRetainer {
   inline void modify_base_object_count(int64_t delta);
   inline int64_t base_object_count() const;
 
+  inline int32_t stack_trace_limit() const { return 10; }
+
 #if HAVE_INSPECTOR
   void set_coverage_connection(
       std::unique_ptr<profiler::V8CoverageConnection> connection);
