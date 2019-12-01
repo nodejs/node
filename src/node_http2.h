@@ -792,6 +792,7 @@ class Http2Session : public AsyncWrap,
     tracker->TrackFieldWithSize("outgoing_storage", outgoing_storage_.size());
     tracker->TrackFieldWithSize("pending_rst_streams",
                                 pending_rst_streams_.size() * sizeof(int32_t));
+    tracker->TrackFieldWithSize("nghttp2_memory", current_nghttp2_memory_);
   }
 
   SET_MEMORY_INFO_NAME(Http2Session)
