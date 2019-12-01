@@ -2697,11 +2697,11 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->ssl_env();
-  std::vector<Local<Value>> ret_arr;
 
   SSL* ssl = w->ssl_.get();
   int nsig = SSL_get_shared_sigalgs(ssl, 0, nullptr, nullptr, nullptr, nullptr,
                                     nullptr);
+  MaybeStackBuffer<Local<Value>, 16> ret_arr(nsig);
 
   for (int i = 0; i < nsig; i++) {
     int hash_nid;
@@ -2765,12 +2765,11 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
     } else {
       sig_with_md += "UNDEF";
     }
-
-    ret_arr.push_back(OneByteString(env->isolate(), sig_with_md.c_str()));
+    ret_arr[i] = OneByteString(env->isolate(), sig_with_md.c_str());
   }
 
   args.GetReturnValue().Set(
-                 Array::New(env->isolate(), ret_arr.data(), ret_arr.size()));
+                 Array::New(env->isolate(), ret_arr.out(), ret_arr.length()));
 }
 
 
