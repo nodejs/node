@@ -46,21 +46,6 @@ rules:
   node-core/non-ascii-character: error
 globals:
   Intl: false
-  # Assertions
-  CHECK: false
-  CHECK_EQ: false
-  CHECK_GE: false
-  CHECK_GT: false
-  CHECK_LE: false
-  CHECK_LT: false
-  CHECK_NE: false
-  DCHECK: false
-  DCHECK_EQ: false
-  DCHECK_GE: false
-  DCHECK_GT: false
-  DCHECK_LE: false
-  DCHECK_LT: false
-  DCHECK_NE: false
   # Parameters passed to internal modules
   global: false
   require: false
