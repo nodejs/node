@@ -899,22 +899,10 @@
             # Put the code first so it's a dependency and can be used for invocation.
             'tools/js2c.py',
             '<@(library_files)',
-            'config.gypi',
-            'tools/js2c_macros/check_macros.py'
+            'config.gypi'
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-          ],
-          'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'tools/js2c_macros/notrace_macros.py' ]
-            }],
-            [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/js2c_macros/nodcheck_macros.py' ]
-            }],
-            [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/js2c_macros/dcheck_macros.py' ]
-            }]
           ],
           'action': [
             'python', '<@(_inputs)',
