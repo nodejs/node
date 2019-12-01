@@ -1596,10 +1596,8 @@ napi_status napi_create_bigint_words(napi_env env,
 
   v8::Local<v8::Context> context = env->context();
 
-  if (word_count > INT_MAX) {
-    napi_throw_range_error(env, nullptr, "Maximum BigInt size exceeded");
-    return napi_set_last_error(env, napi_pending_exception);
-  }
+  RETURN_STATUS_IF_FALSE(
+      env, word_count <= INT_MAX, napi_invalid_arg);
 
   v8::MaybeLocal<v8::BigInt> b = v8::BigInt::NewFromWords(
       context, sign_bit, word_count, words);
