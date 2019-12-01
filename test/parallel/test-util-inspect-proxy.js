@@ -41,6 +41,9 @@ proxyObj = new Proxy(target, handler);
 // Inspecting the proxy should not actually walk it's properties
 util.inspect(proxyObj, opts);
 
+// Make sure inspecting object does not trigger any proxy traps.
+util.format('%s', proxyObj);
+
 // getProxyDetails is an internal method, not intended for public use.
 // This is here to test that the internals are working correctly.
 let details = processUtil.getProxyDetails(proxyObj, true);
