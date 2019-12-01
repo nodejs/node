@@ -42,6 +42,14 @@ function expectFsNamespace(result) {
 // For direct use of import expressions inside of CJS or ES modules, including
 // via eval, all kinds of specifiers should work without issue.
 (function testScriptOrModuleImport() {
+  // Warning should be emitted 9 times, bellow we're importing 9 ES modules.
+  const IMPORTED_DYNAMICALLY = 9;
+  process.on('warning', common.mustCall(({ name, code, message }) => {
+    assert.strictEqual(code, undefined);
+    assert.strictEqual(message, 'The ESM module loader is experimental.');
+    assert.strictEqual(name, 'ExperimentalWarning');
+  }, IMPORTED_DYNAMICALLY));
+
   // Importing another file, both direct & via eval
   // expectOkNamespace(import(relativePath));
   expectOkNamespace(eval(`import("${relativePath}")`));
