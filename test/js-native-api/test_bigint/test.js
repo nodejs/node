@@ -40,6 +40,6 @@ const {
 });
 
 assert.throws(CreateTooBigBigInt, {
-  name: 'RangeError',
-  message: 'Maximum BigInt size exceeded',
+  name: 'Error',
+  message: 'Invalid argument',
 });
