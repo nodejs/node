@@ -69,6 +69,7 @@ server.listen(0, () => {
       {
         children: [
           { node_name: 'Http2Session', edge_name: 'wrapped' },
+          { node_name: 'Node / nghttp2_memory', edge_name: 'nghttp2_memory' },
           {
             node_name: 'Node / streams', edge_name: 'streams'
           }
