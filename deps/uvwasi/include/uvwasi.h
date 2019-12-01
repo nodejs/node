@@ -20,7 +20,20 @@ extern "C" {
 #define UVWASI_VERSION_STRING UVWASI_STRINGIFY(UVWASI_VERSION_MAJOR) "." \
                               UVWASI_STRINGIFY(UVWASI_VERSION_MINOR) "." \
                               UVWASI_STRINGIFY(UVWASI_VERSION_PATCH)
+#define UVWASI_VERSION_WASI "snapshot_0"
 
+typedef void* (*uvwasi_malloc)(size_t size, void* mem_user_data);
+typedef void (*uvwasi_free)(void* ptr, void* mem_user_data);
+typedef void* (*uvwasi_calloc)(size_t nmemb, size_t size, void* mem_user_data);
+typedef void* (*uvwasi_realloc)(void* ptr, size_t size, void* mem_user_data);
+
+typedef struct uvwasi_mem_s {
+  void* mem_user_data;
+  uvwasi_malloc malloc;
+  uvwasi_free free;
+  uvwasi_calloc calloc;
+  uvwasi_realloc realloc;
+} uvwasi_mem_t;
 
 typedef struct uvwasi_s {
   struct uvwasi_fd_table_t fds;
@@ -32,6 +45,7 @@ typedef struct uvwasi_s {
   char** env;
   char* env_buf;
   size_t env_buf_size;
+  const uvwasi_mem_t* allocator;
 } uvwasi_t;
 
 typedef struct uvwasi_preopen_s {
@@ -46,8 +60,8 @@ typedef struct uvwasi_options_s {
   size_t argc;
   char** argv;
   char** envp;
+  const uvwasi_mem_t* allocator;
 } uvwasi_options_t;
-
 
 // Embedder API.
 uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options);
