@@ -4,24 +4,22 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
-#include "memory_tracker-inl.h"
+#include "node_mem.h"
 #include "uvwasi.h"
 
 namespace node {
 namespace wasi {
 
 
-class WASI : public BaseObject {
+class WASI : public BaseObject,
+             public mem::NgLibMemoryManager<WASI, uvwasi_mem_t> {
  public:
   WASI(Environment* env,
        v8::Local<v8::Object> object,
        uvwasi_options_t* options);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    /* TODO(cjihrig): Get memory consumption from uvwasi. */
-    tracker->TrackField("memory", memory_);
-  }
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(WASI)
   SET_SELF_SIZE(WASI)
 
@@ -79,6 +77,11 @@ class WASI : public BaseObject {
 
   static void _SetMemory(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  // Implementation for mem::NgLibMemoryManager
+  void CheckAllocatedSize(size_t previous_size) const;
+  void IncreaseAllocatedSize(size_t size);
+  void DecreaseAllocatedSize(size_t size);
+
  private:
   ~WASI() override;
   inline void readUInt8(char* memory, uint8_t* value, uint32_t offset);
@@ -92,6 +95,8 @@ class WASI : public BaseObject {
   uvwasi_errno_t backingStore(char** store, size_t* byte_length);
   uvwasi_t uvw_;
   v8::Global<v8::Object> memory_;
+  uvwasi_mem_t alloc_info_;
+  size_t current_uvwasi_memory_ = 0;
 };
 
 
