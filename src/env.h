@@ -1230,6 +1230,8 @@ class Environment : public MemoryRetainer {
 
   inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
 
+  inline int32_t stack_trace_limit() const { return 10; }
+
 #if HAVE_INSPECTOR
   void set_coverage_connection(
       std::unique_ptr<profiler::V8CoverageConnection> connection);
