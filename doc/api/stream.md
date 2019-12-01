@@ -639,7 +639,7 @@ with (in order of precedence):
   called.
 * `ERR_STREAM_NULL_VALUES` if `chunk` is `null`.
 * `ERR_INVALID_ARG_TYPE` if `chunk` is not a `string` when not in `objectMode`.
-* Any error forwarded by `writable._write()`.
+* Any error forwarded from `writable._write()` or `writable._writev()`.
 
 ### Readable Streams
 
