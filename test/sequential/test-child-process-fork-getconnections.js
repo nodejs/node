@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
@@ -79,7 +79,7 @@ if (process.argv[2] === 'child') {
   server.on('listening', function() {
     let j = count;
     while (j--) {
-      const client = net.connect(common.PORT, '127.0.0.1');
+      const client = net.connect(server.address().port, '127.0.0.1');
       client.on('close', function() {
         disconnected += 1;
       });
@@ -110,7 +110,7 @@ if (process.argv[2] === 'child') {
     closeEmitted = true;
   });
 
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 
   process.on('exit', function() {
     assert.strictEqual(sent, count);
