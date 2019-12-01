@@ -172,7 +172,7 @@ static MaybeLocal<Array> DirentListToArray(
     int num,
     enum encoding encoding,
     Local<Value>* err_out) {
-  MaybeStackBuffer<Local<Value>, 96> entries(num * 3);
+  MaybeStackBuffer<Local<Value>, 64> entries(num * 2);
 
   // Return an array of all read filenames.
   int j = 0;
