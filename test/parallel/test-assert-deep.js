@@ -1042,6 +1042,21 @@ assert.throws(
   assertDeepAndStrictEqual(a, b);
 }
 
+// Verify that an array and the equivalent fake array object
+// are correctly compared
+{
+  const a = [1, 2, 3];
+  const o = {
+    __proto__: Array.prototype,
+    0: 1,
+    1: 2,
+    2: 3,
+    length: 3,
+  };
+  Object.defineProperty(o, 'length', { enumerable: false });
+  assertNotDeepOrStrict(o, a);
+}
+
 // Verify that extra keys will be tested for when using fake arrays.
 {
   const a = {
