@@ -16,6 +16,7 @@
 # define PATH_MAX_BYTES (PATH_MAX)
 #endif
 
+struct uvwasi_s;
 
 struct uvwasi_fd_wrap_t {
   uvwasi_fd_t id;
@@ -27,22 +28,28 @@ struct uvwasi_fd_wrap_t {
   uvwasi_rights_t rights_inheriting;
   int preopen;
   int valid;
+  uv_mutex_t mutex;
 };
 
 struct uvwasi_fd_table_t {
   struct uvwasi_fd_wrap_t* fds;
   uint32_t size;
   uint32_t used;
+  uv_rwlock_t rwlock;
 };
 
-uvwasi_errno_t uvwasi_fd_table_init(struct uvwasi_fd_table_t* table,
+uvwasi_errno_t uvwasi_fd_table_init(struct uvwasi_s* uvwasi,
+                                    struct uvwasi_fd_table_t* table,
                                     uint32_t init_size);
-void uvwasi_fd_table_free(struct uvwasi_fd_table_t* table);
-uvwasi_errno_t uvwasi_fd_table_insert_preopen(struct uvwasi_fd_table_t* table,
+void uvwasi_fd_table_free(struct uvwasi_s* uvwasi,
+                          struct uvwasi_fd_table_t* table);
+uvwasi_errno_t uvwasi_fd_table_insert_preopen(struct uvwasi_s* uvwasi,
+                                              struct uvwasi_fd_table_t* table,
                                               const uv_file fd,
                                               const char* path,
                                               const char* real_path);
-uvwasi_errno_t uvwasi_fd_table_insert_fd(struct uvwasi_fd_table_t* table,
+uvwasi_errno_t uvwasi_fd_table_insert_fd(struct uvwasi_s* uvwasi,
+                                         struct uvwasi_fd_table_t* table,
                                          const uv_file fd,
                                          const int flags,
                                          const char* path,
