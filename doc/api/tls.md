@@ -726,14 +726,14 @@ On the client, the `session` can be provided to the `session` option of
 
 See [Session Resumption][] for more information.
 
-Note: For TLSv1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
-the handshake is complete.  For TLSv1.3, only ticket based resumption is allowed
+For TLSv1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
+the handshake is complete.  For TLSv1.3, only ticket-based resumption is allowed
 by the protocol, multiple tickets are sent, and the tickets aren't sent until
-later, after the handshake completes, so it is necessary to wait for the
-`'session'` event to get a resumable session.  Applications are
-recommended to use the `'session'` event instead of `getSession()` to ensure
-they will work for all TLS protocol versions.  Applications that only expect to
-get or use 1 session should listen for this event only once:
+after the handshake completes. So it is necessary to wait for the
+`'session'` event to get a resumable session.  Applications
+should use the `'session'` event instead of `getSession()` to ensure
+they will work for all TLS versions.  Applications that only expect to
+get or use one session should listen for this event only once:
 
 ```js
 tlsSocket.once('session', (session) => {
