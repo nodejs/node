@@ -43,7 +43,7 @@ def CalculateVariables(default_variables, params):
 
 def AddCommandsForTarget(cwd, target, params, per_config_commands):
   output_dir = params['generator_flags']['output_dir']
-  for configuration_name, configuration in target['configurations'].iteritems():
+  for configuration_name, configuration in target['configurations'].items():
     builddir_name = os.path.join(output_dir, configuration_name)
 
     if IsMac(params):
@@ -92,7 +92,7 @@ def AddCommandsForTarget(cwd, target, params, per_config_commands):
 
 def GenerateOutput(target_list, target_dicts, data, params):
   per_config_commands = {}
-  for qualified_target, target in target_dicts.iteritems():
+  for qualified_target, target in target_dicts.items():
     build_file, target_name, toolset = (
         gyp.common.ParseQualifiedTarget(qualified_target))
     if IsMac(params):
@@ -102,7 +102,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     AddCommandsForTarget(cwd, target, params, per_config_commands)
 
   output_dir = params['generator_flags']['output_dir']
-  for configuration_name, commands in per_config_commands.iteritems():
+  for configuration_name, commands in per_config_commands.items():
     filename = os.path.join(output_dir,
                             configuration_name,
                             'compile_commands.json')
