@@ -33,7 +33,7 @@ if (process.argv[2] === 'wasi-child') {
 
   const assert = require('assert');
   const cp = require('child_process');
-  const tmpdir = require('../../test/common/tmpdir');
+  const tmpdir = require('../common/tmpdir');
 
   // Setup the sandbox environment.
   tmpdir.refresh();
