@@ -7,7 +7,8 @@ const runBenchmark = require('../common/benchmark');
 runBenchmark('streams',
              [
                'kind=duplex',
+               'n=1',
+               'sync=no',
                'type=buffer',
-               'n=1'
              ],
              { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
