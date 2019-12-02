@@ -399,7 +399,7 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/???????????????????????
+    pr-url: https://github.com/nodejs/node/pull/30768
     description: Prototype properties will be inspected from now in case
                  `showHidden` is truthy.
   - version: v13.0.0
