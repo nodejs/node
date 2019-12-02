@@ -160,6 +160,10 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/?????????????????????????
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25008
     description: The type tags are now properly compared and there are a couple
@@ -554,6 +558,10 @@ assert.doesNotThrow(
 ## assert.equal(actual, expected\[, message\])
 <!-- YAML
 added: v0.1.21
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/?????????????????????????
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
 -->
 
 * `actual` {any}
@@ -732,6 +740,10 @@ let err;
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/?????????????????????????
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -853,6 +865,10 @@ instead of the [`AssertionError`][].
 ## assert.notEqual(actual, expected\[, message\])
 <!-- YAML
 added: v0.1.21
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/?????????????????????????
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
 -->
 
 * `actual` {any}
