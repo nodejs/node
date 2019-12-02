@@ -375,9 +375,6 @@ class FileEnumerator {
      * @private
      */
     *_iterateFilesRecursive(directoryPath, options) {
-        if (this._isIgnoredFile(directoryPath + path.sep, options)) {
-            return;
-        }
         debug(`Enter the directory: ${directoryPath}`);
         const { configArrayFactory, extensionRegExp } = internalSlotsMap.get(this);
 
@@ -426,7 +423,20 @@ class FileEnumerator {
 
             // Dive into the sub directory.
             } else if (options.recursive && stat && stat.isDirectory()) {
-                yield* this._iterateFilesRecursive(filePath, options);
+                if (!config) {
+                    config = configArrayFactory.getConfigArrayForFile(
+                        filePath,
+                        { ignoreNotFoundError: true }
+                    );
+                }
+                const ignored = this._isIgnoredFile(
+                    filePath + path.sep,
+                    { ...options, config }
+                );
+
+                if (!ignored) {
+                    yield* this._iterateFilesRecursive(filePath, options);
+                }
             }
         }
 
