@@ -90,6 +90,56 @@ function nodesOrTokensOverlap(first, second) {
         (second.range[0] <= first.range[0] && second.range[1] >= first.range[0]);
 }
 
+/**
+ * Determines if two nodes or tokens have at least one whitespace character
+ * between them. Order does not matter. Returns false if the given nodes or
+ * tokens overlap.
+ * @param {SourceCode} sourceCode The source code object.
+ * @param {ASTNode|Token} first The first node or token to check between.
+ * @param {ASTNode|Token} second The second node or token to check between.
+ * @param {boolean} checkInsideOfJSXText If `true` is present, check inside of JSXText tokens for backward compatibility.
+ * @returns {boolean} True if there is a whitespace character between
+ * any of the tokens found between the two given nodes or tokens.
+ * @public
+ */
+function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
+    if (nodesOrTokensOverlap(first, second)) {
+        return false;
+    }
+
+    const [startingNodeOrToken, endingNodeOrToken] = first.range[1] <= second.range[0]
+        ? [first, second]
+        : [second, first];
+    const firstToken = sourceCode.getLastToken(startingNodeOrToken) || startingNodeOrToken;
+    const finalToken = sourceCode.getFirstToken(endingNodeOrToken) || endingNodeOrToken;
+    let currentToken = firstToken;
+
+    while (currentToken !== finalToken) {
+        const nextToken = sourceCode.getTokenAfter(currentToken, { includeComments: true });
+
+        if (
+            currentToken.range[1] !== nextToken.range[0] ||
+
+                /*
+                 * For backward compatibility, check speces in JSXText.
+                 * https://github.com/eslint/eslint/issues/12614
+                 */
+                (
+                    checkInsideOfJSXText &&
+                    nextToken !== finalToken &&
+                    nextToken.type === "JSXText" &&
+                    /\s/u.test(nextToken.value)
+                )
+        ) {
+            return true;
+        }
+
+        currentToken = nextToken;
+    }
+
+    return false;
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -433,42 +483,24 @@ class SourceCode extends TokenStore {
      * @public
      */
     isSpaceBetween(first, second) {
-        if (nodesOrTokensOverlap(first, second)) {
-            return false;
-        }
-
-        const [startingNodeOrToken, endingNodeOrToken] = first.range[1] <= second.range[0]
-            ? [first, second]
-            : [second, first];
-        const firstToken = this.getLastToken(startingNodeOrToken) || startingNodeOrToken;
-        const finalToken = this.getFirstToken(endingNodeOrToken) || endingNodeOrToken;
-        let currentToken = firstToken;
-
-        while (currentToken !== finalToken) {
-            const nextToken = this.getTokenAfter(currentToken, { includeComments: true });
-
-            if (currentToken.range[1] !== nextToken.range[0]) {
-                return true;
-            }
-
-            currentToken = nextToken;
-        }
-
-        return false;
+        return isSpaceBetween(this, first, second, false);
     }
 
     /**
      * Determines if two nodes or tokens have at least one whitespace character
      * between them. Order does not matter. Returns false if the given nodes or
      * tokens overlap.
-     * @param {...ASTNode|Token} args The nodes or tokens to check between.
+     * For backward compatibility, this method returns true if there are
+     * `JSXText` tokens that contain whitespaces between the two.
+     * @param {ASTNode|Token} first The first node or token to check between.
+     * @param {ASTNode|Token} second The second node or token to check between.
      * @returns {boolean} True if there is a whitespace character between
      * any of the tokens found between the two given nodes or tokens.
      * @deprecated in favor of isSpaceBetween().
      * @public
      */
-    isSpaceBetweenTokens(...args) {
-        return this.isSpaceBetween(...args);
+    isSpaceBetweenTokens(first, second) {
+        return isSpaceBetween(this, first, second, true);
     }
 
     /**
