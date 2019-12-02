@@ -558,6 +558,7 @@ assert.doesNotThrow(
 ## assert.equal(actual, expected\[, message\])
 <!-- YAML
 added: v0.1.21
+changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
@@ -865,6 +866,7 @@ instead of the [`AssertionError`][].
 ## assert.notEqual(actual, expected\[, message\])
 <!-- YAML
 added: v0.1.21
+changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
