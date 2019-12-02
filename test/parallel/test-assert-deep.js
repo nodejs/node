@@ -109,10 +109,7 @@ class MyDate extends Date {
 
 const date2 = new MyDate('2016');
 
-// deepEqual returns true as long as the time are the same,
-// but deepStrictEqual checks own properties
-assert.notDeepEqual(date, date2);
-assert.notDeepEqual(date2, date);
+assertNotDeepOrStrict(date, date2);
 assert.throws(
   () => assert.deepStrictEqual(date, date2),
   {
@@ -142,9 +139,7 @@ class MyRegExp extends RegExp {
 const re1 = new RegExp('test');
 const re2 = new MyRegExp('test');
 
-// deepEqual returns true as long as the regexp-specific properties
-// are the same, but deepStrictEqual checks all properties
-assert.notDeepEqual(re1, re2);
+assertNotDeepOrStrict(re1, re2);
 assert.throws(
   () => assert.deepStrictEqual(re1, re2),
   {
@@ -684,7 +679,7 @@ assert.throws(
   }
 );
 
-assert.deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14));
+assertDeepAndStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14));
 
 assert.throws(() => { assert.deepEqual(new Date(), new Date(2000, 3, 14)); },
               AssertionError,
@@ -702,7 +697,7 @@ assert.throws(
   'notDeepEqual("a".repeat(1024), "a".repeat(1024))'
 );
 
-assert.notDeepEqual(new Date(), new Date(2000, 3, 14));
+assertNotDeepOrStrict(new Date(), new Date(2000, 3, 14));
 
 assertDeepAndStrictEqual(/a/, /a/);
 assertDeepAndStrictEqual(/a/g, /a/g);
@@ -743,7 +738,7 @@ a2.b = true;
 a2.a = 'test';
 assert.throws(() => assert.deepEqual(Object.keys(a1), Object.keys(a2)),
               AssertionError);
-assert.deepEqual(a1, a2);
+assertDeepAndStrictEqual(a1, a2);
 
 // Having an identical prototype property.
 const nbRoot = {
@@ -899,13 +894,11 @@ assert.throws(
 
 /* eslint-enable */
 
-assert.deepStrictEqual({ a: 4, b: '1' }, { b: '1', a: 4 });
+assertDeepAndStrictEqual({ a: 4, b: '1' }, { b: '1', a: 4 });
 
 assert.throws(
   () => assert.deepStrictEqual([0, 1, 2, 'a', 'b'], [0, 1, 2, 'b', 'a']),
   AssertionError);
-
-assert.deepStrictEqual(a1, a2);
 
 // Prototype check.
 function Constructor1(first, last) {
@@ -926,7 +919,7 @@ assert.throws(() => assert.deepStrictEqual(obj1, obj2), AssertionError);
 Constructor2.prototype = Constructor1.prototype;
 obj2 = new Constructor2('Ryan', 'Dahl');
 
-assert.deepStrictEqual(obj1, obj2);
+assertDeepAndStrictEqual(obj1, obj2);
 
 // Check extra properties on errors.
 {
@@ -1047,7 +1040,7 @@ assert.throws(
   Object.defineProperty(a, 'getTime', {
     value: () => 5
   });
-  assert.deepStrictEqual(a, b);
+  assertDeepAndStrictEqual(a, b);
 }
 
 // Verify that an array and the equivalent fake array object
@@ -1079,7 +1072,7 @@ assert.throws(
   Object.defineProperty(a, 'length', {
     value: 2
   });
-  assert.notDeepStrictEqual(a, [1, 1]);
+  assertNotDeepOrStrict(a, [1, 1]);
 }
 
 // Verify that changed tags will still check for the error message.
