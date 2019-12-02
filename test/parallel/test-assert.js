@@ -501,6 +501,12 @@ assert.throws(
   }
 );
 
+a.equal(NaN, NaN);
+a.throws(
+  () => a.notEqual(NaN, NaN),
+  a.AssertionError
+);
+
 // Test strict assert.
 {
   const a = require('assert');
