@@ -49,7 +49,7 @@ In case of doubt, open an issue in the
 Node.js has two IRC channels:
 [#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
-[#Node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
+[#node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically.
 
 ## Setting up your local environment

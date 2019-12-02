@@ -55,9 +55,9 @@
   * OK: JavaScript, Google's V8
   <!--lint disable prohibited-strings remark-lint-->
   * NOT OK: Javascript, Google's v8
-  <!-- lint enable prohibited-strings remark-lint-->
 
 * Use _Node.js_ and not _Node_, _NodeJS_, or similar variants.
+  <!-- lint enable prohibited-strings remark-lint-->
   * When referring to the executable, _`node`_ is acceptable.
 
 See also API documentation structure overview in [doctools README][].
