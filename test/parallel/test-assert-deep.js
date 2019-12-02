@@ -1145,4 +1145,40 @@ assert.throws(
     value: 'Array'
   });
   assertNotDeepOrStrict(a, b);
+
+  a = new Date(2000);
+  b = Object.create(
+    Object.getPrototypeOf(a),
+    Object.getOwnPropertyDescriptors(a)
+  );
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Date'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = /abc/g;
+  b = Object.create(
+    Object.getPrototypeOf(a),
+    Object.getOwnPropertyDescriptors(a)
+  );
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'RegExp'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = [];
+  b = /abc/;
+  Object.setPrototypeOf(b, Array.prototype);
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Array'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = Object.create(null);
+  b = new RangeError('abc');
+  Object.defineProperty(a, Symbol.toStringTag, {
+    value: 'Error'
+  });
+  Object.setPrototypeOf(b, null);
+  assertNotDeepOrStrict(a, b, assert.AssertionError);
 }
