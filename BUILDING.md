@@ -69,13 +69,11 @@ There are three support tiers:
 
 * **Tier 1**: These platforms represent the majority of Node.js users. The
   Node.js Build Working Group maintains infrastructure for full test coverage.
-  All commits to the Node.js repository are tested on these platforms. Test
-  failures on tier 1 platforms will block releases.
+  Test failures on tier 1 platforms will block releases.
 * **Tier 2**: These platforms represent smaller segments of the Node.js user
   base. The Node.js Build Working Group maintains infrastructure for full test
-  coverage. All commits to the Node.js repository are tested on these platforms.
-  Test failures on tier 2 platforms will block releases. Delays in release of
-  binaries for these platforms are acceptable where necessary due to
+  coverage. Test failures on tier 2 platforms will block releases. Delays in
+  release of binaries for these platforms are acceptable where necessary due to
   infrastructure concerns.
 * **Experimental**: May not compile or test suite may not pass. The core team
   does not create releases for these platforms. Test failures on experimental
