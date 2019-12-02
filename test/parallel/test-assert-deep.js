@@ -1138,3 +1138,69 @@ assert.throws(
   // The descriptor is not compared.
   assertDeepAndStrictEqual(a, { a: 5 });
 }
+
+// Verify object types being identical on both sides.
+{
+  let a = Buffer.from('test');
+  let b = Object.create(
+    Object.getPrototypeOf(a),
+    Object.getOwnPropertyDescriptors(a)
+  );
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Uint8Array'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = new Uint8Array(10);
+  b = new Int8Array(10);
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Uint8Array'
+  });
+  Object.setPrototypeOf(b, Uint8Array.prototype);
+  assertNotDeepOrStrict(a, b);
+
+  a = [1, 2, 3];
+  b = { 0: 1, 1: 2, 2: 3 };
+  Object.setPrototypeOf(b, Array.prototype);
+  Object.defineProperty(b, 'length', { value: 3, enumerable: false });
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Array'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = new Date(2000);
+  b = Object.create(
+    Object.getPrototypeOf(a),
+    Object.getOwnPropertyDescriptors(a)
+  );
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Date'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = /abc/g;
+  b = Object.create(
+    Object.getPrototypeOf(a),
+    Object.getOwnPropertyDescriptors(a)
+  );
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'RegExp'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = [];
+  b = /abc/;
+  Object.setPrototypeOf(b, Array.prototype);
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'Array'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = Object.create(null);
+  b = new RangeError('abc');
+  Object.defineProperty(a, Symbol.toStringTag, {
+    value: 'Error'
+  });
+  Object.setPrototypeOf(b, null);
+  assertNotDeepOrStrict(a, b, assert.AssertionError);
+}
