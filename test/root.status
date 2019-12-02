@@ -1,11 +1,7 @@
 [$mode==debug]
 async-hooks/test-callback-error: SLOW
-async-hooks/test-callback-error: SLOW
-async-hooks/test-emit-init: SLOW
 async-hooks/test-emit-init: SLOW
 async-hooks/test-querywrap: SLOW
-async-hooks/test-querywrap: SLOW
-async-hooks/test-tlswrap: SLOW
 async-hooks/test-tlswrap: SLOW
 message/eval_messages: SLOW
 message/stdin_messages: SLOW
