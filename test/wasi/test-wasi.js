@@ -3,7 +3,7 @@ const common = require('../common');
 
 if (process.argv[2] === 'wasi-child') {
   const fixtures = require('../common/fixtures');
-  const tmpdir = require('../../test/common/tmpdir');
+  const tmpdir = require('../common/tmpdir');
   const fs = require('fs');
   const path = require('path');
 
