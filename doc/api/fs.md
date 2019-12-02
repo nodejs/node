@@ -3473,10 +3473,10 @@ completion callback.
 
 The `type` argument is only available on Windows and ignored on other platforms.
 It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
-not set, Node will autodetect `target` type and use `'file'` or `'dir'`. If the
-`target` does not exist, `'file'` will be used. Windows junction points require
-the destination path to be absolute.  When using `'junction'`, the `target`
-argument will automatically be normalized to absolute path.
+not set, Node.js will autodetect `target` type and use `'file'` or `'dir'`. If
+the `target` does not exist, `'file'` will be used. Windows junction points
+require the destination path to be absolute.  When using `'junction'`, the
+`target` argument will automatically be normalized to absolute path.
 
 Relative targets are relative to the link’s parent directory.
 
