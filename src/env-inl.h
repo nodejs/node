@@ -983,10 +983,20 @@ inline v8::MaybeLocal<v8::Object> AllocatedBuffer::ToBuffer() {
 inline v8::Local<v8::ArrayBuffer> AllocatedBuffer::ToArrayBuffer() {
   CHECK_NOT_NULL(env_);
   uv_buf_t buf = release();
+  auto callback = [](void* data, size_t length, void* deleter_data){
+    CHECK_NOT_NULL(deleter_data);
+
+    static_cast<v8::ArrayBuffer::Allocator*>(deleter_data)
+        ->Free(data, length);
+  };
+  std::unique_ptr<v8::BackingStore> backing =
+      v8::ArrayBuffer::NewBackingStore(buf.base,
+                                       buf.len,
+                                       callback,
+                                       env_->isolate()
+                                          ->GetArrayBufferAllocator());
   return v8::ArrayBuffer::New(env_->isolate(),
-                              buf.base,
-                              buf.len,
-                              v8::ArrayBufferCreationMode::kInternalized);
+                              std::move(backing));
 }
 
 inline void Environment::ThrowError(const char* errmsg) {

@@ -16,6 +16,7 @@ namespace node {
 
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -566,10 +567,18 @@ Http2Session::Http2Session(Environment* env,
 
   {
     // Make the js_fields_ property accessible to JS land.
+    std::unique_ptr<BackingStore> backing =
+        ArrayBuffer::NewBackingStore(
+            reinterpret_cast<uint8_t*>(&js_fields_),
+            kSessionUint8FieldCount,
+            [](void*, size_t, void*){},
+            nullptr);
     Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(),
-                         reinterpret_cast<uint8_t*>(&js_fields_),
-                         kSessionUint8FieldCount);
+        ArrayBuffer::New(env->isolate(), std::move(backing));
+    // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+    if (!ab->IsExternal())
+      ab->Externalize(ab->GetBackingStore());
+    js_fields_ab_.Reset(env->isolate(), ab);
     Local<Uint8Array> uint8_arr =
         Uint8Array::New(ab, 0, kSessionUint8FieldCount);
     USE(wrap->Set(env->context(), env->fields_string(), uint8_arr));
@@ -581,6 +590,14 @@ Http2Session::~Http2Session() {
   Debug(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
   CHECK_EQ(current_nghttp2_memory_, 0);
+  HandleScope handle_scope(env()->isolate());
+  // Detach js_fields_ab_ to avoid having problem when new Http2Session
+  // instances are created on the same location of previous
+  // instances. This in turn will call ArrayBuffer::NewBackingStore()
+  // multiple times with the same buffer address and causing error.
+  // Ref: https://github.com/nodejs/node/pull/30782
+  Local<ArrayBuffer> ab = js_fields_ab_.Get(env()->isolate());
+  ab->Detach();
 }
 
 std::string Http2Session::diagnostic_name() const {

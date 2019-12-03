@@ -28,6 +28,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HeapCodeStatistics;
@@ -162,12 +163,22 @@ void Initialize(Local<Object> target,
   const size_t heap_statistics_buffer_byte_length =
       sizeof(*env->heap_statistics_buffer()) * kHeapStatisticsPropertiesCount;
 
+  std::unique_ptr<BackingStore> heap_statistics_backing =
+      ArrayBuffer::NewBackingStore(env->heap_statistics_buffer(),
+                                   heap_statistics_buffer_byte_length,
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+  Local<ArrayBuffer> heap_statistics_ab =
+      ArrayBuffer::New(env->isolate(),
+                       std::move(heap_statistics_backing));
+  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+  if (!heap_statistics_ab->IsExternal())
+    heap_statistics_ab->Externalize(
+        heap_statistics_ab->GetBackingStore());
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "heapStatisticsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
-                               env->heap_statistics_buffer(),
-                               heap_statistics_buffer_byte_length)).Check();
+              heap_statistics_ab).Check();
 
 #define V(i, _, name)                                                         \
   target->Set(env->context(),                                                 \
@@ -189,12 +200,22 @@ void Initialize(Local<Object> target,
       sizeof(*env->heap_code_statistics_buffer())
       * kHeapCodeStatisticsPropertiesCount;
 
+  std::unique_ptr<BackingStore> heap_code_statistics_backing =
+      ArrayBuffer::NewBackingStore(env->heap_code_statistics_buffer(),
+                                   heap_code_statistics_buffer_byte_length,
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+  Local<ArrayBuffer> heap_code_statistics_ab =
+      ArrayBuffer::New(env->isolate(),
+                       std::move(heap_code_statistics_backing));
+  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+  if (!heap_code_statistics_ab->IsExternal())
+    heap_code_statistics_ab->Externalize(
+        heap_code_statistics_ab->GetBackingStore());
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "heapCodeStatisticsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
-                               env->heap_code_statistics_buffer(),
-                               heap_code_statistics_buffer_byte_length))
+              heap_code_statistics_ab)
   .Check();
 
 #define V(i, _, name)                                                         \
@@ -244,12 +265,22 @@ void Initialize(Local<Object> target,
       kHeapSpaceStatisticsPropertiesCount *
       number_of_heap_spaces;
 
+  std::unique_ptr<BackingStore> heap_space_statistics_backing =
+      ArrayBuffer::NewBackingStore(env->heap_space_statistics_buffer(),
+                                   heap_space_statistics_buffer_byte_length,
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+  Local<ArrayBuffer> heap_space_statistics_ab =
+      ArrayBuffer::New(env->isolate(),
+                               std::move(heap_space_statistics_backing));
+  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+  if (!heap_space_statistics_ab->IsExternal())
+    heap_space_statistics_ab->Externalize(
+        heap_space_statistics_ab->GetBackingStore());
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "heapSpaceStatisticsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
-                               env->heap_space_statistics_buffer(),
-                               heap_space_statistics_buffer_byte_length))
+              heap_space_statistics_ab)
               .Check();
 
 #define V(i, _, name)                                                         \

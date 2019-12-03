@@ -1,6 +1,7 @@
 #define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include <string.h>
+#include <stdlib.h>
 #include "../common.h"
 
 static napi_value Multiply(napi_env env, napi_callback_info info) {
@@ -74,22 +75,33 @@ static napi_value Multiply(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
+static void FinalizeCallback(napi_env env,
+                             void* finalize_data,
+                             void* finalize_hint)
+{
+  free(finalize_data);
+}
+
 static napi_value External(napi_env env, napi_callback_info info) {
-  static int8_t externalData[] = {0, 1, 2};
+  const uint8_t nElem = 3;
+  int8_t* externalData = malloc(nElem*sizeof(int8_t));
+  externalData[0] = 0;
+  externalData[1] = 1;
+  externalData[2] = 2;
 
   napi_value output_buffer;
   NAPI_CALL(env, napi_create_external_arraybuffer(
       env,
       externalData,
-      sizeof(externalData),
-      NULL,  // finalize_callback
+      nElem*sizeof(int8_t),
+      FinalizeCallback,
       NULL,  // finalize_hint
       &output_buffer));
 
   napi_value output_array;
   NAPI_CALL(env, napi_create_typedarray(env,
       napi_int8_array,
-      sizeof(externalData) / sizeof(int8_t),
+      nElem,
       output_buffer,
       0,
       &output_array));

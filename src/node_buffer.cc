@@ -47,8 +47,8 @@ namespace node {
 namespace Buffer {
 
 using v8::ArrayBuffer;
-using v8::ArrayBufferCreationMode;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
@@ -127,8 +127,8 @@ CallbackInfo::CallbackInfo(Environment* env,
       data_(data),
       hint_(hint),
       env_(env) {
-  ArrayBuffer::Contents obj_c = object->GetContents();
-  CHECK_EQ(data_, static_cast<char*>(obj_c.Data()));
+  std::shared_ptr<BackingStore> obj_backing = object->GetBackingStore();
+  CHECK_EQ(data_, static_cast<char*>(obj_backing->Data()));
   if (object->ByteLength() != 0)
     CHECK_NOT_NULL(data_);
 
@@ -406,7 +406,19 @@ MaybeLocal<Object> New(Environment* env,
     return Local<Object>();
   }
 
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
+
+  // The buffer will be released by a CallbackInfo::New() below,
+  // hence this BackingStore callback is empty.
+  std::unique_ptr<BackingStore> backing =
+      ArrayBuffer::NewBackingStore(data,
+                                   length,
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
+                                           std::move(backing));
+  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+  if (!ab->IsExternal())
+    ab->Externalize(ab->GetBackingStore());
   if (ab->SetPrivate(env->context(),
                      env->arraybuffer_untransferable_private_symbol(),
                      True(env->isolate())).IsNothing()) {
@@ -465,11 +477,21 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
-  Local<ArrayBuffer> ab =
-      ArrayBuffer::New(env->isolate(),
-                       data,
-                       length,
-                       ArrayBufferCreationMode::kInternalized);
+  auto callback = [](void* data, size_t length, void* deleter_data){
+    CHECK_NOT_NULL(deleter_data);
+
+    static_cast<v8::ArrayBuffer::Allocator*>(deleter_data)
+        ->Free(data, length);
+  };
+  std::unique_ptr<v8::BackingStore> backing =
+      v8::ArrayBuffer::NewBackingStore(data,
+                                       length,
+                                       callback,
+                                       env->isolate()
+                                          ->GetArrayBufferAllocator());
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
+                                           std::move(backing));
+
   return Buffer::New(env, ab, 0, length).FromMaybe(Local<Object>());
 }
 
@@ -1181,8 +1203,16 @@ void Initialize(Local<Object> target,
   if (NodeArrayBufferAllocator* allocator =
           env->isolate_data()->node_allocator()) {
     uint32_t* zero_fill_field = allocator->zero_fill_field();
-    Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
-        env->isolate(), zero_fill_field, sizeof(*zero_fill_field));
+    std::unique_ptr<BackingStore> backing =
+      ArrayBuffer::NewBackingStore(zero_fill_field,
+                                   sizeof(*zero_fill_field),
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+    Local<ArrayBuffer> array_buffer =
+        ArrayBuffer::New(env->isolate(), std::move(backing));
+    // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+    if (!array_buffer->IsExternal())
+      array_buffer->Externalize(array_buffer->GetBackingStore());
     CHECK(target
               ->Set(env->context(),
                     FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),

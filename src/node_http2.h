@@ -989,6 +989,7 @@ class Http2Session : public AsyncWrap,
 
   // JS-accessible numeric fields, as indexed by SessionUint8Fields.
   SessionJSFields js_fields_ = {};
+  v8::Global<v8::ArrayBuffer> js_fields_ab_;
 
   // The session type: client or server
   nghttp2_session_type session_type_;
