@@ -84,7 +84,8 @@ If the nearest parent `package.json` lacks a `"type"` field, or contains
 `"type": "commonjs"`, extensionless and `.js` files are treated as CommonJS.
 If the volume root is reached and no `package.json` is found,
 Node.js defers to the default, a `package.json` with no `"type"`
-field.
+field. Note that "extensionless" refers to file names which do not contain
+an extension. It does not refer to the import specifier.
 
 `import` statements of `.js` and extensionless files are treated as ES modules
 if the nearest parent `package.json` contains `"type": "module"`.
@@ -92,9 +93,6 @@ if the nearest parent `package.json` contains `"type": "module"`.
 ```js
 // my-app.js, part of the same example as above
 import './startup.js'; // Loaded as ES module because of package.json
-
-// Extensionless. Requires 'node --es-module-specifier-resolution=node'
-import './startup'; // Loaded as ES module because of package.json
 ```
 
 Package authors should include the `"type"` field, even in packages where all
