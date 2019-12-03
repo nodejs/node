@@ -585,7 +585,7 @@ If you want to know more about the code review and the landing process, see the
 [Collaborator Guide][].
 
 [approved]: #getting-approvals-for-your-pull-request
-[benchmark results]: ../writing-and-running-benchmarks.md
+[benchmark results]: ../../../benchmark/writing-and-running-benchmarks.md
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
