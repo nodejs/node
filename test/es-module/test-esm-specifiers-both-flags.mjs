@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import assert from 'assert';
 
 const expectedError =
-  'node: bad option: cannot use --es-module-specifier-resolution ' +
+  'cannot use --es-module-specifier-resolution ' +
   'and --experimental-specifier-resolution at the same time';
 
 const flags = '--es-module-specifier-resolution=node ' +
