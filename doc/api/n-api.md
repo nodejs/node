@@ -3489,13 +3489,13 @@ typedef struct {
   `method` and `data` to `NULL` (since these members won't be used).
 * `getter`: A function to call when a get access of the property is performed.
   If this is passed in, set `value` and `method` to `NULL` (since these members
-  won't be used). The given function is called implicitly by the runtime when the
-  property is accessed from JavaScript code (or if a get on the property is
+  won't be used). The given function is called implicitly by the runtime when
+  the property is accessed from JavaScript code (or if a get on the property is
   performed using a N-API call).
 * `setter`: A function to call when a set access of the property is performed.
   If this is passed in, set `value` and `method` to `NULL` (since these members
-  won't be used). The given function is called implicitly by the runtime when the
-  property is set from JavaScript code (or if a set on the property is
+  won't be used). The given function is called implicitly by the runtime when
+  the property is set from JavaScript code (or if a set on the property is
   performed using a N-API call).
 * `method`: Set this to make the property descriptor object's `value`
   property to be a JavaScript function represented by `method`. If this is
