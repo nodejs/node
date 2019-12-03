@@ -19,6 +19,7 @@
 using node::kDisallowedInEnvironment;
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -622,6 +623,7 @@ void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {
 
 Local<Float64Array> Worker::GetResourceLimits(Isolate* isolate) const {
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(resource_limits_));
+
   memcpy(ab->GetBackingStore()->Data(),
          resource_limits_,
          sizeof(resource_limits_));
