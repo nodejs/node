@@ -58,8 +58,10 @@ if (process.argv[2] === 'child') {
   const child = fork(process.argv[1], ['child']);
 
   child.on('exit', function(code, signal) {
-    if (!subprocessKilled)
-      throw new Error('subprocess died unexpectedly!');
+    if (!subprocessKilled) {
+      assert.fail('subprocess died unexpectedly! ' +
+                  `code: ${code} signal: ${signal}`);
+    }
   });
 
   const server = net.createServer();
@@ -98,6 +100,8 @@ if (process.argv[2] === 'child') {
     child.once('message', function(m) {
       assert.strictEqual(m.status, 'closed');
       server.getConnections(function(err, num) {
+        assert.ifError(err);
+        assert.strictEqual(num, count - (i + 1));
         closeSockets(i + 1);
       });
     });
