@@ -3220,7 +3220,7 @@ Synchronous rename(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30644
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
@@ -3273,7 +3273,7 @@ Windows and an `ENOTDIR` error on POSIX.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30644
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
@@ -5012,7 +5012,7 @@ upon success.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30644
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and

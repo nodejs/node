@@ -232,7 +232,7 @@ Enable experimental ES Module support in the `vm` module.
 
 ### `--experimental-wasi-unstable-preview0`
 <!-- YAML
-added: REPLACEME
+added: v13.3.0
 -->
 
 Enable experimental WebAssembly System Interface (WASI) support.
