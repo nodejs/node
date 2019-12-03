@@ -1941,10 +1941,10 @@ error will be thrown.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionRejectedStreams` option with a default of 100.
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v13.0.0
@@ -2068,10 +2068,10 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionRejectedStreams` option with a default of 100.
-  - version: REPLACEME
+  - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30534
     description: Added `maxSessionInvalidFrames` option with a default of 1000.
   - version: v13.0.0
