@@ -91,6 +91,8 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsProxy())
     return;
 
+  CHECK(args[1]->IsBoolean());
+
   Local<Proxy> proxy = args[0].As<Proxy>();
 
   if (args[1]->IsTrue()) {

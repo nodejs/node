@@ -111,7 +111,7 @@ const expected6 = 'Proxy [\n' +
                   '  ]\n' +
                   ']';
 assert.strictEqual(
-  util.inspect(proxy1, { showProxy: true, depth: null }),
+  util.inspect(proxy1, { showProxy: 1, depth: null }),
   expected1);
 assert.strictEqual(util.inspect(proxy2, opts), expected2);
 assert.strictEqual(util.inspect(proxy3, opts), expected3);
