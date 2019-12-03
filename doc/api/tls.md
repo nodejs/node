@@ -729,7 +729,7 @@ See [Session Resumption][] for more information.
 For TLSv1.3, it is necessary to wait for the 'session' event to get a resumable
 session. This is because only ticket-based resumption is allowed by the
 protocol. Tickets aren't sent until after the handshake completes. Applications
-should use the 'session' event instead of [`tls.TLSSocket.getSession()`][] to
+should use the `'session'` event instead of [`tls.TLSSocket.getSession()`][] to
 ensure they work for all TLS versions. Applications that only expect to get or
 use 1 session should listen for this event only once:
 
