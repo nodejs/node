@@ -360,7 +360,7 @@ The buffered data will be flushed when either the [`stream.uncork()`][] or
 
 The primary intent of `writable.cork()` is to accommodate a situation in which
 several small chunks are written to the stream in rapid succession. Instead of
-immediately forwarding them to the underlining destination, `writable.cork()`
+immediately forwarding them to the underlying destination, `writable.cork()`
 buffers all the chunks until `writable.uncork()` is called, which will pass
 them all to `writable._writev()`, if present. This prevents an head-of-line
 blocking situation where data is being buffered while waiting for the first
