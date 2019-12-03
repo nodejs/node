@@ -224,7 +224,7 @@ Consult previous versions of this document for older versions of Node.js:
 ### Note about Python 2 and Python 3
 
 The Node.js project uses Python as part of its build process and was
-historically only been Python 2 compatible.
+historically only Python 2 compatible.
 
 Python 2 will reach its _end-of-life_ at the end of 2019 at which point the
 interpreter will cease receiving updates. See https://python3statement.org/
