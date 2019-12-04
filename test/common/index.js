@@ -481,12 +481,6 @@ function nodeProcessAborted(exitCode, signal) {
   }
 }
 
-function busyLoop(time) {
-  const startTime = Date.now();
-  const stopTime = startTime + time;
-  while (Date.now() < stopTime) {}
-}
-
 function isAlive(pid) {
   try {
     process.kill(pid, 'SIGCONT');
@@ -744,7 +738,6 @@ function runWithInvalidFD(func) {
 module.exports = {
   allowGlobals,
   buildType,
-  busyLoop,
   canCreateSymLink,
   childShouldThrowAndAbort,
   createZeroFilledFile,
