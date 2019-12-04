@@ -1,7 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
+const { sleep } = require('internal/util');
 
 // Make sure we test 0ms timers, since they would had always wanted to run on
 // the current tick, and greater than 0ms timers, for scenarios where the
@@ -23,7 +25,7 @@ scenarios.forEach(function(delay) {
 
     // Busy loop for the same timeout used for the nested timer to ensure that
     // we are in fact expiring the nested timer.
-    common.busyLoop(delay);
+    sleep(delay);
 
     // The purpose of running this assert in nextTick is to make sure it runs
     // after A but before the next iteration of the libuv event loop.
