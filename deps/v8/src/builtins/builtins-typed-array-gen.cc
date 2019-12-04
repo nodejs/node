@@ -35,11 +35,10 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     TNode<Context> context, TNode<UintPtrT> byte_length) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map =
       CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
-  TNode<FixedArray> empty_fixed_array =
-      CAST(LoadRoot(RootIndex::kEmptyFixedArray));
+  TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
 
   TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
       Allocate(JSArrayBuffer::kSizeWithEmbedderFields));
@@ -90,12 +89,12 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* arg1 = args.GetOptionalArgumentValue(0);
-  Node* arg2 = args.GetOptionalArgumentValue(1);
-  Node* arg3 = args.GetOptionalArgumentValue(2);
+  TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
+  TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
+  TNode<Object> arg3 = args.GetOptionalArgumentValue(2);
 
   // If NewTarget is undefined, throw a TypeError exception.
   // All the TypedArray constructors have this as the first step:
@@ -103,8 +102,8 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   Label throwtypeerror(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &throwtypeerror);
 
-  Node* result = CallBuiltin(Builtins::kCreateTypedArray, context, target,
-                             new_target, arg1, arg2, arg3);
+  TNode<Object> result = CallBuiltin(Builtins::kCreateTypedArray, context,
+                                     target, new_target, arg1, arg2, arg3);
   args.PopAndReturn(result);
 
   BIND(&throwtypeerror);
@@ -221,7 +220,7 @@ TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(TNode<Map> map) {
 TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     TNode<Context> context, TNode<JSTypedArray> exemplar) {
   TVARIABLE(IntPtrT, context_slot);
-  TNode<Word32T> elements_kind = LoadElementsKind(exemplar);
+  TNode<Int32T> elements_kind = LoadElementsKind(exemplar);
 
   DispatchTypedArrayByElementsKind(
       elements_kind,
@@ -322,8 +321,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
   TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayBackingStore(target);
   TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayBackingStore(source);
 
-  TNode<Word32T> source_el_kind = LoadElementsKind(source);
-  TNode<Word32T> target_el_kind = LoadElementsKind(target);
+  TNode<Int32T> source_el_kind = LoadElementsKind(source);
+  TNode<Int32T> target_el_kind = LoadElementsKind(target);
 
   TNode<IntPtrT> source_el_size = GetTypedArrayElementSize(source_el_kind);
   TNode<IntPtrT> target_el_size = GetTypedArrayElementSize(target_el_kind);
@@ -650,7 +649,7 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
   // that this can be turned into a non-sparse table switch for ideal
   // performance.
   BIND(&if_receiverisheapobject);
-  Node* elements_kind =
+  TNode<Int32T> elements_kind =
       Int32Sub(LoadElementsKind(receiver),
                Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
   Switch(elements_kind, &return_undefined, elements_kinds, elements_kind_labels,
@@ -727,7 +726,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   TNode<JSTypedArray> new_typed_array = TypedArrayCreateByLength(
       context, receiver, SmiTag(length), "%TypedArray%.of");
 
-  TNode<Word32T> elements_kind = LoadElementsKind(new_typed_array);
+  TNode<Int32T> elements_kind = LoadElementsKind(new_typed_array);
 
   // 6. Let k be 0.
   // 7. Repeat, while k < len
@@ -858,17 +857,16 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
         CAST(iterator_fn), JSFunction::kSharedFunctionInfoOffset);
     GotoIfNot(
-        WordEqual(LoadObjectField(shared_info,
-                                  SharedFunctionInfo::kFunctionDataOffset),
-                  SmiConstant(Builtins::kTypedArrayPrototypeValues)),
+        TaggedEqual(LoadObjectField(shared_info,
+                                    SharedFunctionInfo::kFunctionDataOffset),
+                    SmiConstant(Builtins::kTypedArrayPrototypeValues)),
         &check_iterator);
     // Check that the ArrayIterator prototype's "next" method hasn't been
     // overridden
-    TNode<PropertyCell> protector_cell =
-        CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
+    TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
     GotoIfNot(
-        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
+        TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                    SmiConstant(Isolate::kProtectorValid)),
         &check_iterator);
 
     // Source is a TypedArray with unmodified iterator behavior. Use the
@@ -895,7 +893,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
     // This is not a spec'd limit, so it doesn't particularly matter when we
     // throw the range error for typed array length > MaxSmi.
-    TNode<Object> raw_length = LoadJSArrayLength(values);
+    TNode<Number> raw_length = LoadJSArrayLength(values);
     GotoIfNot(TaggedIsSmi(raw_length), &if_length_not_smi);
 
     final_length = CAST(raw_length);
@@ -949,7 +947,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   }
 
   BIND(&slow_path);
-  TNode<Word32T> elements_kind = LoadElementsKind(target_obj.value());
+  TNode<Int32T> elements_kind = LoadElementsKind(target_obj.value());
 
   // 7e/13 : Copy the elements
   BuildFastLoop(

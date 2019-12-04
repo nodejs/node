@@ -166,7 +166,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
     bool has_simple_parameters = false;
     bool is_asm_module = false;
-    bool calls_sloppy_eval = false;
+    bool sloppy_eval_can_extend_vars = false;
     if (scope->is_function_scope()) {
       DeclarationScope* function_scope = scope->AsDeclarationScope();
       has_simple_parameters = function_scope->has_simple_parameters();
@@ -175,13 +175,14 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     FunctionKind function_kind = kNormalFunction;
     if (scope->is_declaration_scope()) {
       function_kind = scope->AsDeclarationScope()->function_kind();
-      calls_sloppy_eval = scope->AsDeclarationScope()->calls_sloppy_eval();
+      sloppy_eval_can_extend_vars =
+          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
     }
 
     // Encode the flags.
     int flags =
         ScopeTypeField::encode(scope->scope_type()) |
-        CallsSloppyEvalField::encode(calls_sloppy_eval) |
+        SloppyEvalCanExtendVarsField::encode(sloppy_eval_can_extend_vars) |
         LanguageModeField::encode(scope->language_mode()) |
         DeclarationScopeField::encode(scope->is_declaration_scope()) |
         ReceiverVariableField::encode(receiver_info) |
@@ -218,8 +219,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
           uint32_t info =
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
-              RequiresBrandCheckField::encode(
-                  var->get_requires_brand_check_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info.set(context_local_base + local_index, *var->name(), mode);
@@ -236,8 +235,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
-              RequiresBrandCheckField::encode(
-                  var->get_requires_brand_check_flag()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info.set(module_var_entry + kModuleVariablePropertiesOffset,
                          Smi::FromInt(properties));
@@ -276,8 +273,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
-              RequiresBrandCheckField::encode(
-                  var->get_requires_brand_check_flag()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info.set(context_local_base + local_index, *var->name(), mode);
           scope_info.set(context_local_info_base + local_index,
@@ -362,7 +357,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
 
   // Encode the flags.
   int flags =
-      ScopeTypeField::encode(WITH_SCOPE) | CallsSloppyEvalField::encode(false) |
+      ScopeTypeField::encode(WITH_SCOPE) |
+      SloppyEvalCanExtendVarsField::encode(false) |
       LanguageModeField::encode(LanguageMode::kSloppy) |
       DeclarationScopeField::encode(false) |
       ReceiverVariableField::encode(NONE) | HasClassBrandField::encode(false) |
@@ -419,11 +415,13 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                      (has_position_info ? kPositionInfoEntries : 0);
 
   Factory* factory = isolate->factory();
-  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
+  Handle<ScopeInfo> scope_info =
+      factory->NewScopeInfo(length, AllocationType::kReadOnly);
 
   // Encode the flags.
   int flags =
-      ScopeTypeField::encode(type) | CallsSloppyEvalField::encode(false) |
+      ScopeTypeField::encode(type) |
+      SloppyEvalCanExtendVarsField::encode(false) |
       LanguageModeField::encode(LanguageMode::kSloppy) |
       DeclarationScopeField::encode(true) |
       ReceiverVariableField::encode(is_empty_function ? UNUSED : CONTEXT) |
@@ -451,7 +449,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
         VariableModeField::encode(VariableMode::kConst) |
         InitFlagField::encode(kCreatedInitialized) |
         MaybeAssignedFlagField::encode(kNotAssigned) |
-        RequiresBrandCheckField::encode(kNoBrandCheck) |
         ParameterNumberField::encode(ParameterNumberField::kMax);
     scope_info->set(index++, Smi::FromInt(value));
   }
@@ -497,12 +494,12 @@ ScopeType ScopeInfo::scope_type() const {
   return ScopeTypeField::decode(Flags());
 }
 
-bool ScopeInfo::CallsSloppyEval() const {
-  bool calls_sloppy_eval =
-      length() > 0 && CallsSloppyEvalField::decode(Flags());
-  DCHECK_IMPLIES(calls_sloppy_eval, is_sloppy(language_mode()));
-  DCHECK_IMPLIES(calls_sloppy_eval, is_declaration_scope());
-  return calls_sloppy_eval;
+bool ScopeInfo::SloppyEvalCanExtendVars() const {
+  bool sloppy_eval_can_extend_vars =
+      length() > 0 && SloppyEvalCanExtendVarsField::decode(Flags());
+  DCHECK_IMPLIES(sloppy_eval_can_extend_vars, is_sloppy(language_mode()));
+  DCHECK_IMPLIES(sloppy_eval_can_extend_vars, is_declaration_scope());
+  return sloppy_eval_can_extend_vars;
 }
 
 LanguageMode ScopeInfo::language_mode() const {
@@ -523,9 +520,9 @@ int ScopeInfo::ContextLength() const {
     bool has_context =
         context_locals > 0 || force_context || function_name_context_slot ||
         scope_type() == WITH_SCOPE || scope_type() == CLASS_SCOPE ||
-        (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
+        (scope_type() == BLOCK_SCOPE && SloppyEvalCanExtendVars() &&
          is_declaration_scope()) ||
-        (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
+        (scope_type() == FUNCTION_SCOPE && SloppyEvalCanExtendVars()) ||
         (scope_type() == FUNCTION_SCOPE && IsAsmModule()) ||
         scope_type() == MODULE_SCOPE;
 
@@ -708,21 +705,13 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   return MaybeAssignedFlagField::decode(value);
 }
 
-RequiresBrandCheckFlag ScopeInfo::RequiresBrandCheck(int var) const {
-  DCHECK_LE(0, var);
-  DCHECK_LT(var, ContextLocalCount());
-  int info_index = ContextLocalInfosIndex() + var;
-  int value = Smi::ToInt(get(info_index));
-  return RequiresBrandCheckField::decode(value);
-}
-
 // static
 bool ScopeInfo::VariableIsSynthetic(String name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
   // variable is a compiler-introduced temporary. However, to avoid conflict
   // with user declarations, the current temporaries like .generator_object and
   // .result start with a dot, so we can use that as a flag. It's a hack!
-  return name.length() == 0 || name.Get(0) == '.' ||
+  return name.length() == 0 || name.Get(0) == '.' || name.Get(0) == '#' ||
          name.Equals(name.GetReadOnlyRoots().this_string());
 }
 
@@ -755,8 +744,7 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
 int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag,
-                                MaybeAssignedFlag* maybe_assigned_flag,
-                                RequiresBrandCheckFlag* requires_brand_check) {
+                                MaybeAssignedFlag* maybe_assigned_flag) {
   DisallowHeapAllocation no_gc;
   DCHECK(name.IsInternalizedString());
   DCHECK_NOT_NULL(mode);
@@ -773,7 +761,6 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
     *mode = scope_info.ContextLocalMode(var);
     *init_flag = scope_info.ContextLocalInitFlag(var);
     *maybe_assigned_flag = scope_info.ContextLocalMaybeAssignedFlag(var);
-    *requires_brand_check = scope_info.RequiresBrandCheck(var);
     int result = Context::MIN_CONTEXT_SLOTS + var;
 
     DCHECK_LT(result, scope_info.ContextLength());
@@ -892,9 +879,9 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, Handle<Object> export_name, Handle<Object> local_name,
-    Handle<Object> import_name, int module_request, int cell_index, int beg_pos,
-    int end_pos) {
+    Isolate* isolate, Handle<HeapObject> export_name,
+    Handle<HeapObject> local_name, Handle<HeapObject> import_name,
+    int module_request, int cell_index, int beg_pos, int end_pos) {
   Handle<SourceTextModuleInfoEntry> result =
       Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
           SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));

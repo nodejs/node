@@ -123,7 +123,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
   TNode<IntPtrT> saved_entered_context_count = GetEnteredContextCount();
   TNode<Map> microtask_map = LoadMap(microtask);
-  TNode<Int32T> microtask_type = LoadMapInstanceType(microtask_map);
+  TNode<Uint16T> microtask_type = LoadMapInstanceType(microtask_map);
 
   VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
   Label if_exception(this, Label::kDeferred);
@@ -131,21 +131,15 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       is_promise_fulfill_reaction_job(this),
       is_promise_reject_reaction_job(this),
       is_promise_resolve_thenable_job(this),
-      is_finalization_group_cleanup_job(this),
       is_unreachable(this, Label::kDeferred), done(this);
 
-  int32_t case_values[] = {CALLABLE_TASK_TYPE,
-                           CALLBACK_TASK_TYPE,
+  int32_t case_values[] = {CALLABLE_TASK_TYPE, CALLBACK_TASK_TYPE,
                            PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
                            PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
-                           PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-                           FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE};
-  Label* case_labels[] = {&is_callable,
-                          &is_callback,
-                          &is_promise_fulfill_reaction_job,
-                          &is_promise_reject_reaction_job,
-                          &is_promise_resolve_thenable_job,
-                          &is_finalization_group_cleanup_job};
+                           PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE};
+  Label* case_labels[] = {
+      &is_callable, &is_callback, &is_promise_fulfill_reaction_job,
+      &is_promise_reject_reaction_job, &is_promise_resolve_thenable_job};
   static_assert(arraysize(case_values) == arraysize(case_labels), "");
   Switch(microtask_type, &is_unreachable, case_values, case_labels,
          arraysize(case_labels));
@@ -155,7 +149,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context =
         LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
     TNode<JSReceiver> callable =
@@ -171,9 +165,9 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
   BIND(&is_callback);
   {
-    Node* const microtask_callback =
+    TNode<Object> const microtask_callback =
         LoadObjectField(microtask, CallbackTask::kCallbackOffset);
-    Node* const microtask_data =
+    TNode<Object> const microtask_data =
         LoadObjectField(microtask, CallbackTask::kDataOffset);
 
     // If this turns out to become a bottleneck because of the calls
@@ -186,7 +180,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // But from our current measurements it doesn't seem to be a
     // serious performance problem, even if the microtask is full
     // of CallHandlerTasks (which is not a realistic use case anyways).
-    Node* const result =
+    TNode<Object> const result =
         CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
                     microtask_callback, microtask_data);
     GotoIfException(result, &if_exception, &var_exception);
@@ -198,17 +192,17 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseResolveThenableJobTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
-    Node* const promise_to_resolve = LoadObjectField(
+    TNode<Object> const promise_to_resolve = LoadObjectField(
         microtask, PromiseResolveThenableJobTask::kPromiseToResolveOffset);
-    Node* const then =
+    TNode<Object> const then =
         LoadObjectField(microtask, PromiseResolveThenableJobTask::kThenOffset);
-    Node* const thenable = LoadObjectField(
+    TNode<Object> const thenable = LoadObjectField(
         microtask, PromiseResolveThenableJobTask::kThenableOffset);
 
-    Node* const result =
+    TNode<Object> const result =
         CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
                     promise_to_resolve, thenable, then);
     GotoIfException(result, &if_exception, &var_exception);
@@ -222,21 +216,21 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
-    Node* const argument =
+    TNode<Object> const argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
-    Node* const handler =
+    TNode<Object> const handler =
         LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
-    Node* const promise_or_capability = LoadObjectField(
-        microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+    TNode<HeapObject> const promise_or_capability = CAST(LoadObjectField(
+        microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
 
     // Run the promise before/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
                    promise_or_capability);
 
-    Node* const result =
+    TNode<Object> const result =
         CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
                     argument, handler, promise_or_capability);
     GotoIfException(result, &if_exception, &var_exception);
@@ -255,21 +249,21 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
-    Node* const argument =
+    TNode<Object> const argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
-    Node* const handler =
+    TNode<Object> const handler =
         LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
-    Node* const promise_or_capability = LoadObjectField(
-        microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+    TNode<HeapObject> const promise_or_capability = CAST(LoadObjectField(
+        microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
 
     // Run the promise before/debug hook if enabled.
     RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
                    promise_or_capability);
 
-    Node* const result =
+    TNode<Object> const result =
         CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
                     argument, handler, promise_or_capability);
     GotoIfException(result, &if_exception, &var_exception);
@@ -278,26 +272,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
 
-    RewindEnteredContext(saved_entered_context_count);
-    SetCurrentContext(current_context);
-    Goto(&done);
-  }
-
-  BIND(&is_finalization_group_cleanup_job);
-  {
-    // Enter the context of the {finalization_group}.
-    TNode<JSFinalizationGroup> finalization_group =
-        LoadObjectField<JSFinalizationGroup>(
-            microtask,
-            FinalizationGroupCleanupJobTask::kFinalizationGroupOffset);
-    TNode<Context> native_context = LoadObjectField<Context>(
-        finalization_group, JSFinalizationGroup::kNativeContextOffset);
-    PrepareForContext(native_context, &done);
-
-    Node* const result = CallRuntime(Runtime::kFinalizationGroupCleanupJob,
-                                     native_context, finalization_group);
-
-    GotoIfException(result, &if_exception, &var_exception);
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
@@ -407,7 +381,7 @@ void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
 
   BIND(&if_grow);
   {
-    Node* function =
+    TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::call_enter_context_function());
     CallCFunction(function, MachineType::Int32(),
                   std::make_pair(MachineType::Pointer(), hsi),
@@ -475,7 +449,7 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   TNode<Microtask> microtask =
       UncheckedCast<Microtask>(Parameter(Descriptor::kMicrotask));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<RawPtrT> microtask_queue = GetMicrotaskQueue(native_context);
 
   // Do not store the microtask if MicrotaskQueue is not available, that may
@@ -506,9 +480,9 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   // implementation to grow the buffer.
   BIND(&if_grow);
   {
-    Node* isolate_constant =
+    TNode<ExternalReference> isolate_constant =
         ExternalConstant(ExternalReference::isolate_address(isolate()));
-    Node* function =
+    TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::call_enqueue_microtask_function());
     CallCFunction(function, MachineType::AnyTagged(),
                   std::make_pair(MachineType::Pointer(), isolate_constant),

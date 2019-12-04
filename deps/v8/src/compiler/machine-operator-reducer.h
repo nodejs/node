@@ -51,6 +51,8 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* Word32Sar(Node* lhs, uint32_t rhs);
   Node* Word32Shr(Node* lhs, uint32_t rhs);
   Node* Word32Equal(Node* lhs, Node* rhs);
+  Node* BitcastWord32ToCompressedSigned(Node* value);
+  Node* BitcastCompressedSignedToWord32(Node* value);
   Node* Int32Add(Node* lhs, Node* rhs);
   Node* Int32Sub(Node* lhs, Node* rhs);
   Node* Int32Mul(Node* lhs, Node* rhs);

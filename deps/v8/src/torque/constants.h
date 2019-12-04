@@ -28,6 +28,7 @@ static const char* const JS_FUNCTION_TYPE_STRING = "JSFunction";
 static const char* const MAP_TYPE_STRING = "Map";
 static const char* const OBJECT_TYPE_STRING = "Object";
 static const char* const HEAP_OBJECT_TYPE_STRING = "HeapObject";
+static const char* const JSANY_TYPE_STRING = "JSAny";
 static const char* const JSOBJECT_TYPE_STRING = "JSObject";
 static const char* const SMI_TYPE_STRING = "Smi";
 static const char* const TAGGED_TYPE_STRING = "Tagged";
@@ -49,6 +50,10 @@ static const char* const FLOAT64_TYPE_STRING = "float64";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
+static const char* const TORQUE_INTERNAL_NAMESPACE_STRING = "torque_internal";
+static const char* const REFERENCE_TYPE_STRING = "Reference";
+static const char* const SLICE_TYPE_STRING = "Slice";
+static const char* const STRUCT_NAMESPACE_STRING = "_struct";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==

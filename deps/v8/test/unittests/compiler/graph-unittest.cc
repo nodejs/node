@@ -23,7 +23,7 @@ GraphTest::GraphTest(int num_parameters)
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
-  broker()->SetNativeContextRef();
+  broker()->SetTargetNativeContextRef(isolate()->native_context());
 }
 
 GraphTest::~GraphTest() = default;

@@ -243,6 +243,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AllocateIndirectFunctions(uint32_t count);
   void SetIndirectFunction(uint32_t indirect, uint32_t direct);
   void SetMaxTableSize(uint32_t max);
+  uint32_t AddTable(ValueType type, uint32_t min_size);
+  uint32_t AddTable(ValueType type, uint32_t min_size, uint32_t max_size);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, ImportExportKindCode kind,
                  uint32_t index);
@@ -288,6 +290,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     WasmInitExpr init;
   };
 
+  struct WasmTable {
+    ValueType type;
+    uint32_t min_size;
+    uint32_t max_size;
+    bool has_maximum;
+  };
+
   struct WasmDataSegment {
     ZoneVector<byte> data;
     uint32_t dest;
@@ -300,6 +309,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmExport> exports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
+  ZoneVector<WasmTable> tables_;
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
   ZoneVector<WasmGlobal> globals_;
@@ -313,6 +323,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 #if DEBUG
   // Once AddExportedImport is called, no more imports can be added.
   bool adding_imports_allowed_ = true;
+  // Indirect functions must be allocated before adding extra tables.
+  bool allocating_indirect_functions_allowed_ = true;
 #endif
 };
 

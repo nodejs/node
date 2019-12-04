@@ -390,6 +390,8 @@ class Instruction {
   // PC-relative addressing instruction.
   V8_EXPORT_PRIVATE Instruction* ImmPCOffsetTarget();
 
+  // Check if the offset is in range of a given branch type. The offset is
+  // a byte offset, unscaled.
   static bool IsValidImmPCOffset(ImmBranchType branch_type, ptrdiff_t offset);
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or

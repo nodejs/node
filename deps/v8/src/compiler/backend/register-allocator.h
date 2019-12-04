@@ -335,7 +335,11 @@ class RegisterAllocationData final : public ZoneObject {
     return result;
   }
 
-  void ResetSpillState() { spill_state_.clear(); }
+  void ResetSpillState() {
+    for (auto& state : spill_state_) {
+      state.clear();
+    }
+  }
 
   TickCounter* tick_counter() { return tick_counter_; }
 
@@ -1238,7 +1242,9 @@ class RegisterAllocator : public ZoneObject {
   // If we are trying to spill a range inside the loop try to
   // hoist spill position out to the point just before the loop.
   LifetimePosition FindOptimalSpillingPos(LiveRange* range,
-                                          LifetimePosition pos);
+                                          LifetimePosition pos,
+                                          SpillMode spill_mode,
+                                          LiveRange** begin_spill_out);
 
   const ZoneVector<TopLevelLiveRange*>& GetFixedRegisters() const;
   const char* RegisterName(int allocation_index) const;
@@ -1292,6 +1298,9 @@ class LinearScanAllocator final : public RegisterAllocator {
       ZoneUnorderedSet<RangeWithRegister, RangeWithRegister::Hash,
                        RangeWithRegister::Equals>;
 
+  void MaybeSpillPreviousRanges(LiveRange* begin_range,
+                                LifetimePosition begin_pos,
+                                LiveRange* end_range);
   void MaybeUndoPreviousSplit(LiveRange* range);
   void SpillNotLiveRanges(
       RangeWithRegisterSet& to_be_live,  // NOLINT(runtime/references)

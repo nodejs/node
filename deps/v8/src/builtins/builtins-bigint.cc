@@ -91,7 +91,7 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
       isolate,
       NewTypeError(MessageTemplate::kNotGeneric,
                    isolate->factory()->NewStringFromAsciiChecked(caller),
-                   isolate->factory()->NewStringFromStaticChars("BigInt")),
+                   isolate->factory()->BigInt_string()),
       BigInt);
 }
 

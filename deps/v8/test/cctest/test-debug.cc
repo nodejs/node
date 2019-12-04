@@ -553,7 +553,7 @@ TEST(BreakPointBuiltin) {
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -754,7 +754,7 @@ TEST(BreakPointConstructorBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -821,7 +821,7 @@ TEST(BreakPointInlinedBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("Math.sin(0.1);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(0.2);");
@@ -869,7 +869,7 @@ TEST(BreakPointInlineBoundBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("'a'.repeat(2);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
@@ -914,7 +914,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("new Promise(()=>{});");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
@@ -1090,16 +1090,61 @@ TEST(BreakPointApiFunction) {
   break_point_hit_count = 0;
 
   // Run with breakpoint.
-  bp = SetBreakPoint(function, 0);
+  bp = SetBreakPoint(function, 0, "this != 1");
   ExpectInt32("f()", 2);
   CHECK_EQ(1, break_point_hit_count);
 
   ExpectInt32("f()", 2);
   CHECK_EQ(2, break_point_hit_count);
 
+  // Direct call through API does not trigger breakpoint.
+  function->Call(env.local(), v8::Undefined(env->GetIsolate()), 0, nullptr)
+      .ToLocalChecked();
+  CHECK_EQ(2, break_point_hit_count);
+
   // Run without breakpoints.
   ClearBreakPoint(bp);
   ExpectInt32("f()", 2);
+  CHECK_EQ(2, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointApiConstructor) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.local()).ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0, "this != 1");
+  CompileRun("new f()");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("new f()");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Direct call through API does not trigger breakpoint.
+  function->NewInstance(env.local()).ToLocalChecked();
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new f()");
   CHECK_EQ(2, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
@@ -1145,15 +1190,16 @@ TEST(BreakPointApiGetter) {
   // Run with breakpoint.
   bp = SetBreakPoint(function, 0);
   CompileRun("get_wrapper(o, 'f')");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(0, break_point_hit_count);
 
   CompileRun("o.f");
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(1, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("get_wrapper(o, 'f', 2)");
-  CHECK_EQ(2, break_point_hit_count);
+  CompileRun("o.f");
+  CHECK_EQ(1, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -1202,12 +1248,12 @@ TEST(BreakPointApiSetter) {
   CHECK_EQ(1, break_point_hit_count);
 
   CompileRun("set_wrapper(o, 'f', 2)");
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(1, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("o.f = 3");
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(1, break_point_hit_count);
 
   // === Test API builtin as setter, with condition ===
   break_point_hit_count = 0;
@@ -1218,15 +1264,16 @@ TEST(BreakPointApiSetter) {
   CHECK_EQ(0, break_point_hit_count);
 
   CompileRun("set_wrapper(o, 'f', 3)");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(0, break_point_hit_count);
 
   CompileRun("o.f = 3");
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(1, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("set_wrapper(o, 'f', 2)");
-  CHECK_EQ(2, break_point_hit_count);
+  CompileRun("o.f = 3");
+  CHECK_EQ(1, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -3435,6 +3482,35 @@ TEST(SyntaxErrorEventOnSyntaxException) {
   CHECK_EQ(3, delegate.compile_error_event_count);
 }
 
+class ExceptionEventCounter : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
+    exception_event_count++;
+  }
+  int exception_event_count = 0;
+};
+
+TEST(NoBreakOnStackOverflow) {
+  i::FLAG_stack_size = 100;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  ChangeBreakOnException(true, true);
+
+  ExceptionEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  CHECK_EQ(0, delegate.exception_event_count);
+
+  CompileRun(
+      "function f() { return f(); }"
+      "try { f() } catch {}");
+
+  CHECK_EQ(0, delegate.exception_event_count);
+}
+
 // Tests that break event is sent when event listener is reset.
 TEST(BreakEventWhenEventListenerIsReset) {
   LocalContext env;
@@ -3854,7 +3930,7 @@ TEST(DebugBreakOffThreadTerminate) {
   DebugBreakTriggerTerminate delegate;
   v8::debug::SetDebugDelegate(isolate, &delegate);
   TerminationThread terminator(isolate);
-  terminator.Start();
+  CHECK(terminator.Start());
   v8::TryCatch try_catch(env->GetIsolate());
   env->GetIsolate()->RequestInterrupt(BreakRightNow, nullptr);
   CompileRun("while (true);");
@@ -3950,7 +4026,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // on) so that the ThreadManager is forced to archive and restore
       // the current thread.
       ArchiveRestoreThread child(isolate_, spawn_count_ - 1);
-      child.Start();
+      CHECK(child.Start());
       child.Join();
 
       // The child thread sets itself as the debug delegate, so we need to

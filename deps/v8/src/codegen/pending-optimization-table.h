@@ -21,7 +21,8 @@ class PendingOptimizationTable {
   // strongly in pending optimization table preventing the bytecode to be
   // flushed.
   static void PreparedForOptimization(Isolate* isolate,
-                                      Handle<JSFunction> function);
+                                      Handle<JSFunction> function,
+                                      bool allow_heuristic_optimization);
 
   // This function should be called when the function is marked for optimization
   // via the intrinsics. This will update the state of the bytecode array in the
@@ -36,6 +37,12 @@ class PendingOptimizationTable {
   // then this function removes the entry from pending optimization table.
   static void FunctionWasOptimized(Isolate* isolate,
                                    Handle<JSFunction> function);
+
+  // This function returns whether a heuristic is allowed to trigger
+  // optimization the function. This mechanism is used in tests to prevent
+  // heuristics from interfering with manually triggered optimization.
+  static bool IsHeuristicOptimizationAllowed(Isolate* isolate,
+                                             JSFunction function);
 };
 
 }  // namespace internal

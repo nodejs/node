@@ -61,10 +61,10 @@ class PropertyArray : public HeapObject {
   using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
   static const int kLengthFieldSize = 10;
-  class LengthField : public BitField<int, 0, kLengthFieldSize> {};
+  using LengthField = BitField<int, 0, kLengthFieldSize>;
   static const int kMaxLength = LengthField::kMax;
-  class HashField : public BitField<int, kLengthFieldSize,
-                                    kSmiValueSize - kLengthFieldSize - 1> {};
+  using HashField =
+      BitField<int, kLengthFieldSize, kSmiValueSize - kLengthFieldSize - 1>;
 
   static const int kNoHashSentinel = 0;
 

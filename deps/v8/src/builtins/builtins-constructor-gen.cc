@@ -68,7 +68,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Bump the closure counter encoded the {feedback_cell}s map.
   {
-    Node* const feedback_cell_map = LoadMap(feedback_cell);
+    TNode<Map> const feedback_cell_map = LoadMap(feedback_cell);
     Label no_closures(this), one_closure(this), cell_done(this);
 
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
@@ -93,23 +93,23 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* const flags =
       LoadObjectField(shared_function_info, SharedFunctionInfo::kFlagsOffset,
                       MachineType::Uint32());
-  Node* const function_map_index = IntPtrAdd(
+  TNode<IntPtrT> const function_map_index = Signed(IntPtrAdd(
       DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
-      IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
+      IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
   CSA_ASSERT(this, UintPtrLessThanOrEqual(
                        function_map_index,
                        IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));
 
   // Get the function map in the current native context and set that
   // as the map of the allocated object.
-  Node* const native_context = LoadNativeContext(context);
-  Node* const function_map =
-      LoadContextElement(native_context, function_map_index);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  TNode<Map> const function_map =
+      CAST(LoadContextElement(native_context, function_map_index));
 
   // Create a new closure from the given function info in new space
   TNode<IntPtrT> instance_size_in_bytes =
       TimesTaggedSize(LoadMapInstanceSizeInWords(function_map));
-  TNode<Object> result = Allocate(instance_size_in_bytes);
+  TNode<HeapObject> result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
@@ -141,7 +141,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
   Handle<Code> lazy_builtin_handle =
       isolate()->builtins()->builtin_handle(Builtins::kCompileLazy);
-  Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
+  TNode<Code> lazy_builtin = HeapConstant(lazy_builtin_handle);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);
 }
@@ -189,16 +189,18 @@ compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
   BIND(&fast);
 
   // Load the initial map and verify that it's in fact a map.
-  Node* initial_map =
+  TNode<Object> initial_map_or_proto =
       LoadObjectField(new_target, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(TaggedIsSmi(initial_map), call_runtime);
-  GotoIf(DoesntHaveInstanceType(initial_map, MAP_TYPE), call_runtime);
+  GotoIf(TaggedIsSmi(initial_map_or_proto), call_runtime);
+  GotoIf(DoesntHaveInstanceType(CAST(initial_map_or_proto), MAP_TYPE),
+         call_runtime);
+  TNode<Map> initial_map = CAST(initial_map_or_proto);
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
-  Node* new_target_constructor =
+  TNode<Object> new_target_constructor =
       LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
-  GotoIf(WordNotEqual(target, new_target_constructor), call_runtime);
+  GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
 
   VARIABLE(properties, MachineRepresentation::kTagged);
 
@@ -253,12 +255,12 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  context);
   StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
                                  TheHoleConstant());
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   StoreObjectFieldNoWriteBarrier(function_context,
                                  Context::kNativeContextOffset, native_context);
 
   // Initialize the varrest of the slots to undefined.
-  TNode<HeapObject> undefined = UndefinedConstant();
+  TNode<Oddball> undefined = UndefinedConstant();
   TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
   CodeStubAssembler::VariableList vars(0, zone());
   BuildFastLoop(
@@ -302,9 +304,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
     Node* boilerplate = literal_site;
     CSA_ASSERT(this, IsJSRegExp(boilerplate));
     int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kTaggedSize;
-    Node* copy = Allocate(size);
+    TNode<HeapObject> copy = Allocate(size);
     for (int offset = 0; offset < size; offset += kTaggedSize) {
-      Node* value = LoadObjectField(boilerplate, offset);
+      TNode<Object> value = LoadObjectField(boilerplate, offset);
       StoreObjectFieldNoWriteBarrier(copy, offset, value);
     }
     result.Bind(copy);
@@ -324,7 +326,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
 
 TF_BUILTIN(CreateRegExpLiteral, ConstructorBuiltinsAssembler) {
   Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
-  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
+  TNode<IntPtrT> slot = SmiUntag(Parameter(Descriptor::kSlot));
   Node* pattern = Parameter(Descriptor::kPattern);
   Node* flags = Parameter(Descriptor::kFlags);
   Node* context = Parameter(Descriptor::kContext);
@@ -357,7 +359,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
 
 TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
   Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
-  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
+  TNode<IntPtrT> slot = SmiUntag(Parameter(Descriptor::kSlot));
   Node* constant_elements = Parameter(Descriptor::kConstantElements);
   Node* context = Parameter(Descriptor::kContext);
   Label call_runtime(this, Label::kDeferred);
@@ -400,7 +402,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 
   BIND(&create_empty_array);
   TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
   TNode<Smi> zero = SmiConstant(0);
@@ -417,7 +419,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 
 TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
   Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
-  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
+  TNode<IntPtrT> slot = SmiUntag(Parameter(Descriptor::kSlot));
   Node* context = Parameter(Descriptor::kContext);
   Node* result = EmitCreateEmptyArrayLiteral(feedback_vector, slot, context);
   Return(result);
@@ -436,7 +438,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
 
   VARIABLE(var_properties, MachineRepresentation::kTagged);
   {
-    Node* bit_field_3 = LoadMapBitField3(boilerplate_map);
+    TNode<Uint32T> bit_field_3 = LoadMapBitField3(boilerplate_map);
     GotoIf(IsSetWord32<Map::IsDeprecatedBit>(bit_field_3), call_runtime);
     // Directly copy over the property store for dict-mode boilerplates.
     Label if_dictionary(this), if_fast(this), done(this);
@@ -453,7 +455,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     BIND(&if_fast);
     {
       // TODO(cbruni): support copying out-of-object properties.
-      Node* boilerplate_properties = LoadFastProperties(boilerplate);
+      TNode<HeapObject> boilerplate_properties =
+          LoadFastProperties(boilerplate);
       GotoIfNot(IsEmptyFixedArray(boilerplate_properties), call_runtime);
       var_properties.Bind(EmptyFixedArrayConstant());
       Goto(&done);
@@ -465,7 +468,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   {
     // Copy the elements backing store, assuming that it's flat.
     Label if_empty_fixed_array(this), if_copy_elements(this), done(this);
-    Node* boilerplate_elements = LoadElements(boilerplate);
+    TNode<FixedArrayBase> boilerplate_elements = LoadElements(boilerplate);
     Branch(IsEmptyFixedArray(boilerplate_elements), &if_empty_fixed_array,
            &if_copy_elements);
 
@@ -520,26 +523,28 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     // Copy over in-object properties.
     Label continue_with_write_barrier(this), done_init(this);
     TVARIABLE(IntPtrT, offset, IntPtrConstant(JSObject::kHeaderSize));
-    // Mutable heap numbers only occur on 32-bit platforms.
+    // Heap numbers are only mutable on 32-bit platforms.
     bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
     {
       Comment("Copy in-object properties fast");
       Label continue_fast(this, &offset);
-      Branch(WordEqual(offset.value(), instance_size), &done_init,
+      Branch(IntPtrEqual(offset.value(), instance_size), &done_init,
              &continue_fast);
       BIND(&continue_fast);
       if (may_use_mutable_heap_numbers) {
         TNode<Object> field = LoadObjectField(boilerplate, offset.value());
         Label store_field(this);
         GotoIf(TaggedIsSmi(field), &store_field);
-        GotoIf(IsMutableHeapNumber(CAST(field)), &continue_with_write_barrier);
+        // TODO(leszeks): Read the field descriptor to decide if this heap
+        // number is mutable or not.
+        GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
         Goto(&store_field);
         BIND(&store_field);
         StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       } else {
         // Copy fields as raw data.
-        TNode<IntPtrT> field =
-            LoadObjectField<IntPtrT>(boilerplate, offset.value());
+        TNode<TaggedT> field =
+            LoadObjectField<TaggedT>(boilerplate, offset.value());
         StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       }
       offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
@@ -562,7 +567,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
           offset.value(), instance_size,
           [=](Node* offset) {
             // TODO(ishell): value decompression is not necessary here.
-            Node* field = LoadObjectField(boilerplate, offset);
+            TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
           kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
@@ -570,19 +575,20 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
       BuildFastLoop(
           offset.value(), instance_size,
           [=](Node* offset) {
-            Node* field = LoadObjectField(copy, offset);
-            Label copy_mutable_heap_number(this, Label::kDeferred),
-                continue_loop(this);
+            TNode<Object> field = LoadObjectField(copy, offset);
+            Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
             // We only have to clone complex field values.
             GotoIf(TaggedIsSmi(field), &continue_loop);
-            Branch(IsMutableHeapNumber(field), &copy_mutable_heap_number,
+            // TODO(leszeks): Read the field descriptor to decide if this heap
+            // number is mutable or not.
+            Branch(IsHeapNumber(CAST(field)), &copy_heap_number,
                    &continue_loop);
-            BIND(&copy_mutable_heap_number);
+            BIND(&copy_heap_number);
             {
-              Node* double_value = LoadHeapNumberValue(field);
-              Node* mutable_heap_number =
-                  AllocateMutableHeapNumberWithValue(double_value);
-              StoreObjectField(copy, offset, mutable_heap_number);
+              TNode<Float64T> double_value = LoadHeapNumberValue(CAST(field));
+              TNode<HeapNumber> heap_number =
+                  AllocateHeapNumberWithValue(double_value);
+              StoreObjectField(copy, offset, heap_number);
               Goto(&continue_loop);
             }
             BIND(&continue_loop);
@@ -598,7 +604,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
 TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
   Label call_runtime(this);
   Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
-  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
+  TNode<IntPtrT> slot = SmiUntag(Parameter(Descriptor::kSlot));
   Node* copy =
       EmitCreateShallowObjectLiteral(feedback_vector, slot, &call_runtime);
   Return(copy);
@@ -615,18 +621,17 @@ TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
 // Used by the CreateEmptyObjectLiteral bytecode and the Object constructor.
 Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
     Node* context) {
-  Node* native_context = LoadNativeContext(context);
-  Node* object_function =
-      LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX);
-  Node* map = LoadObjectField(object_function,
-                              JSFunction::kPrototypeOrInitialMapOffset);
-  CSA_ASSERT(this, IsMap(map));
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<JSFunction> object_function =
+      CAST(LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+  TNode<Map> map = CAST(LoadObjectField(
+      object_function, JSFunction::kPrototypeOrInitialMapOffset));
   // Ensure that slack tracking is disabled for the map.
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
   CSA_ASSERT(
       this, IsClearWord32<Map::ConstructionCounterBits>(LoadMapBitField3(map)));
-  Node* empty_fixed_array = EmptyFixedArrayConstant();
-  Node* result =
+  TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
+  TNode<JSObject> result =
       AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);
   return result;
 }
@@ -634,22 +639,22 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
 // ES #sec-object-constructor
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
   Node* context = Parameter(Descriptor::kContext);
-  Node* new_target = Parameter(Descriptor::kJSNewTarget);
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
       return_result(this);
   GotoIf(IsUndefined(new_target), &if_notsubclass);
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
-  Branch(WordEqual(new_target, target), &if_notsubclass, &if_subclass);
+  Branch(TaggedEqual(new_target, target), &if_notsubclass, &if_subclass);
 
   BIND(&if_subclass);
   {
-    Node* result =
+    TNode<Object> result =
         CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
     var_result.Bind(result);
     Goto(&return_result);
@@ -659,9 +664,9 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   {
     Label if_newobject(this, Label::kDeferred), if_toobject(this);
 
-    Node* value_index = IntPtrConstant(kValueArg);
+    TNode<IntPtrT> value_index = IntPtrConstant(kValueArg);
     GotoIf(UintPtrGreaterThanOrEqual(value_index, argc), &if_newobject);
-    Node* value = args.AtIndex(value_index);
+    TNode<Object> value = args.AtIndex(value_index);
     GotoIf(IsNull(value), &if_newobject);
     Branch(IsUndefined(value), &if_newobject, &if_toobject);
 
@@ -674,7 +679,7 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 
     BIND(&if_toobject);
     {
-      Node* result = CallBuiltin(Builtins::kToObject, context, value);
+      TNode<Object> result = CallBuiltin(Builtins::kToObject, context, value);
       var_result.Bind(result);
       Goto(&return_result);
     }
@@ -687,20 +692,20 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.
   VARIABLE(var_n, MachineRepresentation::kTagged, SmiConstant(0));
   Label if_nloaded(this, &var_n);
-  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_nloaded);
+  GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &if_nloaded);
 
   // 2. Else,
   //    a. Let prim be ? ToNumeric(value).
   //    b. If Type(prim) is BigInt, let n be the Number value for prim.
   //    c. Otherwise, let n be prim.
-  Node* value = args.AtIndex(0);
+  TNode<Object> value = args.AtIndex(0);
   var_n.Bind(ToNumber(context, value, BigIntHandling::kConvertToNumber));
   Goto(&if_nloaded);
 
@@ -726,7 +731,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
       // from the current frame here in order to reduce register pressure on the
       // fast path.
       TNode<JSFunction> target = LoadTargetFromFrame();
-      Node* result =
+      TNode<Object> result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
       StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, n_value);
       args.PopAndReturn(result);
@@ -737,67 +742,6 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
 TF_BUILTIN(GenericLazyDeoptContinuation, ConstructorBuiltinsAssembler) {
   Node* result = Parameter(Descriptor::kResult);
   Return(result);
-}
-
-// https://tc39.github.io/ecma262/#sec-string-constructor
-TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-
-  // 1. If no arguments were passed to this function invocation, let s be "".
-  VARIABLE(var_s, MachineRepresentation::kTagged, EmptyStringConstant());
-  Label if_sloaded(this, &var_s);
-  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_sloaded);
-
-  // 2. Else,
-  //    a. If NewTarget is undefined [...]
-  Node* value = args.AtIndex(0);
-  Label if_tostring(this, &var_s);
-  GotoIfNot(IsUndefined(new_target), &if_tostring);
-
-  // 2a. [...] and Type(value) is Symbol, return SymbolDescriptiveString(value).
-  GotoIf(TaggedIsSmi(value), &if_tostring);
-  GotoIfNot(IsSymbol(value), &if_tostring);
-  {
-    Node* result =
-        CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
-    args.PopAndReturn(result);
-  }
-
-  // 2b. Let s be ? ToString(value).
-  BIND(&if_tostring);
-  {
-    var_s.Bind(CallBuiltin(Builtins::kToString, context, value));
-    Goto(&if_sloaded);
-  }
-
-  // 3. If NewTarget is undefined, return s.
-  BIND(&if_sloaded);
-  {
-    Node* s_value = var_s.value();
-    Label return_s(this), constructstring(this, Label::kDeferred);
-    Branch(IsUndefined(new_target), &return_s, &constructstring);
-
-    BIND(&return_s);
-    { args.PopAndReturn(s_value); }
-
-    BIND(&constructstring);
-    {
-      // We are not using Parameter(Descriptor::kJSTarget) and loading the value
-      // from the current frame here in order to reduce register pressure on the
-      // fast path.
-      TNode<JSFunction> target = LoadTargetFromFrame();
-
-      Node* result =
-          CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
-      StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, s_value);
-      args.PopAndReturn(result);
-    }
-  }
 }
 
 }  // namespace internal

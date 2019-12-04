@@ -692,7 +692,7 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
     }
   }
   if (subexpr_type == CAPTURE) {
-    if (captures_started_ >= kMaxCaptures) {
+    if (captures_started_ >= JSRegExp::kMaxCaptures) {
       ReportError(CStrVector("Too many captures"));
       return nullptr;
     }
@@ -800,7 +800,7 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
-      if (value > kMaxCaptures) {
+      if (value > JSRegExp::kMaxCaptures) {
         Reset(start);
         return false;
       }
@@ -984,39 +984,18 @@ RegExpCapture* RegExpParser::GetCapture(int index) {
   return captures_->at(index - 1);
 }
 
-namespace {
-
-struct RegExpCaptureIndexLess {
-  bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
-    DCHECK_NOT_NULL(lhs);
-    DCHECK_NOT_NULL(rhs);
-    return lhs->index() < rhs->index();
-  }
-};
-
-}  // namespace
-
 Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
   if (named_captures_ == nullptr || named_captures_->empty()) {
     return Handle<FixedArray>();
   }
 
-  // Named captures are sorted by name (because the set is used to ensure
-  // name uniqueness). But the capture name map must to be sorted by index.
-
-  ZoneVector<RegExpCapture*> sorted_named_captures(
-      named_captures_->begin(), named_captures_->end(), zone());
-  std::sort(sorted_named_captures.begin(), sorted_named_captures.end(),
-            RegExpCaptureIndexLess{});
-  DCHECK_EQ(sorted_named_captures.size(), named_captures_->size());
-
   Factory* factory = isolate()->factory();
 
-  int len = static_cast<int>(sorted_named_captures.size()) * 2;
+  int len = static_cast<int>(named_captures_->size()) * 2;
   Handle<FixedArray> array = factory->NewFixedArray(len);
 
   int i = 0;
-  for (const auto& capture : sorted_named_captures) {
+  for (const auto& capture : *named_captures_) {
     Vector<const uc16> capture_name(capture->name()->data(),
                                     capture->name()->size());
     // CSA code in ConstructNewResultFromMatchInfo requires these strings to be

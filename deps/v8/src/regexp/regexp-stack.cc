@@ -72,12 +72,12 @@ Address RegExpStack::EnsureCapacity(size_t size) {
       DeleteArray(thread_local_.memory_);
     }
     thread_local_.memory_ = new_memory;
+    thread_local_.memory_top_ = new_memory + size;
     thread_local_.memory_size_ = size;
     thread_local_.limit_ = reinterpret_cast<Address>(new_memory) +
                            kStackLimitSlack * kSystemPointerSize;
   }
-  return reinterpret_cast<Address>(thread_local_.memory_) +
-         thread_local_.memory_size_;
+  return reinterpret_cast<Address>(thread_local_.memory_top_);
 }
 
 

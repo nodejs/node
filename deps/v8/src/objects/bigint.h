@@ -57,9 +57,9 @@ class BigIntBase : public HeapObject {
   // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
-  class SignBits : public BitField<bool, 0, 1> {};
-  class LengthBits : public BitField<int, SignBits::kNext, kLengthFieldBits> {};
-  STATIC_ASSERT(LengthBits::kNext <= 32);
+  using SignBits = BitField<bool, 0, 1>;
+  using LengthBits = SignBits::Next<int, kLengthFieldBits>;
+  STATIC_ASSERT(LengthBits::kLastUsedBit < 32);
 
   // Layout description.
 #define BIGINT_FIELDS(V)                                                  \

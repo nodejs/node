@@ -82,8 +82,8 @@ class HeapGraphEdge {
   V8_INLINE HeapSnapshot* snapshot() const;
   int from_index() const { return FromIndexField::decode(bit_field_); }
 
-  class TypeField : public BitField<Type, 0, 3> {};
-  class FromIndexField : public BitField<int, 3, 29> {};
+  using TypeField = BitField<Type, 0, 3>;
+  using FromIndexField = BitField<int, 3, 29>;
   uint32_t bit_field_;
   HeapEntry* to_entry_;
   union {
@@ -249,6 +249,8 @@ class HeapObjectsMap {
   SnapshotObjectId FindOrAddEntry(Address addr,
                                   unsigned int size,
                                   bool accessed = true);
+  SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
+  void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
   bool MoveObject(Address from, Address to, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
@@ -285,6 +287,8 @@ class HeapObjectsMap {
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
   std::vector<TimeInterval> time_intervals_;
+  // Map from NativeObject to EntryInfo index in entries_.
+  std::unordered_map<NativeObject, size_t> merged_native_entries_map_;
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
@@ -453,6 +457,7 @@ class NativeObjectsExplorer {
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
+  HeapObjectsMap* heap_object_map_;
   std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;
   // Used during references extraction.
   HeapSnapshotGenerator* generator_ = nullptr;

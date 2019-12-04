@@ -55,8 +55,8 @@ TEST_F(LinkageTailCall, EmptyToEmpty) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(desc->CanTailCall(node));
   const CallDescriptor* callee = CallDescriptorOf(node->op());
+  EXPECT_TRUE(desc->CanTailCall(callee));
   int stack_param_delta = callee->GetStackParameterDelta(desc);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -74,7 +74,7 @@ TEST_F(LinkageTailCall, SameReturn) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -94,7 +94,7 @@ TEST_F(LinkageTailCall, DifferingReturn) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(!desc1->CanTailCall(node));
+  EXPECT_FALSE(desc1->CanTailCall(CallDescriptorOf(node->op())));
 }
 
 
@@ -113,7 +113,7 @@ TEST_F(LinkageTailCall, MoreRegisterParametersCallee) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -134,7 +134,7 @@ TEST_F(LinkageTailCall, MoreRegisterParametersCaller) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -155,7 +155,7 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCallee) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   // We might need to add one slot of padding to the callee arguments.
   int expected = kPadArguments ? 2 : 1;
@@ -178,7 +178,7 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCaller) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   // We might need to drop one slot of padding from the caller's arguments.
   int expected = kPadArguments ? -2 : -1;
@@ -206,7 +206,7 @@ TEST_F(LinkageTailCall, MatchingStackParameters) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -232,7 +232,7 @@ TEST_F(LinkageTailCall, NonMatchingStackParameters) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -259,7 +259,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegisters) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -287,7 +287,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegisters) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   EXPECT_EQ(0, stack_param_delta);
 }
@@ -315,7 +315,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegistersAndStack) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   // We might need to add one slot of padding to the callee arguments.
   int expected = kPadArguments ? 0 : -1;
@@ -345,7 +345,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegistersAndStack) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_TRUE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(CallDescriptorOf(node->op())));
   int stack_param_delta = desc2->GetStackParameterDelta(desc1);
   // We might need to drop one slot of padding from the caller's arguments.
   int expected = kPadArguments ? 0 : 1;

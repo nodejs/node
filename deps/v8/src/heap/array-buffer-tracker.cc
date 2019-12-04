@@ -68,8 +68,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
     page_->DecrementExternalBackingStoreBytes(
         ExternalBackingStoreType::kArrayBuffer, freed_memory);
     // TODO(wez): Remove backing-store from external memory accounting.
-    page_->heap()->update_external_memory_concurrently_freed(
-        static_cast<intptr_t>(freed_memory));
+    page_->heap()->update_external_memory_concurrently_freed(freed_memory);
   }
 
   array_buffers_.swap(kept_array_buffers);

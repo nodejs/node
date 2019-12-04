@@ -383,3 +383,97 @@ preview:
     type : object
 }
 
+{
+    description : Array(2)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            type : object
+            value : Object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : c
+                        type : number
+                        value : 3
+                    }
+                    [1] : {
+                        name : b
+                        type : number
+                        value : 2
+                    }
+                ]
+                type : object
+            }
+        }
+        [1] : {
+            name : 1
+            type : object
+            value : Object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : c
+                        type : number
+                        value : 3
+                    }
+                ]
+                type : object
+            }
+        }
+    ]
+    subtype : array
+    type : object
+}
+{
+    description : Array(2)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 0
+            type : object
+            value : Object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : c
+                        type : number
+                        value : 3
+                    }
+                    [1] : {
+                        name : b
+                        type : number
+                        value : 2
+                    }
+                ]
+                type : object
+            }
+        }
+        [1] : {
+            name : 1
+            type : object
+            value : Object
+            valuePreview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : c
+                        type : number
+                        value : 3
+                    }
+                ]
+                type : object
+            }
+        }
+    ]
+    subtype : array
+    type : object
+}

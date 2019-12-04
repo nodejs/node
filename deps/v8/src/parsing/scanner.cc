@@ -92,7 +92,8 @@ bool Scanner::BookmarkScope::HasBeenApplied() const {
 Scanner::Scanner(Utf16CharacterStream* source, bool is_module)
     : source_(source),
       found_html_comment_(false),
-      allow_harmony_numeric_separator_(false),
+      allow_harmony_optional_chaining_(false),
+      allow_harmony_nullish_(false),
       is_module_(is_module),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone) {
@@ -628,12 +629,17 @@ bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
   return true;
 }
 
-bool Scanner::ScanDecimalDigits() {
-  if (allow_harmony_numeric_separator()) {
+bool Scanner::ScanDecimalDigits(bool allow_numeric_separator) {
+  if (allow_numeric_separator) {
     return ScanDigitsWithNumericSeparators(&IsDecimalDigit, false);
   }
   while (IsDecimalDigit(c0_)) {
     AddLiteralCharAdvance();
+  }
+  if (c0_ == '_') {
+    ReportScannerError(Location(source_pos(), source_pos() + 1),
+                       MessageTemplate::kInvalidOrUnexpectedToken);
+    return false;
   }
   return true;
 }
@@ -667,8 +673,8 @@ bool Scanner::ScanDecimalAsSmiWithNumericSeparators(uint64_t* value) {
   return true;
 }
 
-bool Scanner::ScanDecimalAsSmi(uint64_t* value) {
-  if (allow_harmony_numeric_separator()) {
+bool Scanner::ScanDecimalAsSmi(uint64_t* value, bool allow_numeric_separator) {
+  if (allow_numeric_separator) {
     return ScanDecimalAsSmiWithNumericSeparators(value);
   }
 
@@ -682,35 +688,11 @@ bool Scanner::ScanDecimalAsSmi(uint64_t* value) {
 }
 
 bool Scanner::ScanBinaryDigits() {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsBinaryDigit, true);
-  }
-
-  // we must have at least one binary digit after 'b'/'B'
-  if (!IsBinaryDigit(c0_)) {
-    return false;
-  }
-
-  while (IsBinaryDigit(c0_)) {
-    AddLiteralCharAdvance();
-  }
-  return true;
+  return ScanDigitsWithNumericSeparators(&IsBinaryDigit, true);
 }
 
 bool Scanner::ScanOctalDigits() {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsOctalDigit, true);
-  }
-
-  // we must have at least one octal digit after 'o'/'O'
-  if (!IsOctalDigit(c0_)) {
-    return false;
-  }
-
-  while (IsOctalDigit(c0_)) {
-    AddLiteralCharAdvance();
-  }
-  return true;
+  return ScanDigitsWithNumericSeparators(&IsOctalDigit, true);
 }
 
 bool Scanner::ScanImplicitOctalDigits(int start_pos,
@@ -734,26 +716,14 @@ bool Scanner::ScanImplicitOctalDigits(int start_pos,
 }
 
 bool Scanner::ScanHexDigits() {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsHexDigit, true);
-  }
-
-  // we must have at least one hex digit after 'x'/'X'
-  if (!IsHexDigit(c0_)) {
-    return false;
-  }
-
-  while (IsHexDigit(c0_)) {
-    AddLiteralCharAdvance();
-  }
-  return true;
+  return ScanDigitsWithNumericSeparators(&IsHexDigit, true);
 }
 
 bool Scanner::ScanSignedInteger() {
   if (c0_ == '+' || c0_ == '-') AddLiteralCharAdvance();
   // we must have at least one decimal digit after 'e'/'E'
   if (!IsDecimalDigit(c0_)) return false;
-  return ScanDecimalDigits();
+  return ScanDecimalDigits(true);
 }
 
 Token::Value Scanner::ScanNumber(bool seen_period) {
@@ -767,11 +737,11 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddLiteralChar('.');
-    if (allow_harmony_numeric_separator() && c0_ == '_') {
+    if (c0_ == '_') {
       return Token::ILLEGAL;
     }
     // we know we have at least one digit
-    if (!ScanDecimalDigits()) return Token::ILLEGAL;
+    if (!ScanDecimalDigits(true)) return Token::ILLEGAL;
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
@@ -801,7 +771,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         }
       } else if (IsNonOctalDecimalDigit(c0_)) {
         kind = DECIMAL_WITH_LEADING_ZERO;
-      } else if (allow_harmony_numeric_separator() && c0_ == '_') {
+      } else if (c0_ == '_') {
         ReportScannerError(Location(source_pos(), source_pos() + 1),
                            MessageTemplate::kZeroDigitNumericSeparator);
         return Token::ILLEGAL;
@@ -810,11 +780,14 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
     // Parse decimal digits and allow trailing fractional part.
     if (IsDecimalNumberKind(kind)) {
+      bool allow_numeric_separator = kind != DECIMAL_WITH_LEADING_ZERO;
       // This is an optimization for parsing Decimal numbers as Smi's.
       if (at_start) {
         uint64_t value = 0;
         // scan subsequent decimal digits
-        if (!ScanDecimalAsSmi(&value)) return Token::ILLEGAL;
+        if (!ScanDecimalAsSmi(&value, allow_numeric_separator)) {
+          return Token::ILLEGAL;
+        }
 
         if (next().literal_chars.one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && !IsIdentifierStart(c0_)) {
@@ -828,14 +801,16 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         }
       }
 
-      if (!ScanDecimalDigits()) return Token::ILLEGAL;
+      if (!ScanDecimalDigits(allow_numeric_separator)) {
+        return Token::ILLEGAL;
+      }
       if (c0_ == '.') {
         seen_period = true;
         AddLiteralCharAdvance();
-        if (allow_harmony_numeric_separator() && c0_ == '_') {
+        if (c0_ == '_') {
           return Token::ILLEGAL;
         }
-        if (!ScanDecimalDigits()) return Token::ILLEGAL;
+        if (!ScanDecimalDigits(true)) return Token::ILLEGAL;
       }
     }
   }

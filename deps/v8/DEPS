@@ -3,6 +3,21 @@
 # all paths in here must match this assumption.
 
 vars = {
+  # Fetches only the SDK boot images which match at least one of the whitelist
+  # entries in a comma-separated list.
+  #
+  # Only the X64 and ARM64 QEMU images are downloaded by default. Developers
+  # that need to boot on other target architectures or devices can opt to
+  # download more boot images. Example of images include:
+  #
+  # Emulation:
+  #   qemu.x64, qemu.arm64
+  # Hardware:
+  #   generic.x64, generic.arm64
+  #
+  # Wildcards are supported (e.g. "qemu.*").
+  'checkout_fuchsia_boot_images': "qemu.x64,qemu.arm64",
+
   'checkout_instrumented_libraries': False,
   'chromium_url': 'https://chromium.googlesource.com',
   'android_url': 'https://android.googlesource.com',
@@ -12,7 +27,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:972ed755f8e6d31cae9ba15fcd08136ae1a7886f',
+  'gn_version': 'git_revision:152c5144ceed9592c20f0c8fd55769646077569b',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:7d11fd9e66407c49cb6c8546a2ae45ea993a240c',
@@ -20,7 +35,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_build-tools_version': 'DLK621q5_Bga5EsOr7cp6bHWWxFKx6UHLu_Ix_m3AckC',
+  'android_sdk_build-tools_version': '5DL7LQQjVMLClXLzLgmGysccPGsGcjJdvH9z5-uetiIC',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_emulator_version
   # and whatever else without interference from each other.
@@ -57,15 +72,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1e5d7d692f816af8136c738b79fe9e8dde8057f6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '693faeda4ee025796c7e473d953a5a7b6ad64c93',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ee7b9dda90e409fb92031d511151debe5db7db9f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f38bc1796282c61087dcf15abc61b8fd18a68402',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'fd97d4326fac6da84452b2d5fe75ff0949368dab',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '53f6b233a41ec982d8445996247093f7aaf41639',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'b1c3ca20848c117eb935b02c25d441f03e6fbc5e',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '67b293ca1316d06f7f00160ce35c92b8849a9dc9',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '74cfb57006f83cfe050817526db359d5c8a11628',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -105,9 +120,9 @@ deps = {
     'condition': 'host_os == "win"',
   },
   'v8/base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'cfe8887fa6ac3170e23a68949930e28d4705a16f',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '5e4fce17a9d2439c44a7b57ceecef6df9287ec2f',
   'v8/third_party/android_ndk': {
-    'url': Var('chromium_url') + '/android_ndk.git' + '@' + '4e2cea441bfd43f0863d14f57b1e1844260b9884',
+    'url': Var('chromium_url') + '/android_ndk.git' + '@' + '62582753e869484bf0cc7f7e8d184ce0077033c2',
     'condition': 'checkout_android',
   },
   'v8/third_party/android_sdk/public': {
@@ -153,7 +168,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '53913cecb11a3ef993f6496b9110964e2e2aeec3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e7c719c3e85f76938bf4fef0ba37c27f89246f71',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -161,11 +176,11 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5fd29151cf35c0813c33cc368a7c78389e3f5caa',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '1785f0ac8e1fe81cb25e260acbe7de8f62fa3e44',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '6077f444da944d96d311d358d761164261f1cdd0',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '565f1b848215b77c3732bca345fe76a0431d8b34',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
@@ -177,7 +192,7 @@ deps = {
   'v8/test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'v8/test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '26a2268436f28f64c4539d9aab9ebd0f0b7c99c5',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '59a1a016b7cf5cf43f66b274c7d1db4ec6066935',
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '4555345a943d0c99a9461182705543fb171dda4b',
   'v8/third_party/qemu-linux-x64': {
@@ -201,7 +216,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f485a21a9cb05494161d97d545c3b29447610ffb',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2fef805e5b05b26a8c87c47865590b5f43218611',
   'v8/tools/luci-go': {
       'packages': [
         {
@@ -230,10 +245,8 @@ deps = {
     'condition': 'checkout_mac',
     'dep_type': 'cipd',
   },
-  'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '1a411f713d9850ce7da24719aba5bb80c535f562',
   'v8/third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '0e8281399fd854de13461f2c1c9f2fb0b8e9c3ae',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '01615892494a9a8dc84414962d0a817bf97de2c2',
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
 }
@@ -347,6 +360,17 @@ hooks = [
     ],
   },
   {
+    'name': 'wasm_js',
+    'pattern': '.',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--no_auth',
+                '-u',
+                '--bucket', 'v8-wasm-spec-tests',
+                '-s', 'v8/test/wasm-js/tests.tar.gz.sha1',
+    ],
+  },
+  {
     'name': 'sysroot_arm',
     'pattern': '.',
     'condition': '(checkout_linux and checkout_arm)',
@@ -410,6 +434,13 @@ hooks = [
     'condition': 'checkout_win',
     'action': ['python', 'v8/build/vs_toolchain.py', 'update'],
   },
+  {
+    # Update the Mac toolchain if necessary.
+    'name': 'mac_toolchain',
+    'pattern': '.',
+    'condition': 'checkout_mac',
+    'action': ['python', 'v8/build/mac_toolchain.py'],
+  },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
   # https://code.google.com/p/chromium/issues/detail?id=352046
@@ -444,6 +475,7 @@ hooks = [
     'action': [
       'python',
       'v8/build/fuchsia/update_sdk.py',
+      '--boot-images={checkout_fuchsia_boot_images}',
     ],
   },
   {

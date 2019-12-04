@@ -4,12 +4,13 @@
 
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
+let cleanedUp = false;
 let r = Realm.create();
 let FG = Realm.eval(r, "FinalizationGroup");
 Realm.detachGlobal(r);
 
 let fg = new FG(()=> {
-  assertUnreachable();
+  cleanedUp = true;
 });
 
 (() => {
@@ -20,3 +21,5 @@ let fg = new FG(()=> {
 })();
 
 gc();
+
+setTimeout(function() { assertTrue(cleanedUp); }, 0);

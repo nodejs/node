@@ -35,7 +35,12 @@ V8_INLINE Address GetIsolateRoot<Address>(Address on_heap_addr) {
 
 template <>
 V8_INLINE Address GetIsolateRoot<Isolate*>(Isolate* isolate) {
-  return isolate->isolate_root();
+  Address isolate_root = isolate->isolate_root();
+#ifdef V8_COMPRESS_POINTERS
+  isolate_root = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
+      reinterpret_cast<void*>(isolate_root), kPtrComprIsolateRootAlignment));
+#endif
+  return isolate_root;
 }
 
 // Decompresses smi value.

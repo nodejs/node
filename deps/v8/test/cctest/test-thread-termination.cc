@@ -179,7 +179,7 @@ class TerminatorThread : public v8::base::Thread {
 void TestTerminatingSlowOperation(const char* source) {
   semaphore = new v8::base::Semaphore(0);
   TerminatorThread thread(CcTest::i_isolate());
-  thread.Start();
+  CHECK(thread.Start());
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::ObjectTemplate> global =
@@ -474,7 +474,7 @@ void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
 TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
   semaphore = new v8::base::Semaphore(0);
   TerminatorThread thread(CcTest::i_isolate());
-  thread.Start();
+  CHECK(thread.Start());
 
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
@@ -878,7 +878,7 @@ TEST(TerminateRegExp) {
   CHECK(!isolate->IsExecutionTerminating());
   CHECK(!CompileRun("var re = /(x+)+y$/; re.test('x');").IsEmpty());
   TerminatorSleeperThread terminator(isolate, 100);
-  terminator.Start();
+  CHECK(terminator.Start());
   CHECK(CompileRun("re.test('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); fail();")
             .IsEmpty());
   CHECK(try_catch.HasCaught());

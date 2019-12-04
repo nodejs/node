@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "src/common/globals.h"
 #include "src/torque/ast.h"
 #include "src/torque/contextual.h"
 #include "src/torque/declarable.h"
@@ -90,6 +91,18 @@ template <class T>
 T* RegisterDeclarable(std::unique_ptr<T> d) {
   return GlobalContext::Get().RegisterDeclarable(std::move(d));
 }
+
+class TargetArchitecture : public ContextualClass<TargetArchitecture> {
+ public:
+  explicit TargetArchitecture(bool force_32bit);
+
+  static int TaggedSize() { return Get().tagged_size_; }
+  static int RawPtrSize() { return Get().raw_ptr_size_; }
+
+ private:
+  const int tagged_size_;
+  const int raw_ptr_size_;
+};
 
 }  // namespace torque
 }  // namespace internal

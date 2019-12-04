@@ -220,13 +220,10 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 53
+bytecode array length: 44
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   37 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
-                B(JumpIfNull), U8(4),
-                B(JumpIfNotUndefined), U8(7),
-  /*   26 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
                 B(Star), R(3),
   /*   28 S> */ B(LdaNamedProperty), R(3), U8(1), U8(1),
                 B(Star), R(0),

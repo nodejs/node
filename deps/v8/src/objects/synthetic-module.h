@@ -17,25 +17,16 @@ namespace internal {
 // instantiated by an embedder with embedder-defined exports and evaluation
 // steps.
 // https://heycam.github.io/webidl/#synthetic-module-records
-class SyntheticModule : public Module {
+class SyntheticModule
+    : public TorqueGeneratedSyntheticModule<SyntheticModule, Module> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST(SyntheticModule)
   DECL_VERIFIER(SyntheticModule)
   DECL_PRINTER(SyntheticModule)
-
-  // The list of all names exported by this module
-  DECL_ACCESSORS(name, String)
-  DECL_ACCESSORS(export_names, FixedArray)
-  DECL_ACCESSORS(evaluation_steps, Foreign)
 
   static void SetExport(Isolate* isolate, Handle<SyntheticModule> module,
                         Handle<String> export_name,
                         Handle<Object> export_value);
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(Module::kHeaderSize,
-                                TORQUE_GENERATED_SYNTHETIC_MODULE_FIELDS)
 
   using BodyDescriptor = SubclassBodyDescriptor<
       Module::BodyDescriptor,
@@ -58,7 +49,7 @@ class SyntheticModule : public Module {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
       Isolate* isolate, Handle<SyntheticModule> module);
 
-  OBJECT_CONSTRUCTORS(SyntheticModule, Module);
+  TQ_OBJECT_CONSTRUCTORS(SyntheticModule)
 };
 
 }  // namespace internal

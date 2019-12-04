@@ -129,16 +129,16 @@ export abstract class TextView extends PhaseView {
     if (this.divNode.parentNode == null) return;
     const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
     const view = this;
+    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`);
+    for (const el of elementsToSelect) {
+      el.classList.toggle("selected", false);
+    }
     for (const [blockId, elements] of this.blockIdToHtmlElementsMap.entries()) {
       const isSelected = view.blockSelection.isSelected(blockId);
       for (const element of elements) {
         mkVisible.consider(element, isSelected);
         element.classList.toggle("selected", isSelected);
       }
-    }
-    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`);
-    for (const el of elementsToSelect) {
-      el.classList.toggle("selected", false);
     }
     for (const key of this.nodeIdToHtmlElementsMap.keys()) {
       for (const element of this.nodeIdToHtmlElementsMap.get(key)) {
@@ -170,7 +170,9 @@ export abstract class TextView extends PhaseView {
     const fragment = document.createElement("SPAN");
 
     if (typeof style.associateData == 'function') {
-      style.associateData(text, fragment);
+      if (style.associateData(text, fragment) === false) {
+         return null;
+      }
     } else {
       if (style.css != undefined) {
         const css = isIterable(style.css) ? style.css : [style.css];
@@ -198,7 +200,7 @@ export abstract class TextView extends PhaseView {
             const text = matches[0];
             if (text != '') {
               const fragment = view.createFragment(matches[0], style);
-              result.push(fragment);
+              if (fragment !== null) result.push(fragment);
             }
             line = line.substr(matches[0].length);
           }

@@ -8,6 +8,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/pending-optimization-table.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/handles/global-handles.h"
@@ -118,6 +119,17 @@ void RuntimeProfiler::MaybeOptimize(JSFunction function,
       PrintF(" is already in optimization queue]\n");
     }
     return;
+  }
+  if (FLAG_testing_d8_test_runner) {
+    if (!PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
+                                                                  function)) {
+      if (FLAG_trace_opt_verbose) {
+        PrintF("[function ");
+        function.PrintName();
+        PrintF(" has been marked manually for optimization]\n");
+      }
+      return;
+    }
   }
 
   if (FLAG_always_osr) {

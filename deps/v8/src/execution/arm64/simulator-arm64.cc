@@ -390,14 +390,14 @@ using SimulatorRuntimeCall_ReturnPtr = int64_t (*)(int64_t arg0, int64_t arg1,
                                                    int64_t arg2, int64_t arg3,
                                                    int64_t arg4, int64_t arg5,
                                                    int64_t arg6, int64_t arg7,
-                                                   int64_t arg8);
+                                                   int64_t arg8, int64_t arg9);
 #endif
 
 using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
                                             int64_t arg2, int64_t arg3,
                                             int64_t arg4, int64_t arg5,
                                             int64_t arg6, int64_t arg7,
-                                            int64_t arg8);
+                                            int64_t arg8, int64_t arg9);
 
 using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
 using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
@@ -445,7 +445,8 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   const int64_t arg6 = xreg(6);
   const int64_t arg7 = xreg(7);
   const int64_t arg8 = stack_pointer[0];
-  STATIC_ASSERT(kMaxCParameters == 9);
+  const int64_t arg9 = stack_pointer[1];
+  STATIC_ASSERT(kMaxCParameters == 10);
 
   switch (redirection->type()) {
     default:
@@ -477,14 +478,14 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64
           ", "
-          "0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 
       SimulatorRuntimeCall_ReturnPtr target =
           reinterpret_cast<SimulatorRuntimeCall_ReturnPtr>(external);
 
       int64_t result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       TraceSim("Returned: 0x%16\n", result);
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -512,12 +513,12 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64
           ", "
-          "0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       SimulatorRuntimeCall target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
       ObjectPair result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
                reinterpret_cast<void*>(result.y));
 #ifdef DEBUG
@@ -3037,11 +3038,31 @@ bool Simulator::FPProcessNaNs(Instruction* instr) {
   return done;
 }
 
+// clang-format off
+#define PAUTH_SYSTEM_MODES(V)                            \
+  V(A1716, 17, xreg(16),                      kPACKeyIA) \
+  V(ASP,   30, xreg(31, Reg31IsStackPointer), kPACKeyIA)
+// clang-format on
+
 void Simulator::VisitSystem(Instruction* instr) {
   // Some system instructions hijack their Op and Cp fields to represent a
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
-  if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
+  if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
+    switch (instr->Mask(SystemPAuthMask)) {
+#define DEFINE_PAUTH_FUNCS(SUFFIX, DST, MOD, KEY)                     \
+  case PACI##SUFFIX:                                                  \
+    set_xreg(DST, AddPAC(xreg(DST), MOD, KEY, kInstructionPointer));  \
+    break;                                                            \
+  case AUTI##SUFFIX:                                                  \
+    set_xreg(DST, AuthPAC(xreg(DST), MOD, KEY, kInstructionPointer)); \
+    break;
+
+      PAUTH_SYSTEM_MODES(DEFINE_PAUTH_FUNCS)
+#undef DEFINE_PAUTH_FUNCS
+#undef PAUTH_SYSTEM_MODES
+    }
+  } else if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
     switch (instr->Mask(SystemSysRegMask)) {
       case MRS: {
         switch (instr->ImmSystemRegister()) {

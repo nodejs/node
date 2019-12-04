@@ -68,6 +68,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
@@ -121,9 +122,9 @@
 #include <windows.h>
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
-#if V8_TARGET_ARCH_X64
+#if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
 namespace v8 {
@@ -237,17 +238,9 @@ namespace v8 {
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, Nothing<T>())
 
-#define RETURN_TO_LOCAL_UNCHECKED(maybe_local, T) \
-  return maybe_local.FromMaybe(Local<T>());
-
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
 
 namespace {
-
-Local<Context> ContextFromNeverReadOnlySpaceObject(
-    i::Handle<i::JSReceiver> obj) {
-  return reinterpret_cast<v8::Isolate*>(obj->GetIsolate())->GetCurrentContext();
-}
 
 class InternalEscapableScope : public v8::EscapableHandleScope {
  public:
@@ -269,7 +262,7 @@ void CheckMicrotasksScopesConsistency(i::MicrotaskQueue* microtask_queue) {
 template <bool do_callback>
 class CallDepthScope {
  public:
-  explicit CallDepthScope(i::Isolate* isolate, Local<Context> context)
+  CallDepthScope(i::Isolate* isolate, Local<Context> context)
       : isolate_(isolate),
         context_(context),
         escaped_(false),
@@ -280,7 +273,7 @@ class CallDepthScope {
                                      ? i::InterruptsScope::kRunInterrupts
                                      : i::InterruptsScope::kPostponeInterrupts)
                               : i::InterruptsScope::kNoop) {
-    isolate_->handle_scope_implementer()->IncrementCallDepth();
+    isolate_->thread_local_top()->IncrementCallDepth(this);
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
@@ -304,7 +297,7 @@ class CallDepthScope {
       i::Handle<i::Context> env = Utils::OpenHandle(*context_);
       microtask_queue = env->native_context().microtask_queue();
     }
-    if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
+    if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
 // TODO(jochen): This should be #ifdef DEBUG
 #ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
@@ -316,11 +309,10 @@ class CallDepthScope {
   void Escape() {
     DCHECK(!escaped_);
     escaped_ = true;
-    auto handle_scope_implementer = isolate_->handle_scope_implementer();
-    handle_scope_implementer->DecrementCallDepth();
-    bool clear_exception =
-        handle_scope_implementer->CallDepthIsZero() &&
-        isolate_->thread_local_top()->try_catch_handler_ == nullptr;
+    auto thread_local_top = isolate_->thread_local_top();
+    thread_local_top->DecrementCallDepth(this);
+    bool clear_exception = thread_local_top->CallDepthIsZero() &&
+                           thread_local_top->try_catch_handler_ == nullptr;
     isolate_->OptionalRescheduleException(clear_exception);
   }
 
@@ -331,6 +323,12 @@ class CallDepthScope {
   bool do_callback_;
   bool safe_for_termination_;
   i::InterruptsScope interrupts_scope_;
+  i::Address previous_stack_height_;
+
+  friend class i::ThreadLocalTop;
+
+  DISALLOW_NEW_AND_DELETE()
+  DISALLOW_COPY_AND_ASSIGN(CallDepthScope);
 };
 
 }  // namespace
@@ -819,10 +817,15 @@ StartupData SnapshotCreator::CreateBlob(
       // Complete in-object slack tracking for all functions.
       fun.CompleteInobjectSlackTrackingIfActive();
 
-      fun.ResetIfBytecodeFlushed();
-
       // Also, clear out feedback vectors, or any optimized code.
-      if (fun.IsOptimized() || fun.IsInterpreted()) {
+      // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is not
+      // sufficient because the function can have a feedback vector even if it
+      // is not compiled (e.g. when the bytecode was flushed). On the other
+      // hand, only checking for the feedback vector is not sufficient because
+      // there can be multiple functions sharing the same feedback vector. So we
+      // need all these checks.
+      if (fun.IsOptimized() || fun.IsInterpreted() ||
+          !fun.raw_feedback_cell().value().IsUndefined()) {
         fun.raw_feedback_cell().set_value(
             i::ReadOnlyRoots(isolate).undefined_value());
         fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
@@ -891,13 +894,17 @@ void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
 }
 
 void V8::SetFlagsFromString(const char* str) {
-  SetFlagsFromString(str, static_cast<int>(strlen(str)));
+  SetFlagsFromString(str, strlen(str));
+}
+
+void V8::SetFlagsFromString(const char* str, size_t length) {
+  i::FlagList::SetFlagsFromString(str, length);
+  i::FlagList::EnforceFlagImplications();
 }
 
 void V8::SetFlagsFromString(const char* str, int length) {
   CHECK_LE(0, length);
-  i::FlagList::SetFlagsFromString(str, static_cast<size_t>(length));
-  i::FlagList::EnforceFlagImplications();
+  SetFlagsFromString(str, static_cast<size_t>(length));
 }
 
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
@@ -961,7 +968,31 @@ Extension::Extension(const char* name, const char* source, int dep_count,
   CHECK(source != nullptr || source_length_ == 0);
 }
 
-ResourceConstraints::ResourceConstraints() {}
+void ResourceConstraints::ConfigureDefaultsFromHeapSize(
+    size_t initial_heap_size_in_bytes, size_t maximum_heap_size_in_bytes) {
+  CHECK_LE(initial_heap_size_in_bytes, maximum_heap_size_in_bytes);
+  if (maximum_heap_size_in_bytes == 0) {
+    return;
+  }
+  size_t young_generation, old_generation;
+  i::Heap::GenerationSizesFromHeapSize(maximum_heap_size_in_bytes,
+                                       &young_generation, &old_generation);
+  set_max_young_generation_size_in_bytes(
+      i::Max(young_generation, i::Heap::MinYoungGenerationSize()));
+  set_max_old_generation_size_in_bytes(
+      i::Max(old_generation, i::Heap::MinOldGenerationSize()));
+  if (initial_heap_size_in_bytes > 0) {
+    i::Heap::GenerationSizesFromHeapSize(initial_heap_size_in_bytes,
+                                         &young_generation, &old_generation);
+    // We do not set lower bounds for the initial sizes.
+    set_initial_young_generation_size_in_bytes(young_generation);
+    set_initial_old_generation_size_in_bytes(old_generation);
+  }
+  if (i::kRequiresCodeRange) {
+    set_code_range_size_in_bytes(
+        i::Min(i::kMaximalCodeRangeSize, maximum_heap_size_in_bytes));
+  }
+}
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
@@ -979,14 +1010,15 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
-size_t ResourceConstraints::max_young_generation_size_in_bytes() const {
-  return i::Heap::YoungGenerationSizeFromSemiSpaceSize(
-      max_semi_space_size_in_kb_ * i::KB);
+size_t ResourceConstraints::max_semi_space_size_in_kb() const {
+  return i::Heap::SemiSpaceSizeFromYoungGenerationSize(
+             max_young_generation_size_) /
+         i::KB;
 }
 
-void ResourceConstraints::set_max_young_generation_size_in_bytes(size_t limit) {
-  max_semi_space_size_in_kb_ =
-      i::Heap::SemiSpaceSizeFromYoungGenerationSize(limit) / i::KB;
+void ResourceConstraints::set_max_semi_space_size_in_kb(size_t limit_in_kb) {
+  set_max_young_generation_size_in_bytes(
+      i::Heap::YoungGenerationSizeFromSemiSpaceSize(limit_in_kb * i::KB));
 }
 
 i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
@@ -1001,10 +1033,11 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
 }
 
 i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
-                                         internal::Address* slot) {
+                                         internal::Address* slot,
+                                         bool has_destructor) {
   LOG_API(isolate, TracedGlobal, New);
   i::Handle<i::Object> result =
-      isolate->global_handles()->CreateTraced(*obj, slot);
+      isolate->global_handles()->CreateTraced(*obj, slot, has_destructor);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
     i::Object(*obj).ObjectVerify(isolate);
@@ -1027,9 +1060,9 @@ void V8::MoveTracedGlobalReference(internal::Address** from,
   i::GlobalHandles::MoveTracedGlobal(from, to);
 }
 
-void V8::RegisterExternallyReferencedObject(i::Address* location,
-                                            i::Isolate* isolate) {
-  isolate->heap()->RegisterExternallyReferencedObject(location);
+void V8::CopyTracedGlobalReference(const internal::Address* const* from,
+                                   internal::Address** to) {
+  i::GlobalHandles::CopyTracedGlobal(from, to);
 }
 
 void V8::MakeWeak(i::Address* location, void* parameter,
@@ -1281,7 +1314,6 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
-  HandleScope handle_scope(GetIsolate());
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
@@ -1602,10 +1634,6 @@ void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   info->set_accept_any_receiver(value);
-}
-
-void FunctionTemplate::SetHiddenPrototype(bool value) {
-  /* No-op for ABI compatibility. */
 }
 
 void FunctionTemplate::ReadOnlyPrototype() {
@@ -2325,7 +2353,8 @@ Local<Module> Module::CreateSyntheticModule(
   i::Handle<i::FixedArray> i_export_names = i_isolate->factory()->NewFixedArray(
       static_cast<int>(export_names.size()));
   for (int i = 0; i < i_export_names->length(); ++i) {
-    i::Handle<i::String> str = Utils::OpenHandle(*export_names[i]);
+    i::Handle<i::String> str = i_isolate->factory()->InternalizeString(
+        Utils::OpenHandle(*export_names[i]));
     i_export_names->set(i, *str);
   }
   return v8::Utils::ToLocal(
@@ -2482,16 +2511,6 @@ bool IsIdentifier(i::Isolate* isolate, i::Handle<i::String> string) {
   return true;
 }
 }  // anonymous namespace
-
-MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
-    Local<Context> v8_context, Source* source, size_t arguments_count,
-    Local<String> arguments[], size_t context_extension_count,
-    Local<Object> context_extensions[], CompileOptions options,
-    NoCacheReason no_cache_reason) {
-  return ScriptCompiler::CompileFunctionInContext(
-      v8_context, source, arguments_count, arguments, context_extension_count,
-      context_extensions, options, no_cache_reason, nullptr);
-}
 
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Context> v8_context, Source* source, size_t arguments_count,
@@ -3487,12 +3506,6 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<String> Value::ToString(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToString(isolate->GetCurrentContext()), String);
-}
-
-
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsString()) return ToApiHandle<String>(obj);
@@ -3514,11 +3527,6 @@ MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<v8::Object> Value::ToObject(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToObject(isolate->GetCurrentContext()), Object);
-}
-
 MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsBigInt()) return ToApiHandle<BigInt>(obj);
@@ -3534,11 +3542,6 @@ bool Value::BooleanValue(Isolate* v8_isolate) const {
   return Utils::OpenHandle(this)->BooleanValue(
       reinterpret_cast<i::Isolate*>(v8_isolate));
 }
-
-MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
-  return ToBoolean(context->GetIsolate());
-}
-
 
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
   auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -3557,12 +3560,6 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<Number> Value::ToNumber(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToNumber(isolate->GetCurrentContext()), Number);
-}
-
-
 MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Integer>(obj);
@@ -3574,12 +3571,6 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<Integer> Value::ToInteger(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToInteger(isolate->GetCurrentContext()), Integer);
-}
-
-
 MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Int32>(obj);
@@ -3590,12 +3581,6 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   RETURN_ON_FAILED_EXECUTION(Int32);
   RETURN_ESCAPED(result);
 }
-
-
-Local<Int32> Value::ToInt32(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToInt32(isolate->GetCurrentContext()), Int32);
-}
-
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
@@ -3823,13 +3808,6 @@ void v8::RegExp::CheckCast(v8::Value* that) {
                   "Could not convert to regular expression");
 }
 
-
-Maybe<bool> Value::BooleanValue(Local<Context> context) const {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  return Just(Utils::OpenHandle(this)->BooleanValue(isolate));
-}
-
-
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return Just(obj->Number());
@@ -3963,11 +3941,6 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   return Just(true);
 }
 
-bool v8::Object::Set(v8::Local<Value> key, v8::Local<Value> value) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Set(context, key, value).FromMaybe(false);
-}
-
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                             v8::Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -3979,11 +3952,6 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                               .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
-}
-
-bool v8::Object::Set(uint32_t index, v8::Local<Value> value) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Set(context, index, value).FromMaybe(false);
 }
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
@@ -4203,11 +4171,6 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
-Local<Value> v8::Object::Get(v8::Local<Value> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Get(context, key), Value);
-}
-
 MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   PREPARE_FOR_EXECUTION(context, Object, Get, Value);
   auto self = Utils::OpenHandle(this);
@@ -4216,11 +4179,6 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
       !i::JSReceiver::GetElement(isolate, self, index).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
-}
-
-Local<Value> v8::Object::Get(uint32_t index) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Get(context, index), Value);
 }
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
@@ -4750,6 +4708,11 @@ bool v8::Object::IsConstructor() {
   return self->IsConstructor();
 }
 
+bool v8::Object::IsApiWrapper() {
+  auto self = i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  return self->IsApiWrapper();
+}
+
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,
                                          Local<Value> argv[]) {
@@ -4930,7 +4893,7 @@ Local<Value> Function::GetDisplayName() const {
   }
   auto func = i::Handle<i::JSFunction>::cast(self);
   i::Handle<i::String> property_name =
-      isolate->factory()->NewStringFromStaticChars("displayName");
+      isolate->factory()->display_name_string();
   i::Handle<i::Object> value =
       i::JSReceiver::GetDataProperty(func, property_name);
   if (value->IsString()) {
@@ -5642,14 +5605,14 @@ bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 #if defined(V8_OS_WIN)
 void V8::SetUnhandledExceptionCallback(
     UnhandledExceptionCallback unhandled_exception_callback) {
-#if defined(V8_TARGET_ARCH_X64)
+#if defined(V8_OS_WIN64)
   v8::internal::win64_unwindinfo::SetUnhandledExceptionCallback(
       unhandled_exception_callback);
 #else
-  // Not implemented on ARM64.
-#endif
+  // Not implemented, port needed.
+#endif  // V8_OS_WIN64
 }
-#endif
+#endif  // V8_OS_WIN
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);
@@ -6175,9 +6138,9 @@ inline int StringLength(const uint16_t* string) {
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           v8::NewStringType type,
+                                           NewStringType type,
                                            i::Vector<const char> string) {
-  if (type == v8::NewStringType::kInternalized) {
+  if (type == NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
   return factory->NewStringFromUtf8(string);
@@ -6185,9 +6148,9 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           v8::NewStringType type,
+                                           NewStringType type,
                                            i::Vector<const uint8_t> string) {
-  if (type == v8::NewStringType::kInternalized) {
+  if (type == NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
   return factory->NewStringFromOneByte(string);
@@ -6195,14 +6158,13 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           v8::NewStringType type,
+                                           NewStringType type,
                                            i::Vector<const uint16_t> string) {
-  if (type == v8::NewStringType::kInternalized) {
+  if (type == NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
   return factory->NewStringFromTwoByte(string);
 }
-
 
 STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
 
@@ -6228,43 +6190,21 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     result = Utils::ToLocal(handle_result);                                \
   }
 
-Local<String> String::NewFromUtf8(Isolate* isolate,
-                                  const char* data,
-                                  NewStringType type,
-                                  int length) {
-  NEW_STRING(isolate, String, NewFromUtf8, char, data,
-             static_cast<v8::NewStringType>(type), length);
-  RETURN_TO_LOCAL_UNCHECKED(result, String);
-}
-
-
 MaybeLocal<String> String::NewFromUtf8(Isolate* isolate, const char* data,
-                                       v8::NewStringType type, int length) {
+                                       NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromUtf8, char, data, type, length);
   return result;
 }
 
-
 MaybeLocal<String> String::NewFromOneByte(Isolate* isolate, const uint8_t* data,
-                                          v8::NewStringType type, int length) {
+                                          NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromOneByte, uint8_t, data, type, length);
   return result;
 }
 
-
-Local<String> String::NewFromTwoByte(Isolate* isolate,
-                                     const uint16_t* data,
-                                     NewStringType type,
-                                     int length) {
-  NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data,
-             static_cast<v8::NewStringType>(type), length);
-  RETURN_TO_LOCAL_UNCHECKED(result, String);
-}
-
-
 MaybeLocal<String> String::NewFromTwoByte(Isolate* isolate,
                                           const uint16_t* data,
-                                          v8::NewStringType type, int length) {
+                                          NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data, type, length);
   return result;
 }
@@ -6311,7 +6251,7 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
 
 MaybeLocal<String> v8::String::NewExternalOneByte(
     Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  CHECK(resource && resource->data());
+  CHECK_NOT_NULL(resource);
   // TODO(dcarney): throw a context free exception.
   if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
     return MaybeLocal<String>();
@@ -6319,24 +6259,17 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   LOG_API(i_isolate, String, NewExternalOneByte);
-  if (resource->length() > 0) {
-    i::Handle<i::String> string = i_isolate->factory()
-                                      ->NewExternalStringFromOneByte(resource)
-                                      .ToHandleChecked();
-    return Utils::ToLocal(string);
-  } else {
+  if (resource->length() == 0) {
     // The resource isn't going to be used, free it immediately.
     resource->Dispose();
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }
+  CHECK_NOT_NULL(resource->data());
+  i::Handle<i::String> string = i_isolate->factory()
+                                    ->NewExternalStringFromOneByte(resource)
+                                    .ToHandleChecked();
+  return Utils::ToLocal(string);
 }
-
-
-Local<String> v8::String::NewExternal(
-    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  RETURN_TO_LOCAL_UNCHECKED(NewExternalOneByte(isolate, resource), String);
-}
-
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::DisallowHeapAllocation no_allocation;
@@ -6611,22 +6544,13 @@ double v8::Date::ValueOf() const {
 
 // Assert that the static TimeZoneDetection cast in
 // DateTimeConfigurationChangeNotification is valid.
-#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                               \
-  STATIC_ASSERT(                                                           \
-      static_cast<int>(v8::Isolate::TimeZoneDetection::value) ==           \
-      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));    \
-  STATIC_ASSERT(static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
-                static_cast<int>(v8::Date::TimeZoneDetection::value));
+#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                     \
+  STATIC_ASSERT(                                                 \
+      static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
+      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));
 TIME_ZONE_DETECTION_ASSERT_EQ(kSkip)
 TIME_ZONE_DETECTION_ASSERT_EQ(kRedetect)
 #undef TIME_ZONE_DETECTION_ASSERT_EQ
-
-// static
-void v8::Date::DateTimeConfigurationChangeNotification(
-    Isolate* isolate, TimeZoneDetection time_zone_detection) {
-  isolate->DateTimeConfigurationChangeNotification(
-      static_cast<v8::Isolate::TimeZoneDetection>(time_zone_detection));
-}
 
 MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
@@ -7546,15 +7470,14 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
 v8::SharedArrayBuffer::Contents::Contents(
     void* data, size_t byte_length, void* allocation_base,
     size_t allocation_length, Allocator::AllocationMode allocation_mode,
-    DeleterCallback deleter, void* deleter_data, bool is_growable)
+    DeleterCallback deleter, void* deleter_data)
     : data_(data),
       byte_length_(byte_length),
       allocation_base_(allocation_base),
       allocation_length_(allocation_length),
       allocation_mode_(allocation_mode),
       deleter_(deleter),
-      deleter_data_(deleter_data),
-      is_growable_(is_growable) {
+      deleter_data_(deleter_data) {
   DCHECK_LE(allocation_base_, data_);
   DCHECK_LE(byte_length_, allocation_length_);
 }
@@ -7572,8 +7495,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
           : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
       self->is_wasm_memory()
           ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()),
-      false);
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
   return contents;
 }
 
@@ -7792,6 +7714,11 @@ ArrayBuffer::Allocator* Isolate::GetArrayBufferAllocator() {
 bool Isolate::InContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return !isolate->context().is_null();
+}
+
+void Isolate::ClearKeptObjects() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->ClearKeptObjects();
 }
 
 v8::Local<v8::Context> Isolate::GetCurrentContext() {
@@ -8057,6 +7984,28 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   isolate->SetAbortOnUncaughtExceptionCallback(callback);
 }
 
+void Isolate::SetHostCleanupFinalizationGroupCallback(
+    HostCleanupFinalizationGroupCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetHostCleanupFinalizationGroupCallback(callback);
+}
+
+Maybe<bool> FinalizationGroup::Cleanup(
+    Local<FinalizationGroup> finalization_group) {
+  i::Handle<i::JSFinalizationGroup> fg = Utils::OpenHandle(*finalization_group);
+  i::Isolate* isolate = fg->native_context().GetIsolate();
+  i::Handle<i::Context> i_context(fg->native_context(), isolate);
+  Local<Context> context = Utils::ToLocal(i_context);
+  ENTER_V8(isolate, context, FinalizationGroup, Cleanup, Nothing<bool>(),
+           i::HandleScope);
+  i::Handle<i::Object> callback(fg->cleanup(), isolate);
+  fg->set_scheduled_for_cleanup(false);
+  has_pending_exception =
+      i::JSFinalizationGroup::Cleanup(isolate, fg, callback).IsNothing();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8135,13 +8084,13 @@ Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
     Isolate* isolate)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
       microtask_queue_(isolate_->default_microtask_queue()) {
-  isolate_->handle_scope_implementer()->IncrementCallDepth();
+  isolate_->thread_local_top()->IncrementCallDepth(this);
   microtask_queue_->IncrementMicrotasksSuppressions();
 }
 
 Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
   microtask_queue_->DecrementMicrotasksSuppressions();
-  isolate_->handle_scope_implementer()->DecrementCallDepth();
+  isolate_->thread_local_top()->DecrementCallDepth(this);
 }
 
 Isolate::SafeForTerminationScope::SafeForTerminationScope(v8::Isolate* isolate)
@@ -8266,8 +8215,10 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {
   RegisterState regs = state;
-  if (TickSample::GetStackSample(this, &regs, TickSample::kSkipCEntryFrame,
-                                 frames, frames_limit, sample_info)) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (i::TickSample::GetStackSample(isolate, &regs,
+                                    i::TickSample::kSkipCEntryFrame, frames,
+                                    frames_limit, sample_info)) {
     return;
   }
   sample_info->frames_count = 0;
@@ -8427,6 +8378,11 @@ void Isolate::SetAddHistogramSampleFunction(
       ->SetAddHistogramSampleFunction(callback);
 }
 
+void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetAddCrashKeyCallback(callback);
+}
+
 bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
@@ -8582,6 +8538,9 @@ CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
 CALLBACK_SETTER(WasmThreadsEnabledCallback, WasmThreadsEnabledCallback,
                 wasm_threads_enabled_callback)
 
+CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
+                wasm_load_source_map_callback)
+
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                        void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8713,8 +8672,13 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 }
 
 // static
-std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate) {
-  return i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
+std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate,
+                                                    MicrotasksPolicy policy) {
+  auto microtask_queue =
+      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(isolate));
+  microtask_queue->set_microtasks_policy(policy);
+  std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
+  return ret;
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
@@ -8737,7 +8701,11 @@ MicrotasksScope::MicrotasksScope(Isolate* isolate,
 MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
-    if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy()) {
+    if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy() &&
+        !isolate_->has_scheduled_exception()) {
+      DCHECK_IMPLIES(isolate_->has_scheduled_exception(),
+                     isolate_->scheduled_exception() ==
+                         i::ReadOnlyRoots(isolate_).termination_exception());
       microtask_queue_->PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
@@ -9896,13 +9864,32 @@ int CpuProfile::GetSamplesCount() const {
   return reinterpret_cast<const i::CpuProfile*>(this)->samples_count();
 }
 
-CpuProfiler* CpuProfiler::New(Isolate* isolate) {
-  return New(isolate, kDebugNaming);
+CpuProfiler* CpuProfiler::New(Isolate* isolate,
+                              CpuProfilingNamingMode naming_mode,
+                              CpuProfilingLoggingMode logging_mode) {
+  return reinterpret_cast<CpuProfiler*>(new i::CpuProfiler(
+      reinterpret_cast<i::Isolate*>(isolate), naming_mode, logging_mode));
 }
 
-CpuProfiler* CpuProfiler::New(Isolate* isolate, CpuProfilingNamingMode mode) {
-  return reinterpret_cast<CpuProfiler*>(
-      new i::CpuProfiler(reinterpret_cast<i::Isolate*>(isolate), mode));
+CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
+                                         unsigned max_samples,
+                                         int sampling_interval_us,
+                                         MaybeLocal<Context> filter_context)
+    : mode_(mode),
+      max_samples_(max_samples),
+      sampling_interval_us_(sampling_interval_us) {
+  if (!filter_context.IsEmpty()) {
+    Local<Context> local_filter_context = filter_context.ToLocalChecked();
+    filter_context_.Reset(local_filter_context->GetIsolate(),
+                          local_filter_context);
+  }
+}
+
+void* CpuProfilingOptions::raw_filter_context() const {
+  return reinterpret_cast<void*>(
+      i::Context::cast(*Utils::OpenPersistent(filter_context_))
+          .native_context()
+          .address());
 }
 
 void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }
@@ -9939,12 +9926,6 @@ void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
       record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
-}
-
-void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
-                                 bool record_samples) {
-  StartProfiling(title, mode, record_samples,
-                 CpuProfilingOptions::kNoSampleLimit);
 }
 
 void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
@@ -10174,6 +10155,10 @@ SnapshotObjectId HeapProfiler::GetObjectId(Local<Value> value) {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(obj);
 }
 
+SnapshotObjectId HeapProfiler::GetObjectId(NativeObject value) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotObjectId(value);
+}
+
 Local<Value> HeapProfiler::FindObjectById(SnapshotObjectId id) {
   i::Handle<i::Object> obj =
       reinterpret_cast<i::HeapProfiler*>(this)->FindHeapObjectById(id);
@@ -10306,6 +10291,17 @@ void EmbedderHeapTracer::TracePrologue(TraceFlags flags) {
 #endif
 }
 
+void EmbedderHeapTracer::TraceEpilogue(TraceSummary* trace_summary) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  TraceEpilogue();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+}
+
 void EmbedderHeapTracer::FinalizeTracing() {
   if (isolate_) {
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
@@ -10354,8 +10350,7 @@ void EmbedderHeapTracer::RegisterEmbedderReference(
   if (ref.IsEmpty()) return;
 
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->RegisterExternallyReferencedObject(
-      reinterpret_cast<i::Address*>(ref.val_));
+  heap->RegisterExternallyReferencedObject(reinterpret_cast<i::Address*>(*ref));
 }
 
 void EmbedderHeapTracer::IterateTracedGlobalHandles(
@@ -10559,7 +10554,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 #undef EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE
 #undef RETURN_ON_FAILED_EXECUTION
 #undef RETURN_ON_FAILED_EXECUTION_PRIMITIVE
-#undef RETURN_TO_LOCAL_UNCHECKED
 #undef RETURN_ESCAPED
 #undef SET_FIELD_WRAPPED
 #undef NEW_STRING

@@ -1,4 +1,4 @@
-file://include/OWNERS
+file:../../include/OWNERS
 clemensh@chromium.org
 ishell@chromium.org
 jkummerow@chromium.org

@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-bool DateParser::DayComposer::Write(FixedArray output) {
+bool DateParser::DayComposer::Write(double* output) {
   if (index_ < 1) return false;
   // Day and month defaults to 1.
   while (index_ < kSize) {
@@ -58,13 +58,13 @@ bool DateParser::DayComposer::Write(FixedArray output) {
 
   if (!Smi::IsValid(year) || !IsMonth(month) || !IsDay(day)) return false;
 
-  output.set(YEAR, Smi::FromInt(year));
-  output.set(MONTH, Smi::FromInt(month - 1));  // 0-based
-  output.set(DAY, Smi::FromInt(day));
+  output[YEAR] = year;
+  output[MONTH] = month - 1;  // 0-based
+  output[DAY] = day;
   return true;
 }
 
-bool DateParser::TimeComposer::Write(FixedArray output) {
+bool DateParser::TimeComposer::Write(double* output) {
   // All time slots default to 0
   while (index_ < kSize) {
     comp_[index_++] = 0;
@@ -89,14 +89,14 @@ bool DateParser::TimeComposer::Write(FixedArray output) {
     }
   }
 
-  output.set(HOUR, Smi::FromInt(hour));
-  output.set(MINUTE, Smi::FromInt(minute));
-  output.set(SECOND, Smi::FromInt(second));
-  output.set(MILLISECOND, Smi::FromInt(millisecond));
+  output[HOUR] = hour;
+  output[MINUTE] = minute;
+  output[SECOND] = second;
+  output[MILLISECOND] = millisecond;
   return true;
 }
 
-bool DateParser::TimeZoneComposer::Write(FixedArray output) {
+bool DateParser::TimeZoneComposer::Write(double* output) {
   if (sign_ != kNone) {
     if (hour_ == kNone) hour_ = 0;
     if (minute_ == kNone) minute_ = 0;
@@ -109,9 +109,9 @@ bool DateParser::TimeZoneComposer::Write(FixedArray output) {
       total_seconds = -total_seconds;
     }
     DCHECK(Smi::IsValid(total_seconds));
-    output.set(UTC_OFFSET, Smi::FromInt(total_seconds));
+    output[UTC_OFFSET] = total_seconds;
   } else {
-    output.set_null(UTC_OFFSET);
+    output[UTC_OFFSET] = std::numeric_limits<double>::quiet_NaN();
   }
   return true;
 }

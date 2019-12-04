@@ -19,41 +19,41 @@ namespace compiler {
 
 class ObjectData;
 
-// This class serves as a per-isolate container of data that should be
-// persisted between compiler runs. For now it stores the code builtins
-// so they are not serialized on each compiler run.
+// This class serves as a container of data that should persist across all
+// (optimizing) compiler runs in an isolate. For now it stores serialized data
+// for various common objects such as builtins, so that these objects don't have
+// to be serialized in each compilation job. See JSHeapBroker::InitializeRefsMap
+// for details.
 class PerIsolateCompilerCache : public ZoneObject {
  public:
   explicit PerIsolateCompilerCache(Zone* zone)
       : zone_(zone), refs_snapshot_(nullptr) {}
 
-  RefsMap* GetSnapshot() { return refs_snapshot_; }
+  bool HasSnapshot() const { return refs_snapshot_ != nullptr; }
+  RefsMap* GetSnapshot() {
+    DCHECK(HasSnapshot());
+    return refs_snapshot_;
+  }
   void SetSnapshot(RefsMap* refs) {
-    DCHECK_NULL(refs_snapshot_);
+    DCHECK(!HasSnapshot());
     DCHECK(!refs->IsEmpty());
     refs_snapshot_ = new (zone_) RefsMap(refs, zone_);
+    DCHECK(HasSnapshot());
   }
-
-  bool HasSnapshot() const { return refs_snapshot_; }
 
   Zone* zone() const { return zone_; }
 
   static void Setup(Isolate* isolate) {
-    if (isolate->compiler_cache()) return;
-
-    // The following zone is supposed to contain compiler-related objects
-    // that should live through all compilations, as opposed to the
-    // broker_zone which holds per-compilation data. It's not meant for
-    // per-compilation or heap broker data.
-    Zone* compiler_zone = new Zone(isolate->allocator(), "Compiler zone");
-    PerIsolateCompilerCache* compiler_cache =
-        new (compiler_zone) PerIsolateCompilerCache(compiler_zone);
-    isolate->set_compiler_utils(compiler_cache, compiler_zone);
+    if (isolate->compiler_cache() == nullptr) {
+      Zone* zone = new Zone(isolate->allocator(), "Compiler zone");
+      PerIsolateCompilerCache* cache = new (zone) PerIsolateCompilerCache(zone);
+      isolate->set_compiler_utils(cache, zone);
+    }
+    DCHECK_NOT_NULL(isolate->compiler_cache());
   }
 
  private:
   Zone* const zone_;
-
   RefsMap* refs_snapshot_;
 };
 

@@ -9,8 +9,8 @@ namespace proxy {
   // ES #sec-proxy-object-internal-methods-and-internal-slots-preventextensions
   // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-preventextensions
   transitioning builtin
-  ProxyPreventExtensions(implicit context: Context)(
-      proxy: JSProxy, doThrow: Boolean): Object {
+  ProxyPreventExtensions(implicit context:
+                             Context)(proxy: JSProxy, doThrow: Boolean): JSAny {
     PerformStackCheck();
     const kTrapName: constexpr string = 'preventExtensions';
     try {
@@ -36,8 +36,8 @@ namespace proxy {
       // 8. If booleanTrapResult is true, then
       //    8.a. Let extensibleTarget be ? IsExtensible(target).
       //    8.b If extensibleTarget is true, throw a TypeError exception.
-      if (BranchIfToBooleanIsTrue(trapResult)) {
-        const extensibleTarget: Object = object::ObjectIsExtensible(target);
+      if (ToBoolean(trapResult)) {
+        const extensibleTarget: JSAny = object::ObjectIsExtensible(target);
         assert(extensibleTarget == True || extensibleTarget == False);
         if (extensibleTarget == True) {
           ThrowTypeError(kProxyPreventExtensionsExtensible);
@@ -52,7 +52,7 @@ namespace proxy {
       // 9. Return booleanTrapResult.
       return True;
     }
-    label TrapUndefined(target: Object) {
+    label TrapUndefined(target: JSAny) {
       // 6.a. Return ? target.[[PreventExtensions]]().
       if (doThrow == True) {
         return object::ObjectPreventExtensionsThrow(target);

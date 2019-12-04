@@ -124,14 +124,9 @@ ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
 // ArrayBoilerplateDescription
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription)
 
-CAST_ACCESSOR(ArrayBoilerplateDescription)
-
-SMI_ACCESSORS(ArrayBoilerplateDescription, flags, kFlagsOffset)
-
-ACCESSORS(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
-          kConstantElementsOffset)
+TQ_SMI_ACCESSORS(ArrayBoilerplateDescription, flags)
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags());

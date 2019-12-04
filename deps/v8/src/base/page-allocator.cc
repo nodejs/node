@@ -36,9 +36,9 @@ void* PageAllocator::GetRandomMmapAddr() {
   return base::OS::GetRandomMmapAddr();
 }
 
-void* PageAllocator::AllocatePages(void* address, size_t size, size_t alignment,
+void* PageAllocator::AllocatePages(void* hint, size_t size, size_t alignment,
                                    PageAllocator::Permission access) {
-  return base::OS::Allocate(address, size, alignment,
+  return base::OS::Allocate(hint, size, alignment,
                             static_cast<base::OS::MemoryPermission>(access));
 }
 

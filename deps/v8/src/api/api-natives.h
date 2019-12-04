@@ -25,6 +25,11 @@ class ApiNatives {
   static const int kInitialFunctionCacheSize = 256;
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
+      Isolate* isolate, Handle<NativeContext> native_context,
+      Handle<FunctionTemplateInfo> data,
+      MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
       Handle<FunctionTemplateInfo> data,
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
@@ -36,9 +41,9 @@ class ApiNatives {
       Handle<ObjectTemplateInfo> data);
 
   static Handle<JSFunction> CreateApiFunction(
-      Isolate* isolate, Handle<FunctionTemplateInfo> obj,
-      Handle<Object> prototype, InstanceType type,
-      MaybeHandle<Name> name = MaybeHandle<Name>());
+      Isolate* isolate, Handle<NativeContext> native_context,
+      Handle<FunctionTemplateInfo> obj, Handle<Object> prototype,
+      InstanceType type, MaybeHandle<Name> name = MaybeHandle<Name>());
 
   static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                               Handle<Name> name, Handle<Object> value,

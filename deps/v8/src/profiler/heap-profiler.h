@@ -52,6 +52,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount();
   HeapSnapshot* GetSnapshot(int index);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 

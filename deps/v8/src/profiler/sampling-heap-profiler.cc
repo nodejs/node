@@ -92,16 +92,6 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
       base::make_unique<Sample>(size, node, loc, this, next_sample_id());
   sample->global.SetWeak(sample.get(), OnWeakCallback,
                          WeakCallbackType::kParameter);
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  // MarkIndependent is marked deprecated but we still rely on it here
-  // temporarily.
-  sample->global.MarkIndependent();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
   samples_.emplace(sample.get(), std::move(sample));
 }
 

@@ -9,7 +9,6 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/vector-slot-pair.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -51,7 +50,8 @@ bool operator!=(ConstructParameters const& lhs,
 }
 
 size_t hash_value(ConstructParameters const& p) {
-  return base::hash_combine(p.arity(), p.frequency(), p.feedback());
+  return base::hash_combine(p.arity(), p.frequency(),
+                            FeedbackSource::Hash()(p.feedback()));
 }
 
 std::ostream& operator<<(std::ostream& os, ConstructParameters const& p) {
@@ -198,7 +198,8 @@ bool operator!=(StoreNamedOwnParameters const& lhs,
 }
 
 size_t hash_value(StoreNamedOwnParameters const& p) {
-  return base::hash_combine(p.name().location(), p.feedback());
+  return base::hash_combine(p.name().location(),
+                            FeedbackSource::Hash()(p.feedback()));
 }
 
 std::ostream& operator<<(std::ostream& os, StoreNamedOwnParameters const& p) {
@@ -219,7 +220,7 @@ bool operator!=(FeedbackParameter const& lhs, FeedbackParameter const& rhs) {
 }
 
 size_t hash_value(FeedbackParameter const& p) {
-  return base::hash_combine(p.feedback());
+  return FeedbackSource::Hash()(p.feedback());
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
@@ -248,7 +249,7 @@ bool operator!=(NamedAccess const& lhs, NamedAccess const& rhs) {
 
 size_t hash_value(NamedAccess const& p) {
   return base::hash_combine(p.name().location(), p.language_mode(),
-                            p.feedback());
+                            FeedbackSource::Hash()(p.feedback()));
 }
 
 
@@ -283,13 +284,15 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSStoreProperty);
+         op->opcode() == IrOpcode::kJSStoreProperty ||
+         op->opcode() == IrOpcode::kJSGetIterator);
   return OpParameter<PropertyAccess>(op);
 }
 
 
 size_t hash_value(PropertyAccess const& p) {
-  return base::hash_combine(p.language_mode(), p.feedback());
+  return base::hash_combine(p.language_mode(),
+                            FeedbackSource::Hash()(p.feedback()));
 }
 
 
@@ -339,7 +342,7 @@ bool operator!=(StoreGlobalParameters const& lhs,
 
 size_t hash_value(StoreGlobalParameters const& p) {
   return base::hash_combine(p.language_mode(), p.name().location(),
-                            p.feedback());
+                            FeedbackSource::Hash()(p.feedback()));
 }
 
 
@@ -518,7 +521,8 @@ bool operator!=(CreateLiteralParameters const& lhs,
 
 
 size_t hash_value(CreateLiteralParameters const& p) {
-  return base::hash_combine(p.constant().location(), p.feedback(), p.length(),
+  return base::hash_combine(p.constant().location(),
+                            FeedbackSource::Hash()(p.feedback()), p.length(),
                             p.flags());
 }
 
@@ -546,7 +550,7 @@ bool operator!=(CloneObjectParameters const& lhs,
 }
 
 size_t hash_value(CloneObjectParameters const& p) {
-  return base::hash_combine(p.feedback(), p.flags());
+  return base::hash_combine(FeedbackSource::Hash()(p.feedback()), p.flags());
 }
 
 std::ostream& operator<<(std::ostream& os, CloneObjectParameters const& p) {
@@ -795,18 +799,18 @@ COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
 
 const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
-    const VectorSlotPair& feedback) {
+    const FeedbackSource& feedback) {
   FeedbackParameter parameters(feedback);
   return new (zone()) Operator1<FeedbackParameter>(  // --
       IrOpcode::kJSStoreDataPropertyInLiteral,
       Operator::kNoThrow,              // opcode
       "JSStoreDataPropertyInLiteral",  // name
-      4, 1, 1, 0, 1, 0,                // counts
+      4, 1, 1, 0, 1, 1,                // counts
       parameters);                     // parameter
 }
 
 const Operator* JSOperatorBuilder::StoreInArrayLiteral(
-    const VectorSlotPair& feedback) {
+    const FeedbackSource& feedback) {
   FeedbackParameter parameters(feedback);
   return new (zone()) Operator1<FeedbackParameter>(  // --
       IrOpcode::kJSStoreInArrayLiteral,
@@ -828,7 +832,7 @@ const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,
 
 const Operator* JSOperatorBuilder::Call(size_t arity,
                                         CallFrequency const& frequency,
-                                        VectorSlotPair const& feedback,
+                                        FeedbackSource const& feedback,
                                         ConvertReceiverMode convert_mode,
                                         SpeculationMode speculation_mode) {
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
@@ -853,7 +857,7 @@ const Operator* JSOperatorBuilder::CallWithArrayLike(
 
 const Operator* JSOperatorBuilder::CallWithSpread(
     uint32_t arity, CallFrequency const& frequency,
-    VectorSlotPair const& feedback, SpeculationMode speculation_mode) {
+    FeedbackSource const& feedback, SpeculationMode speculation_mode) {
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
                  feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback,
@@ -903,7 +907,7 @@ const Operator* JSOperatorBuilder::ConstructForwardVarargs(
 // on AIX (v8:8193).
 const Operator* JSOperatorBuilder::Construct(uint32_t arity,
                                              CallFrequency const& frequency,
-                                             VectorSlotPair const& feedback) {
+                                             FeedbackSource const& feedback) {
   ConstructParameters parameters(arity, frequency, feedback);
   return new (zone()) Operator1<ConstructParameters>(   // --
       IrOpcode::kJSConstruct, Operator::kNoProperties,  // opcode
@@ -924,7 +928,7 @@ const Operator* JSOperatorBuilder::ConstructWithArrayLike(
 
 const Operator* JSOperatorBuilder::ConstructWithSpread(
     uint32_t arity, CallFrequency const& frequency,
-    VectorSlotPair const& feedback) {
+    FeedbackSource const& feedback) {
   ConstructParameters parameters(arity, frequency, feedback);
   return new (zone()) Operator1<ConstructParameters>(             // --
       IrOpcode::kJSConstructWithSpread, Operator::kNoProperties,  // opcode
@@ -934,7 +938,7 @@ const Operator* JSOperatorBuilder::ConstructWithSpread(
 }
 
 const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
-                                             const VectorSlotPair& feedback) {
+                                             const FeedbackSource& feedback) {
   NamedAccess access(LanguageMode::kSloppy, name, feedback);
   return new (zone()) Operator1<NamedAccess>(           // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
@@ -944,7 +948,7 @@ const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
 }
 
 const Operator* JSOperatorBuilder::LoadProperty(
-    VectorSlotPair const& feedback) {
+    FeedbackSource const& feedback) {
   PropertyAccess access(LanguageMode::kSloppy, feedback);
   return new (zone()) Operator1<PropertyAccess>(           // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
@@ -953,7 +957,16 @@ const Operator* JSOperatorBuilder::LoadProperty(
       access);                                             // parameter
 }
 
-const Operator* JSOperatorBuilder::HasProperty(VectorSlotPair const& feedback) {
+const Operator* JSOperatorBuilder::GetIterator(FeedbackSource const& feedback) {
+  PropertyAccess access(LanguageMode::kSloppy, feedback);
+  return new (zone()) Operator1<PropertyAccess>(          // --
+      IrOpcode::kJSGetIterator, Operator::kNoProperties,  // opcode
+      "JSGetIterator",                                    // name
+      1, 1, 1, 1, 1, 2,                                   // counts
+      access);                                            // parameter
+}
+
+const Operator* JSOperatorBuilder::HasProperty(FeedbackSource const& feedback) {
   PropertyAccess access(LanguageMode::kSloppy, feedback);
   return new (zone()) Operator1<PropertyAccess>(          // --
       IrOpcode::kJSHasProperty, Operator::kNoProperties,  // opcode
@@ -962,7 +975,7 @@ const Operator* JSOperatorBuilder::HasProperty(VectorSlotPair const& feedback) {
       access);                                            // parameter
 }
 
-const Operator* JSOperatorBuilder::InstanceOf(VectorSlotPair const& feedback) {
+const Operator* JSOperatorBuilder::InstanceOf(FeedbackSource const& feedback) {
   FeedbackParameter parameter(feedback);
   return new (zone()) Operator1<FeedbackParameter>(      // --
       IrOpcode::kJSInstanceOf, Operator::kNoProperties,  // opcode
@@ -1021,7 +1034,7 @@ int RestoreRegisterIndexOf(const Operator* op) {
 
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
                                               Handle<Name> name,
-                                              VectorSlotPair const& feedback) {
+                                              FeedbackSource const& feedback) {
   NamedAccess access(language_mode, name, feedback);
   return new (zone()) Operator1<NamedAccess>(            // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
@@ -1030,9 +1043,8 @@ const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
       access);                                           // parameter
 }
 
-
 const Operator* JSOperatorBuilder::StoreProperty(
-    LanguageMode language_mode, VectorSlotPair const& feedback) {
+    LanguageMode language_mode, FeedbackSource const& feedback) {
   PropertyAccess access(language_mode, feedback);
   return new (zone()) Operator1<PropertyAccess>(            // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
@@ -1042,7 +1054,7 @@ const Operator* JSOperatorBuilder::StoreProperty(
 }
 
 const Operator* JSOperatorBuilder::StoreNamedOwn(
-    Handle<Name> name, VectorSlotPair const& feedback) {
+    Handle<Name> name, FeedbackSource const& feedback) {
   StoreNamedOwnParameters parameters(name, feedback);
   return new (zone()) Operator1<StoreNamedOwnParameters>(   // --
       IrOpcode::kJSStoreNamedOwn, Operator::kNoProperties,  // opcode
@@ -1066,7 +1078,7 @@ const Operator* JSOperatorBuilder::CreateGeneratorObject() {
 }
 
 const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
-                                              const VectorSlotPair& feedback,
+                                              const FeedbackSource& feedback,
                                               TypeofMode typeof_mode) {
   LoadGlobalParameters parameters(name, feedback, typeof_mode);
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
@@ -1076,10 +1088,9 @@ const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
       parameters);                                       // parameter
 }
 
-
 const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
                                                const Handle<Name>& name,
-                                               const VectorSlotPair& feedback) {
+                                               const FeedbackSource& feedback) {
   StoreGlobalParameters parameters(language_mode, feedback, name);
   return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
@@ -1087,7 +1098,6 @@ const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
       1, 1, 1, 0, 1, 2,                                   // counts
       parameters);                                        // parameter
 }
-
 
 const Operator* JSOperatorBuilder::LoadContext(size_t depth, size_t index,
                                                bool immutable) {
@@ -1203,7 +1213,7 @@ const Operator* JSOperatorBuilder::CreateClosure(
 
 const Operator* JSOperatorBuilder::CreateLiteralArray(
     Handle<ArrayBoilerplateDescription> description,
-    VectorSlotPair const& feedback, int literal_flags, int number_of_elements) {
+    FeedbackSource const& feedback, int literal_flags, int number_of_elements) {
   CreateLiteralParameters parameters(description, feedback, number_of_elements,
                                      literal_flags);
   return new (zone()) Operator1<CreateLiteralParameters>(  // --
@@ -1215,7 +1225,7 @@ const Operator* JSOperatorBuilder::CreateLiteralArray(
 }
 
 const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
-    VectorSlotPair const& feedback) {
+    FeedbackSource const& feedback) {
   FeedbackParameter parameters(feedback);
   return new (zone()) Operator1<FeedbackParameter>(  // --
       IrOpcode::kJSCreateEmptyLiteralArray,          // opcode
@@ -1235,7 +1245,7 @@ const Operator* JSOperatorBuilder::CreateArrayFromIterable() {
 
 const Operator* JSOperatorBuilder::CreateLiteralObject(
     Handle<ObjectBoilerplateDescription> constant_properties,
-    VectorSlotPair const& feedback, int literal_flags,
+    FeedbackSource const& feedback, int literal_flags,
     int number_of_properties) {
   CreateLiteralParameters parameters(constant_properties, feedback,
                                      number_of_properties, literal_flags);
@@ -1247,7 +1257,7 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       parameters);                                         // parameter
 }
 
-const Operator* JSOperatorBuilder::CloneObject(VectorSlotPair const& feedback,
+const Operator* JSOperatorBuilder::CloneObject(FeedbackSource const& feedback,
                                                int literal_flags) {
   CloneObjectParameters parameters(feedback, literal_flags);
   return new (zone()) Operator1<CloneObjectParameters>(  // --
@@ -1267,7 +1277,7 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralRegExp(
-    Handle<String> constant_pattern, VectorSlotPair const& feedback,
+    Handle<String> constant_pattern, FeedbackSource const& feedback,
     int literal_flags) {
   CreateLiteralParameters parameters(constant_pattern, feedback, -1,
                                      literal_flags);

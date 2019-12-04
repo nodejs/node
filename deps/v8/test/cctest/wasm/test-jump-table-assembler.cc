@@ -32,16 +32,18 @@ constexpr int kJumpTableSlotCount = 128;
 constexpr uint32_t kJumpTableSize =
     JumpTableAssembler::SizeForNumberOfSlots(kJumpTableSlotCount);
 
+constexpr size_t kThunkBufferSize = AssemblerBase::kMinimalBufferSize;
+
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 constexpr uint32_t kAvailableBufferSlots =
-    (kMaxWasmCodeMemory - kJumpTableSize) / AssemblerBase::kMinimalBufferSize;
+    (kMaxWasmCodeMemory - kJumpTableSize) / kThunkBufferSize;
 constexpr uint32_t kBufferSlotStartOffset =
-    RoundUp<AssemblerBase::kMinimalBufferSize>(kJumpTableSize);
+    RoundUp<kThunkBufferSize>(kJumpTableSize);
 #else
 constexpr uint32_t kAvailableBufferSlots = 0;
 #endif
 
-Address GenerateJumpTableThunk(
+Address AllocateJumpTableThunk(
     Address jump_target, byte* thunk_slot_buffer,
     std::bitset<kAvailableBufferSlots>* used_slots,
     std::vector<std::unique_ptr<TestingAssemblerBuffer>>* thunk_buffers) {
@@ -62,20 +64,22 @@ Address GenerateJumpTableThunk(
     buffer_index = rng->NextInt(kAvailableBufferSlots);
   } while (used_slots->test(buffer_index));
   used_slots->set(buffer_index);
-  byte* buffer =
-      thunk_slot_buffer + buffer_index * AssemblerBase::kMinimalBufferSize;
+  return reinterpret_cast<Address>(thunk_slot_buffer +
+                                   buffer_index * kThunkBufferSize);
 
 #else
   USE(thunk_slot_buffer);
   USE(used_slots);
-  thunk_buffers->emplace_back(AllocateAssemblerBuffer(
-      AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr()));
-  byte* buffer = thunk_buffers->back()->start();
+  thunk_buffers->emplace_back(
+      AllocateAssemblerBuffer(kThunkBufferSize, GetRandomMmapAddr()));
+  return reinterpret_cast<Address>(thunk_buffers->back()->start());
 #endif
+}
 
-  MacroAssembler masm(
-      nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
-      ExternalAssemblerBuffer(buffer, AssemblerBase::kMinimalBufferSize));
+void CompileJumpTableThunk(Address thunk, Address jump_target) {
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      ExternalAssemblerBuffer(reinterpret_cast<void*>(thunk),
+                                              kThunkBufferSize));
 
   Label exit;
   Register scratch = kReturnRegister0;
@@ -132,9 +136,9 @@ Address GenerateJumpTableThunk(
   __ bind(&exit);
   __ Ret();
 
-  CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
-  return reinterpret_cast<Address>(buffer);
+  FlushInstructionCache(thunk, kThunkBufferSize);
+  CHECK(SetPermissions(GetPlatformPageAllocator(), thunk, kThunkBufferSize,
+                       v8::PageAllocator::kReadExecute));
 }
 
 class JumpTableRunner : public v8::base::Thread {
@@ -159,29 +163,38 @@ class JumpTableRunner : public v8::base::Thread {
 class JumpTablePatcher : public v8::base::Thread {
  public:
   JumpTablePatcher(Address slot_start, uint32_t slot_index, Address thunk1,
-                   Address thunk2)
+                   Address thunk2, base::Mutex* jump_table_mutex)
       : Thread(Options("JumpTablePatcher")),
         slot_start_(slot_start),
         slot_index_(slot_index),
-        thunks_{thunk1, thunk2} {}
+        thunks_{thunk1, thunk2},
+        jump_table_mutex_(jump_table_mutex) {}
 
   void Run() override {
-    TRACE("Patcher is starting ...\n");
+    TRACE("Patcher %p is starting ...\n", this);
+    Address slot_address =
+        slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_);
+    // First, emit code to the two thunks.
+    for (Address thunk : thunks_) {
+      CompileJumpTableThunk(thunk, slot_address);
+    }
+    // Then, repeatedly patch the jump table to jump to one of the two thunks.
     constexpr int kNumberOfPatchIterations = 64;
     for (int i = 0; i < kNumberOfPatchIterations; ++i) {
-      TRACE("  patch slot " V8PRIxPTR_FMT " to thunk #%d\n",
-            slot_start_ + JumpTableAssembler::SlotIndexToOffset(slot_index_),
-            i % 2);
+      TRACE("  patcher %p patch slot " V8PRIxPTR_FMT " to thunk #%d\n", this,
+            slot_address, i % 2);
+      base::MutexGuard jump_table_guard(jump_table_mutex_);
       JumpTableAssembler::PatchJumpTableSlot(
           slot_start_, slot_index_, thunks_[i % 2], WasmCode::kFlushICache);
     }
-    TRACE("Patcher is stopping ...\n");
+    TRACE("Patcher %p is stopping ...\n", this);
   }
 
  private:
   Address slot_start_;
   uint32_t slot_index_;
   Address thunks_[2];
+  base::Mutex* jump_table_mutex_;
 };
 
 }  // namespace
@@ -198,9 +211,10 @@ class JumpTablePatcher : public v8::base::Thread {
 //      one of the runners is currently executing the jump-table slot.
 TEST(JumpTablePatchingStress) {
   constexpr int kNumberOfRunnerThreads = 5;
+  constexpr int kNumberOfPatcherThreads = 3;
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
-  // We need the branches (from GenerateJumpTableThunk) to be within near-call
+  // We need the branches (from CompileJumpTableThunk) to be within near-call
   // range of the jump table slots. The address hint to AllocateAssemblerBuffer
   // is not reliable enough to guarantee that we can always achieve this with
   // separate allocations, so for Arm64 we generate all code in a single
@@ -226,29 +240,42 @@ TEST(JumpTablePatchingStress) {
     TRACE("Hammering on jump table slot #%d ...\n", slot);
     uint32_t slot_offset = JumpTableAssembler::JumpSlotIndexToOffset(slot);
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
-    Address thunk1 =
-        GenerateJumpTableThunk(slot_start + slot_offset, thunk_slot_buffer,
-                               &used_thunk_slots, &thunk_buffers);
-    Address thunk2 =
-        GenerateJumpTableThunk(slot_start + slot_offset, thunk_slot_buffer,
-                               &used_thunk_slots, &thunk_buffers);
-    TRACE("  generated thunk1: " V8PRIxPTR_FMT "\n", thunk1);
-    TRACE("  generated thunk2: " V8PRIxPTR_FMT "\n", thunk2);
-    JumpTableAssembler::PatchJumpTableSlot(slot_start, slot, thunk1,
-                                           WasmCode::kFlushICache);
+    // Patch the jump table slot to jump to itself. This will later be patched
+    // by the patchers.
+    JumpTableAssembler::PatchJumpTableSlot(
+        slot_start, slot, slot_start + slot_offset, WasmCode::kFlushICache);
+    // For each patcher, generate two thunks where this patcher can emit code
+    // which finally jumps back to {slot} in the jump table.
+    std::vector<Address> patcher_thunks;
+    for (int i = 0; i < 2 * kNumberOfPatcherThreads; ++i) {
+      Address thunk =
+          AllocateJumpTableThunk(slot_start + slot_offset, thunk_slot_buffer,
+                                 &used_thunk_slots, &thunk_buffers);
+      ZapCode(thunk, kThunkBufferSize);
+      patcher_thunks.push_back(thunk);
+      TRACE("  generated jump thunk: " V8PRIxPTR_FMT "\n",
+            patcher_thunks.back());
+    }
 
-    for (auto& buf : thunk_buffers) buf->MakeExecutable();
-    // Start multiple runner threads and a patcher thread that hammer on the
-    // same jump-table slot concurrently.
+    // Start multiple runner threads that execute the jump table slot
+    // concurrently.
     std::list<JumpTableRunner> runners;
     for (int runner = 0; runner < kNumberOfRunnerThreads; ++runner) {
       runners.emplace_back(slot_start + slot_offset, runner);
     }
-    JumpTablePatcher patcher(slot_start, slot, thunk1, thunk2);
+    // Start multiple patcher thread that concurrently generate code and insert
+    // jumps to that into the jump table slot.
+    std::list<JumpTablePatcher> patchers;
+    // Only one patcher should modify the jump table at a time.
+    base::Mutex jump_table_mutex;
+    for (int i = 0; i < kNumberOfPatcherThreads; ++i) {
+      patchers.emplace_back(slot_start, slot, patcher_thunks[2 * i],
+                            patcher_thunks[2 * i + 1], &jump_table_mutex);
+    }
     global_stop_bit = 0;  // Signal runners to keep going.
-    for (auto& runner : runners) runner.Start();
-    patcher.Start();
-    patcher.Join();
+    for (auto& runner : runners) CHECK(runner.Start());
+    for (auto& patcher : patchers) CHECK(patcher.Start());
+    for (auto& patcher : patchers) patcher.Join();
     global_stop_bit = -1;  // Signal runners to stop.
     for (auto& runner : runners) runner.Join();
   }

@@ -151,6 +151,17 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
   return ids_->FindEntry(HeapObject::cast(*obj).address());
 }
 
+SnapshotObjectId HeapProfiler::GetSnapshotObjectId(NativeObject obj) {
+  // Try to find id of regular native node first.
+  SnapshotObjectId id = ids_->FindEntry(reinterpret_cast<Address>(obj));
+  // In case no id has been found, check whether there exists an entry where the
+  // native objects has been merged into a V8 entry.
+  if (id == v8::HeapProfiler::kUnknownObjectId) {
+    id = ids_->FindMergedNativeEntry(obj);
+  }
+  return id;
+}
+
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
   base::MutexGuard guard(&profiler_mutex_);
   bool known_object = ids_->MoveObject(from, to, size);

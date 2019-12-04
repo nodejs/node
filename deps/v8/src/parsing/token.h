@@ -65,6 +65,7 @@ namespace internal {
   T(LBRACK, "[", 0)                                                \
   /* END Property */                                               \
   /* END Member */                                                 \
+  T(QUESTION_PERIOD, "?.", 0)                                      \
   T(LPAREN, "(", 0)                                                \
   /* END PropertyOrCall */                                         \
   T(RPAREN, ")", 0)                                                \
@@ -95,6 +96,7 @@ namespace internal {
   /* IsBinaryOp() relies on this block of enum values */           \
   /* being contiguous and sorted in the same order! */             \
   T(COMMA, ",", 1)                                                 \
+  T(NULLISH, "??", 3)                                              \
   T(OR, "||", 4)                                                   \
   T(AND, "&&", 5)                                                  \
                                                                    \
@@ -215,8 +217,8 @@ class V8_EXPORT_PRIVATE Token {
     return name_[token];
   }
 
-  class IsKeywordBits : public BitField8<bool, 0, 1> {};
-  class IsPropertyNameBits : public BitField8<bool, IsKeywordBits::kNext, 1> {};
+  using IsKeywordBits = BitField8<bool, 0, 1>;
+  using IsPropertyNameBits = IsKeywordBits::Next<bool, 1>;
 
   // Predicates
   static bool IsKeyword(Value token) {

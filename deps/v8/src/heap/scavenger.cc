@@ -8,6 +8,7 @@
 #include "src/heap/barrier.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -371,7 +372,7 @@ void ScavengerCollector::MergeSurvivingNewLargeObjects(
 int ScavengerCollector::NumberOfScavengeTasks() {
   if (!FLAG_parallel_scavenge) return 1;
   const int num_scavenge_tasks =
-      static_cast<int>(heap_->new_space()->TotalCapacity()) / MB;
+      static_cast<int>(heap_->new_space()->TotalCapacity()) / MB + 1;
   static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
   int tasks =
       Max(1, Min(Min(num_scavenge_tasks, kMaxScavengerTasks), num_cores));
@@ -431,12 +432,15 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
-  RememberedSet<OLD_TO_NEW>::Iterate(page,
-                                     [this](MaybeObjectSlot addr) {
-                                       return CheckAndScavengeObject(heap_,
-                                                                     addr);
-                                     },
-                                     SlotSet::KEEP_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      page,
+      [this](MaybeObjectSlot addr) {
+        return CheckAndScavengeObject(heap_, addr);
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+
+  DCHECK_NULL(page->invalidated_slots<OLD_TO_NEW>());
+
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [=](SlotType type, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(

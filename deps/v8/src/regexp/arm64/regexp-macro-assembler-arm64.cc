@@ -55,7 +55,10 @@ namespace internal {
  *              (as referred to in
  *              the code)
  *
- *  - fp[96]   isolate            Address of the current isolate.
+ *  - fp[104]  Address regexp      Address of the JSRegExp object. Unused in
+ *                                 native code, passed to match signature of
+ *                                 the interpreter.
+ *  - fp[96]   isolate             Address of the current isolate.
  *  ^^^ sp when called ^^^
  *  - fp[88]    lr                 Return from the RegExp code.
  *  - fp[80]    r29                Old frame pointer (CalleeSaved).
@@ -93,7 +96,8 @@ namespace internal {
  *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Isolate* isolate);
+ *              Isolate* isolate,
+ *              Address regexp);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  */
@@ -201,13 +205,13 @@ void RegExpMacroAssemblerARM64::CheckCharacterGT(uc16 limit,
   CompareAndBranchOrBacktrack(current_character(), limit, hi, on_greater);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckAtStart(Label* on_at_start) {
-  __ Add(w10, current_input_offset(), Operand(-char_size()));
+void RegExpMacroAssemblerARM64::CheckAtStart(int cp_offset,
+                                             Label* on_at_start) {
+  __ Add(w10, current_input_offset(),
+         Operand(-char_size() + cp_offset * char_size()));
   __ Cmp(w10, string_start_minus_one());
   BranchOrBacktrack(eq, on_at_start);
 }
-
 
 void RegExpMacroAssemblerARM64::CheckNotAtStart(int cp_offset,
                                                 Label* on_not_at_start) {
@@ -750,7 +754,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   __ Subs(x10, sp, x10);
@@ -1106,25 +1110,28 @@ RegExpMacroAssembler::IrregexpImplementation
   return kARM64Implementation;
 }
 
+void RegExpMacroAssemblerARM64::LoadCurrentCharacterImpl(int cp_offset,
+                                                         Label* on_end_of_input,
+                                                         bool check_bounds,
+                                                         int characters,
+                                                         int eats_at_least) {
+  // It's possible to preload a small number of characters when each success
+  // path requires a large number of characters, but not the reverse.
+  DCHECK_GE(eats_at_least, characters);
 
-void RegExpMacroAssemblerARM64::LoadCurrentCharacter(int cp_offset,
-                                                     Label* on_end_of_input,
-                                                     bool check_bounds,
-                                                     int characters) {
   // TODO(pielan): Make sure long strings are caught before this, and not
   // just asserted in debug mode.
   // Be sane! (And ensure that an int32_t can be used to index the string)
   DCHECK(cp_offset < (1<<30));
   if (check_bounds) {
     if (cp_offset >= 0) {
-      CheckPosition(cp_offset + characters - 1, on_end_of_input);
+      CheckPosition(cp_offset + eats_at_least - 1, on_end_of_input);
     } else {
       CheckPosition(cp_offset, on_end_of_input);
     }
   }
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
-
 
 void RegExpMacroAssemblerARM64::PopCurrentPosition() {
   Pop(current_input_offset());
@@ -1326,8 +1333,9 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
   Code re_code = Code::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate), start_index,
-      frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<Address>(re_frame, kInput), input_start, input_end);
+      static_cast<RegExp::CallOrigin>(frame_entry<int>(re_frame, kDirectCall)),
+      return_address, re_code, frame_entry_address<Address>(re_frame, kInput),
+      input_start, input_end);
 }
 
 
@@ -1448,7 +1456,7 @@ void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
 void RegExpMacroAssemblerARM64::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   __ Cmp(sp, x10);
@@ -1458,7 +1466,7 @@ void RegExpMacroAssemblerARM64::CheckPreemption() {
 
 void RegExpMacroAssemblerARM64::CheckStackLimit() {
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(isolate());
+      ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   __ Cmp(backtrack_stackpointer(), x10);

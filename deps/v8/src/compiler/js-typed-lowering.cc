@@ -200,14 +200,14 @@ class JSBinopReduction final {
   void CheckInputsToString() {
     if (!left_type().Is(Type::String())) {
       Node* left_input =
-          graph()->NewNode(simplified()->CheckString(VectorSlotPair()), left(),
+          graph()->NewNode(simplified()->CheckString(FeedbackSource()), left(),
                            effect(), control());
       node_->ReplaceInput(0, left_input);
       update_effect(left_input);
     }
     if (!right_type().Is(Type::String())) {
       Node* right_input =
-          graph()->NewNode(simplified()->CheckString(VectorSlotPair()), right(),
+          graph()->NewNode(simplified()->CheckString(FeedbackSource()), right(),
                            effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
@@ -576,7 +576,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       // and thus potentially reduces the number of live ranges and allows for
       // more truncations.
       length = effect = graph()->NewNode(
-          simplified()->CheckBounds(VectorSlotPair()), length,
+          simplified()->CheckBounds(FeedbackSource()), length,
           jsgraph()->Constant(String::kMaxLength + 1), effect, control);
     } else {
       // Check if we would overflow the allowed maximum string length.
@@ -1320,7 +1320,7 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   for (size_t i = 0; i < access.depth(); ++i) {
     context = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+            AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),
         context, effect, control);
   }
   node->ReplaceInput(0, context);
@@ -1342,7 +1342,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   for (size_t i = 0; i < access.depth(); ++i) {
     context = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+            AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),
         context, effect, control);
   }
   node->ReplaceInput(0, context);
@@ -1367,8 +1367,8 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   if (module_type.IsHeapConstant()) {
     SourceTextModuleRef module_constant =
         module_type.AsHeapConstant()->Ref().AsSourceTextModule();
-    CellRef cell_constant = module_constant.GetCell(cell_index);
-    return jsgraph()->Constant(cell_constant);
+    base::Optional<CellRef> cell_constant = module_constant.GetCell(cell_index);
+    if (cell_constant.has_value()) return jsgraph()->Constant(*cell_constant);
   }
 
   FieldAccess field_access;
@@ -1554,21 +1554,21 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-    SharedFunctionInfoRef shared = function.shared();
 
     // Only optimize [[Construct]] here if {function} is a Constructor.
     if (!function.map().is_constructor()) return NoChange();
 
-    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+    if (!function.serialized()) {
+      TRACE_BROKER_MISSING(broker(), "data for function " << function);
+      return NoChange();
+    }
 
     // Patch {node} to an indirect call via the {function}s construct stub.
-    bool use_builtin_construct_stub = shared.construct_as_builtin();
-
+    bool use_builtin_construct_stub = function.shared().construct_as_builtin();
     CodeRef code(broker(),
                  use_builtin_construct_stub
                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
-
     node->RemoveInput(arity + 1);
     node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
     node->InsertInput(graph()->zone(), 2, new_target);
@@ -1576,10 +1576,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
-        node,
-        common()->Call(Linkage::GetStubCallDescriptor(
-            graph()->zone(), ConstructStubDescriptor{}, 1 + arity, flags)));
-
+        node, common()->Call(Linkage::GetStubCallDescriptor(
+                  graph()->zone(), ConstructStubDescriptor{}, 1 + arity,
+                  CallDescriptor::kNeedsFrameState)));
     return Changed(node);
   }
 
@@ -1637,12 +1636,15 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-    SharedFunctionInfoRef shared = function.shared();
 
-    if (shared.HasBreakInfo()) {
-      // Do not inline the call if we need to check whether to break at entry.
+    if (!function.serialized()) {
+      TRACE_BROKER_MISSING(broker(), "data for function " << function);
       return NoChange();
     }
+    SharedFunctionInfoRef shared = function.shared();
+
+    // Do not inline the call if we need to check whether to break at entry.
+    if (shared.HasBreakInfo()) return NoChange();
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
@@ -1652,7 +1654,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // require data from a foreign native context.
     if (is_sloppy(shared.language_mode()) && !shared.native() &&
         !receiver_type.Is(Type::Receiver())) {
-      if (!function.native_context().equals(broker()->native_context())) {
+      if (!function.native_context().equals(
+              broker()->target_native_context())) {
         return NoChange();
       }
       Node* global_proxy =

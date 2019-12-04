@@ -4,7 +4,7 @@
 
 namespace array_slice {
   macro HandleSimpleArgumentsSlice(
-      context: Context, args: JSArgumentsObjectWithLength, start: Smi,
+      context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
       labels Bailout {
     // If the resulting array doesn't fit in new space, use the slow path.
@@ -27,7 +27,7 @@ namespace array_slice {
   }
 
   macro HandleFastAliasedSloppyArgumentsSlice(
-      context: Context, args: JSArgumentsObjectWithLength, start: Smi,
+      context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
       labels Bailout {
     // If the resulting array doesn't fit in new space, use the slow path.
@@ -63,9 +63,9 @@ namespace array_slice {
     for (let current: Smi = start; current < to; ++current) {
       const e: Object =
           sloppyElements.objects[current + kSloppyArgumentsParameterMapStart];
-      const newElement: Object = e != TheHole ?
-          argumentsContext[UnsafeCast<Smi>(e)] :
-          unmappedElements.objects[current];
+      const newElement: JSAny = UnsafeCast<JSAny>(
+          e != TheHole ? argumentsContext[UnsafeCast<Smi>(e)] :
+                         unmappedElements.objects[current]);
       // It is safe to skip the write barrier here because resultElements was
       // allocated together with result in a folded allocation.
       // TODO(tebbi): The verification of this fails at the moment due to
@@ -86,7 +86,7 @@ namespace array_slice {
   }
 
   macro HandleFastSlice(
-      context: Context, o: Object, startNumber: Number,
+      context: NativeContext, o: JSAny, startNumber: Number,
       countNumber: Number): JSArray
       labels Bailout {
     const start: Smi = Cast<Smi>(startNumber) otherwise Bailout;
@@ -114,7 +114,7 @@ namespace array_slice {
               otherwise Bailout;
         }
       }
-      case (Object): {
+      case (JSAny): {
       }
     }
     goto Bailout;
@@ -122,15 +122,15 @@ namespace array_slice {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice
   transitioning javascript builtin
-  ArrayPrototypeSlice(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  ArrayPrototypeSlice(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
     // Handle array cloning case if the receiver is a fast array.
     if (arguments.length == 0) {
       typeswitch (receiver) {
         case (a: FastJSArrayForCopy): {
           return CloneFastJSArray(context, a);
         }
-        case (Object): {
+        case (JSAny): {
         }
       }
     }
@@ -142,7 +142,7 @@ namespace array_slice {
     const len: Number = GetLengthProperty(o);
 
     // 3. Let relativeStart be ? ToInteger(start).
-    const start: Object = arguments[0];
+    const start: JSAny = arguments[0];
     const relativeStart: Number = ToInteger_Inline(context, start);
 
     // 4. If relativeStart < 0, let k be max((len + relativeStart), 0);
@@ -152,7 +152,7 @@ namespace array_slice {
 
     // 5. If end is undefined, let relativeEnd be len;
     //    else let relativeEnd be ? ToInteger(end).
-    const end: Object = arguments[1];
+    const end: JSAny = arguments[1];
     const relativeEnd: Number =
         end == Undefined ? len : ToInteger_Inline(context, end);
 
@@ -172,7 +172,8 @@ namespace array_slice {
     assert(count <= len);
 
     try {
-      return HandleFastSlice(context, o, k, count) otherwise Slow;
+      return HandleFastSlice(UnsafeCast<NativeContext>(context), o, k, count)
+          otherwise Slow;
     }
     label Slow {}
 
@@ -193,7 +194,7 @@ namespace array_slice {
       // c. If kPresent is true, then
       if (fromPresent == True) {
         // i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(o, pK);
+        const kValue: JSAny = GetProperty(o, pK);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(n), kValue).
         FastCreateDataProperty(a, n, kValue);

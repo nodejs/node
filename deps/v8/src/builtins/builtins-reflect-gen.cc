@@ -13,10 +13,10 @@ namespace internal {
 TF_BUILTIN(ReflectHas, CodeStubAssembler) {
   Node* target = Parameter(Descriptor::kTarget);
   Node* key = Parameter(Descriptor::kKey);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  ThrowIfNotJSReceiver(context, target, MessageTemplate::kCalledOnNonObject,
-                       "Reflect.has");
+  ThrowIfNotJSReceiver(context, CAST(target),
+                       MessageTemplate::kCalledOnNonObject, "Reflect.has");
 
   Return(CallBuiltin(Builtins::kHasProperty, context, target, key));
 }

@@ -160,3 +160,16 @@
   %OptimizeFunctionOnNextCall(foo);
   assertTrue(foo());
 })();
+(function() {
+  function A() {}
+  A.prototype = {};
+  var a = {__proto__: new A, gaga: 42};
+
+  function foo() { a.gaga; return A.prototype.isPrototypeOf(a); }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();

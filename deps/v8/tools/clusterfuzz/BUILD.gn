@@ -13,6 +13,7 @@ if (v8_correctness_fuzzer) {
       "v8_fuzz_config.py",
       "v8_mock.js",
       "v8_mock_archs.js",
+      "v8_sanity_checks.js",
       "v8_suppressions.js",
       "v8_suppressions.py",
     ]

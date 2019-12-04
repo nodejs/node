@@ -30,7 +30,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
                             Handle<Smi>* smi_handler, Handle<Map> receiver_map,
                             Handle<JSReceiver> holder, MaybeObjectHandle data1,
                             MaybeObjectHandle maybe_data2) {
-  int checks_count = 0;
+  int data_size = 1;
   // Holder-is-receiver case itself does not add entries unless there is an
   // optional data2 value provided.
 
@@ -51,7 +51,7 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
       using Bit = typename ICHandler::DoAccessCheckOnReceiverBits;
       *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
     }
-    checks_count++;
+    data_size++;
   } else if (receiver_map->is_dictionary_map() &&
              !receiver_map->IsJSGlobalObjectMap()) {
     if (!fill_handler) {
@@ -67,16 +67,16 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
     if (fill_handler) {
       // This value will go either to data2 or data3 slot depending on whether
       // data2 slot is already occupied by native context.
-      if (checks_count == 0) {
+      if (data_size == 1) {
         handler->set_data2(*maybe_data2);
       } else {
-        DCHECK_EQ(1, checks_count);
+        DCHECK_EQ(2, data_size);
         handler->set_data3(*maybe_data2);
       }
     }
-    checks_count++;
+    data_size++;
   }
-  return checks_count;
+  return data_size;
 }
 
 // Returns 0 if the validity cell check is enough to ensure that the
@@ -86,10 +86,10 @@ int InitPrototypeChecksImpl(Isolate* isolate, Handle<ICHandler> handler,
 // Returns -1 if the handler has to be compiled or the number of prototype
 // checks otherwise.
 template <typename ICHandler>
-int GetPrototypeCheckCount(
-    Isolate* isolate, Handle<Smi>* smi_handler, Handle<Map> receiver_map,
-    Handle<JSReceiver> holder, MaybeObjectHandle data1,
-    MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
+int GetHandlerDataSize(Isolate* isolate, Handle<Smi>* smi_handler,
+                       Handle<Map> receiver_map, Handle<JSReceiver> holder,
+                       MaybeObjectHandle data1,
+                       MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
   DCHECK_NOT_NULL(smi_handler);
   return InitPrototypeChecksImpl<ICHandler, false>(isolate, Handle<ICHandler>(),
                                                    smi_handler, receiver_map,
@@ -121,14 +121,13 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
     data1 = maybe_data1;
   }
 
-  int checks_count = GetPrototypeCheckCount<LoadHandler>(
+  int data_size = GetHandlerDataSize<LoadHandler>(
       isolate, &smi_handler, receiver_map, holder, data1, maybe_data2);
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
 
-  int data_count = 1 + checks_count;
-  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_count);
+  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
 
   handler->set_smi_handler(*smi_handler);
   handler->set_validity_cell(*validity_cell);
@@ -144,19 +143,18 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
                                           Handle<Smi> smi_handler) {
   Handle<JSReceiver> end;  // null handle, means full prototype chain lookup.
   MaybeObjectHandle data1 = holder;
-  int checks_count = GetPrototypeCheckCount<LoadHandler>(
-      isolate, &smi_handler, receiver_map, end, data1);
+  int data_size = GetHandlerDataSize<LoadHandler>(isolate, &smi_handler,
+                                                  receiver_map, end, data1);
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   if (validity_cell->IsSmi()) {
-    DCHECK_EQ(0, checks_count);
+    DCHECK_EQ(1, data_size);
     // Lookup on receiver isn't supported in case of a simple smi handler.
     if (!LookupOnReceiverBits::decode(smi_handler->value())) return smi_handler;
   }
 
-  int data_count = 1 + checks_count;
-  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_count);
+  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
 
   handler->set_smi_handler(*smi_handler);
   handler->set_validity_cell(*validity_cell);
@@ -251,16 +249,13 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
     data1 = maybe_data1;
   }
 
-  int checks_count = GetPrototypeCheckCount<StoreHandler>(
+  int data_size = GetHandlerDataSize<StoreHandler>(
       isolate, &smi_handler, receiver_map, holder, data1, maybe_data2);
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  DCHECK_IMPLIES(validity_cell->IsSmi(), checks_count == 0);
 
-  int data_count = 1 + checks_count;
-  Handle<StoreHandler> handler =
-      isolate->factory()->NewStoreHandler(data_count);
+  Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(data_size);
 
   handler->set_smi_handler(*smi_handler);
   handler->set_validity_cell(*validity_cell);

@@ -476,6 +476,25 @@ void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
   ResetAllBlockCounts(info);
 }
 
+void PrintBlockCoverage(const CoverageFunction* function,
+                        SharedFunctionInfo info, bool has_nonempty_source_range,
+                        bool function_is_relevant) {
+  DCHECK(FLAG_trace_block_coverage);
+  std::unique_ptr<char[]> function_name =
+      function->name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  i::PrintF(
+      "Coverage for function='%s', SFI=%p, has_nonempty_source_range=%d, "
+      "function_is_relevant=%d\n",
+      function_name.get(), reinterpret_cast<void*>(info.ptr()),
+      has_nonempty_source_range, function_is_relevant);
+  i::PrintF("{start: %d, end: %d, count: %d}\n", function->start, function->end,
+            function->count);
+  for (const auto& block : function->blocks) {
+    i::PrintF("{start: %d, end: %d, count: %d}\n", block.start, block.end,
+              block.count);
+  }
+}
+
 void CollectAndMaybeResetCounts(Isolate* isolate,
                                 SharedToCounterMap* counter_map,
                                 v8::debug::CoverageMode coverage_mode) {
@@ -668,9 +687,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       }
 
       // Only include a function range if itself or its parent function is
-      // covered, or if it contains non-trivial block coverage. It must also
-      // have a non-empty source range (otherwise it is not interesting to
-      // report).
+      // covered, or if it contains non-trivial block coverage.
       bool is_covered = (count != 0);
       bool parent_is_covered =
           (!nesting.empty() && functions->at(nesting.back()).count != 0);
@@ -678,9 +695,18 @@ std::unique_ptr<Coverage> Coverage::Collect(
       bool function_is_relevant =
           (is_covered || parent_is_covered || has_block_coverage);
 
-      if (function.HasNonEmptySourceRange() && function_is_relevant) {
+      // It must also have a non-empty source range (otherwise it is not
+      // interesting to report).
+      bool has_nonempty_source_range = function.HasNonEmptySourceRange();
+
+      if (has_nonempty_source_range && function_is_relevant) {
         nesting.push_back(functions->size());
         functions->emplace_back(function);
+      }
+
+      if (FLAG_trace_block_coverage) {
+        PrintBlockCoverage(&function, info, has_nonempty_source_range,
+                           function_is_relevant);
       }
     }
 
@@ -691,6 +717,13 @@ std::unique_ptr<Coverage> Coverage::Collect(
 }
 
 void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
+  if (mode != isolate->code_coverage_mode()) {
+    // Changing the coverage mode can change the bytecode that would be
+    // generated for a function, which can interfere with lazy source positions,
+    // so just force source position collection whenever there's such a change.
+    isolate->CollectSourcePositionsForAllBytecodeArrays();
+  }
+
   switch (mode) {
     case debug::CoverageMode::kBestEffort:
       // Note that DevTools switches back to best-effort coverage once the

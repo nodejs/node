@@ -46,6 +46,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/collector.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
@@ -1691,6 +1692,154 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   CHECK_EQ(native_group_aaa, GetChildByName(n_AAA, "aaa-group"));
   CHECK_EQ(native_group_aaa, GetChildByName(n_BBB, "aaa-group"));
   CHECK_EQ(native_group_ccc, GetChildByName(n_CCC, "ccc-group"));
+}
+
+namespace {
+
+class EmbedderGraphBuilderForNativeSnapshotObjectId final {
+ public:
+  class RegularNode : public v8::EmbedderGraph::Node {
+   public:
+    RegularNode(v8::NativeObject native_object, const char* name, size_t size,
+                Node* wrapper_node)
+        : name_(name),
+          size_(size),
+          native_object_(native_object),
+          wrapper_node_(wrapper_node) {}
+    // v8::EmbedderGraph::Node
+    const char* Name() override { return name_; }
+    size_t SizeInBytes() override { return size_; }
+    Node* WrapperNode() override { return wrapper_node_; }
+    v8::NativeObject GetNativeObject() override {
+      return native_object_ ? native_object_ : this;
+    }
+
+   private:
+    const char* name_;
+    size_t size_;
+    v8::NativeObject native_object_;
+    Node* wrapper_node_;
+  };
+
+  class RootNode : public RegularNode {
+   public:
+    explicit RootNode(const char* name)
+        : RegularNode(nullptr, name, 0, nullptr) {}
+    // v8::EmbedderGraph::EmbedderNode
+    bool IsRootNode() override { return true; }
+  };
+
+  struct BuildParameter {
+    v8::Persistent<v8::String>* wrapper;
+    void* native1;
+    void* native2;
+  };
+
+  static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
+                                 void* data) {
+    BuildParameter* parameter = reinterpret_cast<BuildParameter*>(data);
+    v8::Local<v8::String> local_str =
+        v8::Local<v8::String>::New(isolate, *(parameter->wrapper));
+    auto* v8_node = graph->V8Node(local_str);
+    CHECK(!v8_node->IsEmbedderNode());
+    auto* root_node =
+        graph->AddNode(std::unique_ptr<RootNode>(new RootNode("root")));
+    auto* non_merged_node = graph->AddNode(std::unique_ptr<RegularNode>(
+        new RegularNode(parameter->native1, "non-merged", 0, nullptr)));
+    auto* merged_node = graph->AddNode(std::unique_ptr<RegularNode>(
+        new RegularNode(parameter->native2, "merged", 0, v8_node)));
+    graph->AddEdge(root_node, non_merged_node);
+    graph->AddEdge(root_node, merged_node);
+  }
+};
+
+}  // namespace
+
+TEST(NativeSnapshotObjectId) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  v8::Persistent<v8::String> wrapper(isolate, v8_str("wrapper"));
+  int native1;
+  int native2;
+
+  EmbedderGraphBuilderForNativeSnapshotObjectId::BuildParameter parameter{
+      &wrapper, &native1, &native2};
+  heap_profiler->AddBuildEmbedderGraphCallback(
+      EmbedderGraphBuilderForNativeSnapshotObjectId::BuildEmbedderGraph,
+      &parameter);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  v8::SnapshotObjectId non_merged_id = heap_profiler->GetObjectId(&native1);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, non_merged_id);
+  v8::SnapshotObjectId merged_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, merged_id);
+  CHECK_NE(non_merged_id, merged_id);
+  const v8::HeapGraphNode* non_merged_node =
+      snapshot->GetNodeById(non_merged_id);
+  CHECK_NOT_NULL(non_merged_node);
+  const v8::HeapGraphNode* merged_node = snapshot->GetNodeById(merged_id);
+  CHECK_NOT_NULL(merged_node);
+
+  heap_profiler->ClearObjectIds();
+  CHECK_EQ(v8::HeapProfiler::kUnknownObjectId,
+           heap_profiler->GetObjectId(&native1));
+  CHECK_EQ(v8::HeapProfiler::kUnknownObjectId,
+           heap_profiler->GetObjectId(&native2));
+}
+
+TEST(NativeSnapshotObjectIdMoving) {
+  // Required to allow moving specific objects.
+  i::FLAG_manual_evacuation_candidates_selection = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  heap_profiler->StartTrackingHeapObjects(true);
+
+  v8::Persistent<v8::String> wrapper(isolate, v8_str("wrapper"));
+  int native1;
+  int native2;
+
+  EmbedderGraphBuilderForNativeSnapshotObjectId::BuildParameter parameter{
+      &wrapper, &native1, &native2};
+  heap_profiler->AddBuildEmbedderGraphCallback(
+      EmbedderGraphBuilderForNativeSnapshotObjectId::BuildEmbedderGraph,
+      &parameter);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  v8::SnapshotObjectId non_merged_id = heap_profiler->GetObjectId(&native1);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, non_merged_id);
+  v8::SnapshotObjectId merged_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, merged_id);
+  CHECK_NE(non_merged_id, merged_id);
+  const v8::HeapGraphNode* non_merged_node =
+      snapshot->GetNodeById(non_merged_id);
+  CHECK_NOT_NULL(non_merged_node);
+  const v8::HeapGraphNode* merged_node = snapshot->GetNodeById(merged_id);
+  CHECK_NOT_NULL(merged_node);
+
+  {
+    v8::HandleScope scope(isolate);
+    auto local = v8::Local<v8::String>::New(isolate, wrapper);
+    i::Handle<i::String> internal = i::Handle<i::String>::cast(
+        v8::Utils::OpenHandle(*v8::Local<v8::String>::Cast(local)));
+    i::heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*internal));
+  }
+  CcTest::CollectAllGarbage();
+
+  non_merged_id = heap_profiler->GetObjectId(&native1);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, non_merged_id);
+  merged_id = heap_profiler->GetObjectId(&native2);
+  CHECK_NE(v8::HeapProfiler::kUnknownObjectId, merged_id);
+  CHECK_NE(non_merged_id, merged_id);
+
+  heap_profiler->StopTrackingHeapObjects();
 }
 
 TEST(DeleteAllHeapSnapshots) {

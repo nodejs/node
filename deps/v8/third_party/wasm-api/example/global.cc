@@ -7,7 +7,7 @@
 #include "wasm.hh"
 
 
-auto get_export_global(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Global* {
+auto get_export_global(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Global* {
   if (exports.size() <= i || !exports[i]->global()) {
     std::cout << "> Error accessing global export " << i << "!" << std::endl;
     exit(1);
@@ -15,7 +15,7 @@ auto get_export_global(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Glo
   return exports[i]->global();
 }
 
-auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const wasm::Func* {
+auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> const wasm::Func* {
   if (exports.size() <= i || !exports[i]->func()) {
     std::cout << "> Error accessing function export " << i << "!" << std::endl;
     exit(1);
@@ -67,7 +67,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -75,7 +75,7 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Create external globals.
@@ -102,7 +102,7 @@ void run() {
   auto instance = wasm::Instance::make(store, module.get(), imports);
   if (!instance) {
     std::cout << "> Error instantiating module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Extract export.
@@ -125,6 +125,9 @@ void run() {
   auto set_var_i64_import = get_export_func(exports, i++);
   auto set_var_f32_export = get_export_func(exports, i++);
   auto set_var_i64_export = get_export_func(exports, i++);
+
+  // Try cloning.
+  assert(var_f32_import->copy()->same(var_f32_import.get()));
 
   // Interact.
   std::cout << "Accessing globals..." << std::endl;

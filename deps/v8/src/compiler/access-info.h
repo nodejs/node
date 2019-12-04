@@ -29,6 +29,7 @@ class CompilationDependency;
 class ElementAccessFeedback;
 class JSHeapBroker;
 class TypeCache;
+struct ConstFieldInfo;
 
 std::ostream& operator<<(std::ostream&, AccessMode);
 
@@ -77,14 +78,16 @@ class PropertyAccessInfo final {
       Zone* zone, Handle<Map> receiver_map,
       ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
-      Type field_type, MaybeHandle<Map> field_map = MaybeHandle<Map>(),
+      Type field_type, Handle<Map> field_owner_map,
+      MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
   static PropertyAccessInfo DataConstant(
       Zone* zone, Handle<Map> receiver_map,
       ZoneVector<CompilationDependency const*>&& unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
-      Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
+      Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
+      MaybeHandle<JSObject> holder,
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
   static PropertyAccessInfo AccessorConstant(Zone* zone,
                                              Handle<Map> receiver_map,
@@ -109,6 +112,7 @@ class PropertyAccessInfo final {
   bool IsStringLength() const { return kind() == kStringLength; }
 
   bool HasTransitionMap() const { return !transition_map().is_null(); }
+  ConstFieldInfo GetConstFieldInfo() const;
 
   Kind kind() const { return kind_; }
   MaybeHandle<JSObject> holder() const {
@@ -137,7 +141,7 @@ class PropertyAccessInfo final {
   PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
                      Representation field_representation, Type field_type,
-                     MaybeHandle<Map> field_map,
+                     Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
                      ZoneVector<Handle<Map>>&& receiver_maps,
                      ZoneVector<CompilationDependency const*>&& dependencies);
 
@@ -150,6 +154,7 @@ class PropertyAccessInfo final {
   FieldIndex field_index_;
   Representation field_representation_;
   Type field_type_;
+  MaybeHandle<Map> field_owner_map_;
   MaybeHandle<Map> field_map_;
 };
 
@@ -163,7 +168,7 @@ class AccessInfoFactory final {
   base::Optional<ElementAccessInfo> ComputeElementAccessInfo(
       Handle<Map> map, AccessMode access_mode) const;
   bool ComputeElementAccessInfos(
-      ElementAccessFeedback const& processed, AccessMode access_mode,
+      ElementAccessFeedback const& feedback,
       ZoneVector<ElementAccessInfo>* access_infos) const;
 
   PropertyAccessInfo ComputePropertyAccessInfo(Handle<Map> map,
@@ -191,7 +196,7 @@ class AccessInfoFactory final {
 
  private:
   base::Optional<ElementAccessInfo> ConsolidateElementLoad(
-      ElementAccessFeedback const& processed) const;
+      ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(Handle<Map> map,
                                                 Handle<Name> name) const;
   PropertyAccessInfo LookupTransition(Handle<Map> map, Handle<Name> name,

@@ -36,7 +36,7 @@ void GrowableFixedArray::Push(TNode<Object> const value) {
 TNode<JSArray> GrowableFixedArray::ToJSArray(TNode<Context> const context) {
   const ElementsKind kind = PACKED_ELEMENTS;
 
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> const array_map = LoadJSArrayElementsMap(kind, native_context);
 
   // Shrink to fit if necessary.

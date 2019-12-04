@@ -108,13 +108,12 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<NameAndExpression>::id =
         ParseResultTypeId::kNameAndExpression;
 template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<ConditionalAnnotation>::id =
-        ParseResultTypeId::kConditionalAnnotation;
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Annotation>::id =
+    ParseResultTypeId::kAnnotation;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<base::Optional<ConditionalAnnotation>>::id =
-        ParseResultTypeId::kOptionalConditionalAnnotation;
+    ParseResultHolder<std::vector<Annotation>>::id =
+        ParseResultTypeId::kVectorOfAnnotation;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<ClassFieldExpression>::id =
@@ -360,7 +359,7 @@ base::Optional<ParseResult> MakeBinaryOperator(
 
 base::Optional<ParseResult> MakeIntrinsicCallExpression(
     ParseResultIterator* child_results) {
-  auto callee = child_results->NextAs<std::string>();
+  auto callee = child_results->NextAs<Identifier*>();
   auto generic_arguments =
       child_results->NextAs<std::vector<TypeExpression*>>();
   auto args = child_results->NextAs<std::vector<Expression*>>();
@@ -472,29 +471,27 @@ base::Optional<ParseResult> MakeExternalMacro(
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto external_assembler_name =
       child_results->NextAs<base::Optional<std::string>>();
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   LintGenericParameters(generic_parameters);
 
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
-  MacroDeclaration* macro = MakeNode<ExternalMacroDeclaration>(
+
+  Declaration* result = MakeNode<ExternalMacroDeclaration>(
       transitioning,
       external_assembler_name ? *external_assembler_name : "CodeStubAssembler",
       name, operator_name, args, return_type, labels);
-  Declaration* result;
-  if (generic_parameters.empty()) {
-    result = MakeNode<StandardDeclaration>(macro, base::nullopt);
-  } else {
-    result = MakeNode<GenericDeclaration>(macro, generic_parameters);
+  if (!generic_parameters.empty()) {
+    Error("External builtins cannot be generic.");
   }
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeIntrinsicDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   LintGenericParameters(generic_parameters);
 
@@ -502,19 +499,17 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
   LabelAndTypesVector labels;
-  CallableNode* callable = nullptr;
+  CallableDeclaration* declaration;
   if (body) {
-    callable = MakeNode<TorqueMacroDeclaration>(
+    declaration = MakeNode<TorqueMacroDeclaration>(
         false, name, base::Optional<std::string>{}, args, return_type, labels,
-        false);
+        false, body);
   } else {
-    callable = MakeNode<IntrinsicDeclaration>(name, args, return_type);
+    declaration = MakeNode<IntrinsicDeclaration>(name, args, return_type);
   }
-  Declaration* result;
-  if (generic_parameters.empty()) {
-    result = MakeNode<StandardDeclaration>(callable, body);
-  } else {
-    result = MakeNode<GenericDeclaration>(callable, generic_parameters, body);
+  Declaration* result = declaration;
+  if (!generic_parameters.empty()) {
+    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -524,8 +519,8 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
   auto export_to_csa = child_results->NextAs<bool>();
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsUpperCamelCase(name)) {
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsUpperCamelCase(name->value)) {
     NamingConventionError("Macro", name, "UpperCamelCase");
   }
 
@@ -536,16 +531,15 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
-  MacroDeclaration* macro =
-      MakeNode<TorqueMacroDeclaration>(transitioning, name, operator_name, args,
-                                       return_type, labels, export_to_csa);
-  Declaration* result;
+  CallableDeclaration* declaration = MakeNode<TorqueMacroDeclaration>(
+      transitioning, name, operator_name, args, return_type, labels,
+      export_to_csa, body);
+  Declaration* result = declaration;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
-    result = MakeNode<StandardDeclaration>(macro, *body);
   } else {
     if (export_to_csa) ReportError("Cannot export generics to CSA.");
-    result = MakeNode<GenericDeclaration>(macro, generic_parameters, body);
+    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -554,8 +548,8 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
   auto javascript_linkage = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsUpperCamelCase(name)) {
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsUpperCamelCase(name->value)) {
     NamingConventionError("Builtin", name, "UpperCamelCase");
   }
 
@@ -565,14 +559,13 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
-  BuiltinDeclaration* builtin = MakeNode<TorqueBuiltinDeclaration>(
-      transitioning, javascript_linkage, name, args, return_type);
-  Declaration* result;
+  CallableDeclaration* declaration = MakeNode<TorqueBuiltinDeclaration>(
+      transitioning, javascript_linkage, name, args, return_type, body);
+  Declaration* result = declaration;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
-    result = MakeNode<StandardDeclaration>(builtin, *body);
   } else {
-    result = MakeNode<GenericDeclaration>(builtin, generic_parameters, body);
+    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -649,8 +642,8 @@ base::Optional<ParseResult> MakeMethodDeclaration(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsUpperCamelCase(name)) {
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsUpperCamelCase(name->value)) {
     NamingConventionError("Method", name, "UpperCamelCase");
   }
 
@@ -658,39 +651,66 @@ base::Optional<ParseResult> MakeMethodDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<Statement*>();
-  MacroDeclaration* macro = MakeNode<TorqueMacroDeclaration>(
-      transitioning, name, operator_name, args, return_type, labels, false);
-  Declaration* result = MakeNode<StandardDeclaration>(macro, body);
+  Declaration* result =
+      MakeNode<TorqueMacroDeclaration>(transitioning, name, operator_name, args,
+                                       return_type, labels, false, body);
   return ParseResult{result};
 }
 
 class AnnotationSet {
  public:
   AnnotationSet(ParseResultIterator* iter,
-                const std::set<std::string>& allowed) {
-    auto list = iter->NextAs<std::vector<Identifier*>>();
-    for (const Identifier* i : list) {
-      if (allowed.find(i->value) == allowed.end()) {
-        Lint("Annotation ", i->value, " is not allowed here").Position(i->pos);
-      }
-      if (!set_.insert(i->value).second) {
-        Lint("Duplicate annotation ", i->value).Position(i->pos);
+                const std::set<std::string>& allowed_without_param,
+                const std::set<std::string>& allowed_with_param) {
+    auto list = iter->NextAs<std::vector<Annotation>>();
+    for (const Annotation& a : list) {
+      if (a.param.has_value()) {
+        if (allowed_with_param.find(a.name->value) ==
+            allowed_with_param.end()) {
+          const char* error_message =
+              allowed_without_param.find(a.name->value) ==
+                      allowed_without_param.end()
+                  ? " is not allowed here"
+                  : " cannot have parameter here";
+          Lint("Annotation ", a.name->value, error_message)
+              .Position(a.name->pos);
+        }
+        map_[a.name->value].push_back(*a.param);
+      } else {
+        if (allowed_without_param.find(a.name->value) ==
+            allowed_without_param.end()) {
+          const char* error_message =
+              allowed_with_param.find(a.name->value) == allowed_with_param.end()
+                  ? " is not allowed here"
+                  : " requires a parameter here";
+          Lint("Annotation ", a.name->value, error_message)
+              .Position(a.name->pos);
+        }
+        if (!set_.insert(a.name->value).second) {
+          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
+        }
       }
     }
   }
 
   bool Contains(const std::string& s) { return set_.find(s) != set_.end(); }
+  const std::vector<std::string>& GetParams(const std::string& s) {
+    return map_[s];
+  }
 
  private:
   std::set<std::string> set_;
+  std::map<std::string, std::vector<std::string>> map_;
 };
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   AnnotationSet annotations(
-      child_results, {"@generatePrint", "@noVerifier", "@abstract",
-                      "@dirtyInstantiatedAbstractClass",
-                      "@hasSameInstanceTypeAsParent", "@generateCppClass"});
+      child_results,
+      {"@generatePrint", "@noVerifier", "@abstract",
+       "@dirtyInstantiatedAbstractClass", "@hasSameInstanceTypeAsParent",
+       "@generateCppClass"},
+      {});
   ClassFlags flags = ClassFlag::kNone;
   bool generate_print = annotations.Contains("@generatePrint");
   if (generate_print) flags |= ClassFlag::kGeneratePrint;
@@ -726,15 +746,18 @@ base::Optional<ParseResult> MakeClassDeclaration(
 
   // Filter to only include fields that should be present based on decoration.
   std::vector<ClassFieldExpression> fields;
-  std::copy_if(fields_raw.begin(), fields_raw.end(), std::back_inserter(fields),
-               [](const ClassFieldExpression& exp) {
-                 if (!exp.conditional.has_value()) return true;
-                 const ConditionalAnnotation& conditional = *exp.conditional;
-                 return conditional.type == ConditionalAnnotationType::kPositive
-                            ? BuildFlags::GetFlag(conditional.condition, "@if")
-                            : !BuildFlags::GetFlag(conditional.condition,
-                                                   "@ifnot");
-               });
+  std::copy_if(
+      fields_raw.begin(), fields_raw.end(), std::back_inserter(fields),
+      [](const ClassFieldExpression& exp) {
+        for (const ConditionalAnnotation& condition : exp.conditions) {
+          if (condition.type == ConditionalAnnotationType::kPositive
+                  ? !BuildFlags::GetFlag(condition.condition, "@if")
+                  : BuildFlags::GetFlag(condition.condition, "@ifnot")) {
+            return false;
+          }
+        }
+        return true;
+      });
 
   Declaration* result = MakeNode<ClassDeclaration>(
       name, flags, std::move(extends), std::move(generates), std::move(methods),
@@ -756,6 +779,7 @@ base::Optional<ParseResult> MakeNamespaceDeclaration(
 
 base::Optional<ParseResult> MakeSpecializationDeclaration(
     ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   auto generic_parameters =
       child_results->NextAs<std::vector<TypeExpression*>>();
@@ -765,8 +789,8 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
   auto body = child_results->NextAs<Statement*>();
   CheckNotDeferredStatement(body);
   Declaration* result = MakeNode<SpecializationDeclaration>(
-      std::move(name), std::move(generic_parameters), std::move(parameters),
-      return_type, std::move(labels), body);
+      transitioning, std::move(name), std::move(generic_parameters),
+      std::move(parameters), return_type, std::move(labels), body);
   return ParseResult{result};
 }
 
@@ -817,19 +841,16 @@ base::Optional<ParseResult> MakeExternalBuiltin(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
   auto js_linkage = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   LintGenericParameters(generic_parameters);
 
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
-  BuiltinDeclaration* builtin = MakeNode<ExternalBuiltinDeclaration>(
+  Declaration* result = MakeNode<ExternalBuiltinDeclaration>(
       transitioning, js_linkage, name, args, return_type);
-  Declaration* result;
-  if (generic_parameters.empty()) {
-    result = MakeNode<StandardDeclaration>(builtin, base::nullopt);
-  } else {
-    result = MakeNode<GenericDeclaration>(builtin, generic_parameters);
+  if (!generic_parameters.empty()) {
+    Error("External builtins cannot be generic.");
   }
   return ParseResult{result};
 }
@@ -837,12 +858,11 @@ base::Optional<ParseResult> MakeExternalBuiltin(
 base::Optional<ParseResult> MakeExternalRuntime(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
-  ExternalRuntimeDeclaration* runtime = MakeNode<ExternalRuntimeDeclaration>(
+  Declaration* result = MakeNode<ExternalRuntimeDeclaration>(
       transitioning, name, args, return_type);
-  Declaration* result = MakeNode<StandardDeclaration>(runtime, base::nullopt);
   return ParseResult{result};
 }
 
@@ -879,7 +899,11 @@ base::Optional<ParseResult> MakeFunctionTypeExpression(
 base::Optional<ParseResult> MakeReferenceTypeExpression(
     ParseResultIterator* child_results) {
   auto referenced_type = child_results->NextAs<TypeExpression*>();
-  TypeExpression* result = MakeNode<ReferenceTypeExpression>(referenced_type);
+  std::vector<std::string> namespace_qualification{
+      TORQUE_INTERNAL_NAMESPACE_STRING};
+  std::vector<TypeExpression*> generic_arguments{referenced_type};
+  TypeExpression* result = MakeNode<BasicTypeExpression>(
+      namespace_qualification, REFERENCE_TYPE_STRING, generic_arguments);
   return ParseResult{result};
 }
 
@@ -1141,7 +1165,7 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   ParameterList parameters;
   parameters.names.push_back(MakeNode<Identifier>(variable));
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
-      std::vector<std::string>{}, "Object", std::vector<TypeExpression*>{}));
+      std::vector<std::string>{}, "JSAny", std::vector<TypeExpression*>{}));
   parameters.has_varargs = false;
   LabelBlock* result = MakeNode<LabelBlock>(
       MakeNode<Identifier>(kCatchLabelName), std::move(parameters), body);
@@ -1327,22 +1351,22 @@ base::Optional<ParseResult> MakeNameAndExpressionFromExpression(
   ReportError("Constructor parameters need to be named.");
 }
 
-base::Optional<ParseResult> MakeConditionalAnnotation(
-    ParseResultIterator* child_results) {
-  auto type_str = child_results->NextAs<Identifier*>()->value;
-  DCHECK(type_str == "@if" || type_str == "@ifnot");
-  ConditionalAnnotationType type = type_str == "@if"
-                                       ? ConditionalAnnotationType::kPositive
-                                       : ConditionalAnnotationType::kNegative;
-  auto condition = child_results->NextAs<std::string>();
-  return ParseResult{ConditionalAnnotation{condition, type}};
+base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
+  return ParseResult{
+      Annotation{child_results->NextAs<Identifier*>(),
+                 child_results->NextAs<base::Optional<std::string>>()}};
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
-  auto conditional =
-      child_results->NextAs<base::Optional<ConditionalAnnotation>>();
-  AnnotationSet annotations(child_results, {"@noVerifier"});
+  AnnotationSet annotations(child_results, {"@noVerifier"}, {"@if", "@ifnot"});
   bool generate_verify = !annotations.Contains("@noVerifier");
+  std::vector<ConditionalAnnotation> conditions;
+  for (const std::string& condition : annotations.GetParams("@if")) {
+    conditions.push_back({condition, ConditionalAnnotationType::kPositive});
+  }
+  for (const std::string& condition : annotations.GetParams("@ifnot")) {
+    conditions.push_back({condition, ConditionalAnnotationType::kNegative});
+  }
   auto weak = child_results->NextAs<bool>();
   auto const_qualified = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -1350,7 +1374,7 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   auto type = child_results->NextAs<TypeExpression*>();
   return ParseResult{ClassFieldExpression{{name, type},
                                           index,
-                                          conditional,
+                                          std::move(conditions),
                                           weak,
                                           const_qualified,
                                           generate_verify}};
@@ -1479,15 +1503,12 @@ struct TorqueGrammar : Grammar {
   Symbol name = {Rule({&identifier}, MakeIdentifier)};
 
   // Result: Identifier*
-  Symbol annotation = {
+  Symbol annotationName = {
       Rule({Pattern(MatchAnnotation)}, MakeIdentifierFromMatchedInput)};
-
-  // Result: std::vector<Identifier*>
-  Symbol* annotations = List<Identifier*>(&annotation);
 
   // Result: std::string
   Symbol intrinsicName = {
-      Rule({Pattern(MatchIntrinsicName)}, YieldMatchedInput)};
+      Rule({Pattern(MatchIntrinsicName)}, MakeIdentifierFromMatchedInput)};
 
   // Result: std::string
   Symbol stringLiteral = {
@@ -1500,6 +1521,22 @@ struct TorqueGrammar : Grammar {
   Symbol decimalLiteral = {
       Rule({Pattern(MatchDecimalLiteral)}, YieldMatchedInput),
       Rule({Pattern(MatchHexLiteral)}, YieldMatchedInput)};
+
+  // Result: std::string
+  Symbol annotationParameter = {Rule({&identifier}), Rule({&decimalLiteral}),
+                                Rule({&externalString})};
+
+  // Result: std::string
+  Symbol annotationParameters = {
+      Rule({Token("("), &annotationParameter, Token(")")})};
+
+  // Result: Annotation
+  Symbol annotation = {
+      Rule({&annotationName, Optional<std::string>(&annotationParameters)},
+           MakeAnnotation)};
+
+  // Result: std::vector<Annotation>
+  Symbol* annotations = List<Annotation>(&annotation);
 
   // Result: TypeList
   Symbol* typeList = List<TypeExpression*>(&type, Token(","));
@@ -1578,14 +1615,8 @@ struct TorqueGrammar : Grammar {
   Symbol* optionalArraySpecifier =
       Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}));
 
-  // Result: ConditionalAnnotation
-  Symbol conditionalAnnotation = {
-      Rule({OneOf({"@if", "@ifnot"}), Token("("), &identifier, Token(")")},
-           MakeConditionalAnnotation)};
-
   Symbol classField = {
-      Rule({Optional<ConditionalAnnotation>(&conditionalAnnotation),
-            annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
+      Rule({annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
             optionalArraySpecifier, Token(":"), &type, Token(";")},
            MakeClassField)};
 
@@ -1857,8 +1888,8 @@ struct TorqueGrammar : Grammar {
   Symbol method = {Rule(
       {CheckIf(Token("transitioning")),
        Optional<std::string>(Sequence({Token("operator"), &externalString})),
-       &identifier, &parameterListNoVararg, &optionalReturnType,
-       optionalLabelList, &block},
+       &name, &parameterListNoVararg, &optionalReturnType, optionalLabelList,
+       &block},
       MakeMethodDeclaration)};
 
   // Result: std::vector<Declaration*>
@@ -1900,34 +1931,34 @@ struct TorqueGrammar : Grammar {
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"),
-            Optional<std::string>(Sequence({&identifier, Token("::")})),
-            &identifier, TryOrDefault<GenericParameters>(&genericParameters),
+            Optional<std::string>(Sequence({&identifier, Token("::")})), &name,
+            TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &optionalReturnType, optionalLabelList,
             Token(";")},
            AsSingletonVector<Declaration*, MakeExternalMacro>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
-            CheckIf(Token("javascript")), Token("builtin"), &identifier,
+            CheckIf(Token("javascript")), Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
            AsSingletonVector<Declaration*, MakeExternalBuiltin>()),
-      Rule(
-          {Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
-           &identifier, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
-          AsSingletonVector<Declaration*, MakeExternalRuntime>()),
+      Rule({Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
+            &name, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
+           AsSingletonVector<Declaration*, MakeExternalRuntime>()),
       Rule({CheckIf(Token("@export")), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
-            Token("macro"), &identifier,
+            Token("macro"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &optionalReturnType, optionalLabelList,
             &optionalBody},
            AsSingletonVector<Declaration*, MakeTorqueMacroDeclaration>()),
       Rule({CheckIf(Token("transitioning")), CheckIf(Token("javascript")),
-            Token("builtin"), &identifier,
+            Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListAllowVararg, &optionalReturnType, &optionalBody},
            AsSingletonVector<Declaration*, MakeTorqueBuiltinDeclaration>()),
-      Rule({&name, &genericSpecializationTypeList, &parameterListAllowVararg,
+      Rule({CheckIf(Token("transitioning")), &name,
+            &genericSpecializationTypeList, &parameterListAllowVararg,
             &optionalReturnType, optionalLabelList, &block},
            AsSingletonVector<Declaration*, MakeSpecializationDeclaration>()),
       Rule({Token("#include"), &externalString},

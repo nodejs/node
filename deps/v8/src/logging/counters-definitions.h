@@ -188,6 +188,8 @@ namespace internal {
      V8.WasmCompileModuleAsyncMicroSeconds, 100000000, MICROSECOND)            \
   HT(wasm_streaming_compile_wasm_module_time,                                  \
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
+  HT(wasm_streaming_deserialize_wasm_module_time,                              \
+     V8.WasmDeserializeModuleStreamingMicroSeconds, 100000000, MICROSECOND)    \
   HT(wasm_tier_up_module_time, V8.WasmTierUpModuleMicroSeconds, 100000000,     \
      MICROSECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \

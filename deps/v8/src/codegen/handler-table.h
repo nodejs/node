@@ -129,8 +129,8 @@ class V8_EXPORT_PRIVATE HandlerTable {
   static const int kReturnEntrySize = 2;
 
   // Encoding of the {handler} field.
-  class HandlerPredictionField : public BitField<CatchPrediction, 0, 3> {};
-  class HandlerOffsetField : public BitField<int, 3, 29> {};
+  using HandlerPredictionField = BitField<CatchPrediction, 0, 3>;
+  using HandlerOffsetField = BitField<int, 3, 29>;
 };
 
 }  // namespace internal

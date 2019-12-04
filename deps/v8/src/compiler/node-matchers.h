@@ -761,66 +761,6 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
   Node* if_false_;
 };
 
-template <class BinopMatcher, IrOpcode::Value expected_opcode>
-struct WasmStackCheckMatcher {
-  explicit WasmStackCheckMatcher(Node* compare) : compare_(compare) {}
-
-  bool Matched() {
-    if (compare_->opcode() != expected_opcode) return false;
-    BinopMatcher m(compare_);
-    return MatchedInternal(m.left(), m.right());
-  }
-
- private:
-  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
-                       const typename BinopMatcher::RightMatcher& r) {
-    // In wasm, the stack check is performed by loading the value given by
-    // the address of a field stored in the instance object. That object is
-    // passed as a parameter.
-    if (l.IsLoad() && r.IsLoadStackPointer()) {
-      LoadMatcher<LoadMatcher<NodeMatcher>> mleft(l.node());
-      if (mleft.object().IsLoad() && mleft.index().Is(0) &&
-          mleft.object().object().IsParameter()) {
-        return true;
-      }
-    }
-    return false;
-  }
-  Node* compare_;
-};
-
-template <class BinopMatcher, IrOpcode::Value expected_opcode>
-struct StackCheckMatcher {
-  StackCheckMatcher(Isolate* isolate, Node* compare)
-      : isolate_(isolate), compare_(compare) {
-    DCHECK_NOT_NULL(isolate);
-  }
-  bool Matched() {
-    // TODO(jgruber): Ideally, we could be more flexible here and also match the
-    // same pattern with switched operands (i.e.: left is LoadStackPointer and
-    // right is the js_stack_limit load). But to be correct in all cases, we'd
-    // then have to invert the outcome of the stack check comparison.
-    if (compare_->opcode() != expected_opcode) return false;
-    BinopMatcher m(compare_);
-    return MatchedInternal(m.left(), m.right());
-  }
-
- private:
-  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
-                       const typename BinopMatcher::RightMatcher& r) {
-    if (l.IsLoad() && r.IsLoadStackPointer()) {
-      LoadMatcher<ExternalReferenceMatcher> mleft(l.node());
-      ExternalReference js_stack_limit =
-          ExternalReference::address_of_stack_limit(isolate_);
-      if (mleft.object().Is(js_stack_limit) && mleft.index().Is(0)) return true;
-    }
-    return false;
-  }
-
-  Isolate* isolate_;
-  Node* compare_;
-};
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

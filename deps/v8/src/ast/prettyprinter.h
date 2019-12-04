@@ -31,6 +31,12 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
     kCallAndAsyncIterator
   };
   ErrorHint GetErrorHint() const;
+  ObjectLiteralProperty* destructuring_prop() const {
+    return destructuring_prop_;
+  }
+  Assignment* destructuring_assignment() const {
+    return destructuring_assignment_;
+  }
 
 // Individual nodes
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -54,6 +60,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   bool is_iterator_error_;
   bool is_async_iterator_error_;
   bool is_call_error_;
+  ObjectLiteralProperty* destructuring_prop_;
+  Assignment* destructuring_assignment_;
   FunctionKind function_kind_;
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

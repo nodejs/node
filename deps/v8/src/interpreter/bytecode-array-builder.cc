@@ -23,7 +23,8 @@ class RegisterTransferWriter final
     : public NON_EXPORTED_BASE(BytecodeRegisterOptimizer::BytecodeWriter),
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  RegisterTransferWriter(BytecodeArrayBuilder* builder) : builder_(builder) {}
+  explicit RegisterTransferWriter(BytecodeArrayBuilder* builder)
+      : builder_(builder) {}
   ~RegisterTransferWriter() override = default;
 
   void EmitLdar(Register input) override { builder_->OutputLdarRaw(input); }
@@ -96,6 +97,19 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
       handler_table_builder()->ToHandlerTable(isolate);
   return bytecode_array_writer_.ToBytecodeArray(
       isolate, register_count, parameter_count(), handler_table);
+}
+
+#ifdef DEBUG
+int BytecodeArrayBuilder::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+  return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
+}
+#endif
+
+Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    Isolate* isolate) {
+  DCHECK(RemainderOfBlockIsDead());
+
+  return bytecode_array_writer_.ToSourcePositionTable(isolate);
 }
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
@@ -810,10 +824,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
-    Register object, int feedback_slot) {
-  size_t name_index = IteratorSymbolConstantPoolEntry();
-  OutputLdaNamedProperty(object, name_index, feedback_slot);
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(Register object,
+                                                        int feedback_slot) {
+  OutputGetIterator(object, feedback_slot);
   return *this;
 }
 
@@ -1156,6 +1169,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
     BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   OutputJumpIfUndefined(label, 0);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefinedOrNull(
+    BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
+  OutputJumpIfUndefinedOrNull(label, 0);
   return *this;
 }
 

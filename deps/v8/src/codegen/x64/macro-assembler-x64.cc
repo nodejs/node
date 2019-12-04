@@ -505,8 +505,9 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   DCHECK(value != address);
   AssertNotSmi(object);
 
-  if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      !FLAG_incremental_marking) {
+  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+       !FLAG_incremental_marking) ||
+      FLAG_disable_write_barriers) {
     return;
   }
 
@@ -1523,9 +1524,10 @@ void MacroAssembler::Pop(Operand dst) { popq(dst); }
 
 void MacroAssembler::PopQuad(Operand dst) { popq(dst); }
 
-void TurboAssembler::Jump(ExternalReference ext) {
-  LoadAddress(kScratchRegister, ext);
-  jmp(kScratchRegister);
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  DCHECK(root_array_available());
+  jmp(Operand(kRootRegister, RootRegisterOffsetForExternalReferenceTableEntry(
+                                 isolate(), reference)));
 }
 
 void TurboAssembler::Jump(Operand op) { jmp(op); }
@@ -1594,12 +1596,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
       // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
-      call(kScratchRegister);
+      CallBuiltin(builtin_index);
       return;
     }
   }
@@ -1632,6 +1629,17 @@ Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(EntryFromBuiltinIndexAsOperand(builtin_index));
+}
+
+void TurboAssembler::CallBuiltin(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  DCHECK(FLAG_embedded_builtins);
+  RecordCommentForOffHeapTrampoline(builtin_index);
+  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  EmbeddedData d = EmbeddedData::FromBlob();
+  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
+  call(kScratchRegister);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

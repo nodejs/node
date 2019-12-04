@@ -45,6 +45,7 @@ class Code : public HeapObject {
   V(WASM_TO_CAPI_FUNCTION)  \
   V(WASM_TO_JS_FUNCTION)    \
   V(JS_TO_WASM_FUNCTION)    \
+  V(JS_TO_JS_FUNCTION)      \
   V(WASM_INTERPRETER_ENTRY) \
   V(C_WASM_ENTRY)
 
@@ -438,7 +439,7 @@ class Code : public HeapObject {
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
   static_assert(NUMBER_OF_KINDS <= KindField::kMax, "Code::KindField size");
-  static_assert(IsOffHeapTrampoline::kNext <= 32,
+  static_assert(IsOffHeapTrampoline::kLastUsedBit < 32,
                 "Code::flags field exhausted");
 
   // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
@@ -451,7 +452,8 @@ class Code : public HeapObject {
   V(IsExceptionCaughtField, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  static_assert(IsExceptionCaughtField::kNext <= 32, "KindSpecificFlags full");
+  static_assert(IsExceptionCaughtField::kLastUsedBit < 32,
+                "KindSpecificFlags full");
 
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
@@ -705,8 +707,8 @@ class DependentCode : public WeakFixedArray {
 
   inline int flags();
   inline void set_flags(int flags);
-  class GroupField : public BitField<int, 0, 3> {};
-  class CountField : public BitField<int, 3, 27> {};
+  using GroupField = BitField<int, 0, 3>;
+  using CountField = BitField<int, 3, 27>;
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
   OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
@@ -825,9 +827,6 @@ class BytecodeArray : public FixedArrayBase {
   // is deterministic.
   inline void clear_padding();
 
-  // Compares only the bytecode array but not any of the header fields.
-  bool IsBytecodeEqual(const BytecodeArray other) const;
-
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)
@@ -865,7 +864,8 @@ class DeoptimizationData : public FixedArray {
   static const int kOptimizationIdIndex = 5;
   static const int kSharedFunctionInfoIndex = 6;
   static const int kInliningPositionsIndex = 7;
-  static const int kFirstDeoptEntryIndex = 8;
+  static const int kDeoptExitStartIndex = 8;
+  static const int kFirstDeoptEntryIndex = 9;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
@@ -886,6 +886,7 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
+  DECL_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
 
 #undef DECL_ELEMENT_ACCESSORS
 

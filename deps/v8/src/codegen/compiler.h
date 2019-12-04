@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
-  static void PostInstantiation(Handle<JSFunction> function, AllocationType);
+  static void PostInstantiation(Handle<JSFunction> function);
 
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* parse_info,
@@ -201,14 +201,10 @@ class V8_EXPORT_PRIVATE CompilationJob {
     kFailed,
   };
 
-  CompilationJob(uintptr_t stack_limit, State initial_state)
-      : state_(initial_state), stack_limit_(stack_limit) {
+  explicit CompilationJob(State initial_state) : state_(initial_state) {
     timer_.Start();
   }
   virtual ~CompilationJob() = default;
-
-  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
-  uintptr_t stack_limit() const { return stack_limit_; }
 
   State state() const { return state_; }
 
@@ -228,7 +224,6 @@ class V8_EXPORT_PRIVATE CompilationJob {
 
  private:
   State state_;
-  uintptr_t stack_limit_;
   base::ElapsedTimer timer_;
 };
 
@@ -242,9 +237,10 @@ class V8_EXPORT_PRIVATE CompilationJob {
 // Either of phases can either fail or succeed.
 class UnoptimizedCompilationJob : public CompilationJob {
  public:
-  UnoptimizedCompilationJob(intptr_t stack_limit, ParseInfo* parse_info,
+  UnoptimizedCompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
                             UnoptimizedCompilationInfo* compilation_info)
-      : CompilationJob(stack_limit, State::kReadyToExecute),
+      : CompilationJob(State::kReadyToExecute),
+        stack_limit_(stack_limit),
         parse_info_(parse_info),
         compilation_info_(compilation_info) {}
 
@@ -265,6 +261,8 @@ class UnoptimizedCompilationJob : public CompilationJob {
     return compilation_info_;
   }
 
+  uintptr_t stack_limit() const { return stack_limit_; }
+
  protected:
   // Overridden by the actual implementation.
   virtual Status ExecuteJobImpl() = 0;
@@ -272,6 +270,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
                                  Isolate* isolate) = 0;
 
  private:
+  uintptr_t stack_limit_;
   ParseInfo* parse_info_;
   UnoptimizedCompilationInfo* compilation_info_;
   base::TimeDelta time_taken_to_execute_;
@@ -289,11 +288,10 @@ class UnoptimizedCompilationJob : public CompilationJob {
 // Each of the three phases can either fail or succeed.
 class OptimizedCompilationJob : public CompilationJob {
  public:
-  OptimizedCompilationJob(uintptr_t stack_limit,
-                          OptimizedCompilationInfo* compilation_info,
+  OptimizedCompilationJob(OptimizedCompilationInfo* compilation_info,
                           const char* compiler_name,
                           State initial_state = State::kReadyToPrepare)
-      : CompilationJob(stack_limit, initial_state),
+      : CompilationJob(initial_state),
         compilation_info_(compilation_info),
         compiler_name_(compiler_name) {}
 

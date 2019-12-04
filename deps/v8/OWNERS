@@ -1,31 +1,31 @@
 # Eng reviewer. Please reach out before adding new top-level directories.
 # Disagreement among owners should be escalated to eng reviewers.
-file://ENG_REVIEW_OWNERS
+file:ENG_REVIEW_OWNERS
 
-per-file .clang-format=file://INFRA_OWNERS
-per-file .clang-tidy=file://INFRA_OWNERS
-per-file .editorconfig=file://INFRA_OWNERS
-per-file .flake8=file://INFRA_OWNERS
-per-file .git-blame-ignore-revs=file://INFRA_OWNERS
-per-file .gitattributes=file://INFRA_OWNERS
-per-file .gitignore=file://INFRA_OWNERS
-per-file .gn=file://INFRA_OWNERS
-per-file .vpython=file://INFRA_OWNERS
-per-file .ycm_extra_conf.py=file://INFRA_OWNERS
-per-file BUILD.gn=file://COMMON_OWNERS
-per-file DEPS=file://INFRA_OWNERS
+per-file .clang-format=file:INFRA_OWNERS
+per-file .clang-tidy=file:INFRA_OWNERS
+per-file .editorconfig=file:INFRA_OWNERS
+per-file .flake8=file:INFRA_OWNERS
+per-file .git-blame-ignore-revs=file:INFRA_OWNERS
+per-file .gitattributes=file:INFRA_OWNERS
+per-file .gitignore=file:INFRA_OWNERS
+per-file .gn=file:INFRA_OWNERS
+per-file .vpython=file:INFRA_OWNERS
+per-file .ycm_extra_conf.py=file:INFRA_OWNERS
+per-file BUILD.gn=file:COMMON_OWNERS
+per-file DEPS=file:INFRA_OWNERS
 # For Test262 rolls.
 per-file DEPS=mathias@chromium.org
-per-file PRESUBMIT=file://INFRA_OWNERS
-per-file codereview.settings=file://INFRA_OWNERS
+per-file PRESUBMIT=file:INFRA_OWNERS
+per-file codereview.settings=file:INFRA_OWNERS
 
-per-file AUTHORS=file://COMMON_OWNERS
-per-file WATCHLIST=file://COMMON_OWNERS
+per-file AUTHORS=file:COMMON_OWNERS
+per-file WATCHLIST=file:COMMON_OWNERS
 
-per-file *-mips*=file://MIPS_OWNERS
-per-file *-mips64*=file://MIPS_OWNERS
-per-file *-ppc*=file://PPC_OWNERS
-per-file *-s390*=file://S390_OWNERS
+per-file *-mips*=file:MIPS_OWNERS
+per-file *-mips64*=file:MIPS_OWNERS
+per-file *-ppc*=file:PPC_OWNERS
+per-file *-s390*=file:S390_OWNERS
 
 # TEAM: v8-dev@googlegroups.com
 # COMPONENT: Blink>JavaScript

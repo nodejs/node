@@ -105,6 +105,9 @@ class RegisterBase {
   int reg_code_;
 };
 
+// Whether padding is needed for the given stack argument count.
+bool ShouldPadArguments(int argument_count);
+
 template <typename RegType,
           typename = decltype(RegisterName(std::declval<RegType>()))>
 inline std::ostream& operator<<(std::ostream& os, RegType reg) {

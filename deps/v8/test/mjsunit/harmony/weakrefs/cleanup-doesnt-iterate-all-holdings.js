@@ -6,6 +6,7 @@
 
 let cleanup_call_count = 0;
 let cleanup = function(iter) {
+  print("in cleanup");
   if (cleanup_call_count == 0) {
     // First call: iterate 2 of the 3 holdings
     let holdings_list = [];
@@ -74,11 +75,15 @@ let timeout_func_2 = function() {
   assertEquals(1, cleanup_call_count);
 
   // Create a new object and register it.
-  let obj = {};
-  let wc = fg.register(obj, 100);
-  obj = null;
+  (function() {
+    let obj = {};
+    let wc = fg.register(obj, 100);
+    obj = null;
+  })();
 
+  // This GC will reclaim the targets.
   gc();
+  assertEquals(1, cleanup_call_count);
 
   setTimeout(timeout_func_3, 0);
 }

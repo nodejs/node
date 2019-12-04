@@ -583,7 +583,7 @@ TEST(TestInterruptLoop) {
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
-    thread.Start();
+    CHECK(thread.Start());
     testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
     Address address = reinterpret_cast<Address>(
         &memory_array[InterruptThread::interrupt_location_]);
@@ -910,6 +910,8 @@ TEST(EmptyMemoryEmptyDataSegment) {
 
 TEST(MemoryWithOOBEmptyDataSegment) {
   {
+    FlagScope<bool> no_bulk_memory(
+        &v8::internal::FLAG_experimental_wasm_bulk_memory, false);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);

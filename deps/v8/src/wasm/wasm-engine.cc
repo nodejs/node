@@ -278,13 +278,8 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
       asm_wasm_data->managed_native_module().get();
   Handle<FixedArray> export_wrappers =
       handle(asm_wasm_data->export_wrappers(), isolate);
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          native_module->module());
-
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(native_module), script,
-                            export_wrappers, code_size_estimate);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, std::move(native_module), script, export_wrappers);
   module_object->set_asm_js_offset_table(asm_wasm_data->asm_js_offset_table());
   return module_object;
 }
@@ -310,9 +305,6 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 
   Handle<Script> script =
       CreateWasmScript(isolate, bytes, native_module->module()->source_map_url);
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          native_module->module());
 
   // Create the module object.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -323,9 +315,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(native_module), script,
-                            export_wrappers, code_size_estimate);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, std::move(native_module), script, export_wrappers);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -451,14 +442,13 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module) {
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  const WasmModule* module = native_module->module();
-  Handle<Script> script =
-      CreateWasmScript(isolate, wire_bytes, module->source_map_url);
-  size_t code_size = native_module->committed_code_space();
+  Handle<Script> script = CreateWasmScript(
+      isolate, wire_bytes, native_module->module()->source_map_url);
+  Handle<FixedArray> export_wrappers;
+  CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(shared_native_module), script, code_size);
-  CompileJsToWasmWrappers(isolate, native_module->module(),
-                          handle(module_object->export_wrappers(), isolate));
+      isolate, std::move(shared_native_module), script, export_wrappers,
+      native_module->committed_code_space());
   {
     base::MutexGuard lock(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
@@ -678,6 +668,16 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
     code->LogCode(isolate);
   }
   WasmCode::DecrementRefCount(VectorOf(code_to_log));
+}
+
+std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
+    Isolate* isolate, const WasmFeatures& enabled,
+    std::shared_ptr<const WasmModule> module) {
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
+  return NewNativeModule(isolate, enabled, code_size_estimate,
+                         wasm::NativeModule::kCanAllocateMoreMemory,
+                         std::move(module));
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(

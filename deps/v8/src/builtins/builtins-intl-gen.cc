@@ -33,10 +33,7 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  Node* const string = Parameter(Descriptor::kString);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, IsString(string));
+  TNode<String> const string = CAST(Parameter(Descriptor::kString));
 
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
@@ -50,14 +47,14 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
       state(), string, ToDirectStringAssembler::kDontUnpackSlicedStrings);
   to_direct.TryToDirect(&runtime);
 
-  Node* const instance_type = to_direct.instance_type();
+  TNode<Int32T> const instance_type = to_direct.instance_type();
   CSA_ASSERT(this,
              Word32BinaryNot(IsIndirectStringInstanceType(instance_type)));
   GotoIfNot(IsOneByteStringInstanceType(instance_type), &runtime);
 
   // For short strings, do the conversion in CSA through the lookup table.
 
-  Node* const dst = AllocateSeqOneByteString(context, length);
+  TNode<String> const dst = AllocateSeqOneByteString(length);
 
   const int kMaxShortStringLength = 24;  // Determined empirically.
   GotoIf(Uint32GreaterThan(length, Uint32Constant(kMaxShortStringLength)),
@@ -68,31 +65,31 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     VARIABLE(var_cursor, MachineType::PointerRepresentation(),
              IntPtrConstant(0));
 
-    Node* const start_address = to_direct.PointerToData(&call_c);
+    TNode<RawPtrT> const start_address = to_direct.PointerToData(&call_c);
     TNode<IntPtrT> const end_address =
         Signed(IntPtrAdd(start_address, ChangeUint32ToWord(length)));
 
-    Node* const to_lower_table_addr =
+    TNode<ExternalReference> const to_lower_table_addr =
         ExternalConstant(ExternalReference::intl_to_latin1_lower_table());
 
     VARIABLE(var_did_change, MachineRepresentation::kWord32, Int32Constant(0));
 
     VariableList push_vars({&var_cursor, &var_did_change}, zone());
-    BuildFastLoop(push_vars, start_address, end_address,
-                  [=, &var_cursor, &var_did_change](Node* current) {
-                    Node* c = Load(MachineType::Uint8(), current);
-                    Node* lower =
-                        Load(MachineType::Uint8(), to_lower_table_addr,
-                             ChangeInt32ToIntPtr(c));
-                    StoreNoWriteBarrier(MachineRepresentation::kWord8, dst_ptr,
-                                        var_cursor.value(), lower);
+    BuildFastLoop(
+        push_vars, start_address, end_address,
+        [=, &var_cursor, &var_did_change](Node* current) {
+          TNode<Uint8T> c = Load<Uint8T>(current);
+          TNode<Uint8T> lower =
+              Load<Uint8T>(to_lower_table_addr, ChangeInt32ToIntPtr(c));
+          StoreNoWriteBarrier(MachineRepresentation::kWord8, dst_ptr,
+                              var_cursor.value(), lower);
 
-                    var_did_change.Bind(Word32Or(Word32NotEqual(c, lower),
-                                                 var_did_change.value()));
+          var_did_change.Bind(
+              Word32Or(Word32NotEqual(c, lower), var_did_change.value()));
 
-                    Increment(&var_cursor);
-                  },
-                  kCharSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+          Increment(&var_cursor);
+        },
+        kCharSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
     // Return the original string if it remained unchanged in order to preserve
     // e.g. internalization and private symbols (such as the preserved object
@@ -106,9 +103,9 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   // String ConvertOneByteToLower(String src, String dst);
   BIND(&call_c);
   {
-    Node* const src = to_direct.string();
+    TNode<String> const src = to_direct.string();
 
-    Node* const function_addr =
+    TNode<ExternalReference> const function_addr =
         ExternalConstant(ExternalReference::intl_convert_one_byte_to_lower());
 
     MachineType type_tagged = MachineType::AnyTagged();
@@ -125,8 +122,8 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   BIND(&runtime);
   {
-    Node* const result = CallRuntime(Runtime::kStringToLowerCaseIntl,
-                                     NoContextConstant(), string);
+    TNode<Object> const result = CallRuntime(Runtime::kStringToLowerCaseIntl,
+                                             NoContextConstant(), string);
     Return(result);
   }
 }

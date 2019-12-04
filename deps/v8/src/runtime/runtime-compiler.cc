@@ -266,7 +266,26 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       }
 
       DCHECK(result->is_turbofanned());
-      if (!function->HasOptimizedCode()) {
+      if (function->feedback_vector().invocation_count() <= 1 &&
+          function->HasOptimizationMarker()) {
+        // With lazy feedback allocation we may not have feedback for the
+        // initial part of the function that was executed before we allocated a
+        // feedback vector. Reset any optimization markers for such functions.
+        //
+        // TODO(mythria): Instead of resetting the optimization marker here we
+        // should only mark a function for optimization if it has sufficient
+        // feedback. We cannot do this currently since we OSR only after we mark
+        // a function for optimization. We should instead change it to be based
+        // based on number of ticks.
+        DCHECK(!function->IsInOptimizationQueue());
+        function->ClearOptimizationMarker();
+      }
+      // TODO(mythria): Once we have OSR code cache we may not need to mark
+      // the function for non-concurrent compilation. We could arm the loops
+      // early so the second execution uses the already compiled OSR code and
+      // the optimization occurs concurrently off main thread.
+      if (!function->HasOptimizedCode() &&
+          function->feedback_vector().invocation_count() > 1) {
         // If we're not already optimized, set to optimize non-concurrently on
         // the next call, otherwise we'd run unoptimized once more and
         // potentially compile for OSR again.

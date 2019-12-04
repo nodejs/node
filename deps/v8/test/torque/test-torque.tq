@@ -83,11 +83,11 @@ namespace test {
     }
   }
 
-  builtin GenericBuiltinTest<T: type>(_c: Context, _param: T): Object {
+  builtin GenericBuiltinTest<T: type>(_c: Context, _param: T): JSAny {
     return Null;
   }
 
-  GenericBuiltinTest<Object>(_c: Context, param: Object): Object {
+  GenericBuiltinTest<JSAny>(_c: Context, param: JSAny): JSAny {
     return param;
   }
 
@@ -95,8 +95,8 @@ namespace test {
   macro TestBuiltinSpecialization(c: Context) {
     check(GenericBuiltinTest<Smi>(c, 0) == Null);
     check(GenericBuiltinTest<Smi>(c, 1) == Null);
-    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
-    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<JSAny>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<JSAny>(c, Undefined) == Undefined);
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never
@@ -202,9 +202,8 @@ namespace test {
 
   @export
   macro TestFunctionPointerToGeneric(c: Context) {
-    const fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
-    const fptr2: builtin(Context, Object) => Object =
-        GenericBuiltinTest<Object>;
+    const fptr1: builtin(Context, Smi) => JSAny = GenericBuiltinTest<Smi>;
+    const fptr2: builtin(Context, JSAny) => JSAny = GenericBuiltinTest<JSAny>;
 
     check(fptr1(c, 0) == Null);
     check(fptr1(c, 1) == Null);
@@ -212,7 +211,7 @@ namespace test {
     check(fptr2(c, Undefined) == Undefined);
   }
 
-  type ObjectToObject = builtin(Context, Object) => Object;
+  type ObjectToObject = builtin(Context, JSAny) => JSAny;
   @export
   macro TestTypeAlias(x: ObjectToObject): BuiltinPtr {
     return x;
@@ -452,7 +451,7 @@ namespace test {
 
   @export
   macro TestSubtyping(x: Smi) {
-    const _foo: Object = x;
+    const _foo: JSAny = x;
   }
 
   macro IncrementIfSmi<A: type>(x: A): A {
@@ -543,95 +542,34 @@ namespace test {
     check(equal);
   }
 
-  macro BoolToBranch(x: bool): never
-      labels Taken, NotTaken {
-    if (x) {
-      goto Taken;
-    } else {
-      goto NotTaken;
-    }
+  @export
+  macro TestOrAnd(x: bool, y: bool, z: bool): bool {
+    return x || y && z ? true : false;
   }
 
   @export
-  macro TestOrAnd1(x: bool, y: bool, z: bool): bool {
-    return BoolToBranch(x) || y && z ? true : false;
-  }
-
-  @export
-  macro TestOrAnd2(x: bool, y: bool, z: bool): bool {
-    return x || BoolToBranch(y) && z ? true : false;
-  }
-
-  @export
-  macro TestOrAnd3(x: bool, y: bool, z: bool): bool {
-    return x || y && BoolToBranch(z) ? true : false;
-  }
-
-  @export
-  macro TestAndOr1(x: bool, y: bool, z: bool): bool {
-    return BoolToBranch(x) && y || z ? true : false;
-  }
-
-  @export
-  macro TestAndOr2(x: bool, y: bool, z: bool): bool {
-    return x && BoolToBranch(y) || z ? true : false;
-  }
-
-  @export
-  macro TestAndOr3(x: bool, y: bool, z: bool): bool {
-    return x && y || BoolToBranch(z) ? true : false;
+  macro TestAndOr(x: bool, y: bool, z: bool): bool {
+    return x && y || z ? true : false;
   }
 
   @export
   macro TestLogicalOperators() {
-    check(TestAndOr1(true, true, true));
-    check(TestAndOr2(true, true, true));
-    check(TestAndOr3(true, true, true));
-    check(TestAndOr1(true, true, false));
-    check(TestAndOr2(true, true, false));
-    check(TestAndOr3(true, true, false));
-    check(TestAndOr1(true, false, true));
-    check(TestAndOr2(true, false, true));
-    check(TestAndOr3(true, false, true));
-    check(!TestAndOr1(true, false, false));
-    check(!TestAndOr2(true, false, false));
-    check(!TestAndOr3(true, false, false));
-    check(TestAndOr1(false, true, true));
-    check(TestAndOr2(false, true, true));
-    check(TestAndOr3(false, true, true));
-    check(!TestAndOr1(false, true, false));
-    check(!TestAndOr2(false, true, false));
-    check(!TestAndOr3(false, true, false));
-    check(TestAndOr1(false, false, true));
-    check(TestAndOr2(false, false, true));
-    check(TestAndOr3(false, false, true));
-    check(!TestAndOr1(false, false, false));
-    check(!TestAndOr2(false, false, false));
-    check(!TestAndOr3(false, false, false));
-    check(TestOrAnd1(true, true, true));
-    check(TestOrAnd2(true, true, true));
-    check(TestOrAnd3(true, true, true));
-    check(TestOrAnd1(true, true, false));
-    check(TestOrAnd2(true, true, false));
-    check(TestOrAnd3(true, true, false));
-    check(TestOrAnd1(true, false, true));
-    check(TestOrAnd2(true, false, true));
-    check(TestOrAnd3(true, false, true));
-    check(TestOrAnd1(true, false, false));
-    check(TestOrAnd2(true, false, false));
-    check(TestOrAnd3(true, false, false));
-    check(TestOrAnd1(false, true, true));
-    check(TestOrAnd2(false, true, true));
-    check(TestOrAnd3(false, true, true));
-    check(!TestOrAnd1(false, true, false));
-    check(!TestOrAnd2(false, true, false));
-    check(!TestOrAnd3(false, true, false));
-    check(!TestOrAnd1(false, false, true));
-    check(!TestOrAnd2(false, false, true));
-    check(!TestOrAnd3(false, false, true));
-    check(!TestOrAnd1(false, false, false));
-    check(!TestOrAnd2(false, false, false));
-    check(!TestOrAnd3(false, false, false));
+    check(TestAndOr(true, true, true));
+    check(TestAndOr(true, true, false));
+    check(TestAndOr(true, false, true));
+    check(!TestAndOr(true, false, false));
+    check(TestAndOr(false, true, true));
+    check(!TestAndOr(false, true, false));
+    check(TestAndOr(false, false, true));
+    check(!TestAndOr(false, false, false));
+    check(TestOrAnd(true, true, true));
+    check(TestOrAnd(true, true, false));
+    check(TestOrAnd(true, false, true));
+    check(TestOrAnd(true, false, false));
+    check(TestOrAnd(false, true, true));
+    check(!TestOrAnd(false, true, false));
+    check(!TestOrAnd(false, false, true));
+    check(!TestOrAnd(false, false, false));
   }
 
   @export
@@ -688,7 +626,7 @@ namespace test {
   @export
   macro TestQualifiedAccess(implicit context: Context)() {
     const s: Smi = 0;
-    check(!array::IsJSArray(s));
+    check(!Is<JSArray>(s));
   }
 
   @export
@@ -746,14 +684,14 @@ namespace test {
   @export
   macro TestIterator(implicit context: Context)(o: JSReceiver, map: Map) {
     try {
-      const t1: Object = iterator::GetIteratorMethod(o);
+      const t1: JSAny = iterator::GetIteratorMethod(o);
       const t2: iterator::IteratorRecord = iterator::GetIterator(o);
 
-      const _t3: Object = iterator::IteratorStep(t2) otherwise Fail;
-      const _t4: Object = iterator::IteratorStep(t2, map) otherwise Fail;
+      const _t3: JSAny = iterator::IteratorStep(t2) otherwise Fail;
+      const _t4: JSAny = iterator::IteratorStep(t2, map) otherwise Fail;
 
-      const t5: Object = iterator::IteratorValue(o);
-      const _t6: Object = iterator::IteratorValue(o, map);
+      const t5: JSAny = iterator::IteratorValue(o);
+      const _t6: JSAny = iterator::IteratorValue(o, map);
 
       const _t7: JSArray = iterator::IterableToList(t1, t1);
 
@@ -904,6 +842,64 @@ namespace test {
   }
 
   @export
+  macro TestSlices() {
+    const it = TestIterator{count: 3};
+    const a = new FixedArray{map: kFixedArrayMap, length: 3, objects: ...it};
+    check(a.length == 3);
+
+    const oneTwoThree = Convert<Smi>(123);
+    a.objects[0] = oneTwoThree;
+    const firstRef:&Object = & a.objects[0];
+    check(TaggedEqual(* firstRef, oneTwoThree));
+
+    const slice: torque_internal::Slice<Object> = & a.objects;
+    const firstRefAgain:&Object = slice.TryAtIndex(0) otherwise unreachable;
+    check(TaggedEqual(* firstRefAgain, oneTwoThree));
+
+    const threeTwoOne = Convert<Smi>(321);
+    * firstRefAgain = threeTwoOne;
+    check(TaggedEqual(a.objects[0], threeTwoOne));
+
+    // *slice;             // error, not allowed
+    // a.objects;          // error, not allowed
+    // a.objects = slice;  // error, not allowed
+
+    // TODO(gsps): Currently errors, but should be allowed:
+    // const _sameSlice: torque_internal::Slice<Object> = &(*slice);
+    // (*slice)[0] : Smi
+  }
+
+  @export
+  macro TestSliceEnumeration(implicit context: Context)(): Undefined {
+    const fixedArray: FixedArray = AllocateZeroedFixedArray(3);
+    for (let i: intptr = 0; i < 3; i++) {
+      check(UnsafeCast<Smi>(fixedArray.objects[i]) == 0);
+      fixedArray.objects[i] = Convert<Smi>(i) + 3;
+    }
+
+    let slice = & fixedArray.objects;
+    for (let i: intptr = 0; i < slice.length; i++) {
+      let ref = slice.TryAtIndex(i) otherwise unreachable;
+      const value = UnsafeCast<Smi>(* ref);
+      check(value == Convert<Smi>(i) + 3);
+      * ref = value + 4;
+    }
+
+    let it = slice.Iterator();
+    let count: Smi = 0;
+    while (true) {
+      let ref = it.Next() otherwise break;
+      const value = UnsafeCast<Smi>(* ref);
+      check(value == count + 7);
+      count++;
+    }
+    check(count == 3);
+    check(it.Empty());
+
+    return Undefined;
+  }
+
+  @export
   macro TestStaticAssert() {
     StaticAssert(1 + 2 == 3);
   }
@@ -923,12 +919,12 @@ namespace test {
     const v1 = box.value;
     box.unrelated = 999;
     const v2 = (box.unrelated == 0) ? box.value : box.value;
-    StaticAssert(WordEqual(v1, v2));
+    StaticAssert(TaggedEqual(v1, v2));
 
     box.value = 11;
     const v3 = box.value;
     const eleven: Smi = 11;
-    StaticAssert(WordEqual(v3, eleven));
+    StaticAssert(TaggedEqual(v3, eleven));
   }
 
   @export
@@ -939,8 +935,8 @@ namespace test {
     const u1 = a.objects[box.value + 2];
     const v2 = a.objects[box.value];
     const u2 = a.objects[box.value + 2];
-    StaticAssert(WordEqual(v1, v2));
-    StaticAssert(WordEqual(u1, u2));
+    StaticAssert(TaggedEqual(v1, v2));
+    StaticAssert(TaggedEqual(u1, u2));
   }
 
   @export
@@ -980,8 +976,8 @@ namespace test {
   @export
   macro TestGenericStruct1(): intptr {
     const i: intptr = 123;
-    let box = SBox<intptr>{value: i};
-    let boxbox = SBox<SBox<intptr>>{value: box};
+    let box = SBox{value: i};
+    let boxbox: SBox<SBox<intptr>> = SBox{value: box};
     check(box.value == 123);
     boxbox.value.value *= 2;
     check(boxbox.value.value == 246);
@@ -993,18 +989,43 @@ namespace test {
     const snd: T2;
   }
 
-  macro Swap<T1: type, T2: type>(tuple: TestTuple<T1, T2>):
+  macro TupleSwap<T1: type, T2: type>(tuple: TestTuple<T1, T2>):
       TestTuple<T2, T1> {
-    return TestTuple<T2, T1>{fst: tuple.snd, snd: tuple.fst};
+    return TestTuple{fst: tuple.snd, snd: tuple.fst};
   }
 
   @export
-  macro TestGenericStruct2(): TestTuple<Smi, intptr> {
+  macro TestGenericStruct2():
+      TestTuple<TestTuple<intptr, Smi>, TestTuple<Smi, intptr>> {
     const intptrAndSmi = TestTuple<intptr, Smi>{fst: 1, snd: 2};
-    const smiAndIntptr = Swap<intptr, Smi>(intptrAndSmi);
+    const smiAndIntptr = TupleSwap(intptrAndSmi);
     check(intptrAndSmi.fst == smiAndIntptr.snd);
     check(intptrAndSmi.snd == smiAndIntptr.fst);
-    return smiAndIntptr;
+    const tupleTuple =
+        TestTuple<TestTuple<intptr, Smi>>{fst: intptrAndSmi, snd: smiAndIntptr};
+    return tupleTuple;
+  }
+
+  macro BranchAndWriteResult(x: Smi, box: SmiBox): bool {
+    if (x > 5 || x < 0) {
+      box.value = 1;
+      return true;
+    } else {
+      box.value = 2;
+      return false;
+    }
+  }
+
+  @export
+  macro TestBranchOnBoolOptimization(implicit context: Context)(input: Smi) {
+    const box = NewSmiBox(1);
+    // If the two branches get combined into one, we should be able to determine
+    // the value of {box} statically.
+    if (BranchAndWriteResult(input, box)) {
+      StaticAssert(box.value == 1);
+    } else {
+      StaticAssert(box.value == 2);
+    }
   }
 
 }

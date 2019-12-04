@@ -21,9 +21,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
-                             CommonOperatorBuilder* common, Zone* zone,
-                             Signature<MachineRepresentation>* signature)
+Int64Lowering::Int64Lowering(
+    Graph* graph, MachineOperatorBuilder* machine,
+    CommonOperatorBuilder* common, Zone* zone,
+    Signature<MachineRepresentation>* signature,
+    std::unique_ptr<Int64LoweringSpecialCase> special_case)
     : zone_(zone),
       graph_(graph),
       machine_(machine),
@@ -32,8 +34,9 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
       stack_(zone),
       replacements_(nullptr),
       signature_(signature),
-      placeholder_(graph->NewNode(common->Parameter(-2, "placeholder"),
-                                  graph->start())) {
+      placeholder_(
+          graph->NewNode(common->Parameter(-2, "placeholder"), graph->start())),
+      special_case_(std::move(special_case)) {
   DCHECK_NOT_NULL(graph);
   DCHECK_NOT_NULL(graph->end());
   replacements_ = zone->NewArray<Replacement>(graph->NodeCount());
@@ -77,7 +80,7 @@ void Int64Lowering::LowerGraph() {
 
 namespace {
 
-int GetReturnIndexAfterLowering(CallDescriptor* call_descriptor,
+int GetReturnIndexAfterLowering(const CallDescriptor* call_descriptor,
                                 int old_index) {
   int result = old_index;
   for (int i = 0; i < old_index; i++) {
@@ -89,7 +92,7 @@ int GetReturnIndexAfterLowering(CallDescriptor* call_descriptor,
   return result;
 }
 
-int GetReturnCountAfterLowering(CallDescriptor* call_descriptor) {
+int GetReturnCountAfterLowering(const CallDescriptor* call_descriptor) {
   return GetReturnIndexAfterLowering(
       call_descriptor, static_cast<int>(call_descriptor->ReturnCount()));
 }
@@ -336,21 +339,21 @@ void Int64Lowering::LowerNode(Node* node) {
       if (DefaultLowering(node) || returns_require_lowering) {
         // Tail calls do not have return values, so adjusting the call
         // descriptor is enough.
-        auto new_descriptor = GetI32WasmCallDescriptor(zone(), call_descriptor);
-        NodeProperties::ChangeOp(node, common()->TailCall(new_descriptor));
+        NodeProperties::ChangeOp(
+            node, common()->TailCall(LowerCallDescriptor(call_descriptor)));
       }
       break;
     }
     case IrOpcode::kCall: {
-      auto call_descriptor =
-          const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
+      auto call_descriptor = CallDescriptorOf(node->op());
+
       bool returns_require_lowering =
           GetReturnCountAfterLowering(call_descriptor) !=
           static_cast<int>(call_descriptor->ReturnCount());
       if (DefaultLowering(node) || returns_require_lowering) {
         // We have to adjust the call descriptor.
-        NodeProperties::ChangeOp(node, common()->Call(GetI32WasmCallDescriptor(
-                                           zone(), call_descriptor)));
+        NodeProperties::ChangeOp(
+            node, common()->Call(LowerCallDescriptor(call_descriptor)));
       }
       if (returns_require_lowering) {
         size_t return_arity = call_descriptor->ReturnCount();
@@ -992,6 +995,19 @@ bool Int64Lowering::DefaultLowering(Node* node, bool low_word_only) {
     }
   }
   return something_changed;
+}
+
+CallDescriptor* Int64Lowering::LowerCallDescriptor(
+    const CallDescriptor* call_descriptor) {
+  if (special_case_) {
+    if (call_descriptor == special_case_->bigint_to_i64_call_descriptor) {
+      return special_case_->bigint_to_i32_pair_call_descriptor;
+    }
+    if (call_descriptor == special_case_->i64_to_bigint_call_descriptor) {
+      return special_case_->i32_pair_to_bigint_call_descriptor;
+    }
+  }
+  return GetI32WasmCallDescriptor(zone(), call_descriptor);
 }
 
 void Int64Lowering::ReplaceNode(Node* old, Node* new_low, Node* new_high) {

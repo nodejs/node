@@ -37,7 +37,7 @@ class KeyedStoreGenericGenerator {
                                    TNode<Object> value);
 };
 
-class StoreICUninitializedGenerator {
+class StoreICNoFeedbackGenerator {
  public:
   static void Generate(compiler::CodeAssemblerState* state);
 };

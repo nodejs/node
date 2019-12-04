@@ -678,9 +678,6 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
       FindNameClash(isolate, scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
 
-  // We do not need script contexts here during bootstrap.
-  DCHECK(!isolate->bootstrapper()->IsActive());
-
   Handle<Context> result =
       isolate->factory()->NewScriptContext(native_context, scope_info);
 

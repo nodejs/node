@@ -221,7 +221,6 @@ class V8_EXPORT_PRIVATE RegExpParser {
 
   static bool IsSyntaxCharacterOrSlash(uc32 c);
 
-  static const int kMaxCaptures = 1 << 16;
   static const uc32 kEndMarker = (1 << 21);
 
  private:

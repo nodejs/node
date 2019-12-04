@@ -167,11 +167,11 @@ void TestReturnMultipleValues(MachineType type) {
 
       OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
                                     Code::WASM_FUNCTION);
-      Handle<Code> code =
-          Pipeline::GenerateCodeForTesting(
-              &info, handles.main_isolate(), desc, m.graph(),
-              AssemblerOptions::Default(handles.main_isolate()), m.Export())
-              .ToHandleChecked();
+      Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                              &info, handles.main_isolate(), desc, m.graph(),
+                              AssemblerOptions::Default(handles.main_isolate()),
+                              m.ExportForTest())
+                              .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_code) {
         StdoutStream os;
@@ -272,11 +272,11 @@ void ReturnLastValue(MachineType type) {
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
                                   Code::WASM_FUNCTION);
-    Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(
-            &info, handles.main_isolate(), desc, m.graph(),
-            AssemblerOptions::Default(handles.main_isolate()), m.Export())
-            .ToHandleChecked();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                            &info, handles.main_isolate(), desc, m.graph(),
+                            AssemblerOptions::Default(handles.main_isolate()),
+                            m.ExportForTest())
+                            .ToHandleChecked();
 
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
@@ -334,11 +334,11 @@ void ReturnSumOfReturns(MachineType type) {
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
                                   Code::WASM_FUNCTION);
-    Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(
-            &info, handles.main_isolate(), desc, m.graph(),
-            AssemblerOptions::Default(handles.main_isolate()), m.Export())
-            .ToHandleChecked();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                            &info, handles.main_isolate(), desc, m.graph(),
+                            AssemblerOptions::Default(handles.main_isolate()),
+                            m.ExportForTest())
+                            .ToHandleChecked();
 
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());

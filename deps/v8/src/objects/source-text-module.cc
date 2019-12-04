@@ -380,7 +380,7 @@ bool SourceTextModule::RunInitializationCode(Isolate* isolate,
     return false;
   }
   DCHECK_EQ(*function, Handle<JSGeneratorObject>::cast(generator)->function());
-  module->set_code(*generator);
+  module->set_code(JSGeneratorObject::cast(*generator));
   return true;
 }
 

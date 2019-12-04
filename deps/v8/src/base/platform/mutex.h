@@ -67,6 +67,8 @@ class V8_BASE_EXPORT Mutex final {
     return native_handle_;
   }
 
+  V8_INLINE void AssertHeld() { DCHECK_EQ(1, level_); }
+
  private:
   NativeHandle native_handle_;
 #ifdef DEBUG

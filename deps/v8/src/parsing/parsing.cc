@@ -18,7 +18,8 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, Isolate* isolate) {
+bool ParseProgram(ParseInfo* info, Isolate* isolate,
+                  ReportErrorsAndStatisticsMode mode) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -39,21 +40,25 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
 
   result = parser.ParseProgram(isolate, info);
   info->set_literal(result);
-  if (result == nullptr) {
-    info->pending_error_handler()->ReportErrors(isolate, info->script(),
-                                                info->ast_value_factory());
-  } else {
+  if (result) {
     info->set_language_mode(info->literal()->language_mode());
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
   }
-  parser.UpdateStatistics(isolate, info->script());
+
+  if (mode == ReportErrorsAndStatisticsMode::kYes) {
+    if (result == nullptr) {
+      info->pending_error_handler()->ReportErrors(isolate, info->script(),
+                                                  info->ast_value_factory());
+    }
+    parser.UpdateStatistics(isolate, info->script());
+  }
   return (result != nullptr);
 }
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-                   Isolate* isolate) {
+                   Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!info->is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
@@ -76,24 +81,28 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 
   result = parser.ParseFunction(isolate, info, shared_info);
   info->set_literal(result);
-  if (result == nullptr) {
-    info->pending_error_handler()->ReportErrors(isolate, info->script(),
-                                                info->ast_value_factory());
-  } else {
+  if (result) {
     info->ast_value_factory()->Internalize(isolate);
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
   }
-  parser.UpdateStatistics(isolate, info->script());
+
+  if (mode == ReportErrorsAndStatisticsMode::kYes) {
+    if (result == nullptr) {
+      info->pending_error_handler()->ReportErrors(isolate, info->script(),
+                                                  info->ast_value_factory());
+    }
+    parser.UpdateStatistics(isolate, info->script());
+  }
   return (result != nullptr);
 }
 
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-              Isolate* isolate) {
+              Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
-  return info->is_toplevel() ? ParseProgram(info, isolate)
-                             : ParseFunction(info, shared_info, isolate);
+  return info->is_toplevel() ? ParseProgram(info, isolate, mode)
+                             : ParseFunction(info, shared_info, isolate, mode);
 }
 
 }  // namespace parsing

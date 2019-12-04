@@ -47,8 +47,8 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    auto resolved = compiler::ResolveWasmImportCall(maybe_import->js_function,
-                                                    maybe_import->sig, false);
+    auto resolved = compiler::ResolveWasmImportCall(
+        maybe_import->js_function, maybe_import->sig, enabled_features_);
     compiler::WasmImportCallKind kind = resolved.first;
     Handle<JSReceiver> callable = resolved.second;
     WasmImportWrapperCache::ModificationScope cache_scope(
@@ -159,7 +159,7 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   FreezeSignatureMapAndInitializeWrapperCache();
   SetExecutable();
-  return WasmInstanceObject::GetOrCreateWasmExportedFunction(
+  return WasmInstanceObject::GetOrCreateWasmExternalFunction(
       isolate_, instance_object(), index);
 }
 
@@ -324,9 +324,14 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
+
+  auto native_module = isolate_->wasm_engine()->NewNativeModule(
+      isolate_, enabled_features_, test_module_);
+  native_module->SetWireBytes(OwnedVector<const uint8_t>());
+  native_module->SetRuntimeStubs(isolate_);
+
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, enabled_features_, test_module_, {},
-                            script, Handle<ByteArray>::null());
+      WasmModuleObject::New(isolate_, std::move(native_module), script);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
@@ -360,7 +365,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
     FATAL("Verification failed; pc = +%x, msg = %s", result.error().offset(),
           result.error().message().c_str());
   }
-  builder->LowerInt64();
+  builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
   if (!CpuFeatures::SupportsWasmSimd128()) {
     builder->SimdScalarLoweringForTesting();
   }
@@ -453,8 +458,8 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
   if (!code_.ToHandle(&code)) {
     Isolate* isolate = CcTest::InitIsolateOnce();
 
-    auto call_descriptor =
-        compiler::Linkage::GetSimplifiedCDescriptor(zone(), signature_, true);
+    auto call_descriptor = compiler::Linkage::GetSimplifiedCDescriptor(
+        zone(), signature_, CallDescriptor::kInitializeRootRegister);
 
     if (kSystemPointerSize == 4) {
       size_t num_params = signature_->parameter_count();

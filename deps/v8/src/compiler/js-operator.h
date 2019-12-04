@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
-#include "src/compiler/vector-slot-pair.h"
+#include "src/compiler/feedback-source.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
@@ -102,17 +102,17 @@ ConstructForwardVarargsParameters const& ConstructForwardVarargsParametersOf(
 class ConstructParameters final {
  public:
   ConstructParameters(uint32_t arity, CallFrequency const& frequency,
-                      VectorSlotPair const& feedback)
+                      FeedbackSource const& feedback)
       : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
   uint32_t arity() const { return arity_; }
   CallFrequency const& frequency() const { return frequency_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
   uint32_t const arity_;
   CallFrequency const frequency_;
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
 };
 
 bool operator==(ConstructParameters const&, ConstructParameters const&);
@@ -163,7 +163,7 @@ CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
 class CallParameters final {
  public:
   CallParameters(size_t arity, CallFrequency const& frequency,
-                 VectorSlotPair const& feedback,
+                 FeedbackSource const& feedback,
                  ConvertReceiverMode convert_mode,
                  SpeculationMode speculation_mode)
       : bit_field_(ArityField::encode(arity) |
@@ -177,7 +177,7 @@ class CallParameters final {
   ConvertReceiverMode convert_mode() const {
     return ConvertReceiverModeField::decode(bit_field_);
   }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
   SpeculationMode speculation_mode() const {
     return SpeculationModeField::decode(bit_field_);
@@ -192,7 +192,9 @@ class CallParameters final {
 
  private:
   friend size_t hash_value(CallParameters const& p) {
-    return base::hash_combine(p.bit_field_, p.frequency_, p.feedback_);
+    FeedbackSource::Hash feedback_hash;
+    return base::hash_combine(p.bit_field_, p.frequency_,
+                              feedback_hash(p.feedback_));
   }
 
   using ArityField = BitField<size_t, 0, 28>;
@@ -201,7 +203,7 @@ class CallParameters final {
 
   uint32_t const bit_field_;
   CallFrequency const frequency_;
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
 };
 
 size_t hash_value(CallParameters const&);
@@ -297,15 +299,15 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
 // Defines parameters for JSStoreNamedOwn operator.
 class StoreNamedOwnParameters final {
  public:
-  StoreNamedOwnParameters(Handle<Name> name, VectorSlotPair const& feedback)
+  StoreNamedOwnParameters(Handle<Name> name, FeedbackSource const& feedback)
       : name_(name), feedback_(feedback) {}
 
   Handle<Name> name() const { return name_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
   Handle<Name> const name_;
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
 };
 
 bool operator==(StoreNamedOwnParameters const&, StoreNamedOwnParameters const&);
@@ -322,13 +324,13 @@ const StoreNamedOwnParameters& StoreNamedOwnParametersOf(const Operator* op);
 // and JSStoreDataPropertyInLiteral operators.
 class FeedbackParameter final {
  public:
-  explicit FeedbackParameter(VectorSlotPair const& feedback)
+  explicit FeedbackParameter(FeedbackSource const& feedback)
       : feedback_(feedback) {}
 
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
 };
 
 bool operator==(FeedbackParameter const&, FeedbackParameter const&);
@@ -345,16 +347,16 @@ const FeedbackParameter& FeedbackParameterOf(const Operator* op);
 class NamedAccess final {
  public:
   NamedAccess(LanguageMode language_mode, Handle<Name> name,
-              VectorSlotPair const& feedback)
+              FeedbackSource const& feedback)
       : name_(name), feedback_(feedback), language_mode_(language_mode) {}
 
   Handle<Name> name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
   Handle<Name> const name_;
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
   LanguageMode const language_mode_;
 };
 
@@ -372,18 +374,18 @@ const NamedAccess& NamedAccessOf(const Operator* op);
 // used as a parameter by JSLoadGlobal operator.
 class LoadGlobalParameters final {
  public:
-  LoadGlobalParameters(const Handle<Name>& name, const VectorSlotPair& feedback,
+  LoadGlobalParameters(const Handle<Name>& name, const FeedbackSource& feedback,
                        TypeofMode typeof_mode)
       : name_(name), feedback_(feedback), typeof_mode_(typeof_mode) {}
 
   const Handle<Name>& name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
 
-  const VectorSlotPair& feedback() const { return feedback_; }
+  const FeedbackSource& feedback() const { return feedback_; }
 
  private:
   const Handle<Name> name_;
-  const VectorSlotPair feedback_;
+  const FeedbackSource feedback_;
   const TypeofMode typeof_mode_;
 };
 
@@ -402,18 +404,18 @@ const LoadGlobalParameters& LoadGlobalParametersOf(const Operator* op);
 class StoreGlobalParameters final {
  public:
   StoreGlobalParameters(LanguageMode language_mode,
-                        const VectorSlotPair& feedback,
+                        const FeedbackSource& feedback,
                         const Handle<Name>& name)
       : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
+  const FeedbackSource& feedback() const { return feedback_; }
   const Handle<Name>& name() const { return name_; }
 
  private:
   const LanguageMode language_mode_;
   const Handle<Name> name_;
-  const VectorSlotPair feedback_;
+  const FeedbackSource feedback_;
 };
 
 bool operator==(StoreGlobalParameters const&, StoreGlobalParameters const&);
@@ -430,14 +432,14 @@ const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op);
 // as a parameter by the JSLoadProperty and JSStoreProperty operators.
 class PropertyAccess final {
  public:
-  PropertyAccess(LanguageMode language_mode, VectorSlotPair const& feedback)
+  PropertyAccess(LanguageMode language_mode, FeedbackSource const& feedback)
       : feedback_(feedback), language_mode_(language_mode) {}
 
   LanguageMode language_mode() const { return language_mode_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
   LanguageMode const language_mode_;
 };
 
@@ -602,20 +604,20 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 class CreateLiteralParameters final {
  public:
   CreateLiteralParameters(Handle<HeapObject> constant,
-                          VectorSlotPair const& feedback, int length, int flags)
+                          FeedbackSource const& feedback, int length, int flags)
       : constant_(constant),
         feedback_(feedback),
         length_(length),
         flags_(flags) {}
 
   Handle<HeapObject> constant() const { return constant_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
   int length() const { return length_; }
   int flags() const { return flags_; }
 
  private:
   Handle<HeapObject> const constant_;
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
   int const length_;
   int const flags_;
 };
@@ -631,14 +633,14 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
 class CloneObjectParameters final {
  public:
-  CloneObjectParameters(VectorSlotPair const& feedback, int flags)
+  CloneObjectParameters(FeedbackSource const& feedback, int flags)
       : feedback_(feedback), flags_(flags) {}
 
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
   int flags() const { return flags_; }
 
  private:
-  VectorSlotPair const feedback_;
+  FeedbackSource const feedback_;
   int const flags_;
 };
 
@@ -735,32 +737,32 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateTypedArray();
   const Operator* CreateLiteralArray(
       Handle<ArrayBoilerplateDescription> constant,
-      VectorSlotPair const& feedback, int literal_flags,
+      FeedbackSource const& feedback, int literal_flags,
       int number_of_elements);
-  const Operator* CreateEmptyLiteralArray(VectorSlotPair const& feedback);
+  const Operator* CreateEmptyLiteralArray(FeedbackSource const& feedback);
   const Operator* CreateArrayFromIterable();
   const Operator* CreateEmptyLiteralObject();
 
   const Operator* CreateLiteralObject(
       Handle<ObjectBoilerplateDescription> constant,
-      VectorSlotPair const& feedback, int literal_flags,
+      FeedbackSource const& feedback, int literal_flags,
       int number_of_properties);
-  const Operator* CloneObject(VectorSlotPair const& feedback,
+  const Operator* CloneObject(FeedbackSource const& feedback,
                               int literal_flags);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
-                                      VectorSlotPair const& feedback,
+                                      FeedbackSource const& feedback,
                                       int literal_flags);
 
   const Operator* CallForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Call(
       size_t arity, CallFrequency const& frequency = CallFrequency(),
-      VectorSlotPair const& feedback = VectorSlotPair(),
+      FeedbackSource const& feedback = FeedbackSource(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
   const Operator* CallWithArrayLike(CallFrequency const& frequency);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
-      VectorSlotPair const& feedback = VectorSlotPair(),
+      FeedbackSource const& feedback = FeedbackSource(),
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
@@ -769,39 +771,39 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Construct(uint32_t arity,
                             CallFrequency const& frequency = CallFrequency(),
-                            VectorSlotPair const& feedback = VectorSlotPair());
+                            FeedbackSource const& feedback = FeedbackSource());
   const Operator* ConstructWithArrayLike(CallFrequency const& frequency);
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
-      VectorSlotPair const& feedback = VectorSlotPair());
+      FeedbackSource const& feedback = FeedbackSource());
 
-  const Operator* LoadProperty(VectorSlotPair const& feedback);
-  const Operator* LoadNamed(Handle<Name> name, VectorSlotPair const& feedback);
+  const Operator* LoadProperty(FeedbackSource const& feedback);
+  const Operator* LoadNamed(Handle<Name> name, FeedbackSource const& feedback);
 
   const Operator* StoreProperty(LanguageMode language_mode,
-                                VectorSlotPair const& feedback);
+                                FeedbackSource const& feedback);
   const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
-                             VectorSlotPair const& feedback);
+                             FeedbackSource const& feedback);
 
   const Operator* StoreNamedOwn(Handle<Name> name,
-                                VectorSlotPair const& feedback);
-  const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
-  const Operator* StoreInArrayLiteral(const VectorSlotPair& feedback);
+                                FeedbackSource const& feedback);
+  const Operator* StoreDataPropertyInLiteral(const FeedbackSource& feedback);
+  const Operator* StoreInArrayLiteral(const FeedbackSource& feedback);
 
   const Operator* DeleteProperty();
 
-  const Operator* HasProperty(VectorSlotPair const& feedback);
+  const Operator* HasProperty(FeedbackSource const& feedback);
 
   const Operator* GetSuperConstructor();
 
   const Operator* CreateGeneratorObject();
 
   const Operator* LoadGlobal(const Handle<Name>& name,
-                             const VectorSlotPair& feedback,
+                             const FeedbackSource& feedback,
                              TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Handle<Name>& name,
-                              const VectorSlotPair& feedback);
+                              const FeedbackSource& feedback);
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
@@ -810,7 +812,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreModule(int32_t cell_index);
 
   const Operator* HasInPrototypeChain();
-  const Operator* InstanceOf(const VectorSlotPair& feedback);
+  const Operator* InstanceOf(const FeedbackSource& feedback);
   const Operator* OrdinaryHasInstance();
 
   const Operator* AsyncFunctionEnter();
@@ -853,6 +855,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ObjectIsArray();
   const Operator* ParseInt();
   const Operator* RegExpTest();
+
+  const Operator* GetIterator(FeedbackSource const& feedback);
 
  private:
   Zone* zone() const { return zone_; }

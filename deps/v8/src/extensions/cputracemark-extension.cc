@@ -26,7 +26,7 @@ void CpuTraceMarkExtension::Mark(
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
-#if !V8_LIBC_MSVCRT
+#if defined(__clang__)
   // for non msvc build
   uint32_t param =
       args[0]->Uint32Value(args.GetIsolate()->GetCurrentContext()).ToChecked();

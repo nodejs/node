@@ -377,32 +377,6 @@ TEST_F(MicrotaskQueueTest, DetachGlobal_Run) {
   }
 }
 
-TEST_F(MicrotaskQueueTest, DetachGlobal_FinalizationGroup) {
-  // Enqueue an FinalizationGroupCleanupTask.
-  Handle<JSArray> ran = RunJS<JSArray>(
-      "var ran = [false];"
-      "var wf = new FinalizationGroup(() => { ran[0] = true; });"
-      "(function() { wf.register({}, {}); })();"
-      "gc();"
-      "ran");
-
-  EXPECT_TRUE(
-      Object::GetElement(isolate(), ran, 0).ToHandleChecked()->IsFalse());
-  EXPECT_EQ(1, microtask_queue()->size());
-
-  // Detach MicrotaskQueue from the current context.
-  context()->DetachGlobal();
-
-  microtask_queue()->RunMicrotasks(isolate());
-
-  // RunMicrotasks processes the pending Microtask, but Microtasks that are
-  // associated to a detached context should be cancelled and should not take
-  // effect.
-  EXPECT_EQ(0, microtask_queue()->size());
-  EXPECT_TRUE(
-      Object::GetElement(isolate(), ran, 0).ToHandleChecked()->IsFalse());
-}
-
 namespace {
 
 void DummyPromiseHook(PromiseHookType type, Local<Promise> promise,

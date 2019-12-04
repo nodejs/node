@@ -96,6 +96,15 @@ enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
 
+enum class AllocationOrigin {
+  kGeneratedCode = 0,
+  kRuntime = 1,
+  kGC = 2,
+  kFirstAllocationOrigin = kGeneratedCode,
+  kLastAllocationOrigin = kGC,
+  kNumberOfAllocationOrigins = kLastAllocationOrigin + 1
+};
+
 enum class GarbageCollectionReason {
   kUnknown = 0,
   kAllocationFailure = 1,
@@ -576,7 +585,7 @@ class Heap {
 
   V8_INLINE int64_t external_memory();
   V8_INLINE void update_external_memory(int64_t delta);
-  V8_INLINE void update_external_memory_concurrently_freed(intptr_t freed);
+  V8_INLINE void update_external_memory_concurrently_freed(uintptr_t freed);
   V8_INLINE void account_external_memory_concurrently_freed();
 
   size_t backing_store_bytes() const { return backing_store_bytes_; }
@@ -712,15 +721,6 @@ class Heap {
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);
   V8_INLINE void SetMessageListeners(TemplateList value);
   V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
-
-  // Set the stack limit in the roots table.  Some architectures generate
-  // code that looks here, because it is faster than loading from the static
-  // jslimit_/real_jslimit_ variable in the StackGuard.
-  void SetStackLimits();
-
-  // The stack limit is thread-dependent. To be able to reproduce the same
-  // snapshot blob, we need to reset it before serializing.
-  void ClearStackLimits();
 
   void RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end);
   void UnregisterStrongRoots(FullObjectSlot start);
@@ -1729,7 +1729,8 @@ class Heap {
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
-      AllocationAlignment aligment = kWordAligned);
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
 
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
@@ -1737,8 +1738,14 @@ class Heap {
   // times. If after that retry procedure the allocation still fails nullptr is
   // returned.
   HeapObject AllocateRawWithLightRetry(
-      int size, AllocationType allocation,
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
+  HeapObject AllocateRawWithLightRetry(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kWordAligned) {
+    return AllocateRawWithLightRetry(size, allocation,
+                                     AllocationOrigin::kRuntime, alignment);
+  }
 
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
@@ -1747,8 +1754,15 @@ class Heap {
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
   HeapObject AllocateRawWithRetryOrFail(
-      int size, AllocationType allocation,
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
+  HeapObject AllocateRawWithRetryOrFail(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kWordAligned) {
+    return AllocateRawWithRetryOrFail(size, allocation,
+                                      AllocationOrigin::kRuntime, alignment);
+  }
+
   HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.
@@ -1789,7 +1803,7 @@ class Heap {
 #endif  // DEBUG
 
   // The amount of memory that has been freed concurrently.
-  std::atomic<intptr_t> external_memory_concurrently_freed_{0};
+  std::atomic<uintptr_t> external_memory_concurrently_freed_{0};
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.

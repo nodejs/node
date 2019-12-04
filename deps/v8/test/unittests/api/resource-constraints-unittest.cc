@@ -10,7 +10,6 @@
 
 namespace v8 {
 
-/* These tests do not apply on Node 12.
 TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeSmall) {
   const size_t KB = static_cast<size_t>(i::KB);
   const size_t MB = static_cast<size_t>(i::MB);
@@ -40,7 +39,6 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   ASSERT_EQ(3 * 512 * pm * KB,
             constraints.initial_young_generation_size_in_bytes());
 }
-*/
 
 TEST(ResourceConstraints, ConfigureDefaults) {
   const size_t KB = static_cast<size_t>(i::KB);

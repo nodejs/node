@@ -18,7 +18,7 @@ class InterruptsScope {
  public:
   enum Mode { kPostponeInterrupts, kRunInterrupts, kNoop };
 
-  V8_EXPORT_PRIVATE InterruptsScope(Isolate* isolate, int intercept_mask,
+  V8_EXPORT_PRIVATE InterruptsScope(Isolate* isolate, intptr_t intercept_mask,
                                     Mode mode);
 
   virtual ~InterruptsScope() {
@@ -33,8 +33,8 @@ class InterruptsScope {
 
  private:
   StackGuard* stack_guard_;
-  int intercept_mask_;
-  int intercepted_flags_;
+  intptr_t intercept_mask_;
+  intptr_t intercepted_flags_;
   Mode mode_;
   InterruptsScope* prev_;
 

@@ -91,13 +91,17 @@ int main(int argc, const char* argv[]) {
     wasm_valtype_new(WASM_I64), WASM_VAR);
 
   wasm_val_t val_f32_1 = {.kind = WASM_F32, .of = {.f32 = 1}};
-  own wasm_global_t* const_f32_import = wasm_global_new(store, const_f32_type, &val_f32_1);
+  own wasm_global_t* const_f32_import =
+    wasm_global_new(store, const_f32_type, &val_f32_1);
   wasm_val_t val_i64_2 = {.kind = WASM_I64, .of = {.i64 = 2}};
-  own wasm_global_t* const_i64_import = wasm_global_new(store, const_i64_type, &val_i64_2);
+  own wasm_global_t* const_i64_import =
+    wasm_global_new(store, const_i64_type, &val_i64_2);
   wasm_val_t val_f32_3 = {.kind = WASM_F32, .of = {.f32 = 3}};
-  own wasm_global_t* var_f32_import = wasm_global_new(store, var_f32_type, &val_f32_3);
+  own wasm_global_t* var_f32_import =
+    wasm_global_new(store, var_f32_type, &val_f32_3);
   wasm_val_t val_i64_4 = {.kind = WASM_I64, .of = {.i64 = 4}};
-  own wasm_global_t* var_i64_import = wasm_global_new(store, var_i64_type, &val_i64_4);
+  own wasm_global_t* var_i64_import =
+    wasm_global_new(store, var_i64_type, &val_i64_4);
 
   wasm_globaltype_delete(const_f32_type);
   wasm_globaltype_delete(const_i64_type);
@@ -112,7 +116,8 @@ int main(int argc, const char* argv[]) {
     wasm_global_as_extern(var_f32_import),
     wasm_global_as_extern(var_i64_import)
   };
-  own wasm_instance_t* instance = wasm_instance_new(store, module, imports);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, imports, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
@@ -141,6 +146,11 @@ int main(int argc, const char* argv[]) {
   wasm_func_t* set_var_i64_import = get_export_func(&exports, i++);
   wasm_func_t* set_var_f32_export = get_export_func(&exports, i++);
   wasm_func_t* set_var_i64_export = get_export_func(&exports, i++);
+
+  // Try cloning.
+  own wasm_global_t* copy = wasm_global_copy(var_f32_import);
+  assert(wasm_global_same(var_f32_import, copy));
+  wasm_global_delete(copy);
 
   // Interact.
   printf("Accessing globals...\n");

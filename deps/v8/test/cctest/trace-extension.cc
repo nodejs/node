@@ -30,6 +30,7 @@
 #include "include/v8-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/smi.h"
+#include "src/profiler/tick-sample.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -89,12 +90,11 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return fp;
 }
 
-static struct { v8::TickSample* sample; } trace_env = {nullptr};
+static struct { TickSample* sample; } trace_env = {nullptr};
 
-void TraceExtension::InitTraceEnv(v8::TickSample* sample) {
+void TraceExtension::InitTraceEnv(TickSample* sample) {
   trace_env.sample = sample;
 }
-
 
 void TraceExtension::DoTrace(Address fp) {
   RegisterState regs;
@@ -102,8 +102,8 @@ void TraceExtension::DoTrace(Address fp) {
   // sp is only used to define stack high bound
   regs.sp = reinterpret_cast<void*>(
       reinterpret_cast<Address>(trace_env.sample) - 10240);
-  trace_env.sample->Init(CcTest::isolate(), regs,
-                         v8::TickSample::kSkipCEntryFrame, true);
+  trace_env.sample->Init(CcTest::i_isolate(), regs,
+                         TickSample::kSkipCEntryFrame, true);
 }
 
 
