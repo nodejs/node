@@ -275,6 +275,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android")
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
        src/unix/pthread-fixes.c
+       src/unix/random-getrandom.c
+       src/unix/random-sysctl-linux.c
        src/unix/sysinfo-loadavg.c)
 endif()
 
@@ -320,7 +322,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
        src/unix/random-getrandom.c
-       src/unix/random-sysctl.c
+       src/unix/random-sysctl-linux.c
        src/unix/sysinfo-loadavg.c)
 endif()
 
