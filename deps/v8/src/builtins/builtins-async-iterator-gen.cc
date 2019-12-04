@@ -98,7 +98,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     const UndefinedMethodHandler& if_method_undefined,
     const char* operation_name, Label::Type reject_label_type,
     Node* const initial_exception_value) {
-  Node* const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   Node* const promise = AllocateAndInitJSPromise(context);
 
   VARIABLE(var_exception, MachineRepresentation::kTagged,
@@ -109,7 +109,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   ThrowIfNotAsyncFromSyncIterator(context, iterator, &reject_promise,
                                   &var_exception, operation_name);
 
-  Node* const sync_iterator =
+  TNode<Object> const sync_iterator =
       LoadObjectField(iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset);
 
   Node* const method = get_method(sync_iterator);
@@ -132,13 +132,13 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   std::tie(value, done) = LoadIteratorResult(
       context, native_context, iter_result, &reject_promise, &var_exception);
 
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  TNode<JSFunction> const promise_fun =
+      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_ASSERT(this, IsConstructor(promise_fun));
 
   // Let valueWrapper be PromiseResolve(%Promise%, « value »).
-  Node* const value_wrapper = CallBuiltin(Builtins::kPromiseResolve,
-                                          native_context, promise_fun, value);
+  TNode<Object> const value_wrapper = CallBuiltin(
+      Builtins::kPromiseResolve, native_context, promise_fun, value);
   // IfAbruptRejectPromise(valueWrapper, promiseCapability).
   GotoIfException(value_wrapper, &reject_promise, &var_exception);
 
@@ -167,15 +167,15 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
       done(this), if_notanobject(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(iter_result), &if_notanobject);
 
-  Node* const iter_result_map = LoadMap(iter_result);
+  TNode<Map> const iter_result_map = LoadMap(iter_result);
   GotoIfNot(IsJSReceiverMap(iter_result_map), &if_notanobject);
 
-  Node* const fast_iter_result_map =
+  TNode<Object> const fast_iter_result_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
   VARIABLE(var_value, MachineRepresentation::kTagged);
   VARIABLE(var_done, MachineRepresentation::kTagged);
-  Branch(WordEqual(iter_result_map, fast_iter_result_map), &if_fastpath,
+  Branch(TaggedEqual(iter_result_map, fast_iter_result_map), &if_fastpath,
          &if_slowpath);
 
   BIND(&if_fastpath);
@@ -190,13 +190,13 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   {
     // Let nextDone be IteratorComplete(nextResult).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
-    Node* const done =
+    TNode<Object> const done =
         GetProperty(context, iter_result, factory()->done_string());
     GotoIfException(done, if_exception, var_exception);
 
     // Let nextValue be IteratorValue(nextResult).
     // IfAbruptRejectPromise(nextValue, promiseCapability).
-    Node* const value =
+    TNode<Object> const value =
         GetProperty(context, iter_result, factory()->value_string());
     GotoIfException(value, if_exception, var_exception);
 
@@ -222,7 +222,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 
   BIND(&to_boolean);
   {
-    Node* const result =
+    TNode<Object> const result =
         CallBuiltin(Builtins::kToBoolean, context, var_done.value());
     var_done.Bind(result);
     Goto(&done);
@@ -261,8 +261,8 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
                                  Node* const promise, Label* if_exception) {
     // If return is undefined, then
     // Let iterResult be ! CreateIterResultObject(value, true)
-    Node* const iter_result = CallBuiltin(Builtins::kCreateIterResultObject,
-                                          context, value, TrueConstant());
+    TNode<Object> const iter_result = CallBuiltin(
+        Builtins::kCreateIterResultObject, context, value, TrueConstant());
 
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
     // IfAbruptRejectPromise(nextDone, promiseCapability).

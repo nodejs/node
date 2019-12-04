@@ -321,23 +321,6 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
             break;
           }
 
-          case kExprI8x16Shl:
-          case kExprI8x16ShrS:
-          case kExprI8x16ShrU:
-          case kExprI16x8Shl:
-          case kExprI16x8ShrS:
-          case kExprI16x8ShrU:
-          case kExprI32x4Shl:
-          case kExprI32x4ShrS:
-          case kExprI32x4ShrU:
-          case kExprI64x2Shl:
-          case kExprI64x2ShrS:
-          case kExprI64x2ShrU: {
-            SimdShiftImmediate<Decoder::kNoValidate> imm(&i, i.pc());
-            os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.shift;
-            break;
-          }
-
             FOREACH_SIMD_0_OPERAND_OPCODE(CASE_OPCODE) {
               os << WasmOpcodes::OpcodeName(opcode);
               break;

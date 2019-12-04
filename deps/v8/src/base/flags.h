@@ -53,13 +53,13 @@ class Flags final {
   }
 
   constexpr Flags operator&(const Flags& flags) const {
-    return Flags(*this) &= flags;
+    return Flags(mask_ & flags.mask_);
   }
   constexpr Flags operator|(const Flags& flags) const {
-    return Flags(*this) |= flags;
+    return Flags(mask_ | flags.mask_);
   }
   constexpr Flags operator^(const Flags& flags) const {
-    return Flags(*this) ^= flags;
+    return Flags(mask_ ^ flags.mask_);
   }
 
   Flags& operator&=(flag_type flag) { return operator&=(Flags(flag)); }

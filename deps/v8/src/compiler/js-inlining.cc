@@ -247,9 +247,13 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
+
+  static constexpr int kTargetInputIndex = 0;
+  static constexpr int kReceiverInputIndex = 1;
+  const int parameter_count_with_receiver = parameter_count + 1;
   NodeVector params(local_zone_);
-  for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
-    params.push_back(node->InputAt(1 + parameter));
+  for (int i = 0; i < parameter_count_with_receiver; i++) {
+    params.push_back(node->InputAt(kReceiverInputIndex + i));
   }
   const Operator* op_param = common()->StateValues(
       static_cast<int>(params.size()), SparseInputMask::Dense());
@@ -259,7 +263,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
     context = jsgraph()->UndefinedConstant();
   }
   return graph()->NewNode(op, params_node, node0, node0, context,
-                          node->InputAt(0), outer_frame_state);
+                          node->InputAt(kTargetInputIndex), outer_frame_state);
 }
 
 namespace {
@@ -301,7 +305,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (!function.native_context().equals(broker()->native_context())) {
+    if (!function.native_context().equals(broker()->target_native_context())) {
       return base::nullopt;
     }
 
@@ -332,7 +336,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
 //  - context         : The context (as SSA value) bound by the call target.
 //  - feedback_vector : The target is guaranteed to use this feedback vector.
 FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
-                                                  Node*& context_out) {
+                                                  Node** context_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
   HeapObjectMatcher match(node->InputAt(0));
 
@@ -342,7 +346,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
     CHECK(function.has_feedback_vector());
 
     // The inlinee specializes to the context from the JSFunction object.
-    context_out = jsgraph()->Constant(function.context());
+    *context_out = jsgraph()->Constant(function.context());
     return function.feedback_vector();
   }
 
@@ -354,7 +358,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
     FeedbackCellRef cell(FeedbackCellRef(broker(), p.feedback_cell()));
 
     // The inlinee uses the locally provided context at instantiation.
-    context_out = NodeProperties::GetContextInput(match.node());
+    *context_out = NodeProperties::GetContextInput(match.node());
     return cell.value().AsFeedbackVector();
   }
 
@@ -369,13 +373,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the call target.
   base::Optional<SharedFunctionInfoRef> shared_info(DetermineCallTarget(node));
   if (!shared_info.has_value()) return NoChange();
-
   DCHECK(shared_info->IsInlineable());
+
+  SharedFunctionInfoRef outer_shared_info(broker(), info_->shared_info());
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&
       !IsConstructable(shared_info->kind())) {
-    TRACE("Not inlining " << *shared_info << " into " << info_->shared_info()
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
                           << " because constructor is not constructable.");
     return NoChange();
   }
@@ -384,7 +389,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (node->opcode() == IrOpcode::kJSCall &&
       IsClassConstructor(shared_info->kind())) {
-    TRACE("Not inlining " << *shared_info << " into " << info_->shared_info()
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
                           << " because callee is a class constructor.");
     return NoChange();
   }
@@ -398,7 +403,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     nesting_level++;
     if (nesting_level > kMaxDepthForInlining) {
       TRACE("Not inlining "
-            << *shared_info << " into " << info_->shared_info()
+            << *shared_info << " into " << outer_shared_info
             << " because call has exceeded the maximum depth for function "
                "inlining.");
       return NoChange();
@@ -413,38 +418,38 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // passing the IsInlineable check, The broker holds a reference to the
   // bytecode array, which prevents it from getting flushed.
   // Therefore, the following check should always hold true.
-  CHECK(shared_info.value().is_compiled());
+  CHECK(shared_info->is_compiled());
 
   if (!FLAG_concurrent_inlining && info_->is_source_positions_enabled()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(),
                                                        shared_info->object());
   }
 
-  TRACE("Inlining " << *shared_info << " into " << info_->shared_info()
+  TRACE("Inlining " << *shared_info << " into " << outer_shared_info
                     << ((exception_target != nullptr) ? " (inside try-block)"
                                                       : ""));
   // Determine the targets feedback vector and its context.
   Node* context;
-  FeedbackVectorRef feedback_vector = DetermineCallContext(node, context);
+  FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
 
-  if (FLAG_concurrent_inlining) {
-    if (!shared_info.value().IsSerializedForCompilation(feedback_vector)) {
-      TRACE("Missed opportunity to inline a function ("
-            << *shared_info << " with " << feedback_vector << ")");
-      return NoChange();
-    }
+  if (FLAG_concurrent_inlining &&
+      !shared_info->IsSerializedForCompilation(feedback_vector)) {
+    // TODO(neis): Should this be a broker message?
+    TRACE("Missed opportunity to inline a function ("
+          << *shared_info << " with " << feedback_vector << ")");
+    return NoChange();
   }
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  BytecodeArrayRef bytecode_array = shared_info.value().GetBytecodeArray();
+  BytecodeArrayRef bytecode_array = shared_info->GetBytecodeArray();
 
   // Remember that we inlined this function.
-  int inlining_id = info_->AddInlinedFunction(
-      shared_info.value().object(), bytecode_array.object(),
-      source_positions_->GetSourcePosition(node));
+  int inlining_id =
+      info_->AddInlinedFunction(shared_info->object(), bytecode_array.object(),
+                                source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
   Node* start;
@@ -461,20 +466,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
     {
-      // TODO(mslekova): Remove the following once bytecode graph builder
-      // is brokerized. Also, remove the context argument from
-      // BuildGraphFromBytecode and extract it from the broker there.
-      AllowHandleDereference allow_handle_deref;
-      AllowHandleAllocation allow_handle_alloc;
-      AllowHeapAllocation allow_heap_alloc;
-      AllowCodeDependencyChange allow_code_dep_change;
       CallFrequency frequency = call.frequency();
-      Handle<NativeContext> native_context(info_->native_context(), isolate());
-      BuildGraphFromBytecode(
-          broker(), zone(), bytecode_array.object(),
-          shared_info.value().object(), feedback_vector.object(),
-          BailoutId::None(), jsgraph(), frequency, source_positions_,
-          native_context, inlining_id, flags, &info_->tick_counter());
+      BuildGraphFromBytecode(broker(), zone(), *shared_info, feedback_vector,
+                             BailoutId::None(), jsgraph(), frequency,
+                             source_positions_, inlining_id, flags,
+                             &info_->tick_counter());
     }
 
     // Extract the inlinee start/end nodes.
@@ -522,13 +518,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // where execution continues at {construct_stub_create_deopt_pc_offset}).
     Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     Node* context = NodeProperties::GetContextInput(node);
-    if (NeedsImplicitReceiver(shared_info.value())) {
+    if (NeedsImplicitReceiver(*shared_info)) {
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
       Node* frame_state_inside = CreateArtificialFrameState(
           node, frame_state, call.formal_arguments(),
           BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
-          shared_info.value(), context);
+          *shared_info, context);
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            context, frame_state_inside, effect, control);
@@ -583,7 +579,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(),
         BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
-        shared_info.value(), context);
+        *shared_info, context);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
@@ -593,8 +589,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NodeProperties::CanBePrimitive(broker(), call.receiver(), effect)) {
       CallParameters const& p = CallParametersOf(node->op());
-      Node* global_proxy =
-          jsgraph()->Constant(broker()->native_context().global_proxy_object());
+      Node* global_proxy = jsgraph()->Constant(
+          broker()->target_native_context().global_proxy_object());
       Node* receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
                            call.receiver(), global_proxy, effect, start);
@@ -612,7 +608,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(), BailoutId::None(),
-        FrameStateType::kArgumentsAdaptor, shared_info.value());
+        FrameStateType::kArgumentsAdaptor, *shared_info);
   }
 
   return InlineCall(node, new_target, context, frame_state, start, end,

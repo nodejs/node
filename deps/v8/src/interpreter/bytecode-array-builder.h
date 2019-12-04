@@ -21,6 +21,7 @@
 namespace v8 {
 namespace internal {
 
+class BytecodeArray;
 class FeedbackVectorSpec;
 class Isolate;
 
@@ -42,6 +43,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
   Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
+
+#ifdef DEBUG
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+#endif
 
   // Get the number of parameters expected by function.
   int parameter_count() const {
@@ -127,9 +133,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
+
   // Named load property of the @@iterator symbol.
-  BytecodeArrayBuilder& LoadIteratorProperty(Register object,
-                                             int feedback_slot);
+  BytecodeArrayBuilder& GetIterator(Register object, int feedback_slot);
+
   // Named load property of the @@asyncIterator symbol.
   BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,
                                                   int feedback_slot);
@@ -418,6 +425,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfUndefinedOrNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotUndefined(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNil(BytecodeLabel* label, Token::Value op,
                                   NilValue nil);

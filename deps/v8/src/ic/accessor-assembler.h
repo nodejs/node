@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC();
   void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
-  void GenerateLoadIC_Uninitialized();
+  void GenerateLoadIC_NoFeedback();
   void GenerateLoadICTrampoline();
   void GenerateLoadICTrampoline_Megamorphic();
   void GenerateKeyedLoadIC();
@@ -56,9 +56,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void GenerateStoreInArrayLiteralIC();
 
-  void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
-                         Label* if_handler, TVariable<MaybeObject>* var_handler,
-                         Label* if_miss);
+  void TryProbeStubCache(StubCache* stub_cache, Node* receiver,
+                         TNode<Object> name, Label* if_handler,
+                         TVariable<MaybeObject>* var_handler, Label* if_miss);
 
   Node* StubCachePrimaryOffsetForTesting(Node* name, Node* map) {
     return StubCachePrimaryOffset(name, map);
@@ -68,7 +68,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   }
 
   struct LoadICParameters {
-    LoadICParameters(TNode<Context> context, Node* receiver, Node* name,
+    LoadICParameters(TNode<Context> context, Node* receiver, TNode<Object> name,
                      Node* slot, Node* vector, Node* holder = nullptr)
         : context_(context),
           receiver_(receiver),
@@ -77,7 +77,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
           vector_(vector),
           holder_(holder ? holder : receiver) {}
 
-    LoadICParameters(const LoadICParameters* p, Node* unique_name)
+    LoadICParameters(const LoadICParameters* p, TNode<Object> unique_name)
         : context_(p->context_),
           receiver_(p->receiver_),
           name_(unique_name),
@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
     TNode<Context> context() const { return context_; }
     Node* receiver() const { return receiver_; }
-    Node* name() const { return name_; }
+    TNode<Object> name() const { return name_; }
     Node* slot() const { return slot_; }
     Node* vector() const { return vector_; }
     Node* holder() const { return holder_; }
@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
    private:
     TNode<Context> context_;
     Node* receiver_;
-    Node* name_;
+    TNode<Object> name_;
     Node* slot_;
     Node* vector_;
     Node* holder_;
@@ -119,13 +119,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
           holder_(p->holder()) {
       TNode<Context> p_context = p->context();
       context_ = [=] { return p_context; };
-      TNode<Object> p_name = TNode<Object>::UncheckedCast(p->name());
+      TNode<Object> p_name = p->name();
       name_ = [=] { return p_name; };
     }
 
     TNode<Context> context() const { return context_(); }
     Node* receiver() const { return receiver_; }
-    Node* name() const { return name_(); }
+    TNode<Object> name() const { return name_(); }
     Node* slot() const { return slot_; }
     Node* vector() const { return vector_; }
     Node* holder() const { return holder_; }
@@ -156,8 +156,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
  protected:
   struct StoreICParameters : public LoadICParameters {
-    StoreICParameters(TNode<Context> context, Node* receiver, Node* name,
-                      SloppyTNode<Object> value, Node* slot, Node* vector)
+    StoreICParameters(TNode<Context> context, Node* receiver,
+                      TNode<Object> name, SloppyTNode<Object> value, Node* slot,
+                      Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
           value_(value) {}
 
@@ -191,12 +192,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
                                          Node* descriptors,
                                          Node* descriptor_name_index,
-                                         Node* details, Node* value,
+                                         Node* details, TNode<Object> value,
                                          Label* slow,
                                          bool do_transitioning_store);
 
   void CheckFieldType(TNode<DescriptorArray> descriptors, Node* name_index,
-                      Node* representation, Node* value, Label* bailout);
+                      TNode<Word32T> representation, Node* value,
+                      Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -204,7 +206,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // LoadIC contains the full LoadIC logic, while LoadIC_Noninlined contains
   // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
-  void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
+  void LoadIC_Noninlined(const LoadICParameters* p, TNode<Map> receiver_map,
                          TNode<HeapObject> feedback,
                          TVariable<MaybeObject>* var_handler, Label* if_handler,
                          Label* miss, ExitPoint* exit_point);
@@ -214,7 +216,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   TNode<MaybeObject> LoadDescriptorValueOrFieldType(
       TNode<Map> map, TNode<IntPtrT> descriptor_entry);
 
-  void LoadIC_Uninitialized(const LoadICParameters* p);
+  void LoadIC_NoFeedback(const LoadICParameters* p);
 
   void KeyedLoadIC(const LoadICParameters* p, LoadAccessMode access_mode);
   void KeyedLoadICGeneric(const LoadICParameters* p);
@@ -222,7 +224,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                   LoadAccessMode access_mode);
   void StoreIC(const StoreICParameters* p);
   void StoreGlobalIC(const StoreICParameters* p);
-  void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
+  void StoreGlobalIC_PropertyCellCase(Node* property_cell, TNode<Object> value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
   void StoreInArrayLiteralIC(const StoreICParameters* p);
@@ -275,8 +277,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        Variable* var_double_value, Label* rebox_double,
                        ExitPoint* exit_point);
 
-  void EmitAccessCheck(Node* expected_native_context, Node* context,
-                       Node* receiver, Label* can_access, Label* miss);
+  void EmitAccessCheck(TNode<Context> expected_native_context,
+                       TNode<Context> context, Node* receiver,
+                       Label* can_access, Label* miss);
 
   void HandleLoadICSmiHandlerLoadNamedCase(
       const LazyLoadICParameters* p, Node* holder, TNode<IntPtrT> handler_kind,
@@ -317,7 +320,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                  Representation representation, Node* value,
                                  Label* miss);
 
-  void CheckPrototypeValidityCell(Node* maybe_validity_cell, Label* miss);
+  void CheckPrototypeValidityCell(TNode<Object> maybe_validity_cell,
+                                  Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
                                        Node* handler_word);
 
@@ -366,7 +370,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
-  void EmitElementLoad(Node* object, Node* elements_kind,
+  void EmitElementLoad(Node* object, TNode<Word32T> elements_kind,
                        SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
                        Label* if_hole, Label* rebox_double,
                        Variable* var_double_value,
@@ -387,8 +391,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   Node* StubCacheSecondaryOffset(Node* name, Node* seed);
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
-                              Node* entry_offset, Node* name, Node* map,
-                              Label* if_handler,
+                              Node* entry_offset, TNode<Object> name,
+                              TNode<Map> map, Label* if_handler,
                               TVariable<MaybeObject>* var_handler,
                               Label* if_miss);
 };

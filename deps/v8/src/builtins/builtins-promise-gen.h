@@ -35,9 +35,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
                                 Node* fulfill_handler, Node* reject_handler);
 
-  Node* AllocatePromiseReactionJobTask(RootIndex map_root_index, Node* context,
-                                       Node* argument, Node* handler,
-                                       Node* promise_or_capability);
   Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
                                        Node* handler,
                                        Node* promise_or_capability);
@@ -91,10 +88,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   // that guards the lookup path for the "resolve" property on the %Promise%
   // intrinsic object.
   void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
-                                               Node* constructor,
+                                               SloppyTNode<Object> constructor,
                                                Label* if_fast, Label* if_slow);
   void GotoIfNotPromiseResolveLookupChainIntact(Node* native_context,
-                                                Node* constructor,
+                                                SloppyTNode<Object> constructor,
                                                 Label* if_slow);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
@@ -120,7 +117,8 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
-  void BranchIfAccessCheckFailed(Node* context, Node* native_context,
+  void BranchIfAccessCheckFailed(SloppyTNode<Context> context,
+                                 SloppyTNode<Context> native_context,
                                  Node* promise_constructor, Node* executor,
                                  Label* if_noaccess);
 
@@ -153,13 +151,14 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
                                  const NodeGenerator& handled_by);
 
-  Node* PromiseStatus(Node* promise);
+  TNode<Word32T> PromiseStatus(Node* promise);
 
   void PromiseReactionJob(Node* context, Node* argument, Node* handler,
                           Node* promise_or_capability,
                           PromiseReaction::Type type);
 
-  Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
+  TNode<BoolT> IsPromiseStatus(TNode<Word32T> actual,
+                               v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
 
   Node* AllocateJSPromise(Node* context);

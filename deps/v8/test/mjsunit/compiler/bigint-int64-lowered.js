@@ -70,6 +70,7 @@ function TestInt64LoweredOperations() {
 
 function OptimizeAndTest(fn) {
   %PrepareFunctionForOptimization(fn);
+  %PrepareFunctionForOptimization(assertEquals);
   fn();
   fn();
   %OptimizeFunctionOnNextCall(fn);

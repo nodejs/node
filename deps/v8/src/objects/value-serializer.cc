@@ -417,9 +417,6 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     case HEAP_NUMBER_TYPE:
       WriteHeapNumber(HeapNumber::cast(*object));
       return ThrowIfOutOfMemory();
-    case MUTABLE_HEAP_NUMBER_TYPE:
-      WriteMutableHeapNumber(MutableHeapNumber::cast(*object));
-      return ThrowIfOutOfMemory();
     case BIGINT_TYPE:
       WriteBigInt(BigInt::cast(*object));
       return ThrowIfOutOfMemory();
@@ -481,11 +478,6 @@ void ValueSerializer::WriteSmi(Smi smi) {
 }
 
 void ValueSerializer::WriteHeapNumber(HeapNumber number) {
-  WriteTag(SerializationTag::kDouble);
-  WriteDouble(number.value());
-}
-
-void ValueSerializer::WriteMutableHeapNumber(MutableHeapNumber number) {
   WriteTag(SerializationTag::kDouble);
   WriteDouble(number.value());
 }

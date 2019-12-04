@@ -327,6 +327,12 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   veneer_pool_blocked_nesting_ = 0;
   Reset();
+
+#if defined(V8_OS_WIN)
+  if (options.collect_win64_unwind_info) {
+    xdata_encoder_ = std::make_unique<win64_unwindinfo::XdataEncoder>(*this);
+  }
+#endif
 }
 
 Assembler::~Assembler() {
@@ -348,6 +354,14 @@ void Assembler::Reset() {
   constpool_.Clear();
   next_veneer_pool_check_ = kMaxInt;
 }
+
+#if defined(V8_OS_WIN)
+win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
+  DCHECK(options().collect_win64_unwind_info);
+  DCHECK_NOT_NULL(xdata_encoder_);
+  return xdata_encoder_->unwinding_info();
+}
+#endif
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
@@ -1166,6 +1180,11 @@ void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
 
+void Assembler::pacia1716() { Emit(PACIA1716); }
+void Assembler::autia1716() { Emit(AUTIA1716); }
+void Assembler::paciasp() { Emit(PACIASP); }
+void Assembler::autiasp() { Emit(AUTIASP); }
+
 void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& src) {
   LoadStorePair(rt, rt2, src, LoadPairOpFor(rt, rt2));
@@ -1174,6 +1193,12 @@ void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
 void Assembler::stp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& dst) {
   LoadStorePair(rt, rt2, dst, StorePairOpFor(rt, rt2));
+
+#if defined(V8_OS_WIN)
+  if (xdata_encoder_ && rt == x29 && rt2 == lr && dst.base().IsSP()) {
+    xdata_encoder_->onSaveFpLr();
+  }
+#endif
 }
 
 void Assembler::ldpsw(const Register& rt, const Register& rt2,

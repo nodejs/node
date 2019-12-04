@@ -4571,54 +4571,6 @@ TEST_F(InstructionSelectorTest, CompareFloat64HighGreaterThanOrEqualZero64) {
   EXPECT_EQ(63, s.ToInt32(s[1]->InputAt(1)));
 }
 
-TEST_F(InstructionSelectorTest, StackCheck0) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
-  Node* const sp = m.LoadStackPointer();
-  Node* const stack_limit = m.Load(MachineType::Int64(), m.Parameter(0));
-  Node* const interrupt = m.UintPtrLessThan(sp, stack_limit);
-
-  RawMachineLabel if_true, if_false;
-  m.Branch(interrupt, &if_true, &if_false);
-
-  m.Bind(&if_true);
-  m.Return(m.Int32Constant(1));
-
-  m.Bind(&if_false);
-  m.Return(m.Int32Constant(0));
-
-  Stream s = m.Build();
-
-  ASSERT_EQ(2U, s.size());
-  EXPECT_EQ(kArm64Ldr, s[0]->arch_opcode());
-  EXPECT_EQ(kArm64Cmp, s[1]->arch_opcode());
-  EXPECT_EQ(4U, s[1]->InputCount());
-  EXPECT_EQ(0U, s[1]->OutputCount());
-}
-
-TEST_F(InstructionSelectorTest, StackCheck1) {
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
-  Node* const sp = m.LoadStackPointer();
-  Node* const stack_limit = m.Load(MachineType::Int64(), m.Parameter(0));
-  Node* const sp_within_limit = m.UintPtrLessThan(stack_limit, sp);
-
-  RawMachineLabel if_true, if_false;
-  m.Branch(sp_within_limit, &if_true, &if_false);
-
-  m.Bind(&if_true);
-  m.Return(m.Int32Constant(1));
-
-  m.Bind(&if_false);
-  m.Return(m.Int32Constant(0));
-
-  Stream s = m.Build();
-
-  ASSERT_EQ(2U, s.size());
-  EXPECT_EQ(kArm64Ldr, s[0]->arch_opcode());
-  EXPECT_EQ(kArm64Cmp, s[1]->arch_opcode());
-  EXPECT_EQ(4U, s[1]->InputCount());
-  EXPECT_EQ(0U, s[1]->OutputCount());
-}
-
 TEST_F(InstructionSelectorTest, ExternalReferenceLoad1) {
   // Test offsets we can use kMode_Root for.
   const int64_t kOffsets[] = {0, 1, 4, INT32_MIN, INT32_MAX};

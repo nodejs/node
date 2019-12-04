@@ -79,7 +79,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
 
 TEST_F(ThreadLocalStorageTest, DoTest) {
   Run();
-  Start();
+  CHECK(Start());
   Join();
 }
 

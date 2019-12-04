@@ -9,7 +9,7 @@ namespace typed_array_some {
 
   transitioning macro SomeAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
-      thisArg: Object): Boolean {
+      thisArg: JSAny): Boolean {
     let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
     // TODO(v8:4153): Support huge TypedArrays here.
     const length =
@@ -17,7 +17,7 @@ namespace typed_array_some {
     for (let k: Smi = 0; k < length; k++) {
       // BUG(4895): We should throw on detached buffers rather than simply exit.
       witness.Recheck() otherwise break;
-      const value: Object = witness.Load(k);
+      const value: JSAny = witness.Load(k);
       const result =
           Call(context, callbackfn, thisArg, value, k, witness.GetStable());
       if (ToBoolean(result)) {
@@ -29,8 +29,8 @@ namespace typed_array_some {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.some
   transitioning javascript builtin
-  TypedArrayPrototypeSome(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  TypedArrayPrototypeSome(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
     // arguments[0] = callback
     // arguments[1] = thisArg.
     try {

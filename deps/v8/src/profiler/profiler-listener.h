@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   void RegExpCodeCreateEvent(AbstractCode code, String source) override;
   void SetterCallbackEvent(Name name, Address entry_point) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override;
 
   const char* GetName(Name name) {
     return function_and_resource_names_.GetName(name);

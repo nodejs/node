@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class ByteArray;
+class CallInterfaceDescriptor;
 class Callable;
 template <typename T>
 class Handle;
@@ -92,6 +93,7 @@ class Builtins {
   V8_EXPORT_PRIVATE Code builtin(int index);
   V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
 
+  static CallInterfaceDescriptor CallInterfaceDescriptorFor(Name name);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
   static int GetStackParameterCount(Name name);

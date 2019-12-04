@@ -1,4 +1,4 @@
-// Copyright 2019 the V8 project authors. All rights reserved.
+﻿// Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 =============================================================================*/
 
 function help() {
+  if (supports_call_command()) {
   print("--------------------------------------------------------------------");
   print("  LIVE debugging only");
   print("--------------------------------------------------------------------");
@@ -27,11 +28,22 @@ function help() {
   print("  !jsbp() or !jsbp");
   print("      sets bp in v8::internal::Execution::Call");
   print("");
+  }
+
+  print("--------------------------------------------------------------------");
+  print("  Setup of the script");
+  print("--------------------------------------------------------------------");
+  print("  !set_module(\"module_name_no_extension\")");
+  print("      we'll try the usual suspects for where v8's code might have");
+  print("      been linked into, but you can also set it manually,");
+  print("      e.g. !set_module(\"v8_for_testing\")");
+  print("  !set_iso(isolate_address)");
+  print("      call this function before using !mem or other heap routines");
+  print("");
+
   print("--------------------------------------------------------------------");
   print("  Managed heap");
   print("--------------------------------------------------------------------");
-  print("  !set_iso(isolate_address)");
-  print("      call this function before using !mem or other heap routines");
   print("  !mem or !mem(\"space1[ space2 ...]\")");
   print("      prints memory chunks from the 'space' owned by the heap in the");
   print("      isolate set by !set_iso; valid values for 'space' are:");
@@ -42,14 +54,58 @@ function help() {
   print("      prints name of the space and address of the MemoryChunk the");
   print("      'address' is from, e.g. !where(0x235cb869f9)");
   print("");
+
+  print("--------------------------------------------------------------------");
+  print("  Managed objects");
+  print("--------------------------------------------------------------------");
+  print("  !jot(tagged_addr, depth)");
+  print("      dumps the tree of objects using 'tagged_addr' as a root,");
+  print("      assumes that pointer fields are aligned at ptr_size boundary,");
+  print("      unspecified depth means 'unlimited',");
+  print("      e.g. !jot(0x235cb869f9, 2), !jot 0x235cb869f9");
+  print("  !jo_in_range(start_addr, end_addr)");
+  print("      prints address/map pointers of objects found inside the range");
+  print("      specified by 'start_addr' and 'end_addr', assumes the object");
+  print("      pointers to be aligned at ptr_size boundary,");
+  print("      e.g. !jo_in_range(0x235cb869f8 - 0x100, 0x235cb869f8 + 0x1a0");
+  print("  !jo_prev(address, max_slots = 100)");
+  print("      prints address and map pointer of the nearest object within");
+  print("      'max_slots' before the given 'address', assumes the object");
+  print("      pointers to be aligned at ptr_size boundary,");
+  print("      e.g. !jo_prev 0x235cb869f8, !jo_prev(0x235cb869f9, 16)");
+  print("  !jo_next(address, max_slots = 100)");
+  print("      prints address and map pointer of the nearest object within");
+  print("      'max_slots' following the given 'address', assumes the object");
+  print("      pointers to be aligned at ptr_size boundary,");
+  print("      e.g. !jo_next 0x235cb869f8, !jo_next(0x235cb869f9, 20)");
+  print("");
+
+  print("--------------------------------------------------------------------");
+  print("  Miscellaneous");
+  print("--------------------------------------------------------------------");
+  print("  !dp(address, count = 10)");
+  print("      similar to the built-in 'dp' command but augments output with");
+  print("      more data for values that are managed pointers, note that it");
+  print("      aligns the given 'address' at ptr_sized boundary,");
+  print("      e.g. !dp 0x235cb869f9, !dp(0x235cb869f9, 500), !dp @rsp");
+  print("  !handles(print_handles = false)");
+  print("      prints stats for handles, if 'print_handles' is true will");
+  print("      output all handles as well,");
+  print("      e.g. !handles, !handles(), !handles(true)");
+  print("");
+
   print("--------------------------------------------------------------------");
   print("  To run any function from this script (live or postmortem):");
   print("");
   print("  dx @$scriptContents.function_name(args)");
   print("      e.g. dx @$scriptContents.pointer_size()");
-  print("      e.g. dx @$scriptContents.module_name(\"v8_for_test\")");
+  print("      e.g. dx @$scriptContents.is_map(0x235cb869f9)");
   print("--------------------------------------------------------------------");
 }
+
+/*=============================================================================
+  On scrip load
+=============================================================================*/
 
 /*=============================================================================
   Output
@@ -67,27 +123,60 @@ function print_filtered(obj, filter) {
 }
 
 function inspect(s) {
-  for (var k of Reflect.ownKeys(s)) {
-    print(k + " => " + Reflect.get(s, k));
+  for (let k of Reflect.ownKeys(s)) {
+    // Attempting to print either of:
+    // 'Reflect.get(s, k)', 'typeof Reflect.get(s, k)', 's[k]'
+    // might throw: "Error: Object does not have a size",
+    // while 'typeof s[k]' returns 'undefined' and prints the full list of
+    // properties. Oh well...
+    print(`${k} => ${typeof s[k]}`);
   }
 }
 
+function hex(number) {
+  return `0x${number.toString(16)}`;
+}
 
 /*=============================================================================
   Utils (postmortem and live)
 =============================================================================*/
+// WinDbg wraps large integers into objects that fail isInteger test (and,
+// consequently fail isSafeInteger test even if the original value was a safe
+// integer). I cannot figure out how to extract the original value from the
+// wrapper object so doing it via conversion to a string. Brrr. Ugly.
+function int(val) {
+  if (typeof val === 'number') {
+    return Number.isInteger(val) ? val : undefined;
+  }
+  if (typeof val === 'object') {
+    let n = parseInt(val.toString());
+    return isNaN(n) ? undefined : n;
+  }
+  return undefined;
+}
+
+function is_live_session() {
+  // Assume that there is a single session (not sure how to get multiple ones
+  // going, maybe, in kernel debugging?).
+  return (host.namespace.Debugger.Sessions[0].Attributes.Target.IsLiveTarget);
+}
+
+function is_TTD_session() {
+  // Assume that there is a single session (not sure how to get multiple ones
+  // going, maybe, in kernel debugging?).
+  return (host.namespace.Debugger.Sessions[0].Attributes.Target.IsTTDTarget);
+}
+
+function supports_call_command() {
+  return is_live_session() && !is_TTD_session();
+}
+
 function cast(address, type_name) {
   return host.createTypedObject(address, module_name(), type_name);
 }
 
-// Failed to figure out how to get pointer size from the debugger's data model,
-// so we parse it out from sizeof(void*) output.
 function pointer_size() {
-  let ctl = host.namespace.Debugger.Utility.Control;
-  let sizeof = ctl.ExecuteCommand("?? sizeof(void*)");
-  let output = "";
-  for (output of sizeof) {} // unsigned int64 8
-  return parseInt(output.trim().split(" ").pop());
+  return host.namespace.Debugger.Sessions[0].Attributes.Machine.PointerSize;
 }
 
 function poi(address) {
@@ -105,8 +194,7 @@ function get_register(name) {
 
 // In debug builds v8 code is compiled into v8.dll, and in release builds
 // the code is compiled directly into the executable. If you are debugging some
-// other embedder, invoke module_name explicitly from the debugger and provide
-// the module name to use.
+// other embedder, run !set_module and provide the module name to use.
 const known_exes = ["d8", "unittests", "mksnapshot", "chrome", "chromium"];
 let module_name_cache;
 function module_name(use_this_module) {
@@ -138,10 +226,20 @@ function module_name(use_this_module) {
       }
     }
   }
+
+  if (!module_name_cache) {
+    print(`ERROR. Couldn't determine module name for v8's symbols.`);
+    print(`Please run !set_module (e.g. "!set_module \"v8_for_testing\"")`);
+  }
   return module_name_cache;
 };
 
 function make_call(fn) {
+  if (!supports_call_command()) {
+    print("ERROR: This command is supported in live sessions only!");
+    return;
+  }
+
   // .call resets current frame to the top one, so have to manually remember
   // and restore it after making the call.
   let curframe = host.namespace.Debugger.State.DebuggerVariables.curframe;
@@ -149,21 +247,6 @@ function make_call(fn) {
   let output = ctl.ExecuteCommand(`.call ${fn};g`);
   curframe.SwitchTo();
   return output;
-}
-
-// Skips the meta output about the .call invocation.
-function make_call_and_print_return(fn) {
-  let output = make_call(fn);
-  let print_line = false;
-  for (let line of output) {
-    if (print_line) {
-      print(line);
-      break;
-    }
-    if (line.includes(".call returns")) {
-      print_line = true;
-    }
-  }
 }
 
 
@@ -206,11 +289,11 @@ function print_object_from_handle(handle_to_object) {
   point at any continuous memory that contains Object pointers.
 -----------------------------------------------------------------------------*/
 function print_objects_array(start_address, count) {
+  const ptr_size = pointer_size();
   let ctl = host.namespace.Debugger.Utility.Control;
-  let psize = pointer_size();
   let addr_int = start_address;
   for (let i = 0; i < count; i++) {
-    const addr_hex = `0x${addr_int.toString(16)}`;
+    const addr_hex = hex(addr_int);
 
     // TODO: Tried using createPointerObject but it throws unknown exception
     // from ChakraCore. Why?
@@ -223,7 +306,7 @@ function print_objects_array(start_address, count) {
     print(`${addr_hex} -> ${deref}`);
     print_object(deref);
 
-    addr_int += psize;
+    addr_int += ptr_size;
   }
 }
 
@@ -245,6 +328,168 @@ function set_isolate_address(addr) {
   isolate_address = addr;
 }
 
+function is_map(addr) {
+  let address = int(addr);
+  if (!Number.isSafeInteger(address) || address % 2 == 0) return false;
+
+  // the first field in all objects, including maps, is a map pointer, but for
+  // maps the pointer is always the same - the meta map that points to itself.
+  const map_addr = int(poi(address - 1));
+  if (!Number.isSafeInteger(map_addr)) return false;
+
+  const map_map_addr = int(poi(map_addr - 1));
+  if (!Number.isSafeInteger(map_map_addr)) return false;
+
+  return (map_addr === map_map_addr);
+}
+
+function is_likely_object(addr) {
+  let address = int(addr);
+  if (!Number.isSafeInteger(address) || address % 2 == 0) return false;
+
+  // the first field in all objects must be a map pointer
+  return is_map(poi(address - 1));
+}
+
+function find_object_near(aligned_addr, max_distance, step_op) {
+  if (!step_op) {
+    const step = pointer_size();
+    const prev =
+      find_object_near(aligned_addr, max_distance, x => x - step);
+    const next =
+      find_object_near(aligned_addr, max_distance, x => x + step);
+
+    if (!prev) return next;
+    if (!next) return prev;
+    return (addr - prev <= next - addr) ? prev : next;
+  }
+
+  let maybe_map_addr = poi(aligned_addr);
+  let iters = 0;
+  while (maybe_map_addr && iters < max_distance) {
+    if (is_map(maybe_map_addr)) {
+      return aligned_addr;
+    }
+    aligned_addr = step_op(aligned_addr);
+    maybe_map_addr = poi(aligned_addr);
+    iters++;
+  }
+}
+
+function find_object_prev(addr, max_distance) {
+  if (!Number.isSafeInteger(int(addr))) return;
+
+  const ptr_size = pointer_size();
+  const aligned_addr = addr - (addr % ptr_size);
+  return find_object_near(aligned_addr, max_distance, x => x - ptr_size);
+}
+
+function find_object_next(addr, max_distance) {
+  if (!Number.isSafeInteger(int(addr))) return;
+
+  const ptr_size = pointer_size();
+  const aligned_addr = addr - (addr % ptr_size) + ptr_size;
+  return find_object_near(aligned_addr, max_distance, x => x + ptr_size);
+}
+
+function print_object_prev(addr, max_slots = 100) {
+  let obj_addr = find_object_prev(addr, max_slots);
+  if (!obj_addr) {
+    print(
+      `No object found within ${max_slots} slots prior to ${hex(addr)}`);
+  }
+  else {
+    print(
+      `found object: ${hex(obj_addr + 1)} : ${hex(poi(obj_addr))}`);
+  }
+}
+
+function print_object_next(addr, max_slots = 100) {
+  let obj_addr = find_object_next(addr, max_slots);
+  if (!obj_addr) {
+    print(
+      `No object found within ${max_slots} slots following ${hex(addr)}`);
+  }
+  else {
+    print(
+      `found object: ${hex(obj_addr + 1)} : ${hex(poi(obj_addr))}`);
+  }
+}
+
+// This function assumes that pointers to objects are stored at ptr-size aligned
+// boundaries.
+function print_objects_in_range(start, end){
+  if (!Number.isSafeInteger(int(start)) || !Number.isSafeInteger(int(end))) {
+    return;
+  }
+
+  const ptr_size = pointer_size();
+  let iters = (end - start) / ptr_size;
+  let cur = start;
+  print(`===============================================`);
+  print(`objects in range ${hex(start)} - ${hex(end)}`);
+  print(`===============================================`);
+  let count = 0;
+  while (cur && cur < end) {
+    let obj = find_object_next(cur, iters);
+    if (obj) {
+      count++;
+      print(`${hex(obj + 1)} : ${hex(poi(obj))}`);
+      iters  = (end - cur) / ptr_size;
+    }
+    cur = obj + ptr_size;
+  }
+  print(`===============================================`);
+  print(`found ${count} objects in range ${hex(start)} - ${hex(end)}`)
+  print(`===============================================`);
+}
+
+// This function assumes the pointer fields to be ptr-size aligned.
+function print_objects_tree(root, depth_limit) {
+  if(!is_likely_object(root)) {
+    print(`${hex(root)} doesn't look like an object`);
+    return;
+  }
+
+  let path = [];
+
+  function impl(obj, depth, depth_limit) {
+    const ptr_size = pointer_size();
+    // print the current object and its map pointer
+    const this_obj =
+      `${" ".repeat(2 * depth)}${hex(obj)} : ${hex(poi(obj - 1))}`;
+    const cutoff = depth_limit && depth == depth_limit - 1;
+    print(`${this_obj}${cutoff ? " (...)" : ""}`);
+    if (cutoff) return;
+
+    path[depth] = obj;
+    path.length = depth + 1;
+    let cur = obj - 1 + ptr_size;
+
+    // Scan downwards until an address that is likely to be at the start of
+    // another object, in which case it's time to pop out from the recursion.
+    let iter = 0; // an arbitrary guard to avoid hanging the debugger
+    let seen = new Set(path);
+    while (!is_likely_object(cur + 1) && iter < 100) {
+      iter++;
+      let field = poi(cur);
+      if (is_likely_object(field)) {
+        if (seen.has(field)) {
+          print(
+            `${" ".repeat(2 * depth + 2)}cycle: ${hex(cur)}->${hex(field)}`);
+        }
+        else {
+          impl(field, depth + 1, depth_limit);
+        }
+      }
+      cur += ptr_size;
+    }
+  }
+  print(`===============================================`);
+  impl(root, 0, depth_limit);
+  print(`===============================================`);
+}
+
 /*-----------------------------------------------------------------------------
     Memory in each Space is organized into a linked list of memory chunks
 -----------------------------------------------------------------------------*/
@@ -262,11 +507,10 @@ function print_memory_chunk_list(space_type, front, top, age_mark) {
   let cur = front;
   while (!cur.isNull) {
     let imm = cur.flags_ & NEVER_EVACUATE ? "*" : " ";
-    let addr = `0x${cur.address.toString(16)}`;
-    let area =
-      `0x${cur.area_start_.toString(16)} - 0x${cur.area_end_.toString(16)}`;
+    let addr = hex(cur.address);
+    let area = `${hex(cur.area_start_)} - ${hex(cur.area_end_)}`;
     let dt = `dt ${addr} ${module_name()}!v8::internal::MemoryChunk`;
-    print(`${imm}    ${addr}:\t ${area} (0x${cur.size_.toString(16)}) : ${dt}`);
+    print(`${imm}    ${addr}:\t ${area} (${hex(cur.size_)}) : ${dt}`);
     cur = cur.list_node_.next_;
   }
   print("");
@@ -307,18 +551,16 @@ function get_chunks() {
 }
 
 function find_chunk(address) {
-  // if 'address' is greater than Number.MAX_SAFE_INTEGER, comparison ops on it
-  // throw  "Error: 64 bit value loses precision on conversion to number"
-  try {
-    let chunks = get_chunks(isolate_address);
-    for (let c of chunks) {
-      let chunk = cast(c.address, "v8::internal::MemoryChunk");
-      if (address >= chunk.area_start_ && address < chunk.area_end_) {
-        return c;
-      }
+  if (!Number.isSafeInteger(int(address))) return undefined;
+
+  let chunks = get_chunks(isolate_address);
+  for (let c of chunks) {
+    let chunk = cast(c.address, "v8::internal::MemoryChunk");
+    if (address >= chunk.area_start_ && address < chunk.area_end_) {
+      return c;
     }
   }
-  catch (e) { }
+
   return undefined;
 }
 
@@ -391,12 +633,111 @@ function print_owning_space(address) {
   }
 
   let c = find_chunk(address);
-  let addr = `0x${address.toString(16)}`;
   if (c) {
-      print(`${addr} is in ${c.space} (chunk: 0x${c.address.toString(16)})`);
+      print(`${hex(address)} is in ${c.space} (chunk: ${hex(c.address)})`);
   }
   else {
-      print(`Address ${addr} is not in managed heap`);
+      print(`Address ${hex(address)} is not in managed heap`);
+  }
+}
+
+/*-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------*/
+function print_handles_data(print_handles = false) {
+  if (isolate_address == 0) {
+    print("Please call !set_iso(isolate_address) first.");
+    return;
+  }
+
+  let iso = cast(isolate_address, "v8::internal::Isolate");
+  let hsd = iso.handle_scope_data_;
+  let hsimpl = iso.handle_scope_implementer_;
+
+  // depth level
+  print(`Nested depth level: ${hsd.level}`);
+
+  // count of handles
+  const ptr_size = pointer_size();
+  let blocks = hsimpl.blocks_;
+  const block_size = 1022; // v8::internal::KB - 2
+  const first_block = blocks.data_.address;
+  const last_block = (blocks.size_ == 0)
+                     ? first_block
+                     : first_block + ptr_size * (blocks.size_ - 1);
+
+  const count = (blocks.size_ == 0)
+              ? 0
+              : (blocks.size_ - 1) * block_size +
+                (hsd.next.address - poi(last_block))/ptr_size;
+  print(`Currently tracking ${count} local handles`);
+
+  // print the handles
+  if (print_handles && count > 0) {
+    for (let block = first_block; block < last_block;
+         block += block_size * ptr_size) {
+      print(`Handles in block at ${hex(block)}`);
+      for (let i = 0; i < block_size; i++) {
+        const location = poi(block + i * ptr_size);
+        print(`  ${hex(location)}->${hex(poi(location))}`);
+      }
+    }
+
+    let location = poi(last_block);
+    print(`Handles in block at ${hex(last_block)}`);
+    for (let location = poi(last_block); location < hsd.next.address;
+         location += ptr_size) {
+      print(`  ${hex(location)}->${hex(poi(location))}`);
+    }
+  }
+
+  // where will the next handle allocate at?
+  const prefix = "Next handle's location will be";
+  if (hsd.next.address < hsd.limit.address) {
+    print(`${prefix} at ${hex(hsd.next.address)}`);
+  }
+  else if (hsimpl.spare_) {
+    const location = hsimpl.spare_.address;
+    print(`${prefix} from the spare block at ${hex(location)}`);
+  }
+  else {
+    print(`${prefix} from a new block to be allocated`);
+  }
+}
+
+function pad_right(addr) {
+  let addr_hex = hex(addr);
+  return `${addr_hex}${" ".repeat(pointer_size() * 2 + 2 - addr_hex.length)}`;
+}
+
+// TODO irinayat: would be nice to identify handles and smi as well
+function dp(addr, count = 10) {
+  if (isolate_address == 0) {
+    print(`To see where objects are located, run !set_iso.`);
+  }
+
+  if (!Number.isSafeInteger(int(addr))) {
+    print(`${hex(addr)} doesn't look like a valid address`);
+    return;
+  }
+
+  const ptr_size = pointer_size();
+  let aligned_addr = addr - (addr % ptr_size);
+  let val = poi(aligned_addr);
+  let iter = 0;
+  while (val && iter < count) {
+    const augm_map = is_map(val) ? "map" : "";
+    const augm_obj = is_likely_object(val) && !is_map(val) ? "obj" : "";
+    const augm_other = !is_map(val) && !is_likely_object(val) ? "val" : "";
+    let c = find_chunk(val);
+    const augm_space = c ? ` in ${c.space}` : "";
+    const augm = `${augm_map}${augm_obj}${augm_other}${augm_space}`;
+
+    print(`${pad_right(aligned_addr)} ${pad_right(val)}   ${augm}`);
+
+    aligned_addr += ptr_size;
+    val = poi(aligned_addr);
+    iter++;
   }
 }
 
@@ -412,8 +753,17 @@ function initializeScript() {
       new host.functionAlias(print_js_stack, "jst"),
 
       new host.functionAlias(set_isolate_address, "set_iso"),
+      new host.functionAlias(module_name, "set_module"),
       new host.functionAlias(print_memory, "mem"),
       new host.functionAlias(print_owning_space, "where"),
+      new host.functionAlias(print_handles_data, "handles"),
+
+      new host.functionAlias(print_object_prev, "jo_prev"),
+      new host.functionAlias(print_object_next, "jo_next"),
+      new host.functionAlias(print_objects_in_range, "jo_in_range"),
+      new host.functionAlias(print_objects_tree, "jot"),
+
+      new host.functionAlias(dp, "dp"),
 
       new host.functionAlias(set_user_js_bp, "jsbp"),
   ]

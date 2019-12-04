@@ -14,16 +14,17 @@ namespace internal {
 
 AllocationResult LocalAllocator::Allocate(AllocationSpace space,
                                           int object_size,
+                                          AllocationOrigin origin,
                                           AllocationAlignment alignment) {
   switch (space) {
     case NEW_SPACE:
-      return AllocateInNewSpace(object_size, alignment);
+      return AllocateInNewSpace(object_size, origin, alignment);
     case OLD_SPACE:
       return compaction_spaces_.Get(OLD_SPACE)->AllocateRaw(object_size,
-                                                            alignment);
+                                                            alignment, origin);
     case CODE_SPACE:
       return compaction_spaces_.Get(CODE_SPACE)
-          ->AllocateRaw(object_size, alignment);
+          ->AllocateRaw(object_size, alignment, origin);
     default:
       UNREACHABLE();
   }
@@ -94,9 +95,9 @@ bool LocalAllocator::NewLocalAllocationBuffer() {
 }
 
 AllocationResult LocalAllocator::AllocateInNewSpace(
-    int object_size, AllocationAlignment alignment) {
+    int object_size, AllocationOrigin origin, AllocationAlignment alignment) {
   if (object_size > kMaxLabObjectSize) {
-    return new_space_->AllocateRawSynchronized(object_size, alignment);
+    return new_space_->AllocateRawSynchronized(object_size, alignment, origin);
   }
   return AllocateInLAB(object_size, alignment);
 }

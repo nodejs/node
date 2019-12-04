@@ -1,0 +1,9 @@
+# Copyright 2019 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+*%(basename)s:10: TypeError: '#a' was defined without a getter
+    const a = this.#a;
+              ^
+TypeError: '#a' was defined without a getter
+    at new C (*%(basename)s:10:15)
+    at *%(basename)s:13:1

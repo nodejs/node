@@ -465,7 +465,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   CHECK(!GetThreadInWasmFlag());
   // Set the thread-in-wasm flag manually in this thread.
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 1;
-  runner.Start();
+  CHECK(runner.Start());
   runner.Join();
   CHECK(GetThreadInWasmFlag());
   // Reset the thread-in-wasm flag.

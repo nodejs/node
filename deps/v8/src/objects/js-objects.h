@@ -323,8 +323,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Returns true if an object has elements of PACKED_ELEMENTS
   DECL_GETTER(HasPackedElements, bool)
-  DECL_GETTER(HasFrozenOrSealedElements, bool)
+  DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
+  DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayElements, bool)
 
@@ -893,27 +894,15 @@ class JSIteratorResult : public JSObject {
 };
 
 // JSBoundFunction describes a bound function exotic object.
-class JSBoundFunction : public JSObject {
+class JSBoundFunction
+    : public TorqueGeneratedJSBoundFunction<JSBoundFunction, JSObject> {
  public:
-  // [bound_target_function]: The wrapped function object.
-  DECL_ACCESSORS(bound_target_function, JSReceiver)
-
-  // [bound_this]: The value that is always passed as the this value when
-  // calling the wrapped function.
-  DECL_ACCESSORS(bound_this, Object)
-
-  // [bound_arguments]: A list of values whose elements are used as the first
-  // arguments to any call to the wrapped function.
-  DECL_ACCESSORS(bound_arguments, FixedArray)
-
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
   static Maybe<int> GetLength(Isolate* isolate,
                               Handle<JSBoundFunction> function);
   static MaybeHandle<NativeContext> GetFunctionRealm(
       Handle<JSBoundFunction> function);
-
-  DECL_CAST(JSBoundFunction)
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -923,11 +912,7 @@ class JSBoundFunction : public JSObject {
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSBOUND_FUNCTION_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSBoundFunction, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
 
 // JSFunction describes JavaScript functions.
@@ -1213,33 +1198,10 @@ class JSPrimitiveWrapper
 class DateCache;
 
 // Representation for JS date objects.
-class JSDate : public JSObject {
+class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
  public:
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSDate> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target, double tv);
-
-  // If one component is NaN, all of them are, indicating a NaN time value.
-  // [value]: the time value.
-  DECL_ACCESSORS(value, Object)
-  // [year]: caches year. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(year, Object)
-  // [month]: caches month. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(month, Object)
-  // [day]: caches day. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(day, Object)
-  // [weekday]: caches day of week. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(weekday, Object)
-  // [hour]: caches hours. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(hour, Object)
-  // [min]: caches minutes. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(min, Object)
-  // [sec]: caches seconds. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(sec, Object)
-  // [cache stamp]: sample of the date cache stamp at the
-  // moment when chached fields were cached.
-  DECL_ACCESSORS(cache_stamp, Object)
-
-  DECL_CAST(JSDate)
 
   // Returns the time value (UTC) identifying the current time.
   static double CurrentTimeValue(Isolate* isolate);
@@ -1290,9 +1252,6 @@ class JSDate : public JSObject {
     kTimezoneOffset
   };
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSDATE_FIELDS)
-
  private:
   inline Object DoGetField(FieldIndex index);
 
@@ -1301,7 +1260,7 @@ class JSDate : public JSObject {
   // Computes and caches the cacheable fields of the date.
   inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
 
-  OBJECT_CONSTRUCTORS(JSDate, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSDate)
 };
 
 // Representation of message objects used for error reporting through
@@ -1396,27 +1355,19 @@ class JSMessageObject : public JSObject {
 // An object which wraps an ordinary Iterator and converts it to behave
 // according to the Async Iterator protocol.
 // (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
-class JSAsyncFromSyncIterator : public JSObject {
+class JSAsyncFromSyncIterator
+    : public TorqueGeneratedJSAsyncFromSyncIterator<JSAsyncFromSyncIterator,
+                                                    JSObject> {
  public:
-  DECL_CAST(JSAsyncFromSyncIterator)
   DECL_PRINTER(JSAsyncFromSyncIterator)
-  DECL_VERIFIER(JSAsyncFromSyncIterator)
 
   // Async-from-Sync Iterator instances are ordinary objects that inherit
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
   // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
-  DECL_ACCESSORS(sync_iterator, JSReceiver)
 
-  // The "next" method is loaded during GetIterator, and is not reloaded for
-  // subsequent "next" invocations.
-  DECL_ACCESSORS(next, Object)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JSASYNC_FROM_SYNC_ITERATOR_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
 };
 
 class JSStringIterator : public JSObject {

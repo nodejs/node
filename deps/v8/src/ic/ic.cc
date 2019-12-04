@@ -4,6 +4,7 @@
 
 #include "src/ic/ic.h"
 
+#include "include/v8config.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api.h"
 #include "src/ast/ast.h"
@@ -14,6 +15,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/runtime-profiler.h"
 #include "src/handles/handles-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
@@ -28,14 +30,13 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
-#include "src/objects/struct-inl.h"
-#include "src/utils/ostreams.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/objects/prototype.h"
+#include "src/objects/struct-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -391,19 +392,23 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     }
 
     if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
-      return Runtime::ThrowIteratorError(isolate(), object);
+      return isolate()->Throw<Object>(
+          ErrorUtils::NewIteratorError(isolate(), object));
     }
-    return TypeError(IsAnyHas() ? MessageTemplate::kInvalidInOperatorUse
-                                : MessageTemplate::kNonObjectPropertyLoad,
-                     object, name);
+
+    if (IsAnyHas()) {
+      return TypeError(MessageTemplate::kInvalidInOperatorUse, object, name);
+    } else {
+      DCHECK(object->IsNullOrUndefined(isolate()));
+      ErrorUtils::ThrowLoadFromNullOrUndefined(isolate(), object, name);
+      return MaybeHandle<Object>();
+    }
   }
 
   if (MigrateDeprecated(isolate(), object)) use_ic = false;
 
-  if (state() != UNINITIALIZED) {
-    JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
-    update_receiver_map(object);
-  }
+  JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
+  update_receiver_map(object);
 
   LookupIterator it(isolate(), object, name);
 
@@ -414,7 +419,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     if (name->IsPrivateName() && !it.IsFound()) {
       Handle<String> name_string(String::cast(Symbol::cast(*name).name()),
                                  isolate());
-      return TypeError(MessageTemplate::kInvalidPrivateFieldRead, object,
+      return TypeError(MessageTemplate::kInvalidPrivateMemberRead, object,
                        name_string);
     }
 
@@ -618,7 +623,7 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   DCHECK(IsAnyLoad() || IsAnyStore() || IsAnyHas());
   switch (state()) {
     case NO_FEEDBACK:
-      break;
+      UNREACHABLE();
     case UNINITIALIZED:
     case PREMONOMORPHIC:
       UpdateMonomorphicIC(handler, name);
@@ -647,16 +652,11 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   }
 }
 
+#if defined(__clang__) && defined(V8_OS_WIN)
+// Force function alignment to work around CPU bug: https://crbug.com/968683
+__attribute__((__aligned__(32)))
+#endif
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
-  if (state() == UNINITIALIZED && !IsLoadGlobalIC()) {
-    // This is the first time we execute this inline cache. Set the target to
-    // the pre monomorphic stub to delay setting the monomorphic state.
-    TRACE_HANDLER_STATS(isolate(), LoadIC_Premonomorphic);
-    ConfigureVectorState(receiver_map());
-    TraceIC("LoadIC", lookup->name());
-    return;
-  }
-
   Handle<Object> code;
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
     code = slow_stub();
@@ -908,6 +908,33 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
       }
+      if (lookup->constness() == PropertyConstness::kConst &&
+          !receiver_is_holder) {
+        DCHECK(!lookup->is_dictionary_holder());
+
+        Handle<Object> value = lookup->GetDataValue();
+
+        if (value->IsThinString()) {
+          value = handle(ThinString::cast(*value)->actual(), isolate());
+        }
+
+        // Non internalized strings could turn into thin/cons strings
+        // when internalized. Weak references to thin/cons strings are
+        // not supported in the GC. If concurrent marking is running
+        // and the thin/cons string is marked but the actual string is
+        // not, then the weak reference could be missed.
+        if (!value->IsString() ||
+            (value->IsString() && value->IsInternalizedString())) {
+          MaybeObjectHandle weak_value =
+              value->IsSmi() ? MaybeObjectHandle(*value, isolate())
+                             : MaybeObjectHandle::Weak(*value, isolate());
+
+          smi_handler = LoadHandler::LoadConstantFromPrototype(isolate());
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
+          return LoadHandler::LoadFromPrototype(isolate(), map, holder,
+                                                smi_handler, weak_value);
+        }
+      }
       return LoadHandler::LoadFromPrototype(isolate(), map, holder,
                                             smi_handler);
     }
@@ -1117,7 +1144,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
                                     is_js_array, load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
-         IsFrozenOrSealedElementsKind(elements_kind) ||
+         IsAnyNonextensibleElementsKind(elements_kind) ||
          IsTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
       (elements_kind == HOLEY_SMI_ELEMENTS ||
@@ -1415,16 +1442,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
-  if (state() != UNINITIALIZED) {
-    JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
-  }
+  JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   LookupIterator it(isolate(), object, name);
 
   if (name->IsPrivate()) {
     if (name->IsPrivateName() && !it.IsFound()) {
       Handle<String> name_string(String::cast(Symbol::cast(*name).name()),
                                  isolate());
-      return TypeError(MessageTemplate::kInvalidPrivateFieldWrite, object,
+      return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
                        name_string);
     }
 
@@ -1442,15 +1467,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                            StoreOrigin store_origin) {
-  if (state() == UNINITIALIZED && !IsStoreGlobalIC()) {
-    // This is the first time we execute this inline cache. Transition
-    // to premonomorphic state to delay setting the monomorphic state.
-    TRACE_HANDLER_STATS(isolate(), StoreIC_Premonomorphic);
-    ConfigureVectorState(receiver_map());
-    TraceIC("StoreIC", lookup->name());
-    return;
-  }
-
   MaybeObjectHandle handler;
   if (LookupForWrite(lookup, value, store_origin)) {
     if (IsStoreGlobalIC()) {
@@ -1810,10 +1826,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   handlers.reserve(target_receiver_maps.size());
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
   if (target_receiver_maps.size() == 0) {
-    // Transition to PREMONOMORPHIC state here and remember a weak-reference
-    // to the {receiver_map} in case TurboFan sees this function before the
-    // IC can transition further.
-    ConfigureVectorState(receiver_map);
+    Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
+    ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   } else if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
   } else {
@@ -1840,6 +1854,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
         CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_sealed_elements() ||
+             receiver_map->has_nonextensible_elements() ||
              receiver_map->has_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
     code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();

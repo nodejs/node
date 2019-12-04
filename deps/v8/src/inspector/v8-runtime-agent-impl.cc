@@ -490,7 +490,7 @@ Response V8RuntimeAgentImpl::compileScript(
   if (!isOk) {
     if (scope.tryCatch().HasCaught()) {
       response = scope.injectedScript()->createExceptionDetails(
-          scope.tryCatch(), String16(), WrapMode::kNoPreview, exceptionDetails);
+          scope.tryCatch(), String16(), exceptionDetails);
       if (!response.isSuccess()) return response;
       return Response::OK();
     } else {

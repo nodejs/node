@@ -115,10 +115,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrowsEquals(() => instance.exports.rethrow_exnref(), exception2);
 })();
 
-// TODO(mstarzinger): Add the following test once proposal makes it clear how
-// far interaction with the mutable globals proposal is intended to go.
 // Test loading an imported mutable "exnref" being changed from the outside.
-/*(function TestGlobalExnRefGetImportedMutableAndRethrow() {
+(function TestGlobalExnRefGetImportedMutableAndRethrow() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let g_index = builder.addImportedGlobal("m", "exn", kWasmExnRef, true);
@@ -135,7 +133,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrowsEquals(() => instance.exports.rethrow_exnref(), exception1);
   let exception2 = mutable_global.value = "an even fancier exception";
   assertThrowsEquals(() => instance.exports.rethrow_exnref(), exception2);
-})();*/
+})();
 
 // Test custom initialization index for a global "exnref" variable.
 (function TestGlobalExnRefInitIndex() {

@@ -20,11 +20,10 @@ LsanPageAllocator::LsanPageAllocator(v8::PageAllocator* page_allocator)
   DCHECK_NOT_NULL(page_allocator);
 }
 
-void* LsanPageAllocator::AllocatePages(void* address, size_t size,
+void* LsanPageAllocator::AllocatePages(void* hint, size_t size,
                                        size_t alignment,
                                        PageAllocator::Permission access) {
-  void* result =
-      page_allocator_->AllocatePages(address, size, alignment, access);
+  void* result = page_allocator_->AllocatePages(hint, size, alignment, access);
 #if defined(LEAK_SANITIZER)
   if (result != nullptr) {
     __lsan_register_root_region(result, size);

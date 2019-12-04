@@ -25,6 +25,7 @@ class AggregateType;
 struct Identifier;
 class Macro;
 class Method;
+class GenericStructType;
 class StructType;
 class ClassType;
 class Value;
@@ -36,7 +37,6 @@ class TypeBase {
     kTopType,
     kAbstractType,
     kBuiltinPointerType,
-    kReferenceType,
     kUnionType,
     kStructType,
     kClassType
@@ -47,7 +47,6 @@ class TypeBase {
   bool IsBuiltinPointerType() const {
     return kind() == Kind::kBuiltinPointerType;
   }
-  bool IsReferenceType() const { return kind() == Kind::kReferenceType; }
   bool IsUnionType() const { return kind() == Kind::kUnionType; }
   bool IsStructType() const { return kind() == Kind::kStructType; }
   bool IsClassType() const { return kind() == Kind::kClassType; }
@@ -142,6 +141,12 @@ struct NameAndType {
 };
 
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
+
+template <typename T>
+struct SpecializationKey {
+  T* generic;
+  TypeVector specialized_types;
+};
 
 struct Field {
   // TODO(danno): This likely should be refactored, the handling of the types
@@ -296,43 +301,6 @@ class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
   const TypeVector parameter_types_;
   const Type* const return_type_;
   const size_t function_pointer_type_id_;
-};
-
-class ReferenceType final : public Type {
- public:
-  DECLARE_TYPE_BOILERPLATE(ReferenceType)
-  std::string MangledName() const override {
-    return "RT" + referenced_type_->MangledName();
-  }
-  std::string ToExplicitString() const override {
-    std::string s = referenced_type_->ToString();
-    if (s.find(' ') != std::string::npos) {
-      s = "(" + s + ")";
-    }
-    return "&" + s;
-  }
-  std::string GetGeneratedTypeNameImpl() const override {
-    return "CodeStubAssembler::Reference";
-  }
-  std::string GetGeneratedTNodeTypeNameImpl() const override { UNREACHABLE(); }
-
-  const Type* referenced_type() const { return referenced_type_; }
-
-  friend size_t hash_value(const ReferenceType& p) {
-    return base::hash_combine(static_cast<size_t>(Kind::kReferenceType),
-                              p.referenced_type_);
-  }
-  bool operator==(const ReferenceType& other) const {
-    return referenced_type_ == other.referenced_type_;
-  }
-
- private:
-  friend class TypeOracle;
-  explicit ReferenceType(const Type* referenced_type)
-      : Type(Kind::kReferenceType, nullptr),
-        referenced_type_(referenced_type) {}
-
-  const Type* const referenced_type_;
 };
 
 bool operator<(const Type& a, const Type& b);
@@ -500,32 +468,38 @@ class AggregateType : public Type {
 class StructType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(StructType)
+
+  using MaybeSpecializationKey =
+      base::Optional<SpecializationKey<GenericStructType>>;
+
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
-  std::string MangledName() const override {
-    // TODO(gsps): Generate more readable mangled names
-    std::string str(name());
-    std::replace(str.begin(), str.end(), ',', '_');
-    std::replace(str.begin(), str.end(), ' ', '_');
-    std::replace(str.begin(), str.end(), '<', '_');
-    std::replace(str.begin(), str.end(), '>', '_');
-    return str;
+  std::string MangledName() const override;
+  const MaybeSpecializationKey& GetSpecializedFrom() const {
+    return specialized_from_;
   }
 
-  static std::string ComputeName(const std::string& basename,
-                                 const std::vector<const Type*>& args);
+  static base::Optional<const Type*> MatchUnaryGeneric(
+      const Type* type, GenericStructType* generic);
+  static base::Optional<const Type*> MatchUnaryGeneric(
+      const StructType* type, GenericStructType* generic);
 
  private:
   friend class TypeOracle;
-  StructType(Namespace* nspace, const std::string& name)
-      : AggregateType(Kind::kStructType, nullptr, nspace, name) {}
+  StructType(Namespace* nspace, const StructDeclaration* decl,
+             MaybeSpecializationKey specialized_from = base::nullopt)
+      : AggregateType(Kind::kStructType, nullptr, nspace,
+                      ComputeName(decl->name->value, specialized_from)),
+        decl_(decl),
+        specialized_from_(specialized_from) {}
 
-  void Finalize() const override {
-    is_finalized_ = true;
-    CheckForDuplicateFields();
-  }
+  void Finalize() const override;
 
-  const std::string& GetStructName() const { return name(); }
+  static std::string ComputeName(const std::string& basename,
+                                 MaybeSpecializationKey specialized_from);
+
+  const StructDeclaration* decl_;
+  MaybeSpecializationKey specialized_from_;
 };
 
 class TypeAlias;
@@ -572,6 +546,8 @@ class ClassType final : public AggregateType {
     return AggregateType::RegisterField(field);
   }
   void Finalize() const override;
+
+  std::vector<Field> ComputeAllFields() const;
 
  private:
   friend class TypeOracle;
@@ -668,22 +644,25 @@ using NameVector = std::vector<Identifier*>;
 
 struct Signature {
   Signature(NameVector n, base::Optional<std::string> arguments_variable,
-            ParameterTypes p, size_t i, const Type* r, LabelDeclarationVector l)
+            ParameterTypes p, size_t i, const Type* r, LabelDeclarationVector l,
+            bool transitioning)
       : parameter_names(std::move(n)),
         arguments_variable(arguments_variable),
         parameter_types(std::move(p)),
         implicit_count(i),
         return_type(r),
-        labels(std::move(l)) {}
-  Signature() : implicit_count(0), return_type(nullptr) {}
+        labels(std::move(l)),
+        transitioning(transitioning) {}
+  Signature() = default;
   const TypeVector& types() const { return parameter_types.types; }
   NameVector parameter_names;
   base::Optional<std::string> arguments_variable;
   ParameterTypes parameter_types;
-  size_t implicit_count;
+  size_t implicit_count = 0;
   size_t ExplicitCount() const { return types().size() - implicit_count; }
   const Type* return_type;
   LabelDeclarationVector labels;
+  bool transitioning = false;
   bool HasSameTypesAs(
       const Signature& other,
       ParameterMode mode = ParameterMode::kProcessImplicit) const;

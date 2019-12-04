@@ -83,6 +83,12 @@ inline MemOperand FieldMemOperand(Register object, int offset);
 // ----------------------------------------------------------------------------
 // MacroAssembler
 
+#if defined(V8_OS_WIN)
+// This offset is originated from PushCalleeSavedRegisters.
+static constexpr int kFramePointerOffsetInPushCalleeSavedRegisters =
+    10 * kSystemPointerSize;
+#endif  // V8_OS_WIN
+
 enum BranchType {
   // Copies of architectural conditions.
   // The associated conditions can be used in place of those, the code will
@@ -515,6 +521,46 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cbnz(const Register& rt, Label* label);
   void Cbz(const Register& rt, Label* label);
 
+  void Paciasp() {
+    DCHECK(allow_macro_instructions_);
+    paciasp();
+  }
+  void Autiasp() {
+    DCHECK(allow_macro_instructions_);
+    autiasp();
+  }
+
+  // The 1716 pac and aut instructions encourage people to use x16 and x17
+  // directly, perhaps without realising that this is forbidden. For example:
+  //
+  //     UseScratchRegisterScope temps(&masm);
+  //     Register temp = temps.AcquireX();  // temp will be x16
+  //     __ Mov(x17, ptr);
+  //     __ Mov(x16, modifier);  // Will override temp!
+  //     __ Pacia1716();
+  //
+  // To work around this issue, you must exclude x16 and x17 from the scratch
+  // register list. You may need to replace them with other registers:
+  //
+  //     UseScratchRegisterScope temps(&masm);
+  //     temps.Exclude(x16, x17);
+  //     temps.Include(x10, x11);
+  //     __ Mov(x17, ptr);
+  //     __ Mov(x16, modifier);
+  //     __ Pacia1716();
+  void Pacia1716() {
+    DCHECK(allow_macro_instructions_);
+    DCHECK(!TmpList()->IncludesAliasOf(x16));
+    DCHECK(!TmpList()->IncludesAliasOf(x17));
+    pacia1716();
+  }
+  void Autia1716() {
+    DCHECK(allow_macro_instructions_);
+    DCHECK(!TmpList()->IncludesAliasOf(x16));
+    DCHECK(!TmpList()->IncludesAliasOf(x17));
+    autia1716();
+  }
+
   inline void Dmb(BarrierDomain domain, BarrierType type);
   inline void Dsb(BarrierDomain domain, BarrierType type);
   inline void Isb();
@@ -843,6 +889,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(const ExternalReference& reference) override;
 
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode);
@@ -856,6 +903,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
@@ -1996,6 +2044,26 @@ class UseScratchRegisterScope {
 
   Register AcquireSameSizeAs(const Register& reg);
   V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
+
+  void Include(const CPURegList& list) { available_->Combine(list); }
+  void Exclude(const CPURegList& list) {
+#if DEBUG
+    CPURegList copy(list);
+    while (!copy.IsEmpty()) {
+      const CPURegister& reg = copy.PopHighestIndex();
+      DCHECK(available_->IncludesAliasOf(reg));
+    }
+#endif
+    available_->Remove(list);
+  }
+  void Include(const Register& reg1, const Register& reg2) {
+    CPURegList list(reg1, reg2);
+    Include(list);
+  }
+  void Exclude(const Register& reg1, const Register& reg2) {
+    CPURegList list(reg1, reg2);
+    Exclude(list);
+  }
 
  private:
   V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(

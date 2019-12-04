@@ -18,10 +18,11 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
+class BytecodeArray;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
+class Isolate;
 class ParseInfo;
 class RootVisitor;
 class SetupIsolateDelegate;
@@ -47,6 +48,14 @@ class Interpreter {
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals);
+
+  // Creates a compilation job which will generate source positions for
+  // |literal| and when finalized, store the result into |existing_bytecode|.
+  static std::unique_ptr<UnoptimizedCompilationJob>
+  NewSourcePositionCollectionJob(ParseInfo* parse_info,
+                                 FunctionLiteral* literal,
+                                 Handle<BytecodeArray> existing_bytecode,
+                                 AccountingAllocator* allocator);
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.

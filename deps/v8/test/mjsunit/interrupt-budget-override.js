@@ -12,7 +12,8 @@ function f() {
   return s;
 }
 
-%PrepareFunctionForOptimization(f);
+%PrepareFunctionForOptimization(f, "allow heuristic optimization");
+f();
 f();
 f();
 assertOptimized(f);

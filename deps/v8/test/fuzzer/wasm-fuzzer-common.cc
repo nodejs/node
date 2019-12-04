@@ -8,9 +8,10 @@
 
 #include "include/v8.h"
 #include "src/execution/isolate.h"
-#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -88,6 +89,12 @@ const char* ValueTypeToConstantName(ValueType type) {
       return "kWasmF32";
     case kWasmF64:
       return "kWasmF64";
+    case kWasmAnyRef:
+      return "kWasmAnyRef";
+    case kWasmFuncRef:
+      return "kWasmFuncRef";
+    case kWasmExnRef:
+      return "kWasmExnRef";
     default:
       UNREACHABLE();
   }
@@ -139,6 +146,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "// Use of this source code is governed by a BSD-style license that "
         "can be\n"
         "// found in the LICENSE file.\n"
+        "\n"
+        "// Flags: --wasm-staging\n"
         "\n"
         "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
@@ -249,6 +258,14 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
+  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
+
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
   // respect that limit.

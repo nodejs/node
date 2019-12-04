@@ -9,7 +9,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/microtask-inl.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,7 +21,6 @@ OBJECT_CONSTRUCTORS_IMPL(WeakCell, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakRef, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroup, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroupCleanupIterator, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(FinalizationGroupCleanupJobTask, Microtask)
 
 ACCESSORS(JSFinalizationGroup, native_context, NativeContext,
           kNativeContextOffset)
@@ -50,10 +48,6 @@ ACCESSORS(JSWeakRef, target, HeapObject, kTargetOffset)
 ACCESSORS(JSFinalizationGroupCleanupIterator, finalization_group,
           JSFinalizationGroup, kFinalizationGroupOffset)
 CAST_ACCESSOR(JSFinalizationGroupCleanupIterator)
-
-ACCESSORS(FinalizationGroupCleanupJobTask, finalization_group,
-          JSFinalizationGroup, kFinalizationGroupOffset)
-CAST_ACCESSOR(FinalizationGroupCleanupJobTask)
 
 void JSFinalizationGroup::Register(
     Handle<JSFinalizationGroup> finalization_group, Handle<JSReceiver> target,

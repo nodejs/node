@@ -272,7 +272,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 
   // If the receiver is not a special receiver type, and the length is a valid
   // element index, perform fast operation tailored to specific ElementsKinds.
-  if (!object->map().IsSpecialReceiverMap() && len < kMaxUInt32 &&
+  if (!object->map().IsSpecialReceiverMap() &&
+      len <= JSObject::kMaxElementCount &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
@@ -283,8 +284,10 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     return *isolate->factory()->ToBoolean(result.FromJust());
   }
 
-  // Otherwise, perform slow lookups for special receiver types
+  // Otherwise, perform slow lookups for special receiver types.
   for (; index < len; ++index) {
+    HandleScope iteration_hs(isolate);
+
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {

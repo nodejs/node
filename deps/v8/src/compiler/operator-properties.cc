@@ -54,6 +54,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSStoreGlobal:
     case IrOpcode::kJSStoreMessage:
+    case IrOpcode::kJSGetIterator:
       return false;
 
     case IrOpcode::kJSCallRuntime:
@@ -237,6 +238,9 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSPerformPromiseThen:
     case IrOpcode::kJSObjectIsArray:
     case IrOpcode::kJSRegExpTest:
+
+    // Iterator protocol operations
+    case IrOpcode::kJSGetIterator:
       return true;
 
     default:

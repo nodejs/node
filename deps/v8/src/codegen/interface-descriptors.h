@@ -28,7 +28,9 @@ namespace internal {
   V(ArraySingleArgumentConstructor)   \
   V(AsyncFunctionStackParameter)      \
   V(BigIntToI64)                      \
+  V(BigIntToI32Pair)                  \
   V(I64ToBigInt)                      \
+  V(I32PairToBigInt)                  \
   V(BinaryOp)                         \
   V(CallForwardVarargs)               \
   V(CallFunctionTemplate)             \
@@ -660,11 +662,13 @@ class StoreGlobalWithVectorDescriptor : public StoreGlobalDescriptor {
 
 class LoadWithVectorDescriptor : public LoadDescriptor {
  public:
+  // TODO(v8:9497): Revert the Machine type for kSlot to the
+  // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
-                         MachineType::AnyTagged(),     // kName
-                         MachineType::TaggedSigned(),  // kSlot
-                         MachineType::AnyTagged())     // kVector
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kReceiver
+                         MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged(),  // kSlot
+                         MachineType::AnyTagged())  // kVector
   DECLARE_DESCRIPTOR(LoadWithVectorDescriptor, LoadDescriptor)
 
   static const Register VectorRegister();
@@ -1205,19 +1209,41 @@ class WasmThrowDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
 };
 
-class I64ToBigIntDescriptor final : public CallInterfaceDescriptor {
+class V8_EXPORT_PRIVATE I64ToBigIntDescriptor final
+    : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::Int64())  // kArgument
   DECLARE_DESCRIPTOR(I64ToBigIntDescriptor, CallInterfaceDescriptor)
 };
 
-class BigIntToI64Descriptor final : public CallInterfaceDescriptor {
+// 32 bits version of the I64ToBigIntDescriptor call interface descriptor
+class V8_EXPORT_PRIVATE I32PairToBigIntDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kLow, kHigh)
+  DEFINE_PARAMETER_TYPES(MachineType::Uint32(),  // kLow
+                         MachineType::Uint32())  // kHigh
+  DECLARE_DESCRIPTOR(I32PairToBigIntDescriptor, CallInterfaceDescriptor)
+};
+
+class V8_EXPORT_PRIVATE BigIntToI64Descriptor final
+    : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kArgument)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int64(),      // result 1
                                     MachineType::AnyTagged())  // kArgument
   DECLARE_DESCRIPTOR(BigIntToI64Descriptor, CallInterfaceDescriptor)
+};
+
+class V8_EXPORT_PRIVATE BigIntToI32PairDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(2, kArgument)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),     // result 1
+                                    MachineType::Uint32(),     // result 2
+                                    MachineType::AnyTagged())  // kArgument
+  DECLARE_DESCRIPTOR(BigIntToI32PairDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmAtomicNotifyDescriptor final : public CallInterfaceDescriptor {

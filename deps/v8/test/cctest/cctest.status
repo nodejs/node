@@ -518,6 +518,7 @@
   'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
   'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
   'test-regexp/MacroAssemblerStackOverflow': [SKIP],
+  'test-regexp/Graph': [SKIP],
   'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-deopt/*': [SKIP],

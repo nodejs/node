@@ -6,7 +6,7 @@
 // as tagged, potentially dereferencing a Float64.
 
 // Ensure that we don't fail an assert from --verify-heap when cloning a
-// MutableHeapNumber in the CloneObjectIC handler case.
+// HeapNumber in the CloneObjectIC handler case.
 var src, clone;
 for (var i = 0; i < 40000; i++) {
     src = { ...i, x: -9007199254740991 };

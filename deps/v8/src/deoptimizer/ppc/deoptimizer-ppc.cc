@@ -11,6 +11,9 @@
 namespace v8 {
 namespace internal {
 
+const bool Deoptimizer::kSupportsFixedDeoptExitSize = false;
+const int Deoptimizer::kDeoptExitSize = 0;
+
 #define __ masm->
 
 // This code tries to be close to ia32 code so that any changes can be
@@ -28,7 +31,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   RegList saved_regs = restored_regs | sp.bit();
 
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
-  const int kFloatRegsSize = kFloatSize * FloatRegister::kNumRegisters;
 
   // Save all double registers before messing with them.
   __ subi(sp, sp, Operand(kDoubleRegsSize));
@@ -38,14 +40,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     const DoubleRegister dreg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
     __ stfd(dreg, MemOperand(sp, offset));
-  }
-  // Save all float registers before messing with them.
-  __ subi(sp, sp, Operand(kFloatRegsSize));
-  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
-    int code = config->GetAllocatableFloatCode(i);
-    const FloatRegister freg = FloatRegister::from_code(code);
-    int offset = code * kFloatSize;
-    __ stfs(freg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -64,7 +58,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ StoreP(fp, MemOperand(scratch));
   }
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
 
   // Get the bailout id is passed as r29 by the caller.
   __ mr(r5, r29);
@@ -114,20 +108,9 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset =
-        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ lfd(d0, MemOperand(sp, src_offset));
     __ stfd(d0, MemOperand(r4, dst_offset));
-  }
-  int float_regs_offset = FrameDescription::float_registers_offset();
-  // Copy float registers to
-  // float_registers_[FloatRegister::kNumRegisters]
-  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
-    int code = config->GetAllocatableFloatCode(i);
-    int dst_offset = code * kFloatSize + float_regs_offset;
-    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
-    __ lfs(d0, MemOperand(sp, src_offset));
-    __ stfs(d0, MemOperand(r4, dst_offset));
   }
 
   // Remove the saved registers from the stack.
@@ -236,7 +219,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ stop();
 }
 
-bool Deoptimizer::PadTopOfStackRegister() { return false; }
+Float32 RegisterValues::GetFloatRegister(unsigned n) const {
+  float float_val = static_cast<float>(double_registers_[n].get_scalar());
+  return Float32::FromBits(bit_cast<uint32_t>(float_val));
+}
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

@@ -111,24 +111,23 @@ const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 // ES6 section 20.3.1.16 Date Time String Format
 double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
   str = String::Flatten(isolate, str);
-  // TODO(bmeurer): Change DateParser to not use the FixedArray.
-  Handle<FixedArray> tmp =
-      isolate->factory()->NewFixedArray(DateParser::OUTPUT_SIZE);
+  double out[DateParser::OUTPUT_SIZE];
   DisallowHeapAllocation no_gc;
   String::FlatContent str_content = str->GetFlatContent(no_gc);
   bool result;
   if (str_content.IsOneByte()) {
-    result = DateParser::Parse(isolate, str_content.ToOneByteVector(), *tmp);
+    result = DateParser::Parse(isolate, str_content.ToOneByteVector(), out);
   } else {
-    result = DateParser::Parse(isolate, str_content.ToUC16Vector(), *tmp);
+    result = DateParser::Parse(isolate, str_content.ToUC16Vector(), out);
   }
   if (!result) return std::numeric_limits<double>::quiet_NaN();
-  double const day =
-      MakeDay(tmp->get(0).Number(), tmp->get(1).Number(), tmp->get(2).Number());
-  double const time = MakeTime(tmp->get(3).Number(), tmp->get(4).Number(),
-                               tmp->get(5).Number(), tmp->get(6).Number());
+  double const day = MakeDay(out[DateParser::YEAR], out[DateParser::MONTH],
+                             out[DateParser::DAY]);
+  double const time =
+      MakeTime(out[DateParser::HOUR], out[DateParser::MINUTE],
+               out[DateParser::SECOND], out[DateParser::MILLISECOND]);
   double date = MakeDate(day, time);
-  if (tmp->get(7).IsNull(isolate)) {
+  if (std::isnan(out[DateParser::UTC_OFFSET])) {
     if (date >= -DateCache::kMaxTimeBeforeUTCInMs &&
         date <= DateCache::kMaxTimeBeforeUTCInMs) {
       date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
@@ -136,7 +135,7 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
       return std::numeric_limits<double>::quiet_NaN();
     }
   } else {
-    date -= tmp->get(7).Number() * 1000.0;
+    date -= out[DateParser::UTC_OFFSET] * 1000.0;
   }
   return DateCache::TimeClip(date);
 }

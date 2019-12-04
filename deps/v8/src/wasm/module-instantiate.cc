@@ -656,6 +656,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     uint32_t size = segment.source.length();
 
     if (enabled_.bulk_memory) {
+      if (size == 0) continue;
       // Passive segments are not copied during instantiation.
       if (!segment.active) continue;
 
@@ -834,10 +835,18 @@ bool InstanceBuilder::ProcessImportedFunction(
                     module_name, import_name);
     return false;
   }
+  // Store any {WasmExternalFunction} callable in the instance before the call
+  // is resolved to preserve its identity. This handles exported functions as
+  // well as functions constructed via other means (e.g. WebAssembly.Function).
+  if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
+    WasmInstanceObject::SetWasmExternalFunction(
+        isolate_, instance, func_index,
+        Handle<WasmExternalFunction>::cast(value));
+  }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   FunctionSig* expected_sig = module_->functions[func_index].sig;
-  auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
-                                                  enabled_.bigint);
+  auto resolved =
+      compiler::ResolveWasmImportCall(js_receiver, expected_sig, enabled_);
   compiler::WasmImportCallKind kind = resolved.first;
   js_receiver = resolved.second;
   switch (kind) {
@@ -854,10 +863,6 @@ bool InstanceBuilder::ProcessImportedFunction(
       Address imported_target = imported_function->GetWasmCallTarget();
       ImportedFunctionEntry entry(instance, func_index);
       entry.SetWasmToWasm(*imported_instance, imported_target);
-      // Also store the {WasmExportedFunction} in the instance to preserve its
-      // identity.
-      WasmInstanceObject::SetWasmExportedFunction(
-          isolate_, instance, func_index, imported_function);
       break;
     }
     case compiler::WasmImportCallKind::kWasmToCapi: {
@@ -1218,8 +1223,7 @@ void InstanceBuilder::CompileImportWrappers(
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
     FunctionSig* sig = module_->functions[func_index].sig;
-    auto resolved =
-        compiler::ResolveWasmImportCall(js_receiver, sig, enabled_.bigint);
+    auto resolved = compiler::ResolveWasmImportCall(js_receiver, sig, enabled_);
     compiler::WasmImportCallKind kind = resolved.first;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||
@@ -1373,7 +1377,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
         break;
       case WasmInitExpr::kRefFuncConst: {
         DCHECK(enabled_.anyref);
-        auto function = WasmInstanceObject::GetOrCreateWasmExportedFunction(
+        auto function = WasmInstanceObject::GetOrCreateWasmExternalFunction(
             isolate_, instance, global.init.val.function_index);
         tagged_globals_->set(global.offset, *function);
         break;
@@ -1450,10 +1454,10 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       const WasmImport& import = module_->import_table[index];
       if (import.kind == kExternalFunction) {
         Handle<Object> value = sanitized_imports_[index].value;
-        if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
-          WasmInstanceObject::SetWasmExportedFunction(
+        if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
+          WasmInstanceObject::SetWasmExternalFunction(
               isolate_, instance, import.index,
-              Handle<WasmExportedFunction>::cast(value));
+              Handle<WasmExternalFunction>::cast(value));
         }
       }
     }
@@ -1498,10 +1502,10 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
         // TODO(wasm): reduce duplication with LoadElemSegment() further below
-        MaybeHandle<WasmExportedFunction> wasm_exported_function =
-            WasmInstanceObject::GetOrCreateWasmExportedFunction(
+        Handle<WasmExternalFunction> wasm_external_function =
+            WasmInstanceObject::GetOrCreateWasmExternalFunction(
                 isolate_, instance, exp.index);
-        desc.set_value(wasm_exported_function.ToHandleChecked());
+        desc.set_value(wasm_external_function);
 
         if (is_asm_js &&
             String::Equals(isolate_, name,
@@ -1629,6 +1633,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          uint32_t table_index,
                          const WasmElemSegment& elem_segment, uint32_t dst,
                          uint32_t src, size_t count) {
+  if (count == 0) return true;
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
@@ -1660,27 +1665,27 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
           .Set(sig_id, instance, func_index);
     }
 
-    // For AnyRef tables, we have to generate the WasmExportedFunction eagerly.
+    // For AnyRef tables, we have to generate the WasmExternalFunction eagerly.
     // Later we cannot know if an entry is a placeholder or not.
     if (table_object->type() == kWasmAnyRef) {
-      Handle<WasmExportedFunction> wasm_exported_function =
-          WasmInstanceObject::GetOrCreateWasmExportedFunction(isolate, instance,
+      Handle<WasmExternalFunction> wasm_external_function =
+          WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                               func_index);
       WasmTableObject::Set(isolate, table_object, entry_index,
-                           wasm_exported_function);
+                           wasm_external_function);
     } else {
       // Update the table object's other dispatch tables.
-      MaybeHandle<WasmExportedFunction> wasm_exported_function =
-          WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
+      MaybeHandle<WasmExternalFunction> wasm_external_function =
+          WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
                                                       func_index);
-      if (wasm_exported_function.is_null()) {
+      if (wasm_external_function.is_null()) {
         // No JSFunction entry yet exists for this function. Create a {Tuple2}
         // holding the information to lazily allocate one.
         WasmTableObject::SetFunctionTablePlaceholder(
             isolate, table_object, entry_index, instance, func_index);
       } else {
         table_object->entries().set(entry_index,
-                                    *wasm_exported_function.ToHandleChecked());
+                                    *wasm_external_function.ToHandleChecked());
       }
       // UpdateDispatchTables() updates all other dispatch tables, since
       // we have not yet added the dispatch table we are currently building.
@@ -1701,6 +1706,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     uint32_t dst = EvalUint32InitExpr(instance, elem_segment.offset);
     uint32_t src = 0;
     size_t count = elem_segment.entries.size();
+    if (enabled_.bulk_memory && count == 0) continue;
 
     bool success = LoadElemSegmentImpl(
         isolate_, instance,

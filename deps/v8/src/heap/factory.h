@@ -37,7 +37,6 @@ class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
 class EnumCache;
-class FinalizationGroupCleanupJobTask;
 class FreshlyAllocatedBigInt;
 class Isolate;
 class JSArrayBufferView;
@@ -478,8 +477,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
-  Handle<FinalizationGroupCleanupJobTask> NewFinalizationGroupCleanupJobTask(
-      Handle<JSFinalizationGroup> finalization_group);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(
@@ -521,8 +518,9 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
-  Handle<HeapObject> NewFillerObject(int size, bool double_align,
-                                     AllocationType allocation);
+  Handle<HeapObject> NewFillerObject(
+      int size, bool double_align, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
@@ -589,13 +587,11 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<HeapNumber> NewHeapNumber(
       AllocationType allocation = AllocationType::kYoung);
 
-  Handle<MutableHeapNumber> NewMutableHeapNumber(
-      AllocationType allocation = AllocationType::kYoung);
-  inline Handle<MutableHeapNumber> NewMutableHeapNumber(
-      double value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<MutableHeapNumber> NewMutableHeapNumberFromBits(
-      uint64_t bits, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<MutableHeapNumber> NewMutableHeapNumberWithHoleNaN(
+  // Creates a new HeapNumber in read-only space if possible otherwise old
+  // space.
+  Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
+
+  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN(
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a new BigInt with {length} digits. Only to be used by
@@ -771,7 +767,8 @@ class V8_EXPORT_PRIVATE Factory {
       AllocationType allocation = AllocationType::kOld);
 
   // Create a serialized scope info.
-  Handle<ScopeInfo> NewScopeInfo(int length);
+  Handle<ScopeInfo> NewScopeInfo(int length,
+                                 AllocationType type = AllocationType::kOld);
 
   Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 

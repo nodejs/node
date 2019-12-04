@@ -28,6 +28,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       stack_limit_(0),
       hash_seed_(0),
       function_kind_(FunctionKind::kNormalFunction),
+      function_syntax_kind_(FunctionSyntaxKind::kDeclaration),
       script_id_(-1),
       start_position_(0),
       end_position_(0),
@@ -62,7 +63,8 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
-  set_allow_harmony_numeric_separator(FLAG_harmony_numeric_separator);
+  set_allow_harmony_optional_chaining(FLAG_harmony_optional_chaining);
+  set_allow_harmony_nullish(FLAG_harmony_nullish);
   set_allow_harmony_private_methods(FLAG_harmony_private_methods);
 }
 
@@ -74,15 +76,13 @@ ParseInfo::ParseInfo(Isolate* isolate)
 
 template <typename T>
 void ParseInfo::SetFunctionInfo(T function) {
-  set_is_named_expression(function->is_named_expression());
   set_language_mode(function->language_mode());
   set_function_kind(function->kind());
-  set_declaration(function->is_declaration());
+  set_function_syntax_kind(function->syntax_kind());
   set_requires_instance_members_initializer(
       function->requires_instance_members_initializer());
   set_toplevel(function->is_toplevel());
   set_is_oneshot_iife(function->is_oneshot_iife());
-  set_wrapped_as_function(function->is_wrapped());
 }
 
 ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
@@ -220,7 +220,9 @@ void ParseInfo::SetScriptForToplevelCompile(Isolate* isolate,
   set_toplevel();
   set_collect_type_profile(isolate->is_collecting_type_profile() &&
                            script->IsUserJavaScript());
-  set_wrapped_as_function(script->is_wrapped());
+  if (script->is_wrapped()) {
+    set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
+  }
 }
 
 void ParseInfo::set_script(Handle<Script> script) {

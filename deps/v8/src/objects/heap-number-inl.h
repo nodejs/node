@@ -16,34 +16,31 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(HeapNumberBase, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(HeapNumber, HeapNumberBase)
-OBJECT_CONSTRUCTORS_IMPL(MutableHeapNumber, HeapNumberBase)
+OBJECT_CONSTRUCTORS_IMPL(HeapNumber, HeapObject)
 
 CAST_ACCESSOR(HeapNumber)
-CAST_ACCESSOR(MutableHeapNumber)
 
-double HeapNumberBase::value() const { return ReadField<double>(kValueOffset); }
+double HeapNumber::value() const { return ReadField<double>(kValueOffset); }
 
-void HeapNumberBase::set_value(double value) {
+void HeapNumber::set_value(double value) {
   WriteField<double>(kValueOffset, value);
 }
 
-uint64_t HeapNumberBase::value_as_bits() const {
+uint64_t HeapNumber::value_as_bits() const {
   // Bug(v8:8875): HeapNumber's double may be unaligned.
   return base::ReadUnalignedValue<uint64_t>(field_address(kValueOffset));
 }
 
-void HeapNumberBase::set_value_as_bits(uint64_t bits) {
+void HeapNumber::set_value_as_bits(uint64_t bits) {
   base::WriteUnalignedValue<uint64_t>(field_address(kValueOffset), bits);
 }
 
-int HeapNumberBase::get_exponent() {
+int HeapNumber::get_exponent() {
   return ((ReadField<int>(kExponentOffset) & kExponentMask) >> kExponentShift) -
          kExponentBias;
 }
 
-int HeapNumberBase::get_sign() {
+int HeapNumber::get_sign() {
   return ReadField<int>(kExponentOffset) & kSignMask;
 }
 

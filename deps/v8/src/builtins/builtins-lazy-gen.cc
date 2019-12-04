@@ -146,8 +146,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 
   BIND(&use_sfi_code);
   // If not, install the SFI's code entry and jump to that.
-  CSA_ASSERT(this, WordNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
-                                              isolate(), CompileLazy))));
+  CSA_ASSERT(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+                                                isolate(), CompileLazy))));
   StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
   GenerateTailCallToJSCode(sfi_code, function);
 

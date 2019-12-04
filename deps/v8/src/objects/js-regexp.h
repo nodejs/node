@@ -29,7 +29,7 @@ namespace internal {
 // used for tracking the last usage (used for regexp code flushing).
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
-class JSRegExp : public JSObject {
+class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
   // Meaning of Type:
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
@@ -82,10 +82,7 @@ class JSRegExp : public JSObject {
   STATIC_ASSERT(static_cast<int>(kDotAll) == v8::RegExp::kDotAll);
   STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
 
-  DECL_ACCESSORS(data, Object)
-  DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(last_index, Object)
-  DECL_ACCESSORS(source, Object)
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(Isolate* isolate,
                                                      Handle<String> source,
@@ -98,7 +95,15 @@ class JSRegExp : public JSObject {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
+  bool MarkedForTierUp();
+  void ResetTierUp();
+  void MarkTierUpForNextExec();
+
   inline Type TypeTag() const;
+
+  // Maximum number of captures allowed.
+  static constexpr int kMaxCaptures = 1 << 16;
+
   // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
@@ -108,26 +113,27 @@ class JSRegExp : public JSObject {
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object value);
 
-  static int code_index(bool is_latin1) {
-    if (is_latin1) {
-      return kIrregexpLatin1CodeIndex;
-    } else {
-      return kIrregexpUC16CodeIndex;
-    }
+  static constexpr int code_index(bool is_latin1) {
+    return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;
   }
 
+  static constexpr int bytecode_index(bool is_latin1) {
+    return is_latin1 ? kIrregexpLatin1BytecodeIndex
+                     : kIrregexpUC16BytecodeIndex;
+  }
+
+  // This could be a Smi kUninitializedValue or Code.
+  Object Code(bool is_latin1) const;
+  // This could be a Smi kUninitializedValue or ByteArray.
+  Object Bytecode(bool is_latin1) const;
+  bool ShouldProduceBytecode();
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
-
-  DECL_CAST(JSRegExp)
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
   DECL_VERIFIER(JSRegExp)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSREG_EXP_FIELDS)
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
   static constexpr int kLastIndexOffset = kSize;
@@ -144,24 +150,35 @@ class JSRegExp : public JSObject {
 
   static const int kAtomDataSize = kAtomPatternIndex + 1;
 
-  // Irregexp compiled code or bytecode for Latin1. If compilation
-  // fails, this fields hold an exception object that should be
+  // Irregexp compiled code or trampoline to interpreter for Latin1. If
+  // compilation fails, this fields hold an exception object that should be
   // thrown if the regexp is used again.
   static const int kIrregexpLatin1CodeIndex = kDataIndex;
-  // Irregexp compiled code or bytecode for UC16.  If compilation
-  // fails, this fields hold an exception object that should be
+  // Irregexp compiled code or trampoline to interpreter for UC16.  If
+  // compilation fails, this fields hold an exception object that should be
   // thrown if the regexp is used again.
   static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
+  // Bytecode to interpret the regexp for Latin1. Contains kUninitializedValue
+  // if we haven't compiled the regexp yet, regexp are always compiled or if
+  // tier-up has happened (i.e. when kIrregexpLatin1CodeIndex contains native
+  // irregexp code).
+  static const int kIrregexpLatin1BytecodeIndex = kDataIndex + 2;
+  // Bytecode to interpret the regexp for UC16. Contains kUninitializedValue if
+  // we haven't compiled the regxp yet, regexp are always compiled or if tier-up
+  // has happened (i.e. when kIrregexpUC16CodeIndex contains native irregexp
+  // code).
+  static const int kIrregexpUC16BytecodeIndex = kDataIndex + 3;
   // Maximal number of registers used by either Latin1 or UC16.
   // Only used to check that there is enough stack space
-  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 2;
+  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 4;
   // Number of captures in the compiled regexp.
-  static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
+  static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
-  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 4;
+  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
+  static const int kIrregexpTierUpTicksIndex = kDataIndex + 7;
 
-  static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
+  static const int kIrregexpDataSize = kIrregexpTierUpTicksIndex + 1;
 
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;
@@ -178,7 +195,7 @@ class JSRegExp : public JSObject {
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
 
-  OBJECT_CONSTRUCTORS(JSRegExp, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)

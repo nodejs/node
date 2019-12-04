@@ -141,6 +141,7 @@ namespace compiler {
   V(ArmF32x4AddHoriz)              \
   V(ArmF32x4Sub)                   \
   V(ArmF32x4Mul)                   \
+  V(ArmF32x4Div)                   \
   V(ArmF32x4Min)                   \
   V(ArmF32x4Max)                   \
   V(ArmF32x4Eq)                    \

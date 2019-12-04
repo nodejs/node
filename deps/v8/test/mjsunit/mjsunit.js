@@ -174,6 +174,7 @@ var V8OptimizationStatus = {
   kIsExecuting: 1 << 10,
   kTopmostFrameIsTurboFanned: 1 << 11,
   kLiteMode: 1 << 12,
+  kMarkedForDeoptimization: 1 << 13,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.

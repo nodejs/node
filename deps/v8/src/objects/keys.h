@@ -52,8 +52,8 @@ class KeyAccumulator final {
                                        Handle<JSObject> object);
   Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
                                       Handle<JSObject> object);
-  void CollectPrivateNames(Handle<JSReceiver> receiver,
-                           Handle<JSObject> object);
+  V8_WARN_UNUSED_RESULT ExceptionStatus
+  CollectPrivateNames(Handle<JSReceiver> receiver, Handle<JSObject> object);
   Maybe<bool> CollectAccessCheckInterceptorKeys(
       Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
       Handle<JSObject> object);
@@ -65,10 +65,14 @@ class KeyAccumulator final {
   static Handle<FixedArray> GetOwnEnumPropertyKeys(Isolate* isolate,
                                                    Handle<JSObject> object);
 
-  void AddKey(Object key, AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
-  void AddKeys(Handle<JSObject> array_like, AddKeyConversion convert);
+  V8_WARN_UNUSED_RESULT ExceptionStatus
+  AddKey(Object key, AddKeyConversion convert = DO_NOT_CONVERT);
+  V8_WARN_UNUSED_RESULT ExceptionStatus
+  AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<FixedArray> array,
+                                                AddKeyConversion convert);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<JSObject> array_like,
+                                                AddKeyConversion convert);
 
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.

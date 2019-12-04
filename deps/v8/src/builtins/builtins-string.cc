@@ -208,14 +208,10 @@ BUILTIN(StringPrototypeNormalize) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
                                      Object::ToString(isolate, form_input));
 
-  if (!(String::Equals(isolate, form,
-                       isolate->factory()->NewStringFromStaticChars("NFC")) ||
-        String::Equals(isolate, form,
-                       isolate->factory()->NewStringFromStaticChars("NFD")) ||
-        String::Equals(isolate, form,
-                       isolate->factory()->NewStringFromStaticChars("NFKC")) ||
-        String::Equals(isolate, form,
-                       isolate->factory()->NewStringFromStaticChars("NFKD")))) {
+  if (!(String::Equals(isolate, form, isolate->factory()->NFC_string()) ||
+        String::Equals(isolate, form, isolate->factory()->NFD_string()) ||
+        String::Equals(isolate, form, isolate->factory()->NFKC_string()) ||
+        String::Equals(isolate, form, isolate->factory()->NFKD_string()))) {
     Handle<String> valid_forms =
         isolate->factory()->NewStringFromStaticChars("NFC, NFD, NFKC, NFKD");
     THROW_NEW_ERROR_RETURN_FAILURE(

@@ -4258,6 +4258,24 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
 
 enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
 
+static Instr EncodeNeonShiftRegisterOp(NeonShiftOp op, NeonDataType dt,
+                                       NeonRegType reg_type, int dst_code,
+                                       int src_code, int shift_code) {
+  DCHECK_EQ(op, VSHL);
+  int op_encoding = 0;
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+  int vn, n;
+  NeonSplitCode(reg_type, shift_code, &vn, &n, &op_encoding);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+
+  return 0x1E4U * B23 | u * B24 | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         0x4 * B8 | n * B7 | m * B5 | vm | op_encoding;
+}
+
 static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
                                NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
@@ -4313,6 +4331,15 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   // Instruction details available in ARM DDI 0406C.b, A8-1046.
   emit(EncodeNeonShiftOp(VSHL, NeonDataTypeToSize(dt), false, NEON_Q,
                          dst.code(), src.code(), shift));
+}
+
+void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
+                     QwNeonRegister shift) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vshl(Qm, Qn) SIMD shift left Register.
+  // Instruction details available in ARM DDI 0487A.a, F8-3340..
+  emit(EncodeNeonShiftRegisterOp(VSHL, dt, NEON_Q, dst.code(), src.code(),
+                                 shift.code()));
 }
 
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,

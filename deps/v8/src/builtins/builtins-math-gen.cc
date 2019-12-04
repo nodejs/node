@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/fixed-array.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +40,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
       // check if support abs function
       if (IsIntPtrAbsWithOverflowSupported()) {
-        Node* pair = IntPtrAbsWithOverflow(x);
+        TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAbsWithOverflow(x);
         Node* overflow = Projection(1, pair);
         GotoIf(overflow, &if_overflow);
 
@@ -79,9 +80,9 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
       BIND(&if_xisheapnumber);
       {
-        Node* x_value = LoadHeapNumberValue(x);
-        Node* value = Float64Abs(x_value);
-        Node* result = AllocateHeapNumberWithValue(value);
+        TNode<Float64T> x_value = LoadHeapNumberValue(x);
+        TNode<Float64T> value = Float64Abs(x_value);
+        TNode<HeapNumber> result = AllocateHeapNumberWithValue(value);
         Return(result);
       }
 
@@ -125,9 +126,9 @@ void MathBuiltinsAssembler::MathRoundingOperation(
 
       BIND(&if_xisheapnumber);
       {
-        Node* x_value = LoadHeapNumberValue(x);
-        Node* value = (this->*float64op)(x_value);
-        Node* result = ChangeFloat64ToTagged(value);
+        TNode<Float64T> x_value = LoadHeapNumberValue(x);
+        TNode<Float64T> value = (this->*float64op)(x_value);
+        TNode<Number> result = ChangeFloat64ToTagged(value);
         Return(result);
       }
 
@@ -182,8 +183,8 @@ TF_BUILTIN(MathImul, CodeStubAssembler) {
   Node* y = Parameter(Descriptor::kY);
   Node* x_value = TruncateTaggedToWord32(context, x);
   Node* y_value = TruncateTaggedToWord32(context, y);
-  Node* value = Int32Mul(x_value, y_value);
-  Node* result = ChangeInt32ToTagged(value);
+  TNode<Int32T> value = Signed(Int32Mul(x_value, y_value));
+  TNode<Number> result = ChangeInt32ToTagged(value);
   Return(result);
 }
 
@@ -192,7 +193,7 @@ CodeStubAssembler::Node* MathBuiltinsAssembler::MathPow(Node* context,
                                                         Node* exponent) {
   Node* base_value = TruncateTaggedToFloat64(context, base);
   Node* exponent_value = TruncateTaggedToFloat64(context, exponent);
-  Node* value = Float64Pow(base_value, exponent_value);
+  TNode<Float64T> value = Float64Pow(base_value, exponent_value);
   return ChangeFloat64ToTagged(value);
 }
 
@@ -205,7 +206,7 @@ TF_BUILTIN(MathPow, MathBuiltinsAssembler) {
 // ES6 #sec-math.random
 TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-  Node* native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Load cache index.
   TVARIABLE(Smi, smi_index);
@@ -217,9 +218,9 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   GotoIf(SmiAbove(smi_index.value(), SmiConstant(0)), &if_cached);
 
   // Cache exhausted, populate the cache. Return value is the new index.
-  Node* const refill_math_random =
+  TNode<ExternalReference> const refill_math_random =
       ExternalConstant(ExternalReference::refill_math_random());
-  Node* const isolate_ptr =
+  TNode<ExternalReference> const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   MachineType type_tagged = MachineType::AnyTagged();
   MachineType type_ptr = MachineType::Pointer();
@@ -236,9 +237,9 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
                       new_smi_index);
 
   // Load and return next cached random number.
-  Node* array =
-      LoadContextElement(native_context, Context::MATH_RANDOM_CACHE_INDEX);
-  Node* random = LoadFixedDoubleArrayElement(
+  TNode<FixedDoubleArray> array = CAST(
+      LoadContextElement(native_context, Context::MATH_RANDOM_CACHE_INDEX));
+  TNode<Float64T> random = LoadFixedDoubleArrayElement(
       array, new_smi_index, MachineType::Float64(), 0, SMI_PARAMETERS);
   Return(AllocateHeapNumberWithValue(random));
 }

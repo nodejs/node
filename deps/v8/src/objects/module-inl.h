@@ -20,37 +20,24 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(Module, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(SourceTextModule, Module)
-OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry, Struct)
-OBJECT_CONSTRUCTORS_IMPL(SyntheticModule, Module)
-OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SourceTextModule)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SyntheticModule)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)
 NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
 NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 
 CAST_ACCESSOR(Module)
-CAST_ACCESSOR(SourceTextModule)
-CAST_ACCESSOR(SyntheticModule)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-ACCESSORS(SourceTextModule, code, Object, kCodeOffset)
-ACCESSORS(SourceTextModule, regular_exports, FixedArray, kRegularExportsOffset)
-ACCESSORS(SourceTextModule, regular_imports, FixedArray, kRegularImportsOffset)
-ACCESSORS(SourceTextModule, requested_modules, FixedArray,
-          kRequestedModulesOffset)
-ACCESSORS(SourceTextModule, script, Script, kScriptOffset)
-ACCESSORS(SourceTextModule, import_meta, Object, kImportMetaOffset)
-SMI_ACCESSORS(SourceTextModule, dfs_index, kDfsIndexOffset)
-SMI_ACCESSORS(SourceTextModule, dfs_ancestor_index, kDfsAncestorIndexOffset)
-
-ACCESSORS(SyntheticModule, name, String, kNameOffset)
-ACCESSORS(SyntheticModule, export_names, FixedArray, kExportNamesOffset)
-ACCESSORS(SyntheticModule, evaluation_steps, Foreign, kEvaluationStepsOffset)
+TQ_SMI_ACCESSORS(SourceTextModule, dfs_index)
+TQ_SMI_ACCESSORS(SourceTextModule, dfs_ancestor_index)
 
 SourceTextModuleInfo SourceTextModule::info() const {
   return (status() >= kEvaluating)
@@ -58,17 +45,10 @@ SourceTextModuleInfo SourceTextModule::info() const {
              : GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
 }
 
-CAST_ACCESSOR(JSModuleNamespace)
-ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
-
-CAST_ACCESSOR(SourceTextModuleInfoEntry)
-ACCESSORS(SourceTextModuleInfoEntry, export_name, Object, kExportNameOffset)
-ACCESSORS(SourceTextModuleInfoEntry, local_name, Object, kLocalNameOffset)
-ACCESSORS(SourceTextModuleInfoEntry, import_name, Object, kImportNameOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, module_request, kModuleRequestOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, cell_index, kCellIndexOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, beg_pos, kBegPosOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, end_pos, kEndPosOffset)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, module_request)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, cell_index)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, beg_pos)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, end_pos)
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
 CAST_ACCESSOR(SourceTextModuleInfo)

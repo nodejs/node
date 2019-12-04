@@ -101,6 +101,14 @@ constexpr int kStackSpaceRequiredForCompilation = 40;
 #define V8_OS_WIN_X64 true
 #endif
 
+#if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_ARM64)
+#define V8_OS_WIN_ARM64 true
+#endif
+
+#if defined(V8_OS_WIN_X64) || defined(V8_OS_WIN_ARM64)
+#define V8_OS_WIN64 true
+#endif
+
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {
@@ -882,14 +890,14 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((static_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+  ((static_cast<i::Tagged_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
 
-#define HAS_STRONG_HEAP_OBJECT_TAG(value)                       \
-  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_STRONG_HEAP_OBJECT_TAG(value)                          \
+  (((static_cast<i::Tagged_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kHeapObjectTag))
 
-#define HAS_WEAK_HEAP_OBJECT_TAG(value)                         \
-  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_WEAK_HEAP_OBJECT_TAG(value)                            \
+  (((static_cast<i::Tagged_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kWeakHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
@@ -1060,6 +1068,25 @@ enum class VariableMode : uint8_t {
                   // has been shadowed by an eval-introduced
                   // variable
 
+  // Variables for private methods or accessors whose access require
+  // brand check. Declared only in class scopes by the compiler
+  // and allocated only in class contexts:
+  kPrivateMethod,  // Does not coexist with any other variable with the same
+                   // name in the same scope.
+
+  kPrivateSetterOnly,  // Incompatible with variables with the same name but
+                       // any mode other than kPrivateGetterOnly. Transition to
+                       // kPrivateGetterAndSetter if a later declaration for the
+                       // same name with kPrivateGetterOnly is made.
+
+  kPrivateGetterOnly,  // Incompatible with variables with the same name but
+                       // any mode other than kPrivateSetterOnly. Transition to
+                       // kPrivateGetterAndSetter if a later declaration for the
+                       // same name with kPrivateSetterOnly is made.
+
+  kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
+                            // same name in the same scope.
+
   kLastLexicalVariableMode = kConst,
 };
 
@@ -1071,6 +1098,14 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "VAR";
     case VariableMode::kLet:
       return "LET";
+    case VariableMode::kPrivateGetterOnly:
+      return "PRIVATE_GETTER_ONLY";
+    case VariableMode::kPrivateSetterOnly:
+      return "PRIVATE_SETTER_ONLY";
+    case VariableMode::kPrivateMethod:
+      return "PRIVATE_METHOD";
+    case VariableMode::kPrivateGetterAndSetter:
+      return "PRIVATE_GETTER_AND_SETTER";
     case VariableMode::kConst:
       return "CONST";
     case VariableMode::kDynamic:
@@ -1102,6 +1137,21 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
   return mode <= VariableMode::kVar;
+}
+
+inline bool IsPrivateMethodOrAccessorVariableMode(VariableMode mode) {
+  return mode >= VariableMode::kPrivateMethod &&
+         mode <= VariableMode::kPrivateGetterAndSetter;
+}
+
+inline bool IsSerializableVariableMode(VariableMode mode) {
+  return IsDeclaredVariableMode(mode) ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
+}
+
+inline bool IsConstVariableMode(VariableMode mode) {
+  return mode == VariableMode::kConst ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
 }
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
@@ -1167,8 +1217,6 @@ enum VariableLocation : uint8_t {
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
-
-enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
 
 enum class InterpreterPushArgsMode : unsigned {
   kArrayFunction,
@@ -1498,12 +1546,12 @@ enum KeyedAccessStoreMode {
 
 enum MutableMode { MUTABLE, IMMUTABLE };
 
-static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
+inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_HANDLE_COW ||
          store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
-static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
+inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
@@ -1534,6 +1582,11 @@ constexpr int kSmallOrderedHashMapMinCapacity = 4;
 // ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
 // has correct value range (see Issue 830 for more details).
 enum StackFrameId { ID_MIN_VALUE = kMinInt, ID_MAX_VALUE = kMaxInt, NO_ID = 0 };
+
+enum class ExceptionStatus : bool { kException = false, kSuccess = true };
+V8_INLINE bool operator!(ExceptionStatus status) {
+  return !static_cast<bool>(status);
+}
 
 }  // namespace internal
 }  // namespace v8

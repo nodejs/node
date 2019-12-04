@@ -29,7 +29,7 @@ class ConversionBuiltinsAssembler : public CodeStubAssembler {
 void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
     Node* context, Node* input, ToPrimitiveHint hint) {
   // Lookup the @@toPrimitive property on the {input}.
-  Node* exotic_to_prim =
+  TNode<Object> exotic_to_prim =
       GetProperty(context, input, factory()->to_primitive_symbol());
 
   // Check if {exotic_to_prim} is neither null nor undefined.
@@ -40,7 +40,8 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
     // representation of the {hint}.
     Callable callable =
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined);
-    Node* hint_string = HeapConstant(factory()->ToPrimitiveHintString(hint));
+    TNode<String> hint_string =
+        HeapConstant(factory()->ToPrimitiveHintString(hint));
     Node* result =
         CallJS(callable, context, exotic_to_prim, input, hint_string);
 
@@ -48,7 +49,7 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
     Label if_resultisprimitive(this),
         if_resultisnotprimitive(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(result), &if_resultisprimitive);
-    Node* result_instance_type = LoadInstanceType(result);
+    TNode<Uint16T> result_instance_type = LoadInstanceType(result);
     Branch(IsPrimitiveInstanceType(result_instance_type), &if_resultisprimitive,
            &if_resultisnotprimitive);
 
@@ -119,7 +120,7 @@ TF_BUILTIN(ToName, CodeStubAssembler) {
     Label if_inputisbigint(this), if_inputisname(this), if_inputisnumber(this),
         if_inputisoddball(this), if_inputisreceiver(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(input), &if_inputisnumber);
-    Node* input_instance_type = LoadInstanceType(input);
+    TNode<Uint16T> input_instance_type = LoadInstanceType(input);
     STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
     GotoIf(IsNameInstanceType(input_instance_type), &if_inputisname);
     GotoIf(IsJSReceiverInstanceType(input_instance_type), &if_inputisreceiver);
@@ -230,13 +231,13 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
   }
   for (Handle<String> name : method_names) {
     // Lookup the {name} on the {input}.
-    Node* method = GetProperty(context, input, name);
+    TNode<Object> method = GetProperty(context, input, name);
 
     // Check if the {method} is callable.
     Label if_methodiscallable(this),
         if_methodisnotcallable(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(method), &if_methodisnotcallable);
-    Node* method_map = LoadMap(method);
+    TNode<Map> method_map = LoadMap(CAST(method));
     Branch(IsCallableMap(method_map), &if_methodiscallable,
            &if_methodisnotcallable);
 
@@ -250,7 +251,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
 
       // Return the {result} if it is a primitive.
       GotoIf(TaggedIsSmi(result), &return_result);
-      Node* result_instance_type = LoadInstanceType(result);
+      TNode<Uint16T> result_instance_type = LoadInstanceType(result);
       GotoIf(IsPrimitiveInstanceType(result_instance_type), &return_result);
     }
 
@@ -340,7 +341,7 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
     BIND(&if_lenisheapnumber);
     {
       // Load the floating-point value of {len}.
-      Node* len_value = LoadHeapNumberValue(len);
+      TNode<Float64T> len_value = LoadHeapNumberValue(len);
 
       // Check if {len} is not greater than zero.
       GotoIfNot(Float64GreaterThan(len_value, Float64Constant(0.0)),
@@ -352,8 +353,8 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
              &return_two53minus1);
 
       // Round the {len} towards -Infinity.
-      Node* value = Float64Floor(len_value);
-      Node* result = ChangeFloat64ToTagged(value);
+      TNode<Float64T> value = Float64Floor(len_value);
+      TNode<Number> result = ChangeFloat64ToTagged(value);
       Return(result);
     }
 
@@ -403,11 +404,12 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
 
   GotoIf(TaggedIsSmi(object), &if_smi);
 
-  Node* map = LoadMap(object);
-  Node* instance_type = LoadMapInstanceType(map);
+  TNode<Map> map = LoadMap(object);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsJSReceiverInstanceType(instance_type), &if_jsreceiver);
 
-  Node* constructor_function_index = LoadMapConstructorFunctionIndex(map);
+  TNode<IntPtrT> constructor_function_index =
+      LoadMapConstructorFunctionIndex(map);
   GotoIf(WordEqual(constructor_function_index,
                    IntPtrConstant(Map::kNoConstructorFunctionIndex)),
          &if_noconstructor);
@@ -420,12 +422,12 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Goto(&if_wrapjs_primitive_wrapper);
 
   BIND(&if_wrapjs_primitive_wrapper);
-  TNode<Context> native_context = LoadNativeContext(context);
-  Node* constructor = LoadContextElement(
-      native_context, constructor_function_index_var.value());
-  Node* initial_map =
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<JSFunction> constructor = CAST(LoadContextElement(
+      native_context, constructor_function_index_var.value()));
+  TNode<Object> initial_map =
       LoadObjectField(constructor, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* js_primitive_wrapper = Allocate(JSPrimitiveWrapper::kSize);
+  TNode<HeapObject> js_primitive_wrapper = Allocate(JSPrimitiveWrapper::kSize);
   StoreMapNoWriteBarrier(js_primitive_wrapper, initial_map);
   StoreObjectFieldRoot(js_primitive_wrapper,
                        JSPrimitiveWrapper::kPropertiesOrHashOffset,

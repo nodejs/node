@@ -496,44 +496,6 @@ static void TestWeakGlobalHandleCallback(
   p->first->Reset();
 }
 
-
-TEST(WeakGlobalHandlesScavenge) {
-  FLAG_stress_compaction = false;
-  FLAG_stress_incremental_marking = false;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  WeakPointerCleared = false;
-
-  Handle<Object> h1;
-  Handle<Object> h2;
-
-  {
-    HandleScope scope(isolate);
-
-    Handle<Object> i = factory->NewStringFromStaticChars("fisk");
-    Handle<Object> u = factory->NewNumber(1.12344);
-
-    h1 = global_handles->Create(*i);
-    h2 = global_handles->Create(*u);
-  }
-
-  std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
-  GlobalHandles::MakeWeak(
-      h2.location(), reinterpret_cast<void*>(&handle_and_id),
-      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
-
-  // Scavenge treats weak pointers as normal roots.
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK((*h1).IsString());
-  CHECK((*h2).IsHeapNumber());
-  CHECK(!WeakPointerCleared);
-  GlobalHandles::Destroy(h1.location());
-  GlobalHandles::Destroy(h2.location());
-}
-
 TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -569,84 +531,6 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
   CcTest::CollectGarbage(NEW_SPACE);
   CHECK((*h1).IsHeapNumber());
   CHECK(WeakPointerCleared);
-  GlobalHandles::Destroy(h1.location());
-}
-
-TEST(WeakGlobalApiHandleModifiedMapScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext context;
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  WeakPointerCleared = false;
-
-  Handle<Object> h1;
-
-  {
-    HandleScope scope(isolate);
-
-    // Create an API object which does not have the same map as constructor.
-    auto function_template = FunctionTemplate::New(context->GetIsolate());
-    auto instance_t = function_template->InstanceTemplate();
-    instance_t->Set(v8::String::NewFromUtf8(context->GetIsolate(), "a",
-                                            NewStringType::kNormal)
-                        .ToLocalChecked(),
-                    v8::Number::New(context->GetIsolate(), 10));
-    auto function =
-        function_template->GetFunction(context.local()).ToLocalChecked();
-    auto i = function->NewInstance(context.local()).ToLocalChecked();
-
-    h1 = global_handles->Create(*(reinterpret_cast<internal::Address*>(*i)));
-  }
-
-  std::pair<Handle<Object>*, int> handle_and_id(&h1, 1234);
-  GlobalHandles::MakeWeak(
-      h1.location(), reinterpret_cast<void*>(&handle_and_id),
-      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
-
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(!WeakPointerCleared);
-  GlobalHandles::Destroy(h1.location());
-}
-
-TEST(WeakGlobalApiHandleWithElementsScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext context;
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  WeakPointerCleared = false;
-
-  Handle<Object> h1;
-
-  {
-    HandleScope scope(isolate);
-
-    // Create an API object which has elements.
-    auto function_template = FunctionTemplate::New(context->GetIsolate());
-    auto instance_t = function_template->InstanceTemplate();
-    instance_t->Set(v8::String::NewFromUtf8(context->GetIsolate(), "1",
-                                            NewStringType::kNormal)
-                        .ToLocalChecked(),
-                    v8::Number::New(context->GetIsolate(), 10));
-    instance_t->Set(v8::String::NewFromUtf8(context->GetIsolate(), "2",
-                                            NewStringType::kNormal)
-                        .ToLocalChecked(),
-                    v8::Number::New(context->GetIsolate(), 10));
-    auto function =
-        function_template->GetFunction(context.local()).ToLocalChecked();
-    auto i = function->NewInstance(context.local()).ToLocalChecked();
-
-    h1 = global_handles->Create(*(reinterpret_cast<internal::Address*>(*i)));
-  }
-
-  std::pair<Handle<Object>*, int> handle_and_id(&h1, 1234);
-  GlobalHandles::MakeWeak(
-      h1.location(), reinterpret_cast<void*>(&handle_and_id),
-      &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
-
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(!WeakPointerCleared);
   GlobalHandles::Destroy(h1.location());
 }
 
@@ -699,9 +583,7 @@ TEST(DeleteWeakGlobalHandle) {
   GlobalHandles* global_handles = isolate->global_handles();
 
   WeakPointerCleared = false;
-
   Handle<Object> h;
-
   {
     HandleScope scope(isolate);
 
@@ -713,15 +595,8 @@ TEST(DeleteWeakGlobalHandle) {
   GlobalHandles::MakeWeak(h.location(), reinterpret_cast<void*>(&handle_and_id),
                           &TestWeakGlobalHandleCallback,
                           v8::WeakCallbackType::kParameter);
-
-  // Scanvenge does not recognize weak reference.
-  CcTest::CollectGarbage(NEW_SPACE);
-
   CHECK(!WeakPointerCleared);
-
-  // Mark-compact treats weak reference properly.
   CcTest::CollectGarbage(OLD_SPACE);
-
   CHECK(WeakPointerCleared);
 }
 
@@ -1918,36 +1793,6 @@ TEST(HeapNumberAlignment) {
     Handle<Object> number_old =
         factory->NewNumber(1.000321, AllocationType::kOld);
     CHECK(number_old->IsHeapNumber());
-    CHECK(heap->InOldSpace(*number_old));
-    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),
-                                     required_alignment));
-  }
-}
-
-TEST(MutableHeapNumberAlignment) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
-  HandleScope sc(isolate);
-
-  const auto required_alignment =
-      HeapObject::RequiredAlignment(*factory->mutable_heap_number_map());
-  const int maximum_misalignment =
-      Heap::GetMaximumFillToAlign(required_alignment);
-
-  for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
-    AlignNewSpace(required_alignment, offset);
-    Handle<Object> number_new = factory->NewMutableHeapNumber(1.000123);
-    CHECK(number_new->IsMutableHeapNumber());
-    CHECK(Heap::InYoungGeneration(*number_new));
-    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new).address(),
-                                     required_alignment));
-
-    AlignOldSpace(required_alignment, offset);
-    Handle<Object> number_old =
-        factory->NewMutableHeapNumber(1.000321, AllocationType::kOld);
-    CHECK(number_old->IsMutableHeapNumber());
     CHECK(heap->InOldSpace(*number_old));
     CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),
                                      required_alignment));

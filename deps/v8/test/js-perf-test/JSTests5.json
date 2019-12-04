@@ -618,6 +618,18 @@
         {"name": "Inline-Serialize-Error.stack"},
         {"name": "Recursive-Serialize-Error.stack"}
       ]
+    },
+    {
+      "name": "IC",
+      "path": ["IC"],
+      "main": "run.js",
+      "flags": ["--no-opt"],
+      "resources": ["loadconstantfromprototype.js"],
+      "results_regexp": "^%s\\-IC\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "LoadConstantFromPrototype"
+        }
+      ]
     }
   ]
 }

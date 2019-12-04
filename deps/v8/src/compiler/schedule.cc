@@ -163,6 +163,11 @@ BasicBlock* Schedule::GetBlockById(BasicBlock::Id block_id) {
   return all_blocks_[block_id.ToSize()];
 }
 
+void Schedule::ClearBlockById(BasicBlock::Id block_id) {
+  DCHECK(block_id.ToSize() < all_blocks_.size());
+  all_blocks_[block_id.ToSize()] = nullptr;
+}
+
 bool Schedule::SameBasicBlock(Node* a, Node* b) const {
   BasicBlock* block = this->block(a);
   return block != nullptr && block == this->block(b);
@@ -210,7 +215,6 @@ bool IsPotentiallyThrowingCall(IrOpcode::Value opcode) {
     JS_OP_LIST(BUILD_BLOCK_JS_CASE)
 #undef BUILD_BLOCK_JS_CASE
     case IrOpcode::kCall:
-    case IrOpcode::kCallWithCallerSavedRegisters:
       return true;
     default:
       return false;
@@ -321,9 +325,6 @@ void Schedule::EnsureCFGWellFormedness() {
       if (block != end_) {
         EnsureSplitEdgeForm(block);
       }
-      if (block->deferred()) {
-        EnsureDeferredCodeSingleEntryPoint(block);
-      }
     }
   }
 
@@ -356,6 +357,7 @@ void Schedule::EliminateRedundantPhiNodes() {
           }
           if (!inputs_equal) continue;
           node->ReplaceUses(first_input);
+          node->Kill();
           block->RemoveNode(block->begin() + node_pos);
           --node_pos;
           reached_fixed_point = false;
@@ -374,43 +376,6 @@ void Schedule::EnsureSplitEdgeForm(BasicBlock* block) {
     DCHECK_LE(pred->SuccessorCount(), 1);
   }
 #endif
-}
-
-void Schedule::EnsureDeferredCodeSingleEntryPoint(BasicBlock* block) {
-  // If a deferred block has multiple predecessors, they have to
-  // all be deferred. Otherwise, we can run into a situation where a range
-  // that spills only in deferred blocks inserts its spill in the block, but
-  // other ranges need moves inserted by ResolveControlFlow in the predecessors,
-  // which may clobber the register of this range.
-  // To ensure that, when a deferred block has multiple predecessors, and some
-  // are not deferred, we add a non-deferred block to collect all such edges.
-
-  DCHECK(block->deferred() && block->PredecessorCount() > 1);
-  bool all_deferred = true;
-  for (auto current_pred = block->predecessors().begin();
-       current_pred != block->predecessors().end(); ++current_pred) {
-    BasicBlock* pred = *current_pred;
-    if (!pred->deferred()) {
-      all_deferred = false;
-      break;
-    }
-  }
-
-  if (all_deferred) return;
-  BasicBlock* merger = NewBasicBlock();
-  merger->set_control(BasicBlock::kGoto);
-  merger->successors().push_back(block);
-  for (auto current_pred = block->predecessors().begin();
-       current_pred != block->predecessors().end(); ++current_pred) {
-    BasicBlock* pred = *current_pred;
-    merger->predecessors().push_back(pred);
-    pred->successors().clear();
-    pred->successors().push_back(merger);
-  }
-  merger->set_deferred(false);
-  block->predecessors().clear();
-  block->predecessors().push_back(merger);
-  MovePhis(block, merger);
 }
 
 void Schedule::MovePhis(BasicBlock* from, BasicBlock* to) {
@@ -481,6 +446,7 @@ void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
 std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlock* block :
        ((s.RpoBlockCount() == 0) ? *s.all_blocks() : *s.rpo_order())) {
+    if (block == nullptr) continue;
     if (block->rpo_number() == -1) {
       os << "--- BLOCK id:" << block->id().ToInt();
     } else {

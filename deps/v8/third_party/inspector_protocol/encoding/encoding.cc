@@ -53,6 +53,10 @@ std::string Status::ToASCIIString() const {
       return ToASCIIString("CBOR: invalid double");
     case Error::CBOR_INVALID_ENVELOPE:
       return ToASCIIString("CBOR: invalid envelope");
+    case Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH:
+      return ToASCIIString("CBOR: envelope contents length mismatch");
+    case Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE:
+      return ToASCIIString("CBOR: map or array expected in envelope");
     case Error::CBOR_INVALID_STRING8:
       return ToASCIIString("CBOR: invalid string8");
     case Error::CBOR_INVALID_STRING16:
@@ -929,6 +933,9 @@ bool ParseArray(int32_t stack_depth,
 bool ParseValue(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
                 StreamingParserHandler* out);
+bool ParseEnvelope(int32_t stack_depth,
+                   CBORTokenizer* tokenizer,
+                   StreamingParserHandler* out);
 
 void ParseUTF16String(CBORTokenizer* tokenizer, StreamingParserHandler* out) {
   std::vector<uint16_t> value;
@@ -946,6 +953,52 @@ bool ParseUTF8String(CBORTokenizer* tokenizer, StreamingParserHandler* out) {
   return true;
 }
 
+bool ParseEnvelope(int32_t stack_depth,
+                   CBORTokenizer* tokenizer,
+                   StreamingParserHandler* out) {
+  assert(tokenizer->TokenTag() == CBORTokenTag::ENVELOPE);
+  // Before we enter the envelope, we save the position that we
+  // expect to see after we're done parsing the envelope contents.
+  // This way we can compare and produce an error if the contents
+  // didn't fit exactly into the envelope length.
+  size_t pos_past_envelope = tokenizer->Status().pos +
+                             kEncodedEnvelopeHeaderSize +
+                             tokenizer->GetEnvelopeContents().size();
+  tokenizer->EnterEnvelope();
+  switch (tokenizer->TokenTag()) {
+    case CBORTokenTag::ERROR_VALUE:
+      out->HandleError(tokenizer->Status());
+      return false;
+    case CBORTokenTag::MAP_START:
+      if (!ParseMap(stack_depth + 1, tokenizer, out))
+        return false;
+      break;  // Continue to check pos_past_envelope below.
+    case CBORTokenTag::ARRAY_START:
+      if (stack_depth == 0) {  // Not allowed at the top level.
+        out->HandleError(
+            Status{Error::CBOR_MAP_START_EXPECTED, tokenizer->Status().pos});
+        return false;
+      }
+      if (!ParseArray(stack_depth + 1, tokenizer, out))
+        return false;
+      break;  // Continue to check pos_past_envelope below.
+    default:
+      out->HandleError(Status{
+          stack_depth == 0 ? Error::CBOR_MAP_START_EXPECTED
+                           : Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE,
+          tokenizer->Status().pos});
+      return false;
+  }
+  // The contents of the envelope parsed OK, now check that we're at
+  // the expected position.
+  if (pos_past_envelope != tokenizer->Status().pos) {
+    out->HandleError(Status{Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH,
+                            tokenizer->Status().pos});
+    return false;
+  }
+  return true;
+}
+
 bool ParseValue(int32_t stack_depth,
                 CBORTokenizer* tokenizer,
                 StreamingParserHandler* out) {
@@ -954,9 +1007,6 @@ bool ParseValue(int32_t stack_depth,
         Status{Error::CBOR_STACK_LIMIT_EXCEEDED, tokenizer->Status().pos});
     return false;
   }
-  // Skip past the envelope to get to what's inside.
-  if (tokenizer->TokenTag() == CBORTokenTag::ENVELOPE)
-    tokenizer->EnterEnvelope();
   switch (tokenizer->TokenTag()) {
     case CBORTokenTag::ERROR_VALUE:
       out->HandleError(tokenizer->Status());
@@ -965,6 +1015,8 @@ bool ParseValue(int32_t stack_depth,
       out->HandleError(Status{Error::CBOR_UNEXPECTED_EOF_EXPECTED_VALUE,
                               tokenizer->Status().pos});
       return false;
+    case CBORTokenTag::ENVELOPE:
+      return ParseEnvelope(stack_depth, tokenizer, out);
     case CBORTokenTag::TRUE_VALUE:
       out->HandleBool(true);
       tokenizer->Next();
@@ -1091,13 +1143,7 @@ void ParseCBOR(span<uint8_t> bytes, StreamingParserHandler* out) {
   // We checked for the envelope start byte above, so the tokenizer
   // must agree here, since it's not an error.
   assert(tokenizer.TokenTag() == CBORTokenTag::ENVELOPE);
-  tokenizer.EnterEnvelope();
-  if (tokenizer.TokenTag() != CBORTokenTag::MAP_START) {
-    out->HandleError(
-        Status{Error::CBOR_MAP_START_EXPECTED, tokenizer.Status().pos});
-    return;
-  }
-  if (!ParseMap(/*stack_depth=*/1, &tokenizer, out))
+  if (!ParseEnvelope(/*stack_depth=*/0, &tokenizer, out))
     return;
   if (tokenizer.TokenTag() == CBORTokenTag::DONE)
     return;

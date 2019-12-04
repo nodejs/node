@@ -1,4 +1,3 @@
-
 // Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -21,12 +20,12 @@ enum FunctionKind : uint8_t {
   // BEGIN default constructors
   kDefaultBaseConstructor,
   // END base constructors
-  // BEGIN derived cosntructors
+  // BEGIN derived constructors
   kDefaultDerivedConstructor,
   // END default constructors
   kDerivedConstructor,
-  // END derived costructors
-  // END class cosntructors
+  // END derived constructors
+  // END class constructors
   // END constructable functions.
   // BEGIN accessors
   kGetterFunction,

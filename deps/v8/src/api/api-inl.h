@@ -8,6 +8,7 @@
 #include "src/api/api.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/stack-frame-info.h"
 
@@ -84,6 +85,7 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 MAKE_TO_LOCAL(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)
+MAKE_TO_LOCAL(ToLocal, JSFinalizationGroup, FinalizationGroup)
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 

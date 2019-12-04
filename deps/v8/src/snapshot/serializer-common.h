@@ -34,8 +34,8 @@ class ExternalReferenceEncoder {
     uint32_t index() const { return Index::decode(value_); }
 
    private:
-    class Index : public BitField<uint32_t, 0, 31> {};
-    class IsFromAPI : public BitField<bool, 31, 1> {};
+    using Index = BitField<uint32_t, 0, 31>;
+    using IsFromAPI = BitField<bool, 31, 1>;
     uint32_t value_;
   };
 
@@ -328,8 +328,8 @@ class SerializedData {
 
   uint32_t GetMagicNumber() const { return GetHeaderValue(kMagicNumberOffset); }
 
-  class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
-  class IsLastChunkBits : public BitField<bool, 31, 1> {};
+  using ChunkSizeBits = BitField<uint32_t, 0, 31>;
+  using IsLastChunkBits = BitField<bool, 31, 1>;
 
   static constexpr uint32_t kMagicNumberOffset = 0;
   static constexpr uint32_t kMagicNumber =

@@ -731,7 +731,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
-  isolate->default_microtask_queue()->RunMicrotasks(isolate);
+  context->GetIsolate()->ClearKeptObjects();
   CcTest::CollectAllGarbage();
 
   CHECK(weak_ref->target().IsUndefined(isolate));
@@ -769,7 +769,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
   CHECK(!weak_ref->target().IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
-  isolate->default_microtask_queue()->RunMicrotasks(isolate);
+  context->GetIsolate()->ClearKeptObjects();
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectAllGarbage();
 

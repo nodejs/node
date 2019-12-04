@@ -2282,7 +2282,9 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
       {SEALED, factory->sealed_symbol(),
        FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
                                                : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
+      {NONE, factory->nonextensible_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
+                                               : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         configs[i],
@@ -2348,7 +2350,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       {SEALED, factory->sealed_symbol(),
        FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
                                                : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
+      {NONE, factory->nonextensible_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
+                                               : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         configs[i],
@@ -2407,7 +2411,6 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
       {PropertyConstness::kMutable, Representation::Tagged(), any_type}, true);
 }
 
-
 TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2460,7 +2463,6 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type}, true);
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // A set of tests for higher level transitioning mechanics.
@@ -2776,15 +2778,15 @@ TEST(TransitionAccessorConstantToSameAccessorConstant) {
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.
 // TEST(TransitionAccessorConstantToAnotherAccessorConstant)
 
-TEST(HoleyMutableHeapNumber) {
+TEST(HoleyHeapNumber) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  auto mhn = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+  auto mhn = isolate->factory()->NewHeapNumberWithHoleNaN();
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
 
-  mhn = isolate->factory()->NewMutableHeapNumber(0.0);
+  mhn = isolate->factory()->NewHeapNumber(0.0);
   CHECK_EQ(uint64_t{0}, mhn->value_as_bits());
 
   mhn->set_value_as_bits(kHoleNanInt64);
@@ -2796,12 +2798,12 @@ TEST(HoleyMutableHeapNumber) {
   Handle<Object> obj =
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
-  CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj).value_as_bits());
+  CHECK(obj->IsHeapNumber());
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj).value_as_bits());
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
-  CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj).value_as_bits());
+  CHECK(obj->IsHeapNumber());
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj).value_as_bits());
 }
 
 namespace {

@@ -298,6 +298,7 @@ namespace interpreter {
   V(JumpIfNotNullConstant, AccumulatorUse::kRead, OperandType::kIdx)           \
   V(JumpIfUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)         \
   V(JumpIfNotUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)      \
+  V(JumpIfUndefinedOrNullConstant, AccumulatorUse::kRead, OperandType::kIdx)   \
   V(JumpIfTrueConstant, AccumulatorUse::kRead, OperandType::kIdx)              \
   V(JumpIfFalseConstant, AccumulatorUse::kRead, OperandType::kIdx)             \
   V(JumpIfJSReceiverConstant, AccumulatorUse::kRead, OperandType::kIdx)        \
@@ -315,6 +316,7 @@ namespace interpreter {
   V(JumpIfNotNull, AccumulatorUse::kRead, OperandType::kUImm)                  \
   V(JumpIfUndefined, AccumulatorUse::kRead, OperandType::kUImm)                \
   V(JumpIfNotUndefined, AccumulatorUse::kRead, OperandType::kUImm)             \
+  V(JumpIfUndefinedOrNull, AccumulatorUse::kRead, OperandType::kUImm)          \
   V(JumpIfJSReceiver, AccumulatorUse::kRead, OperandType::kUImm)               \
                                                                                \
   /* Smi-table lookup for switch statements */                                 \
@@ -352,6 +354,9 @@ namespace interpreter {
     OperandType::kRegList, OperandType::kRegCount, OperandType::kUImm)         \
   V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg,                \
     OperandType::kRegOutList, OperandType::kRegCount)                          \
+                                                                               \
+  /* Iterator protocol operations */                                           \
+  V(GetIterator, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx) \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \
@@ -407,7 +412,8 @@ namespace interpreter {
   V(JumpIfNotNull)                                      \
   V(JumpIfUndefined)                                    \
   V(JumpIfNotUndefined)                                 \
-  V(JumpIfJSReceiver)                                   \
+  V(JumpIfUndefinedOrNull)                              \
+  V(JumpIfJSReceiver)
 
 #define JUMP_CONDITIONAL_CONSTANT_BYTECODE_LIST(V)     \
   JUMP_TOBOOLEAN_CONDITIONAL_CONSTANT_BYTECODE_LIST(V) \
@@ -415,9 +421,10 @@ namespace interpreter {
   V(JumpIfNotNullConstant)                             \
   V(JumpIfUndefinedConstant)                           \
   V(JumpIfNotUndefinedConstant)                        \
+  V(JumpIfUndefinedOrNullConstant)                     \
   V(JumpIfTrueConstant)                                \
   V(JumpIfFalseConstant)                               \
-  V(JumpIfJSReceiverConstant)                          \
+  V(JumpIfJSReceiverConstant)
 
 #define JUMP_CONSTANT_BYTECODE_LIST(V)         \
   JUMP_UNCONDITIONAL_CONSTANT_BYTECODE_LIST(V) \

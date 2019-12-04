@@ -119,9 +119,9 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
                           .set_self_reference(masm.CodeObject())
                           .set_builtin_index(builtin_index)
                           .Build();
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   isolate->SetBuiltinUnwindData(builtin_index, masm.GetUnwindInfo());
-#endif
+#endif  // V8_OS_WIN64
   return *code;
 }
 
@@ -276,10 +276,6 @@ Code GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
 
 }  // namespace
 
-#ifdef _MSC_VER
-#pragma optimize( "", off )
-#endif
-
 // static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
@@ -356,11 +352,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   builtins->MarkInitialized();
 }
-
-#ifdef _MSC_VER
-#pragma optimize( "", on )
-#endif
-
 
 }  // namespace internal
 }  // namespace v8

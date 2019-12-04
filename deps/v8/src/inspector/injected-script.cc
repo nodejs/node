@@ -50,8 +50,8 @@
 namespace v8_inspector {
 
 namespace {
-static const char kGlobalHandleLabel[] = "DevTools console";
-static bool isResolvableNumberLike(String16 query) {
+const char kGlobalHandleLabel[] = "DevTools console";
+bool isResolvableNumberLike(String16 query) {
   return query == "Infinity" || query == "-Infinity" || query == "NaN";
 }
 }  // namespace
@@ -220,8 +220,13 @@ class InjectedScript::ProtocolPromiseHandler {
                                                       : 0)
             .setColumnNumber(
                 stack && !stack->isEmpty() ? stack->topColumnNumber() : 0)
-            .setException(wrappedValue->clone())
             .build();
+    response = scope.injectedScript()->addExceptionToDetails(
+        result, exceptionDetails.get(), m_objectGroup);
+    if (!response.isSuccess()) {
+      callback->sendFailure(response);
+      return;
+    }
     if (stack)
       exceptionDetails->setStackTrace(
           stack->buildInspectorObjectImpl(m_inspector->debugger()));
@@ -289,8 +294,7 @@ Response InjectedScript::getProperties(
   PropertyAccumulator accumulator(&mirrors);
   if (!ValueMirror::getProperties(context, object, ownProperties,
                                   accessorPropertiesOnly, &accumulator)) {
-    return createExceptionDetails(tryCatch, groupName, wrapMode,
-                                  exceptionDetails);
+    return createExceptionDetails(tryCatch, groupName, exceptionDetails);
   }
   for (const PropertyMirror& mirror : mirrors) {
     std::unique_ptr<PropertyDescriptor> descriptor =
@@ -489,14 +493,18 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
                              &limit, &limit, &preview);
   if (!preview) return nullptr;
 
-  std::unordered_set<String16> selectedColumns;
+  std::vector<String16> selectedColumns;
+  std::unordered_set<String16> columnSet;
   v8::Local<v8::Array> v8Columns;
   if (maybeColumns.ToLocal(&v8Columns)) {
     for (uint32_t i = 0; i < v8Columns->Length(); ++i) {
       v8::Local<v8::Value> column;
       if (v8Columns->Get(context, i).ToLocal(&column) && column->IsString()) {
-        selectedColumns.insert(
-            toProtocolString(isolate, column.As<v8::String>()));
+        String16 name = toProtocolString(isolate, column.As<v8::String>());
+        if (columnSet.find(name) == columnSet.end()) {
+          columnSet.insert(name);
+          selectedColumns.push_back(name);
+        }
       }
     }
   }
@@ -505,14 +513,18 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
          *preview->getProperties()) {
       ObjectPreview* columnPreview = column->getValuePreview(nullptr);
       if (!columnPreview) continue;
-
-      auto filtered = v8::base::make_unique<Array<PropertyPreview>>();
+      // Use raw pointer here since the lifetime of each PropertyPreview is
+      // ensured by columnPreview. This saves an additional clone.
+      std::unordered_map<String16, PropertyPreview*> columnMap;
       for (const std::unique_ptr<PropertyPreview>& property :
            *columnPreview->getProperties()) {
-        if (selectedColumns.find(property->getName()) !=
-            selectedColumns.end()) {
-          filtered->emplace_back(property->clone());
-        }
+        if (columnSet.find(property->getName()) == columnSet.end()) continue;
+        columnMap[property->getName()] = property.get();
+      }
+      auto filtered = v8::base::make_unique<Array<PropertyPreview>>();
+      for (const String16& column : selectedColumns) {
+        if (columnMap.find(column) == columnMap.end()) continue;
+        filtered->push_back(columnMap[column]->clone());
       }
       columnPreview->setProperties(std::move(filtered));
     }
@@ -632,9 +644,25 @@ Response InjectedScript::resolveCallArgument(
   return Response::OK();
 }
 
+Response InjectedScript::addExceptionToDetails(
+    v8::Local<v8::Value> exception,
+    protocol::Runtime::ExceptionDetails* exceptionDetails,
+    const String16& objectGroup) {
+  if (exception.IsEmpty()) return Response::OK();
+  std::unique_ptr<protocol::Runtime::RemoteObject> wrapped;
+  Response response =
+      wrapObject(exception, objectGroup,
+                 exception->IsNativeError() ? WrapMode::kNoPreview
+                                            : WrapMode::kWithPreview,
+                 &wrapped);
+  if (!response.isSuccess()) return response;
+  exceptionDetails->setException(std::move(wrapped));
+  return Response::OK();
+}
+
 Response InjectedScript::createExceptionDetails(
     const v8::TryCatch& tryCatch, const String16& objectGroup,
-    WrapMode wrapMode, Maybe<protocol::Runtime::ExceptionDetails>* result) {
+    Maybe<protocol::Runtime::ExceptionDetails>* result) {
   if (!tryCatch.HasCaught()) return Response::InternalError();
   v8::Local<v8::Message> message = tryCatch.Message();
   v8::Local<v8::Value> exception = tryCatch.Exception();
@@ -667,16 +695,9 @@ Response InjectedScript::createExceptionDetails(
               ->createStackTrace(stackTrace)
               ->buildInspectorObjectImpl(m_context->inspector()->debugger()));
   }
-  if (!exception.IsEmpty()) {
-    std::unique_ptr<protocol::Runtime::RemoteObject> wrapped;
-    Response response =
-        wrapObject(exception, objectGroup,
-                   exception->IsNativeError() ? WrapMode::kNoPreview
-                                              : WrapMode::kWithPreview,
-                   &wrapped);
-    if (!response.isSuccess()) return response;
-    exceptionDetails->setException(std::move(wrapped));
-  }
+  Response response =
+      addExceptionToDetails(exception, exceptionDetails.get(), objectGroup);
+  if (!response.isSuccess()) return response;
   *result = std::move(exceptionDetails);
   return Response::OK();
 }
@@ -709,8 +730,7 @@ Response InjectedScript::wrapEvaluateResult(
     if (!response.isSuccess()) return response;
     // We send exception in result for compatibility reasons, even though it's
     // accessible through exceptionDetails.exception.
-    response = createExceptionDetails(tryCatch, objectGroup, wrapMode,
-                                      exceptionDetails);
+    response = createExceptionDetails(tryCatch, objectGroup, exceptionDetails);
     if (!response.isSuccess()) return response;
   }
   return Response::OK();

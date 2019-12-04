@@ -44,7 +44,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
     DCHECK(context.IsScriptContext());
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
-        &result->maybe_assigned_flag, &result->requires_brand_check);
+        &result->maybe_assigned_flag);
 
     if (slot_index >= 0) {
       result->context_index = i;
@@ -161,8 +161,8 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
 }
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
-  DCHECK(IsDeclaredVariableMode(mode));
-  return mode == VariableMode::kConst ? READ_ONLY : NONE;
+  DCHECK(IsSerializableVariableMode(mode));
+  return IsConstVariableMode(mode) ? READ_ONLY : NONE;
 }
 
 // static
@@ -287,10 +287,8 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      RequiresBrandCheckFlag requires_brand_check;
       int slot_index = ScopeInfo::ContextSlotIndex(scope_info, *name, &mode,
-                                                   &flag, &maybe_assigned_flag,
-                                                   &requires_brand_check);
+                                                   &flag, &maybe_assigned_flag);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {

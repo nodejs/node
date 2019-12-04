@@ -337,8 +337,14 @@ bool ResultsAreIdentical(FuzzerArgs* args) {
   std::string source =
       "assertEquals(fast.exception, slow.exception);\n"
       "assertEquals(fast.result, slow.result);\n"
-      "if (fast.result !== null)\n"
+      "if (fast.result !== null) {\n"
       "  assertEquals(fast.result.groups, slow.result.groups);\n"
+      "  assertEquals(fast.result.indices, slow.result.indices);\n"
+      "  if (fast.result.indices !== undefined) {\n"
+      "    assertEquals(fast.result.indices.groups,\n"
+      "                 slow.result.indices.groups);\n"
+      "  }\n"
+      "}\n"
       "assertEquals(fast.re.lastIndex, slow.re.lastIndex);\n";
 
   v8::Local<v8::Value> result;

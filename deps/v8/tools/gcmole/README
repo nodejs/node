@@ -71,6 +71,12 @@ can be ignored.
 
 If any errors were found driver exits with non-zero status.
 
+TESTING -----------------------------------------------------------------------
+
+Tests are automatically run by the main lua runner. Expectations are in
+test-expectations.txt and need to be updated whenever the sources of the tests
+in gcmole-test.cc are modified (line numbers also count).
+
 PACKAGING ---------------------------------------------------------------------
 
 gcmole is deployed on V8's buildbot infrastructure to run it as part of the

@@ -158,8 +158,7 @@ int Builtins::GetStackParameterCount(Name name) {
 }
 
 // static
-Callable Builtins::CallableFor(Isolate* isolate, Name name) {
-  Handle<Code> code = isolate->builtins()->builtin_handle(name);
+CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Name name) {
   CallDescriptors::Key key;
   switch (name) {
 // This macro is deliberately crafted so as to emit very little code,
@@ -176,12 +175,17 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
       Builtins::Kind kind = Builtins::KindOf(name);
       DCHECK_NE(BCH, kind);
       if (kind == TFJ || kind == CPP) {
-        return Callable(code, JSTrampolineDescriptor{});
+        return JSTrampolineDescriptor{};
       }
       UNREACHABLE();
   }
-  CallInterfaceDescriptor descriptor(key);
-  return Callable(code, descriptor);
+  return CallInterfaceDescriptor{key};
+}
+
+// static
+Callable Builtins::CallableFor(Isolate* isolate, Name name) {
+  Handle<Code> code = isolate->builtins()->builtin_handle(name);
+  return Callable{code, CallInterfaceDescriptorFor(name)};
 }
 
 // static

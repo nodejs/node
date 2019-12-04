@@ -27,7 +27,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
                                                       Node* object,
                                                       Label* if_exception,
                                                       Variable* exception) {
-  Node* method = GetIteratorMethod(context, object);
+  TNode<Object> method = GetIteratorMethod(context, object);
   return GetIterator(context, object, method, if_exception, exception);
 }
 
@@ -44,7 +44,8 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
 
   BIND(&if_not_callable);
   {
-    Node* ret = CallRuntime(Runtime::kThrowIteratorError, context, object);
+    TNode<Object> ret =
+        CallRuntime(Runtime::kThrowIteratorError, context, object);
     GotoIfException(ret, if_exception, exception);
     Unreachable();
   }
@@ -61,13 +62,15 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
 
     BIND(&if_notobject);
     {
-      Node* ret = CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
+      TNode<Object> ret =
+          CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
       GotoIfException(ret, if_exception, exception);
       Unreachable();
     }
 
     BIND(&get_next);
-    Node* const next = GetProperty(context, iterator, factory()->next_string());
+    TNode<Object> const next =
+        GetProperty(context, iterator, factory()->next_string());
     GotoIfException(next, if_exception, exception);
 
     return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
@@ -76,8 +79,9 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
 }
 
 TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
-    Node* context, const IteratorRecord& iterator, Label* if_done,
-    Node* fast_iterator_result_map, Label* if_exception, Variable* exception) {
+    TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
+    base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
+    Variable* exception) {
   DCHECK_NOT_NULL(if_done);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   Callable callable = CodeFactory::Call(isolate());
@@ -87,18 +91,18 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
   GotoIf(TaggedIsSmi(result), &if_notobject);
-  Node* result_map = LoadMap(result);
+  TNode<Map> result_map = LoadMap(result);
 
-  if (fast_iterator_result_map != nullptr) {
+  if (fast_iterator_result_map) {
     // Fast iterator result case:
     Label if_generic(this);
 
     // 4. Return result.
-    GotoIfNot(WordEqual(result_map, fast_iterator_result_map), &if_generic);
+    GotoIfNot(TaggedEqual(result_map, *fast_iterator_result_map), &if_generic);
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
-    Node* done = LoadObjectField(result, JSIteratorResult::kDoneOffset);
+    TNode<Object> done = LoadObjectField(result, JSIteratorResult::kDoneOffset);
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
 
     BIND(&if_generic);
@@ -111,14 +115,14 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
-    Node* done = GetProperty(context, result, factory()->done_string());
+    TNode<Object> done = GetProperty(context, result, factory()->done_string());
     GotoIfException(done, if_exception, exception);
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
   }
 
   BIND(&if_notobject);
   {
-    Node* ret =
+    TNode<Object> ret =
         CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
     GotoIfException(ret, if_exception, exception);
     Unreachable();
@@ -137,8 +141,8 @@ TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
   if (fast_iterator_result_map) {
     // Fast iterator result case:
     Label if_generic(this);
-    Node* map = LoadMap(result);
-    GotoIfNot(WordEqual(map, *fast_iterator_result_map), &if_generic);
+    TNode<Map> map = LoadMap(result);
+    GotoIfNot(TaggedEqual(map, *fast_iterator_result_map), &if_generic);
     var_value = LoadObjectField(result, JSIteratorResult::kValueOffset);
     Goto(&exit);
 
@@ -169,7 +173,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   CSA_ASSERT(this, IsJSReceiver(iterator.object));
 
   // Let return be ? GetMethod(iterator, "return").
-  Node* method =
+  TNode<Object> method =
       GetProperty(context, iterator.object, factory()->return_string());
   GotoIfException(method, if_exception, exception);
 

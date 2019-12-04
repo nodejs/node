@@ -333,15 +333,16 @@ class V8_BASE_EXPORT Thread {
   virtual ~Thread();
 
   // Start new thread by calling the Run() method on the new thread.
-  void Start();
+  V8_WARN_UNUSED_RESULT bool Start();
 
   // Start new thread and wait until Run() method is called on the new thread.
-  void StartSynchronously() {
+  bool StartSynchronously() {
     start_semaphore_ = new Semaphore(0);
-    Start();
+    if (!Start()) return false;
     start_semaphore_->Wait();
     delete start_semaphore_;
     start_semaphore_ = nullptr;
+    return true;
   }
 
   // Wait until thread terminates.

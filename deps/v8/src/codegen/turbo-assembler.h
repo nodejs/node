@@ -50,6 +50,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
 
+  virtual void Jump(const ExternalReference& reference) = 0;
+
   // Calls the builtin given by the Smi in |builtin|. If builtins are embedded,
   // the trampoline Code object on the heap is not used.
   virtual void CallBuiltinByIndex(Register builtin_index) = 0;

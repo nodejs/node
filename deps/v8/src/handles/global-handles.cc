@@ -22,6 +22,10 @@ namespace internal {
 
 namespace {
 
+// Specifies whether V8 expects the holder memory of a global handle to be live
+// or dead.
+enum class HandleHolder { kLive, kDead };
+
 constexpr size_t kBlockSize = 256;
 
 }  // namespace
@@ -32,6 +36,7 @@ class GlobalHandles::NodeBlock final {
   using BlockType = NodeBlock<_NodeType>;
   using NodeType = _NodeType;
 
+  V8_INLINE static const NodeBlock* From(const NodeType* node);
   V8_INLINE static NodeBlock* From(NodeType* node);
 
   NodeBlock(GlobalHandles* global_handles,
@@ -65,6 +70,16 @@ class GlobalHandles::NodeBlock final {
 
   DISALLOW_COPY_AND_ASSIGN(NodeBlock);
 };
+
+template <class NodeType>
+const GlobalHandles::NodeBlock<NodeType>*
+GlobalHandles::NodeBlock<NodeType>::From(const NodeType* node) {
+  uintptr_t ptr = reinterpret_cast<const uintptr_t>(node) -
+                  sizeof(NodeType) * node->index();
+  const BlockType* block = reinterpret_cast<const BlockType*>(ptr);
+  DCHECK_EQ(node, block->at(node->index()));
+  return block;
+}
 
 template <class NodeType>
 GlobalHandles::NodeBlock<NodeType>* GlobalHandles::NodeBlock<NodeType>::From(
@@ -239,6 +254,10 @@ void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
 template <class Child>
 class NodeBase {
  public:
+  static const Child* FromLocation(const Address* location) {
+    return reinterpret_cast<const Child*>(location);
+  }
+
   static Child* FromLocation(Address* location) {
     return reinterpret_cast<Child*>(location);
   }
@@ -380,10 +399,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
                   Internals::kNodeStateMask);
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
     STATIC_ASSERT(PENDING == Internals::kNodeStateIsPendingValue);
-    STATIC_ASSERT(static_cast<int>(IsIndependent::kShift) ==
-                  Internals::kNodeIsIndependentShift);
-    STATIC_ASSERT(static_cast<int>(IsActive::kShift) ==
-                  Internals::kNodeIsActiveShift);
     set_in_young_list(false);
   }
 
@@ -402,16 +417,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   State state() const { return NodeState::decode(flags_); }
   void set_state(State state) { flags_ = NodeState::update(flags_, state); }
-
-  bool is_independent() { return IsIndependent::decode(flags_); }
-  void set_independent(bool v) { flags_ = IsIndependent::update(flags_, v); }
-
-  bool is_active() {
-    return IsActive::decode(flags_);
-  }
-  void set_active(bool v) {
-    flags_ = IsActive::update(flags_, v);
-  }
 
   bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
   void set_in_young_list(bool v) { flags_ = IsInYoungList::update(flags_, v); }
@@ -546,7 +551,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle() {
+  void ResetPhantomHandle(HandleHolder handle_holder) {
+    DCHECK_EQ(HandleHolder::kLive, handle_holder);
     DCHECK_EQ(PHANTOM_WEAK_RESET_HANDLE, weakness_type());
     DCHECK_EQ(PENDING, state());
     DCHECK_NULL(weak_callback_);
@@ -559,7 +565,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     // This method invokes a finalizer. Updating the method name would require
     // adjusting CFI blacklist as weak_callback_ is invoked on the wrong type.
     CHECK(IsPendingFinalizer());
-    CHECK(!is_active());
     set_state(NEAR_DEATH);
     // Check that we are not passing a finalized external string to
     // the callback.
@@ -589,27 +594,15 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
  private:
   // Fields that are not used for managing node memory.
-  void ClearImplFields() {
-    set_independent(false);
-    set_active(false);
-    weak_callback_ = nullptr;
-  }
+  void ClearImplFields() { weak_callback_ = nullptr; }
 
-  void CheckImplFieldsAreCleared() {
-    DCHECK(!is_independent());
-    DCHECK(!is_active());
-    DCHECK_EQ(nullptr, weak_callback_);
-  }
+  void CheckImplFieldsAreCleared() { DCHECK_EQ(nullptr, weak_callback_); }
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
-  class NodeState : public BitField8<State, 0, 3> {};
-  class IsIndependent : public BitField8<bool, NodeState::kNext, 1> {};
-  // The following two fields are mutually exclusive
-  class IsActive : public BitField8<bool, IsIndependent::kNext, 1> {};
-  class IsInYoungList : public BitField8<bool, IsActive::kNext, 1> {};
-  class NodeWeaknessType
-      : public BitField8<WeaknessType, IsInYoungList::kNext, 2> {};
+  using NodeState = BitField8<State, 0, 3>;
+  using IsInYoungList = NodeState::Next<bool, 1>;
+  using NodeWeaknessType = IsInYoungList::Next<WeaknessType, 2>;
 
   // Handle specific callback - might be a weak reference in disguise.
   WeakCallbackInfo<void>::Callback weak_callback_;
@@ -641,6 +634,9 @@ class GlobalHandles::TracedNode final
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
 
+  bool has_destructor() const { return HasDestructor::decode(flags_); }
+  void set_has_destructor(bool v) { flags_ = HasDestructor::update(flags_, v); }
+
   void SetFinalizationCallback(void* parameter,
                                WeakCallbackInfo<void>::Callback callback) {
     set_parameter(parameter);
@@ -667,18 +663,21 @@ class GlobalHandles::TracedNode final
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle() {
+  void ResetPhantomHandle(HandleHolder handle_holder) {
     DCHECK(IsInUse());
-    Address** handle = reinterpret_cast<Address**>(data_.parameter);
-    *handle = nullptr;
+    if (handle_holder == HandleHolder::kLive) {
+      Address** handle = reinterpret_cast<Address**>(data_.parameter);
+      *handle = nullptr;
+    }
     NodeSpace<TracedNode>::Release(this);
     DCHECK(!IsInUse());
   }
 
  protected:
-  class NodeState : public BitField8<State, 0, 2> {};
-  class IsInYoungList : public BitField8<bool, NodeState::kNext, 1> {};
-  class IsRoot : public BitField8<bool, IsInYoungList::kNext, 1> {};
+  using NodeState = BitField8<State, 0, 2>;
+  using IsInYoungList = NodeState::Next<bool, 1>;
+  using IsRoot = IsInYoungList::Next<bool, 1>;
+  using HasDestructor = IsRoot::Next<bool, 1>;
 
   void ClearImplFields() {
     set_root(true);
@@ -717,18 +716,21 @@ Handle<Object> GlobalHandles::Create(Address value) {
   return Create(Object(value));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot) {
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           bool has_destructor) {
   GlobalHandles::TracedNode* result = traced_nodes_->Acquire(value);
   if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
     traced_young_nodes_.push_back(result);
     result->set_in_young_list(true);
   }
   result->set_parameter(slot);
+  result->set_has_destructor(has_destructor);
   return result->handle();
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot) {
-  return CreateTraced(Object(value), slot);
+Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot,
+                                           bool has_destructor) {
+  return CreateTraced(Object(value), slot, has_destructor);
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -741,6 +743,27 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
+}
+
+// static
+void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
+  DCHECK_NOT_NULL(*from);
+  DCHECK_NULL(*to);
+  const TracedNode* node = TracedNode::FromLocation(*from);
+  // Copying a traced handle with finalization callback is prohibited because
+  // the callback may require knowing about multiple copies of the traced
+  // handle.
+  CHECK(!node->HasFinalizationCallback());
+  GlobalHandles* global_handles =
+      NodeBlock<TracedNode>::From(node)->global_handles();
+  Handle<Object> o = global_handles->CreateTraced(
+      node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
+  *to = o.location();
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    Object(**to).ObjectVerify(global_handles->isolate());
+  }
+#endif  // VERIFY_HEAP
 }
 
 void GlobalHandles::MoveGlobal(Address** from, Address** to) {
@@ -835,7 +858,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
         should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
         node->MarkPending();
-        node->ResetPhantomHandle();
+        node->ResetPhantomHandle(HandleHolder::kLive);
         ++number_of_phantom_handle_resets_;
       } else if (node->IsPhantomCallback()) {
         node->MarkPending();
@@ -847,7 +870,8 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
     if (node->IsInUse() &&
         should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle();
+        node->ResetPhantomHandle(node->has_destructor() ? HandleHolder::kLive
+                                                        : HandleHolder::kDead);
         ++number_of_phantom_handle_resets_;
       } else {
         node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
@@ -870,12 +894,6 @@ void GlobalHandles::IterateWeakRootsIdentifyFinalizers(
 
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
-  for (Node* node : young_nodes_) {
-    if (node->IsWeak() && !is_unmodified(node->location())) {
-      node->set_active(true);
-    }
-  }
-
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
@@ -892,9 +910,7 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
 
 void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
   for (Node* node : young_nodes_) {
-    if (node->IsStrongRetainer() ||
-        (node->IsWeakRetainer() && !node->is_independent() &&
-         node->is_active())) {
+    if (node->IsStrongRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, node->label(),
                           node->location());
     }
@@ -910,8 +926,7 @@ void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
     WeakSlotCallbackWithHeap is_dead) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
-    if ((node->is_independent() || !node->is_active()) && node->IsWeak() &&
-        is_dead(isolate_->heap(), node->location())) {
+    if (node->IsWeak() && is_dead(isolate_->heap(), node->location())) {
       if (!node->IsPhantomCallback() && !node->IsPhantomResetHandle()) {
         node->MarkPending();
       }
@@ -923,8 +938,7 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
     RootVisitor* v) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
-    if ((node->is_independent() || !node->is_active()) &&
-        node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
+    if (node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
       DCHECK(!node->IsPhantomCallback());
       DCHECK(!node->IsPhantomResetHandle());
       // Finalizers need to survive.
@@ -938,13 +952,12 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
     RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
-    if ((node->is_independent() || !node->is_active()) &&
-        node->IsWeakRetainer() && (node->state() != Node::PENDING)) {
+    if (node->IsWeakRetainer() && (node->state() != Node::PENDING)) {
       if (should_reset_handle(isolate_->heap(), node->location())) {
         DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
         if (node->IsPhantomResetHandle()) {
           node->MarkPending();
-          node->ResetPhantomHandle();
+          node->ResetPhantomHandle(HandleHolder::kLive);
           ++number_of_phantom_handle_resets_;
         } else if (node->IsPhantomCallback()) {
           node->MarkPending();
@@ -959,6 +972,9 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
       }
     }
   }
+
+  LocalEmbedderHeapTracer* const tracer =
+      isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
     if (!node->IsInUse()) continue;
 
@@ -966,7 +982,18 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
                    !should_reset_handle(isolate_->heap(), node->location()));
     if (should_reset_handle(isolate_->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle();
+        if (node->has_destructor()) {
+          // For handles with destructor it is guaranteed that the embedder
+          // memory is still alive as the destructor would have otherwise
+          // removed the memory.
+          node->ResetPhantomHandle(HandleHolder::kLive);
+        } else {
+          v8::Value* value = ToApi<v8::Value>(node->handle());
+          tracer->ResetHandleInNonTracingGC(
+              *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
+          DCHECK(!node->IsInUse());
+        }
+
         ++number_of_phantom_handle_resets_;
       } else {
         node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
@@ -1014,9 +1041,6 @@ size_t GlobalHandles::PostScavengeProcessing(unsigned post_processing_count) {
     // Filter free nodes.
     if (!node->IsRetainer()) continue;
 
-    // Reset active state for all affected nodes.
-    node->set_active(false);
-
     if (node->IsPending()) {
       DCHECK(node->has_callback());
       DCHECK(node->IsPendingFinalizer());
@@ -1034,9 +1058,6 @@ size_t GlobalHandles::PostMarkSweepProcessing(unsigned post_processing_count) {
   for (Node* node : *regular_nodes_) {
     // Filter free nodes.
     if (!node->IsRetainer()) continue;
-
-    // Reset active state for all affected nodes.
-    node->set_active(false);
 
     if (node->IsPending()) {
       DCHECK(node->has_callback());

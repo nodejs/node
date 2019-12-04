@@ -324,7 +324,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 
     // Remaining instance types are unsupported for now. If any of them do
     // require bit set types, they should get kOtherInternal.
-    case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
@@ -365,7 +364,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PROMISE_FULFILL_REACTION_JOB_TASK_TYPE:
     case PROMISE_REJECT_REACTION_JOB_TASK_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
-    case FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE:
 #define MAKE_TORQUE_CLASS_TYPE(V) case V:
       TORQUE_DEFINED_INSTANCE_TYPES(MAKE_TORQUE_CLASS_TYPE)
 #undef MAKE_TORQUE_CLASS_TYPE

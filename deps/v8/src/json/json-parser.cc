@@ -65,8 +65,8 @@ enum class EscapeKind : uint8_t {
 };
 
 using EscapeKindField = BitField8<EscapeKind, 0, 3>;
-using MayTerminateStringField = BitField8<bool, EscapeKindField::kNext, 1>;
-using NumberPartField = BitField8<bool, MayTerminateStringField::kNext, 1>;
+using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
+using NumberPartField = MayTerminateStringField::Next<bool, 1>;
 
 constexpr bool MayTerminateJsonString(uint8_t flags) {
   return MayTerminateStringField::decode(flags);
@@ -539,7 +539,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   Handle<ByteArray> mutable_double_buffer;
   // Allocate enough space so we can double-align the payload.
   const int kMutableDoubleSize = sizeof(double) * 2;
-  STATIC_ASSERT(MutableHeapNumber::kSize <= kMutableDoubleSize);
+  STATIC_ASSERT(HeapNumber::kSize <= kMutableDoubleSize);
   if (new_mutable_double > 0) {
     mutable_double_buffer =
         factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
@@ -563,7 +563,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     if (IsAligned(mutable_double_address, kDoubleAlignment)) {
       mutable_double_address += kTaggedSize;
     } else {
-      filler_address += MutableHeapNumber::kSize;
+      filler_address += HeapNumber::kSize;
     }
     for (int j = 0; j < i; j++) {
       const JsonProperty& property = property_stack[start + j];
@@ -602,19 +602,19 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           // payload, so we can skip notifying object layout change.
 
           HeapObject hn = HeapObject::FromAddress(mutable_double_address);
-          hn.set_map_after_allocation(*factory()->mutable_heap_number_map());
-          MutableHeapNumber::cast(hn).set_value_as_bits(bits);
+          hn.set_map_after_allocation(*factory()->heap_number_map());
+          HeapNumber::cast(hn).set_value_as_bits(bits);
           value = hn;
           mutable_double_address += kMutableDoubleSize;
         } else {
           DCHECK(value.IsHeapNumber());
           HeapObject::cast(value).synchronized_set_map(
-              *factory()->mutable_heap_number_map());
+              *factory()->heap_number_map());
         }
       }
       object->RawFastInobjectPropertyAtPut(index, value, mode);
     }
-    // Make all MutableHeapNumbers alive.
+    // Make all mutable HeapNumbers alive.
     if (!mutable_double_buffer.is_null()) {
 #ifdef DEBUG
       Address end =
@@ -825,8 +825,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
               cont_stack.back().index < element_stack.size() &&
               element_stack.back()->IsJSObject()) {
-            feedback =
-                handle(JSObject::cast(*element_stack.back()).map(), isolate_);
+            Map maybe_feedback = JSObject::cast(*element_stack.back()).map();
+            // Don't consume feedback from objects with a map that's detached
+            // from the transition tree.
+            if (!maybe_feedback.GetBackPointer().IsUndefined(isolate_)) {
+              feedback = handle(maybe_feedback, isolate_);
+            }
           }
           value = BuildJsonObject(cont, property_stack, feedback);
           property_stack.resize(cont.index);

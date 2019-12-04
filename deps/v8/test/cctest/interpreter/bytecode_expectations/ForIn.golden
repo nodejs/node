@@ -63,13 +63,12 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   68 S> */ B(JumpIfUndefined), U8(39),
-                B(JumpIfNull), U8(37),
+  /*   68 S> */ B(JumpIfUndefinedOrNull), U8(37),
                 B(ToObject), R(3),
                 B(ForInEnumerate), R(3),
                 B(ForInPrepare), R(4), U8(0),
@@ -102,14 +101,13 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 58
+bytecode array length: 56
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
   /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(1), U8(37),
-                B(JumpIfUndefined), U8(48),
-                B(JumpIfNull), U8(46),
+                B(JumpIfUndefinedOrNull), U8(46),
                 B(ToObject), R(3),
                 B(ForInEnumerate), R(3),
                 B(ForInPrepare), R(4), U8(0),
@@ -148,14 +146,13 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 85
+bytecode array length: 83
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(2), U8(37),
-                B(JumpIfUndefined), U8(72),
-                B(JumpIfNull), U8(70),
+                B(JumpIfUndefinedOrNull), U8(70),
                 B(ToObject), R(1),
                 B(ForInEnumerate), R(1),
                 B(ForInPrepare), R(2), U8(1),
@@ -202,14 +199,13 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 64
+bytecode array length: 62
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(0),
   /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(2), U8(37),
-                B(JumpIfUndefined), U8(51),
-                B(JumpIfNull), U8(49),
+                B(JumpIfUndefinedOrNull), U8(49),
                 B(ToObject), R(1),
                 B(ForInEnumerate), R(1),
                 B(ForInPrepare), R(2), U8(1),

@@ -4,20 +4,20 @@
 
 namespace array_lastindexof {
   macro LoadWithHoleCheck<Elements: type>(
-      elements: FixedArrayBase, index: Smi): Object
+      elements: FixedArrayBase, index: Smi): JSAny
       labels IfHole;
 
   LoadWithHoleCheck<FixedArray>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi): Object
+      elements: FixedArrayBase, index: Smi): JSAny
       labels IfHole {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
     const element: Object = elements.objects[index];
     if (element == TheHole) goto IfHole;
-    return element;
+    return UnsafeCast<JSAny>(element);
   }
 
   LoadWithHoleCheck<FixedDoubleArray>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi): Object
+      elements: FixedArrayBase, index: Smi): JSAny
       labels IfHole {
     const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     const element: float64 = LoadDoubleWithHoleCheck(elements, index)
@@ -26,7 +26,7 @@ namespace array_lastindexof {
   }
 
   macro FastArrayLastIndexOf<Elements: type>(
-      context: Context, array: JSArray, from: Smi, searchElement: Object): Smi {
+      context: Context, array: JSArray, from: Smi, searchElement: JSAny): Smi {
     const elements: FixedArrayBase = array.elements;
     let k: Smi = from;
 
@@ -40,7 +40,7 @@ namespace array_lastindexof {
 
     while (k >= 0) {
       try {
-        const element: Object = LoadWithHoleCheck<Elements>(elements, k)
+        const element: JSAny = LoadWithHoleCheck<Elements>(elements, k)
             otherwise Hole;
 
         const same: Boolean = StrictEqual(searchElement, element);
@@ -80,8 +80,8 @@ namespace array_lastindexof {
   }
 
   macro TryFastArrayLastIndexOf(
-      context: Context, receiver: JSReceiver, searchElement: Object,
-      from: Number): Object
+      context: Context, receiver: JSReceiver, searchElement: JSAny,
+      from: Number): JSAny
       labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
     const length: Smi = array.length;
@@ -99,8 +99,8 @@ namespace array_lastindexof {
   }
 
   transitioning macro GenericArrayLastIndexOf(
-      context: Context, object: JSReceiver, searchElement: Object,
-      from: Number): Object {
+      context: Context, object: JSReceiver, searchElement: JSAny,
+      from: Number): JSAny {
     let k: Number = from;
 
     // 7. Repeat, while k >= 0.
@@ -111,7 +111,7 @@ namespace array_lastindexof {
       // b. If kPresent is true, then.
       if (kPresent == True) {
         // i. Let elementK be ? Get(O, ! ToString(k)).
-        const element: Object = GetProperty(object, k);
+        const element: JSAny = GetProperty(object, k);
 
         // ii. Let same be the result of performing Strict Equality Comparison
         //     searchElement === elementK.
@@ -131,7 +131,7 @@ namespace array_lastindexof {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
   transitioning javascript builtin ArrayPrototypeLastIndexOf(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -144,7 +144,7 @@ namespace array_lastindexof {
     // Step 4 - 6.
     const from: Number = GetFromIndex(context, length, arguments);
 
-    const searchElement: Object = arguments[0];
+    const searchElement: JSAny = arguments[0];
 
     try {
       return TryFastArrayLastIndexOf(context, object, searchElement, from)

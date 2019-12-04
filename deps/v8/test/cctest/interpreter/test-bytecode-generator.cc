@@ -2758,7 +2758,7 @@ TEST(PrivateClassFields) {
                      LoadGolden("PrivateClassFields.golden")));
 }
 
-TEST(PrivateMethods) {
+TEST(PrivateMethodDeclaration) {
   bool old_methods_flag = i::FLAG_harmony_private_methods;
   i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
@@ -2768,30 +2768,179 @@ TEST(PrivateMethods) {
       "{\n"
       "  class A {\n"
       "    #a() { return 1; }\n"
-      "    callA() { return this.#a(); }\n"
       "  }\n"
-      "\n"
-      "  const a = new A;\n"
-      "  a.callA();\n"
       "}\n",
 
       "{\n"
       "  class D {\n"
       "    #d() { return 1; }\n"
-      "    callD() { return this.#d(); }\n"
       "  }\n"
-      "\n"
       "  class E extends D {\n"
       "    #e() { return 2; }\n"
-      "    callE() { return this.callD() + this.#e(); }\n"
       "  }\n"
-      "\n"
-      "  const e = new E;\n"
-      "  e.callE();\n"
+      "}\n",
+
+      "{\n"
+      "  class A { foo() {} }\n"
+      "  class C extends A {\n"
+      "    #m() { return super.foo; }\n"
+      "  }\n"
       "}\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("PrivateMethods.golden")));
+                     LoadGolden("PrivateMethodDeclaration.golden")));
+  i::FLAG_harmony_private_methods = old_methods_flag;
+}
+
+TEST(PrivateMethodAccess) {
+  bool old_methods_flag = i::FLAG_harmony_private_methods;
+  i::FLAG_harmony_private_methods = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("test");
+
+  const char* snippets[] = {
+      "class A {\n"
+      "  #a() { return 1; }\n"
+      "  constructor() { return this.#a(); }\n"
+      "}\n"
+      "\n"
+      "var test = A;\n"
+      "new A;\n",
+
+      "class B {\n"
+      "  #b() { return 1; }\n"
+      "  constructor() { this.#b = 1; }\n"
+      "}\n"
+      "\n"
+      "var test = B;\n"
+      "new test;\n",
+
+      "class C {\n"
+      "  #c() { return 1; }\n"
+      "  constructor() { this.#c++; }\n"
+      "}\n"
+      "\n"
+      "var test = C;\n"
+      "new test;\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrivateMethodAccess.golden")));
+  i::FLAG_harmony_private_methods = old_methods_flag;
+}
+
+TEST(PrivateAccessorAccess) {
+  bool old_methods_flag = i::FLAG_harmony_private_methods;
+  i::FLAG_harmony_private_methods = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("test");
+
+  const char* snippets[] = {
+      "class A {\n"
+      "  get #a() { return 1; }\n"
+      "  set #a(val) { }\n"
+      "\n"
+      "  constructor() {\n"
+      "    this.#a++;\n"
+      "    this.#a = 1;\n"
+      "    return this.#a;\n"
+      "  }\n"
+      "}\n"
+      "var test = A;\n"
+      "new test;\n",
+
+      "class B {\n"
+      "  get #b() { return 1; }\n"
+      "  constructor() { this.#b++; }\n"
+      "}\n"
+      "var test = B;\n"
+      "new test;\n",
+
+      "class C {\n"
+      "  set #c(val) { }\n"
+      "  constructor() { this.#c++; }\n"
+      "}\n"
+      "var test = C;\n"
+      "new test;\n",
+
+      "class D {\n"
+      "  get #d() { return 1; }\n"
+      "  constructor() { this.#d = 1; }\n"
+      "}\n"
+      "var test = D;\n"
+      "new test;\n",
+
+      "class E {\n"
+      "  set #e(val) { }\n"
+      "  constructor() { this.#e; }\n"
+      "}\n"
+      "var test = E;\n"
+      "new test;\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrivateAccessorAccess.golden")));
+  i::FLAG_harmony_private_methods = old_methods_flag;
+}
+
+TEST(PrivateAccessorDeclaration) {
+  bool old_methods_flag = i::FLAG_harmony_private_methods;
+  i::FLAG_harmony_private_methods = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    get #a() { return 1; }\n"
+      "    set #a(val) { }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class B {\n"
+      "    get #b() { return 1; }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class C {\n"
+      "    set #c(val) { }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class D {\n"
+      "    get #d() { return 1; }\n"
+      "    set #d(val) { }\n"
+      "  }\n"
+      "\n"
+      "  class E extends D {\n"
+      "    get #e() { return 2; }\n"
+      "    set #e(val) { }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class A { foo() {} }\n"
+      "  class C extends A {\n"
+      "    get #a() { return super.foo; }\n"
+      "  }\n"
+      "  new C();\n"
+      "}\n",
+
+      "{\n"
+      "  class A { foo(val) {} }\n"
+      "  class C extends A {\n"
+      "    set #a(val) { super.foo(val); }\n"
+      "  }\n"
+      "  new C();\n"
+      "}\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrivateAccessorDeclaration.golden")));
   i::FLAG_harmony_private_methods = old_methods_flag;
 }
 

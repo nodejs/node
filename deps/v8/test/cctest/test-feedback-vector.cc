@@ -438,9 +438,7 @@ TEST(VectorLoadICStates) {
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
   FeedbackNexus nexus(feedback_vector, slot);
-  CHECK_EQ(PREMONOMORPHIC, nexus.ic_state());
 
-  CompileRun("f(o)");
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   // Verify that the monomorphic map is the one we expect.
   v8::MaybeLocal<v8::Value> v8_o =
@@ -526,16 +524,13 @@ TEST(VectorLoadICOnSmi) {
   CompileRun(
       "var o = { foo: 3 };"
       "%EnsureFeedbackVectorForFunction(f);"
-      "function f(a) { return a.foo; } f(o);");
+      "function f(a) { return a.foo; } f(34);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
   FeedbackNexus nexus(feedback_vector, slot);
-  CHECK_EQ(PREMONOMORPHIC, nexus.ic_state());
-
-  CompileRun("f(34)");
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
   // Verify that the monomorphic map is the one we expect.
   Map number_map = ReadOnlyRoots(heap).heap_number_map();

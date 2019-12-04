@@ -26,7 +26,7 @@ class V8_BASE_EXPORT PageAllocator
 
   void* GetRandomMmapAddr() override;
 
-  void* AllocatePages(void* address, size_t size, size_t alignment,
+  void* AllocatePages(void* hint, size_t size, size_t alignment,
                       PageAllocator::Permission access) override;
 
   bool FreePages(void* address, size_t size) override;

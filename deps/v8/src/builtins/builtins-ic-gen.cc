@@ -23,7 +23,7 @@ namespace internal {
 IC_BUILTIN(LoadIC)
 IC_BUILTIN(LoadIC_Megamorphic)
 IC_BUILTIN(LoadIC_Noninlined)
-IC_BUILTIN(LoadIC_Uninitialized)
+IC_BUILTIN(LoadIC_NoFeedback)
 IC_BUILTIN(LoadICTrampoline)
 IC_BUILTIN(LoadICTrampoline_Megamorphic)
 IC_BUILTIN(KeyedLoadIC)

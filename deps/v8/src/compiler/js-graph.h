@@ -46,16 +46,12 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // Used for stubs and runtime functions with no context. (alias: SMI zero)
   Node* NoContextConstant() { return ZeroConstant(); }
 
-  // Creates a HeapConstant node, possibly canonicalized, and may access the
-  // heap to inspect the object.
+  // Creates a HeapConstant node, possibly canonicalized.
   Node* HeapConstant(Handle<HeapObject> value);
 
   // Creates a Constant node of the appropriate type for the given object.
-  // Accesses the heap to inspect the object and determine whether one of the
+  // Inspect the (serialized) object and determine whether one of the
   // canonicalized globals or a number constant should be returned.
-  Node* Constant(Handle<Object> value);
-
-  // Like above, but doesn't access the heap directly.
   Node* Constant(const ObjectRef& value);
 
   // Creates a NumberConstant node, usually canonicalized.

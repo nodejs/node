@@ -342,8 +342,8 @@ class Displacement {
  private:
   int data_;
 
-  class TypeField : public BitField<Type, 0, 2> {};
-  class NextField : public BitField<int, 2, 32 - 2> {};
+  using TypeField = BitField<Type, 0, 2>;
+  using NextField = BitField<int, 2, 32 - 2>;
 
   void init(Label* L, Type type);
 };

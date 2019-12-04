@@ -150,18 +150,18 @@ function assertBinop(name, math_func, wasm_func) {
 }
 
 let stdlib = this;
-function Module_exp(stdlib) {
+function Module_pow(stdlib) {
   "use asm";
 
-  var Stdlib = stdlib.Math.exp;
+  var Stdlib = stdlib.Math.pow;
 
-  function NAME(a, b) {
+  function pow(a, b) {
     a = +a;
     b = +b;
     return +Stdlib(a, b);
   }
 
-  return {exp: exp};
+  return {pow: pow};
 }
 
 function wasmBinop(name, sig) {
@@ -181,8 +181,8 @@ function wasmBinop(name, sig) {
 }
 
 function asmBinop(name) {
-  let instance = Module_exp(stdlib);
-  assertTrue(%IsAsmWasmCode(Module_exp));
+  let instance = Module_pow(stdlib);
+  assertTrue(%IsAsmWasmCode(Module_pow));
 
   let asm_func = instance[name];
   if (typeof asm_func != "function") throw "asm[" + full_name + "] not found";
@@ -190,7 +190,7 @@ function asmBinop(name) {
 }
 
 (function TestF64() {
-  let name = 'exp';
+  let name = 'pow';
   let math_func = Math[name];
 
   let wasm_func = wasmBinop(name, kSig_d_dd);

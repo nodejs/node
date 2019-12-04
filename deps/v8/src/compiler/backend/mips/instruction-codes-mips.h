@@ -165,6 +165,7 @@ namespace compiler {
   V(MipsF32x4AddHoriz)             \
   V(MipsF32x4Sub)                  \
   V(MipsF32x4Mul)                  \
+  V(MipsF32x4Div)                  \
   V(MipsF32x4Max)                  \
   V(MipsF32x4Min)                  \
   V(MipsF32x4Eq)                   \

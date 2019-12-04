@@ -1223,6 +1223,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.anyref &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
+  } else if (enabled_features.eh &&
+             string->StringEquals(v8_str(isolate, "exnref"))) {
+    *type = i::wasm::kWasmExnRef;
   } else {
     // Unrecognized type.
     *type = i::wasm::kWasmStmt;
@@ -1337,7 +1340,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::kWasmAnyRef: {
+    case i::wasm::kWasmAnyRef:
+    case i::wasm::kWasmExnRef: {
       if (args.Length() < 2) {
         // When no inital value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
@@ -1379,6 +1383,21 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
   thrower.TypeError("WebAssembly.Exception cannot be called");
 }
 
+namespace {
+
+uint32_t GetIterableLength(i::Isolate* isolate, Local<Context> context,
+                           Local<Object> iterable) {
+  Local<String> length = Utils::ToLocal(isolate->factory()->length_string());
+  MaybeLocal<Value> property = iterable->Get(context, length);
+  if (property.IsEmpty()) return i::kMaxUInt32;
+  MaybeLocal<Uint32> number = property.ToLocalChecked()->ToArrayIndex(context);
+  if (number.IsEmpty()) return i::kMaxUInt32;
+  DCHECK_NE(i::kMaxUInt32, number.ToLocalChecked()->Value());
+  return number.ToLocalChecked()->Value();
+}
+
+}  // namespace
+
 // WebAssembly.Function
 void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1403,13 +1422,16 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
       function_type->Get(context, parameters_key);
   v8::Local<v8::Value> parameters_value;
   if (!parameters_maybe.ToLocal(&parameters_value)) return;
-  // TODO(7742): Allow any iterable, not just {Array} here.
-  if (!parameters_value->IsArray()) {
+  if (!parameters_value->IsObject()) {
     thrower.TypeError("Argument 0 must be a function type with 'parameters'");
     return;
   }
-  Local<Array> parameters = parameters_value.As<Array>();
-  uint32_t parameters_len = parameters->Length();
+  Local<Object> parameters = parameters_value.As<Object>();
+  uint32_t parameters_len = GetIterableLength(i_isolate, context, parameters);
+  if (parameters_len == i::kMaxUInt32) {
+    thrower.TypeError("Argument 0 contains parameters without 'length'");
+    return;
+  }
   if (parameters_len > i::wasm::kV8MaxWasmFunctionParams) {
     thrower.TypeError("Argument 0 contains too many parameters");
     return;
@@ -1421,13 +1443,16 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
       function_type->Get(context, results_key);
   v8::Local<v8::Value> results_value;
   if (!results_maybe.ToLocal(&results_value)) return;
-  // TODO(7742): Allow any iterable, not just {Array} here.
-  if (!results_value->IsArray()) {
+  if (!results_value->IsObject()) {
     thrower.TypeError("Argument 0 must be a function type with 'results'");
     return;
   }
-  Local<Array> results = results_value.As<Array>();
-  uint32_t results_len = results->Length();
+  Local<Object> results = results_value.As<Object>();
+  uint32_t results_len = GetIterableLength(i_isolate, context, results);
+  if (results_len == i::kMaxUInt32) {
+    thrower.TypeError("Argument 0 contains results without 'length'");
+    return;
+  }
   if (results_len > (enabled_features.mv
                          ? i::wasm::kV8MaxWasmFunctionMultiReturns
                          : i::wasm::kV8MaxWasmFunctionReturns)) {
@@ -1474,37 +1499,6 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-// Converts the given {type} into a string representation that can be used in
-// reflective functions. Should be kept in sync with the {GetValueType} helper.
-Local<String> ToValueTypeString(Isolate* isolate, i::wasm::ValueType type) {
-  Local<String> string;
-  switch (type) {
-    case i::wasm::kWasmI32: {
-      string = v8_str(isolate, "i32");
-      break;
-    }
-    case i::wasm::kWasmI64: {
-      string = v8_str(isolate, "i64");
-      break;
-    }
-    case i::wasm::kWasmF32: {
-      string = v8_str(isolate, "f32");
-      break;
-    }
-    case i::wasm::kWasmF64: {
-      string = v8_str(isolate, "f64");
-      break;
-    }
-    case i::wasm::kWasmAnyRef: {
-      string = v8_str(isolate, "anyref");
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  return string;
-}
-
 // WebAssembly.Function.type(WebAssembly.Function) -> FunctionType
 void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1524,36 +1518,8 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // Extract values for the {ValueType[]} arrays.
-  size_t param_index = 0;
-  i::ScopedVector<Local<Value>> param_values(sig->parameter_count());
-  for (i::wasm::ValueType type : sig->parameters()) {
-    param_values[param_index++] = ToValueTypeString(isolate, type);
-  }
-  size_t result_index = 0;
-  i::ScopedVector<Local<Value>> result_values(sig->return_count());
-  for (i::wasm::ValueType type : sig->returns()) {
-    result_values[result_index++] = ToValueTypeString(isolate, type);
-  }
-
-  // Create the resulting {FunctionType} object.
-  Local<Object> ret = v8::Object::New(isolate);
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Array> params =
-      v8::Array::New(isolate, param_values.begin(), param_values.size());
-  if (!ret->CreateDataProperty(context, v8_str(isolate, "parameters"), params)
-           .IsJust()) {
-    return;
-  }
-  Local<Array> results =
-      v8::Array::New(isolate, result_values.begin(), result_values.size());
-  if (!ret->CreateDataProperty(context, v8_str(isolate, "results"), results)
-           .IsJust()) {
-    return;
-  }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForFunction(i_isolate, sig);
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
@@ -1681,48 +1647,15 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto maybe_table = GetFirstArgumentAsTable(args, &thrower);
   if (thrower.error()) return;
   i::Handle<i::WasmTableObject> table = maybe_table.ToHandleChecked();
-  v8::Local<v8::Object> ret = v8::Object::New(isolate);
-
-  Local<String> element;
-  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
-  if (table->type() == i::wasm::ValueType::kWasmFuncRef) {
-    element = v8_str(isolate, "anyfunc");
-  } else if (enabled_features.anyref &&
-             table->type() == i::wasm::ValueType::kWasmAnyRef) {
-    element = v8_str(isolate, "anyref");
-  } else {
-    UNREACHABLE();
-  }
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "element"), element)
-           .IsJust()) {
-    return;
-  }
-
-  uint32_t curr_size = table->current_length();
-  DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "minimum"),
-                               v8::Integer::NewFromUnsigned(
-                                   isolate, static_cast<uint32_t>(curr_size)))
-           .IsJust()) {
-    return;
-  }
-
+  base::Optional<uint32_t> max_size;
   if (!table->maximum_length().IsUndefined()) {
-    uint64_t max_size = table->maximum_length().Number();
-    DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
-    if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                                 v8_str(isolate, "maximum"),
-                                 v8::Integer::NewFromUnsigned(
-                                     isolate, static_cast<uint32_t>(max_size)))
-             .IsJust()) {
-      return;
-    }
+    uint64_t max_size64 = table->maximum_length().Number();
+    DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
+    max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForTable(i_isolate, table->type(),
+                                       table->current_length(), max_size);
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 // WebAssembly.Memory.grow(num) -> num
@@ -1802,33 +1735,18 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto maybe_memory = GetFirstArgumentAsMemory(args, &thrower);
   if (thrower.error()) return;
   i::Handle<i::WasmMemoryObject> memory = maybe_memory.ToHandleChecked();
-  v8::Local<v8::Object> ret = v8::Object::New(isolate);
   i::Handle<i::JSArrayBuffer> buffer(memory->array_buffer(), i_isolate);
-
   size_t curr_size = buffer->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "minimum"),
-                               v8::Integer::NewFromUnsigned(
-                                   isolate, static_cast<uint32_t>(curr_size)))
-           .IsJust()) {
-    return;
-  }
-
+  uint32_t min_size = static_cast<uint32_t>(curr_size);
+  base::Optional<uint32_t> max_size;
   if (memory->has_maximum_pages()) {
-    uint64_t max_size = memory->maximum_pages();
-    DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
-    if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                                 v8_str(isolate, "maximum"),
-                                 v8::Integer::NewFromUnsigned(
-                                     isolate, static_cast<uint32_t>(max_size)))
-             .IsJust()) {
-      return;
-    }
+    uint64_t max_size64 = memory->maximum_pages();
+    DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
+    max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size);
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 void WebAssemblyGlobalGetValueCommon(
@@ -1960,24 +1878,9 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto maybe_global = GetFirstArgumentAsGlobal(args, &thrower);
   if (thrower.error()) return;
   i::Handle<i::WasmGlobalObject> global = maybe_global.ToHandleChecked();
-  v8::Local<v8::Object> ret = v8::Object::New(isolate);
-
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "mutable"),
-                               v8::Boolean::New(isolate, global->is_mutable()))
-           .IsJust()) {
-    return;
-  }
-
-  Local<String> type = ToValueTypeString(isolate, global->type());
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "value"), type)
-           .IsJust()) {
-    return;
-  }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForGlobal(i_isolate, global->is_mutable(),
+                                        global->type());
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 }  // namespace

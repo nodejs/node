@@ -92,7 +92,7 @@ class CompilerDispatcherTest : public TestWithNativeContext {
         ast_node_factory.NewFunctionLiteral(
             function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
-            FunctionLiteral::kAnonymousExpression,
+            FunctionSyntaxKind::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
             shared->function_literal_id(), nullptr);
 

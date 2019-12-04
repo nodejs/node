@@ -47,7 +47,7 @@ class IntrinsicsGenerator {
   Node* IntrinsicAsBuiltinCall(
       const InterpreterAssembler::RegListNodePair& args, Node* context,
       Builtins::Name name);
-  void AbortIfArgCountMismatch(int expected, compiler::Node* actual);
+  void AbortIfArgCountMismatch(int expected, compiler::TNode<Word32T> actual);
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count) \
   Node* name(const InterpreterAssembler::RegListNodePair& args, Node* context);
@@ -124,7 +124,7 @@ Node* IntrinsicsGenerator::InvokeIntrinsic(
 
 Node* IntrinsicsGenerator::CompareInstanceType(Node* object, int type,
                                                InstanceTypeCompareMode mode) {
-  Node* instance_type = __ LoadInstanceType(object);
+  TNode<Uint16T> instance_type = __ LoadInstanceType(object);
 
   if (mode == kInstanceTypeEqual) {
     return __ Word32Equal(instance_type, __ Int32Constant(type));
@@ -239,7 +239,7 @@ Node* IntrinsicsGenerator::Call(
 
   if (FLAG_debug_code) {
     InterpreterAssembler::Label arg_count_positive(assembler_);
-    Node* comparison =
+    TNode<BoolT> comparison =
         __ Int32LessThan(target_args.reg_count(), __ Int32Constant(0));
     __ GotoIfNot(comparison, &arg_count_positive);
     __ Abort(AbortReason::kWrongArgumentCountForInvokeIntrinsic);
@@ -265,13 +265,13 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(
   __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
   __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
 
-  Node* const next =
+  TNode<Object> const next =
       __ GetProperty(context, sync_iterator, factory()->next_string());
 
-  Node* const native_context = __ LoadNativeContext(context);
-  Node* const map = __ LoadContextElement(
-      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX);
-  Node* const iterator = __ AllocateJSObjectFromMap(map);
+  TNode<Context> const native_context = __ LoadNativeContext(context);
+  TNode<Map> const map = __ CAST(__ LoadContextElement(
+      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
+  TNode<JSObject> const iterator = __ AllocateJSObjectFromMap(map);
 
   __ StoreObjectFieldNoWriteBarrier(
       iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
@@ -303,7 +303,7 @@ Node* IntrinsicsGenerator::CreateJSGeneratorObject(
 Node* IntrinsicsGenerator::GeneratorGetResumeMode(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* generator = __ LoadRegisterFromRegisterList(args, 0);
-  Node* const value =
+  TNode<Object> const value =
       __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
 
   return value;
@@ -320,10 +320,10 @@ Node* IntrinsicsGenerator::GeneratorClose(
 
 Node* IntrinsicsGenerator::GetImportMetaObject(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* const module_context = __ LoadModuleContext(context);
-  Node* const module =
-      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
-  Node* const import_meta =
+  TNode<Context> const module_context = __ LoadModuleContext(context);
+  TNode<HeapObject> const module =
+      __ CAST(__ LoadContextElement(module_context, Context::EXTENSION_INDEX));
+  TNode<Object> const import_meta =
       __ LoadObjectField(module, SourceTextModule::kImportMetaOffset);
 
   InterpreterAssembler::Variable return_value(assembler_,
@@ -395,9 +395,10 @@ Node* IntrinsicsGenerator::AsyncGeneratorYield(
   return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorYield);
 }
 
-void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {
+void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected,
+                                                  TNode<Word32T> actual) {
   InterpreterAssembler::Label match(assembler_);
-  Node* comparison = __ Word32Equal(actual, __ Int32Constant(expected));
+  TNode<BoolT> comparison = __ Word32Equal(actual, __ Int32Constant(expected));
   __ GotoIf(comparison, &match);
   __ Abort(AbortReason::kWrongArgumentCountForInvokeIntrinsic);
   __ Goto(&match);

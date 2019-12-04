@@ -25,7 +25,12 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
-  table = OrderedHashSet::EnsureGrowable(isolate, table);
+  MaybeHandle<OrderedHashSet> table_candidate =
+      OrderedHashSet::EnsureGrowable(isolate, table);
+  if (!table_candidate.ToHandle(&table)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kValueOutOfRange));
+  }
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -56,7 +61,12 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
-  table = OrderedHashMap::EnsureGrowable(isolate, table);
+  MaybeHandle<OrderedHashMap> table_candidate =
+      OrderedHashMap::EnsureGrowable(isolate, table);
+  if (!table_candidate.ToHandle(&table)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kValueOutOfRange));
+  }
   holder->set_table(*table);
   return ReadOnlyRoots(isolate).undefined_value();
 }

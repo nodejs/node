@@ -82,6 +82,12 @@ InspectorTest.runTestSuite([
       .then(() => checkExpression("new class extends class { #baz = 3; } { #foo = 1; #bar = 2; }"))
       .then(() => checkExpression("new class extends class { constructor() { return new Proxy({}, {}); } } { #foo = 1; #bar = 2; }"))
       .then(next);
+  },
+
+  function functionProxy(next)
+  {
+    checkExpression("new Proxy(() => {}, { get: () => x++ })")
+      .then(next);
   }
 ]);
 

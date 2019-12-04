@@ -51,8 +51,8 @@ class Predicate {
     bool value() const { return ValueField::decode(bit_field_); }
 
    private:
-    class CodePointField : public v8::internal::BitField<uchar, 0, 21> {};
-    class ValueField : public v8::internal::BitField<bool, 21, 1> {};
+    using CodePointField = v8::internal::BitField<uchar, 0, 21>;
+    using ValueField = v8::internal::BitField<bool, 21, 1>;
 
     uint32_t bit_field_;
   };

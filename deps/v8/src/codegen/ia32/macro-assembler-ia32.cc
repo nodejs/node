@@ -91,26 +91,16 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   }
 }
 
-void TurboAssembler::CompareStackLimit(Register with) {
-  if (root_array_available()) {
-    CompareRoot(with, RootIndex::kStackLimit);
-  } else {
-    DCHECK(!options().isolate_independent_code);
-    ExternalReference ref =
-        ExternalReference::address_of_stack_limit(isolate());
-    cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
-  }
-}
-
 void TurboAssembler::CompareRealStackLimit(Register with) {
-  if (root_array_available()) {
-    CompareRoot(with, RootIndex::kRealStackLimit);
-  } else {
-    DCHECK(!options().isolate_independent_code);
-    ExternalReference ref =
-        ExternalReference::address_of_real_stack_limit(isolate());
-    cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
-  }
+  CHECK(root_array_available());  // Only used by builtins.
+
+  // Address through the root register. No load is needed.
+  ExternalReference limit =
+      ExternalReference::address_of_real_jslimit(isolate());
+  DCHECK(IsAddressableThroughRootRegister(isolate(), limit));
+
+  intptr_t offset = RootRegisterOffsetForExternalReference(isolate(), limit);
+  cmp(with, Operand(kRootRegister, offset));
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {
@@ -465,8 +455,9 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   DCHECK(value != address);
   AssertNotSmi(object);
 
-  if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      !FLAG_incremental_marking) {
+  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+       !FLAG_incremental_marking) ||
+      FLAG_disable_write_barriers) {
     return;
   }
 
@@ -1875,11 +1866,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index) &&
         Builtins::IsIsolateIndependent(builtin_index)) {
       // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      call(entry, RelocInfo::OFF_HEAP_TARGET);
+      CallBuiltin(builtin_index);
       return;
     }
   }
@@ -1905,6 +1892,16 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   LoadEntryFromBuiltinIndex(builtin_index);
   call(builtin_index);
+}
+
+void TurboAssembler::CallBuiltin(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  DCHECK(FLAG_embedded_builtins);
+  RecordCommentForOffHeapTrampoline(builtin_index);
+  CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  EmbeddedData d = EmbeddedData::FromBlob();
+  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  call(entry, RelocInfo::OFF_HEAP_TARGET);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
@@ -1958,6 +1955,12 @@ void TurboAssembler::CallCodeObject(Register code_object) {
 void TurboAssembler::JumpCodeObject(Register code_object) {
   LoadCodeObjectEntry(code_object, code_object);
   jmp(code_object);
+}
+
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  DCHECK(root_array_available());
+  jmp(Operand(kRootRegister, RootRegisterOffsetForExternalReferenceTableEntry(
+                                 isolate(), reference)));
 }
 
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {

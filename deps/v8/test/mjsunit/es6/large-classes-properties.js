@@ -8,14 +8,14 @@
   // This is to test for dictionary mode when there more than
   // kMaxNumberOfDescriptors (1024) properties.
   const kLimit = 1030;
-  let evalString = "(function(i) { " +
+  let evalString = "function f(i) { " +
       "let clazz = class { " +
       "   constructor(i) { this.value = i;";
   for (let i = 0; i < kLimit ; i++) {
     evalString  += "this.property"+i +" = "+i+"; "
   }
   evalString += "}};" +
-      " return (new clazz(i)); })";
+      " return (new clazz(i)); }; f;";
 
   let fn = eval(evalString);
   %PrepareFunctionForOptimization(fn);

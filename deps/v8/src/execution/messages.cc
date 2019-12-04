@@ -7,8 +7,11 @@
 #include <memory>
 
 #include "src/api/api-inl.h"
+#include "src/ast/ast.h"
+#include "src/ast/prettyprinter.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/execution/execution.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
@@ -18,6 +21,9 @@
 #include "src/objects/keys.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/parsing/parse-info.h"
+#include "src/parsing/parsing.h"
+#include "src/roots/roots.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
@@ -314,6 +320,10 @@ Handle<Object> StackFrameBase::GetWasmModuleName() {
   return isolate_->factory()->undefined_value();
 }
 
+Handle<Object> StackFrameBase::GetWasmInstance() {
+  return isolate_->factory()->undefined_value();
+}
+
 int StackFrameBase::GetScriptId() const {
   if (!HasScript()) return kNone;
   return GetScript()->id();
@@ -332,6 +342,7 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   function_ = handle(array->Function(frame_ix), isolate);
   code_ = handle(array->Code(frame_ix), isolate);
   offset_ = array->Offset(frame_ix).value();
+  cached_position_ = base::nullopt;
 
   const int flags = array->Flags(frame_ix).value();
   is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
@@ -348,6 +359,7 @@ JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
       function_(function),
       code_(code),
       offset_(offset),
+      cached_position_(base::nullopt),
       is_async_(false),
       is_constructor_(false),
       is_strict_(false) {}
@@ -512,9 +524,12 @@ bool JSStackFrame::IsToplevel() {
 }
 
 int JSStackFrame::GetPosition() const {
+  if (cached_position_) return *cached_position_;
+
   Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
-  return code_->SourcePosition(offset_);
+  cached_position_ = code_->SourcePosition(offset_);
+  return *cached_position_;
 }
 
 bool JSStackFrame::HasScript() const {
@@ -574,6 +589,8 @@ Handle<Object> WasmStackFrame::GetWasmModuleName() {
   }
   return module_name;
 }
+
+Handle<Object> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
   return IsInterpreted()
@@ -1153,6 +1170,233 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
   Handle<Object> no_caller;
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
                                no_caller, StackTraceCollection::kDetailed);
+}
+
+namespace {
+
+bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
+  JavaScriptFrameIterator it(isolate);
+  if (!it.done()) {
+    // Compute the location from the function and the relocation info of the
+    // baseline code. For optimized code this will use the deoptimization
+    // information to get canonical location information.
+    std::vector<FrameSummary> frames;
+    it.frame()->Summarize(&frames);
+    auto& summary = frames.back().AsJavaScript();
+    Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
+    Handle<Object> script(shared->script(), isolate);
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
+    int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
+    if (script->IsScript() &&
+        !(Handle<Script>::cast(script)->source().IsUndefined(isolate))) {
+      Handle<Script> casted_script = Handle<Script>::cast(script);
+      *target = MessageLocation(casted_script, pos, pos + 1, shared);
+      return true;
+    }
+  }
+  return false;
+}
+
+Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
+  IncrementalStringBuilder builder(isolate);
+
+  builder.AppendString(Object::TypeOf(isolate, object));
+  if (object->IsString()) {
+    builder.AppendCString(" \"");
+    builder.AppendString(Handle<String>::cast(object));
+    builder.AppendCString("\"");
+  } else if (object->IsNull(isolate)) {
+    builder.AppendCString(" ");
+    builder.AppendString(isolate->factory()->null_string());
+  } else if (object->IsTrue(isolate)) {
+    builder.AppendCString(" ");
+    builder.AppendString(isolate->factory()->true_string());
+  } else if (object->IsFalse(isolate)) {
+    builder.AppendCString(" ");
+    builder.AppendString(isolate->factory()->false_string());
+  } else if (object->IsNumber()) {
+    builder.AppendCString(" ");
+    builder.AppendString(isolate->factory()->NumberToString(object));
+  }
+
+  return builder.Finish().ToHandleChecked();
+}
+
+Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
+                              MessageLocation* location,
+                              CallPrinter::ErrorHint* hint) {
+  if (ComputeLocation(isolate, location)) {
+    ParseInfo info(isolate, location->shared());
+    if (parsing::ParseAny(&info, location->shared(), isolate)) {
+      info.ast_value_factory()->Internalize(isolate);
+      CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
+      Handle<String> str = printer.Print(info.literal(), location->start_pos());
+      *hint = printer.GetErrorHint();
+      if (str->length() > 0) return str;
+    } else {
+      isolate->clear_pending_exception();
+    }
+  }
+  return BuildDefaultCallSite(isolate, object);
+}
+
+MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
+                                    MessageTemplate default_id) {
+  switch (hint) {
+    case CallPrinter::ErrorHint::kNormalIterator:
+      return MessageTemplate::kNotIterable;
+
+    case CallPrinter::ErrorHint::kCallAndNormalIterator:
+      return MessageTemplate::kNotCallableOrIterable;
+
+    case CallPrinter::ErrorHint::kAsyncIterator:
+      return MessageTemplate::kNotAsyncIterable;
+
+    case CallPrinter::ErrorHint::kCallAndAsyncIterator:
+      return MessageTemplate::kNotCallableOrAsyncIterable;
+
+    case CallPrinter::ErrorHint::kNone:
+      return default_id;
+  }
+  return default_id;
+}
+
+}  // namespace
+
+Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
+                                            Handle<Object> source) {
+  MessageLocation location;
+  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
+  MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
+
+  if (hint == CallPrinter::kNone) {
+    Handle<Symbol> iterator_symbol = isolate->factory()->iterator_symbol();
+    return isolate->factory()->NewTypeError(id, callsite, iterator_symbol);
+  }
+
+  id = UpdateErrorTemplate(hint, id);
+  return isolate->factory()->NewTypeError(id, callsite);
+}
+
+Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
+                                                     Handle<Object> source) {
+  MessageLocation location;
+  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
+  MessageTemplate id = MessageTemplate::kCalledNonCallable;
+  id = UpdateErrorTemplate(hint, id);
+  return isolate->factory()->NewTypeError(id, callsite);
+}
+
+Handle<Object> ErrorUtils::NewConstructedNonConstructable(
+    Isolate* isolate, Handle<Object> source) {
+  MessageLocation location;
+  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
+  MessageTemplate id = MessageTemplate::kNotConstructor;
+  return isolate->factory()->NewTypeError(id, callsite);
+}
+
+Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
+                                                Handle<Object> object) {
+  return ThrowLoadFromNullOrUndefined(isolate, object, MaybeHandle<Object>());
+}
+Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
+                                                Handle<Object> object,
+                                                MaybeHandle<Object> key) {
+  DCHECK(object->IsNullOrUndefined());
+
+  MaybeHandle<String> maybe_property_name;
+
+  // Try to extract the property name from the given key, if any.
+  Handle<Object> key_handle;
+  if (key.ToHandle(&key_handle)) {
+    if (key_handle->IsString()) {
+      maybe_property_name = Handle<String>::cast(key_handle);
+    }
+  }
+
+  Handle<String> callsite;
+
+  // Inline the RenderCallSite logic here so that we can additonally access the
+  // destructuring property.
+  bool location_computed = false;
+  bool is_destructuring = false;
+  MessageLocation location;
+  if (ComputeLocation(isolate, &location)) {
+    location_computed = true;
+
+    ParseInfo info(isolate, location.shared());
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
+      info.ast_value_factory()->Internalize(isolate);
+      CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
+      Handle<String> str = printer.Print(info.literal(), location.start_pos());
+
+      int pos = -1;
+      is_destructuring = printer.destructuring_assignment() != nullptr;
+
+      if (is_destructuring) {
+        // If we don't have one yet, try to extract the property name from the
+        // destructuring property in the AST.
+        ObjectLiteralProperty* destructuring_prop =
+            printer.destructuring_prop();
+        if (maybe_property_name.is_null() && destructuring_prop != nullptr &&
+            destructuring_prop->key()->IsPropertyName()) {
+          maybe_property_name = destructuring_prop->key()
+                                    ->AsLiteral()
+                                    ->AsRawPropertyName()
+                                    ->string();
+          // Change the message location to point at the property name.
+          pos = destructuring_prop->key()->position();
+        }
+        if (maybe_property_name.is_null()) {
+          // Change the message location to point at the destructured value.
+          pos = printer.destructuring_assignment()->value()->position();
+        }
+
+        // If we updated the pos to a valid pos, rewrite the location.
+        if (pos != -1) {
+          location = MessageLocation(location.script(), pos, pos + 1,
+                                     location.shared());
+        }
+      }
+
+      if (str->length() > 0) callsite = str;
+    } else {
+      isolate->clear_pending_exception();
+    }
+  }
+
+  if (callsite.is_null()) {
+    callsite = BuildDefaultCallSite(isolate, object);
+  }
+
+  Handle<Object> error;
+  Handle<String> property_name;
+  if (is_destructuring) {
+    if (maybe_property_name.ToHandle(&property_name)) {
+      error = isolate->factory()->NewTypeError(
+          MessageTemplate::kNonCoercibleWithProperty, property_name, callsite,
+          object);
+    } else {
+      error = isolate->factory()->NewTypeError(MessageTemplate::kNonCoercible,
+                                               callsite, object);
+    }
+  } else {
+    Handle<Object> key_handle;
+    if (!key.ToHandle(&key_handle)) {
+      key_handle = ReadOnlyRoots(isolate).undefined_value_handle();
+    }
+    if (*key_handle == ReadOnlyRoots(isolate).iterator_symbol()) {
+      error = NewIteratorError(isolate, object);
+    } else {
+      error = isolate->factory()->NewTypeError(
+          MessageTemplate::kNonObjectPropertyLoad, key_handle, object);
+    }
+  }
+
+  return isolate->Throw(*error, location_computed ? &location : nullptr);
 }
 
 }  // namespace internal

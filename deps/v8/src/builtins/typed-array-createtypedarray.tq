@@ -122,7 +122,7 @@ namespace typed_array_createtypedarray {
   // 22.2.4.2 TypedArray ( length )
   // ES #sec-typedarray-length
   transitioning macro ConstructByLength(implicit context: Context)(
-      map: Map, length: Object,
+      map: Map, length: JSAny,
       elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
     const convertedLength: Number =
         ToInteger_Inline(context, length, kTruncateMinusZero);
@@ -141,7 +141,7 @@ namespace typed_array_createtypedarray {
   // 22.2.4.4 TypedArray ( object )
   // ES #sec-typedarray-object
   transitioning macro ConstructByArrayLike(implicit context: Context)(
-      map: Map, arrayLike: HeapObject, initialLength: Object,
+      map: Map, arrayLike: HeapObject, initialLength: JSAny,
       elementsInfo: typed_array::TypedArrayElementsInfo,
       bufferConstructor: JSReceiver): JSTypedArray {
     // The caller has looked up length on arrayLike, which is observable.
@@ -178,7 +178,7 @@ namespace typed_array_createtypedarray {
   // ES #sec-typedarray-object
   transitioning macro ConstructByIterable(implicit context: Context)(
       iterable: JSReceiver, iteratorFn: Callable): never
-      labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
+      labels IfConstructByArrayLike(JSArray, Number, JSReceiver) {
     const array: JSArray =
         IterableToListMayPreserveHoles(context, iterable, iteratorFn);
     goto IfConstructByArrayLike(array, array.length, GetArrayBufferFunction());
@@ -188,7 +188,7 @@ namespace typed_array_createtypedarray {
   // ES #sec-typedarray-typedarray
   transitioning macro ConstructByTypedArray(implicit context: Context)(
       srcTypedArray: JSTypedArray): never
-      labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
+      labels IfConstructByArrayLike(JSTypedArray, Number, JSReceiver) {
     let bufferConstructor: JSReceiver = GetArrayBufferFunction();
     const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
     // TODO(petermarshall): Throw on detached typedArray.
@@ -210,7 +210,7 @@ namespace typed_array_createtypedarray {
   // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
   // ES #sec-typedarray-buffer-byteoffset-length
   transitioning macro ConstructByArrayBuffer(implicit context: Context)(
-      map: Map, buffer: JSArrayBuffer, byteOffset: Object, length: Object,
+      map: Map, buffer: JSArrayBuffer, byteOffset: JSAny, length: JSAny,
       elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
     try {
       let offset: uintptr = 0;
@@ -294,7 +294,7 @@ namespace typed_array_createtypedarray {
 
   transitioning macro ConstructByJSReceiver(implicit context:
                                                 Context)(obj: JSReceiver): never
-      labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
+      labels IfConstructByArrayLike(JSReceiver, Number, JSReceiver) {
     try {
       const iteratorMethod: Object =
           GetIteratorMethod(obj) otherwise IfIteratorUndefined;
@@ -304,7 +304,7 @@ namespace typed_array_createtypedarray {
           otherwise IfConstructByArrayLike;
     }
     label IfIteratorUndefined {
-      const lengthObj: Object = GetProperty(obj, kLengthString);
+      const lengthObj: JSAny = GetProperty(obj, kLengthString);
       const length: Smi = ToSmiLength(lengthObj)
           otherwise goto IfInvalidLength(lengthObj);
       goto IfConstructByArrayLike(obj, length, GetArrayBufferFunction());
@@ -317,8 +317,8 @@ namespace typed_array_createtypedarray {
   // 22.2.4 The TypedArray Constructors
   // ES #sec-typedarray-constructors
   transitioning builtin CreateTypedArray(
-      context: Context, target: JSFunction, newTarget: JSReceiver, arg1: Object,
-      arg2: Object, arg3: Object): JSTypedArray {
+      context: Context, target: JSFunction, newTarget: JSReceiver, arg1: JSAny,
+      arg2: JSAny, arg3: JSAny): JSTypedArray {
     assert(IsConstructor(target));
     // 4. Let O be ? AllocateTypedArray(constructorName, NewTarget,
     // "%TypedArrayPrototype%").
@@ -345,16 +345,16 @@ namespace typed_array_createtypedarray {
         }
         // The first argument was a number or fell through and is treated as
         // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
-        case (lengthObj: HeapObject): {
+        case (lengthObj: JSAny): {
           goto IfConstructByLength(lengthObj);
         }
       }
     }
-    label IfConstructByLength(length: Object) {
+    label IfConstructByLength(length: JSAny) {
       return ConstructByLength(map, length, elementsInfo);
     }
     label IfConstructByArrayLike(
-        arrayLike: HeapObject, length: Object, bufferConstructor: JSReceiver) {
+        arrayLike: JSReceiver, length: Number, bufferConstructor: JSReceiver) {
       return ConstructByArrayLike(
           map, arrayLike, length, elementsInfo, bufferConstructor);
     }
@@ -362,8 +362,8 @@ namespace typed_array_createtypedarray {
 
   transitioning macro TypedArraySpeciesCreate(implicit context: Context)(
       methodName: constexpr string, numArgs: constexpr int31,
-      exemplar: JSTypedArray, arg0: Object, arg1: Object,
-      arg2: Object): JSTypedArray {
+      exemplar: JSTypedArray, arg0: JSAny, arg1: JSAny,
+      arg2: JSAny): JSTypedArray {
     const defaultConstructor = GetDefaultConstructor(exemplar);
 
     try {
@@ -386,7 +386,7 @@ namespace typed_array_createtypedarray {
 
       // TODO(pwong): Simplify and remove numArgs when varargs are supported in
       // macros.
-      let newObj: Object = Undefined;
+      let newObj: JSAny = Undefined;
       if constexpr (numArgs == 1) {
         newObj = Construct(constructor, arg0);
       } else {

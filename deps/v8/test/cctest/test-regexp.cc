@@ -35,6 +35,7 @@
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/init/v8.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-compiler.h"
@@ -535,6 +536,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Isolate* isolate = CcTest::i_isolate();
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
+  compile_data.compilation_target = RegExpCompilationTarget::kNative;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (multiline) flags = JSRegExp::kMultiline;
   if (unicode) flags = JSRegExp::kUnicode;
@@ -629,16 +631,35 @@ class ContextInitializer {
   v8::Local<v8::Context> env_;
 };
 
-static ArchRegExpMacroAssembler::Result Execute(Code code, String input,
+// Create new JSRegExp object with only necessary fields (for this tests)
+// initialized.
+static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
+                                       bool is_unicode = false) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Handle<JSFunction> constructor = isolate->regexp_function();
+  Handle<JSRegExp> regexp =
+      Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
+
+  factory->SetRegExpIrregexpData(regexp, JSRegExp::IRREGEXP, source,
+                                 JSRegExp::kNone, 0);
+  regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
+                               : JSRegExp::kIrregexpLatin1CodeIndex,
+                    *code);
+
+  return regexp;
+}
+
+static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
                                                 int start_offset,
                                                 Address input_start,
                                                 Address input_end,
                                                 int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
-      NativeRegExpMacroAssembler::Execute(code, input, start_offset,
-                                          reinterpret_cast<byte*>(input_start),
-                                          reinterpret_cast<byte*>(input_end),
-                                          captures, 0, CcTest::i_isolate()));
+      NativeRegExpMacroAssembler::Execute(
+          input, start_offset, reinterpret_cast<byte*>(input_start),
+          reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate(),
+          regexp));
 }
 
 TEST(MacroAssemblerNativeSuccess) {
@@ -656,19 +677,15 @@ TEST(MacroAssemblerNativeSuccess) {
   Handle<String> source = factory->NewStringFromStaticChars("");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + seq_input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + seq_input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(-1, captures[0]);
@@ -710,19 +727,15 @@ TEST(MacroAssemblerNativeSimple) {
   Handle<String> source = factory->NewStringFromStaticChars("^foo");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -734,11 +747,7 @@ TEST(MacroAssemblerNativeSimple) {
   seq_input = Handle<SeqOneByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
-  result = Execute(*code,
-                   *input,
-                   0,
-                   start_adr,
-                   start_adr + input->length(),
+  result = Execute(*regexp, *input, 0, start_adr, start_adr + input->length(),
                    captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
@@ -777,6 +786,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Handle<String> source = factory->NewStringFromStaticChars("^foo");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
   int captures[4] = {42, 37, 87, 117};
   const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o',
@@ -786,13 +796,8 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -807,12 +812,8 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
-  result = Execute(*code,
-                   *input,
-                   0,
-                   start_adr,
-                   start_adr + input->length() * 2,
-                   captures);
+  result = Execute(*regexp, *input, 0, start_adr,
+                   start_adr + input->length() * 2, captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -842,13 +843,14 @@ TEST(MacroAssemblerNativeBacktrack) {
   Handle<String> source = factory->NewStringFromStaticChars("..........");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
-      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
+      *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -882,19 +884,15 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   Handle<String> source = factory->NewStringFromStaticChars("^(..)..\1");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("fooofo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -932,6 +930,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Handle<String> source = factory->NewStringFromStaticChars("^(..)..\1");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
   const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
   Handle<String> input = factory->NewStringFromTwoByte(
@@ -940,13 +939,8 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length() * 2,
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length() * 2, output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -991,18 +985,19 @@ TEST(MacroAssemblernativeAtStart) {
   Handle<String> source = factory->NewStringFromStaticChars("(^f|ob)");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("foobar");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
-      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
+      *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 
-  result = Execute(*code, *input, 3, start_adr + 3, start_adr + input->length(),
-                   nullptr);
+  result = Execute(*regexp, *input, 3, start_adr + 3,
+                   start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 }
@@ -1044,19 +1039,15 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
       factory->NewStringFromStaticChars("^(abc)\1\1(?!\1)...(?!\1)");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("aBcAbCABCxYzab");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1144,6 +1135,7 @@ TEST(MacroAssemblerNativeRegisters) {
   Handle<String> source = factory->NewStringFromStaticChars("<loop test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input = factory->NewStringFromStaticChars("foofoofoofoofoo");
@@ -1151,13 +1143,8 @@ TEST(MacroAssemblerNativeRegisters) {
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[6];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1188,6 +1175,7 @@ TEST(MacroAssemblerStackOverflow) {
       factory->NewStringFromStaticChars("<stack overflow test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input = factory->NewStringFromStaticChars("dummy");
@@ -1195,7 +1183,7 @@ TEST(MacroAssemblerStackOverflow) {
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
-      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
+      *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
   CHECK(isolate->has_pending_exception());
@@ -1230,6 +1218,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
       factory->NewStringFromStaticChars("<huge register space test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input = factory->NewStringFromStaticChars("sample text");
@@ -1237,13 +1226,8 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   Address start_adr = seq_input->GetCharsAddress();
 
   int captures[2];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -1298,7 +1282,9 @@ TEST(MacroAssembler) {
   Handle<String> f1_16 = factory->NewStringFromTwoByte(
       Vector<const uc16>(str1, 6)).ToHandleChecked();
 
-  CHECK(IrregexpInterpreter::Match(isolate, array, f1_16, captures, 0));
+  CHECK(IrregexpInterpreter::MatchInternal(isolate, *array, *f1_16, captures, 5,
+                                           0,
+                                           RegExp::CallOrigin::kFromRuntime));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
@@ -1309,7 +1295,9 @@ TEST(MacroAssembler) {
   Handle<String> f2_16 = factory->NewStringFromTwoByte(
       Vector<const uc16>(str2, 6)).ToHandleChecked();
 
-  CHECK(!IrregexpInterpreter::Match(isolate, array, f2_16, captures, 0));
+  CHECK(!IrregexpInterpreter::MatchInternal(isolate, *array, *f2_16, captures,
+                                            5, 0,
+                                            RegExp::CallOrigin::kFromRuntime));
   CHECK_EQ(42, captures[0]);
 }
 
@@ -1692,8 +1680,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 }
 }
 
-
-// Test that ES2015 RegExp compatibility fixes are in place, that they
+// Test that ES2015+ RegExp compatibility fixes are in place, that they
 // are not overly broad, and the appropriate UseCounters are incremented
 TEST(UseCountRegExp) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -1715,7 +1702,7 @@ TEST(UseCountRegExp) {
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultReSticky->IsFalse());
 
-  // When the getter is caleld on another object, throw an exception
+  // When the getter is called on another object, throw an exception
   // and don't increment the UseCounter
   v8::Local<v8::Value> resultStickyError = CompileRun(
       "var exception;"
@@ -1757,6 +1744,19 @@ TEST(UseCountRegExp) {
   CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
+
+  // Increment a UseCounter when .matchAll() is used with a non-global
+  // regular expression.
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
+  v8::Local<v8::Value> resultReMatchAllNonGlobal =
+      CompileRun("'a'.matchAll(/./)");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
+  CHECK(resultReMatchAllNonGlobal->IsObject());
+  // Don't increment the counter for global regular expressions.
+  v8::Local<v8::Value> resultReMatchAllGlobal =
+      CompileRun("'a'.matchAll(/./g)");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
+  CHECK(resultReMatchAllGlobal->IsObject());
 }
 
 class UncachedExternalString

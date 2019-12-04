@@ -32,8 +32,9 @@
 #include "src/common/globals.h"
 
 namespace v8 {
-struct TickSample;
 namespace internal {
+
+struct TickSample;
 
 class TraceExtension : public v8::Extension {
  public:
@@ -45,7 +46,7 @@ class TraceExtension : public v8::Extension {
   static void JSEntrySP(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void JSEntrySPLevel2(const v8::FunctionCallbackInfo<v8::Value>& args);
   static Address GetJsEntrySp();
-  static void InitTraceEnv(v8::TickSample* sample);
+  static void InitTraceEnv(TickSample* sample);
   static void DoTrace(Address fp);
  private:
   static Address GetFP(const v8::FunctionCallbackInfo<v8::Value>& args);

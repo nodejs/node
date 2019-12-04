@@ -34,16 +34,13 @@ Node* MachineOperatorReducer::Float32Constant(volatile float value) {
   return graph()->NewNode(common()->Float32Constant(value));
 }
 
-
 Node* MachineOperatorReducer::Float64Constant(volatile double value) {
   return mcgraph()->Float64Constant(value);
 }
 
-
 Node* MachineOperatorReducer::Int32Constant(int32_t value) {
   return mcgraph()->Int32Constant(value);
 }
-
 
 Node* MachineOperatorReducer::Int64Constant(int64_t value) {
   return graph()->NewNode(common()->Int64Constant(value));
@@ -70,23 +67,27 @@ Node* MachineOperatorReducer::Word32And(Node* lhs, Node* rhs) {
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
-
 Node* MachineOperatorReducer::Word32Sar(Node* lhs, uint32_t rhs) {
   if (rhs == 0) return lhs;
   return graph()->NewNode(machine()->Word32Sar(), lhs, Uint32Constant(rhs));
 }
-
 
 Node* MachineOperatorReducer::Word32Shr(Node* lhs, uint32_t rhs) {
   if (rhs == 0) return lhs;
   return graph()->NewNode(machine()->Word32Shr(), lhs, Uint32Constant(rhs));
 }
 
-
 Node* MachineOperatorReducer::Word32Equal(Node* lhs, Node* rhs) {
   return graph()->NewNode(machine()->Word32Equal(), lhs, rhs);
 }
 
+Node* MachineOperatorReducer::BitcastWord32ToCompressedSigned(Node* value) {
+  return graph()->NewNode(machine()->BitcastWord32ToCompressedSigned(), value);
+}
+
+Node* MachineOperatorReducer::BitcastCompressedSignedToWord32(Node* value) {
+  return graph()->NewNode(machine()->BitcastCompressedSignedToWord32(), value);
+}
 
 Node* MachineOperatorReducer::Int32Add(Node* lhs, Node* rhs) {
   Node* const node = graph()->NewNode(machine()->Int32Add(), lhs, rhs);
@@ -94,18 +95,15 @@ Node* MachineOperatorReducer::Int32Add(Node* lhs, Node* rhs) {
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
-
 Node* MachineOperatorReducer::Int32Sub(Node* lhs, Node* rhs) {
   Node* const node = graph()->NewNode(machine()->Int32Sub(), lhs, rhs);
   Reduction const reduction = ReduceInt32Sub(node);
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
-
 Node* MachineOperatorReducer::Int32Mul(Node* lhs, Node* rhs) {
   return graph()->NewNode(machine()->Int32Mul(), lhs, rhs);
 }
-
 
 Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
   DCHECK_NE(0, divisor);
@@ -121,7 +119,6 @@ Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
   }
   return Int32Add(Word32Sar(quotient, mag.shift), Word32Shr(dividend, 31));
 }
-
 
 Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   DCHECK_LT(0u, divisor);
@@ -145,7 +142,6 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   }
   return quotient;
 }
-
 
 // Perform constant folding and strength reduction on machine operators.
 Reduction MachineOperatorReducer::Reduce(Node* node) {
@@ -664,6 +660,17 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceInt64(static_cast<uint64_t>(m.Value()));
       break;
     }
+    case IrOpcode::kChangeTaggedToCompressed: {
+      Int64Matcher m(node->InputAt(0));
+      if (m.IsBitcastWordToTaggedSigned()) {
+        Int64Matcher n(m.node()->InputAt(0));
+        if (n.IsChangeInt32ToInt64()) {
+          DCHECK(machine()->Is64() && SmiValuesAre31Bits());
+          return Replace(BitcastWord32ToCompressedSigned(n.node()->InputAt(0)));
+        }
+      }
+      break;
+    }
     case IrOpcode::kTruncateFloat64ToWord32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
@@ -674,6 +681,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
       if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
+      if (m.IsBitcastTaggedSignedToWord()) {
+        Int64Matcher n(m.node()->InputAt(0));
+        if (n.IsChangeCompressedToTagged()) {
+          DCHECK(machine()->Is64() && SmiValuesAre31Bits());
+          return Replace(BitcastCompressedSignedToWord32(n.node()->InputAt(0)));
+        }
+      }
       break;
     }
     case IrOpcode::kTruncateFloat64ToFloat32: {
@@ -871,7 +885,6 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
   return NoChange();
 }
 
-
 Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
   Uint32BinopMatcher m(node);
   if (m.left().Is(0)) return Replace(m.left().node());    // 0 / x => 0
@@ -899,7 +912,6 @@ Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
   Int32BinopMatcher m(node);
@@ -937,7 +949,6 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
   return NoChange();
 }
 
-
 Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
   Uint32BinopMatcher m(node);
   if (m.left().Is(0)) return Replace(m.left().node());    // 0 % x => 0
@@ -966,7 +977,6 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction MachineOperatorReducer::ReduceStore(Node* node) {
   NodeMatcher nm(node);
@@ -1014,7 +1024,6 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
   switch (node->opcode()) {
@@ -1069,7 +1078,6 @@ Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
   return NoChange();
 }
 
-
 Reduction MachineOperatorReducer::ReduceWord32Shifts(Node* node) {
   DCHECK((node->opcode() == IrOpcode::kWord32Shl) ||
          (node->opcode() == IrOpcode::kWord32Shr) ||
@@ -1088,7 +1096,6 @@ Reduction MachineOperatorReducer::ReduceWord32Shifts(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction MachineOperatorReducer::ReduceWord32Shl(Node* node) {
   DCHECK_EQ(IrOpcode::kWord32Shl, node->opcode());
@@ -1399,7 +1406,6 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertLowWord32(Node* node) {
   return NoChange();
 }
 
-
 Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
   DCHECK_EQ(IrOpcode::kFloat64InsertHighWord32, node->opcode());
   Float64Matcher mlhs(node->InputAt(0));
@@ -1411,7 +1417,6 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
   }
   return NoChange();
 }
-
 
 namespace {
 
@@ -1491,7 +1496,6 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
 CommonOperatorBuilder* MachineOperatorReducer::common() const {
   return mcgraph()->common();
 }
-
 
 MachineOperatorBuilder* MachineOperatorReducer::machine() const {
   return mcgraph()->machine();

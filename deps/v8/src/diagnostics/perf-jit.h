@@ -71,6 +71,7 @@ class PerfJitLogger : public CodeEventLogger {
   void LogWriteBytes(const char* bytes, int size);
   void LogWriteHeader();
   void LogWriteDebugInfo(Code code, SharedFunctionInfo shared);
+  void LogWriteDebugInfo(const wasm::WasmCode* code);
   void LogWriteUnwindingInfo(Code code);
 
   static const uint32_t kElfMachIA32 = 3;

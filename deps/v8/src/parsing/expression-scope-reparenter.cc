@@ -105,7 +105,7 @@ void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
   // sloppy eval.
   DCHECK(scope->is_block_scope());
   DCHECK(scope->is_declaration_scope());
-  DCHECK(scope->AsDeclarationScope()->calls_sloppy_eval());
+  DCHECK(scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
   DCHECK(scope->outer_scope()->is_function_scope());
 
   Reparenter r(stack_limit, expr, scope);

@@ -339,35 +339,6 @@ struct BranchOnExceptionImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct CallIndirectImmediate {
-  uint32_t table_index;
-  uint32_t sig_index;
-  FunctionSig* sig = nullptr;
-  uint32_t length = 0;
-  inline CallIndirectImmediate(const WasmFeatures enabled, Decoder* decoder,
-                               const byte* pc) {
-    uint32_t len = 0;
-    sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
-    table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
-    if (!VALIDATE(table_index == 0 || enabled.anyref)) {
-      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
-                      table_index);
-    }
-    length = 1 + len;
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct CallFunctionImmediate {
-  uint32_t index;
-  FunctionSig* sig = nullptr;
-  uint32_t length;
-  inline CallFunctionImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
 struct FunctionIndexImmediate {
   uint32_t index = 0;
   uint32_t length = 1;
@@ -395,7 +366,37 @@ struct TableIndexImmediate {
   unsigned length = 1;
   inline TableIndexImmediate() = default;
   inline TableIndexImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u8<validate>(pc + 1, "table index");
+    index = decoder->read_u32v<validate>(pc + 1, &length, "table index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct CallIndirectImmediate {
+  uint32_t table_index;
+  uint32_t sig_index;
+  FunctionSig* sig = nullptr;
+  uint32_t length = 0;
+  inline CallIndirectImmediate(const WasmFeatures enabled, Decoder* decoder,
+                               const byte* pc) {
+    uint32_t len = 0;
+    sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
+    TableIndexImmediate<validate> table(decoder, pc + len);
+    if (!VALIDATE((table.index == 0 && table.length == 1) || enabled.anyref)) {
+      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
+                      table.index);
+    }
+    table_index = table.index;
+    length = len + table.length;
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct CallFunctionImmediate {
+  uint32_t index;
+  FunctionSig* sig = nullptr;
+  uint32_t length;
+  inline CallFunctionImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
   }
 };
 
@@ -748,8 +749,6 @@ struct ControlBase {
   F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)             \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
     const Vector<Value> inputs, Value* result)                                \
-  F(SimdShiftOp, WasmOpcode opcode, const SimdShiftImmediate<validate>& imm,  \
-    const Value& input, Value* result)                                        \
   F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,         \
     const Value& input0, const Value& input1, Value* result)                  \
   F(Throw, const ExceptionIndexImmediate<validate>& imm,                      \
@@ -849,7 +848,9 @@ class WasmDecoder : public Decoder {
             type = kWasmAnyRef;
             break;
           }
-          decoder->error(decoder->pc() - 1, "invalid local type");
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'anyref', enable with "
+                         "--experimental-wasm-anyref");
           return false;
         case kLocalFuncRef:
           if (enabled.anyref) {
@@ -857,7 +858,7 @@ class WasmDecoder : public Decoder {
             break;
           }
           decoder->error(decoder->pc() - 1,
-                         "local type 'funcref' is not enabled with "
+                         "invalid local type 'funcref', enable with "
                          "--experimental-wasm-anyref");
           return false;
         case kLocalExnRef:
@@ -865,14 +866,19 @@ class WasmDecoder : public Decoder {
             type = kWasmExnRef;
             break;
           }
-          decoder->error(decoder->pc() - 1, "invalid local type");
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'exception ref', enable with "
+                         "--experimental-wasm-eh");
           return false;
         case kLocalS128:
           if (enabled.simd) {
             type = kWasmS128;
             break;
           }
-          V8_FALLTHROUGH;
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'Simd128', enable with "
+                         "--experimental-wasm-simd");
+          return false;
         default:
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
@@ -2666,16 +2672,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  uint32_t SimdShiftOp(WasmOpcode opcode) {
-    SimdShiftImmediate<validate> imm(this, this->pc_);
-    if (this->Validate(this->pc_, opcode, imm)) {
-      auto input = Pop(0, kWasmS128);
-      auto* result = Push(kWasmS128);
-      CALL_INTERFACE_IF_REACHABLE(SimdShiftOp, opcode, imm, input, result);
-    }
-    return imm.length;
-  }
-
   uint32_t Simd8x16ShuffleOp() {
     Simd8x16ShuffleImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, imm)) {
@@ -2725,21 +2721,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprI16x8ReplaceLane:
       case kExprI8x16ReplaceLane: {
         len = SimdReplaceLane(opcode, kWasmI32);
-        break;
-      }
-      case kExprI64x2Shl:
-      case kExprI64x2ShrS:
-      case kExprI64x2ShrU:
-      case kExprI32x4Shl:
-      case kExprI32x4ShrS:
-      case kExprI32x4ShrU:
-      case kExprI16x8Shl:
-      case kExprI16x8ShrS:
-      case kExprI16x8ShrU:
-      case kExprI8x16Shl:
-      case kExprI8x16ShrS:
-      case kExprI8x16ShrU: {
-        len = SimdShiftOp(opcode);
         break;
       }
       case kExprS8x16Shuffle: {

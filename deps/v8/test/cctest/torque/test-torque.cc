@@ -114,7 +114,7 @@ TEST(TestBuiltinSpecialization) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
+    TNode<Object> temp = m.SmiConstant(0);
     m.TestBuiltinSpecialization(m.UncheckedCast<Context>(temp));
     m.Return(m.UndefinedConstant());
   }
@@ -171,7 +171,7 @@ TEST(TestFunctionPointerToGeneric) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
+    TNode<Object> temp = m.SmiConstant(0);
     m.TestFunctionPointerToGeneric(m.UncheckedCast<Context>(temp));
     m.Return(m.UndefinedConstant());
   }
@@ -184,8 +184,8 @@ TEST(TestUnsafeCast) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
-    Node* n = m.SmiConstant(10);
+    TNode<Object> temp = m.SmiConstant(0);
+    TNode<Smi> n = m.SmiConstant(10);
     m.Return(m.TestUnsafeCast(m.UncheckedCast<Context>(temp),
                               m.UncheckedCast<Number>(n)));
   }
@@ -328,7 +328,7 @@ TEST(TestCatch1) {
     TNode<Smi> result =
         m.TestCatch1(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(1)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(1)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -347,7 +347,7 @@ TEST(TestCatch2) {
     TNode<Smi> result =
         m.TestCatch2(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(2)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -366,7 +366,7 @@ TEST(TestCatch3) {
     TNode<Smi> result =
         m.TestCatch3(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(2)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -484,6 +484,36 @@ TEST(TestReferences) {
   ft.Call();
 }
 
+TEST(TestSlices) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestSlices();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestSliceEnumeration) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestSliceEnumeration(m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 TEST(TestStaticAssert) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());
@@ -580,9 +610,26 @@ TEST(TestGenericStruct2) {
   i::HandleScope scope(isolate);
   CodeAssemblerTester asm_tester(isolate);
   TestTorqueAssembler m(asm_tester.state());
-  { m.Return(m.TestGenericStruct2().fst); }
+  { m.Return(m.TestGenericStruct2().snd.fst); }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
   ft.Call();
+}
+
+TEST(TestBranchOnBoolOptimization) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestBranchOnBoolOptimization(
+        m.UncheckedCast<Context>(m.HeapConstant(context)),
+        m.UncheckedCast<Smi>(m.Parameter(0)));
+    m.Return(m.UndefinedConstant());
+  }
+  asm_tester.GenerateCode();
 }
 
 }  // namespace compiler

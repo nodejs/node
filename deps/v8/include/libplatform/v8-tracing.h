@@ -244,6 +244,8 @@ class V8_PLATFORM_EXPORT TracingController
 
   TracingController();
   ~TracingController() override;
+
+  // Takes ownership of |trace_buffer|.
   void Initialize(TraceBuffer* trace_buffer);
 #ifdef V8_USE_PERFETTO
   // Must be called before StartTracing() if V8_USE_PERFETTO is true. Provides

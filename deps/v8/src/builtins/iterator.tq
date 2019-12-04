@@ -11,13 +11,13 @@ namespace iterator {
     object: JSReceiver;
 
     // iteratorRecord.[[NextMethod]]
-    next: Object;
+    next: JSAny;
   }
 
   extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
-      implicit context: Context)(Object): Object;
+      implicit context: Context)(JSAny): JSAny;
   extern macro IteratorBuiltinsAssembler::GetIterator(
-      implicit context: Context)(Object): IteratorRecord;
+      implicit context: Context)(JSAny): IteratorRecord;
 
   extern macro IteratorBuiltinsAssembler::IteratorStep(
       implicit context: Context)(IteratorRecord): JSReceiver
@@ -27,18 +27,33 @@ namespace iterator {
       labels Done;
 
   extern macro IteratorBuiltinsAssembler::IteratorValue(
-      implicit context: Context)(JSReceiver): Object;
+      implicit context: Context)(JSReceiver): JSAny;
   extern macro IteratorBuiltinsAssembler::IteratorValue(
-      implicit context: Context)(JSReceiver, Map): Object;
+      implicit context: Context)(JSReceiver, Map): JSAny;
 
   extern macro IteratorBuiltinsAssembler::IteratorCloseOnException(
-      implicit context: Context)(IteratorRecord, Object): never;
+      implicit context: Context)(IteratorRecord, JSAny): never;
 
   extern macro IteratorBuiltinsAssembler::IterableToList(
-      implicit context: Context)(Object, Object): JSArray;
+      implicit context: Context)(JSAny, JSAny): JSArray;
 
   extern builtin IterableToListMayPreserveHoles(implicit context:
-                                                    Context)(Object, Object);
+                                                    Context)(JSAny, JSAny);
   extern builtin IterableToListWithSymbolLookup(implicit context:
-                                                    Context)(Object);
+                                                    Context)(JSAny);
+
+  transitioning builtin GetIteratorWithFeedback(
+      context: Context, receiver: JSAny, feedbackSlot: Smi,
+      feedback: Undefined | FeedbackVector): JSAny {
+    typeswitch (feedback) {
+      case (Undefined): {
+        return GetProperty(receiver, IteratorSymbolConstant());
+      }
+      case (feedback: FeedbackVector): {
+        return LoadIC(
+            context, receiver, IteratorSymbolConstant(), feedbackSlot,
+            feedback);
+      }
+    }
+  }
 }

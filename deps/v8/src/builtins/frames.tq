@@ -102,7 +102,7 @@ macro LoadLengthFromAdapterFrame(implicit context: Context)(
 }
 
 operator '==' macro FrameTypeEquals(f1: FrameType, f2: FrameType): bool {
-  return WordEqual(f1, f2);
+  return TaggedEqual(f1, f2);
 }
 
 macro Cast<A: type>(implicit context: Context)(o: Frame): A labels CastError;

@@ -35,7 +35,6 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 
 #include "src/codegen/s390/assembler-s390.h"
-#include <sys/auxv.h>
 #include <set>
 #include <string>
 
@@ -43,6 +42,7 @@
 
 #if V8_HOST_ARCH_S390
 #include <elf.h>  // Required for auxv checks for STFLE support
+#include <sys/auxv.h>
 #endif
 
 #include "src/base/bits.h"

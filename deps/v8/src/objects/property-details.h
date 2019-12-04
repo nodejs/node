@@ -310,13 +310,10 @@ class PropertyDetails {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class KindField : public BitField<PropertyKind, 0, 1> {};
-  class LocationField : public BitField<PropertyLocation, KindField::kNext, 1> {
-  };
-  class ConstnessField
-      : public BitField<PropertyConstness, LocationField::kNext, 1> {};
-  class AttributesField
-      : public BitField<PropertyAttributes, ConstnessField::kNext, 3> {};
+  using KindField = BitField<PropertyKind, 0, 1>;
+  using LocationField = KindField::Next<PropertyLocation, 1>;
+  using ConstnessField = LocationField::Next<PropertyConstness, 1>;
+  using AttributesField = ConstnessField::Next<PropertyAttributes, 3>;
   static const int kAttributesReadOnlyMask =
       (READ_ONLY << AttributesField::kShift);
   static const int kAttributesDontDeleteMask =
@@ -325,24 +322,19 @@ class PropertyDetails {
       (DONT_ENUM << AttributesField::kShift);
 
   // Bit fields for normalized objects.
-  class PropertyCellTypeField
-      : public BitField<PropertyCellType, AttributesField::kNext, 2> {};
-  class DictionaryStorageField
-      : public BitField<uint32_t, PropertyCellTypeField::kNext, 23> {};
+  using PropertyCellTypeField = AttributesField::Next<PropertyCellType, 2>;
+  using DictionaryStorageField = PropertyCellTypeField::Next<uint32_t, 23>;
 
   // Bit fields for fast objects.
-  class RepresentationField
-      : public BitField<uint32_t, AttributesField::kNext, 3> {};
-  class DescriptorPointer
-      : public BitField<uint32_t, RepresentationField::kNext,
-                        kDescriptorIndexBitCount> {};  // NOLINT
-  class FieldIndexField : public BitField<uint32_t, DescriptorPointer::kNext,
-                                          kDescriptorIndexBitCount> {
-  };  // NOLINT
+  using RepresentationField = AttributesField::Next<uint32_t, 3>;
+  using DescriptorPointer =
+      RepresentationField::Next<uint32_t, kDescriptorIndexBitCount>;
+  using FieldIndexField =
+      DescriptorPointer::Next<uint32_t, kDescriptorIndexBitCount>;
 
   // All bits for both fast and slow objects must fit in a smi.
-  STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
-  STATIC_ASSERT(FieldIndexField::kNext <= 31);
+  STATIC_ASSERT(DictionaryStorageField::kLastUsedBit < 31);
+  STATIC_ASSERT(FieldIndexField::kLastUsedBit < 31);
 
   static const int kInitialIndex = 1;
 

@@ -17,6 +17,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
@@ -24,6 +25,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
@@ -310,13 +312,19 @@ namespace {
 
 bool EnsureFeedbackVector(Handle<JSFunction> function) {
   // Check function allows lazy compilation.
-  if (!function->shared().allows_lazy_compilation()) {
-    return false;
-  }
+  if (!function->shared().allows_lazy_compilation()) return false;
+
+  if (function->has_feedback_vector()) return true;
 
   // If function isn't compiled, compile it now.
   IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
-  if (!is_compiled_scope.is_compiled() &&
+  // If the JSFunction isn't compiled but it has a initialized feedback cell
+  // then no need to compile. CompileLazy builtin would handle these cases by
+  // installing the code from SFI. Calling compile here may cause another
+  // optimization if FLAG_always_opt is set.
+  bool needs_compilation =
+      !function->is_compiled() && !function->has_closure_feedback_cell_array();
+  if (needs_compilation &&
       !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
     return false;
@@ -343,11 +351,23 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
 
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK(args.length() == 1 || args.length() == 2);
   if (!args[0].IsJSFunction()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  bool allow_heuristic_optimization = false;
+  if (args.length() == 2) {
+    CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
+    if (!sync_object->IsString())
+      return ReadOnlyRoots(isolate).undefined_value();
+    Handle<String> sync = Handle<String>::cast(sync_object);
+    if (sync->IsOneByteEqualTo(
+            StaticCharVector("allow heuristic optimization"))) {
+      allow_heuristic_optimization = true;
+    }
+  }
 
   if (!EnsureFeedbackVector(function)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -369,7 +389,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
   if (FLAG_testing_d8_test_runner) {
-    PendingOptimizationTable::PreparedForOptimization(isolate, function);
+    PendingOptimizationTable::PreparedForOptimization(
+        isolate, function, allow_heuristic_optimization);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -502,7 +523,11 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
 
   if (function->IsOptimized()) {
-    status |= static_cast<int>(OptimizationStatus::kOptimized);
+    if (function->code().marked_for_deoptimization()) {
+      status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
+    } else {
+      status |= static_cast<int>(OptimizationStatus::kOptimized);
+    }
     if (function->code().is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
@@ -1024,6 +1049,24 @@ RUNTIME_FUNCTION(Runtime_SetWasmThreadsEnabled) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
+  bool is_irregexp_bytecode = regexp.Bytecode(is_latin1).IsByteArray();
+  return isolate->heap()->ToBoolean(is_irregexp_bytecode);
+}
+
+RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
+  bool is_irregexp_native_code = regexp.Code(is_latin1).IsCode();
+  return isolate->heap()->ToBoolean(is_irregexp_native_code);
+}
+
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)      \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                 \
     CONVERT_ARG_CHECKED(JSObject, obj, 0);              \
@@ -1057,7 +1100,8 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsArraySpeciesLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_MapIteratorProtector) {
@@ -1299,6 +1343,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void RegExpCodeCreateEvent(AbstractCode code, String source) final {}
     void CodeMoveEvent(AbstractCode from, AbstractCode to) final {}
     void SharedFunctionInfoMoveEvent(Address from, Address to) final {}
+    void NativeContextMoveEvent(Address from, Address to) final {}
     void CodeMovingGCEvent() final {}
     void CodeDisableOptEvent(AbstractCode code,
                              SharedFunctionInfo shared) final {}

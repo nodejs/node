@@ -1417,14 +1417,33 @@ void DisassemblingDecoder::VisitFPFixedPointConvert(Instruction* instr) {
   Format(instr, mnemonic, form);
 }
 
+// clang-format off
+#define PAUTH_SYSTEM_MNEMONICS(V) \
+  V(PACIA1716, "pacia1716")       \
+  V(AUTIA1716, "autia1716")       \
+  V(PACIASP,   "paciasp")         \
+  V(AUTIASP,   "autiasp")
+// clang-format on
+
 void DisassemblingDecoder::VisitSystem(Instruction* instr) {
   // Some system instructions hijack their Op and Cp fields to represent a
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
   const char* mnemonic = "unimplemented";
   const char* form = "(System)";
+  if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
+    switch (instr->Mask(SystemPAuthMask)) {
+#define PAUTH_CASE(NAME, MN) \
+  case NAME:                 \
+    mnemonic = MN;           \
+    form = NULL;             \
+    break;
 
-  if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
+      PAUTH_SYSTEM_MNEMONICS(PAUTH_CASE)
+#undef PAUTH_CASE
+#undef PAUTH_SYSTEM_MNEMONICS
+    }
+  } else if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
     switch (instr->Mask(SystemSysRegMask)) {
       case MRS: {
         mnemonic = "mrs";

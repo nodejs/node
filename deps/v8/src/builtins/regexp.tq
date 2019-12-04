@@ -6,8 +6,159 @@
 
 namespace regexp {
 
-  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp(
+  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
+      implicit context: Context)(HeapObject): never labels IsFast,
+      IsSlow;
+  macro IsFastRegExpStrict(implicit context: Context)(o: HeapObject): bool {
+    BranchIfFastRegExp_Strict(o) otherwise return true, return false;
+  }
+
+  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
       implicit context: Context)(HeapObject): never labels IsFast,
       IsSlow;
 
+  @export
+  macro IsFastRegExpPermissive(implicit context: Context)(o: HeapObject): bool {
+    BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
+  }
+
+  extern macro RegExpBuiltinsAssembler::RegExpExec(Context, Object, Object):
+      Object;
+
+  extern macro
+  RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
+      implicit context: Context)(JSRegExp, String):
+      RegExpMatchInfo labels IfDidNotMatch;
+
+  extern macro RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
+      implicit context: Context)(Object): bool;
+
+  type Flag constexpr 'JSRegExp::Flag';
+  const kGlobal: constexpr Flag
+  generates 'JSRegExp::kGlobal';
+  const kIgnoreCase: constexpr Flag
+  generates 'JSRegExp::kIgnoreCase';
+  const kMultiline: constexpr Flag
+  generates 'JSRegExp::kMultiline';
+  const kDotAll: constexpr Flag
+  generates 'JSRegExp::kDotAll';
+  const kSticky: constexpr Flag
+  generates 'JSRegExp::kSticky';
+  const kUnicode: constexpr Flag
+  generates 'JSRegExp::kUnicode';
+
+  const kRegExpPrototypeOldFlagGetter: constexpr int31
+  generates 'v8::Isolate::kRegExpPrototypeOldFlagGetter';
+  const kRegExpPrototypeStickyGetter: constexpr int31
+  generates 'v8::Isolate::kRegExpPrototypeStickyGetter';
+  const kRegExpPrototypeUnicodeGetter: constexpr int31
+  generates 'v8::Isolate::kRegExpPrototypeUnicodeGetter';
+
+  extern macro RegExpBuiltinsAssembler::FastFlagGetter(
+      JSRegExp, constexpr Flag): bool;
+  const kRegExpNonRegExp: constexpr MessageTemplate
+  generates 'MessageTemplate::kRegExpNonRegExp';
+  extern runtime IncrementUseCounter(Context, Smi): void;
+
+  macro FlagGetter(implicit context: Context)(
+      receiver: Object, flag: constexpr Flag, counter: constexpr int31,
+      methodName: constexpr string): JSAny {
+    typeswitch (receiver) {
+      case (receiver: JSRegExp): {
+        return SelectBooleanConstant(FastFlagGetter(receiver, flag));
+      }
+      case (Object): {
+      }
+    }
+    if (!IsReceiverInitialRegExpPrototype(receiver)) {
+      ThrowTypeError(kRegExpNonRegExp, methodName);
+    }
+    if constexpr (counter != -1) {
+      IncrementUseCounter(context, SmiConstant(counter));
+    }
+    return Undefined;
+  }
+
+  // ES6 21.2.5.4.
+  // ES #sec-get-regexp.prototype.global
+  transitioning javascript builtin RegExpPrototypeGlobalGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    return FlagGetter(
+        receiver, kGlobal, kRegExpPrototypeOldFlagGetter,
+        'RegExp.prototype.global');
+  }
+
+  // ES6 21.2.5.5.
+  // ES #sec-get-regexp.prototype.ignorecase
+  transitioning javascript builtin RegExpPrototypeIgnoreCaseGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    return FlagGetter(
+        receiver, kIgnoreCase, kRegExpPrototypeOldFlagGetter,
+        'RegExp.prototype.ignoreCase');
+  }
+
+  // ES6 21.2.5.7.
+  // ES #sec-get-regexp.prototype.multiline
+  transitioning javascript builtin RegExpPrototypeMultilineGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    return FlagGetter(
+        receiver, kMultiline, kRegExpPrototypeOldFlagGetter,
+        'RegExp.prototype.multiline');
+  }
+
+  // ES #sec-get-regexp.prototype.dotAll
+  transitioning javascript builtin RegExpPrototypeDotAllGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    const kNoCounter: constexpr int31 = -1;
+    return FlagGetter(receiver, kDotAll, kNoCounter, 'RegExp.prototype.dotAll');
+  }
+
+  // ES6 21.2.5.12.
+  // ES #sec-get-regexp.prototype.sticky
+  transitioning javascript builtin RegExpPrototypeStickyGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    return FlagGetter(
+        receiver, kSticky, kRegExpPrototypeStickyGetter,
+        'RegExp.prototype.sticky');
+  }
+
+  // ES6 21.2.5.15.
+  // ES #sec-get-regexp.prototype.unicode
+  transitioning javascript builtin RegExpPrototypeUnicodeGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    return FlagGetter(
+        receiver, kUnicode, kRegExpPrototypeUnicodeGetter,
+        'RegExp.prototype.unicode');
+  }
+
+  extern transitioning macro
+  RegExpBuiltinsAssembler::FlagsGetter(implicit context: Context)(
+      Object, constexpr bool): String;
+
+  transitioning macro
+  FastFlagsGetter(implicit context: Context)(receiver: FastJSRegExp): String {
+    return FlagsGetter(receiver, true);
+  }
+
+  transitioning macro SlowFlagsGetter(implicit context:
+                                          Context)(receiver: JSAny): String {
+    return FlagsGetter(receiver, false);
+  }
+
+  const kRegExpNonObject: constexpr MessageTemplate
+  generates 'MessageTemplate::kRegExpNonObject';
+
+  // ES #sec-get-regexp.prototype.flags
+  // TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver) \
+  transitioning javascript builtin RegExpPrototypeFlagsGetter(
+      js-implicit context: Context, receiver: JSAny)(): String {
+    ThrowIfNotJSReceiver(receiver, kRegExpNonObject, 'RegExp.prototype.flags');
+
+    // The check is strict because the following code relies on individual flag
+    // getters on the regexp prototype (e.g.: global, sticky, ...). We don't
+    // bother to check these individually.
+    const fastRegexp = Cast<FastJSRegExp>(receiver)
+        otherwise return SlowFlagsGetter(receiver);
+    return FastFlagsGetter(fastRegexp);
+  }
 }

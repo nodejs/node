@@ -138,6 +138,7 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4AddHoriz)                  \
   V(F32x4Sub)                       \
   V(F32x4Mul)                       \
+  V(F32x4Div)                       \
   V(F32x4Min)                       \
   V(F32x4Max)
 
@@ -1207,6 +1208,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       F32X4_BINOP_CASE(Add)
       F32X4_BINOP_CASE(Sub)
       F32X4_BINOP_CASE(Mul)
+      F32X4_BINOP_CASE(Div)
       F32X4_BINOP_CASE(Min)
       F32X4_BINOP_CASE(Max)
 #undef F32X4_BINOP_CASE
@@ -1390,7 +1392,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       int input_num_lanes = NumLanes(input_rep_type);
       Node** rep = GetReplacements(node->InputAt(0));
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
-      Node* true_node = mcgraph_->Int32Constant(-1);
+      Node* true_node = mcgraph_->Int32Constant(1);
       Node* false_node = mcgraph_->Int32Constant(0);
       Node* tmp_result = false_node;
       if (node->opcode() == IrOpcode::kS1x4AllTrue ||

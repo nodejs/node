@@ -261,6 +261,7 @@ TEST(ArrowOrAssignmentOp) {
 bool TokenIsBinaryOp(Token::Value token) {
   switch (token) {
     case Token::COMMA:
+    case Token::NULLISH:
     case Token::OR:
     case Token::AND:
 #define T(name, string, precedence) case Token::name:
@@ -390,6 +391,7 @@ bool TokenIsPropertyOrCall(Token::Value token) {
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
     case Token::PERIOD:
+    case Token::QUESTION_PERIOD:
     case Token::LBRACK:
     case Token::LPAREN:
       return true;
@@ -1096,7 +1098,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       }
       if (is_sloppy(scope->language_mode())) {
         CHECK_EQ((source_data[i].expected & EVAL) != 0,
-                 scope->AsDeclarationScope()->calls_sloppy_eval());
+                 scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
       }
     }
   }
@@ -1529,7 +1531,8 @@ enum ParserFlag {
   kAllowHarmonyPrivateMethods,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
-  kAllowHarmonyNumericSeparator
+  kAllowHarmonyNullish,
+  kAllowHarmonyOptionalChaining,
 };
 
 enum ParserSyncTestResult {
@@ -1543,8 +1546,9 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_numeric_separator =
-      flags.contains(kAllowHarmonyNumericSeparator);
+  i::FLAG_harmony_optional_chaining =
+      flags.contains(kAllowHarmonyOptionalChaining);
+  i::FLAG_harmony_nullish = flags.contains(kAllowHarmonyNullish);
 }
 
 void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
@@ -1555,8 +1559,9 @@ void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
       flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
       flags.contains(kAllowHarmonyImportMeta));
-  parser->set_allow_harmony_numeric_separator(
-      flags.contains(kAllowHarmonyNumericSeparator));
+  parser->set_allow_harmony_optional_chaining(
+      flags.contains(kAllowHarmonyOptionalChaining));
+  parser->set_allow_harmony_nullish(flags.contains(kAllowHarmonyNullish));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1883,6 +1888,18 @@ void RunModuleParserSyncTest(
                     always_false_len, true, test_preparser, ignore_error_msg);
 }
 
+TEST(NonOctalDecimalIntegerStrictError) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {{"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"09", "09.1_2", nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, true);
+}
+
 TEST(NumericSeparator) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
@@ -1894,11 +1911,7 @@ TEST(NumericSeparator) {
       "1_0_0_0", "1_0e+1",  "1_0e+1_0", "0xF_F_FF", "0o7_7_7", "0b0_1_0_1_0",
       ".3_2_1",  "0.0_2_1", "1_0.0_1",  ".0_1_2",   nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
-                    1);
-
-  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(NumericSeparatorErrors) {
@@ -1914,11 +1927,8 @@ TEST(NumericSeparatorErrors) {
       "0b1__1",   "0_b1",    "0_b_1", "0o777_", "0o_777",  "0o7__77",
       "0.0_2_1_", "0.0__21", "0_.01", "0._01",  nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
-                    nullptr, 0, false, true, true);
-
-  RunParserSyncTest(context_data, statement_data, kError);
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, true);
 }
 
 TEST(NumericSeparatorImplicitOctalsErrors) {
@@ -1932,11 +1942,32 @@ TEST(NumericSeparatorImplicitOctalsErrors) {
                                   "0_7_7_7", "0_777",  "07_7_7_",
                                   "07__77",  "0__777", nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
-                    nullptr, 0, false, true, true);
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, true);
+}
 
-  RunParserSyncTest(context_data, statement_data, kError);
+TEST(NumericSeparatorNonOctalDecimalInteger) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"09.1_2", nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, true);
+}
+
+TEST(NumericSeparatorNonOctalDecimalIntegerErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"09_12", nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, true);
 }
 
 TEST(NumericSeparatorUnicodeEscapeSequencesErrors) {
@@ -1949,10 +1980,72 @@ TEST(NumericSeparatorUnicodeEscapeSequencesErrors) {
   // https://github.com/tc39/proposal-numeric-separator/issues/25
   const char* statement_data[] = {"\\u{10_FFFF}", nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1);
-
   RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(OptionalChaining) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"a?.b", "a?.['b']", "a?.()", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyOptionalChaining};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
+                    1, nullptr, 0, false, true, true);
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(OptionalChainingTaggedError) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"a?.b``", "a?.['b']``", "a?.()``", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyOptionalChaining};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 9, flags, 1,
+                    nullptr, 0, false, true, true);
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(Nullish) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"a ?? b", "a ?? b ?? c",
+                                  "a ?? b ? c : d"
+                                  "a ?? b ?? c ? d : e",
+                                  nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNullish};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
+                    1, nullptr, 0, false, true, true);
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NullishNotContained) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"a || b ?? c", "a ?? b || c",
+                                  "a && b ?? c"
+                                  "a ?? b && c",
+                                  nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNullish};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
 }
 
 TEST(ErrorsEvalAndArguments) {
@@ -5542,7 +5635,10 @@ TEST(PrivateMethodsErrors) {
     "async #['a']() { }",
     "async *#['a]() { }",
 
-    // TODO(joyee): check duplicate accessors
+    "get #a() {} get #a() {}",
+    "get #a() {} get #['a']() {}",
+    "set #a(val) {} set #a(val) {}",
+    "set #a(val) {} set #['a'](val) {}",
 
     "#a\n#",
     "#a() c",
@@ -5561,6 +5657,14 @@ TEST(PrivateMethodsErrors) {
     "set #constructor(test) {}",
     "#constructor() {}",
     "get #constructor() {}",
+
+    "static async *#constructor() {}",
+    "static *#constructor() {}",
+    "static async #constructor() {}",
+    "static set #constructor(test) {}",
+    "static #constructor() {}",
+    "static get #constructor() {}",
+
     nullptr
   };
   // clang-format on
@@ -5572,8 +5676,60 @@ TEST(PrivateMethodsErrors) {
                     private_methods, arraysize(private_methods));
 }
 
+// Test that private members parse in class bodies nested in object literals
+TEST(PrivateMembersNestedInObjectLiteralsNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "a: class { #a = 1 }",
+    "a: class { #a = () => {} }",
+    "a: class { #a }",
+    "a: class { #a() { } }",
+    "a: class { get #a() { } }",
+    "a: class { set #a(foo) { } }",
+    "a: class { *#a() { } }",
+    "a: class { async #a() { } }",
+    "a: class { async *#a() { } }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that private members parse in class bodies nested in classes
+TEST(PrivateMembersInNestedClassNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "a = class { #a = 1 }",
+    "a = class { #a = () => {} }",
+    "a = class { #a }",
+    "a = class { #a() { } }",
+    "a = class { get #a() { } }",
+    "a = class { set #a(foo) { } }",
+    "a = class { *#a() { } }",
+    "a = class { async #a() { } }",
+    "a = class { async *#a() { } }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
 // Test that private members do not parse outside class bodies
-TEST(PrivateMembersInNonClassNoErrors) {
+TEST(PrivateMembersInNonClassErrors) {
   // clang-format off
   const char* context_data[][2] = {{"", ""},
                                    {"({", "})"},
@@ -5602,6 +5758,122 @@ TEST(PrivateMembersInNonClassNoErrors) {
 
   static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that nested private members parse
+TEST(PrivateMembersNestedNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class { get #a() { ", "} });"},
+                                   {
+                                     "(class { set #a(val) {} get #a() { ",
+                                     "} });"
+                                    },
+                                   {"(class { set #a(val) {", "} });"},
+                                   {"(class { #a() { ", "} });"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "class C { #a() {} }",
+    "class C { get #a() {} }",
+    "class C { get #a() {} set #a(val) {} }",
+    "class C { set #a(val) {} }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that acessing undeclared private members result in early errors
+TEST(PrivateMembersEarlyErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "set #b(val) { this.#a = val; }",
+    "get #b() { return this.#a; }",
+    "foo() { return this.#a; }",
+    "foo() { this.#a = 1; }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that acessing wrong kind private members do not error early.
+// Instead these should be runtime errors.
+TEST(PrivateMembersWrongAccessNoEarlyErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Private setter only
+    "set #b(val) {} fn() { return this.#b; }",
+    "set #b(val) {} fn() { this.#b++; }",
+    // Nested private setter only
+    R"(get #b() {}
+    fn() {
+      return new class { set #b(val) {} fn() { this.#b++; } };
+    })",
+    R"(get #b() {}
+    fn() {
+      return new class { set #b(val) {} fn() { return this.#b; } };
+    })",
+
+    // Private getter only
+    "get #b() { } fn() { this.#b = 1; }",
+    "get #b() { } fn() { this.#b++; }",
+    "get #b() { } fn(obj) { ({ y: this.#b } = obj); }",
+    // Nested private getter only
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b++; } };
+    })",
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b = 1; } };
+    })",
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { ({ y: this.#b } = obj); } };
+    })",
+
+    // Writing to private methods
+    "#b() { } fn() { this.#b = 1; }",
+    "#b() { } fn() { this.#b++; }",
+    "#b() {} fn(obj) { ({ y: this.#b } = obj); }",
+    // Writing to nested private methods
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b++; } };
+    })",
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b = 1; } };
+    })",
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { ({ y: this.#b } = obj); } };
+    })",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
 

@@ -52,9 +52,6 @@ class SlotSet : public Malloced {
   void SetPageStart(Address page_start) { page_start_ = page_start; }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
-  // This method should only be called on the main thread because concurrent
-  // allocation of the bucket is not thread-safe.
-  //
   // AccessMode defines whether there can be concurrent access on the buckets
   // or not.
   template <AccessMode access_mode = AccessMode::ATOMIC>
@@ -181,7 +178,10 @@ class SlotSet : public Malloced {
   // Iterate over all slots in the set and for each slot invoke the callback.
   // If the callback returns REMOVE_SLOT then the slot is removed from the set.
   // Returns the new number of slots.
-  // This method should only be called on the main thread.
+  //
+  // Iteration can be performed concurrently with other operations that use
+  // atomic access mode such as insertion and removal. However there is no
+  // guarantee about ordering and linearizability.
   //
   // Sample usage:
   // Iterate([](MaybeObjectSlot slot) {
@@ -411,8 +411,8 @@ class V8_EXPORT_PRIVATE TypedSlots {
   void Merge(TypedSlots* other);
 
  protected:
-  class OffsetField : public BitField<int, 0, 29> {};
-  class TypeField : public BitField<SlotType, 29, 3> {};
+  using OffsetField = BitField<int, 0, 29>;
+  using TypeField = BitField<SlotType, 29, 3>;
   struct TypedSlot {
     uint32_t type_and_offset;
   };

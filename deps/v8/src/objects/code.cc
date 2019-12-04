@@ -193,7 +193,10 @@ namespace {
 template <typename Code>
 void DropStackFrameCacheCommon(Code code) {
   i::Object maybe_table = code.source_position_table();
-  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
+  if (maybe_table.IsUndefined() || maybe_table.IsByteArray() ||
+      maybe_table.IsException()) {
+    return;
+  }
   DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   code.set_source_position_table(
       i::SourcePositionTableWithFrameCache::cast(maybe_table)
@@ -1084,16 +1087,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-transition-changed";
   }
   UNREACHABLE();
-}
-
-bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
-  if (length() != other.length()) return false;
-
-  for (int i = 0; i < length(); ++i) {
-    if (get(i) != other.get(i)) return false;
-  }
-
-  return true;
 }
 
 }  // namespace internal

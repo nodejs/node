@@ -765,7 +765,7 @@ class Profiler : public base::Thread {
   void Disengage();
 
   // Inserts collected profiling data into buffer.
-  void Insert(v8::TickSample* sample) {
+  void Insert(TickSample* sample) {
     if (Succ(head_) == static_cast<int>(base::Relaxed_Load(&tail_))) {
       overflow_ = true;
     } else {
@@ -779,7 +779,7 @@ class Profiler : public base::Thread {
 
  private:
   // Waits for a signal and removes profiling data.
-  bool Remove(v8::TickSample* sample) {
+  bool Remove(TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
     *sample = buffer_[base::Relaxed_Load(&tail_)];
     bool result = overflow_;
@@ -796,7 +796,7 @@ class Profiler : public base::Thread {
   // Cyclic buffer for communicating profiling samples
   // between the signal handler and the worker thread.
   static const int kBufferSize = 128;
-  v8::TickSample buffer_[kBufferSize];  // Buffer storage.
+  TickSample buffer_[kBufferSize];      // Buffer storage.
   int head_;                            // Index to the buffer head.
   base::Atomic32 tail_;                 // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
@@ -871,7 +871,7 @@ void Profiler::Engage() {
 
   // Start thread processing the profiler buffer.
   base::Relaxed_Store(&running_, 1);
-  Start();
+  CHECK(Start());
 
   // Register to get ticks.
   Logger* logger = isolate_->logger();
@@ -888,7 +888,7 @@ void Profiler::Disengage() {
   // inserting a fake element in the queue and then wait for
   // the thread to terminate.
   base::Relaxed_Store(&running_, 0);
-  v8::TickSample sample;
+  TickSample sample;
   Insert(&sample);
   Join();
 
@@ -896,7 +896,7 @@ void Profiler::Disengage() {
 }
 
 void Profiler::Run() {
-  v8::TickSample sample;
+  TickSample sample;
   bool overflow = Remove(&sample);
   while (base::Relaxed_Load(&running_)) {
     LOG(isolate_, TickEvent(&sample, overflow));
@@ -1549,7 +1549,7 @@ void Logger::RuntimeCallTimerEvent() {
   msg.WriteToLogFile();
 }
 
-void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
+void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
@@ -1976,6 +1976,10 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       break;
     case AbstractCode::JS_TO_WASM_FUNCTION:
       description = "A JavaScript to Wasm adapter";
+      tag = CodeEventListener::STUB_TAG;
+      break;
+    case AbstractCode::JS_TO_JS_FUNCTION:
+      description = "A WebAssembly.Function adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
     case AbstractCode::WASM_TO_CAPI_FUNCTION:

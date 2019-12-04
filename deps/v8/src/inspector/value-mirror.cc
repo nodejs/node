@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "src/base/optional.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
@@ -199,37 +200,57 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
 
 enum class ErrorType { kNative, kClient };
 
+// Build a description from an exception using the following rules:
+//   * Usually return the stack trace found in the {stack} property.
+//   * If the stack trace does not start with the class name of the passed
+//     exception, try to build a description from the class name, the
+//     {message} property and the rest of the stack trace.
+//     (The stack trace is only used if {message} was also found in
+//     said stack trace).
 String16 descriptionForError(v8::Local<v8::Context> context,
                              v8::Local<v8::Object> object, ErrorType type) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::TryCatch tryCatch(isolate);
   String16 className = toProtocolString(isolate, object->GetConstructorName());
-  v8::Local<v8::Value> stackValue;
-  if (!object->Get(context, toV8String(isolate, "stack"))
-           .ToLocal(&stackValue) ||
-      !stackValue->IsString()) {
-    return className;
-  }
-  String16 stack = toProtocolString(isolate, stackValue.As<v8::String>());
-  String16 description = stack;
-  if (type == ErrorType::kClient) {
-    if (stack.substring(0, className.length()) != className) {
-      v8::Local<v8::Value> messageValue;
-      if (!object->Get(context, toV8String(isolate, "message"))
-               .ToLocal(&messageValue) ||
-          !messageValue->IsString()) {
-        return stack;
-      }
-      String16 message = toProtocolStringWithTypeCheck(isolate, messageValue);
-      size_t index = stack.find(message);
-      String16 stackWithoutMessage =
-          index != String16::kNotFound
-              ? stack.substring(index + message.length())
-              : String16();
-      description = className + ": " + message + stackWithoutMessage;
+
+  v8::base::Optional<String16> stack;
+  {
+    v8::Local<v8::Value> stackValue;
+    if (object->Get(context, toV8String(isolate, "stack"))
+            .ToLocal(&stackValue) &&
+        stackValue->IsString()) {
+      stack = toProtocolString(isolate, stackValue.As<v8::String>());
     }
   }
-  return description;
+
+  if (type == ErrorType::kNative && stack) return *stack;
+
+  if (stack && stack->substring(0, className.length()) == className) {
+    return *stack;
+  }
+
+  v8::base::Optional<String16> message;
+  {
+    v8::Local<v8::Value> messageValue;
+    if (object->Get(context, toV8String(isolate, "message"))
+            .ToLocal(&messageValue) &&
+        messageValue->IsString()) {
+      String16 msg = toProtocolStringWithTypeCheck(isolate, messageValue);
+      if (!msg.isEmpty()) message = msg;
+    }
+  }
+
+  if (!message) return stack ? *stack : className;
+
+  String16 description = className + ": " + *message;
+  if (!stack) return description;
+
+  DCHECK(stack && message);
+  size_t index = stack->find(*message);
+  String16 stackWithoutMessage =
+      index != String16::kNotFound ? stack->substring(index + message->length())
+                                   : String16();
+  return description + stackWithoutMessage;
 }
 
 String16 descriptionForObject(v8::Isolate* isolate,
@@ -1593,12 +1614,12 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         value, RemoteObject::SubtypeEnum::Regexp,
         descriptionForRegExp(isolate, value.As<v8::RegExp>()));
   }
-  if (value->IsFunction()) {
-    return v8::base::make_unique<FunctionMirror>(value);
-  }
   if (value->IsProxy()) {
     return v8::base::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Proxy, "Proxy");
+  }
+  if (value->IsFunction()) {
+    return v8::base::make_unique<FunctionMirror>(value);
   }
   if (value->IsDate()) {
     return v8::base::make_unique<ObjectMirror>(

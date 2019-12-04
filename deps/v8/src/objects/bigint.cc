@@ -992,7 +992,7 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
 MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
                                      int radix, ShouldThrow should_throw) {
   if (bigint->is_zero()) {
-    return isolate->factory()->NewStringFromStaticChars("0");
+    return isolate->factory()->zero_string();
   }
   if (base::bits::IsPowerOfTwo(radix)) {
     return MutableBigInt::ToStringBasePowerOfTwo(isolate, bigint, radix,

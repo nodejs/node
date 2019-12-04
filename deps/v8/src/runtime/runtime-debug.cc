@@ -115,10 +115,17 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   DCHECK(function->shared().HasDebugInfo());
   DCHECK(function->shared().GetDebugInfo().BreakAtEntry());
 
-  // Get the top-most JavaScript frame.
+  // Get the top-most JavaScript frame. This is the debug target function.
   JavaScriptFrameIterator it(isolate);
   DCHECK_EQ(*function, it.frame()->function());
-  isolate->debug()->Break(it.frame(), function);
+  // Check whether the next JS frame is closer than the last API entry.
+  // if yes, then the call to the debug target came from JavaScript. Otherwise,
+  // the call to the debug target came from API. Do not break for the latter.
+  it.Advance();
+  if (!it.done() &&
+      it.frame()->fp() < isolate->thread_local_top()->last_api_entry_) {
+    isolate->debug()->Break(it.frame(), function);
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -688,7 +695,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   int num_scripts = static_cast<int>(coverage->size());
   // Prepare property keys.
   Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
-  Handle<String> script_string = factory->NewStringFromStaticChars("script");
+  Handle<String> script_string = factory->script_string();
   for (int i = 0; i < num_scripts; i++) {
     const auto& script_data = coverage->at(i);
     HandleScope inner_scope(isolate);

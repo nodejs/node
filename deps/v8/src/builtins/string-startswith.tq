@@ -10,13 +10,13 @@ namespace string {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.startswith
   transitioning javascript builtin StringPrototypeStartsWith(
-      js-implicit context: Context, receiver: Object)(...arguments): Boolean {
-    const searchString: Object = arguments[0];
-    const position: Object = arguments[1];
+      js-implicit context: Context, receiver: JSAny)(...arguments): Boolean {
+    const searchString: JSAny = arguments[0];
+    const position: JSAny = arguments[1];
     const kBuiltinName: constexpr string = 'String.prototype.startsWith';
 
     // 1. Let O be ? RequireObjectCoercible(this value).
-    const object: Object = RequireObjectCoercible(receiver, kBuiltinName);
+    const object: JSAny = RequireObjectCoercible(receiver, kBuiltinName);
 
     // 2. Let S be ? ToString(O).
     const string: String = ToString_Inline(context, object);

@@ -358,8 +358,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FEEDBACK_VECTOR_TYPE, feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
-    ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, MutableHeapNumber::kSize,
-                 mutable_heap_number)
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
@@ -463,14 +461,13 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(AWAIT_CONTEXT_TYPE, await_context)
     ALLOCATE_VARSIZE_MAP(BLOCK_CONTEXT_TYPE, block_context)
     ALLOCATE_VARSIZE_MAP(MODULE_CONTEXT_TYPE, module_context)
+    ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
     ALLOCATE_VARSIZE_MAP(EVAL_CONTEXT_TYPE, eval_context)
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TYPE, script_context)
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TABLE_TYPE, script_context_table)
 
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
-
-    ALLOCATE_MAP(NATIVE_CONTEXT_TYPE, NativeContext::kSize, native_context)
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)
@@ -824,6 +821,15 @@ void Heap::CreateInitialObjects() {
   Handle<FeedbackMetadata> empty_feedback_metadata =
       factory->NewFeedbackMetadata(0, 0, AllocationType::kReadOnly);
   set_empty_feedback_metadata(*empty_feedback_metadata);
+
+  // Canonical scope arrays.
+  Handle<ScopeInfo> global_this_binding =
+      ScopeInfo::CreateGlobalThisBinding(isolate());
+  set_global_this_binding_scope_info(*global_this_binding);
+
+  Handle<ScopeInfo> empty_function =
+      ScopeInfo::CreateForEmptyFunction(isolate());
+  set_empty_function_scope_info(*empty_function);
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
