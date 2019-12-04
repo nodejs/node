@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.17.1">10.17.1</a><br/>
 <a href="#10.17.0">10.17.0</a><br/>
 <a href="#10.16.3">10.16.3</a><br/>
 <a href="#10.16.2">10.16.2</a><br/>
@@ -55,6 +56,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.17.1"></a>
+## 2019-12-10, Version 10.17.1 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+* TBD
+
+### Commits
+
+* [[`61d6ac7f05`](https://github.com/nodejs/node/commit/61d6ac7f05)] - **build**: fix configure script to work with Apple Clang 11 (Saagar Jha) [#28071](https://github.com/nodejs/node/pull/28071)
+* [[`4d3ec1a43e`](https://github.com/nodejs/node/commit/4d3ec1a43e)] - **build,win**: propagate error codes in vcbuild (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
+* [[`c3e386284e`](https://github.com/nodejs/node/commit/c3e386284e)] - **build,win**: add test-ci-native and test-ci-js (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
+* [[`0a7f6fa6b8`](https://github.com/nodejs/node/commit/0a7f6fa6b8)] - **deps**: V8: backport fb63e5cf55e9 (Michaël Zasso)
+* [[`99915bcdd6`](https://github.com/nodejs/node/commit/99915bcdd6)] - **http2**: fix session memory accounting after pausing (Michael Lehenbauer) [#30684](https://github.com/nodejs/node/pull/30684)
+* [[`8e0ea6ddc4`](https://github.com/nodejs/node/commit/8e0ea6ddc4)] - **http2**: use the latest settings (ZYSzys) [#29780](https://github.com/nodejs/node/pull/29780)
+* [[`efeac48ee7`](https://github.com/nodejs/node/commit/efeac48ee7)] - **lib**: fix comment nits in bootstrap\\loaders.js (Vse Mozhet Byt) [#24641](https://github.com/nodejs/node/pull/24641)
+* [[`14e7a35e95`](https://github.com/nodejs/node/commit/14e7a35e95)] - **n-api**: correct bug in napi\_get\_last\_error (Octavian Soldea) [#28702](https://github.com/nodejs/node/pull/28702)
+* [[`c4dc53c479`](https://github.com/nodejs/node/commit/c4dc53c479)] - **stream**: extract Readable.from in its own file (Matteo Collina) [#30140](https://github.com/nodejs/node/pull/30140)
+* [[`fabbc76928`](https://github.com/nodejs/node/commit/fabbc76928)] - **test**: do not fail SLOW tests if they are not slow (Yang Guo) [#25868](https://github.com/nodejs/node/pull/25868)
+* [[`501ebbbcf4`](https://github.com/nodejs/node/commit/501ebbbcf4)] - **tools**: update tzdata to 2019c (Myles Borins) [#30479](https://github.com/nodejs/node/pull/30479)
+* [[`7ff19bec50`](https://github.com/nodejs/node/commit/7ff19bec50)] - **tools**: move python code out of jenkins shell (Sam Roberts) [#28458](https://github.com/nodejs/node/pull/28458)
+* [[`7066335cf0`](https://github.com/nodejs/node/commit/7066335cf0)] - **tools**: fix v8 testing with devtoolset on ppcle (Sam Roberts) [#28458](https://github.com/nodejs/node/pull/28458)
 
 <a id="10.17.0"></a>
 ## 2019-10-22, Version 10.17.0 'Dubnium' (LTS), @BethGriggs
