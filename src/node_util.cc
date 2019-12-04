@@ -161,6 +161,12 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(maybe_value.FromJust());
 }
 
+static void Sleep(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  uint32_t msec = args[0].As<Uint32>()->Value();
+  uv_sleep(msec);
+}
+
 void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView());
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
@@ -282,6 +288,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
+  env->SetMethod(target, "sleep", Sleep);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());

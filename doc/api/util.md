@@ -936,6 +936,15 @@ added: v8.0.0
 * {symbol} that can be used to declare custom promisified variants of functions,
 see [Custom promisified functions][].
 
+## util.sleep(msec)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `msec` {integer} The number of milliseconds to sleep for.
+
+Causes the calling thread to sleep for `msec` milliseconds.
+
 ## Class: util.TextDecoder
 <!-- YAML
 added: v8.3.0
