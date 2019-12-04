@@ -131,9 +131,6 @@ typedef enum {
   int run_helper_##name(void);                                                \
   int run_helper_##name(void)
 
-/* Pause the calling thread for a number of milliseconds. */
-void uv_sleep(int msec);
-
 /* Format big numbers nicely. WARNING: leaks memory. */
 const char* fmt(double d);
 

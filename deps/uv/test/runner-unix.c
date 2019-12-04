@@ -448,17 +448,3 @@ void rewind_cursor(void) {
   fprintf(stderr, "\033[2K\r");
 #endif
 }
-
-
-/* Pause the calling thread for a number of milliseconds. */
-void uv_sleep(int msec) {
-  int sec;
-  int usec;
-
-  sec = msec / 1000;
-  usec = (msec % 1000) * 1000;
-  if (sec > 0)
-    sleep(sec);
-  if (usec > 0)
-    usleep(usec);
-}
