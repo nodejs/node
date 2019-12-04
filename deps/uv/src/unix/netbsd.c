@@ -234,3 +234,26 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uv__free(cp_times);
   return 0;
 }
+
+int uv__random_sysctl(void* buf, size_t len) {
+  static int name[] = {CTL_KERN, KERN_ARND};
+  size_t count, req;
+  unsigned char* p;
+
+  p = buf;
+  while (len) {
+    req = len < 32 ? len : 32;
+    count = req;
+
+    if (sysctl(name, ARRAY_SIZE(name), p, &count, NULL, 0) == -1)
+      return UV__ERR(errno);
+
+    if (count != req)
+      return UV_EIO;  /* Can't happen. */
+
+    p += count;
+    len -= count;
+  }
+
+  return 0;
+}

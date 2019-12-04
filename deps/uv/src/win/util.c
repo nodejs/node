@@ -1873,3 +1873,7 @@ int uv__random_rtlgenrandom(void* buf, size_t buflen) {
 
   return 0;
 }
+
+void uv_sleep(unsigned int msec) {
+  Sleep(msec);
+}

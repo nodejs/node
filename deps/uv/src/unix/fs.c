@@ -30,6 +30,7 @@
 #include "internal.h"
 
 #include <errno.h>
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -255,6 +256,80 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 
 static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
   return mkdtemp((char*) req->path) ? 0 : -1;
+}
+
+
+static int uv__fs_mkstemp(uv_fs_t* req) {
+  int r;
+#ifdef O_CLOEXEC
+  int (*mkostemp_function)(char*, int);
+  static int no_cloexec_support;
+#endif
+  static const char pattern[] = "XXXXXX";
+  static const size_t pattern_size = sizeof(pattern) - 1;
+  char* path;
+  size_t path_length;
+
+  path = (char*) req->path;
+  path_length = strlen(path);
+
+  /* EINVAL can be returned for 2 reasons:
+      1. The template's last 6 characters were not XXXXXX
+      2. open() didn't support O_CLOEXEC
+     We want to avoid going to the fallback path in case
+     of 1, so it's manually checked before. */
+  if (path_length < pattern_size ||
+      strcmp(path + path_length - pattern_size, pattern)) {
+    errno = EINVAL;
+    return -1;
+  }
+
+#ifdef O_CLOEXEC
+  if (no_cloexec_support == 0) {
+    *(int**)(&mkostemp_function) = dlsym(RTLD_DEFAULT, "mkostemp");
+
+    /* We don't care about errors, but we do want to clean them up.
+       If there has been no error, then dlerror() will just return
+       NULL. */
+    dlerror();
+
+    if (mkostemp_function != NULL) {
+      r = mkostemp_function(path, O_CLOEXEC);
+
+      if (r >= 0)
+        return r;
+
+      /* If mkostemp() returns EINVAL, it means the kernel doesn't
+         support O_CLOEXEC, so we just fallback to mkstemp() below. */
+      if (errno != EINVAL)
+        return r;
+
+      /* We set the static variable so that next calls don't even
+         try to use mkostemp. */
+      no_cloexec_support = 1;
+    }
+  }
+#endif  /* O_CLOEXEC */
+
+  if (req->cb != NULL)
+    uv_rwlock_rdlock(&req->loop->cloexec_lock);
+
+  r = mkstemp(path);
+
+  /* In case of failure `uv__cloexec` will leave error in `errno`,
+   * so it is enough to just set `r` to `-1`.
+   */
+  if (r >= 0 && uv__cloexec(r, 1) != 0) {
+    r = uv__close(r);
+    if (r != 0)
+      abort();
+    r = -1;
+  }
+
+  if (req->cb != NULL)
+    uv_rwlock_rdunlock(&req->loop->cloexec_lock);
+
+  return r;
 }
 
 
@@ -999,6 +1074,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   int err;
   size_t bytes_to_send;
   int64_t in_offset;
+  ssize_t bytes_written;
 
   dstfd = -1;
   err = 0;
@@ -1076,18 +1152,17 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   bytes_to_send = src_statsbuf.st_size;
   in_offset = 0;
   while (bytes_to_send != 0) {
-    err = uv_fs_sendfile(NULL,
-                         &fs_req,
-                         dstfd,
-                         srcfd,
-                         in_offset,
-                         bytes_to_send,
-                         NULL);
+    uv_fs_sendfile(NULL, &fs_req, dstfd, srcfd, in_offset, bytes_to_send, NULL);
+    bytes_written = fs_req.result;
     uv_fs_req_cleanup(&fs_req);
-    if (err < 0)
+
+    if (bytes_written < 0) {
+      err = bytes_written;
       break;
-    bytes_to_send -= fs_req.result;
-    in_offset += fs_req.result;
+    }
+
+    bytes_to_send -= bytes_written;
+    in_offset += bytes_written;
   }
 
 out:
@@ -1234,13 +1309,22 @@ static int uv__fs_statx(int fd,
 
   rc = uv__statx(dirfd, path, flags, mode, &statxbuf);
 
-  if (rc == -1) {
+  switch (rc) {
+  case 0:
+    break;
+  case -1:
     /* EPERM happens when a seccomp filter rejects the system call.
      * Has been observed with libseccomp < 2.3.3 and docker < 18.04.
      */
     if (errno != EINVAL && errno != EPERM && errno != ENOSYS)
       return -1;
-
+    /* Fall through. */
+  default:
+    /* Normally on success, zero is returned and On error, -1 is returned.
+     * Observed on S390 RHEL running in a docker container with statx not
+     * implemented, rc might return 1 with 0 set as the error code in which
+     * case we return ENOSYS.
+     */
     no_statx = 1;
     return UV_ENOSYS;
   }
@@ -1415,6 +1499,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
     X(MKDTEMP, uv__fs_mkdtemp(req));
+    X(MKSTEMP, uv__fs_mkstemp(req));
     X(OPEN, uv__fs_open(req));
     X(READ, uv__fs_read(req));
     X(SCANDIR, uv__fs_scandir(req));
@@ -1632,6 +1717,18 @@ int uv_fs_mkdtemp(uv_loop_t* loop,
                   const char* tpl,
                   uv_fs_cb cb) {
   INIT(MKDTEMP);
+  req->path = uv__strdup(tpl);
+  if (req->path == NULL)
+    return UV_ENOMEM;
+  POST;
+}
+
+
+int uv_fs_mkstemp(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* tpl,
+                  uv_fs_cb cb) {
+  INIT(MKSTEMP);
   req->path = uv__strdup(tpl);
   if (req->path == NULL)
     return UV_ENOMEM;
@@ -1857,10 +1954,12 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
 
   /* Only necessary for asychronous requests, i.e., requests with a callback.
    * Synchronous ones don't copy their arguments and have req->path and
-   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP is the
-   * exception to the rule, it always allocates memory.
+   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP and 
+   * UV_FS_MKSTEMP are the exception to the rule, they always allocate memory.
    */
-  if (req->path != NULL && (req->cb != NULL || req->fs_type == UV_FS_MKDTEMP))
+  if (req->path != NULL &&
+      (req->cb != NULL ||
+        req->fs_type == UV_FS_MKDTEMP || req->fs_type == UV_FS_MKSTEMP))
     uv__free((void*) req->path);  /* Memory is shared with req->new_path. */
 
   req->path = NULL;
