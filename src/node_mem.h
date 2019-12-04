@@ -3,7 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <stddef.h>
+#include <cstddef>
 
 namespace node {
 namespace mem {
