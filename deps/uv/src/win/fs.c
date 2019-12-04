@@ -1195,9 +1195,10 @@ void fs__mkdir(uv_fs_t* req) {
   }
 }
 
+typedef int (*uv__fs_mktemp_func)(uv_fs_t* req);
 
 /* OpenBSD original: lib/libc/stdio/mktemp.c */
-void fs__mkdtemp(uv_fs_t* req) {
+void fs__mktemp(uv_fs_t* req, uv__fs_mktemp_func func) {
   static const WCHAR *tempchars =
     L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   static const size_t num_chars = 62;
@@ -1227,13 +1228,11 @@ void fs__mkdtemp(uv_fs_t* req) {
       v /= num_chars;
     }
 
-    if (_wmkdir(req->file.pathw) == 0) {
-      len = strlen(req->path);
-      wcstombs((char*) req->path + len - num_x, ep - num_x, num_x);
-      SET_REQ_RESULT(req, 0);
-      break;
-    } else if (errno != EEXIST) {
-      SET_REQ_RESULT(req, -1);
+    if (func(req)) {
+      if (req->result >= 0) {
+        len = strlen(req->path);
+        wcstombs((char*) req->path + len - num_x, ep - num_x, num_x);
+      }
       break;
     }
   } while (--tries);
@@ -1241,6 +1240,77 @@ void fs__mkdtemp(uv_fs_t* req) {
   if (tries == 0) {
     SET_REQ_RESULT(req, -1);
   }
+}
+
+
+static int fs__mkdtemp_func(uv_fs_t* req) {
+  if (_wmkdir(req->file.pathw) == 0) {
+    SET_REQ_RESULT(req, 0);
+    return 1;
+  } else if (errno != EEXIST) {
+    SET_REQ_RESULT(req, -1);
+    return 1;
+  }
+
+  return 0;
+}
+
+
+void fs__mkdtemp(uv_fs_t* req) {
+  fs__mktemp(req, fs__mkdtemp_func);
+}
+
+
+static int fs__mkstemp_func(uv_fs_t* req) {
+  HANDLE file;
+  int fd;
+
+  file = CreateFileW(req->file.pathw,
+                     GENERIC_READ | GENERIC_WRITE,
+                     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                     NULL,
+                     CREATE_NEW,
+                     FILE_ATTRIBUTE_NORMAL,
+                     NULL);
+
+  if (file == INVALID_HANDLE_VALUE) {
+    DWORD error;
+    error = GetLastError();
+
+    /* If the file exists, the main fs__mktemp() function
+       will retry. If it's another error, we want to stop. */
+    if (error != ERROR_FILE_EXISTS) {
+      SET_REQ_WIN32_ERROR(req, error);
+      return 1;
+    }
+
+    return 0;
+  }
+
+  fd = _open_osfhandle((intptr_t) file, 0);
+  if (fd < 0) {
+    /* The only known failure mode for _open_osfhandle() is EMFILE, in which
+     * case GetLastError() will return zero. However we'll try to handle other
+     * errors as well, should they ever occur.
+     */
+    if (errno == EMFILE)
+      SET_REQ_UV_ERROR(req, UV_EMFILE, ERROR_TOO_MANY_OPEN_FILES);
+    else if (GetLastError() != ERROR_SUCCESS)
+      SET_REQ_WIN32_ERROR(req, GetLastError());
+    else
+      SET_REQ_WIN32_ERROR(req, UV_UNKNOWN);
+    CloseHandle(file);
+    return 1;
+  }
+
+  SET_REQ_RESULT(req, fd);
+
+  return 1;
+}
+
+
+void fs__mkstemp(uv_fs_t* req) {
+  fs__mktemp(req, fs__mkstemp_func);
 }
 
 
@@ -2609,6 +2679,7 @@ static void uv__fs_work(struct uv__work* w) {
     XX(RMDIR, rmdir)
     XX(MKDIR, mkdir)
     XX(MKDTEMP, mkdtemp)
+    XX(MKSTEMP, mkstemp)
     XX(RENAME, rename)
     XX(SCANDIR, scandir)
     XX(READDIR, readdir)
@@ -2785,11 +2856,28 @@ int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
 }
 
 
-int uv_fs_mkdtemp(uv_loop_t* loop, uv_fs_t* req, const char* tpl,
-    uv_fs_cb cb) {
+int uv_fs_mkdtemp(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* tpl,
+                  uv_fs_cb cb) {
   int err;
 
   INIT(UV_FS_MKDTEMP);
+  err = fs__capture_path(req, tpl, NULL, TRUE);
+  if (err)
+    return uv_translate_sys_error(err);
+
+  POST;
+}
+
+
+int uv_fs_mkstemp(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char* tpl,
+                  uv_fs_cb cb) {
+  int err;
+
+  INIT(UV_FS_MKSTEMP);
   err = fs__capture_path(req, tpl, NULL, TRUE);
   if (err)
     return uv_translate_sys_error(err);

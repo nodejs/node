@@ -679,6 +679,7 @@ API
       :man:`sysctl(2)`.
     - FreeBSD: `getrandom(2) <https://www.freebsd.org/cgi/man.cgi?query=getrandom&sektion=2>_`,
       or `/dev/urandom` after reading from `/dev/random` once.
+    - NetBSD: `KERN_ARND` `sysctl(3) <https://netbsd.gw.com/cgi-bin/man-cgi?sysctl+3+NetBSD-current>_`
     - macOS, OpenBSD: `getentropy(2) <https://man.openbsd.org/getentropy.2>_`
       if available, or `/dev/urandom` after reading from `/dev/random` once.
     - AIX: `/dev/random`.
@@ -693,3 +694,9 @@ API
         are not used and can be set to `NULL`.
 
     .. versionadded:: 1.33.0
+
+.. c:function:: void uv_sleep(unsigned int msec)
+
+    Causes the calling thread to sleep for `msec` milliseconds.
+
+    .. versionadded:: 1.34.0

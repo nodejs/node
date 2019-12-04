@@ -40,7 +40,6 @@ struct uv__sysctl_args {
 };
 
 
-/* TODO(bnoordhuis) Use {CTL_KERN, KERN_ARND} on FreeBSD (and NetBSD?) */
 int uv__random_sysctl(void* buf, size_t buflen) {
   static int name[] = {1 /*CTL_KERN*/, 40 /*KERN_RANDOM*/, 6 /*RANDOM_UUID*/};
   struct uv__sysctl_args args;
