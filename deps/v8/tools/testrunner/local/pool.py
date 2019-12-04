@@ -115,7 +115,15 @@ class Pool():
   # Necessary to not overflow the queue's pipe if a keyboard interrupt happens.
   BUFFER_FACTOR = 4
 
-  def __init__(self, num_workers, heartbeat_timeout=1):
+  def __init__(self, num_workers, heartbeat_timeout=1, notify_fun=None):
+    """
+    Args:
+      num_workers: Number of worker processes to run in parallel.
+      heartbeat_timeout: Timeout in seconds for waiting for results. Each time
+          the timeout is reached, a heartbeat is signalled and timeout is reset.
+      notify_fun: Callable called to signale some events like termination. The
+          event name is passed as string.
+    """
     self.num_workers = num_workers
     self.processes = []
     self.terminated = False
@@ -130,6 +138,7 @@ class Pool():
     # work_queue.
     self.processing_count = 0
     self.heartbeat_timeout = heartbeat_timeout
+    self.notify = notify_fun or (lambda x: x)
 
     # Disable sigint and sigterm to prevent subprocesses from capturing the
     # signals.
@@ -261,11 +270,13 @@ class Pool():
       for p in self.processes:
         os.kill(p.pid, signal.SIGTERM)
 
+    self.notify("Joining workers")
     for p in self.processes:
       p.join()
 
     # Drain the queues to prevent stderr chatter when queues are garbage
     # collected.
+    self.notify("Draining queues")
     try:
       while True: self.work_queue.get(False)
     except:

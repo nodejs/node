@@ -118,7 +118,6 @@ class MemoryOptimizer final {
   void VisitNode(Node*, AllocationState const*);
   void VisitAllocateRaw(Node*, AllocationState const*);
   void VisitCall(Node*, AllocationState const*);
-  void VisitCallWithCallerSavedRegisters(Node*, AllocationState const*);
   void VisitLoadFromObject(Node*, AllocationState const*);
   void VisitLoadElement(Node*, AllocationState const*);
   void VisitLoadField(Node*, AllocationState const*);
@@ -141,6 +140,11 @@ class MemoryOptimizer final {
   void EnqueueUse(Node*, int, AllocationState const*);
 
   bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
+
+  // Returns true if the AllocationType of the current AllocateRaw node that we
+  // are visiting needs to be updated to kOld, due to propagation of tenuring
+  // from outer to inner allocations.
+  bool AllocationTypeNeedsUpdateToOld(Node* const user, const Edge edge);
 
   AllocationState const* empty_state() const { return empty_state_; }
   Graph* graph() const;

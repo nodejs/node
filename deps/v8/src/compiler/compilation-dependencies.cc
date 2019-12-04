@@ -550,13 +550,7 @@ namespace {
 // This function expects to never see a JSProxy.
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   base::Optional<JSObjectRef> last_prototype) {
-  // TODO(neis): Remove heap access (SerializePrototype call).
-  AllowCodeDependencyChange dependency_change_;
-  AllowHandleAllocation handle_allocation_;
-  AllowHandleDereference handle_dereference_;
-  AllowHeapAllocation heap_allocation_;
   while (true) {
-    map.SerializePrototype();
     HeapObjectRef proto = map.prototype();
     if (!proto.IsJSObject()) {
       CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
@@ -580,7 +574,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       base::Optional<JSFunctionRef> constructor =
-          broker_->native_context().GetConstructorFunction(receiver_map);
+          broker_->target_native_context().GetConstructorFunction(receiver_map);
       if (constructor.has_value()) receiver_map = constructor->initial_map();
     }
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);

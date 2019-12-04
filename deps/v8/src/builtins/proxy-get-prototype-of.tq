@@ -9,7 +9,7 @@ namespace proxy {
   // ES #sec-proxy-object-internal-methods-and-internal-slots-isextensible
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-isextensible
   transitioning builtin
-  ProxyGetPrototypeOf(implicit context: Context)(proxy: JSProxy): Object {
+  ProxyGetPrototypeOf(implicit context: Context)(proxy: JSProxy): JSAny {
     PerformStackCheck();
     const kTrapName: constexpr string = 'getPrototypeOf';
     try {
@@ -39,7 +39,7 @@ namespace proxy {
 
       // 9. Let extensibleTarget be ? IsExtensible(target).
       // 10. If extensibleTarget is true, return handlerProto.
-      const extensibleTarget: Object = object::ObjectIsExtensible(target);
+      const extensibleTarget: JSAny = object::ObjectIsExtensible(target);
       assert(extensibleTarget == True || extensibleTarget == False);
       if (extensibleTarget == True) {
         return handlerProto;
@@ -51,12 +51,12 @@ namespace proxy {
       // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError
       // exception.
       // 13. Return handlerProto.
-      if (BranchIfSameValue(targetProto, handlerProto)) {
+      if (SameValue(targetProto, handlerProto)) {
         return handlerProto;
       }
       ThrowTypeError(kProxyGetPrototypeOfNonExtensible);
     }
-    label TrapUndefined(target: Object) {
+    label TrapUndefined(target: JSAny) {
       // 6.a. Return ? target.[[GetPrototypeOf]]().
       return object::ObjectGetPrototypeOf(target);
     }

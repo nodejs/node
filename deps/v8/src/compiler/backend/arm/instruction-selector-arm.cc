@@ -74,17 +74,6 @@ class ArmOperandGenerator : public OperandGenerator {
     }
     return false;
   }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
-  }
 };
 
 namespace {
@@ -100,6 +89,15 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
+}
+
+void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
+                       Node* node) {
+  ArmOperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
@@ -509,7 +507,8 @@ void InstructionSelector::VisitStore(Node* node) {
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -885,6 +884,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
     return;
   }
   VisitBinop(this, node, kArmEor, kArmEor);
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  ArmOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 namespace {
@@ -1686,17 +1694,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegisterOrStackPointer(m.left().node());
+    inputs[0] = g.UseRegister(m.left().node());
     input_count++;
   } else if (TryMatchImmediateOrShift(selector, &opcode, m.left().node(),
                                       &input_count, &inputs[1])) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    inputs[0] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[0] = g.UseRegister(m.right().node());
     input_count++;
   } else {
     opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.left().node());
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
   }
 
   if (has_result) {
@@ -1848,6 +1856,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         return VisitShift(this, value, TryMatchLSR, cont);
       case IrOpcode::kWord32Ror:
         return VisitShift(this, value, TryMatchROR, cont);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -2488,7 +2499,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRI(this, kArm##Name, node);                 \
+    VisitSimdShiftRRR(this, kArm##Name, node);        \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -2501,6 +2512,14 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+void InstructionSelector::VisitF32x4Div(Node* node) {
+  ArmOperandGenerator g(this);
+  // Use fixed registers in the lower 8 Q-registers so we can directly access
+  // mapped registers S0-S31.
+  Emit(kArmF32x4Div, g.DefineAsFixed(node, q0),
+       g.UseFixed(node->InputAt(0), q0), g.UseFixed(node->InputAt(1), q1));
+}
 
 void InstructionSelector::VisitS128Select(Node* node) {
   ArmOperandGenerator g(this);

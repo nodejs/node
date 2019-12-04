@@ -52,6 +52,8 @@
 /test/test262/data
 /test/test262/harness
 /test/wasm-js/data
+/test/wasm-js/tests
+/test/wasm-js/tests.tar.gz
 /test/wasm-spec-tests/tests
 /test/wasm-spec-tests/tests.tar.gz
 /third_party/*

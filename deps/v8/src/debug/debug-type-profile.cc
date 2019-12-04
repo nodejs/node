@@ -71,6 +71,13 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
 }
 
 void TypeProfile::SelectMode(Isolate* isolate, debug::TypeProfileMode mode) {
+  if (mode != isolate->type_profile_mode()) {
+    // Changing the type profile mode can change the bytecode that would be
+    // generated for a function, which can interfere with lazy source positions,
+    // so just force source position collection whenever there's such a change.
+    isolate->CollectSourcePositionsForAllBytecodeArrays();
+  }
+
   HandleScope handle_scope(isolate);
 
   if (mode == debug::TypeProfileMode::kNone) {

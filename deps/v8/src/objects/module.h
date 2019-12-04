@@ -136,14 +136,10 @@ class Module : public HeapObject {
 // When importing a module namespace (import * as foo from "bar"), a
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.
-class JSModuleNamespace : public JSObject {
+class JSModuleNamespace
+    : public TorqueGeneratedJSModuleNamespace<JSModuleNamespace, JSObject> {
  public:
-  DECL_CAST(JSModuleNamespace)
   DECL_PRINTER(JSModuleNamespace)
-  DECL_VERIFIER(JSModuleNamespace)
-
-  // The actual module whose namespace is being represented.
-  DECL_ACCESSORS(module, Module)
 
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
@@ -163,16 +159,12 @@ class JSModuleNamespace : public JSObject {
     kInObjectFieldCount,
   };
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSMODULE_NAMESPACE_FIELDS)
-
   // We need to include in-object fields
   // TODO(v8:8944): improve handling of in-object fields
   static constexpr int kSize =
       kHeaderSize + (kTaggedSize * kInObjectFieldCount);
 
-  OBJECT_CONSTRUCTORS(JSModuleNamespace, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSModuleNamespace)
 };
 
 }  // namespace internal

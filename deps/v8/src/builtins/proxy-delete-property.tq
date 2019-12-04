@@ -10,8 +10,10 @@ namespace proxy {
   // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-delete-p
   transitioning builtin
   ProxyDeleteProperty(implicit context: Context)(
-      proxy: JSProxy, name: Name, languageMode: LanguageMode): Object {
+      proxy: JSProxy, name: PropertyKey, languageMode: LanguageMode): JSAny {
     const kTrapName: constexpr string = 'deleteProperty';
+    // Handle deeply nested proxy.
+    PerformStackCheck();
     // 1. Assert: IsPropertyKey(P) is true.
     assert(TaggedIsNotSmi(name));
     assert(IsName(name));
@@ -38,7 +40,7 @@ namespace proxy {
       const trapResult = Call(context, trap, handler, target, name);
 
       // 9. If booleanTrapResult is false, return false.
-      if (BranchIfToBooleanIsFalse(trapResult)) {
+      if (!ToBoolean(trapResult)) {
         if (languageMode == SmiConstant(kStrict)) {
           ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName, name);
         }
@@ -56,7 +58,7 @@ namespace proxy {
       // 15. Return true.
       return True;
     }
-    label TrapUndefined(target: Object) {
+    label TrapUndefined(target: JSAny) {
       // 7.a. Return ? target.[[Delete]](P).
       return DeleteProperty(target, name, languageMode);
     }

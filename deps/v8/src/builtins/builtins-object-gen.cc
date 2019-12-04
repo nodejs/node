@@ -11,6 +11,7 @@
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
@@ -44,10 +45,6 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   Node* ConstructDataDescriptor(Node* context, Node* value, Node* writable,
                                 Node* enumerable, Node* configurable);
   Node* GetAccessorOrUndefined(Node* accessor, Label* if_bailout);
-
-  Node* IsSpecialReceiverMap(SloppyTNode<Map> map);
-
-  TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
 };
 
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
@@ -72,8 +69,6 @@ class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
   void GetOwnValuesOrEntries(TNode<Context> context, TNode<Object> maybe_object,
                              CollectType collect_type);
 
-  void GotoIfMapHasSlowProperties(TNode<Map> map, Label* if_slow);
-
   TNode<JSArray> FastGetOwnValuesOrEntries(
       TNode<Context> context, TNode<JSObject> object,
       Label* if_call_runtime_with_fast_path, Label* if_no_properties,
@@ -86,8 +81,8 @@ class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
 
 void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
                                                    Node* string) {
-  Node* lhs = StringConstant("[object ");
-  Node* rhs = StringConstant("]");
+  TNode<String> lhs = StringConstant("[object ");
+  TNode<String> rhs = StringConstant("]");
 
   Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE);
 
@@ -100,10 +95,10 @@ Node* ObjectBuiltinsAssembler::ConstructAccessorDescriptor(Node* context,
                                                            Node* setter,
                                                            Node* enumerable,
                                                            Node* configurable) {
-  Node* native_context = LoadNativeContext(context);
-  Node* map = LoadContextElement(
-      native_context, Context::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX);
-  Node* js_desc = AllocateJSObjectFromMap(map);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX));
+  TNode<JSObject> js_desc = AllocateJSObjectFromMap(map);
 
   StoreObjectFieldNoWriteBarrier(
       js_desc, JSAccessorPropertyDescriptor::kGetOffset, getter);
@@ -124,10 +119,10 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
                                                        Node* writable,
                                                        Node* enumerable,
                                                        Node* configurable) {
-  Node* native_context = LoadNativeContext(context);
-  Node* map = LoadContextElement(native_context,
-                                 Context::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX);
-  Node* js_desc = AllocateJSObjectFromMap(map);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX));
+  TNode<JSObject> js_desc = AllocateJSObjectFromMap(map);
 
   StoreObjectFieldNoWriteBarrier(js_desc,
                                  JSDataPropertyDescriptor::kValueOffset, value);
@@ -142,28 +137,6 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
                                  SelectBooleanConstant(configurable));
 
   return js_desc;
-}
-
-Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
-  TNode<BoolT> is_special =
-      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
-  uint32_t mask =
-      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
-  USE(mask);
-  // Interceptors or access checks imply special receiver.
-  CSA_ASSERT(this,
-             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
-                                   is_special, Int32TrueConstant()));
-  return is_special;
-}
-
-TNode<Word32T> ObjectBuiltinsAssembler::IsStringWrapperElementsKind(
-    TNode<Map> map) {
-  Node* kind = LoadMapElementsKind(map);
-  return Word32Or(
-      Word32Equal(kind, Int32Constant(FAST_STRING_WRAPPER_ELEMENTS)),
-      Word32Equal(kind, Int32Constant(SLOW_STRING_WRAPPER_ELEMENTS)));
 }
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyEnumerable(
@@ -209,7 +182,7 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
 
   BIND(&if_no_properties);
   {
-    Node* native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<JSArray> empty_array = AllocateJSArray(
@@ -242,18 +215,11 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
   }
 }
 
-void ObjectEntriesValuesBuiltinsAssembler::GotoIfMapHasSlowProperties(
-    TNode<Map> map, Label* if_slow) {
-  GotoIf(IsStringWrapperElementsKind(map), if_slow);
-  GotoIf(IsSpecialReceiverMap(map), if_slow);
-  GotoIf(IsDictionaryMap(map), if_slow);
-}
-
 TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     TNode<Context> context, TNode<JSObject> object,
     Label* if_call_runtime_with_fast_path, Label* if_no_properties,
     CollectType collect_type) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   TNode<Map> map = LoadMap(object);
@@ -308,9 +274,10 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     {
       // Currently, we will not invoke getters,
       // so, map will not be changed.
-      CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
+      CSA_ASSERT(this, TaggedEqual(map, LoadMap(object)));
       TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
-      Node* next_key = LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
+      TNode<Name> next_key =
+          LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
 
       // Skip Symbols.
       GotoIf(IsSymbol(next_key), &next_descriptor);
@@ -378,7 +345,7 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
   CSA_ASSERT(this, IsJSArrayMap(array_map));
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
-  Node* array = AllocateJSArray(array_map, result, SmiTag(size));
+  TNode<JSArray> array = AllocateJSArray(array_map, result, SmiTag(size));
   return TNode<JSArray>::UncheckedCast(array);
 }
 
@@ -412,8 +379,8 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Branch(TaggedIsSmi(object), &to_primitive, &if_objectisnotsmi);
   BIND(&if_objectisnotsmi);
 
-  Node* map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+  TNode<Map> map = LoadMap(object);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
 
   {
     VARIABLE(var_index, MachineType::PointerRepresentation());
@@ -510,9 +477,9 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
 
   // Check if the {object} has a usable enum cache.
   GotoIf(TaggedIsSmi(object), &if_slow);
-  Node* object_map = LoadMap(object);
-  Node* object_bit_field3 = LoadMapBitField3(object_map);
-  Node* object_enum_length =
+  TNode<Map> object_map = LoadMap(object);
+  TNode<Uint32T> object_bit_field3 = LoadMapBitField3(object_map);
+  TNode<UintPtrT> object_enum_length =
       DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
   GotoIf(
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
@@ -520,7 +487,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
 
   // Ensure that the {object} doesn't have any elements.
   CSA_ASSERT(this, IsJSObjectMap(object_map));
-  Node* object_elements = LoadElements(object);
+  TNode<FixedArrayBase> object_elements = LoadElements(object);
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
          &if_slow);
@@ -532,19 +499,19 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   BIND(&if_fast);
   {
     // The {object} has a usable enum cache, use that.
-    Node* object_descriptors = LoadMapDescriptors(object_map);
-    Node* object_enum_cache =
-        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset);
-    Node* object_enum_keys =
+    TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
+    TNode<EnumCache> object_enum_cache = CAST(
+        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset));
+    TNode<Object> object_enum_keys =
         LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     Node* array = nullptr;
     Node* elements = nullptr;
-    Node* native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<Smi> array_length = SmiTag(object_enum_length);
+    TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
@@ -564,7 +531,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   BIND(&if_slow);
   {
     // Let the runtime compute the elements.
-    Node* elements = CallRuntime(Runtime::kObjectKeys, context, object);
+    TNode<FixedArray> elements =
+        CAST(CallRuntime(Runtime::kObjectKeys, context, object));
     var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
     var_elements.Bind(elements);
     Goto(&if_join);
@@ -573,7 +541,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   BIND(&if_join);
   {
     // Wrap the elements into a proper JSArray and return that.
-    Node* native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<JSArray> array = AllocateJSArray(
@@ -596,25 +564,25 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   // Take the slow path if the {object} IsCustomElementsReceiverInstanceType or
   // has any elements.
   GotoIf(TaggedIsSmi(object), &if_slow);
-  Node* object_map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(object_map);
+  TNode<Map> object_map = LoadMap(object);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(object_map);
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &if_slow);
-  Node* object_elements = LoadElements(object);
+  TNode<FixedArrayBase> object_elements = LoadElements(object);
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
          &if_slow);
 
   // Check if the {object} has a usable enum cache.
   BIND(&if_empty_elements);
-  Node* object_bit_field3 = LoadMapBitField3(object_map);
-  Node* object_enum_length =
+  TNode<Uint32T> object_bit_field3 = LoadMapBitField3(object_map);
+  TNode<UintPtrT> object_enum_length =
       DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
   GotoIf(
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
       &try_fast);
 
   // Check whether all own properties are enumerable.
-  Node* number_descriptors =
+  TNode<UintPtrT> number_descriptors =
       DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(object_bit_field3);
   GotoIfNot(WordEqual(object_enum_length, number_descriptors), &if_slow);
 
@@ -625,19 +593,19 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   {
     // The {object} has a usable enum cache and all own properties are
     // enumerable, use that.
-    Node* object_descriptors = LoadMapDescriptors(object_map);
-    Node* object_enum_cache =
-        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset);
-    Node* object_enum_keys =
+    TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
+    TNode<EnumCache> object_enum_cache = CAST(
+        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset));
+    TNode<Object> object_enum_keys =
         LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     Node* array = nullptr;
     Node* elements = nullptr;
-    Node* native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<Smi> array_length = SmiTag(object_enum_length);
+    TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
@@ -649,8 +617,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   BIND(&try_fast);
   {
     // Let the runtime compute the elements and try initializing enum cache.
-    Node* elements = CallRuntime(Runtime::kObjectGetOwnPropertyNamesTryFast,
-                                 context, object);
+    TNode<FixedArray> elements = CAST(CallRuntime(
+        Runtime::kObjectGetOwnPropertyNamesTryFast, context, object));
     var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
     var_elements.Bind(elements);
     Goto(&if_join);
@@ -667,8 +635,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   BIND(&if_slow);
   {
     // Let the runtime compute the elements.
-    Node* elements =
-        CallRuntime(Runtime::kObjectGetOwnPropertyNames, context, object);
+    TNode<FixedArray> elements =
+        CAST(CallRuntime(Runtime::kObjectGetOwnPropertyNames, context, object));
     var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
     var_elements.Bind(elements);
     Goto(&if_join);
@@ -677,7 +645,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   BIND(&if_join);
   {
     // Wrap the elements into a proper JSArray and return that.
-    Node* native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<JSArray> array = AllocateJSArray(
@@ -770,8 +738,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   VARIABLE(var_default, MachineRepresentation::kTagged);
   VARIABLE(var_holder, MachineRepresentation::kTagged, receiver);
   GotoIf(TaggedIsSmi(receiver), &if_number);
-  Node* receiver_map = LoadMap(receiver);
-  Node* receiver_instance_type = LoadMapInstanceType(receiver_map);
+  TNode<Map> receiver_map = LoadMap(receiver);
+  TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
   GotoIf(IsPrimitiveInstanceType(receiver_instance_type), &if_primitive);
   const struct {
     InstanceType value;
@@ -818,58 +786,58 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_arguments);
   {
-    var_default.Bind(LoadRoot(RootIndex::karguments_to_string));
+    var_default.Bind(ArgumentsToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_array);
   {
-    var_default.Bind(LoadRoot(RootIndex::karray_to_string));
+    var_default.Bind(ArrayToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_boolean);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* boolean_constructor =
-        LoadContextElement(native_context, Context::BOOLEAN_FUNCTION_INDEX);
-    Node* boolean_initial_map = LoadObjectField(
-        boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* boolean_prototype =
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<JSFunction> boolean_constructor = CAST(
+        LoadContextElement(native_context, Context::BOOLEAN_FUNCTION_INDEX));
+    TNode<Map> boolean_initial_map = CAST(LoadObjectField(
+        boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Object> boolean_prototype =
         LoadObjectField(boolean_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
+    var_default.Bind(BooleanToStringConstant());
     var_holder.Bind(boolean_prototype);
     Goto(&checkstringtag);
   }
 
   BIND(&if_date);
   {
-    var_default.Bind(LoadRoot(RootIndex::kdate_to_string));
+    var_default.Bind(DateToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_error);
   {
-    var_default.Bind(LoadRoot(RootIndex::kerror_to_string));
+    var_default.Bind(ErrorToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_function);
   {
-    var_default.Bind(LoadRoot(RootIndex::kfunction_to_string));
+    var_default.Bind(FunctionToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_number);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* number_constructor =
-        LoadContextElement(native_context, Context::NUMBER_FUNCTION_INDEX);
-    Node* number_initial_map = LoadObjectField(
-        number_constructor, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* number_prototype =
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<JSFunction> number_constructor = CAST(
+        LoadContextElement(native_context, Context::NUMBER_FUNCTION_INDEX));
+    TNode<Map> number_initial_map = CAST(LoadObjectField(
+        number_constructor, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Object> number_prototype =
         LoadObjectField(number_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
+    var_default.Bind(NumberToStringConstant());
     var_holder.Bind(number_prototype);
     Goto(&checkstringtag);
   }
@@ -877,7 +845,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   BIND(&if_object);
   {
     CSA_ASSERT(this, IsJSReceiver(receiver));
-    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+    var_default.Bind(ObjectToStringConstant());
     Goto(&checkstringtag);
   }
 
@@ -892,10 +860,10 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
     GotoIf(IsUndefined(receiver), &return_undefined);
     CSA_ASSERT(this, IsNull(receiver));
-    Return(LoadRoot(RootIndex::knull_to_string));
+    Return(NullToStringConstant());
 
     BIND(&return_undefined);
-    Return(LoadRoot(RootIndex::kundefined_to_string));
+    Return(UndefinedToStringConstant());
   }
 
   BIND(&if_proxy);
@@ -905,16 +873,15 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     // depending on whether the {receiver} is callable. The order matters here,
     // i.e. we need to execute the %ArrayIsArray check before the [[Get]] below,
     // as the exception is observable.
-    Node* receiver_is_array =
+    TNode<Object> receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
     TNode<String> builtin_tag = Select<String>(
-        IsTrue(receiver_is_array),
-        [=] { return CAST(LoadRoot(RootIndex::kArray_string)); },
+        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
         [=] {
           return Select<String>(
               IsCallableMap(receiver_map),
-              [=] { return CAST(LoadRoot(RootIndex::kFunction_string)); },
-              [=] { return CAST(LoadRoot(RootIndex::kObject_string)); });
+              [=] { return FunctionStringConstant(); },
+              [=] { return ObjectStringConstant(); });
         });
 
     // Lookup the @@toStringTag property on the {receiver}.
@@ -935,48 +902,48 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_regexp);
   {
-    var_default.Bind(LoadRoot(RootIndex::kregexp_to_string));
+    var_default.Bind(RegexpToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_string);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* string_constructor =
-        LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
-    Node* string_initial_map = LoadObjectField(
-        string_constructor, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* string_prototype =
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<JSFunction> string_constructor = CAST(
+        LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX));
+    TNode<Map> string_initial_map = CAST(LoadObjectField(
+        string_constructor, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Object> string_prototype =
         LoadObjectField(string_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
+    var_default.Bind(StringToStringConstant());
     var_holder.Bind(string_prototype);
     Goto(&checkstringtag);
   }
 
   BIND(&if_symbol);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* symbol_constructor =
-        LoadContextElement(native_context, Context::SYMBOL_FUNCTION_INDEX);
-    Node* symbol_initial_map = LoadObjectField(
-        symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* symbol_prototype =
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<JSFunction> symbol_constructor = CAST(
+        LoadContextElement(native_context, Context::SYMBOL_FUNCTION_INDEX));
+    TNode<Map> symbol_initial_map = CAST(LoadObjectField(
+        symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Object> symbol_prototype =
         LoadObjectField(symbol_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+    var_default.Bind(ObjectToStringConstant());
     var_holder.Bind(symbol_prototype);
     Goto(&checkstringtag);
   }
 
   BIND(&if_bigint);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* bigint_constructor =
-        LoadContextElement(native_context, Context::BIGINT_FUNCTION_INDEX);
-    Node* bigint_initial_map = LoadObjectField(
-        bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* bigint_prototype =
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<JSFunction> bigint_constructor = CAST(
+        LoadContextElement(native_context, Context::BIGINT_FUNCTION_INDEX));
+    TNode<Map> bigint_initial_map = CAST(LoadObjectField(
+        bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset));
+    TNode<Object> bigint_prototype =
         LoadObjectField(bigint_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+    var_default.Bind(ObjectToStringConstant());
     var_holder.Bind(bigint_prototype);
     Goto(&checkstringtag);
   }
@@ -994,11 +961,11 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     // which might have interesting properties.
     var_holder.Bind(receiver);
     GotoIf(TaggedIsSmi(receiver_value), &if_value_is_number);
-    Node* receiver_value_map = LoadMap(receiver_value);
+    TNode<Map> receiver_value_map = LoadMap(receiver_value);
     GotoIf(IsHeapNumberMap(receiver_value_map), &if_value_is_number);
     GotoIf(IsBooleanMap(receiver_value_map), &if_value_is_boolean);
     GotoIf(IsSymbolMap(receiver_value_map), &if_value_is_symbol);
-    Node* receiver_value_instance_type =
+    TNode<Uint16T> receiver_value_instance_type =
         LoadMapInstanceType(receiver_value_map);
     GotoIf(IsBigIntInstanceType(receiver_value_instance_type),
            &if_value_is_bigint);
@@ -1007,31 +974,31 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
     BIND(&if_value_is_number);
     {
-      var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
+      var_default.Bind(NumberToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_boolean);
     {
-      var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
+      var_default.Bind(BooleanToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_string);
     {
-      var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
+      var_default.Bind(StringToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_bigint);
     {
-      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      var_default.Bind(ObjectToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_symbol);
     {
-      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      var_default.Bind(ObjectToStringConstant());
       Goto(&checkstringtag);
     }
   }
@@ -1048,8 +1015,8 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     {
       Node* holder = var_holder.value();
       GotoIf(IsNull(holder), &return_default);
-      Node* holder_map = LoadMap(holder);
-      Node* holder_bit_field3 = LoadMapBitField3(holder_map);
+      TNode<Map> holder_map = LoadMap(holder);
+      TNode<Uint32T> holder_bit_field3 = LoadMapBitField3(holder_map);
       GotoIf(IsSetWord32<Map::MayHaveInterestingSymbolsBit>(holder_bit_field3),
              &return_generic);
       var_holder.Bind(LoadMapPrototype(holder_map));
@@ -1058,10 +1025,10 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
     BIND(&return_generic);
     {
-      Node* tag = GetProperty(context, ToObject(context, receiver),
-                              LoadRoot(RootIndex::kto_string_tag_symbol));
+      TNode<Object> tag = GetProperty(context, ToObject(context, receiver),
+                                      ToStringTagSymbolConstant());
       GotoIf(TaggedIsSmi(tag), &return_default);
-      GotoIfNot(IsString(tag), &return_default);
+      GotoIfNot(IsString(CAST(tag)), &return_default);
       ReturnToStringFormat(context, tag);
     }
 
@@ -1080,9 +1047,9 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
 
 // ES #sec-object.create
 TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
-  Node* const prototype = Parameter(Descriptor::kPrototypeArg);
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const native_context = LoadNativeContext(context);
+  TNode<Object> const prototype = CAST(Parameter(Descriptor::kPrototypeArg));
+  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   Label call_runtime(this, Label::kDeferred), prototype_null(this),
       prototype_jsreceiver(this);
   {
@@ -1108,16 +1075,16 @@ TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
   {
     Comment("Prototype is JSReceiver");
     properties.Bind(EmptyFixedArrayConstant());
-    Node* object_function =
-        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX);
-    Node* object_function_map = LoadObjectField(
+    TNode<HeapObject> object_function = CAST(
+        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+    TNode<Object> object_function_map = LoadObjectField(
         object_function, JSFunction::kPrototypeOrInitialMapOffset);
     map.Bind(object_function_map);
-    GotoIf(WordEqual(prototype, LoadMapPrototype(map.value())),
+    GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
            &instantiate_map);
     Comment("Try loading the prototype info");
-    Node* prototype_info =
-        LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
+    TNode<PrototypeInfo> prototype_info =
+        LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
     TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
         prototype_info, PrototypeInfo::kObjectCreateMapOffset);
     GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()), &call_runtime);
@@ -1128,15 +1095,16 @@ TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
   BIND(&instantiate_map);
   {
     Comment("Instantiate map");
-    Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
+    TNode<JSObject> instance =
+        AllocateJSObjectFromMap(map.value(), properties.value());
     Return(instance);
   }
 
   BIND(&call_runtime);
   {
     Comment("Call Runtime (prototype is not null/jsreceiver)");
-    Node* result = CallRuntime(Runtime::kObjectCreate, context, prototype,
-                               UndefinedConstant());
+    TNode<Object> result = CallRuntime(Runtime::kObjectCreate, context,
+                                       prototype, UndefinedConstant());
     Return(result);
   }
 }
@@ -1146,13 +1114,13 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;
 
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* prototype = args.GetOptionalArgumentValue(kPrototypeArg);
-  Node* properties = args.GetOptionalArgumentValue(kPropertiesArg);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> prototype = args.GetOptionalArgumentValue(kPrototypeArg);
+  TNode<Object> properties = args.GetOptionalArgumentValue(kPropertiesArg);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
@@ -1169,14 +1137,14 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     GotoIf(TaggedIsSmi(properties), &call_runtime);
     // Undefined implies no properties.
     GotoIf(IsUndefined(properties), &no_properties);
-    Node* properties_map = LoadMap(properties);
+    TNode<Map> properties_map = LoadMap(CAST(properties));
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
-    GotoIfNot(WordEqual(LoadElements(properties),
-                        LoadRoot(RootIndex::kEmptyFixedArray)),
-              &call_runtime);
+    GotoIfNot(
+        TaggedEqual(LoadElements(CAST(properties)), EmptyFixedArrayConstant()),
+        &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
-    Node* bit_field3 = LoadMapBitField3(properties_map);
+    TNode<Uint32T> bit_field3 = LoadMapBitField3(properties_map);
     GotoIf(IsSetWord32<Map::IsDictionaryMapBit>(bit_field3), &call_runtime);
     Branch(IsSetWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3),
            &call_runtime, &no_properties);
@@ -1202,16 +1170,16 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&non_null_proto);
     {
       properties.Bind(EmptyFixedArrayConstant());
-      Node* object_function =
-          LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX);
-      Node* object_function_map = LoadObjectField(
+      TNode<HeapObject> object_function =
+          CAST(LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX));
+      TNode<Object> object_function_map = LoadObjectField(
           object_function, JSFunction::kPrototypeOrInitialMapOffset);
       map.Bind(object_function_map);
-      GotoIf(WordEqual(prototype, LoadMapPrototype(map.value())),
+      GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
       // Try loading the prototype info.
-      Node* prototype_info =
-          LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
+      TNode<PrototypeInfo> prototype_info =
+          LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
       Comment("Load ObjectCreateMap from PrototypeInfo");
       TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
           prototype_info, PrototypeInfo::kObjectCreateMapOffset);
@@ -1223,14 +1191,15 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
     BIND(&instantiate_map);
     {
-      Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
+      TNode<JSObject> instance =
+          AllocateJSObjectFromMap(map.value(), properties.value());
       args.PopAndReturn(instance);
     }
   }
 
   BIND(&call_runtime);
   {
-    Node* result =
+    TNode<Object> result =
         CallRuntime(Runtime::kObjectCreate, context, prototype, properties);
     args.PopAndReturn(result);
   }
@@ -1256,11 +1225,11 @@ TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
   Node* const done = Parameter(Descriptor::kDone);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const native_context = LoadNativeContext(context);
-  Node* const map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  TNode<Map> const map = CAST(
+      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
-  Node* const result = AllocateJSObjectFromMap(map);
+  TNode<JSObject> const result = AllocateJSObjectFromMap(map);
 
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, value);
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);
@@ -1309,27 +1278,31 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   // have one.
   Label done(this), runtime(this);
   GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
-  Node* maybe_map =
-      LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset);
+  TNode<HeapObject> maybe_map =
+      CAST(LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset));
   GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
+  TNode<Map> map = CAST(maybe_map);
 
-  Node* shared =
-      LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* bytecode_array = LoadSharedFunctionInfoBytecodeArray(shared);
+  TNode<SharedFunctionInfo> shared =
+      CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
+  TNode<BytecodeArray> bytecode_array =
+      LoadSharedFunctionInfoBytecodeArray(shared);
 
-  Node* formal_parameter_count = ChangeInt32ToIntPtr(
+  TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
                       MachineType::Uint16()));
-  Node* frame_size = ChangeInt32ToIntPtr(LoadObjectField(
+  TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
-  Node* size = IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
-                         formal_parameter_count);
-  Node* parameters_and_registers = AllocateFixedArray(HOLEY_ELEMENTS, size);
+  TNode<WordT> size =
+      IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
+                formal_parameter_count);
+  TNode<FixedArrayBase> parameters_and_registers =
+      AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
-  Node* result = AllocateJSObjectFromMap(maybe_map, nullptr, nullptr, kNone,
-                                         kWithSlackTracking);
+  TNode<JSObject> result =
+      AllocateJSObjectFromMap(map, nullptr, nullptr, kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
@@ -1339,13 +1312,13 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       result, JSGeneratorObject::kParametersAndRegistersOffset,
       parameters_and_registers);
-  Node* resume_mode = SmiConstant(JSGeneratorObject::ResumeMode::kNext);
+  TNode<Smi> resume_mode = SmiConstant(JSGeneratorObject::ResumeMode::kNext);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kResumeModeOffset,
                                  resume_mode);
-  Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
-  GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(maybe_map),
+  GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(map),
                               JS_ASYNC_GENERATOR_OBJECT_TYPE),
             &done);
   StoreObjectFieldNoWriteBarrier(
@@ -1369,11 +1342,11 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* object = args.GetOptionalArgumentValue(0);
-  Node* key = args.GetOptionalArgumentValue(1);
+  TNode<Object> object_input = args.GetOptionalArgumentValue(0);
+  TNode<Object> key = args.GetOptionalArgumentValue(1);
 
   // 1. Let obj be ? ToObject(O).
-  object = ToObject_Inline(CAST(context), CAST(object));
+  TNode<JSReceiver> object = ToObject_Inline(CAST(context), object_input);
 
   // 2. Let key be ? ToPropertyKey(P).
   key = CallBuiltin(Builtins::kToName, context, key);
@@ -1382,8 +1355,8 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Label if_keyisindex(this), if_iskeyunique(this),
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
-  Node* map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+  TNode<Map> map = LoadMap(object);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     VARIABLE(var_index, MachineType::PointerRepresentation(),
@@ -1440,15 +1413,15 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
 
   BIND(&call_runtime);
   {
-    Node* desc =
+    TNode<Object> desc =
         CallRuntime(Runtime::kGetOwnPropertyDescriptor, context, object, key);
 
     GotoIf(IsUndefined(desc), &return_undefined);
 
-    CSA_ASSERT(this, IsFixedArray(desc));
+    TNode<FixedArray> desc_array = CAST(desc);
 
     // 4. Return FromPropertyDescriptor(desc).
-    Node* js_desc = FromPropertyDescriptor(context, desc);
+    Node* js_desc = FromPropertyDescriptor(context, desc_array);
     args.PopAndReturn(js_desc);
   }
   BIND(&return_undefined);
@@ -1471,10 +1444,10 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
                                                       Node* desc) {
   VARIABLE(js_descriptor, MachineRepresentation::kTagged);
 
-  Node* flags = LoadAndUntagToWord32ObjectField(
+  TNode<Int32T> flags = LoadAndUntagToWord32ObjectField(
       desc, PropertyDescriptorObject::kFlagsOffset);
 
-  Node* has_flags =
+  TNode<Word32T> has_flags =
       Word32And(flags, Int32Constant(PropertyDescriptorObject::kHasMask));
 
   Label if_accessor_desc(this), if_data_desc(this), if_generic_desc(this),
@@ -1512,13 +1485,13 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
 
   BIND(&if_generic_desc);
   {
-    Node* native_context = LoadNativeContext(context);
-    Node* map = LoadContextElement(
-        native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<Map> map = CAST(LoadContextElement(
+        native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP));
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
     TNode<NameDictionary> properties = AllocateNameDictionary(6);
-    Node* js_desc = AllocateJSObjectFromMap(map, properties);
+    TNode<JSObject> js_desc = AllocateJSObjectFromMap(map, properties);
 
     Label bailout(this, Label::kDeferred);
 
@@ -1579,8 +1552,10 @@ Node* ObjectBuiltinsAssembler::FromPropertyDetails(Node* context,
 
   BIND(&if_accessor_desc);
   {
-    Node* getter = LoadObjectField(raw_value, AccessorPair::kGetterOffset);
-    Node* setter = LoadObjectField(raw_value, AccessorPair::kSetterOffset);
+    TNode<Object> getter =
+        LoadObjectField(raw_value, AccessorPair::kGetterOffset);
+    TNode<Object> setter =
+        LoadObjectField(raw_value, AccessorPair::kSetterOffset);
     js_descriptor.Bind(ConstructAccessorDescriptor(
         context, GetAccessorOrUndefined(getter, if_bailout),
         GetAccessorOrUndefined(setter, if_bailout),
@@ -1610,7 +1585,7 @@ Node* ObjectBuiltinsAssembler::GetAccessorOrUndefined(Node* accessor,
 
   GotoIf(IsNull(accessor), &bind_undefined);
   result.Bind(accessor);
-  Node* map = LoadMap(accessor);
+  TNode<Map> map = LoadMap(accessor);
   // TODO(ishell): probe template instantiations cache.
   GotoIf(IsFunctionTemplateInfoMap(map), if_bailout);
   Goto(&return_result);

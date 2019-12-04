@@ -117,7 +117,7 @@ class InjectedScript final {
                                v8::Local<v8::Value>* result);
 
   Response createExceptionDetails(
-      const v8::TryCatch&, const String16& groupName, WrapMode wrapMode,
+      const v8::TryCatch&, const String16& groupName,
       Maybe<protocol::Runtime::ExceptionDetails>* result);
   Response wrapEvaluateResult(
       v8::MaybeLocal<v8::Value> maybeResultValue, const v8::TryCatch&,
@@ -219,6 +219,10 @@ class InjectedScript final {
   void discardEvaluateCallbacks();
   std::unique_ptr<EvaluateCallback> takeEvaluateCallback(
       EvaluateCallback* callback);
+  Response addExceptionToDetails(
+      v8::Local<v8::Value> exception,
+      protocol::Runtime::ExceptionDetails* exceptionDetails,
+      const String16& objectGroup);
 
   InspectedContext* m_context;
   int m_sessionId;

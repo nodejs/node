@@ -101,11 +101,14 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
       .Check();
 
   // Materialize receiver.
-  Handle<String> this_str = factory->this_string();
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      materialized, this_str, Handle<Object>(it.frame()->receiver(), isolate),
-      NONE)
-      .Check();
+  Handle<Object> this_value(it.frame()->receiver(), isolate);
+  DCHECK_EQ(it.frame()->IsConstructor(), this_value->IsTheHole(isolate));
+  if (!this_value->IsTheHole(isolate)) {
+    Handle<String> this_str = factory->this_string();
+    JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
+                                             NONE)
+        .Check();
+  }
 
   // Use extension object in a debug-evaluate scope.
   Handle<ScopeInfo> scope_info =
@@ -383,6 +386,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaKeyedProperty:
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
+    case Bytecode::kGetIterator:
     // Arithmetics.
     case Bytecode::kAdd:
     case Bytecode::kAddSmi:

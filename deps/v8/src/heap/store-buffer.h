@@ -33,17 +33,11 @@ class StoreBuffer {
       Max(static_cast<int>(kMinExpectedOSPageSize / kStoreBuffers),
           1 << (11 + kSystemPointerSizeLog2));
   static const int kStoreBufferMask = kStoreBufferSize - 1;
-  static const intptr_t kDeletionTag = 1;
 
   V8_EXPORT_PRIVATE static int StoreBufferOverflow(Isolate* isolate);
 
-  static void DeleteDuringGarbageCollection(StoreBuffer* store_buffer,
-                                            Address start, Address end);
   static void InsertDuringGarbageCollection(StoreBuffer* store_buffer,
                                             Address slot);
-
-  static void DeleteDuringRuntime(StoreBuffer* store_buffer, Address start,
-                                  Address end);
   static void InsertDuringRuntime(StoreBuffer* store_buffer, Address slot);
 
   explicit StoreBuffer(Heap* heap);
@@ -61,19 +55,6 @@ class StoreBuffer {
   // the remembered set.
   void MoveAllEntriesToRememberedSet();
 
-  inline bool IsDeletionAddress(Address address) const {
-    return address & kDeletionTag;
-  }
-
-  inline Address MarkDeletionAddress(Address address) {
-    return address | kDeletionTag;
-  }
-
-  inline Address UnmarkDeletionAddress(Address address) {
-    return address & ~kDeletionTag;
-  }
-
-  inline void InsertDeletionIntoStoreBuffer(Address start, Address end);
   inline void InsertIntoStoreBuffer(Address slot);
 
   void InsertEntry(Address slot) {
@@ -81,16 +62,6 @@ class StoreBuffer {
     // set. Insertions coming from the runtime are added to the store buffer to
     // allow concurrent processing.
     insertion_callback(this, slot);
-  }
-
-  // If we only want to delete a single slot, end should be set to null which
-  // will be written into the second field. When processing the store buffer
-  // the more efficient Remove method will be called in this case.
-  void DeleteEntry(Address start, Address end = kNullAddress) {
-    // Deletions coming from the GC are directly deleted from the remembered
-    // set. Deletions coming from the runtime are added to the store buffer
-    // to allow concurrent processing.
-    deletion_callback(this, start, end);
   }
 
   void SetMode(StoreBufferMode mode);
@@ -174,7 +145,6 @@ class StoreBuffer {
   // Callbacks are more efficient than reading out the gc state for every
   // store buffer operation.
   void (*insertion_callback)(StoreBuffer*, Address);
-  void (*deletion_callback)(StoreBuffer*, Address, Address);
 };
 
 }  // namespace internal

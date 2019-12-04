@@ -45,28 +45,32 @@ void print_valtypes(const wasm_valtype_vec_t* types) {
 void print_externtype(const wasm_externtype_t* type) {
   switch (wasm_externtype_kind(type)) {
     case WASM_EXTERN_FUNC: {
-      const wasm_functype_t* functype = wasm_externtype_as_functype_const(type);
+      const wasm_functype_t* functype =
+        wasm_externtype_as_functype_const(type);
       printf("func ");
       print_valtypes(wasm_functype_params(functype));
       printf(" -> ");
       print_valtypes(wasm_functype_results(functype));
     } break;
     case WASM_EXTERN_GLOBAL: {
-      const wasm_globaltype_t* globaltype = wasm_externtype_as_globaltype_const(type);
+      const wasm_globaltype_t* globaltype =
+        wasm_externtype_as_globaltype_const(type);
       printf("global ");
       print_mutability(wasm_globaltype_mutability(globaltype));
       printf(" ");
       print_valtype(wasm_globaltype_content(globaltype));
     } break;
     case WASM_EXTERN_TABLE: {
-      const wasm_tabletype_t* tabletype = wasm_externtype_as_tabletype_const(type);
+      const wasm_tabletype_t* tabletype =
+        wasm_externtype_as_tabletype_const(type);
       printf("table ");
       print_limits(wasm_tabletype_limits(tabletype));
       printf(" ");
       print_valtype(wasm_tabletype_element(tabletype));
     } break;
     case WASM_EXTERN_MEMORY: {
-      const wasm_memorytype_t* memorytype = wasm_externtype_as_memorytype_const(type);
+      const wasm_memorytype_t* memorytype =
+        wasm_externtype_as_memorytype_const(type);
       printf("memory ");
       print_limits(wasm_memorytype_limits(memorytype));
     } break;
@@ -114,7 +118,7 @@ int main(int argc, const char* argv[]) {
 
   // Instantiate.
   printf("Instantiating module...\n");
-  own wasm_instance_t* instance = wasm_instance_new(store, module, NULL);
+  own wasm_instance_t* instance = wasm_instance_new(store, module, NULL, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
@@ -129,7 +133,8 @@ int main(int argc, const char* argv[]) {
   assert(exports.size == export_types.size);
 
   for (size_t i = 0; i < exports.size; ++i) {
-    assert(wasm_extern_kind(exports.data[i]) == wasm_externtype_kind(wasm_exporttype_type(export_types.data[i])));
+    assert(wasm_extern_kind(exports.data[i]) ==
+      wasm_externtype_kind(wasm_exporttype_type(export_types.data[i])));
     printf("> export %zu ", i);
     print_name(wasm_exporttype_name(export_types.data[i]));
     printf("\n");

@@ -110,7 +110,8 @@ int main(int argc, const char* argv[]) {
 
   // Instantiate.
   printf("Instantiating module...\n");
-  own wasm_instance_t* instance = wasm_instance_new(store, module, NULL);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, NULL, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
@@ -134,6 +135,11 @@ int main(int argc, const char* argv[]) {
   own wasm_func_t* h = wasm_func_new(store, neg_type, neg_callback);
 
   wasm_functype_delete(neg_type);
+
+  // Try cloning.
+  own wasm_table_t* copy = wasm_table_copy(table);
+  assert(wasm_table_same(table, copy));
+  wasm_table_delete(copy);
 
   // Check initial table.
   printf("Checking table...\n");

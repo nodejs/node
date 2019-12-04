@@ -52,7 +52,8 @@ void* run(void* args_abs) {
     const wasm_extern_t* imports[] = {
       wasm_func_as_extern(func), wasm_global_as_extern(global),
     };
-    own wasm_instance_t* instance = wasm_instance_new(store, module, imports);
+    own wasm_instance_t* instance =
+      wasm_instance_new(store, module, imports, NULL);
     if (!instance) {
       printf("> Error instantiating module!\n");
       return NULL;

@@ -1024,13 +1024,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
-      constexpr int offset = 12;
+      constexpr int offset = 9 * kInstrSize;
       if (isWasmCapiFunction) {
-        __ mflr(kScratchReg);
+        __ mflr(r0);
         __ bind(&start_call);
-        __ LoadPC(r0);
-        __ addi(r0, r0, Operand(offset));
-        __ StoreP(r0, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        __ LoadPC(kScratchReg);
+        __ addi(kScratchReg, kScratchReg, Operand(offset));
+        __ StoreP(kScratchReg,
+                  MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mtlr(r0);
       }
       if (instr->InputAt(0)->IsImmediate()) {
@@ -1040,11 +1041,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
-      // TODO(miladfar): In the above block, r0 must be populated with the
-      // strictly-correct PC, which is the return address at this spot. The
-      // offset is set to 12 right now, which is counted from where we are
-      // binding to the label and ends at this spot. If failed, replace it it
-      // with the correct offset suggested. More info on f5ab7d3.
+      // TODO(miladfar): In the above block, kScratchReg must be populated with
+      // the strictly-correct PC, which is the return address at this spot. The
+      // offset is set to 36 (9 * kInstrSize) right now, which is counted from
+      // where we are binding to the label and ends at this spot. If failed,
+      // replace it with the correct offset suggested. More info on f5ab7d3.
       if (isWasmCapiFunction)
         CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
 
@@ -1104,19 +1105,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kArchDeoptimize: {
-      int deopt_state_id =
+      DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      CodeGenResult result =
-          AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
+      CodeGenResult result = AssembleDeoptimizerCall(exit);
       if (result != kSuccess) return result;
       break;
     }
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
-      DCHECK_EQ(LeaveRC, i.OutputRCBit());
-      break;
-    case kArchStackPointer:
-      __ mr(i.OutputRegister(), sp);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kArchFramePointer:
@@ -1130,6 +1126,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mr(i.OutputRegister(), fp);
       }
       break;
+    case kArchStackPointerGreaterThan: {
+      constexpr size_t kValueIndex = 0;
+      DCHECK(instr->InputAt(kValueIndex)->IsRegister());
+      __ cmpl(sp, i.InputRegister(kValueIndex), cr0);
+      break;
+    }
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
@@ -2515,6 +2517,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 }
 
 void CodeGenerator::FinishCode() {}
+
+void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {

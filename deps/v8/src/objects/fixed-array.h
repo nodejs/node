@@ -247,7 +247,10 @@ class FixedDoubleArray : public FixedArrayBase {
 
   DECL_CAST(FixedDoubleArray)
 
-  // Maximally allowed length of a FixedArray.
+  // Start offset of elements.
+  static constexpr int kFloatsOffset = kHeaderSize;
+
+  // Maximally allowed length of a FixedDoubleArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "FixedDoubleArray maxLength not a Smi");

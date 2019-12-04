@@ -182,6 +182,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // TODO(titzer): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, const WasmFeatures& enabled_features,
+      std::shared_ptr<const WasmModule> module);
+  std::shared_ptr<NativeModule> NewNativeModule(
+      Isolate* isolate, const WasmFeatures& enabled_features,
       size_t code_size_estimate, bool can_request_more,
       std::shared_ptr<const WasmModule> module);
 

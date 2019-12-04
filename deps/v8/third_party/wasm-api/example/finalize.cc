@@ -9,20 +9,17 @@
 
 const int iterations = 100000;
 
+int live_count = 0;
+
 void finalize(void* data) {
   intptr_t i = reinterpret_cast<intptr_t>(data);
   if (i % (iterations / 10) == 0) {
     std::cout << "Finalizing #" << i << "..." << std::endl;
   }
+  --live_count;
 }
 
-void run() {
-  // Initialize.
-  std::cout << "Initializing..." << std::endl;
-  auto engine = wasm::Engine::make();
-  auto store_ = wasm::Store::make(engine.get());
-  auto store = store_.get();
-
+void run_in_store(wasm::Store* store) {
   // Load binary.
   std::cout << "Loading binary..." << std::endl;
   std::ifstream file("finalize.wasm");
@@ -34,7 +31,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -42,7 +39,7 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Instantiate.
@@ -52,9 +49,10 @@ void run() {
     auto instance = wasm::Instance::make(store, module.get(), nullptr);
     if (!instance) {
       std::cout << "> Error instantiating module " << i << "!" << std::endl;
-      return;
+      exit(1);
     }
     instance->set_host_info(reinterpret_cast<void*>(i), &finalize);
+    ++live_count;
   }
 
   // Shut down.
@@ -62,8 +60,43 @@ void run() {
 }
 
 
+void run() {
+  // Initialize.
+  std::cout << "Initializing..." << std::endl;
+  auto engine = wasm::Engine::make();
+
+  std::cout << "Live count " << live_count << std::endl;
+  std::cout << "Creating store 1..." << std::endl;
+  auto store1 = wasm::Store::make(engine.get());
+
+  std::cout << "Running in store 1..." << std::endl;
+  run_in_store(store1.get());
+  std::cout << "Live count " << live_count << std::endl;
+
+  {
+    std::cout << "Creating store 2..." << std::endl;
+    auto store2 = wasm::Store::make(engine.get());
+
+    std::cout << "Running in store 2..." << std::endl;
+    run_in_store(store2.get());
+    std::cout << "Live count " << live_count << std::endl;
+
+    std::cout << "Deleting store 2..." << std::endl;
+    std::cout << "Live count " << live_count << std::endl;
+  }
+
+  std::cout << "Running in store 1..." << std::endl;
+  run_in_store(store1.get());
+  std::cout << "Live count " << live_count << std::endl;
+
+  std::cout << "Deleting store 1..." << std::endl;
+}
+
+
 int main(int argc, const char* argv[]) {
   run();
+  std::cout << "Live count " << live_count << std::endl;
+  assert(live_count == 0);
   std::cout << "Done." << std::endl;
   return 0;
 }

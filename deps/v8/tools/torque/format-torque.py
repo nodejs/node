@@ -20,18 +20,9 @@ kPercentEscape = r'α';  # Unicode alpha
 def preprocess(input):
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
   input = re.sub(r'(\s+)operator\s*(\'[^\']+\')', r'\1/*_OPE \2*/', input)
-
-  # Mangle typeswitches to look like switch statements with the extra type
-  # information and syntax encoded in comments.
-  input = re.sub(r'(\s+)typeswitch\s*\(', r'\1/*_TYPE*/switch (', input)
-  input = re.sub(r'(\s+)case\s*\(\s*([^\:]+)\s*\)(\s*)\:\s*deferred',
-      r'\1case \2: /*_TSXDEFERRED_*/', input)
-  input = re.sub(r'(\s+)case\s*\(\s*([^\:]+)\s*\)(\s*)\:',
-      r'\1case \2: /*_TSX*/', input)
-  input = re.sub(r'(\s+)case\s*\(\s*([^\s]+)\s*\:\s*([^\:]+)\s*\)(\s*)\:\s*deferred',
-      r'\1case \3: /*_TSVDEFERRED_\2:*/', input)
-  input = re.sub(r'(\s+)case\s*\(\s*([^\s]+)\s*\:\s*([^\:]+)\s*\)(\s*)\:',
-      r'\1case \3: /*_TSV\2:*/', input)
+  input = re.sub(r'\btypeswitch\s*(\([^{]*\))\s{', r' if /*tPsW*/ \1 {', input)
+  input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*deferred\s*{', r' if /*cAsEdEfF*/ \1 {', input)
+  input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*{', r' if /*cA*/ \1 {', input)
 
   # Add extra space around | operators to fix union types later.
   while True:
@@ -65,15 +56,9 @@ def postprocess(output):
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
   output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)
   output = re.sub(r'\/\*_OPE \'([^\']+)\'\*\/', r"operator '\1'", output)
-  output = re.sub(r'\/\*_TYPE\*\/(\s*)switch', r'typeswitch', output)
-  output = re.sub(r'case (\w+)\:\s*\/\*_TSXDEFERRED_\*\/',
-      r'case (\1): deferred', output)
-  output = re.sub(r'case (\w+)\:\s*\/\*_TSX\*\/',
-      r'case (\1):', output)
-  output = re.sub(r'case (\w+)\:\s*\/\*_TSVDEFERRED_([^\:]+)\:\*\/',
-      r'case (\2: \1): deferred', output)
-  output = re.sub(r'case (\w+)\:\s*\/\*_TSV([^\:]+)\:\*\/',
-      r'case (\2: \1):', output)
+  output = re.sub(r'\bif\s*\/\*tPsW\*\/', r'typeswitch', output)
+  output = re.sub(r'\bif\s*\/\*cA\*\/\s*(\([^{]*\))\s*{', r'case \1: {', output)
+  output = re.sub(r'\bif\s*\/\*cAsEdEfF\*\/\s*(\([^{]*\))\s*{', r'case \1: deferred {', output)
   output = re.sub(r'\n_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
       r"\n    generates '\1'", output)
   output = re.sub(r'_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',

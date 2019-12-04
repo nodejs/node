@@ -17,42 +17,16 @@ class UnorderedModuleSet;
 
 // The runtime representation of an ECMAScript Source Text Module Record.
 // https://tc39.github.io/ecma262/#sec-source-text-module-records
-class SourceTextModule : public Module {
+class SourceTextModule
+    : public TorqueGeneratedSourceTextModule<SourceTextModule, Module> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST(SourceTextModule)
   DECL_VERIFIER(SourceTextModule)
   DECL_PRINTER(SourceTextModule)
-
-  // The code representing this module, or an abstraction thereof.
-  // This is either a SharedFunctionInfo, a JSFunction, a JSGeneratorObject, or
-  // a SourceTextModuleInfo, depending on the state (status) the module is in.
-  // See SourceTextModule::SourceTextModuleVerify() for the precise invariant.
-  DECL_ACCESSORS(code, Object)
-
-  // Arrays of cells corresponding to regular exports and regular imports.
-  // A cell's position in the array is determined by the cell index of the
-  // associated module entry (which coincides with the variable index of the
-  // associated variable).
-  DECL_ACCESSORS(regular_exports, FixedArray)
-  DECL_ACCESSORS(regular_imports, FixedArray)
 
   // The shared function info in case {status} is not kEvaluating, kEvaluated or
   // kErrored.
   SharedFunctionInfo GetSharedFunctionInfo() const;
-
-  // Modules imported or re-exported by this module.
-  // Corresponds 1-to-1 to the module specifier strings in
-  // SourceTextModuleInfo::module_requests.
-  DECL_ACCESSORS(requested_modules, FixedArray)
-
-  // [script]: Script from which the module originates.
-  DECL_ACCESSORS(script, Script)
-
-  // The value of import.meta inside of this module.
-  // Lazily initialized on first access. It's the hole before first access and
-  // a JSObject afterwards.
-  DECL_ACCESSORS(import_meta, Object)
 
   // Get the SourceTextModuleInfo associated with the code.
   inline SourceTextModuleInfo info() const;
@@ -71,10 +45,6 @@ class SourceTextModule : public Module {
   // exist yet, it is created.
   static Handle<JSModuleNamespace> GetModuleNamespace(
       Isolate* isolate, Handle<SourceTextModule> module, int module_request);
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(Module::kHeaderSize,
-                                TORQUE_GENERATED_SOURCE_TEXT_MODULE_FIELDS)
 
   using BodyDescriptor =
       SubclassBodyDescriptor<Module::BodyDescriptor,
@@ -135,7 +105,7 @@ class SourceTextModule : public Module {
 
   static void Reset(Isolate* isolate, Handle<SourceTextModule> module);
 
-  OBJECT_CONSTRUCTORS(SourceTextModule, Module);
+  TQ_OBJECT_CONSTRUCTORS(SourceTextModule)
 };
 
 // SourceTextModuleInfo is to SourceTextModuleDescriptor what ScopeInfo is to
@@ -186,30 +156,24 @@ class SourceTextModuleInfo : public FixedArray {
   OBJECT_CONSTRUCTORS(SourceTextModuleInfo, FixedArray);
 };
 
-class SourceTextModuleInfoEntry : public Struct {
+class SourceTextModuleInfoEntry
+    : public TorqueGeneratedSourceTextModuleInfoEntry<SourceTextModuleInfoEntry,
+                                                      Struct> {
  public:
-  DECL_CAST(SourceTextModuleInfoEntry)
   DECL_PRINTER(SourceTextModuleInfoEntry)
   DECL_VERIFIER(SourceTextModuleInfoEntry)
 
-  DECL_ACCESSORS(export_name, Object)
-  DECL_ACCESSORS(local_name, Object)
-  DECL_ACCESSORS(import_name, Object)
   DECL_INT_ACCESSORS(module_request)
   DECL_INT_ACCESSORS(cell_index)
   DECL_INT_ACCESSORS(beg_pos)
   DECL_INT_ACCESSORS(end_pos)
 
   static Handle<SourceTextModuleInfoEntry> New(
-      Isolate* isolate, Handle<Object> export_name, Handle<Object> local_name,
-      Handle<Object> import_name, int module_request, int cell_index,
-      int beg_pos, int end_pos);
+      Isolate* isolate, Handle<HeapObject> export_name,
+      Handle<HeapObject> local_name, Handle<HeapObject> import_name,
+      int module_request, int cell_index, int beg_pos, int end_pos);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      Struct::kHeaderSize,
-      TORQUE_GENERATED_SOURCE_TEXT_MODULE_INFO_ENTRY_FIELDS)
-
-  OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry, Struct);
+  TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)
 };
 
 }  // namespace internal

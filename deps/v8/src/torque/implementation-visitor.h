@@ -12,6 +12,7 @@
 #include "src/torque/cfg.h"
 #include "src/torque/declarations.h"
 #include "src/torque/global-context.h"
+#include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
@@ -52,8 +53,18 @@ class LocationReference {
   // pointer.
   static LocationReference HeapReference(VisitResult heap_reference) {
     LocationReference result;
-    DCHECK(heap_reference.type()->IsReferenceType());
+    DCHECK(StructType::MatchUnaryGeneric(heap_reference.type(),
+                                         TypeOracle::GetReferenceGeneric()));
     result.heap_reference_ = std::move(heap_reference);
+    return result;
+  }
+  // A reference to an array on the heap. That is, a tagged value, an offset to
+  // encode an inner pointer, and the number of elements.
+  static LocationReference HeapSlice(VisitResult heap_slice) {
+    LocationReference result;
+    DCHECK(StructType::MatchUnaryGeneric(heap_slice.type(),
+                                         TypeOracle::GetSliceGeneric()));
+    result.heap_slice_ = std::move(heap_slice);
     return result;
   }
   static LocationReference ArrayAccess(VisitResult base, VisitResult offset) {
@@ -69,26 +80,6 @@ class LocationReference {
     result.eval_function_ = "." + fieldname;
     result.assign_function_ = "." + fieldname + "=";
     result.call_arguments_ = {object};
-    result.index_field_ = base::nullopt;
-    return result;
-  }
-  static LocationReference IndexedFieldIndexedAccess(
-      const LocationReference& indexed_field, VisitResult index) {
-    LocationReference result;
-    DCHECK(indexed_field.IsIndexedFieldAccess());
-    std::string fieldname = *indexed_field.index_field_;
-    result.eval_function_ = "." + fieldname + "[]";
-    result.assign_function_ = "." + fieldname + "[]=";
-    result.call_arguments_ = indexed_field.call_arguments_;
-    result.call_arguments_.push_back(index);
-    result.index_field_ = fieldname;
-    return result;
-  }
-  static LocationReference IndexedFieldAccess(VisitResult object,
-                                              std::string fieldname) {
-    LocationReference result;
-    result.call_arguments_ = {object};
-    result.index_field_ = fieldname;
     return result;
   }
 
@@ -109,16 +100,26 @@ class LocationReference {
     DCHECK(IsHeapReference());
     return *heap_reference_;
   }
+  bool IsHeapSlice() const { return heap_slice_.has_value(); }
+  const VisitResult& heap_slice() const {
+    DCHECK(IsHeapSlice());
+    return *heap_slice_;
+  }
 
   const Type* ReferencedType() const {
     if (IsHeapReference()) {
-      return ReferenceType::cast(heap_reference().type())->referenced_type();
+      return *StructType::MatchUnaryGeneric(heap_reference().type(),
+                                            TypeOracle::GetReferenceGeneric());
+    } else if (IsHeapSlice()) {
+      return *StructType::MatchUnaryGeneric(heap_slice().type(),
+                                            TypeOracle::GetSliceGeneric());
     }
     return GetVisitResult().type();
   }
 
   const VisitResult& GetVisitResult() const {
     if (IsVariableAccess()) return variable();
+    if (IsHeapSlice()) return heap_slice();
     DCHECK(IsTemporary());
     return temporary();
   }
@@ -129,13 +130,6 @@ class LocationReference {
     return *temporary_description_;
   }
 
-  bool IsArrayField() const { return index_field_.has_value(); }
-  bool IsIndexedFieldAccess() const {
-    return IsArrayField() && !IsCallAccess();
-  }
-  bool IsIndexedFieldIndexedAccess() const {
-    return IsArrayField() && IsCallAccess();
-  }
   bool IsCallAccess() const {
     bool is_call_access = eval_function_.has_value();
     DCHECK_EQ(is_call_access, assign_function_.has_value());
@@ -163,10 +157,10 @@ class LocationReference {
   base::Optional<VisitResult> temporary_;
   base::Optional<std::string> temporary_description_;
   base::Optional<VisitResult> heap_reference_;
+  base::Optional<VisitResult> heap_slice_;
   base::Optional<std::string> eval_function_;
   base::Optional<std::string> assign_function_;
   VisitResultVector call_arguments_;
-  base::Optional<std::string> index_field_;
   base::Optional<Binding<LocalValue>*> binding_;
 
   LocationReference() = default;
@@ -354,6 +348,7 @@ class ImplementationVisitor {
   void GenerateClassDefinitions(const std::string& output_directory);
   void GenerateInstanceTypes(const std::string& output_directory);
   void GenerateClassVerifiers(const std::string& output_directory);
+  void GenerateClassDebugReaders(const std::string& output_directory);
   void GenerateExportedMacrosAssembler(const std::string& output_directory);
   void GenerateCSATypes(const std::string& output_directory);
   void GenerateCppForInternalClasses(const std::string& output_directory);
@@ -361,27 +356,26 @@ class ImplementationVisitor {
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
 
+  void CheckInitializersWellformed(
+      const std::string& aggregate_name,
+      const std::vector<Field>& aggregate_fields,
+      const std::vector<NameAndExpression>& initializers,
+      bool ignore_first_field = false);
+
   InitializerResults VisitInitializerResults(
-      const AggregateType* aggregate,
+      const ClassType* class_type,
       const std::vector<NameAndExpression>& expressions);
 
   void InitializeFieldFromSpread(VisitResult object, const Field& field,
                                  const InitializerResults& initializer_results);
 
-  size_t InitializeAggregateHelper(
-      const AggregateType* aggregate_type, VisitResult allocate_result,
-      const InitializerResults& initializer_results);
-
   VisitResult AddVariableObjectSize(
       VisitResult object_size, const ClassType* current_class,
       const InitializerResults& initializer_results);
 
-  void InitializeAggregate(const AggregateType* aggregate_type,
-                           VisitResult allocate_result,
-                           const InitializerResults& initializer_results);
+  void InitializeClass(const ClassType* class_type, VisitResult allocate_result,
+                       const InitializerResults& initializer_results);
 
-  VisitResult TemporaryUninitializedStruct(const StructType* struct_type,
-                                           const std::string& reason);
   VisitResult Visit(StructExpression* decl);
 
   LocationReference GetLocationReference(Expression* location);
@@ -570,7 +564,8 @@ class ImplementationVisitor {
                            const Arguments& arguments,
                            const TypeVector& specialization_types);
 
-  Method* LookupMethod(const std::string& name, LocationReference target,
+  Method* LookupMethod(const std::string& name,
+                       const AggregateType* receiver_type,
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
 
@@ -608,9 +603,8 @@ class ImplementationVisitor {
   void GenerateBranch(const VisitResult& condition, Block* true_block,
                       Block* false_block);
 
-  using VisitResultGenerator = std::function<VisitResult()>;
-  void GenerateExpressionBranch(VisitResultGenerator, Block* true_block,
-                                Block* false_block);
+  VisitResult GenerateBoolConstant(bool constant);
+
   void GenerateExpressionBranch(Expression* expression, Block* true_block,
                                 Block* false_block);
 

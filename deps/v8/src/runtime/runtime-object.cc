@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ast/prettyprinter.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/messages.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -24,13 +27,8 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                bool* is_found_out) {
   if (object->IsNullOrUndefined(isolate)) {
-    if (*key == ReadOnlyRoots(isolate).iterator_symbol()) {
-      return Runtime::ThrowIteratorError(isolate, object);
-    }
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
-        Object);
+    ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, object, key);
+    return MaybeHandle<Object>();
   }
 
   bool success = false;
@@ -46,7 +44,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
     Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kInvalidPrivateFieldRead,
+                    NewTypeError(MessageTemplate::kInvalidPrivateMemberRead,
                                  name_string, object),
                     Object);
   }
@@ -413,7 +411,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
     Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kInvalidPrivateFieldWrite,
+                    NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
                                  name_string, object),
                     Object);
   }
@@ -778,7 +776,6 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   return isolate->heap()->ToBoolean(maybe.FromJust());
 }
 
-
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -795,7 +792,6 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
-
 RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -807,13 +803,11 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   return *object;
 }
 
-
 RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewHeapNumber(0);
 }
-
 
 RUNTIME_FUNCTION(Runtime_NewObject) {
   HandleScope scope(isolate);
@@ -845,7 +839,6 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -862,11 +855,9 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   return *object;
 }
 
-
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
   return obj->IsNullOrUndefined(isolate) || obj->IsCallable();
 }
-
 
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
@@ -891,7 +882,6 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
@@ -914,8 +904,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
         nexus.ConfigureMegamorphic(PROPERTY);
       }
     } else if (nexus.ic_state() == MONOMORPHIC) {
-      if (nexus.GetFirstMap() != object->map() ||
-          nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
+      if (nexus.GetFirstMap() != object->map() || nexus.GetName() != *name) {
         nexus.ConfigureMegamorphic(PROPERTY);
       }
     }
@@ -984,14 +973,12 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
       IsFastPackedElementsKind(obj.map().elements_kind()));
 }
 
-
 RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj.IsJSReceiver());
 }
-
 
 RUNTIME_FUNCTION(Runtime_ClassOf) {
   SealHandleScope shs(isolate);
@@ -1069,9 +1056,9 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
   DCHECK_LE(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 0);
 
-  // 2. If source is undefined or null, let keys be an empty List.
-  if (source->IsUndefined(isolate) || source->IsNull(isolate)) {
-    return ReadOnlyRoots(isolate).undefined_value();
+  // If source is undefined or null, throw a non-coercible error.
+  if (source->IsNullOrUndefined(isolate)) {
+    return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, source);
   }
 
   ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
@@ -1141,7 +1128,6 @@ RUNTIME_FUNCTION(Runtime_ToNumeric) {
   RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumeric(isolate, input));
 }
 
-
 RUNTIME_FUNCTION(Runtime_ToLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -1174,7 +1160,6 @@ RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
-
 
 // ES6 section 7.4.7 CreateIterResultObject ( value, done )
 RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
@@ -1215,6 +1200,32 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
 
   if (!found.FromJust()) return ReadOnlyRoots(isolate).undefined_value();
   return *desc.ToPropertyDescriptorObject(isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(AccessorPair, pair, 0);
+  DCHECK(pair->setter().IsJSFunction());
+  return pair->setter();
+}
+
+RUNTIME_FUNCTION(Runtime_LoadPrivateGetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(AccessorPair, pair, 0);
+  DCHECK(pair->getter().IsJSFunction());
+  return pair->getter();
+}
+
+RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 2);
+  DCHECK(args[0].IsNull() || args[0].IsJSFunction());
+  DCHECK(args[1].IsNull() || args[1].IsJSFunction());
+  Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
+  pair->SetComponents(args[0], args[1]);
+  return *pair;
 }
 
 RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {

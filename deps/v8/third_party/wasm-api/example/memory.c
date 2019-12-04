@@ -132,7 +132,8 @@ int main(int argc, const char* argv[]) {
 
   // Instantiate.
   printf("Instantiating module...\n");
-  own wasm_instance_t* instance = wasm_instance_new(store, module, NULL);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, NULL, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
@@ -149,6 +150,11 @@ int main(int argc, const char* argv[]) {
   wasm_func_t* store_func = get_export_func(&exports, i++);
 
   wasm_module_delete(module);
+
+  // Try cloning.
+  own wasm_memory_t* copy = wasm_memory_copy(memory);
+  assert(wasm_memory_same(memory, copy));
+  wasm_memory_delete(copy);
 
   // Check initial memory.
   printf("Checking memory...\n");

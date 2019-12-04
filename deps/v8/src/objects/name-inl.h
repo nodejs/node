@@ -22,7 +22,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
                     Symbol::IsWellKnownSymbolBit)
-BIT_FIELD_ACCESSORS(Symbol, flags, is_public, Symbol::IsPublicBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
+                    Symbol::IsInPublicSymbolTableBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
                     Symbol::IsInterestingSymbolBit)
 

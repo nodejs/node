@@ -463,7 +463,7 @@ TEST_MONOTONICITY(Add)
 #undef TEST_MONOTONICITY
 
 TEST_F(TyperTest, Monotonicity_InstanceOf) {
-  TestBinaryMonotonicity(javascript_.InstanceOf(VectorSlotPair()));
+  TestBinaryMonotonicity(javascript_.InstanceOf(FeedbackSource()));
 }
 
 // JS BINOPS without hint

@@ -256,6 +256,13 @@
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_INSTANT, category_group, name,    \
                            TRACE_EVENT_FLAG_COPY | scope, arg1_name, arg1_val, \
                            arg2_name, arg2_val)
+#define TRACE_EVENT_INSTANT_WITH_FLAGS0(category_group, name, scope_and_flags) \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_INSTANT, category_group, name,    \
+                           scope_and_flags)
+#define TRACE_EVENT_INSTANT_WITH_FLAGS1(category_group, name, scope_and_flags, \
+                                        arg1_name, arg1_val)                   \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_INSTANT, category_group, name,    \
+                           scope_and_flags, arg1_name, arg1_val)
 
 #define TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(category_group, name, scope, \
                                             timestamp)                   \
@@ -285,12 +292,12 @@
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, \
                            TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val,    \
                            arg2_name, arg2_val)
-#define TRACE_EVENT_COPY_BEGIN0(category_group, name)                     \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, \
-                           TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_BEGIN1(category_group, name, arg1_name, arg1_val) \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name,  \
-                           TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
+#define TRACE_EVENT_BEGIN_WITH_FLAGS0(category_group, name, flags) \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, flags)
+#define TRACE_EVENT_BEGIN_WITH_FLAGS1(category_group, name, flags, arg1_name, \
+                                      arg1_val)                               \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name,     \
+                           flags, arg1_name, arg1_val)
 #define TRACE_EVENT_COPY_BEGIN2(category_group, name, arg1_name, arg1_val, \
                                 arg2_name, arg2_val)                       \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name,  \
@@ -341,12 +348,12 @@
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name,        \
                            TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val,         \
                            arg2_name, arg2_val)
-#define TRACE_EVENT_COPY_END0(category_group, name)                     \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, \
-                           TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_END1(category_group, name, arg1_name, arg1_val) \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name,  \
-                           TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
+#define TRACE_EVENT_END_WITH_FLAGS0(category_group, name, flags) \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, flags)
+#define TRACE_EVENT_END_WITH_FLAGS1(category_group, name, flags, arg1_name,    \
+                                    arg1_val)                                  \
+  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, flags, \
+                           arg1_name, arg1_val)
 #define TRACE_EVENT_COPY_END2(category_group, name, arg1_name, arg1_val, \
                               arg2_name, arg2_val)                       \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name,  \
@@ -580,6 +587,9 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                        \
       TRACE_EVENT_PHASE_ASYNC_BEGIN, category_group, name, id,             \
       TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val, arg2_name, arg2_val)
+#define TRACE_EVENT_ASYNC_BEGIN_WITH_FLAGS0(category_group, name, id, flags) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN,            \
+                                   category_group, name, id, flags)
 
 // Similar to TRACE_EVENT_ASYNC_BEGINx but with a custom |at| timestamp
 // provided.
@@ -606,6 +616,11 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
       TRACE_EVENT_PHASE_ASYNC_BEGIN, category_group, name, id,                 \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_COPY)
+#define TRACE_EVENT_ASYNC_BEGIN_WITH_TIMESTAMP_AND_FLAGS0(     \
+    category_group, name, id, timestamp, flags)                \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(          \
+      TRACE_EVENT_PHASE_ASYNC_BEGIN, category_group, name, id, \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, flags)
 
 // Records a single ASYNC_STEP_INTO event for |step| immediately. If the
 // category is not enabled, then this does nothing. The |name| and |id| must
@@ -677,6 +692,9 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                      \
       TRACE_EVENT_PHASE_ASYNC_END, category_group, name, id,             \
       TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val, arg2_name, arg2_val)
+#define TRACE_EVENT_ASYNC_END_WITH_FLAGS0(category_group, name, id, flags) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END,            \
+                                   category_group, name, id, flags)
 
 // Similar to TRACE_EVENT_ASYNC_ENDx but with a custom |at| timestamp provided.
 #define TRACE_EVENT_ASYNC_END_WITH_TIMESTAMP0(category_group, name, id, \
@@ -702,6 +720,11 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                        \
       TRACE_EVENT_PHASE_ASYNC_END, category_group, name, id,                 \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_COPY)
+#define TRACE_EVENT_ASYNC_END_WITH_TIMESTAMP_AND_FLAGS0(category_group, name, \
+                                                        id, timestamp, flags) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                         \
+      TRACE_EVENT_PHASE_ASYNC_END, category_group, name, id,                  \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, flags)
 
 // NESTABLE_ASYNC_* APIs are used to describe an async operation, which can
 // be nested within a NESTABLE_ASYNC event and/or have inner NESTABLE_ASYNC
@@ -935,6 +958,9 @@
 #define TRACE_TASK_EXECUTION(run_function, task) \
   INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
 
+#define TRACE_LOG_MESSAGE(file, message, line) \
+  INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
+
 // TRACE_EVENT_METADATA* events are information related to other
 // injected events, not events in their own right.
 #define TRACE_EVENT_METADATA1(category_group, name, arg1_name, arg1_val) \
@@ -1075,6 +1101,8 @@
 // TODO(eseckler): Remove once we have native support for typed proto events in
 // TRACE_EVENT macros.
 #define TRACE_EVENT_FLAG_TYPED_PROTO_ARGS (static_cast<unsigned int>(1 << 15))
+#define TRACE_EVENT_FLAG_JAVA_STRING_LITERALS \
+  (static_cast<unsigned int>(1 << 16))
 
 #define TRACE_EVENT_FLAG_SCOPE_MASK                          \
   (static_cast<unsigned int>(TRACE_EVENT_FLAG_SCOPE_OFFSET | \

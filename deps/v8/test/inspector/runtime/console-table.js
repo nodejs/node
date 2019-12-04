@@ -65,6 +65,18 @@ const { session, contextGroup, Protocol } =
       console.table(bigTable);`
   });
   await waitConsoleAPICalledAndDump(true /* concise */);
+  Protocol.Runtime.evaluate({
+    expression: `var table = [{a:1, b:2, c:3}, {c:3}];
+      var filter = ['c', 'b'];
+      console.table(table, filter);`
+  });
+  await waitConsoleAPICalledAndDump();
+  Protocol.Runtime.evaluate({
+    expression: `var table = [{a:1, b:2, c:3}, {c:3}];
+      var filter = ['c', 'b', 'c'];
+      console.table(table, filter);`
+  });
+  await waitConsoleAPICalledAndDump();
   InspectorTest.completeTest();
 })()
 

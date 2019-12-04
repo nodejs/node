@@ -14,7 +14,7 @@ using ::wasm::TableType;
 
 namespace {
 
-own<Trap*> Negate(const Val args[], Val results[]) {
+own<Trap> Negate(const Val args[], Val results[]) {
   results[0] = Val(-args[0].i32());
   return nullptr;
 }
@@ -22,14 +22,14 @@ own<Trap*> Negate(const Val args[], Val results[]) {
 void ExpectTrap(const Func* func, int arg1, int arg2) {
   Val args[2] = {Val::i32(arg1), Val::i32(arg2)};
   Val results[1];
-  own<Trap*> trap = func->call(args, results);
+  own<Trap> trap = func->call(args, results);
   EXPECT_NE(nullptr, trap);
 }
 
 void ExpectResult(int expected, const Func* func, int arg1, int arg2) {
   Val args[2] = {Val::i32(arg1), Val::i32(arg2)};
   Val results[1];
-  own<Trap*> trap = func->call(args, results);
+  own<Trap> trap = func->call(args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(expected, results[0].i32());
 }
@@ -60,7 +60,10 @@ TEST_F(WasmCapiTest, Table) {
   Func* call_indirect = GetExportedFunction(1);
   Func* f = GetExportedFunction(2);
   Func* g = GetExportedFunction(3);
-  own<Func*> h = Func::make(store(), cpp_i_i_sig(), Negate);
+  own<Func> h = Func::make(store(), cpp_i_i_sig(), Negate);
+
+  // Try cloning.
+  EXPECT_TRUE(table->copy()->same(table));
 
   // Check initial table state.
   EXPECT_EQ(2u, table->size());
@@ -103,9 +106,9 @@ TEST_F(WasmCapiTest, Table) {
 
   // Create standalone table.
   // TODO(wasm+): Once Wasm allows multiple tables, turn this into import.
-  own<TableType*> tabletype =
+  own<TableType> tabletype =
       TableType::make(ValType::make(FUNCREF), Limits(5, 5));
-  own<Table*> table2 = Table::make(store(), tabletype.get());
+  own<Table> table2 = Table::make(store(), tabletype.get());
   EXPECT_EQ(5u, table2->size());
   EXPECT_FALSE(table2->grow(1));
   EXPECT_TRUE(table2->grow(0));

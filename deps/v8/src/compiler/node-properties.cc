@@ -380,7 +380,10 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
     ObjectRef target = mtarget.Ref(broker);
     JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
     if (newtarget.map().has_prototype_slot() && newtarget.has_initial_map()) {
-      if (broker->mode() == JSHeapBroker::kSerializing) newtarget.Serialize();
+      if (!newtarget.serialized()) {
+        TRACE_BROKER_MISSING(broker, "initial map on " << newtarget);
+        return base::nullopt;
+      }
       MapRef initial_map = newtarget.initial_map();
       if (initial_map.GetConstructor().equals(target)) {
         DCHECK(target.AsJSFunction().map().is_constructor());
@@ -449,7 +452,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
       }
       case IrOpcode::kJSCreatePromise: {
         if (IsSame(receiver, effect)) {
-          *maps_return = ZoneHandleSet<Map>(broker->native_context()
+          *maps_return = ZoneHandleSet<Map>(broker->target_native_context()
                                                 .promise_function()
                                                 .initial_map()
                                                 .object());

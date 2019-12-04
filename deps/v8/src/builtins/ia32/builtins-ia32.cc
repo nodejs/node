@@ -72,7 +72,7 @@ void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
+      ExternalReference::address_of_real_jslimit(masm->isolate());
   // Compute the space that is left as a negative number in scratch. If
   // we already overflowed, this will be a positive number.
   __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
@@ -2676,7 +2676,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Push(kWasmCompileLazyFuncIndexRegister);
     // Load the correct CEntry builtin from the instance object.
     __ mov(ecx, FieldOperand(kWasmInstanceRegister,
-                             WasmInstanceObject::kCEntryStubOffset));
+                             WasmInstanceObject::kIsolateRootOffset));
+    auto centry_id =
+        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
+    __ mov(ecx, MemOperand(ecx, IsolateData::builtin_slot_offset(centry_id)));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());

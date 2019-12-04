@@ -151,8 +151,11 @@ BUILTIN(FinalizationGroupCleanupSome) {
   // Don't do set_scheduled_for_cleanup(false); we still have the microtask
   // scheduled and don't want to schedule another one in case the user never
   // executes microtasks.
-  JSFinalizationGroup::Cleanup(isolate, finalization_group, callback);
-
+  if (JSFinalizationGroup::Cleanup(isolate, finalization_group, callback)
+          .IsNothing()) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

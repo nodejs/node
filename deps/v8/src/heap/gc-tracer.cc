@@ -26,6 +26,9 @@ static size_t CountTotalHolesSize(Heap* heap) {
   }
   return holes_size;
 }
+WorkerThreadRuntimeCallStats* GCTracer::worker_thread_runtime_call_stats() {
+  return heap_->isolate()->counters()->worker_thread_runtime_call_stats();
+}
 
 RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
   STATIC_ASSERT(Scope::FIRST_SCOPE == Scope::MC_INCREMENTAL);
@@ -34,10 +37,20 @@ RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
       static_cast<int>(id));
 }
 
+RuntimeCallCounterId GCTracer::RCSCounterFromBackgroundScope(
+    BackgroundScope::ScopeId id) {
+  STATIC_ASSERT(Scope::FIRST_BACKGROUND_SCOPE ==
+                Scope::BACKGROUND_ARRAY_BUFFER_FREE);
+  STATIC_ASSERT(
+      0 == static_cast<int>(BackgroundScope::BACKGROUND_ARRAY_BUFFER_FREE));
+  return static_cast<RuntimeCallCounterId>(
+      static_cast<int>(RCSCounterFromScope(Scope::FIRST_BACKGROUND_SCOPE)) +
+      static_cast<int>(id));
+}
+
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
   runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
@@ -46,30 +59,25 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
 GCTracer::Scope::~Scope() {
   tracer_->AddScopeSample(
       scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (V8_LIKELY(runtime_stats_ == nullptr)) return;
   runtime_stats_->Leave(&timer_);
 }
 
-GCTracer::BackgroundScope::BackgroundScope(GCTracer* tracer, ScopeId scope)
-    : tracer_(tracer), scope_(scope), runtime_stats_enabled_(false) {
+GCTracer::BackgroundScope::BackgroundScope(GCTracer* tracer, ScopeId scope,
+                                           RuntimeCallStats* runtime_stats)
+    : tracer_(tracer), scope_(scope), runtime_stats_(runtime_stats) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  timer_.Start(&counter_, nullptr);
-  runtime_stats_enabled_ = true;
+  runtime_stats_->Enter(&timer_,
+                        GCTracer::RCSCounterFromBackgroundScope(scope));
 }
 
 GCTracer::BackgroundScope::~BackgroundScope() {
   double duration_ms =
       tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_;
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_LIKELY(!runtime_stats_enabled_)) {
-    tracer_->AddBackgroundScopeSample(scope_, duration_ms, nullptr);
-  } else {
-    timer_.Stop();
-    tracer_->AddBackgroundScopeSample(scope_, duration_ms, &counter_);
-  }
+  tracer_->AddBackgroundScopeSample(scope_, duration_ms);
+  if (V8_LIKELY(runtime_stats_ == nullptr)) return;
+  runtime_stats_->Leave(&timer_);
 }
 
 const char* GCTracer::Scope::Name(ScopeId id) {
@@ -170,7 +178,6 @@ GCTracer::GCTracer(Heap* heap)
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
-    background_counter_[i].runtime_call_counter = RuntimeCallCounter(nullptr);
   }
 }
 
@@ -204,7 +211,6 @@ void GCTracer::ResetForTesting() {
   base::MutexGuard guard(&background_counter_mutex_);
   for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
-    background_counter_[i].runtime_call_counter.Reset();
   }
 }
 
@@ -390,6 +396,12 @@ void GCTracer::NotifySweepingCompleted() {
     PrintIsolate(heap_->isolate(),
                  "FreeLists statistics after sweeping completed:\n");
     heap_->PrintFreeListsStats();
+  }
+  if (FLAG_trace_allocations_origins) {
+    heap_->new_space()->PrintAllocationsOrigins();
+    heap_->old_space()->PrintAllocationsOrigins();
+    heap_->code_space()->PrintAllocationsOrigins();
+    heap_->map_space()->PrintAllocationsOrigins();
   }
 }
 
@@ -1138,30 +1150,13 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
         background_counter_[first_background_scope + i].total_duration_ms;
     background_counter_[first_background_scope + i].total_duration_ms = 0;
   }
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  RuntimeCallStats* runtime_stats =
-      heap_->isolate()->counters()->runtime_call_stats();
-  if (!runtime_stats) return;
-  for (int i = 0; i < background_mc_scopes; i++) {
-    runtime_stats
-        ->GetCounter(GCTracer::RCSCounterFromScope(
-            static_cast<Scope::ScopeId>(first_global_scope + i)))
-        ->Add(&background_counter_[first_background_scope + i]
-                   .runtime_call_counter);
-    background_counter_[first_background_scope + i]
-        .runtime_call_counter.Reset();
-  }
 }
 
-void GCTracer::AddBackgroundScopeSample(
-    BackgroundScope::ScopeId scope, double duration,
-    RuntimeCallCounter* runtime_call_counter) {
+void GCTracer::AddBackgroundScopeSample(BackgroundScope::ScopeId scope,
+                                        double duration) {
   base::MutexGuard guard(&background_counter_mutex_);
   BackgroundCounter& counter = background_counter_[scope];
   counter.total_duration_ms += duration;
-  if (runtime_call_counter) {
-    counter.runtime_call_counter.Add(runtime_call_counter);
-  }
 }
 
 void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
@@ -1197,10 +1192,7 @@ void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
       DCHECK_GT(overall_marking_time, 0.0);
       const double overall_v8_marking_time =
           overall_marking_time -
-          current_.scopes[Scope::MC_MARK_EMBEDDER_PROLOGUE] -
-          current_.scopes[Scope::MC_MARK_EMBEDDER_TRACING] -
-          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE] -
-          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING];
+          current_.scopes[Scope::MC_MARK_EMBEDDER_TRACING];
       DCHECK_GT(overall_v8_marking_time, 0.0);
       const int main_thread_marking_throughput_mb_per_s =
           static_cast<int>(static_cast<double>(heap_->SizeOfObjects()) /

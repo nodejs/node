@@ -37,6 +37,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "src/profiler/tick-sample.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/trace-extension.h"
 

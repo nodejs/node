@@ -5,15 +5,15 @@
 namespace array_map {
   transitioning javascript builtin
   ArrayMapLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, array: Object, initialK: Object,
-      length: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
+      length: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
     //
     // Also, this great mass of casts is necessary because the signature
-    // of Torque javascript builtins requires Object type for all parameters
+    // of Torque javascript builtins requires JSAny type for all parameters
     // other than {context}.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
@@ -28,9 +28,9 @@ namespace array_map {
 
   transitioning javascript builtin
   ArrayMapLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, array: Object, initialK: Object,
-      length: Object, result: Object): Object {
+      js-implicit context: Context, receiver: JSAny)(
+      callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
+      length: JSAny, result: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -57,9 +57,9 @@ namespace array_map {
   }
 
   transitioning builtin ArrayMapLoopContinuation(implicit context: Context)(
-      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny,
       array: JSReceiver, o: JSReceiver, initialK: Number,
-      length: Number): Object {
+      length: Number): JSAny {
     // 6. Let k be 0.
     // 7. Repeat, while k < len
     for (let k: Number = initialK; k < length; k++) {
@@ -73,10 +73,10 @@ namespace array_map {
       // 7c. If kPresent is true, then:
       if (kPresent == True) {
         //  i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(o, k);
+        const kValue: JSAny = GetProperty(o, k);
 
         // ii. Let mapped_value be ? Call(callbackfn, T, kValue, k, O).
-        const mappedValue: Object =
+        const mappedValue: JSAny =
             Call(context, callbackfn, thisArg, kValue, k, o);
 
         // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
@@ -127,12 +127,12 @@ namespace array_map {
             SmiUntag(length), kAllowLargeObjectAllocation);
         a = NewJSArray(map, this.fixedArray);
         for (let i: Smi = 0; i < validLength; i++) {
-          typeswitch (this.fixedArray.objects[i]) {
+          typeswitch (
+              UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
             case (n: Number): {
               elements.floats[i] = Convert<float64>(n);
             }
-            case (h: HeapObject): {
-              assert(h == TheHole);
+            case (TheHole): {
             }
           }
         }
@@ -147,7 +147,7 @@ namespace array_map {
       return a;
     }
 
-    StoreResult(implicit context: Context)(index: Smi, result: Object) {
+    StoreResult(implicit context: Context)(index: Smi, result: JSAny) {
       typeswitch (result) {
         case (s: Smi): {
           this.fixedArray.objects[index] = s;
@@ -156,7 +156,7 @@ namespace array_map {
           this.onlySmis = false;
           this.fixedArray.objects[index] = s;
         }
-        case (s: HeapObject): {
+        case (s: JSAnyNotNumber): {
           this.onlySmis = false;
           this.onlyNumbers = false;
           this.fixedArray.objects[index] = s;
@@ -185,7 +185,7 @@ namespace array_map {
 
   transitioning macro FastArrayMap(implicit context: Context)(
       fastO: FastJSArrayForRead, len: Smi, callbackfn: Callable,
-      thisArg: Object): JSArray
+      thisArg: JSAny): JSArray
       labels Bailout(JSArray, Smi) {
     let k: Smi = 0;
     let fastOW = NewFastJSArrayForReadWitness(fastO);
@@ -201,9 +201,9 @@ namespace array_map {
         if (k >= fastOW.Get().length) goto PrepareBailout(k);
 
         try {
-          const value: Object = fastOW.LoadElementNoHole(k)
+          const value: JSAny = fastOW.LoadElementNoHole(k)
               otherwise FoundHole;
-          const result: Object =
+          const result: JSAny =
               Call(context, callbackfn, thisArg, value, k, fastOW.Get());
           vector.StoreResult(k, result);
         }
@@ -224,8 +224,7 @@ namespace array_map {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.map
   transitioning javascript builtin
-  ArrayMap(js-implicit context: Context, receiver: Object)(...arguments):
-      Object {
+  ArrayMap(js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.map');
 
@@ -241,7 +240,7 @@ namespace array_map {
       const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
+      const thisArg: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
 
       let array: JSReceiver;
       let k: Number = 0;

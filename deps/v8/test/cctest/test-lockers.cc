@@ -82,7 +82,7 @@ void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->Exit();
     v8::Unlocker unlocker(isolate);
     // Starts the deoptimizing thread.
-    deoptimizer->Start();
+    CHECK(deoptimizer->Start());
     // Waits for deoptimization to finish.
     deoptimizer->Join();
   }
@@ -107,7 +107,7 @@ void UnlockForDeoptimizationIfReady(
       isolate->Exit();
       v8::Unlocker unlocker(isolate);
       // Starts the thread that deoptimizes the function.
-      deoptimizer->Start();
+      CHECK(deoptimizer->Start());
       // Waits for the deoptimizing thread to finish.
       deoptimizer->Join();
     }
@@ -339,7 +339,7 @@ TEST(KangarooIsolates) {
     CompileRun("function getValue() { return 30; }");
     thread1.reset(new KangarooThread(isolate, context));
   }
-  thread1->Start();
+  CHECK(thread1->Start());
   thread1->Join();
 }
 
@@ -364,9 +364,7 @@ class JoinableThread {
 
   virtual ~JoinableThread() = default;
 
-  void Start() {
-    thread_.Start();
-  }
+  void Start() { CHECK(thread_.Start()); }
 
   void Join() {
     semaphore_.Wait();

@@ -25,7 +25,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
     InstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
-  Schedule* schedule = Export();
+  Schedule* schedule = ExportForTest();
   if (FLAG_trace_turbo) {
     StdoutStream{} << "=== Schedule before instruction selection ==="
                    << std::endl
@@ -40,11 +40,13 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
   TickCounter tick_counter;
+  size_t max_unoptimized_frame_height = 0;
   InstructionSelector selector(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter,
-      source_position_mode, features, InstructionSelector::kDisableScheduling,
+      &max_unoptimized_frame_height, source_position_mode, features,
+      InstructionSelector::kDisableScheduling,
       InstructionSelector::kEnableRootsRelativeAddressing,
       PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();

@@ -81,6 +81,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   //
 
   static void MoveTracedGlobal(Address** from, Address** to);
+  static void CopyTracedGlobal(const Address* const* from, Address** to);
   static void DestroyTraced(Address* location);
   static void SetFinalizationCallbackForTraced(
       Address* location, void* parameter,
@@ -101,8 +102,9 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
     return Handle<T>::cast(Create(Object(value)));
   }
 
-  Handle<Object> CreateTraced(Object value, Address* slot);
-  Handle<Object> CreateTraced(Address value, Address* slot);
+  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor);
+  Handle<Object> CreateTraced(Address value, Address* slot,
+                              bool has_destructor);
 
   void RecordStats(HeapStats* stats);
 

@@ -51,8 +51,8 @@ TEST_F(WasmCapiTest, Reflect) {
 
   Instantiate(nullptr);
 
-  vec<ExportType*> export_types = module()->exports();
-  const vec<Extern*>& exports = this->exports();
+  ownvec<ExportType> export_types = module()->exports();
+  const ownvec<Extern>& exports = this->exports();
   EXPECT_EQ(exports.size(), export_types.size());
   EXPECT_EQ(4u, exports.size());
   for (size_t i = 0; i < exports.size(); i++) {
@@ -62,13 +62,13 @@ TEST_F(WasmCapiTest, Reflect) {
     if (kind == ::wasm::EXTERN_FUNC) {
       ExpectName(kFuncName, export_types[i]->name());
       const FuncType* type = extern_type->func();
-      const vec<ValType*>& params = type->params();
+      const ownvec<ValType>& params = type->params();
       EXPECT_EQ(4u, params.size());
       EXPECT_EQ(::wasm::I32, params[0]->kind());
       EXPECT_EQ(::wasm::I64, params[1]->kind());
       EXPECT_EQ(::wasm::F32, params[2]->kind());
       EXPECT_EQ(::wasm::F64, params[3]->kind());
-      const vec<ValType*>& results = type->results();
+      const ownvec<ValType>& results = type->results();
       EXPECT_EQ(2u, results.size());
       EXPECT_EQ(::wasm::I32, results[0]->kind());
       EXPECT_EQ(::wasm::ANYREF, results[1]->kind());

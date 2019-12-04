@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE IrregexpInterpreter {
+class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
  public:
   enum Result {
     FAILURE = RegExp::kInternalRegExpFailure,
@@ -21,10 +21,37 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter {
     RETRY = RegExp::kInternalRegExpRetry,
   };
 
-  // The caller is responsible for initializing registers before each call.
-  static Result Match(Isolate* isolate, Handle<ByteArray> code_array,
-                      Handle<String> subject_string, int* registers,
-                      int start_position);
+  // In case a StackOverflow occurs, a StackOverflowException is created and
+  // EXCEPTION is returned.
+  static Result MatchForCallFromRuntime(Isolate* isolate,
+                                        Handle<JSRegExp> regexp,
+                                        Handle<String> subject_string,
+                                        int* registers, int registers_length,
+                                        int start_position);
+
+  // In case a StackOverflow occurs, EXCEPTION is returned. The caller is
+  // responsible for creating the exception.
+  // Arguments input_start, input_end and backtrack_stack are
+  // unused. They are only passed to match the signature of the native irregex
+  // code.
+  static Result MatchForCallFromJs(Address subject, int32_t start_position,
+                                   Address input_start, Address input_end,
+                                   int* registers, int32_t registers_length,
+                                   Address backtrack_stack,
+                                   RegExp::CallOrigin call_origin,
+                                   Isolate* isolate, Address regexp);
+
+  static Result MatchInternal(Isolate* isolate, ByteArray code_array,
+                              String subject_string, int* registers,
+                              int registers_length, int start_position,
+                              RegExp::CallOrigin call_origin);
+
+  static void Disassemble(ByteArray byte_array, const std::string& pattern);
+
+ private:
+  static Result Match(Isolate* isolate, JSRegExp regexp, String subject_string,
+                      int* registers, int registers_length, int start_position,
+                      RegExp::CallOrigin call_origin);
 };
 
 }  // namespace internal

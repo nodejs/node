@@ -2955,11 +2955,8 @@ THREADED_TEST(SetAlignedPointerInInternalFields) {
 
   obj->SetAlignedPointerInInternalFields(2, indices, values);
   CcTest::CollectAllGarbage();
-  {
-    v8::SealHandleScope no_handle_leak(isolate);
-    CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
-    CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
-  }
+  CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
+  CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(1));
 
   indices[0] = 1;
   indices[1] = 0;
@@ -3012,7 +3009,6 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   }
   CcTest::CollectAllGarbage();
   for (int i = 0; i < 100; i++) {
-    v8::SealHandleScope no_handle_leak(env->GetIsolate());
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
   }
 }
@@ -7632,18 +7628,6 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &SetFlag,
                           v8::WeakCallbackType::kParameter);
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  // MarkIndependent is marked deprecated but we still rely on it temporarily.
-  CHECK(!object_b.handle.IsIndependent());
-  object_a.handle.MarkIndependent();
-  object_b.handle.MarkIndependent();
-  CHECK(object_b.handle.IsIndependent());
-#if __clang__
-#pragma clang diagnostic pop
-#endif
   if (global_gc) {
     CcTest::CollectAllGarbage();
   } else {
@@ -7794,19 +7778,6 @@ void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &ResetUseValueAndSetFlag,
                           v8::WeakCallbackType::kParameter);
-  if (!global_gc) {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-    // MarkIndependent is marked deprecated but we still rely on it temporarily.
-    object_a.handle.MarkIndependent();
-    object_b.handle.MarkIndependent();
-    CHECK(object_b.handle.IsIndependent());
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-  }
   if (global_gc) {
     CcTest::PreciseCollectAllGarbage();
   } else {
@@ -7874,16 +7845,6 @@ THREADED_TEST(GCFromWeakCallbacks) {
       object.flag = false;
       object.handle.SetWeak(&object, gc_forcing_callback[inner_gc],
                             v8::WeakCallbackType::kParameter);
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-      // MarkIndependent is marked deprecated but we still rely on it
-      // temporarily.
-      object.handle.MarkIndependent();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
       invoke_gc[outer_gc]();
       EmptyMessageQueues(isolate);
       CHECK(object.flag);
@@ -13014,7 +12975,7 @@ void ApiTestFuzzer::SetUp(PartOfTest part) {
     RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(i + start);
   }
   for (int i = 0; i < active_tests_; i++) {
-    RegisterThreadedTest::nth(i)->fuzzer_->Start();
+    CHECK(RegisterThreadedTest::nth(i)->fuzzer_->Start());
   }
 }
 
@@ -18425,8 +18386,8 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   IsolateThread thread2(12);
 
   // Compute some fibonacci numbers on 3 threads in 3 isolates.
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
 
   int result1 = CalcFibonacci(CcTest::isolate(), 21);
   int result2 = CalcFibonacci(CcTest::isolate(), 12);
@@ -18520,7 +18481,7 @@ class InitDefaultIsolateThread : public v8::base::Thread {
 
 static void InitializeTestHelper(InitDefaultIsolateThread::TestCase testCase) {
   InitDefaultIsolateThread thread(testCase);
-  thread.Start();
+  CHECK(thread.Start());
   thread.Join();
   CHECK(thread.result());
 }
@@ -19992,6 +19953,71 @@ TEST(ScopedMicrotasks) {
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   {
     v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    env->GetIsolate()->EnqueueMicrotask(
+        Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+    CompileRun("var ext1Calls = 0;");
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    ExpectInt32("ext1Calls", 1);
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    env->GetIsolate()->EnqueueMicrotask(
+        Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+    CompileRun("throw new Error()");
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    ExpectInt32("ext1Calls", 2);
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    env->GetIsolate()->EnqueueMicrotask(
+        Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+    v8::TryCatch try_catch(env->GetIsolate());
+    CompileRun("throw new Error()");
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    ExpectInt32("ext1Calls", 3);
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    env->GetIsolate()->EnqueueMicrotask(
+        Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+    env->GetIsolate()->TerminateExecution();
+    {
+      v8::MicrotasksScope scope2(env->GetIsolate(),
+                                 v8::MicrotasksScope::kRunMicrotasks);
+      env->GetIsolate()->EnqueueMicrotask(
+          Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+    }
+  }
+  env->GetIsolate()->CancelTerminateExecution();
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+    ExpectInt32("ext1Calls", 3);
+    env->GetIsolate()->EnqueueMicrotask(
+        Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+  }
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
+                               v8::MicrotasksScope::kRunMicrotasks);
+
+    ExpectInt32("ext1Calls", 4);
+  }
+
+  {
+    v8::MicrotasksScope scope1(env->GetIsolate(),
                                v8::MicrotasksScope::kDoNotRunMicrotasks);
     env->GetIsolate()->EnqueueMicrotask(
         Function::New(env.local(), MicrotaskOne).ToLocalChecked());
@@ -20785,7 +20811,7 @@ class ThreadInterruptTest {
 
   void RunTest() {
     InterruptThread i_thread(this);
-    i_thread.Start();
+    CHECK(i_thread.Start());
 
     sem_.Wait();
     CHECK_EQ(kExpectedValue, sem_value_);
@@ -21048,7 +21074,7 @@ class RegExpInterruptTest {
     v8::HandleScope handle_scope(isolate_);
 
     i_thread.SetTestBody(test_body_fn);
-    i_thread.Start();
+    CHECK(i_thread.Start());
 
     TestBody();
 
@@ -21252,7 +21278,7 @@ class RequestInterruptTestBaseWithSimpleInterrupt
  public:
   RequestInterruptTestBaseWithSimpleInterrupt() : i_thread(this) { }
 
-  void StartInterruptThread() override { i_thread.Start(); }
+  void StartInterruptThread() override { CHECK(i_thread.Start()); }
 
  private:
   class InterruptThread : public v8::base::Thread {
@@ -21483,7 +21509,7 @@ class RequestMultipleInterrupts : public RequestInterruptTestBase {
  public:
   RequestMultipleInterrupts() : i_thread(this), counter_(0) {}
 
-  void StartInterruptThread() override { i_thread.Start(); }
+  void StartInterruptThread() override { CHECK(i_thread.Start()); }
 
   void TestBody() override {
     Local<Function> func = Function::New(env_.local(), ShouldContinueCallback,
@@ -24890,7 +24916,7 @@ TEST(FutexInterruption) {
   FutexInterruptionThread timeout_thread(isolate);
 
   v8::TryCatch try_catch(CcTest::isolate());
-  timeout_thread.Start();
+  CHECK(timeout_thread.Start());
 
   CompileRun(
       "var ab = new SharedArrayBuffer(4);"
@@ -25307,7 +25333,7 @@ TEST(MemoryPressure) {
     LocalContext env;
     MemoryPressureThread memory_pressure_thread(
         isolate, v8::MemoryPressureLevel::kCritical);
-    memory_pressure_thread.Start();
+    CHECK(memory_pressure_thread.Start());
     memory_pressure_thread.Join();
     // This should trigger GC.
     CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -26119,7 +26145,7 @@ void AtomicsWaitCallbackForTesting(
         break;
       case AtomicsWaitCallbackAction::StopFromThreadAndThrow:
         info->stop_thread = v8::base::make_unique<StopAtomicsWaitThread>(info);
-        info->stop_thread->Start();
+        CHECK(info->stop_thread->Start());
         break;
       case AtomicsWaitCallbackAction::KeepWaiting:
         break;

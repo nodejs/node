@@ -410,6 +410,12 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK(!compilation_info->has_asm_wasm_data());
     DCHECK(!shared_info->HasFeedbackMetadata());
 
+    // If the function failed asm-wasm compilation, mark asm_wasm as broken
+    // to ensure we don't try to compile as asm-wasm.
+    if (compilation_info->literal()->scope()->IsAsmModule()) {
+      shared_info->set_is_asm_wasm_broken(true);
+    }
+
     InstallBytecodeArray(compilation_info->bytecode_array(), shared_info,
                          parse_info, isolate);
 
@@ -529,20 +535,16 @@ std::unique_ptr<UnoptimizedCompilationJob> GenerateUnoptimizedCode(
   DisallowHeapAccess no_heap_access;
   DCHECK(inner_function_jobs->empty());
 
-  if (!Compiler::Analyze(parse_info)) {
-    return std::unique_ptr<UnoptimizedCompilationJob>();
+  std::unique_ptr<UnoptimizedCompilationJob> job;
+  if (Compiler::Analyze(parse_info)) {
+    job = ExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
+                                        allocator, inner_function_jobs);
   }
-
-  // Prepare and execute compilation of the outer-most function.
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
-      ExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
-                                    allocator, inner_function_jobs));
-  if (!outer_function_job) return std::unique_ptr<UnoptimizedCompilationJob>();
 
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
 
-  return outer_function_job;
+  return job;
 }
 
 MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
@@ -1181,6 +1183,9 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   DCHECK(shared_info->HasBytecodeArray());
   DCHECK(!shared_info->GetBytecodeArray().HasSourcePositionTable());
 
+  // Source position collection should be context independent.
+  NullContextScope null_context_scope(isolate);
+
   // Collecting source positions requires allocating a new source position
   // table.
   DCHECK(AllowHeapAllocation::IsAllowed());
@@ -1215,59 +1220,51 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   parse_info.set_collect_source_positions();
   if (FLAG_allow_natives_syntax) parse_info.set_allow_natives_syntax();
 
-  // Parse and update ParseInfo with the results.
-  if (!parsing::ParseAny(&parse_info, shared_info, isolate)) {
+  // Parse and update ParseInfo with the results. Don't update parsing
+  // statistics since we've already parsed the code before.
+  if (!parsing::ParseAny(&parse_info, shared_info, isolate,
+                         parsing::ReportErrorsAndStatisticsMode::kNo)) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
     return FailWithPendingException(
         isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
   }
 
+  // Character stream shouldn't be used again.
+  parse_info.ResetCharacterStream();
+
   // Generate the unoptimized bytecode.
   // TODO(v8:8510): Consider forcing preparsing of inner functions to avoid
   // wasting time fully parsing them when they won't ever be used.
-  UnoptimizedCompilationJobList inner_function_jobs;
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(&parse_info, isolate->allocator(),
-                              &inner_function_jobs));
-  if (!outer_function_job) {
-    // Recompiling failed probably as a result of stack exhaustion.
-    bytecode->SetSourcePositionsFailedToCollect();
-    return FailWithPendingException(
-        isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
-  }
-
-  DCHECK(outer_function_job->compilation_info()->collect_source_positions());
-
-  // TODO(v8:8510) Avoid re-allocating bytecode array/constant pool and
-  // re-internalizeing the ast values. Maybe we could use the
-  // unoptimized_compilation_flag to signal that all we need is the source
-  // position table (and we could do the DCHECK that the bytecode array is the
-  // same in the bytecode-generator, by comparing the real bytecode array on the
-  // SFI with the off-heap bytecode array).
-
-  // Internalize ast values onto the heap.
-  parse_info.ast_value_factory()->Internalize(isolate);
-
+  std::unique_ptr<UnoptimizedCompilationJob> job;
   {
-    // Allocate scope infos for the literal.
-    DeclarationScope::AllocateScopeInfos(&parse_info, isolate);
-    CHECK_EQ(outer_function_job->FinalizeJob(shared_info, isolate),
-             CompilationJob::SUCCEEDED);
+    if (!Compiler::Analyze(&parse_info)) {
+      // Recompiling failed probably as a result of stack exhaustion.
+      bytecode->SetSourcePositionsFailedToCollect();
+      return FailWithPendingException(
+          isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
+    }
+
+    job = interpreter::Interpreter::NewSourcePositionCollectionJob(
+        &parse_info, parse_info.literal(), bytecode, isolate->allocator());
+
+    if (!job || job->ExecuteJob() != CompilationJob::SUCCEEDED ||
+        job->FinalizeJob(shared_info, isolate) != CompilationJob::SUCCEEDED) {
+      // Recompiling failed probably as a result of stack exhaustion.
+      bytecode->SetSourcePositionsFailedToCollect();
+      return FailWithPendingException(
+          isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
+    }
   }
 
-  // Update the source position table on the original bytecode.
-  DCHECK(bytecode->IsBytecodeEqual(
-      *outer_function_job->compilation_info()->bytecode_array()));
-  DCHECK(outer_function_job->compilation_info()->has_bytecode_array());
-  ByteArray source_position_table = outer_function_job->compilation_info()
-                                        ->bytecode_array()
-                                        ->SourcePositionTable();
-  bytecode->set_source_position_table(source_position_table);
+  DCHECK(job->compilation_info()->collect_source_positions());
+
   // If debugging, make sure that instrumented bytecode has the source position
   // table set on it as well.
   if (shared_info->HasDebugInfo() &&
       shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    ByteArray source_position_table =
+        job->compilation_info()->bytecode_array()->SourcePositionTable();
     shared_info->GetDebugBytecodeArray().set_source_position_table(
         source_position_table);
   }
@@ -1352,6 +1349,16 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
     // Collect source positions immediately to try and flush out bytecode
     // mismatches.
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+
+    // Do the same for eagerly compiled inner functions.
+    for (auto&& inner_job : inner_function_jobs) {
+      Handle<SharedFunctionInfo> inner_shared_info =
+          Compiler::GetSharedFunctionInfo(
+              inner_job->compilation_info()->literal(), parse_info.script(),
+              isolate);
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate,
+                                                         inner_shared_info);
+    }
   }
 
   return true;
@@ -2110,7 +2117,11 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     script->set_wrapped_arguments(*arguments);
 
     parse_info.set_eval();  // Use an eval scope as declaration scope.
-    parse_info.set_wrapped_as_function();
+    parse_info.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
+    // TODO(delphick): Remove this and instead make the wrapped and wrapper
+    // functions fully non-lazy instead thus preventing source positions from
+    // being omitted.
+    parse_info.set_collect_source_positions(true);
     // parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
@@ -2217,7 +2228,32 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // If we found an existing shared function info, return it.
   Handle<SharedFunctionInfo> existing;
-  if (maybe_existing.ToHandle(&existing)) return existing;
+  if (maybe_existing.ToHandle(&existing)) {
+    // If the function has been uncompiled (bytecode flushed) it will have lost
+    // any preparsed data. If we produced preparsed data during this compile for
+    // this function, replace the uncompiled data with one that includes it.
+    if (literal->produced_preparse_data() != nullptr &&
+        existing->HasUncompiledDataWithoutPreparseData()) {
+      Handle<UncompiledData> existing_uncompiled_data =
+          handle(existing->uncompiled_data(), isolate);
+      DCHECK_EQ(literal->start_position(),
+                existing_uncompiled_data->start_position());
+      DCHECK_EQ(literal->end_position(),
+                existing_uncompiled_data->end_position());
+      // Use existing uncompiled data's inferred name as it may be more
+      // accurate than the literal we preparsed.
+      Handle<String> inferred_name =
+          handle(existing_uncompiled_data->inferred_name(), isolate);
+      Handle<PreparseData> preparse_data =
+          literal->produced_preparse_data()->Serialize(isolate);
+      Handle<UncompiledData> new_uncompiled_data =
+          isolate->factory()->NewUncompiledDataWithPreparseData(
+              inferred_name, existing_uncompiled_data->start_position(),
+              existing_uncompiled_data->end_position(), preparse_data);
+      existing->set_uncompiled_data(*new_uncompiled_data);
+    }
+    return existing;
+  }
 
   // Allocate a shared function info object which will be compiled lazily.
   Handle<SharedFunctionInfo> result =
@@ -2294,8 +2330,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   return CompilationJob::FAILED;
 }
 
-void Compiler::PostInstantiation(Handle<JSFunction> function,
-                                 AllocationType allocation) {
+void Compiler::PostInstantiation(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope());

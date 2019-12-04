@@ -42,7 +42,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   void Free(void* p, size_t) override {}
 };
 
-static void DumpKnownMap(i::Heap* heap, const char* space_name,
+static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
                          i::HeapObject object) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName) \
   if (root_name == nullptr && object == roots.name()) root_name = #CamelName;
@@ -59,14 +59,14 @@ static void DumpKnownMap(i::Heap* heap, const char* space_name,
   MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
 
   if (root_name == nullptr) return;
-  i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", space_name,
+  i::PrintF(out, "  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", space_name,
             root_ptr, map.instance_type(), root_name);
 
 #undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 }
 
-static void DumpKnownObject(i::Heap* heap, const char* space_name,
+static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
                             i::HeapObject object) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName)        \
   if (root_name == nullptr && object == roots.name()) { \
@@ -90,14 +90,14 @@ static void DumpKnownObject(i::Heap* heap, const char* space_name,
   if (root_name == nullptr) return;
   if (!i::RootsTable::IsImmortalImmovable(root_index)) return;
 
-  i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", space_name, root_ptr,
-            root_name);
+  i::PrintF(out, "  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", space_name,
+            root_ptr, root_name);
 
 #undef ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 }
 
-static int DumpHeapConstants(const char* argv0) {
+static int DumpHeapConstants(FILE* out, const char* argv0) {
   // Start up V8.
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
@@ -112,42 +112,42 @@ static int DumpHeapConstants(const char* argv0) {
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
-    i::PrintF("%s", kHeader);
-#define DUMP_TYPE(T) i::PrintF("  %d: \"%s\",\n", i::T, #T);
-    i::PrintF("INSTANCE_TYPES = {\n");
+    i::PrintF(out, "%s", kHeader);
+#define DUMP_TYPE(T) i::PrintF(out, "  %d: \"%s\",\n", i::T, #T);
+    i::PrintF(out, "INSTANCE_TYPES = {\n");
     INSTANCE_TYPE_LIST(DUMP_TYPE)
-    i::PrintF("}\n");
+    i::PrintF(out, "}\n");
 #undef DUMP_TYPE
 
     {
       // Dump the KNOWN_MAP table to the console.
-      i::PrintF("\n# List of known V8 maps.\n");
-      i::PrintF("KNOWN_MAPS = {\n");
+      i::PrintF(out, "\n# List of known V8 maps.\n");
+      i::PrintF(out, "KNOWN_MAPS = {\n");
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
+        DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
       i::PagedSpaceObjectIterator iterator(heap->map_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(heap, i::Heap::GetSpaceName(i::MAP_SPACE), object);
+        DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::MAP_SPACE), object);
       }
-      i::PrintF("}\n");
+      i::PrintF(out, "}\n");
     }
 
     {
       // Dump the KNOWN_OBJECTS table to the console.
-      i::PrintF("\n# List of known V8 objects.\n");
-      i::PrintF("KNOWN_OBJECTS = {\n");
+      i::PrintF(out, "\n# List of known V8 objects.\n");
+      i::PrintF(out, "KNOWN_OBJECTS = {\n");
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
         if (object.IsMap()) continue;
-        DumpKnownObject(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
+        DumpKnownObject(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
 
       i::PagedSpaceIterator spit(heap);
@@ -158,22 +158,22 @@ static int DumpHeapConstants(const char* argv0) {
           continue;
         const char* sname = s->name();
         for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-          DumpKnownObject(heap, sname, o);
+          DumpKnownObject(out, heap, sname, o);
         }
       }
-      i::PrintF("}\n");
+      i::PrintF(out, "}\n");
     }
 
     // Dump frame markers
-    i::PrintF("\n# List of known V8 Frame Markers.\n");
-#define DUMP_MARKER(T, class) i::PrintF("  \"%s\",\n", #T);
-    i::PrintF("FRAME_MARKERS = (\n");
+    i::PrintF(out, "\n# List of known V8 Frame Markers.\n");
+#define DUMP_MARKER(T, class) i::PrintF(out, "  \"%s\",\n", #T);
+    i::PrintF(out, "FRAME_MARKERS = (\n");
     STACK_FRAME_TYPE_LIST(DUMP_MARKER)
-    i::PrintF(")\n");
+    i::PrintF(out, ")\n");
 #undef DUMP_MARKER
   }
 
-  i::PrintF("\n# This set of constants is generated from a %s build.\n",
+  i::PrintF(out, "\n# This set of constants is generated from a %s build.\n",
             kBuild);
 
   // Teardown.
@@ -184,4 +184,10 @@ static int DumpHeapConstants(const char* argv0) {
 
 }  // namespace v8
 
-int main(int argc, char* argv[]) { return v8::DumpHeapConstants(argv[0]); }
+int main(int argc, char* argv[]) {
+  FILE* out = stdout;
+  if (argc > 2 && strcmp(argv[1], "--outfile") == 0) {
+    out = fopen(argv[2], "wb");
+  }
+  return v8::DumpHeapConstants(out, argv[0]);
+}

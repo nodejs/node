@@ -20,6 +20,16 @@ own wasm_trap_t* fail_callback(
 }
 
 
+void print_frame(wasm_frame_t* frame) {
+  printf("> %p @ 0x%zx = %"PRIu32".0x%zx\n",
+    wasm_frame_instance(frame),
+    wasm_frame_module_offset(frame),
+    wasm_frame_func_index(frame),
+    wasm_frame_func_offset(frame)
+  );
+}
+
+
 int main(int argc, const char* argv[]) {
   // Initialize.
   printf("Initializing...\n");
@@ -56,15 +66,18 @@ int main(int argc, const char* argv[]) {
 
   // Create external print functions.
   printf("Creating callback...\n");
-  own wasm_functype_t* fail_type = wasm_functype_new_0_1(wasm_valtype_new_i32());
-  own wasm_func_t* fail_func = wasm_func_new_with_env(store, fail_type, fail_callback, store, NULL);
+  own wasm_functype_t* fail_type =
+    wasm_functype_new_0_1(wasm_valtype_new_i32());
+  own wasm_func_t* fail_func =
+    wasm_func_new_with_env(store, fail_type, fail_callback, store, NULL);
 
   wasm_functype_delete(fail_type);
 
   // Instantiate.
   printf("Instantiating module...\n");
   const wasm_extern_t* imports[] = { wasm_func_as_extern(fail_func) };
-  own wasm_instance_t* instance = wasm_instance_new(store, module, imports);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, imports, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
@@ -94,8 +107,8 @@ int main(int argc, const char* argv[]) {
 
     printf("Calling export %d...\n", i);
     own wasm_trap_t* trap = wasm_func_call(func, NULL, NULL);
-    if (! trap) {
-      printf("> Error calling function!\n");
+    if (!trap) {
+      printf("> Error calling function, expected trap!\n");
       return 1;
     }
 
@@ -104,6 +117,27 @@ int main(int argc, const char* argv[]) {
     wasm_trap_message(trap, &message);
     printf("> %s\n", message.data);
 
+    printf("Printing origin...\n");
+    own wasm_frame_t* frame = wasm_trap_origin(trap);
+    if (frame) {
+      print_frame(frame);
+      wasm_frame_delete(frame);
+    } else {
+      printf("> Empty origin.\n");
+    }
+
+    printf("Printing trace...\n");
+    own wasm_frame_vec_t trace;
+    wasm_trap_trace(trap, &trace);
+    if (trace.size > 0) {
+      for (size_t i = 0; i < trace.size; ++i) {
+        print_frame(trace.data[i]);
+      }
+    } else {
+      printf("> Empty trace.\n");
+    }
+
+    wasm_frame_vec_delete(&trace);
     wasm_trap_delete(trap);
     wasm_name_delete(&message);
   }

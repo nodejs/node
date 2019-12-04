@@ -9,7 +9,7 @@ namespace proxy {
   // ES #sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
   transitioning builtin ProxyHasProperty(implicit context: Context)(
-      proxy: JSProxy, name: Name): Object {
+      proxy: JSProxy, name: PropertyKey): JSAny {
     assert(IsJSProxy(proxy));
 
     PerformStackCheck();
@@ -40,13 +40,13 @@ namespace proxy {
       // CheckHasTrapResult).
       // 10. Return booleanTrapResult.
       const trapResult = Call(context, trap, handler, target, name);
-      if (BranchIfToBooleanIsTrue(trapResult)) {
+      if (ToBoolean(trapResult)) {
         return True;
       }
       CheckHasTrapResult(target, proxy, name);
       return False;
     }
-    label TrapUndefined(target: Object) {
+    label TrapUndefined(target: JSAny) {
       // 7.a. Return ? target.[[HasProperty]](P).
       tail HasProperty(target, name);
     }

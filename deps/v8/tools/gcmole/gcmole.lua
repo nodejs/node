@@ -183,12 +183,19 @@ end
 
 -------------------------------------------------------------------------------
 
-local function ParseGNFile()
+local function ParseGNFile(for_test)
    local result = {}
-   local gn_files = {
-       { "BUILD.gn",             '"([^"]-%.cc)"',      ""         },
-       { "test/cctest/BUILD.gn", '"(test-[^"]-%.cc)"', "test/cctest/" }
-   }
+   local gn_files
+   if for_test then
+      gn_files = {
+         { "tools/gcmole/GCMOLE.gn",             '"([^"]-%.cc)"',      ""         }
+      }
+   else
+      gn_files = {
+         { "BUILD.gn",             '"([^"]-%.cc)"',      ""         },
+         { "test/cctest/BUILD.gn", '"(test-[^"]-%.cc)"', "test/cctest/" }
+      }
+   end
 
    for i = 1, #gn_files do
       local filename = gn_files[i][1]
@@ -231,10 +238,18 @@ local function BuildFileList(sources, props)
 end
 
 
-local gn_sources = ParseGNFile()
+local gn_sources = ParseGNFile(false)
+local gn_test_sources = ParseGNFile(true)
 
 local function FilesForArch(arch)
    return BuildFileList(gn_sources, { os = 'linux',
+                                      arch = arch,
+                                      mode = 'debug',
+                                      simulator = ''})
+end
+
+local function FilesForTest(arch)
+   return BuildFileList(gn_test_sources, { os = 'linux',
                                       arch = arch,
                                       mode = 'debug',
                                       simulator = ''})
@@ -393,8 +408,13 @@ end
 --------------------------------------------------------------------------------
 -- Analysis
 
-local function CheckCorrectnessForArch(arch)
-   local files = FilesForArch(arch)
+local function CheckCorrectnessForArch(arch, for_test)
+   local files
+   if for_test then
+      files = FilesForTest(arch)
+   else
+      files = FilesForArch(arch)
+   end
    local cfg = ARCHITECTURES[arch]
 
    if not FLAGS.reuse_gcsuspects then
@@ -403,6 +423,7 @@ local function CheckCorrectnessForArch(arch)
 
    local processed_files = 0
    local errors_found = false
+   local output = ""
    local function SearchForErrors(filename, lines)
       processed_files = processed_files + 1
       for l in lines do
@@ -410,7 +431,11 @@ local function CheckCorrectnessForArch(arch)
             l:match "^[^:]+:%d+:%d+:" or
             l:match "error" or
             l:match "warning"
-         print(l)
+         if for_test then
+            output = output.."\n"..l
+         else
+            print(l)
+         end
       end
    end
 
@@ -427,17 +452,33 @@ local function CheckCorrectnessForArch(arch)
        processed_files,
        errors_found and "Errors found" or "No errors found")
 
-   return errors_found
+   return errors_found, output
 end
 
-local function SafeCheckCorrectnessForArch(arch)
-   local status, errors = pcall(CheckCorrectnessForArch, arch)
+local function SafeCheckCorrectnessForArch(arch, for_test)
+   local status, errors, output = pcall(CheckCorrectnessForArch, arch, for_test)
    if not status then
       print(string.format("There was an error: %s", errors))
       errors = true
    end
-   return errors
+   return errors, output
 end
+
+local function TestRun()
+   local errors, output = SafeCheckCorrectnessForArch('x64', true)
+
+   local filename = "tools/gcmole/test-expectations.txt"
+   local exp_file = assert(io.open(filename), "failed to open test expectations file")
+   local expectations = exp_file:read('*all')
+
+   if output ~= expectations then
+      log("** Output mismatch from running tests. Please run them manually.")
+   else
+      log("** Tests ran successfully")
+   end
+end
+
+TestRun()
 
 local errors = false
 
@@ -446,7 +487,7 @@ for _, arch in ipairs(ARCHS) do
       error ("Unknown arch: " .. arch)
    end
 
-   errors = SafeCheckCorrectnessForArch(arch, report) or errors
+   errors = SafeCheckCorrectnessForArch(arch, false) or errors
 end
 
 os.exit(errors and 1 or 0)

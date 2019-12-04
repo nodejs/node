@@ -6,14 +6,14 @@
 
 #include <algorithm>
 
-#include "src/common/globals.h"  // For V8_OS_WIN_X64.
+#include "src/common/globals.h"  // For V8_OS_WIN64
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
 #include "src/builtins/builtins.h"
 #include "src/diagnostics/unwinding-info-win64.h"
-#include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#endif
+#include "src/snapshot/embedded/embedded-file-writer.h"
+#endif  // V8_OS_WIN64
 
 namespace v8 {
 namespace internal {
@@ -214,20 +214,118 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   w->EndPdataSection();
   w->Newline();
 }
-#endif  // defined(V8_OS_WIN_X64)
+
+#elif defined(V8_OS_WIN_ARM64)
+
+void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
+                    const char* unwind_info_symbol,
+                    const char* embedded_blob_data_symbol,
+                    const EmbeddedData* blob,
+                    const win64_unwindinfo::BuiltinUnwindInfo* unwind_infos) {
+  DCHECK(win64_unwindinfo::CanEmitUnwindInfoForBuiltins());
+
+  // Fairly arbitrary but should fit all symbol names.
+  static constexpr int kTemporaryStringLength = 256;
+  i::EmbeddedVector<char, kTemporaryStringLength> unwind_info_full_symbol;
+
+  // Emit a RUNTIME_FUNCTION (PDATA) entry for each builtin function, as
+  // documented here:
+  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling.
+  w->Comment(
+      "pdata for all the code in the embedded blob (structs of type "
+      "RUNTIME_FUNCTION).");
+  w->Comment("    BeginAddress");
+  w->Comment("    UnwindInfoAddress");
+  w->StartPdataSection();
+  std::vector<int> code_chunks;
+  std::vector<int> fp_adjustments;
+
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!blob->ContainsBuiltin(i)) continue;
+    if (unwind_infos[i].is_leaf_function()) continue;
+
+    uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
+                                    reinterpret_cast<Address>(blob->data());
+    uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
+
+    const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
+    const std::vector<int>& xdata_fp_adjustments =
+        unwind_infos[i].fp_adjustments();
+    DCHECK_EQ(xdata_desc.size(), xdata_fp_adjustments.size());
+
+    for (size_t j = 0; j < xdata_desc.size(); j++) {
+      int chunk_start = xdata_desc[j];
+      int chunk_end =
+          (j < xdata_desc.size() - 1) ? xdata_desc[j + 1] : builtin_size;
+      int chunk_len = ::RoundUp(chunk_end - chunk_start, kInstrSize);
+
+      while (chunk_len > 0) {
+        int allowed_chunk_len =
+            std::min(chunk_len, win64_unwindinfo::kMaxFunctionLength);
+        chunk_len -= win64_unwindinfo::kMaxFunctionLength;
+
+        // Record the chunk length and fp_adjustment for emitting UNWIND_INFO
+        // later.
+        code_chunks.push_back(allowed_chunk_len);
+        fp_adjustments.push_back(xdata_fp_adjustments[j]);
+        i::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
+                    code_chunks.size());
+        w->DeclareRvaToSymbol(embedded_blob_data_symbol,
+                              builtin_start_offset + chunk_start);
+        w->DeclareRvaToSymbol(unwind_info_full_symbol.begin());
+      }
+    }
+  }
+  w->EndPdataSection();
+  w->Newline();
+
+  // Emit an UNWIND_INFO (XDATA) structs, which contains the unwinding
+  // information.
+  w->DeclareExternalFunction(CRASH_HANDLER_FUNCTION_NAME_STRING);
+  w->StartXdataSection();
+  {
+    for (size_t i = 0; i < code_chunks.size(); i++) {
+      i::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol, i + 1);
+      w->DeclareLabel(unwind_info_full_symbol.begin());
+      std::vector<uint8_t> xdata =
+          win64_unwindinfo::GetUnwindInfoForBuiltinFunction(code_chunks[i],
+                                                            fp_adjustments[i]);
+
+      w->IndentedDataDirective(kByte);
+      for (size_t j = 0; j < xdata.size(); j++) {
+        if (j > 0) fprintf(w->fp(), ",");
+        w->HexLiteral(xdata[j]);
+      }
+      w->Newline();
+      w->DeclareRvaToSymbol(CRASH_HANDLER_FUNCTION_NAME_STRING);
+    }
+  }
+  w->EndXdataSection();
+  w->Newline();
+}
+
+#endif  // V8_OS_WIN_X64
 
 }  // namespace
 
 void PlatformEmbeddedFileWriterWin::MaybeEmitUnwindData(
     const char* unwind_info_symbol, const char* embedded_blob_data_symbol,
     const EmbeddedData* blob, const void* unwind_infos) {
-#if defined(V8_OS_WIN_X64)
+// Windows ARM64 supports cross build which could require unwind info for
+// host_os. Ignore this case because it is only used in build time.
+#if defined(V8_OS_WIN_ARM64)
+  if (target_arch_ != EmbeddedTargetArch::kArm64) {
+    return;
+  }
+#endif  // V8_OS_WIN_ARM64
+
+#if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanEmitUnwindInfoForBuiltins()) {
     EmitUnwindData(this, unwind_info_symbol, embedded_blob_data_symbol, blob,
                    reinterpret_cast<const win64_unwindinfo::BuiltinUnwindInfo*>(
                        unwind_infos));
   }
-#endif  // defined(V8_OS_WIN_X64)
+#endif  // V8_OS_WIN64
 }
 
 // Windows, MSVC, not arm/arm64.
@@ -545,6 +643,7 @@ void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name) {
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
     // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
     // in PE/COFF for Windows.
+    DeclareSymbolGlobal(name);
   } else {
     // The directives for inserting debugging information on Windows come
     // from the PE (Portable Executable) and COFF (Common Object File Format)
@@ -570,11 +669,7 @@ void PlatformEmbeddedFileWriterWin::DeclareExternalFilename(
   // Replace any Windows style paths (backslashes) with forward
   // slashes.
   std::string fixed_filename(filename);
-  for (auto& c : fixed_filename) {
-    if (c == '\\') {
-      c = '/';
-    }
-  }
+  std::replace(fixed_filename.begin(), fixed_filename.end(), '\\', '/');
   fprintf(fp_, ".file %d \"%s\"\n", fileid, fixed_filename.c_str());
 }
 

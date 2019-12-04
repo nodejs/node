@@ -25,7 +25,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Returns the 32-bit unsigned count immediate for bytecode operand
   // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandCount(int operand_index);
+  compiler::TNode<Uint32T> BytecodeOperandCount(int operand_index);
   // Returns the 32-bit unsigned flag for bytecode operand |operand_index|
   // in the current bytecode.
   compiler::Node* BytecodeOperandFlag(int operand_index);
@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeOperandIdxSmi(int operand_index);
   // Returns the 32-bit unsigned immediate for bytecode operand |operand_index|
   // in the current bytecode.
-  compiler::Node* BytecodeOperandUImm(int operand_index);
+  compiler::TNode<Uint32T> BytecodeOperandUImm(int operand_index);
   // Returns the word-size unsigned immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandUImmWord(int operand_index);
@@ -67,34 +67,37 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeOperandIntrinsicId(int operand_index);
 
   // Accumulator.
-  compiler::Node* GetAccumulator();
+  compiler::TNode<Object> GetAccumulator();
   void SetAccumulator(compiler::Node* value);
 
   // Context.
-  compiler::Node* GetContext();
-  void SetContext(compiler::Node* value);
+  compiler::TNode<Context> GetContext();
+  void SetContext(compiler::TNode<Context> value);
 
   // Context at |depth| in the context chain starting at |context|.
-  compiler::Node* GetContextAtDepth(compiler::Node* context,
-                                    compiler::Node* depth);
+  compiler::Node* GetContextAtDepth(compiler::TNode<Context> context,
+                                    compiler::TNode<Uint32T> depth);
 
   // Goto the given |target| if the context chain starting at |context| has any
   // extensions up to the given |depth|.
-  void GotoIfHasContextExtensionUpToDepth(compiler::Node* context,
-                                          compiler::Node* depth, Label* target);
+  void GotoIfHasContextExtensionUpToDepth(compiler::TNode<Context> context,
+                                          compiler::TNode<Uint32T> depth,
+                                          Label* target);
 
   // A RegListNodePair provides an abstraction over lists of registers.
   class RegListNodePair {
    public:
-    RegListNodePair(Node* base_reg_location, Node* reg_count)
+    RegListNodePair(TNode<IntPtrT> base_reg_location, TNode<Word32T> reg_count)
         : base_reg_location_(base_reg_location), reg_count_(reg_count) {}
 
-    compiler::Node* reg_count() const { return reg_count_; }
-    compiler::Node* base_reg_location() const { return base_reg_location_; }
+    compiler::TNode<Word32T> reg_count() const { return reg_count_; }
+    compiler::TNode<IntPtrT> base_reg_location() const {
+      return base_reg_location_;
+    }
 
    private:
-    compiler::Node* base_reg_location_;
-    compiler::Node* reg_count_;
+    compiler::TNode<IntPtrT> base_reg_location_;
+    compiler::TNode<Word32T> reg_count_;
   };
 
   // Backup/restore register file to/from a fixed array of the correct length.
@@ -110,13 +113,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                      TNode<Int32T> formal_parameter_count);
 
   // Loads from and stores to the interpreter register file.
-  compiler::Node* LoadRegister(Register reg);
-  compiler::Node* LoadAndUntagRegister(Register reg);
-  compiler::Node* LoadRegisterAtOperandIndex(int operand_index);
-  std::pair<compiler::Node*, compiler::Node*> LoadRegisterPairAtOperandIndex(
-      int operand_index);
+  compiler::TNode<Object> LoadRegister(Register reg);
+  compiler::TNode<IntPtrT> LoadAndUntagRegister(Register reg);
+  compiler::TNode<Object> LoadRegisterAtOperandIndex(int operand_index);
+  std::pair<compiler::TNode<Object>, compiler::TNode<Object>>
+  LoadRegisterPairAtOperandIndex(int operand_index);
   void StoreRegister(compiler::Node* value, Register reg);
-  void StoreAndTagRegister(compiler::Node* value, Register reg);
   void StoreRegisterAtOperandIndex(compiler::Node* value, int operand_index);
   void StoreRegisterPairAtOperandIndex(compiler::Node* value1,
                                        compiler::Node* value2,
@@ -129,20 +131,19 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   RegListNodePair GetRegisterListAtOperandIndex(int operand_index);
   Node* LoadRegisterFromRegisterList(const RegListNodePair& reg_list,
                                      int index);
-  Node* RegisterLocationInRegisterList(const RegListNodePair& reg_list,
-                                       int index);
+  TNode<IntPtrT> RegisterLocationInRegisterList(const RegListNodePair& reg_list,
+                                                int index);
 
   // Load constant at the index specified in operand |operand_index| from the
   // constant pool.
   compiler::Node* LoadConstantPoolEntryAtOperandIndex(int operand_index);
   // Load and untag constant at the index specified in operand |operand_index|
   // from the constant pool.
-  compiler::Node* LoadAndUntagConstantPoolEntryAtOperandIndex(
-      int operand_index);
+  TNode<IntPtrT> LoadAndUntagConstantPoolEntryAtOperandIndex(int operand_index);
   // Load constant at |index| in the constant pool.
   compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
   // Load and untag constant at |index| in the constant pool.
-  compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
+  TNode<IntPtrT> LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
   // Load the FeedbackVector for the current function. The retuned node could be
   // undefined.
@@ -193,8 +194,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Call constructor |target| with |args| arguments (not including receiver).
   // The |new_target| is the same as the |target| for the new keyword, but
   // differs for the super keyword.
-  compiler::Node* Construct(compiler::Node* target, compiler::Node* context,
-                            compiler::Node* new_target,
+  compiler::Node* Construct(compiler::SloppyTNode<Object> target,
+                            compiler::Node* context,
+                            compiler::SloppyTNode<Object> new_target,
                             const RegListNodePair& args,
                             compiler::Node* slot_id,
                             compiler::Node* feedback_vector);
@@ -225,13 +227,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
-  void JumpIfWordEqual(compiler::Node* lhs, compiler::Node* rhs,
-                       compiler::Node* jump_offset);
+  void JumpIfTaggedEqual(compiler::TNode<Object> lhs,
+                         compiler::TNode<Object> rhs,
+                         compiler::Node* jump_offset);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are not equal.
-  void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
-                          compiler::Node* jump_offset);
+  void JumpIfTaggedNotEqual(compiler::TNode<Object> lhs,
+                            compiler::TNode<Object> rhs,
+                            compiler::Node* jump_offset);
 
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
@@ -252,7 +256,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Abort with the given abort reason.
   void Abort(AbortReason abort_reason);
-  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
+  void AbortIfWordNotEqual(compiler::TNode<WordT> lhs,
+                           compiler::TNode<WordT> rhs,
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
   void AbortIfRegisterCountInvalid(compiler::Node* parameters_and_registers,
@@ -263,7 +268,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void MaybeDropFrames(compiler::Node* context);
 
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
-  compiler::Node* BytecodeOffset();
+  TNode<IntPtrT> BytecodeOffset();
 
  protected:
   Bytecode bytecode() const { return bytecode_; }
@@ -285,13 +290,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Returns the frame pointer for the interpreted frame of the function being
   // interpreted.
-  compiler::Node* GetInterpretedFramePointer();
+  TNode<RawPtrT> GetInterpretedFramePointer();
 
   // Operations on registers.
-  compiler::Node* RegisterLocation(Register reg);
-  compiler::Node* RegisterLocation(compiler::Node* reg_index);
-  compiler::Node* NextRegister(compiler::Node* reg_index);
-  compiler::Node* LoadRegister(Node* reg_index);
+  compiler::TNode<IntPtrT> RegisterLocation(Register reg);
+  compiler::TNode<IntPtrT> RegisterLocation(compiler::Node* reg_index);
+  compiler::TNode<IntPtrT> NextRegister(compiler::Node* reg_index);
+  compiler::TNode<Object> LoadRegister(Node* reg_index);
   void StoreRegister(compiler::Node* value, compiler::Node* reg_index);
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
@@ -311,7 +316,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void UpdateInterruptBudget(compiler::Node* weight, bool backward);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
-  compiler::Node* RegisterFrameOffset(compiler::Node* index);
+  compiler::TNode<IntPtrT> RegisterFrameOffset(compiler::Node* index);
 
   // Returns the offset of an operand relative to the current bytecode offset.
   compiler::Node* OperandOffset(int operand_index);
@@ -321,36 +326,36 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // The |result_type| determines the size and signedness.  of the
   // value read. This method should only be used on architectures that
   // do not support unaligned memory accesses.
-  compiler::Node* BytecodeOperandReadUnaligned(
+  compiler::TNode<Word32T> BytecodeOperandReadUnaligned(
       int relative_offset, MachineType result_type,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns zero- or sign-extended to word32 value of the operand.
-  compiler::Node* BytecodeOperandUnsignedByte(
+  compiler::TNode<Uint8T> BytecodeOperandUnsignedByte(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  compiler::Node* BytecodeOperandSignedByte(
+  compiler::TNode<Int8T> BytecodeOperandSignedByte(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  compiler::Node* BytecodeOperandUnsignedShort(
+  compiler::TNode<Uint16T> BytecodeOperandUnsignedShort(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  compiler::Node* BytecodeOperandSignedShort(
+  compiler::TNode<Int16T> BytecodeOperandSignedShort(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  compiler::Node* BytecodeOperandUnsignedQuad(
+  compiler::TNode<Uint32T> BytecodeOperandUnsignedQuad(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  compiler::Node* BytecodeOperandSignedQuad(
+  compiler::TNode<Int32T> BytecodeOperandSignedQuad(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns zero- or sign-extended to word32 value of the operand of
   // given size.
-  compiler::Node* BytecodeSignedOperand(
+  compiler::TNode<Int32T> BytecodeSignedOperand(
       int operand_index, OperandSize operand_size,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
-  compiler::Node* BytecodeUnsignedOperand(
+  compiler::TNode<Uint32T> BytecodeUnsignedOperand(
       int operand_index, OperandSize operand_size,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
@@ -373,30 +378,31 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* Jump(compiler::Node* jump_offset, bool backward);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
-  // |condition| is true. Helper function for JumpIfWordEqual and
-  // JumpIfWordNotEqual.
+  // |condition| is true. Helper function for JumpIfTaggedEqual and
+  // JumpIfTaggedNotEqual.
   void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
 
   // Save the bytecode offset to the interpreter frame.
   void SaveBytecodeOffset();
   // Reload the bytecode offset from the interpreter frame.
-  Node* ReloadBytecodeOffset();
+  TNode<IntPtrT> ReloadBytecodeOffset();
 
   // Updates and returns BytecodeOffset() advanced by the current bytecode's
   // size. Traces the exit of the current bytecode.
-  compiler::Node* Advance();
+  TNode<IntPtrT> Advance();
 
   // Updates and returns BytecodeOffset() advanced by delta bytecodes.
   // Traces the exit of the current bytecode.
-  compiler::Node* Advance(int delta);
-  compiler::Node* Advance(compiler::Node* delta, bool backward = false);
+  TNode<IntPtrT> Advance(int delta);
+  TNode<IntPtrT> Advance(SloppyTNode<IntPtrT> delta, bool backward = false);
 
   // Load the bytecode at |bytecode_offset|.
-  compiler::Node* LoadBytecode(compiler::Node* bytecode_offset);
+  compiler::TNode<WordT> LoadBytecode(compiler::Node* bytecode_offset);
 
   // Look ahead for Star and inline it in a branch. Returns a new target
   // bytecode node for dispatch.
-  compiler::Node* StarDispatchLookahead(compiler::Node* target_bytecode);
+  compiler::TNode<WordT> StarDispatchLookahead(
+      compiler::TNode<WordT> target_bytecode);
 
   // Build code for Star at the current BytecodeOffset() and Advance() to the
   // next dispatch offset.
@@ -418,17 +424,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   Bytecode bytecode_;
   OperandScale operand_scale_;
-  CodeStubAssembler::Variable interpreted_frame_pointer_;
+  TVariable<RawPtrT> interpreted_frame_pointer_;
   CodeStubAssembler::Variable bytecode_array_;
-  CodeStubAssembler::Variable bytecode_offset_;
+  TVariable<IntPtrT> bytecode_offset_;
   CodeStubAssembler::Variable dispatch_table_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
-  bool disable_stack_check_across_call_;
-  compiler::Node* stack_pointer_before_call_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);
 };

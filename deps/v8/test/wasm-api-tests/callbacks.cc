@@ -14,11 +14,11 @@ namespace wasm {
 
 namespace {
 
-own<Trap*> Stage2(void* env, const Val args[], Val results[]) {
+own<Trap> Stage2(void* env, const Val args[], Val results[]) {
   printf("Stage2...\n");
   WasmCapiTest* self = reinterpret_cast<WasmCapiTest*>(env);
   Func* stage3 = self->GetExportedFunction(1);
-  own<Trap*> trap = stage3->call(args, results);
+  own<Trap> trap = stage3->call(args, results);
   if (trap) {
     printf("Stage2: got exception: %s\n", trap->message().get());
   } else {
@@ -27,7 +27,7 @@ own<Trap*> Stage2(void* env, const Val args[], Val results[]) {
   return trap;
 }
 
-own<Trap*> Stage4_GC(void* env, const Val args[], Val results[]) {
+own<Trap> Stage4_GC(void* env, const Val args[], Val results[]) {
   printf("Stage4...\n");
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env);
   isolate->heap()->PreciseCollectAllGarbage(
@@ -57,7 +57,7 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
   }
 
  private:
-  own<Func*> stage2_;
+  own<Func> stage2_;
 };
 
 }  // namespace
@@ -72,7 +72,7 @@ TEST_F(WasmCapiCallbacksTest, Trap) {
   Instantiate(imports);
   Val args[] = {Val::i32(42)};
   Val results[1];
-  own<Trap*> trap = GetExportedFunction(0)->call(args, results);
+  own<Trap> trap = GetExportedFunction(0)->call(args, results);
   EXPECT_NE(trap, nullptr);
   printf("Stage0: Got trap as expected: %s\n", trap->message().get());
 }
@@ -87,21 +87,21 @@ TEST_F(WasmCapiCallbacksTest, GC) {
 
   i::Isolate* isolate =
       reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate();
-  own<Func*> stage4 = Func::make(store(), cpp_i_i_sig(), Stage4_GC, isolate);
+  own<Func> stage4 = Func::make(store(), cpp_i_i_sig(), Stage4_GC, isolate);
   EXPECT_EQ(cpp_i_i_sig()->params().size(), stage4->type()->params().size());
   EXPECT_EQ(cpp_i_i_sig()->results().size(), stage4->type()->results().size());
   Extern* imports[] = {stage2(), stage4.get()};
   Instantiate(imports);
   Val args[] = {Val::i32(42)};
   Val results[1];
-  own<Trap*> trap = GetExportedFunction(0)->call(args, results);
+  own<Trap> trap = GetExportedFunction(0)->call(args, results);
   EXPECT_EQ(trap, nullptr);
   EXPECT_EQ(43, results[0].i32());
 }
 
 namespace {
 
-own<Trap*> FibonacciC(void* env, const Val args[], Val results[]) {
+own<Trap> FibonacciC(void* env, const Val args[], Val results[]) {
   int32_t x = args[0].i32();
   if (x == 0 || x == 1) {
     results[0] = Val::i32(x);
@@ -113,7 +113,7 @@ own<Trap*> FibonacciC(void* env, const Val args[], Val results[]) {
   // style, but this test intentionally ensures that it works if someone
   // insists on doing it.
   Val recursive_args[] = {Val::i32(x - 1)};
-  own<Trap*> trap = fibo_wasm->call(recursive_args, results);
+  own<Trap> trap = fibo_wasm->call(recursive_args, results);
   DCHECK_NULL(trap);
   int32_t x1 = results[0].i32();
   recursive_args[0] = Val::i32(x - 2);
@@ -148,20 +148,20 @@ TEST_F(WasmCapiTest, Recursion) {
   AddExportedFunction(CStrVector("fibonacci_wasm"), code_fibo,
                       sizeof(code_fibo), wasm_i_i_sig());
 
-  own<Func*> fibonacci = Func::make(store(), cpp_i_i_sig(), FibonacciC, this);
+  own<Func> fibonacci = Func::make(store(), cpp_i_i_sig(), FibonacciC, this);
   Extern* imports[] = {fibonacci.get()};
   Instantiate(imports);
   // Enough iterations to make it interesting, few enough to keep it fast.
   Val args[] = {Val::i32(15)};
   Val results[1];
-  own<Trap*> result = GetExportedFunction(0)->call(args, results);
+  own<Trap> result = GetExportedFunction(0)->call(args, results);
   EXPECT_EQ(result, nullptr);
   EXPECT_EQ(610, results[0].i32());
 }
 
 namespace {
 
-own<Trap*> PlusOne(const Val args[], Val results[]) {
+own<Trap> PlusOne(const Val args[], Val results[]) {
   int32_t a0 = args[0].i32();
   results[0] = Val::i32(a0 + 1);
   int64_t a1 = args[1].i64();
@@ -177,16 +177,16 @@ own<Trap*> PlusOne(const Val args[], Val results[]) {
 }  // namespace
 
 TEST_F(WasmCapiTest, DirectCallCapiFunction) {
-  own<FuncType*> cpp_sig =
-      FuncType::make(vec<ValType*>::make(
+  own<FuncType> cpp_sig =
+      FuncType::make(ownvec<ValType>::make(
                          ValType::make(::wasm::I32), ValType::make(::wasm::I64),
                          ValType::make(::wasm::F32), ValType::make(::wasm::F64),
                          ValType::make(::wasm::ANYREF)),
-                     vec<ValType*>::make(
+                     ownvec<ValType>::make(
                          ValType::make(::wasm::I32), ValType::make(::wasm::I64),
                          ValType::make(::wasm::F32), ValType::make(::wasm::F64),
                          ValType::make(::wasm::ANYREF)));
-  own<Func*> func = Func::make(store(), cpp_sig.get(), PlusOne);
+  own<Func> func = Func::make(store(), cpp_sig.get(), PlusOne);
   Extern* imports[] = {func.get()};
   ValueType wasm_types[] = {kWasmI32,    kWasmI64,   kWasmF32, kWasmF64,
                             kWasmAnyRef, kWasmI32,   kWasmI64, kWasmF32,
@@ -203,14 +203,13 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
                 Val::ref(func->copy())};
   Val results[5];
   // Test that {func} can be called directly.
-  own<Trap*> trap = func->call(args, results);
+  own<Trap> trap = func->call(args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(a0 + 1, results[0].i32());
   EXPECT_EQ(a1 + 1, results[1].i64());
   EXPECT_EQ(a2 + 1, results[2].f32());
   EXPECT_EQ(a3 + 1, results[3].f64());
-  // TODO(jkummerow): Check that func == results[4] when we have a way
-  // to do so.
+  EXPECT_TRUE(func->same(results[4].ref()));
 
   // Test that {func} can be called after import/export round-tripping.
   trap = GetExportedFunction(0)->call(args, results);
@@ -219,8 +218,7 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
   EXPECT_EQ(a1 + 1, results[1].i64());
   EXPECT_EQ(a2 + 1, results[2].f32());
   EXPECT_EQ(a3 + 1, results[3].f64());
-  // TODO(jkummerow): Check that func == results[4] when we have a way
-  // to do so.
+  EXPECT_TRUE(func->same(results[4].ref()));
 }
 
 }  // namespace wasm

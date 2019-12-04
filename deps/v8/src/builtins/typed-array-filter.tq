@@ -10,7 +10,7 @@ namespace typed_array_filter {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
   transitioning javascript builtin TypedArrayPrototypeFilter(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     // arguments[0] = callback
     // arguments[1] = thisArg
     try {
@@ -29,7 +29,7 @@ namespace typed_array_filter {
           otherwise ThrowTypeError(kCalledNonCallable, arguments[0]);
 
       // 5. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg: Object = arguments[1];
+      const thisArg: JSAny = arguments[1];
 
       // 6. Let kept be a new empty List.
       let kept = growable_fixed_array::NewGrowableFixedArray();
@@ -43,17 +43,17 @@ namespace typed_array_filter {
 
         // a. Let Pk be ! ToString(k).
         // b. Let kValue be ? Get(O, Pk).
-        const value: Object = witness.Load(k);
+        const value: JSAny = witness.Load(k);
 
         // c. Let selected be ToBoolean(? Call(callbackfn, T, « kValue, k, O
         // »)).
-        const selected: Object =
+        const selected: JSAny =
             Call(context, callbackfn, thisArg, value, k, witness.GetStable());
 
         // d. If selected is true, then
         //    i. Append kValue to the end of kept.
         //   ii. Increase captured by 1.
-        if (BranchIfToBooleanIsTrue(selected)) kept.Push(value);
+        if (ToBoolean(selected)) kept.Push(value);
 
         // e.Increase k by 1.
       }

@@ -114,8 +114,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   Handle<SharedFunctionInfo> frame_shared_info;
   for (int i = 0; i < candidate.num_functions; ++i) {
     if (!candidate.bytecode[i].has_value()) {
-      // We're already missing critical data which wouldn't allow us to
-      // continue the inlining checks. Log a warning and continue.
+      // Can't inline without bytecode.
+      // TODO(neis): Should this even be a broker message?
       if (candidate.functions[i].has_value()) {
         TRACE_BROKER(broker(),
                      "Missing bytecode array trying to inline JSFunction "
@@ -205,6 +205,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 }
 
 void JSInliningHeuristic::Finalize() {
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   if (candidates_.empty()) return;  // Nothing to do without candidates.
   if (FLAG_trace_turbo_inlining) PrintCandidates();
 
@@ -730,18 +732,22 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
 
 void JSInliningHeuristic::PrintCandidates() {
   StdoutStream os;
-  os << "Candidates for inlining (size=" << candidates_.size() << "):\n";
+  os << candidates_.size() << " candidate(s) for inlining:" << std::endl;
   for (const Candidate& candidate : candidates_) {
-    os << "  #" << candidate.node->id() << ":"
-       << candidate.node->op()->mnemonic()
-       << ", frequency: " << candidate.frequency << std::endl;
+    os << "- candidate: " << candidate.node->op()->mnemonic() << " node #"
+       << candidate.node->id() << " with frequency " << candidate.frequency
+       << ", " << candidate.num_functions << " target(s):" << std::endl;
     for (int i = 0; i < candidate.num_functions; ++i) {
-      SharedFunctionInfoRef shared =
-          candidate.functions[i].has_value()
-              ? candidate.functions[i].value().shared()
-              : candidate.shared_info.value();
-      PrintF("  - size:%d, name: %s\n", candidate.bytecode[i].value().length(),
-             shared.object()->DebugName().ToCString().get());
+      SharedFunctionInfoRef shared = candidate.functions[i].has_value()
+                                         ? candidate.functions[i]->shared()
+                                         : candidate.shared_info.value();
+      os << "  - target: " << shared;
+      if (candidate.bytecode[i].has_value()) {
+        os << ", bytecode size: " << candidate.bytecode[i]->length();
+      } else {
+        os << ", no bytecode";
+      }
+      os << std::endl;
     }
   }
 }

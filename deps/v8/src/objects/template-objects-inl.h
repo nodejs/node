@@ -15,15 +15,10 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription)
 OBJECT_CONSTRUCTORS_IMPL(CachedTemplateObject, Tuple3)
 
-CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(CachedTemplateObject)
-
-ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
-ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
-          kCookedStringsOffset)
 
 SMI_ACCESSORS(CachedTemplateObject, slot_id, kSlotIdOffset)
 ACCESSORS(CachedTemplateObject, template_object, JSArray, kTemplateObjectOffset)

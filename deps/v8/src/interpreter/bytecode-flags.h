@@ -18,8 +18,8 @@ namespace interpreter {
 
 class CreateArrayLiteralFlags {
  public:
-  class FlagsBits : public BitField8<int, 0, 5> {};
-  class FastCloneSupportedBit : public BitField8<bool, FlagsBits::kNext, 1> {};
+  using FlagsBits = BitField8<int, 0, 5>;
+  using FastCloneSupportedBit = FlagsBits::Next<bool, 1>;
 
   static uint8_t Encode(bool use_fast_shallow_clone, int runtime_flags);
 
@@ -29,8 +29,8 @@ class CreateArrayLiteralFlags {
 
 class CreateObjectLiteralFlags {
  public:
-  class FlagsBits : public BitField8<int, 0, 5> {};
-  class FastCloneSupportedBit : public BitField8<bool, FlagsBits::kNext, 1> {};
+  using FlagsBits = BitField8<int, 0, 5>;
+  using FastCloneSupportedBit = FlagsBits::Next<bool, 1>;
 
   static uint8_t Encode(int runtime_flags, bool fast_clone_supported);
 
@@ -40,8 +40,8 @@ class CreateObjectLiteralFlags {
 
 class CreateClosureFlags {
  public:
-  class PretenuredBit : public BitField8<bool, 0, 1> {};
-  class FastNewClosureBit : public BitField8<bool, PretenuredBit::kNext, 1> {};
+  using PretenuredBit = BitField8<bool, 0, 1>;
+  using FastNewClosureBit = PretenuredBit::Next<bool, 1>;
 
   static uint8_t Encode(bool pretenure, bool is_function_scope,
                         bool might_always_opt);
@@ -80,9 +80,8 @@ class TestTypeOfFlags {
 
 class StoreLookupSlotFlags {
  public:
-  class LanguageModeBit : public BitField8<LanguageMode, 0, 1> {};
-  class LookupHoistingModeBit
-      : public BitField8<bool, LanguageModeBit::kNext, 1> {};
+  using LanguageModeBit = BitField8<LanguageMode, 0, 1>;
+  using LookupHoistingModeBit = LanguageModeBit::Next<bool, 1>;
   STATIC_ASSERT(LanguageModeSize <= LanguageModeBit::kNumValues);
 
   static uint8_t Encode(LanguageMode language_mode,

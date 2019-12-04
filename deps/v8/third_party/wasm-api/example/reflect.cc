@@ -33,7 +33,7 @@ auto operator<<(std::ostream& out, const wasm::ValType& type) -> std::ostream& {
   return out;
 }
 
-auto operator<<(std::ostream& out, const wasm::vec<wasm::ValType*>& types) -> std::ostream& {
+auto operator<<(std::ostream& out, const wasm::ownvec<wasm::ValType>& types) -> std::ostream& {
   bool first = true;
   for (size_t i = 0; i < types.size(); ++i) {
     if (first) {
@@ -88,7 +88,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -96,7 +96,7 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Instantiate.
@@ -104,7 +104,7 @@ void run() {
   auto instance = wasm::Instance::make(store, module.get(), nullptr);
   if (!instance) {
     std::cout << "> Error instantiating module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Extract exports.

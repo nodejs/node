@@ -80,8 +80,7 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
         ExternalBackingStoreType::kArrayBuffer, freed_memory);
 
     // TODO(wez): Remove backing-store from external memory accounting.
-    page_->heap()->update_external_memory_concurrently_freed(
-        static_cast<intptr_t>(freed_memory));
+    page_->heap()->update_external_memory_concurrently_freed(freed_memory);
   }
 }
 

@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/function-syntax-kind.h"
 #include "src/objects/script.h"
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/preparse-data.h"
@@ -75,8 +76,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
-  FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
-                set_is_named_expression)
   FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
@@ -88,10 +87,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
                 set_on_background_thread)
-  FLAG_ACCESSOR(kWrappedAsFunction, is_wrapped_as_function,
-                set_wrapped_as_function)
   FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
-  FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
                 set_requires_instance_members_initializer)
@@ -105,13 +101,16 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_allow_harmony_dynamic_import)
   FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
                 set_allow_harmony_import_meta)
-  FLAG_ACCESSOR(kAllowHarmonyNumericSeparator, allow_harmony_numeric_separator,
-                set_allow_harmony_numeric_separator)
+  FLAG_ACCESSOR(kAllowHarmonyOptionalChaining, allow_harmony_optional_chaining,
+                set_allow_harmony_optional_chaining)
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
                 set_allow_harmony_private_methods)
   FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
   FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
                 set_collect_source_positions)
+  FLAG_ACCESSOR(kAllowHarmonyNullish, allow_harmony_nullish,
+                set_allow_harmony_nullish)
+
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -187,6 +186,17 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FunctionKind function_kind() const { return function_kind_; }
   void set_function_kind(FunctionKind function_kind) {
     function_kind_ = function_kind;
+  }
+
+  FunctionSyntaxKind function_syntax_kind() const {
+    return function_syntax_kind_;
+  }
+  void set_function_syntax_kind(FunctionSyntaxKind function_syntax_kind) {
+    function_syntax_kind_ = function_syntax_kind;
+  }
+
+  bool is_wrapped_as_function() const {
+    return function_syntax_kind() == FunctionSyntaxKind::kWrapped;
   }
 
   int max_function_literal_id() const { return max_function_literal_id_; }
@@ -277,7 +287,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void SetFunctionInfo(T function);
 
   // Various configuration flags for parsing.
-  enum Flag {
+  enum Flag : uint32_t {
     // ---------- Input flags ---------------------------
     kToplevel = 1 << 0,
     kEager = 1 << 1,
@@ -287,40 +297,39 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kParseRestriction = 1 << 5,
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
-    kIsNamedExpression = 1 << 8,
-    kLazyCompile = 1 << 9,
-    kCollectTypeProfile = 1 << 10,
-    kCoverageEnabled = 1 << 11,
-    kBlockCoverageEnabled = 1 << 12,
-    kIsAsmWasmBroken = 1 << 13,
-    kOnBackgroundThread = 1 << 14,
-    kWrappedAsFunction = 1 << 15,  // Implicitly wrapped as function.
-    kAllowEvalCache = 1 << 16,
-    kIsDeclaration = 1 << 17,
-    kRequiresInstanceMembersInitializer = 1 << 18,
-    kContainsAsmModule = 1 << 19,
-    kMightAlwaysOpt = 1 << 20,
-    kAllowLazyCompile = 1 << 21,
-    kAllowNativeSyntax = 1 << 22,
-    kAllowHarmonyPublicFields = 1 << 23,
-    kAllowHarmonyStaticFields = 1 << 24,
-    kAllowHarmonyDynamicImport = 1 << 25,
-    kAllowHarmonyImportMeta = 1 << 26,
-    kAllowHarmonyNumericSeparator = 1 << 27,
-    kAllowHarmonyPrivateFields = 1 << 28,
-    kAllowHarmonyPrivateMethods = 1 << 29,
-    kIsOneshotIIFE = 1 << 30,
-    kCollectSourcePositions = 1 << 31,
+    kLazyCompile = 1 << 8,
+    kCollectTypeProfile = 1 << 9,
+    kCoverageEnabled = 1 << 10,
+    kBlockCoverageEnabled = 1 << 11,
+    kIsAsmWasmBroken = 1 << 12,
+    kOnBackgroundThread = 1 << 13,
+    kAllowEvalCache = 1 << 14,
+    kRequiresInstanceMembersInitializer = 1 << 15,
+    kContainsAsmModule = 1 << 16,
+    kMightAlwaysOpt = 1 << 17,
+    kAllowLazyCompile = 1 << 18,
+    kAllowNativeSyntax = 1 << 19,
+    kAllowHarmonyPublicFields = 1 << 20,
+    kAllowHarmonyStaticFields = 1 << 21,
+    kAllowHarmonyDynamicImport = 1 << 22,
+    kAllowHarmonyImportMeta = 1 << 23,
+    kAllowHarmonyOptionalChaining = 1 << 24,
+    kAllowHarmonyPrivateFields = 1 << 25,
+    kAllowHarmonyPrivateMethods = 1 << 26,
+    kIsOneshotIIFE = 1 << 27,
+    kCollectSourcePositions = 1 << 28,
+    kAllowHarmonyNullish = 1 << 29,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
   std::unique_ptr<Zone> zone_;
-  unsigned flags_;
+  uint32_t flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
   uintptr_t stack_limit_;
   uint64_t hash_seed_;
   FunctionKind function_kind_;
+  FunctionSyntaxKind function_syntax_kind_;
   int script_id_;
   int start_position_;
   int end_position_;

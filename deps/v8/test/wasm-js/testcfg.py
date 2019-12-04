@@ -13,6 +13,21 @@ WPT_ROOT = "/wasm/jsapi/"
 META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
 META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
+proposal_flags = [{
+                    'name': 'reference-types',
+                    'flags': ['--experimental-wasm-anyref',
+                              '--no-experimental-wasm-bulk-memory']
+                  },
+                  {
+                    'name': 'bulk-memory-operations',
+                    'flags': ['--experimental-wasm-bulk-memory']
+                  },
+                  {
+                    'name': 'js-types',
+                    'flags': ['--experimental-wasm-type-reflection',
+                              '--no-experimental-wasm-bulk-memory']
+                  }]
+
 
 class TestLoader(testsuite.JSTestLoader):
   @property
@@ -25,7 +40,7 @@ class TestSuite(testsuite.TestSuite):
     super(TestSuite, self).__init__(*args, **kwargs)
     self.mjsunit_js = os.path.join(os.path.dirname(self.root), "mjsunit",
                                    "mjsunit.js")
-    self.test_root = os.path.join(self.root, "data", "test", "js-api")
+    self.test_root = os.path.join(self.root, "tests")
     self._test_loader.test_root = self.test_root
 
   def _test_loader_class(self):
@@ -34,6 +49,8 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
+def get_proposal_path_identifier(proposal):
+  return os.sep.join(['proposals', proposal['name']])
 
 class TestCase(testcase.D8TestCase):
   def _get_timeout_param(self):
@@ -50,19 +67,27 @@ class TestCase(testcase.D8TestCase):
       return None
 
   def _get_files_params(self):
-    files = [os.path.join(self.suite.mjsunit_js),
+    files = [self.suite.mjsunit_js,
              os.path.join(self.suite.root, "testharness.js")]
 
     source = self.get_source()
+    current_dir = os.path.dirname(self._get_source_path())
     for script in META_SCRIPT_REGEXP.findall(source):
       if script.startswith(WPT_ROOT):
         # Matched an absolute path, strip the root and replace it with our
         # local root.
-        script = os.path.join(self.suite.test_root, script[len(WPT_ROOT):])
+        found = False
+        for proposal in proposal_flags:
+          if get_proposal_path_identifier(proposal) in current_dir:
+            found = True
+            script = os.path.join(self.suite.test_root,
+                                  os.sep.join(['proposals', proposal['name']]),
+                                  script[len(WPT_ROOT):])
+        if not found:
+          script = os.path.join(self.suite.test_root, script[len(WPT_ROOT):])
       elif not script.startswith("/"):
         # Matched a relative path, prepend this test's directory.
-        thisdir = os.path.dirname(self._get_source_path())
-        script = os.path.join(thisdir, script)
+        script = os.path.join(current_dir, script)
       else:
         raise Exception("Unexpected absolute path for script: \"%s\"" % script);
 
@@ -73,6 +98,12 @@ class TestCase(testcase.D8TestCase):
       os.path.join(self.suite.root, "testharness-after.js")
     ])
     return files
+
+  def _get_source_flags(self):
+    for proposal in proposal_flags:
+      if get_proposal_path_identifier(proposal) in self.path:
+        return proposal['flags']
+    return []
 
   def _get_source_path(self):
     # All tests are named `path/name.any.js`

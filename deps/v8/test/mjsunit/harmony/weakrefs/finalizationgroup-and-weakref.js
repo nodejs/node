@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking --allow-natives-syntax
+// Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_called = false;
 let cleanup = function(iter) {
@@ -32,13 +32,13 @@ gc();
   assertNotEquals(undefined, weak_ref.deref());
 })();
 
-%PerformMicrotaskCheckpoint();
-// Next turn.
+// Trigger gc in next task
+setTimeout(() => {
+  gc();
 
-gc();
-
-%PerformMicrotaskCheckpoint();
-// Next turn.
-
-assertTrue(cleanup_called);
-assertEquals(undefined, weak_ref.deref());
+  // Check that cleanup callback was called in a follow up task
+  setTimeout(() => {
+    assertTrue(cleanup_called);
+    assertEquals(undefined, weak_ref.deref());
+  }, 0);
+}, 0);

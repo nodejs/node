@@ -273,8 +273,8 @@ TEST(SharedEngineRunThreadedBuildingSync) {
     Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
     CHECK_EQ(42, isolate.Run(instance));
   });
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   thread1.Join();
   thread2.Join();
 }
@@ -295,8 +295,8 @@ TEST(SharedEngineRunThreadedBuildingAsync) {
         CompileAndInstantiateAsync(isolate, buffer);
     CHECK_EQ(42, isolate.Run(instance));
   });
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   thread1.Join();
   thread2.Join();
 }
@@ -321,8 +321,8 @@ TEST(SharedEngineRunThreadedExecution) {
     Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
     CHECK_EQ(23, isolate.Run(instance));
   });
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   thread1.Join();
   thread2.Join();
 }
@@ -358,7 +358,7 @@ TEST(SharedEngineRunThreadedTierUp) {
         &module->module()->functions[0], ExecutionTier::kTurbofan);
     CHECK_EQ(23, isolate.Run(instance));
   });
-  for (auto& thread : threads) thread.Start();
+  for (auto& thread : threads) CHECK(thread.Start());
   for (auto& thread : threads) thread.Join();
 }
 

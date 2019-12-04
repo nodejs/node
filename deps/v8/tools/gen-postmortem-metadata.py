@@ -49,7 +49,6 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import io
 import re
 import sys
 
@@ -167,7 +166,7 @@ consts_misc = [
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
     { 'name': 'class_Map__instance_descriptors_offset',
-       'value': 'Map::kInstanceDescriptorsOffset' },
+        'value': 'Map::kInstanceDescriptorsOffset' },
 
     { 'name': 'off_fp_context_or_frame_type',
         'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
@@ -381,7 +380,7 @@ def load_objects():
 
 
 def load_objects_from_file(objfilename, checktypes):
-        objfile = io.open(objfilename, 'r', encoding='utf-8');
+        objfile = open(objfilename, 'r');
         in_insttype = False;
 
         typestr = '';
@@ -576,7 +575,7 @@ def load_fields():
 
 
 def load_fields_from_file(filename):
-        inlfile = io.open(filename, 'r', encoding='utf-8');
+        inlfile = open(filename, 'r');
 
         #
         # Each class's fields and the corresponding offsets are described in the

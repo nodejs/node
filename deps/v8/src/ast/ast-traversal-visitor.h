@@ -383,6 +383,12 @@ void AstTraversalVisitor<Subclass>::VisitThrow(Throw* expr) {
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitOptionalChain(OptionalChain* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->expression()));
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitProperty(Property* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->obj()));

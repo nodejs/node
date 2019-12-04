@@ -99,12 +99,11 @@ class Name : public TorqueGeneratedName<Name, HeapObject> {
   STATIC_ASSERT(kArrayIndexLengthBits > 0);
   STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
-  class ArrayIndexValueBits
-      : public BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits> {
-  };  // NOLINT
-  class ArrayIndexLengthBits
-      : public BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
-                        kArrayIndexLengthBits> {};  // NOLINT
+  using ArrayIndexValueBits =
+      BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
+  using ArrayIndexLengthBits =
+      BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
+               kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
@@ -147,9 +146,10 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   // for a detailed description.
   DECL_BOOLEAN_ACCESSORS(is_interesting_symbol)
 
-  // [is_public]: Whether this is a symbol created by Symbol.for. Calling
-  // Symbol.keyFor on such a symbol simply needs to return the attached name.
-  DECL_BOOLEAN_ACCESSORS(is_public)
+  // [is_in_public_symbol_table]: Whether this is a symbol created by
+  // Symbol.for. Calling Symbol.keyFor on such a symbol simply needs
+  // to return the attached name.
+  DECL_BOOLEAN_ACCESSORS(is_in_public_symbol_table)
 
   // [is_private_name]: Whether this is a private name.  Private names
   // are the same as private symbols except they throw on missing
@@ -164,11 +164,11 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   DECL_VERIFIER(Symbol)
 
 // Flags layout.
-#define FLAGS_BIT_FIELDS(V, _)          \
-  V(IsPrivateBit, bool, 1, _)           \
-  V(IsWellKnownSymbolBit, bool, 1, _)   \
-  V(IsPublicBit, bool, 1, _)            \
-  V(IsInterestingSymbolBit, bool, 1, _) \
+#define FLAGS_BIT_FIELDS(V, _)            \
+  V(IsPrivateBit, bool, 1, _)             \
+  V(IsWellKnownSymbolBit, bool, 1, _)     \
+  V(IsInPublicSymbolTableBit, bool, 1, _) \
+  V(IsInterestingSymbolBit, bool, 1, _)   \
   V(IsPrivateNameBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)

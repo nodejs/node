@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function TestMutableHeapNumberLiteral() {
+function TestHeapNumberLiteral() {
     var data = { a: 0, b: 0 };
     data.a += 0.1;
     assertEquals(0.1, data.a);
     assertEquals(0, data.b);
 };
-TestMutableHeapNumberLiteral();
-TestMutableHeapNumberLiteral();
-TestMutableHeapNumberLiteral();
-TestMutableHeapNumberLiteral();
-TestMutableHeapNumberLiteral();
+TestHeapNumberLiteral();
+TestHeapNumberLiteral();
+TestHeapNumberLiteral();
+TestHeapNumberLiteral();
+TestHeapNumberLiteral();

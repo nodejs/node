@@ -207,7 +207,7 @@ Maybe<bool> JSSegmentIterator::Following(
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewRangeError(MessageTemplate::kParameterOfFunctionOutOfRange,
-                        factory->NewStringFromStaticChars("from"),
+                        factory->from_string(),
                         factory->NewStringFromStaticChars("following"), index),
           Nothing<bool>());
     }
@@ -220,7 +220,7 @@ Maybe<bool> JSSegmentIterator::Following(
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewRangeError(MessageTemplate::kParameterOfFunctionOutOfRange,
-                        factory->NewStringFromStaticChars("from"),
+                        factory->from_string(),
                         factory->NewStringFromStaticChars("following"),
                         from_obj),
           Nothing<bool>());
@@ -260,7 +260,7 @@ Maybe<bool> JSSegmentIterator::Preceding(
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewRangeError(MessageTemplate::kParameterOfFunctionOutOfRange,
-                        factory->NewStringFromStaticChars("from"),
+                        factory->from_string(),
                         factory->NewStringFromStaticChars("preceding"), index),
           Nothing<bool>());
     }
@@ -272,7 +272,7 @@ Maybe<bool> JSSegmentIterator::Preceding(
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewRangeError(MessageTemplate::kParameterOfFunctionOutOfRange,
-                        factory->NewStringFromStaticChars("from"),
+                        factory->from_string(),
                         factory->NewStringFromStaticChars("preceding"),
                         from_obj),
           Nothing<bool>());

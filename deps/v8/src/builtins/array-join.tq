@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 namespace array_join {
-  type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => Object;
+  type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => JSAny;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
   // string.
@@ -12,12 +12,12 @@ namespace array_join {
       FixedArray, intptr, String, String): String;
 
   transitioning builtin LoadJoinElement<T: type>(
-      context: Context, receiver: JSReceiver, k: Number): Object {
+      context: Context, receiver: JSReceiver, k: Number): JSAny {
     return GetProperty(receiver, k);
   }
 
-  LoadJoinElement<array::DictionaryElements>(
-      context: Context, receiver: JSReceiver, k: Number): Object {
+  transitioning LoadJoinElement<array::DictionaryElements>(
+      context: Context, receiver: JSReceiver, k: Number): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const dict: NumberDictionary = UnsafeCast<NumberDictionary>(array.elements);
     try {
@@ -33,15 +33,15 @@ namespace array_join {
   }
 
   LoadJoinElement<array::FastSmiOrObjectElements>(
-      context: Context, receiver: JSReceiver, k: Number): Object {
+      context: Context, receiver: JSReceiver, k: Number): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
     const element: Object = fixedArray.objects[UnsafeCast<Smi>(k)];
-    return element == TheHole ? kEmptyString : element;
+    return element == TheHole ? kEmptyString : UnsafeCast<JSAny>(element);
   }
 
   LoadJoinElement<array::FastDoubleElements>(
-      context: Context, receiver: JSReceiver, k: Number): Object {
+      context: Context, receiver: JSReceiver, k: Number): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
         UnsafeCast<FixedDoubleArray>(array.elements);
@@ -51,7 +51,7 @@ namespace array_join {
   }
 
   builtin LoadJoinTypedElement<T: type>(
-      context: Context, receiver: JSReceiver, k: Number): Object {
+      context: Context, receiver: JSReceiver, k: Number): JSAny {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
     assert(!IsDetachedBuffer(typedArray.buffer));
     return typed_array::LoadFixedTypedArrayElementAsTagged(
@@ -60,14 +60,14 @@ namespace array_join {
   }
 
   transitioning builtin ConvertToLocaleString(
-      context: Context, element: Object, locales: Object,
-      options: Object): String {
+      context: Context, element: JSAny, locales: JSAny,
+      options: JSAny): String {
     if (IsNullOrUndefined(element)) return kEmptyString;
 
-    const prop: Object = GetProperty(element, 'toLocaleString');
+    const prop: JSAny = GetProperty(element, 'toLocaleString');
     try {
       const callable: Callable = Cast<Callable>(prop) otherwise TypeError;
-      let result: Object;
+      let result: JSAny;
       if (IsNullOrUndefined(locales)) {
         result = Call(context, callable, element);
       } else if (IsNullOrUndefined(options)) {
@@ -86,29 +86,25 @@ namespace array_join {
   // (see LoadJoinElement<ElementsAccessor>).
   macro CannotUseSameArrayAccessor<T: type>(implicit context: Context)(
       loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-      originalLen: Number): never
-      labels Cannot, Can;
+      originalLen: Number): bool;
 
   CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
       loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-      originalLen: Number): never
-      labels Cannot, Can {
-    if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) goto Can;
+      originalLen: Number): bool {
+    if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) return false;
 
     const array: JSArray = UnsafeCast<JSArray>(receiver);
-    if (originalMap != array.map) goto Cannot;
-    if (originalLen != array.length) goto Cannot;
-    if (IsNoElementsProtectorCellInvalid()) goto Cannot;
-    goto Can;
+    if (originalMap != array.map) return true;
+    if (originalLen != array.length) return true;
+    if (IsNoElementsProtectorCellInvalid()) return true;
+    return false;
   }
 
   CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
       _loadFn: LoadJoinElementFn, receiver: JSReceiver, _initialMap: Map,
-      _initialLen: Number): never
-      labels Cannot, Can {
+      _initialLen: Number): bool {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-    if (IsDetachedBuffer(typedArray.buffer)) goto Cannot;
-    goto Can;
+    return IsDetachedBuffer(typedArray.buffer);
   }
 
   // Calculates the running total length of the resulting string.  If the
@@ -261,7 +257,7 @@ namespace array_join {
 
   transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
       receiver: JSReceiver, sep: String, lengthNumber: Number,
-      useToLocaleString: constexpr bool, locales: Object, options: Object,
+      useToLocaleString: constexpr bool, locales: JSAny, options: JSAny,
       initialLoadFn: LoadJoinElementFn): String {
     const initialMap: Map = receiver.map;
     const len: uintptr = Convert<uintptr>(lengthNumber);
@@ -287,7 +283,7 @@ namespace array_join {
       }
 
       // b. Let element be ? Get(O, ! ToString(k)).
-      const element: Object = loadFn(context, receiver, Convert<Number>(k++));
+      const element: JSAny = loadFn(context, receiver, Convert<Number>(k++));
 
       // c. If element is undefined or null, let next be the empty String;
       //    otherwise, let next be ? ToString(element).
@@ -304,7 +300,7 @@ namespace array_join {
           case (num: Number): {
             next = NumberToString(num);
           }
-          case (obj: HeapObject): {
+          case (obj: JSAny): {
             if (IsNullOrUndefined(obj)) continue;
             next = ToString(context, obj);
           }
@@ -325,11 +321,11 @@ namespace array_join {
 
   transitioning macro ArrayJoin<T: type>(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-      lenNumber: Number, locales: Object, options: Object): Object;
+      lenNumber: Number, locales: JSAny, options: JSAny): JSAny;
 
-  ArrayJoin<JSArray>(implicit context: Context)(
+  transitioning ArrayJoin<JSArray>(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-      lenNumber: Number, locales: Object, options: Object): Object {
+      lenNumber: Number, locales: JSAny, options: JSAny): JSAny {
     const map: Map = receiver.map;
     const kind: ElementsKind = map.elements_kind;
     let loadFn: LoadJoinElementFn;
@@ -374,9 +370,9 @@ namespace array_join {
         receiver, sep, lenNumber, useToLocaleString, locales, options, loadFn);
   }
 
-  ArrayJoin<JSTypedArray>(implicit context: Context)(
+  transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-      lenNumber: Number, locales: Object, options: Object): Object {
+      lenNumber: Number, locales: JSAny, options: JSAny): JSAny {
     const map: Map = receiver.map;
     const kind: ElementsKind = map.elements_kind;
     let loadFn: LoadJoinElementFn;
@@ -465,11 +461,9 @@ namespace array_join {
   }
 
   // Fast path the common non-nested calls. If the receiver is not already on
-  // the stack, add it to the stack and go to ReceiverAdded. Otherwise go to
-  // ReceiverNotAdded.
+  // the stack, add it to the stack and return true. Otherwise return false.
   macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
-      never
-      labels ReceiverAdded, ReceiverNotAdded {
+      bool {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
@@ -477,7 +471,7 @@ namespace array_join {
         stack.objects[0] = receiver;
       } else if (JoinStackPush(stack, receiver) == False)
         deferred {
-          goto ReceiverNotAdded;
+          return false;
         }
     }
     label IfUninitialized {
@@ -486,13 +480,13 @@ namespace array_join {
       stack.objects[0] = receiver;
       SetJoinStack(stack);
     }
-    goto ReceiverAdded;
+    return true;
   }
 
   // Removes a receiver from the stack. The FixedArray will automatically shrink
   // to Heap::kMinJoinStackSize once the stack becomes empty.
   builtin JoinStackPop(implicit context: Context)(
-      stack: FixedArray, receiver: JSReceiver): Object {
+      stack: FixedArray, receiver: JSReceiver): JSAny {
     const len: intptr = stack.length_intptr;
     for (let i: intptr = 0; i < len; i++) {
       if (stack.objects[i] == receiver) {
@@ -532,7 +526,7 @@ namespace array_join {
   transitioning macro CycleProtectedArrayJoin<T: type>(implicit context:
                                                             Context)(
       useToLocaleString: constexpr bool, o: JSReceiver, len: Number,
-      sepObj: Object, locales: Object, options: Object): Object {
+      sepObj: JSAny, locales: JSAny, options: JSAny): JSAny {
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
     const sep: String =
@@ -542,7 +536,7 @@ namespace array_join {
     // the normal join algorithm.
     if (len > 0 && JoinStackPushInline(o)) {
       try {
-        const result: Object =
+        const result: JSAny =
             ArrayJoin<T>(useToLocaleString, o, sep, len, locales, options);
         JoinStackPopInline(o);
         return result;
@@ -557,9 +551,9 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
   transitioning javascript builtin
-  ArrayPrototypeJoin(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
-    const separator: Object = arguments[0];
+  ArrayPrototypeJoin(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
+    const separator: JSAny = arguments[0];
 
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -577,9 +571,9 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
   transitioning javascript builtin ArrayPrototypeToLocaleString(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
-    const locales: Object = arguments[0];
-    const options: Object = arguments[1];
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+    const locales: JSAny = arguments[0];
+    const options: JSAny = arguments[1];
 
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -597,12 +591,12 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tostring
   transitioning javascript builtin ArrayPrototypeToString(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     // 1. Let array be ? ToObject(this value).
     const array: JSReceiver = ToObject_Inline(context, receiver);
 
     // 2. Let func be ? Get(array, "join").
-    const prop: Object = GetProperty(array, 'join');
+    const prop: JSAny = GetProperty(array, 'join');
     try {
       // 3. If IsCallable(func) is false, let func be the intrinsic function
       //    %ObjProto_toString%.
@@ -618,8 +612,8 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
   transitioning javascript builtin TypedArrayPrototypeJoin(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
-    const separator: Object = arguments[0];
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+    const separator: JSAny = arguments[0];
 
     // Spec: ValidateTypedArray is applied to the this value prior to evaluating
     // the algorithm.
@@ -633,9 +627,9 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
   transitioning javascript builtin TypedArrayPrototypeToLocaleString(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
-    const locales: Object = arguments[0];
-    const options: Object = arguments[1];
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+    const locales: JSAny = arguments[0];
+    const options: JSAny = arguments[1];
 
     // Spec: ValidateTypedArray is applied to the this value prior to evaluating
     // the algorithm.

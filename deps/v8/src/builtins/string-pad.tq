@@ -1,0 +1,111 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-string-gen.h'
+
+namespace string {
+
+  extern transitioning builtin
+  StringSubstring(implicit context: Context)(String, intptr, intptr): String;
+
+  const kStringPadStart: constexpr int31 = 0;
+  const kStringPadEnd: constexpr int31 = 1;
+
+  transitioning macro StringPad(implicit context: Context)(
+      receiver: JSAny, arguments: Arguments, methodName: constexpr string,
+      variant: constexpr int31): String {
+    const receiverString: String = ToThisString(receiver, methodName);
+    const stringLength: Smi = receiverString.length_smi;
+
+    if (arguments.length == 0) {
+      return receiverString;
+    }
+    const maxLength: Number = ToLength_Inline(context, arguments[0]);
+    assert(IsNumberNormalized(maxLength));
+
+    typeswitch (maxLength) {
+      case (smiMaxLength: Smi): {
+        if (smiMaxLength <= stringLength) {
+          return receiverString;
+        }
+      }
+      case (Number): {
+      }
+    }
+
+    let fillString: String = ' ';
+    let fillLength: intptr = 1;
+
+    if (arguments.length != 1) {
+      const fill = arguments[1];
+      if (fill != Undefined) {
+        fillString = ToString_Inline(context, fill);
+        fillLength = fillString.length_intptr;
+        if (fillLength == 0) {
+          return receiverString;
+        }
+      }
+    }
+
+    // Pad.
+    assert(fillLength > 0);
+    // Throw if max_length is greater than String::kMaxLength.
+    if (!TaggedIsSmi(maxLength)) {
+      ThrowInvalidStringLength(context);
+    }
+
+    const smiMaxLength: Smi = UnsafeCast<Smi>(maxLength);
+    if (smiMaxLength > SmiConstant(kStringMaxLength)) {
+      ThrowInvalidStringLength(context);
+    }
+    assert(smiMaxLength > stringLength);
+    const padLength: Smi = smiMaxLength - stringLength;
+
+    let padding: String;
+    if (fillLength == 1) {
+      // Single char fill.
+      // Fast path for a single character fill.  No need to calculate number of
+      // repetitions or remainder.
+      padding = StringRepeat(context, fillString, padLength);
+    } else {
+      // Multi char fill.
+      const fillLengthWord32: int32 = TruncateIntPtrToInt32(fillLength);
+      const padLengthWord32: int32 = Convert<int32>(padLength);
+      const repetitionsWord32: int32 = padLengthWord32 / fillLengthWord32;
+      const remainingWord32: int32 = padLengthWord32 % fillLengthWord32;
+      padding =
+          StringRepeat(context, fillString, Convert<Smi>(repetitionsWord32));
+
+      if (remainingWord32 != 0) {
+        const remainderString =
+            StringSubstring(fillString, 0, Convert<intptr>(remainingWord32));
+        padding = padding + remainderString;
+      }
+    }
+
+    // Return result.
+    assert(padLength == padding.length_smi);
+    if (variant == kStringPadStart) {
+      return padding + receiverString;
+    }
+    assert(variant == kStringPadEnd);
+    return receiverString + padding;
+  }
+
+  // ES6 #sec-string.prototype.padstart
+  transitioning javascript builtin
+  StringPrototypePadStart(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): String {
+    const methodName: constexpr string = 'String.prototype.padStart';
+    return StringPad(receiver, arguments, methodName, kStringPadStart);
+  }
+
+  // ES6 #sec-string.prototype.padend
+  transitioning javascript builtin
+  StringPrototypePadEnd(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): String {
+    const methodName: constexpr string = 'String.prototype.padEnd';
+    return StringPad(receiver, arguments, methodName, kStringPadEnd);
+  }
+}

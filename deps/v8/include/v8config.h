@@ -186,6 +186,8 @@
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
+//  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
+//                                        supported
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
@@ -214,6 +216,7 @@
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
 
+# define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
 # define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
@@ -225,6 +228,10 @@
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
+
+// Clang has no __has_feature for computed gotos.
+// GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
+# define V8_HAS_COMPUTED_GOTO 1
 
 # if __cplusplus >= 201402L
 #  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
@@ -256,11 +263,15 @@
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
 
+# define V8_HAS_BUILTIN_ASSUME_ALIGNED (V8_GNUC_PREREQ(4, 7, 0))
 # define V8_HAS_BUILTIN_CLZ (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_BUILTIN_CTZ (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_BUILTIN_EXPECT (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
+
+// GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
+#define V8_HAS_COMPUTED_GOTO (V8_GNUC_PREREQ(2, 0, 0))
 
 #endif
 
@@ -291,6 +302,12 @@
 # define V8_INLINE inline
 #endif
 
+#if V8_HAS_BUILTIN_ASSUME_ALIGNED
+# define V8_ASSUME_ALIGNED(ptr, alignment) \
+  __builtin_assume_aligned((ptr), (alignment))
+#else
+# define V8_ASSUME_ALIGNED(ptr) (ptr)
+#endif
 
 // A macro used to tell the compiler to never inline a particular function.
 // Don't bother for debug builds.

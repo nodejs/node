@@ -16,41 +16,12 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PromiseReactionJobTask, Microtask)
-OBJECT_CONSTRUCTORS_IMPL(PromiseFulfillReactionJobTask, PromiseReactionJobTask)
-OBJECT_CONSTRUCTORS_IMPL(PromiseRejectReactionJobTask, PromiseReactionJobTask)
-OBJECT_CONSTRUCTORS_IMPL(PromiseResolveThenableJobTask, Microtask)
-OBJECT_CONSTRUCTORS_IMPL(PromiseCapability, Struct)
-OBJECT_CONSTRUCTORS_IMPL(PromiseReaction, Struct)
-
-CAST_ACCESSOR(PromiseCapability)
-CAST_ACCESSOR(PromiseReaction)
-CAST_ACCESSOR(PromiseReactionJobTask)
-CAST_ACCESSOR(PromiseFulfillReactionJobTask)
-CAST_ACCESSOR(PromiseRejectReactionJobTask)
-CAST_ACCESSOR(PromiseResolveThenableJobTask)
-
-ACCESSORS(PromiseReaction, next, Object, kNextOffset)
-ACCESSORS(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)
-ACCESSORS(PromiseReaction, fulfill_handler, HeapObject, kFulfillHandlerOffset)
-ACCESSORS(PromiseReaction, promise_or_capability, HeapObject,
-          kPromiseOrCapabilityOffset)
-
-ACCESSORS(PromiseResolveThenableJobTask, context, Context, kContextOffset)
-ACCESSORS(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
-          kPromiseToResolveOffset)
-ACCESSORS(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
-
-ACCESSORS(PromiseReactionJobTask, context, Context, kContextOffset)
-ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset)
-ACCESSORS(PromiseReactionJobTask, handler, HeapObject, kHandlerOffset)
-ACCESSORS(PromiseReactionJobTask, promise_or_capability, HeapObject,
-          kPromiseOrCapabilityOffset)
-
-ACCESSORS(PromiseCapability, promise, HeapObject, kPromiseOffset)
-ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
-ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseReactionJobTask)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseFulfillReactionJobTask)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseRejectReactionJobTask)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseResolveThenableJobTask)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseCapability)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseReaction)
 
 }  // namespace internal
 }  // namespace v8

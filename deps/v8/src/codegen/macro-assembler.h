@@ -61,7 +61,7 @@ namespace v8 {
 namespace internal {
 
 // Simulators only support C calls with up to kMaxCParameters parameters.
-static constexpr int kMaxCParameters = 9;
+static constexpr int kMaxCParameters = 10;
 
 class FrameScope {
  public:

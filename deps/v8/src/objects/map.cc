@@ -281,8 +281,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_DATE_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
@@ -321,6 +319,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
     }
     case JS_API_OBJECT_TYPE:
+    case JS_GLOBAL_PROXY_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
 
@@ -333,7 +333,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case FILLER_TYPE:
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
-    case MUTABLE_HEAP_NUMBER_TYPE:
     case FEEDBACK_METADATA_TYPE:
       return kVisitDataObject;
 
@@ -681,6 +680,10 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
   if (details.location() != kField) return;
   DCHECK_EQ(kData, details.kind());
 
+  if (new_constness != details.constness() && is_prototype_map()) {
+    JSObject::InvalidatePrototypeChains(*this);
+  }
+
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneQueue<Map> backlog(&zone);
   backlog.push(*this);
@@ -966,7 +969,7 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsTypedArrayElementsKind(to_kind) ||
-           IsHoleyFrozenOrSealedElementsKind(to_kind));
+           IsAnyHoleyNonextensibleElementsKind(to_kind));
     to_kind = info.integrity_level_source_map.elements_kind();
   }
   if (from_kind != to_kind) {
@@ -1730,6 +1733,12 @@ Handle<Map> Map::CopyReplaceDescriptors(
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors,
                                     LayoutDescriptor::FastPointerLayout());
+      // If we were trying to insert a transition but failed because there are
+      // too many transitions already, mark the object as a prototype to avoid
+      // tracking transitions from the detached map.
+      if (flag == INSERT_TRANSITION) {
+        result->set_is_prototype_map(true);
+      }
     }
   } else {
     result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
@@ -2006,6 +2015,15 @@ Handle<Map> Map::CopyForPreventExtensions(
             new_kind = PACKED_SEALED_ELEMENTS;
           } else if (attrs_to_add == FROZEN) {
             new_kind = PACKED_FROZEN_ELEMENTS;
+          } else {
+            new_kind = PACKED_NONEXTENSIBLE_ELEMENTS;
+          }
+          break;
+        case PACKED_NONEXTENSIBLE_ELEMENTS:
+          if (attrs_to_add == SEALED) {
+            new_kind = PACKED_SEALED_ELEMENTS;
+          } else if (attrs_to_add == FROZEN) {
+            new_kind = PACKED_FROZEN_ELEMENTS;
           }
           break;
         case PACKED_SEALED_ELEMENTS:
@@ -2014,6 +2032,15 @@ Handle<Map> Map::CopyForPreventExtensions(
           }
           break;
         case HOLEY_ELEMENTS:
+          if (attrs_to_add == SEALED) {
+            new_kind = HOLEY_SEALED_ELEMENTS;
+          } else if (attrs_to_add == FROZEN) {
+            new_kind = HOLEY_FROZEN_ELEMENTS;
+          } else {
+            new_kind = HOLEY_NONEXTENSIBLE_ELEMENTS;
+          }
+          break;
+        case HOLEY_NONEXTENSIBLE_ELEMENTS:
           if (attrs_to_add == SEALED) {
             new_kind = HOLEY_SEALED_ELEMENTS;
           } else if (attrs_to_add == FROZEN) {

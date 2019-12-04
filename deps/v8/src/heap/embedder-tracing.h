@@ -57,6 +57,12 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) {
     return !InUse() || remote_tracer_->IsRootForNonTracingGC(handle);
   }
+  void ResetHandleInNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) {
+    // Resetting is only called when IsRootForNonTracingGC returns false which
+    // can only happen the EmbedderHeapTracer is set on API level.
+    DCHECK(InUse());
+    remote_tracer_->ResetHandleInNonTracingGC(handle);
+  }
 
   void NotifyV8MarkingWorklistWasEmpty() {
     num_v8_marking_worklist_was_empty_++;

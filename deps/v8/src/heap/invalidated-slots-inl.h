@@ -62,6 +62,48 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
   return invalidated_object_.IsValidSlot(invalidated_object_.map(), offset);
 }
 
+void InvalidatedSlotsCleanup::Free(Address free_start, Address free_end) {
+#ifdef DEBUG
+  DCHECK_LT(free_start, free_end);
+  // Free regions should come in increasing order and do not overlap
+  DCHECK_LE(last_free_, free_start);
+  last_free_ = free_start;
+#endif
+
+  if (iterator_ == iterator_end_) return;
+
+  // Ignore invalidated objects before free region
+  while (free_start >= invalidated_end_) {
+    ++iterator_;
+    NextInvalidatedObject();
+  }
+
+  // Loop here: Free region might contain multiple invalidated objects
+  while (free_end > invalidated_start_) {
+    // Case: Free region starts before current invalidated object
+    if (free_start <= invalidated_start_) {
+      iterator_ = invalidated_slots_->erase(iterator_);
+
+    } else {
+      // Case: Free region starts within current invalidated object
+      // (Can happen for right-trimmed objects)
+      iterator_++;
+    }
+
+    NextInvalidatedObject();
+  }
+}
+
+void InvalidatedSlotsCleanup::NextInvalidatedObject() {
+  if (iterator_ != iterator_end_) {
+    invalidated_start_ = iterator_->first.address();
+    invalidated_end_ = invalidated_start_ + iterator_->second;
+  } else {
+    invalidated_start_ = sentinel_;
+    invalidated_end_ = sentinel_;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

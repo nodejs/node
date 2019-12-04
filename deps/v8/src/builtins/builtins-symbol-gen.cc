@@ -16,9 +16,10 @@ TF_BUILTIN(SymbolPrototypeDescriptionGetter, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                            "Symbol.prototype.description");
-  Node* result = LoadObjectField(value, Symbol::kNameOffset);
+  TNode<Symbol> value =
+      CAST(ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                       "Symbol.prototype.description"));
+  TNode<Object> result = LoadObjectField(value, Symbol::kNameOffset);
   Return(result);
 }
 
@@ -27,8 +28,8 @@ TF_BUILTIN(SymbolPrototypeToPrimitive, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                             "Symbol.prototype [ @@toPrimitive ]");
+  TNode<Object> result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                                     "Symbol.prototype [ @@toPrimitive ]");
   Return(result);
 }
 
@@ -37,9 +38,10 @@ TF_BUILTIN(SymbolPrototypeToString, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                            "Symbol.prototype.toString");
-  Node* result = CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
+  TNode<Object> value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                                    "Symbol.prototype.toString");
+  TNode<Object> result =
+      CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
   Return(result);
 }
 
@@ -48,8 +50,8 @@ TF_BUILTIN(SymbolPrototypeValueOf, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                             "Symbol.prototype.valueOf");
+  TNode<Object> result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                                     "Symbol.prototype.valueOf");
   Return(result);
 }
 
