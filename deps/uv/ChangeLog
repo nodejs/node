@@ -1,3 +1,40 @@
+2019.12.05, Version 1.34.0 (Stable), 15ae750151ac9341e5945eb38f8982d59fb99201
+
+Changes since version 1.33.1:
+
+* unix: move random-sysctl to random-sysctl-linux (nia)
+
+* netbsd: use KERN_ARND sysctl to get entropy (nia)
+
+* unix: refactor uv__fs_copyfile() logic (cjihrig)
+
+* build: fix android build, add missing sources (Ben Noordhuis)
+
+* build: fix android build, fix symbol redefinition (Ben Noordhuis)
+
+* build: fix android autotools build (Ben Noordhuis)
+
+* fs: handle non-functional statx system call (Milad Farazmand)
+
+* unix,win: add uv_sleep() (cjihrig)
+
+* doc: add richardlau to maintainers (Richard Lau)
+
+* aix: fix netmask for IPv6 (Richard Lau)
+
+* aix: clean up after errors in uv_interface_addresses() (Richard Lau)
+
+* aix: fix setting of physical addresses (Richard Lau)
+
+* fs: add uv_fs_mkstemp (Saúl Ibarra Corretgé)
+
+* unix: switch uv_sleep() to nanosleep() (Ben Noordhuis)
+
+* unix: retry on EINTR in uv_sleep() (Ben Noordhuis)
+
+* zos: fix nanosleep() emulation (Ben Noordhuis)
+
+
 2019.10.20, Version 1.33.1 (Stable), 07ad32138f4d2285ba2226b5e20462b27b091a59
 
 Changes since version 1.33.0:
