@@ -1,13 +1,15 @@
+// Flags: --expose-internals
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
+const { sleep } = require('internal/util');
 
 let cntr = 0;
 let first;
 const t = setInterval(() => {
   cntr++;
   if (cntr === 1) {
-    common.busyLoop(100);
+    sleep(100);
     // Ensure that the event loop passes before the second interval
     setImmediate(() => assert.strictEqual(cntr, 1));
     first = Date.now();

@@ -45,11 +45,6 @@ tasks.
 
 Takes `whitelist` and concats that with predefined `knownGlobals`.
 
-### busyLoop(time)
-* `time` [&lt;number>][]
-
-Blocks for `time` amount of time.
-
 ### canCreateSymLink()
 * return [&lt;boolean>][]
 
