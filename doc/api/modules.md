@@ -241,7 +241,7 @@ RESOLVE_BARE_SPECIFIER(DIR, X)
    g. If no such key can be found, throw "not found".
    h. let RESOLVED_URL =
         PACKAGE_EXPORTS_TARGET_RESOLVE(pathToFileURL(DIR/name), exports[key],
-        subpath.slice(key.length), ["node", "commonjs"]), as defined in the ESM
+        subpath.slice(key.length), ["node", "require"]), as defined in the ESM
         resolver.
    i. return fileURLToPath(RESOLVED_URL)
 3. return DIR/X
