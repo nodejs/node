@@ -292,19 +292,21 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
   struct Info {
     std::unique_ptr<NativeSymbolDebuggingContext> ctx;
     FILE* stream;
+    size_t num_handles;
   };
 
-  Info info { NativeSymbolDebuggingContext::New(), stream };
+  Info info { NativeSymbolDebuggingContext::New(), stream, 0 };
 
-  fprintf(stream, "uv loop at [%p] has %d active handles\n",
-          loop, loop->active_handles);
+  fprintf(stream, "uv loop at [%p] has open handles:\n", loop);
 
   uv_walk(loop, [](uv_handle_t* handle, void* arg) {
     Info* info = static_cast<Info*>(arg);
     NativeSymbolDebuggingContext* sym_ctx = info->ctx.get();
     FILE* stream = info->stream;
+    info->num_handles++;
 
-    fprintf(stream, "[%p] %s\n", handle, uv_handle_type_name(handle->type));
+    fprintf(stream, "[%p] %s%s\n", handle, uv_handle_type_name(handle->type),
+            uv_is_active(handle) ? " (active)" : "");
 
     void* close_cb = reinterpret_cast<void*>(handle->close_cb);
     fprintf(stream, "\tClose callback: %p %s\n",
@@ -328,6 +330,9 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
           first_field, sym_ctx->LookupSymbol(first_field).Display().c_str());
     }
   }, &info);
+
+  fprintf(stream, "uv loop at [%p] has %zu open handles in total\n",
+          loop, info.num_handles);
 }
 
 std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
