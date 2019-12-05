@@ -436,7 +436,7 @@
             },
           },
          }],
-        ['node_use_node_code_cache=="true"', {
+        ['want_separate_host_toolset==0', {
           'dependencies': [
             'mkcodecache',
           ],
