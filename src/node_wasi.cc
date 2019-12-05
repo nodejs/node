@@ -163,6 +163,15 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
       free(options.envp[i]);
     delete[] options.envp;
   }
+
+  if (options.preopens != nullptr) {
+    for (uint32_t i = 0; i < options.preopenc; i++) {
+      free(options.preopens[i].mapped_path);
+      free(options.preopens[i].real_path);
+    }
+
+    delete[] options.preopens;
+  }
 }
 
 
