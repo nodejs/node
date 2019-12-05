@@ -11,12 +11,12 @@ new WASI({});
 
 // If args is not an Array and not undefined, it should throw.
 assert.throws(() => { new WASI({ args: 'fhqwhgads' }); },
-              { code: 'ERR_INVALID_ARG_TYPE' });
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bargs\b/ });
 
 // If env is not an Object and not undefined, it should throw.
 assert.throws(() => { new WASI({ env: 'fhqwhgads' }); },
-              { code: 'ERR_INVALID_ARG_TYPE' });
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\benv\b/ });
 
 // If preopens is not an Object and not undefined, it should throw.
 assert.throws(() => { new WASI({ preopens: 'fhqwhgads' }); },
-              { code: 'ERR_INVALID_ARG_TYPE' });
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bpreopens\b/ });
