@@ -967,10 +967,10 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
         return resolved;
       }
     }
-    if (target_obj->HasOwnProperty(context, env->default_string()).FromJust()) {
+    if (target_obj->HasOwnProperty(context, env->module_string()).FromJust()) {
       matched = true;
       conditionalTarget =
-          target_obj->Get(context, env->default_string()).ToLocalChecked();
+          target_obj->Get(context, env->module_string()).ToLocalChecked();
       Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
             conditionalTarget, subpath, pkg_subpath, base, false);
       if (!resolved.IsNothing()) {

@@ -31,7 +31,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports-sugar', { default: 'main' }],
     // Conditional object exports sugar
     ['pkgexports-sugar2', isRequire ? { default: 'not-exported' } :
-      { default: 'main' }]
+      { default: 'main' }],
   ]);
 
   for (const [validSpecifier, expected] of validSpecifiers) {
@@ -51,7 +51,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports-number/hidden.js', './hidden.js'],
     // Sugar cases still encapsulate
     ['pkgexports-sugar/not-exported.js', './not-exported.js'],
-    ['pkgexports-sugar2/not-exported.js', './not-exported.js']
+    ['pkgexports-sugar2/not-exported.js', './not-exported.js'],
   ]);
 
   const invalidExports = new Map([
@@ -94,6 +94,15 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       assertIncludes(err.message, isRequire ?
         `do not define a valid '${subpath}' target` :
         `matched for '${subpath}'`);
+    }));
+  }
+
+  // Conditional export, even with no match, should still be used instead
+  // of falling back to main
+  if (isRequire) {
+    loadFixture('pkgexports-main').catch(mustCall((err) => {
+      strictEqual(err.code, 'MODULE_NOT_FOUND');
+      assertStartsWith(err.message, 'No valid export');
     }));
   }
 

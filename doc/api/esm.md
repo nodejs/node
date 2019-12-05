@@ -329,8 +329,8 @@ Node.js and the browser can be written:
   "main": "./index.js",
   "exports": {
     "./feature": {
-      "browser": "./feature-browser.js",
-      "default": "./feature-default.js"
+      "module": "./feature-default.js",
+      "browser": "./feature-browser.js"
     }
   }
 }
@@ -341,17 +341,16 @@ will be used as the final fallback.
 
 The conditions supported in Node.js are matched in the following order:
 
-1. `"require"` - matched when the package is loaded via `require()`.
-  _This is currently only supported behind the
-  `--experimental-conditional-exports` flag._
-2. `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+1. `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This is currently only supported behind the
   `--experimental-conditional-exports` flag._
-3. `"default"` - the generic fallback that will always match if no other
-   more specific condition is matched first. Can be a CommonJS or ES module
-   file.
+2. `"commonjs"` - matched when the package is loaded via `require()`.
+  _This is currently only supported behind the
+  `--experimental-conditional-exports` flag._
+3. `"module"` - matched when the package is not loaded via `require()`.
+   Can be any module format, this field does not set the type interpretation.
 
-Using the `"require"` condition it is possible to define a package that will
+Using the `"commonjs"` condition it is possible to define a package that will
 have a different exported value for CommonJS and ES modules, which can be a
 hazard in that it can result in having two separate instances of the same
 package in use in an application, which can cause a number of bugs.
@@ -394,8 +393,8 @@ from exports subpaths.
 {
   "exports": {
     ".": {
-      "require": "./main.cjs",
-      "default": "./main.js"
+      "module": "./main.js",
+      "commonjs": "./main.cjs"
     }
   }
 }
@@ -407,8 +406,8 @@ can be written:
 ```js
 {
   "exports": {
-    "require": "./main.cjs",
-    "default": "./main.js"
+    "module": "./main.js",
+    "commonjs": "./main.cjs"
   }
 }
 ```
@@ -422,8 +421,8 @@ thrown:
   // Throws on resolution!
   "exports": {
     "./feature": "./lib/feature.js",
-    "require": "./main.cjs",
-    "default": "./main.js"
+    "module": "./main.js",
+    "commonjs": "./main.cjs"
   }
 }
 ```
@@ -519,8 +518,8 @@ ES module wrapper is used for `import` and the CommonJS entry point for
   "type": "module",
   "main": "./index.cjs",
   "exports": {
-    "require": "./index.cjs",
-    "default": "./wrapper.mjs"
+    "commonjs": "./index.cjs",
+    "module": "./wrapper.mjs"
   }
 }
 ```
@@ -605,8 +604,8 @@ CommonJS and ES module entry points directly (requires
   "type": "module",
   "main": "./index.cjs",
   "exports": {
-    "require": "./index.cjs",
-    "default": "./index.mjs"
+    "module": "./index.mjs",
+    "commonjs": "./index.cjs"
   }
 }
 ```
@@ -1149,7 +1148,7 @@ of these top-level routines unless stated otherwise.
 _isMain_ is **true** when resolving the Node.js application entry point.
 
 _defaultEnv_ is the conditional environment name priority array,
-`["node", "default"]`.
+`["node", "module"]`.
 
 <details>
 <summary>Resolver algorithm specification</summary>
