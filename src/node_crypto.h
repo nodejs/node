@@ -35,6 +35,10 @@
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/bn.h>
+#include <openssl/dh.h>
+#include <openssl/ec.h>
+#include <openssl/rsa.h>
 
 namespace node {
 namespace crypto {
