@@ -47,8 +47,8 @@ if (process.argv[2] === 'child') {
 
   // Parse output that is formatted like this:
 
-  // uv loop at [0x559b65ed5770] has active handles
-  // [0x7f2de0018430] timer
+  // uv loop at [0x559b65ed5770] has open handles:
+  // [0x7f2de0018430] timer (active)
   //         Close callback: 0x7f2df31de220 CloseCallback(uv_handle_s*) [...]
   //         Data: 0x7f2df33df140 example_instance [...]
   //         (First field): 0x7f2df33dedc0 vtable for ExampleOwnerClass [...]
@@ -58,6 +58,7 @@ if (process.argv[2] === 'child') {
   // [0x7f2de000b910] timer
   //         Close callback: 0x7f2df31de220 CloseCallback(uv_handle_s*) [...]
   //         Data: 0x42
+  // uv loop at [0x559b65ed5770] has 3 open handles in total
 
   function isGlibc() {
     try {
@@ -89,15 +90,15 @@ if (process.argv[2] === 'child') {
 
     switch (state) {
       case 'initial':
-        assert(/^uv loop at \[.+\] has \d+ active handles$/.test(line), line);
+        assert(/^uv loop at \[.+\] has open handles:$/.test(line), line);
         state = 'handle-start';
         break;
       case 'handle-start':
-        if (/Assertion .+ failed/.test(line)) {
-          state = 'done';
+        if (/^uv loop at \[.+\] has \d+ open handles in total$/.test(line)) {
+          state = 'assertion-failure';
           break;
         }
-        assert(/^\[.+\] timer$/.test(line), line);
+        assert(/^\[.+\] timer( \(active\))?$/.test(line), line);
         state = 'close-callback';
         break;
       case 'close-callback':
@@ -109,15 +110,19 @@ if (process.argv[2] === 'child') {
         state = 'maybe-first-field';
         break;
       case 'maybe-first-field':
-        if (/^\(First field\)$/.test(line)) {
+        if (!/^\(First field\)/.test(line)) {
           lines.unshift(line);
-          state = 'handle-start';
-          break;
         }
-        state = 'maybe-first-field';
+        state = 'handle-start';
+        break;
+      case 'assertion-failure':
+        assert(/Assertion .+ failed/.test(line), line);
+        state = 'done';
         break;
       case 'done':
         break;
     }
   }
+
+  assert.strictEqual(state, 'done');
 }
