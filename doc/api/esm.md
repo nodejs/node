@@ -349,6 +349,8 @@ The conditions supported in Node.js are matched in the following order:
   `--experimental-conditional-exports` flag._
 3. `"module"` - matched when the package is not loaded via `require()`.
    Can be any module format, this field does not set the type interpretation.
+   _This is currently only supported behind the
+  `--experimental-conditional-exports` flag._
 
 Using the `"commonjs"` condition it is possible to define a package that will
 have a different exported value for CommonJS and ES modules, which can be a
