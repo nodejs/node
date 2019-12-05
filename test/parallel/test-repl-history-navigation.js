@@ -46,28 +46,50 @@ ActionStream.prototype.readable = true;
 const ENTER = { name: 'enter' };
 const UP = { name: 'up' };
 const DOWN = { name: 'down' };
+const LEFT = { name: 'left' };
+const DELETE = { name: 'delete' };
 
 const prompt = '> ';
+
+const prev = process.features.inspector;
 
 const tests = [
   { // Creates few history to navigate for
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     test: [ 'let ab = 45', ENTER,
             '555 + 909', ENTER,
-            '{key : {key2 :[] }}', ENTER],
+            '{key : {key2 :[] }}', ENTER,
+            'Array(100).fill(1).map((e, i) => i ** i)', LEFT, LEFT, DELETE,
+            '2', ENTER],
     expected: [],
     clean: false
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    test: [UP, UP, UP, UP, DOWN, DOWN, DOWN],
+    test: [UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN],
     expected: [prompt,
+               `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
+               prev && '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
+                 '144, 169, 196, 225, 256, 289, 324, 361, 400, 441, 484, 529,' +
+                 ' 576, 625, 676, 729, 784, 841, 900, 961, 1024, 1089, 1156, ' +
+                 '1225, 1296, 1369, 1444, 1521, 1600, 1681, 1764, 1849, 1936,' +
+                 ' 2025, 2116, 2209, ...',
                `${prompt}{key : {key2 :[] }}`,
+               prev && '\n// { key: { key2: [] } }',
                `${prompt}555 + 909`,
+               prev && '\n// 1464',
                `${prompt}let ab = 45`,
                `${prompt}555 + 909`,
+               prev && '\n// 1464',
                `${prompt}{key : {key2 :[] }}`,
-               prompt],
+               prev && '\n// { key: { key2: [] } }',
+               `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
+               prev && '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
+                 '144, 169, 196, 225, 256, 289, 324, 361, 400, 441, 484, 529,' +
+                 ' 576, 625, 676, 729, 784, 841, 900, 961, 1024, 1089, 1156, ' +
+                 '1225, 1296, 1369, 1444, 1521, 1600, 1681, 1764, 1849, 1936,' +
+                 ' 2025, 2116, 2209, ...',
+               prompt].filter((e) => typeof e === 'string'),
     clean: true
   }
 ];
