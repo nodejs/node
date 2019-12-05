@@ -10,7 +10,7 @@ const flags = '--es-module-specifier-resolution=node ' +
               '--experimental-specifier-resolution=node';
 
 exec(`${process.execPath} ${flags}`, {
-  timeout: 300
+  timeout: 500
 }, mustCall((error) => {
   assert(error.message.includes(expectedError));
 }));
