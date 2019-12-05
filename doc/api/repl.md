@@ -510,6 +510,9 @@ with REPL instances programmatically.
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30811
+    description: The `preview` option is now available.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26518
     description: The `terminal` option now follows the default description in
@@ -562,6 +565,8 @@ changes:
   * `breakEvalOnSigint` {boolean} Stop evaluating the current piece of code when
     `SIGINT` is received, such as when `Ctrl+C` is pressed. This cannot be used
     together with a custom `eval` function. **Default:** `false`.
+  * `preview` {boolean} Defines if the repl prints output previews or not.
+     **Default:** `true`. Always `false` in case `terminal` is falsy.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.

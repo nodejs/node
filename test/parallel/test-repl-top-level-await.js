@@ -1,10 +1,12 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const { stripVTControlCharacters } = require('internal/readline/utils');
 const repl = require('repl');
+
+common.skipIfInspectorDisabled();
 
 // Flags: --expose-internals --experimental-repl-await
 
@@ -84,61 +86,84 @@ async function ordinaryTests() {
   const testCases = [
     [ 'await Promise.resolve(0)', '0' ],
     [ '{ a: await Promise.resolve(1) }', '{ a: 1 }' ],
-    [ '_', '{ a: 1 }' ],
-    [ 'let { a, b } = await Promise.resolve({ a: 1, b: 2 }), f = 5;',
+    [ '_', '// { a: 1 }\r', { line: 0 } ],
+    [ 'let { aa, bb } = await Promise.resolve({ aa: 1, bb: 2 }), f = 5;',
       'undefined' ],
-    [ 'a', '1' ],
-    [ 'b', '2' ],
-    [ 'f', '5' ],
-    [ 'let c = await Promise.resolve(2)', 'undefined' ],
-    [ 'c', '2' ],
-    [ 'let d;', 'undefined' ],
-    [ 'd', 'undefined' ],
-    [ 'let [i, { abc: { k } }] = [0, { abc: { k: 1 } }];', 'undefined' ],
-    [ 'i', '0' ],
-    [ 'k', '1' ],
-    [ 'var l = await Promise.resolve(2);', 'undefined' ],
-    [ 'l', '2' ],
-    [ 'foo(await koo())', '4' ],
-    [ '_', '4' ],
-    [ 'const m = foo(await koo());', 'undefined' ],
-    [ 'm', '4' ],
-    [ 'const n = foo(await\nkoo());', 'undefined' ],
-    [ 'n', '4' ],
+    [ 'aa', ['// 1\r', '1'] ],
+    [ 'bb', ['// 2\r', '2'] ],
+    [ 'f', ['// 5\r', '5'] ],
+    [ 'let cc = await Promise.resolve(2)', 'undefined' ],
+    [ 'cc', ['// 2\r', '2'] ],
+    [ 'let dd;', 'undefined' ],
+    [ 'dd', 'undefined' ],
+    [ 'let [ii, { abc: { kk } }] = [0, { abc: { kk: 1 } }];', 'undefined' ],
+    [ 'ii', ['// 0\r', '0'] ],
+    [ 'kk', ['// 1\r', '1'] ],
+    [ 'var ll = await Promise.resolve(2);', 'undefined' ],
+    [ 'll', ['// 2\r', '2'] ],
+    [ 'foo(await koo())',
+      [ 'f', '// 5oo', '// [Function: foo](await koo())\r', '4' ] ],
+    [ '_', ['// 4\r', '4'] ],
+    [ 'const m = foo(await koo());',
+      [ 'const m = foo(await koo());\r', 'undefined' ] ],
+    [ 'm', ['// 4\r', '4' ] ],
+    [ 'const n = foo(await\nkoo());',
+      [ 'const n = foo(await\r', '... koo());\r', 'undefined' ] ],
+    [ 'n', ['// 4\r', '4' ] ],
     // eslint-disable-next-line no-template-curly-in-string
     [ '`status: ${(await Promise.resolve({ status: 200 })).status}`',
       "'status: 200'"],
-    [ 'for (let i = 0; i < 2; ++i) await i', 'undefined' ],
-    [ 'for (let i = 0; i < 2; ++i) { await i }', 'undefined' ],
-    [ 'await 0', '0' ],
-    [ 'await 0; function foo() {}', 'undefined' ],
-    [ 'foo', '[Function: foo]' ],
-    [ 'class Foo {}; await 1;', '1' ],
-    [ 'Foo', '[Function: Foo]' ],
-    [ 'if (await true) { function bar() {}; }', 'undefined' ],
-    [ 'bar', '[Function: bar]' ],
+    [ 'for (let i = 0; i < 2; ++i) await i',
+      ['f', '// 5or (let i = 0; i < 2; ++i) await i\r', 'undefined'] ],
+    [ 'for (let i = 0; i < 2; ++i) { await i }',
+      [ 'f', '// 5or (let i = 0; i < 2; ++i) { await i }\r', 'undefined' ] ],
+    [ 'await 0', ['await 0\r', '0'] ],
+    [ 'await 0; function foo() {}',
+      ['await 0; function foo() {}\r', 'undefined'] ],
+    [ 'foo',
+      ['f', '// 5oo', '// [Function: foo]\r', '[Function: foo]'] ],
+    [ 'class Foo {}; await 1;', ['class Foo {}; await 1;\r', '1'] ],
+    [ 'Foo', ['// [Function: Foo]\r', '[Function: Foo]'] ],
+    [ 'if (await true) { function bar() {}; }',
+      ['if (await true) { function bar() {}; }\r', 'undefined'] ],
+    [ 'bar', ['// [Function: bar]\r', '[Function: bar]'] ],
     [ 'if (await true) { class Bar {}; }', 'undefined' ],
     [ 'Bar', 'Uncaught ReferenceError: Bar is not defined' ],
     [ 'await 0; function* gen(){}', 'undefined' ],
-    [ 'for (var i = 0; i < 10; ++i) { await i; }', 'undefined' ],
-    [ 'i', '10' ],
-    [ 'for (let j = 0; j < 5; ++j) { await j; }', 'undefined' ],
-    [ 'j', 'Uncaught ReferenceError: j is not defined' ],
-    [ 'gen', '[GeneratorFunction: gen]' ],
+    [ 'for (var i = 0; i < 10; ++i) { await i; }',
+      ['f', '// 5or (var i = 0; i < 10; ++i) { await i; }\r', 'undefined'] ],
+    [ 'i', ['// 10\r', '10'] ],
+    [ 'for (let j = 0; j < 5; ++j) { await j; }',
+      ['f', '// 5or (let j = 0; j < 5; ++j) { await j; }\r', 'undefined'] ],
+    [ 'j', 'Uncaught ReferenceError: j is not defined', { line: 0 } ],
+    [ 'gen', ['// [GeneratorFunction: gen]\r', '[GeneratorFunction: gen]'] ],
     [ 'return 42; await 5;', 'Uncaught SyntaxError: Illegal return statement',
       { line: 3 } ],
     [ 'let o = await 1, p', 'undefined' ],
     [ 'p', 'undefined' ],
     [ 'let q = 1, s = await 2', 'undefined' ],
-    [ 's', '2' ],
-    [ 'for await (let i of [1,2,3]) console.log(i)', 'undefined', { line: 3 } ]
+    [ 's', ['// 2\r', '2'] ],
+    [ 'for await (let i of [1,2,3]) console.log(i)',
+      [
+        'f',
+        '// 5or await (let i of [1,2,3]) console.log(i)\r',
+        '1',
+        '2',
+        '3',
+        'undefined'
+      ]
+    ]
   ];
 
   for (const [input, expected, options = {}] of testCases) {
     console.log(`Testing ${input}`);
     const toBeRun = input.split('\n');
     const lines = await runAndWait(toBeRun);
-    if ('line' in options) {
+    if (Array.isArray(expected)) {
+      if (lines[0] === input)
+        lines.shift();
+      assert.deepStrictEqual(lines, [...expected, PROMPT]);
+    } else if ('line' in options) {
       assert.strictEqual(lines[toBeRun.length + options.line], expected);
     } else {
       const echoed = toBeRun.map((a, i) => `${i > 0 ? '... ' : ''}${a}\r`);
