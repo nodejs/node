@@ -9,8 +9,6 @@ const expectedError =
 const flags = '--es-module-specifier-resolution=node ' +
               '--experimental-specifier-resolution=node';
 
-exec(`${process.execPath} ${flags}`, {
-  timeout: 300
-}, mustCall((error) => {
+exec(`${process.execPath} ${flags}`, mustCall((error) => {
   assert(error.message.includes(expectedError));
 }));
