@@ -486,7 +486,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    bool lenient = false;
+    bool lenient = args[3]->IsTrue();
 
     uint64_t max_http_header_size = 0;
 
@@ -499,11 +499,6 @@ class Parser : public AsyncWrap, public StreamListener {
     }
     if (max_http_header_size == 0) {
       max_http_header_size = env->options()->max_http_header_size;
-    }
-
-    if (args.Length() > 3) {
-      CHECK(args[3]->IsBoolean());
-      lenient = args[3]->IsTrue();
     }
 
     llhttp_type_t type =
