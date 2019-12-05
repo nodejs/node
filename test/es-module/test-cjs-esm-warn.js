@@ -38,6 +38,4 @@ child.on('close', common.mustCall((code, signal) => {
     `${pjson}.\n`));
   assert.ok(stderr.includes(
     'Error [ERR_REQUIRE_ESM]: Must use import to load ES Module'));
-
-  assert.ok(stderr.includes('Must use import to load ES Module'));
 }));
