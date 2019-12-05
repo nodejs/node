@@ -816,6 +816,25 @@ added: v12.0.0
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.3'. Use to disable support
 for TLSv1.2, which is not as secure as TLSv1.3.
 
+### `--trace-atomics-wait`
+<!-- YAML
+added: REPLACEME
+-->
+
+Print short summaries of calls to `Atomics.wait()` to stderr.
+The output could look like this:
+
+```text
+[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 1, inf) started
+[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 1, inf) did not wait because the values mismatched
+[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 0, 10) started
+[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 0, 10) timed out
+[Thread 0] Atomics.wait(0x55d134fe4290 + 4, 0, inf) started
+[Thread 1] Atomics.wait(0x55d134fe4290 + 4, -1, inf) started
+[Thread 0] Atomics.wait(0x55d134fe4290 + 4, 0, inf) was woken up by another thread
+[Thread 1] Atomics.wait(0x55d134fe4290 + 4, -1, inf) was woken up by another thread
+```
+
 ### `--trace-deprecation`
 <!-- YAML
 added: v0.8.0
@@ -1205,6 +1224,7 @@ Node.js options that are allowed are:
 * `--tls-min-v1.1`
 * `--tls-min-v1.2`
 * `--tls-min-v1.3`
+* `--trace-atomics-wait`
 * `--trace-deprecation`
 * `--trace-event-categories`
 * `--trace-event-file-pattern`
