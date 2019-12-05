@@ -967,6 +967,17 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
         return resolved;
       }
     }
+    if (env->options()->experimental_conditional_exports &&
+        target_obj->HasOwnProperty(context, env->import_string()).FromJust()) {
+      matched = true;
+      conditionalTarget =
+          target_obj->Get(context, env->import_string()).ToLocalChecked();
+      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+            conditionalTarget, subpath, pkg_subpath, base, false);
+      if (!resolved.IsNothing()) {
+        return resolved;
+      }
+    }
     if (target_obj->HasOwnProperty(context, env->default_string()).FromJust()) {
       matched = true;
       conditionalTarget =

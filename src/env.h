@@ -255,6 +255,7 @@ constexpr size_t kFsStatsBufferLength =
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
   V(ignore_string, "ignore")                                                   \
+  V(import_string, "import")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \
