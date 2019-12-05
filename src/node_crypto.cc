@@ -2118,7 +2118,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   rsa.reset();
   ec.reset();
 
-  ASN1_TIME_print(bio.get(), X509_get_notBefore(cert));
+  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert));
   BIO_get_mem_ptr(bio.get(), &mem);
   info->Set(context, env->valid_from_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
@@ -2126,7 +2126,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                 mem->length).ToLocalChecked()).Check();
   USE(BIO_reset(bio.get()));
 
-  ASN1_TIME_print(bio.get(), X509_get_notAfter(cert));
+  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert));
   BIO_get_mem_ptr(bio.get(), &mem);
   info->Set(context, env->valid_to_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
