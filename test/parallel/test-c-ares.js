@@ -85,7 +85,8 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in
 // C:\Windows\System32\drivers\etc\hosts
 // so we disable this test on Windows.
-if (!common.isWindows) {
+// IBMi reports `ENOTFOUND` when get hostname by address 127.0.0.1
+if (!common.isWindows && !common.isIBMi) {
   dns.reverse('127.0.0.1', common.mustCall(function(error, domains) {
     assert.ifError(error);
     assert.ok(Array.isArray(domains));

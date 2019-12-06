@@ -33,3 +33,12 @@ test-async-hooks-http-parser-destroy: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
+
+[$system==ibmi]
+# https://github.com/nodejs/node/pull/30819
+test-child-process-fork-net-server: SKIP
+test-cli-node-options: SKIP
+test-cluster-shared-leak: SKIP
+test-http-writable-true-after-close: SKIP
+test-http2-connect-method: SKIP
+test-net-error-twice: SKIP

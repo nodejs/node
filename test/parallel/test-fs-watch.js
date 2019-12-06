@@ -1,6 +1,9 @@
 'use strict';
 const common = require('../common');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 // Tests if `filename` is provided to watcher on supported platforms
 
 const fs = require('fs');

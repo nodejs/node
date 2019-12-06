@@ -4,6 +4,10 @@
 // This verifies the error thrown by fs.watch.
 
 const common = require('../common');
+
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 const assert = require('assert');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
