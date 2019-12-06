@@ -69,6 +69,8 @@ def GuessOS():
     return 'freebsd'
   elif id == 'AIX':
     return 'aix'
+  elif id == 'OS400':
+    return 'ibmi'
   else:
     return None
 

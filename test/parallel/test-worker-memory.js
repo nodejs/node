@@ -1,5 +1,8 @@
 'use strict';
 const common = require('../common');
+if (common.isIBMi)
+  common.skip('On IBMi, the rss memory always returns zero');
+
 const assert = require('assert');
 const util = require('util');
 const { Worker } = require('worker_threads');
