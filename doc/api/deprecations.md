@@ -2006,6 +2006,9 @@ could lead to hard to find errors and crashes.
 ### DEP0103: process.binding('util').is\[...\] typechecks
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30818
+    description: Runtime deprecation.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/22004
     description: Superseded by [DEP0111](#DEP0111).
@@ -2014,7 +2017,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Using `process.binding()` in general should be avoided. The type checking
 methods in particular can be replaced by using [`util.types`][].
