@@ -144,8 +144,9 @@ function runTests(iter) {
 const path = `${tmpdir.path}/test-utimes-precision`;
 fs.writeFileSync(path, '');
 
-// Test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
-if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
+// Test Y2K38 for all platforms [except 'arm', 'OpenBSD', 'SunOS' and 'IBMi']
+if (!process.arch.includes('arm') &&
+  !common.isOpenBSD && !common.isSunOS && !common.isIBMi) {
   const Y2K38_mtime = 2 ** 31;
   fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
   const Y2K38_stats = fs.statSync(path);
