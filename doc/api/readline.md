@@ -354,7 +354,7 @@ async function processLineByLine() {
 added: REPLACEME
 -->
 
-* {string}
+* {string|undefined}
 
 The current input data being processed by node.
 
