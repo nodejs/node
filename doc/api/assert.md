@@ -207,8 +207,8 @@ are also recursively evaluated by the following rules.
 ### Comparison details
 
 * Primitive values are compared with the [Abstract Equality Comparison][]
-  ( `==` ) with the exception of NaN. It is treated as being identical in case
-  both sides are NaN.
+  ( `==` ) with the exception of `NaN`. It is treated as being identical in case
+  both sides are `NaN`.
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * Only [enumerable "own" properties][] are considered.
 * [`Error`][] names and messages are always compared, even if these are not
@@ -579,8 +579,8 @@ An alias of [`assert.strictEqual()`][].
 > Stability: 0 - Deprecated: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the [Abstract Equality Comparison][] ( `==` ). NaN is special handled and
-treated as being identical in case both sides are NaN.
+using the [Abstract Equality Comparison][] ( `==` ). `NaN` is special handled
+and treated as being identical in case both sides are `NaN`.
 
 ```js
 const assert = require('assert');
@@ -889,9 +889,9 @@ An alias of [`assert.notStrictEqual()`][].
 
 > Stability: 0 - Deprecated: Use [`assert.notStrictEqual()`][] instead.
 
-Tests shallow, coercive inequality with the [Abstract Equality Comparison][] (
-`!=` ). NaN is special handled and treated as being identical in case both sides
-are NaN.
+Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
+(`!=` ). `NaN` is special handled and treated as being identical in case both
+sides are `NaN`.
 
 ```js
 const assert = require('assert');
