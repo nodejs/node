@@ -20,7 +20,7 @@ if [[ "$ARCH" == "s390x" ]] || [[ "$ARCH" == "ppc64le" ]]; then
 fi
 if [[ "$ARCH" == "s390x" ]]; then
   ln -s $CXX_PATH "$BUILD_TOOLS/g++"
-  ln -s $CXX_PATH "$BUILD_TOOLS/gcc"
+  ln -s $CC_PATH "$BUILD_TOOLS/gcc"
   g++ --version
   export PKG_CONFIG_PATH=$BUILD_TOOLS/pkg-config
   gn gen -v out.gn/$BUILD_ARCH_TYPE --args='is_component_build=false is_debug=false use_goma=false goma_dir="None" use_custom_libcxx=false v8_target_cpu="s390x" target_cpu="s390x"'
