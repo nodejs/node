@@ -531,6 +531,24 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->set_secure_context_constructor_template(t);
 }
 
+SecureContext::SecureContext(Environment* env, v8::Local<v8::Object> wrap)
+    : BaseObject(env, wrap) {
+  MakeWeak();
+  env->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
+}
+
+inline void SecureContext::Reset() {
+  if (ctx_ != nullptr) {
+    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+  }
+  ctx_.reset();
+  cert_.reset();
+  issuer_.reset();
+}
+
+SecureContext::~SecureContext() {
+  Reset();
+}
 
 void SecureContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -3816,6 +3834,15 @@ KeyType KeyObject::GetKeyType() const {
   return this->key_type_;
 }
 
+KeyObject::KeyObject(Environment* env,
+                     v8::Local<v8::Object> wrap,
+                     KeyType key_type)
+    : BaseObject(env, wrap),
+      key_type_(key_type),
+      symmetric_key_(nullptr, nullptr) {
+  MakeWeak();
+}
+
 void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
   KeyObject* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
@@ -3958,6 +3985,17 @@ MaybeLocal<Value> KeyObject::ExportPrivateKey(
   return WritePrivateKey(env(), asymmetric_key_.get(), config);
 }
 
+CipherBase::CipherBase(Environment* env,
+                       v8::Local<v8::Object> wrap,
+                       CipherKind kind)
+    : BaseObject(env, wrap),
+      ctx_(nullptr),
+      kind_(kind),
+      auth_tag_state_(kAuthTagUnknown),
+      auth_tag_len_(kNoAuthTagLength),
+      pending_auth_failed_(false) {
+  MakeWeak();
+}
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -4579,6 +4617,11 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
 }
 
+Hmac::Hmac(Environment* env, v8::Local<v8::Object> wrap)
+    : BaseObject(env, wrap),
+      ctx_(nullptr) {
+  MakeWeak();
+}
 
 void Hmac::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -4697,6 +4740,13 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc.ToLocalChecked());
 }
 
+Hash::Hash(Environment* env, v8::Local<v8::Object> wrap)
+    : BaseObject(env, wrap),
+      mdctx_(nullptr),
+      has_md_(false),
+      md_value_(nullptr) {
+  MakeWeak();
+}
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -4711,6 +4761,10 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
               t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
+Hash::~Hash() {
+  if (md_value_ != nullptr)
+    OPENSSL_clear_free(md_value_, md_len_);
+}
 
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -4934,6 +4988,10 @@ void CheckThrow(Environment* env, SignBase::Error error) {
   }
 }
 
+SignBase::SignBase(Environment* env, v8::Local<v8::Object> wrap)
+    : BaseObject(env, wrap) {
+}
+
 void SignBase::CheckThrow(SignBase::Error error) {
   node::crypto::CheckThrow(env(), error);
 }
@@ -4957,6 +5015,9 @@ static bool ApplyRSAOptions(const ManagedEVPPKey& pkey,
 }
 
 
+Sign::Sign(Environment* env, v8::Local<v8::Object> wrap) : SignBase(env, wrap) {
+  MakeWeak();
+}
 
 void Sign::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -5277,6 +5338,11 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(signature.ToBuffer().ToLocalChecked());
 }
 
+Verify::Verify(Environment* env, v8::Local<v8::Object> wrap) :
+    SignBase(env, wrap) {
+  MakeWeak();
+}
+
 void Verify::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
@@ -5580,6 +5646,10 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
 }
 
+DiffieHellman::DiffieHellman(Environment* env, v8::Local<v8::Object> wrap)
+    : BaseObject(env, wrap), verifyError_(0) {
+  MakeWeak();
+}
 
 void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   auto make = [&] (Local<String> name, FunctionCallback callback) {
@@ -5947,6 +6017,15 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
               t->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
+ECDH::ECDH(Environment* env, v8::Local<v8::Object> wrap, ECKeyPointer&& key)
+    : BaseObject(env, wrap),
+    key_(std::move(key)),
+    group_(EC_KEY_get0_group(key_.get())) {
+  MakeWeak();
+  CHECK_NOT_NULL(group_);
+}
+
+ECDH::~ECDH() {}
 
 void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
