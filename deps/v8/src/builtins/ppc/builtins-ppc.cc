@@ -90,7 +90,7 @@ void LoadRealStackLimit(MacroAssembler* masm, Register destination) {
   intptr_t offset =
       TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
   CHECK(is_int32(offset));
-  __ LoadP(destination, MemOperand(kRootRegister, offset));
+  __ LoadP(destination, MemOperand(kRootRegister, offset), r0);
 }
 
 void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
