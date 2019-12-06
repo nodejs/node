@@ -58,6 +58,7 @@ if (process.argv[2] === 'child') {
   // [0x7f2de000b910] timer
   //         Close callback: 0x7f2df31de220 CloseCallback(uv_handle_s*) [...]
   //         Data: 0x42
+  // uv loop at [0x559b65ed5770] has 3 open handles in total
 
   function isGlibc() {
     try {
