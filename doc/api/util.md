@@ -465,8 +465,8 @@ changes:
 * `options` {Object}
   * `showHidden` {boolean} If `true`, `object`'s non-enumerable symbols and
     properties are included in the formatted result. [`WeakMap`][] and
-    [`WeakSet`][] entries are also included as well as prototype properties.
-    **Default:** `false`.
+    [`WeakSet`][] entries are also included as well as prototype properties
+    (excluding method properties). **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
     `object`. This is useful for inspecting large objects. To recurse up to
     the maximum call stack size pass `Infinity` or `null`.

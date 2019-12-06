@@ -2619,13 +2619,7 @@ assert.strictEqual(
     '  prop2: true,\n' +
     '  abc: true,\n' +
     "  [xyz]: [Getter: 'YES!'],\n" +
-    '  [Symbol(nodejs.util.inspect.custom)]: ' +
-      '[Function: [nodejs.util.inspect.custom]] {\n' +
-    '    [length]: 2,\n' +
-    "    [name]: '[nodejs.util.inspect.custom]'\n" +
-    '  },\n' +
-    '  [def]: [Getter/Setter: false],\n' +
-    "  [func]: [Function: func] { [length]: 1, [name]: 'func' }\n" +
+    '  [def]: [Getter/Setter: false]\n' +
     '}'
   );
   assert.strictEqual(
@@ -2636,14 +2630,7 @@ assert.strictEqual(
     '  prop2: \x1B[33mtrue\x1B[39m,\n' +
     '  abc: \x1B[33mtrue\x1B[39m,\n' +
     '  \x1B[2m[xyz]: \x1B[36m[Getter]\x1B[39m\x1B[22m,\n' +
-    '  \x1B[2m[\x1B[32mSymbol(nodejs.util.inspect.custom)\x1B[39m]:' +
-      ' [Function: [nodejs.util.inspect.custom]] {\n' +
-    '    [length]: \x1B[33m2\x1B[39m,\n' +
-    "    [name]: \x1B[32m'[nodejs.util.inspect.custom]'\x1B[39m\n" +
-    '  }\x1B[22m,\n' +
-    '  \x1B[2m[def]: \x1B[36m[Getter/Setter]\x1B[39m\x1B[22m,\n' +
-    '  \x1B[2m[func]: [Function: func] { [length]: \x1B[33m1\x1B[39m,' +
-      " [name]: \x1B[32m'func'\x1B[39m }\x1B[22m\n" +
+    '  \x1B[2m[def]: \x1B[36m[Getter/Setter]\x1B[39m\x1B[22m\n' +
     '}'
   );
 }
