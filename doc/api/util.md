@@ -401,7 +401,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30768
     description: Prototype properties will be inspected from now in case
-                 `showHidden` is truthy.
+                 `showHidden` is `true`.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27685
     description: Circular references now include a marker to the reference.
