@@ -203,7 +203,7 @@ The value may be one of:
 
 ### performanceEntry.flags
 <!-- YAML
-added REPLACEME
+added: REPLACEME
 -->
 
 * {number}
