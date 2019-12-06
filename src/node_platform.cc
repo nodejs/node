@@ -3,9 +3,9 @@
 
 #include "env-inl.h"
 #include "debug_utils.h"
-#include <algorithm>
-#include <cmath>
-#include <memory>
+#include <algorithm>  // find_if(), find(), move()
+#include <cmath>  // llround()
+#include <memory>  // unique_ptr(), shared_ptr(), make_shared()
 
 namespace node {
 
