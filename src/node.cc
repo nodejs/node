@@ -79,6 +79,7 @@
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
+#include <unicode/utypes.h>
 #endif
 
 
@@ -831,6 +832,25 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   if (per_process::cli_options->icu_data_dir.empty())
     credentials::SafeGetenv("NODE_ICU_DATA",
                             &per_process::cli_options->icu_data_dir);
+
+#ifdef NODE_ICU_DEFAULT_DATA_DIR
+  // If neither the CLI option nor the environment variable was specified,
+  // fall back to the configured default
+  if (per_process::cli_options->icu_data_dir.empty()) {
+    // Check whether the NODE_ICU_DEFAULT_DATA_DIR contains the right data
+    // file and can be read.
+    static const char full_path[] =
+        NODE_ICU_DEFAULT_DATA_DIR "/" U_ICUDATA_NAME ".dat";
+
+    FILE* f = fopen(full_path, "rb");
+
+    if (f != nullptr) {
+      fclose(f);
+      per_process::cli_options->icu_data_dir = NODE_ICU_DEFAULT_DATA_DIR;
+    }
+  }
+#endif  // NODE_ICU_DEFAULT_DATA_DIR
+
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
