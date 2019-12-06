@@ -400,7 +400,7 @@ added: v0.3.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30768
-    description: Prototype properties will be inspected from now in case
+    description: Prototype properties are inspected in case
                  `showHidden` is `true`.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27685
