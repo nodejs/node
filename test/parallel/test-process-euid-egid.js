@@ -29,6 +29,10 @@ assert.throws(() => {
   message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
 
+// IBMi does not support below operations.
+if (common.isIBMi)
+  return;
+
 // If we're not running as super user...
 if (process.getuid() !== 0) {
   // Should not throw.

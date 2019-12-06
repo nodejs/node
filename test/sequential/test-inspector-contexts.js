@@ -25,9 +25,9 @@ async function testContextCreatedAndDestroyed() {
     session.post('Runtime.enable', assert.ifError);
     const contextCreated = await mainContextPromise;
     const { name, origin, auxData } = contextCreated.params.context;
-    if (common.isSunOS || common.isWindows) {
-      // uv_get_process_title() is unimplemented on Solaris-likes, it returns
-      // an empty string.  On the Windows CI buildbots it returns
+    if (common.isSunOS || common.isWindows || common.isIBMi) {
+      // uv_get_process_title() is unimplemented on Solaris-likes and IBMi,
+      // it returns an empty string.  On the Windows CI buildbots it returns
       // "Administrator: Windows PowerShell[42]" because of a GetConsoleTitle()
       // quirk. Not much we can do about either, just verify that it contains
       // the PID.
