@@ -1,5 +1,9 @@
 'use strict';
 const common = require('../common');
+// IBMi process priority is different.
+if (common.isIBMi)
+  common.skip('IBMi has a different process priority');
+
 const assert = require('assert');
 const os = require('os');
 const {

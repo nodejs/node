@@ -1,5 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
+
+// On IBMi, the rss memory always returns zero
+if (common.isIBMi)
+  common.skip('On IBMi, the rss memory always returns zero');
+
 const assert = require('assert');
 
 const fs = require('fs');
