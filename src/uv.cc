@@ -60,15 +60,6 @@ using v8::Value;
 
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (env->options()->pending_deprecation && env->EmitErrNameWarning()) {
-    if (ProcessEmitDeprecationWarning(
-        env,
-        "Directly calling process.binding('uv').errname(<val>) is being"
-        " deprecated. "
-        "Please make sure to use util.getSystemErrorName() instead.",
-        "DEP0119").IsNothing())
-    return;
-  }
   int err;
   if (!args[0]->Int32Value(env->context()).To(&err)) return;
   CHECK_LT(err, 0);
@@ -104,6 +95,8 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  // TODO(joyeecheung): This should be deprecated in user land in favor of
+  // `util.getSystemErrorName(err)`.
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   target->Set(env->context(),
@@ -112,8 +105,6 @@ void Initialize(Local<Object> target,
                   ->GetFunction(env->context())
                   .ToLocalChecked()).Check();
 
-  // TODO(joyeecheung): This should be deprecated in user land in favor of
-  // `util.getSystemErrorName(err)`.
   PropertyAttribute attributes =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
   size_t errors_len = arraysize(per_process::uv_errors_map);
