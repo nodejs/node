@@ -15,6 +15,9 @@ if [[ "$ARCH" == "s390x" ]] || [[ "$ARCH" == "ppc64le" ]]; then
   if [[ X"$CXX" != X ]]; then
     CXX_PATH=`which $CXX |grep g++`
   fi
+  if [[ X"$CC" != X ]]; then
+    CC_PATH=`which $CC |grep gcc`
+  fi
   rm -f "$BUILD_TOOLS/g++"
   rm -f "$BUILD_TOOLS/gcc"
 fi
