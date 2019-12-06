@@ -389,7 +389,7 @@ process.stdin.on('keypress', (c, k) => {
 added: REPLACEME
 -->
 
-* {number}
+* {number|undefined}
 
 The cursor position relative to `rl.line`.
 
