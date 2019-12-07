@@ -1965,54 +1965,32 @@ Accept: text/plain\r\n
 \r\n
 ```
 
-Then `request.url` will be:
+To parse the URL into its parts:
 
-<!-- eslint-disable semi -->
 ```js
-'/status?name=ryan'
+new URL(request.url, `http://${request.headers.host}`);
 ```
 
-To parse the url into its parts `require('url').parse(request.url)`
-can be used:
+When `request.url` is `'/status?name=ryan'` and
+`request.headers.host` is `'localhost:3000'`:
 
 ```console
 $ node
-> require('url').parse('/status?name=ryan')
-Url {
-  protocol: null,
-  slashes: null,
-  auth: null,
-  host: null,
-  port: null,
-  hostname: null,
-  hash: null,
-  search: '?name=ryan',
-  query: 'name=ryan',
+> new URL(request.url, request.headers.host)
+URL {
+  href: 'http://localhost:3000/status?name=ryan',
+  origin: 'http://localhost:3000',
+  protocol: 'http:',
+  username: '',
+  password: '',
+  host: 'localhost:3000',
+  hostname: 'localhost',
+  port: '3000',
   pathname: '/status',
-  path: '/status?name=ryan',
-  href: '/status?name=ryan' }
-```
-
-To extract the parameters from the query string, the
-`require('querystring').parse` function can be used, or
-`true` can be passed as the second argument to `require('url').parse`:
-
-```console
-$ node
-> require('url').parse('/status?name=ryan', true)
-Url {
-  protocol: null,
-  slashes: null,
-  auth: null,
-  host: null,
-  port: null,
-  hostname: null,
-  hash: null,
   search: '?name=ryan',
-  query: { name: 'ryan' },
-  pathname: '/status',
-  path: '/status?name=ryan',
-  href: '/status?name=ryan' }
+  searchParams: URLSearchParams { 'name' => 'ryan' },
+  hash: ''
+}
 ```
 
 ## `http.METHODS`
