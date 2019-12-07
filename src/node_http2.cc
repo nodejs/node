@@ -689,6 +689,13 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
 
   flags_ |= SESSION_STATE_CLOSED;
 
+  // If we are writing we will get to make the callback in OnStreamAfterWrite.
+  if ((flags_ & SESSION_STATE_WRITE_IN_PROGRESS) == 0) {
+    Debug(this, "make done session callback");
+    HandleScope scope(env()->isolate());
+    MakeCallback(env()->ondone_string(), 0, nullptr);
+  }
+
   // If there are outstanding pings, those will need to be canceled, do
   // so on the next iteration of the event loop to avoid calling out into
   // javascript since this may be called during garbage collection.
@@ -1524,6 +1531,12 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
       nghttp2_session_want_read(session_)) {
     flags_ &= ~SESSION_STATE_READING_STOPPED;
     stream_->ReadStart();
+  }
+
+  if ((flags_ & SESSION_STATE_CLOSED) != 0) {
+    HandleScope scope(env()->isolate());
+    MakeCallback(env()->ondone_string(), 0, nullptr);
+    return;
   }
 
   // If there is more incoming data queued up, consume it.
