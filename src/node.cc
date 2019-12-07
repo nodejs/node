@@ -108,6 +108,9 @@
 #include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
 
+#ifdef __PASE__
+#include <sys/ioctl.h>  // ioctl
+#endif
 // ========== global C++ headers ==========
 
 #include <cerrno>
@@ -555,7 +558,14 @@ inline void PlatformInit() {
     while (s.flags == -1 && errno == EINTR);  // NOLINT
     CHECK_NE(s.flags, -1);
 
+#ifdef __PASE__
+    // On IBMi PASE isatty() always returns true for stdin, stdout and stderr.
+    // Use ioctl() instead to identify whether it's actually a TTY.
+    if (ioctl(fd, TXISATTY + 0x81, nullptr) == -1 && errno == ENOTTY)
+      continue;
+#else
     if (!isatty(fd)) continue;
+#endif
     s.isatty = true;
 
     do
