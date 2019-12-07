@@ -65,7 +65,7 @@ const re = /^The "request" argument must be of type string\. Received type \w+$/
   // node_modules.
   const resolvedPaths = require.resolve.paths('eslint');
   assert.strictEqual(Array.isArray(resolvedPaths), true);
-  assert.strictEqual(resolvedPaths.includes('/node_modules'), true);
+  assert.strictEqual(resolvedPaths[0].includes('node_modules'), true);
 
   // relativeModules.
   const relativeModules = ['.', '..', './foo', '../bar'];
