@@ -18,6 +18,10 @@ assert(stderr.match(/Http2Session client \(\d+\) handling data frame for stream 
        stderr);
 assert(stderr.match(/HttpStream \d+ \(\d+\) \[Http2Session client \(\d+\)\] reading starting/),
        stderr);
+assert(stderr.match(/HttpStream \d+ \(\d+\) \[Http2Session client \(\d+\)\] closed with code 0/),
+       stderr);
+assert(stderr.match(/HttpStream \d+ \(\d+\) \[Http2Session server \(\d+\)\] closed with code 0/),
+       stderr);
 assert(stderr.match(/HttpStream \d+ \(\d+\) \[Http2Session server \(\d+\)\] tearing down stream/),
        stderr);
 assert.strictEqual(stdout.trim(), '');
