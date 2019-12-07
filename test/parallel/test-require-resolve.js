@@ -23,6 +23,8 @@
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
+const { builtinModules } = require('module');
+const path = require('path');
 
 assert.strictEqual(
   require.resolve(fixtures.path('a')).toLowerCase(),
@@ -52,3 +54,28 @@ const re = /^The "request" argument must be of type string\. Received type \w+$/
       message: re
     });
 });
+
+// Test require.resolve.paths.
+{
+  // builtinModules.
+  builtinModules.forEach((mod) => {
+    assert.strictEqual(require.resolve.paths(mod), null);
+  });
+
+  // node_modules.
+  const resolvedPaths = require.resolve.paths('eslint');
+  assert.strictEqual(Array.isArray(resolvedPaths), true);
+  assert.strictEqual(resolvedPaths[0].includes('node_modules'), true);
+
+  // relativeModules.
+  const relativeModules = ['.', '..', './foo', '../bar'];
+  relativeModules.forEach((mod) => {
+    const resolvedPaths = require.resolve.paths(mod);
+    assert.strictEqual(Array.isArray(resolvedPaths), true);
+    assert.strictEqual(resolvedPaths.length, 1);
+    assert.strictEqual(resolvedPaths[0], path.dirname(__filename));
+
+    // Shouldn't look up relative modules from 'node_modules'.
+    assert.strictEqual(resolvedPaths.includes('/node_modules'), false);
+  });
+}
