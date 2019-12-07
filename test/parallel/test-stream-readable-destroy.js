@@ -198,3 +198,24 @@ const assert = require('assert');
   assert.strictEqual(read.destroyed, true);
   read.read();
 }
+
+{
+  const read = new Readable({
+    destroy: common.mustCall(function (err, callback) {
+      callback();
+      callback();
+    })
+  });
+  let ticked = false;
+  read.on('error', common.mustCall((err) => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(err.code, 'ERR_MULTIPLE_CALLBACK');
+  }));
+  read.destroy(null, common.mustCall((err) => {
+    assert.strictEqual(read.destroyed, true);
+    assert.strictEqual(ticked, false);
+    assert.strictEqual(err, undefined);
+  }));
+  ticked = true;
+  assert.strictEqual(read.destroyed, true);
+}
