@@ -50,6 +50,10 @@ let details = processUtil.getProxyDetails(proxyObj, true);
 assert.strictEqual(target, details[0]);
 assert.strictEqual(handler, details[1]);
 
+details = processUtil.getProxyDetails(proxyObj);
+assert.strictEqual(target, details[0]);
+assert.strictEqual(handler, details[1]);
+
 details = processUtil.getProxyDetails(proxyObj, false);
 assert.strictEqual(target, details);
 

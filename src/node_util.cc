@@ -91,11 +91,10 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsProxy())
     return;
 
-  CHECK(args[1]->IsBoolean());
-
   Local<Proxy> proxy = args[0].As<Proxy>();
 
-  if (args[1]->IsTrue()) {
+  // The length check keeps this function backwards compatible.
+  if (args.Length() == 1 || args[1]->IsTrue()) {
     Local<Value> ret[] = {
       proxy->GetTarget(),
       proxy->GetHandler()
