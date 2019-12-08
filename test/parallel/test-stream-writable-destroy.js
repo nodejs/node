@@ -157,13 +157,22 @@ const assert = require('assert');
     write(chunk, enc, cb) { cb(); }
   });
 
-  write.on('close', common.mustCall());
-  write.on('error', common.mustCall());
+  let ticked = false;
+  write.on('close', common.mustCall(() => {
+    assert.strictEqual(ticked, true);
+  }));
+  write.on('error', common.mustCall((err) => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(err.message, 'kaboom 1');
+    assert.strictEqual(write._writableState.errorEmitted, true);
+  }));
 
   write.destroy(new Error('kaboom 1'));
   write.destroy(new Error('kaboom 2'));
-  assert.strictEqual(write._writableState.errorEmitted, true);
+  assert.strictEqual(write._writableState.errored, true);
+  assert.strictEqual(write._writableState.errorEmitted, false);
   assert.strictEqual(write.destroyed, true);
+  ticked = true;
 }
 
 {
@@ -176,20 +185,29 @@ const assert = require('assert');
     }
   });
 
-  writable.on('close', common.mustCall());
-  writable.on('error', common.expectsError({
-    type: Error,
-    message: 'kaboom 2'
+  let ticked = false;
+  writable.on('close', common.mustCall(() => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(writable._writableState.errorEmitted, true);
+  }));
+  writable.on('error', common.mustCall((err) => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(err.message, 'kaboom 2');
+    assert.strictEqual(writable._writableState.errorEmitted, true);
   }));
 
   writable.destroy();
   assert.strictEqual(writable.destroyed, true);
+  assert.strictEqual(writable._writableState.errored, false);
   assert.strictEqual(writable._writableState.errorEmitted, false);
 
   // Test case where `writable.destroy()` is called again with an error before
   // the `_destroy()` callback is called.
   writable.destroy(new Error('kaboom 2'));
-  assert.strictEqual(writable._writableState.errorEmitted, true);
+  assert.strictEqual(writable._writableState.errorEmitted, false);
+  assert.strictEqual(writable._writableState.errored, true);
+
+  ticked = true;
 }
 
 {
