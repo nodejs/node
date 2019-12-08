@@ -38,11 +38,13 @@ const URL = url.URL;
       const client =
         h2.connect.apply(null, i)
           .on('connect', common.mustCall(() => maybeClose(client)));
+      client.on('close', common.mustCall());
     });
 
     // Will fail because protocol does not match the server.
-    h2.connect({ port: port, protocol: 'https:' })
+    const client = h2.connect({ port: port, protocol: 'https:' })
       .on('error', common.mustCall(() => serverClose.dec()));
+    client.on('close', common.mustCall());
   }));
 }
 

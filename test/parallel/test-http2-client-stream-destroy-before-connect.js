@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 const NGHTTP2_INTERNAL_ERROR = h2.constants.NGHTTP2_INTERNAL_ERROR;
+const Countdown = require('../common/countdown');
 
 const server = h2.createServer();
 
@@ -27,6 +28,11 @@ server.on('stream', (stream) => {
 
 server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
+  const countdown = new Countdown(2, () => {
+    server.close();
+    client.close();
+  });
+  client.on('connect', () => countdown.dec());
 
   const req = client.request();
   req.destroy(new Error('test'));
@@ -39,8 +45,7 @@ server.listen(0, common.mustCall(() => {
   req.on('close', common.mustCall(() => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
-    server.close();
-    client.close();
+    countdown.dec();
   }));
 
   req.on('response', common.mustNotCall());
