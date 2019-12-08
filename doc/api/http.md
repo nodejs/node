@@ -1973,13 +1973,14 @@ Accept: text/plain\r\n
 \r\n
 ```
 
-To parse the url into its parts The WHATWG URL API can be used:
+To parse the URL into its parts:
 
 ```js
 new URL(request.url, `http://${request.headers.host}`);
 ```
 
-When `request.url` is `'/status?name=ryan'` and `request.headers.host` is `'localhost:3000'`:
+When `request.url` is `'/status?name=ryan'` and
+`request.headers.host` is `'localhost:3000'`:
 
 ```console
 $ node
