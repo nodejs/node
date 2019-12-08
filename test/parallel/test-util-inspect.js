@@ -2589,8 +2589,8 @@ assert.strictEqual(
       return 'Should be ignored';
     }
     func(a) {}
-    [util.inspect.custom](_, ctx) {
-      return util.inspect(this, { ...ctx, customInspect: false });
+    [util.inspect.custom]() {
+      return this;
     }
   }
 
@@ -2600,8 +2600,8 @@ assert.strictEqual(
     get xyz() {
       return 'YES!';
     }
-    [util.inspect.custom](_, ctx) {
-      return util.inspect(this, { ...ctx, customInspect: false });
+    [util.inspect.custom]() {
+      return this;
     }
   }
 
