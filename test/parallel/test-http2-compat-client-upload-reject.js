@@ -23,9 +23,11 @@ fs.readFile(loc, common.mustCall((err, data) => {
       res.end();
     });
   }));
+  server.on('close', common.mustCall());
 
   server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
+    client.on('close', common.mustCall());
 
     const req = client.request({ ':method': 'POST' });
     req.on('response', common.mustCall((headers) => {
