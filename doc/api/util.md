@@ -400,7 +400,7 @@ added: v0.3.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30768
-    description: Prototype properties are inspected in case
+    description: User defined prototype properties are inspected in case
                  `showHidden` is `true`.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27685
@@ -465,8 +465,8 @@ changes:
 * `options` {Object}
   * `showHidden` {boolean} If `true`, `object`'s non-enumerable symbols and
     properties are included in the formatted result. [`WeakMap`][] and
-    [`WeakSet`][] entries are also included as well as prototype properties
-    (excluding method properties). **Default:** `false`.
+    [`WeakSet`][] entries are also included as well as user defined prototype
+    properties (excluding method properties). **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
     `object`. This is useful for inspecting large objects. To recurse up to
     the maximum call stack size pass `Infinity` or `null`.
