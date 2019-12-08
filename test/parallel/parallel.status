@@ -11,14 +11,24 @@ test-fs-stat-bigint: PASS,FLAKY
 test-net-connect-options-port: PASS,FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/20750
-test-http2-pipe: PASS,FLAKY
-# https://github.com/nodejs/node/issues/23277
-test-worker-memory: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30620
+test-child-process-fork-exec-path: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
 test-http2-client-upload: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
 test-http2-client-upload-reject: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30847
+test-http2-compat-client-upload-reject: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30845
+test-http2-multistream-destroy-on-read-tls: PASS,FLAKY
+# https://github.com/nodejs/node/issues/20750
+test-http2-pipe: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30844
+test-module-loading-globalpaths: PASS,FLAKY
+# https://github.com/nodejs/node/issues/23277
+test-worker-memory: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30846
+test-worker-message-port-transfer-terminate: PASS,FLAKY
 
 [$system==linux]
 
