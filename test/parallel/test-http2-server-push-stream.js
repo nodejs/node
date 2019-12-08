@@ -55,6 +55,8 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(headers['x-push-data'], 'pushed by server');
     }));
     stream.on('aborted', common.mustNotCall());
+    // We have to read the data of the push stream to end gracefully.
+    stream.resume();
   }));
 
   let data = '';
