@@ -4904,6 +4904,19 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 * `[in] script`: A JavaScript string containing the script to execute.
 * `[out] result`: The value resulting from having executed the script.
 
+This function executes a string of JavaScript code and returns its result with
+the following caveats:
+
+* Unlike `eval`, this function does not allow the script to access the current
+  lexical scope, and therefore also does not allow to access the
+  [module scope][], meaning that pseudo-globals such as `require` will not be
+  available.
+* The script can access the [global scope][]. Function and `var` declarations
+  in the script will be added to the [`global`][] object. Variable declarations
+  made using `let` and `const` will be visible globally, but will not be added
+  to the [`global`][] object.
+* The value of `this` is [`global`][] within the script.
+
 ## libuv event loop
 
 N-API provides a function for getting the current event loop associated with
@@ -5265,6 +5278,7 @@ This API may only be called from the main thread.
 [Xcode]: https://developer.apple.com/xcode/
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
+[`global`]: globals.html#globals_global
 [`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_init`]: #n_api_napi_async_init
@@ -5315,6 +5329,8 @@ This API may only be called from the main thread.
 [async_hooks `type`]: async_hooks.html#async_hooks_type
 [context-aware addons]: addons.html#addons_context_aware_addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
+[global scope]: globals.html
+[module scope]: modules.html#modules_the_module_scope
 [node-addon-api]: https://github.com/nodejs/node-addon-api
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
