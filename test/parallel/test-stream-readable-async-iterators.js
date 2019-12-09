@@ -271,6 +271,77 @@ async function tests() {
   }
 
   {
+    console.log('destroyed sync after push in pipe source');
+    for (const pipes of [1, 3]) { // Test single pipe & multiple
+
+      const readable = new Readable({
+        objectMode: true,
+        read() {
+          this.push('hello');
+          this.destroy(new Error('kaboom'));
+        }
+      });
+      let iterator = readable.pipe(new PassThrough());
+
+      for (let i = 1; i < pipes; i++)
+        iterator = iterator.pipe(new PassThrough());
+
+      let received = 0;
+
+      let err = null;
+      try {
+        for await (const k of iterator) {
+          assert.strictEqual(k, 'hello');
+          received++;
+        }
+      } catch (e) {
+        err = e;
+      }
+
+      assert.strictEqual(err.message, 'kaboom');
+      assert.strictEqual(received, 0);
+    }
+  }
+
+  {
+    console.log('destroy async in pipe source');
+    for (const pipes of [1, 3]) { // Test single pipe & multiple
+      const readable = new Readable({
+        objectMode: true,
+        read() {
+          if (!this.pushed) {
+            this.push('hello');
+            this.pushed = true;
+
+            setImmediate(() => {
+              this.destroy(new Error('kaboom'));
+            });
+          }
+        }
+      });
+      let iterator = readable.pipe(new PassThrough());
+
+      for (let i = 1; i < pipes; i++)
+        iterator = iterator.pipe(new PassThrough());
+
+      let received = 0;
+
+      let err = null;
+      try {
+        // eslint-disable-next-line no-unused-vars
+        for await (const k of iterator) {
+          received++;
+        }
+      } catch (e) {
+        err = e;
+      }
+
+      assert.strictEqual(err.message, 'kaboom');
+      assert.strictEqual(received, 1);
+    }
+  }
+
+  {
     console.log('push async');
     const max = 42;
     let readed = 0;
@@ -360,6 +431,38 @@ async function tests() {
         return true;
       }
     );
+  }
+
+  {
+    console.log('error on pipelined stream');
+    const err = new Error('kaboom');
+    const readable = new Readable({
+      read() {
+        if (!this.pushed) {
+          this.push('hello');
+          this.pushed = true;
+
+          setImmediate(() => {
+            this.destroy(err);
+          });
+        }
+      }
+    });
+
+    const passthrough = new PassThrough();
+    const iterator = pipeline(readable, passthrough, common.mustCall((e) => {
+      assert.strictEqual(e, err);
+    }));
+
+    let receivedErr;
+    try {
+      // eslint-disable-next-line no-unused-vars
+      for await (const k of iterator);
+    } catch (e) {
+      receivedErr = e;
+    }
+
+    assert.strictEqual(receivedErr, err);
   }
 
   {
