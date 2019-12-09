@@ -284,7 +284,7 @@ once will result in an error being thrown.
 added: v1.0.0
 -->
 
-* `buffer` {Buffer}
+* `buffer` {Buffer | TypedArray | DataView}
 * `options` {Object} [`stream.transform` options][]
   * `plaintextLength` {number}
 * Returns: {Cipher} for method chaining.
