@@ -895,6 +895,8 @@ action("postmortem-metadata") {
     "src/objects/code.h",
     "src/objects/data-handler.h",
     "src/objects/data-handler-inl.h",
+    "src/objects/descriptor-array.h",
+    "src/objects/descriptor-array-inl.h",
     "src/objects/feedback-cell.h",
     "src/objects/feedback-cell-inl.h",
     "src/objects/fixed-array-inl.h",
