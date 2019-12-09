@@ -128,7 +128,6 @@ namespace node {
 
 using native_module::NativeModuleEnv;
 
-using v8::Boolean;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -297,25 +296,59 @@ MaybeLocal<Value> Environment::BootstrapNode() {
   global->Set(context(), FIXED_ONE_BYTE_STRING(isolate_, "global"), global)
       .Check();
 
-  // process, require, internalBinding, isMainThread,
-  // ownsProcessState, primordials
+  // process, require, internalBinding, primordials
   std::vector<Local<String>> node_params = {
       process_string(),
       require_string(),
       internal_binding_string(),
-      FIXED_ONE_BYTE_STRING(isolate_, "isMainThread"),
-      FIXED_ONE_BYTE_STRING(isolate_, "ownsProcessState"),
       primordials_string()};
   std::vector<Local<Value>> node_args = {
       process_object(),
       native_module_require(),
       internal_binding_loader(),
-      Boolean::New(isolate_, is_main_thread()),
-      Boolean::New(isolate_, owns_process_state()),
       primordials()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
       this, "internal/bootstrap/node", &node_params, &node_args);
+
+  if (result.IsEmpty()) {
+    return scope.EscapeMaybe(result);
+  }
+
+  if (is_main_thread()) {
+    result = ExecuteBootstrapper(this,
+                                 "internal/bootstrap/switches/is_main_thread",
+                                 &node_params,
+                                 &node_args);
+  } else {
+    result =
+        ExecuteBootstrapper(this,
+                            "internal/bootstrap/switches/is_not_main_thread",
+                            &node_params,
+                            &node_args);
+  }
+
+  if (result.IsEmpty()) {
+    return scope.EscapeMaybe(result);
+  }
+
+  if (owns_process_state()) {
+    result = ExecuteBootstrapper(
+        this,
+        "internal/bootstrap/switches/does_own_process_state",
+        &node_params,
+        &node_args);
+  } else {
+    result = ExecuteBootstrapper(
+        this,
+        "internal/bootstrap/switches/does_not_own_process_state",
+        &node_params,
+        &node_args);
+  }
+
+  if (result.IsEmpty()) {
+    return scope.EscapeMaybe(result);
+  }
 
   Local<Object> env_var_proxy;
   if (!CreateEnvVarProxy(context(), isolate_, as_callback_data())
