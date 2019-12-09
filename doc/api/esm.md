@@ -344,10 +344,12 @@ The conditions supported in Node.js are matched in the following order:
 1. `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This is currently only supported behind the
   `--experimental-conditional-exports` flag._
-2. `"require"` - matched when the package is loaded via `require()`.
+2. `"require"` - matched when the package is loaded with the CommonJS
+  module resolver such as via `require()`.
   _This is currently only supported behind the
   `--experimental-conditional-exports` flag._
-3. `"import"` - matched when the package is not loaded via `require()`.
+3. `"import"` - matched when the package is imported with the ES module
+   resolver such as when using a static or dynamic import expression.
    Can be any module format, this field does not set the type interpretation.
    _This is currently only supported behind the
   `--experimental-conditional-exports` flag._
