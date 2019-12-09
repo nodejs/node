@@ -70,6 +70,9 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #if defined(V8_OS_AIX)
   thread_cputime_t tc;
   if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
+#if defined(__PASE__)  // CLOCK_THREAD_CPUTIME_ID clock not supported on IBMi
+    return 0;
+#endif
     if (thread_cputime(-1, &tc) != 0) {
       UNREACHABLE();
     }
