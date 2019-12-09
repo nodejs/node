@@ -119,6 +119,12 @@ const { promisify } = require('util');
   transform.on('close', common.mustCall());
   write.on('close', common.mustCall());
 
+  [read, transform, write].forEach((stream) => {
+    stream.on('error', common.mustCall((err) => {
+      assert.deepStrictEqual(err, new Error('kaboom'));
+    }));
+  });
+
   const dst = pipeline(read, transform, write, common.mustCall((err) => {
     assert.deepStrictEqual(err, new Error('kaboom'));
   }));
