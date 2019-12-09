@@ -61,6 +61,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/execution',
   'NativeModule internal/process/per_thread',
   'NativeModule internal/process/promises',
+  'NativeModule internal/process/signal',
   'NativeModule internal/process/task_queues',
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
@@ -79,10 +80,7 @@ const expectedModules = new Set([
   'NativeModule vm',
 ]);
 
-if (common.isMainThread) {
-  expectedModules.add('NativeModule internal/process/main_thread_only');
-  expectedModules.add('NativeModule internal/process/stdio');
-} else {
+if (!common.isMainThread) {
   expectedModules.add('Internal Binding messaging');
   expectedModules.add('Internal Binding symbols');
   expectedModules.add('Internal Binding worker');
