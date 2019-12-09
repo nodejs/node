@@ -512,8 +512,7 @@ added: v0.1.91
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/30811
-    description: The `preview` option is available from now on. The input
-                 generates output previews from now on.
+    description: The `preview` option is now available.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26518
     description: The `terminal` option now follows the default description in
