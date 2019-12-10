@@ -119,6 +119,45 @@ static void SetPromiseRejectCallback(
   env->set_promise_reject_callback(args[0].As<Function>());
 }
 
+/**
+ * Immediately unwraps a promise into a return value or throw, if possible
+ * If not, runs the event loop and microtask queue until it is unwrapable. 
+ */
+static void PromiseWait(const FunctionCallbackInfo<Value>& args) {
+  if (!args[0]->IsPromise()) {
+    args.GetReturnValue().Set(args[0]);
+    return;
+  }
+  v8::Local<v8::Promise> promise = args[0].As<v8::Promise>();
+  if (promise->State() == v8::Promise::kFulfilled) {
+    args.GetReturnValue().Set(promise->Result());
+    return;
+  }
+  Isolate* isolate = args.GetIsolate();
+  if (promise->State() == v8::Promise::kRejected) {
+    isolate->ThrowException(promise->Result());
+    return;
+  }
+
+  Environment* env = Environment::GetCurrent(args);
+
+  uv_loop_t* loop = env->event_loop();
+  int state = promise->State();
+  while (state == v8::Promise::kPending) {
+    isolate->RunMicrotasks();
+    if (uv_loop_alive(loop) && promise->State() == v8::Promise::kPending) {
+      uv_run(loop, UV_RUN_ONCE);
+    }
+    state = promise->State();
+  }
+
+  if (promise->State() == v8::Promise::kRejected) {
+    isolate->ThrowException(promise->Result());
+    return;
+  }
+  args.GetReturnValue().Set(promise->Result());
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -145,6 +184,8 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target,
                  "setPromiseRejectCallback",
                  SetPromiseRejectCallback);
+
+  env->SetMethod(target, "promiseWait", PromiseWait);
 }
 
 }  // namespace task_queue
