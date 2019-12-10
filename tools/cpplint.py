@@ -3299,7 +3299,7 @@ def CheckForFunctionLengths(filename, clean_lines, linenum,
   """Reports for long function bodies.
 
   For an overview why this is done, see:
-  https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Write_Short_Functions
+  https://google.github.io/styleguide/cppguide.html#Write_Short_Functions
 
   Uses a simplistic algorithm assuming other style guidelines
   (especially spacing) are followed.
@@ -5154,7 +5154,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
       and line[-1] != '\\'):
     error(filename, linenum, 'build/namespaces', 4,
           'Do not use unnamed namespaces in header files.  See '
-          'https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Namespaces'
+          'https://google.github.io/styleguide/cppguide.html#Namespaces'
           ' for more information.')
 
 
