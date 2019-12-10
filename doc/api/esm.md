@@ -351,6 +351,9 @@ The conditions supported in Node.js are matched in the following order:
    `import()`. Can be any module format, this field does not set the type
    interpretation. _This is currently only supported behind the
    `--experimental-conditional-exports` flag._
+4. `"default"` - the generic fallback that will always match if no other
+   more specific condition is matched first. Can be a CommonJS or ES module
+   file.
 
 Using the `"require"` condition it is possible to define a package that will
 have a different exported value for CommonJS and ES modules, which can be a
