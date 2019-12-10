@@ -354,10 +354,10 @@ The conditions supported in Node.js are matched in the following order:
 4. `"default"` - the generic fallback that will always match if no other
    more specific condition is matched first. Can be a CommonJS or ES module
    file.
-   
+
 > Setting any of the above flagged conditions for a published package is not
-recommended until they are unflagged to avoid breaking changes to packages in
-future.
+> recommended until they are unflagged to avoid breaking changes to packages in
+> future.
 
 Using the `"require"` condition it is possible to define a package that will
 have a different exported value for CommonJS and ES modules, which can be a
@@ -516,9 +516,8 @@ ES module wrapper is used for `import` and the CommonJS entry point for
 `require`.
 
 > Note: While `--experimental-conditional-exports` is flagged, a package
-> using this pattern will throw when loaded via `require()` in modern
-> Node.js, unless package consumers use the `--experimental-conditional-exports`
-> flag.
+> using this pattern will throw when loaded unless package consumers use the
+> `--experimental-conditional-exports` flag.
 
 <!-- eslint-skip -->
 ```js
