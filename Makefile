@@ -842,6 +842,7 @@ endif
 endif
 endif
 endif
+endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
 else
@@ -864,7 +865,6 @@ ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
 ARCH=x86
-endif
 endif
 endif
 endif
