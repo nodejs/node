@@ -99,8 +99,9 @@ changes:
   * `ignoreErrors` {boolean} Ignore errors when writing to the underlying
     streams. **Default:** `true`.
   * `colorMode` {boolean|string} Set color support for this `Console` instance.
-    Setting to `true` enables coloring while inspecting values, setting to
-    `'auto'` will make color support depend on the value of the `isTTY` property
+    Setting to `true` enables coloring while inspecting values. Setting to
+    `false` disables coloring while inspecting values. Setting to
+    `'auto'` makes color support depend on the value of the `isTTY` property
     and the value returned by `getColorDepth()` on the respective stream. This
     option can not be used, if `inspectOptions.colors` is set as well.
     **Default:** `'auto'`.
