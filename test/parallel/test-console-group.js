@@ -23,7 +23,9 @@ function setup() {
     stderr += data;
   });
 
-  c = new Console(process.stdout, process.stderr);
+  c = new Console({ stdout: process.stdout,
+                    stderr: process.stderr,
+                    colorMode: false });
 }
 
 function teardown() {
