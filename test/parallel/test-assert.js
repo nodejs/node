@@ -716,6 +716,29 @@ a.throws(
   /* eslint-enable no-restricted-properties */
 }
 
+common.expectsError(() => {
+  /* eslint-disable-next-line no-useless-catch, brace-style */
+  try { assert.ok(0);
+  } catch (err) {
+    throw err;
+  }
+}, {
+  type: assert.AssertionError,
+  generatedMessage: true,
+  message: 'The expression evaluated to a falsy value:\n\n  ' +
+           'assert.ok(0)\n'
+});
+
+common.expectsError(
+  () => assert.ok(0),
+  {
+    type: assert.AssertionError,
+    generatedMessage: true,
+    message: 'The expression evaluated to a falsy value:\n\n  ' +
+             'assert.ok(0)\n'
+  }
+);
+
 common.expectsError(
   () => assert.ok(null),
   {
