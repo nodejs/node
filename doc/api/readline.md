@@ -400,7 +400,7 @@ as well as the column where the terminal caret will be rendered.
 
 ### rl.getCursorPos()
 <!-- YAML
-  added: REPLACEME
+added: REPLACEME
 -->
 
 * Returns: {Object}
