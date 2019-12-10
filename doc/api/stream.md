@@ -297,10 +297,10 @@ const writer = getWritableStreamSomehow();
 for (let i = 0; i < 100; i++) {
   writer.write(`hello, #${i}!\n`);
 }
-writer.end('This is the end\n');
 writer.on('finish', () => {
   console.log('All writes are now complete.');
 });
+writer.end('This is the end\n');
 ```
 
 ##### Event: 'pipe'
