@@ -3,7 +3,17 @@
 const URL = require('url').URL
 
 exports.getFundingInfo = getFundingInfo
+exports.retrieveFunding = retrieveFunding
 exports.validFundingUrl = validFundingUrl
+
+// supports both object funding and string shorthand
+function retrieveFunding (funding) {
+  return typeof funding === 'string'
+    ? {
+      url: funding
+    }
+    : funding
+}
 
 // Is the value of a `funding` property of a `package.json`
 // a valid type+url for `npm fund` to display?
@@ -58,14 +68,6 @@ function getFundingInfo (idealTree, opts) {
       Object.keys(dependencies).length ||
       dependencies[_trailingDependencies]
     )
-  }
-
-  function retrieveFunding (funding) {
-    return typeof funding === 'string'
-      ? {
-        url: funding
-      }
-      : funding
   }
 
   function getFundingDependencies (tree) {
