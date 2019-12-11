@@ -9,8 +9,8 @@ const { CSI } = require('internal/readline/utils');
 
 {
   assert(CSI);
-  assert.strictEqual(CSI.kClearToBeginning, '\x1b[1K');
-  assert.strictEqual(CSI.kClearToEnd, '\x1b[0K');
+  assert.strictEqual(CSI.kClearToLineBeginning, '\x1b[1K');
+  assert.strictEqual(CSI.kClearToLineEnd, '\x1b[0K');
   assert.strictEqual(CSI.kClearLine, '\x1b[2K');
   assert.strictEqual(CSI.kClearScreenDown, '\x1b[0J');
   assert.strictEqual(CSI`1${2}3`, '\x1b[123');
@@ -45,11 +45,11 @@ assert.strictEqual(readline.clearScreenDown(undefined, common.mustCall()),
 
 writable.data = '';
 assert.strictEqual(readline.clearLine(writable, -1), true);
-assert.deepStrictEqual(writable.data, CSI.kClearToBeginning);
+assert.deepStrictEqual(writable.data, CSI.kClearToLineBeginning);
 
 writable.data = '';
 assert.strictEqual(readline.clearLine(writable, 1), true);
-assert.deepStrictEqual(writable.data, CSI.kClearToEnd);
+assert.deepStrictEqual(writable.data, CSI.kClearToLineEnd);
 
 writable.data = '';
 assert.strictEqual(readline.clearLine(writable, 0), true);
@@ -57,7 +57,7 @@ assert.deepStrictEqual(writable.data, CSI.kClearLine);
 
 writable.data = '';
 assert.strictEqual(readline.clearLine(writable, -1, common.mustCall()), true);
-assert.deepStrictEqual(writable.data, CSI.kClearToBeginning);
+assert.deepStrictEqual(writable.data, CSI.kClearToLineBeginning);
 
 // Verify that clearLine() throws on invalid callback.
 assert.throws(() => {
