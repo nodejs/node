@@ -111,11 +111,4 @@ Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
   return ProcessEmitWarningGeneric(env, message.c_str(), "ExperimentalWarning");
 }
 
-Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
-                                          const char* warning,
-                                          const char* deprecation_code) {
-  return ProcessEmitWarningGeneric(
-      env, warning, "DeprecationWarning", deprecation_code);
-}
-
 }  // namespace node

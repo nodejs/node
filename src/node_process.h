@@ -29,9 +29,6 @@ v8::Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
                                               const char* warning);
-v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
-                                              const char* warning,
-                                              const char* deprecation_code);
 
 v8::MaybeLocal<v8::Object> CreateProcessObject(Environment* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
