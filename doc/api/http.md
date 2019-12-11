@@ -2119,7 +2119,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
   const contentType = res.headers['content-type'];
 
   let error;
-  if (statusCode !== 200) {
+  if (!(statusCode >= 200 && statusCode <= 206)) {
     error = new Error('Request Failed.\n' +
                       `Status Code: ${statusCode}`);
   } else if (!/^application\/json/.test(contentType)) {
