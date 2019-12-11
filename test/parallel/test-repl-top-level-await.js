@@ -60,7 +60,7 @@ const testMe = repl.start({
   prompt: PROMPT,
   stream: putIn,
   terminal: true,
-  useColors: false,
+  useColors: true,
   breakEvalOnSigint: true
 });
 
@@ -84,69 +84,99 @@ async function ordinaryTests() {
     'function koo() { return Promise.resolve(4); }'
   ]);
   const testCases = [
-    [ 'await Promise.resolve(0)', '0' ],
-    [ '{ a: await Promise.resolve(1) }', '{ a: 1 }' ],
-    [ '_', '// { a: 1 }\r', { line: 0 } ],
+    [ 'await Promise.resolve(0)',
+      // Auto completion preview with colors stripped.
+      ['awaitaititt Proroomiseisesee.resolveolvelvevee(0)\r', '0']
+    ],
+    [ '{ a: await Promise.resolve(1) }',
+      // Auto completion preview with colors stripped.
+      ['{ a: awaitaititt Proroomiseisesee.resolveolvelvevee(1) }\r',
+       '{ a: 1 }']
+    ],
+    [ '_', '{ a: 1 }\r', { line: 0 } ],
     [ 'let { aa, bb } = await Promise.resolve({ aa: 1, bb: 2 }), f = 5;',
-      'undefined' ],
-    [ 'aa', ['// 1\r', '1'] ],
-    [ 'bb', ['// 2\r', '2'] ],
-    [ 'f', ['// 5\r', '5'] ],
-    [ 'let cc = await Promise.resolve(2)', 'undefined' ],
-    [ 'cc', ['// 2\r', '2'] ],
-    [ 'let dd;', 'undefined' ],
-    [ 'dd', 'undefined' ],
-    [ 'let [ii, { abc: { kk } }] = [0, { abc: { kk: 1 } }];', 'undefined' ],
-    [ 'ii', ['// 0\r', '0'] ],
-    [ 'kk', ['// 1\r', '1'] ],
-    [ 'var ll = await Promise.resolve(2);', 'undefined' ],
-    [ 'll', ['// 2\r', '2'] ],
+      [
+        'letett { aa, bb } = awaitaititt Proroomiseisesee.resolveolvelvevee' +
+          '({ aa: 1, bb: 2 }), f = 5;\r'
+      ]
+    ],
+    [ 'aa', ['1\r', '1'] ],
+    [ 'bb', ['2\r', '2'] ],
+    [ 'f', ['5\r', '5'] ],
+    [ 'let cc = await Promise.resolve(2)',
+      ['letett cc = awaitaititt Proroomiseisesee.resolveolvelvevee(2)\r']
+    ],
+    [ 'cc', ['2\r', '2'] ],
+    [ 'let dd;', ['letett dd;\r'] ],
+    [ 'dd', ['undefined\r'] ],
+    [ 'let [ii, { abc: { kk } }] = [0, { abc: { kk: 1 } }];',
+      ['letett [ii, { abc: { kook } }] = [0, { abc: { kook: 1 } }];\r'] ],
+    [ 'ii', ['0\r', '0'] ],
+    [ 'kk', ['1\r', '1'] ],
+    [ 'var ll = await Promise.resolve(2);',
+      ['var letl = awaitaititt Proroomiseisesee.resolveolvelvevee(2);\r']
+    ],
+    [ 'll', ['2\r', '2'] ],
     [ 'foo(await koo())',
-      [ 'f', '// 5oo', '// [Function: foo](await koo())\r', '4' ] ],
-    [ '_', ['// 4\r', '4'] ],
+      ['f', '5oo', '[Function: foo](awaitaititt kooo())\r', '4'] ],
+    [ '_', ['4\r', '4'] ],
     [ 'const m = foo(await koo());',
-      [ 'const m = foo(await koo());\r', 'undefined' ] ],
-    [ 'm', ['// 4\r', '4' ] ],
+      ['connst module = foo(awaitaititt kooo());\r'] ],
+    [ 'm', ['4\r', '4' ] ],
     [ 'const n = foo(await\nkoo());',
-      [ 'const n = foo(await\r', '... koo());\r', 'undefined' ] ],
-    [ 'n', ['// 4\r', '4' ] ],
+      ['connst n = foo(awaitaititt\r', '... kooo());\r', 'undefined'] ],
+    [ 'n', ['4\r', '4'] ],
     // eslint-disable-next-line no-template-curly-in-string
     [ '`status: ${(await Promise.resolve({ status: 200 })).status}`',
-      "'status: 200'"],
+      [
+        '`stratus: ${(awaitaititt Proroomiseisesee.resolveolvelvevee' +
+          '({ stratus: 200 })).stratus}`\r',
+        "'status: 200'"
+      ]
+    ],
     [ 'for (let i = 0; i < 2; ++i) await i',
-      ['f', '// 5or (let i = 0; i < 2; ++i) await i\r', 'undefined'] ],
+      ['f', '5or (lett i = 0; i < 2; ++i) awaitaititt i\r', 'undefined'] ],
     [ 'for (let i = 0; i < 2; ++i) { await i }',
-      [ 'f', '// 5or (let i = 0; i < 2; ++i) { await i }\r', 'undefined' ] ],
-    [ 'await 0', ['await 0\r', '0'] ],
+      ['f', '5or (lett i = 0; i < 2; ++i) { awaitaititt i }\r', 'undefined']
+    ],
+    [ 'await 0', ['awaitaititt 0\r', '0'] ],
     [ 'await 0; function foo() {}',
-      ['await 0; function foo() {}\r', 'undefined'] ],
+      ['awaitaititt 0; functionnctionctiontioniononn foo() {}\r']
+    ],
     [ 'foo',
-      ['f', '// 5oo', '// [Function: foo]\r', '[Function: foo]'] ],
-    [ 'class Foo {}; await 1;', ['class Foo {}; await 1;\r', '1'] ],
-    [ 'Foo', ['// [Function: Foo]\r', '[Function: Foo]'] ],
+      ['f', '5oo', '[Function: foo]\r', '[Function: foo]'] ],
+    [ 'class Foo {}; await 1;', ['class Foo {}; awaitaititt 1;\r', '1'] ],
+    [ 'Foo', ['Fooo', '[Function: Foo]\r', '[Function: Foo]'] ],
     [ 'if (await true) { function bar() {}; }',
-      ['if (await true) { function bar() {}; }\r', 'undefined'] ],
-    [ 'bar', ['// [Function: bar]\r', '[Function: bar]'] ],
-    [ 'if (await true) { class Bar {}; }', 'undefined' ],
+      ['if (awaitaititt truee) { functionnctionctiontioniononn bar() {}; }\r']
+    ],
+    [ 'bar', ['barr', '[Function: bar]\r', '[Function: bar]'] ],
+    [ 'if (await true) { class Bar {}; }',
+      ['if (awaitaititt truee) { class Bar {}; }\r']
+    ],
     [ 'Bar', 'Uncaught ReferenceError: Bar is not defined' ],
-    [ 'await 0; function* gen(){}', 'undefined' ],
+    [ 'await 0; function* gen(){}',
+      ['awaitaititt 0; functionnctionctiontioniononn* globalen(){}\r']
+    ],
     [ 'for (var i = 0; i < 10; ++i) { await i; }',
-      ['f', '// 5or (var i = 0; i < 10; ++i) { await i; }\r', 'undefined'] ],
-    [ 'i', ['// 10\r', '10'] ],
+      ['f', '5or (var i = 0; i < 10; ++i) { awaitaititt i; }\r', 'undefined'] ],
+    [ 'i', ['10\r', '10'] ],
     [ 'for (let j = 0; j < 5; ++j) { await j; }',
-      ['f', '// 5or (let j = 0; j < 5; ++j) { await j; }\r', 'undefined'] ],
+      ['f', '5or (lett j = 0; j < 5; ++j) { awaitaititt j; }\r', 'undefined'] ],
     [ 'j', 'Uncaught ReferenceError: j is not defined', { line: 0 } ],
-    [ 'gen', ['// [GeneratorFunction: gen]\r', '[GeneratorFunction: gen]'] ],
+    [ 'gen',
+      ['genn', '[GeneratorFunction: gen]\r', '[GeneratorFunction: gen]']
+    ],
     [ 'return 42; await 5;', 'Uncaught SyntaxError: Illegal return statement',
       { line: 3 } ],
-    [ 'let o = await 1, p', 'undefined' ],
-    [ 'p', 'undefined' ],
-    [ 'let q = 1, s = await 2', 'undefined' ],
-    [ 's', ['// 2\r', '2'] ],
+    [ 'let o = await 1, p', ['lett os = awaitaititt 1, p\r'] ],
+    [ 'p', ['undefined\r'] ],
+    [ 'let q = 1, s = await 2', ['lett que = 1, s = awaitaititt 2\r'] ],
+    [ 's', ['2\r', '2'] ],
     [ 'for await (let i of [1,2,3]) console.log(i)',
       [
         'f',
-        '// 5or await (let i of [1,2,3]) console.log(i)\r',
+        '5or awaitaititt (lett i of [1,2,3]) connsolelee.logogg(i)\r',
         '1',
         '2',
         '3',
@@ -160,6 +190,8 @@ async function ordinaryTests() {
     const toBeRun = input.split('\n');
     const lines = await runAndWait(toBeRun);
     if (Array.isArray(expected)) {
+      if (expected.length === 1)
+        expected.push('undefined');
       if (lines[0] === input)
         lines.shift();
       assert.deepStrictEqual(lines, [...expected, PROMPT]);
@@ -184,7 +216,7 @@ async function ctrlCTest() {
     'await timeout(100000)',
     { ctrl: true, name: 'c' }
   ]), [
-    'await timeout(100000)\r',
+    'awaitaititt timeoutmeouteoutoututt(100000)\r',
     'Uncaught:',
     '[Error [ERR_SCRIPT_EXECUTION_INTERRUPTED]: ' +
       'Script execution was interrupted by `SIGINT`] {',
