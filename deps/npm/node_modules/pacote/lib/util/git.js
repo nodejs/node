@@ -234,14 +234,17 @@ function spawnGit (gitArgs, gitOpts, opts) {
   })
 }
 
+module.exports._mkOpts = mkOpts
 function mkOpts (_gitOpts, opts) {
   const gitOpts = {
     env: gitEnv()
   }
-  if (+opts.uid && !isNaN(opts.uid)) {
+  const isRoot = process.getuid && process.getuid() === 0
+  // don't change child process uid/gid if not root
+  if (+opts.uid && !isNaN(opts.uid) && isRoot) {
     gitOpts.uid = +opts.uid
   }
-  if (+opts.gid && !isNaN(opts.gid)) {
+  if (+opts.gid && !isNaN(opts.gid) && isRoot) {
     gitOpts.gid = +opts.gid
   }
   Object.assign(gitOpts, _gitOpts)

@@ -23,12 +23,14 @@ if [ "x$0" = "xsh" ]; then
   if [ $ret -eq 0 ]; then
     (exit 0)
   else
+    echo "Uninstalling npm-install-$$.sh" >&2
     rm npm-install-$$.sh
     echo "Failed to download script" >&2
     exit $ret
   fi
   sh npm-install-$$.sh
   ret=$?
+  echo "Uninstalling npm-install-$$.sh" >&2
   rm npm-install-$$.sh
   exit $ret
 fi
