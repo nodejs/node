@@ -31,7 +31,7 @@ const repl = require('repl');
 const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
-// Some errors are passed to the domain, but do not callback
+// Some errors are passed to the domain, but do not callback.
 testMe._domain.on('error', function(err) {
   throw err;
 });
