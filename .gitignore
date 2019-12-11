@@ -37,6 +37,8 @@
 /*.swp
 /out
 /*.txt
+/*.msi
+/*.wixpdb
 
 # === Rules for artifacts of `./configure` ===
 /icu_config.gypi
@@ -58,6 +60,9 @@ _UpgradeReport_Files/
 *.wixobj
 /tools/msvs/genfiles/
 /npm.wxs
+/tools/msvs/msi/Release/
+/tools/msvs/msi/obj/
+/tools/msvs/msi/x64/
 # Exclude MSVS files used for .msi file generation
 !tools/msvs/msi/custom_actions.vcxproj
 !tools/msvs/msi/nodemsi.sln
