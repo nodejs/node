@@ -278,6 +278,7 @@ if errorlevel 1 goto vs-set-2017
 if defined DEBUG_HELPER @ECHO ON
 :found_vs2019
 echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2019
 set PLATFORM_TOOLSET=v142
 goto msbuild-found
 
@@ -313,6 +314,7 @@ if errorlevel 1 goto msbuild-not-found
 if defined DEBUG_HELPER @ECHO ON
 :found_vs2017
 echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2017
 set PLATFORM_TOOLSET=v141
 goto msbuild-found
 
