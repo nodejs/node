@@ -102,6 +102,7 @@ _UpgradeReport_Files/
 /*.tap
 /*.xml
 /node_trace.*.log
+/report.*.json
 # coverage related
 /gcovr
 /build
