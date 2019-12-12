@@ -99,8 +99,8 @@ NodeMainInstance::~NodeMainInstance() {
   if (!owns_isolate_) {
     return;
   }
-  isolate_->Dispose();
   platform_->UnregisterIsolate(isolate_);
+  isolate_->Dispose();
 }
 
 int NodeMainInstance::Run() {
