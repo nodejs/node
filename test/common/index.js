@@ -23,17 +23,20 @@
 /* eslint-disable node-core/crypto-check */
 'use strict';
 const process = global.process;  // Some tests tamper with the process global.
-const path = require('path');
-const fs = require('fs');
+
 const assert = require('assert');
-const os = require('os');
 const { exec, execSync, spawnSync } = require('child_process');
+const fs = require('fs');
+// Do not require 'os' until needed so that test-os-checked-fucnction can
+// monkey patch it. If 'os' is required here, that test will fail.
+const path = require('path');
 const util = require('util');
+const { isMainThread } = require('worker_threads');
+
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
-const { isMainThread } = require('worker_threads');
 
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
 // different umask will set it themselves.
@@ -102,22 +105,11 @@ if (process.argv.length === 2 &&
 
 const isWindows = process.platform === 'win32';
 const isAIX = process.platform === 'aix';
-// On IBMi, process.platform and os.platform() both return 'aix',
-// It is not enough to differentiate between IBMi and real AIX system.
-const isIBMi = os.type() === 'OS400';
-const isLinuxPPCBE = (process.platform === 'linux') &&
-                     (process.arch === 'ppc64') &&
-                     (os.endianness() === 'BE');
 const isSunOS = process.platform === 'sunos';
 const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
-
-const enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
-const cpus = os.cpus();
-const enoughTestCpu = Array.isArray(cpus) &&
-                      (cpus.length > 1 || cpus[0].speed > 999);
 
 const rootDir = isWindows ? 'c:\\' : '/';
 
@@ -196,15 +188,6 @@ const PIPE = (() => {
   const pipePrefix = isWindows ? '\\\\.\\pipe\\' : localRelative;
   const pipeName = `node-test.${process.pid}.sock`;
   return path.join(pipePrefix, pipeName);
-})();
-
-const hasIPv6 = (() => {
-  const iFaces = os.networkInterfaces();
-  const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
-  return Object.keys(iFaces).some((name) => {
-    return re.test(name) &&
-           iFaces[name].some(({ family }) => family === 'IPv6');
-  });
 })();
 
 /*
@@ -749,8 +732,6 @@ module.exports = {
   childShouldThrowAndAbort,
   createZeroFilledFile,
   disableCrashOnUnhandledRejection,
-  enoughTestCpu,
-  enoughTestMem,
   expectsError,
   expectsInternalAssertion,
   expectWarning,
@@ -760,14 +741,11 @@ module.exports = {
   getTTYfd,
   hasIntl,
   hasCrypto,
-  hasIPv6,
   hasMultiLocalhost,
   isAIX,
   isAlive,
   isFreeBSD,
-  isIBMi,
   isLinux,
-  isLinuxPPCBE,
   isMainThread,
   isOpenBSD,
   isOSX,
@@ -791,10 +769,26 @@ module.exports = {
   skipIfReportDisabled,
   skipIfWorker,
 
-  get localhostIPv6() { return '::1'; },
+  get enoughTestCPU() {
+    const cpus = require('os').cpus();
+    return Array.isArray(cpus) && (cpus.length > 1 || cpus[0].speed > 999);
+  },
+
+  get enoughTestMeme() {
+    return require('os').totalmem() > 0x70000000; /* 1.75 Gb */
+  },
 
   get hasFipsCrypto() {
     return hasCrypto && require('crypto').getFips();
+  },
+
+  get hasIPv6() {
+    const iFaces = require('os').networkInterfaces();
+    const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
+    return Object.keys(iFaces).some((name) => {
+      return re.test(name) &&
+             iFaces[name].some(({ family }) => family === 'IPv6');
+    });
   },
 
   get inFreeBSDJail() {
@@ -807,6 +801,17 @@ module.exports = {
       inFreeBSDJail = false;
     }
     return inFreeBSDJail;
+  },
+
+  // On IBMi, process.platform and os.platform() both return 'aix',
+  // It is not enough to differentiate between IBMi and real AIX system.
+  get isIBMi() {
+    return require('os').type() === 'OS400';
+  },
+
+  get isLinuxPPCBE() {
+    return (process.platform === 'linux') && (process.arch === 'ppc64') &&
+           (require('os').endianness() === 'BE');
   },
 
   get localhostIPv4() {
@@ -829,6 +834,8 @@ module.exports = {
 
     return localhostIPv4;
   },
+
+  get localhostIPv6() { return '::1'; },
 
   // opensslCli defined lazily to reduce overhead of spawnSync
   get opensslCli() {
