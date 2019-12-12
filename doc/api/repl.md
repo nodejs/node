@@ -332,10 +332,20 @@ function myWriter(output) {
 added: v0.1.91
 -->
 
+* `options` {Object|string} See [`repl.start()`][]
 * Extends: {readline.Interface}
 
-Instances of `repl.REPLServer` are created using the `repl.start()` method and
-*should not* be created directly using the JavaScript `new` keyword.
+Instances of `repl.REPLServer` are created using the [`repl.start()`][] method
+or directly using the JavaScript `new` keyword.
+
+```js
+const repl = require('repl');
+
+const options = { useColors: true };
+
+const firstInstance = repl.start(options);
+const secondInstance = new repl.REPLServer(options);
+```
 
 ### Event: `'exit'`
 <!-- YAML
@@ -697,6 +707,7 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`repl.ReplServer`]: #repl_class_replserver
+[`repl.start()`]: #repl_repl_start_options
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html
