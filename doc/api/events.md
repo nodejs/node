@@ -155,6 +155,18 @@ myEmitter.emit('error', new Error('whoops!'));
 // Prints: whoops! there was an error
 ```
 
+It is possible to monitor `'error'` events without consuming the emitted error
+by installing a listener using the symbol `errorMonitorSymbol`.
+
+```js
+const myEmitter = new MyEmitter();
+myEmitter.on(errorMonitorSymbol, (err) => {
+  MyMonitoringTool.log(err);
+});
+myEmitter.emit('error', new Error('whoops!'));
+// Still throws and crashes Node.js
+```
+
 ## Capture Rejections of Promises
 
 > Stability: 1 - captureRejections is experimental.
@@ -347,6 +359,19 @@ have the additional `emitter`, `type` and `count` properties, referring to
 the event emitter instance, the event’s name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
+
+### EventEmitter.errorMonitorSymbol
+<!-- YAML
+added: REPLACEME
+-->
+
+This symbol shall be used to install a listener only monitoring `'error'`
+events. Listeners installed using this symbol are called before the regular
+`'error'` listeners are called.
+
+Installing a listener using this symbol does not change the behavior once a
+`'error'` event is emitted, therefore the process will still crash if no
+regular `'error'` listener is installed.
 
 ### emitter.addListener(eventName, listener)
 <!-- YAML
