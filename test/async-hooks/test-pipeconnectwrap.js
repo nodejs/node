@@ -8,8 +8,7 @@ const { checkInvocations } = require('./hook-checks');
 const tmpdir = require('../common/tmpdir');
 const net = require('net');
 
-// Spawning messes up `async_hooks` state.
-tmpdir.refresh({ spawn: false });
+tmpdir.refresh();
 
 const hooks = initHooks();
 hooks.enable();
