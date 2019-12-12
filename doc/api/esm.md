@@ -1005,9 +1005,9 @@ import { URL, pathToFileURL } from 'url';
 const baseURL = pathToFileURL(process.cwd()).href;
 
 /**
- * @param {string} specifier
- * @param {string} parentModuleURL
- * @param {function} defaultResolver
+ * @param {string} specifier - The absolute path to the module currently being imported.
+ * @param {string} parentModuleURL - The URL of the parent module (the one that is importing the current module). It is in file: protocol format, and defaults to undefined when used on the entry module (there's no parent in that case).
+ * @param {function} defaultResolver - The default resolve function that Node.js uses.
  */
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
@@ -1054,9 +1054,9 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = pathToFileURL(process.cwd()).href;
 
 /**
- * @param {string} specifier
- * @param {string} parentModuleURL
- * @param {function} defaultResolver
+ * @param {string} specifier - The absolute path to the module currently being imported.
+ * @param {string} parentModuleURL - The URL of the parent module (the one that is importing the current module). It is in file: protocol format, and defaults to undefined when used on the entry module (there's no parent in that case).
+ * @param {function} defaultResolver - The default resolve function that Node.js uses.
  */
 export async function resolve(specifier,
                               parentModuleURL = baseURL,
