@@ -116,8 +116,8 @@ class NodeTestFixture : public NodeZeroIsolateTestFixture {
   void TearDown() override {
     platform->DrainTasks(isolate_);
     isolate_->Exit();
-    isolate_->Dispose();
     platform->UnregisterIsolate(isolate_);
+    isolate_->Dispose();
     isolate_ = nullptr;
     NodeZeroIsolateTestFixture::TearDown();
   }
