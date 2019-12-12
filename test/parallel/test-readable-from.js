@@ -56,10 +56,20 @@ async function toReadablePromises() {
 async function toReadableString() {
   const stream = Readable.from('abc');
 
-  const expected = ['a', 'b', 'c'];
+  const expected = ['abc'];
 
   for await (const chunk of stream) {
     strictEqual(chunk, expected.shift());
+  }
+}
+
+async function toReadableBuffer() {
+  const stream = Readable.from(Buffer.from('abc'));
+
+  const expected = ['abc'];
+
+  for await (const chunk of stream) {
+    strictEqual(chunk.toString(), expected.shift());
   }
 }
 
@@ -154,6 +164,7 @@ Promise.all([
   toReadableSyncIterator(),
   toReadablePromises(),
   toReadableString(),
+  toReadableBuffer(),
   toReadableOnData(),
   toReadableOnDataNonObject(),
   destroysTheStreamWhenThrowing(),
