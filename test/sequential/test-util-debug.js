@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 const [, , modeArgv, sectionArgv] = process.argv;
 
@@ -54,19 +55,36 @@ function parent() {
   test('*-test', true, 'abc-test');
 }
 
-function test(environ, shouldWrite, section) {
+function test(environ, shouldWrite, section, forceColors = false) {
   let expectErr = '';
   const expectOut = 'ok\n';
 
   const spawn = require('child_process').spawn;
   const child = spawn(process.execPath, [__filename, 'child', section], {
-    env: Object.assign(process.env, { NODE_DEBUG: environ })
+    env: Object.assign(process.env, {
+      NODE_DEBUG: environ,
+      FORCE_COLOR: forceColors ? 'true' : 'false'
+    })
   });
 
   if (shouldWrite) {
-    expectErr =
-      `${section.toUpperCase()} ${child.pid}: this { is: 'a' } /debugging/\n${
-        section.toUpperCase()} ${child.pid}: num=1 str=a obj={"foo":"bar"}\n`;
+    if (forceColors) {
+      const { colors, styles } = util.inspect;
+      const addCodes = (arr) => [`\x1B[${arr[0]}m`, `\x1B[${arr[1]}m`];
+      const num = addCodes(colors[styles.number]);
+      const str = addCodes(colors[styles.string]);
+      const regexp = addCodes(colors[styles.regexp]);
+      const start = `${section.toUpperCase()} ${num[0]}${child.pid}${num[1]}`;
+      const debugging = `${regexp[0]}/debugging/${regexp[1]}`;
+      expectErr =
+        `${start}: this { is: ${str[0]}'a'${str[1]} } ${debugging}\n` +
+        `${start}: num=1 str=a obj={"foo":"bar"}\n`;
+    } else {
+      const start = `${section.toUpperCase()} ${child.pid}`;
+      expectErr =
+        `${start}: this { is: 'a' } /debugging/\n` +
+        `${start}: num=1 str=a obj={"foo":"bar"}\n`;
+    }
   }
 
   let err = '';
@@ -85,12 +103,20 @@ function test(environ, shouldWrite, section) {
     assert(!c);
     assert.strictEqual(err, expectErr);
     assert.strictEqual(out, expectOut);
+    // Run the test again, this time with colors enabled.
+    if (!forceColors) {
+      test(environ, shouldWrite, section, true);
+    }
   }));
 }
 
 
 function child(section) {
-  const util = require('util');
+  const tty = require('tty');
+  // Make sure we check for colors, no matter of the stream's default.
+  Object.defineProperty(process.stderr, 'hasColors', {
+    value: tty.WriteStream.prototype.hasColors
+  });
   const debug = util.debuglog(section);
   debug('this', { is: 'a' }, /debugging/);
   debug('num=%d str=%s obj=%j', 1, 'a', { foo: 'bar' });
