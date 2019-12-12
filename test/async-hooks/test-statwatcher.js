@@ -11,7 +11,7 @@ const path = require('path');
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
-tmpdir.refresh({ spawn: false });
+tmpdir.refresh();
 
 const file1 = path.join(tmpdir.path, 'file1');
 const file2 = path.join(tmpdir.path, 'file2');

@@ -898,11 +898,7 @@ The `tmpdir` module supports the use of a temporary directory for testing.
 
 The realpath of the testing temporary directory.
 
-### refresh(\[opts\])
-
-* `opts` [&lt;Object>][] (optional) Extra options.
-  * `spawn` [&lt;boolean>][] (default: `true`) Indicates that `refresh` is
-    allowed to optionally spawn a subprocess.
+### refresh()
 
 Deletes and recreates the testing temporary directory.
 
