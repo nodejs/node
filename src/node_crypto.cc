@@ -5510,8 +5510,9 @@ bool PublicKeyCipher::Cipher(Environment* env,
     // OpenSSL takes ownership of the label, so we need to create a copy.
     void* label = OPENSSL_memdup(oaep_label, oaep_label_len);
     CHECK_NOT_NULL(label);
-    if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(), label,
-                                              oaep_label_len)) {
+    if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(),
+                reinterpret_cast<unsigned char*>(label),
+                                      oaep_label_len)) {
       OPENSSL_free(label);
       return false;
     }
