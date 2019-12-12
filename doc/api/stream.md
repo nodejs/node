@@ -1641,6 +1641,10 @@ readable.on('data', (chunk) => {
 });
 ```
 
+Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
+the strings or buffers be iterated to match the other streams semantics
+for performance reasons.
+
 ## API for Stream Implementers
 
 <!--type=misc-->
