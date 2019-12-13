@@ -510,7 +510,7 @@ with REPL instances programmatically.
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v13.4.0
     pr-url: https://github.com/nodejs/node/pull/30811
     description: The `preview` option is now available.
   - version: v12.0.0

@@ -623,7 +623,7 @@ is finished.
 ### request.finished
 <!-- YAML
 added: v0.0.1
-deprecated: REPLACEME
+deprecated: v13.4.0
 -->
 
 > Stability: 0 - Deprecated. Use [`request.writableEnded`][].
@@ -1308,7 +1308,7 @@ is finished.
 ### response.finished
 <!-- YAML
 added: v0.0.2
-deprecated: REPLACEME
+deprecated: v13.4.0
 -->
 
 > Stability: 0 - Deprecated. Use [`response.writableEnded`][].

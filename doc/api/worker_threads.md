@@ -510,7 +510,7 @@ changes:
   - version: v13.2.0
     pr-url: https://github.com/nodejs/node/pull/26628
     description: The `resourceLimits` option was introduced.
-  - version: REPLACEME
+  - version: v13.4.0
     pr-url: https://github.com/nodejs/node/pull/30559
     description: The `argv` option was introduced.
 -->

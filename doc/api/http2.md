@@ -3075,7 +3075,7 @@ is finished.
 #### response.finished
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v13.4.0
 -->
 
 > Stability: 0 - Deprecated. Use [`response.writableEnded`][].
