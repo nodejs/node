@@ -1243,8 +1243,9 @@ lint-js:
 jslint: lint-js
 	@echo "Please use lint-js instead of jslint"
 
-run-lint-js-ci = tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		$(LINT_JS_TARGETS)
+run-lint-js-ci = tools/node_modules/eslint/bin/eslint.js \
+  --report-unused-disable-directives --ext=.js,.mjs,.md -f tap \
+	-o test-eslint.tap $(LINT_JS_TARGETS)
 
 .PHONY: lint-js-ci
 # On the CI the output is emitted in the TAP format.
