@@ -36,7 +36,7 @@ Buffer.prototype.htons = function htons() {
 Buffer.prototype.htonl = function htonl() {
   if (this.length % 4 !== 0)
     throw new RangeError();
-  for (var i = 0; i < this.length; i += 4) {
+  for (let i = 0; i < this.length; i += 4) {
     swap(this, i, i + 3);
     swap(this, i + 1, i + 2);
   }
@@ -66,7 +66,7 @@ function createBuffer(len, aligned) {
 function genMethod(method) {
   const fnString = `
       return function ${method}(n, buf) {
-        for (var i = 0; i <= n; i++)
+        for (let i = 0; i <= n; i++)
           buf.${method}();
       }`;
   return (new Function(fnString))();

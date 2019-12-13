@@ -25,7 +25,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, search, encoding, type }) {
-  var aliceBuffer = fs.readFileSync(
+  let aliceBuffer = fs.readFileSync(
     path.resolve(__dirname, '../fixtures/alice.html')
   );
 
