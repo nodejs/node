@@ -211,7 +211,7 @@ itself.
 
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
-added: REPLACEME
+added: v13.4.0
 -->
 
 Sets the resolution algorithm for resolving ES module specifiers. Valid options
@@ -421,7 +421,7 @@ Specify the `module` of a custom [experimental ECMAScript Module loader][].
 
 ### `--insecure-http-parser`
 <!-- YAML
-added: REPLACEME
+added: v13.4.0
 -->
 
 Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
