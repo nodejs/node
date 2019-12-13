@@ -748,6 +748,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
 #endif
 #endif
+  AddOption("--use-largepages",
+            "Map the Node.js static code to large pages",
+            &PerProcessOptions::use_largepages,
+            kAllowedInEnvironment);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 }

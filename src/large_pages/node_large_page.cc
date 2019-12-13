@@ -62,7 +62,7 @@
 // Map a new area and copy the original code there
 // Use mmap using the start address with MAP_FIXED so we get exactly the
 // same virtual address
-// Use madvise with MADV_HUGE_PAGE to use Anonymous 2M Pages
+// Use madvise with MADV_HUGEPAGE to use Anonymous 2M Pages
 // If successful copy the code there and unmap the original region.
 
 extern char __nodetext;
@@ -308,7 +308,7 @@ static bool IsSuperPagesEnabled() {
 // a. map a new area and copy the original code there
 // b. mmap using the start address with MAP_FIXED so we get exactly
 //    the same virtual address (except on macOS).
-// c. madvise with MADV_HUGE_PAGE
+// c. madvise with MADV_HUGEPAGE
 // d. If successful copy the code there and unmap the original region
 int
 #if !defined(__APPLE__)
@@ -352,7 +352,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     return -1;
   }
 
-  ret = madvise(tmem, size, MADV_HUGEPAGE);
+  ret = madvise(tmem, size, 14 /* MADV_HUGEPAGE */);
   if (ret == -1) {
     PrintSystemError(errno);
     ret = munmap(tmem, size);
