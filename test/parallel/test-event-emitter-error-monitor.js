@@ -7,7 +7,7 @@ const EE = new EventEmitter();
 const theErr = new Error('MyError');
 
 EE.on(
-  EventEmitter.errorMonitorSymbol,
+  EventEmitter.errorMonitor,
   common.mustCall((e) => assert.strictEqual(e, theErr), 3)
 );
 
