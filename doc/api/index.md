@@ -43,6 +43,7 @@
 * [Process](process.html)
 * [Punycode](punycode.html)
 * [Query Strings](querystring.html)
+* [QUIC](quic.html)
 * [Readline](readline.html)
 * [REPL](repl.html)
 * [Report](report.html)

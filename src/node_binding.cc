@@ -7,8 +7,14 @@
 
 #if HAVE_OPENSSL
 #define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
+#if defined(NODE_EXPERIMENTAL_QUIC)
+#define NODE_BUILTIN_QUIC_MODULES(V) V(quic)
+#else
+#define NODE_BUILTIN_QUIC_MODULES(V)
+#endif
 #else
 #define NODE_BUILTIN_OPENSSL_MODULES(V)
+#define NODE_BUILTIN_QUIC_MODULES(V)
 #endif
 
 #if NODE_HAVE_I18N_SUPPORT
@@ -58,6 +64,7 @@
   V(http_parser)                                                               \
   V(inspector)                                                                 \
   V(js_stream)                                                                 \
+  V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
   V(module_wrap)                                                               \
   V(native_module)                                                             \
@@ -93,6 +100,7 @@
 #define NODE_BUILTIN_MODULES(V)                                                \
   NODE_BUILTIN_STANDARD_MODULES(V)                                             \
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
+  NODE_BUILTIN_QUIC_MODULES(V)                                                 \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
   NODE_BUILTIN_REPORT_MODULES(V)                                               \
   NODE_BUILTIN_PROFILER_MODULES(V)                                             \

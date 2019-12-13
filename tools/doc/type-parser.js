@@ -15,8 +15,8 @@ const jsPrimitives = {
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
-  'Array', 'ArrayBuffer', 'ArrayBufferView', 'DataView', 'Date', 'Error',
-  'EvalError', 'Function', 'Map', 'Object', 'Promise', 'RangeError',
+  'Array', 'ArrayBuffer', 'ArrayBufferView', 'BigInt', 'DataView', 'Date',
+  'Error', 'EvalError', 'Function', 'Map', 'Object', 'Promise', 'RangeError',
   'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError',
   'TypeError', 'TypedArray', 'URIError', 'Uint8Array', 'WebAssembly.Instance',
 ];
@@ -123,6 +123,9 @@ const customTypesMap = {
     'perf_hooks.html#perf_hooks_class_performanceobserver',
   'PerformanceObserverEntryList':
     'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
+  'QuicSession': 'quic_class_quicserversession_extends_quicsession',
+  'QuicSocket': 'quic.html#quic_quic_createsocket_options',
+  'QuicStream': 'quic_class_quicstream_extends_stream_duplex',
 
   'readline.Interface': 'readline.html#readline_class_interface',
 

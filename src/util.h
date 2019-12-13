@@ -560,6 +560,11 @@ struct MallocedBuffer {
     size = new_size;
   }
 
+  void Realloc(size_t new_size) {
+    Truncate(new_size);
+    data = UncheckedRealloc(data, new_size);
+  }
+
   inline bool is_empty() const { return data == nullptr; }
 
   MallocedBuffer() : data(nullptr), size(0) {}
@@ -712,6 +717,11 @@ inline bool IsBigEndian() {
 template <typename T, size_t N>
 constexpr size_t arraysize(const T (&)[N]) {
   return N;
+}
+
+template <typename T, size_t N>
+constexpr size_t strsize(const T (&)[N]) {
+  return N - 1;
 }
 
 // Round up a to the next highest multiple of b.

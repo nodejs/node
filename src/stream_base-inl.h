@@ -35,7 +35,8 @@ inline StreamReq* StreamReq::FromObject(v8::Local<v8::Object> req_wrap_obj) {
 
 inline void StreamReq::Dispose() {
   object()->SetAlignedPointerInInternalField(kStreamReqField, nullptr);
-  delete this;
+  BaseObjectPtr<AsyncWrap> destroy_me{GetAsyncWrap()};
+  destroy_me->Detach();
 }
 
 inline v8::Local<v8::Object> StreamReq::object() {

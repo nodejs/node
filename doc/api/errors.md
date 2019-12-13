@@ -1640,6 +1640,70 @@ A non-context-aware native addon was loaded in a process that disallows them.
 
 A given value is out of the accepted range.
 
+<a id="ERR_QUIC_ERROR"></a>
+### ERR_QUIC_ERROR
+
+TBD
+
+<a id="ERR_QUICCLIENTSESSION_FAILED"></a>
+### ERR_QUICCLIENTSESSION_FAILED
+
+TBD
+
+<a id="ERR_QUICCLIENTSESSION_FAILED_SETSOCKET"></a>
+### ERR_QUICCLIENTSESSION_FAILED_SETSOCKET
+
+TBD
+
+<a id="ERR_QUICSESSION_DESTROYED"></a>
+### ERR_QUICSESSION_DESTROYED
+
+TBD
+
+<a id="ERR_QUICSESSION_INVALID_DCID"></a>
+### ERR_QUICSESSION_INVALID_DCID
+
+TBD
+
+<a id="ERR_QUICSESSION_UPDATEKEY"></a>
+### ERR_QUICSESSION_UPDATEKEY
+
+TBD
+
+<a id="ERR_QUICSESSION_VERSION_NEGOTIATION"></a>
+### ERR_QUICSESSION_VERSION_NEGOTIATION
+
+TBD
+
+<a id="ERR_QUICSOCKET_CLOSING"></a>
+### ERR_QUICSOCKET_CLOSING
+
+TBD
+
+<a id="ERR_QUICSOCKET_DESTROYED"></a>
+### ERR_QUICSOCKET_DESTROYED
+
+TBD
+
+<a id="ERR_QUICSOCKET_INVALID_STATELESS_RESET_SECRET_LENGTH"></a>
+### ERR_QUICSOCKET_INVALID_STATELESS_RESET_SECRET_LENGTH
+TBD
+
+<a id="ERR_QUICSOCKET_LISTENING"></a>
+### ERR_QUICSOCKET_LISTENING
+
+TBD
+
+<a id="ERR_QUICSOCKET_UNBOUND"></a>
+### ERR_QUICSOCKET_UNBOUND
+
+TBD
+
+<a id="ERR_QUICSTREAM_OPEN_FAILED"></a>
+### ERR_QUICSTREAM_OPEN_FAILED
+
+TBD
+
 <a id="ERR_REQUIRE_ESM"></a>
 ### `ERR_REQUIRE_ESM`
 
@@ -2154,6 +2218,16 @@ encoding (e.g. `ucs` or `utf16le`) is not supported.
 
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 ### `ERR_HTTP2_FRAME_ERROR`
+<!-- YAML
+added: v9.0.0
+removed: v10.0.0
+-->
+
+Used when a failure occurs sending an individual frame on the HTTP/2
+session.
+
+<a id="ERR_QUIC_TLS13_REQUIRED"></a>
+### ERR_QUIC_TLS13_REQUIRED
 <!-- YAML
 added: v9.0.0
 removed: v10.0.0

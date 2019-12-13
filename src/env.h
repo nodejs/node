@@ -29,6 +29,9 @@
 #include "inspector_agent.h"
 #include "inspector_profiler.h"
 #endif
+#if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
+#include "node_quic_state.h"
+#endif
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_binding.h"
@@ -329,10 +332,12 @@ constexpr size_t kFsStatsBufferLength =
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
+  V(quic_alpn_string, "h3-24")                                                 \
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
   V(reason_string, "reason")                                                   \
+  V(recovery_stats_string, "recoveryStats")                                    \
   V(refresh_string, "refresh")                                                 \
   V(regexp_string, "regexp")                                                   \
   V(rename_string, "rename")                                                   \
@@ -356,6 +361,8 @@ constexpr size_t kFsStatsBufferLength =
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
+  V(state_string, "state")                                                     \
+  V(stats_string, "stats")                                                     \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
   V(subject_string, "subject")                                                 \
@@ -388,6 +395,16 @@ constexpr size_t kFsStatsBufferLength =
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
+#if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                       \
+  V(quicclientsession_constructor_template, v8::ObjectTemplate)                \
+  V(quicserversession_constructor_template, v8::ObjectTemplate)                \
+  V(quicserverstream_constructor_template, v8::ObjectTemplate)                 \
+  V(quicsocketsendwrap_constructor_template, v8::ObjectTemplate)
+#else
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+#endif
+
 #define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
   V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
@@ -399,6 +416,7 @@ constexpr size_t kFsStatsBufferLength =
   V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
+  V(histogram_ctor_template, v8::ObjectTemplate)                               \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
@@ -415,7 +433,36 @@ constexpr size_t kFsStatsBufferLength =
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
-  V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)
+  V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
+  QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+
+#if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                          \
+  V(quic_on_socket_close_function, v8::Function)                               \
+  V(quic_on_socket_error_function, v8::Function)                               \
+  V(quic_on_socket_server_busy_function, v8::Function)                         \
+  V(quic_on_session_cert_function, v8::Function)                               \
+  V(quic_on_session_client_hello_function, v8::Function)                       \
+  V(quic_on_session_close_function, v8::Function)                              \
+  V(quic_on_session_destroyed_function, v8::Function)                          \
+  V(quic_on_session_error_function, v8::Function)                              \
+  V(quic_on_session_handshake_function, v8::Function)                          \
+  V(quic_on_session_keylog_function, v8::Function)                             \
+  V(quic_on_session_path_validation_function, v8::Function)                    \
+  V(quic_on_session_qlog_function, v8::Function)                               \
+  V(quic_on_session_ready_function, v8::Function)                              \
+  V(quic_on_session_silent_close_function, v8::Function)                       \
+  V(quic_on_session_status_function, v8::Function)                             \
+  V(quic_on_session_ticket_function, v8::Function)                             \
+  V(quic_on_session_version_negotiation_function, v8::Function)                \
+  V(quic_on_stream_close_function, v8::Function)                               \
+  V(quic_on_stream_error_function, v8::Function)                               \
+  V(quic_on_stream_ready_function, v8::Function)                               \
+  V(quic_on_stream_reset_function, v8::Function)                               \
+  V(quic_on_stream_headers_function, v8::Function)
+#else
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+#endif
 
 #define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
   V(as_callback_data, v8::Object)                                              \
@@ -463,7 +510,8 @@ constexpr size_t kFsStatsBufferLength =
   V(tls_wrap_constructor_function, v8::Function)                               \
   V(trace_category_state_function, v8::Function)                               \
   V(udp_constructor_function, v8::Function)                                    \
-  V(url_constructor_function, v8::Function)
+  V(url_constructor_function, v8::Function)                                    \
+  QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 
 class Environment;
 
@@ -501,7 +549,7 @@ class IsolateData : public MemoryRetainer {
 #undef VS
 #undef VP
 
-  std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
+  std::unordered_map<void*, v8::Eternal<v8::String>> http_static_strs;
   inline v8::Isolate* isolate() const;
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;
@@ -547,7 +595,8 @@ struct ContextInfo {
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
   V(INSPECTOR_PROFILER)                                                        \
-  V(WASI)
+  V(NGTCP2_DEBUG)                                                              \
+  V(WASI)                                                                      \
 
 enum class DebugCategory {
 #define V(name) name,
@@ -565,6 +614,7 @@ struct AllocatedBuffer {
   inline ~AllocatedBuffer();
   inline void Resize(size_t len);
 
+  inline bool empty();
   inline uv_buf_t release();
   inline char* data();
   inline const char* data() const;
@@ -1012,6 +1062,11 @@ class Environment : public MemoryRetainer {
   inline http2::Http2State* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::Http2State> state);
 
+#if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
+  inline QuicState* quic_state() const;
+  inline void set_quic_state(std::unique_ptr<QuicState> state);
+#endif
+
   inline bool debug_enabled(DebugCategory category) const;
   inline void set_debug_enabled(DebugCategory category, bool enabled);
   void set_debug_categories(const std::string& cats, bool enabled);
@@ -1369,6 +1424,9 @@ class Environment : public MemoryRetainer {
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
+#if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
+  std::unique_ptr<QuicState> quic_state_;
+#endif
 
   bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {
       false};

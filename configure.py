@@ -112,6 +112,11 @@ parser.add_option('--dest-os',
     choices=valid_os,
     help='operating system to build for ({0})'.format(', '.join(valid_os)))
 
+parser.add_option('--experimental-quic',
+    action='store_true',
+    dest='experimental_quic',
+    help='enable experimental quic support')
+
 parser.add_option('--gdb',
     action='store_true',
     dest='gdb',
@@ -253,6 +258,27 @@ shared_optgroup.add_option('--shared-nghttp2-libpath',
     action='store',
     dest='shared_nghttp2_libpath',
     help='a directory to search for the shared nghttp2 DLLs')
+
+shared_optgroup.add_option('--shared-ngtcp2',
+    action='store_true',
+    dest='shared_ngtcp2',
+    help='link to a shared ngtcp2 DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-ngtcp2-includes',
+    action='store',
+    dest='shared_ngtcp2_includes',
+    help='directory containing ngtcp2 header files')
+
+shared_optgroup.add_option('--shared-ngtcp2-libname',
+    action='store',
+    dest='shared_ngtcp2_libname',
+    default='ngtcp2',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-ngtcp2-libpath',
+    action='store',
+    dest='shared_ngctp2_libpath',
+    help='a directory to search for the shared ngtcp2 DLLs')
 
 shared_optgroup.add_option('--shared-openssl',
     action='store_true',
@@ -1115,6 +1141,14 @@ def configure_node(o):
   else:
     o['variables']['debug_nghttp2'] = 'false'
 
+  if options.experimental_quic:
+    if options.shared_openssl:
+      raise Exception('QUIC requires modified version of OpenSSL and cannot be'
+                      ' enabled with --shared-openssl.')
+    o['variables']['experimental_quic'] = 1
+  else:
+    o['variables']['experimental_quic'] = 'false'
+
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 
   o['variables']['node_shared'] = b(options.shared)
@@ -1242,6 +1276,8 @@ def configure_openssl(o):
       without_ssl_error('--openssl-no-asm')
     if options.openssl_fips:
       without_ssl_error('--openssl-fips')
+    if options.experimental_quic:
+      without_ssl_error('--experimental-quic')
     return
 
   if options.use_openssl_ca_store:

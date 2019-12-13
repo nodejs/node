@@ -78,6 +78,12 @@ using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
 using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
 
+// OPENSSL_free is a macro, so we need a wrapper function.
+struct OpenSSLBufferDeleter {
+  void operator()(char* pointer) const { OPENSSL_free(pointer); }
+};
+using OpenSSLBuffer = std::unique_ptr<char[], OpenSSLBufferDeleter>;
+
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern void UseExtraCaCerts(const std::string& file);
@@ -91,6 +97,8 @@ class SecureContext : public BaseObject {
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+
+  SSL_CTX* operator*() const { return ctx_.get(); }
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
@@ -192,6 +200,9 @@ class SecureContext : public BaseObject {
     issuer_.reset();
   }
 };
+
+#define SSLWRAP_TYPES(V)                                                       \
+  V(TLSWrap)
 
 // SSLWrap implicitly depends on the inheriting class' handle having an
 // internal pointer to the Base class.
@@ -839,6 +850,39 @@ bool EntropySource(unsigned char* buffer, size_t length);
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !OPENSSL_NO_ENGINE
 void InitCrypto(v8::Local<v8::Object> target);
+
+void ThrowCryptoError(Environment* env,
+                      unsigned long err,  // NOLINT(runtime/int)
+                      const char* message = nullptr);
+
+struct StackOfX509Deleter {
+  void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
+};
+using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
+
+v8::Local<v8::Object> X509ToObject(
+    Environment* env,
+    X509* cert);
+StackOfX509 CloneSSLCerts(
+    X509Pointer&& cert,
+    const STACK_OF(X509)* const ssl_certs);
+v8::Local<v8::Object> AddIssuerChainToObject(
+    X509Pointer* cert,
+    v8::Local<v8::Object> object,
+    StackOfX509&& peer_certs,
+    Environment* const env);
+v8::Local<v8::Object> GetLastIssuedCert(
+    X509Pointer* cert,
+    SSL* ssl,
+    v8::Local<v8::Object> issuer_chain,
+    Environment* const env);
+
+template <typename T>
+inline T* MallocOpenSSL(size_t count) {
+  void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
+  CHECK_IMPLIES(mem == nullptr, count == 0);
+  return static_cast<T*>(mem);
+}
 
 }  // namespace crypto
 }  // namespace node

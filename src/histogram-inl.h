@@ -4,56 +4,110 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "histogram.h"
+#include "base_object-inl.h"
 #include "node_internals.h"
 
 namespace node {
 
-inline Histogram::Histogram(int64_t lowest, int64_t highest, int figures) {
+Histogram::Histogram(int64_t lowest, int64_t highest, int figures) {
   CHECK_EQ(0, hdr_init(lowest, highest, figures, &histogram_));
 }
 
-inline Histogram::~Histogram() {
+Histogram::~Histogram() {
   hdr_close(histogram_);
 }
 
-inline void Histogram::Reset() {
+void Histogram::Reset() {
   hdr_reset(histogram_);
 }
 
-inline bool Histogram::Record(int64_t value) {
+bool Histogram::Record(int64_t value) {
   return hdr_record_value(histogram_, value);
 }
 
-inline int64_t Histogram::Min() {
+int64_t Histogram::Min() {
   return hdr_min(histogram_);
 }
 
-inline int64_t Histogram::Max() {
+int64_t Histogram::Max() {
   return hdr_max(histogram_);
 }
 
-inline double Histogram::Mean() {
+double Histogram::Mean() {
   return hdr_mean(histogram_);
 }
 
-inline double Histogram::Stddev() {
+double Histogram::Stddev() {
   return hdr_stddev(histogram_);
 }
 
-inline double Histogram::Percentile(double percentile) {
+double Histogram::Percentile(double percentile) {
   CHECK_GT(percentile, 0);
   CHECK_LE(percentile, 100);
-  return hdr_value_at_percentile(histogram_, percentile);
+  return static_cast<double>(hdr_value_at_percentile(histogram_, percentile));
 }
 
-inline void Histogram::Percentiles(std::function<void(double, double)> fn) {
+template <typename Iterator>
+void Histogram::Percentiles(Iterator&& fn) {
   hdr_iter iter;
   hdr_iter_percentile_init(&iter, histogram_, 1);
   while (hdr_iter_next(&iter)) {
     double key = iter.specifics.percentiles.percentile;
-    double value = iter.value;
+    double value = static_cast<double>(iter.value);
     fn(key, value);
   }
+}
+
+HistogramBase::HistogramBase(
+    Environment* env,
+    v8::Local<v8::Object> wrap,
+    int64_t lowest,
+    int64_t highest,
+    int figures)
+  : BaseObject(env, wrap),
+    Histogram(lowest, highest, figures) {
+  MakeWeak();
+}
+
+bool HistogramBase::RecordDelta() {
+  uint64_t time = uv_hrtime();
+  bool ret = true;
+  if (prev_ > 0) {
+    int64_t delta = time - prev_;
+    if (delta > 0) {
+      ret = Record(delta);
+      TraceDelta(delta);
+      if (!ret) {
+        if (exceeds_ < 0xFFFFFFFF)
+          exceeds_++;
+        TraceExceeds(delta);
+      }
+    }
+  }
+  prev_ = time;
+  return ret;
+}
+
+void HistogramBase::ResetState() {
+  Reset();
+  exceeds_ = 0;
+  prev_ = 0;
+}
+
+BaseObjectPtr<HistogramBase> HistogramBase::New(
+    Environment* env,
+    int64_t lowest,
+    int64_t highest,
+    int figures) {
+  CHECK_LE(lowest, highest);
+  CHECK_GT(figures, 0);
+  v8::Local<v8::Object> obj;
+  auto tmpl = env->histogram_ctor_template();
+  if (!tmpl->NewInstance(env->context()).ToLocal(&obj))
+    return {};
+
+  return MakeDetachedBaseObject<HistogramBase>(
+      env, obj, lowest, highest, figures);
 }
 
 }  // namespace node

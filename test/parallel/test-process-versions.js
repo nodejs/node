@@ -2,8 +2,18 @@
 const common = require('../common');
 const assert = require('assert');
 
-const expected_keys = ['ares', 'brotli', 'modules', 'node',
-                       'uv', 'v8', 'zlib', 'nghttp2', 'napi', 'llhttp'];
+const expected_keys = [
+  'ares',
+  'brotli',
+  'modules',
+  'node',
+  'uv',
+  'v8',
+  'zlib',
+  'nghttp2',
+  'napi',
+  'llhttp'
+];
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
@@ -14,6 +24,11 @@ if (common.hasIntl) {
   expected_keys.push('cldr');
   expected_keys.push('tz');
   expected_keys.push('unicode');
+}
+
+if (common.hasQuic) {
+  expected_keys.push('ngtcp2');
+  expected_keys.push('nghttp3');
 }
 
 expected_keys.sort();

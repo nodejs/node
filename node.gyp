@@ -1,5 +1,6 @@
 {
   'variables': {
+    'experimental_quic': 'false',
     'v8_use_siphash%': 0,
     'v8_trace_maps%': 0,
     'v8_enable_pointer_compression%': 0,
@@ -19,6 +20,7 @@
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_nghttp2%': 'false',
+    'node_shared_ngtcp2%': 'false',
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
@@ -68,6 +70,7 @@
       'lib/process.js',
       'lib/punycode.js',
       'lib/querystring.js',
+      'lib/quic.js',
       'lib/readline.js',
       'lib/repl.js',
       'lib/stream.js',
@@ -137,6 +140,7 @@
       'lib/internal/fs/sync_write_stream.js',
       'lib/internal/fs/utils.js',
       'lib/internal/fs/watchers.js',
+      'lib/internal/histogram.js',
       'lib/internal/http.js',
       'lib/internal/heap_utils.js',
       'lib/internal/idna.js',
@@ -182,6 +186,8 @@
       'lib/internal/process/task_queues.js',
       'lib/internal/querystring.js',
       'lib/internal/readline/utils.js',
+      'lib/internal/quic/core.js',
+      'lib/internal/quic/util.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
       'lib/internal/repl/history.js',
@@ -532,12 +538,14 @@
         'src/fs_event_wrap.cc',
         'src/handle_wrap.cc',
         'src/heap_utils.cc',
+        'src/histogram.cc',
         'src/js_native_api.h',
         'src/js_native_api_types.h',
         'src/js_native_api_v8.cc',
         'src/js_native_api_v8.h',
         'src/js_native_api_v8_internals.h',
         'src/js_stream.cc',
+        'src/js_udp_wrap.cc',
         'src/module_wrap.cc',
         'src/node.cc',
         'src/node_api.cc',
@@ -633,6 +641,8 @@
         'src/node_errors.h',
         'src/node_file.h',
         'src/node_file-inl.h',
+        'src/node_http_common.h',
+        'src/node_http_common-inl.h',
         'src/node_http2.h',
         'src/node_http2_state.h',
         'src/node_i18n.h',
@@ -817,15 +827,17 @@
         [ 'node_use_openssl=="true"', {
           'sources': [
             'src/node_crypto.cc',
+            'src/node_crypto_common.cc',
             'src/node_crypto_bio.cc',
             'src/node_crypto_clienthello.cc',
             'src/node_crypto.h',
             'src/node_crypto_bio.h',
             'src/node_crypto_clienthello.h',
             'src/node_crypto_clienthello-inl.h',
+            'src/node_crypto_common.h',
             'src/node_crypto_groups.h',
             'src/tls_wrap.cc',
-            'src/tls_wrap.h'
+            'src/tls_wrap.h',
           ],
         }],
         [ 'node_report=="true"', {
@@ -853,6 +865,29 @@
             'src/large_pages/node_large_page.cc',
             'src/large_pages/node_large_page.h'
           ],
+        }],
+        [ 'node_use_openssl=="true" and experimental_quic==1', {
+          'defines': ['NODE_EXPERIMENTAL_QUIC=1'],
+          'sources': [
+            'src/node_quic_buffer.h',
+            'src/node_quic_crypto.h',
+            'src/node_quic_session.h',
+            'src/node_quic_session-inl.h',
+            'src/node_quic_socket.h',
+            'src/node_quic_stream.h',
+            'src/node_quic_util.h',
+            'src/node_quic_util-inl.h',
+            'src/node_quic_state.h',
+            'src/node_quic_default_application.h',
+            'src/node_quic_http3_application.h',
+            'src/node_quic_crypto.cc',
+            'src/node_quic_session.cc',
+            'src/node_quic_socket.cc',
+            'src/node_quic_stream.cc',
+            'src/node_quic.cc',
+            'src/node_quic_default_application.cc',
+            'src/node_quic_http3_application.cc'
+          ]
         }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
@@ -1122,6 +1157,7 @@
         'test/cctest/test_linked_binding.cc',
         'test/cctest/test_per_process.cc',
         'test/cctest/test_platform.cc',
+        'test/cctest/test_report_util.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc',
@@ -1133,10 +1169,19 @@
             'HAVE_OPENSSL=1',
           ],
         }],
+        [ 'node_use_openssl=="true" and experimental_quic==1', {
+          'defines': [
+            'NODE_EXPERIMENTAL_QUIC=1',
+          ],
+          'sources': [
+            'test/cctest/test_quic_buffer.cc',
+            'test/cctest/test_quic_verifyhostnameidentity.cc'
+          ]
+        }],
         ['v8_enable_inspector==1', {
           'sources': [
             'test/cctest/test_inspector_socket.cc',
-            'test/cctest/test_inspector_socket_server.cc'
+            'test/cctest/test_inspector_socket_server.cc',
           ],
           'defines': [
             'HAVE_INSPECTOR=1',

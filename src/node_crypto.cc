@@ -24,13 +24,14 @@
 #include "node_crypto_bio.h"
 #include "node_crypto_clienthello-inl.h"
 #include "node_crypto_groups.h"
+#include "node_crypto_common.h"
 #include "node_errors.h"
 #include "node_mutex.h"
 #include "node_process.h"
+#include "base_object-inl.h"
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "string_bytes.h"
@@ -110,23 +111,12 @@ using v8::Value;
 # define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
 #endif
 
-struct StackOfX509Deleter {
-  void operator()(STACK_OF(X509)* p) const { sk_X509_pop_free(p, X509_free); }
-};
-using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
-
 struct StackOfXASN1Deleter {
   void operator()(STACK_OF(ASN1_OBJECT)* p) const {
     sk_ASN1_OBJECT_pop_free(p, ASN1_OBJECT_free);
   }
 };
 using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
-
-// OPENSSL_free is a macro, so we need a wrapper function.
-struct OpenSSLBufferDeleter {
-  void operator()(char* pointer) const { OPENSSL_free(pointer); }
-};
-using OpenSSLBuffer = std::unique_ptr<char[], OpenSSLBufferDeleter>;
 
 static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
@@ -139,34 +129,48 @@ static X509_STORE* root_cert_store;
 static bool extra_root_certs_loaded = false;
 
 // Just to generate static methods
-template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
-                                           Local<FunctionTemplate> t);
-template void SSLWrap<TLSWrap>::ConfigureSecureContext(SecureContext* sc);
-template int SSLWrap<TLSWrap>::SetCACerts(SecureContext* sc);
-template void SSLWrap<TLSWrap>::MemoryInfo(MemoryTracker* tracker) const;
-template SSL_SESSION* SSLWrap<TLSWrap>::GetSessionCallback(
-    SSL* s,
-    const unsigned char* key,
-    int len,
-    int* copy);
-template int SSLWrap<TLSWrap>::NewSessionCallback(SSL* s,
-                                                  SSL_SESSION* sess);
-template void SSLWrap<TLSWrap>::KeylogCallback(const SSL* s,
-                                               const char* line);
-template void SSLWrap<TLSWrap>::OnClientHello(
-    void* arg,
-    const ClientHelloParser::ClientHello& hello);
-template int SSLWrap<TLSWrap>::TLSExtStatusCallback(SSL* s, void* arg);
-template void SSLWrap<TLSWrap>::DestroySSL();
-template int SSLWrap<TLSWrap>::SSLCertCallback(SSL* s, void* arg);
-template void SSLWrap<TLSWrap>::WaitForCertCb(CertCb cb, void* arg);
-template int SSLWrap<TLSWrap>::SelectALPNCallback(
-    SSL* s,
-    const unsigned char** out,
-    unsigned char* outlen,
-    const unsigned char* in,
-    unsigned int inlen,
+#define V(name)                                                                \
+  template void SSLWrap<name>::AddMethods(                                     \
+    Environment* env,                                                          \
+    Local<FunctionTemplate> t);                                                \
+  template void SSLWrap<name>::ConfigureSecureContext(                         \
+    SecureContext* sc);                                                        \
+  template int SSLWrap<name>::SetCACerts(                                      \
+    SecureContext* sc);                                                        \
+  template void SSLWrap<name>::MemoryInfo(MemoryTracker* tracker) const;       \
+  template SSL_SESSION* SSLWrap<name>::GetSessionCallback(                     \
+    SSL* s,                                                                    \
+    const unsigned char* key,                                                  \
+    int len,                                                                   \
+    int* copy);                                                                \
+  template int SSLWrap<name>::NewSessionCallback(                              \
+    SSL* s,                                                                    \
+    SSL_SESSION* sess);                                                        \
+  template void SSLWrap<TLSWrap>::KeylogCallback(                              \
+    const SSL* s,                                                              \
+    const char* line);                                                         \
+  template void SSLWrap<name>::OnClientHello(                                  \
+    void* arg,                                                                 \
+    const ClientHelloParser::ClientHello& hello);                              \
+  template int SSLWrap<name>::TLSExtStatusCallback(                            \
+    SSL* s,                                                                    \
+    void* arg);                                                                \
+  template void SSLWrap<name>::DestroySSL();                                   \
+  template int SSLWrap<name>::SSLCertCallback(                                 \
+    SSL* s,                                                                    \
+    void* arg);                                                                \
+  template void SSLWrap<name>::WaitForCertCb(                                  \
+    CertCb cb,                                                                 \
+    void* arg);                                                                \
+  template int SSLWrap<name>::SelectALPNCallback(                              \
+    SSL* s,                                                                    \
+    const unsigned char** out,                                                 \
+    unsigned char* outlen,                                                     \
+    const unsigned char* in,                                                   \
+    unsigned int inlen,                                                        \
     void* arg);
+SSLWRAP_TYPES(V)
+#undef V
 
 static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   const char* passphrase = static_cast<char*>(u);
@@ -386,7 +390,7 @@ void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
                       // Default, only used if there is no SSL `err` which can
                       // be used to create a long-style message string.
-                      const char* message = nullptr) {
+                      const char* message) {
   char message_buffer[128] = {0};
   if (err != 0 || message == nullptr) {
     ERR_error_string_n(err, message_buffer, sizeof(message_buffer));
@@ -452,15 +456,6 @@ bool EntropySource(unsigned char* buffer, size_t length) {
   // which is /dev/urandom on UNIX platforms and the current time on Windows.
   return RAND_bytes(buffer, length) != -1;
 }
-
-
-template <typename T>
-static T* MallocOpenSSL(size_t count) {
-  void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
-  CHECK_IMPLIES(mem == nullptr, count == 0);
-  return static_cast<T*>(mem);
-}
-
 
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -633,6 +628,17 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*sslmethod, "TLSv1_2_client_method") == 0) {
       min_version = TLS1_2_VERSION;
       max_version = TLS1_2_VERSION;
+      method = TLS_client_method();
+    } else if (strcmp(*sslmethod, "TLSv1_3_method") == 0) {
+      min_version = TLS1_3_VERSION;
+      max_version = TLS1_3_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_3_server_method") == 0) {
+      min_version = TLS1_3_VERSION;
+      max_version = TLS1_3_VERSION;
+      method = TLS_server_method();
+    } else if (strcmp(*sslmethod, "TLSv1_3_client_method") == 0) {
+      min_version = TLS1_3_VERSION;
+      max_version = TLS1_3_VERSION;
       method = TLS_client_method();
     } else {
       const std::string msg("Unknown method: ");
@@ -1004,7 +1010,6 @@ static X509_STORE* NewRootCertStore() {
       X509_STORE_add_cert(store, cert);
     }
   }
-
   return store;
 }
 
@@ -1954,7 +1959,7 @@ static MaybeLocal<Object> ECPointToBuffer(Environment* env,
 }
 
 
-static Local<Object> X509ToObject(Environment* env, X509* cert) {
+Local<Object> X509ToObject(Environment* env, X509* cert) {
   EscapableHandleScope scope(env->isolate());
   Local<Context> context = env->context();
   Local<Object> info = Object::New(env->isolate());
@@ -2176,10 +2181,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 }
 
 
-static Local<Object> AddIssuerChainToObject(X509Pointer* cert,
-                                            Local<Object> object,
-                                            StackOfX509&& peer_certs,
-                                            Environment* const env) {
+Local<Object> AddIssuerChainToObject(X509Pointer* cert,
+                                     Local<Object> object,
+                                     StackOfX509&& peer_certs,
+                                     Environment* const env) {
   Local<Context> context = env->isolate()->GetCurrentContext();
   cert->reset(sk_X509_delete(peer_certs.get(), 0));
   for (;;) {
@@ -2207,8 +2212,8 @@ static Local<Object> AddIssuerChainToObject(X509Pointer* cert,
 }
 
 
-static StackOfX509 CloneSSLCerts(X509Pointer&& cert,
-                                 const STACK_OF(X509)* const ssl_certs) {
+StackOfX509 CloneSSLCerts(X509Pointer&& cert,
+                          const STACK_OF(X509)* const ssl_certs) {
   StackOfX509 peer_certs(sk_X509_new(nullptr));
   if (cert)
     sk_X509_push(peer_certs.get(), cert.release());
@@ -2223,14 +2228,14 @@ static StackOfX509 CloneSSLCerts(X509Pointer&& cert,
 }
 
 
-static Local<Object> GetLastIssuedCert(X509Pointer* cert,
-                                       const SSLPointer& ssl,
-                                       Local<Object> issuer_chain,
-                                       Environment* const env) {
+Local<Object> GetLastIssuedCert(X509Pointer* cert,
+                                SSL* ssl,
+                                Local<Object> issuer_chain,
+                                Environment* const env) {
   Local<Context> context = env->isolate()->GetCurrentContext();
   while (X509_check_issued(cert->get(), cert->get()) != X509_V_OK) {
     X509* ca;
-    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get(), &ca) <= 0)
+    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl), cert->get(), &ca) <= 0)
       break;
 
     Local<Object> ca_info = X509ToObject(env, ca);
@@ -2249,46 +2254,12 @@ void SSLWrap<Base>::GetPeerCertificate(
     const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
-  Environment* env = w->ssl_env();
-
-  ClearErrorOnReturn clear_error_on_return;
-
-  Local<Object> result;
-  // Used to build the issuer certificate chain.
-  Local<Object> issuer_chain;
-
-  // NOTE: This is because of the odd OpenSSL behavior. On client `cert_chain`
-  // contains the `peer_certificate`, but on server it doesn't.
-  X509Pointer cert(
-      w->is_server() ? SSL_get_peer_certificate(w->ssl_.get()) : nullptr);
-  STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(w->ssl_.get());
-  if (!cert && (ssl_certs == nullptr || sk_X509_num(ssl_certs) == 0))
-    goto done;
-
-  // Short result requested.
-  if (args.Length() < 1 || !args[0]->IsTrue()) {
-    result = X509ToObject(env, cert ? cert.get() : sk_X509_value(ssl_certs, 0));
-    goto done;
-  }
-
-  if (auto peer_certs = CloneSSLCerts(std::move(cert), ssl_certs)) {
-    // First and main certificate.
-    X509Pointer cert(sk_X509_value(peer_certs.get(), 0));
-    CHECK(cert);
-    result = X509ToObject(env, cert.release());
-
-    issuer_chain =
-        AddIssuerChainToObject(&cert, result, std::move(peer_certs), env);
-    issuer_chain = GetLastIssuedCert(&cert, w->ssl_, issuer_chain, env);
-    // Last certificate should be self-signed.
-    if (X509_check_issued(cert.get(), cert.get()) == X509_V_OK)
-      issuer_chain->Set(env->context(),
-                        env->issuercert_string(),
-                        issuer_chain).Check();
-  }
-
- done:
-  args.GetReturnValue().Set(result);
+  args.GetReturnValue().Set(
+      GetPeerCert(
+          w->ssl_env(),
+          w->ssl_.get(),
+          args.Length() < 1 || !args[0]->IsTrue(),
+          w->is_server()));
 }
 
 
@@ -2297,18 +2268,7 @@ void SSLWrap<Base>::GetCertificate(
     const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
-  Environment* env = w->ssl_env();
-
-  ClearErrorOnReturn clear_error_on_return;
-
-  Local<Object> result;
-
-  X509* cert = SSL_get_certificate(w->ssl_.get());
-
-  if (cert != nullptr)
-    result = X509ToObject(env, cert);
-
-  args.GetReturnValue().Set(result);
+  args.GetReturnValue().Set(GetCert(w->ssl_env(), w->ssl_.get()));
 }
 
 
@@ -2395,14 +2355,8 @@ void SSLWrap<Base>::SetSession(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<unsigned char> sbuf(args[0].As<ArrayBufferView>());
 
   const unsigned char* p = sbuf.data();
-  SSLSessionPointer sess(d2i_SSL_SESSION(nullptr, &p, sbuf.length()));
 
-  if (sess == nullptr)
-    return;
-
-  int r = SSL_set_session(w->ssl_.get(), sess.get());
-
-  if (!r)
+  if (!SetTLSSession(w->ssl_.get(), p, sbuf.length()))
     return env->ThrowError("SSL_set_session error");
 }
 
@@ -2518,7 +2472,6 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
   CHECK(w->ssl_);
 
@@ -2526,51 +2479,8 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
   if (w->is_server())
     return args.GetReturnValue().SetNull();
 
-  Local<Object> info = Object::New(env->isolate());
-
-  EVP_PKEY* raw_key;
-  if (SSL_get_server_tmp_key(w->ssl_.get(), &raw_key)) {
-    EVPKeyPointer key(raw_key);
-    int kid = EVP_PKEY_id(key.get());
-    switch (kid) {
-      case EVP_PKEY_DH:
-        info->Set(context, env->type_string(),
-                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH")).Check();
-        info->Set(context, env->size_string(),
-                  Integer::New(env->isolate(), EVP_PKEY_bits(key.get())))
-            .Check();
-        break;
-      case EVP_PKEY_EC:
-      case EVP_PKEY_X25519:
-      case EVP_PKEY_X448:
-        {
-          const char* curve_name;
-          if (kid == EVP_PKEY_EC) {
-            EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key.get());
-            int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
-            curve_name = OBJ_nid2sn(nid);
-            EC_KEY_free(ec);
-          } else {
-            curve_name = OBJ_nid2sn(kid);
-          }
-          info->Set(context, env->type_string(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH")).Check();
-          info->Set(context, env->name_string(),
-                    OneByteString(args.GetIsolate(),
-                                  curve_name)).Check();
-          info->Set(context, env->size_string(),
-                    Integer::New(env->isolate(),
-                                 EVP_PKEY_bits(key.get()))).Check();
-        }
-        break;
-      default:
-        break;
-    }
-  }
-  // TODO(@sam-github) semver-major: else return ThrowCryptoError(env,
-  // ERR_get_error())
-
-  return args.GetReturnValue().Set(info);
+  return args.GetReturnValue().Set(
+      crypto::GetEphemeralKey(env, w->ssl_.get()));
 }
 
 
@@ -2600,21 +2510,8 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   // peer certificate is questionable but it's compatible with what was
   // here before.
   long x509_verify_error =  // NOLINT(runtime/int)
-      X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT;
-  if (X509* peer_cert = SSL_get_peer_certificate(w->ssl_.get())) {
-    X509_free(peer_cert);
-    x509_verify_error = SSL_get_verify_result(w->ssl_.get());
-  } else {
-    const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(w->ssl_.get());
-    const SSL_SESSION* sess = SSL_get_session(w->ssl_.get());
-    // Allow no-cert for PSK authentication in TLS1.2 and lower.
-    // In TLS1.3 check that session was reused because TLS1.3 PSK
-    // looks like session resumption. Is there a better way?
-    if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
-        (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
-         SSL_session_reused(w->ssl_.get())))
-      return args.GetReturnValue().SetNull();
-  }
+      VerifyPeerCertificate(w->ssl_.get(),
+      X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
 
   if (x509_verify_error == X509_V_OK)
     return args.GetReturnValue().SetNull();
@@ -2676,15 +2573,14 @@ void SSLWrap<Base>::GetCipher(const FunctionCallbackInfo<Value>& args) {
     return;
 
   Local<Object> info = Object::New(env->isolate());
-  const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(context, env->name_string(),
-            OneByteString(args.GetIsolate(), cipher_name)).Check();
+            GetCipherName(env, w->ssl_.get())).Check();
   const char* cipher_standard_name = SSL_CIPHER_standard_name(c);
   info->Set(context, env->standard_name_string(),
             OneByteString(args.GetIsolate(), cipher_standard_name)).Check();
   const char* cipher_version = SSL_CIPHER_get_version(c);
   info->Set(context, env->version_string(),
-            OneByteString(args.GetIsolate(), cipher_version)).Check();
+            GetCipherVersion(env, w->ssl_.get())).Check();
   args.GetReturnValue().Set(info);
 }
 

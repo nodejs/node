@@ -62,6 +62,22 @@ inline void Debug(Environment* env,
   Debug(env, cat, format.c_str(), std::forward<Args>(args)...);
 }
 
+inline void Debug(Environment* env,
+                  DebugCategory cat,
+                  const char* format,
+                  va_list args) {
+  if (!UNLIKELY(env->debug_enabled(cat)))
+    return;
+  vfprintf(stderr, format, args);
+}
+
+inline void Debug(Environment* env,
+                  DebugCategory cat,
+                  const std::string& format,
+                  va_list args) {
+  Debug(env, cat, format.c_str(), args);
+}
+
 // Used internally by the 'real' Debug(AsyncWrap*, ...) functions below, so that
 // the FORCE_INLINE flag on them doesn't apply to the contents of this function
 // as well.
