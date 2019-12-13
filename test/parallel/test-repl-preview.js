@@ -3,7 +3,7 @@
 const common = require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const Repl = require('repl');
+const { REPLServer } = require('repl');
 
 common.skipIfInspectorDisabled();
 
@@ -52,7 +52,7 @@ function runAndWait(cmds, repl) {
 }
 
 async function tests(options) {
-  const repl = Repl.start({
+  const repl = REPLServer({
     prompt: PROMPT,
     stream: new REPLStream(),
     ignoreUndefined: true,
