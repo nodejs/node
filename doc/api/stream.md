@@ -1732,7 +1732,7 @@ on the type of stream being created, as detailed in the chart below:
 | Reading only | [`Readable`][] | [`_read()`][stream-_read] |
 | Writing only | [`Writable`][] | [`_write()`][stream-_write], [`_writev()`][stream-_writev], [`_final()`][stream-_final] |
 | Reading and writing | [`Duplex`][] | [`_read()`][stream-_read], [`_write()`][stream-_write], [`_writev()`][stream-_writev], [`_final()`][stream-_final] |
-| Operate on written data, then read the result | [`Transform`][] | [`_transform()`][stream-_transform], [`_flush()`][stream-_flush], [`_final()`][stream-_final] |
+| Operate on written data, then read the result | [`Transform`][] | [`_transform()`][], [`_flush()`][stream-_flush], [`_final()`][stream-_final] |
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the
@@ -2473,7 +2473,7 @@ The `stream.Transform` class is extended to implement a [`Transform`][] stream.
 The `stream.Transform` class prototypically inherits from `stream.Duplex` and
 implements its own versions of the `writable._write()` and `readable._read()`
 methods. Custom `Transform` implementations *must* implement the
-[`transform._transform()`][stream-_transform] method and *may* also implement
+[`transform._transform()`][] method and *may* also implement
 the [`transform._flush()`][stream-_flush] method.
 
 Care must be taken when using `Transform` streams in that data written to the
@@ -2485,7 +2485,7 @@ output on the `Readable` side is not consumed.
 * `options` {Object} Passed to both `Writable` and `Readable`
   constructors. Also has the following fields:
   * `transform` {Function} Implementation for the
-    [`stream._transform()`][stream-_transform] method.
+    [`stream._transform()`][] method.
   * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
     method.
 
@@ -2532,7 +2532,7 @@ const myTransform = new Transform({
 The [`'finish'`][] and [`'end'`][] events are from the `stream.Writable`
 and `stream.Readable` classes, respectively. The `'finish'` event is emitted
 after [`stream.end()`][stream-end] is called and all chunks have been processed
-by [`stream._transform()`][stream-_transform]. The `'end'` event is emitted
+by [`stream._transform()`][]. The `'end'` event is emitted
 after all data has been output, which occurs after the callback in
 [`transform._flush()`][stream-_flush] has been called. In the case of an error,
 neither `'finish'` nor `'end'` should be emitted.
@@ -2926,7 +2926,7 @@ contain multi-byte characters.
 [stream-_final]: #stream_writable_final_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
-[stream-_transform]: #stream_transform_transform_chunk_encoding_callback
+[]: #stream_transform_transform_chunk_encoding_callback
 [stream-_write]: #stream_writable_write_chunk_encoding_callback_1
 [stream-_writev]: #stream_writable_writev_chunks_callback
 [stream-end]: #stream_writable_end_chunk_encoding_callback
