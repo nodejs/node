@@ -64,9 +64,7 @@
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
-#ifdef NODE_ENABLE_LARGE_CODE_PAGES
 #include "large_pages/node_large_page.h"
-#endif
 
 #ifdef NODE_REPORT
 #include "node_report.h"
@@ -887,14 +885,6 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
 
   CHECK_GT(argc, 0);
 
-#ifdef NODE_ENABLE_LARGE_CODE_PAGES
-  if (node::IsLargePagesEnabled()) {
-    if (node::MapStaticCodeToLargePages() != 0) {
-      fprintf(stderr, "Reverting to default page size\n");
-    }
-  }
-#endif
-
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
@@ -913,6 +903,26 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
       return result;
     }
   }
+
+#if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
+  if (per_process::cli_options->use_largepages == "on" ||
+      per_process::cli_options->use_largepages == "silent") {
+    if (node::IsLargePagesEnabled()) {
+      if (node::MapStaticCodeToLargePages() != 0 &&
+          per_process::cli_options->use_largepages != "silent") {
+        fprintf(stderr,
+                "Mapping code to large pages failed. Reverting to default page "
+                "size.\n");
+      }
+    } else if (per_process::cli_options->use_largepages != "silent") {
+      fprintf(stderr, "Large pages are not enabled.\n");
+    }
+  }
+#else
+  if (per_process::cli_options->use_largepages == "on") {
+    fprintf(stderr, "Mapping to large pages is not supported.\n");
+  }
+#endif  // NODE_ENABLE_LARGE_CODE_PAGES
 
   if (per_process::cli_options->print_version) {
     printf("%s\n", NODE_VERSION);
