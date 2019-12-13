@@ -718,6 +718,7 @@ echo   vcbuild.bat no-cctest                : skip building cctest.exe
 goto exit
 
 :exit
+if %errorlevel% neq 0 exit /b %errorlevel%
 exit /b %exit_code%
 
 
