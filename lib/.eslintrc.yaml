@@ -23,6 +23,8 @@ rules:
       message: "Use `const { Number } = primordials;` instead of the global."
     - name: Object
       message: "Use `const { Object } = primordials;` instead of the global."
+    - name: Promise
+      message: "Use `const { Promise } = primordials;` instead of the global."
     - name: Reflect
       message: "Use `const { Reflect } = primordials;` instead of the global."
     - name: Symbol
