@@ -153,6 +153,7 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
+  std::string use_largepages = "off";
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors);

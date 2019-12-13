@@ -74,9 +74,7 @@
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
 #endif
 
-#ifdef NODE_ENABLE_LARGE_CODE_PAGES
 #include "large_pages/node_large_page.h"
-#endif
 
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
@@ -3021,14 +3019,6 @@ int Start(int argc, char** argv) {
 
   CHECK_GT(argc, 0);
 
-#ifdef NODE_ENABLE_LARGE_CODE_PAGES
-  if (node::IsLargePagesEnabled()) {
-    if (node::MapStaticCodeToLargePages() != 0) {
-      fprintf(stderr, "Reverting to default page size\n");
-    }
-  }
-#endif
-
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
@@ -3036,6 +3026,26 @@ int Start(int argc, char** argv) {
   std::vector<std::string> exec_args;
   // This needs to run *before* V8::Initialize().
   Init(&args, &exec_args);
+
+#if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
+  if (per_process_opts->use_largepages == "on" ||
+      per_process_opts->use_largepages == "silent") {
+    if (node::IsLargePagesEnabled()) {
+      if (node::MapStaticCodeToLargePages() != 0 &&
+          per_process_opts->use_largepages != "silent") {
+        fprintf(stderr,
+                "Mapping code to large pages failed. Reverting to default page "
+                "size.\n");
+      }
+    } else if (per_process_opts->use_largepages != "silent") {
+      fprintf(stderr, "Large pages are not enabled.\n");
+    }
+  }
+#else
+  if (per_process_opts->use_largepages == "on") {
+    fprintf(stderr, "Mapping to large pages is not supported.\n");
+  }
+#endif  // NODE_ENABLE_LARGE_CODE_PAGES
 
 #if HAVE_OPENSSL
   {
