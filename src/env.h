@@ -1019,13 +1019,16 @@ class Environment : public MemoryRetainer {
       package_json_cache;
 
   inline double* heap_statistics_buffer() const;
-  inline void set_heap_statistics_buffer(double* pointer);
+  inline void set_heap_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline double* heap_space_statistics_buffer() const;
-  inline void set_heap_space_statistics_buffer(double* pointer);
+  inline void set_heap_space_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline double* heap_code_statistics_buffer() const;
-  inline void set_heap_code_statistics_buffer(double* pointer);
+  inline void set_heap_code_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
@@ -1364,9 +1367,9 @@ class Environment : public MemoryRetainer {
   int handle_cleanup_waiting_ = 0;
   int request_waiting_ = 0;
 
-  double* heap_statistics_buffer_ = nullptr;
-  double* heap_space_statistics_buffer_ = nullptr;
-  double* heap_code_statistics_buffer_ = nullptr;
+  std::shared_ptr<v8::BackingStore> heap_statistics_buffer_;
+  std::shared_ptr<v8::BackingStore> heap_space_statistics_buffer_;
+  std::shared_ptr<v8::BackingStore> heap_code_statistics_buffer_;
 
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
