@@ -402,6 +402,16 @@ See
 and
 .Ev SSL_CERT_FILE .
 .
+.It Fl -use-largepages Ns = Ns Ar mode
+Re-map the Node.js static code to large memory pages at startup. If supported on
+the target system, this will cause the Node.js static code to be moved onto 2
+MiB pages instead of 4 KiB pages.
+.Pp
+.Ar mode
+must have one of the following values:
+`off` (the default value, meaning do not map), `on` (map and ignore failure,
+reporting it to stderr), or `silent` (map and silently ignore failure).
+.
 .It Fl -v8-options
 Print V8 command-line options.
 .

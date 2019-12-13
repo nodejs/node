@@ -836,10 +836,9 @@
             }],
           ],
         }],
-        [ 'node_use_large_pages=="true" and OS in "linux freebsd mac"', {
+        [ 'OS in "linux freebsd mac" and '
+          'target_arch=="x64"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
-          # The current implementation of Large Pages is under Linux.
-          # Other implementations are possible but not currently supported.
           'sources': [
             'src/large_pages/node_large_page.cc',
             'src/large_pages/node_large_page.h'
