@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.18.0">10.18.0</a><br/>
 <a href="#10.17.0">10.17.0</a><br/>
 <a href="#10.16.3">10.16.3</a><br/>
 <a href="#10.16.2">10.16.2</a><br/>
@@ -55,6 +56,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.18.0"></a>
+## 2019-12-17, Version 10.18.0 'Dubnium' (LTS), @MylesBorins
+
+This is a security release.
+
+For more details about the vulnerability please consult the npm blog:
+
+https://blog.npmjs.org/post/189618601100/binary-planting-with-the-npm-cli
+
+### Notable changes
+
+* **deps**: update npm to 6.13.4 [#30904](https://github.com/nodejs/node/pull/30904)
+
+### Commits
+
+* [[`54a466a865`](https://github.com/nodejs/node/commit/54a466a865)] - **build,win**: add test-ci-native and test-ci-js (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
+* [[`f9b31edb25`](https://github.com/nodejs/node/commit/f9b31edb25)] - **deps**: update npm to 6.13.4 (Isaac Z. Schlueter) [#30904](https://github.com/nodejs/node/pull/30904)
 
 <a id="10.17.0"></a>
 ## 2019-10-22, Version 10.17.0 'Dubnium' (LTS), @BethGriggs
