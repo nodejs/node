@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.14.0">12.14.0</a><br/>
 <a href="#12.13.1">12.13.1</a><br/>
 <a href="#12.13.0">12.13.0</a><br/>
 </td>
@@ -48,6 +49,24 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.14.0"></a>
+## 2019-12-17, Version 12.14.0 'Erbium' (LTS), @MylesBorins
+
+This is a security release.
+
+For more details about the vulnerability please consult the npm blog:
+
+https://blog.npmjs.org/post/189618601100/binary-planting-with-the-npm-cli
+
+### Notable changes
+
+* **deps**: update npm to 6.13.4 [#30904](https://github.com/nodejs/node/pull/30904)
+
+### Commits
+
+* [[`f01959a616`](https://github.com/nodejs/node/commit/f01959a616)] - **build,win**: add test-ci-native and test-ci-js (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
+* [[`d586682b0b`](https://github.com/nodejs/node/commit/d586682b0b)] - **deps**: update npm to 6.13.4 (Ruy Adorno) [#30904](https://github.com/nodejs/node/pull/30904)
 
 <a id="12.13.1"></a>
 ## 2019-11-19, Version 12.13.1 'Erbium' (LTS), @targos
