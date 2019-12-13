@@ -15,21 +15,19 @@ function main({ len, n, encoding, args }) {
   let start = 0;
   const buf = Buffer.allocUnsafe(len);
 
-  var i;
-
   switch (args) {
     case 'offset':
       string = 'a'.repeat(Math.floor(len / 2));
       start = len - string.length;
       if (encoding) {
         bench.start();
-        for (i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
           buf.write(string, start, encoding);
         }
         bench.end(n);
       } else {
         bench.start();
-        for (i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
           buf.write(string, start);
         }
         bench.end(n);
@@ -39,13 +37,13 @@ function main({ len, n, encoding, args }) {
       string = 'a'.repeat(len);
       if (encoding) {
         bench.start();
-        for (i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
           buf.write(string, 0, buf.length, encoding);
         }
         bench.end(n);
       } else {
         bench.start();
-        for (i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
           buf.write(string, 0, buf.length);
         }
         bench.end(n);
@@ -55,13 +53,13 @@ function main({ len, n, encoding, args }) {
       string = 'a'.repeat(len);
       if (encoding) {
         bench.start();
-        for (i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
           buf.write(string, encoding);
         }
         bench.end(n);
       } else {
         bench.start();
-        for (i = 0; i < n; ++i) {
+        for (let i = 0; i < n; ++i) {
           buf.write(string);
         }
         bench.end(n);
