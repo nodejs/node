@@ -239,6 +239,7 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
+  std::string use_largepages = "off";
   bool trace_sigint = false;
 
 #ifdef NODE_REPORT
