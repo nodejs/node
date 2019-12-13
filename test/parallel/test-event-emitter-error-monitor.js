@@ -8,7 +8,9 @@ const theErr = new Error('MyError');
 
 EE.on(
   EventEmitter.errorMonitor,
-  common.mustCall((e) => assert.strictEqual(e, theErr), 3)
+  common.mustCall(function onErrorMonitor(e) {
+    assert.strictEqual(e, theErr);
+  }, 3)
 );
 
 // Verify with no error listener
@@ -23,14 +25,7 @@ EE.emit('error', theErr);
 
 // Verify it works with once
 process.nextTick(() => EE.emit('error', theErr));
-async function testOnce() {
-  try {
-    await EventEmitter.once(EE, 'notTriggered');
-  } catch (e) {
-    assert.strictEqual(e, theErr);
-  }
-}
-testOnce();
+assert.rejects(EventEmitter.once(EE, 'notTriggered'), theErr);
 
 // Only error events trigger error monitor
 EE.on('aEvent', common.mustCall());
