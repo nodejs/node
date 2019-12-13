@@ -240,7 +240,7 @@ TBD
 
 ## QUIC JavaScript API
 
-### quic.createSocket([options])
+### quic.createSocket(\[options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -492,7 +492,7 @@ added: REPLACEME
 
 Information about the cipher algorithm selected for the session.
 
-#### quicsession.close([callback])
+#### quicsession.close(\[callback\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -523,7 +523,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicSession` is in the process of a graceful shutdown.
 
-#### quicsession.destroy([error])
+#### quicsession.destroy(\[error\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -567,7 +567,7 @@ some properties corresponding to the fields of the certificate.
 If there is no local certificate, or if the `QuicSession` has been destroyed,
 an empty object will be returned.
 
-#### quicsession.getPeerCertificate([detailed])
+#### quicsession.getPeerCertificate(\[detailed\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -688,7 +688,7 @@ added: REPLACEME
 
 The minimum RTT recorded so far for this `QuicSession`.
 
-#### quicsession.openStream([options])
+#### quicsession.openStream(\[options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -934,7 +934,7 @@ The callback is invoked with three arguments:
 
 The callback *must* be invoked in order for the TLS handshake to continue.
 
-#### quicserversession.addContext(servername[, context])
+#### quicserversession.addContext(servername\[, context\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1065,7 +1065,7 @@ added: REPLACEME
 A `BitInt` representing the number of client `QuicSession` instances that
 have been associated with this `QuicSocket`.
 
-#### quicsocket.close([callback])
+#### quicsocket.close(\[callback\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1076,7 +1076,7 @@ Gracefully closes the `QuicSocket`. Existing `QuicSession` instances will be
 permitted to close naturally. New `QuicClientSession` and `QuicServerSession`
 instances will not be allowed.
 
-#### quicsocket.connect([options])
+#### quicsocket.connect(\[options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1131,7 +1131,7 @@ added: REPLACEME
     curve automatically. Use [`crypto.getCurves()`][] to obtain a list of
     available curve names. On recent releases, `openssl ecparam -list_curves`
     will also display the name and description of each available elliptic curve.
-    **Default:** [`tls.DEFAULT_ECDH_CURVE`].
+    **Default:** [`tls.DEFAULT_ECDH_CURVE`][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
     preferences instead of the client's. When `true`, causes
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
@@ -1202,7 +1202,7 @@ Create a new `QuicClientSession`. This function can be called multiple times
 to create sessions associated with different endpoints on the same
 client endpoint.
 
-#### quicsocket.destroy([error])
+#### quicsocket.destroy(\[error\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1256,7 +1256,7 @@ added: REPLACEME
 The system file descriptor the `QuicSocket` is bound to. This property
 is not set on Windows.
 
-#### quicsocket.listen([options][, callback])
+#### quicsocket.listen(\[options\]\[, callback\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1309,7 +1309,7 @@ added: REPLACEME
     curve automatically. Use [`crypto.getCurves()`][] to obtain a list of
     available curve names. On recent releases, `openssl ecparam -list_curves`
     will also display the name and description of each available elliptic curve.
-    **Default:** [`tls.DEFAULT_ECDH_CURVE`].
+    **Default:** [`tls.DEFAULT_ECDH_CURVE`][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
     preferences instead of the client's. When `true`, causes
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
@@ -1420,7 +1420,7 @@ Set to `true` if the socket is not yet bound to the local UDP port.
 added: REPLACEME
 -->
 
-#### quicsocket.setBroadcast([on])
+#### quicsocket.setBroadcast(\[on\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1457,7 +1457,7 @@ by artificially dropping received or transmitted packets.
 
 This method is *not* to be used in production applications.
 
-#### quicsocket.setMulticastLoopback([on])
+#### quicsocket.setMulticastLoopback(\[on\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1567,7 +1567,7 @@ decremented to `0` by a router, it will not be forwarded.
 The argument passed to `socket.setMulticastTTL()` is a number of hops between
 `0` and `255`. The default on most systems is `1` but can vary.
 
-#### quicsocket.setServerBusy([on])
+#### quicsocket.setServerBusy(\[on\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1865,7 +1865,7 @@ added: REPLACEME
 
 The `QuicServerSession` or `QuicClientSession`.
 
-#### quicstream.sendFD(fd[, options])
+#### quicstream.sendFD(fd\[, options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1891,7 +1891,7 @@ Using the same file descriptor concurrently for multiple streams
 is not supported and may result in data loss. Re-using a file descriptor
 after a stream has finished is supported.
 
-#### quicstream.sendFile(path[, options])
+#### quicstream.sendFile(path\[, options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1946,7 +1946,13 @@ added: REPLACEME
 
 Set to `true` if the `QuicStream` is unidirectional.
 
+[`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
+[`tls.getCiphers()`]: tls.html#tls_tls_getciphers
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
+[modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
+[OpenSSL Options]: crypto.html#crypto_openssl_options
+[Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 ['qlog']: #quic_event_qlog
 [qlog standard]: https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-00.html
