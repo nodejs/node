@@ -71,29 +71,3 @@ const assert = require('assert');
     }));
   }));
 }
-
-{
-  // Http2ServerResponse.destroy ERR_STREAM_DESTROYED
-  const server = createServer();
-  server.listen(0, mustCall(() => {
-    const port = server.address().port;
-    const url = `http://localhost:${port}`;
-    const client = connect(url, mustCall(() => {
-      const request = client.request();
-      request.resume();
-      request.on('end', mustCall());
-      request.on('close', mustCall(() => {
-        client.close();
-      }));
-    }));
-
-    server.once('request', mustCall((request, response) => {
-      response.destroy();
-      response.write('asd', mustCall((err) => {
-        assert.strictEqual(err.code, null);
-        client.destroy();
-        server.close();
-      }));
-    }));
-  }));
-}
