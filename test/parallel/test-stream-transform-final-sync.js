@@ -82,7 +82,7 @@ const t = new stream.Transform({
     process.nextTick(function() {
       state++;
       // fluchCallback part 2
-      assert.strictEqual(state, 15);
+      assert.strictEqual(state, 13);
       done();
     });
   }, 1)
@@ -90,7 +90,7 @@ const t = new stream.Transform({
 t.on('finish', common.mustCall(function() {
   state++;
   // finishListener
-  assert.strictEqual(state, 13);
+  assert.strictEqual(state, 14);
 }, 1));
 t.on('end', common.mustCall(function() {
   state++;
@@ -106,5 +106,5 @@ t.write(4);
 t.end(7, common.mustCall(function() {
   state++;
   // endMethodCallback
-  assert.strictEqual(state, 14);
+  assert.strictEqual(state, 15);
 }, 1));
