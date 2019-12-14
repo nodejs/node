@@ -298,7 +298,6 @@ Environment::Environment(IsolateData* isolate_data,
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
       immediate_info_(context->GetIsolate()),
-      tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
@@ -917,10 +916,6 @@ void ImmediateInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fields", fields_);
 }
 
-void TickInfo::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("fields", fields_);
-}
-
 void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("providers", providers_);
   tracker->TrackField("async_ids_stack", async_ids_stack_);
@@ -1000,7 +995,6 @@ inline size_t Environment::SelfSize() const {
   // if a certain scope is entered.
   size -= sizeof(thread_stopper_);
   size -= sizeof(async_hooks_);
-  size -= sizeof(tick_info_);
   size -= sizeof(immediate_info_);
   return size;
 }
@@ -1024,7 +1018,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("cleanup_hooks", cleanup_hooks_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
-  tracker->TrackField("tick_info", tick_info_);
 
 #define V(PropertyName, TypeName)                                              \
   tracker->TrackField(#PropertyName, PropertyName());

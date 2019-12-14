@@ -758,31 +758,6 @@ class ImmediateInfo : public MemoryRetainer {
   AliasedUint32Array fields_;
 };
 
-class TickInfo : public MemoryRetainer {
- public:
-  inline AliasedUint8Array& fields();
-  inline bool has_tick_scheduled() const;
-  inline bool has_rejection_to_warn() const;
-
-  SET_MEMORY_INFO_NAME(TickInfo)
-  SET_SELF_SIZE(TickInfo)
-  void MemoryInfo(MemoryTracker* tracker) const override;
-
-  TickInfo(const TickInfo&) = delete;
-  TickInfo& operator=(const TickInfo&) = delete;
-  TickInfo(TickInfo&&) = delete;
-  TickInfo& operator=(TickInfo&&) = delete;
-  ~TickInfo() = default;
-
- private:
-  friend class Environment;  // So we can call the constructor.
-  inline explicit TickInfo(v8::Isolate* isolate);
-
-  enum Fields { kHasTickScheduled = 0, kHasRejectionToWarn, kFieldsCount };
-
-  AliasedUint8Array fields_;
-};
-
 class TrackingTraceStateObserver :
     public v8::TracingController::TraceStateObserver {
  public:
@@ -961,7 +936,6 @@ class Environment : public MemoryRetainer {
 
   inline AsyncHooks* async_hooks();
   inline ImmediateInfo* immediate_info();
-  inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
   inline std::shared_ptr<KVStore> env_vars();
   inline void set_env_vars(std::shared_ptr<KVStore> env_vars);
@@ -1284,7 +1258,6 @@ class Environment : public MemoryRetainer {
 
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
-  TickInfo tick_info_;
   const uint64_t timer_base_;
   std::shared_ptr<KVStore> env_vars_;
   bool printed_error_ = false;

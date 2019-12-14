@@ -258,21 +258,6 @@ inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
   fields_[kRefCount] -= decrement;
 }
 
-inline TickInfo::TickInfo(v8::Isolate* isolate)
-    : fields_(isolate, kFieldsCount) {}
-
-inline AliasedUint8Array& TickInfo::fields() {
-  return fields_;
-}
-
-inline bool TickInfo::has_tick_scheduled() const {
-  return fields_[kHasTickScheduled] == 1;
-}
-
-inline bool TickInfo::has_rejection_to_warn() const {
-  return fields_[kHasRejectionToWarn] == 1;
-}
-
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,
                                          const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(
@@ -430,10 +415,6 @@ inline AsyncHooks* Environment::async_hooks() {
 
 inline ImmediateInfo* Environment::immediate_info() {
   return &immediate_info_;
-}
-
-inline TickInfo* Environment::tick_info() {
-  return &tick_info_;
 }
 
 inline uint64_t Environment::timer_base() const {

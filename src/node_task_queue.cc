@@ -11,7 +11,6 @@
 namespace node {
 
 using errors::TryCatchScope;
-using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -129,9 +128,6 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
   env->SetMethod(target, "setTickCallback", SetTickCallback);
   env->SetMethod(target, "runMicrotasks", RunMicrotasks);
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(isolate, "tickInfo"),
-              env->tick_info()->fields().GetJSArray()).Check();
 
   Local<Object> events = Object::New(isolate);
   NODE_DEFINE_CONSTANT(events, kPromiseRejectWithNoHandler);

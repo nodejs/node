@@ -101,15 +101,9 @@ void InternalCallbackScope::Close() {
     return;
   }
 
-  TickInfo* tick_info = env_->tick_info();
-
   if (!env_->can_call_into_js()) return;
 
   auto weakref_cleanup = OnScopeLeave([&]() { env_->RunWeakRefCleanup(); });
-
-  if (!tick_info->has_tick_scheduled()) {
-    MicrotasksScope::PerformCheckpoint(env_->isolate());
-  }
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
@@ -118,14 +112,8 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
 
-  if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn()) {
-    return;
-  }
-
   HandleScope handle_scope(env_->isolate());
   Local<Object> process = env_->process_object();
-
-  if (!env_->can_call_into_js()) return;
 
   Local<Function> tick_callback = env_->tick_callback_function();
 
