@@ -116,9 +116,9 @@ const tests = [
       ENTER,
       'veryLongName'.repeat(30),
       ENTER,
-      `${'\u001b[90m \u001b[39m'.repeat(230)} fun`,
+      `${'\x1B[90m \x1B[39m'.repeat(235)} fun`,
       ENTER,
-      `${' '.repeat(245)} fun`,
+      `${' '.repeat(236)} fun`,
       ENTER
     ],
     expected: [],
@@ -137,13 +137,17 @@ const tests = [
     ],
     expected: [
       prompt,
-      `${prompt}${' '.repeat(245)} fun`,
-      `${prompt}${' '.repeat(230)} fun`,
+      // This exceeds the maximum columns (250):
+      // Whitespace + prompt + ' // '.length + 'function'.length
+      // 236 + 2 + 4 + 8
+      `${prompt}${' '.repeat(236)} fun`,
+      `${prompt}${' '.repeat(235)} fun`,
       ' // ction',
       ' // ction',
       `${prompt}${'veryLongName'.repeat(30)}`,
       `${prompt}e`,
-      '\n// RangeError: visible'
+      '\n// RangeError: visible',
+      prompt
     ],
     clean: true
   },
