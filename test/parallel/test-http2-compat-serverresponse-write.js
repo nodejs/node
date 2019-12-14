@@ -90,7 +90,7 @@ const assert = require('assert');
     server.once('request', mustCall((request, response) => {
       response.destroy();
       response.write('asd', mustCall((err) => {
-        assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+        assert.strictEqual(err.code, null);
         client.destroy();
         server.close();
       }));
