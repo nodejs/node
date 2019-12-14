@@ -1533,6 +1533,9 @@ changes:
 Asynchronous close(2). No arguments other than a possible exception are given
 to the completion callback.
 
+Calling `fs.close()` on any file descriptor (`fd`) that is currently in use
+through any other `fs` operation may lead to undefined behavior.
+
 ## `fs.closeSync(fd)`
 <!-- YAML
 added: v0.1.21
@@ -1541,6 +1544,9 @@ added: v0.1.21
 * `fd` {integer}
 
 Synchronous close(2). Returns `undefined`.
+
+Calling `fs.closeSync()` on any file descriptor (`fd`) that is currently in use
+through any other `fs` operation may lead to undefined behavior.
 
 ## `fs.constants`
 
