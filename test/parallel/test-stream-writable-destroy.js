@@ -344,3 +344,13 @@ const assert = require('assert');
   }));
   write.destroy(new Error('asd'));
 }
+
+{
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+  // Make sure no unhandled exception.
+  write.destroy(new Error('asd'), common.mustCall((err) => {
+    assert.strictEqual(err.message, 'asd');
+  }));
+}
