@@ -24,6 +24,9 @@ const common = require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
+const cp = require('child_process');
+
+assert.strictEqual(repl.repl, undefined);
 
 common.expectWarning({
   DeprecationWarning: {
@@ -120,3 +123,25 @@ assert.strictEqual(r4.ignoreUndefined, false);
 assert.strictEqual(r4.replMode, repl.REPL_MODE_SLOPPY);
 assert.strictEqual(r4.historySize, 30);
 r4.close();
+
+// Check the standalone REPL
+{
+  const child = cp.spawn(process.execPath, ['--interactive']);
+  let output = '';
+
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (data) => {
+    output += data;
+  });
+
+  child.on('exit', common.mustCall(() => {
+    const results = output.replace(/^> /mg, '').split('\n').slice(2);
+    assert.deepStrictEqual(results, ['undefined', '']);
+  }));
+
+  child.stdin.write(
+    'assert.ok(util.inspect(repl.repl, {depth: -1}).includes("REPLServer"));\n'
+  );
+  child.stdin.write('.exit');
+  child.stdin.end();
+}
