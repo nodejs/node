@@ -11,7 +11,7 @@ extern "C" {
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 1
+#define UVWASI_VERSION_PATCH 3
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
@@ -20,7 +20,7 @@ extern "C" {
 #define UVWASI_VERSION_STRING UVWASI_STRINGIFY(UVWASI_VERSION_MAJOR) "." \
                               UVWASI_STRINGIFY(UVWASI_VERSION_MINOR) "." \
                               UVWASI_STRINGIFY(UVWASI_VERSION_PATCH)
-#define UVWASI_VERSION_WASI "snapshot_0"
+#define UVWASI_VERSION_WASI "snapshot_1"
 
 typedef void* (*uvwasi_malloc)(size_t size, void* mem_user_data);
 typedef void (*uvwasi_free)(void* ptr, void* mem_user_data);
@@ -69,6 +69,7 @@ void uvwasi_destroy(uvwasi_t* uvwasi);
 uvwasi_errno_t uvwasi_embedder_remap_fd(uvwasi_t* uvwasi,
                                         const uvwasi_fd_t fd,
                                         uv_file new_host_fd);
+const char* uvwasi_embedder_err_code_to_string(uvwasi_errno_t code);
 
 
 // WASI system call API.

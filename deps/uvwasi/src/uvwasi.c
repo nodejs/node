@@ -25,6 +25,16 @@
 #include "fd_table.h"
 #include "clocks.h"
 
+/* TODO(cjihrig): PATH_MAX_BYTES shouldn't be stack allocated. On Windows, paths
+   can be 32k long, and this PATH_MAX_BYTES is an artificial limitation. */
+#ifdef _WIN32
+/* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+# define PATH_MAX_BYTES (MAX_PATH * 4)
+#else
+# include <limits.h>
+# define PATH_MAX_BYTES (PATH_MAX)
+#endif
+
 static void* default_malloc(size_t size, void* mem_user_data) {
   return malloc(size);
 }
@@ -688,7 +698,7 @@ uvwasi_errno_t uvwasi_fd_close(uvwasi_t* uvwasi, uvwasi_fd_t fd) {
   if (r != 0)
     return uvwasi__translate_uv_error(r);
 
-  return uvwasi_fd_table_remove(&uvwasi->fds, fd);
+  return uvwasi_fd_table_remove(uvwasi, &uvwasi->fds, fd);
 }
 
 
@@ -1319,7 +1329,7 @@ uvwasi_errno_t uvwasi_fd_renumber(uvwasi_t* uvwasi,
   to_wrap->id = to;
   uv_mutex_unlock(&from_wrap->mutex);
   uv_mutex_unlock(&to_wrap->mutex);
-  return uvwasi_fd_table_remove(&uvwasi->fds, from);
+  return uvwasi_fd_table_remove(uvwasi, &uvwasi->fds, from);
 }
 
 
@@ -1773,7 +1783,7 @@ uvwasi_errno_t uvwasi_path_open(uvwasi_t* uvwasi,
   if ((o_flags & UVWASI_O_DIRECTORY) != 0 &&
       wrap.type != UVWASI_FILETYPE_DIRECTORY) {
     uv_mutex_unlock(&dirfd_wrap->mutex);
-    uvwasi_fd_table_remove(&uvwasi->fds, wrap.id);
+    uvwasi_fd_table_remove(uvwasi, &uvwasi->fds, wrap.id);
     err = UVWASI_ENOTDIR;
     goto close_file_and_error_exit;
   }
@@ -2139,4 +2149,91 @@ uvwasi_errno_t uvwasi_sock_shutdown(uvwasi_t* uvwasi,
   /* TODO(cjihrig): Waiting to implement, pending
                     https://github.com/WebAssembly/WASI/issues/4 */
   return UVWASI_ENOTSUP;
+}
+
+
+const char* uvwasi_embedder_err_code_to_string(uvwasi_errno_t code) {
+  switch (code) {
+#define V(errcode) case errcode: return #errcode;
+    V(UVWASI_E2BIG)
+    V(UVWASI_EACCES)
+    V(UVWASI_EADDRINUSE)
+    V(UVWASI_EADDRNOTAVAIL)
+    V(UVWASI_EAFNOSUPPORT)
+    V(UVWASI_EAGAIN)
+    V(UVWASI_EALREADY)
+    V(UVWASI_EBADF)
+    V(UVWASI_EBADMSG)
+    V(UVWASI_EBUSY)
+    V(UVWASI_ECANCELED)
+    V(UVWASI_ECHILD)
+    V(UVWASI_ECONNABORTED)
+    V(UVWASI_ECONNREFUSED)
+    V(UVWASI_ECONNRESET)
+    V(UVWASI_EDEADLK)
+    V(UVWASI_EDESTADDRREQ)
+    V(UVWASI_EDOM)
+    V(UVWASI_EDQUOT)
+    V(UVWASI_EEXIST)
+    V(UVWASI_EFAULT)
+    V(UVWASI_EFBIG)
+    V(UVWASI_EHOSTUNREACH)
+    V(UVWASI_EIDRM)
+    V(UVWASI_EILSEQ)
+    V(UVWASI_EINPROGRESS)
+    V(UVWASI_EINTR)
+    V(UVWASI_EINVAL)
+    V(UVWASI_EIO)
+    V(UVWASI_EISCONN)
+    V(UVWASI_EISDIR)
+    V(UVWASI_ELOOP)
+    V(UVWASI_EMFILE)
+    V(UVWASI_EMLINK)
+    V(UVWASI_EMSGSIZE)
+    V(UVWASI_EMULTIHOP)
+    V(UVWASI_ENAMETOOLONG)
+    V(UVWASI_ENETDOWN)
+    V(UVWASI_ENETRESET)
+    V(UVWASI_ENETUNREACH)
+    V(UVWASI_ENFILE)
+    V(UVWASI_ENOBUFS)
+    V(UVWASI_ENODEV)
+    V(UVWASI_ENOENT)
+    V(UVWASI_ENOEXEC)
+    V(UVWASI_ENOLCK)
+    V(UVWASI_ENOLINK)
+    V(UVWASI_ENOMEM)
+    V(UVWASI_ENOMSG)
+    V(UVWASI_ENOPROTOOPT)
+    V(UVWASI_ENOSPC)
+    V(UVWASI_ENOSYS)
+    V(UVWASI_ENOTCONN)
+    V(UVWASI_ENOTDIR)
+    V(UVWASI_ENOTEMPTY)
+    V(UVWASI_ENOTRECOVERABLE)
+    V(UVWASI_ENOTSOCK)
+    V(UVWASI_ENOTSUP)
+    V(UVWASI_ENOTTY)
+    V(UVWASI_ENXIO)
+    V(UVWASI_EOVERFLOW)
+    V(UVWASI_EOWNERDEAD)
+    V(UVWASI_EPERM)
+    V(UVWASI_EPIPE)
+    V(UVWASI_EPROTO)
+    V(UVWASI_EPROTONOSUPPORT)
+    V(UVWASI_EPROTOTYPE)
+    V(UVWASI_ERANGE)
+    V(UVWASI_EROFS)
+    V(UVWASI_ESPIPE)
+    V(UVWASI_ESRCH)
+    V(UVWASI_ESTALE)
+    V(UVWASI_ETIMEDOUT)
+    V(UVWASI_ETXTBSY)
+    V(UVWASI_EXDEV)
+    V(UVWASI_ENOTCAPABLE)
+    V(UVWASI_ESUCCESS)
+#undef V
+    default:
+      return "UVWASI_UNKNOWN_ERROR";
+  }
 }
