@@ -235,7 +235,7 @@ Enable experimental ES Module support in the `vm` module.
 added: v13.3.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/xxxxx
+    pr-url: https://github.com/nodejs/node/pull/30980
     description: changed from `--experimental-wasi-unstable-preview0` to
                  `--experimental-wasi-unstable-preview1`
 -->
