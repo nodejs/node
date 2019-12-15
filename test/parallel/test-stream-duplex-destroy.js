@@ -76,8 +76,8 @@ const assert = require('assert');
   duplex.on('end', common.mustNotCall('no end event'));
   duplex.on('finish', common.mustNotCall('no finish event'));
 
-  // Error is swallowed by the custom _destroy
-  duplex.on('error', common.mustNotCall('no error event'));
+  // Error is NOT swallowed by the custom _destroy
+  duplex.on('error', common.mustCall());
   duplex.on('close', common.mustCall());
 
   duplex.destroy(expected);

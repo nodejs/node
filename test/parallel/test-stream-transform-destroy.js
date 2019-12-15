@@ -72,8 +72,8 @@ const assert = require('assert');
   transform.on('close', common.mustCall());
   transform.on('finish', common.mustNotCall('no finish event'));
 
-  // Error is swallowed by the custom _destroy
-  transform.on('error', common.mustNotCall('no error event'));
+  // Error is NOT swallowed by the custom _destroy
+  transform.on('error', common.mustCall());
 
   transform.destroy(expected);
 }

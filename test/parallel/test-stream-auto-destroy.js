@@ -86,13 +86,14 @@ const assert = require('assert');
 {
   const r = new stream.Readable({
     read() {
-      r2.emit('error', new Error('fail'));
+      r2.destroy(new Error('fail'));
     }
   });
   const r2 = new stream.Readable({
     autoDestroy: true,
     destroy: common.mustCall((err, cb) => cb())
   });
+  r2.on('error', common.mustCall());
 
   r.pipe(r2);
 }
@@ -100,13 +101,14 @@ const assert = require('assert');
 {
   const r = new stream.Readable({
     read() {
-      w.emit('error', new Error('fail'));
+      w.destroy(new Error('fail'));
     }
   });
   const w = new stream.Writable({
     autoDestroy: true,
     destroy: common.mustCall((err, cb) => cb())
   });
+  w.on('error', common.mustCall());
 
   r.pipe(w);
 }
