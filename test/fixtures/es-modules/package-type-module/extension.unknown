@@ -1,1 +1,1 @@
-throw new Error('NO, NEVER');
+export default 'unknown';
