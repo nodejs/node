@@ -276,9 +276,6 @@ const assert = require('assert');
   write.destroy(expected, common.mustCall(function(err) {
     assert.strictEqual(err, expected);
   }));
-  write.on('error', common.mustCall((err) => {
-    assert.strictEqual(err, expected);
-  }));
 }
 
 {
