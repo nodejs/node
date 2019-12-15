@@ -20,8 +20,13 @@ function main({ n, sync }) {
   };
 
   bench.start();
-  for (var k = 0; k < n; ++k) {
-    s.write(b);
+
+  let k = 0;
+  function run () {
+    while (k++ < n && s.write(b));
+    if (k >= n)
+      bench.end(n);
   }
-  bench.end(n);
+  s.on('drain', run);
+  run();
 }
