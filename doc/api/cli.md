@@ -779,8 +779,8 @@ Enables the collection of trace event tracing information.
 added: REPLACEME
 -->
 
-Prints a stack trace whenever an environment is been exited proactively, i.e.
-invoking `process.exit()`.
+Prints a stack trace whenever an environment is exited proactively,
+i.e. invoking `process.exit()`.
 
 ### `--trace-sync-io`
 <!-- YAML
