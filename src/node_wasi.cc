@@ -510,11 +510,11 @@ void WASI::FdFilestatGet(const FunctionCallbackInfo<Value>& args) {
     wasi->writeUInt64(memory, stats.st_dev, buf);
     wasi->writeUInt64(memory, stats.st_ino, buf + 8);
     wasi->writeUInt8(memory, stats.st_filetype, buf + 16);
-    wasi->writeUInt32(memory, stats.st_nlink, buf + 20);
-    wasi->writeUInt64(memory, stats.st_size, buf + 24);
-    wasi->writeUInt64(memory, stats.st_atim, buf + 32);
-    wasi->writeUInt64(memory, stats.st_mtim, buf + 40);
-    wasi->writeUInt64(memory, stats.st_ctim, buf + 48);
+    wasi->writeUInt32(memory, stats.st_nlink, buf + 24);
+    wasi->writeUInt64(memory, stats.st_size, buf + 32);
+    wasi->writeUInt64(memory, stats.st_atim, buf + 40);
+    wasi->writeUInt64(memory, stats.st_mtim, buf + 48);
+    wasi->writeUInt64(memory, stats.st_ctim, buf + 56);
   }
 
   args.GetReturnValue().Set(err);
@@ -1038,11 +1038,11 @@ void WASI::PathFilestatGet(const FunctionCallbackInfo<Value>& args) {
     wasi->writeUInt64(memory, stats.st_dev, buf_ptr);
     wasi->writeUInt64(memory, stats.st_ino, buf_ptr + 8);
     wasi->writeUInt8(memory, stats.st_filetype, buf_ptr + 16);
-    wasi->writeUInt32(memory, stats.st_nlink, buf_ptr + 20);
-    wasi->writeUInt64(memory, stats.st_size, buf_ptr + 24);
-    wasi->writeUInt64(memory, stats.st_atim, buf_ptr + 32);
-    wasi->writeUInt64(memory, stats.st_mtim, buf_ptr + 40);
-    wasi->writeUInt64(memory, stats.st_ctim, buf_ptr + 48);
+    wasi->writeUInt32(memory, stats.st_nlink, buf_ptr + 24);
+    wasi->writeUInt64(memory, stats.st_size, buf_ptr + 32);
+    wasi->writeUInt64(memory, stats.st_atim, buf_ptr + 40);
+    wasi->writeUInt64(memory, stats.st_mtim, buf_ptr + 48);
+    wasi->writeUInt64(memory, stats.st_ctim, buf_ptr + 56);
   }
 
   args.GetReturnValue().Set(err);
@@ -1405,11 +1405,10 @@ void WASI::PollOneoff(const FunctionCallbackInfo<Value>& args) {
     wasi->readUInt8(memory, &sub.type, in_ptr + 8);
 
     if (sub.type == UVWASI_EVENTTYPE_CLOCK) {
-      wasi->readUInt64(memory, &sub.u.clock.identifier, in_ptr + 16);
-      wasi->readUInt32(memory, &sub.u.clock.clock_id, in_ptr + 24);
-      wasi->readUInt64(memory, &sub.u.clock.timeout, in_ptr + 32);
-      wasi->readUInt64(memory, &sub.u.clock.precision, in_ptr + 40);
-      wasi->readUInt16(memory, &sub.u.clock.flags, in_ptr + 48);
+      wasi->readUInt32(memory, &sub.u.clock.clock_id, in_ptr + 16);
+      wasi->readUInt64(memory, &sub.u.clock.timeout, in_ptr + 24);
+      wasi->readUInt64(memory, &sub.u.clock.precision, in_ptr + 32);
+      wasi->readUInt16(memory, &sub.u.clock.flags, in_ptr + 40);
     } else if (sub.type == UVWASI_EVENTTYPE_FD_READ ||
                sub.type == UVWASI_EVENTTYPE_FD_WRITE) {
       wasi->readUInt32(memory, &sub.u.fd_readwrite.fd, in_ptr + 16);

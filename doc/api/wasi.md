@@ -19,7 +19,7 @@ const wasi = new WASI({
     '/sandbox': '/some/real/path/that/wasm/can/access'
   }
 });
-const importObject = { wasi_unstable: wasi.wasiImport };
+const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
 (async () => {
   const wasm = await WebAssembly.compile(fs.readFileSync('./binary.wasm'));
@@ -82,8 +82,8 @@ added: REPLACEME
 * {Object}
 
 `wasiImport` is an object that implements the WASI system call API. This object
-should be passed as the `wasi_unstable` import during the instantiation of a
-[`WebAssembly.Instance`][].
+should be passed as the `wasi_snapshot_preview1` import during the instantiation
+of a [`WebAssembly.Instance`][].
 
 [`WebAssembly.Instance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance
 [`WebAssembly.Memory`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory
