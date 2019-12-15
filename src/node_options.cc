@@ -397,7 +397,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_report,
             kAllowedInEnvironment);
 #endif  // NODE_REPORT
-  AddOption("--experimental-wasi-unstable-preview0",
+  AddOption("--experimental-wasi-unstable-preview1",
             "experimental WASI support",
             &EnvironmentOptions::experimental_wasi,
             kAllowedInEnvironment);

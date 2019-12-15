@@ -1,4 +1,4 @@
-// Flags: --experimental-wasi-unstable-preview0
+// Flags: --experimental-wasi-unstable-preview1
 'use strict';
 
 const common = require('../common');

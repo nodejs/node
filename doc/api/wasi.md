@@ -29,7 +29,7 @@ const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 })();
 ```
 
-The `--experimental-wasi-unstable-preview0` and `--experimental-wasm-bigint`
+The `--experimental-wasi-unstable-preview1` and `--experimental-wasm-bigint`
 CLI arguments are needed for the previous example to run.
 
 ## Class: WASI
