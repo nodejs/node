@@ -1106,6 +1106,63 @@ NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.js
 would load the module `main.js` as an ES module with relative resolution support
 (with `node_modules` loading skipped in this example).
 
+### Get source hook
+
+The `getSource` hook provides a way to define a custom method for retrieving
+the source code of an ES module specifier. This would allow a loader to
+potentially avoid reading files from disk.
+
+```js
+import { get } from 'https';
+
+/**
+ * @param {string} url
+ * @param {function} defaultGetSource
+ */
+export async function getSource(url, defaultGetSource) {
+  if (!url.startsWith('https://')) {
+    return defaultGetSource(url);
+  } else {
+    return new Promise((resolve, reject) => {
+      get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => resolve(data));
+      }).on('error', (err) => reject(err));
+    });
+  }
+}
+
+export async function resolve(specifier,
+                              parentModuleURL,
+                              defaultResolver) {
+  if (specifier.startsWith('https://')) {
+    return {
+      url: specifier,
+      format: 'module'
+    };
+  } else if (parentModuleURL &&
+    parentModuleURL.startsWith('https://')) {
+    return {
+      url: new URL(specifier, parentModuleURL).href,
+      format: 'module'
+    };
+  } else {
+    return defaultResolver(specifier, parentModuleURL);
+  }
+}
+```
+
+With this loader, running:
+
+```console
+NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.js
+```
+
+Will enable `main.js` to contain a statement like
+`import { foo } from 'https://example.com/es-module.js'`, which normally isn’t
+supported by Node.js as the specifier isn’t a `file://` or `data://` URL.
+
 ### Transform source hook
 
 The `transformSource` hook provides a way to modify the source code of a loaded
