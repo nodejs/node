@@ -28,10 +28,6 @@
 
 #include "v8.h"
 
-// TODO(mcollina): should this be moved in a more public space?
-// embedders will not be able to use this field
-#define EXECUTION_RESOURCE_FIELD 10
-
 using v8::Context;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
@@ -152,7 +148,7 @@ void AsyncWrap::EmitTraceEventBefore() {
 void AsyncWrap::EmitBefore(Environment* env, double async_id,
     v8::Local<v8::Object> resource) {
   v8::Local<v8::Context> context = env->isolate()->GetCurrentContext();
-  context->SetEmbedderData(EXECUTION_RESOURCE_FIELD, resource);
+  env->async_hooks()->set_execution_async_resource(resource);
 
   Emit(env, async_id, AsyncHooks::kBefore,
        env->async_hooks_before_function());
@@ -184,7 +180,7 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
   Emit(env, async_id, AsyncHooks::kAfter,
        env->async_hooks_after_function());
 
-  context->SetEmbedderData(EXECUTION_RESOURCE_FIELD, v8::Null(isolate));
+  env->async_hooks()->clear_execution_async_resource();
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -270,7 +266,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
 
       // needed for async functions :/
       // the top level will not emit before and after
-      env->context()->SetEmbedderData(EXECUTION_RESOURCE_FIELD, wrap->object());
+      env->async_hooks()->set_execution_async_resource(wrap->object());
     }
   }
 
@@ -401,14 +397,16 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
 
 static void GetExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  args.GetReturnValue().Set(context->GetEmbedderData(EXECUTION_RESOURCE_FIELD));
+  args.GetReturnValue().Set(env->async_hooks()->get_execution_async_resource());
 }
 
 static void SetExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  context->SetEmbedderData(EXECUTION_RESOURCE_FIELD, args[0]);
+  env->async_hooks()->set_execution_async_resource(args[0]);
 }
 
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
@@ -502,7 +500,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "setExecutionAsyncResource",
                  SetExecutionAsyncResource);
 
-  context->SetEmbedderData(EXECUTION_RESOURCE_FIELD, v8::Null(isolate));
+  env->async_hooks()->clear_execution_async_resource();
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
