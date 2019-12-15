@@ -6,10 +6,12 @@
 require('../common');
 
 const assert = require('assert');
-const resolve = require('internal/modules/esm/default_resolve');
+const {
+  defaultResolve: resolve
+} = require('internal/modules/esm/resolve');
 
 assert.throws(
-  () => resolve('target', undefined),
+  () => resolve('target'),
   {
     code: 'ERR_MODULE_NOT_FOUND',
     name: 'Error',
