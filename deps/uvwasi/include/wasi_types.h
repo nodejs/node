@@ -155,7 +155,7 @@ typedef struct uvwasi_iovec_s {
   size_t buf_len;
 } uvwasi_iovec_t;
 
-typedef uint32_t uvwasi_linkcount_t;
+typedef uint64_t uvwasi_linkcount_t;
 
 typedef uint32_t uvwasi_lookupflags_t;           /* Bitfield */
 #define UVWASI_LOOKUP_SYMLINK_FOLLOW (1 << 0)
@@ -266,7 +266,6 @@ typedef struct uvwasi_subscription_s {
   uvwasi_eventtype_t type;
   union {
     struct {
-      uvwasi_userdata_t identifier;
       uvwasi_clockid_t clock_id;
       uvwasi_timestamp_t timeout;
       uvwasi_timestamp_t precision;
@@ -316,8 +315,8 @@ typedef struct uvwasi_event_s {
 } uvwasi_event_t;
 
 typedef uint8_t uvwasi_whence_t;
-#define UVWASI_WHENCE_CUR 0
-#define UVWASI_WHENCE_END 1
-#define UVWASI_WHENCE_SET 2
+#define UVWASI_WHENCE_SET 0
+#define UVWASI_WHENCE_CUR 1
+#define UVWASI_WHENCE_END 2
 
 #endif /* __UVWASI_WASI_TYPES_H__ */
