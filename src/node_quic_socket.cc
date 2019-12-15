@@ -501,62 +501,6 @@ void QuicSocket::ReportSendError(int error) {
   listener_->OnError(error);
 }
 
-void QuicSocket::SendInitialConnectionClose(
-    uint32_t version,
-    uint64_t error_code,
-    const QuicCID& dcid,
-    const sockaddr* addr) {
-
-  // ngtcp2 currently does not provide a convenient API for serializing
-  // CONNECTION_CLOSE packets on an initial frame that does not have
-  // a ngtcp2_conn initialized, so we have to create one with a simple
-  // default configuration and use it to serialize the frame.
-
-  ngtcp2_cid scid;
-  EntropySource(scid.data, NGTCP2_SV_SCIDLEN);
-  scid.datalen = NGTCP2_SV_SCIDLEN;
-
-  SocketAddress remote_address(addr);
-  QuicPath path(GetLocalAddress(), &remote_address);
-
-  ngtcp2_conn_callbacks callbacks;
-
-  ngtcp2_settings settings;
-  ngtcp2_settings_default(&settings);
-
-  ngtcp2_conn* conn;
-  ngtcp2_conn_server_new(
-    &conn,
-    dcid.cid(),
-    &scid,
-    &path,
-    version,
-    &callbacks,
-    &settings,
-    &alloc_info_,
-    nullptr);
-
-  MallocedBuffer<char> buf(NGTCP2_MAX_PKTLEN_IPV6);
-
-  ssize_t nwrite =
-      ngtcp2_conn_write_connection_close(
-          conn,
-          &path,
-          reinterpret_cast<uint8_t*>(buf.data),
-          NGTCP2_MAX_PKTLEN_IPV6,
-          error_code,
-          uv_hrtime());
-
-  // Be sure the delete the connection pointer once the connection frame
-  // is serialized. We won't be using this one any longer.
-  ngtcp2_conn_del(conn);
-
-  if (nwrite <= 0)
-    return;
-  buf.Realloc(nwrite);
-  Send(addr, std::move(buf), "initial cc");
-}
-
 void QuicSocket::SendVersionNegotiation(
       uint32_t version,
       const QuicCID& dcid,

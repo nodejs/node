@@ -198,12 +198,6 @@ class QuicSocket : public AsyncWrap,
       const struct sockaddr* remote_addr,
       unsigned int flags);
 
-  void SendInitialConnectionClose(
-      uint32_t version,
-      uint64_t error_code,
-      const QuicCID& dcid,
-      const sockaddr* addr);
-
   void SendVersionNegotiation(
       uint32_t version,
       const QuicCID& dcid,
