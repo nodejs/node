@@ -1545,8 +1545,8 @@ added: v0.1.21
 
 Synchronous close(2). Returns `undefined`.
 
-Calling `fs.closeSync` on any file descriptor (`fd`) that is currently in use
-though any other `fs` operation may lead to undefined behavior.
+Calling `fs.closeSync()` on any file descriptor (`fd`) that is currently in use
+through any other `fs` operation may lead to undefined behavior.
 
 ## fs.constants
 
