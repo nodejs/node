@@ -398,10 +398,12 @@ See
 and
 .Ev SSL_CERT_FILE .
 .
-.It Fl -use-largepages
+.It Fl -use-largepages Ns = Ns Ar num
 Re-map the Node.js static code to large memory pages at startup. If supported on
 the target system, this will cause the Node.js static code to be moved onto 2
 MiB pages instead of 4 KiB pages.
+.Pp
+The following values are valid: 0 (do not map), 1 (map, ignore failure, and do not report it), and 2 (map, ignore failure, but report it to standard error).
 .
 .It Fl -v8-options
 Print V8 command-line options.

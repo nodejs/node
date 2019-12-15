@@ -63,6 +63,9 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
                       "used, not both");
   }
 #endif
+  if (!(use_largepages >= 0 && use_largepages <= 2)) {
+    errors->push_back("--use-largepages must be one of 0, 1, or 2");
+  }
   per_isolate->CheckOptions(errors);
 }
 

@@ -863,7 +863,7 @@ environment variables.
 
 See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
-### `--use-largepages`
+### `--use-largepages=num`
 <!-- YAML
 added: REPLACEME
 -->
@@ -871,6 +871,13 @@ added: REPLACEME
 Re-map the Node.js static code to large memory pages at startup. If supported on
 the target system, this will cause the Node.js static code to be moved onto 2
 MiB pages instead of 4 KiB pages.
+
+The following values are valid for `num`:
+* 0: No mapping will be attempted. This is the default.
+* 1: If supported by the OS, mapping will be attempted. Failure to map will be
+  ignored and will not be reported.
+* 2: If supported by the OS, mapping will be attempted. Failure to map will be
+  ignored and a message will be printed to standard error.
 
 ### `--v8-options`
 <!-- YAML

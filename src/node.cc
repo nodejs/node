@@ -984,9 +984,11 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
     }
   }
 
-  if (per_process::cli_options->use_largepages) {
+  if (per_process::cli_options->use_largepages == 1 ||
+      per_process::cli_options->use_largepages == 2) {
     if (node::IsLargePagesEnabled()) {
-      if (node::MapStaticCodeToLargePages() != 0) {
+      if (node::MapStaticCodeToLargePages() != 0 &&
+          per_process::cli_options->use_largepages == 2) {
         fprintf(stderr, "Reverting to default page size\n");
       }
     }
