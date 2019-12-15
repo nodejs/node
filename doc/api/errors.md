@@ -1645,6 +1645,11 @@ A given value is out of the accepted range.
 
 TBD
 
+<a id="ERR_QUIC_TLS13_REQUIRED"></a>
+### ERR_QUIC_TLS13_REQUIRED
+
+TBD
+
 <a id="ERR_QUICCLIENTSESSION_FAILED"></a>
 ### ERR_QUICCLIENTSESSION_FAILED
 
@@ -2218,16 +2223,6 @@ encoding (e.g. `ucs` or `utf16le`) is not supported.
 
 <a id="ERR_HTTP2_FRAME_ERROR"></a>
 ### `ERR_HTTP2_FRAME_ERROR`
-<!-- YAML
-added: v9.0.0
-removed: v10.0.0
--->
-
-Used when a failure occurs sending an individual frame on the HTTP/2
-session.
-
-<a id="ERR_QUIC_TLS13_REQUIRED"></a>
-### ERR_QUIC_TLS13_REQUIRED
 <!-- YAML
 added: v9.0.0
 removed: v10.0.0

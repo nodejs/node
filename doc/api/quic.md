@@ -153,7 +153,7 @@ used to exhange application data until the `'secure'` event has been emitted.
 
 ### QuicSession and ALPN
 
-QUIC uses the TLS 1.3 ALPN ("Application-Layer Protocol Negotiation") extension
+QUIC uses the TLS 1.3 [ALPN][] ("Application-Layer Protocol Negotiation") extension
 to identify the application level protocol that is using the QUIC connection.
 Every `QuicSession` instance has an ALPN identifier that *must* be specified
 in either the `connect()` or `listen()` options. ALPN identifiers that are
@@ -222,7 +222,7 @@ concepts:
 * Informational Headers == Any response headers transmitted within
   a block of headers using a `1xx` status code.
 * Initial Headers == HTTP request or response headers
-* Traiing Headers == A block of headers that follow the body of a
+* Trailing Headers == A block of headers that follow the body of a
   request or response.
 
 If headers are supported by the application protocol in use for
@@ -275,7 +275,7 @@ added: REPLACEME
 The `quic.createSocket()` function is used to create new `QuicSocket` instances
 associated with a local UDP address.
 
-### Class: QuicSession exends EventEmitter
+### Class: QuicSession extends EventEmitter
 <!-- YAML
 added: REPLACEME
 -->
@@ -291,9 +291,9 @@ Users will not create instances of `QuicSession` directly.
 added: REPLACEME
 -->
 
-Emiitted after the `QuicSession` has been destroyed and is no longer usable.
+Emitted after the `QuicSession` has been destroyed and is no longer usable.
 
-#### Event: `'error'`d
+#### Event: `'error'`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1949,6 +1949,7 @@ Set to `true` if the `QuicStream` is unidirectional.
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.getCiphers()`]: tls.html#tls_tls_getciphers
+[ALPN]: https://tools.ietf.org/html/rfc7301
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
 [modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
