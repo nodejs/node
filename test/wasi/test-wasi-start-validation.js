@@ -1,3 +1,4 @@
+// Flags: --experimental-wasi-unstable-preview0
 'use strict';
 
 require('../common');
