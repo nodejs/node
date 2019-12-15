@@ -1533,7 +1533,7 @@ changes:
 Asynchronous close(2). No arguments other than a possible exception are given
 to the completion callback.
 
-Calling `fs.close` on any file descriptor (`fd`) that is currently in use
+Calling `fs.close()` on any file descriptor (`fd`) that is currently in use
 though any other `fs` operation may lead to undefined behavior.
 
 ## fs.closeSync(fd)
