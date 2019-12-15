@@ -1008,7 +1008,7 @@ CommonJS modules loaded.
 
 ### Resolve hook
 
-The resolve hook returns the resolved file URL and module format for a
+The `resolve` hook returns the resolved file URL and module format for a
 given module specifier and parent file URL:
 
 ```js
@@ -1100,11 +1100,68 @@ export async function resolve(specifier,
 With this loader, running:
 
 ```console
-NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node x.js
+NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.js
 ```
 
-would load the module `x.js` as an ES module with relative resolution support
+would load the module `main.js` as an ES module with relative resolution support
 (with `node_modules` loading skipped in this example).
+
+### Transform source hook
+
+The `transformSource` hook provides a way to modify the source code of a loaded
+ES module file after the source string has been loaded from disk but before
+Node.js has done anything with it.
+
+If this hook is used to convert unknown-to-Node.js file types into executable
+JavaScript, a resolve hook is also necessary in order to register any
+unknown-to-Node.js file extensions.
+
+```js
+import CoffeeScript from 'coffeescript';
+
+/**
+ * @param {string} url
+ * @param {string} source
+ */
+export async function transformSource(url, source) {
+  if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(url)) {
+    return CoffeeScript.compile(source);
+  } else {
+    return source;
+  }
+}
+
+// The below is so that CoffeeScript file extensions don’t throw an
+// error for being unrecognized.
+import { URL, pathToFileURL } from 'url';
+
+const baseURL = pathToFileURL(`${process.cwd()}/`).href;
+
+export async function resolve(specifier,
+                              parentModuleURL = baseURL,
+                              defaultResolver) {
+  if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(specifier)) {
+    const resolved = new URL(specifier, parentModuleURL);
+    return {
+      url: resolved.href,
+      format: 'module'
+    };
+  } else {
+    return defaultResolver(specifier, parentModuleURL);
+  }
+}
+```
+
+With this loader, running:
+
+```console
+NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.coffee
+```
+
+Will cause `main.coffee` to be turned into JavaScript after its source code is
+loaded from disk but before Node.js executes it; and so on for any `.coffee`,
+`.litcoffee` or `.coffee.md` files referenced via `import` statements of any
+loaded file.
 
 ### Dynamic instantiate hook
 
