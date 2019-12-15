@@ -435,7 +435,7 @@ endpoint on `http://host:port/json/list`.
 added: v9.0.0
 -->
 
-Specify the `module` of a custom [experimental ECMAScript Module][] loader.
+Specify the `module` of a custom [experimental ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
 
 ### `--insecure-http-parser`
@@ -1406,6 +1406,6 @@ greater than `4` (its current default value). For more information, see the
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module]: esm.html#esm_resolve_hook
+[experimental ECMAScript Module loader]: esm.html#esm_experimental_loaders
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
