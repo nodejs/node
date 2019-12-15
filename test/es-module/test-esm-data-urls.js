@@ -1,4 +1,4 @@
-// Flags: --experimental-modules
+// Flags: --experimental-modules --experimental-json-modules
 'use strict';
 const common = require('../common');
 const assert = require('assert');
