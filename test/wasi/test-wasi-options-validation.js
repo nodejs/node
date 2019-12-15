@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --experimental-wasi-unstable-preview0
+// Flags: --experimental-wasi-unstable-preview1
 
 require('../common');
 const assert = require('assert');
