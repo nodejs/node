@@ -429,6 +429,8 @@ Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
 `'SIGINT'`, `'SIGHUP'`, etc.
 
+Signals will not be available on [`Worker`][] threads.
+
 The signal handler will receive the signal's name (`'SIGINT'`,
  `'SIGTERM'`, etc.) as the first argument.
 
