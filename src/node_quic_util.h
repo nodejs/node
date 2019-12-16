@@ -105,7 +105,9 @@ inline bool ResolvePreferredAddress(
     const ngtcp2_preferred_addr* paddr,
     uv_getaddrinfo_t* req);
 
-inline ngtcp2_addr* ToNgtcp2Addr(SocketAddress* addr, ngtcp2_addr* dest);
+inline ngtcp2_addr* ToNgtcp2Addr(
+    const SocketAddress& addr,
+    ngtcp2_addr* dest);
 
 struct QuicPath : public ngtcp2_path {
   QuicPath(

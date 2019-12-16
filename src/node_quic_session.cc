@@ -2171,11 +2171,10 @@ bool QuicSession::SelectPreferredAddress(
 
   switch (select_preferred_address_policy_) {
     case QUIC_PREFERRED_ADDRESS_ACCEPT: {
-      SocketAddress* local_address = Socket()->GetLocalAddress();
       uv_getaddrinfo_t req;
 
       if (!ResolvePreferredAddress(
-              env(), local_address->GetFamily(),
+              env(), local_address_.GetFamily(),
               paddr, &req)) {
         return false;
       }
@@ -2356,13 +2355,13 @@ bool QuicSession::SetSocket(QuicSocket* socket, bool nat_rebinding) {
   socket->ReceiveStart();
 
   // Step 4: Update ngtcp2
-  SocketAddress* local_address = socket->GetLocalAddress();
+  auto& local_address = socket->GetLocalAddress();
   if (nat_rebinding) {
     ngtcp2_addr addr;
     ToNgtcp2Addr(local_address, &addr);
     ngtcp2_conn_set_local_addr(Connection(), &addr);
   } else {
-    QuicPath path(local_address, &remote_address_);
+    QuicPath path(local_address, remote_address_);
     if (ngtcp2_conn_initiate_migration(
             Connection(),
             &path,
@@ -2826,7 +2825,8 @@ void QuicSession::UpdateDataStats() {
 
 BaseObjectPtr<QuicSession> QuicSession::CreateClient(
     QuicSocket* socket,
-    const struct sockaddr* addr,
+    const SocketAddress& local_addr,
+    const struct sockaddr* remote_addr,
     SecureContext* context,
     Local<Value> early_transport_params,
     Local<Value> session_ticket,
@@ -2847,8 +2847,8 @@ BaseObjectPtr<QuicSession> QuicSession::CreateClient(
       MakeDetachedBaseObject<QuicSession>(
           socket,
           obj,
-          *socket->GetLocalAddress(),
-          addr,
+          local_addr,
+          remote_addr,
           context,
           early_transport_params,
           session_ticket,
@@ -3509,6 +3509,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<QuicSession> session =
       QuicSession::CreateClient(
           socket,
+          socket->GetLocalAddress(),
           const_cast<const sockaddr*>(reinterpret_cast<sockaddr*>(&addr)),
           sc,
           args[7],

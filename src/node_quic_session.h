@@ -595,7 +595,8 @@ class QuicSession : public AsyncWrap,
 
   static BaseObjectPtr<QuicSession> CreateClient(
       QuicSocket* socket,
-      const struct sockaddr* addr,
+      const SocketAddress& local_addr,
+      const struct sockaddr* remote_addr,
       crypto::SecureContext* context,
       v8::Local<v8::Value> early_transport_params,
       v8::Local<v8::Value> session_ticket,
@@ -609,7 +610,7 @@ class QuicSession : public AsyncWrap,
 
   static const int kInitialClientBufferLength = 4096;
 
-  // The QuiSession::CryptoContext encapsulates all details of the
+  // The QuicSession::CryptoContext encapsulates all details of the
   // TLS context on behalf of the QuicSession.
   QuicSession(
       ngtcp2_crypto_side side,

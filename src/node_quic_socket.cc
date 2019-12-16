@@ -145,6 +145,72 @@ void JSQuicSocketListener::OnDestroy() {
   // Do nothing here.
 }
 
+QuicEndpoint::QuicEndpoint(
+    Environment* env,
+    QuicEndpointListener* listener,
+    Local<Object> udp_wrap) :
+    env_(env),
+    listener_(listener) {
+  udp_ = static_cast<UDPWrapBase*>(
+      udp_wrap->GetAlignedPointerFromInternalField(
+          UDPWrapBase::kUDPWrapBaseField));
+  CHECK_NOT_NULL(udp_);
+  udp_->set_listener(this);
+  strong_ptr_.reset(udp_->GetAsyncWrap());
+}
+
+int QuicEndpoint::Send(
+    uv_buf_t* buf,
+    size_t len,
+    const sockaddr* addr) {
+  return udp_->Send(buf, len, addr);
+}
+
+int QuicEndpoint::ReceiveStart() {
+  return udp_->RecvStart();
+}
+
+int QuicEndpoint::ReceiveStop() {
+  return udp_->RecvStop();
+}
+
+uv_buf_t QuicEndpoint::OnAlloc(size_t suggested_size) {
+  return env_->AllocateManaged(suggested_size).release();
+}
+
+void QuicEndpoint::OnRecv(
+    ssize_t nread,
+    const uv_buf_t& buf_,
+    const sockaddr* addr,
+    unsigned int flags) {
+  AllocatedBuffer buf(env_, buf_);
+
+  if (nread <= 0) {
+    if (nread < 0)
+      listener_->OnError(this, nread);
+    return;
+  }
+
+  listener_->OnReceive(
+      nread,
+      std::move(buf),
+      GetLocalAddress(),
+      addr,
+      flags);
+}
+
+ReqWrap<uv_udp_send_t>* QuicEndpoint::CreateSendWrap(size_t msg_size) {
+  return listener_->OnCreateSendWrap(msg_size);
+}
+
+void QuicEndpoint::OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) {
+  listener_->OnSendDone(wrap, status);
+}
+
+void QuicEndpoint::OnAfterBind() {
+  listener_->OnBind(this);
+}
+
 QuicSocket::QuicSocket(
     Environment* env,
     Local<Object> wrap,
@@ -168,12 +234,7 @@ QuicSocket::QuicSocket(
   MakeWeak();
   PushListener(&default_listener_);
 
-  udp_ = static_cast<UDPWrapBase*>(
-      udp_base_wrap->GetAlignedPointerFromInternalField(
-          UDPWrapBase::kUDPWrapBaseField));
-  CHECK_NOT_NULL(udp_);
-  udp_->set_listener(this);
-  udp_strong_ptr_.reset(udp_->GetAsyncWrap());
+  endpoint_.reset(new QuicEndpoint(env, this, udp_base_wrap));
 
   Debug(this, "New QuicSocket created.");
 
@@ -261,12 +322,6 @@ void QuicSocket::AssociateCID(
   dcid_to_scid_.emplace(cid.ToStr(), scid.ToStr());
 }
 
-void QuicSocket::OnAfterBind() {
-  udp_->GetSockName(&local_address_);
-  Debug(this, "Socket bound");
-  socket_stats_.bound_at = uv_hrtime();
-}
-
 void QuicSocket::DisassociateCID(const QuicCID& cid) {
   Debug(this, "Removing associations for cid %s", cid.ToHex().c_str());
   dcid_to_scid_.erase(cid.ToStr());
@@ -312,32 +367,6 @@ void QuicSocket::WaitForPendingCallbacks() {
   Debug(this, "Waiting for pending callbacks");
 }
 
-uv_buf_t QuicSocket::OnAlloc(size_t suggested_size) {
-  return env()->AllocateManaged(suggested_size).release();
-}
-
-void QuicSocket::OnRecv(
-    ssize_t nread,
-    const uv_buf_t& buf_,
-    const sockaddr* addr,
-    unsigned int flags) {
-  AllocatedBuffer buf(env(), buf_);
-
-  if (nread == 0)
-    return;
-
-  if (nread < 0) {
-    Debug(this, "Reading data from UDP socket failed. Error %d", nread);
-    listener_->OnError(nread);
-    return;
-  }
-
-  SocketAddress local_address;
-  udp_->GetSockName(&local_address);
-
-  Receive(nread, std::move(buf), local_address, addr, flags);
-}
-
 namespace {
 bool IsShortHeader(
     uint32_t version,
@@ -349,7 +378,28 @@ bool IsShortHeader(
 }
 }  // namespace
 
-void QuicSocket::Receive(
+void QuicSocket::OnError(QuicEndpoint* endpoint, ssize_t error) {
+  Debug(this, "Reading data from UDP socket failed. Error %" PRId64, error);
+  listener_->OnError(error);
+}
+
+ReqWrap<uv_udp_send_t>* QuicSocket::OnCreateSendWrap(size_t msg_size) {
+  HandleScope handle_scope(env()->isolate());
+  Local<Object> obj;
+  if (!env()->quicsocketsendwrap_constructor_template()
+          ->NewInstance(env()->context()).ToLocal(&obj)) return nullptr;
+  return last_created_send_wrap_ = new SendWrap(env(), obj, msg_size);
+}
+
+void QuicSocket::OnBind(QuicEndpoint* endpoint) {
+  auto& local_address = endpoint->GetLocalAddress();
+  Debug(this, "Endpoint %s:%d bound",
+        local_address.GetAddress(),
+        local_address.GetPort());
+  socket_stats_.bound_at = uv_hrtime();
+}
+
+void QuicSocket::OnReceive(
     ssize_t nread,
     AllocatedBuffer buf,
     const SocketAddress& local_addr,
@@ -483,11 +533,11 @@ void QuicSocket::Receive(
 }
 
 int QuicSocket::ReceiveStart() {
-  return udp_->RecvStart();
+  return endpoint_->ReceiveStart();
 }
 
 int QuicSocket::ReceiveStop() {
-  return udp_->RecvStop();
+  return endpoint_->ReceiveStop();
 }
 
 void QuicSocket::RemoveSession(
@@ -790,14 +840,6 @@ void QuicSocket::SendWrap::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("packet", packet_);
 }
 
-ReqWrap<uv_udp_send_t>* QuicSocket::CreateSendWrap(size_t msg_size) {
-  HandleScope handle_scope(env()->isolate());
-  Local<Object> obj;
-  if (!env()->quicsocketsendwrap_constructor_template()
-          ->NewInstance(env()->context()).ToLocal(&obj)) return nullptr;
-  return last_created_send_wrap_ = new SendWrap(env(), obj, msg_size);
-}
-
 int QuicSocket::SendPacket(
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr,
@@ -825,7 +867,7 @@ int QuicSocket::SendPacket(
   uv_buf_t buf = uv_buf_init(
       reinterpret_cast<char*>(packet->data()),
       packet->length());
-  int err = udp_->Send(&buf, 1, remote_addr.data());
+  int err = endpoint_->Send(&buf, 1, remote_addr.data());
 
   if (err != 0) {
     if (err > 0) err = 0;
@@ -1009,11 +1051,8 @@ void QuicSocketListen(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args[0].As<Object>(),
                           args.GetReturnValue().Set(UV_EBADF));
 
-  SocketAddress* local = socket->GetLocalAddress();
   sockaddr_storage preferred_address_storage;
-  const sockaddr* preferred_address =
-      local != nullptr ?
-          local->data() : nullptr;
+  const sockaddr* preferred_address = nullptr;
   if (args[1]->IsString()) {
     node::Utf8Value preferred_address_host(args.GetIsolate(), args[1]);
     int32_t preferred_address_family;
