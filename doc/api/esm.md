@@ -1008,6 +1008,9 @@ CommonJS modules loaded.
 
 ### Resolve hook
 
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
 The `resolve` hook returns the resolved file URL and module format for a
 given module specifier and parent file URL:
 
@@ -1108,6 +1111,9 @@ would load the module `main.js` as an ES module with relative resolution support
 
 ### Get source hook
 
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
 The `getSource` hook provides a way to define a custom method for retrieving
 the source code of an ES module specifier. This would allow a loader to
 potentially avoid reading files from disk.
@@ -1168,6 +1174,9 @@ supported by Node.js as the specifier isn’t a `file://` or `data://` URL.
 
 ### Transform source hook
 
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
 The `transformSource` hook provides a way to modify the source code of a loaded
 ES module file after the source string has been loaded from disk but before
 Node.js has done anything with it.
@@ -1227,6 +1236,9 @@ loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 loaded file.
 
 ### Dynamic instantiate hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
 
 To create a custom dynamic module that doesn't correspond to one of the
 existing `format` interpretations, the `dynamicInstantiate` hook can be used.
