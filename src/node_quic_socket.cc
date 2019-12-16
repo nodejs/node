@@ -528,7 +528,8 @@ void QuicSocket::SendVersionNegotiation(
   if (nwrite <= 0)
     return;
   packet->SetLength(nwrite);
-  Send(local_addr, remote_addr, std::move(packet));
+  SocketAddress remote_address(remote_addr);
+  SendPacket(local_addr, remote_address, std::move(packet));
 }
 
 bool QuicSocket::SendStatelessReset(
@@ -556,7 +557,8 @@ bool QuicSocket::SendStatelessReset(
     if (nwrite <= 0)
       return false;
     packet->SetLength(nwrite);
-    return Send(local_addr, remote_addr, std::move(packet)) == 0;
+    SocketAddress remote_address(remote_addr);
+    return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
 }
 
 bool QuicSocket::SendRetry(
@@ -602,7 +604,8 @@ bool QuicSocket::SendRetry(
   if (nwrite <= 0)
     return false;
   packet->SetLength(nwrite);
-  return Send(local_addr, remote_addr, std::move(packet)) == 0;
+  SocketAddress remote_address(remote_addr);
+  return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
 }
 
 namespace {
@@ -804,9 +807,11 @@ int QuicSocket::SendPacket(
   if (packet->length() == 0)
     return 0;
 
-  Debug(this, "Sending %" PRIu64 " bytes to %s at port %d (label: %s)",
+  Debug(this, "Sending %" PRIu64 " bytes to %s:%d from %s:%d (label: %s)",
         packet->length(),
         remote_addr.GetAddress().c_str(),
+        remote_addr.GetPort(),
+        local_addr.GetAddress().c_str(),
         remote_addr.GetPort(),
         packet->diagnostic_label());
 
@@ -830,41 +835,8 @@ int QuicSocket::SendPacket(
 
     CHECK_NOT_NULL(last_created_send_wrap_);
     last_created_send_wrap_->set_packet(std::move(packet));
-    last_created_send_wrap_->set_session(session);
-  }
-  return err;
-}
-
-int QuicSocket::Send(
-    const SocketAddress& local_addr,
-    const sockaddr* remote_addr,
-    std::unique_ptr<QuicPacket> packet) {
-  Debug(this, "Sending %" PRIu64 " bytes (label: %s)",
-        packet->length(),
-        packet->diagnostic_label());
-
-  CHECK_GT(packet->length(), 0);
-
-  // If DiagnosticPacketLoss returns true, it will call Done() internally
-  if (UNLIKELY(IsDiagnosticPacketLoss(tx_loss_))) {
-    Debug(this, "Simulating transmitted packet loss.");
-    return 0;
-  }
-
-  uv_buf_t buf_send = uv_buf_init(
-      reinterpret_cast<char*>(packet->data()),
-      packet->length());
-
-  last_created_send_wrap_ = nullptr;
-  int err = udp_->Send(&buf_send, 1, remote_addr);
-  if (err != 0) {
-    if (err > 0) err = 0;
-    OnSend(err, packet.get());
-  } else {
-    IncrementPendingCallbacks();
-
-    CHECK_NOT_NULL(last_created_send_wrap_);
-    last_created_send_wrap_->set_packet(std::move(packet));
+    if (session)
+      last_created_send_wrap_->set_session(session);
   }
   return err;
 }

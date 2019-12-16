@@ -190,7 +190,7 @@ class QuicSocket : public AsyncWrap,
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
       std::unique_ptr<QuicPacket> packet,
-      BaseObjectPtr<QuicSession> session);
+      BaseObjectPtr<QuicSession> session = BaseObjectPtr<QuicSession>());
   void SetServerBusy(bool on);
   void SetDiagnosticPacketLoss(double rx = 0.0, double tx = 0.0);
   void StopListening();
@@ -441,11 +441,6 @@ class QuicSocket : public AsyncWrap,
   };
 
   SendWrap* last_created_send_wrap_ = nullptr;
-
-  int Send(
-      const SocketAddress& local_addr,
-      const sockaddr* remote_addr,
-      std::unique_ptr<QuicPacket> packet);
 
   friend class QuicSocketListener;
 };
