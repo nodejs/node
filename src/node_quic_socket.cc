@@ -448,7 +448,7 @@ void QuicSocket::Receive(
           // Attempt to send a stateless reset. If it fails, we just ignore
           // TODO(@jasnell): Need to verify that stateless reset is occurring
           // correctly. Also need to determine how to test.
-          if (!SendStatelessReset(dcid, remote_addr)) {
+          if (!SendStatelessReset(dcid, local_addr, remote_addr)) {
             IncrementSocketStat(
                 1, &socket_stats_,
                 &socket_stats::packets_ignored);
@@ -505,9 +505,10 @@ void QuicSocket::SendVersionNegotiation(
       uint32_t version,
       const QuicCID& dcid,
       const QuicCID& scid,
-      const sockaddr* addr) {
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr) {
   std::array<uint32_t, 2> sv;
-  sv[0] = GenerateReservedVersion(addr, version);
+  sv[0] = GenerateReservedVersion(remote_addr, version);
   sv[1] = NGTCP2_PROTO_VER;
 
   uint8_t unused_random;
@@ -527,12 +528,13 @@ void QuicSocket::SendVersionNegotiation(
   if (nwrite <= 0)
     return;
   packet->SetLength(nwrite);
-  Send(addr, std::move(packet));
+  Send(remote_addr, std::move(packet));
 }
 
 bool QuicSocket::SendStatelessReset(
     const QuicCID& cid,
-    const sockaddr* addr) {
+    const SocketAddress& local_addr,
+    const sockaddr* remote_addr) {
   constexpr static size_t RANDLEN = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t random[RANDLEN];
@@ -554,21 +556,22 @@ bool QuicSocket::SendStatelessReset(
     if (nwrite <= 0)
       return false;
     packet->SetLength(nwrite);
-    return Send(addr, std::move(packet)) == 0;
+    return Send(remote_addr, std::move(packet)) == 0;
 }
 
 bool QuicSocket::SendRetry(
     uint32_t version,
     const QuicCID& dcid,
     const QuicCID& scid,
-    const sockaddr* addr) {
+    const SocketAddress& local_addr,
+    const sockaddr* remote_addr) {
   std::array<uint8_t, 256> token;
   size_t tokenlen = token.size();
 
   if (!GenerateRetryToken(
           token.data(),
           &tokenlen,
-          addr,
+          remote_addr,
           dcid.cid(),
           token_secret_)) {
     return false;
@@ -599,7 +602,7 @@ bool QuicSocket::SendRetry(
   if (nwrite <= 0)
     return false;
   packet->SetLength(nwrite);
-  return Send(addr, std::move(packet)) == 0;
+  return Send(remote_addr, std::move(packet)) == 0;
 }
 
 namespace {
@@ -650,11 +653,16 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // acceptable initial packet with the right QUIC version.
   switch (QuicSession::Accept(&hd, version, data, nread)) {
     case QuicSession::InitialPacketResult::PACKET_VERSION:
-      SendVersionNegotiation(version, dcid, scid, remote_addr);
+      SendVersionNegotiation(
+          version,
+          dcid,
+          scid,
+          local_addr,
+          remote_addr);
       return {};
     case QuicSession::InitialPacketResult::PACKET_RETRY:
       Debug(this, "0RTT Packet. Sending retry.");
-      SendRetry(version, dcid, scid, remote_addr);
+      SendRetry(version, dcid, scid, local_addr, remote_addr);
       return {};
     case QuicSession::InitialPacketResult::PACKET_IGNORE:
       return {};
@@ -704,7 +712,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
               token_secret_,
               retry_token_expiration_)) {
         Debug(this, "A valid retry token was not found. Sending retry.");
-        SendRetry(version, dcid, scid, remote_addr);
+        SendRetry(version, dcid, scid, local_addr, remote_addr);
         return {};
       }
       Debug(this, "A valid retry token was found. Continuing.");

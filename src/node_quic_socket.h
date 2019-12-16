@@ -225,11 +225,13 @@ class QuicSocket : public AsyncWrap,
       uint32_t version,
       const QuicCID& dcid,
       const QuicCID& scid,
-      const sockaddr* addr);
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr);
 
   bool SendStatelessReset(
       const QuicCID& cid,
-      const sockaddr* addr);
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr);
 
   void PushListener(QuicSocketListener* listener);
   void RemoveListener(QuicSocketListener* listener);
@@ -251,7 +253,8 @@ class QuicSocket : public AsyncWrap,
       uint32_t version,
       const QuicCID& dcid,
       const QuicCID& scid,
-      const sockaddr* addr);
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr);
 
   void OnSend(int status, QuicPacket* packet);
 
