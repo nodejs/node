@@ -21,9 +21,11 @@ result. Input and output may be from `stdin` and `stdout`, respectively, or may
 be connected to any Node.js [stream][].
 
 Instances of [`repl.REPLServer`][] support automatic completion of inputs,
-simplistic Emacs-style line editing, multi-line inputs, ANSI-styled output,
-saving and restoring current REPL session state, error recovery, and
-customizable evaluation functions.
+completion preview, simplistic Emacs-style line editing, multi-line inputs,
+[ZSH][] like reverse-i-search, ANSI-styled output, saving and restoring current
+REPL session state, error recovery, and customizable evaluation functions.
+Terminals that do not support ANSI-styles and Emacs-style line editing
+automatically fall back to a limited feature set.
 
 ### Commands and Special Keys
 
@@ -231,6 +233,24 @@ undefined
 1002
 undefined
 ```
+
+### Reverse-i-search
+<!-- YAML
+added: REPLACEME
+-->
+
+The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
+triggered with `<ctrl> + R` to search backwards and `<ctrl> + S` to search
+forwards.
+
+Duplicated history entires will be skipped.
+
+Entries are accepted as soon as any button is pressed that doesn't correspond
+with the reverse search. Cancelling is possible by pressing `escape` or
+`<ctrl> + C`.
+
+Changing the direction immediately searches for the next entry in the expected
+direction from the current position on.
 
 ### Custom Evaluation Functions
 
@@ -695,6 +715,7 @@ a `net.Server` and `net.Socket` instance, see:
 For an example of running a REPL instance over [curl(1)][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
+[ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
