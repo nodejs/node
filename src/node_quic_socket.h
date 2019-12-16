@@ -95,12 +95,39 @@ class JSQuicSocketListener : public QuicSocketListener {
 // A serialized QuicPacket to be sent by a QuicSocket instance.
 class QuicPacket : public MemoryRetainer {
  public:
+  // Creates a new QuicPacket. By default the packet will be
+  // stack allocated with a max size of NGTCP2_MAX_PKTLEN_IPV4.
+  // If a larger packet size is specified, it will be heap
+  // allocated. Generally speaking, a QUIC packet should never
+  // be larger than the current MTU to avoid IP fragmentation.
+  //
+  // The content of a QuicPacket is provided by ngtcp2. The
+  // typical use pattern is to create a QuicPacket instance
+  // and then pass a pointer to it's internal buffer and max
+  // size in to an ngtcp2 function that serializes the data.
+  // ngtcp2 will fill the buffer as much as possible then return
+  // the number of bytes serialized. User code is then responsible
+  // for calling SetLength() to set the final length of the
+  // QuicPacket prior to sending it off to the QuicSocket.
+  //
+  // The diagnostic label is used in NODE_DEBUG_NATIVE output
+  // to differentiate send operations. This should always be
+  // a statically allocated string or nullptr (in which case
+  // the value "unspecified" is used in the debug output).
+  //
+  // Instances of std::unique_ptr<QuicPacket> are moved through
+  // QuicSocket and ultimately become the responsibility of the
+  // SendWrap instance. When the SendWrap is cleaned up, the
+  // QuicPacket instance will be freed.
   static std::unique_ptr<QuicPacket> Create(
       const char* diagnostic_label = nullptr,
       size_t len = NGTCP2_MAX_PKTLEN_IPV4) {
     return std::make_unique<QuicPacket>(diagnostic_label, len);
   }
 
+  // Copy the data of the QuicPacket to a new one. Currently,
+  // this is only used when retransmitting close connection
+  // packets from a QuicServer.
   static std::unique_ptr<QuicPacket> Copy(
       const std::unique_ptr<QuicPacket>& other) {
     return std::make_unique<QuicPacket>(*other.get());
@@ -108,7 +135,9 @@ class QuicPacket : public MemoryRetainer {
 
   QuicPacket(const char* diagnostic_label, size_t len) :
       data_(len),
-      diagnostic_label_(diagnostic_label) {}
+      diagnostic_label_(diagnostic_label) {
+    CHECK_LE(len, NGTCP2_MAX_PKT_SIZE);
+  }
 
   QuicPacket(const QuicPacket& other) {
     diagnostic_label_ = other.diagnostic_label_;
@@ -142,6 +171,10 @@ class QuicPacket : public MemoryRetainer {
 };
 
 
+// QuicSocket manages the flow of data from the UDP socket to the
+// QuicSession. It is responsible for managing the lifecycle of the
+// UDP sockets, listening for new server QuicSession instances, and
+// passing data two and from the remote peer.
 class QuicSocket : public AsyncWrap,
                    public UDPListener,
                    public mem::NgLibMemoryManager<QuicSocket, ngtcp2_mem> {
@@ -155,7 +188,12 @@ class QuicSocket : public AsyncWrap,
       Environment* env,
       Local<Object> wrap,
       Local<Object> udp_base_wrap,
+      // A retry token should only be valid for a small window of time.
+      // The retry_token_expiration specifies the number of seconds a
+      // retry token is permitted to be valid.
       uint64_t retry_token_expiration,
+      // To prevent malicious clients from opening too many concurrent
+      // connections, we limit the maximum number per remote sockaddr.
       size_t max_connections_per_host,
       uint32_t options = 0,
       QlogMode qlog = QlogMode::kDisabled,
@@ -221,6 +259,7 @@ class QuicSocket : public AsyncWrap,
   void OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) override;
   void OnAfterBind() override;
 
+  // Serializes and transmits a RETRY packet to the connected peer.
   bool SendRetry(
       uint32_t version,
       const QuicCID& dcid,
@@ -228,8 +267,18 @@ class QuicSocket : public AsyncWrap,
       const SocketAddress& local_addr,
       const sockaddr* remote_addr);
 
+  // Serializes and transmits a Stateless Reset to the connected peer.
   bool SendStatelessReset(
       const QuicCID& cid,
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr);
+
+  // Serializes and transmits a Version Negotiation packet to the
+  // connected peer.
+  void SendVersionNegotiation(
+      uint32_t version,
+      const QuicCID& dcid,
+      const QuicCID& scid,
       const SocketAddress& local_addr,
       const sockaddr* remote_addr);
 
@@ -248,13 +297,6 @@ class QuicSocket : public AsyncWrap,
       const SocketAddress& local_addr,
       const struct sockaddr* remote_addr,
       unsigned int flags);
-
-  void SendVersionNegotiation(
-      uint32_t version,
-      const QuicCID& dcid,
-      const QuicCID& scid,
-      const SocketAddress& local_addr,
-      const sockaddr* remote_addr);
 
   void OnSend(int status, QuicPacket* packet);
 
