@@ -1116,10 +1116,13 @@ potentially avoid reading files from disk.
 import { get } from 'https';
 
 /**
- * @param {string} url
+ * @param {object} module
+ * @param {string} module.url
+ * @param {string} module.format
  * @param {function} defaultGetSource
+ * @returns {string|Promise}
  */
-export async function getSource(url, defaultGetSource) {
+export async function getSource({ url, format }, defaultGetSource) {
   if (!url.startsWith('https://')) {
     return defaultGetSource(url);
   } else {
@@ -1177,10 +1180,13 @@ unknown-to-Node.js file extensions.
 import CoffeeScript from 'coffeescript';
 
 /**
- * @param {string} url
+ * @param {object} module
+ * @param {string} module.url
+ * @param {string} module.format
  * @param {string} source
+ * @returns {Promise|string}
  */
-export async function transformSource(url, source) {
+export async function transformSource({ url, format }, source) {
   if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(url)) {
     return CoffeeScript.compile(source);
   } else {
@@ -1228,6 +1234,9 @@ This hook is called only for modules that return `format: 'dynamic'` from
 the `resolve` hook.
 
 ```js
+/**
+ * @param {string} url
+ */
 export async function dynamicInstantiate(url) {
   return {
     exports: ['customExportName'],
