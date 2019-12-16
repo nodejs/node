@@ -442,7 +442,10 @@ class QuicSocket : public AsyncWrap,
 
   SendWrap* last_created_send_wrap_ = nullptr;
 
-  int Send(const sockaddr* addr, std::unique_ptr<QuicPacket> packet);
+  int Send(
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr,
+      std::unique_ptr<QuicPacket> packet);
 
   friend class QuicSocketListener;
 };

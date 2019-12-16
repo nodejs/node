@@ -528,7 +528,7 @@ void QuicSocket::SendVersionNegotiation(
   if (nwrite <= 0)
     return;
   packet->SetLength(nwrite);
-  Send(remote_addr, std::move(packet));
+  Send(local_addr, remote_addr, std::move(packet));
 }
 
 bool QuicSocket::SendStatelessReset(
@@ -556,7 +556,7 @@ bool QuicSocket::SendStatelessReset(
     if (nwrite <= 0)
       return false;
     packet->SetLength(nwrite);
-    return Send(remote_addr, std::move(packet)) == 0;
+    return Send(local_addr, remote_addr, std::move(packet)) == 0;
 }
 
 bool QuicSocket::SendRetry(
@@ -602,7 +602,7 @@ bool QuicSocket::SendRetry(
   if (nwrite <= 0)
     return false;
   packet->SetLength(nwrite);
-  return Send(remote_addr, std::move(packet)) == 0;
+  return Send(local_addr, remote_addr, std::move(packet)) == 0;
 }
 
 namespace {
@@ -836,7 +836,8 @@ int QuicSocket::SendPacket(
 }
 
 int QuicSocket::Send(
-    const sockaddr* addr,
+    const SocketAddress& local_addr,
+    const sockaddr* remote_addr,
     std::unique_ptr<QuicPacket> packet) {
   Debug(this, "Sending %" PRIu64 " bytes (label: %s)",
         packet->length(),
@@ -855,7 +856,7 @@ int QuicSocket::Send(
       packet->length());
 
   last_created_send_wrap_ = nullptr;
-  int err = udp_->Send(&buf_send, 1, addr);
+  int err = udp_->Send(&buf_send, 1, remote_addr);
   if (err != 0) {
     if (err > 0) err = 0;
     OnSend(err, packet.get());
