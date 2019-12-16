@@ -3,6 +3,7 @@
 #include "node_mem-inl.h"
 #include "node_quic_http3_application.h"
 #include "node_quic_session-inl.h"
+#include "node_quic_socket.h"
 #include "node_quic_stream.h"
 #include "node_quic_util-inl.h"
 #include "node_sockaddr-inl.h"
@@ -471,12 +472,12 @@ bool Http3Application::SendPendingData() {
 
     // TODO(@jasnell): Support the use of the NGTCP2_WRITE_STREAM_FLAG_MORE
     // flag to allow more efficient coallescing of packets.
-    MallocedBuffer<uint8_t> dest(Session()->GetMaxPacketLength());
+    auto packet = CreateStreamDataPacket();
     ssize_t nwrite =
         ngtcp2_conn_writev_stream(
             Session()->Connection(),
             &path.path,
-            dest.data,
+            packet->data(),
             Session()->GetMaxPacketLength(),
             &ndatalen,
             NGTCP2_WRITE_STREAM_FLAG_NONE,
@@ -520,8 +521,8 @@ bool Http3Application::SendPendingData() {
       return false;
 
     Debug(Session(), "Sending %" PRIu64 " bytes in serialized packet", nwrite);
-    dest.Realloc(nwrite);
-    if (!Session()->SendPacket(std::move(dest), path))
+    packet->SetLength(nwrite);
+    if (!Session()->SendPacket(std::move(packet), path))
       return false;
 
     if (fin)

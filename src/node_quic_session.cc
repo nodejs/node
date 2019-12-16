@@ -1131,6 +1131,12 @@ void QuicCryptoContext::WriteHandshake(
   handshake_[level].Push(std::move(buffer));
 }
 
+std::unique_ptr<QuicPacket> QuicApplication::CreateStreamDataPacket() {
+  return QuicPacket::Create(
+      "stream data",
+      Session()->GetMaxPacketLength());
+}
+
 void QuicApplication::StreamHeaders(
     int64_t stream_id,
     int kind,
@@ -1326,9 +1332,7 @@ QuicSession::QuicSession(
 QuicSession::~QuicSession() {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
 
-  uint64_t sendbuf_length = sendbuf_.Cancel();
   uint64_t handshake_length = crypto_context_->Cancel();
-  uint64_t txbuf_length = txbuf_.Cancel();
 
   Debug(this,
         "Destroyed.\n"
@@ -1341,9 +1345,7 @@ QuicSession::~QuicSession() {
         "  Uni Stream Count: %" PRIu64 "\n"
         "  Streams In Count: %" PRIu64 "\n"
         "  Streams Out Count: %" PRIu64 "\n"
-        "  Remaining sendbuf_: %" PRIu64 "\n"
         "  Remaining handshake_: %" PRIu64 "\n"
-        "  Remaining txbuf_: %" PRIu64 "\n"
         "  Max In Flight Bytes: %" PRIu64 "\n",
         uv_hrtime() - session_stats_.created_at,
         session_stats_.handshake_start_at,
@@ -1354,9 +1356,7 @@ QuicSession::~QuicSession() {
         session_stats_.uni_stream_count,
         session_stats_.streams_in_count,
         session_stats_.streams_out_count,
-        sendbuf_length,
         handshake_length,
-        txbuf_length,
         session_stats_.max_bytes_in_flight);
 
   connection_.reset();
@@ -1689,7 +1689,6 @@ void QuicSession::HandleError() {
   if (connection_ && IsInClosingPeriod() && !IsServer())
     return;
 
-  sendbuf_.Cancel();
   if (!SendConnectionClose()) {
     SetLastError(QUIC_ERROR_SESSION, NGTCP2_ERR_INTERNAL);
     ImmediateClose();
@@ -2125,22 +2124,13 @@ bool QuicSession::SendConnectionClose() {
       }
 
       UpdateIdleTimer();
-      CHECK_GT(conn_closebuf_.size, 0);
-      sendbuf_.Cancel();
-      // We don't use std::move here because we do not want
-      // to reset conn_closebuf_. Instead, we keep it around
-      // so we can send it again if we have to.
-      uv_buf_t buf =
-          uv_buf_init(
-              reinterpret_cast<char*>(conn_closebuf_.data),
-              conn_closebuf_.size);
-      sendbuf_.Push(&buf, 1);
-      return SendPacket("server connection close");
+      CHECK_GT(conn_closebuf_->length(), 0);
+
+      return SendPacket(QuicPacket::Copy(conn_closebuf_));
     }
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
       UpdateIdleTimer();
-      MallocedBuffer<uint8_t> data(max_pktlen_);
-      sendbuf_.Cancel();
+      auto packet = QuicPacket::Create("client connection close", max_pktlen_);
       QuicError error = GetLastError();
 
       // If we're not already in the closing period,
@@ -2155,7 +2145,7 @@ bool QuicSession::SendConnectionClose() {
           SelectCloseFn(error.family)(
             Connection(),
             nullptr,
-            data.data,
+            packet->data(),
             max_pktlen_,
             error.code,
             uv_hrtime());
@@ -2164,9 +2154,8 @@ bool QuicSession::SendConnectionClose() {
         SetLastError(QUIC_ERROR_SESSION, static_cast<int>(nwrite));
         return false;
       }
-      data.Realloc(nwrite);
-      sendbuf_.Push(std::move(data));
-      return SendPacket("client connection close");
+      packet->SetLength(nwrite);
+      return SendPacket(std::move(packet));
     }
     default:
       UNREACHABLE();
@@ -2206,11 +2195,10 @@ bool QuicSession::SelectPreferredAddress(
 }
 
 bool QuicSession::SendPacket(
-  MallocedBuffer<uint8_t> buf,
+  std::unique_ptr<QuicPacket> packet,
   const ngtcp2_path_storage& path) {
-  sendbuf_.Push(std::move(buf));
   UpdateEndpoint(path.path);
-  return SendPacket("stream data");
+  return SendPacket(std::move(packet));
 }
 
 // Sends buffered stream data.
@@ -2239,39 +2227,39 @@ bool QuicSession::SendStreamData(QuicStream* stream) {
   return application_->SendStreamData(stream);
 }
 
-// Transmits the current contents of the internal sendbuf_ to the peer.
-bool QuicSession::SendPacket(const char* diagnostic_label) {
+bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
   CHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
   CHECK(!IsInDrainingPeriod());
-  // Move the contents of sendbuf_ to the tail of txbuf_ and reset sendbuf_
-  if (sendbuf_.Length() > 0) {
-    IncrementStat(
-        sendbuf_.Length(),
-        &session_stats_,
-        &session_stats::bytes_sent);
-    txbuf_ += std::move(sendbuf_);
-  }
-  // There's nothing to send, so let's not try
-  if (txbuf_.Length() == 0 || Socket() == nullptr)
+
+  // There's nothing to send.
+  if (packet->length() == 0)
     return true;
-  Debug(this, "There are %" PRIu64 " bytes in txbuf_ to send", txbuf_.Length());
+
+  IncrementStat(
+      packet->length(),
+      &session_stats_,
+      &session_stats::bytes_sent);
   session_stats_.session_sent_at = uv_hrtime();
   ScheduleRetransmit();
-  Debug(this, "Sending to %s:%d from %s:%d",
+
+  Debug(this, "Sending %" PRIu64 " bytes to %s:%d from %s:%d",
+        packet->length(),
         remote_address_.GetAddress().c_str(),
         remote_address_.GetPort(),
         local_address_.GetAddress().c_str(),
         local_address_.GetPort());
+
   int err = Socket()->SendPacket(
       local_address_,
       remote_address_,
-      &txbuf_,
-      BaseObjectPtr<QuicSession>(this),
-      diagnostic_label);
+      std::move(packet),
+      BaseObjectPtr<QuicSession>(this));
+
   if (err != 0) {
     SetLastError(QUIC_ERROR_SESSION, err);
     return false;
   }
+
   return true;
 }
 
@@ -2287,13 +2275,6 @@ void QuicSession::SendPendingData() {
       IsInDrainingPeriod() ||
       (IsServer() && IsInClosingPeriod())) {
     return;
-  }
-
-  // If there's anything currently in the sendbuf_, send it before
-  // serializing anything else.
-  if (!SendPacket("pending session data")) {
-    Debug(this, "Error sending pending packet");
-    return HandleError();
   }
 
   if (!application_->SendPendingData()) {
@@ -2448,19 +2429,18 @@ bool QuicSession::StartClosingPeriod() {
   StopRetransmitTimer();
   UpdateIdleTimer();
 
-  sendbuf_.Cancel();
-
   QuicError error = GetLastError();
   Debug(this, "Closing period has started. Error %d", error.code);
 
   // Once the CONNECTION_CLOSE packet is written,
   // IsInClosingPeriod will return true.
-  conn_closebuf_ = MallocedBuffer<uint8_t>(max_pktlen_);
+  conn_closebuf_ =
+      std::move(QuicPacket::Create("close connection", max_pktlen_));
   ssize_t nwrite =
       SelectCloseFn(error.family)(
           Connection(),
           nullptr,
-          conn_closebuf_.data,
+          conn_closebuf_->data(),
           max_pktlen_,
           error.code,
           uv_hrtime());
@@ -2473,7 +2453,7 @@ bool QuicSession::StartClosingPeriod() {
     }
     return false;
   }
-  conn_closebuf_.Realloc(nwrite);
+  conn_closebuf_->SetLength(nwrite);
   return true;
 }
 
@@ -2603,12 +2583,12 @@ bool QuicSession::WritePackets(const char* diagnostic_label) {
   // Otherwise, serialize and send pending frames
   QuicPathStorage path;
   for (;;) {
-    MallocedBuffer<uint8_t> data(max_pktlen_);
+    auto packet = QuicPacket::Create(diagnostic_label, max_pktlen_);
     ssize_t nwrite =
         ngtcp2_conn_write_pkt(
             Connection(),
             &path.path,
-            data.data,
+            packet->data(),
             max_pktlen_,
             uv_hrtime());
     if (nwrite <= 0) {
@@ -2631,12 +2611,11 @@ bool QuicSession::WritePackets(const char* diagnostic_label) {
       }
     }
 
-    data.Realloc(nwrite);
+    packet->SetLength(nwrite);
     UpdateEndpoint(path.path);
-    sendbuf_.Push(std::move(data));
     UpdateDataStats();
 
-    if (!SendPacket(diagnostic_label))
+    if (!SendPacket(std::move(packet)))
       return false;
   }
 }
@@ -2671,8 +2650,6 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("hostname", hostname_);
   tracker->TrackField("idle", idle_);
   tracker->TrackField("retransmit", retransmit_);
-  tracker->TrackField("sendbuf", sendbuf_);
-  tracker->TrackField("txbuf", txbuf_);
   tracker->TrackField("streams", streams_);
   tracker->TrackField("state", state_);
   tracker->TrackField("crypto_rx_ack", crypto_rx_ack_);

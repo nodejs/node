@@ -513,9 +513,9 @@ void QuicSocket::SendVersionNegotiation(
   uint8_t unused_random;
   EntropySource(&unused_random, 1);
 
-  MallocedBuffer<char> buf(NGTCP2_MAX_PKTLEN_IPV6);
+  auto packet = QuicPacket::Create("version negotiation");
   ssize_t nwrite = ngtcp2_pkt_write_version_negotiation(
-      reinterpret_cast<uint8_t*>(buf.data),
+      packet->data(),
       NGTCP2_MAX_PKTLEN_IPV6,
       unused_random,
       dcid.data(),
@@ -526,8 +526,8 @@ void QuicSocket::SendVersionNegotiation(
       sv.size());
   if (nwrite <= 0)
     return;
-  buf.Realloc(nwrite);
-  Send(addr, std::move(buf), "version negotiation");
+  packet->SetLength(nwrite);
+  Send(addr, std::move(packet));
 }
 
 bool QuicSocket::SendStatelessReset(
@@ -543,18 +543,18 @@ bool QuicSocket::SendStatelessReset(
       reset_token_secret_.size(), cid.cid());
   EntropySource(random, RANDLEN);
 
-  MallocedBuffer<char> buf(NGTCP2_MAX_PKTLEN_IPV4);
+  auto packet = QuicPacket::Create("stateless reset");
   ssize_t nwrite =
       ngtcp2_pkt_write_stateless_reset(
-        reinterpret_cast<uint8_t*>(buf.data),
+        reinterpret_cast<uint8_t*>(packet->data()),
         NGTCP2_MAX_PKTLEN_IPV4,
         token,
         random,
         RANDLEN);
     if (nwrite <= 0)
       return false;
-    buf.Realloc(nwrite);
-    return Send(addr, std::move(buf), "stateless reset") == 0;
+    packet->SetLength(nwrite);
+    return Send(addr, std::move(packet)) == 0;
 }
 
 bool QuicSocket::SendRetry(
@@ -587,10 +587,10 @@ bool QuicSocket::SendRetry(
 
   EntropySource(hd.scid.data, NGTCP2_SV_SCIDLEN);
 
-  MallocedBuffer<char> buf(NGTCP2_MAX_PKTLEN_IPV4);
+  auto packet = QuicPacket::Create("retry");
   ssize_t nwrite =
       ngtcp2_pkt_write_retry(
-          reinterpret_cast<uint8_t*>(buf.data),
+          reinterpret_cast<uint8_t*>(packet->data()),
           NGTCP2_MAX_PKTLEN_IPV4,
           &hd,
           dcid.cid(),
@@ -598,8 +598,8 @@ bool QuicSocket::SendRetry(
           tokenlen);
   if (nwrite <= 0)
     return false;
-  buf.Realloc(nwrite);
-  return Send(addr, std::move(buf), "retry") == 0;
+  packet->SetLength(nwrite);
+  return Send(addr, std::move(packet)) == 0;
 }
 
 namespace {
@@ -776,8 +776,7 @@ std::string QuicSocket::SendWrap::MemoryInfoName() const {
 
 void QuicSocket::SendWrap::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("session", session_);
-  tracker->TrackField("buffer", buffer_);
-  tracker->TrackField("data", data_);
+  tracker->TrackField("packet", packet_);
 }
 
 ReqWrap<uv_udp_send_t>* QuicSocket::CreateSendWrap(size_t msg_size) {
@@ -791,32 +790,17 @@ ReqWrap<uv_udp_send_t>* QuicSocket::CreateSendWrap(size_t msg_size) {
 int QuicSocket::SendPacket(
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr,
-    QuicBuffer* buffer,
-    BaseObjectPtr<QuicSession> session,
-    const char* diagnostic_label) {
-  // If there is no data in the buffer,
-  // or no data remaining to be read,
-  // do nothing to avoid allocating
-  // a SendWrap...
-  if (buffer->Length() == 0 || buffer->RemainingLength() == 0)
+    std::unique_ptr<QuicPacket> packet,
+    BaseObjectPtr<QuicSession> session) {
+  // If the packet is empty, there's nothing to do
+  if (packet->length() == 0)
     return 0;
 
-  Debug(this, "Sending to %s at port %d",
+  Debug(this, "Sending %" PRIu64 " bytes to %s at port %d (label: %s)",
+        packet->length(),
         remote_addr.GetAddress().c_str(),
-        remote_addr.GetPort());
-
-  // Remaining Length should never be zero at this point
-  CHECK_GT(buffer->RemainingLength(), 0);
-
-  std::vector<uv_buf_t> vec;
-  size_t total_length;
-  size_t len = buffer->DrainInto(&vec, &total_length);
-
-  // len should never be zero
-  CHECK_GT(len, 0);
-
-  Debug(this, "Sending %" PRIu64 " bytes (label: %s)",
-        total_length, diagnostic_label);
+        remote_addr.GetPort(),
+        packet->diagnostic_label());
 
   // If DiagnosticPacketLoss returns true, it will call Done() internally
   if (UNLIKELY(IsDiagnosticPacketLoss(tx_loss_))) {
@@ -825,34 +809,32 @@ int QuicSocket::SendPacket(
   }
 
   last_created_send_wrap_ = nullptr;
-  int err = udp_->Send(vec.data(), vec.size(), remote_addr.data());
-
-  Debug(this, "Advancing read head %" PRIu64 " status = %d",
-        total_length, err);
-  buffer->SeekHeadOffset(total_length);
+  uv_buf_t buf = uv_buf_init(
+      reinterpret_cast<char*>(packet->data()),
+      packet->length());
+  int err = udp_->Send(&buf, 1, remote_addr.data());
 
   if (err != 0) {
     if (err > 0) err = 0;
-    OnSend(err, total_length, buffer, diagnostic_label);
+    OnSend(err, packet.get());
   } else {
     IncrementPendingCallbacks();
 
     CHECK_NOT_NULL(last_created_send_wrap_);
-    last_created_send_wrap_->set_diagnostic_label(diagnostic_label);
-    last_created_send_wrap_->set_quic_buffer(buffer);
+    last_created_send_wrap_->set_packet(std::move(packet));
     last_created_send_wrap_->set_session(session);
   }
   return err;
 }
 
-int QuicSocket::Send(const sockaddr* addr,
-                     MallocedBuffer<char>&& buf,
-                     const char* diagnostic_label) {
+int QuicSocket::Send(
+    const sockaddr* addr,
+    std::unique_ptr<QuicPacket> packet) {
   Debug(this, "Sending %" PRIu64 " bytes (label: %s)",
-        buf.size,
-        diagnostic_label);
+        packet->length(),
+        packet->diagnostic_label());
 
-  CHECK_GT(buf.size, 0);
+  CHECK_GT(packet->length(), 0);
 
   // If DiagnosticPacketLoss returns true, it will call Done() internally
   if (UNLIKELY(IsDiagnosticPacketLoss(tx_loss_))) {
@@ -860,57 +842,43 @@ int QuicSocket::Send(const sockaddr* addr,
     return 0;
   }
 
-  uv_buf_t buf_send = uv_buf_init(buf.data, buf.size);
+  uv_buf_t buf_send = uv_buf_init(
+      reinterpret_cast<char*>(packet->data()),
+      packet->length());
 
   last_created_send_wrap_ = nullptr;
   int err = udp_->Send(&buf_send, 1, addr);
   if (err != 0) {
     if (err > 0) err = 0;
-    OnSend(err, buf.size, nullptr, diagnostic_label);
+    OnSend(err, packet.get());
   } else {
     IncrementPendingCallbacks();
 
     CHECK_NOT_NULL(last_created_send_wrap_);
-    last_created_send_wrap_->set_diagnostic_label(diagnostic_label);
-    last_created_send_wrap_->set_data(std::move(buf));
+    last_created_send_wrap_->set_packet(std::move(packet));
   }
   return err;
 }
 
-void QuicSocket::OnSend(
-    int status,
-    size_t length,
-    QuicBuffer* buffer,
-    const char* diagnostic_label) {
-  if (buffer != nullptr) {
-    // If the weak_ref to the QuicBuffer is still valid
-    // consume the data, otherwise, do nothing
-    if (status == 0) {
-      Debug(this, "Consuming %" PRId64 " bytes (label: %s)",
-            length,
-            diagnostic_label);
-      buffer->Consume(length);
-    } else {
-      Debug(this, "Cancelling %" PRId64 " bytes (status: %d, label: %s)",
-            length,
-            status,
-            diagnostic_label);
-      buffer->Cancel(status);
-    }
+void QuicSocket::OnSend(int status, QuicPacket* packet) {
+  if (status == 0) {
+    Debug(this, "Sent %" PRIu64 " bytes (label: %s)",
+          packet->length(),
+          packet->diagnostic_label());
+    IncrementSocketStat(
+        packet->length(),
+        &socket_stats_,
+        &socket_stats::bytes_sent);
+    IncrementSocketStat(
+        1,
+        &socket_stats_,
+        &socket_stats::packets_sent);
+  } else {
+    Debug(this, "Failed to send %" PRIu64 " bytes (status: %d, label: %s)",
+          packet->length(),
+          status,
+          packet->diagnostic_label());
   }
-
-  IncrementSocketStat(
-      length,
-      &socket_stats_,
-      &socket_stats::bytes_sent);
-  IncrementSocketStat(
-      1,
-      &socket_stats_,
-      &socket_stats::packets_sent);
-
-  Debug(this, "Packet sent status: %d (label: %s)",
-        status,
-        diagnostic_label != nullptr ? diagnostic_label : "unspecified");
 
   if (!HasPendingCallbacks() &&
       IsFlagSet(QUICSOCKET_FLAGS_WAITING_FOR_CALLBACKS)) {
@@ -921,10 +889,7 @@ void QuicSocket::OnSend(
 void QuicSocket::OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) {
   std::unique_ptr<SendWrap> req_wrap(static_cast<SendWrap*>(wrap));
   DecrementPendingCallbacks();
-  OnSend(status,
-         req_wrap->total_length(),
-         req_wrap->quic_buffer(),
-         req_wrap->diagnostic_label());
+  OnSend(status, req_wrap->get_packet());
 }
 
 bool QuicSocket::IsDiagnosticPacketLoss(double prob) {

@@ -31,6 +31,7 @@ namespace quic {
 using ConnectionPointer = DeleteFnPtr<ngtcp2_conn, ngtcp2_conn_del>;
 
 class QuicSocket;
+class QuicPacket;
 class QuicStream;
 class QuicHeader;
 
@@ -547,6 +548,7 @@ class QuicApplication : public MemoryRetainer {
   QuicSession* Session() const { return session_; }
   bool NeedsInit() const { return needs_init_; }
   void SetInitDone() { needs_init_ = false; }
+  std::unique_ptr<QuicPacket> CreateStreamDataPacket();
 
  private:
   QuicSession* session_;
@@ -829,7 +831,7 @@ class QuicSession : public AsyncWrap,
   bool SendStreamData(QuicStream* stream);
 
   bool SendPacket(
-      MallocedBuffer<uint8_t> buf,
+      std::unique_ptr<QuicPacket> packet,
       const ngtcp2_path_storage& path);
 
   inline uint64_t GetMaxDataLeft();
@@ -1037,7 +1039,7 @@ class QuicSession : public AsyncWrap,
   bool SelectPreferredAddress(
     ngtcp2_addr* dest,
     const ngtcp2_preferred_addr* paddr);
-  bool SendPacket(const char* diagnostic_label = nullptr);
+  bool SendPacket(std::unique_ptr<QuicPacket> packet);
   void SetLocalAddress(const ngtcp2_addr* addr);
   void StreamClose(int64_t stream_id, uint64_t app_error_code);
   void StreamOpen(int64_t stream_id);
@@ -1340,17 +1342,7 @@ class QuicSession : public AsyncWrap,
   ngtcp2_transport_params transport_params_;
   SelectPreferredAddressPolicy select_preferred_address_policy_;
 
-  // The sendbuf_ is a temporary holding for data being collected
-  // to send. On send, the contents of the sendbuf_ will be
-  // transfered to the txbuf_
-  QuicBuffer sendbuf_;
-
-  // The txbuf_ contains all of the data that has been passed off
-  // to the QuicSocket. The data will remain in the txbuf_ until
-  // it is successfully sent.
-  QuicBuffer txbuf_;
-
-  MallocedBuffer<uint8_t> conn_closebuf_;
+  std::unique_ptr<QuicPacket> conn_closebuf_;
 
   std::map<int64_t, BaseObjectPtr<QuicStream>> streams_;
 

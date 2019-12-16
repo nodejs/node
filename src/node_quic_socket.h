@@ -92,6 +92,56 @@ class JSQuicSocketListener : public QuicSocketListener {
   void OnDestroy() override;
 };
 
+// A serialized QuicPacket to be sent by a QuicSocket instance.
+class QuicPacket : public MemoryRetainer {
+ public:
+  static std::unique_ptr<QuicPacket> Create(
+      const char* diagnostic_label = nullptr,
+      size_t len = NGTCP2_MAX_PKTLEN_IPV4) {
+    return std::make_unique<QuicPacket>(diagnostic_label, len);
+  }
+
+  static std::unique_ptr<QuicPacket> Copy(
+      const std::unique_ptr<QuicPacket>& other) {
+    return std::make_unique<QuicPacket>(*other.get());
+  }
+
+  QuicPacket(const char* diagnostic_label, size_t len) :
+      data_(len),
+      diagnostic_label_(diagnostic_label) {}
+
+  QuicPacket(const QuicPacket& other) {
+    diagnostic_label_ = other.diagnostic_label_;
+    data_.AllocateSufficientStorage(other.data_.length());
+    memcpy(*data_, *other.data_, other.data_.length());
+  }
+
+  uint8_t* data() { return *data_; }
+  size_t length() const { return data_.length(); }
+  void SetLength(size_t len) {
+    CHECK_LE(len, data_.length());
+    data_.SetLength(len);
+  }
+
+  const char* diagnostic_label() const {
+    return diagnostic_label_ != nullptr ?
+        diagnostic_label_ : "unspecified";
+  }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackFieldWithSize("data", data_.length());
+    tracker->TrackFieldWithSize("label", strlen(diagnostic_label_));
+  }
+
+  SET_MEMORY_INFO_NAME(QuicPacket);
+  SET_SELF_SIZE(QuicPacket);
+
+ private:
+  MaybeStackBuffer<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> data_;
+  const char* diagnostic_label_ = nullptr;
+};
+
+
 class QuicSocket : public AsyncWrap,
                    public UDPListener,
                    public mem::NgLibMemoryManager<QuicSocket, ngtcp2_mem> {
@@ -139,9 +189,8 @@ class QuicSocket : public AsyncWrap,
   int SendPacket(
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
-      QuicBuffer* buf,
-      BaseObjectPtr<QuicSession> session,
-      const char* diagnostic_label = nullptr);
+      std::unique_ptr<QuicPacket> packet,
+      BaseObjectPtr<QuicSession> session);
   void SetServerBusy(bool on);
   void SetDiagnosticPacketLoss(double rx = 0.0, double tx = 0.0);
   void StopListening();
@@ -204,11 +253,7 @@ class QuicSocket : public AsyncWrap,
       const QuicCID& scid,
       const sockaddr* addr);
 
-  void OnSend(
-      int status,
-      size_t length,
-      QuicBuffer* buffer,
-      const char* diagnostic_label);
+  void OnSend(int status, QuicPacket* packet);
 
   void SetValidatedAddress(const sockaddr* addr);
   bool IsValidatedAddress(const sockaddr* addr) const;
@@ -375,12 +420,11 @@ class QuicSocket : public AsyncWrap,
              v8::Local<v8::Object> req_wrap_obj,
              size_t total_length_);
 
-    void set_data(MallocedBuffer<char>&& data) { data_ = std::move(data); }
-    void set_quic_buffer(QuicBuffer* buffer) { buffer_ = buffer; }
+    void set_packet(std::unique_ptr<QuicPacket> packet) {
+      packet_ = std::move(packet);
+    }
+    QuicPacket* get_packet() { return packet_.get(); }
     void set_session(BaseObjectPtr<QuicSession> session) { session_ = session; }
-    void set_diagnostic_label(const char* label) { diagnostic_label_ = label; }
-    QuicBuffer* quic_buffer() const { return buffer_; }
-    const char* diagnostic_label() const { return diagnostic_label_; }
     size_t total_length() const { return total_length_; }
 
     SET_SELF_SIZE(SendWrap);
@@ -389,17 +433,13 @@ class QuicSocket : public AsyncWrap,
 
    private:
     BaseObjectPtr<QuicSession> session_;
-    QuicBuffer* buffer_ = nullptr;
-    MallocedBuffer<char> data_;
-    const char* diagnostic_label_ = nullptr;
+    std::unique_ptr<QuicPacket> packet_;
     size_t total_length_;
   };
 
   SendWrap* last_created_send_wrap_ = nullptr;
 
-  int Send(const sockaddr* addr,
-           MallocedBuffer<char>&& data,
-           const char* diagnostic_label = "unspecified");
+  int Send(const sockaddr* addr, std::unique_ptr<QuicPacket> packet);
 
   friend class QuicSocketListener;
 };
