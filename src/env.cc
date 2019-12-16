@@ -663,14 +663,14 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
                               "RunAndClearNativeImmediates", this);
   size_t ref_count = 0;
   size_t count = 0;
-  std::unique_ptr<NativeImmediateCallback> head;
-  head.swap(native_immediate_callbacks_head_);
-  native_immediate_callbacks_tail_ = nullptr;
+
+  NativeImmediateQueue queue;
+  queue.ConcatMove(std::move(native_immediates_));
 
   auto drain_list = [&]() {
     TryCatchScope try_catch(this);
-    for (; head; head = head->get_next()) {
-      DebugSealHandleScope seal_handle_scope(isolate());
+    DebugSealHandleScope seal_handle_scope(isolate());
+    while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift()) {
       count++;
       if (head->is_refed())
         ref_count++;
@@ -682,15 +682,12 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
         if (!try_catch.HasTerminated() && can_call_into_js())
           errors::TriggerUncaughtException(isolate(), try_catch);
 
-        // We are done with the current callback. Move one iteration along,
-        // as if we had completed successfully.
-        head = head->get_next();
         return true;
       }
     }
     return false;
   };
-  while (head && drain_list()) {}
+  while (queue.size() > 0 && drain_list()) {}
 
   DCHECK_GE(immediate_info()->count(), count);
   immediate_info()->count_dec(count);

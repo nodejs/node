@@ -1430,8 +1430,20 @@ class Environment : public MemoryRetainer {
     Fn callback_;
   };
 
-  std::unique_ptr<NativeImmediateCallback> native_immediate_callbacks_head_;
-  NativeImmediateCallback* native_immediate_callbacks_tail_ = nullptr;
+  class NativeImmediateQueue {
+   public:
+    inline std::unique_ptr<NativeImmediateCallback> Shift();
+    inline void Push(std::unique_ptr<NativeImmediateCallback> cb);
+    // ConcatMove adds elements from 'other' to the end of this list, and clears
+    // 'other' afterwards.
+    inline void ConcatMove(NativeImmediateQueue&& other);
+
+   private:
+    std::unique_ptr<NativeImmediateCallback> head_;
+    NativeImmediateCallback* tail_ = nullptr;
+  };
+
+  NativeImmediateQueue native_immediates_;
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   static void CheckImmediate(uv_check_t* handle);
