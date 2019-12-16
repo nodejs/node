@@ -459,7 +459,7 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
   after 6
 ```
 
-#### `async_hooks.currentResource()`
+#### `async_hooks.executionAsyncResource()`
 
 <!-- YAML
 added: REPLACEME
@@ -471,11 +471,11 @@ added: REPLACEME
 
 ```js
 const { open } = require('fs');
-const { executionAsyncId, currentResource } = require('async_hooks');
+const { executionAsyncId, executionAsyncResource } = require('async_hooks');
 
-console.log(executionAsyncId(), currentResource());  // 1 null
+console.log(executionAsyncId(), executionAsyncResource());  // 1 null
 open(__filename, 'r', (err, fd) => {
-  console.log(executionAsyncId(), currentResource());  // 7 FSReqWrap
+  console.log(executionAsyncId(), executionAsyncResource());  // 7 FSReqWrap
 });
 ```
 
@@ -486,14 +486,14 @@ using of a tracking `Map` to store the metadata:
 const { createServer } = require('http');
 const {
   executionAsyncId,
-  currentResource,
+  executionAsyncResource,
   createHook
 } = require('async_hooks');
 const sym = Symbol('state'); // Private symbol to avoid pollution
 
 createHook({
   init(asyncId, type, triggerAsyncId, resource) {
-    const cr = currentResource();
+    const cr = executionAsyncResource();
     if (cr) {
       resource[sym] = cr[sym];
     }
@@ -501,14 +501,14 @@ createHook({
 }).enable();
 
 const server = createServer(function(req, res) {
-  currentResource()[sym] = { state: req.url };
+  executionAsyncResource()[sym] = { state: req.url };
   setTimeout(function() {
-    res.end(JSON.stringify(currentResource()[sym]));
+    res.end(JSON.stringify(executionAsyncResource()[sym]));
   }, 100);
 }).listen(3000);
 ```
 
-`currentResource()` will return `null` during application bootstrap.
+`executionAsyncResource()` will return `null` during application bootstrap.
 
 #### `async_hooks.executionAsyncId()`
 
