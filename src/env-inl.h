@@ -748,18 +748,45 @@ inline void IsolateData::set_options(
   options_ = std::move(options);
 }
 
+std::unique_ptr<Environment::NativeImmediateCallback>
+Environment::NativeImmediateQueue::Shift() {
+  std::unique_ptr<Environment::NativeImmediateCallback> ret = std::move(head_);
+  if (ret) {
+    head_ = ret->get_next();
+    if (!head_)
+      tail_ = nullptr;  // The queue is now empty.
+  }
+  return ret;
+}
+
+void Environment::NativeImmediateQueue::Push(
+    std::unique_ptr<Environment::NativeImmediateCallback> cb) {
+  NativeImmediateCallback* prev_tail = tail_;
+
+  tail_ = cb.get();
+  if (prev_tail != nullptr)
+    prev_tail->set_next(std::move(cb));
+  else
+    head_ = std::move(cb);
+}
+
+void Environment::NativeImmediateQueue::ConcatMove(
+    NativeImmediateQueue&& other) {
+  size_ += other.size_;
+  if (tail_ != nullptr)
+    tail_->set_next(std::move(other.head_));
+  else
+    head_ = std::move(other.head_);
+  tail_ = other.tail_;
+  other.tail_ = nullptr;
+  other.size_ = 0;
+}
+
 template <typename Fn>
 void Environment::CreateImmediate(Fn&& cb, bool ref) {
   auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
       std::move(cb), ref);
-  NativeImmediateCallback* prev_tail = native_immediate_callbacks_tail_;
-
-  native_immediate_callbacks_tail_ = callback.get();
-  if (prev_tail != nullptr)
-    prev_tail->set_next(std::move(callback));
-  else
-    native_immediate_callbacks_head_ = std::move(callback);
-
+  native_immediates_.Push(std::move(callback));
   immediate_info()->count_inc(1);
 }
 
