@@ -16,10 +16,16 @@ class SocketAddress {
  public:
   struct Hash {
     inline size_t operator()(const sockaddr* addr) const;
+    inline size_t operator()(const SocketAddress& addr) const;
   };
 
   struct Compare {
-    inline bool operator()(const sockaddr* laddr, const sockaddr* raddr) const;
+    inline bool operator()(
+        const sockaddr* laddr,
+        const sockaddr* raddr) const;
+    inline bool operator()(
+        const SocketAddress& laddr,
+        const SocketAddress& raddr) const;
   };
 
   inline static bool is_numeric_host(const char* hostname);

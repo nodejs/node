@@ -23,6 +23,11 @@ inline void hash_combine(size_t* seed, const T& value, Args... rest) {
     hash_combine(seed, rest...);
 }
 
+size_t SocketAddress::Hash::operator()(const SocketAddress& addr) const {
+  Hash hash;
+  return hash(addr.data());
+}
+
 size_t SocketAddress::Hash::operator()(const sockaddr* addr) const {
   size_t hash = 0;
   switch (addr->sa_family) {
@@ -44,6 +49,13 @@ size_t SocketAddress::Hash::operator()(const sockaddr* addr) const {
       UNREACHABLE();
   }
   return hash;
+}
+
+bool SocketAddress::Compare::operator()(
+    const SocketAddress& laddr,
+    const SocketAddress& raddr) const {
+  Compare compare;
+  return compare(laddr.data(), raddr.data());
 }
 
 bool SocketAddress::Compare::operator()(

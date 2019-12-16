@@ -234,7 +234,7 @@ QuicSocket::QuicSocket(
   MakeWeak();
   PushListener(&default_listener_);
 
-  endpoint_.reset(new QuicEndpoint(env, this, udp_base_wrap));
+  AddEndpoint(udp_base_wrap, true);
 
   Debug(this, "New QuicSocket created.");
 
@@ -302,6 +302,14 @@ void QuicSocket::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("validated_addrs", validated_addrs_);
   tracker->TrackField("stats_buffer", stats_buffer_);
   tracker->TrackFieldWithSize("current_ngtcp2_memory", current_ngtcp2_memory_);
+}
+
+void QuicSocket::AddEndpoint(Local<Object> endpoint_, bool preferred) {
+  auto endpoint = std::make_unique<QuicEndpoint>(env(), this, endpoint_);
+  Debug(this, "Adding %sendpoint.", preferred ? "preferred " : "");
+  if (preferred)
+    preferred_endpoint_ = endpoint.get();
+  endpoints_.push_back(std::move(endpoint));
 }
 
 void QuicSocket::AddSession(
@@ -532,12 +540,15 @@ void QuicSocket::OnReceive(
   IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_received);
 }
 
-int QuicSocket::ReceiveStart() {
-  return endpoint_->ReceiveStart();
+void QuicSocket::ReceiveStart() {
+  for (const auto& endpoint : endpoints_)
+    CHECK_EQ(endpoint->ReceiveStart(), 0);
+
 }
 
-int QuicSocket::ReceiveStop() {
-  return endpoint_->ReceiveStop();
+void QuicSocket::ReceiveStop() {
+  for (const auto& endpoint : endpoints_)
+    CHECK_EQ(endpoint->ReceiveStop(), 0);
 }
 
 void QuicSocket::RemoveSession(
@@ -867,7 +878,8 @@ int QuicSocket::SendPacket(
   uv_buf_t buf = uv_buf_init(
       reinterpret_cast<char*>(packet->data()),
       packet->length());
-  int err = endpoint_->Send(&buf, 1, remote_addr.data());
+  CHECK_NOT_NULL(preferred_endpoint_);
+  int err = preferred_endpoint_->Send(&buf, 1, remote_addr.data());
 
   if (err != 0) {
     if (err > 0) err = 0;
@@ -1093,14 +1105,14 @@ void QuicSocketReceiveStart(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  args.GetReturnValue().Set(socket->ReceiveStart());
+  socket->ReceiveStart();
 }
 
 void QuicSocketReceiveStop(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder(),
                           args.GetReturnValue().Set(UV_EBADF));
-  args.GetReturnValue().Set(socket->ReceiveStop());
+  socket->ReceiveStop();
 }
 
 void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {

@@ -261,7 +261,8 @@ class QuicSocket : public AsyncWrap,
   ~QuicSocket() override;
 
   const SocketAddress& GetLocalAddress() {
-    return endpoint_->GetLocalAddress();
+    CHECK_NOT_NULL(preferred_endpoint_);
+    return preferred_endpoint_->GetLocalAddress();
   }
 
   void MaybeClose();
@@ -279,8 +280,8 @@ class QuicSocket : public AsyncWrap,
       const sockaddr* preferred_address = nullptr,
       const std::string& alpn = NGTCP2_ALPN_H3,
       uint32_t options = 0);
-  int ReceiveStart();
-  int ReceiveStop();
+  void ReceiveStart();
+  void ReceiveStop();
   void RemoveSession(
       const QuicCID& cid,
       const SocketAddress& addr);
@@ -348,6 +349,10 @@ class QuicSocket : public AsyncWrap,
 
   void PushListener(QuicSocketListener* listener);
   void RemoveListener(QuicSocketListener* listener);
+
+  void AddEndpoint(
+      Local<Object> endpoint,
+      bool preferred = false);
 
  private:
   static void OnAlloc(
@@ -417,7 +422,8 @@ class QuicSocket : public AsyncWrap,
 
   ngtcp2_mem alloc_info_;
 
-  std::unique_ptr<QuicEndpoint> endpoint_;
+  std::vector<std::unique_ptr<QuicEndpoint>> endpoints_;
+  QuicEndpoint* preferred_endpoint_;
 
   uint32_t flags_ = QUICSOCKET_FLAGS_NONE;
   uint32_t options_;
