@@ -340,7 +340,7 @@ function runTest() {
         const output = chunk.toString();
 
         if (!opts.showEscapeCodes &&
-            output.charCodeAt(0) === 27 || /^[\r\n]+$/.test(output)) {
+            (output[0] === '\x1B' || /^[\r\n]+$/.test(output))) {
           return next();
         }
 
