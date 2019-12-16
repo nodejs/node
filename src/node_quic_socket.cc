@@ -319,7 +319,7 @@ uv_buf_t QuicSocket::OnAlloc(size_t suggested_size) {
 void QuicSocket::OnRecv(
     ssize_t nread,
     const uv_buf_t& buf_,
-    const struct sockaddr* addr,
+    const sockaddr* addr,
     unsigned int flags) {
   AllocatedBuffer buf(env(), buf_);
 
@@ -353,7 +353,7 @@ void QuicSocket::Receive(
     ssize_t nread,
     AllocatedBuffer buf,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const sockaddr* remote_addr,
     unsigned int flags) {
   Debug(this, "Receiving %d bytes from the UDP socket.", nread);
 
@@ -638,7 +638,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     ssize_t nread,
     const uint8_t* data,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const sockaddr* remote_addr,
     unsigned int flags) {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());

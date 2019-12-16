@@ -295,7 +295,7 @@ class QuicSocket : public AsyncWrap,
       ssize_t nread,
       AllocatedBuffer buf,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const sockaddr* remote_addr,
       unsigned int flags);
 
   void OnSend(int status, QuicPacket* packet);
@@ -310,7 +310,7 @@ class QuicSocket : public AsyncWrap,
       ssize_t nread,
       const uint8_t* data,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const sockaddr* remote_addr,
       unsigned int flags);
 
   void IncrementSocketAddressCounter(const SocketAddress& addr);
