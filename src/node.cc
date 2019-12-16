@@ -127,7 +127,6 @@ namespace node {
 
 using native_module::NativeModuleEnv;
 
-using v8::Boolean;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
