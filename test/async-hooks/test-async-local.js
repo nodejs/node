@@ -76,6 +76,23 @@ const { AsyncLocal, AsyncResource } = require('async_hooks');
 }
 
 {
+  async function asyncFunc() {}
+
+  let asyncLocal;
+
+  async function testAwait() {
+    asyncLocal = new AsyncLocal();
+
+    asyncLocal.value = 42;
+    await asyncFunc();
+    assert.strictEqual(asyncLocal.value, 42);
+  }
+  testAwait().then(common.mustCall(() =>
+    assert.strictEqual(asyncLocal.value, 42)
+  ));
+}
+
+{
   const asyncLocal = new AsyncLocal();
   const mutableObj = { a: 'b' };
 
