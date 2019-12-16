@@ -741,7 +741,7 @@ http.get('http://localhost:8181/second');
 //   GET:/second: done
 ```
 
-### new AsyncLocal([options])
+### new AsyncLocal(\[options\])
 
 * `options` {Object}
   * `onChangedCb` {Function} Optional callback invoked whenever a value of an
