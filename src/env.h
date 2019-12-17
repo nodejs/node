@@ -202,7 +202,6 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
-  V(default_string, "default")                                                 \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
@@ -257,7 +256,6 @@ constexpr size_t kFsStatsBufferLength =
   V(http_1_1_string, "http/1.1")                                               \
   V(identity_string, "identity")                                               \
   V(ignore_string, "ignore")                                                   \
-  V(import_string, "import")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
   V(input_string, "input")                                                     \
