@@ -783,6 +783,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
 
   const size_t size = offset - start;
   if (size == 0 || (
+    size == SearchString(&chars[start], size, "\"name\"") &&
     size == SearchString(&chars[start], size, "\"main\"") &&
     size == SearchString(&chars[start], size, "\"exports\"") &&
     size == SearchString(&chars[start], size, "\"type\""))) {
