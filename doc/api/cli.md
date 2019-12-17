@@ -156,15 +156,6 @@ Enable experimental Source Map V3 support for stack traces.
 Currently, overriding `Error.prepareStackTrace` is ignored when the
 `--enable-source-maps` flag is set.
 
-### `--experimental-conditional-exports`
-<!-- YAML
-added: v13.2.0
--->
-
-Enable experimental support for the `"require"` and `"node"` conditional
-package export resolutions.
-See [Conditional Exports][] for more information.
-
 ### `--experimental-json-modules`
 <!-- YAML
 added: v12.9.0
@@ -177,8 +168,7 @@ Enable experimental JSON support for the ES Module loader.
 added: v8.5.0
 -->
 
-Enable latest experimental modules features (currently
-`--experimental-conditional-exports`).
+Enable latest experimental modules features (deprecated).
 
 ### `--experimental-policy`
 <!-- YAML
@@ -1076,7 +1066,6 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 * `--enable-fips`
 * `--enable-source-maps`
-* `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
@@ -1372,7 +1361,6 @@ greater than `4` (its current default value). For more information, see the
 [`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
 [`unhandledRejection`]: process.html#process_event_unhandledrejection
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
-[Conditional Exports]: esm.html#esm_conditional_exports
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
