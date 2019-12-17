@@ -176,7 +176,7 @@ function assertIncludes(actual, expected) {
     '/node_modules/pkgexports/resolve-self.js',
     'Package name self resolution',
   ],
-].forEach(([flag, file, message], index) => {
+].forEach(([flag, file, message]) => {
   const child = spawn(process.execPath, [flag, path(file)]);
 
   let stderr = '';
@@ -185,7 +185,6 @@ function assertIncludes(actual, expected) {
     stderr += data;
   });
   child.on('close', (code, signal) => {
-    console.log(stderr.toString());
     strictEqual(code, 0);
     strictEqual(signal, null);
     ok(stderr.toString().includes(
