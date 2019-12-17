@@ -108,7 +108,7 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     skip: !process.features.inspector,
     test: [
-      `const ${'veryLongName'.repeat(30)} = 'I should not be previewed'`,
+      `const ${'veryLongName'.repeat(30)} = 'I should be previewed'`,
       ENTER,
       'const e = new RangeError("visible\\ninvisible")',
       ENTER,
@@ -127,27 +127,70 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     columns: 250,
+    showEscapeCodes: true,
     skip: !process.features.inspector,
     test: [
       UP,
       UP,
       UP,
+      WORD_LEFT,
       UP,
       BACKSPACE
     ],
+    // A = Cursor n up
+    // B = Cursor n down
+    // C = Cursor n forward
+    // D = Cursor n back
+    // G = Cursor to column n
+    // J = Erase in screen; 0 = right; 1 = left; 2 = total
+    // K = Erase in line; 0 = right; 1 = left; 2 = total
     expected: [
-      prompt,
+      // 0. Start
+      '\x1B[1G', '\x1B[0J',
+      prompt, '\x1B[3G',
+      // 1. UP
       // This exceeds the maximum columns (250):
       // Whitespace + prompt + ' // '.length + 'function'.length
       // 236 + 2 + 4 + 8
-      `${prompt}${' '.repeat(236)} fun`,
-      `${prompt}${' '.repeat(235)} fun`,
-      ' // ction',
-      ' // ction',
-      `${prompt}${'veryLongName'.repeat(30)}`,
-      `${prompt}e`,
-      '\n// RangeError: visible',
-      prompt
+      '\x1B[1G', '\x1B[0J',
+      `${prompt}${' '.repeat(236)} fun`, '\x1B[243G',
+      // 2. UP
+      '\x1B[1G', '\x1B[0J',
+      `${prompt}${' '.repeat(235)} fun`, '\x1B[242G',
+      // TODO(BridgeAR): Investigate why the preview is generated twice.
+      ' // ction', '\x1B[242G',
+      ' // ction', '\x1B[242G',
+      // Preview cleanup
+      '\x1B[0K',
+      // 3. UP
+      '\x1B[1G', '\x1B[0J',
+      // 'veryLongName'.repeat(30).length === 360
+      // prompt.length === 2
+      // 360 % 250 + 2 === 112 (+1)
+      `${prompt}${'veryLongName'.repeat(30)}`, '\x1B[113G',
+      // "// 'I should be previewed'".length + 86 === 112 (+1)
+      "\n// 'I should be previewed'", '\x1B[86C\x1B[1A',
+      // Preview cleanup
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      // 4. WORD LEFT
+      // Almost identical as above. Just one extra line.
+      // Math.floor(360 / 250) === 1
+      '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      `${prompt}${'veryLongName'.repeat(30)}`, '\x1B[3G', '\x1B[1A',
+      '\x1B[1B', "\n// 'I should be previewed'", '\x1B[24D\x1B[2A',
+      // Preview cleanup
+      '\x1B[2B', '\x1B[2K', '\x1B[2A',
+      // 5. UP
+      '\x1B[1G', '\x1B[0J',
+      `${prompt}e`, '\x1B[4G',
+      // '// RangeError: visible'.length - 19 === 3 (+1)
+      '\n// RangeError: visible', '\x1B[19D\x1B[1A',
+      // Preview cleanup
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      // 6. Backspace
+      '\x1B[1G', '\x1B[0J',
+      prompt, '\x1B[3G'
     ],
     clean: true
   },
@@ -169,11 +212,11 @@ const tests = [
       WORD_RIGHT,
       ENTER
     ],
-    // C = Cursor forward
-    // D = Cursor back
+    // C = Cursor n forward
+    // D = Cursor n back
     // G = Cursor to column n
-    // J = Erase in screen
-    // K = Erase in line
+    // J = Erase in screen; 0 = right; 1 = left; 2 = total
+    // K = Erase in line; 0 = right; 1 = left; 2 = total
     expected: [
       // 0.
       // 'f'
