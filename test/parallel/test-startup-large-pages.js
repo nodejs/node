@@ -1,7 +1,6 @@
 'use strict';
 
-// A sanity check: Make sure that Node.js runs correctly when running with the
-// --use-largepages option.
+// Make sure that Node.js runs correctly with the --use-largepages option.
 
 require('../common');
 const assert = require('assert');

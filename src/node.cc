@@ -984,15 +984,25 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
     }
   }
 
+#if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
   if (per_process::cli_options->use_largepages == 1 ||
       per_process::cli_options->use_largepages == 2) {
     if (node::IsLargePagesEnabled()) {
       if (node::MapStaticCodeToLargePages() != 0 &&
           per_process::cli_options->use_largepages == 2) {
-        fprintf(stderr, "Reverting to default page size\n");
+        fprintf(stderr,
+                "Mapping code to large pages failed. Reverting to default page "
+                "size.\n");
       }
+    } else if (per_process::cli_options->use_largepages == 2) {
+      fprintf(stderr, "Large pages are not enabled.\n");
     }
   }
+#else
+  if (per_process::cli_options->use_largepages == 2) {
+    fprintf(stderr, "Mapping to large pages is not supported.\n");
+  }
+#endif  // NODE_ENABLE_LARGE_CODE_PAGES
 
   if (per_process::cli_options->print_version) {
     printf("%s\n", NODE_VERSION);
