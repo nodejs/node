@@ -22,8 +22,6 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     // Fallbacks
     ['pkgexports/fallbackdir/asdf.js', { default: 'asdf' }],
     ['pkgexports/fallbackfile', { default: 'asdf' }],
-    // Dot main
-    ['pkgexports', { default: 'asdf' }],
     // Conditional split for require
     ['pkgexports/condition', isRequire ? { default: 'encoded path' } :
       { default: 'asdf' }],
@@ -32,6 +30,11 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     // Conditional object exports sugar
     ['pkgexports-sugar2', isRequire ? { default: 'not-exported' } :
       { default: 'main' }],
+    // Resolve self
+    ['pkgexports/resolve-self', isRequire ?
+      { default: 'self-cjs' } : { default: 'self-mjs' }],
+    // Resolve self sugar
+    ['pkgexports-sugar', { default: 'main' }]
   ]);
 
   for (const [validSpecifier, expected] of validSpecifiers) {
@@ -139,7 +142,7 @@ const { requireFromInside, importFromInside } = fromInside;
     // A file not visible from outside of the package
     ['../not-exported.js', { default: 'not-exported' }],
     // Part of the public interface
-    ['@pkgexports/name/valid-cjs', { default: 'asdf' }],
+    ['pkgexports/valid-cjs', { default: 'asdf' }],
   ]);
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
