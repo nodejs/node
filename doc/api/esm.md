@@ -343,25 +343,26 @@ Node.js and the browser can be written:
 When resolving the `"."` export, if no matching target is found, the `"main"`
 will be used as the final fallback.
 
-The conditions supported in Node.js are matched in the following order:
+The conditions supported in Node.js condition matching:
 
-1. `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
-   module file. _This is currently only supported behind the
-   `--experimental-conditional-exports` flag._
-2. `"require"` - matched when the package is loaded via `require()`.
-   _This is currently only supported behind the
-   `--experimental-conditional-exports` flag._
-3. `"import"` - matched when the package is loaded via `import` or
+* `"default"` - the generic fallback that will always match. Can be a CommonJS
+   or ES module file.
+* `"import"` - matched when the package is loaded via `import` or
    `import()`. Can be any module format, this field does not set the type
    interpretation. _This is currently only supported behind the
    `--experimental-conditional-exports` flag._
-4. `"default"` - the generic fallback that will always match if no other
-   more specific condition is matched first. Can be a CommonJS or ES module
-   file.
+* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+   module file. _This is currently only supported behind the
+   `--experimental-conditional-exports` flag._
+* `"require"` - matched when the package is loaded via `require()`.
+   _This is currently only supported behind the
+   `--experimental-conditional-exports` flag._
 
-> Setting any of the above flagged conditions for a published package is not
-> recommended until they are unflagged to avoid breaking changes to packages in
-> future.
+Condition matching is applied in object order from first to last within the
+`"exports"` object.
+
+> Setting the above conditions for a published package is not recommended until
+> conditional exports have been unflagged to avoid breaking changes to packages.
 
 Using the `"require"` condition it is possible to define a package that will
 have a different exported value for CommonJS and ES modules, which can be a
@@ -369,7 +370,9 @@ hazard in that it can result in having two separate instances of the same
 package in use in an application, which can cause a number of bugs.
 
 Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. could be defined in other runtimes or tools.
+etc. could be defined in other runtimes or tools. Condition names must not start
+with `"."` or be numbers. Further restrictions, definitions or guidance on
+condition names may be provided in future.
 
 #### Exports Sugar
 
@@ -1547,13 +1550,15 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. If _resolved_ is contained in _resolvedTarget_, then
 >          1. Return _resolved_.
 > 1. Otherwise, if _target_ is a non-null Object, then
->    1. If _target_ has an object key matching one of the names in _env_, then
->       1. Let _targetValue_ be the corresponding value of the first object key
->          of _target_ in _env_.
->       1. Let _resolved_ be the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**
->          (_packageURL_, _targetValue_, _subpath_, _env_).
->       1. Assert: _resolved_ is a String.
->       1. Return _resolved_.
+>    1. If _exports_ contains any index property keys, as defined in ECMA-262
+>       [6.1.7 Array Index][], throw an _Invalid Package Configuration_ error.
+>    1. For each property _p_ of _target_, in object insertion order as,
+>       1. If _env_ contains an entry for _p_, then
+>          1. Let _targetValue_ be the value of the _p_ property in _target_.
+>          1. Let _resolved_ be the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**
+>             (_packageURL_, _targetValue_, _subpath_, _env_).
+>          1. Assert: _resolved_ is a String.
+>          1. Return _resolved_.
 > 1. Otherwise, if _target_ is an Array, then
 >    1. For each item _targetValue_ in _target_, do
 >       1. If _targetValue_ is an Array, continue the loop.
@@ -1649,3 +1654,4 @@ success!
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
+[6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
