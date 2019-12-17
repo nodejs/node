@@ -25,6 +25,6 @@ const { spawnSync } = require('child_process');
                      'invalid value for --use-largepages');
 }
 
-// TODO(gabrielschulhof): Run with --use-largepages=2 and make assertions about
-// the stderr, which may or may not contain a message indicating that mapping to
-// large pages has failed.
+// TODO(gabrielschulhof): Run with --use-largepages=verbose and make assertions
+// about the stderr, which may or may not contain a message indicating that
+// mapping to large pages has failed.
