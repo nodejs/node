@@ -985,7 +985,7 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   }
 
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
-  if (per_process::cli_options->use_largepages == "silent" ||
+  if (per_process::cli_options->use_largepages == "on" ||
       per_process::cli_options->use_largepages == "verbose") {
     if (node::IsLargePagesEnabled()) {
       if (node::MapStaticCodeToLargePages() != 0 &&
