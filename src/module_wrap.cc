@@ -953,44 +953,39 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
       return Nothing<URL>();
   } else if (target->IsObject()) {
     Local<Object> target_obj = target.As<Object>();
-    bool matched = false;
+    Local<Array> target_obj_keys =
+        target_obj->GetOwnPropertyNames(context).ToLocalChecked();
     Local<Value> conditionalTarget;
-    if (env->options()->experimental_conditional_exports &&
-        target_obj->HasOwnProperty(context, env->node_string()).FromJust()) {
-      matched = true;
-      conditionalTarget =
-          target_obj->Get(context, env->node_string()).ToLocalChecked();
-      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+    bool matched = false;
+    for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
+      Local<String> key =
+          target_obj_keys->Get(context, i).ToLocalChecked().As<String>();
+      Utf8Value key_utf8(env->isolate(), key);
+      std::string key_str(*key_utf8, key_utf8.length());
+      if (key_str == "node" || key_str == "import") {
+        if (!env->options()->experimental_conditional_exports) continue;
+        matched = true;
+        conditionalTarget = target_obj->Get(context, key).ToLocalChecked();
+        Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
             conditionalTarget, subpath, pkg_subpath, base, false);
-      if (!resolved.IsNothing()) {
-        ProcessEmitExperimentalWarning(env, "Conditional exports");
-        return resolved;
-      }
-    }
-    if (env->options()->experimental_conditional_exports &&
-        target_obj->HasOwnProperty(context, env->import_string()).FromJust()) {
-      matched = true;
-      conditionalTarget =
-          target_obj->Get(context, env->import_string()).ToLocalChecked();
-      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+        if (!resolved.IsNothing()) {
+          ProcessEmitExperimentalWarning(env, "Conditional exports");
+          return resolved;
+        }
+      } else if (key_str == "default") {
+        matched = true;
+        conditionalTarget = target_obj->Get(context, key).ToLocalChecked();
+        Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
             conditionalTarget, subpath, pkg_subpath, base, false);
-      if (!resolved.IsNothing()) {
-        return resolved;
-      }
-    }
-    if (target_obj->HasOwnProperty(context, env->default_string()).FromJust()) {
-      matched = true;
-      conditionalTarget =
-          target_obj->Get(context, env->default_string()).ToLocalChecked();
-      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
-            conditionalTarget, subpath, pkg_subpath, base, false);
-      if (!resolved.IsNothing()) {
-        return resolved;
+        if (!resolved.IsNothing()) {
+          ProcessEmitExperimentalWarning(env, "Conditional exports");
+          return resolved;
+        }
       }
     }
     if (matched && throw_invalid) {
       Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
-            conditionalTarget, subpath, pkg_subpath, base, true);
+          conditionalTarget, subpath, pkg_subpath, base, true);
       CHECK(resolved.IsNothing());
       return Nothing<URL>();
     }
