@@ -1153,9 +1153,6 @@ Maybe<URL> ResolveSelf(Environment* env,
                        const std::string& pkg_name,
                        const std::string& pkg_subpath,
                        const URL& base) {
-  if (!env->options()->experimental_resolve_self) {
-    return Nothing<URL>();
-  }
   const PackageConfig* pcfg;
   if (GetPackageScopeConfig(env, base, base).To(&pcfg) &&
       pcfg->exists == Exists::Yes) {

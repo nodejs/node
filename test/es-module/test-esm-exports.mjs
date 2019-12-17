@@ -1,4 +1,4 @@
-// Flags: --experimental-modules --experimental-resolve-self --experimental-conditional-exports
+// Flags: --experimental-modules --experimental-conditional-exports
 
 import { mustCall } from '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
@@ -171,12 +171,7 @@ function assertIncludes(actual, expected) {
     '--experimental-conditional-exports',
     '/es-modules/conditional-exports.js',
     'Conditional exports',
-  ],
-  [
-    '--experimental-resolve-self',
-    '/node_modules/pkgexports/resolve-self.js',
-    'Package name self resolution',
-  ],
+  ]
 ].forEach(([flag, file, message]) => {
   const child = spawn(process.execPath, [
     '--experimental-modules',
