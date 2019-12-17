@@ -10,9 +10,7 @@ const { createSocket } = require('quic');
 const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 
 {
-  const socket = createSocket({
-    port: kClientPort,
-  });
+  const socket = createSocket({ endpoint: { port: kClientPort } });
   socket.close();
   assert.throws(() => socket.close(), {
     code: 'ERR_QUICSOCKET_DESTROYED',
@@ -22,9 +20,7 @@ const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 }
 
 {
-  const socket = createSocket({
-    port: kClientPort,
-  });
+  const socket = createSocket({ endpoint: { port: kClientPort } });
 
   socket.close(common.mustCall(() => {}));
 }

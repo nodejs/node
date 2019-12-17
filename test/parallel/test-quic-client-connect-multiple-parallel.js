@@ -18,7 +18,10 @@ const { once } = require('events');
 (async function() {
   const servers = [];
   for (let i = 0; i < 3; i++) {
-    const server = quic.createSocket({ port: 0, validateAddress: true });
+    const server = quic.createSocket({
+      endpoint: { port: 0 },
+      validateAddress: true
+    });
 
     server.listen({
       key,
@@ -44,7 +47,7 @@ const { once } = require('events');
   await Promise.all(servers.map((server) => once(server, 'ready')));
 
   const client = quic.createSocket({
-    port: 0,
+    endpoint: { port: 0 },
     client: {
       key,
       cert,

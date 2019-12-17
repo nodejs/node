@@ -38,7 +38,7 @@ const kStatelessResetToken =
 let client;
 
 const server = createSocket({
-  port: kServerPort,
+  endpoint: { port: kServerPort },
   validateAddress: true,
   statelessResetSecret: kStatelessResetToken
 });
@@ -95,8 +95,9 @@ server.on('session', common.mustCall((session) => {
       family,
       port
     } = session.remoteAddress;
-    assert.strictEqual(port, client.address.port);
-    assert.strictEqual(family, client.address.family);
+    const endpoint = client.endpoints[0].address;
+    assert.strictEqual(port, endpoint.port);
+    assert.strictEqual(family, endpoint.family);
     debug(`QuicServerSession Client ${family} address ${address}:${port}`);
   }
 
@@ -239,9 +240,17 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  debug('Server is listening on port %d', server.address.port);
+  const endpoints = server.endpoints;
+  for (const endpoint of endpoints) {
+    const address = endpoint.address;
+    debug('Server is listening on address %s:%d',
+          address.address,
+          address.port);
+  }
+  const endpoint = endpoints[0];
+
   client = createSocket({
-    port: kClientPort,
+    endpoint: { port: kClientPort },
     client: {
       key,
       cert,
@@ -265,7 +274,7 @@ server.on('ready', common.mustCall(() => {
 
   const req = client.connect({
     address: 'localhost',
-    port: server.address.port,
+    port: endpoint.address.port,
     servername: kServerName,
     requestOCSP: true,
   });
@@ -326,8 +335,9 @@ server.on('ready', common.mustCall(() => {
         family,
         port
       } = req.remoteAddress;
-      assert.strictEqual(port, server.address.port);
-      assert.strictEqual(family, server.address.family);
+      const endpoint = server.endpoints[0].address;
+      assert.strictEqual(port, endpoint.port);
+      assert.strictEqual(family, endpoint.family);
       debug(`QuicClientSession Server ${family} address ${address}:${port}`);
     }
 

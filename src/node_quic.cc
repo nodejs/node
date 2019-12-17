@@ -122,6 +122,7 @@ void Initialize(Local<Object> target,
   env->set_quic_state(std::move(state));
 
   QuicSocket::Initialize(env, target, context);
+  QuicEndpoint::Initialize(env, target, context);
   QuicSession::Initialize(env, target, context);
   QuicStream::Initialize(env, target, context);
 

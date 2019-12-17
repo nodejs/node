@@ -22,7 +22,10 @@ for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
 }
 
 for (const { variant, offset, length } of variants) {
-  const server = quic.createSocket({ port: 0, validateAddress: true });
+  const server = quic.createSocket({
+    endpoint: { port: 0 },
+    validateAddress: true
+  });
   let fd;
 
   server.listen({
@@ -62,7 +65,7 @@ for (const { variant, offset, length } of variants) {
 
   server.on('ready', common.mustCall(() => {
     const client = quic.createSocket({
-      port: 0,
+      endpoint: { port: 0 },
       client: {
         key,
         cert,

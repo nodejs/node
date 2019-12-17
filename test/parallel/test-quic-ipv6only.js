@@ -18,9 +18,11 @@ const kALPN = 'zzz';
 // and it will throw an error.
 {
   const server = createSocket({
-    type: 'udp4',
-    port: 0,
-    ipv6Only: true,
+    endpoint: {
+      type: 'udp4',
+      port: 0,
+      ipv6Only: true,
+    },
   });
 
   server.on('error', common.mustCall((err) => {
@@ -44,9 +46,11 @@ const kALPN = 'zzz';
 // is set to `false`.
 {
   const server = createSocket({
-    type: 'udp6',
-    port: 0,
-    ipv6Only: false,
+    endpoint: {
+      type: 'udp6',
+      port: 0,
+      ipv6Only: false,
+    },
   });
 
   server.listen({
@@ -61,9 +65,7 @@ const kALPN = 'zzz';
   }));
 
   server.on('ready', common.mustCall(() => {
-    const client = createSocket({
-      port: 0,
-    });
+    const client = createSocket({ endpoint: { port: 0 } });
 
     const clientSession = client.connect({
       key,
@@ -92,9 +94,11 @@ const kALPN = 'zzz';
 // through "127.0.0.1".
 {
   const server = createSocket({
-    type: 'udp6',
-    port: 0,
-    ipv6Only: true,
+    endpoint: {
+      type: 'udp6',
+      port: 0,
+      ipv6Only: true,
+    },
   });
 
   server.listen({
@@ -105,9 +109,7 @@ const kALPN = 'zzz';
   });
 
   server.on('ready', common.mustCall(() => {
-    const client = createSocket({
-      port: 0,
-    });
+    const client = createSocket({ endpoint: { port: 0 } });
 
     client.on('ready', common.mustCall());
 

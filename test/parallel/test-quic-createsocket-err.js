@@ -19,21 +19,21 @@ const { createSocket } = require('quic');
 
 // Test invalid QuicSocket port argument option
 [-1, 'test', 1n, {}, [], NaN, false].forEach((port) => {
-  assert.throws(() => createSocket({ port }), {
+  assert.throws(() => createSocket({ endpoint: { port } }), {
     code: 'ERR_INVALID_ARG_VALUE'
   });
 });
 
 // Test invalid QuicSocket addressargument option
 [-1, 10, 1n, {}, [], NaN, false].forEach((address) => {
-  assert.throws(() => createSocket({ address }), {
+  assert.throws(() => createSocket({ endpoint: { address } }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 
 // Test invalid QuicSocket type argument option
 [1, false, 1n, {}, null, NaN].forEach((type) => {
-  assert.throws(() => createSocket({ type }), {
+  assert.throws(() => createSocket({ endpoint: { type } }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
@@ -47,14 +47,14 @@ const { createSocket } = require('quic');
 
 // Test invalid QuicSocket ipv6Only argument option
 [1, NaN, 1n, null, {}, []].forEach((ipv6Only) => {
-  assert.throws(() => createSocket({ ipv6Only }), {
+  assert.throws(() => createSocket({ endpoint: { ipv6Only } }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 
 // Test invalid QuicSocket reuseAddr argument option
 [1, NaN, 1n, null, {}, []].forEach((reuseAddr) => {
-  assert.throws(() => createSocket({ reuseAddr }), {
+  assert.throws(() => createSocket({ endpoint: { reuseAddr } }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
@@ -119,7 +119,7 @@ const { createSocket } = require('quic');
 
 // Test invalid QuicSocket type argument option
 [1, NaN, 1n, null, {}, []].forEach((type) => {
-  assert.throws(() => createSocket({ type }), {
+  assert.throws(() => createSocket({ endpoint: { type } }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });

@@ -25,7 +25,7 @@ const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 const kServerName = 'agent2';  // Intentionally the wrong servername
 const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
 
-const server = createSocket({ port: kServerPort });
+const server = createSocket({ endpoint: { port: kServerPort } });
 
 server.listen({ key, cert, ca, alpn: kALPN });
 
@@ -53,7 +53,7 @@ server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.address.port);
 
   const client = createSocket({
-    port: kClientPort,
+    endpoint: { port: kClientPort },
     client: { key, cert, ca, alpn: kALPN }
   });
 

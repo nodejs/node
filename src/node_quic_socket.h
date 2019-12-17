@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "base_object.h"
 #include "node.h"
 #include "node_crypto.h"
 #include "node_internals.h"
@@ -72,7 +73,7 @@ class QuicSocketListener {
   virtual void OnError(int code);
   virtual void OnSessionReady(BaseObjectPtr<QuicSession> session);
   virtual void OnServerBusy(bool busy);
-  virtual void OnDone();
+  virtual void OnEndpointDone(QuicEndpoint* endpoint);
   virtual void OnDestroy();
 
   QuicSocket* Socket() { return socket_; }
@@ -89,7 +90,7 @@ class JSQuicSocketListener : public QuicSocketListener {
   void OnError(int code) override;
   void OnSessionReady(BaseObjectPtr<QuicSession> session) override;
   void OnServerBusy(bool busy) override;
-  void OnDone() override;
+  void OnEndpointDone(QuicEndpoint* endpoint) override;
   void OnDestroy() override;
 };
 
@@ -184,16 +185,24 @@ class QuicEndpointListener {
   virtual ReqWrap<uv_udp_send_t>* OnCreateSendWrap(size_t msg_size) = 0;
   virtual void OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) = 0;
   virtual void OnBind(QuicEndpoint* endpoint) = 0;
+  virtual void OnEndpointDone(QuicEndpoint* endpoint) = 0;
 };
 
 // A QuicEndpoint wraps a UDPBaseWrap. A single QuicSocket may
 // have multiple QuicEndpoints, the lifecycles of which are
 // attached to the QuicSocket.
-class QuicEndpoint : public UDPListener {
+class QuicEndpoint : public BaseObject,
+                     public UDPListener {
  public:
+  static void Initialize(
+    Environment* env,
+    Local<Object> target,
+    Local<Context> context);
+
   QuicEndpoint(
       Environment* env,
-      QuicEndpointListener* listener,
+      Local<Object> wrap,
+      QuicSocket* listener,
       Local<Object> udp_wrap);
 
   const SocketAddress& GetLocalAddress() const {
@@ -221,14 +230,22 @@ class QuicEndpoint : public UDPListener {
 
   int Send(uv_buf_t* buf, size_t len, const sockaddr* addr);
 
- private:
-  Environment* env() { return env_; }
+  void IncrementPendingCallbacks() { pending_callbacks_++; }
+  void DecrementPendingCallbacks() { pending_callbacks_--; }
+  bool HasPendingCallbacks() { return pending_callbacks_ > 0; }
+  void WaitForPendingCallbacks();
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(QuicEndpoint)
+  SET_SELF_SIZE(QuicEndpoint)
+
+ private:
   mutable SocketAddress local_address_;
-  Environment* env_;
-  QuicEndpointListener* listener_;
+  BaseObjectWeakPtr<QuicSocket> listener_;
   UDPWrapBase* udp_;
   BaseObjectPtr<AsyncWrap> strong_ptr_;
+  size_t pending_callbacks_ = 0;
+  bool waiting_for_callbacks_ = false;
 };
 
 // QuicSocket manages the flow of data from the UDP socket to the
@@ -247,7 +264,6 @@ class QuicSocket : public AsyncWrap,
   QuicSocket(
       Environment* env,
       Local<Object> wrap,
-      Local<Object> udp_base_wrap,
       // A retry token should only be valid for a small window of time.
       // The retry_token_expiration specifies the number of seconds a
       // retry token is permitted to be valid.
@@ -295,7 +311,6 @@ class QuicSocket : public AsyncWrap,
   void SetServerBusy(bool on);
   void SetDiagnosticPacketLoss(double rx = 0.0, double tx = 0.0);
   void StopListening();
-  void WaitForPendingCallbacks();
 
   crypto::SecureContext* GetServerSecureContext() {
     return server_secure_context_;
@@ -323,6 +338,7 @@ class QuicSocket : public AsyncWrap,
       const sockaddr* remote_addr,
       unsigned int flags);
   void OnError(QuicEndpoint* endpoint, ssize_t error) override;
+  void OnEndpointDone(QuicEndpoint* endpoint) override;
 
   // Serializes and transmits a RETRY packet to the connected peer.
   bool SendRetry(
@@ -350,9 +366,7 @@ class QuicSocket : public AsyncWrap,
   void PushListener(QuicSocketListener* listener);
   void RemoveListener(QuicSocketListener* listener);
 
-  void AddEndpoint(
-      Local<Object> endpoint,
-      bool preferred = false);
+  void AddEndpoint(QuicEndpoint* endpoint, bool preferred = false);
 
  private:
   static void OnAlloc(
@@ -378,10 +392,6 @@ class QuicSocket : public AsyncWrap,
   void IncrementSocketAddressCounter(const SocketAddress& addr);
   void DecrementSocketAddressCounter(const SocketAddress& addr);
   size_t GetCurrentSocketAddressCounter(const sockaddr* addr);
-
-  void IncrementPendingCallbacks() { pending_callbacks_++; }
-  void DecrementPendingCallbacks() { pending_callbacks_--; }
-  bool HasPendingCallbacks() { return pending_callbacks_ > 0; }
 
   // Returns true if, and only if, diagnostic packet loss is enabled
   // and the current packet should be artificially considered lost.
@@ -422,14 +432,13 @@ class QuicSocket : public AsyncWrap,
 
   ngtcp2_mem alloc_info_;
 
-  std::vector<std::unique_ptr<QuicEndpoint>> endpoints_;
+  std::vector<BaseObjectWeakPtr<QuicEndpoint>> endpoints_;
   QuicEndpoint* preferred_endpoint_;
 
   uint32_t flags_ = QUICSOCKET_FLAGS_NONE;
   uint32_t options_;
   uint32_t server_options_;
 
-  size_t pending_callbacks_ = 0;
   size_t max_connections_per_host_;
   size_t current_ngtcp2_memory_ = 0;
 

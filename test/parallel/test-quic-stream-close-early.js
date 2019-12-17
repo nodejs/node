@@ -21,7 +21,7 @@ const kServerPort = process.env.NODE_DEBUG_KEYLOG ? 5678 : 0;
 const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 
 let client;
-const server = createSocket({ port: kServerPort });
+const server = createSocket({ endpoint: { port: kServerPort } });
 
 const kServerName = 'agent1';
 const kALPN = 'zzz';
@@ -75,7 +75,7 @@ server.on('session', common.mustCall((session) => {
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.address.port);
   client = createSocket({
-    port: kClientPort,
+    endpoint: { port: kClientPort },
     client: { key, cert, ca, alpn: kALPN }
   });
 

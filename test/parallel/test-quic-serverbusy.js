@@ -28,7 +28,7 @@ const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
 
 let client;
 const server = createSocket({
-  port: kServerPort,
+  endpoint: { port: kServerPort },
   server: { key, cert, ca, alpn: kALPN }
 });
 
@@ -47,7 +47,7 @@ server.on('session', common.mustCall((session) => {
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.address.port);
   client = createSocket({
-    port: kClientPort,
+    endpoint: { port: kClientPort },
     client: { key, cert, ca, alpn: kALPN }
   });
 

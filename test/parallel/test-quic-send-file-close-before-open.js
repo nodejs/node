@@ -11,7 +11,10 @@ const key = fixtures.readKey('agent1-key.pem', 'binary');
 const cert = fixtures.readKey('agent1-cert.pem', 'binary');
 const ca = fixtures.readKey('ca1-cert.pem', 'binary');
 
-const server = quic.createSocket({ port: 0, validateAddress: true });
+const server = quic.createSocket({
+  endpoint: { port: 0 },
+  validateAddress: true
+});
 
 server.listen({
   key,
@@ -41,7 +44,7 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   const client = quic.createSocket({
-    port: 0,
+    endpoint: { port: 0 },
     client: {
       key,
       cert,

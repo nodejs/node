@@ -19,7 +19,12 @@ const debug = debuglog('test');
 const { createSocket } = require('quic');
 
 let client;
-const server = createSocket({ type: 'udp4', port: 0 });
+const server = createSocket({
+  endpoint: {
+    type: 'udp4',
+    port: 0
+  },
+});
 
 const kServerName = 'agent1';
 const kALPN = 'echo';
@@ -50,7 +55,7 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.address.port);
-  client = createSocket({ port: 0 });
+  client = createSocket({ endpoint: { port: 0 } });
 
   const req = client.connect({
     address: 'localhost',

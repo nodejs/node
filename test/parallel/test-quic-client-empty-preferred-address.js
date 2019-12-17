@@ -17,7 +17,10 @@ const { createSocket } = require('quic');
 
 const kALPN = 'zzz';
 const kServerName = 'agent2';
-const server = createSocket({ port: 0, validateAddress: true });
+const server = createSocket({
+  endpoint: { port: 0 },
+  validateAddress: true
+});
 
 let client;
 server.listen({
@@ -41,9 +44,7 @@ server.on('session', common.mustCall((serverSession) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  client = createSocket({
-    port: 0,
-  });
+  client = createSocket({ endpoint: { port: 0 } });
 
   const clientSession = client.connect({
     address: 'localhost',

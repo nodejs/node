@@ -18,7 +18,7 @@ const kALPN = 'zzz';
 {
   [-1, 0].forEach((maxConnectionsPerHost) => {
     common.expectsError(() => createSocket({
-      port: 0,
+      endpoint: { port: 0 },
       maxConnectionsPerHost
     }), {
       type: RangeError,
@@ -29,7 +29,7 @@ const kALPN = 'zzz';
 
   [Number.MAX_SAFE_INTEGER + 1, 1.1].forEach((maxConnectionsPerHost) => {
     common.expectsError(() => createSocket({
-      port: 0,
+      endpoint: { port: 0 },
       maxConnectionsPerHost
     }), {
       type: TypeError,
@@ -62,7 +62,7 @@ const kALPN = 'zzz';
   }
 
   server = createSocket({
-    port: 0,
+    endpoint: { port: 0 },
     maxConnectionsPerHost: kMaxConnectionsPerHost,
   });
 
@@ -81,9 +81,7 @@ const kALPN = 'zzz';
   }, kMaxConnectionsPerHost + 1));
 
   server.on('ready', common.mustCall(async () => {
-    client = createSocket({
-      port: 0,
-    });
+    client = createSocket({ endpoint: { port: 0 } });
 
     const sessions = [];
 

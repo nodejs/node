@@ -20,7 +20,7 @@ const idleTimeout = common.platformTimeout(1000);
 // Test client idle timeout.
 {
   let client;
-  const server = createSocket({ port: 0 });
+  const server = createSocket({ endpoint: { port: 0 } });
   server.listen({
     key,
     cert,
@@ -32,7 +32,7 @@ const idleTimeout = common.platformTimeout(1000);
 
   server.on('ready', common.mustCall(() => {
     client = createSocket({
-      port: 0,
+      endpoint: { port: 0 },
       client: {
         key,
         cert,
@@ -62,7 +62,7 @@ const idleTimeout = common.platformTimeout(1000);
 {
   let client;
   let start;
-  const server = createSocket({ port: 0 });
+  const server = createSocket({ endpoint: { port: 0 } });
   server.listen({
     key,
     cert,
@@ -81,7 +81,7 @@ const idleTimeout = common.platformTimeout(1000);
 
   server.on('ready', common.mustCall(() => {
     client = createSocket({
-      port: 0,
+      endpoint: { port: 0 },
       client: {
         key,
         cert,
