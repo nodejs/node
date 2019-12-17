@@ -409,6 +409,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "silence all process warnings",
             &EnvironmentOptions::no_warnings,
             kAllowedInEnvironment);
+AddOption("--no-experimental-warnings",
+            "silence all experimental process warnings",
+            &EnvironmentOptions::no_experimental_warnings,
+            kAllowedInEnvironment);
   AddOption("--force-context-aware",
             "disable loading non-context-aware addons",
             &EnvironmentOptions::force_context_aware,

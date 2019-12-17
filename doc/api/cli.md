@@ -455,6 +455,14 @@ added: v0.8.0
 
 Silence deprecation warnings.
 
+### `--no-experimental-warnings`
+<!-- YAML
+added: REPLACEME
+-->
+
+Silence all experimental process warnings. These are emitted when using
+features which are considered experimental.
+
 ### `--no-force-async-hooks-checks`
 <!-- YAML
 added: v9.0.0
@@ -1111,6 +1119,7 @@ Node.js options that are allowed are:
 * `--max-http-header-size`
 * `--napi-modules`
 * `--no-deprecation`
+* `--no-experimental-warnings`
 * `--no-force-async-hooks-checks`
 * `--no-warnings`
 * `--openssl-config`
