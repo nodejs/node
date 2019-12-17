@@ -360,10 +360,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support and caching modules",
             &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
-  AddOption("--experimental-conditional-exports",
-            "experimental support for conditional exports targets",
-            &EnvironmentOptions::experimental_conditional_exports,
-            kAllowedInEnvironment);
   AddOption("--experimental-wasm-modules",
             "experimental ES Module support for webassembly modules",
             &EnvironmentOptions::experimental_wasm_modules,

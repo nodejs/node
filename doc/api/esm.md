@@ -355,20 +355,13 @@ The conditions supported in Node.js condition matching:
    or ES module file.
 * `"import"` - matched when the package is loaded via `import` or
    `import()`. Can be any module format, this field does not set the type
-   interpretation. _This is currently only supported behind the
-   `--experimental-conditional-exports` flag._
+   interpretation.
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
-   module file. _This is currently only supported behind the
-   `--experimental-conditional-exports` flag._
+   module file.
 * `"require"` - matched when the package is loaded via `require()`.
-   _This is currently only supported behind the
-   `--experimental-conditional-exports` flag._
 
 Condition matching is applied in object order from first to last within the
 `"exports"` object.
-
-> Setting the above conditions for a published package is not recommended until
-> conditional exports have been unflagged to avoid breaking changes to packages.
 
 Using the `"require"` condition it is possible to define a package that will
 have a different exported value for CommonJS and ES modules, which can be a
@@ -462,10 +455,10 @@ ignores) the top-level `"module"` field.
 Node.js can now run ES module entry points, and a package can contain both
 CommonJS and ES module entry points (either via separate specifiers such as
 `'pkg'` and `'pkg/es-module'`, or both at the same specifier via [Conditional
-Exports][] with the `--experimental-conditional-exports` flag). Unlike in the
-scenario where `"module"` is only used by bundlers, or ES module files are
-transpiled into CommonJS on the fly before evaluation by Node.js, the files
-referenced by the ES module entry point are evaluated as ES modules.
+Exports][]). Unlike in the scenario where `"module"` is only used by bundlers,
+or ES module files are transpiled into CommonJS on the fly before evaluation by
+Node.js, the files referenced by the ES module entry point are evaluated as ES
+modules.
 
 #### Dual Package Hazard
 
@@ -524,13 +517,8 @@ following conditions:
 
 Write the package in CommonJS or transpile ES module sources into CommonJS, and
 create an ES module wrapper file that defines the named exports. Using
-[Conditional Exports][] via the `--experimental-conditional-exports` flag, the
-ES module wrapper is used for `import` and the CommonJS entry point for
-`require`.
-
-> Note: While `--experimental-conditional-exports` is flagged, a package
-> using this pattern will throw when loaded unless package consumers use the
-> `--experimental-conditional-exports` flag.
+[Conditional Exports][], the ES module wrapper is used for `import` and the
+CommonJS entry point for `require`.
 
 <!-- eslint-skip -->
 ```js
@@ -586,13 +574,13 @@ This approach is appropriate for any of the following use cases:
 * The package stores internal state, and the package author would prefer not to
   refactor the package to isolate its state management. See the next section.
 
-A variant of this approach not requiring `--experimental-conditional-exports`
-for consumers could be to add an export, e.g. `"./module"`, to point to an
-all-ES module-syntax version of the package. This could be used via `import
-'pkg/module'` by users who are certain that the CommonJS version will not be
-loaded anywhere in the application, such as by dependencies; or if the CommonJS
-version can be loaded but doesn’t affect the ES module version (for example,
-because the package is stateless):
+A variant of this approach not requiring conditional exports for consumers could
+be to add an export, e.g. `"./module"`, to point to an all-ES module-syntax
+version of the package. This could be used via `import 'pkg/module'` by users
+who are certain that the CommonJS version will not be loaded anywhere in the
+application, such as by dependencies; or if the CommonJS version can be loaded
+but doesn’t affect the ES module version (for example, because the package is
+stateless):
 
 <!-- eslint-skip -->
 ```js
@@ -607,16 +595,10 @@ because the package is stateless):
 }
 ```
 
-If the `--experimental-conditional-exports` flag is dropped and therefore
-[Conditional Exports][] become available without a flag, this variant could be
-easily updated to use conditional exports by adding conditions to the `"."`
-path; while keeping `"./module"` for backward compatibility.
-
 ##### Approach #2: Isolate State
 
 The most straightforward `package.json` would be one that defines the separate
-CommonJS and ES module entry points directly (requires
-`--experimental-conditional-exports`):
+CommonJS and ES module entry points directly:
 
 <!-- eslint-skip -->
 ```js
@@ -701,8 +683,8 @@ Even with isolated state, there is still the cost of possible extra code
 execution between the CommonJS and ES module versions of a package.
 
 As with the previous approach, a variant of this approach not requiring
-`--experimental-conditional-exports` for consumers could be to add an export,
-e.g. `"./module"`, to point to an all-ES module-syntax version of the package:
+conditional exports for consumers could be to add an export, e.g.
+`"./module"`, to point to an all-ES module-syntax version of the package:
 
 <!-- eslint-skip -->
 ```js
@@ -716,11 +698,6 @@ e.g. `"./module"`, to point to an all-ES module-syntax version of the package:
   }
 }
 ```
-
-If the `--experimental-conditional-exports` flag is dropped and therefore
-[Conditional Exports][] become available without a flag, this variant could be
-easily updated to use conditional exports by adding conditions to the `"."`
-path; while keeping `"./module"` for backward compatibility.
 
 ## `import` Specifiers
 
