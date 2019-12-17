@@ -1020,7 +1020,6 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
                          key->ToString(context).ToLocalChecked());
       std::string key_str(*key_utf8, key_utf8.length());
       if (key_str == "node" || key_str == "import") {
-        if (!env->options()->experimental_conditional_exports) continue;
         matched = true;
         conditionalTarget = target_obj->Get(context, key).ToLocalChecked();
         Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,

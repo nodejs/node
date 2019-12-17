@@ -325,10 +325,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
   AddAlias("--loader", "--experimental-loader");
-  AddAlias("--experimental-modules", "--experimental-conditional-exports");
-  AddOption("--experimental-conditional-exports",
-            "experimental support for conditional exports targets",
-            &EnvironmentOptions::experimental_conditional_exports,
+  AddOption("--experimental-modules",
+            "experimental modules features",
+            &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-wasm-modules",
             "experimental ES Module support for webassembly modules",
