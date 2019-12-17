@@ -1150,12 +1150,12 @@ Maybe<URL> PackageExportsResolve(Environment* env,
 }
 
 Maybe<URL> ResolveSelf(Environment* env,
-                       const std::string& specifier,
+                       const std::string& pkg_name,
+                       const std::string& pkg_subpath,
                        const URL& base) {
   if (!env->options()->experimental_resolve_self) {
     return Nothing<URL>();
   }
-
   const PackageConfig* pcfg;
   if (GetPackageScopeConfig(env, base, base).To(&pcfg) &&
       pcfg->exists == Exists::Yes) {
@@ -1171,33 +1171,14 @@ Maybe<URL> ResolveSelf(Environment* env,
         found_pjson = true;
       }
     }
-
-    if (!found_pjson) {
-      return Nothing<URL>();
-    }
-
-    // "If specifier starts with pcfg name"
-    std::string subpath;
-    if (specifier.rfind(pcfg->name, 0)) {
-      // We know now: specifier is either equal to name or longer.
-      if (specifier == subpath) {
-        subpath = "";
-      } else if (specifier[pcfg->name.length()] == '/') {
-        // Return everything after the slash
-        subpath = "." + specifier.substr(pcfg->name.length() + 1);
-      } else {
-        // The specifier is neither the name of the package nor a subpath of it
-        return Nothing<URL>();
-      }
-    }
-
-    if (found_pjson && !subpath.length()) {
+    if (!found_pjson || pcfg->name != pkg_name) return Nothing<URL>();
+    if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg, base);
-    } else if (found_pjson) {
+    } else {
       if (!pcfg->exports.IsEmpty()) {
-        return PackageExportsResolve(env, pjson_url, subpath, *pcfg, base);
+        return PackageExportsResolve(env, pjson_url, pkg_subpath, *pcfg, base);
       } else {
-        return FinalizeResolution(env, URL(subpath, pjson_url), base);
+        return FinalizeResolution(env, URL(pkg_subpath, pjson_url), base);
       }
     }
   }
@@ -1245,6 +1226,13 @@ Maybe<URL> PackageResolve(Environment* env,
   } else {
     pkg_subpath = "." + specifier.substr(sep_index);
   }
+
+  Maybe<URL> self_url = ResolveSelf(env, pkg_name, pkg_subpath, base);
+  if (self_url.IsJust()) {
+    ProcessEmitExperimentalWarning(env, "Package name self resolution");
+    return self_url;
+  }
+
   URL pjson_url("./node_modules/" + pkg_name + "/package.json", &base);
   std::string pjson_path = pjson_url.ToFilePath();
   std::string last_path;
@@ -1277,12 +1265,6 @@ Maybe<URL> PackageResolve(Environment* env,
     CHECK(false);
     // Cross-platform root check.
   } while (pjson_path.length() != last_path.length());
-
-  Maybe<URL> self_url = ResolveSelf(env, specifier, base);
-  if (self_url.IsJust()) {
-    ProcessEmitExperimentalWarning(env, "Package name self resolution");
-    return self_url;
-  }
 
   std::string msg = "Cannot find package '" + pkg_name +
       "' imported from " + base.ToFilePath();
