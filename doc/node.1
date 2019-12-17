@@ -405,9 +405,8 @@ MiB pages instead of 4 KiB pages.
 .Pp
 .Ar mode
 must have one of the following values:
-`off` (the default value, meaning do not map), `on` (map and ignore failure
-without reporting it), or `verbose` (map and ignore failure, but report it to
-standard error).
+`off` (the default value, meaning do not map), `on` (map and ignore failure,
+reporting it to stderr), or `silent` (map and silently ignore failure).
 .
 .It Fl -v8-options
 Print V8 command-line options.

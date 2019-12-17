@@ -875,9 +875,9 @@ MiB pages instead of 4 KiB pages.
 The following values are valid for `mode`:
 * `off`: No mapping will be attempted. This is the default.
 * `on`: If supported by the OS, mapping will be attempted. Failure to map will
-  be ignored and will not be reported.
-* `verbose`: If supported by the OS, mapping will be attempted. Failure to map
-  will be ignored and a message will be printed to standard error.
+  be ignored and a message will be printed to standard error.
+* `silent`: If supported by the OS, mapping will be attempted. Failure to map
+  will be ignored and will not be reported.
 
 ### `--v8-options`
 <!-- YAML
