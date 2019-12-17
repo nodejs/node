@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 
 {
   const child = spawnSync(process.execPath,
-                          [ '--use-largepages=1', '-p', '42' ]);
+                          [ '--use-largepages=silent', '-p', '42' ]);
   const stdout = child.stdout.toString().match(/\S+/g);
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
@@ -18,11 +18,11 @@ const { spawnSync } = require('child_process');
 
 {
   const child = spawnSync(process.execPath,
-                          [ '--use-largepages=3', '-p', '42' ]);
+                          [ '--use-largepages=xyzzy', '-p', '42' ]);
   assert.strictEqual(child.status, 9);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString().match(/\S+/g).slice(1).join(' '),
-                     '--use-largepages must be one of 0, 1, or 2');
+                     'invalid value for --use-largepages');
 }
 
 // TODO(gabrielschulhof): Run with --use-largepages=2 and make assertions about
