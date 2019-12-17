@@ -170,12 +170,7 @@ function assertIncludes(actual, expected) {
     '--experimental-conditional-exports',
     '/es-modules/conditional-exports.js',
     'Conditional exports',
-  ],
-  [
-    '--experimental-resolve-self',
-    '/node_modules/pkgexports/resolve-self.js',
-    'Package name self resolution',
-  ],
+  ]
 ].forEach(([flag, file, message]) => {
   const child = spawn(process.execPath, [flag, path(file)]);
 

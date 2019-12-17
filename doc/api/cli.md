@@ -178,7 +178,7 @@ added: v8.5.0
 -->
 
 Enable latest experimental modules features (currently
-`--experimental-conditional-exports` and `--experimental-resolve-self`).
+`--experimental-conditional-exports`).
 
 ### `--experimental-policy`
 <!-- YAML
@@ -200,14 +200,6 @@ added: v11.8.0
 -->
 
 Enable experimental diagnostic report feature.
-
-### `--experimental-resolve-self`
-<!-- YAML
-added: v13.1.0
--->
-
-Enable experimental support for a package using `require` or `import` to load
-itself.
 
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
@@ -1091,7 +1083,6 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-report`
-* `--experimental-resolve-self`
 * `--experimental-specifier-resolution`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
