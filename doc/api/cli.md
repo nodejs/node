@@ -791,7 +791,7 @@ Enables the collection of trace event tracing information.
 
 ### `--trace-exit`
 <!-- YAML
-added: REPLACEME
+added: v13.5.0
 -->
 
 Prints a stack trace whenever an environment is exited proactively,
