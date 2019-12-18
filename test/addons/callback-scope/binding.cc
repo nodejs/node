@@ -31,7 +31,7 @@ void RunInCallbackScope(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
-static v8::Persistent<v8::Promise::Resolver> persistent;
+static v8::Global<v8::Promise::Resolver> persistent;
 
 static void Callback(uv_work_t* req, int ignored) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
