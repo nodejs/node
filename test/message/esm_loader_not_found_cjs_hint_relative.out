@@ -1,20 +1,27 @@
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-internal/modules/run_main.js:*
-    internalBinding('errors').triggerUncaughtException(
-                              ^
 
+events.js:*
+      throw er; // Unhandled 'error' event
+      ^
 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '*test*common*fixtures' imported from *
 Did you mean to import ./test/common/fixtures.js?
     at finalizeResolution (internal/modules/esm/resolve.js:*:*)
     at moduleResolve (internal/modules/esm/resolve.js:*:*)
-    at Loader.defaultResolve [as _resolve] (internal/modules/esm/resolve.js:*:*)
+    at defaultResolve (internal/modules/esm/resolve.js:*:*)
+    at Object.resolveImportURL (internal/modules/esm/loader.js:*:*)
     at Loader.resolve (internal/modules/esm/loader.js:*:*)
     at Loader.getModuleJob (internal/modules/esm/loader.js:*:*)
-    at Loader.import (internal/modules/esm/loader.js:*:*)
-    at internal/process/esm_loader.js:*:*
-    at Object.initializeLoader (internal/process/esm_loader.js:*:*)
-    at runMainESM (internal/modules/run_main.js:*:*)
-    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*) {
+    at Loader.importWrapped (internal/modules/esm/loader.js:*:*)
+    at internal/modules/esm/worker.js:*:*
+    at NativeModule.compileForInternalLoader (internal/bootstrap/loaders.js:*:*)
+    at nativeModuleRequire (internal/bootstrap/loaders.js:*:*)
+Emitted 'error' event on Worker instance at:
+    at Worker.[kOnErrorMessage] (internal/worker.js:*:*)
+    at Worker.[kOnMessage] (internal/worker.js:*:*)
+    at MessagePort.<anonymous> (internal/worker.js:*:*)
+    at MessagePort.emit (events.js:*:*)
+    at MessagePort.onmessage (internal/worker/io.js:*:*)
+    at MessagePort.exports.emitMessage (internal/per_context/messageport.js:*:*) {
   code: 'ERR_MODULE_NOT_FOUND'
 }

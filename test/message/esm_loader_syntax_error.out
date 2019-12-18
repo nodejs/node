@@ -1,9 +1,19 @@
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-file://*/test/fixtures/es-module-loaders/syntax-error.mjs:2
+
+events.js:*
+      throw er; // Unhandled 'error' event
+      ^
+file:///*/test/fixtures/es-module-loaders/syntax-error.mjs:2
 await async () => 0;
 ^^^^^
-
 SyntaxError: Unexpected reserved word
     at Loader.moduleStrategy (internal/modules/esm/translators.js:*:*)
     at async link (internal/modules/esm/module_job.js:*:*)
+Emitted 'error' event on Worker instance at:
+    at Worker.[kOnErrorMessage] (internal/worker.js:*:*)
+    at Worker.[kOnMessage] (internal/worker.js:*:*)
+    at MessagePort.<anonymous> (internal/worker.js:*:*)
+    at MessagePort.emit (events.js:*:*)
+    at MessagePort.onmessage (internal/worker/io.js:*:*)
+    at MessagePort.exports.emitMessage (internal/per_context/messageport.js:*:*)
