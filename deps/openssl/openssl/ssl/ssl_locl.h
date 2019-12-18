@@ -1071,7 +1071,6 @@ struct ssl_ctx_st {
     const SSL_QUIC_METHOD *quic_method;
 };
 
-#ifndef OPENSSL_NO_QUIC
 struct quic_data_st {
     struct quic_data_st *next;
     OSSL_ENCRYPTION_LEVEL level;
@@ -1080,7 +1079,6 @@ struct quic_data_st {
 };
 typedef struct quic_data_st QUIC_DATA;
 int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level);
-#endif
 
 struct ssl_st {
     /*

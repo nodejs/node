@@ -1933,12 +1933,18 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
                                          size_t chainidx)
 {
     if (context == SSL_EXT_TLS1_3_NEW_SESSION_TICKET) {
+        uint32_t max_early_data = s->max_early_data;
+
         if (s->max_early_data == 0)
             return EXT_RETURN_NOT_SENT;
 
+        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-24 S4.5 */
+        if (s->quic_method != NULL)
+            max_early_data = 0xFFFFFFFF;
+
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_early_data)
                 || !WPACKET_start_sub_packet_u16(pkt)
-                || !WPACKET_put_bytes_u32(pkt, s->max_early_data)
+                || !WPACKET_put_bytes_u32(pkt, max_early_data)
                 || !WPACKET_close(pkt)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
                      SSL_F_TLS_CONSTRUCT_STOC_EARLY_DATA, ERR_R_INTERNAL_ERROR);
@@ -1980,7 +1986,6 @@ EXT_RETURN tls_construct_stoc_psk(SSL *s, WPACKET *pkt, unsigned int context,
     return EXT_RETURN_SENT;
 }
 
-#ifndef OPENSSL_NO_QUIC
 /* SAME AS tls_construct_ctos_quic_transport_params() */
 EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
                                                     unsigned int context, X509 *x,
@@ -2001,4 +2006,3 @@ EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
 
     return EXT_RETURN_SENT;
 }
-#endif

@@ -1713,7 +1713,6 @@ static int init_post_handshake_auth(SSL *s, unsigned int context)
     return 1;
 }
 
-#ifndef OPENSSL_NO_QUIC
 static int init_quic_transport_params(SSL *s, unsigned int context)
 {
     return 1;
@@ -1723,4 +1722,3 @@ static int final_quic_transport_params(SSL *s, unsigned int context, int sent)
 {
     return 1;
 }
-#endif

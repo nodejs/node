@@ -509,4 +509,3 @@ SSL_set_quic_method                     517	3_0_0	EXIST::FUNCTION:QUIC
 SSL_process_quic_post_handshake         518	3_0_0	EXIST::FUNCTION:QUIC
 SSL_CIPHER_get_prf_nid                  519	3_0_0	EXIST::FUNCTION:
 SSL_is_quic                             520	3_0_0	EXIST::FUNCTION:QUIC
-SSL_set_quic_early_data_enabled         521 3_0_0 EXIST::FUNCTION:QUIC

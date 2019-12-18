@@ -505,10 +505,7 @@ static int quic_change_cipher_state(SSL *s, int which)
                 || !tls13_hkdf_expand(s, md, s->master_secret, server_application_traffic,
                                       sizeof(server_application_traffic)-1, hash, hashlen,
                                       s->server_app_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)
-                || !tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
-                                      sizeof(resumption_master_secret)-1, hash, hashlen,
-                                      s->resumption_master_secret, hashlen, 1)) {
+                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)) {
                 /* SSLfatal() already called */
                 goto err;
             }
@@ -522,6 +519,8 @@ static int quic_change_cipher_state(SSL *s, int which)
         else
             s->quic_read_level = level;
     } else {
+        /* is_client_write || is_server_read */
+
         if (is_early) {
             level = ssl_encryption_early_data;
 
@@ -537,6 +536,16 @@ static int quic_change_cipher_state(SSL *s, int which)
             level = ssl_encryption_handshake;
         } else {
             level = ssl_encryption_application;
+            /*
+             * We also create the resumption master secret, but this time use the
+             * hash for the whole handshake including the Client Finished
+             */
+            if (!tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
+                                   sizeof(resumption_master_secret)-1, hash, hashlen,
+                                   s->resumption_master_secret, hashlen, 1)) {
+                /* SSLfatal() already called */
+                goto err;
+            }
         }
 
         if (s->server)

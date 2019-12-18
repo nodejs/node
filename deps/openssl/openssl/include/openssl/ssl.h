@@ -2447,7 +2447,6 @@ typedef enum ssl_encryption_level_t {
 
 struct ssl_quic_method_st {
     int (*set_encryption_secrets)(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-
                                   const uint8_t *read_secret,
                                   const uint8_t *write_secret, size_t secret_len);
     int (*add_handshake_data)(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
@@ -2472,8 +2471,6 @@ __owur int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 __owur int SSL_process_quic_post_handshake(SSL *ssl);
 
 __owur int SSL_is_quic(SSL *ssl);
-
-__owur void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled);
 
 int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
 

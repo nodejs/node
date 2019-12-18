@@ -658,7 +658,6 @@ void InitializeTLS(QuicSession* session) {
   SSL_set_app_data(ssl, session);
   SSL_set_cert_cb(ssl, CertCB, session);
   SSL_set_verify(ssl, SSL_VERIFY_NONE, crypto::VerifyCallback);
-  SSL_set_quic_early_data_enabled(ssl, 1);
 
   // Enable tracing if the `--trace-tls` command line flag
   // is used. TODO(@jasnell): Add process warning for this

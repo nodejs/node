@@ -277,20 +277,3 @@ int SSL_is_quic(SSL* ssl)
 {
     return SSL_IS_QUIC(ssl);
 }
-
-void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled)
-{
-    if (!SSL_is_quic(ssl) || !SSL_in_before(ssl))
-        return;
-
-    if (ssl->server) {
-        ssl->early_data_state = SSL_EARLY_DATA_ACCEPTING;
-        return;
-    }
-
-    if (((ssl->session == NULL || ssl->session->ext.max_early_data == 0)
-         && (ssl->psk_use_session_cb == NULL)))
-        return;
-
-    ssl->early_data_state = SSL_EARLY_DATA_CONNECTING;
-}

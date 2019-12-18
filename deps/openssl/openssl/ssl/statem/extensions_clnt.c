@@ -1933,6 +1933,16 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
             return 0;
         }
 
+        /*
+         * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
+         * per draft-ietf-quic-tls-24 S4.5
+         */
+        if (s->quic_method != NULL && max_early_data != 0xFFFFFFFF) {
+            SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_EARLY_DATA,
+                     SSL_R_INVALID_MAX_EARLY_DATA);
+            return 0;
+        }
+
         s->session->ext.max_early_data = max_early_data;
 
         return 1;
@@ -2021,7 +2031,6 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
     return 1;
 }
 
-#ifndef OPENSSL_NO_QUIC
 /* SAME AS tls_parse_ctos_quic_transport_params() */
 int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
                                          X509 *x, size_t chainidx)
@@ -2039,4 +2048,3 @@ int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int conte
     }
     return 1;
 }
-#endif

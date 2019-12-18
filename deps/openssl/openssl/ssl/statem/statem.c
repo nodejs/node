@@ -575,7 +575,7 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
                  * In DTLS we get the whole message in one go - header and body
                  */
                 ret = dtls_get_message(s, &mt, &len);
-            } if (SSL_IS_QUIC(s)) {
+            } else if (SSL_IS_QUIC(s)) {
               ret = quic_get_message(s, &mt, &len);
             } else {
                 ret = tls_get_message_header(s, &mt);
@@ -621,7 +621,7 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
 
         case READ_STATE_BODY:
             if (!SSL_IS_DTLS(s) && !SSL_IS_QUIC(s)) {
-                /* We already got this above for DTLS */
+                /* We already got this above for DTLS & QUIC */
                 ret = tls_get_message_body(s, &len);
                 if (ret == 0) {
                     /* Could be non-blocking IO */
