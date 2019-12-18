@@ -264,7 +264,7 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 If the path to your build directory contains a space, the build will likely
 fail.
 
-To build Node.js:
+To build Node.js:ekkarat.w@gmail.com
 
 ```console
 $ ./configure
