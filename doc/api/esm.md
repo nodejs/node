@@ -1154,15 +1154,13 @@ updates.
 In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines unless stated otherwise.
 
-_isMain_ is **true** when resolving the Node.js application entry point.
-
 _defaultEnv_ is the conditional environment name priority array,
 `["node", "import"]`.
 
 <details>
 <summary>Resolver algorithm specification</summary>
 
-**ESM_RESOLVE**(_specifier_, _parentURL_, _isMain_)
+**ESM_RESOLVE**(_specifier_, _parentURL_)
 
 > 1. Let _resolvedURL_ be **undefined**.
 > 1. If _specifier_ is a valid URL, then
@@ -1183,7 +1181,7 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If the file at _resolvedURL_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
 > 1. Set _resolvedURL_ to the real path of _resolvedURL_.
-> 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_, _isMain_).
+> 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_).
 > 1. Load _resolvedURL_ as module format, _format_.
 
 **PACKAGE_RESOLVE**(_packageSpecifier_, _parentURL_)
@@ -1334,20 +1332,20 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. Return _resolved_.
 > 1. Throw a _Module Not Found_ error.
 
-**ESM_FORMAT**(_url_, _isMain_)
+**ESM_FORMAT**(_url_)
 
-> 1. Assert: _url_ corresponds to an existing file.
+> 1. Assert: _url_ corresponds to an existing file pathname.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
 > 1. If _url_ ends in _".mjs"_, then
 >    1. Return _"module"_.
 > 1. If _url_ ends in _".cjs"_, then
 >    1. Return _"commonjs"_.
 > 1. If _pjson?.type_ exists and is _"module"_, then
->    1. If _isMain_ is **true** or _url_ ends in _".js"_, then
+>    1. If _url_ ends in _".js"_ or lacks a file extension, then
 >       1. Return _"module"_.
 >    1. Throw an _Unsupported File Extension_ error.
 > 1. Otherwise,
->    1. If _isMain_ is **true**, then
+>    1. If _url_ lacks a file extension, then
 >       1. Return _"commonjs"_.
 >    1. Throw an _Unsupported File Extension_ error.
 
