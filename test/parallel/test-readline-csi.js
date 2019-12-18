@@ -39,7 +39,9 @@ assert.throws(() => {
 }, /ERR_INVALID_CALLBACK/);
 
 // Verify that clearScreenDown() does not throw on null or undefined stream.
-assert.strictEqual(readline.clearScreenDown(null, common.mustCall()), true);
+assert.strictEqual(readline.clearScreenDown(null, common.mustCall((err) => {
+  assert.strictEqual(err, null);
+})), true);
 assert.strictEqual(readline.clearScreenDown(undefined, common.mustCall()),
                    true);
 
@@ -67,7 +69,9 @@ assert.throws(() => {
 // Verify that clearLine() does not throw on null or undefined stream.
 assert.strictEqual(readline.clearLine(null, 0), true);
 assert.strictEqual(readline.clearLine(undefined, 0), true);
-assert.strictEqual(readline.clearLine(null, 0, common.mustCall()), true);
+assert.strictEqual(readline.clearLine(null, 0, common.mustCall((err) => {
+  assert.strictEqual(err, null);
+})), true);
 assert.strictEqual(readline.clearLine(undefined, 0, common.mustCall()), true);
 
 // Nothing is written when moveCursor 0, 0
@@ -101,7 +105,9 @@ assert.throws(() => {
 // Verify that moveCursor() does not throw on null or undefined stream.
 assert.strictEqual(readline.moveCursor(null, 1, 1), true);
 assert.strictEqual(readline.moveCursor(undefined, 1, 1), true);
-assert.strictEqual(readline.moveCursor(null, 1, 1, common.mustCall()), true);
+assert.strictEqual(readline.moveCursor(null, 1, 1, common.mustCall((err) => {
+  assert.strictEqual(err, null);
+})), true);
 assert.strictEqual(readline.moveCursor(undefined, 1, 1, common.mustCall()),
                    true);
 
@@ -109,7 +115,9 @@ assert.strictEqual(readline.moveCursor(undefined, 1, 1, common.mustCall()),
 assert.strictEqual(readline.cursorTo(null), true);
 assert.strictEqual(readline.cursorTo(), true);
 assert.strictEqual(readline.cursorTo(null, 1, 1, common.mustCall()), true);
-assert.strictEqual(readline.cursorTo(undefined, 1, 1, common.mustCall()), true);
+assert.strictEqual(readline.cursorTo(undefined, 1, 1, common.mustCall((err) => {
+  assert.strictEqual(err, null);
+})), true);
 
 writable.data = '';
 assert.strictEqual(readline.cursorTo(writable, 'a'), true);
