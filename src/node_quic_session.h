@@ -407,17 +407,6 @@ class QuicCryptoContext : public MemoryRetainer {
 
   bool InitiateKeyUpdate();
 
-  bool KeyUpdate(
-    uint8_t* rx_secret,
-    uint8_t* tx_secret,
-    uint8_t* rx_key,
-    uint8_t* rx_iv,
-    uint8_t* tx_key,
-    uint8_t* tx_iv,
-    const uint8_t* current_rx_secret,
-    const uint8_t* current_tx_secret,
-    size_t secretlen);
-
   int VerifyPeerIdentity(const char* hostname);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -1174,18 +1163,6 @@ class QuicSession : public AsyncWrap,
   static int OnRemoveConnectionID(
       ngtcp2_conn* conn,
       const ngtcp2_cid* cid,
-      void* user_data);
-  static int OnUpdateKey(
-      ngtcp2_conn* conn,
-      uint8_t* rx_secret,
-      uint8_t* tx_secret,
-      uint8_t* rx_key,
-      uint8_t* rx_iv,
-      uint8_t* tx_key,
-      uint8_t* tx_iv,
-      const uint8_t* current_rx_secret,
-      const uint8_t* current_tx_secret,
-      size_t secretlen,
       void* user_data);
   static int OnPathValidation(
       ngtcp2_conn* conn,

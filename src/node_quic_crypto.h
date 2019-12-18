@@ -53,19 +53,6 @@ bool DeriveAndInstallInitialKey(
     QuicSession* session,
     const ngtcp2_cid* dcid);
 
-// Called when QuicSession::UpdateKey() is called.
-bool UpdateKey(
-    ngtcp2_conn* conn,
-    uint8_t* rx_secret,
-    uint8_t* tx_secret,
-    uint8_t* rx_key,
-    uint8_t* rx_iv,
-    uint8_t* tx_key,
-    uint8_t* tx_iv,
-    const uint8_t* current_rx_secret,
-    const uint8_t* current_tx_secret,
-    size_t secretlen);
-
 bool GenerateResetToken(
     uint8_t* token,
     uint8_t* secret,

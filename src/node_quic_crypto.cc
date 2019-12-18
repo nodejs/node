@@ -825,30 +825,5 @@ bool DeriveAndInstallInitialKey(
       session->CryptoContext()->Side()));
 }
 
-bool UpdateKey(
-    ngtcp2_conn* conn,
-    uint8_t* rx_secret,
-    uint8_t* tx_secret,
-    uint8_t* rx_key,
-    uint8_t* rx_iv,
-    uint8_t* tx_key,
-    uint8_t* tx_iv,
-    const uint8_t* current_rx_secret,
-    const uint8_t* current_tx_secret,
-    size_t secretlen) {
-
-  return NGTCP2_OK(ngtcp2_crypto_update_key(
-      conn,
-      rx_secret,
-      tx_secret,
-      rx_key,
-      rx_iv,
-      tx_key,
-      tx_iv,
-      current_rx_secret,
-      current_tx_secret,
-      secretlen));
-}
-
 }  // namespace quic
 }  // namespace node
