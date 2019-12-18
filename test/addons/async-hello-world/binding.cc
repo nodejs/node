@@ -14,7 +14,7 @@ struct async_req {
   int input;
   int output;
   v8::Isolate* isolate;
-  v8::Persistent<v8::Function> callback;
+  v8::Global<v8::Function> callback;
   node::async_context context;
 };
 
@@ -61,7 +61,6 @@ void AfterAsync(uv_work_t* r) {
   v8::SealHandleScope seal_handle_scope(isolate);
   // cleanup
   node::EmitAsyncDestroy(isolate, req->context);
-  req->callback.Reset();
   delete req;
 
   if (try_catch.HasCaught()) {
