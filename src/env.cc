@@ -946,7 +946,8 @@ void Environment::Exit(int exit_code) {
     if (is_main_thread()) {
       fprintf(stderr, "(node:%d) ", uv_os_getpid());
     } else {
-      fprintf(stderr, "(node:%d, thread:%llu) ", uv_os_getpid(), thread_id());
+      fprintf(stderr, "(node:%d, thread:%" PRIu64 ") ",
+              uv_os_getpid(), thread_id());
     }
 
     fprintf(
