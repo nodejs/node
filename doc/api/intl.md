@@ -13,7 +13,7 @@ programs. Some of them are:
   * [`String.prototype.toUpperCase()`][]
 * All functionality described in the [ECMAScript Internationalization API
   Specification][ECMA-402] (aka ECMA-402):
-  * [`Intl`][] object
+  * [`Intl`][] objectup
   * Locale-sensitive methods like [`String.prototype.localeCompare()`][] and
     [`Date.prototype.toLocaleString()`][]
 * The [WHATWG URL parser][]'s [internationalized domain names][] (IDNs) support
@@ -41,7 +41,7 @@ in [BUILDING.md][].
 
 An overview of available Node.js and JavaScript features for each `configure`
 option:
-
+$ python tools/test.py -J --mode=release child-process
 |                                         | `none`                            | `system-icu`                 | `small-icu`            | `full-icu` |
 |-----------------------------------------|-----------------------------------|------------------------------|------------------------|------------|
 | [`String.prototype.normalize()`][]      | none (function is no-op)          | full                         | full                   | full       |
