@@ -826,39 +826,28 @@ bool DeriveAndInstallInitialKey(
 }
 
 bool UpdateKey(
-    QuicSession* session,
+    ngtcp2_conn* conn,
+    uint8_t* rx_secret,
+    uint8_t* tx_secret,
     uint8_t* rx_key,
     uint8_t* rx_iv,
     uint8_t* tx_key,
     uint8_t* tx_iv,
-    std::vector<uint8_t>* current_rx_secret,
-    std::vector<uint8_t>* current_tx_secret) {
-  SessionSecret rx_secret;
-  SessionSecret tx_secret;
+    const uint8_t* current_rx_secret,
+    const uint8_t* current_tx_secret,
+    size_t secretlen) {
 
-  if (NGTCP2_ERR(ngtcp2_crypto_update_key(
-         session->Connection(),
-         rx_secret.data(),
-         tx_secret.data(),
-         rx_key,
-         rx_iv,
-         tx_key,
-         tx_iv,
-         current_rx_secret->data(),
-         current_tx_secret->data(),
-         current_rx_secret->size()))) {
-    return false;
-  }
-
-  current_rx_secret->assign(
-      std::begin(rx_secret),
-      std::begin(rx_secret) + current_rx_secret->size());
-
-  current_tx_secret->assign(
-      std::begin(tx_secret),
-      std::begin(tx_secret) + current_tx_secret->size());
-
-  return true;
+  return NGTCP2_OK(ngtcp2_crypto_update_key(
+      conn,
+      rx_secret,
+      tx_secret,
+      rx_key,
+      rx_iv,
+      tx_key,
+      tx_iv,
+      current_rx_secret,
+      current_tx_secret,
+      secretlen));
 }
 
 }  // namespace quic

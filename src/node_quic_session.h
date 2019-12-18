@@ -408,10 +408,15 @@ class QuicCryptoContext : public MemoryRetainer {
   bool InitiateKeyUpdate();
 
   bool KeyUpdate(
+    uint8_t* rx_secret,
+    uint8_t* tx_secret,
     uint8_t* rx_key,
     uint8_t* rx_iv,
     uint8_t* tx_key,
-    uint8_t* tx_iv);
+    uint8_t* tx_iv,
+    const uint8_t* current_rx_secret,
+    const uint8_t* current_tx_secret,
+    size_t secretlen);
 
   int VerifyPeerIdentity(const char* hostname);
 
@@ -430,8 +435,6 @@ class QuicCryptoContext : public MemoryRetainer {
   QuicSession* session_;
   ngtcp2_crypto_side side_;
   crypto::SSLPointer ssl_;
-  std::vector<uint8_t> tx_secret_;
-  std::vector<uint8_t> rx_secret_;
   QuicBuffer handshake_[3];
   bool in_tls_callback_ = false;
   bool in_key_update_ = false;
@@ -1174,10 +1177,15 @@ class QuicSession : public AsyncWrap,
       void* user_data);
   static int OnUpdateKey(
       ngtcp2_conn* conn,
+      uint8_t* rx_secret,
+      uint8_t* tx_secret,
       uint8_t* rx_key,
       uint8_t* rx_iv,
       uint8_t* tx_key,
       uint8_t* tx_iv,
+      const uint8_t* current_rx_secret,
+      const uint8_t* current_tx_secret,
+      size_t secretlen,
       void* user_data);
   static int OnPathValidation(
       ngtcp2_conn* conn,

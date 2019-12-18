@@ -98,6 +98,8 @@
   'lib/ngtcp2_rob.h',
   'lib/ngtcp2_rtb.c',
   'lib/ngtcp2_rtb.h',
+  'lib/ngtcp2_rst.c',
+  'lib/ngtcp2_rst.h',
   'lib/ngtcp2_str.c',
   'lib/ngtcp2_str.h',
   'lib/ngtcp2_strm.c',
@@ -107,7 +109,7 @@
   'lib/ngtcp2_version.c',
   'crypto/shared.c',
   'crypto/shared.h',
-  'crypto/openssl/openssl.c',
+  'crypto/openssl/openssl.c'
       ]
     }
   ]

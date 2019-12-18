@@ -1340,21 +1340,29 @@ typedef int (*ngtcp2_remove_connection_id)(ngtcp2_conn *conn,
  * @functypedef
  *
  * :type:`ngtcp2_update_key` is a callback function which tells the
- * application that it must generate new packet protection keys.
+ * application that it must generate new packet protection keying
+ * materials.  The current set of secrets are given as
+ * |current_rx_secret| and |current_tx_secret| of length |secretlen|.
+ * They are decryption and encryption secrets respectively.
  *
- * The application has to generate new keys for both encryption and
- * decryption, and write decryption key and IV to the buffer pointed
- * by |rx_key| and |rx_iv| respectively.  Similarly, write encryption
- * key and IV to the buffer pointed by |tx_key| and |tx_iv|.  All
- * given buffers have the enough capacity to store key and IV.
+ * The application has to generate new secrets and keys for both
+ * encryption and decryption, and write decryption secret, key and IV
+ * to the buffer pointed by |rx_secret|, |rx_key| and |rx_iv|
+ * respectively.  Similarly, write encryption secret, key and IV to
+ * the buffer pointed by |tx_secret|, |tx_key| and |tx_iv|.  All given
+ * buffers have the enough capacity to store secret, key and IV.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, uint8_t *rx_key,
+typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, uint8_t *rx_secret,
+                                 uint8_t *tx_secret, uint8_t *rx_key,
                                  uint8_t *rx_iv, uint8_t *tx_key,
-                                 uint8_t *tx_iv, void *user_data);
+                                 uint8_t *tx_iv,
+                                 const uint8_t *current_rx_secret,
+                                 const uint8_t *current_tx_secret,
+                                 size_t secretlen, void *user_data);
 
 /**
  * @functypedef
@@ -1786,11 +1794,13 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_install_key` installs packet protection keying
- * materials for Short packets.  |rx_key| of length |keylen|, IV
- * |rx_iv| of length |rx_ivlen|, and packet header protection key
- * |rx_hp_key| of length |keylen| to decrypt incoming Short packets.
- * Similarly, |tx_key|, |tx_iv| and |tx_hp_key| are for encrypt
- * outgoing packets and are the same length with the rx counterpart.
+ * materials for Short packets.  |rx_secret| of length |secretlen| is
+ * the decryption secret.  |rx_key| of length |keylen|, IV |rx_iv| of
+ * length |rx_ivlen|, and packet header protection key |rx_hp_key| of
+ * length |keylen| to decrypt incoming Short packets.  Similarly,
+ * |tx_secret| of length |secretlen| is the encryption secret.
+ * |tx_key|, |tx_iv| and |tx_hp_key| are used to encrypt outgoing
+ * packets and are the same length with the rx counterpart.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1798,11 +1808,11 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int
-ngtcp2_conn_install_key(ngtcp2_conn *conn, const uint8_t *rx_key,
-                        const uint8_t *rx_iv, const uint8_t *rx_hp_key,
-                        const uint8_t *tx_key, const uint8_t *tx_iv,
-                        const uint8_t *tx_hp_key, size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_install_key(
+    ngtcp2_conn *conn, const uint8_t *rx_secret, const uint8_t *tx_secret,
+    const uint8_t *rx_key, const uint8_t *rx_iv, const uint8_t *rx_hp_key,
+    const uint8_t *tx_key, const uint8_t *tx_iv, const uint8_t *tx_hp_key,
+    size_t secretlen, size_t keylen, size_t ivlen);
 
 /**
  * @function

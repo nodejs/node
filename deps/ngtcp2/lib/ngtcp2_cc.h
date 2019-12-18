@@ -31,8 +31,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#include "ngtcp2_pipeack.h"
-
 #define NGTCP2_MAX_DGRAM_SIZE 1200
 #define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR_BITS 1
@@ -40,6 +38,9 @@
 
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
+
+struct ngtcp2_rst;
+typedef struct ngtcp2_rst ngtcp2_rst;
 
 /* ngtcp2_cc_pkt is a convenient structure to include acked/lost/sent
    packet. */
@@ -59,20 +60,22 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 struct ngtcp2_default_cc {
   ngtcp2_log *log;
   ngtcp2_cc_stat *ccs;
-  ngtcp2_pipeack pipeack;
+  ngtcp2_rst *rst;
+  double max_delivery_rate;
+  ngtcp2_duration min_rtt;
+  ngtcp2_tstamp min_rtt_ts;
+  uint64_t target_cwnd;
 };
 
 typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
 void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_cc_stat *ccs,
-                            ngtcp2_log *log, ngtcp2_tstamp ts);
+                            ngtcp2_rst *rst, ngtcp2_log *log);
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc);
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
-                                    const ngtcp2_cc_pkt *pkt,
-                                    const ngtcp2_rcvry_stat *rcs,
-                                    ngtcp2_tstamp ts);
+                                    const ngtcp2_cc_pkt *pkt);
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts_sent,
@@ -81,5 +84,9 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
 void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
                                                     ngtcp2_duration loss_window,
                                                     ngtcp2_duration pto);
+
+void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
+                                   ngtcp2_duration latest_rtt,
+                                   ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_CC_H */

@@ -429,6 +429,22 @@ ngtcp2_crypto_update_key(ngtcp2_conn *conn, uint8_t *rx_secret,
                          const uint8_t *current_tx_secret, size_t secretlen);
 
 /**
+ * @funtion
+ *
+ * `ngtcp2_crypto_update_key_cb` is a wrapper function around
+ * `ngtcp2_crypto_update_key`.  It can be directly passed to
+ * update_key field in ngtcp2_callbacks.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
+    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+    const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
+    size_t secretlen, void *user_data);
+
+/**
  * @function
  *
  * `ngtcp2_crypto_read_write_crypto_data` reads CRYPTO data |data| of

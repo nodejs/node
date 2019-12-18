@@ -229,8 +229,9 @@ int ngtcp2_crypto_derive_and_install_key(
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    rv = ngtcp2_conn_install_key(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
-                                 tx_hp_key, keylen, ivlen);
+    rv = ngtcp2_conn_install_key(conn, rx_secret, tx_secret, rx_key, rx_iv,
+                                 rx_hp_key, tx_key, tx_iv, tx_hp_key, secretlen,
+                                 keylen, ivlen);
     if (rv != 0) {
       return -1;
     }
@@ -398,6 +399,23 @@ int ngtcp2_crypto_hp_mask_cb(ngtcp2_conn *conn, uint8_t *dest,
   (void)user_data;
 
   if (ngtcp2_crypto_hp_mask(dest, hp, hp_key, sample) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+
+int ngtcp2_crypto_update_key_cb(ngtcp2_conn *conn, uint8_t *rx_secret,
+                                uint8_t *tx_secret, uint8_t *rx_key,
+                                uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+                                const uint8_t *current_rx_secret,
+                                const uint8_t *current_tx_secret,
+                                size_t secretlen, void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  if (ngtcp2_crypto_update_key(conn, rx_secret, tx_secret, rx_key, rx_iv,
+                               tx_key, tx_iv, current_rx_secret,
+                               current_tx_secret, secretlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;

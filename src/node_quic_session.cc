@@ -730,8 +730,6 @@ uint64_t QuicCryptoContext::Cancel() {
 }
 
 void QuicCryptoContext::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("rx_secret", rx_secret_);
-  tracker->TrackField("tx_secret", tx_secret_);
   tracker->TrackField("initial_crypto", handshake_[0]);
   tracker->TrackField("handshake_crypto", handshake_[1]);
   tracker->TrackField("app_crypto", handshake_[2]);
@@ -940,11 +938,6 @@ bool QuicCryptoContext::OnSecrets(
     }
   });
 
-  if (level == NGTCP2_CRYPTO_LEVEL_APP) {
-    rx_secret_.assign(rx_secret, rx_secret + secretlen);
-    tx_secret_.assign(tx_secret, tx_secret + secretlen);
-  }
-
   Debug(session_,
         "Received secrets for %s crypto level",
         crypto_level_name(level));
@@ -1076,20 +1069,28 @@ bool QuicCryptoContext::InitiateKeyUpdate() {
 }
 
 bool QuicCryptoContext::KeyUpdate(
+    uint8_t* rx_secret,
+    uint8_t* tx_secret,
     uint8_t* rx_key,
     uint8_t* rx_iv,
     uint8_t* tx_key,
-    uint8_t* tx_iv) {
+    uint8_t* tx_iv,
+    const uint8_t* current_rx_secret,
+    const uint8_t* current_tx_secret,
+    size_t secretlen) {
   if (UNLIKELY(session_->IsDestroyed()))
     return false;
   return UpdateKey(
-      session_,
+      session_->Connection(),
+      rx_secret,
+      tx_secret,
       rx_key,
       rx_iv,
       tx_key,
       tx_iv,
-      &rx_secret_,
-      &tx_secret_);
+      current_rx_secret,
+      current_tx_secret,
+      secretlen);
 }
 
 int QuicCryptoContext::VerifyPeerIdentity(const char* hostname) {
@@ -3224,14 +3225,28 @@ int QuicSession::OnGetNewConnectionID(
 // Called by ngtcp2 to trigger a key update for the connection.
 int QuicSession::OnUpdateKey(
     ngtcp2_conn* conn,
-    uint8_t* rx_key,
-    uint8_t* rx_iv,
-    uint8_t* tx_key,
-    uint8_t* tx_iv,
-    void* user_data) {
+      uint8_t* rx_secret,
+      uint8_t* tx_secret,
+      uint8_t* rx_key,
+      uint8_t* rx_iv,
+      uint8_t* tx_key,
+      uint8_t* tx_iv,
+      const uint8_t* current_rx_secret,
+      const uint8_t* current_tx_secret,
+      size_t secretlen,
+      void* user_data) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   QuicSession::Ngtcp2CallbackScope callback_scope(session);
-  if (!session->CryptoContext()->KeyUpdate(rx_key, rx_iv, tx_key, tx_iv)) {
+  if (!session->CryptoContext()->KeyUpdate(
+          rx_secret,
+          tx_secret,
+          rx_key,
+          rx_iv,
+          tx_key,
+          tx_iv,
+          current_rx_secret,
+          current_tx_secret,
+          secretlen)) {
     Debug(session, "Updating the key failed");
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }

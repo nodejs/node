@@ -49,6 +49,7 @@ typedef enum {
 } ngtcp2_crypto_km_flag;
 
 typedef struct {
+  ngtcp2_vec secret;
   ngtcp2_vec key;
   ngtcp2_vec iv;
   /* pkt_num is a packet number of a packet which uses this keying
@@ -63,19 +64,24 @@ typedef struct {
 
 /*
  * ngtcp2_crypto_km_new creates new ngtcp2_crypto_km object and
- * assigns its pointer to |*pckm|.  The |key| of length |keylen| and
- * the |iv| of length |ivlen| are copied to |*pckm|.
+ * assigns its pointer to |*pckm|.  The |secret| of length
+ * |secretlen|, the |key| of length |keylen| and the |iv| of length
+ * |ivlen| are copied to |*pckm|.  If |secretlen| == 0, the function
+ * assumes no secret is given which is acceptable.  The sole reason to
+ * store secret is update keys.  Only 1RTT key can be updated.
  */
-int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
-                         size_t keylen, const uint8_t *iv, size_t ivlen,
+int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
+                         size_t secretlen, const uint8_t *key, size_t keylen,
+                         const uint8_t *iv, size_t ivlen,
                          const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_crypto_km_nocopy_new is similar to ngtcp2_crypto_km_new, but
- * it does not copy key and IV.
+ * it does not copy secret, key and IV.
  */
-int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t keylen,
-                                size_t ivlen, const ngtcp2_mem *mem);
+int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
+                                size_t keylen, size_t ivlen,
+                                const ngtcp2_mem *mem);
 
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 

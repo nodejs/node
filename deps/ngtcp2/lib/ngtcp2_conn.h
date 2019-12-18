@@ -48,6 +48,7 @@
 #include "ngtcp2_buf.h"
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_qlog.h"
+#include "ngtcp2_rst.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -433,6 +434,7 @@ struct ngtcp2_conn {
   ngtcp2_pv *pv;
   ngtcp2_log log;
   ngtcp2_qlog qlog;
+  ngtcp2_rst rst;
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
