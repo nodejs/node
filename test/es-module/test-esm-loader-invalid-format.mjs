@@ -4,8 +4,7 @@ import assert from 'assert';
 
 import('../fixtures/es-modules/test-esm-ok.mjs')
 .then(assert.fail, expectsError({
-  code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
-  message: 'Expected string to be returned for the "format" from the ' +
-           '"loader resolve" function but got type undefined.'
+  code: 'ERR_UNKNOWN_FILE_EXTENSION',
+  message: /Unknown file extension "" for \/asdf imported from /
 }))
 .then(mustCall());

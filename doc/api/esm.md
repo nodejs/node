@@ -1109,6 +1109,41 @@ NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.js
 would load the module `main.js` as an ES module with relative resolution support
 (with `node_modules` loading skipped in this example).
 
+### Get format hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+The `getFormat` hook provides a way to define a custom method of determining how
+a URL should be interpreted. Using this hook will cause Node.js to ignore any
+format returned from `resolve`.
+
+```js
+import { request } from 'https';
+
+const formatMap = {
+  'text/javascript': 'module',
+  'application/javascript': 'module'
+};
+/**
+ * @param {{url}} parameters
+ * @returns {{format}}
+ */
+export async function getFormat({ url, isMain }, defaultGetFormat) {
+  if (url.startsWith('https://')) {
+    return new Promise((fulfill, reject) => {
+      request(url, {
+        method: 'HEAD'
+      }, (err, res) => {
+        if (err) reject(err);
+        else fulfill({ format: formatMap[res.headers['content-type']] });
+      });
+    });
+  }
+  return defaultGetFormat({ url, isMain });
+}
+```
+
 ### Get source hook
 
 > Note: The loaders API is being redesigned. This hook may disappear or its

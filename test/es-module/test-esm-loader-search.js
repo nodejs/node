@@ -6,7 +6,9 @@
 require('../common');
 
 const assert = require('assert');
-const resolve = require('internal/modules/esm/default_resolve');
+const {
+  defaultResolve: resolve
+} = require('internal/modules/esm/default_resolve');
 
 assert.throws(
   () => resolve('target', undefined),
