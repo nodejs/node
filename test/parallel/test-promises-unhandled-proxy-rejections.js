@@ -15,7 +15,8 @@ const expectedPromiseWarning = ['Unhandled promise rejection. ' +
   'not handled with .catch(). To terminate the ' +
   'node process on unhandled promise rejection, ' +
   'use the CLI flag `--unhandled-rejections=strict` (see ' +
-  'https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)'];
+  'https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). ' +
+  '(rejection id: 1)'];
 
 function throwErr() {
   throw new Error('Error from proxy');
