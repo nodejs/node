@@ -157,11 +157,11 @@ The context-aware addon can be structured to avoid global static data by
 performing the following steps:
 
 * defining a class which will hold per-addon-instance data. Such
-a class should include a `v8::Persistent<v8::Object>` which will hold a weak
+a class should include a `v8::Global<v8::Object>` which will hold a weak
 reference to the addon's `exports` object. The callback associated with the weak
 reference will then destroy the instance of the class.
 * constructing an instance of this class in the addon initializer such that the
-`v8::Persistent<v8::Object>` is set to the `exports` object.
+`v8::Global<v8::Object>` is set to the `exports` object.
 * storing the instance of the class in a `v8::External`, and
 * passing the `v8::External` to all methods exposed to JavaScript by passing it
 to the `v8::FunctionTemplate` constructor which creates the native-backed
@@ -188,14 +188,6 @@ class AddonData {
     exports_.SetWeak(this, DeleteMe, WeakCallbackType::kParameter);
   }
 
-  ~AddonData() {
-    if (!exports_.IsEmpty()) {
-      // Reset the reference to avoid leaking data.
-      exports_.ClearWeak();
-      exports_.Reset();
-    }
-  }
-
   // Per-addon data.
   int call_count;
 
@@ -207,7 +199,7 @@ class AddonData {
 
   // Weak handle to the "exports" object. An instance of this class will be
   // destroyed along with the exports object to which it is weakly bound.
-  v8::Persistent<v8::Object> exports_;
+  v8::Global<v8::Object> exports_;
 };
 
 static void Method(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -830,7 +822,7 @@ class MyObject : public node::ObjectWrap {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PlusOne(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Persistent<v8::Function> constructor;
+
   double value_;
 };
 
@@ -858,11 +850,9 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
-using v8::Persistent;
+using v8::ObjectTemplate;
 using v8::String;
 using v8::Value;
-
-Persistent<Function> MyObject::constructor;
 
 MyObject::MyObject(double value) : value_(value) {
 }
@@ -872,9 +862,15 @@ MyObject::~MyObject() {
 
 void MyObject::Init(Local<Object> exports) {
   Isolate* isolate = exports->GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<ObjectTemplate> addon_data_tpl = ObjectTemplate::New(isolate);
+  addon_data_tpl->SetInternalFieldCount(1);  // 1 field for the MyObject::New()
+  Local<Object> addon_data =
+      addon_data_tpl->NewInstance(context).ToLocalChecked();
 
   // Prepare constructor template
-  Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New);
+  Local<FunctionTemplate> tpl = FunctionTemplate::New(isolate, New, addon_data);
   tpl->SetClassName(String::NewFromUtf8(
       isolate, "MyObject", NewStringType::kNormal).ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
@@ -882,11 +878,11 @@ void MyObject::Init(Local<Object> exports) {
   // Prototype
   NODE_SET_PROTOTYPE_METHOD(tpl, "plusOne", PlusOne);
 
-  Local<Context> context = isolate->GetCurrentContext();
-  constructor.Reset(isolate, tpl->GetFunction(context).ToLocalChecked());
+  Local<Function> constructor = tpl->GetFunction(context).ToLocalChecked();
+  addon_data->SetInternalField(0, constructor);
   exports->Set(context, String::NewFromUtf8(
       isolate, "MyObject", NewStringType::kNormal).ToLocalChecked(),
-               tpl->GetFunction(context).ToLocalChecked()).FromJust();
+               constructor).FromJust();
 }
 
 void MyObject::New(const FunctionCallbackInfo<Value>& args) {
@@ -904,7 +900,8 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
-    Local<Function> cons = Local<Function>::New(isolate, constructor);
+    Local<Function> cons =
+        args.Data().As<Object>()->GetInternalField(0).As<Function>();
     Local<Object> result =
         cons->NewInstance(context, argc, argv).ToLocalChecked();
     args.GetReturnValue().Set(result);
@@ -1029,7 +1026,7 @@ class MyObject : public node::ObjectWrap {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PlusOne(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Persistent<v8::Function> constructor;
+  static v8::Global<v8::Function> constructor;
   double value_;
 };
 
@@ -1047,20 +1044,23 @@ The implementation in `myobject.cc` is similar to the previous example:
 
 namespace demo {
 
+using node::AddEnvironmentCleanupHook;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
-using v8::Persistent;
 using v8::String;
 using v8::Value;
 
-Persistent<Function> MyObject::constructor;
+// Warning! This is not thread-safe, this addon cannot be used for worker
+// threads.
+Global<Function> MyObject::constructor;
 
 MyObject::MyObject(double value) : value_(value) {
 }
@@ -1080,6 +1080,10 @@ void MyObject::Init(Isolate* isolate) {
 
   Local<Context> context = isolate->GetCurrentContext();
   constructor.Reset(isolate, tpl->GetFunction(context).ToLocalChecked());
+
+  AddEnvironmentCleanupHook(isolate, [](void*) {
+    constructor.Reset();
+  }, nullptr);
 }
 
 void MyObject::New(const FunctionCallbackInfo<Value>& args) {
@@ -1246,7 +1250,7 @@ class MyObject : public node::ObjectWrap {
   ~MyObject();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Persistent<v8::Function> constructor;
+  static v8::Global<v8::Function> constructor;
   double value_;
 };
 
@@ -1264,19 +1268,22 @@ The implementation of `myobject.cc` is similar to before:
 
 namespace demo {
 
+using node::AddEnvironmentCleanupHook;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Global;
 using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
 using v8::Object;
-using v8::Persistent;
 using v8::String;
 using v8::Value;
 
-Persistent<Function> MyObject::constructor;
+// Warning! This is not thread-safe, this addon cannot be used for worker
+// threads.
+Global<Function> MyObject::constructor;
 
 MyObject::MyObject(double value) : value_(value) {
 }
@@ -1293,6 +1300,10 @@ void MyObject::Init(Isolate* isolate) {
 
   Local<Context> context = isolate->GetCurrentContext();
   constructor.Reset(isolate, tpl->GetFunction(context).ToLocalChecked());
+
+  AddEnvironmentCleanupHook(isolate, [](void*) {
+    constructor.Reset();
+  }, nullptr);
 }
 
 void MyObject::New(const FunctionCallbackInfo<Value>& args) {
