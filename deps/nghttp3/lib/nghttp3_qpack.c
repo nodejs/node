@@ -2029,7 +2029,6 @@ int nghttp3_qpack_context_dtable_add(nghttp3_qpack_context *ctx,
   size_t i;
   int rv;
 
-  mem = ctx->mem;
   space = table_space(qnv->name->len, qnv->value->len);
 
   assert(space <= ctx->max_dtable_size);
@@ -2680,7 +2679,6 @@ static nghttp3_ssize qpack_read_huffman_string(nghttp3_qpack_read_state *rstate,
 
   if (len >= rstate->left) {
     len = rstate->left;
-    end = begin + rstate->left;
     fin = 1;
   }
 

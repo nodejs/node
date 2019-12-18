@@ -99,7 +99,7 @@ int nghttp3_tnode_is_active(nghttp3_tnode *tnode) {
 }
 
 static void tnode_unschedule(nghttp3_tnode *tnode) {
-  nghttp3_tnode *parent = tnode->parent;
+  nghttp3_tnode *parent;
 
   for (parent = tnode->parent; parent; tnode = parent, parent = tnode->parent) {
     assert(tnode->pe.index != NGHTTP3_PQ_BAD_INDEX);
