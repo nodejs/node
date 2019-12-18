@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const stream = require('stream');
 
 process.on('uncaughtException', common.mustCall());
@@ -18,4 +18,3 @@ r.pipe(w);
 
 // end() after pipe should cause unhandled exception
 w.end();
-
