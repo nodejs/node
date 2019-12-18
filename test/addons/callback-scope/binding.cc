@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include <vector>
+#include <memory>
 
 namespace {
 
@@ -31,16 +32,14 @@ void RunInCallbackScope(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
-static v8::Persistent<v8::Promise::Resolver> persistent;
-
 static void Callback(uv_work_t* req, int ignored) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope scope(isolate);
   node::CallbackScope callback_scope(isolate, v8::Object::New(isolate),
                                      node::async_context{0, 0});
-
-  v8::Local<v8::Promise::Resolver> local =
-      v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
+  std::unique_ptr<v8::Global<v8::Promise::Resolver>> persistent {
+      static_cast<v8::Global<v8::Promise::Resolver>*>(req->data) };
+  v8::Local<v8::Promise::Resolver> local = persistent->Get(isolate);
   local->Resolve(isolate->GetCurrentContext(),
                  v8::Undefined(isolate)).ToChecked();
   delete req;
@@ -49,20 +48,21 @@ static void Callback(uv_work_t* req, int ignored) {
 static void TestResolveAsync(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
 
-  if (persistent.IsEmpty()) {
-    persistent.Reset(isolate, v8::Promise::Resolver::New(
-        isolate->GetCurrentContext()).ToLocalChecked());
+  v8::Global<v8::Promise::Resolver>* persistent =
+      new v8::Global<v8::Promise::Resolver>(
+          isolate,
+          v8::Promise::Resolver::New(
+              isolate->GetCurrentContext()).ToLocalChecked());
 
-    uv_work_t* req = new uv_work_t;
+  uv_work_t* req = new uv_work_t;
+  req->data = static_cast<void*>(persistent);
 
-    uv_queue_work(node::GetCurrentEventLoop(isolate),
-                  req,
-                  [](uv_work_t*) {},
-                  Callback);
-  }
+  uv_queue_work(node::GetCurrentEventLoop(isolate),
+                req,
+                [](uv_work_t*) {},
+                Callback);
 
-  v8::Local<v8::Promise::Resolver> local =
-      v8::Local<v8::Promise::Resolver>::New(isolate, persistent);
+  v8::Local<v8::Promise::Resolver> local = persistent->Get(isolate);
 
   args.GetReturnValue().Set(local->GetPromise());
 }
