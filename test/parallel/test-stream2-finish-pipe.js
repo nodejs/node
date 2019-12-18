@@ -42,4 +42,3 @@ process.nextTick(() => {
   // ends the writable side of net.Socket.
   w.end();
 });
-
