@@ -579,6 +579,121 @@ const server = net.createServer((conn) => {
 Promise contexts may not get valid `triggerAsyncId`s by default. See
 the section on [promise execution tracking][].
 
+### Class: `AsyncLocal`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This class can be used to store a value which follows asynchronous execution
+flow. Any value set on an `AsyncLocal` instance is propagated to any callback
+or promise executed within the flow. Because of that, a continuation local
+storage can be build with an `AsyncLocal` instance. This API is similar to
+thread local storage in other runtimes and languages.
+
+The implementation relies on async hooks to follow the execution flow.
+So, if an application or a library does not play nicely with async hooks,
+the same problems will be seen with the `AsyncLocal` API. In order to fix
+such issues the `AsyncResource` API should be used.
+
+The following example shows how to use `AsyncLocal` to build a simple logger
+that assignes ids to HTTP requests and includes them into messages logged
+within each request.
+
+```js
+const http = require('http');
+const { AsyncLocal } = require('async_hooks');
+
+const asyncLocal = new AsyncLocal();
+
+function print(msg) {
+  const id = asyncLocal.get();
+  console.log(`${id !== undefined ? id : '-'}:`, msg);
+}
+
+let idSeq = 0;
+http.createServer((req, res) => {
+  asyncLocal.set(idSeq++);
+  print('start');
+  setImmediate(() => {
+    print('finish');
+    res.end();
+  });
+}).listen(8080);
+
+http.get('http://localhost:8080');
+http.get('http://localhost:8080');
+// Prints:
+//   0: start
+//   1: start
+//   0: finish
+//   1: finish
+```
+
+#### `new AsyncLocal()`
+
+Creates a new instance of `AsyncLocal`.
+
+### `asyncLocal.get()`
+
+* Returns: {any}
+
+Returns the value of the `AsyncLocal` in current execution context,
+or `undefined` if the value is not set or the `AsyncLocal` was removed.
+
+### `asyncLocal.set(value)`
+
+* `value` {any}
+
+Sets the value for the `AsyncLocal` within current execution context.
+
+Once set, the value will be kept through the subsequent asynchronous calls,
+unless overridden by calling `asyncLocal.set(value)`:
+
+```js
+const asyncLocal = new AsyncLocal();
+
+setImmediate(() => {
+  asyncLocal.set('A');
+
+  setImmediate(() => {
+    console.log(asyncLocal.get());
+    // Prints: A
+
+    asyncLocal.set('B');
+    console.log(asyncLocal.get());
+    // Prints: B
+  });
+
+  console.log(asyncLocal.get());
+  // Prints: A
+
+  // Stop further value propagation
+  asyncLocal.set(undefined);
+
+  console.log(asyncLocal.get());
+  // Prints: undefined
+
+  setImmediate(() => {
+    console.log(asyncLocal.get());
+    // Prints: undefined
+  });
+});
+```
+
+If the `AsyncLocal` was removed before this call is made,
+[`ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`][] is thrown.
+
+### `asyncLocal.remove()`
+
+Disables value propagation for the `AsyncLocal` and releases all
+values stored by it. Calling `asyncLocal.remove()` multiple times will
+have no effect.
+
+Any subsequent `asyncLocal.get()` calls will return `undefined`.
+Any subsequent `asyncLocal.set(value)` calls will throw
+[`ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`][].
+
 ## Promise execution tracking
 
 By default, promise executions are not assigned `asyncId`s due to the relatively
@@ -868,3 +983,4 @@ for (let i = 0; i < 10; i++) {
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
+[`ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`]: errors.html#ERR_ASYNC_LOCAL_CANNOT_SET_VALUE

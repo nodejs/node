@@ -8,7 +8,8 @@ const common = require('../common.js');
 const {
   createHook,
   executionAsyncResource,
-  executionAsyncId
+  executionAsyncId,
+  AsyncLocal
 } = require('async_hooks');
 const { createServer } = require('http');
 
@@ -18,7 +19,7 @@ const connections = 500;
 const path = '/';
 
 const bench = common.createBenchmark(main, {
-  type: ['async-resource', 'destroy'],
+  type: ['async-resource', 'destroy', 'async-local'],
   asyncMethod: ['callbacks', 'async'],
   n: [1e6]
 });
@@ -102,6 +103,29 @@ function buildDestroy(getServe) {
   }
 }
 
+function buildAsyncLocal(getServe) {
+  const server = createServer(getServe(getCLS, setCLS));
+  const asyncLocal = new AsyncLocal();
+
+  return {
+    server,
+    close
+  };
+
+  function getCLS() {
+    return asyncLocal.get();
+  }
+
+  function setCLS(state) {
+    asyncLocal.set(state);
+  }
+
+  function close() {
+    asyncLocal.remove();
+    server.close();
+  }
+}
+
 function getServeAwait(getCLS, setCLS) {
   return async function serve(req, res) {
     setCLS(Math.random());
@@ -126,7 +150,8 @@ function getServeCallbacks(getCLS, setCLS) {
 
 const types = {
   'async-resource': buildCurrentResource,
-  'destroy': buildDestroy
+  'destroy': buildDestroy,
+  'async-local': buildAsyncLocal,
 };
 
 const asyncMethods = {
