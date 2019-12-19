@@ -28,4 +28,4 @@ jobs:
       continue-on-error: true
       run: |
         python ./configure.py
-        make test
+        make -J test
