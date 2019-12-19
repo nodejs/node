@@ -66,29 +66,28 @@ static void Ngtcp2DebugLog(void* user_data, const char* fmt, ...) {
 }
 
 void QuicSessionConfig::ResetToDefaults() {
-  ngtcp2_settings_default(&settings_);
-  settings_.initial_ts = uv_hrtime();
-  settings_.log_printf = Ngtcp2DebugLog;
-  settings_.transport_params.active_connection_id_limit =
+  ngtcp2_settings_default(this);
+  initial_ts = uv_hrtime();
+  log_printf = Ngtcp2DebugLog;
+  transport_params.active_connection_id_limit =
     DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
-  settings_.transport_params.initial_max_stream_data_bidi_local =
+  transport_params.initial_max_stream_data_bidi_local =
     DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL;
-  settings_.transport_params.initial_max_stream_data_bidi_remote =
+  transport_params.initial_max_stream_data_bidi_remote =
     DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE;
-  settings_.transport_params.initial_max_stream_data_uni =
+  transport_params.initial_max_stream_data_uni =
     DEFAULT_MAX_STREAM_DATA_UNI;
-  settings_.transport_params.initial_max_streams_bidi =
+  transport_params.initial_max_streams_bidi =
     DEFAULT_MAX_STREAMS_BIDI;
-  settings_.transport_params.initial_max_streams_uni =
+  transport_params.initial_max_streams_uni =
     DEFAULT_MAX_STREAMS_UNI;
-  settings_.transport_params.initial_max_data = DEFAULT_MAX_DATA;
-  settings_.transport_params.idle_timeout = DEFAULT_IDLE_TIMEOUT;
-  settings_.transport_params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
-  settings_.transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  settings_.transport_params.disable_active_migration = 0;
-  settings_.transport_params.preferred_address_present = 0;
-  settings_.transport_params.stateless_reset_token_present = 0;
-  max_crypto_buffer_ = DEFAULT_MAX_CRYPTO_BUFFER;
+  transport_params.initial_max_data = DEFAULT_MAX_DATA;
+  transport_params.idle_timeout = DEFAULT_IDLE_TIMEOUT;
+  transport_params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  transport_params.disable_active_migration = 0;
+  transport_params.preferred_address_present = 0;
+  transport_params.stateless_reset_token_present = 0;
 }
 
 inline void SetConfig(Environment* env, int idx, uint64_t* val) {
@@ -104,54 +103,48 @@ void QuicSessionConfig::Set(Environment* env,
   ResetToDefaults();
 
   SetConfig(env, IDX_QUIC_SESSION_ACTIVE_CONNECTION_ID_LIMIT,
-            &settings_.transport_params.active_connection_id_limit);
+            &transport_params.active_connection_id_limit);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_LOCAL,
-            &settings_.transport_params.initial_max_stream_data_bidi_local);
+            &transport_params.initial_max_stream_data_bidi_local);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_REMOTE,
-            &settings_.transport_params.initial_max_stream_data_bidi_remote);
+            &transport_params.initial_max_stream_data_bidi_remote);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAM_DATA_UNI,
-            &settings_.transport_params.initial_max_stream_data_uni);
+            &transport_params.initial_max_stream_data_uni);
   SetConfig(env, IDX_QUIC_SESSION_MAX_DATA,
-            &settings_.transport_params.initial_max_data);
+            &transport_params.initial_max_data);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAMS_BIDI,
-            &settings_.transport_params.initial_max_streams_bidi);
+            &transport_params.initial_max_streams_bidi);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAMS_UNI,
-            &settings_.transport_params.initial_max_streams_uni);
+            &transport_params.initial_max_streams_uni);
   SetConfig(env, IDX_QUIC_SESSION_IDLE_TIMEOUT,
-            &settings_.transport_params.idle_timeout);
+            &transport_params.idle_timeout);
   SetConfig(env, IDX_QUIC_SESSION_MAX_PACKET_SIZE,
-            &settings_.transport_params.max_packet_size);
+            &transport_params.max_packet_size);
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACK_DELAY,
-            &settings_.transport_params.max_ack_delay);
+            &transport_params.max_ack_delay);
 
-  SetConfig(env, IDX_QUIC_SESSION_MAX_CRYPTO_BUFFER,
-            &max_crypto_buffer_);
-
-  settings_.transport_params.idle_timeout =
-      settings_.transport_params.idle_timeout * 1000000;
-
-  max_crypto_buffer_ = std::max(max_crypto_buffer_, MIN_MAX_CRYPTO_BUFFER);
+  transport_params.idle_timeout = transport_params.idle_timeout * 1000000;
 
   if (preferred_addr != nullptr) {
-    settings_.transport_params.preferred_address_present = 1;
+    transport_params.preferred_address_present = 1;
     switch (preferred_addr->sa_family) {
       case AF_INET: {
-        auto& dest = settings_.transport_params.preferred_address.ipv4_addr;
+        auto& dest = transport_params.preferred_address.ipv4_addr;
         memcpy(
             &dest,
             &(reinterpret_cast<const sockaddr_in*>(preferred_addr)->sin_addr),
             sizeof(dest));
-        settings_.transport_params.preferred_address.ipv4_port =
+        transport_params.preferred_address.ipv4_port =
             SocketAddress::GetPort(preferred_addr);
         break;
       }
       case AF_INET6: {
-        auto& dest = settings_.transport_params.preferred_address.ipv6_addr;
+        auto& dest = transport_params.preferred_address.ipv6_addr;
         memcpy(
             &dest,
             &(reinterpret_cast<const sockaddr_in6*>(preferred_addr)->sin6_addr),
             sizeof(dest));
-        settings_.transport_params.preferred_address.ipv6_port =
+        transport_params.preferred_address.ipv6_port =
             SocketAddress::GetPort(preferred_addr);
         break;
       }
@@ -163,34 +156,34 @@ void QuicSessionConfig::Set(Environment* env,
 
 void QuicSessionConfig::SetOriginalConnectionID(const ngtcp2_cid* ocid) {
   if (ocid) {
-    settings_.transport_params.original_connection_id = *ocid;
-    settings_.transport_params.original_connection_id_present = 1;
+    transport_params.original_connection_id = *ocid;
+    transport_params.original_connection_id_present = 1;
   }
 }
 
 void QuicSessionConfig::GenerateStatelessResetToken() {
-  settings_.transport_params.stateless_reset_token_present = 1;
+  transport_params.stateless_reset_token_present = 1;
   EntropySource(
-      settings_.transport_params.stateless_reset_token,
-      arraysize(settings_.transport_params.stateless_reset_token));
+      transport_params.stateless_reset_token,
+      arraysize(transport_params.stateless_reset_token));
 }
 
 void QuicSessionConfig::GeneratePreferredAddressToken(ngtcp2_cid* pscid) {
-  if (!settings_.transport_params.preferred_address_present)
+  if (!transport_params.preferred_address_present)
     return;
   size_t len =
       arraysize(
-          settings_.transport_params.preferred_address.stateless_reset_token);
+          transport_params.preferred_address.stateless_reset_token);
   EntropySource(
-      settings_.transport_params.preferred_address.stateless_reset_token, len);
+      transport_params.preferred_address.stateless_reset_token, len);
 
   pscid->datalen = NGTCP2_SV_SCIDLEN;
   EntropySource(pscid->data, pscid->datalen);
-  settings_.transport_params.preferred_address.cid = *pscid;
+  transport_params.preferred_address.cid = *pscid;
 }
 
-void QuicSessionConfig::SetQlog(const ngtcp2_qlog_settings& qlog) {
-  settings_.qlog = qlog;
+void QuicSessionConfig::SetQlog(const ngtcp2_qlog_settings& qlog_) {
+  qlog = qlog_;
 }
 
 
@@ -2729,7 +2722,6 @@ void QuicSession::InitServer(
   config->SetOriginalConnectionID(ocid);
   config->GenerateStatelessResetToken();
   config->GeneratePreferredAddressToken(pscid());
-  max_crypto_buffer_ = config->GetMaxCryptoBuffer();
 
   EntropySource(scid_.data, NGTCP2_SV_SCIDLEN);
   scid_.datalen = NGTCP2_SV_SCIDLEN;
@@ -2748,7 +2740,7 @@ void QuicSession::InitServer(
           &path,
           version,
           &callbacks[crypto_context_->Side()],
-          config->data(),
+          config,
           &alloc_info_,
           static_cast<QuicSession*>(this)), 0);
 
@@ -2859,7 +2851,6 @@ bool QuicSession::InitClient(
   max_pktlen_ = GetMaxPktLen(remote_addr);
 
   QuicSessionConfig config(env());
-  max_crypto_buffer_ = config.GetMaxCryptoBuffer();
   ExtendMaxStreamsBidi(DEFAULT_MAX_STREAMS_BIDI);
   ExtendMaxStreamsUni(DEFAULT_MAX_STREAMS_UNI);
 
@@ -2892,7 +2883,7 @@ bool QuicSession::InitClient(
           &path,
           NGTCP2_PROTO_VER,
           &callbacks[crypto_context_->Side()],
-          config.data(),
+          &config,
           &alloc_info_,
           static_cast<QuicSession*>(this)), 0);
 

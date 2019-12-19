@@ -46,7 +46,7 @@ enum class QlogMode {
 // stack created and use a combination of an AliasedBuffer to pass
 // the numeric settings quickly (see node_quic_state.h) and passed
 // in non-numeric settings (e.g. preferred_addr).
-class QuicSessionConfig {
+class QuicSessionConfig : public ngtcp2_settings {
  public:
   QuicSessionConfig() {
     ResetToDefaults();
@@ -57,9 +57,11 @@ class QuicSessionConfig {
   }
 
   QuicSessionConfig(const QuicSessionConfig& config) {
-    settings_ = config.settings_;
-    max_crypto_buffer_ = config.max_crypto_buffer_;
-    settings_.initial_ts = uv_hrtime();
+    initial_ts = uv_hrtime();
+    transport_params = config.transport_params;
+    qlog = config.qlog;
+    log_printf = config.log_printf;
+    token = config.token;
   }
 
   void ResetToDefaults();
@@ -79,18 +81,7 @@ class QuicSessionConfig {
   // If the preferred address is set, generates the associated tokens
   void GeneratePreferredAddressToken(ngtcp2_cid* pscid);
 
-  uint64_t GetMaxCryptoBuffer() const { return max_crypto_buffer_; }
-
   void SetQlog(const ngtcp2_qlog_settings& qlog);
-
-  const ngtcp2_settings& operator*() const { return settings_; }
-  const ngtcp2_settings* operator->() const { return &settings_; }
-
-  const ngtcp2_settings* data() { return &settings_; }
-
- private:
-  uint64_t max_crypto_buffer_ = DEFAULT_MAX_CRYPTO_BUFFER;
-  ngtcp2_settings settings_;
 };
 
 // Options to alter the behavior of various functions on the
@@ -1292,7 +1283,6 @@ class QuicSession : public AsyncWrap,
   uint32_t flags_ = 0;
   uint64_t initial_connection_close_ = NGTCP2_NO_ERROR;
   size_t max_pktlen_ = 0;
-  size_t max_crypto_buffer_ = DEFAULT_MAX_CRYPTO_BUFFER;
   size_t current_ngtcp2_memory_ = 0;
   size_t connection_close_attempts_ = 0;
   size_t connection_close_limit_ = 1;

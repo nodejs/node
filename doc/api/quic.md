@@ -1148,7 +1148,6 @@ added: REPLACEME
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `activeConnectionIdLimit` {number}
   * `maxAckDelay` {number}
-  * `maxCryptoBuffer` {number}
   * `maxData` {number}
   * `maxPacketSize` {number}
   * `maxStreamDataBidiLocal` {number}
@@ -1325,7 +1324,6 @@ added: REPLACEME
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `activeConnectionIdLimit` {number}
   * `maxAckDelay` {number}
-  * `maxCryptoBuffer` {number}
   * `maxData` {number}
   * `maxPacketSize` {number}
   * `maxStreamsBidi` {number}
