@@ -465,15 +465,14 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
 added: REPLACEME
 -->
 
-* Returns: {Object} The resource that triggered the current
-  execution context.
+* Returns: {Object} The resource representing the current execution.
   Useful to store data within the resource.
 
 ```js
 const { open } = require('fs');
 const { executionAsyncId, executionAsyncResource } = require('async_hooks');
 
-console.log(executionAsyncId(), executionAsyncResource());  // 1 null
+console.log(executionAsyncId(), executionAsyncResource());  // 1 {}
 open(__filename, 'r', (err, fd) => {
   console.log(executionAsyncId(), executionAsyncResource());  // 7 FSReqWrap
 });
@@ -511,6 +510,10 @@ const server = createServer(function(req, res) {
 Resource objects returned by `executionAsyncResource()` are often internal
 handle objects with undocumented APIs. Using any functions or properties
 on the object is not recommended and may crash your application.
+
+Using `executionAsyncResource()` in the top-level execution context will
+return an empty object as there is no handle or request object to use,
+but having an object representing the top-level can be helpful.
 
 #### `async_hooks.executionAsyncId()`
 
