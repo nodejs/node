@@ -4,7 +4,12 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Module, SourceTextModule, SyntheticModule, createContext } = require('vm');
+const {
+  Module,
+  SourceTextModule,
+  SyntheticModule,
+  createContext
+} = require('vm');
 const util = require('util');
 
 (async function test1() {
@@ -110,39 +115,35 @@ const util = require('util');
 
 // Check the impossibility of creating an abstract instance of the Module.
 {
-  assert.throws(
-    () => {
-      new Module();
-    },
-    /^TypeError: Module is not a constructor$/
-  );
-
+  common.expectsError(() => new Module(), {
+    message: 'Module is not a constructor',
+    type: TypeError
+  });
 }
 
 // Check to throws invalid exportNames
 {
-  assert.throws(
-    () => {
-      new SyntheticModule(undefined, () => {}, {});
-    },
-  );
+  common.expectsError(() => new SyntheticModule(undefined, () => {}, {}), {
+    message: 'The "exportNames" argument must be an Array of strings.' +
+      ' Received undefined',
+    type: TypeError
+  });
 }
 
 // Check to throws invalid evaluateCallback
 {
-  assert.throws(
-    () => {
-      new SyntheticModule([], undefined, {});
-    },
-  );
+  common.expectsError(() => new SyntheticModule([], undefined, {}), {
+    message: 'The "evaluateCallback" argument must be of type function.' +
+      ' Received undefined',
+    type: TypeError
+  });
 }
 
 // Check to throws invalid options
 {
-  assert.throws(
-    () => {
-      new SyntheticModule([], () => {}, null);
-    },
-  );
+  common.expectsError(() => new SyntheticModule([], () => {}, null), {
+    message: 'The "options" argument must be of type object.' +
+      ' Received null',
+    type: TypeError
+  });
 }
-
