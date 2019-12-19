@@ -207,9 +207,8 @@ inline AsyncHooks::DefaultTriggerAsyncIdScope ::~DefaultTriggerAsyncIdScope() {
 }
 
 inline void AsyncHooks::push_execution_async_resource(
-  v8::Local<v8::Value> execution_async_resource) {
-  execution_async_resources_.push(v8::Global<v8::Value>(
-    env()->isolate(), execution_async_resource));
+  v8::Local<v8::Value> resource) {
+  execution_async_resources_.emplace(env()->isolate(), resource);
 }
 
 inline void AsyncHooks::pop_execution_async_resource() {
