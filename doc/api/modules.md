@@ -160,9 +160,10 @@ require(X) from module at path Y
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
-4. LOAD_NODE_MODULES(X, dirname(Y))
-5. LOAD_SELF_REFERENCE(X, dirname(Y))
-6. THROW "not found"
+4. LOAD_SELF_REFERENCE(X, dirname(Y), true)
+5. LOAD_NODE_MODULES(X, dirname(Y))
+6. LOAD_SELF_REFERENCE(X, dirname(Y), false)
+7. THROW "not found"
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as JavaScript text.  STOP
@@ -203,11 +204,12 @@ NODE_MODULES_PATHS(START)
    d. let I = I - 1
 5. return DIRS
 
-LOAD_SELF_REFERENCE(X, START)
+LOAD_SELF_REFERENCE(X, START, ENCAPSULATED)
 1. Find the closest package scope to START.
-2. If no scope was found, throw "not found".
-3. If the name in `package.json` isn't a prefix of X, throw "not found".
-4. Otherwise, resolve the remainder of X relative to this package as if it
+2. If no scope was found, return.
+3. If ENCAPSULATED is true and the `package.json` has no "exports", return.
+4. If the name in `package.json` isn't a prefix of X, throw "not found".
+5. Otherwise, resolve the remainder of X relative to this package as if it
    was loaded via `LOAD_NODE_MODULES` with a name in `package.json`.
 ```
 
