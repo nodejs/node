@@ -51,8 +51,8 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     message: `${defaultMsgStartFull} ... Lines skipped\n\n` +
-             '+ Uint8Array [\n' +
-             '- Buffer [Uint8Array] [\n    120,\n...\n    122,\n    10\n  ]'
+             '+ Uint8Array(4) [\n' +
+             '- Buffer(4) [Uint8Array] [\n    120,\n...\n    122,\n    10\n  ]'
   }
 );
 assert.deepEqual(arr, buf);
@@ -66,7 +66,7 @@ assert.deepEqual(arr, buf);
     {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
-               '  Buffer [Uint8Array] [\n' +
+               '  Buffer(4) [Uint8Array] [\n' +
                '    120,\n' +
                '    121,\n' +
                '    122,\n' +
@@ -86,7 +86,7 @@ assert.deepEqual(arr, buf);
     {
       code: 'ERR_ASSERTION',
       message: `${defaultMsgStartFull}\n\n` +
-               '  Uint8Array [\n' +
+               '  Uint8Array(4) [\n' +
                '    120,\n' +
                '    121,\n' +
                '    122,\n' +
