@@ -45,6 +45,7 @@
 #include <cstdint>
 #include <functional>
 #include <list>
+#include <stack>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -665,10 +666,10 @@ class AsyncHooks : public MemoryRetainer {
   inline bool pop_async_id(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
 
-  inline void set_execution_async_resource(
+  inline void push_execution_async_resource(
     v8::Local<v8::Value> execution_async_resource_);
+  inline void pop_execution_async_resource();
   inline v8::Local<v8::Value> get_execution_async_resource();
-  inline void clear_execution_async_resource();
 
   AsyncHooks(const AsyncHooks&) = delete;
   AsyncHooks& operator=(const AsyncHooks&) = delete;
@@ -713,7 +714,7 @@ class AsyncHooks : public MemoryRetainer {
 
   void grow_async_ids_stack();
 
-  v8::Persistent<v8::Value> execution_async_resource_;
+  std::stack<v8::Global<v8::Value>> execution_async_resources_;
 };
 
 class ImmediateInfo : public MemoryRetainer {

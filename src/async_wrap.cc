@@ -148,7 +148,7 @@ void AsyncWrap::EmitTraceEventBefore() {
 void AsyncWrap::EmitBefore(Environment* env, double async_id,
     v8::Local<v8::Object> resource) {
   v8::Local<v8::Context> context = env->isolate()->GetCurrentContext();
-  env->async_hooks()->set_execution_async_resource(resource);
+  env->async_hooks()->push_execution_async_resource(resource);
 
   Emit(env, async_id, AsyncHooks::kBefore,
        env->async_hooks_before_function());
@@ -180,7 +180,7 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
   Emit(env, async_id, AsyncHooks::kAfter,
        env->async_hooks_after_function());
 
-  env->async_hooks()->clear_execution_async_resource();
+  env->async_hooks()->pop_execution_async_resource();
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -266,8 +266,12 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
 
       // needed for async functions :/
       // the top level will not emit before and after
-      env->async_hooks()->set_execution_async_resource(wrap->object());
+      env->async_hooks()->push_execution_async_resource(wrap->object());
     }
+  }
+
+  if (type == PromiseHookType::kResolve && !parent->IsPromise()) {
+    env->async_hooks()->pop_execution_async_resource();
   }
 
   if (wrap == nullptr) return;
@@ -402,11 +406,19 @@ static void GetExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(env->async_hooks()->get_execution_async_resource());
 }
 
-static void SetExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
+static void PushExecutionAsyncResource(
+  const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(args);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  env->async_hooks()->set_execution_async_resource(args[0]);
+  env->async_hooks()->push_execution_async_resource(args[0]);
+}
+
+static void PopExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  env->async_hooks()->pop_execution_async_resource();
 }
 
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
@@ -497,10 +509,12 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
   env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
   env->SetMethod(target, "executionAsyncResource", GetExecutionAsyncResource);
-  env->SetMethod(target, "setExecutionAsyncResource",
-                 SetExecutionAsyncResource);
+  env->SetMethod(target, "pushExecutionAsyncResource",
+                 PushExecutionAsyncResource);
+  env->SetMethod(target, "popExecutionAsyncResource",
+                 PopExecutionAsyncResource);
 
-  env->async_hooks()->clear_execution_async_resource();
+  env->async_hooks()->push_execution_async_resource(v8::Object::New(isolate));
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);

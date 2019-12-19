@@ -67,8 +67,7 @@ inline MultiIsolatePlatform* IsolateData::platform() const {
 inline AsyncHooks::AsyncHooks()
     : async_ids_stack_(env()->isolate(), 16 * 2),
       fields_(env()->isolate(), kFieldsCount),
-      async_id_fields_(env()->isolate(), kUidFieldsCount),
-      execution_async_resource_(env()->isolate(), v8::Null(env()->isolate())) {
+      async_id_fields_(env()->isolate(), kUidFieldsCount) {
   v8::HandleScope handle_scope(env()->isolate());
 
   // Always perform async_hooks checks, not just when async_hooks is enabled.
@@ -207,17 +206,23 @@ inline AsyncHooks::DefaultTriggerAsyncIdScope ::~DefaultTriggerAsyncIdScope() {
     old_default_trigger_async_id_;
 }
 
-inline void AsyncHooks::set_execution_async_resource(
+inline void AsyncHooks::push_execution_async_resource(
   v8::Local<v8::Value> execution_async_resource) {
-  execution_async_resource_.Reset(env()->isolate(), execution_async_resource);
+  execution_async_resources_.push(v8::Global<v8::Value>(
+    env()->isolate(), execution_async_resource));
+}
+
+inline void AsyncHooks::pop_execution_async_resource() {
+  if (execution_async_resources_.size()) {
+    execution_async_resources_.pop();
+  }
 }
 
 inline v8::Local<v8::Value> AsyncHooks::get_execution_async_resource() {
-  return execution_async_resource_.Get(env()->isolate());
-}
-
-inline void AsyncHooks::clear_execution_async_resource() {
-  execution_async_resource_.Reset();
+  if (!execution_async_resources_.size()) {
+    return v8::Null(env()->isolate());
+  }
+  return execution_async_resources_.top().Get(env()->isolate());
 }
 
 Environment* Environment::ForAsyncHooks(AsyncHooks* hooks) {
