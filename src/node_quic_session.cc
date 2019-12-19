@@ -942,7 +942,13 @@ bool QuicCryptoContext::OnSecrets(
         "Received secrets for %s crypto level",
         crypto_level_name(level));
 
-  return SetCryptoSecrets(session_, level, rx_secret, tx_secret, secretlen);
+  if (!SetCryptoSecrets(session_, level, rx_secret, tx_secret, secretlen))
+    return false;
+
+  if (level == NGTCP2_CRYPTO_LEVEL_APP)
+    session_->SetRemoteTransportParams();
+
+  return true;
 }
 
 // When the client has requested OSCP, this function will be called to provide
@@ -2285,11 +2291,10 @@ void QuicSession::SetLocalAddress(const ngtcp2_addr* addr) {
 }
 
 // Set the transport parameters received from the remote peer
-int QuicSession::SetRemoteTransportParams(ngtcp2_transport_params* params) {
+void QuicSession::SetRemoteTransportParams() {
   DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  transport_params_ = *params;
+  ngtcp2_conn_get_remote_transport_params(Connection(), &transport_params_);
   SetFlag(QUICSESSION_FLAG_HAS_TRANSPORT_PARAMS);
-  return ngtcp2_conn_set_remote_transport_params(Connection(), params);
 }
 
 

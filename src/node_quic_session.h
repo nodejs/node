@@ -839,7 +839,7 @@ class QuicSession : public AsyncWrap,
 
   inline uint64_t GetMaxLocalStreamsUni();
 
-  int SetRemoteTransportParams(ngtcp2_transport_params* params);
+  void SetRemoteTransportParams();
   bool SetEarlyTransportParams(v8::Local<v8::Value> buffer);
   bool SetSocket(QuicSocket* socket, bool nat_rebinding = false);
   int SetSession(SSL_SESSION* session);

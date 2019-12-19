@@ -286,17 +286,15 @@ server.on('ready', common.mustCall(() => {
     assert.strictEqual(response.toString(), 'hello');
   }));
 
-  // TODO(@jasnell): Temporarily disabled while being fixed
-  //
-  // req.on('sessionTicket', common.mustCall((id, ticket, params) => {
-  //   debug('Session ticket received');
-  //   assert(id instanceof Buffer);
-  //   assert(ticket instanceof Buffer);
-  //   assert(params instanceof Buffer);
-  //   debug('  ID: %s', id.toString('hex'));
-  //   debug('  Ticket: %s', ticket.toString('hex'));
-  //   debug('  Params: %s', params.toString('hex'));
-  // }, 2));
+  req.on('sessionTicket', common.mustCall((id, ticket, params) => {
+    debug('Session ticket received');
+    assert(id instanceof Buffer);
+    assert(ticket instanceof Buffer);
+    assert(params instanceof Buffer);
+    debug('  ID: %s', id.toString('hex'));
+    debug('  Ticket: %s', ticket.toString('hex'));
+    debug('  Params: %s', params.toString('hex'));
+  }, 2));
 
   req.on('secure', common.mustCall((servername, alpn, cipher) => {
     debug('QuicClientSession TLS Handshake Complete');
