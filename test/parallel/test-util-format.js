@@ -158,7 +158,7 @@ assert.strictEqual(util.format('%s', () => 5), '() => 5');
   class Foobar extends Array { aaa = true; }
   assert.strictEqual(
     util.format('%s', new Foobar(5)),
-    'Foobar [ <5 empty items>, aaa: true ]'
+    'Foobar(5) [ <5 empty items>, aaa: true ]'
   );
 
   // Subclassing:
