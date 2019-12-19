@@ -156,6 +156,13 @@ Enable experimental Source Map V3 support for stack traces.
 Currently, overriding `Error.prepareStackTrace` is ignored when the
 `--enable-source-maps` flag is set.
 
+### `--experimental-import-meta-resolve`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental `import.meta.resolve()` support.
+
 ### `--experimental-json-modules`
 <!-- YAML
 added: v12.9.0
@@ -1073,6 +1080,7 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 * `--enable-fips`
 * `--enable-source-maps`
+* `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
