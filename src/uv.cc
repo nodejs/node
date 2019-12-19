@@ -95,8 +95,6 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  // TODO(joyeecheung): This should be deprecated in user land in favor of
-  // `util.getSystemErrorName(err)`.
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   target->Set(env->context(),
