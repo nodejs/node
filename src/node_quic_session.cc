@@ -680,7 +680,7 @@ void JSQuicSessionListener::OnQLog(const uint8_t* data, size_t len) {
 // Generates a new connection ID for this QuicSession.
 // ngtcp2 will call this multiple times at the start of a new connection
 // in order to build a pool of available CIDs.
-void RandomConnectionIDStrategy::GetNewConnectionID(
+void QuicSession::RandomConnectionIDStrategy(
     QuicSession* session,
     ngtcp2_cid* cid,
     size_t cidlen) {
@@ -691,7 +691,7 @@ void RandomConnectionIDStrategy::GetNewConnectionID(
     EntropySource(cid->data, cidlen);
 }
 
-void CryptoStatelessResetTokenStrategy::GetNewStatelessToken(
+void QuicSession::CryptoStatelessResetTokenStrategy(
     QuicSession* session,
     ngtcp2_cid* cid,
     uint8_t* token,
@@ -1268,8 +1268,8 @@ QuicSession::QuicSession(
         sizeof(recovery_stats_) / sizeof(double),
         reinterpret_cast<double*>(&recovery_stats_)) {
   PushListener(&default_listener_);
-  SetConnectionIDStrategory(&default_connection_id_strategy_);
-  SetStatelessResetTokenStrategy(&default_stateless_reset_strategy_);
+  SetConnectionIDStrategory(RandomConnectionIDStrategy);
+  SetStatelessResetTokenStrategy(CryptoStatelessResetTokenStrategy);
   crypto_context_.reset(new QuicCryptoContext(this, ctx, side, options));
   application_.reset(SelectApplication(this));
   if (rcid != nullptr)
@@ -1633,13 +1633,13 @@ uint32_t QuicSession::GetNegotiatedVersion() {
   return ngtcp2_conn_get_negotiated_version(Connection());
 }
 
-void QuicSession::SetConnectionIDStrategory(ConnectionIDStrategy* strategy) {
+void QuicSession::SetConnectionIDStrategory(ConnectionIDStrategy strategy) {
   CHECK_NOT_NULL(strategy);
   connection_id_strategy_ = strategy;
 }
 
 void QuicSession::SetStatelessResetTokenStrategy(
-    StatelessResetTokenStrategy* strategy) {
+    StatelessResetTokenStrategy strategy) {
   CHECK_NOT_NULL(strategy);
   stateless_reset_strategy_ = strategy;
 }
@@ -1653,11 +1653,8 @@ int QuicSession::GetNewConnectionID(
     size_t cidlen) {
   DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
   CHECK_NOT_NULL(connection_id_strategy_);
-  connection_id_strategy_->GetNewConnectionID(
-      this,
-      cid,
-      cidlen);
-  stateless_reset_strategy_->GetNewStatelessToken(
+  connection_id_strategy_(this, cid, cidlen);
+  stateless_reset_strategy_(
       this,
       cid,
       token,

@@ -289,41 +289,16 @@ class JSQuicSessionListener : public QuicSessionListener {
   friend class QuicSession;
 };
 
-// Currently, we generate Connection IDs randomly. In the future,
-// however, there may be other strategies that need to be supported.
-class ConnectionIDStrategy {
- public:
-  virtual void GetNewConnectionID(
-      QuicSession* session,
-      ngtcp2_cid* cid,
-      size_t cidlen) = 0;
-};
+typedef void(*ConnectionIDStrategy)(
+    QuicSession* session,
+    ngtcp2_cid* cid,
+    size_t cidlen);
 
-class RandomConnectionIDStrategy : public ConnectionIDStrategy {
- public:
-  void GetNewConnectionID(
-      QuicSession* session,
-      ngtcp2_cid* cid,
-      size_t cidlen) override;
-};
-
-class StatelessResetTokenStrategy {
- public:
-  virtual void GetNewStatelessToken(
-      QuicSession* session,
-      ngtcp2_cid* cid,
-      uint8_t* token,
-      size_t tokenlen) = 0;
-};
-
-class CryptoStatelessResetTokenStrategy : public StatelessResetTokenStrategy {
- public:
-  void GetNewStatelessToken(
-      QuicSession* session,
-      ngtcp2_cid* cid,
-      uint8_t* token,
-      size_t tokenlen) override;
-};
+typedef void(*StatelessResetTokenStrategy)(
+    QuicSession* session,
+    ngtcp2_cid* cid,
+    uint8_t* token,
+    size_t tokenlen);
 
 // The QuicCryptoContext class encapsulates all of the crypto/TLS
 // handshake details on behalf of a QuicSession.
@@ -951,8 +926,8 @@ class QuicSession : public AsyncWrap,
   void PushListener(QuicSessionListener* listener);
   void RemoveListener(QuicSessionListener* listener);
 
-  void SetConnectionIDStrategory(ConnectionIDStrategy* strategy);
-  void SetStatelessResetTokenStrategy(StatelessResetTokenStrategy* strategy);
+  void SetConnectionIDStrategory(ConnectionIDStrategy strategy);
+  void SetStatelessResetTokenStrategy(StatelessResetTokenStrategy strategy);
 
   // Report that the stream data is flow control blocked
   void StreamDataBlocked(int64_t stream_id);
@@ -984,6 +959,18 @@ class QuicSession : public AsyncWrap,
   SET_SELF_SIZE(QuicSession)
 
  private:
+
+  static void RandomConnectionIDStrategy(
+        QuicSession* session,
+        ngtcp2_cid* cid,
+        size_t cidlen);
+
+  static void CryptoStatelessResetTokenStrategy (
+        QuicSession* session,
+        ngtcp2_cid* cid,
+        uint8_t* token,
+        size_t tokenlen);
+
   // Initialize the QuicSession as a server
   void InitServer(
       QuicSessionConfig* config,
@@ -1310,11 +1297,8 @@ class QuicSession : public AsyncWrap,
   size_t connection_close_attempts_ = 0;
   size_t connection_close_limit_ = 1;
 
-  ConnectionIDStrategy* connection_id_strategy_ = nullptr;
-  RandomConnectionIDStrategy default_connection_id_strategy_;
-
-  StatelessResetTokenStrategy* stateless_reset_strategy_ = nullptr;
-  CryptoStatelessResetTokenStrategy default_stateless_reset_strategy_;
+  ConnectionIDStrategy connection_id_strategy_ = nullptr;
+  StatelessResetTokenStrategy stateless_reset_strategy_ = nullptr;
 
   QuicSessionListener* listener_ = nullptr;
   JSQuicSessionListener default_listener_;
