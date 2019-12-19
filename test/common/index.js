@@ -717,6 +717,7 @@ function runWithInvalidFD(func) {
 
   printSkipMessage('Could not generate an invalid fd');
 }
+
 // A helper function to simplify checking for ERR_INVALID_ARG_TYPE output.
 function invalidArgTypeHelper(input) {
   if (input == null) {
