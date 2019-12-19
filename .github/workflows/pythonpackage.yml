@@ -20,10 +20,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt || true
-    - name: Compile V8
-      run: |
-        python ./configure.py
-        make -j2 -C out V=1 v8
     - name: Compile Node.js
       run: |
         python ./configure.py
