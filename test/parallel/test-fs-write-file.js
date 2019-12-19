@@ -30,7 +30,6 @@ tmpdir.refresh();
 
 const filename = join(tmpdir.path, 'test.txt');
 
-const n = 220;
 const s = '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，疆域包括今天中国的广东、' +
           '广西两省区的大部份地区，福建省、湖南、贵州、云南的一小部份地区和越南的北部。' +
           '南越国是秦朝灭亡后，由南海郡尉赵佗于前203年起兵兼并桂林郡和象郡后建立。' +
@@ -59,26 +58,6 @@ fs.writeFile(filename2, buf, common.mustCall(function(e) {
     assert.ifError(e);
 
     assert.strictEqual(buf.length, buffer.length);
-  }));
-}));
-
-// Test that writeFile accepts numbers.
-const filename3 = join(tmpdir.path, 'test3.txt');
-
-const m = 0o600;
-fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
-  assert.ifError(e);
-
-  // Windows permissions aren't Unix.
-  if (!common.isWindows) {
-    const st = fs.statSync(filename3);
-    assert.strictEqual(st.mode & 0o700, m);
-  }
-
-  fs.readFile(filename3, common.mustCall(function(e, buffer) {
-    assert.ifError(e);
-
-    assert.strictEqual(Buffer.byteLength(String(n)), buffer.length);
   }));
 }));
 

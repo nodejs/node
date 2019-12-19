@@ -3891,6 +3891,10 @@ This happens when:
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `buffer` parameter won't coerce unsupported input to
+                 strings anymore.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
@@ -3948,6 +3952,10 @@ the end of the file.
 <!-- YAML
 added: v0.11.5
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `string` parameter won't coerce unsupported input to
+                 strings anymore.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -4003,6 +4011,10 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `data` parameter won't coerce unsupported input to
+                 strings anymore.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `data` parameter can now be any `TypedArray` or a
@@ -4089,6 +4101,10 @@ to contain only `', World'`.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `data` parameter won't coerce unsupported input to
+                 strings anymore.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `data` parameter can now be any `TypedArray` or a
@@ -4117,6 +4133,10 @@ this API: [`fs.writeFile()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `buffer` parameter won't coerce unsupported input to
+                 strings anymore.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray` or a
@@ -4143,6 +4163,10 @@ this API: [`fs.write(fd, buffer...)`][].
 <!-- YAML
 added: v0.11.5
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `string` parameter won't coerce unsupported input to
+                 strings anymore.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/7856
     description: The `position` parameter is optional now.
@@ -4480,6 +4504,11 @@ This function does not work on AIX versions before 7.1, it will resolve the
 #### `filehandle.write(buffer[, offset[, length[, position]]])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `buffer` parameter won't coerce unsupported input to
+                 buffers anymore.
 -->
 
 * `buffer` {Buffer|Uint8Array}
@@ -4512,6 +4541,11 @@ the end of the file.
 #### `filehandle.write(string[, position[, encoding]])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `string` parameter won't coerce unsupported input to
+                 strings anymore.
 -->
 
 * `string` {string}
@@ -4520,7 +4554,7 @@ added: v10.0.0
 * Returns: {Promise}
 
 Write `string` to the file. If `string` is not a string, then
-the value will be coerced to one.
+an exception will be thrown.
 
 The `Promise` is resolved with an object containing a `bytesWritten` property
 identifying the number of bytes written, and a `buffer` property containing
@@ -4543,6 +4577,11 @@ the end of the file.
 #### `filehandle.writeFile(data, options)`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `data` parameter won't coerce unsupported input to
+                 strings anymore.
 -->
 
 * `data` {string|Buffer|Uint8Array}
@@ -5131,6 +5170,11 @@ The `atime` and `mtime` arguments follow these rules:
 ### `fsPromises.writeFile(file, data[, options])`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31030
+    description: The `data` parameter won't coerce unsupported input to
+                 strings anymore.
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`

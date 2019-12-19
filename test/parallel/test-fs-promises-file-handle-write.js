@@ -55,12 +55,11 @@ async function validateNonStringValuesWrite() {
   const fileHandle = await open(filePathForHandle, 'w+');
   const nonStringValues = [123, {}, new Map()];
   for (const nonStringValue of nonStringValues) {
-    await fileHandle.write(nonStringValue);
+    await assert.rejects(
+      fileHandle.write(nonStringValue),
+      { message: /"buffer"/, code: 'ERR_INVALID_ARG_TYPE' }
+    );
   }
-
-  const readFileData = fs.readFileSync(filePathForHandle);
-  const expected = ['123', '[object Object]', '[object Map]'].join('');
-  assert.deepStrictEqual(Buffer.from(expected, 'utf8'), readFileData);
 
   await fileHandle.close();
 }
