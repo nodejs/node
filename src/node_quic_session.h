@@ -40,6 +40,17 @@ enum class QlogMode {
   kEnabled
 };
 
+typedef void(*ConnectionIDStrategy)(
+    QuicSession* session,
+    ngtcp2_cid* cid,
+    size_t cidlen);
+
+typedef void(*StatelessResetTokenStrategy)(
+    QuicSession* session,
+    ngtcp2_cid* cid,
+    uint8_t* token,
+    size_t tokenlen);
+
 // The QuicSessionConfig class holds the initial transport parameters and
 // configuration options set by the JavaScript side when either a
 // client or server QuicSession is created. Instances are
@@ -76,10 +87,17 @@ class QuicSessionConfig : public ngtcp2_settings {
   void SetOriginalConnectionID(const ngtcp2_cid* ocid);
 
   // Generates the stateless reset token for the settings_
-  void GenerateStatelessResetToken();
+  void GenerateStatelessResetToken(
+      StatelessResetTokenStrategy strategy,
+      QuicSession* session,
+      ngtcp2_cid* cid);
 
   // If the preferred address is set, generates the associated tokens
-  void GeneratePreferredAddressToken(ngtcp2_cid* pscid);
+  void GeneratePreferredAddressToken(
+      ConnectionIDStrategy connection_id_strategy,
+      StatelessResetTokenStrategy stateless_reset_strategy,
+      QuicSession* session,
+      ngtcp2_cid* pscid);
 
   void SetQlog(const ngtcp2_qlog_settings& qlog);
 };
@@ -279,17 +297,6 @@ class JSQuicSessionListener : public QuicSessionListener {
  private:
   friend class QuicSession;
 };
-
-typedef void(*ConnectionIDStrategy)(
-    QuicSession* session,
-    ngtcp2_cid* cid,
-    size_t cidlen);
-
-typedef void(*StatelessResetTokenStrategy)(
-    QuicSession* session,
-    ngtcp2_cid* cid,
-    uint8_t* token,
-    size_t tokenlen);
 
 // The QuicCryptoContext class encapsulates all of the crypto/TLS
 // handshake details on behalf of a QuicSession.

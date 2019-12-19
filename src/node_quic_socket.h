@@ -325,7 +325,9 @@ class QuicSocket : public AsyncWrap,
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
 
-  ResetTokenSecret* GetSessionResetSecret() { return &reset_token_secret_; }
+  const ResetTokenSecret& GetSessionResetSecret() {
+    return reset_token_secret_;
+  }
 
   // Implementation for QuicListener
   ReqWrap<uv_udp_send_t>* OnCreateSendWrap(size_t msg_size) override;

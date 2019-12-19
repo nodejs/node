@@ -614,10 +614,7 @@ bool QuicSocket::SendStatelessReset(
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t random[RANDLEN];
 
-  GenerateResetToken(
-      token,
-      reset_token_secret_.data(),
-      reset_token_secret_.size(), cid.cid());
+  GenerateResetToken(token, reset_token_secret_, cid.cid());
   EntropySource(random, RANDLEN);
 
   auto packet = QuicPacket::Create("stateless reset");

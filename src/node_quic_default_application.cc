@@ -69,17 +69,17 @@ void DefaultApplication::AcknowledgeStreamData(
 }
 
 bool DefaultApplication::SendPendingData() {
-  // TODO(@jasnell): Right now this iterates through the streams
-  // in the order they were created. Later, we'll want to implement
-  // a prioritization scheme to allow higher priority streams to
-  // be serialized first.
+  // Right now this iterates through the streams in the order they
+  // were created. Later, we might want to implement a prioritization
+  // scheme to allow higher priority streams to be serialized first.
+  // Prioritization is left entirely up to the application layer in QUIC.
+  // HTTP/3, for instance, drops prioritization entirely.
   Debug(Session(), "Default QUIC Application sending pending data");
   for (const auto& stream : *(Session()->GetStreams())) {
     if (!SendStreamData(stream.second.get()))
       return false;
 
-    // Check to make sure QuicSession state did not change in this
-    // iteration
+    // Check to make sure QuicSession state did not change in this iteration
     if (Session()->IsInDrainingPeriod() ||
         Session()->IsInClosingPeriod() ||
         Session()->IsDestroyed()) {

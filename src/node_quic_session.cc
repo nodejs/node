@@ -90,12 +90,14 @@ void QuicSessionConfig::ResetToDefaults() {
   transport_params.stateless_reset_token_present = 0;
 }
 
-inline void SetConfig(Environment* env, int idx, uint64_t* val) {
+namespace {
+void SetConfig(Environment* env, int idx, uint64_t* val) {
   AliasedFloat64Array& buffer = env->quic_state()->quicsessionconfig_buffer;
   uint64_t flags = static_cast<uint64_t>(buffer[IDX_QUIC_SESSION_CONFIG_COUNT]);
   if (flags & (1ULL << idx))
     *val = static_cast<uint64_t>(buffer[idx]);
 }
+}  // namespace
 
 // Sets the QuicSessionConfig using an AliasedBuffer for efficiency.
 void QuicSessionConfig::Set(Environment* env,
@@ -125,6 +127,9 @@ void QuicSessionConfig::Set(Environment* env,
 
   transport_params.idle_timeout = transport_params.idle_timeout * 1000000;
 
+  // TODO(@jasnell): QUIC allows both IPv4 and IPv6 addresses to be
+  // specified. Here we're specifying one or the otherr. Need to
+  // determine if that's what we want or should we support both.
   if (preferred_addr != nullptr) {
     transport_params.preferred_address_present = 1;
     switch (preferred_addr->sa_family) {
@@ -161,24 +166,30 @@ void QuicSessionConfig::SetOriginalConnectionID(const ngtcp2_cid* ocid) {
   }
 }
 
-void QuicSessionConfig::GenerateStatelessResetToken() {
+void QuicSessionConfig::GenerateStatelessResetToken(
+    StatelessResetTokenStrategy strategy,
+    QuicSession* session,
+    ngtcp2_cid* cid) {
   transport_params.stateless_reset_token_present = 1;
-  EntropySource(
+  strategy(
+      session,
+      cid,
       transport_params.stateless_reset_token,
-      arraysize(transport_params.stateless_reset_token));
+      NGTCP2_STATELESS_RESET_TOKENLEN);
 }
 
-void QuicSessionConfig::GeneratePreferredAddressToken(ngtcp2_cid* pscid) {
-  if (!transport_params.preferred_address_present)
-    return;
-  size_t len =
-      arraysize(
-          transport_params.preferred_address.stateless_reset_token);
-  EntropySource(
-      transport_params.preferred_address.stateless_reset_token, len);
+void QuicSessionConfig::GeneratePreferredAddressToken(
+    ConnectionIDStrategy connection_id_strategy,
+    StatelessResetTokenStrategy stateless_reset_strategy,
+    QuicSession* session,
+    ngtcp2_cid* pscid) {
 
-  pscid->datalen = NGTCP2_SV_SCIDLEN;
-  EntropySource(pscid->data, pscid->datalen);
+  connection_id_strategy(session, pscid, NGTCP2_SV_SCIDLEN);
+  stateless_reset_strategy(
+      session,
+      pscid,
+      transport_params.preferred_address.stateless_reset_token,
+      NGTCP2_STATELESS_RESET_TOKENLEN);
   transport_params.preferred_address.cid = *pscid;
 }
 
@@ -346,24 +357,18 @@ void JSQuicSessionListener::OnCert(const char* server_name) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> servername_str;
-
-  Local<Value> argv[] = {
-    server_name == nullptr ?
-        String::Empty(env->isolate()) :
-        OneByteString(
-            env->isolate(),
-            server_name,
-            strlen(server_name))
-  };
+  Local<Value> servername = Undefined(env->isolate());
+  if (server_name != nullptr) {
+    servername = OneByteString(
+        env->isolate(),
+        server_name,
+        strlen(server_name));
+  }
 
   // Grab a shared pointer to this to prevent the QuicSession
   // from being freed while the MakeCallback is running.
   BaseObjectPtr<QuicSession> ptr(Session());
-  Session()->MakeCallback(
-      env->quic_on_session_cert_function(),
-      arraysize(argv),
-      argv);
+  Session()->MakeCallback(env->quic_on_session_cert_function(), 1, &servername);
 }
 
 void JSQuicSessionListener::OnStreamHeaders(
@@ -403,7 +408,7 @@ void JSQuicSessionListener::OnOCSP(const std::string& ocsp) {
   if (ocsp.length() > 0)
     arg = Buffer::Copy(env, ocsp.c_str(), ocsp.length()).ToLocalChecked();
   BaseObjectPtr<QuicSession> ptr(Session());
-  Session()->MakeCallback(env->quic_on_session_status_function(), 1, & arg);
+  Session()->MakeCallback(env->quic_on_session_status_function(), 1, &arg);
 }
 
 void JSQuicSessionListener::OnStreamClose(
@@ -635,7 +640,9 @@ void JSQuicSessionListener::OnVersionNegotiation(
   for (size_t n = 0; n < vcnt; n++)
     versions[n] = Integer::New(env->isolate(), vers[n]);
 
-
+  // Currently, we only support one version of QUIC but in
+  // the future that may change. The callback below passes
+  // an array back to the JavaScript side to future-proof.
   Local<Value> supported =
       Integer::New(env->isolate(), supported_version);
 
@@ -664,33 +671,42 @@ void JSQuicSessionListener::OnQLog(const uint8_t* data, size_t len) {
                              v8::NewStringType::kNormal,
                              len).ToLocalChecked();
 
-  Session()->MakeCallback(
-      env->quic_on_session_qlog_function(),
-      1,
-      &str);
+  Session()->MakeCallback(env->quic_on_session_qlog_function(), 1, &str);
 }
 
-// Generates a new connection ID for this QuicSession.
-// ngtcp2 will call this multiple times at the start of a new connection
-// in order to build a pool of available CIDs.
+// Generates a new random connection ID.
 void QuicSession::RandomConnectionIDStrategy(
     QuicSession* session,
     ngtcp2_cid* cid,
     size_t cidlen) {
+  // CID min and max length is determined by the QUIC specification.
+  CHECK_LE(cidlen, NGTCP2_MAX_CIDLEN);
+  CHECK_GE(cidlen, NGTCP2_MIN_CIDLEN);
   cid->datalen = cidlen;
   // cidlen shouldn't ever be zero here but just in case that
   // behavior changes in ngtcp2 in the future...
-  if (cidlen > 0)
+  if (LIKELY(cidlen > 0))
     EntropySource(cid->data, cidlen);
 }
 
+// Generates a stateless reset token as a function of the reset
+// secret (generated randomly by default or set by config option)
+// and the provided cid. The stateless reset is generated
+// cryptographically and can be recreated later without storing
+// additional state.
 void QuicSession::CryptoStatelessResetTokenStrategy(
     QuicSession* session,
     ngtcp2_cid* cid,
     uint8_t* token,
     size_t tokenlen) {
-  ResetTokenSecret* secret = session->Socket()->GetSessionResetSecret();
-  CHECK(GenerateResetToken(token, secret->data(), secret->size(), cid));
+  // For the current time, we limit stateless reset token lengths to
+  // NGTCP2_STATELESS_RESET_TOKENLEN. The tokenlen argument is largely
+  // for future proofing in case that restriction changes.
+  CHECK_EQ(tokenlen, NGTCP2_STATELESS_RESET_TOKENLEN);
+  CHECK(GenerateResetToken(
+      token,
+      session->Socket()->GetSessionResetSecret(),
+      cid));
 }
 
 // Check required capabilities were not excluded from the OpenSSL build:
@@ -715,6 +731,8 @@ QuicCryptoContext::QuicCryptoContext(
   CHECK(ssl_);
 }
 
+// Cancels and frees any remaining outbound handshake data
+// at each crypto level.
 uint64_t QuicCryptoContext::Cancel() {
   uint64_t len = handshake_[0].Cancel();
   len += handshake_[1].Cancel();
@@ -836,12 +854,15 @@ int QuicCryptoContext::OnClientHello() {
     return -1;
   in_client_hello_ = true;
 
-  const char* alpn =
-      crypto::GetClientHelloALPN(session_->CryptoContext()->ssl());
-  const char* server_name =
-      crypto::GetClientHelloServerName(session_->CryptoContext()->ssl());
-  session_->Listener()->OnClientHello(alpn, server_name);
+  session_->Listener()->OnClientHello(
+      crypto::GetClientHelloALPN(session_->CryptoContext()->ssl()),
+      crypto::GetClientHelloServerName(session_->CryptoContext()->ssl()));
 
+  // Returning -1 here will keep the TLS handshake paused until the
+  // client hello callback is invoked. Returning 0 means that the
+  // handshake is ready to proceed. When the OnClientHello callback
+  // is called above, it may be resolved synchronously or asynchronously.
+  // In case it is resolved synchronously, we need the check below.
   return in_client_hello_ ? -1 : 0;
 }
 
@@ -880,6 +901,10 @@ int QuicCryptoContext::OnOCSP() {
   session_->Listener()->OnCert(
       crypto::GetServerName(session_->CryptoContext()->ssl()));
 
+  // Returning -1 here means that we are still waiting for the OCSP
+  // request to be completed. When the OnCert handler is invoked
+  // above, it can be resolve synchronously or asynchonously. If
+  // resolved synchronously, we need the check below.
   return in_ocsp_request_ ? -1 : 1;
 }
 
@@ -918,6 +943,12 @@ void QuicCryptoContext::OnOCSPDone(
   }
 }
 
+// At this point in time, the TLS handshake secrets have been
+// generated by openssl for this end of the connection and are
+// ready to be used. Within this function, we need to install
+// the secrets into the ngtcp2 connection object, store the
+// remote transport parameters, and begin initialization of
+// the QuicApplication that was selected.
 bool QuicCryptoContext::OnSecrets(
     ngtcp2_crypto_level level,
     const uint8_t* rx_secret,
@@ -925,10 +956,8 @@ bool QuicCryptoContext::OnSecrets(
     size_t secretlen) {
 
   auto maybe_init_app = OnScopeLeave([&]() {
-    if (level == NGTCP2_CRYPTO_LEVEL_APP) {
-      // TODO(@jasnell): Fail if init returns false
+    if (level == NGTCP2_CRYPTO_LEVEL_APP)
       session_->InitApplication();
-    }
   });
 
   Debug(session_,
@@ -1000,6 +1029,8 @@ int QuicCryptoContext::Receive(
   if (UNLIKELY(session_->IsDestroyed()))
     return NGTCP2_ERR_CALLBACK_FAILURE;
 
+  // Statistics are collected so we can monitor how long the
+  // handshake is taking to operate and complete.
   uint64_t now = uv_hrtime();
   if (session_->session_stats_.handshake_start_at == 0)
     session_->session_stats_.handshake_start_at = now;
@@ -1007,6 +1038,8 @@ int QuicCryptoContext::Receive(
 
   Debug(session_, "Receiving %d bytes of crypto data.", datalen);
 
+  // Internally, this passes the handshake data off to openssl
+  // for processing. The handshake may or may not complete.
   int ret = ngtcp2_crypto_read_write_crypto_data(
       session_->Connection(),
       ssl(),
@@ -1016,6 +1049,9 @@ int QuicCryptoContext::Receive(
   switch (ret) {
     case 0:
       return 0;
+    // In either of following cases, the handshake is being
+    // paused waiting for user code to take action (for instance
+    // OCSP requests or client hello modification)
     case NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP:
       Debug(session_, "TLS handshake wants X509 Lookup");
       return 0;
@@ -1027,11 +1063,16 @@ int QuicCryptoContext::Receive(
   }
 }
 
+// Following a pause in the handshake for OCSP or client hello, we kickstart
+// the handshake again here by triggering ngtcp2 to serialize data.
 void QuicCryptoContext::ResumeHandshake() {
+  // We haven't received any actual new handshake data but calling
+  // this will trigger the handshake to continue.
   Receive(GetReadCryptoLevel(), 0, nullptr, 0);
   session_->SendPendingData();
 }
 
+// For 0RTT, this sets the TLS session data from the given buffer.
 bool QuicCryptoContext::SetSession(const unsigned char* data, size_t length) {
   return crypto::SetTLSSession(ssl(), data, length);
 }
@@ -1041,11 +1082,16 @@ void QuicCryptoContext::SetTLSAlert(int err) {
   session_->SetLastError(QuicError(QUIC_ERROR_CRYPTO, err));
 }
 
+// Derives and installs the initial keying material for a newly
+// created session.
 bool QuicCryptoContext::SetupInitialKey(const ngtcp2_cid* dcid) {
   Debug(session_, "Deriving and installing initial keys");
   return DeriveAndInstallInitialKey(session_, dcid);
 }
 
+// Triggers key update to begin. This will fail and return false
+// if either a previous key update is in progress and has not been
+// confirmed or if the initial handshake has not yet been confirmed.
 bool QuicCryptoContext::InitiateKeyUpdate() {
   if (UNLIKELY(session_->IsDestroyed()))
     return false;
@@ -1061,10 +1107,9 @@ bool QuicCryptoContext::InitiateKeyUpdate() {
       1, &session_->session_stats_,
       &QuicSession::session_stats::keyupdate_count);
 
-  int err = ngtcp2_conn_initiate_key_update(
-             session_->Connection(),
-             uv_hrtime());
-  return err == 0;
+  return ngtcp2_conn_initiate_key_update(
+      session_->Connection(),
+      uv_hrtime()) == 0;
 }
 
 int QuicCryptoContext::VerifyPeerIdentity(const char* hostname) {
@@ -1072,6 +1117,7 @@ int QuicCryptoContext::VerifyPeerIdentity(const char* hostname) {
   if (err)
     return err;
 
+  // QUIC clients are required to verify the peer identity, servers are not.
   switch (side_) {
     case NGTCP2_CRYPTO_SIDE_CLIENT:
       if (LIKELY(
@@ -1080,12 +1126,24 @@ int QuicCryptoContext::VerifyPeerIdentity(const char* hostname) {
       }
       break;
     case NGTCP2_CRYPTO_SIDE_SERVER:
+      // TODO(@jasnell): In the future, we may want to implement this but
+      // for now we keep things simple and skip peer identity verification.
       break;
   }
 
   return 0;
 }
 
+// Write outbound TLS handshake data into the ngtcp2 connection
+// to prepare it to be serialized. The outbound data must be
+// stored in the handshake_ until it is acknowledged by the
+// remote peer. It's important to keep in mind that there is
+// a potential security risk here -- that is, a malicious peer
+// can cause the local session to keep sent handshake data in
+// memory by failing to acknowledge it or slowly acknowledging
+// it. We currently do not track how much data is being buffered
+// here but we do record statistics on how long the handshake
+// data is foreced to be kept in memory.
 void QuicCryptoContext::WriteHandshake(
     ngtcp2_crypto_level level,
     const uint8_t* data,
@@ -1094,6 +1152,10 @@ void QuicCryptoContext::WriteHandshake(
         "Writing %d bytes of %s handshake data.",
         datalen,
         crypto_level_name(level));
+  // TODO(jasnell): Find a more efficient way of handling this.
+  // The data does have to be copied because it needs to be
+  // kept around until it is ack'd and the given data is not
+  // persistent.
   MallocedBuffer<uint8_t> buffer(datalen);
   memcpy(buffer.data, data, datalen);
   session_->session_stats_.handshake_send_at = uv_hrtime();
@@ -1375,11 +1437,15 @@ void QuicSession::RemoveListener(QuicSessionListener* listener) {
   listener->previous_listener_ = nullptr;
 }
 
+// Indicates that the stream is blocked from transmitting any
+// data. The specific handling of this is application specific.
+// By default, we keep track of statistics but leave it up to
+// the application to perform specific handling.
 void QuicSession::StreamDataBlocked(int64_t stream_id) {
-  // Increments the block count
   IncrementStat(1, &session_stats_, &session_stats::block_count);
 }
 
+// The diagnostic_name is used in Debug output.
 std::string QuicSession::diagnostic_name() const {
   return std::string("QuicSession ") +
       (IsServer() ? "Server" : "Client") +
@@ -1395,6 +1461,7 @@ QuicStream* QuicSession::FindStream(int64_t id) {
   return it->second.get();
 }
 
+// Invoked when ngtcp2 receives an acknowledgement for stream data.
 void QuicSession::AckedStreamDataOffset(
     int64_t stream_id,
     uint64_t offset,
@@ -1412,6 +1479,9 @@ void QuicSession::AckedStreamDataOffset(
   application_->AcknowledgeStreamData(stream_id, offset, datalen);
 }
 
+// Attaches the session to the given QuicSocket. The complexity
+// here is that any CID's associated with the session have to
+// be associated with the new QuicSocket.
 void QuicSession::AddToSocket(QuicSocket* socket) {
   QuicCID scid(scid_);
   socket->AddSession(scid, BaseObjectPtr<QuicSession>(this));
@@ -1534,11 +1604,6 @@ void QuicSession::Destroy() {
   // If we're not in the closing or draining periods,
   // then we should at least attempt to send a connection
   // close to the peer.
-  // TODO(@jasnell): If the connection close happens to occur
-  // while we're still at the start of the TLS handshake, a
-  // CONNECTION_CLOSE is not going to be sent because ngtcp2
-  // currently does not yet support it. That will need to be
-  // addressed.
   if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this) &&
       !IsInClosingPeriod() &&
       !IsInDrainingPeriod()) {
@@ -1958,8 +2023,6 @@ bool QuicSession::ReceivePacket(
         // address validation by sending a Retry packet
         // then immediately close the connection.
         if (err == NGTCP2_ERR_RETRY && IsServer()) {
-          // TODO(@jasnell): Need to verify proper ordering of
-          // scid and rcid here
           Socket()->SendRetry(
               GetNegotiatedVersion(),
               QuicCID(scid()),
@@ -2720,11 +2783,19 @@ void QuicSession::InitServer(
   max_pktlen_ = GetMaxPktLen(remote_addr);
 
   config->SetOriginalConnectionID(ocid);
-  config->GenerateStatelessResetToken();
-  config->GeneratePreferredAddressToken(pscid());
 
-  EntropySource(scid_.data, NGTCP2_SV_SCIDLEN);
-  scid_.datalen = NGTCP2_SV_SCIDLEN;
+  config->GenerateStatelessResetToken(
+      stateless_reset_strategy_,
+      this,
+      const_cast<ngtcp2_cid*>(dcid));
+
+  config->GeneratePreferredAddressToken(
+      connection_id_strategy_,
+      stateless_reset_strategy_,
+      this,
+      pscid());
+
+  connection_id_strategy_(this, &scid_, NGTCP2_SV_SCIDLEN);
 
   QuicPath path(local_addr, remote_address_);
 
@@ -2854,8 +2925,7 @@ bool QuicSession::InitClient(
   ExtendMaxStreamsBidi(DEFAULT_MAX_STREAMS_BIDI);
   ExtendMaxStreamsUni(DEFAULT_MAX_STREAMS_UNI);
 
-  scid_.datalen = NGTCP2_MAX_CIDLEN;
-  EntropySource(scid_.data, scid_.datalen);
+  connection_id_strategy_(this, &scid_, NGTCP2_MAX_CIDLEN);
 
   ngtcp2_cid dcid;
   if (dcid_value->IsArrayBufferView()) {
@@ -2866,8 +2936,7 @@ bool QuicSession::InitClient(
     memcpy(dcid.data, sbuf.data(), sbuf.length());
     dcid.datalen = sbuf.length();
   } else {
-    dcid.datalen = NGTCP2_MAX_CIDLEN;
-    EntropySource(dcid.data, dcid.datalen);
+    connection_id_strategy_(this, &dcid, NGTCP2_MAX_CIDLEN);
   }
 
   QuicPath path(local_address_, remote_address_);

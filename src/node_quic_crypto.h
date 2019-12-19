@@ -55,8 +55,7 @@ bool DeriveAndInstallInitialKey(
 
 bool GenerateResetToken(
     uint8_t* token,
-    uint8_t* secret,
-    size_t secretlen,
+    const ResetTokenSecret& secret,
     const ngtcp2_cid* cid);
 
 bool GenerateRetryToken(
