@@ -55,11 +55,12 @@ function expectFsNamespace(result) {
   expectFsNamespace(import('fs'));
   expectFsNamespace(eval('import("fs")'));
   expectFsNamespace(eval('import("fs")'));
+  expectFsNamespace(import('nodejs:fs'));
 
+  expectModuleError(import('nodejs:unknown'),
+                    'ERR_UNKNOWN_BUILTIN_MODULE');
   expectModuleError(import('./not-an-existing-module.mjs'),
                     'ERR_MODULE_NOT_FOUND');
-  expectModuleError(import('node:fs'),
-                    'ERR_UNSUPPORTED_ESM_URL_SCHEME');
   expectModuleError(import('http://example.com/foo.js'),
                     'ERR_UNSUPPORTED_ESM_URL_SCHEME');
 })();

@@ -11,7 +11,7 @@ baseURL.pathname = process.cwd() + '/';
 export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   if (builtinModules.includes(specifier)) {
     return {
-      url: specifier
+      url: 'nodejs:' + specifier
     };
   }
   if (/^\.{1,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
@@ -27,7 +27,7 @@ export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
 }
 
 export function getFormat(url, context, defaultGetFormat) {
-  if (builtinModules.includes(url)) {
+  if (url.startsWith('nodejs:') && builtinModules.includes(url.slice(7))) {
     return {
       format: 'builtin'
     };

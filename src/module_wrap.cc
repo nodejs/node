@@ -836,6 +836,10 @@ Maybe<URL> FinalizeResolution(Environment* env,
     return Nothing<URL>();
   }
 
+  if (resolved.path().back() == '/') {
+    return Just(resolved);
+  }
+
   const std::string& path = resolved.ToFilePath();
   if (CheckDescriptorAtPath(path) != FILE) {
     std::string msg = "Cannot find module " +
@@ -1221,7 +1225,9 @@ Maybe<URL> ResolveSelf(Environment* env,
     }
     if (!found_pjson || pcfg->name != pkg_name) return Nothing<URL>();
     if (pcfg->exports.IsEmpty()) return Nothing<URL>();
-    if (!pkg_subpath.length()) {
+    if (pkg_subpath == "./") {
+      return Just(URL("./", pjson_url));
+    } else if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg, base);
     } else {
       return PackageExportsResolve(env, pjson_url, pkg_subpath, *pcfg, base);
@@ -1265,8 +1271,7 @@ Maybe<URL> PackageResolve(Environment* env,
     return Nothing<URL>();
   }
   std::string pkg_subpath;
-  if ((sep_index == std::string::npos ||
-      sep_index == specifier.length() - 1)) {
+  if (sep_index == std::string::npos) {
     pkg_subpath = "";
   } else {
     pkg_subpath = "." + specifier.substr(sep_index);
@@ -1297,7 +1302,9 @@ Maybe<URL> PackageResolve(Environment* env,
     Maybe<const PackageConfig*> pcfg = GetPackageConfig(env, pjson_path, base);
     // Invalid package configuration error.
     if (pcfg.IsNothing()) return Nothing<URL>();
-    if (!pkg_subpath.length()) {
+    if (pkg_subpath == "./") {
+      return Just(URL("./", pjson_url));
+    } else if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg.FromJust(), base);
     } else {
       if (!pcfg.FromJust()->exports.IsEmpty()) {

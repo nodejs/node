@@ -333,6 +333,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support for webassembly modules",
             &EnvironmentOptions::experimental_wasm_modules,
             kAllowedInEnvironment);
+  AddOption("--experimental-import-meta-resolve",
+            "experimental ES Module import.meta.resolve() support",
+            &EnvironmentOptions::experimental_import_meta_resolve,
+            kAllowedInEnvironment);
   AddOption("--experimental-policy",
             "use the specified file as a "
             "security policy",
