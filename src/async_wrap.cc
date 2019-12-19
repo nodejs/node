@@ -147,7 +147,6 @@ void AsyncWrap::EmitTraceEventBefore() {
 
 void AsyncWrap::EmitBefore(Environment* env, double async_id,
     v8::Local<v8::Object> resource) {
-  v8::Local<v8::Context> context = env->isolate()->GetCurrentContext();
   env->async_hooks()->push_execution_async_resource(resource);
 
   Emit(env, async_id, AsyncHooks::kBefore,
@@ -172,9 +171,6 @@ void AsyncWrap::EmitTraceEventAfter(ProviderType type, double async_id) {
 
 
 void AsyncWrap::EmitAfter(Environment* env, double async_id) {
-  Isolate* isolate = env->isolate();
-  v8::Local<v8::Context> context = env->isolate()->GetCurrentContext();
-
   // If the user's callback failed then the after() hooks will be called at the
   // end of _fatalException().
   Emit(env, async_id, AsyncHooks::kAfter,
@@ -400,24 +396,18 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   args.GetReturnValue().Set(env->async_hooks()->get_execution_async_resource());
 }
 
 static void PushExecutionAsyncResource(
   const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   env->async_hooks()->push_execution_async_resource(args[0]);
 }
 
 static void PopExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   env->async_hooks()->pop_execution_async_resource();
 }
 
@@ -513,8 +503,6 @@ void AsyncWrap::Initialize(Local<Object> target,
                  PushExecutionAsyncResource);
   env->SetMethod(target, "popExecutionAsyncResource",
                  PopExecutionAsyncResource);
-
-  env->async_hooks()->push_execution_async_resource(v8::Object::New(isolate));
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
