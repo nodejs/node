@@ -336,7 +336,7 @@ class QuicSocket : public AsyncWrap,
       AllocatedBuffer buf,
       const SocketAddress& local_addr,
       const sockaddr* remote_addr,
-      unsigned int flags);
+      unsigned int flags) override;
   void OnError(QuicEndpoint* endpoint, ssize_t error) override;
   void OnEndpointDone(QuicEndpoint* endpoint) override;
 

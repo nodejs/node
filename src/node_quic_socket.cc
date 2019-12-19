@@ -1027,15 +1027,14 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
     session_reset_secret = buf.data();
   }
 
-  QuicSocket* socket =
-      new QuicSocket(
-          env,
-          args.This(),
-          retry_token_expiration,
-          max_connections_per_host,
-          options,
-          args[3]->IsTrue() ? QlogMode::kEnabled : QlogMode::kDisabled,
-          session_reset_secret);
+  new QuicSocket(
+      env,
+      args.This(),
+      retry_token_expiration,
+      max_connections_per_host,
+      options,
+      args[3]->IsTrue() ? QlogMode::kEnabled : QlogMode::kDisabled,
+      session_reset_secret);
 }
 
 void QuicSocketAddEndpoint(const FunctionCallbackInfo<Value>& args) {

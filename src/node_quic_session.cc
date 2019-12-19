@@ -2410,8 +2410,7 @@ bool QuicSession::StartClosingPeriod() {
 
   // Once the CONNECTION_CLOSE packet is written,
   // IsInClosingPeriod will return true.
-  conn_closebuf_ =
-      std::move(QuicPacket::Create("close connection", max_pktlen_));
+  conn_closebuf_ = QuicPacket::Create("close connection", max_pktlen_);
   ssize_t nwrite =
       SelectCloseFn(error.family)(
           Connection(),
@@ -2895,7 +2894,6 @@ bool QuicSession::InitClient(
           &alloc_info_,
           static_cast<QuicSession*>(this)), 0);
 
-  auto n = ngtcp2_conn_get_remote_addr(conn);
 
   connection_.reset(conn);
 
