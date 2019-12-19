@@ -416,7 +416,7 @@ void QuicSocket::OnEndpointDone(QuicEndpoint* endpoint) {
 void QuicSocket::OnBind(QuicEndpoint* endpoint) {
   auto& local_address = endpoint->GetLocalAddress();
   Debug(this, "Endpoint %s:%d bound",
-        local_address.GetAddress(),
+        local_address.GetAddress().c_str(),
         local_address.GetPort());
   socket_stats_.bound_at = uv_hrtime();
 }
