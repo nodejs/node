@@ -510,6 +510,10 @@ const server = createServer(function(req, res) {
 
 `executionAsyncResource()` will return `null` during application bootstrap.
 
+Resource objects returned by `executionAsyncResource()` are often internal
+handle objects with undocumented APIs. Using any functions or properties
+on the object is not recommended and may crash your application.
+
 #### `async_hooks.executionAsyncId()`
 
 <!-- YAML
