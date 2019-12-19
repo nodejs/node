@@ -127,7 +127,7 @@ assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
                    '{ a: { b: [Object] } }');
 assert.strictEqual(util.inspect({ 'a': { 'b': ['c'] } }, false, 1),
                    '{ a: { b: [Array] } }');
-assert.strictEqual(util.inspect(new Uint8Array(0)), 'Uint8Array []');
+assert.strictEqual(util.inspect(new Uint8Array(0)), 'Uint8Array(0) []');
 assert(inspect(new Uint8Array(0), { showHidden: true }).includes('[buffer]'));
 assert.strictEqual(
   util.inspect(
@@ -264,7 +264,7 @@ assert(!/Object/.test(
   array[1] = 97;
   assert.strictEqual(
     util.inspect(array, { showHidden: true }),
-    `${constructor.name} [\n` +
+    `${constructor.name}(${length}) [\n` +
       '  65,\n' +
       '  97,\n' +
       `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
@@ -274,7 +274,7 @@ assert(!/Object/.test(
       `  [buffer]: ArrayBuffer { byteLength: ${byteLength} }\n]`);
   assert.strictEqual(
     util.inspect(array, false),
-    `${constructor.name} [ 65, 97 ]`
+    `${constructor.name}(${length}) [ 65, 97 ]`
   );
 });
 
@@ -298,7 +298,7 @@ assert(!/Object/.test(
   array[1] = 97;
   assert.strictEqual(
     util.inspect(array, true),
-    `${constructor.name} [\n` +
+    `${constructor.name}(${length}) [\n` +
       '  65,\n' +
       '  97,\n' +
       `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
@@ -308,7 +308,7 @@ assert(!/Object/.test(
       `  [buffer]: ArrayBuffer { byteLength: ${byteLength} }\n]`);
   assert.strictEqual(
     util.inspect(array, false),
-    `${constructor.name} [ 65, 97 ]`
+    `${constructor.name}(${length}) [ 65, 97 ]`
   );
 });
 
@@ -398,11 +398,11 @@ assert.strictEqual(
   arr[49] = 'I win';
   assert.strictEqual(
     util.inspect(arr),
-    "CustomArray [ <49 empty items>, 'I win' ]"
+    "CustomArray(50) [ <49 empty items>, 'I win' ]"
   );
   assert.strictEqual(
     util.inspect(arr, { showHidden: true }),
-    'CustomArray [\n' +
+    'CustomArray(50) [\n' +
     '  <49 empty items>,\n' +
     "  'I win',\n" +
     '  [length]: 50,\n' +
@@ -1301,7 +1301,7 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(x),
                      'ObjectSubclass { foo: 42 }');
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
-                     'ArraySubclass [ 1, 2, 3 ]');
+                     'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
                      'SetSubclass(3) [Set] { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
@@ -1397,7 +1397,7 @@ if (typeof Symbol !== 'undefined') {
   assert(util.inspect(x).endsWith('1 more item\n]'));
   assert(!util.inspect(x, { maxArrayLength: 101 }).includes('1 more item'));
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
-                     'Uint8Array [ ... 101 more items ]');
+                     'Uint8Array(101) [ ... 101 more items ]');
   assert(!util.inspect(x, { maxArrayLength: null }).includes('1 more item'));
   assert(util.inspect(x, { maxArrayLength: Infinity }).endsWith(' 0, 0\n]'));
 }
@@ -1681,7 +1681,7 @@ util.inspect(process);
     '      ],',
     '      [length]: 1',
     '    ]',
-    '  } => Uint8Array [',
+    '  } => Uint8Array(0) [',
     '    [BYTES_PER_ELEMENT]: 1,',
     '    [length]: 0,',
     '    [byteLength]: 0,',
@@ -1698,7 +1698,7 @@ util.inspect(process);
     '      [length]: 2',
     '    ]',
     '  } => <ref *1> [Map Iterator] {',
-    '    Uint8Array [',
+    '    Uint8Array(0) [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
     '      [byteLength]: 0,',
@@ -1728,7 +1728,7 @@ util.inspect(process);
     '      ],',
     '      [length]: 1',
     '    ]',
-    '  } => Uint8Array [',
+    '  } => Uint8Array(0) [',
     '    [BYTES_PER_ELEMENT]: 1,',
     '    [length]: 0,',
     '    [byteLength]: 0,',
@@ -1736,7 +1736,7 @@ util.inspect(process);
     '    [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
     '  ],',
     '  [Set Iterator] { [ 1, 2, [length]: 2 ] } => <ref *1> [Map Iterator] {',
-    '    Uint8Array [',
+    '    Uint8Array(0) [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
     '      [byteLength]: 0,',
@@ -1762,7 +1762,7 @@ util.inspect(process);
     '            2,',
     '            [length]: 2 ] },',
     '        [length]: 2 ],',
-    '      [length]: 1 ] } => Uint8Array [',
+    '      [length]: 1 ] } => Uint8Array(0) [',
     '    [BYTES_PER_ELEMENT]: 1,',
     '    [length]: 0,',
     '    [byteLength]: 0,',
@@ -1774,7 +1774,7 @@ util.inspect(process);
     '    [ 1,',
     '      2,',
     '      [length]: 2 ] } => <ref *1> [Map Iterator] {',
-    '    Uint8Array [',
+    '    Uint8Array(0) [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
     '      [byteLength]: 0,',
@@ -1951,7 +1951,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [new Set([1, 2]).entries(), '[Set Entries] { [ 1, 1 ], [ 2, 2 ] }'],
   [new Map([[1, 2]]).keys(), '[Map Iterator] { 1 }'],
   [new Date(2000), '1970-01-01T00:00:02.000Z'],
-  [new Uint8Array(2), 'Uint8Array [ 0, 0 ]'],
+  [new Uint8Array(2), 'Uint8Array(2) [ 0, 0 ]'],
   [new Promise((resolve) => setTimeout(resolve, 10)), 'Promise { <pending> }'],
   [new WeakSet(), 'WeakSet { <items unknown> }'],
   [new WeakMap(), 'WeakMap { <items unknown> }'],
@@ -1977,23 +1977,23 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
 // Verify that having no prototype still produces nice results.
 [
-  [[1, 3, 4], '[Array: null prototype] [ 1, 3, 4 ]'],
+  [[1, 3, 4], '[Array(3): null prototype] [ 1, 3, 4 ]'],
   [new Set([1, 2]), '[Set(2): null prototype] { 1, 2 }'],
   [new Map([[1, 2]]), '[Map(1): null prototype] { 1 => 2 }'],
   [new Promise((resolve) => setTimeout(resolve, 10)),
    '[Promise: null prototype] { <pending> }'],
   [new WeakSet(), '[WeakSet: null prototype] { <items unknown> }'],
   [new WeakMap(), '[WeakMap: null prototype] { <items unknown> }'],
-  [new Uint8Array(2), '[Uint8Array: null prototype] [ 0, 0 ]'],
-  [new Uint16Array(2), '[Uint16Array: null prototype] [ 0, 0 ]'],
-  [new Uint32Array(2), '[Uint32Array: null prototype] [ 0, 0 ]'],
-  [new Int8Array(2), '[Int8Array: null prototype] [ 0, 0 ]'],
-  [new Int16Array(2), '[Int16Array: null prototype] [ 0, 0 ]'],
-  [new Int32Array(2), '[Int32Array: null prototype] [ 0, 0 ]'],
-  [new Float32Array(2), '[Float32Array: null prototype] [ 0, 0 ]'],
-  [new Float64Array(2), '[Float64Array: null prototype] [ 0, 0 ]'],
-  [new BigInt64Array(2), '[BigInt64Array: null prototype] [ 0n, 0n ]'],
-  [new BigUint64Array(2), '[BigUint64Array: null prototype] [ 0n, 0n ]'],
+  [new Uint8Array(2), '[Uint8Array(2): null prototype] [ 0, 0 ]'],
+  [new Uint16Array(2), '[Uint16Array(2): null prototype] [ 0, 0 ]'],
+  [new Uint32Array(2), '[Uint32Array(2): null prototype] [ 0, 0 ]'],
+  [new Int8Array(2), '[Int8Array(2): null prototype] [ 0, 0 ]'],
+  [new Int16Array(2), '[Int16Array(2): null prototype] [ 0, 0 ]'],
+  [new Int32Array(2), '[Int32Array(2): null prototype] [ 0, 0 ]'],
+  [new Float32Array(2), '[Float32Array(2): null prototype] [ 0, 0 ]'],
+  [new Float64Array(2), '[Float64Array(2): null prototype] [ 0, 0 ]'],
+  [new BigInt64Array(2), '[BigInt64Array(2): null prototype] [ 0n, 0n ]'],
+  [new BigUint64Array(2), '[BigUint64Array(2): null prototype] [ 0n, 0n ]'],
   [new ArrayBuffer(16), '[ArrayBuffer: null prototype] {\n' +
      '  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>,\n' +
      '  byteLength: undefined\n}'],
@@ -2031,8 +2031,10 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   class Foo extends base {}
   const value = new Foo(...input);
   const symbol = value[Symbol.toStringTag];
-  const expected = `Foo ${symbol ? `[${symbol}] ` : ''}${rawExpected}`;
-  const expectedWithoutProto = `[${base.name}: null prototype] ${rawExpected}`;
+  const size = base.name.includes('Array') ? `(${input[0]})` : '';
+  const expected = `Foo${size} ${symbol ? `[${symbol}] ` : ''}${rawExpected}`;
+  const expectedWithoutProto =
+    `[${base.name}${size}: null prototype] ${rawExpected}`;
   assert.strictEqual(util.inspect(value), expected);
   value.foo = 'bar';
   assert.notStrictEqual(util.inspect(value), expected);
@@ -2055,8 +2057,9 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 assert.strictEqual(inspect(1n), '1n');
 assert.strictEqual(inspect(Object(-1n)), '[BigInt: -1n]');
 assert.strictEqual(inspect(Object(13n)), '[BigInt: 13n]');
-assert.strictEqual(inspect(new BigInt64Array([0n])), 'BigInt64Array [ 0n ]');
-assert.strictEqual(inspect(new BigUint64Array([0n])), 'BigUint64Array [ 0n ]');
+assert.strictEqual(inspect(new BigInt64Array([0n])), 'BigInt64Array(1) [ 0n ]');
+assert.strictEqual(
+  inspect(new BigUint64Array([0n])), 'BigUint64Array(1) [ 0n ]');
 
 // Verify non-enumerable keys get escaped.
 {
@@ -2175,7 +2178,7 @@ assert.strictEqual(
   Object.setPrototypeOf(obj, value);
   assert.strictEqual(
     util.inspect(obj),
-    'Object <[Array: null prototype] []> { a: true }'
+    'Object <[Array(0): null prototype] []> { a: true }'
   );
 
   function StorageObject() {}
