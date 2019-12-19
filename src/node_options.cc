@@ -116,6 +116,10 @@ void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
 }
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
+  if (experimental_import_meta_resolve && !experimental_modules) {
+    errors->push_back("--experimental-meta-resolve requires "
+                      "--experimental-modules be enabled");
+  }
   if (!userland_loader.empty() && !experimental_modules) {
     errors->push_back("--experimental-loader requires "
                       "--experimental-modules be enabled");
@@ -359,6 +363,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-wasm-modules",
             "experimental ES Module support for webassembly modules",
             &EnvironmentOptions::experimental_wasm_modules,
+            kAllowedInEnvironment);
+  AddOption("--experimental-import-meta-resolve",
+            "experimental ES Module import.meta.resolve() support",
+            &EnvironmentOptions::experimental_import_meta_resolve,
             kAllowedInEnvironment);
   AddOption("--experimental-policy",
             "use the specified file as a "
