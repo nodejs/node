@@ -786,6 +786,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 ```
 
+### No `require.resolve`
+
+Former use cases relying on `require.resolve` to determine the resolved path
+of a module can be supported via `import.meta.resolve`, which is experimental
+and supported via the `--experimental-import-meta-resolve` flag:
+
+```js
+(async () => {
+  const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
+})();
+```
+
+`import.meta.resolve` also accepts a second argument which is the parent module
+from which to resolve from:
+
+```js
+(async () => {
+  // Equivalent to import.meta.resolve('./dep')
+  await import.meta.resolve('./dep', import.meta.url);
+})();
+```
+
+This function is asynchronous since the ES module resolver in Node.js is
+asynchronous. With the introduction of [Top-Level Await][], these use cases
+will be easier as they won't require an async function wrapper.
+
 ### No `require.extensions`
 
 `require.extensions` is not used by `import`. The expectation is that loader
@@ -1350,13 +1376,14 @@ The resolver has the following properties:
 
 The algorithm to load an ES module specifier is given through the
 **ESM_RESOLVE** method below. It returns the resolved URL for a
-module specifier relative to a parentURL, in addition to the unique module
-format for that resolved URL given by the **ESM_FORMAT** routine.
+module specifier relative to a parentURL.
 
-The _"module"_ format is returned for an ECMAScript Module, while the
-_"commonjs"_ format is used to indicate loading through the legacy
-CommonJS loader. Additional formats such as _"addon"_ can be extended in future
-updates.
+The algorithm to determine the module format of a resolved URL is
+provided by **ESM_FORMAT**, which returns the unique module
+format for any file. The _"module"_ format is returned for an ECMAScript
+Module, while the _"commonjs"_ format is used to indicate loading through the
+legacy CommonJS loader. Additional formats such as _"addon"_ can be extended in
+future updates.
 
 In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines unless stated otherwise.
@@ -1385,11 +1412,13 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _resolvedURL_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2f"_
 >    and _"%5C"_ respectively), then
 >    1. Throw an _Invalid Specifier_ error.
-> 1. If the file at _resolvedURL_ does not exist, then
+> 1. If _resolvedURL_ does not end with a trailing _"/"_ and the file at
+>    _resolvedURL_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
 > 1. Set _resolvedURL_ to the real path of _resolvedURL_.
 > 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_).
 > 1. Load _resolvedURL_ as module format, _format_.
+> 1. Return _resolvedURL_.
 
 **PACKAGE_RESOLVE**(_packageSpecifier_, _parentURL_)
 
@@ -1417,7 +1446,7 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _selfUrl_ isn't empty, return _selfUrl_.
 > 1. If _packageSubpath_ is _undefined_ and _packageName_ is a Node.js builtin
 >    module, then
->    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
+>    1. Return the string _"nodejs:"_ concatenated with _packageSpecifier_.
 > 1. While _parentURL_ is not the file system root,
 >    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
 >       concatenated with _packageSpecifier_, relative to _parentURL_.
@@ -1426,6 +1455,8 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. Set _parentURL_ to the parent URL path of _parentURL_.
 >       1. Continue the next loop iteration.
 >    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+>    1. If _packageSubpath_ is equal to _"./"_, then
+>       1. Return _packageURL_ + _"/"_.
 >    1. If _packageSubpath_ is _undefined__, then
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
 >          _pjson_).
@@ -1447,6 +1478,8 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _pjson_ does not include an _"exports"_ property, then
 >    1. Return **undefined**.
 > 1. If _pjson.name_ is equal to _packageName_, then
+>    1. If _packageSubpath_ is equal to _"./"_, then
+>       1. Return _packageURL_ + _"/"_.
 >    1. If _packageSubpath_ is _undefined_, then
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
 >    1. Otherwise,
@@ -1625,3 +1658,4 @@ success!
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
+[Top-Level Await]: https://github.com/tc39/proposal-top-level-await
