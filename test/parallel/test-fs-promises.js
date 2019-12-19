@@ -324,7 +324,7 @@ async function getHandle(dest) {
     {
       const dir = path.join(tmpDir, nextdir(), nextdir());
       await mkdir(path.dirname(dir));
-      await writeFile(dir);
+      await writeFile(dir, '');
       assert.rejects(
         mkdir(dir, { recursive: true }),
         {
@@ -341,7 +341,7 @@ async function getHandle(dest) {
       const file = path.join(tmpDir, nextdir(), nextdir());
       const dir = path.join(file, nextdir(), nextdir());
       await mkdir(path.dirname(file));
-      await writeFile(file);
+      await writeFile(file, '');
       assert.rejects(
         mkdir(dir, { recursive: true }),
         {
