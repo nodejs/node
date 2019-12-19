@@ -127,6 +127,10 @@ std::string Http3Header::GetValue() const {
       value_.len());
 }
 
+size_t Http3Header::GetLength() const {
+  return GetName().length() + GetValue().length();
+}
+
 namespace {
 template <typename t>
 inline void SetConfig(Environment* env, int idx, t* val) {
@@ -149,6 +153,18 @@ Http3Application::Http3Application(
             &qpack_blocked_streams_);
   SetConfig(env, IDX_HTTP3_MAX_HEADER_LIST_SIZE, &max_header_list_size_);
   SetConfig(env, IDX_HTTP3_MAX_PUSHES, &max_pushes_);
+
+  size_t max_header_pairs = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  SetConfig(env, IDX_HTTP3_MAX_HEADER_PAIRS, &max_header_pairs);
+  SetMaxHeaderPairs(
+      session->IsServer()
+          ? GetServerMaxHeaderPairs(max_header_pairs)
+          : GetClientMaxHeaderPairs(max_header_pairs));
+
+  size_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
+  SetConfig(env, IDX_HTTP3_MAX_HEADER_LENGTH, &max_header_length);
+  SetMaxHeaderLength(max_header_length);
+
   env->quic_state()->http3config_buffer[IDX_HTTP3_CONFIG_COUNT] = 0;  // Reset
 }
 

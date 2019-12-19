@@ -9,6 +9,10 @@ namespace node {
 
 class Environment;
 
+#define MAX_MAX_HEADER_LIST_SIZE 16777215
+#define DEFAULT_MAX_HEADER_LIST_PAIRS 128
+#define DEFAULT_MAX_HEADER_LENGTH 8192
+
 #define HTTP_SPECIAL_HEADERS(V)                                               \
   V(STATUS, ":status")                                                        \
   V(METHOD, ":method")                                                        \
@@ -417,6 +421,9 @@ class NgRcBufPointer : public MemoryRetainer {
   rcbuf_t* buf_ = nullptr;
   bool internalizable_ = false;
 };
+
+inline size_t GetServerMaxHeaderPairs(size_t max_header_pairs);
+inline size_t GetClientMaxHeaderPairs(size_t max_header_pairs);
 
 }  // namespace node
 

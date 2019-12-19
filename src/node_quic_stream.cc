@@ -405,9 +405,18 @@ void QuicStream::SetHeadersKind(QuicStreamHeadersKind kind) {
 
 bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
   Debug(this, "Header Added");
+  size_t len = header->GetLength();
+  QuicApplication* app = Session()->Application();
+  // We cannot add the header if we've either reached
+  // * the max number of header pairs or
+  // * the max number of header bytes
+  if (headers_.size() == app->GetMaxHeaderPairs() ||
+      current_headers_length_ + len > app->GetMaxHeaderLength()) {
+    return false;
+  }
+
+  current_headers_length_ += header->GetLength();
   headers_.emplace_back(std::move(header));
-  // TODO(@jasnell): We need to limit the maximum number of headers.
-  // If the maximum count is reached, return false here instead.
   return true;
 }
 

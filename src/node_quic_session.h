@@ -509,15 +509,22 @@ class QuicApplication : public MemoryRetainer {
 
   inline Environment* env() const;
 
+  size_t GetMaxHeaderPairs() { return max_header_pairs_; }
+  size_t GetMaxHeaderLength() { return max_header_length_; }
+
  protected:
   QuicSession* Session() const { return session_; }
   bool NeedsInit() const { return needs_init_; }
   void SetInitDone() { needs_init_ = false; }
+  void SetMaxHeaderPairs(size_t max) { max_header_pairs_ = max; }
+  void SetMaxHeaderLength(size_t max) { max_header_length_ = max; }
   std::unique_ptr<QuicPacket> CreateStreamDataPacket();
 
  private:
   QuicSession* session_;
   bool needs_init_ = true;
+  size_t max_header_pairs_ = 0;
+  size_t max_header_length_ = 0;
 };
 
 // The QuicSession class is an virtual class that serves as

@@ -5,6 +5,8 @@
 #include "node.h"
 #include "env-inl.h"
 
+#include <algorithm>
+
 namespace node {
 
 using v8::Array;
@@ -66,6 +68,16 @@ NgHeaders<T>::NgHeaders(Environment* env, Local<Array> headers) {
     nva[n].valuelen = strlen(p);
     p += nva[n].valuelen + 1;
   }
+}
+
+size_t GetClientMaxHeaderPairs(size_t max_header_pairs) {
+  static constexpr size_t min_header_pairs = 1;
+  return std::max(max_header_pairs, min_header_pairs);
+}
+
+size_t GetServerMaxHeaderPairs(size_t max_header_pairs) {
+  static constexpr size_t min_header_pairs = 4;
+  return std::max(max_header_pairs, min_header_pairs);
 }
 
 }  // namespace node

@@ -61,6 +61,8 @@ class Http3Header : public QuicHeader {
   std::string GetName() const override;
   std::string GetValue() const override;
 
+  size_t GetLength() const override;
+
  private:
   int32_t token_ = -1;
   Http3RcBufferPointer name_;

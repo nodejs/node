@@ -63,6 +63,10 @@ class QuicHeader {
   virtual v8::MaybeLocal<v8::String> GetValue(QuicApplication* app) const = 0;
   virtual std::string GetName() const = 0;
   virtual std::string GetValue() const = 0;
+
+  // Returns the total length of the header in bytes
+  // (including the name and value)
+  virtual size_t GetLength() const = 0;
 };
 
 // QuicStream's are simple data flows that, fortunately, do not
@@ -444,6 +448,7 @@ class QuicStream : public AsyncWrap, public StreamBase {
 
   std::vector<std::unique_ptr<QuicHeader>> headers_;
   QuicStreamHeadersKind headers_kind_;
+  size_t current_headers_length_ = 0;
 
   struct stream_stats {
     // The timestamp at which the stream was created
