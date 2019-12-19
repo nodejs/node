@@ -557,7 +557,6 @@ void QuicSocket::OnReceive(
 void QuicSocket::ReceiveStart() {
   for (const auto& endpoint : endpoints_)
     CHECK_EQ(endpoint->ReceiveStart(), 0);
-
 }
 
 void QuicSocket::ReceiveStop() {
