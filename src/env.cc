@@ -382,6 +382,8 @@ Environment::Environment(IsolateData* isolate_data,
     async_hooks_.no_force_checks();
   }
 
+  async_hooks_.push_execution_async_resource(v8::Object::New(isolate_));
+
   // TODO(joyeecheung): deserialize when the snapshot covers the environment
   // properties.
   CreateProperties();
@@ -419,6 +421,8 @@ Environment::~Environment() {
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
+
+  async_hooks_.pop_execution_async_resource();
 
   // Do not unload addons on the main thread. Some addons need to retain memory
   // beyond the Environment's lifetime, and unloading them early would break

@@ -9,6 +9,8 @@ const id = Symbol('id');
 
 // Tests continuation local storage with the executionAsyncResource API
 
+assert.ok(executionAsyncResource());
+
 createHook({
   init(asyncId, type, triggerAsyncId, resource) {
     const cr = executionAsyncResource();
