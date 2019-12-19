@@ -1152,8 +1152,7 @@ Maybe<URL> PackageExportsResolve(Environment* env,
 Maybe<URL> ResolveSelf(Environment* env,
                        const std::string& pkg_name,
                        const std::string& pkg_subpath,
-                       const URL& base,
-                       bool encapsulated) {
+                       const URL& base) {
   if (!env->options()->experimental_resolve_self) {
     return Nothing<URL>();
   }
@@ -1173,15 +1172,11 @@ Maybe<URL> ResolveSelf(Environment* env,
       }
     }
     if (!found_pjson || pcfg->name != pkg_name) return Nothing<URL>();
-    if (encapsulated && pcfg->exports.IsEmpty()) return Nothing<URL>();
+    if (pcfg->exports.IsEmpty()) return Nothing<URL>();
     if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg, base);
     } else {
-      if (!pcfg->exports.IsEmpty()) {
-        return PackageExportsResolve(env, pjson_url, pkg_subpath, *pcfg, base);
-      } else {
-        return FinalizeResolution(env, URL(pkg_subpath, pjson_url), base);
-      }
+      return PackageExportsResolve(env, pjson_url, pkg_subpath, *pcfg, base);
     }
   }
 
@@ -1229,7 +1224,7 @@ Maybe<URL> PackageResolve(Environment* env,
     pkg_subpath = "." + specifier.substr(sep_index);
   }
 
-  Maybe<URL> self_url = ResolveSelf(env, pkg_name, pkg_subpath, base, true);
+  Maybe<URL> self_url = ResolveSelf(env, pkg_name, pkg_subpath, base);
   if (self_url.IsJust()) {
     ProcessEmitExperimentalWarning(env, "Package name self resolution");
     return self_url;
@@ -1267,12 +1262,6 @@ Maybe<URL> PackageResolve(Environment* env,
     CHECK(false);
     // Cross-platform root check.
   } while (pjson_path.length() != last_path.length());
-
-  self_url = ResolveSelf(env, pkg_name, pkg_subpath, base, false);
-  if (self_url.IsJust()) {
-    ProcessEmitExperimentalWarning(env, "Package name self resolution");
-    return self_url;
-  }
 
   std::string msg = "Cannot find package '" + pkg_name +
       "' imported from " + base.ToFilePath();

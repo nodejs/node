@@ -1237,15 +1237,14 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _selfUrl_ isn't empty, return _selfUrl_.
 > 1. Throw a _Module Not Found_ error.
 
-**SELF_REFERENCE_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_,
-                           _encapsulated_)
+**SELF_REFERENCE_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
 
 > 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
 > 1. If _packageURL_ is **null**, then
 >    1. Return **undefined**.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
-> 1. If _encapsulated_ is **true** and _pjson_ does not include an
->    _"exports"_ property, then return **undefined**.
+> 1. If _pjson_ does not include an _"exports"_ property, then
+>    1. Return **undefined**.
 > 1. If _pjson.name_ is equal to _packageName_, then
 >    1. If _packageSubpath_ is _undefined_, then
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
