@@ -1207,8 +1207,7 @@ _defaultEnv_ is the conditional environment name priority array,
 >    encoded strings for _"/"_ or _"\\"_, then
 >    1. Throw an _Invalid Specifier_ error.
 > 1. Set _selfUrl_ to the result of
->    **SELF_REFERENCE_RESOLE**(_packageName_, _packageSubpath_, _parentURL_,
->    **true**).
+>    **SELF_REFERENCE_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
 > 1. If _selfUrl_ isn't empty, return _selfUrl_.
 > 1. If _packageSubpath_ is _undefined_ and _packageName_ is a Node.js builtin
 >    module, then
@@ -1231,10 +1230,6 @@ _defaultEnv_ is the conditional environment name priority array,
 >             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
 >                _packageSubpath_, _pjson.exports_).
 >       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
-> 1. Set _selfUrl_ to the result of
->    **SELF_REFERENCE_RESOLE**(_packageName_, _packageSubpath_, _parentURL_,
->    **false**).
-> 1. If _selfUrl_ isn't empty, return _selfUrl_.
 > 1. Throw a _Module Not Found_ error.
 
 **SELF_REFERENCE_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
