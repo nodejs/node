@@ -105,16 +105,19 @@ async function throwInLoop() {
 async function next() {
   const ee = new EventEmitter();
   const iterable = on(ee, 'foo');
+
   process.nextTick(function() {
     ee.emit('foo', 'bar');
     ee.emit('foo', 42);
     iterable.return();
   });
+
   const results = await Promise.all([
     iterable.next(),
     iterable.next(),
     iterable.next()
   ]);
+
   assert.deepStrictEqual(results, [{
     value: ['bar'],
     done: false
@@ -125,6 +128,11 @@ async function next() {
     value: undefined,
     done: true
   }]);
+
+  assert.deepStrictEqual(await iterable.next(), {
+    value: undefined,
+    done: true
+  });
 }
 
 async function nextError() {
@@ -149,6 +157,7 @@ async function nextError() {
     status: 'rejected',
     reason: _err
   }]);
+  assert.strictEqual(ee.listeners('error').length, 0);
 }
 
 async function iterableThrow() {
@@ -193,10 +202,10 @@ async function run() {
     next,
     nextError,
     iterableThrow
-  ]
+  ];
 
   for (const fn of funcs) {
-    await fn()
+    await fn();
   }
 }
 
