@@ -19,7 +19,7 @@ function childProcessExecStdout({ dur, len }) {
   const cmd = `yes "${'.'.repeat(len)}"`;
   const child = exec(cmd, { 'stdio': ['ignore', 'pipe', 'ignore'] });
 
-  var bytes = 0;
+  let bytes = 0;
   child.stdout.on('data', (msg) => {
     bytes += msg.length;
   });
