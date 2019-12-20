@@ -1219,7 +1219,7 @@ QuicApplication* QuicSession::SelectApplication(QuicSession* session) {
 // Server QuicSession Constructor
 QuicSession::QuicSession(
     QuicSocket* socket,
-    QuicSessionConfig* config,
+    const QuicSessionConfig& config,
     Local<Object> wrap,
     const ngtcp2_cid* rcid,
     const SocketAddress& local_addr,
@@ -1243,14 +1243,8 @@ QuicSession::QuicSession(
         options,
         QUIC_PREFERRED_ADDRESS_ACCEPT,  // Not used on server sessions
         initial_connection_close) {
-  InitServer(
-      config,
-      local_addr,
-      remote_addr,
-      dcid,
-      ocid,
-      version,
-      qlog);
+  // The config is copied by assignment in the call below.
+  InitServer(config, local_addr, remote_addr, dcid, ocid, version, qlog);
 }
 
 // Client QuicSession Constructor
@@ -2819,7 +2813,7 @@ QuicSession::InitialPacketResult QuicSession::Accept(
 // Static function to create a new server QuicSession instance
 BaseObjectPtr<QuicSession> QuicSession::CreateServer(
     QuicSocket* socket,
-    QuicSessionConfig* config,
+    const QuicSessionConfig& config,
     const ngtcp2_cid* rcid,
     const SocketAddress& local_addr,
     const struct sockaddr* remote_addr,
@@ -2856,9 +2850,9 @@ BaseObjectPtr<QuicSession> QuicSession::CreateServer(
   return session;
 }
 
-// Initializes a newly created server QuicSession
+// Initializes a newly created server QuicSession.
 void QuicSession::InitServer(
-    QuicSessionConfig* config,
+    QuicSessionConfig config,
     const SocketAddress& local_addr,
     const struct sockaddr* remote_addr,
     const ngtcp2_cid* dcid,
@@ -2875,14 +2869,14 @@ void QuicSession::InitServer(
   remote_address_ = remote_addr;
   max_pktlen_ = GetMaxPktLen(remote_addr);
 
-  config->SetOriginalConnectionID(ocid);
+  config.SetOriginalConnectionID(ocid);
 
-  config->GenerateStatelessResetToken(
+  config.GenerateStatelessResetToken(
       stateless_reset_strategy_,
       this,
       const_cast<ngtcp2_cid*>(dcid));
 
-  config->GeneratePreferredAddressToken(
+  config.GeneratePreferredAddressToken(
       connection_id_strategy_,
       stateless_reset_strategy_,
       this,
@@ -2893,7 +2887,7 @@ void QuicSession::InitServer(
   QuicPath path(local_addr, remote_address_);
 
   // NOLINTNEXTLINE(readability/pointer_notation)
-  if (qlog == QlogMode::kEnabled) config->SetQlog({ *ocid, OnQlogWrite });
+  if (qlog == QlogMode::kEnabled) config.SetQlog({ *ocid, OnQlogWrite });
 
   ngtcp2_conn* conn;
   CHECK_EQ(
@@ -2904,7 +2898,7 @@ void QuicSession::InitServer(
           &path,
           version,
           &callbacks[crypto_context_->Side()],
-          config,
+          &config,
           &alloc_info_,
           static_cast<QuicSession*>(this)), 0);
 

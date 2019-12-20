@@ -546,7 +546,7 @@ class QuicSession : public AsyncWrap,
 
   static BaseObjectPtr<QuicSession> CreateServer(
       QuicSocket* socket,
-      QuicSessionConfig* config,
+      const QuicSessionConfig& config,
       const ngtcp2_cid* rcid,
       const SocketAddress& local_addr,
       const struct sockaddr* remote_addr,
@@ -604,7 +604,7 @@ class QuicSession : public AsyncWrap,
   // Server Constructor
   QuicSession(
       QuicSocket* socket,
-      QuicSessionConfig* config,
+      const QuicSessionConfig& config,
       v8::Local<v8::Object> wrap,
       const ngtcp2_cid* rcid,
       const SocketAddress& local_addr,
@@ -970,7 +970,7 @@ class QuicSession : public AsyncWrap,
 
   // Initialize the QuicSession as a server
   void InitServer(
-      QuicSessionConfig* config,
+      QuicSessionConfig config,
       const SocketAddress& local_addr,
       const struct sockaddr* remote_addr,
       const ngtcp2_cid* dcid,

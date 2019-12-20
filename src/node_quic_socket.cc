@@ -800,7 +800,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   BaseObjectPtr<QuicSession> session =
       QuicSession::CreateServer(
           this,
-          &server_session_config_,
+          server_session_config_,
           dcid.cid(),
           local_addr,
           remote_addr,
