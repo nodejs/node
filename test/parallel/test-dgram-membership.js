@@ -84,7 +84,8 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
     socket.addSourceSpecificMembership(0, multicastAddress);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /^The "sourceAddress" argument must be of type string\. Received type number$/
+    message: 'The "sourceAddress" argument must be of type string. ' +
+    'Received type number (0)'
   });
   socket.close();
 }
@@ -96,7 +97,8 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
     socket.addSourceSpecificMembership(multicastAddress, 0);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /^The "groupAddress" argument must be of type string\. Received type number$/
+    message: 'The "groupAddress" argument must be of type string. ' +
+    'Received type number (0)'
   });
   socket.close();
 }
@@ -120,7 +122,8 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
     socket.dropSourceSpecificMembership(0, multicastAddress);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /^The "sourceAddress" argument must be of type string\. Received type number$/
+    message: 'The "sourceAddress" argument must be of type string. ' +
+    'Received type number (0)'
   });
   socket.close();
 }
@@ -132,7 +135,8 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
     socket.dropSourceSpecificMembership(multicastAddress, 0);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /^The "groupAddress" argument must be of type string\. Received type number$/
+    message: 'The "groupAddress" argument must be of type string. ' +
+    'Received type number (0)'
   });
   socket.close();
 }
