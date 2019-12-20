@@ -1648,6 +1648,8 @@ changes:
   * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
     data. See [Session Resumption][] for more information.
   * `pskCallback` {Function}
+    * socket: {tls.TLSSocket} the server [`tls.TLSSocket`][] instance for
+      this connection.
     * identity: {string} identity parameter sent from the client.
     * Returns: {Buffer|TypedArray|DataView} pre-shared key that must either be
       a buffer or `null` to stop the negotiation process. Returned PSK must be

@@ -18,7 +18,9 @@ const IDENTITY = 'TestUser';
 const server = tls.createServer({
   ciphers: CIPHERS,
   pskIdentityHint: IDENTITY,
-  pskCallback(identity) {
+  pskCallback(socket, identity) {
+    assert.ok(socket instanceof tls.TLSSocket);
+    assert.ok(typeof identity === 'string');
     if (identity === IDENTITY)
       return Buffer.from(KEY, 'hex');
   }
