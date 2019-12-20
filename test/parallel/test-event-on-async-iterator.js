@@ -117,6 +117,9 @@ async function next() {
   }, {
     value: [42],
     done: false
+  }, {
+    value: undefined,
+    done: true
   }]);
 }
 
