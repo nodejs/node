@@ -2,11 +2,12 @@
 
 # Inquirer.js
 
-[![npm](https://badge.fury.io/js/inquirer.svg)](http://badge.fury.io/js/inquirer) [![tests](https://travis-ci.org/SBoudrias/Inquirer.js.svg?branch=master)](http://travis-ci.org/SBoudrias/Inquirer.js) [![Coverage Status](https://codecov.io/gh/SBoudrias/Inquirer.js/branch/master/graph/badge.svg)](https://codecov.io/gh/SBoudrias/Inquirer.js) [![dependencies](https://david-dm.org/SBoudrias/Inquirer.js.svg?theme=shields.io)](https://david-dm.org/SBoudrias/Inquirer.js)
+[![npm](https://badge.fury.io/js/inquirer.svg)](http://badge.fury.io/js/inquirer)
+[![tests](https://travis-ci.org/SBoudrias/Inquirer.js.svg?branch=master)](http://travis-ci.org/SBoudrias/Inquirer.js)
+[![Coverage Status](https://codecov.io/gh/SBoudrias/Inquirer.js/branch/master/graph/badge.svg)](https://codecov.io/gh/SBoudrias/Inquirer.js)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSBoudrias%2FInquirer.js.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FSBoudrias%2FInquirer.js?ref=badge_shield)
 
 A collection of common interactive command line user interfaces.
-
-**Version 4.x** only supports Node 6 and over. For Node 4 support please use [version 3.x](https://github.com/SBoudrias/Inquirer.js/tree/v3.3.0).
 
 ## Table of Contents
 

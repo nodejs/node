@@ -54,7 +54,8 @@ module.exports = {
             description: "disallow negating the left operand of relational operators",
             category: "Possible Errors",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-negation"
+            url: "https://eslint.org/docs/rules/no-unsafe-negation",
+            suggestion: true
         },
 
         schema: [
@@ -69,9 +70,13 @@ module.exports = {
                 additionalProperties: false
             }
         ],
+
         fixable: null,
+
         messages: {
-            unexpected: "Unexpected negating the left operand of '{{operator}}' operator."
+            unexpected: "Unexpected negating the left operand of '{{operator}}' operator.",
+            suggestNegatedExpression: "Negate '{{operator}}' expression instead of its left operand. This changes the current behavior.",
+            suggestParenthesisedNegation: "Wrap negation in '()' to make the intention explicit. This preserves the current behavior."
         }
     },
 
@@ -82,10 +87,11 @@ module.exports = {
 
         return {
             BinaryExpression(node) {
-                const orderingRelationRuleApplies = enforceForOrderingRelations && isOrderingRelationalOperator(node.operator);
+                const operator = node.operator;
+                const orderingRelationRuleApplies = enforceForOrderingRelations && isOrderingRelationalOperator(operator);
 
                 if (
-                    (isInOrInstanceOfOperator(node.operator) || orderingRelationRuleApplies) &&
+                    (isInOrInstanceOfOperator(operator) || orderingRelationRuleApplies) &&
                     isNegation(node.left) &&
                     !astUtils.isParenthesised(sourceCode, node.left)
                 ) {
@@ -93,7 +99,26 @@ module.exports = {
                         node,
                         loc: node.left.loc,
                         messageId: "unexpected",
-                        data: { operator: node.operator }
+                        data: { operator },
+                        suggest: [
+                            {
+                                messageId: "suggestNegatedExpression",
+                                data: { operator },
+                                fix(fixer) {
+                                    const negationToken = sourceCode.getFirstToken(node.left);
+                                    const fixRange = [negationToken.range[1], node.range[1]];
+                                    const text = sourceCode.text.slice(fixRange[0], fixRange[1]);
+
+                                    return fixer.replaceTextRange(fixRange, `(${text})`);
+                                }
+                            },
+                            {
+                                messageId: "suggestParenthesisedNegation",
+                                fix(fixer) {
+                                    return fixer.replaceText(node.left, `(${sourceCode.getText(node.left)})`);
+                                }
+                            }
+                        ]
                     });
                 }
             }

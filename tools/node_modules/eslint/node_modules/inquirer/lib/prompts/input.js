@@ -90,10 +90,10 @@ class InputPrompt extends Base {
     this.done(state.value);
   }
 
-  onError(state) {
-    this.rl.line += state.value;
-    this.rl.cursor += state.value.length;
-    this.render(state.isValid);
+  onError({ value = '', isValid }) {
+    this.rl.line += value;
+    this.rl.cursor += value.length;
+    this.render(isValid);
   }
 
   /**

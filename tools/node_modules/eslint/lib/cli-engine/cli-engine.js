@@ -576,6 +576,7 @@ class CLIEngine {
             cwd: options.cwd,
             extensions: options.extensions,
             globInputPaths: options.globInputPaths,
+            errorOnUnmatchedPattern: options.errorOnUnmatchedPattern,
             ignore: options.ignore
         });
         const lintResultCache =

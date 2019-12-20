@@ -62,7 +62,6 @@ module.exports = {
         "no-useless-catch": "error",
         "no-useless-escape": "error",
         "no-with": "error",
-        "require-atomic-updates": "error",
         "require-yield": "error",
         "use-isnan": "error",
         "valid-typeof": "error"

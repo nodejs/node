@@ -84,16 +84,16 @@ module.exports = {
          * @returns {void}
          */
         function reportNoBeginningSpace(node, token) {
+            const nextToken = sourceCode.getTokenAfter(token);
+
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: token.loc.end, end: nextToken.loc.start },
                 messageId: "unexpectedSpaceAfter",
                 data: {
                     tokenValue: token.value
                 },
                 fix(fixer) {
-                    const nextToken = sourceCode.getTokenAfter(token);
-
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
             });
@@ -106,16 +106,16 @@ module.exports = {
          * @returns {void}
          */
         function reportNoEndingSpace(node, token) {
+            const previousToken = sourceCode.getTokenBefore(token);
+
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: previousToken.loc.end, end: token.loc.start },
                 messageId: "unexpectedSpaceBefore",
                 data: {
                     tokenValue: token.value
                 },
                 fix(fixer) {
-                    const previousToken = sourceCode.getTokenBefore(token);
-
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
             });
@@ -130,7 +130,7 @@ module.exports = {
         function reportRequiredBeginningSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 messageId: "missingSpaceAfter",
                 data: {
                     tokenValue: token.value
@@ -150,7 +150,7 @@ module.exports = {
         function reportRequiredEndingSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 messageId: "missingSpaceBefore",
                 data: {
                     tokenValue: token.value

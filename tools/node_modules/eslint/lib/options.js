@@ -231,6 +231,12 @@ module.exports = optionator({
             description: "Output execution environment information"
         },
         {
+            option: "error-on-unmatched-pattern",
+            type: "Boolean",
+            default: "true",
+            description: "Prevent errors when pattern is unmatched"
+        },
+        {
             option: "debug",
             type: "Boolean",
             default: false,
