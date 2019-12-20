@@ -42,52 +42,6 @@ size_t GetMaxPktLen(const sockaddr* addr) {
       NGTCP2_MAX_PKTLEN_IPV4;
 }
 
-bool ResolvePreferredAddress(
-    Environment* env,
-    int local_address_family,
-    const ngtcp2_preferred_addr* paddr,
-    uv_getaddrinfo_t* req) {
-  int af;
-  const uint8_t* binaddr;
-  uint16_t port;
-  constexpr uint8_t empty_addr[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0};
-
-  if (local_address_family == AF_INET &&
-      memcmp(empty_addr, paddr->ipv4_addr, sizeof(paddr->ipv4_addr)) != 0) {
-    af = AF_INET;
-    binaddr = paddr->ipv4_addr;
-    port = paddr->ipv4_port;
-  } else if (local_address_family == AF_INET6 &&
-              memcmp(empty_addr,
-                    paddr->ipv6_addr,
-                    sizeof(paddr->ipv6_addr)) != 0) {
-    af = AF_INET6;
-    binaddr = paddr->ipv6_addr;
-    port = paddr->ipv6_port;
-  } else {
-    return false;
-  }
-
-  char host[NI_MAXHOST];
-  if (uv_inet_ntop(af, binaddr, host, sizeof(host)) != 0)
-    return false;
-
-  addrinfo hints{};
-  hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
-  hints.ai_family = af;
-  hints.ai_socktype = SOCK_DGRAM;
-
-  return
-      uv_getaddrinfo(
-          env->event_loop(),
-          req,
-          nullptr,
-          host,
-          std::to_string(port).c_str(),
-          &hints) == 0;
-}
-
 Timer::Timer(Environment* env, std::function<void()> fn)
   : env_(env),
     fn_(fn) {
@@ -232,6 +186,101 @@ const char* QuicError::GetFamilyName() {
     default:
       UNREACHABLE();
   }
+}
+
+const ngtcp2_cid* QuicPreferredAddress::cid() const {
+  return &paddr_->cid;
+}
+
+const uint8_t* QuicPreferredAddress::StatelessResetToken() const {
+  return paddr_->stateless_reset_token;
+}
+
+const sockaddr_in6* QuicPreferredAddress::PreferredIPv6Address() const {
+  return reinterpret_cast<const sockaddr_in6*>(&paddr_->ipv6_addr);
+}
+const sockaddr_in* QuicPreferredAddress::PreferredIPv4Address() const {
+  return reinterpret_cast<const sockaddr_in*>(&paddr_->ipv4_addr);
+}
+
+const int16_t QuicPreferredAddress::PreferredIPv6Port() const {
+  return paddr_->ipv6_port;
+}
+const int16_t QuicPreferredAddress::PreferredIPv4Port() const {
+  return paddr_->ipv4_port;
+}
+
+bool QuicPreferredAddress::Use(int family) const {
+  uv_getaddrinfo_t req;
+
+  if (!ResolvePreferredAddress(family, &req) ||
+      req.addrinfo == nullptr) {
+    return false;
+  }
+
+  dest_->addrlen = req.addrinfo->ai_addrlen;
+  memcpy(dest_->addr, req.addrinfo->ai_addr, req.addrinfo->ai_addrlen);
+  uv_freeaddrinfo(req.addrinfo);
+}
+
+bool QuicPreferredAddress::IsEmptyAddress(
+    const uint8_t* addr,
+    size_t len) const {
+  static constexpr uint8_t empty_addr[] = {0, 0, 0, 0, 0, 0, 0, 0,
+                                           0, 0, 0, 0, 0, 0, 0, 0};
+  return memcmp(empty_addr, addr, len) == 0;
+}
+
+bool QuicPreferredAddress::ResolvePreferredAddress(
+    int local_address_family,
+    uv_getaddrinfo_t* req) const {
+  static constexpr size_t len4 = sizeof(sockaddr_in);
+  static constexpr size_t len6 = sizeof(sockaddr_in6);
+  int af;
+  const uint8_t* binaddr;
+  uint16_t port;
+
+  switch (local_address_family) {
+    case AF_INET:
+      if (!IsEmptyAddress(paddr_->ipv4_addr, len4)) {
+        af = AF_INET;
+        binaddr = paddr_->ipv4_addr;
+        port = paddr_->ipv4_port;
+        break;
+      }
+      return false;
+    case AF_INET6:
+      if (!IsEmptyAddress(paddr_->ipv6_addr, len6)) {
+        af = AF_INET6;
+        binaddr = paddr_->ipv6_addr;
+        port = paddr_->ipv6_port;
+        break;
+      }
+      return false;
+    default:
+      UNREACHABLE();
+  }
+
+  char host[NI_MAXHOST];
+  if (uv_inet_ntop(af, binaddr, host, sizeof(host)) != 0)
+    return false;
+
+  addrinfo hints{};
+  hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+  hints.ai_family = af;
+  hints.ai_socktype = SOCK_DGRAM;
+
+  // Unfortunately ngtcp2 requires the selection of the
+  // preferred address to be synchronous, which means we
+  // have to do a sync resolve using uv_getaddrinfo here.
+  return
+      uv_getaddrinfo(
+          env_->event_loop(),
+          req,
+          nullptr,
+          host,
+          std::to_string(port).c_str(),
+          &hints) == 0;
 }
 
 }  // namespace quic

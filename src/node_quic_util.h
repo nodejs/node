@@ -77,6 +77,39 @@ enum QuicErrorFamily : int32_t {
   QUIC_ERROR_APPLICATION
 };
 
+class QuicPreferredAddress {
+ public:
+  QuicPreferredAddress(
+      Environment* env,
+      ngtcp2_addr* dest,
+      const ngtcp2_preferred_addr* paddr) :
+      env_(env),
+      dest_(dest),
+      paddr_(paddr) {}
+
+  inline const ngtcp2_cid* cid() const;
+  inline const sockaddr_in6* PreferredIPv6Address() const;
+  inline const sockaddr_in* PreferredIPv4Address() const;
+  inline const int16_t PreferredIPv6Port() const;
+  inline const int16_t PreferredIPv4Port() const;
+  inline const uint8_t* StatelessResetToken() const;
+
+  inline bool Use(int family = AF_INET) const;
+
+ private:
+  inline bool ResolvePreferredAddress(
+      int local_address_family,
+      uv_getaddrinfo_t* req) const;
+
+  inline bool IsEmptyAddress(
+      const uint8_t* addr,
+      size_t len) const;
+
+  Environment* env_;
+  mutable ngtcp2_addr* dest_;
+  const ngtcp2_preferred_addr* paddr_;
+};
+
 struct QuicError {
   int32_t family;
   uint64_t code;
@@ -96,12 +129,6 @@ struct QuicError {
 };
 
 inline size_t GetMaxPktLen(const sockaddr* addr);
-
-inline bool ResolvePreferredAddress(
-    Environment* env,
-    int local_address_family,
-    const ngtcp2_preferred_addr* paddr,
-    uv_getaddrinfo_t* req);
 
 inline ngtcp2_addr* ToNgtcp2Addr(
     const SocketAddress& addr,

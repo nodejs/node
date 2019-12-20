@@ -1013,9 +1013,7 @@ class QuicSession : public AsyncWrap,
   bool ReceiveRetry();
   void RemoveConnectionID(const ngtcp2_cid* cid);
   void ScheduleRetransmit();
-  bool SelectPreferredAddress(
-    ngtcp2_addr* dest,
-    const ngtcp2_preferred_addr* paddr);
+  bool SelectPreferredAddress(const QuicPreferredAddress& preferred_address);
   bool SendPacket(std::unique_ptr<QuicPacket> packet);
   void SetLocalAddress(const ngtcp2_addr* addr);
   void StreamClose(int64_t stream_id, uint64_t app_error_code);

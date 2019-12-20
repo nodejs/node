@@ -2261,28 +2261,13 @@ bool QuicSession::SendConnectionClose() {
 // possible strategies that we currently support via user
 // configuration: use the preferred address or ignore it.
 bool QuicSession::SelectPreferredAddress(
-    ngtcp2_addr* dest,
-    const ngtcp2_preferred_addr* paddr) {
-  if (IsServer())  // This should never happen, but handle anyway
+    const QuicPreferredAddress& preferred_address) {
+  if (UNLIKELY(IsServer()))  // This should never happen, but handle anyway
     return true;
 
   switch (select_preferred_address_policy_) {
     case QUIC_PREFERRED_ADDRESS_ACCEPT: {
-      uv_getaddrinfo_t req;
-
-      if (!ResolvePreferredAddress(
-              env(), local_address_.GetFamily(),
-              paddr, &req)) {
-        return false;
-      }
-
-      if (req.addrinfo == nullptr)
-        return false;
-
-      dest->addrlen = req.addrinfo->ai_addrlen;
-      memcpy(dest->addr, req.addrinfo->ai_addr, req.addrinfo->ai_addrlen);
-      uv_freeaddrinfo(req.addrinfo);
-      break;
+      return preferred_address.Use(local_address_.GetFamily());
     }
     case QUIC_PREFERRED_ADDRESS_IGNORE:
       // Explicitly do nothing in this case.
@@ -3393,7 +3378,8 @@ int QuicSession::OnSelectPreferredAddress(
   // even in such a failure, we debug log and ignore it.
   // If the preferred address is not selected, dest remains
   // unchanged.
-  if (!session->SelectPreferredAddress(dest, paddr))
+  QuicPreferredAddress preferred_address(session->env(), dest, paddr);
+  if (!session->SelectPreferredAddress(preferred_address))
     Debug(session, "Selecting preferred address failed");
   return 0;
 }
