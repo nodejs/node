@@ -20,3 +20,9 @@ assert.throws(() => { new WASI({ env: 'fhqwhgads' }); },
 // If preopens is not an Object and not undefined, it should throw.
 assert.throws(() => { new WASI({ preopens: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bpreopens\b/ });
+
+// If options is provided, but not an object, the constructor should throw.
+[null, 'foo', '', 0, NaN, Symbol(), true, false, () => {}].forEach((value) => {
+  assert.throws(() => { new WASI(value); },
+                { code: 'ERR_INVALID_ARG_TYPE' });
+});
