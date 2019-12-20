@@ -908,6 +908,9 @@ const { on, EventEmitter } = require('events');
   });
 
   for await (const event of on(ee, 'foo')) {
+    // The execution of this inner block is synchronous and it
+    // process one event at a time (even with await). Do not use
+    // if parallel execution is required.
     console.log(event); // prints ['bar'] [42]
   }
 })();
@@ -915,7 +918,8 @@ const { on, EventEmitter } = require('events');
 
 Returns an `AsyncIterator` that iterates `eventName` events. It will throw
 if the `EventEmitter` emits `'error'`. It removes all listeners when
-exiting the loop.
+exiting the loop. The `value` returned by each iteration is an array
+composed of the emitted event arguments.
 
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
 [`--trace-warnings`]: cli.html#cli_trace_warnings
