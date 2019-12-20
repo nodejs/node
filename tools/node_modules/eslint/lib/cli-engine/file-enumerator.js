@@ -190,6 +190,7 @@ class FileEnumerator {
         configArrayFactory = new CascadingConfigArrayFactory({ cwd }),
         extensions = [".js"],
         globInputPaths = true,
+        errorOnUnmatchedPattern = true,
         ignore = true
     } = {}) {
         internalSlotsMap.set(this, {
@@ -208,6 +209,7 @@ class FileEnumerator {
                 "u"
             ),
             globInputPaths,
+            errorOnUnmatchedPattern,
             ignoreFlag: ignore
         });
     }
@@ -226,7 +228,7 @@ class FileEnumerator {
      * @returns {IterableIterator<FileAndConfig>} The found files.
      */
     *iterateFiles(patternOrPatterns) {
-        const { globInputPaths } = internalSlotsMap.get(this);
+        const { globInputPaths, errorOnUnmatchedPattern } = internalSlotsMap.get(this);
         const patterns = Array.isArray(patternOrPatterns)
             ? patternOrPatterns
             : [patternOrPatterns];
@@ -265,14 +267,16 @@ class FileEnumerator {
             }
 
             // Raise an error if any files were not found.
-            if (!foundRegardlessOfIgnored) {
-                throw new NoFilesFoundError(
-                    pattern,
-                    !globInputPaths && isGlob(pattern)
-                );
-            }
-            if (!found) {
-                throw new AllFilesIgnoredError(pattern);
+            if (errorOnUnmatchedPattern) {
+                if (!foundRegardlessOfIgnored) {
+                    throw new NoFilesFoundError(
+                        pattern,
+                        !globInputPaths && isGlob(pattern)
+                    );
+                }
+                if (!found) {
+                    throw new AllFilesIgnoredError(pattern);
+                }
             }
         }
 

@@ -43,6 +43,18 @@ function isSingleLine(node) {
 }
 
 /**
+ * Checks whether the properties on a single line.
+ * @param {ASTNode[]} properties List of Property AST nodes.
+ * @returns {boolean} True if all properies is on a single line.
+ */
+function isSingleLineProperties(properties) {
+    const [firstProp] = properties,
+        lastProp = last(properties);
+
+    return firstProp.loc.start.line === lastProp.loc.end.line;
+}
+
+/**
  * Initializes a single option property from the configuration with defaults for undefined values
  * @param {Object} toOptions Object to be initialized
  * @param {Object} fromOptions Object to be initialized from
@@ -584,17 +596,6 @@ module.exports = {
         }
 
         /**
-         * Verifies vertical alignment, taking into account groups of properties.
-         * @param  {ASTNode} node ObjectExpression node being evaluated.
-         * @returns {void}
-         */
-        function verifyAlignment(node) {
-            createGroups(node).forEach(group => {
-                verifyGroupAlignment(group.filter(isKeyValueProperty));
-            });
-        }
-
-        /**
          * Verifies spacing of property conforms to specified options.
          * @param  {ASTNode} node Property node being evaluated.
          * @param {Object} lineOptions Configured singleLine or multiLine options
@@ -611,15 +612,33 @@ module.exports = {
 
         /**
          * Verifies spacing of each property in a list.
-         * @param  {ASTNode[]} properties List of Property AST nodes.
+         * @param {ASTNode[]} properties List of Property AST nodes.
+         * @param {Object} lineOptions Configured singleLine or multiLine options
          * @returns {void}
          */
-        function verifyListSpacing(properties) {
+        function verifyListSpacing(properties, lineOptions) {
             const length = properties.length;
 
             for (let i = 0; i < length; i++) {
-                verifySpacing(properties[i], singleLineOptions);
+                verifySpacing(properties[i], lineOptions);
             }
+        }
+
+        /**
+         * Verifies vertical alignment, taking into account groups of properties.
+         * @param  {ASTNode} node ObjectExpression node being evaluated.
+         * @returns {void}
+         */
+        function verifyAlignment(node) {
+            createGroups(node).forEach(group => {
+                const properties = group.filter(isKeyValueProperty);
+
+                if (properties.length > 0 && isSingleLineProperties(properties)) {
+                    verifyListSpacing(properties, multiLineOptions);
+                } else {
+                    verifyGroupAlignment(properties);
+                }
+            });
         }
 
         //--------------------------------------------------------------------------
@@ -631,7 +650,7 @@ module.exports = {
             return {
                 ObjectExpression(node) {
                     if (isSingleLine(node)) {
-                        verifyListSpacing(node.properties.filter(isKeyValueProperty));
+                        verifyListSpacing(node.properties.filter(isKeyValueProperty), singleLineOptions);
                     } else {
                         verifyAlignment(node);
                     }
