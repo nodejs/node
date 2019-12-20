@@ -26,7 +26,7 @@ if (process.argv[2] === 'child') {
     const child = spawn(process.argv[0],
                         [process.argv[1], 'child', len], options);
 
-    var bytes = 0;
+    let bytes = 0;
     child.on('message', (msg) => { bytes += msg.length; });
 
     setTimeout(() => {
