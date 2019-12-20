@@ -58,7 +58,7 @@ const { once } = require('events');
   for (const server of servers) {
     const req = client.connect({
       address: 'localhost',
-      port: server.address.port
+      port: server.endpoints[0].address.port
     });
 
     const [ stream ] = await once(req, 'stream');

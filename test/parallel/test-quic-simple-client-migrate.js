@@ -48,7 +48,7 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  debug('Server is listening on port %d', server.address.port);
+  debug('Server is listening on port %d', server.endpoints[0].address.port);
   client = createSocket({ endpoint: { port: 0 } });
   client2 = createSocket({ endpoint: { port: 0 } });
 
@@ -57,7 +57,7 @@ server.on('ready', common.mustCall(() => {
     cert,
     ca,
     address: 'localhost',
-    port: server.address.port,
+    port: server.endpoints[0].address.port,
     servername: kServerName,
     alpn: kALPN,
   });
@@ -76,8 +76,8 @@ server.on('ready', common.mustCall(() => {
     setTimeout(() => {
       req.setSocket(client2, (err) => {
         assert(!err);
-        debug('Client 1 port is %d', client.address.port);
-        debug('Client 2 port is %d', client2.address.port);
+        debug('Client 1 port is %d', client.endpoints[0].address.port);
+        debug('Client 2 port is %d', client2.endpoints[0].address.port);
         client.close();
 
         stream.end('from the client');

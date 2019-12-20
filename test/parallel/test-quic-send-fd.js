@@ -76,7 +76,7 @@ for (const { variant, offset, length } of variants) {
 
     const req = client.connect({
       address: 'localhost',
-      port: server.address.port
+      port: server.endpoints[0].address.port
     });
 
     req.on('stream', common.mustCall((stream) => {

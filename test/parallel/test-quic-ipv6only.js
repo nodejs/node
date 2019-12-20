@@ -72,7 +72,7 @@ const kALPN = 'zzz';
       cert,
       ca,
       address: common.localhostIPv4,
-      port: server.address.port,
+      port: server.endpoints[0].address.port,
       servername: kServerName,
       alpn: kALPN,
     });
@@ -118,7 +118,7 @@ const kALPN = 'zzz';
       cert,
       ca,
       address: common.localhostIPv4,
-      port: server.address.port,
+      port: server.endpoints[0].address.port,
       servername: kServerName,
       alpn: kALPN,
       idleTimeout: common.platformTimeout(500),

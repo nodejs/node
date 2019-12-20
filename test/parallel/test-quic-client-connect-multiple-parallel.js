@@ -60,7 +60,7 @@ const { once } = require('events');
   for (const server of servers) {
     const req = client.connect({
       address: 'localhost',
-      port: server.address.port
+      port: server.endpoints[0].address.port
     });
 
     req.on('stream', common.mustCall((stream) => {

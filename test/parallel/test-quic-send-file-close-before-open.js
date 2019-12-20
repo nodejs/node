@@ -55,7 +55,7 @@ server.on('ready', common.mustCall(() => {
 
   const req = client.connect({
     address: 'localhost',
-    port: server.address.port
+    port: server.endpoints[0].address.port
   });
 
   req.on('stream', common.mustNotCall());

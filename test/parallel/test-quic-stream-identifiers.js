@@ -105,12 +105,12 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  debug('Server listening on port %d', server.address.port);
+  debug('Server listening on port %d', server.endpoints[0].address.port);
   client = createSocket({ endpoint: { port: 0 } });
   const req = client.connect({
     type: 'udp4',
     address: 'localhost',
-    port: server.address.port,
+    port: server.endpoints[0].address.port,
     rejectUnauthorized: false,
     maxStreamsUni: 10,
     alpn: 'zzz',

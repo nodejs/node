@@ -56,7 +56,7 @@ server.on('ready', common.mustCall(() => {
 
   const req = client.connect({
     address: 'localhost',
-    port: server.address.port
+    port: server.endpoints[0].address.port
   });
 
   const stream = req.openStream({ halfOpen: true });

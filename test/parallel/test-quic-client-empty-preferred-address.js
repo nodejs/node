@@ -52,7 +52,7 @@ server.on('ready', common.mustCall(() => {
     cert,
     ca,
     alpn: kALPN,
-    port: server.address.port,
+    port: server.endpoints[0].address.port,
     servername: kServerName,
     preferredAddressPolicy: 'accept',
   });

@@ -73,7 +73,7 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  debug('Server is listening on port %d', server.address.port);
+  debug('Server is listening on port %d', server.endpoints[0].address.port);
   client = createSocket({
     endpoint: { port: kClientPort },
     client: { key, cert, ca, alpn: kALPN }
@@ -81,7 +81,7 @@ server.on('ready', common.mustCall(() => {
 
   const req = client.connect({
     address: 'localhost',
-    port: server.address.port,
+    port: server.endpoints[0].address.port,
     servername: kServerName,
   });
 

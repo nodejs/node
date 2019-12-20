@@ -45,7 +45,7 @@ const idleTimeout = common.platformTimeout(1000);
 
     const clientSession = client.connect({
       address: 'localhost',
-      port: server.address.port,
+      port: server.endpoints[0].address.port,
       servername: kServerName,
       idleTimeout,
     });
@@ -94,7 +94,7 @@ const idleTimeout = common.platformTimeout(1000);
     start = Date.now();
     const clientSession = client.connect({
       address: 'localhost',
-      port: server.address.port,
+      port: server.endpoints[0].address.port,
       servername: kServerName,
     });
 
