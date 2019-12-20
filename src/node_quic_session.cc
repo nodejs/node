@@ -57,12 +57,14 @@ namespace quic {
 // the NODE_DEBUG_NATIVE=NGTCP2_DEBUG category.
 static void Ngtcp2DebugLog(void* user_data, const char* fmt, ...) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
-  va_list ap;
-  va_start(ap, fmt);
-  std::string format(fmt, strlen(fmt) + 1);
-  format[strlen(fmt)] = '\n';
-  Debug(session->env(), DebugCategory::NGTCP2_DEBUG, format, ap);
-  va_end(ap);
+  if (UNLIKELY(session->env()->debug_enabled(DebugCategory::NGTCP2_DEBUG))) {
+    va_list ap;
+    va_start(ap, fmt);
+    std::string format(fmt, strlen(fmt) + 1);
+    format[strlen(fmt)] = '\n';
+    Debug(session->env(), DebugCategory::NGTCP2_DEBUG, format, ap);
+    va_end(ap);
+  }
 }
 
 void QuicSessionConfig::ResetToDefaults() {
