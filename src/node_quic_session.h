@@ -950,13 +950,12 @@ class QuicSession : public AsyncWrap,
   SET_SELF_SIZE(QuicSession)
 
  private:
-
   static void RandomConnectionIDStrategy(
         QuicSession* session,
         ngtcp2_cid* cid,
         size_t cidlen);
 
-  static void CryptoStatelessResetTokenStrategy (
+  static void CryptoStatelessResetTokenStrategy(
         QuicSession* session,
         ngtcp2_cid* cid,
         uint8_t* token,
