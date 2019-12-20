@@ -110,7 +110,7 @@ module.exports = {
                         if (lineNumber - lastLineNumber - 1 > maxAllowed) {
                             context.report({
                                 node,
-                                loc: { start: { line: lastLineNumber + 1, column: 0 }, end: { line: lineNumber, column: 0 } },
+                                loc: { start: { line: lastLineNumber + maxAllowed + 1, column: 0 }, end: { line: lineNumber, column: 0 } },
                                 message,
                                 data: { max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines" },
                                 fix(fixer) {

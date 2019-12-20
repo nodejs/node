@@ -15,6 +15,12 @@ const astUtils = require("./utils/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
+const radixMap = new Map([
+    [2, { system: "binary", literalPrefix: "0b" }],
+    [8, { system: "octal", literalPrefix: "0o" }],
+    [16, { system: "hexadecimal", literalPrefix: "0x" }]
+]);
+
 /**
  * Checks to see if a CallExpression's callee node is `parseInt` or
  * `Number.parseInt`.
@@ -54,23 +60,16 @@ module.exports = {
         },
 
         schema: [],
+
+        messages: {
+            useLiteral: "Use {{system}} literals instead of {{functionName}}()."
+        },
+
         fixable: "code"
     },
 
     create(context) {
         const sourceCode = context.getSourceCode();
-
-        const radixMap = {
-            2: "binary",
-            8: "octal",
-            16: "hexadecimal"
-        };
-
-        const prefixMap = {
-            2: "0b",
-            8: "0o",
-            16: "0x"
-        };
 
         //----------------------------------------------------------------------
         // Public
@@ -78,25 +77,27 @@ module.exports = {
 
         return {
 
-            CallExpression(node) {
+            "CallExpression[arguments.length=2]"(node) {
+                const [strNode, radixNode] = node.arguments,
+                    str = strNode.value,
+                    radix = radixNode.value;
 
-                // doesn't check parseInt() if it doesn't have a radix argument
-                if (node.arguments.length !== 2) {
-                    return;
-                }
-
-                // only error if the radix is 2, 8, or 16
-                const radixName = radixMap[node.arguments[1].value];
-
-                if (isParseInt(node.callee) &&
-                    radixName &&
-                    node.arguments[0].type === "Literal"
+                if (
+                    strNode.type === "Literal" &&
+                    radixNode.type === "Literal" &&
+                    typeof str === "string" &&
+                    typeof radix === "number" &&
+                    radixMap.has(radix) &&
+                    isParseInt(node.callee)
                 ) {
+
+                    const { system, literalPrefix } = radixMap.get(radix);
+
                     context.report({
                         node,
-                        message: "Use {{radixName}} literals instead of {{functionName}}().",
+                        messageId: "useLiteral",
                         data: {
-                            radixName,
+                            system,
                             functionName: sourceCode.getText(node.callee)
                         },
                         fix(fixer) {
@@ -104,9 +105,9 @@ module.exports = {
                                 return null;
                             }
 
-                            const replacement = `${prefixMap[node.arguments[1].value]}${node.arguments[0].value}`;
+                            const replacement = `${literalPrefix}${str}`;
 
-                            if (+replacement !== parseInt(node.arguments[0].value, node.arguments[1].value)) {
+                            if (+replacement !== parseInt(str, radix)) {
 
                                 /*
                                  * If the newly-produced literal would be invalid, (e.g. 0b1234),
