@@ -924,7 +924,7 @@ class QuicSession : public AsyncWrap,
   void PushListener(QuicSessionListener* listener);
   void RemoveListener(QuicSessionListener* listener);
 
-  void SetConnectionIDStrategory(ConnectionIDStrategy strategy);
+  void SetConnectionIDStrategy(ConnectionIDStrategy strategy);
   void SetStatelessResetTokenStrategy(StatelessResetTokenStrategy strategy);
 
   // Report that the stream data is flow control blocked
@@ -1029,10 +1029,7 @@ class QuicSession : public AsyncWrap,
   void UpdateDataStats();
   void UpdateEndpoint(const ngtcp2_path& path);
 
-  void VersionNegotiation(
-      const ngtcp2_pkt_hd* hd,
-      const uint32_t* sv,
-      size_t nsv);
+  void VersionNegotiation(const uint32_t* sv, size_t nsv);
 
   // static ngtcp2 callbacks
   static int OnClientInitial(
