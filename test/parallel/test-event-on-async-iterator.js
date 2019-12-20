@@ -108,6 +108,7 @@ async function next() {
   });
   const results = await Promise.all([
     iterable.next(),
+    iterable.next(),
     iterable.next()
   ]);
   assert.deepStrictEqual(results, [{
