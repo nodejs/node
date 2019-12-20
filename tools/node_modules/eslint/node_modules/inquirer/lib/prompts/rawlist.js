@@ -64,14 +64,13 @@ class RawListPrompt extends Base {
     validation.success.forEach(this.onEnd.bind(this));
     validation.error.forEach(this.onError.bind(this));
 
-    events.keypress
-      .pipe(takeUntil(validation.success))
-      .forEach(this.onKeypress.bind(this));
     events.normalizedUpKey.pipe(takeUntil(events.line)).forEach(this.onUpKey.bind(this));
     events.normalizedDownKey
       .pipe(takeUntil(events.line))
       .forEach(this.onDownKey.bind(this));
-
+    events.keypress
+      .pipe(takeUntil(validation.success))
+      .forEach(this.onKeypress.bind(this));
     // Init the prompt
     this.render();
 
@@ -96,7 +95,6 @@ class RawListPrompt extends Base {
         '\n' + this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize);
       message += '\n  Answer: ';
     }
-
     message += this.rl.line;
 
     if (error) {
@@ -111,8 +109,10 @@ class RawListPrompt extends Base {
    */
 
   getCurrentValue(index) {
-    if (index == null || index === '') {
+    if (index == null) {
       index = this.rawDefault;
+    } else if (index === '') {
+      index = this.selected;
     } else {
       index -= 1;
     }
@@ -148,7 +148,6 @@ class RawListPrompt extends Base {
     } else {
       this.selected = undefined;
     }
-
     this.render();
   }
 
@@ -174,11 +173,12 @@ class RawListPrompt extends Base {
    */
 
   onArrowKey(type) {
-    var index = this.rl.line.length ? Number(this.rl.line) - 1 : 0;
-    if (type === 'up') index = index === 0 ? this.opt.choices.length - 1 : index - 1;
-    else index = index === this.opt.choices.length - 1 ? 0 : index + 1;
-    this.rl.line = String(index + 1);
-    this.onKeypress();
+    var len = this.opt.choices.realLength;
+
+    if (type === 'up') this.selected = this.selected > 0 ? this.selected - 1 : len - 1;
+    else this.selected = this.selected < len - 1 ? this.selected + 1 : 0;
+
+    this.rl.line = String(this.selected + 1);
   }
 }
 

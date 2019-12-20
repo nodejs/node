@@ -6,6 +6,7 @@
 "use strict";
 
 const baseConfigProperties = {
+    $schema: { type: "string" },
     env: { type: "object" },
     extends: { $ref: "#/definitions/stringOrStrings" },
     globals: { type: "object" },
