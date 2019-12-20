@@ -767,7 +767,7 @@ module.exports = {
     return Array.isArray(cpus) && (cpus.length > 1 || cpus[0].speed > 999);
   },
 
-  get enoughTestMeme() {
+  get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */
   },
 
