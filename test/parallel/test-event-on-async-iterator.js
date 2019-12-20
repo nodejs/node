@@ -105,6 +105,7 @@ async function next() {
   process.nextTick(function() {
     ee.emit('foo', 'bar');
     ee.emit('foo', 42);
+    iterable.return();
   });
   const results = await Promise.all([
     iterable.next(),
@@ -120,6 +121,30 @@ async function next() {
   }, {
     value: undefined,
     done: true
+  }]);
+}
+
+async function nextError() {
+  const ee = new EventEmitter();
+  const iterable = on(ee, 'foo');
+  const _err = new Error('kaboom');
+  process.nextTick(function() {
+    ee.emit('error', _err);
+  });
+  const results = await Promise.allSettled([
+    iterable.next(),
+    iterable.next(),
+    iterable.next()
+  ]);
+  assert.deepStrictEqual(results, [{
+    status: 'rejected',
+    reason: _err
+  }, {
+    status: 'rejected',
+    reason: _err
+  }, {
+    status: 'rejected',
+    reason: _err
   }]);
 }
 
@@ -157,12 +182,19 @@ async function iterableThrow() {
 }
 
 async function run() {
-  await basic();
-  await error();
-  await errorDelayed();
-  await throwInLoop();
-  await next();
-  await iterableThrow();
+  const funcs = [
+    basic,
+    error,
+    errorDelayed,
+    throwInLoop,
+    next,
+    nextError,
+    iterableThrow
+  ]
+
+  for (const fn of funcs) {
+    await fn()
+  }
 }
 
 run().then(common.mustCall());
