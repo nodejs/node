@@ -151,44 +151,55 @@ async function nextError() {
     status: 'rejected',
     reason: _err
   }, {
-    status: 'rejected',
-    reason: _err
+    status: 'fulfilled',
+    value: {
+      value: undefined,
+      done: true
+    }
   }, {
-    status: 'rejected',
-    reason: _err
+    status: 'fulfilled',
+    value: {
+      value: undefined,
+      done: true
+    }
   }]);
   assert.strictEqual(ee.listeners('error').length, 0);
 }
 
 async function iterableThrow() {
   const ee = new EventEmitter();
+  const iterable = on(ee, 'foo');
+
   process.nextTick(() => {
     ee.emit('foo', 'bar');
     ee.emit('foo', 42); // lost in the queue
+    iterable.throw(_err);
   });
 
-  const iterable = on(ee, 'foo');
   const _err = new Error('kaboom');
   let thrown = false;
 
+  assert.throws(() => {
+    // No argument
+    iterable.throw();
+  }, {
+    message: 'The "EventEmitter.AsyncIterator" property must be' +
+    ' of type Error. Received type undefined',
+    name: 'TypeError'
+  });
+
+  const expected = [['bar'], [42]]
+
   try {
     for await (const event of iterable) {
-      assert.deepStrictEqual(event, ['bar']);
-      assert.throws(() => {
-        // No argument
-        iterable.throw();
-      }, {
-        message: 'The "EventEmitter.AsyncIterator" property must be' +
-                 ' of type Error. Received type undefined',
-        name: 'TypeError'
-      });
-      iterable.throw(_err);
+      assert.deepStrictEqual(event, expected.shift());
     }
   } catch (err) {
     thrown = true;
     assert.strictEqual(err, _err);
   }
   assert.strictEqual(thrown, true);
+  assert.strictEqual(expected.length, 0);
   assert.strictEqual(ee.listenerCount('foo'), 0);
   assert.strictEqual(ee.listenerCount('error'), 0);
 }
