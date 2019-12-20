@@ -8,6 +8,9 @@ async function basic() {
   const ee = new EventEmitter();
   process.nextTick(() => {
     ee.emit('foo', 'bar');
+    // 'bar' is a spurious event, we are testing
+    // that it does not show up in the iterable
+    ee.emit('bar', 24);
     ee.emit('foo', 42);
   });
 
