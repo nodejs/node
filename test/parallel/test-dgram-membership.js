@@ -76,3 +76,79 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
                 /^Error: dropMembership EINVAL$/);
   socket.close();
 }
+
+// addSourceSpecificMembership with invalid sourceAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.addSourceSpecificMembership(0, multicastAddress);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "sourceAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
+  socket.close();
+}
+
+// addSourceSpecificMembership with invalid sourceAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.addSourceSpecificMembership(multicastAddress, 0);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "groupAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
+  socket.close();
+}
+
+// addSourceSpecificMembership with invalid groupAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.addSourceSpecificMembership(multicastAddress, '0');
+  }, {
+    code: 'EINVAL',
+    message: 'addSourceSpecificMembership EINVAL'
+  });
+  socket.close();
+}
+
+// dropSourceSpecificMembership with invalid sourceAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.dropSourceSpecificMembership(0, multicastAddress);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "sourceAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
+  socket.close();
+}
+
+// dropSourceSpecificMembership with invalid groupAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.dropSourceSpecificMembership(multicastAddress, 0);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "groupAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
+  socket.close();
+}
+
+// dropSourceSpecificMembership with invalid UDP should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.dropSourceSpecificMembership(multicastAddress, '0');
+  }, {
+    code: 'EINVAL',
+    message: 'dropSourceSpecificMembership EINVAL'
+  });
+  socket.close();
+}
