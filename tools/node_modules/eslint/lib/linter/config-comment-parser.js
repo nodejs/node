@@ -90,7 +90,7 @@ module.exports = class ConfigCommentParser {
          * But we are supporting that. So this is a fallback for that.
          */
         items = {};
-        const normalizedString = string.replace(/([a-zA-Z0-9\-/]+):/gu, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/u, "$1,");
+        const normalizedString = string.replace(/([-a-zA-Z0-9/]+):/gu, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/u, "$1,");
 
         try {
             items = JSON.parse(`{${normalizedString}}`);

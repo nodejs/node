@@ -95,7 +95,7 @@ class Prompt {
           filteredValue =>
             validate(filteredValue, self.answers).then(
               isValid => ({ isValid: isValid, value: filteredValue }),
-              err => ({ isValid: err })
+              err => ({ isValid: err, value: filteredValue })
             ),
           err => ({ isValid: err })
         )
