@@ -1,7 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const { Stream, Writable, Readable, Transform, pipeline } = require('stream');
+const {
+  Stream,
+  Writable,
+  Readable,
+  Transform,
+  pipeline,
+  PassThrough
+} = require('stream');
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
@@ -482,4 +489,31 @@ const { promisify } = require('util');
     () => pipeline(read, transform, write),
     { code: 'ERR_INVALID_CALLBACK' }
   );
+}
+
+{
+  const server = http.Server(function(req, res) {
+    res.write('asd');
+  });
+  server.listen(0, function() {
+    http.request({
+      port: this.address().port,
+      path: '/',
+      method: 'GET'
+    }, (res) => {
+      const stream = new PassThrough();
+
+      stream.on('error', common.mustCall());
+
+      pipeline(
+        res,
+        stream,
+        common.mustCall((err) => {
+          server.close();
+        })
+      );
+
+      stream.destroy(new Error('oh no'));
+    }).end().on('error', common.mustNotCall());
+  });
 }
