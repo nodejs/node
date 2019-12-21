@@ -578,6 +578,9 @@ Http2Session::Http2Session(Environment* env,
     // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
     if (!ab->IsExternal())
       ab->Externalize(ab->GetBackingStore());
+    ab->SetPrivate(env->context(),
+                   env->arraybuffer_untransferable_private_symbol(),
+                   True(env->isolate())).Check();
     js_fields_ab_.Reset(env->isolate(), ab);
     Local<Uint8Array> uint8_arr =
         Uint8Array::New(ab, 0, kSessionUint8FieldCount);
