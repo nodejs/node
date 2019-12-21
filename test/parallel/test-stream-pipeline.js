@@ -1,7 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const { Stream, Writable, Readable, Transform, pipeline } = require('stream');
+const {
+  Stream,
+  Writable,
+  Readable,
+  Transform,
+  pipeline,
+  PassThrough
+} = require('stream');
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
@@ -482,4 +489,32 @@ const { promisify } = require('util');
     () => pipeline(read, transform, write),
     { code: 'ERR_INVALID_CALLBACK' }
   );
+}
+
+{
+  const server = http.Server(function(req, res) {
+    res.write('asd');
+  });
+  server.listen(0, function() {
+    http.get({ port: this.address().port }, (res) => {
+      const stream = new PassThrough();
+
+      // NOTE: 2 because Node 12 streams can emit 'error'
+      // multiple times.
+      stream.on('error', common.mustCall(2));
+
+      pipeline(
+        res,
+        stream,
+        common.mustCall((err) => {
+          assert.ok(err);
+          // TODO(ronag):
+          // assert.strictEqual(err.message, 'oh no');
+          server.close();
+        })
+      );
+
+      stream.destroy(new Error('oh no'));
+    }).on('error', common.mustNotCall());
+  });
 }
