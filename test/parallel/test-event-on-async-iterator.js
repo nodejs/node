@@ -188,7 +188,7 @@ async function iterableThrow() {
     name: 'TypeError'
   });
 
-  const expected = [['bar'], [42]]
+  const expected = [['bar'], [42]];
 
   try {
     for await (const event of iterable) {
