@@ -259,15 +259,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
     } else {
       wrap = PromiseWrap::New(env, promise, nullptr, silent);
-
-      // needed for async functions :/
-      // the top level will not emit before and after
-      env->async_hooks()->push_execution_async_resource(wrap->object());
     }
-  }
-
-  if (type == PromiseHookType::kResolve && !parent->IsPromise()) {
-    env->async_hooks()->pop_execution_async_resource();
   }
 
   if (wrap == nullptr) return;
