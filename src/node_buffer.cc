@@ -1213,6 +1213,10 @@ void Initialize(Local<Object> target,
     // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
     if (!array_buffer->IsExternal())
       array_buffer->Externalize(array_buffer->GetBackingStore());
+    array_buffer->SetPrivate(
+        env->context(),
+        env->arraybuffer_untransferable_private_symbol(),
+        True(env->isolate())).Check();
     CHECK(target
               ->Set(env->context(),
                     FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),
