@@ -496,11 +496,7 @@ const { promisify } = require('util');
     res.write('asd');
   });
   server.listen(0, function() {
-    http.request({
-      port: this.address().port,
-      path: '/',
-      method: 'GET'
-    }, (res) => {
+    http.get({ port: this.address().port }, (res) => {
       const stream = new PassThrough();
 
       stream.on('error', common.mustCall());
@@ -514,6 +510,6 @@ const { promisify } = require('util');
       );
 
       stream.destroy(new Error('oh no'));
-    }).end().on('error', common.mustNotCall());
+    }).on('error', common.mustNotCall());
   });
 }
