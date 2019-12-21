@@ -53,6 +53,6 @@ function readAndPause() {
   readable.pause();
 
   process.nextTick(function() {
-    assert(readable.isPaused()); // Throws.
+    assert(readable.isPaused());
   });
 }
