@@ -6,39 +6,36 @@
 
 <!--name=vm-->
 
-The `vm` module provides APIs for compiling and running code within V8 Virtual
+The `vm` module enables compiling and running code within V8 Virtual
 Machine contexts. **The `vm` module is not a security mechanism. Do
-not use it to run untrusted code**. The term "sandbox" is used throughout these
-docs simply to refer to a separate context, and does not confer any security
-guarantees.
+not use it to run untrusted code**.
 
 JavaScript code can be compiled and run immediately or
 compiled, saved, and run later.
 
-A common use case is to run the code in a sandboxed environment.
-The sandboxed code uses a different V8 Context, meaning that
-it has a different global object than the rest of the code.
+A common use case is to run the code in a different V8 Context. This means
+invoked code has a different global object than the invoking code.
 
-One can provide the context by ["contextifying"][contextified] a sandbox
-object. The sandboxed code treats any property in the sandbox like a
-global variable. Any changes to global variables caused by the sandboxed
-code are reflected in the sandbox object.
+One can provide the context by [_contextifying_][contextified] an
+object. The invoked code treats any property in the context like a
+global variable. Any changes to global variables caused by the invoked
+code are reflected in the context object.
 
 ```js
 const vm = require('vm');
 
 const x = 1;
 
-const sandbox = { x: 2 };
-vm.createContext(sandbox); // Contextify the sandbox.
+const context = { x: 2 };
+vm.createContext(context); // Contextify the object.
 
 const code = 'x += 40; var y = 17;';
-// `x` and `y` are global variables in the sandboxed environment.
-// Initially, x has the value 2 because that is the value of sandbox.x.
-vm.runInContext(code, sandbox);
+// `x` and `y` are global variables in the context.
+// Initially, x has the value 2 because that is the value of context.x.
+vm.runInContext(code, context);
 
-console.log(sandbox.x); // 42
-console.log(sandbox.y); // 17
+console.log(context.x); // 42
+console.log(context.y); // 17
 
 console.log(x); // 1; y is not defined.
 ```
@@ -49,7 +46,7 @@ added: v0.3.1
 -->
 
 Instances of the `vm.Script` class contain precompiled scripts that can be
-executed in specific sandboxes (or "contexts").
+executed in specific contexts.
 
 ### Constructor: `new vm.Script(code[, options])`
 <!-- YAML
@@ -129,7 +126,7 @@ script.runInThisContext();
 const cacheWithX = script.createCachedData();
 ```
 
-### `script.runInContext(contextifiedSandbox[, options])`
+### `script.runInContext(contextifiedObject[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -138,7 +135,7 @@ changes:
     description: The `breakOnSigint` option is supported now.
 -->
 
-* `contextifiedSandbox` {Object} A [contextified][] object as returned by the
+* `contextifiedObject` {Object} A [contextified][] object as returned by the
   `vm.createContext()` method.
 * `options` {Object}
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
@@ -155,30 +152,30 @@ changes:
 * Returns: {any} the result of the very last statement executed in the script.
 
 Runs the compiled code contained by the `vm.Script` object within the given
-`contextifiedSandbox` and returns the result. Running code does not have access
+`contextifiedObject` and returns the result. Running code does not have access
 to local scope.
 
 The following example compiles code that increments a global variable, sets
 the value of another global variable, then execute the code multiple times.
-The globals are contained in the `sandbox` object.
+The globals are contained in the `context` object.
 
 ```js
 const util = require('util');
 const vm = require('vm');
 
-const sandbox = {
+const context = {
   animal: 'cat',
   count: 2
 };
 
 const script = new vm.Script('count += 1; name = "kitty";');
 
-const context = vm.createContext(sandbox);
+vm.createContext(context);
 for (let i = 0; i < 10; ++i) {
   script.runInContext(context);
 }
 
-console.log(util.inspect(sandbox));
+console.log(util.inspect(context));
 
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
@@ -187,7 +184,7 @@ Using the `timeout` or `breakOnSigint` options will result in new event loops
 and corresponding threads being started, which have a non-zero performance
 overhead.
 
-### `script.runInNewContext([sandbox[, options]])`
+### `script.runInNewContext([contextObject[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -199,8 +196,8 @@ changes:
     description: The `breakOnSigint` option is supported now.
 -->
 
-* `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
-  new object will be created.
+* `contextObject` {Object} An object that will be [contextified][]. If
+  `undefined`, a new object will be created.
 * `options` {Object}
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
@@ -230,13 +227,13 @@ changes:
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
 * Returns: {any} the result of the very last statement executed in the script.
 
-First contextifies the given `sandbox`, runs the compiled code contained by
-the `vm.Script` object within the created sandbox, and returns the result.
+First contextifies the given `contextObject`, runs the compiled code contained
+by the `vm.Script` object within the created context, and returns the result.
 Running code does not have access to local scope.
 
 The following example compiles code that sets a global variable, then executes
 the code multiple times in different contexts. The globals are set on and
-contained within each individual `sandbox`.
+contained within each individual `context`.
 
 ```js
 const util = require('util');
@@ -244,12 +241,12 @@ const vm = require('vm');
 
 const script = new vm.Script('globalVar = "set"');
 
-const sandboxes = [{}, {}, {}];
-sandboxes.forEach((sandbox) => {
-  script.runInNewContext(sandbox);
+const contexts = [{}, {}, {}];
+contexts.forEach((context) => {
+  script.runInNewContext(context);
 });
 
-console.log(util.inspect(sandboxes));
+console.log(util.inspect(contexts));
 
 // [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 ```
@@ -332,7 +329,7 @@ support is planned.
 ```js
 const vm = require('vm');
 
-const contextifiedSandbox = vm.createContext({ secret: 42 });
+const contextifiedObject = vm.createContext({ secret: 42 });
 
 (async () => {
   // Step 1
@@ -340,7 +337,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // Create a Module by constructing a new `vm.SourceTextModule` object. This
   // parses the provided source text, throwing a `SyntaxError` if anything goes
   // wrong. By default, a Module is created in the top context. But here, we
-  // specify `contextifiedSandbox` as the context this Module belongs to.
+  // specify `contextifiedObject` as the context this Module belongs to.
   //
   // Here, we attempt to obtain the default export from the module "foo", and
   // put it into local binding "secret".
@@ -348,7 +345,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   const bar = new vm.SourceTextModule(`
     import s from 'foo';
     s;
-  `, { context: contextifiedSandbox });
+  `, { context: contextifiedObject });
 
   // Step 2
   //
@@ -377,11 +374,11 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
     if (specifier === 'foo') {
       return new vm.SourceTextModule(`
         // The "secret" variable refers to the global variable we added to
-        // "contextifiedSandbox" when creating the context.
+        // "contextifiedObject" when creating the context.
         export default secret;
       `, { context: referencingModule.context });
 
-      // Using `contextifiedSandbox` instead of `referencingModule.context`
+      // Using `contextifiedObject` instead of `referencingModule.context`
       // here would work as well.
     }
     throw new Error(`Unable to resolve dependency: ${specifier}`);
@@ -597,7 +594,7 @@ allow the module to access information outside the specified `context`. Use
 ```js
 const vm = require('vm');
 
-const contextifiedSandbox = vm.createContext({ secret: 42 });
+const contextifiedObject = vm.createContext({ secret: 42 });
 
 (async () => {
   const module = new vm.SourceTextModule(
@@ -607,7 +604,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
         // Note: this object is created in the top context. As such,
         // Object.getPrototypeOf(import.meta.prop) points to the
         // Object.prototype in the top context rather than that in
-        // the sandbox.
+        // the contextified object.
         meta.prop = {};
       }
     });
@@ -620,7 +617,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
   // To fix this problem, replace
   //     meta.prop = {};
   // above with
-  //     meta.prop = vm.runInContext('{}', contextifiedSandbox);
+  //     meta.prop = vm.runInContext('{}', contextifiedObject);
 })();
 ```
 
@@ -720,30 +717,30 @@ added: v10.10.0
      source.
   * `produceCachedData` {boolean} Specifies whether to produce new cache data.
     **Default:** `false`.
-  * `parsingContext` {Object} The [contextified][] sandbox in which the said
+  * `parsingContext` {Object} The [contextified][] object in which the said
     function should be compiled in.
   * `contextExtensions` {Object[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
 * Returns: {Function}
 
-Compiles the given code into the provided context/sandbox (if no context is
+Compiles the given code into the provided context (if no context is
 supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
-## `vm.createContext([sandbox[, options]])`
+## `vm.createContext([contextObject[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19398
-    description: The `sandbox` object can no longer be a function.
+    description: The first argument can no longer be a function.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `codeGeneration` option is supported now.
 -->
 
-* `sandbox` {Object}
+* `contextObject` {Object}
 * `options` {Object}
   * `name` {string} Human-readable name of the newly created context.
     **Default:** `'VM Context i'`, where `i` is an ascending numerical index of
@@ -760,12 +757,12 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
-* Returns: {Object} contextified sandbox.
+* Returns: {Object} contextified object.
 
-If given a `sandbox` object, the `vm.createContext()` method will [prepare
-that sandbox][contextified] so that it can be used in calls to
+If given a `contextObject`, the `vm.createContext()` method will [prepare
+that object][contextified] so that it can be used in calls to
 [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
-the `sandbox` object will be the global object, retaining all of its existing
+the `contextObject` will be the global object, retaining all of its existing
 properties but also having the built-in objects and functions any standard
 [global object][] has. Outside of scripts run by the vm module, global variables
 will remain unchanged.
@@ -776,40 +773,40 @@ const vm = require('vm');
 
 global.globalVar = 3;
 
-const sandbox = { globalVar: 1 };
-vm.createContext(sandbox);
+const context = { globalVar: 1 };
+vm.createContext(context);
 
-vm.runInContext('globalVar *= 2;', sandbox);
+vm.runInContext('globalVar *= 2;', context);
 
-console.log(util.inspect(sandbox)); // { globalVar: 2 }
+console.log(util.inspect(context)); // { globalVar: 2 }
 
 console.log(util.inspect(globalVar)); // 3
 ```
 
-If `sandbox` is omitted (or passed explicitly as `undefined`), a new, empty
-[contextified][] sandbox object will be returned.
+If `contextObject` is omitted (or passed explicitly as `undefined`), a new,
+empty [contextified][] object will be returned.
 
 The `vm.createContext()` method is primarily useful for creating a single
-sandbox that can be used to run multiple scripts. For instance, if emulating a
-web browser, the method can be used to create a single sandbox representing a
-window's global object, then run all `<script>` tags together within the context
-of that sandbox.
+context that can be used to run multiple scripts. For instance, if emulating a
+web browser, the method can be used to create a single context representing a
+window's global object, then run all `<script>` tags together within that
+context.
 
 The provided `name` and `origin` of the context are made visible through the
 Inspector API.
 
-## `vm.isContext(sandbox)`
+## `vm.isContext(object)`
 <!-- YAML
 added: v0.11.7
 -->
 
-* `sandbox` {Object}
+* `object` {Object}
 * Returns: {boolean}
 
-Returns `true` if the given `sandbox` object has been [contextified][] using
+Returns `true` if the given `oject` object has been [contextified][] using
 [`vm.createContext()`][].
 
-## `vm.runInContext(code, contextifiedSandbox[, options])`
+## `vm.runInContext(code, contextifiedObject[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -819,7 +816,7 @@ changes:
 -->
 
 * `code` {string} The JavaScript code to compile and run.
-* `contextifiedSandbox` {Object} The [contextified][] object that will be used
+* `contextifiedObject` {Object} The [contextified][] object that will be used
   as the `global` when the `code` is compiled and run.
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
@@ -864,8 +861,8 @@ changes:
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
-the `contextifiedSandbox`, then returns the result. Running code does not have
-access to the local scope. The `contextifiedSandbox` object *must* have been
+the `contextifiedObject`, then returns the result. Running code does not have
+access to the local scope. The `contextifiedObject` object *must* have been
 previously [contextified][] using the [`vm.createContext()`][] method.
 
 If `options` is a string, then it specifies the filename.
@@ -877,18 +874,18 @@ The following example compiles and executes different scripts using a single
 const util = require('util');
 const vm = require('vm');
 
-const sandbox = { globalVar: 1 };
-vm.createContext(sandbox);
+const contextObject = { globalVar: 1 };
+vm.createContext(contextObject);
 
 for (let i = 0; i < 10; ++i) {
-  vm.runInContext('globalVar *= 2;', sandbox);
+  vm.runInContext('globalVar *= 2;', contextObject);
 }
-console.log(util.inspect(sandbox));
+console.log(util.inspect(contextObject));
 
 // { globalVar: 1024 }
 ```
 
-## `vm.runInNewContext(code[, sandbox[, options]])`
+## `vm.runInNewContext(code[, contextObject[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -901,8 +898,8 @@ changes:
 -->
 
 * `code` {string} The JavaScript code to compile and run.
-* `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
-  new object will be created.
+* `contextObject` {Object} An object that will be [contextified][]. If
+  `undefined`, a new object will be created.
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `'evalmachine.<anonymous>'`.
@@ -960,27 +957,27 @@ changes:
       issues with namespaces that contain `then` function exports.
 * Returns: {any} the result of the very last statement executed in the script.
 
-The `vm.runInNewContext()` first contextifies the given `sandbox` object (or
-creates a new `sandbox` if passed as `undefined`), compiles the `code`, runs it
-within the context of the created context, then returns the result. Running code
+The `vm.runInNewContext()` first contextifies the given `contextObject` (or
+creates a new `contextObject` if passed as `undefined`), compiles the `code`,
+runs it within the created context, then returns the result. Running code
 does not have access to the local scope.
 
 If `options` is a string, then it specifies the filename.
 
 The following example compiles and executes code that increments a global
-variable and sets a new one. These globals are contained in the `sandbox`.
+variable and sets a new one. These globals are contained in the `contextObject`.
 
 ```js
 const util = require('util');
 const vm = require('vm');
 
-const sandbox = {
+const contextObject = {
   animal: 'cat',
   count: 2
 };
 
-vm.runInNewContext('count += 1; name = "kitty"', sandbox);
-console.log(util.inspect(sandbox));
+vm.runInNewContext('count += 1; name = "kitty"', contextObject);
+console.log(util.inspect(contextObject));
 
 // { animal: 'cat', count: 3, name: 'kitty' }
 ```
@@ -1111,13 +1108,13 @@ According to the [V8 Embedder's Guide][]:
 > JavaScript applications to run in a single instance of V8. You must explicitly
 > specify the context in which you want any JavaScript code to be run.
 
-When the method `vm.createContext()` is called, the `sandbox` object that is
-passed in (or a newly created object if `sandbox` is `undefined`) is associated
+When the method `vm.createContext()` is called, the `contextObject` argument
+(or a newly-created object if `contextObject` is `undefined`) is associated
 internally with a new instance of a V8 Context. This V8 Context provides the
 `code` run using the `vm` module's methods with an isolated global environment
 within which it can operate. The process of creating the V8 Context and
-associating it with the `sandbox` object is what this document refers to as
-"contextifying" the `sandbox`.
+associating it with the `contextObject` is what this document refers to as
+"contextifying" the object.
 
 ## Timeout limitations when using `process.nextTick()`, Promises, and `queueMicrotask()`
 
@@ -1156,11 +1153,11 @@ queues.
 [`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-[`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
+[`script.runInContext()`]: #vm_script_runincontext_contextifiedobject_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`url.origin`]: url.html#url_url_origin
-[`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
-[`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
+[`vm.createContext()`]: #vm_vm_createcontext_contextobject_options
+[`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedobject_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
