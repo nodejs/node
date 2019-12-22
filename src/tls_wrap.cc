@@ -28,6 +28,7 @@
 #include "node_crypto_bio.h"  // NodeBIO
 // ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
+#include "node_errors.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
@@ -1087,12 +1088,13 @@ void TLSWrap::SetPskIdentityHint(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(p->ssl_);
 
   Environment* env = p->env();
+  Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsString());
-  node::Utf8Value hint(env->isolate(), args[0].As<String>());
+  node::Utf8Value hint(isolate, args[0].As<String>());
 
   if (!SSL_use_psk_identity_hint(p->ssl_.get(), *hint)) {
-    Local<Value> err = Exception::Error(env->psk_identity_hint_error());
+    Local<Value> err = node::ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED(isolate);
     p->MakeCallback(env->onerror_string(), 1, &err);
   }
 }
@@ -1123,8 +1125,7 @@ unsigned int TLSWrap::PskServerCallback(SSL* s,
   if (!maybe_identity_str.ToLocal(&identity_str)) return 0;
 
   // Make sure there are no utf8 replacement symbols.
-  const v8::String::Utf8Value& identity_utf8 =
-      v8::String::Utf8Value(isolate, identity_str);
+  v8::String::Utf8Value identity_utf8(isolate, identity_str);
   if (strcmp(*identity_utf8, identity) != 0) return 0;
 
   Local<Value> argv[] = {identity_str,

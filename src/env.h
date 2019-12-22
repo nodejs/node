@@ -165,7 +165,7 @@ constexpr size_t kFsStatsBufferLength =
   V(no_message_symbol, "no_message_symbol")                                    \
   V(oninit_symbol, "oninit")                                                   \
   V(owner_symbol, "owner")                                                     \
-  V(onpskexchange_symbol, "onpskexchange")
+  V(onpskexchange_symbol, "onpskexchange")                                     \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -327,7 +327,6 @@ constexpr size_t kFsStatsBufferLength =
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
   V(promise_string, "promise")                                                 \
-  V(psk_identity_hint_error, "Failed to set PSK identity hint")                \
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \

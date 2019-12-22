@@ -145,11 +145,11 @@ ciphers can be retrieved via `openssl ciphers -v 'PSK'`. All TLS 1.3
 ciphers are eligible for PSK but currently only those that use SHA256 digest are
 supported they can be retrieved via `openssl ciphers -v -s -tls1_3 -psk`.
 
-According to the [RFC 4279][] PSK identities up to 128 bytes in length, and
+According to the [RFC 4279][], PSK identities up to 128 bytes in length and
 PSKs up to 64 bytes in length must be supported. As of OpenSSL 1.1.0
 maximum identity size is 128 bytes, and maximum PSK length is 256 bytes.
 
-Current implementation doesn't support asynchronous PSK callbacks due to the
+The current implementation doesn't support asynchronous PSK callbacks due to the
 limitations of the underlying OpenSSL API.
 
 ### Client-initiated renegotiation attack mitigation
@@ -1659,14 +1659,15 @@ changes:
     If the return value is `null` the negotiation process will stop and an
     "unknown_psk_identity" alert message will be sent to the other party.
     If the server wishes to hide the fact that the PSK identity was not known,
-    callback must provide some random data as `psk` to make the connection fail
-    with "decrypt_error" before negotiation is finished.
+    the callback must provide some random data as `psk` to make the connection
+    fail with "decrypt_error" before negotiation is finished.
     PSK ciphers are disabled by default, and using TLS-PSK thus
     requires explicitly specifying a cipher suite with the `ciphers` option.
     More information can be found in the [RFC 4279][].
   * `pskIdentityHint` {string} optional hint to send to a client to help
     with selecting the identity during TLS-PSK negotiation. Will be ignored
-    in TLS 1.3.
+    in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
+    emitted with `'ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED'` code.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
     servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`)
     are usually required.
