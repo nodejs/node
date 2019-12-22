@@ -909,7 +909,7 @@ const { on, EventEmitter } = require('events');
 
   for await (const event of on(ee, 'foo')) {
     // The execution of this inner block is synchronous and it
-    // process one event at a time (even with await). Do not use
+    // processes one event at a time (even with await). Do not use
     // if concurrent execution is required.
     console.log(event); // prints ['bar'] [42]
   }
