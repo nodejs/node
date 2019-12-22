@@ -64,25 +64,25 @@ try {
 // This is outside of catch block to confirm catch block ran.
 assert.strictEqual(gh1140Exception.toString(), 'Error');
 
-const nonContextualSandboxError = {
+const nonContextualObjectError = {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: /must be of type object/
 };
-const contextifiedSandboxError = {
+const contextifiedObjectError = {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /The "contextifiedSandbox" argument must be an vm\.Context/
+  message: /The "contextifiedObject" argument must be an vm\.Context/
 };
 
 [
-  [undefined, nonContextualSandboxError],
-  [null, nonContextualSandboxError],
-  [0, nonContextualSandboxError],
-  [0.0, nonContextualSandboxError],
-  ['', nonContextualSandboxError],
-  [{}, contextifiedSandboxError],
-  [[], contextifiedSandboxError]
+  [undefined, nonContextualObjectError],
+  [null, nonContextualObjectError],
+  [0, nonContextualObjectError],
+  [0.0, nonContextualObjectError],
+  ['', nonContextualObjectError],
+  [{}, contextifiedObjectError],
+  [[], contextifiedObjectError]
 ].forEach((e) => {
   common.expectsError(() => { script.runInContext(e[0]); }, e[1]);
   common.expectsError(() => { vm.runInContext('', e[0]); }, e[1]);
