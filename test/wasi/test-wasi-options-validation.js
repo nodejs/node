@@ -26,3 +26,8 @@ assert.throws(() => { new WASI({ preopens: 'fhqwhgads' }); },
   assert.throws(() => { new WASI(value); },
                 { code: 'ERR_INVALID_ARG_TYPE' });
 });
+
+// Verify that exceptions thrown from the binding layer are handled.
+assert.throws(() => {
+  new WASI({ preopens: { '/sandbox': '__/not/real/path' } });
+}, { code: 'UVWASI_ENOENT', message: /uvwasi_init/ });
