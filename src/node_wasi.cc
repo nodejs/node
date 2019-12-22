@@ -73,13 +73,46 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::Context;
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Integer;
+using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
+
+
+static MaybeLocal<Value> WASIException(Local<Context> context,
+                                       int errorno,
+                                       const char* syscall) {
+  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  CHECK_NOT_NULL(env);
+  const char* err_name = uvwasi_embedder_err_code_to_string(errorno);
+  Local<String> js_code = OneByteString(isolate, err_name);
+  Local<String> js_syscall = OneByteString(isolate, syscall);
+  Local<String> js_msg = js_code;
+  js_msg =
+      String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
+  js_msg = String::Concat(isolate, js_msg, js_syscall);
+  Local<Object> e =
+    Exception::Error(js_msg)->ToObject(context)
+      .ToLocalChecked();
+
+  if (e->Set(context,
+             env->errno_string(),
+             Integer::New(isolate, errorno)).IsNothing() ||
+      e->Set(context, env->code_string(), js_code).IsNothing() ||
+      e->Set(context, env->syscall_string(), js_syscall).IsNothing()) {
+    return MaybeLocal<Value>();
+  }
+
+  return e;
+}
 
 
 WASI::WASI(Environment* env,
@@ -88,7 +121,16 @@ WASI::WASI(Environment* env,
   MakeWeak();
   alloc_info_ = MakeAllocator();
   options->allocator = &alloc_info_;
-  CHECK_EQ(uvwasi_init(&uvw_, options), UVWASI_ESUCCESS);
+  int err = uvwasi_init(&uvw_, options);
+  if (err != UVWASI_ESUCCESS) {
+    Local<Context> context = env->context();
+    MaybeLocal<Value> exception = WASIException(context, err, "uvwasi_init");
+
+    if (exception.IsEmpty())
+      return;
+
+    context->GetIsolate()->ThrowException(exception.ToLocalChecked());
+  }
 }
 
 
