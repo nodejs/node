@@ -333,9 +333,6 @@ MoveTextRegionToLargePages(const text_region& r) {
     PrintSystemError(errno);
     return -1;
   }
-  auto munmap_on_return = OnScopeLeave([nmem, size]() {
-    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-  });
 
   memcpy(nmem, r.from, size);
 
@@ -359,6 +356,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     if (ret == -1) {
       PrintSystemError(errno);
     }
+    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
     return -1;
   }
   memcpy(start, nmem, size);
@@ -369,6 +367,7 @@ MoveTextRegionToLargePages(const text_region& r) {
               MAP_ALIGNED_SUPER, -1 , 0);
   if (tmem == MAP_FAILED) {
     PrintSystemError(errno);
+    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
     return -1;
   }
 #elif defined(__APPLE__)
@@ -383,6 +382,7 @@ MoveTextRegionToLargePages(const text_region& r) {
               VM_FLAGS_SUPERPAGE_SIZE_2MB, 0);
   if (tmem == MAP_FAILED) {
     PrintSystemError(errno);
+    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
     return -1;
   }
   memcpy(tmem, nmem, size);
@@ -393,6 +393,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     if (ret == -1) {
       PrintSystemError(errno);
     }
+    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
     return -1;
   }
   memcpy(start, tmem, size);
@@ -405,8 +406,10 @@ MoveTextRegionToLargePages(const text_region& r) {
     if (ret == -1) {
       PrintSystemError(errno);
     }
+    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
     return -1;
   }
+  if (-1 == munmap(nmem, size)) PrintSystemError(errno);
   return ret;
 }
 
@@ -418,12 +421,12 @@ int MapStaticCodeToLargePages() {
     return -1;
   }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__FreeBSD__)
   if (r.from > reinterpret_cast<void*>(&MoveTextRegionToLargePages))
     return MoveTextRegionToLargePages(r);
 
   return -1;
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__APPLE__)
   return MoveTextRegionToLargePages(r);
 #endif
 }
