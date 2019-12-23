@@ -10,30 +10,25 @@ const bench = common.createBenchmark(main, {
   callback: ['yes', 'no']
 });
 
-function nop() {}
-
 function main({ n, sync, writev, callback }) {
   const b = Buffer.allocUnsafe(1024);
   const s = new Writable();
   sync = sync === 'yes';
 
-  if (writev === 'yes') {
-    s._writev = function(chunks, cb) {
-      if (sync)
-        cb();
-      else
-        process.nextTick(cb);
-    };
-  } else {
-    s._write = function(chunk, encoding, cb) {
-      if (sync)
-        cb();
-      else
-        process.nextTick(cb);
-    };
+  const writecb = (cb) => {
+    if (sync)
+      cb();
+    else
+      process.nextTick(cb);
   }
 
-  const cb = callback === 'yes' ? nop : null;
+  if (writev === 'yes') {
+    s._writev = (chunks, cb) => writecb(cb);
+  } else {
+    s._write = (chunk, encoding, cb) => writecb(cb);
+  }
+
+  const cb = callback === 'yes' ? () => {} : null;
 
   bench.start();
 
