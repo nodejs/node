@@ -241,7 +241,7 @@ added: v0.5.10
 
 * `handle` {Object}
 * `backlog` {number} Common parameter of [`server.listen()`][] functions
-* `callback` {Function} Common parameter of [`server.listen()`][] functions
+* `callback` {Function}
 * Returns: {net.Server}
 
 Start a server listening for connections on a given `handle` that has
@@ -277,7 +277,7 @@ changes:
   * `ipv6Only` {boolean} For TCP servers, setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to host `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
-* `callback` {Function} Common parameter of [`server.listen()`][]
+* `callback` {Function}
   functions.
 * Returns: {net.Server}
 
@@ -314,7 +314,7 @@ added: v0.1.90
 * `path` {string} Path the server should listen to. See
   [Identifying paths for IPC connections][].
 * `backlog` {number} Common parameter of [`server.listen()`][] functions.
-* `callback` {Function} Common parameter of [`server.listen()`][] functions.
+* `callback` {Function}.
 * Returns: {net.Server}
 
 Start an [IPC][] server listening for connections on the given `path`.
@@ -327,7 +327,7 @@ added: v0.1.90
 * `port` {number}
 * `host` {string}
 * `backlog` {number} Common parameter of [`server.listen()`][] functions.
-* `callback` {Function} Common parameter of [`server.listen()`][] functions.
+* `callback` {Function}.
 * Returns: {net.Server}
 
 Start a TCP server listening for connections on the given `port` and `host`.
