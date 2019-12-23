@@ -78,7 +78,7 @@ There are three support tiers:
   platforms are welcome.
 
 Platforms may move between tiers between major release lines. The table below
-will be updated to reflect those changes.
+will reflect those changes.
 
 ### Platform list
 
@@ -111,26 +111,26 @@ platforms. This is true regardless of entries in the table below.
 | AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
-<em id="fn1">1</em>: GCC 6 is not provided on the base platform, users will
+<em id="fn1">1</em>: GCC 6 is not provided on the base platform. Users will
   need the
   [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
   or similar to source a newer compiler.
 
-<em id="fn2">2</em>: GCC 6 is not provided on the base platform, users will
+<em id="fn2">2</em>: GCC 6 is not provided on the base platform. Users will
   need the
   [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
   or later to source a newer compiler.
 
-<em id="fn3">3</em>: Older kernel versions may work for ARM64, however the
+<em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
   Node.js test infrastructure only tests >= 4.5.
 
 <em id="fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
   like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
-  for the tty channels to work correctly (e.g. `winpty node.exe script.js`).
+  for the tty channels to work (e.g. `winpty node.exe script.js`).
   In "Git bash" if you call the node shell alias (`node` without the `.exe`
   extension), `winpty` is used automatically.
 
-<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not directly
+<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not
   supported, but the GNU/Linux build process and binaries should work. The
   community will only address issues that reproduce on native GNU/Linux
   systems. Issues that only reproduce on WSL should be reported in the
@@ -140,11 +140,11 @@ platforms. This is true regardless of entries in the table below.
 
 <em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
 are provided. However, tests in our infrastructure only run on WoW64.
-Furthermore, compiling on x86 Windows is currently considered Experimental and
+Furthermore, compiling on x86 Windows is Experimental and
 may not be possible.
 
 <em id="fn7">7</em>: The default FreeBSD 12.0 compiler is Clang 6.0.1, but
-FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are provided
+FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are available
 via the system's package manager, including Clang 9.0.
 
 ### Supported toolchains
