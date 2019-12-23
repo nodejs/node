@@ -129,7 +129,7 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 });
 ```
 
-### child_process.exec(command\[, options\]\[, callback\])
+### `child_process.exec(command[, options][, callback])`
 <!-- YAML
 added: v0.1.90
 changes:
@@ -233,7 +233,7 @@ async function lsExample() {
 lsExample();
 ```
 
-### child_process.execFile(file\[, args\]\[, options\]\[, callback\])
+### `child_process.execFile(file[, args][, options][, callback])`
 <!-- YAML
 added: v0.1.91
 changes:
@@ -317,7 +317,7 @@ getVersion();
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
-### child_process.fork(modulePath\[, args\]\[, options\])
+### `child_process.fork(modulePath[, args][, options])`
 <!-- YAML
 added: v0.5.0
 changes:
@@ -388,7 +388,7 @@ current process.
 The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
-### child_process.spawn(command\[, args\]\[, options\])
+### `child_process.spawn(command[, args][, options])`
 <!-- YAML
 added: v0.1.90
 changes:
@@ -535,7 +535,7 @@ Node.js currently overwrites `argv[0]` with `process.execPath` on startup, so
 parameter passed to `spawn` from the parent, retrieve it with the
 `process.argv0` property instead.
 
-#### options.detached
+#### `options.detached`
 <!-- YAML
 added: v0.7.10
 -->
@@ -593,7 +593,7 @@ const subprocess = spawn('prg', [], {
 subprocess.unref();
 ```
 
-#### options.stdio
+#### `options.stdio`
 <!-- YAML
 added: v0.7.10
 changes:
@@ -698,7 +698,7 @@ Blocking calls like these are mostly useful for simplifying general-purpose
 scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
-### child_process.execFileSync(file\[, args\]\[, options\])
+### `child_process.execFileSync(file[, args][, options])`
 <!-- YAML
 added: v0.11.12
 changes:
@@ -765,7 +765,7 @@ If the process times out or has a non-zero exit code, this method will throw an
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
-### child_process.execSync(command\[, options\])
+### `child_process.execSync(command[, options])`
 <!-- YAML
 added: v0.11.12
 changes:
@@ -825,7 +825,7 @@ The [`Error`][] object will contain the entire result from
 **Never pass unsanitized user input to this function. Any input containing shell
 metacharacters may be used to trigger arbitrary command execution.**
 
-### child_process.spawnSync(command\[, args\]\[, options\])
+### `child_process.spawnSync(command[, args][, options])`
 <!-- YAML
 added: v0.11.12
 changes:
@@ -902,7 +902,7 @@ exited.
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
-## Class: ChildProcess
+## Class: `ChildProcess`
 <!-- YAML
 added: v2.2.0
 -->
@@ -916,7 +916,7 @@ use the [`child_process.spawn()`][], [`child_process.exec()`][],
 [`child_process.execFile()`][], or [`child_process.fork()`][] methods to create
 instances of `ChildProcess`.
 
-### Event: 'close'
+### Event: `'close'`
 <!-- YAML
 added: v0.7.7
 -->
@@ -945,7 +945,7 @@ ls.on('exit', (code) => {
 });
 ```
 
-### Event: 'disconnect'
+### Event: `'disconnect'`
 <!-- YAML
 added: v0.7.2
 -->
@@ -956,7 +956,7 @@ The `'disconnect'` event is emitted after calling the
 possible to send or receive messages, and the [`subprocess.connected`][]
 property is `false`.
 
-### Event: 'error'
+### Event: `'error'`
 
 * `err` {Error} The error.
 
@@ -972,7 +972,7 @@ against accidentally invoking handler functions multiple times.
 
 See also [`subprocess.kill()`][] and [`subprocess.send()`][].
 
-### Event: 'exit'
+### Event: `'exit'`
 <!-- YAML
 added: v0.1.90
 -->
@@ -995,7 +995,7 @@ re-raise the handled signal.
 
 See waitpid(2).
 
-### Event: 'message'
+### Event: `'message'`
 <!-- YAML
 added: v0.5.9
 -->
@@ -1015,7 +1015,7 @@ child process, the `message` argument can contain data that JSON is not able
 to represent.
 See [Advanced Serialization][] for more details.
 
-### subprocess.channel
+### `subprocess.channel`
 <!-- YAML
 added: v7.1.0
 -->
@@ -1025,7 +1025,7 @@ added: v7.1.0
 The `subprocess.channel` property is a reference to the child's IPC channel. If
 no IPC channel currently exists, this property is `undefined`.
 
-### subprocess.connected
+### `subprocess.connected`
 <!-- YAML
 added: v0.7.2
 -->
@@ -1036,7 +1036,7 @@ The `subprocess.connected` property indicates whether it is still possible to
 send and receive messages from a child process. When `subprocess.connected` is
 `false`, it is no longer possible to send or receive messages.
 
-### subprocess.disconnect()
+### `subprocess.disconnect()`
 <!-- YAML
 added: v0.7.2
 -->
@@ -1055,7 +1055,7 @@ When the child process is a Node.js instance (e.g. spawned using
 [`child_process.fork()`][]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 
-### subprocess.kill(\[signal\])
+### `subprocess.kill([signal])`
 <!-- YAML
 added: v0.1.90
 -->
@@ -1117,7 +1117,7 @@ setTimeout(() => {
 }, 2000);
 ```
 
-### subprocess.killed
+### `subprocess.killed`
 <!-- YAML
 added: v0.5.10
 -->
@@ -1129,7 +1129,7 @@ The `subprocess.killed` property indicates whether the child process
 successfully received a signal from `subprocess.kill()`. The `killed` property
 does not indicate that the child process has been terminated.
 
-### subprocess.pid
+### `subprocess.pid`
 <!-- YAML
 added: v0.1.90
 -->
@@ -1146,7 +1146,7 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
-### subprocess.ref()
+### `subprocess.ref()`
 <!-- YAML
 added: v0.7.10
 -->
@@ -1167,7 +1167,7 @@ subprocess.unref();
 subprocess.ref();
 ```
 
-### subprocess.send(message\[, sendHandle\[, options\]\]\[, callback\])
+### `subprocess.send(message[, sendHandle[, options]][, callback])`
 <!-- YAML
 added: v0.5.9
 changes:
@@ -1348,7 +1348,7 @@ It is also recommended that any `'message'` handlers in the child process
 verify that `socket` exists, as the connection may have been closed during the
 time it takes to send the connection to the child.
 
-### subprocess.stderr
+### `subprocess.stderr`
 <!-- YAML
 added: v0.1.90
 -->
@@ -1363,7 +1363,7 @@ then this will be `null`.
 `subprocess.stderr` is an alias for `subprocess.stdio[2]`. Both properties will
 refer to the same value.
 
-### subprocess.stdin
+### `subprocess.stdin`
 <!-- YAML
 added: v0.1.90
 -->
@@ -1381,7 +1381,7 @@ then this will be `null`.
 `subprocess.stdin` is an alias for `subprocess.stdio[0]`. Both properties will
 refer to the same value.
 
-### subprocess.stdio
+### `subprocess.stdio`
 <!-- YAML
 added: v0.7.10
 -->
@@ -1421,7 +1421,7 @@ assert.strictEqual(subprocess.stdio[2], null);
 assert.strictEqual(subprocess.stdio[2], subprocess.stderr);
 ```
 
-### subprocess.stdout
+### `subprocess.stdout`
 <!-- YAML
 added: v0.1.90
 -->
@@ -1446,7 +1446,7 @@ subprocess.stdout.on('data', (data) => {
 });
 ```
 
-### subprocess.unref()
+### `subprocess.unref()`
 <!-- YAML
 added: v0.7.10
 -->
