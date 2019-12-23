@@ -58,7 +58,7 @@ The `dns` module contains functions belonging to two different categories:
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
-## Class: dns.Resolver
+## Class: `dns.Resolver`
 <!-- YAML
 added: v8.3.0
 -->
@@ -99,7 +99,7 @@ The following methods from the `dns` module are available:
 * [`resolver.reverse()`][`dns.reverse()`]
 * [`resolver.setServers()`][`dns.setServers()`]
 
-### resolver.cancel()
+### `resolver.cancel()`
 <!-- YAML
 added: v8.3.0
 -->
@@ -107,7 +107,7 @@ added: v8.3.0
 Cancel all outstanding DNS queries made by this resolver. The corresponding
 callbacks will be called with an error with code `ECANCELLED`.
 
-## dns.getServers()
+## `dns.getServers()`
 <!-- YAML
 added: v0.11.3
 -->
@@ -128,7 +128,7 @@ section if a custom port is used.
 ]
 ```
 
-## dns.lookup(hostname\[, options\], callback)
+## `dns.lookup(hostname[, options], callback)`
 <!-- YAML
 added: v0.1.90
 changes:
@@ -218,7 +218,7 @@ configured. Loopback addresses are not considered.
 found, then return IPv4 mapped IPv6 addresses. It is not supported
 on some operating systems (e.g FreeBSD 10.1).
 
-## dns.lookupService(address, port, callback)
+## `dns.lookupService(address, port, callback)`
 <!-- YAML
 added: v0.11.14
 -->
@@ -250,7 +250,7 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 `Promise` for an `Object` with `hostname` and `service` properties.
 
-## dns.resolve(hostname\[, rrtype\], callback)
+## `dns.resolve(hostname[, rrtype], callback)`
 <!-- YAML
 added: v0.1.27
 -->
@@ -283,7 +283,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
 [DNS error codes](#dns_error_codes).
 
-## dns.resolve4(hostname\[, options\], callback)
+## `dns.resolve4(hostname[, options], callback)`
 <!-- YAML
 added: v0.1.16
 changes:
@@ -308,7 +308,7 @@ Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-## dns.resolve6(hostname\[, options\], callback)
+## `dns.resolve6(hostname[, options], callback)`
 <!-- YAML
 added: v0.1.16
 changes:
@@ -332,7 +332,7 @@ Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv6 addresses.
 
-## dns.resolveAny(hostname, callback)
+## `dns.resolveAny(hostname, callback)`
 
 * `hostname` {string}
 * `callback` {Function}
@@ -381,7 +381,7 @@ DNS server operators may choose not to respond to `ANY`
 queries. It may be better to call individual methods like [`dns.resolve4()`][],
 [`dns.resolveMx()`][], and so on. For more details, see [RFC 8482][].
 
-## dns.resolveCname(hostname, callback)
+## `dns.resolveCname(hostname, callback)`
 <!-- YAML
 added: v0.3.2
 -->
@@ -396,7 +396,7 @@ Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
 
-## dns.resolveMx(hostname, callback)
+## `dns.resolveMx(hostname, callback)`
 <!-- YAML
 added: v0.1.27
 -->
@@ -411,7 +411,7 @@ Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 contain an array of objects containing both a `priority` and `exchange`
 property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
-## dns.resolveNaptr(hostname, callback)
+## `dns.resolveNaptr(hostname, callback)`
 <!-- YAML
 added: v0.9.12
 -->
@@ -444,7 +444,7 @@ function will contain an array of objects with the following properties:
 }
 ```
 
-## dns.resolveNs(hostname, callback)
+## `dns.resolveNs(hostname, callback)`
 <!-- YAML
 added: v0.1.90
 -->
@@ -459,7 +459,7 @@ Uses the DNS protocol to resolve name server records (`NS` records) for the
 contain an array of name server records available for `hostname`
 (e.g. `['ns1.example.com', 'ns2.example.com']`).
 
-## dns.resolvePtr(hostname, callback)
+## `dns.resolvePtr(hostname, callback)`
 <!-- YAML
 added: v6.0.0
 -->
@@ -473,7 +473,7 @@ Uses the DNS protocol to resolve pointer records (`PTR` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 be an array of strings containing the reply records.
 
-## dns.resolveSoa(hostname, callback)
+## `dns.resolveSoa(hostname, callback)`
 <!-- YAML
 added: v0.11.10
 -->
@@ -508,7 +508,7 @@ be an object with the following properties:
 }
 ```
 
-## dns.resolveSrv(hostname, callback)
+## `dns.resolveSrv(hostname, callback)`
 <!-- YAML
 added: v0.1.27
 -->
@@ -537,7 +537,7 @@ be an array of objects with the following properties:
 }
 ```
 
-## dns.resolveTxt(hostname, callback)
+## `dns.resolveTxt(hostname, callback)`
 <!-- YAML
 added: v0.1.27
 -->
@@ -554,7 +554,7 @@ two-dimensional array of the text records available for `hostname` (e.g.
 one record. Depending on the use case, these could be either joined together or
 treated separately.
 
-## dns.reverse(ip, callback)
+## `dns.reverse(ip, callback)`
 <!-- YAML
 added: v0.1.16
 -->
@@ -570,7 +570,7 @@ array of host names.
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
 
-## dns.setServers(servers)
+## `dns.setServers(servers)`
 <!-- YAML
 added: v0.11.3
 -->
@@ -612,7 +612,7 @@ The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible
 via `require('dns').promises`.
 
-### Class: dnsPromises.Resolver
+### Class: `dnsPromises.Resolver`
 <!-- YAML
 added: v10.6.0
 -->
@@ -658,7 +658,7 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.reverse()`][`dnsPromises.reverse()`]
 * [`resolver.setServers()`][`dnsPromises.setServers()`]
 
-### dnsPromises.getServers()
+### `dnsPromises.getServers()`
 <!-- YAML
 added: v10.6.0
 -->
@@ -679,7 +679,7 @@ section if a custom port is used.
 ]
 ```
 
-### dnsPromises.lookup(hostname\[, options\])
+### `dnsPromises.lookup(hostname[, options])`
 <!-- YAML
 added: v10.6.0
 -->
@@ -744,7 +744,7 @@ dnsPromises.lookup('example.com', options).then((result) => {
 });
 ```
 
-### dnsPromises.lookupService(address, port)
+### `dnsPromises.lookupService(address, port)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -770,7 +770,7 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 });
 ```
 
-### dnsPromises.resolve(hostname\[, rrtype\])
+### `dnsPromises.resolve(hostname[, rrtype])`
 <!-- YAML
 added: v10.6.0
 -->
@@ -800,7 +800,7 @@ based on `rrtype`:
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
 
-### dnsPromises.resolve4(hostname\[, options\])
+### `dnsPromises.resolve4(hostname[, options])`
 <!-- YAML
 added: v10.6.0
 -->
@@ -816,7 +816,7 @@ Uses the DNS protocol to resolve IPv4 addresses (`A` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of IPv4
 addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-### dnsPromises.resolve6(hostname\[, options\])
+### `dnsPromises.resolve6(hostname[, options])`
 <!-- YAML
 added: v10.6.0
 -->
@@ -832,7 +832,7 @@ Uses the DNS protocol to resolve IPv6 addresses (`AAAA` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of IPv6
 addresses.
 
-### dnsPromises.resolveAny(hostname)
+### `dnsPromises.resolveAny(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -877,7 +877,7 @@ Here is an example of the result object:
     minttl: 60 } ]
 ```
 
-### dnsPromises.resolveCname(hostname)
+### `dnsPromises.resolveCname(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -888,7 +888,7 @@ Uses the DNS protocol to resolve `CNAME` records for the `hostname`. On success,
 the `Promise` is resolved with an array of canonical name records available for
 the `hostname` (e.g. `['bar.example.com']`).
 
-### dnsPromises.resolveMx(hostname)
+### `dnsPromises.resolveMx(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -900,7 +900,7 @@ Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 containing both a `priority` and `exchange` property (e.g.
 `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
-### dnsPromises.resolveNaptr(hostname)
+### `dnsPromises.resolveNaptr(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -930,7 +930,7 @@ of objects with the following properties:
 }
 ```
 
-### dnsPromises.resolveNs(hostname)
+### `dnsPromises.resolveNs(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -942,7 +942,7 @@ Uses the DNS protocol to resolve name server records (`NS` records) for the
 records available for `hostname` (e.g.
 `['ns1.example.com', 'ns2.example.com']`).
 
-### dnsPromises.resolvePtr(hostname)
+### `dnsPromises.resolvePtr(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -953,7 +953,7 @@ Uses the DNS protocol to resolve pointer records (`PTR` records) for the
 `hostname`. On success, the `Promise` is resolved with an array of strings
 containing the reply records.
 
-### dnsPromises.resolveSoa(hostname)
+### `dnsPromises.resolveSoa(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -985,7 +985,7 @@ following properties:
 }
 ```
 
-### dnsPromises.resolveSrv(hostname)
+### `dnsPromises.resolveSrv(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -1011,7 +1011,7 @@ the following properties:
 }
 ```
 
-### dnsPromises.resolveTxt(hostname)
+### `dnsPromises.resolveTxt(hostname)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -1025,7 +1025,7 @@ of the text records available for `hostname` (e.g.
 one record. Depending on the use case, these could be either joined together or
 treated separately.
 
-### dnsPromises.reverse(ip)
+### `dnsPromises.reverse(ip)`
 <!-- YAML
 added: v10.6.0
 -->
@@ -1038,7 +1038,7 @@ array of host names.
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
 
-### dnsPromises.setServers(servers)
+### `dnsPromises.setServers(servers)`
 <!-- YAML
 added: v10.6.0
 -->
