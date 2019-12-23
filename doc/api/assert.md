@@ -15,7 +15,7 @@ lenient legacy mode.
 Indicates the failure of an assertion. All errors thrown by the `assert` module
 will be instances of the `AssertionError` class.
 
-### new assert.AssertionError(options)
+### `new assert.AssertionError(options)`
 <!-- YAML
 added: v0.1.21
 -->
@@ -146,7 +146,7 @@ lax:
 assert.deepEqual(/a/gi, new Date());
 ```
 
-## assert(value\[, message\])
+## `assert(value[, message])`
 <!-- YAML
 added: v0.5.9
 -->
@@ -156,7 +156,7 @@ added: v0.5.9
 
 An alias of [`assert.ok()`][].
 
-## assert.deepEqual(actual, expected\[, message\])
+## `assert.deepEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -271,7 +271,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 [`AssertionError`][].
 
-## assert.deepStrictEqual(actual, expected\[, message\])
+## `assert.deepStrictEqual(actual, expected[, message])`
 <!-- YAML
 added: v1.2.0
 changes:
@@ -425,7 +425,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.doesNotReject(asyncFn\[, error\]\[, message\])
+## `assert.doesNotReject(asyncFn[, error][, message])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -475,7 +475,7 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   });
 ```
 
-## assert.doesNotThrow(fn\[, error\]\[, message\])
+## `assert.doesNotThrow(fn[, error][, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -551,7 +551,7 @@ assert.doesNotThrow(
 // Throws: AssertionError: Got unwanted exception: Whoops
 ```
 
-## assert.equal(actual, expected\[, message\])
+## `assert.equal(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 -->
@@ -591,7 +591,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.fail(\[message\])
+## `assert.fail([message])`
 <!-- YAML
 added: v0.1.21
 -->
@@ -618,7 +618,7 @@ assert.fail(new TypeError('need array'));
 Using `assert.fail()` with more than two arguments is possible but deprecated.
 See below for further details.
 
-## assert.fail(actual, expected\[, message\[, operator\[, stackStartFn\]\]\])
+## `assert.fail(actual, expected[, message[, operator[, stackStartFn]]])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -681,7 +681,7 @@ suppressFrame();
 //     ...
 ```
 
-## assert.ifError(value)
+## `assert.ifError(value)`
 <!-- YAML
 added: v0.1.97
 changes:
@@ -728,7 +728,7 @@ let err;
 //     at errorFrame
 ```
 
-## assert.notDeepEqual(actual, expected\[, message\])
+## `assert.notDeepEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -802,7 +802,7 @@ If the values are deeply equal, an [`AssertionError`][] is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
 
-## assert.notDeepStrictEqual(actual, expected\[, message\])
+## `assert.notDeepStrictEqual(actual, expected[, message])`
 <!-- YAML
 added: v1.2.0
 changes:
@@ -850,7 +850,7 @@ the `message` parameter is undefined, a default error message is assigned. If
 the `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the [`AssertionError`][].
 
-## assert.notEqual(actual, expected\[, message\])
+## `assert.notEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 -->
@@ -889,7 +889,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.notStrictEqual(actual, expected\[, message\])
+## `assert.notStrictEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -926,7 +926,7 @@ If the values are strictly equal, an [`AssertionError`][] is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
 
-## assert.ok(value\[, message\])
+## `assert.ok(value[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -994,7 +994,7 @@ assert(0);
 //   assert(0)
 ```
 
-## assert.rejects(asyncFn\[, error\]\[, message\])
+## `assert.rejects(asyncFn[, error][, message])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1053,7 +1053,7 @@ argument, then `error` is assumed to be omitted and the string will be used for
 example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
 
-## assert.strictEqual(actual, expected\[, message\])
+## `assert.strictEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1103,7 +1103,7 @@ If the values are not strictly equal, an [`AssertionError`][] is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the [`AssertionError`][].
 
-## assert.throws(fn\[, error\]\[, message\])
+## `assert.throws(fn[, error][, message])`
 <!-- YAML
 added: v0.1.21
 changes:
