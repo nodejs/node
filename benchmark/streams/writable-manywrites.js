@@ -20,7 +20,7 @@ function main({ n, sync, writev, callback }) {
       cb();
     else
       process.nextTick(cb);
-  }
+  };
 
   if (writev === 'yes') {
     s._writev = (chunks, cb) => writecb(cb);
