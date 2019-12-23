@@ -78,7 +78,7 @@ function destroy(asyncId) { }
 function promiseResolve(asyncId) { }
 ```
 
-#### async_hooks.createHook(callbacks)
+#### `async_hooks.createHook(callbacks)`
 
 <!-- YAML
 added: v8.1.0
@@ -171,7 +171,7 @@ provided by AsyncHooks itself. The logging should then be skipped when
 it was the logging itself that caused AsyncHooks callback to call. By
 doing this the otherwise infinite recursion is broken.
 
-#### asyncHook.enable()
+#### `asyncHook.enable()`
 
 * Returns: {AsyncHook} A reference to `asyncHook`.
 
@@ -187,7 +187,7 @@ const async_hooks = require('async_hooks');
 const hook = async_hooks.createHook(callbacks).enable();
 ```
 
-#### asyncHook.disable()
+#### `asyncHook.disable()`
 
 * Returns: {AsyncHook} A reference to `asyncHook`.
 
@@ -203,7 +203,7 @@ Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
 instance is destroyed.
 
-##### init(asyncId, type, triggerAsyncId, resource)
+##### `init(asyncId, type, triggerAsyncId, resource)`
 
 * `asyncId` {number} A unique ID for the async resource.
 * `type` {string} The type of the async resource.
@@ -390,7 +390,7 @@ API the user's callback is placed in a `process.nextTick()`.
 The graph only shows *when* a resource was created, not *why*, so to track
 the *why* use `triggerAsyncId`.
 
-##### before(asyncId)
+##### `before(asyncId)`
 
 * `asyncId` {number}
 
@@ -407,7 +407,7 @@ asynchronous resources like a TCP server will typically call the `before`
 callback multiple times, while other operations like `fs.open()` will call
 it only once.
 
-##### after(asyncId)
+##### `after(asyncId)`
 
 * `asyncId` {number}
 
@@ -417,7 +417,7 @@ If an uncaught exception occurs during execution of the callback, then `after`
 will run *after* the `'uncaughtException'` event is emitted or a `domain`'s
 handler runs.
 
-##### destroy(asyncId)
+##### `destroy(asyncId)`
 
 * `asyncId` {number}
 
@@ -429,7 +429,7 @@ made to the `resource` object passed to `init` it is possible that `destroy`
 will never be called, causing a memory leak in the application. If the resource
 does not depend on garbage collection, then this will not be an issue.
 
-##### promiseResolve(asyncId)
+##### `promiseResolve(asyncId)`
 
 <!-- YAML
 added: v8.6.0
@@ -460,7 +460,7 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
   after 6
 ```
 
-#### async_hooks.executionAsyncId()
+#### `async_hooks.executionAsyncId()`
 
 <!-- YAML
 added: v8.1.0
@@ -501,7 +501,7 @@ const server = net.createServer((conn) => {
 Promise contexts may not get precise `executionAsyncIds` by default.
 See the section on [promise execution tracking][].
 
-#### async_hooks.triggerAsyncId()
+#### `async_hooks.triggerAsyncId()`
 
 * Returns: {number} The ID of the resource responsible for calling the callback
   that is currently being executed.
@@ -577,7 +577,7 @@ Library developers that handle their own asynchronous resources performing tasks
 like I/O, connection pooling, or managing callback queues may use the
 `AsyncWrap` JavaScript API so that all the appropriate callbacks are called.
 
-### Class: AsyncResource
+### Class: `AsyncResource`
 
 The class `AsyncResource` is designed to be extended by the embedder's async
 resources. Using this, users can easily trigger the lifetime events of their
@@ -615,7 +615,7 @@ asyncResource.asyncId();
 asyncResource.triggerAsyncId();
 ```
 
-#### new AsyncResource(type\[, options\])
+#### `new AsyncResource(type[, options])`
 
 * `type` {string} The type of async event.
 * `options` {Object}
@@ -649,7 +649,7 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### asyncResource.runInAsyncScope(fn\[, thisArg, ...args\])
+#### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML
 added: v9.6.0
 -->
@@ -664,7 +664,7 @@ of the async resource. This will establish the context, trigger the AsyncHooks
 before callbacks, call the function, trigger the AsyncHooks after callbacks, and
 then restore the original execution context.
 
-#### asyncResource.emitDestroy()
+#### `asyncResource.emitDestroy()`
 
 * Returns: {AsyncResource} A reference to `asyncResource`.
 
@@ -673,11 +673,11 @@ be thrown if it is called more than once. This **must** be manually called. If
 the resource is left to be collected by the GC then the `destroy` hooks will
 never be called.
 
-#### asyncResource.asyncId()
+#### `asyncResource.asyncId()`
 
 * Returns: {number} The unique `asyncId` assigned to the resource.
 
-#### asyncResource.triggerAsyncId()
+#### `asyncResource.triggerAsyncId()`
 
 * Returns: {number} The same `triggerAsyncId` that is passed to the
 `AsyncResource` constructor.
