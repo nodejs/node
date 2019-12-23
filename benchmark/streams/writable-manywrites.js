@@ -5,19 +5,30 @@ const Writable = require('stream').Writable;
 
 const bench = common.createBenchmark(main, {
   n: [2e6],
-  sync: ['yes', 'no']
+  sync: ['yes', 'no'],
+  writev: ['yes', 'no']
 });
 
-function main({ n, sync }) {
+function main({ n, sync, writev }) {
   const b = Buffer.allocUnsafe(1024);
   const s = new Writable();
   sync = sync === 'yes';
-  s._write = function(chunk, encoding, cb) {
-    if (sync)
-      cb();
-    else
-      process.nextTick(cb);
-  };
+
+  if (writev === 'yes') {
+    s._writev = function(chunks, cb) {
+      if (sync)
+        cb();
+      else
+        process.nextTick(cb);
+    };
+  } else {
+    s._write = function(chunk, encoding, cb) {
+      if (sync)
+        cb();
+      else
+        process.nextTick(cb);
+    };
+  }
 
   bench.start();
 
