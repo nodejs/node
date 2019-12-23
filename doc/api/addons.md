@@ -346,7 +346,7 @@ only the symbols exported by Node.js will be available.
 source image. Using this option, the Addon will have access to the full set of
 dependencies.
 
-### Loading Addons using require()
+### Loading Addons using `require()`
 
 The filename extension of the compiled Addon binary is `.node` (as opposed
 to `.dll` or `.so`). The [`require()`][require] function is written to look for
