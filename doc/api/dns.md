@@ -162,7 +162,7 @@ changes:
     the address is not an IPv4 or IPv6 address. `0` is a likely indicator of a
     bug in the name resolution service used by the operating system.
 
-Resolves a hostname (e.g. `'nodejs.org'`) into the first found A (IPv4) or
+Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
 integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
 and IPv6 addresses are both returned if found.
@@ -173,7 +173,7 @@ properties `address` and `family`.
 
 On error, `err` is an [`Error`][] object, where `err.code` is the error code.
 Keep in mind that `err.code` will be set to `'ENOTFOUND'` not only when
-the hostname does not exist but also when the lookup fails in other ways
+the host name does not exist but also when the lookup fails in other ways
 such as no available file descriptors.
 
 `dns.lookup()` does not necessarily have anything to do with the DNS protocol.
@@ -230,7 +230,7 @@ added: v0.11.14
   * `hostname` {string} e.g. `example.com`
   * `service` {string} e.g. `http`
 
-Resolves the given `address` and `port` into a hostname and service using
+Resolves the given `address` and `port` into a host name and service using
 the operating system's underlying `getnameinfo` implementation.
 
 If `address` is not a valid IP address, a `TypeError` will be thrown.
@@ -255,13 +255,13 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 added: v0.1.27
 -->
 
-* `hostname` {string} Hostname to resolve.
+* `hostname` {string} Host name to resolve.
 * `rrtype` {string} Resource record type. **Default:** `'A'`.
 * `callback` {Function}
   * `err` {Error}
   * `records` {string[] | Object[] | Object}
 
-Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
+Uses the DNS protocol to resolve a host name (e.g. `'nodejs.org'`) into an array
 of the resource records. The `callback` function has arguments
 `(err, records)`. When successful, `records` will be an array of resource
 records. The type and structure of individual results varies based on `rrtype`:
@@ -293,7 +293,7 @@ changes:
                  specifically `options.ttl`.
 -->
 
-* `hostname` {string} Hostname to resolve.
+* `hostname` {string} Host name to resolve.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the callback receives an array of
@@ -318,7 +318,7 @@ changes:
                  specifically `options.ttl`.
 -->
 
-* `hostname` {string} Hostname to resolve.
+* `hostname` {string} Host name to resolve.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the callback receives an array of
@@ -565,7 +565,7 @@ added: v0.1.16
   * `hostnames` {string[]}
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
-array of hostnames.
+array of host names.
 
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
@@ -700,7 +700,7 @@ added: v10.6.0
     expected to change in the not too distant future.
     New code should use `{ verbatim: true }`.
 
-Resolves a hostname (e.g. `'nodejs.org'`) into the first found A (IPv4) or
+Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
 integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
 and IPv6 addresses are both returned if found.
@@ -711,7 +711,7 @@ being an array of objects with the properties `address` and `family`.
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
 Keep in mind that `err.code` will be set to `'ENOTFOUND'` not only when
-the hostname does not exist but also when the lookup fails in other ways
+the host name does not exist but also when the lookup fails in other ways
 such as no available file descriptors.
 
 [`dnsPromises.lookup()`][] does not necessarily have anything to do with the DNS
@@ -752,7 +752,7 @@ added: v10.6.0
 * `address` {string}
 * `port` {number}
 
-Resolves the given `address` and `port` into a hostname and service using
+Resolves the given `address` and `port` into a host name and service using
 the operating system's underlying `getnameinfo` implementation.
 
 If `address` is not a valid IP address, a `TypeError` will be thrown.
@@ -775,10 +775,10 @@ dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
 added: v10.6.0
 -->
 
-* `hostname` {string} Hostname to resolve.
+* `hostname` {string} Host name to resolve.
 * `rrtype` {string} Resource record type. **Default:** `'A'`.
 
-Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
+Uses the DNS protocol to resolve a host name (e.g. `'nodejs.org'`) into an array
 of the resource records. When successful, the `Promise` is resolved with an
 array of resource records. The type and structure of individual results vary
 based on `rrtype`:
@@ -805,7 +805,7 @@ is one of the [DNS error codes](#dns_error_codes).
 added: v10.6.0
 -->
 
-* `hostname` {string} Hostname to resolve.
+* `hostname` {string} Host name to resolve.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the `Promise` is resolved with an array of
@@ -821,7 +821,7 @@ addresses (e.g. `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 added: v10.6.0
 -->
 
-* `hostname` {string} Hostname to resolve.
+* `hostname` {string} Host name to resolve.
 * `options` {Object}
   * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
     When `true`, the `Promise` is resolved with an array of
@@ -1033,7 +1033,7 @@ added: v10.6.0
 * `ip` {string}
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
-array of hostnames.
+array of host names.
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is one of the [DNS error codes](#dns_error_codes).
@@ -1081,7 +1081,7 @@ Each DNS query can return one of the following error codes:
 * `dns.NOTIMP`: DNS server does not implement requested operation.
 * `dns.REFUSED`: DNS server refused query.
 * `dns.BADQUERY`: Misformatted DNS query.
-* `dns.BADNAME`: Misformatted hostname.
+* `dns.BADNAME`: Misformatted host name.
 * `dns.BADFAMILY`: Unsupported address family.
 * `dns.BADRESP`: Misformatted DNS reply.
 * `dns.CONNREFUSED`: Could not contact DNS servers.
@@ -1092,7 +1092,7 @@ Each DNS query can return one of the following error codes:
 * `dns.DESTRUCTION`: Channel is being destroyed.
 * `dns.BADSTR`: Misformatted string.
 * `dns.BADFLAGS`: Illegal flags specified.
-* `dns.NONAME`: Given hostname is not numeric.
+* `dns.NONAME`: Given host name is not numeric.
 * `dns.BADHINTS`: Illegal hints flags specified.
 * `dns.NOTINITIALIZED`: c-ares library initialization not yet performed.
 * `dns.LOADIPHLPAPI`: Error loading `iphlpapi.dll`.
@@ -1124,7 +1124,7 @@ implications for some applications, see the [`UV_THREADPOOL_SIZE`][]
 documentation for more information.
 
 Various networking APIs will call `dns.lookup()` internally to resolve
-host names. If that is an issue, consider resolving the hostname to an address
+host names. If that is an issue, consider resolving the host name to an address
 using `dns.resolve()` and using the address instead of a host name. Also, some
 networking APIs (such as [`socket.connect()`][] and [`dgram.createSocket()`][])
 allow the default resolver, `dns.lookup()`, to be replaced.
