@@ -245,8 +245,20 @@ class ServerHolder {
   ServerHolder(bool has_targets, uv_loop_t* loop, int port)
                : ServerHolder(has_targets, loop, HOST, port, nullptr) { }
 
-  ServerHolder(bool has_targets, uv_loop_t* loop,
-               const std::string& host, int port, FILE* out);
+  ServerHolder(bool has_targets,
+               uv_loop_t* loop,
+               const std::string& host,
+               int port,
+               FILE* out)
+      : ServerHolder(has_targets, loop, host, port, nullptr, out) { }
+
+  ServerHolder(
+      bool has_targets,
+      uv_loop_t* loop,
+      const std::string& host,
+      int port,
+      const std::shared_ptr<std::vector<std::string>>& allowed_http_get_hosts,
+      FILE* out);
 
   InspectorSocketServer* operator->() {
     return server_.get();
@@ -352,8 +364,13 @@ class TestSocketServerDelegate : public SocketServerDelegate {
   int session_id_;
 };
 
-ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
-                           const std::string& host, int port, FILE* out) {
+ServerHolder::ServerHolder(
+    bool has_targets,
+    uv_loop_t* loop,
+    const std::string& host,
+    int port,
+    const std::shared_ptr<std::vector<std::string>>& allowed_http_get_hosts,
+    FILE* out) {
   std::vector<std::string> targets;
   if (has_targets)
     targets = { MAIN_TARGET_ID };
@@ -362,8 +379,13 @@ ServerHolder::ServerHolder(bool has_targets, uv_loop_t* loop,
   node::InspectPublishUid inspect_publish_uid;
   inspect_publish_uid.console = true;
   inspect_publish_uid.http = true;
-  server_ = std::make_unique<InspectorSocketServer>(
-      std::move(delegate), loop, host, port, inspect_publish_uid, out);
+  server_ = std::make_unique<InspectorSocketServer>(std::move(delegate),
+                                                    loop,
+                                                    host,
+                                                    port,
+                                                    allowed_http_get_hosts,
+                                                    inspect_publish_uid,
+                                                    out);
 }
 
 static void TestHttpRequest(int port, const std::string& path,
@@ -374,9 +396,14 @@ static void TestHttpRequest(int port, const std::string& path,
   socket.Close();
 }
 
-static const std::string WsHandshakeRequest(const std::string& target_id) {
-  return "GET /" + target_id + " HTTP/1.1\r\n"
-         "Host: localhost:9229\r\n"
+static const std::string WsHandshakeRequest(
+    const std::string& target_id,
+    const std::string& hostname = "localhost:9229") {
+  return "GET /" + target_id +
+         " HTTP/1.1\r\n"
+         "Host: " +
+         hostname +
+         "\r\n"
          "Upgrade: websocket\r\n"
          "Connection: Upgrade\r\n"
          "Sec-WebSocket-Key: aaa==\r\n"
@@ -457,6 +484,55 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
   SPIN_WHILE(3 != server.disconnected);
   SPIN_WHILE(!server.done());
   stays_till_termination_socket.ExpectEOF();
+}
+
+TEST_F(InspectorSocketServerTest, ServerHostAllowlist) {
+  std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts(
+      new std::vector<std::string>{"foobar.local"});
+  ServerHolder server(true, &loop, HOST, 0, allowed_http_get_hosts, nullptr);
+  ASSERT_TRUE(server->Start());
+
+  SocketWrapper well_behaved_socket(&loop);
+  // Regular connection
+  well_behaved_socket.Connect(HOST, server.port());
+  well_behaved_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID, "foobar.local"));
+  well_behaved_socket.Expect(WS_HANDSHAKE_RESPONSE);
+
+  EXPECT_EQ(1, server.connected);
+
+  well_behaved_socket.Write("\x81\x84\x7F\xC2\x66\x31\x4E\xF0\x55\x05");
+
+  server.Expect("1234");
+  server.Write("5678");
+
+  well_behaved_socket.Expect("\x81\x4"
+                             "5678");
+  well_behaved_socket.Write(CLIENT_CLOSE_FRAME);
+  well_behaved_socket.Expect(SERVER_CLOSE_FRAME);
+
+  EXPECT_EQ(1, server.disconnected);
+
+  well_behaved_socket.Close();
+
+  // Declined connection
+  SocketWrapper socket_host_with_port(&loop);
+  socket_host_with_port.Connect(HOST, server.port());
+  socket_host_with_port.Write(
+      WsHandshakeRequest(MAIN_TARGET_ID, "bar.local:1234"));
+  socket_host_with_port.Expect("HTTP/1.0 400 Bad Request");
+  socket_host_with_port.ExpectEOF();
+
+  SocketWrapper socket_host_without_port(&loop);
+  socket_host_without_port.Connect(HOST, server.port());
+  socket_host_without_port.Write(
+      WsHandshakeRequest(MAIN_TARGET_ID, "bar.local"));
+  socket_host_without_port.Expect("HTTP/1.0 400 Bad Request");
+  socket_host_without_port.ExpectEOF();
+
+  server->Stop();
+  server->TerminateConnections();
+  SPIN_WHILE(!server.done());
+  SPIN_WHILE(uv_loop_alive(&loop));
 }
 
 TEST_F(InspectorSocketServerTest, ServerDoesNothing) {

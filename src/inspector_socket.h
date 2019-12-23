@@ -19,6 +19,7 @@ class InspectorSocket {
  public:
   class Delegate {
    public:
+    virtual bool IsAllowedHttpGetHost(const std::string& host) = 0;
     virtual void OnHttpGet(const std::string& host,
                            const std::string& path) = 0;
     virtual void OnSocketUpgrade(const std::string& host,

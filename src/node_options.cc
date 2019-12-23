@@ -309,6 +309,12 @@ DebugOptionsParser::DebugOptionsParser() {
             "(default: stderr,http)",
             &DebugOptions::inspect_publish_uid_string,
             kAllowedInEnvironment);
+
+  AddOption("--inspect-allow-host",
+            "allow host on upgrading http requests on inspector (option can be "
+            "repeated)",
+            &DebugOptions::inspector_allowed_hosts,
+            kAllowedInEnvironment);
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {

@@ -391,6 +391,13 @@ default) is not firewall-protected.**
 
 See the [debugging security implications][] section for more information.
 
+### `--inspect-allow-host=host`
+<!-- YAML
+added: REPLACEME
+-->
+
+Have the HTTP endpoint accept HTTP GET requests addressed to this host name.
+
 ### `--inspect-publish-uid=stderr,http`
 
 Specify ways of the inspector web socket url exposure.
@@ -1084,6 +1091,7 @@ Node.js options that are allowed are:
 * `--icu-data-dir`
 * `--input-type`
 * `--insecure-http-parser`
+* `--inspect-allow-host`
 * `--inspect-brk`
 * `--inspect-port`, `--debug-port`
 * `--inspect-publish-uid`

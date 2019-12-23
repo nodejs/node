@@ -31,6 +31,7 @@ class InspectorIo {
       std::shared_ptr<MainThreadHandle> main_thread,
       const std::string& path,
       std::shared_ptr<HostPort> host_port,
+      std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts,
       const InspectPublishUid& inspect_publish_uid);
 
   // Will block till the transport thread shuts down
@@ -43,6 +44,7 @@ class InspectorIo {
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
               const std::string& path,
               std::shared_ptr<HostPort> host_port,
+              std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts,
               const InspectPublishUid& inspect_publish_uid);
 
   // Wrapper for agent->ThreadMain()
@@ -58,6 +60,7 @@ class InspectorIo {
   // running
   std::shared_ptr<RequestQueue> request_queue_;
   std::shared_ptr<HostPort> host_port_;
+  std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts_;
   InspectPublishUid inspect_publish_uid_;
 
   // The IO thread runs its own uv_loop to implement the TCP server off

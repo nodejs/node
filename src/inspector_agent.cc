@@ -823,10 +823,13 @@ bool Agent::StartIoThread() {
 
   CHECK_NOT_NULL(client_);
 
-  io_ = InspectorIo::Start(client_->getThreadHandle(),
-                           path_,
-                           host_port_,
-                           debug_options_.inspect_publish_uid);
+  io_ = InspectorIo::Start(
+      client_->getThreadHandle(),
+      path_,
+      host_port_,
+      std::shared_ptr<std::vector<std::string>>(
+          new std::vector<std::string>(debug_options_.inspector_allowed_hosts)),
+      debug_options_.inspect_publish_uid);
   if (io_ == nullptr) {
     return false;
   }

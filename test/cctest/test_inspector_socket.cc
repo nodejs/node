@@ -106,6 +106,8 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
     delegate = nullptr;
   }
 
+  bool IsAllowedHttpGetHost(const std::string& host) override { return false; }
+
   void OnHttpGet(const std::string& host, const std::string& path) override {
     process(kInspectorHandshakeHttpGet, path);
   }

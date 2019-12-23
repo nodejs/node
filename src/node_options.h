@@ -77,6 +77,8 @@ class DebugOptions : public Options {
   bool break_node_first_line = false;
   // --inspect-publish-uid
   std::string inspect_publish_uid_string = "stderr,http";
+  // --inspect-allow-host
+  std::vector<std::string> inspector_allowed_hosts;
 
   InspectPublishUid inspect_publish_uid;
 

@@ -182,6 +182,7 @@ class SocketSession {
     ~Delegate() override {
       server_->SessionTerminated(session_id_);
     }
+    bool IsAllowedHttpGetHost(const std::string& host) override;
     void OnHttpGet(const std::string& host, const std::string& path) override;
     void OnSocketUpgrade(const std::string& host, const std::string& path,
                          const std::string& ws_key) override;
@@ -251,13 +252,18 @@ void PrintDebuggerReadyMessage(
 }
 
 InspectorSocketServer::InspectorSocketServer(
-    std::unique_ptr<SocketServerDelegate> delegate, uv_loop_t* loop,
-    const std::string& host, int port,
-    const InspectPublishUid& inspect_publish_uid, FILE* out)
+    std::unique_ptr<SocketServerDelegate> delegate,
+    uv_loop_t* loop,
+    const std::string& host,
+    int port,
+    std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts,
+    const InspectPublishUid& inspect_publish_uid,
+    FILE* out)
     : loop_(loop),
       delegate_(std::move(delegate)),
       host_(host),
       port_(port),
+      allowed_http_get_hosts_(allowed_http_get_hosts),
       inspect_publish_uid_(inspect_publish_uid),
       next_session_id_(0),
       out_(out) {
@@ -307,6 +313,16 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
       delegate_.reset();
     }
   }
+}
+
+bool InspectorSocketServer::IsAllowedHttpGetHost(const std::string& host) {
+  if (allowed_http_get_hosts_ == nullptr) {
+    return false;
+  }
+  for (auto& it : *allowed_http_get_hosts_) {
+    if (node::StringEqualNoCase(host.data(), it.data())) return true;
+  }
+  return false;
 }
 
 bool InspectorSocketServer::HandleGetRequest(int session_id,
@@ -493,6 +509,10 @@ SocketSession::SocketSession(InspectorSocketServer* server, int id,
 
 void SocketSession::Send(const std::string& message) {
   ws_socket_->Write(message.data(), message.length());
+}
+
+bool SocketSession::Delegate::IsAllowedHttpGetHost(const std::string& host) {
+  return server_->IsAllowedHttpGetHost(host);
 }
 
 void SocketSession::Delegate::OnHttpGet(const std::string& host,

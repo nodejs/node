@@ -43,12 +43,14 @@ class SocketServerDelegate {
 
 class InspectorSocketServer {
  public:
-  InspectorSocketServer(std::unique_ptr<SocketServerDelegate> delegate,
-                        uv_loop_t* loop,
-                        const std::string& host,
-                        int port,
-                        const InspectPublishUid& inspect_publish_uid,
-                        FILE* out = stderr);
+  InspectorSocketServer(
+      std::unique_ptr<SocketServerDelegate> delegate,
+      uv_loop_t* loop,
+      const std::string& host,
+      int port,
+      std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts,
+      const InspectPublishUid& inspect_publish_uid,
+      FILE* out = stderr);
   ~InspectorSocketServer();
 
   // Start listening on host/port
@@ -65,6 +67,7 @@ class InspectorSocketServer {
 
   // Session connection lifecycle
   void Accept(int server_port, uv_stream_t* server_socket);
+  bool IsAllowedHttpGetHost(const std::string& host);
   bool HandleGetRequest(int session_id, const std::string& host,
                         const std::string& path);
   void SessionStarted(int session_id, const std::string& target_id,
@@ -93,6 +96,7 @@ class InspectorSocketServer {
   std::unique_ptr<SocketServerDelegate> delegate_;
   const std::string host_;
   int port_;
+  std::shared_ptr<std::vector<std::string>> allowed_http_get_hosts_;
   InspectPublishUid inspect_publish_uid_;
   std::vector<ServerSocketPtr> server_sockets_;
   std::map<int, std::pair<std::string, std::unique_ptr<SocketSession>>>
