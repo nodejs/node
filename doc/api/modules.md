@@ -132,7 +132,7 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
-## Addenda: The .mjs extension
+## Addenda: The `.mjs` extension
 
 It is not possible to `require()` files that have the `.mjs` extension.
 Attempting to do so will throw [an error][]. The `.mjs` extension is
@@ -504,7 +504,7 @@ the module rather than the global object.
 
 ## The module scope
 
-### \_\_dirname
+### `__dirname`
 <!-- YAML
 added: v0.1.27
 -->
@@ -525,7 +525,7 @@ console.log(path.dirname(__filename));
 // Prints: /Users/mjr
 ```
 
-### \_\_filename
+### `__filename`
 <!-- YAML
 added: v0.0.1
 -->
@@ -563,7 +563,7 @@ References to `__filename` within `b.js` will return
 `/Users/mjr/app/node_modules/b/b.js` while references to `__filename` within
 `a.js` will return `/Users/mjr/app/a.js`.
 
-### exports
+### `exports`
 <!-- YAML
 added: v0.1.12
 -->
@@ -576,7 +576,7 @@ A reference to the `module.exports` that is shorter to type.
 See the section about the [exports shortcut][] for details on when to use
 `exports` and when to use `module.exports`.
 
-### module
+### `module`
 <!-- YAML
 added: v0.1.16
 -->
@@ -589,7 +589,7 @@ A reference to the current module, see the section about the
 [`module` object][]. In particular, `module.exports` is used for defining what
 a module exports and makes available through `require()`.
 
-### require(id)
+### `require(id)`
 <!-- YAML
 added: v0.1.13
 -->
@@ -616,7 +616,7 @@ const jsonData = require('./path/filename.json');
 const crypto = require('crypto');
 ```
 
-#### require.cache
+#### `require.cache`
 <!-- YAML
 added: v0.3.0
 -->
@@ -633,7 +633,7 @@ native modules and if a name matching a native module is added to the cache,
 no require call is
 going to receive the native module anymore. Use with care!
 
-#### require.extensions
+#### `require.extensions`
 <!-- YAML
 added: v0.3.0
 deprecated: v0.10.6
@@ -659,7 +659,7 @@ program, or compiling them to JavaScript ahead of time.
 Avoid using `require.extensions`. Use could cause subtle bugs and resolving the
 extensions gets slower with each registered extension.
 
-#### require.main
+#### `require.main`
 <!-- YAML
 added: v0.1.17
 -->
@@ -696,7 +696,7 @@ Module {
      '/node_modules' ] }
 ```
 
-#### require.resolve(request\[, options\])
+#### `require.resolve(request[, options])`
 <!-- YAML
 added: v0.3.0
 changes:
@@ -718,7 +718,7 @@ changes:
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
-##### require.resolve.paths(request)
+##### `require.resolve.paths(request)`
 <!-- YAML
 added: v8.9.0
 -->
@@ -745,7 +745,7 @@ representing the current module. For convenience, `module.exports` is
 also accessible via the `exports` module-global. `module` is not actually
 a global but rather local to each module.
 
-### module.children
+### `module.children`
 <!-- YAML
 added: v0.1.16
 -->
@@ -754,7 +754,7 @@ added: v0.1.16
 
 The module objects required for the first time by this one.
 
-### module.exports
+### `module.exports`
 <!-- YAML
 added: v0.1.16
 -->
@@ -808,7 +808,7 @@ const x = require('./x');
 console.log(x.a);
 ```
 
-#### exports shortcut
+#### `exports` shortcut
 <!-- YAML
 added: v0.1.16
 -->
@@ -855,7 +855,7 @@ function require(/* ... */) {
 }
 ```
 
-### module.filename
+### `module.filename`
 <!-- YAML
 added: v0.1.16
 -->
@@ -864,7 +864,7 @@ added: v0.1.16
 
 The fully resolved filename of the module.
 
-### module.id
+### `module.id`
 <!-- YAML
 added: v0.1.16
 -->
@@ -874,7 +874,7 @@ added: v0.1.16
 The identifier for the module. Typically this is the fully resolved
 filename.
 
-### module.loaded
+### `module.loaded`
 <!-- YAML
 added: v0.1.16
 -->
@@ -884,7 +884,7 @@ added: v0.1.16
 Whether or not the module is done loading, or is in the process of
 loading.
 
-### module.parent
+### `module.parent`
 <!-- YAML
 added: v0.1.16
 -->
@@ -893,7 +893,7 @@ added: v0.1.16
 
 The module that first required this one.
 
-### module.paths
+### `module.paths`
 <!-- YAML
 added: v0.4.0
 -->
@@ -902,7 +902,7 @@ added: v0.4.0
 
 The search paths for the module.
 
-### module.require(id)
+### `module.require(id)`
 <!-- YAML
 added: v0.5.1
 -->
@@ -930,7 +930,7 @@ Provides general utility methods when interacting with instances of
 `Module` — the `module` variable often seen in file modules. Accessed
 via `require('module')`.
 
-### module.builtinModules
+### `module.builtinModules`
 <!-- YAML
 added:
   - v9.3.0
@@ -950,7 +950,7 @@ by the [module wrapper][]. To access it, require the `Module` module:
 const builtin = require('module').builtinModules;
 ```
 
-### module.createRequire(filename)
+### `module.createRequire(filename)`
 <!-- YAML
 added: v12.2.0
 -->
@@ -968,7 +968,7 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
-### module.createRequireFromPath(filename)
+### `module.createRequireFromPath(filename)`
 <!-- YAML
 added: v10.12.0
 deprecated: v12.2.0
@@ -988,7 +988,7 @@ const requireUtil = createRequireFromPath('../src/utils/');
 requireUtil('./some-tool');
 ```
 
-### module.syncBuiltinESMExports()
+### `module.syncBuiltinESMExports()`
 <!-- YAML
 added: v12.12.0
 -->
