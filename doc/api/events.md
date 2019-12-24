@@ -155,7 +155,7 @@ myEmitter.emit('error', new Error('whoops!'));
 // Prints: whoops! there was an error
 ```
 
-## Class: EventEmitter
+## Class: `EventEmitter`
 <!-- YAML
 added: v0.1.26
 -->
@@ -208,7 +208,7 @@ myEmitter.emit('event');
 //   A
 ```
 
-### Event: 'removeListener'
+### Event: `'removeListener'`
 <!-- YAML
 added: v0.9.3
 changes:
@@ -223,7 +223,7 @@ changes:
 
 The `'removeListener'` event is emitted *after* the `listener` is removed.
 
-### EventEmitter.listenerCount(emitter, eventName)
+### `EventEmitter.listenerCount(emitter, eventName)`
 <!-- YAML
 added: v0.9.12
 deprecated: v4.0.0
@@ -245,7 +245,7 @@ console.log(EventEmitter.listenerCount(myEmitter, 'event'));
 // Prints: 2
 ```
 
-### EventEmitter.defaultMaxListeners
+### `EventEmitter.defaultMaxListeners`
 <!-- YAML
 added: v0.11.2
 -->
@@ -285,7 +285,7 @@ the event emitter instance, the event’s name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
 
-### emitter.addListener(eventName, listener)
+### `emitter.addListener(eventName, listener)`
 <!-- YAML
 added: v0.1.26
 -->
@@ -295,7 +295,7 @@ added: v0.1.26
 
 Alias for `emitter.on(eventName, listener)`.
 
-### emitter.emit(eventName\[, ...args\])
+### `emitter.emit(eventName[, ...args])`
 <!-- YAML
 added: v0.1.26
 -->
@@ -343,7 +343,7 @@ myEmitter.emit('event', 1, 2, 3, 4, 5);
 // event with parameters 1, 2, 3, 4, 5 in third listener
 ```
 
-### emitter.eventNames()
+### `emitter.eventNames()`
 <!-- YAML
 added: v6.0.0
 -->
@@ -366,7 +366,7 @@ console.log(myEE.eventNames());
 // Prints: [ 'foo', 'bar', Symbol(symbol) ]
 ```
 
-### emitter.getMaxListeners()
+### `emitter.getMaxListeners()`
 <!-- YAML
 added: v1.0.0
 -->
@@ -377,7 +377,7 @@ Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
 [`EventEmitter.defaultMaxListeners`][].
 
-### emitter.listenerCount(eventName)
+### `emitter.listenerCount(eventName)`
 <!-- YAML
 added: v3.2.0
 -->
@@ -387,7 +387,7 @@ added: v3.2.0
 
 Returns the number of listeners listening to the event named `eventName`.
 
-### emitter.listeners(eventName)
+### `emitter.listeners(eventName)`
 <!-- YAML
 added: v0.1.26
 changes:
@@ -410,7 +410,7 @@ console.log(util.inspect(server.listeners('connection')));
 // Prints: [ [Function] ]
 ```
 
-### emitter.off(eventName, listener)
+### `emitter.off(eventName, listener)`
 <!-- YAML
 added: v10.0.0
 -->
@@ -421,7 +421,7 @@ added: v10.0.0
 
 Alias for [`emitter.removeListener()`][].
 
-### emitter.on(eventName, listener)
+### `emitter.on(eventName, listener)`
 <!-- YAML
 added: v0.1.101
 -->
@@ -458,7 +458,7 @@ myEE.emit('foo');
 //   a
 ```
 
-### emitter.once(eventName, listener)
+### `emitter.once(eventName, listener)`
 <!-- YAML
 added: v0.3.0
 -->
@@ -492,7 +492,7 @@ myEE.emit('foo');
 //   a
 ```
 
-### emitter.prependListener(eventName, listener)
+### `emitter.prependListener(eventName, listener)`
 <!-- YAML
 added: v6.0.0
 -->
@@ -515,7 +515,7 @@ server.prependListener('connection', (stream) => {
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.prependOnceListener(eventName, listener)
+### `emitter.prependOnceListener(eventName, listener)`
 <!-- YAML
 added: v6.0.0
 -->
@@ -536,7 +536,7 @@ server.prependOnceListener('connection', (stream) => {
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.removeAllListeners(\[eventName\])
+### `emitter.removeAllListeners([eventName])`
 <!-- YAML
 added: v0.1.26
 -->
@@ -552,7 +552,7 @@ component or module (e.g. sockets or file streams).
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.removeListener(eventName, listener)
+### `emitter.removeListener(eventName, listener)`
 <!-- YAML
 added: v0.1.26
 -->
@@ -642,7 +642,7 @@ ee.emit('ping');
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.setMaxListeners(n)
+### `emitter.setMaxListeners(n)`
 <!-- YAML
 added: v0.3.5
 -->
@@ -659,7 +659,7 @@ to indicate an unlimited number of listeners.
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.rawListeners(eventName)
+### `emitter.rawListeners(eventName)`
 <!-- YAML
 added: v9.4.0
 -->
@@ -694,7 +694,7 @@ newListeners[0]();
 emitter.emit('log');
 ```
 
-## events.once(emitter, name)
+## `events.once(emitter, name)`
 <!-- YAML
 added: v11.13.0
 -->
