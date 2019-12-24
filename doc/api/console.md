@@ -54,7 +54,7 @@ myConsole.warn(`Danger ${name}! Danger!`);
 // Prints: Danger Will Robinson! Danger!, to err
 ```
 
-## Class: Console
+## Class: `Console`
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -77,8 +77,8 @@ const { Console } = require('console');
 const { Console } = console;
 ```
 
-### new Console(stdout\[, stderr\]\[, ignoreErrors\])
-### new Console(options)
+### `new Console(stdout[, stderr][, ignoreErrors])`
+### `new Console(options)`
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -129,7 +129,7 @@ The global `console` is a special `Console` whose output is sent to
 new Console({ stdout: process.stdout, stderr: process.stderr });
 ```
 
-### console.assert(value\[, ...message\])
+### `console.assert(value[, ...message])`
 <!-- YAML
 added: v0.1.101
 changes:
@@ -157,7 +157,7 @@ console.assert(false, 'Whoops %s work', 'didn\'t');
 Calling `console.assert()` with a falsy assertion will only cause the `message`
 to be printed to the console without interrupting execution of subsequent code.
 
-### console.clear()
+### `console.clear()`
 <!-- YAML
 added: v8.3.0
 -->
@@ -171,7 +171,7 @@ operates similarly to the `clear` shell command. On Windows, `console.clear()`
 will clear only the output in the current terminal viewport for the Node.js
 binary.
 
-### console.count(\[label\])
+### `console.count([label])`
 <!-- YAML
 added: v8.3.0
 -->
@@ -204,7 +204,7 @@ undefined
 >
 ```
 
-### console.countReset(\[label\])
+### `console.countReset([label])`
 <!-- YAML
 added: v8.3.0
 -->
@@ -226,7 +226,7 @@ undefined
 >
 ```
 
-### console.debug(data\[, ...args\])
+### `console.debug(data[, ...args])`
 <!-- YAML
 added: v8.0.0
 changes:
@@ -240,7 +240,7 @@ changes:
 
 The `console.debug()` function is an alias for [`console.log()`][].
 
-### console.dir(obj\[, options\])
+### `console.dir(obj[, options])`
 <!-- YAML
 added: v0.1.101
 -->
@@ -259,7 +259,7 @@ added: v0.1.101
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`.
 
-### console.dirxml(...data)
+### `console.dirxml(...data)`
 <!-- YAML
 added: v8.0.0
 changes:
@@ -273,7 +273,7 @@ changes:
 This method calls `console.log()` passing it the arguments received.
 This method does not produce any XML formatting.
 
-### console.error(\[data\]\[, ...args\])
+### `console.error([data][, ...args])`
 <!-- YAML
 added: v0.1.100
 -->
@@ -298,7 +298,7 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
 values are concatenated. See [`util.format()`][] for more information.
 
-### console.group(\[...label\])
+### `console.group([...label])`
 <!-- YAML
 added: v8.5.0
 -->
@@ -310,21 +310,21 @@ Increases indentation of subsequent lines by two spaces.
 If one or more `label`s are provided, those are printed first without the
 additional indentation.
 
-### console.groupCollapsed()
+### `console.groupCollapsed()`
 <!-- YAML
   added: v8.5.0
 -->
 
 An alias for [`console.group()`][].
 
-### console.groupEnd()
+### `console.groupEnd()`
 <!-- YAML
 added: v8.5.0
 -->
 
 Decreases indentation of subsequent lines by two spaces.
 
-### console.info(\[data\]\[, ...args\])
+### `console.info([data][, ...args])`
 <!-- YAML
 added: v0.1.100
 -->
@@ -334,7 +334,7 @@ added: v0.1.100
 
 The `console.info()` function is an alias for [`console.log()`][].
 
-### console.log(\[data\]\[, ...args\])
+### `console.log([data][, ...args])`
 <!-- YAML
 added: v0.1.100
 -->
@@ -357,7 +357,7 @@ console.log('count:', count);
 
 See [`util.format()`][] for more information.
 
-### console.table(tabularData\[, properties\])
+### `console.table(tabularData[, properties])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -394,7 +394,7 @@ console.table([{ a: 1, b: 'Y' }, { a: 'Z', b: 2 }], ['a']);
 // └─────────┴─────┘
 ```
 
-### console.time(\[label\])
+### `console.time([label])`
 <!-- YAML
 added: v0.1.104
 -->
@@ -406,7 +406,7 @@ are identified by a unique `label`. Use the same `label` when calling
 [`console.timeEnd()`][] to stop the timer and output the elapsed time in
 milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 
-### console.timeEnd(\[label\])
+### `console.timeEnd([label])`
 <!-- YAML
 added: v0.1.104
 changes:
@@ -428,7 +428,7 @@ console.timeEnd('100-elements');
 // prints 100-elements: 225.438ms
 ```
 
-### console.timeLog(\[label\]\[, ...data\])
+### `console.timeLog([label][, ...data])`
 <!-- YAML
 added: v10.7.0
 -->
@@ -448,7 +448,7 @@ doExpensiveProcess2(value);
 console.timeEnd('process');
 ```
 
-### console.trace(\[message\]\[, ...args\])
+### `console.trace([message][, ...args])`
 <!-- YAML
 added: v0.1.104
 -->
@@ -475,7 +475,7 @@ console.trace('Show me');
 //    at REPLServer.Interface._ttyWrite (readline.js:826:14)
 ```
 
-### console.warn(\[data\]\[, ...args\])
+### `console.warn([data][, ...args])`
 <!-- YAML
 added: v0.1.100
 -->
@@ -490,7 +490,7 @@ The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
-### console.profile(\[label\])
+### `console.profile([label])`
 <!-- YAML
 added: v8.0.0
 -->
@@ -509,7 +509,7 @@ console.profileEnd('MyLabel');
 // Adds the profile 'MyLabel' to the Profiles panel of the inspector.
 ```
 
-### console.profileEnd(\[label\])
+### `console.profileEnd([label])`
 <!-- YAML
 added: v8.0.0
 -->
@@ -524,7 +524,7 @@ the report to the **Profiles** panel of the inspector. See
 If this method is called without a label, the most recently started profile is
 stopped.
 
-### console.timeStamp(\[label\])
+### `console.timeStamp([label])`
 <!-- YAML
 added: v8.0.0
 -->
