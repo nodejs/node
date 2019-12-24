@@ -357,11 +357,20 @@ void uvwasi_fd_table_free(uvwasi_t* uvwasi, struct uvwasi_fd_table_t* table) {
     uvwasi__free(uvwasi, entry);
   }
 
-  uvwasi__free(uvwasi, table->fds);
-  table->fds = NULL;
-  table->size = 0;
-  table->used = 0;
-  uv_rwlock_destroy(&table->rwlock);
+  if (table->fds != NULL) {
+    /* It's fine to call uvwasi__free() multiple times on table->fds. However,
+       it is not fine to call uv_rwlock_destroy() multiple times. Guard against
+       that by ensuring that table->fds is not NULL. Technically, it's possible
+       that uvwasi_fd_table_init() initialized the rwlock successfully, but
+       failed to initialize fds. However, the only way that's possible is if
+       the application already ran out of memory.
+    */
+    uvwasi__free(uvwasi, table->fds);
+    table->fds = NULL;
+    table->size = 0;
+    table->used = 0;
+    uv_rwlock_destroy(&table->rwlock);
+  }
 }
 
 
