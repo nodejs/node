@@ -30,15 +30,12 @@ const filedata = fs.readFileSync(__filename, { encoding: 'utf8' });
 
 const { createSocket } = require('quic');
 
-const kServerPort = process.env.NODE_DEBUG_KEYLOG ? 5678 : 0;
-const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 const kStatelessResetToken =
   Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex');
 
 let client;
 
 const server = createSocket({
-  endpoint: { port: kServerPort },
   validateAddress: true,
   statelessResetSecret: kStatelessResetToken
 });
@@ -46,19 +43,6 @@ const server = createSocket({
 const unidata = ['I wonder if it worked.', 'test'];
 const kServerName = 'agent2';  // Intentionally the wrong servername
 const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
-
-
-const kKeylogs = [
-  /CLIENT_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /SERVER_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /CLIENT_TRAFFIC_SECRET_0.*/,
-  /SERVER_TRAFFIC_SECRET_0.*/,
-  /QUIC_CLIENT_TRAFFIC_SECRET_0.*/,
-  /QUIC_SERVER_TRAFFIC_SECRET_0.*/,
-];
-
 
 const countdown = new Countdown(2, () => {
   debug('Countdown expired. Destroying sockets');
@@ -126,15 +110,6 @@ server.on('session', common.mustCall((session) => {
         cb(null, null, Buffer.from('hello'));
       });
     }));
-
-  session.on('keylog', common.mustCall((line) => {
-    assert(kKeylogs.shift().test(line));
-  }, kKeylogs.length));
-
-  if (process.env.NODE_DEBUG_KEYLOG) {
-    const kl = fs.createWriteStream(process.env.NODE_DEBUG_KEYLOG);
-    session.on('keylog', kl.write.bind(kl));
-  }
 
   session.on('secure', common.mustCall((servername, alpn, cipher) => {
     debug('QuicServerSession TLS Handshake Complete');
@@ -226,9 +201,7 @@ server.on('ready', common.mustCall(() => {
   }
   const endpoint = endpoints[0];
 
-  client = createSocket({
-    endpoint: { port: kClientPort },
-    client: { key, cert, ca, alpn: kALPN }
+  client = createSocket({ client: { key, cert, ca, alpn: kALPN }
   });
 
   client.on('close', common.mustCall(() => {
