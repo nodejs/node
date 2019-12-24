@@ -184,7 +184,7 @@ function handleRequest(req, res) {
 }
 ```
 
-## Additions to Error objects
+## Additions to `Error` objects
 
 <!-- type=misc -->
 
@@ -267,11 +267,11 @@ serverDomain.run(() => {
 });
 ```
 
-## domain.create()
+## `domain.create()`
 
 * Returns: {Domain}
 
-## Class: Domain
+## Class: `Domain`
 
 * Extends: {EventEmitter}
 
@@ -280,14 +280,14 @@ uncaught exceptions to the active `Domain` object.
 
 To handle the errors that it catches, listen to its `'error'` event.
 
-### domain.members
+### `domain.members`
 
 * {Array}
 
 An array of timers and event emitters that have been explicitly added
 to the domain.
 
-### domain.add(emitter)
+### `domain.add(emitter)`
 
 * `emitter` {EventEmitter|Timer} emitter or timer to be added to the domain
 
@@ -303,7 +303,7 @@ the domain `'error'` handler.
 If the Timer or `EventEmitter` was already bound to a domain, it is removed
 from that one, and bound to this one instead.
 
-### domain.bind(callback)
+### `domain.bind(callback)`
 
 * `callback` {Function} The callback function
 * Returns: {Function} The bound function
@@ -328,7 +328,7 @@ d.on('error', (er) => {
 });
 ```
 
-### domain.enter()
+### `domain.enter()`
 
 The `enter()` method is plumbing used by the `run()`, `bind()`, and
 `intercept()` methods to set the active domain. It sets `domain.active` and
@@ -341,7 +341,7 @@ Calling `enter()` changes only the active domain, and does not alter the domain
 itself. `enter()` and `exit()` can be called an arbitrary number of times on a
 single domain.
 
-### domain.exit()
+### `domain.exit()`
 
 The `exit()` method exits the current domain, popping it off the domain stack.
 Any time execution is going to switch to the context of a different chain of
@@ -356,7 +356,7 @@ Calling `exit()` changes only the active domain, and does not alter the domain
 itself. `enter()` and `exit()` can be called an arbitrary number of times on a
 single domain.
 
-### domain.intercept(callback)
+### `domain.intercept(callback)`
 
 * `callback` {Function} The callback function
 * Returns: {Function} The intercepted function
@@ -391,14 +391,14 @@ d.on('error', (er) => {
 });
 ```
 
-### domain.remove(emitter)
+### `domain.remove(emitter)`
 
 * `emitter` {EventEmitter|Timer} emitter or timer to be removed from the domain
 
 The opposite of [`domain.add(emitter)`][]. Removes domain handling from the
 specified emitter.
 
-### domain.run(fn\[, ...args\])
+### `domain.run(fn[, ...args])`
 
 * `fn` {Function}
 * `...args` {any}
