@@ -34,7 +34,7 @@ Once this code is invoked, the Node.js application will not terminate until the
 `readline.Interface` is closed because the interface waits for data to be
 received on the `input` stream.
 
-## Class: Interface
+## Class: `Interface`
 <!-- YAML
 added: v0.1.104
 -->
@@ -47,7 +47,7 @@ single `input` [Readable][] stream and a single `output` [Writable][] stream.
 The `output` stream is used to print prompts for user input that arrives on,
 and is read from, the `input` stream.
 
-### Event: 'close'
+### Event: `'close'`
 <!-- YAML
 added: v0.1.98
 -->
@@ -66,7 +66,7 @@ The listener function is called without passing any arguments.
 The `readline.Interface` instance is finished once the `'close'` event is
 emitted.
 
-### Event: 'line'
+### Event: `'line'`
 <!-- YAML
 added: v0.1.98
 -->
@@ -84,7 +84,7 @@ rl.on('line', (input) => {
 });
 ```
 
-### Event: 'pause'
+### Event: `'pause'`
 <!-- YAML
 added: v0.7.5
 -->
@@ -103,7 +103,7 @@ rl.on('pause', () => {
 });
 ```
 
-### Event: 'resume'
+### Event: `'resume'`
 <!-- YAML
 added: v0.7.5
 -->
@@ -118,7 +118,7 @@ rl.on('resume', () => {
 });
 ```
 
-### Event: 'SIGCONT'
+### Event: `'SIGCONT'`
 <!-- YAML
 added: v0.7.5
 -->
@@ -141,7 +141,7 @@ rl.on('SIGCONT', () => {
 
 The `'SIGCONT'` event is _not_ supported on Windows.
 
-### Event: 'SIGINT'
+### Event: `'SIGINT'`
 <!-- YAML
 added: v0.3.0
 -->
@@ -161,7 +161,7 @@ rl.on('SIGINT', () => {
 });
 ```
 
-### Event: 'SIGTSTP'
+### Event: `'SIGTSTP'`
 <!-- YAML
 added: v0.7.5
 -->
@@ -189,7 +189,7 @@ rl.on('SIGTSTP', () => {
 
 The `'SIGTSTP'` event is _not_ supported on Windows.
 
-### rl.close()
+### `rl.close()`
 <!-- YAML
 added: v0.1.98
 -->
@@ -201,7 +201,7 @@ the `'close'` event will be emitted.
 Calling `rl.close()` does not immediately stop other events (including `'line'`)
 from being emitted by the `readline.Interface` instance.
 
-### rl.pause()
+### `rl.pause()`
 <!-- YAML
 added: v0.3.4
 -->
@@ -212,7 +212,7 @@ later if necessary.
 Calling `rl.pause()` does not immediately pause other events (including
 `'line'`) from being emitted by the `readline.Interface` instance.
 
-### rl.prompt(\[preserveCursor\])
+### `rl.prompt([preserveCursor])`
 <!-- YAML
 added: v0.1.98
 -->
@@ -230,7 +230,7 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the prompt is not written.
 
-### rl.question(query, callback)
+### `rl.question(query, callback)`
 <!-- YAML
 added: v0.3.3
 -->
@@ -262,14 +262,14 @@ The `callback` function passed to `rl.question()` does not follow the typical
 pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
-### rl.resume()
+### `rl.resume()`
 <!-- YAML
 added: v0.3.4
 -->
 
 The `rl.resume()` method resumes the `input` stream if it has been paused.
 
-### rl.setPrompt(prompt)
+### `rl.setPrompt(prompt)`
 <!-- YAML
 added: v0.1.98
 -->
@@ -279,7 +279,7 @@ added: v0.1.98
 The `rl.setPrompt()` method sets the prompt that will be written to `output`
 whenever `rl.prompt()` is called.
 
-### rl.write(data\[, key\])
+### `rl.write(data[, key])`
 <!-- YAML
 added: v0.1.98
 -->
@@ -312,7 +312,7 @@ rl.write(null, { ctrl: true, name: 'u' });
 The `rl.write()` method will write the data to the `readline` `Interface`'s
 `input` *as if it were provided by the user*.
 
-### rl\[Symbol.asyncIterator\]()
+### `rl[Symbol.asyncIterator]()`
 <!-- YAML
 added: v11.4.0
 changes:
@@ -349,7 +349,7 @@ async function processLineByLine() {
 }
 ```
 
-## readline.clearLine(stream, dir\[, callback\])
+## `readline.clearLine(stream, dir[, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -371,7 +371,7 @@ changes:
 The `readline.clearLine()` method clears current line of given [TTY][] stream
 in a specified direction identified by `dir`.
 
-## readline.clearScreenDown(stream\[, callback\])
+## `readline.clearScreenDown(stream[, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -389,7 +389,7 @@ changes:
 The `readline.clearScreenDown()` method clears the given [TTY][] stream from
 the current position of the cursor down.
 
-## readline.createInterface(options)
+## `readline.createInterface(options)`
 <!-- YAML
 added: v0.1.98
 changes:
@@ -490,7 +490,7 @@ function completer(linePartial, callback) {
 }
 ```
 
-## readline.cursorTo(stream, x\[, y\]\[, callback\])
+## `readline.cursorTo(stream, x[, y][, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -510,7 +510,7 @@ changes:
 The `readline.cursorTo()` method moves cursor to the specified position in a
 given [TTY][] `stream`.
 
-## readline.emitKeypressEvents(stream\[, interface\])
+## `readline.emitKeypressEvents(stream[, interface])`
 <!-- YAML
 added: v0.7.7
 -->
@@ -536,7 +536,7 @@ if (process.stdin.isTTY)
   process.stdin.setRawMode(true);
 ```
 
-## readline.moveCursor(stream, dx, dy\[, callback\])
+## `readline.moveCursor(stream, dx, dy[, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
