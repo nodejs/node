@@ -60,7 +60,7 @@ example, `path.resolve('c:\\')` can potentially return a different result than
 `path.resolve('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
-## path.basename(path\[, ext\])
+## `path.basename(path[, ext])`
 <!-- YAML
 added: v0.1.25
 changes:
@@ -88,7 +88,7 @@ path.basename('/foo/bar/baz/asdf/quux.html', '.html');
 A [`TypeError`][] is thrown if `path` is not a string or if `ext` is given
 and is not a string.
 
-## path.delimiter
+## `path.delimiter`
 <!-- YAML
 added: v0.9.3
 -->
@@ -120,7 +120,7 @@ process.env.PATH.split(path.delimiter);
 // Returns ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
-## path.dirname(path)
+## `path.dirname(path)`
 <!-- YAML
 added: v0.1.16
 changes:
@@ -143,7 +143,7 @@ path.dirname('/foo/bar/baz/asdf/quux');
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.extname(path)
+## `path.extname(path)`
 <!-- YAML
 added: v0.1.25
 changes:
@@ -183,7 +183,7 @@ path.extname('.index.md');
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.format(pathObject)
+## `path.format(pathObject)`
 <!-- YAML
 added: v0.11.15
 -->
@@ -247,7 +247,7 @@ path.format({
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
 
-## path.isAbsolute(path)
+## `path.isAbsolute(path)`
 <!-- YAML
 added: v0.11.2
 -->
@@ -282,7 +282,7 @@ path.isAbsolute('.');           // false
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.join(\[...paths\])
+## `path.join([...paths])`
 <!-- YAML
 added: v0.1.16
 -->
@@ -307,7 +307,7 @@ path.join('foo', {}, 'bar');
 
 A [`TypeError`][] is thrown if any of the path segments is not a string.
 
-## path.normalize(path)
+## `path.normalize(path)`
 <!-- YAML
 added: v0.1.23
 -->
@@ -350,7 +350,7 @@ path.win32.normalize('C:////temp\\\\/\\/\\/foo/bar');
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.parse(path)
+## `path.parse(path)`
 <!-- YAML
 added: v0.11.15
 -->
@@ -416,7 +416,7 @@ path.parse('C:\\path\\dir\\file.txt');
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.posix
+## `path.posix`
 <!-- YAML
 added: v0.11.15
 -->
@@ -426,7 +426,7 @@ added: v0.11.15
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
-## path.relative(from, to)
+## `path.relative(from, to)`
 <!-- YAML
 added: v0.5.0
 changes:
@@ -463,7 +463,7 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb');
 
 A [`TypeError`][] is thrown if either `from` or `to` is not a string.
 
-## path.resolve(\[...paths\])
+## `path.resolve([...paths])`
 <!-- YAML
 added: v0.3.4
 -->
@@ -504,7 +504,7 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif');
 
 A [`TypeError`][] is thrown if any of the arguments is not a string.
 
-## path.sep
+## `path.sep`
 <!-- YAML
 added: v0.7.9
 -->
@@ -534,7 +534,7 @@ On Windows, both the forward slash (`/`) and backward slash (`\`) are accepted
 as path segment separators; however, the `path` methods only add backward
 slashes (`\`).
 
-## path.toNamespacedPath(path)
+## `path.toNamespacedPath(path)`
 <!-- YAML
 added: v9.0.0
 -->
@@ -549,7 +549,7 @@ modifications.
 This method is meaningful only on Windows system. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.
 
-## path.win32
+## `path.win32`
 <!-- YAML
 added: v0.11.15
 -->
