@@ -57,7 +57,7 @@ or when referenced by `import` statements within ES module code:
 * Strings passed in as an argument to `--eval` or `--print`, or piped to
   `node` via `STDIN`, with the flag `--input-type=commonjs`.
 
-### <code>package.json</code> <code>"type"</code> field
+### `package.json` `"type"` field
 
 Files ending with `.js` or `.mjs`, or lacking any extension,
 will be loaded as ES modules when the nearest parent `package.json` file
@@ -159,7 +159,7 @@ package scope:
   extension (since both `.js` and `.cjs` files are treated as CommonJS within a
   `"commonjs"` package scope).
 
-### <code>--input-type</code> flag
+### `--input-type` flag
 
 Strings passed in as an argument to `--eval` or `--print` (or `-e` or `-p`), or
 piped to `node` via `STDIN`, will be treated as ES modules when the
@@ -190,7 +190,7 @@ defined in `"exports"`. If package entry points are defined in both `"main"` and
 `"exports"`. [Conditional Exports][] can also be used within `"exports"` to
 define different package entry points per environment.
 
-#### <code>package.json</code> <code>"main"</code>
+#### `package.json` `"main"`
 
 The `package.json` `"main"` field defines the entry point for a package,
 whether the package is included into CommonJS via `require` or into an ES
@@ -710,7 +710,7 @@ If the `--experimental-conditional-exports` flag is dropped and therefore
 easily updated to use conditional exports by adding conditions to the `"."`
 path; while keeping `"./module"` for backward compatibility.
 
-## <code>import</code> Specifiers
+## `import` Specifiers
 
 ### Terminology
 
@@ -767,7 +767,7 @@ import 'data:text/javascript,console.log("hello!");';
 import _ from 'data:application/json,"world!"';
 ```
 
-## import.meta
+## `import.meta`
 
 * {Object}
 
@@ -786,12 +786,12 @@ indexes (e.g. `'./startup/index.js'`) must also be fully specified.
 This behavior matches how `import` behaves in browser environments, assuming a
 typically configured server.
 
-### No <code>NODE_PATH</code>
+### No `NODE_PATH`
 
 `NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
 if this behavior is desired.
 
-### No <code>require</code>, <code>exports</code>, <code>module.exports</code>, <code>\_\_filename</code>, <code>\_\_dirname</code>
+### No `require`, `exports`, `module.exports`, `__filename`, `__dirname`
 
 These CommonJS variables are not available in ES modules.
 
@@ -808,12 +808,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 ```
 
-### No <code>require.extensions</code>
+### No `require.extensions`
 
 `require.extensions` is not used by `import`. The expectation is that loader
 hooks can provide this workflow in the future.
 
-### No <code>require.cache</code>
+### No `require.cache`
 
 `require.cache` is not used by `import`. It has a separate cache.
 
@@ -835,7 +835,7 @@ For now, only modules using the `file:` protocol can be loaded.
 
 ## Interoperability with CommonJS
 
-### <code>require</code>
+### `require`
 
 `require` always treats the files it references as CommonJS. This applies
 whether `require` is used the traditional way within a CommonJS environment, or
@@ -843,7 +843,7 @@ in an ES module environment using [`module.createRequire()`][].
 
 To include an ES module into CommonJS, use [`import()`][].
 
-### <code>import</code> statements
+### `import` statements
 
 An `import` statement can reference an ES module or a CommonJS module. Other
 file types such as JSON or Native modules are not supported. For those, use
@@ -874,7 +874,7 @@ import packageMain from 'commonjs-package'; // Works
 import { method } from 'commonjs-package'; // Errors
 ```
 
-### <code>import()</code> expressions
+### `import()` expressions
 
 Dynamic `import()` is supported in both CommonJS and ES modules. It can be used
 to include ES module files from CommonJS code.
