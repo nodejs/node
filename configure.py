@@ -392,6 +392,11 @@ parser.add_option('--with-etw',
     dest='with_etw',
     help='build with ETW (default is true on Windows)')
 
+parser.add_option('--use-largepages',
+    action='store_true',
+    dest='node_use_large_pages',
+    help='This option has no effect. --use-largepages is now a runtime option.')
+
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
