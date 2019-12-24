@@ -206,14 +206,14 @@ myStream.write('some more data');
 myStream.end('done writing data');
 ```
 
-#### Class: stream.Writable
+#### Class: `stream.Writable`
 <!-- YAML
 added: v0.9.4
 -->
 
 <!--type=class-->
 
-##### Event: 'close'
+##### Event: `'close'`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -230,7 +230,7 @@ that no more events will be emitted, and no further computation will occur.
 A [`Writable`][] stream will always emit the `'close'` event if it is
 created with the `emitClose` option.
 
-##### Event: 'drain'
+##### Event: `'drain'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -267,7 +267,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 }
 ```
 
-##### Event: 'error'
+##### Event: `'error'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -281,7 +281,7 @@ The stream is not closed when the `'error'` event is emitted unless the
 [`autoDestroy`][writable-new] option was set to `true` when creating the
 stream.
 
-##### Event: 'finish'
+##### Event: `'finish'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -300,7 +300,7 @@ writer.on('finish', () => {
 });
 ```
 
-##### Event: 'pipe'
+##### Event: `'pipe'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -320,7 +320,7 @@ writer.on('pipe', (src) => {
 reader.pipe(writer);
 ```
 
-##### Event: 'unpipe'
+##### Event: `'unpipe'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -346,7 +346,7 @@ reader.pipe(writer);
 reader.unpipe(writer);
 ```
 
-##### writable.cork()
+##### `writable.cork()`
 <!-- YAML
 added: v0.11.2
 -->
@@ -363,7 +363,7 @@ buffered writes in a more optimized manner.
 
 See also: [`writable.uncork()`][].
 
-##### writable.destroy(\[error\])
+##### `writable.destroy([error])`
 <!-- YAML
 added: v8.0.0
 -->
@@ -382,7 +382,7 @@ the `'drain'` event before destroying the stream.
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 
-##### writable.destroyed
+##### `writable.destroyed`
 <!-- YAML
 added: v8.0.0
 -->
@@ -391,7 +391,7 @@ added: v8.0.0
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
-##### writable.end(\[chunk\[, encoding\]\]\[, callback\])
+##### `writable.end([chunk[, encoding]][, callback])`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -429,7 +429,7 @@ file.end('world!');
 // Writing more now is not allowed!
 ```
 
-##### writable.setDefaultEncoding(encoding)
+##### `writable.setDefaultEncoding(encoding)`
 <!-- YAML
 added: v0.11.15
 changes:
@@ -444,7 +444,7 @@ changes:
 The `writable.setDefaultEncoding()` method sets the default `encoding` for a
 [`Writable`][] stream.
 
-##### writable.uncork()
+##### `writable.uncork()`
 <!-- YAML
 added: v0.11.2
 -->
@@ -482,7 +482,7 @@ process.nextTick(() => {
 
 See also: [`writable.cork()`][].
 
-##### writable.writable
+##### `writable.writable`
 <!-- YAML
 added: v11.4.0
 -->
@@ -491,7 +491,7 @@ added: v11.4.0
 
 Is `true` if it is safe to call [`writable.write()`][stream-write].
 
-##### writable.writableEnded
+##### `writable.writableEnded`
 <!-- YAML
 added: v12.9.0
 -->
@@ -502,7 +502,7 @@ Is `true` after [`writable.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
 [`writable.writableFinished`][] instead.
 
-##### writable.writableFinished
+##### `writable.writableFinished`
 <!-- YAML
 added: v12.6.0
 -->
@@ -511,7 +511,7 @@ added: v12.6.0
 
 Is set to `true` immediately before the [`'finish'`][] event is emitted.
 
-##### writable.writableHighWaterMark
+##### `writable.writableHighWaterMark`
 <!-- YAML
 added: v9.3.0
 -->
@@ -521,7 +521,7 @@ added: v9.3.0
 Return the value of `highWaterMark` passed when constructing this
 `Writable`.
 
-##### writable.writableLength
+##### `writable.writableLength`
 <!-- YAML
 added: v9.4.0
 -->
@@ -532,7 +532,7 @@ This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
-##### writable.writableObjectMode
+##### `writable.writableObjectMode`
 <!-- YAML
 added: v12.3.0
 -->
@@ -541,7 +541,7 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
-##### writable.write(chunk\[, encoding\]\[, callback\])
+##### `writable.write(chunk[, encoding][, callback])`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -744,14 +744,14 @@ require more fine-grained control over the transfer and generation of data can
 use the [`EventEmitter`][] and `readable.on('readable')`/`readable.read()`
 or the `readable.pause()`/`readable.resume()` APIs.
 
-#### Class: stream.Readable
+#### Class: `stream.Readable`
 <!-- YAML
 added: v0.9.4
 -->
 
 <!--type=class-->
 
-##### Event: 'close'
+##### Event: `'close'`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -768,7 +768,7 @@ that no more events will be emitted, and no further computation will occur.
 A [`Readable`][] stream will always emit the `'close'` event if it is
 created with the `emitClose` option.
 
-##### Event: 'data'
+##### Event: `'data'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -801,7 +801,7 @@ readable.on('data', (chunk) => {
 });
 ```
 
-##### Event: 'end'
+##### Event: `'end'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -824,7 +824,7 @@ readable.on('end', () => {
 });
 ```
 
-##### Event: 'error'
+##### Event: `'error'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -838,7 +838,7 @@ to push an invalid chunk of data.
 
 The listener callback will be passed a single `Error` object.
 
-##### Event: 'pause'
+##### Event: `'pause'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -846,7 +846,7 @@ added: v0.9.4
 The `'pause'` event is emitted when [`stream.pause()`][stream-pause] is called
 and `readableFlowing` is not `false`.
 
-##### Event: 'readable'
+##### Event: `'readable'`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -915,7 +915,7 @@ If there are `'data'` listeners when `'readable'` is removed, the stream
 will start flowing, i.e. `'data'` events will be emitted without calling
 `.resume()`.
 
-##### Event: 'resume'
+##### Event: `'resume'`
 <!-- YAML
 added: v0.9.4
 -->
@@ -923,7 +923,7 @@ added: v0.9.4
 The `'resume'` event is emitted when [`stream.resume()`][stream-resume] is
 called and `readableFlowing` is not `true`.
 
-##### readable.destroy(\[error\])
+##### `readable.destroy([error])`
 <!-- YAML
 added: v8.0.0
 -->
@@ -938,7 +938,7 @@ will be ignored.
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 
-##### readable.destroyed
+##### `readable.destroyed`
 <!-- YAML
 added: v8.0.0
 -->
@@ -947,7 +947,7 @@ added: v8.0.0
 
 Is `true` after [`readable.destroy()`][readable-destroy] has been called.
 
-##### readable.isPaused()
+##### `readable.isPaused()`
 <!-- YAML
 added: v0.11.14
 -->
@@ -969,7 +969,7 @@ readable.resume();
 readable.isPaused(); // === false
 ```
 
-##### readable.pause()
+##### `readable.pause()`
 <!-- YAML
 added: v0.9.4
 -->
@@ -996,7 +996,7 @@ readable.on('data', (chunk) => {
 The `readable.pause()` method has no effect if there is a `'readable'`
 event listener.
 
-##### readable.pipe(destination\[, options\])
+##### `readable.pipe(destination[, options])`
 <!-- YAML
 added: v0.9.4
 -->
@@ -1058,7 +1058,7 @@ to prevent memory leaks.
 The [`process.stderr`][] and [`process.stdout`][] `Writable` streams are never
 closed until the Node.js process exits, regardless of the specified options.
 
-##### readable.read(\[size\])
+##### `readable.read([size])`
 <!-- YAML
 added: v0.9.4
 -->
@@ -1110,7 +1110,7 @@ also be emitted.
 Calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has
 been emitted will return `null`. No runtime error will be raised.
 
-##### readable.readable
+##### `readable.readable`
 <!-- YAML
 added: v11.4.0
 -->
@@ -1119,7 +1119,7 @@ added: v11.4.0
 
 Is `true` if it is safe to call [`readable.read()`][stream-read].
 
-##### readable.readableEncoding
+##### `readable.readableEncoding`
 <!-- YAML
 added: v12.7.0
 -->
@@ -1129,7 +1129,7 @@ added: v12.7.0
 Getter for the property `encoding` of a given `Readable` stream. The `encoding`
 property can be set using the [`readable.setEncoding()`][] method.
 
-##### readable.readableEnded
+##### `readable.readableEnded`
 <!-- YAML
 added: v12.9.0
 -->
@@ -1138,7 +1138,7 @@ added: v12.9.0
 
 Becomes `true` when [`'end'`][] event is emitted.
 
-##### readable.readableFlowing
+##### `readable.readableFlowing`
 <!-- YAML
 added: v9.4.0
 -->
@@ -1148,7 +1148,7 @@ added: v9.4.0
 This property reflects the current state of a `Readable` stream as described
 in the [Stream Three States][] section.
 
-##### readable.readableHighWaterMark
+##### `readable.readableHighWaterMark`
 <!-- YAML
 added: v9.3.0
 -->
@@ -1158,7 +1158,7 @@ added: v9.3.0
 Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
 
-##### readable.readableLength
+##### `readable.readableLength`
 <!-- YAML
 added: v9.4.0
 -->
@@ -1169,7 +1169,7 @@ This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
 the status of the `highWaterMark`.
 
-##### readable.readableObjectMode
+##### `readable.readableObjectMode`
 <!-- YAML
 added: v12.3.0
 -->
@@ -1178,7 +1178,7 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Readable` stream.
 
-##### readable.resume()
+##### `readable.resume()`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -1207,7 +1207,7 @@ getReadableStreamSomehow()
 The `readable.resume()` method has no effect if there is a `'readable'`
 event listener.
 
-##### readable.setEncoding(encoding)
+##### `readable.setEncoding(encoding)`
 <!-- YAML
 added: v0.9.4
 -->
@@ -1239,7 +1239,7 @@ readable.on('data', (chunk) => {
 });
 ```
 
-##### readable.unpipe(\[destination\])
+##### `readable.unpipe([destination])`
 <!-- YAML
 added: v0.9.4
 -->
@@ -1270,7 +1270,7 @@ setTimeout(() => {
 }, 1000);
 ```
 
-##### readable.unshift(chunk\[, encoding\])
+##### `readable.unshift(chunk[, encoding])`
 <!-- YAML
 added: v0.9.11
 changes:
@@ -1348,7 +1348,7 @@ custom stream). Following the call to `readable.unshift()` with an immediate
 however it is best to simply avoid calling `readable.unshift()` while in the
 process of performing a read.
 
-##### readable.wrap(stream)
+##### `readable.wrap(stream)`
 <!-- YAML
 added: v0.9.4
 -->
@@ -1379,7 +1379,7 @@ myReader.on('readable', () => {
 });
 ```
 
-##### readable\[Symbol.asyncIterator\]()
+##### `readable[Symbol.asyncIterator]()`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1414,7 +1414,7 @@ has less then 64kb of data because no `highWaterMark` option is provided to
 
 ### Duplex and Transform Streams
 
-#### Class: stream.Duplex
+#### Class: `stream.Duplex`
 <!-- YAML
 added: v0.9.4
 changes:
@@ -1435,7 +1435,7 @@ Examples of `Duplex` streams include:
 * [zlib streams][zlib]
 * [crypto streams][crypto]
 
-#### Class: stream.Transform
+#### Class: `stream.Transform`
 <!-- YAML
 added: v0.9.4
 -->
@@ -1451,7 +1451,7 @@ Examples of `Transform` streams include:
 * [zlib streams][zlib]
 * [crypto streams][crypto]
 
-##### transform.destroy(\[error\])
+##### `transform.destroy([error])`
 <!-- YAML
 added: v8.0.0
 -->
@@ -1465,7 +1465,7 @@ Implementors should not override this method, but instead implement
 The default implementation of `_destroy()` for `Transform` also emit `'close'`
 unless `emitClose` is set in false.
 
-### stream.finished(stream\[, options\], callback)
+### `stream.finished(stream[, options], callback)`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1538,7 +1538,7 @@ const cleanup = finished(rs, (err) => {
 });
 ```
 
-### stream.pipeline(...streams, callback)
+### `stream.pipeline(...streams, callback)`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1599,7 +1599,7 @@ run().catch(console.error);
 after the `callback` has been invoked. In the case of reuse of streams after
 failure, this can cause event listener leaks and swallowed errors.
 
-### stream.Readable.from(iterable, \[options\])
+### `stream.Readable.from(iterable, [options])`
 <!-- YAML
 added: v12.3.0
 -->
@@ -1713,7 +1713,7 @@ Custom `Writable` streams *must* call the `new stream.Writable([options])`
 constructor and implement the `writable._write()` and/or `writable._writev()`
 method.
 
-#### Constructor: new stream.Writable(\[options\])
+#### Constructor: `new stream.Writable([options])`
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -1799,7 +1799,7 @@ const myWritable = new Writable({
 });
 ```
 
-#### writable.\_write(chunk, encoding, callback)
+#### `writable._write(chunk, encoding, callback)`
 <!-- YAML
 changes:
   - version: v12.11.0
@@ -1852,7 +1852,7 @@ The `writable._write()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### writable.\_writev(chunks, callback)
+#### `writable._writev(chunks, callback)`
 
 * `chunks` {Object[]} The chunks to be written. Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
@@ -1872,7 +1872,7 @@ The `writable._writev()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### writable.\_destroy(err, callback)
+#### `writable._destroy(err, callback)`
 <!-- YAML
 added: v8.0.0
 -->
@@ -1884,7 +1884,7 @@ added: v8.0.0
 The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
 It can be overridden by child classes but it **must not** be called directly.
 
-#### writable.\_final(callback)
+#### `writable._final(callback)`
 <!-- YAML
 added: v8.0.0
 -->
@@ -1993,7 +1993,7 @@ The `stream.Readable` class is extended to implement a [`Readable`][] stream.
 Custom `Readable` streams *must* call the `new stream.Readable([options])`
 constructor and implement the `readable._read()` method.
 
-#### new stream.Readable(\[options\])
+#### `new stream.Readable([options])`
 <!-- YAML
 changes:
   - version: v11.2.0
@@ -2059,7 +2059,7 @@ const myReadable = new Readable({
 });
 ```
 
-#### readable.\_read(size)
+#### `readable._read(size)`
 <!-- YAML
 added: v0.9.4
 -->
@@ -2095,7 +2095,7 @@ The `readable._read()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### readable.\_destroy(err, callback)
+#### `readable._destroy(err, callback)`
 <!-- YAML
 added: v8.0.0
 -->
@@ -2107,7 +2107,7 @@ added: v8.0.0
 The `_destroy()` method is called by [`readable.destroy()`][readable-destroy].
 It can be overridden by child classes but it **must not** be called directly.
 
-#### readable.push(chunk\[, encoding\])
+#### `readable.push(chunk[, encoding])`
 <!-- YAML
 changes:
   - version: v8.0.0
@@ -2250,7 +2250,7 @@ Custom `Duplex` streams *must* call the `new stream.Duplex([options])`
 constructor and implement *both* the `readable._read()` and
 `writable._write()` methods.
 
-#### new stream.Duplex(options)
+#### `new stream.Duplex(options)`
 <!-- YAML
 changes:
   - version: v8.4.0
@@ -2419,7 +2419,7 @@ Care must be taken when using `Transform` streams in that data written to the
 stream can cause the `Writable` side of the stream to become paused if the
 output on the `Readable` side is not consumed.
 
-#### new stream.Transform(\[options\])
+#### `new stream.Transform([options])`
 
 * `options` {Object} Passed to both `Writable` and `Readable`
   constructors. Also has the following fields:
@@ -2466,7 +2466,7 @@ const myTransform = new Transform({
 });
 ```
 
-#### Events: 'finish' and 'end'
+#### Events: `'finish'` and `'end'`
 
 The [`'finish'`][] and [`'end'`][] events are from the `stream.Writable`
 and `stream.Readable` classes, respectively. The `'finish'` event is emitted
@@ -2475,7 +2475,7 @@ by [`stream._transform()`][stream-_transform]. The `'end'` event is emitted
 after all data has been output, which occurs after the callback in
 [`transform._flush()`][stream-_flush] has been called.
 
-#### transform.\_flush(callback)
+#### `transform._flush(callback)`
 
 * `callback` {Function} A callback function (optionally with an error
   argument and data) to be called when remaining data has been flushed.
@@ -2503,7 +2503,7 @@ The `transform._flush()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### transform.\_transform(chunk, encoding, callback)
+#### `transform._transform(chunk, encoding, callback)`
 
 * `chunk` {Buffer|string|any} The `Buffer` to be transformed, converted from
   the `string` passed to [`stream.write()`][stream-write]. If the stream's
@@ -2557,7 +2557,7 @@ user programs.
 queue mechanism, and to receive the next chunk, `callback` must be
 called, either synchronously or asynchronously.
 
-#### Class: stream.PassThrough
+#### Class: `stream.PassThrough`
 
 The `stream.PassThrough` class is a trivial implementation of a [`Transform`][]
 stream that simply passes the input bytes across to the output. Its purpose is
