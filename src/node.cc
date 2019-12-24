@@ -64,7 +64,9 @@
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
+#ifdef NODE_ENABLE_LARGE_CODE_PAGES
 #include "large_pages/node_large_page.h"
+#endif
 
 #ifdef NODE_REPORT
 #include "node_report.h"
