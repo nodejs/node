@@ -205,6 +205,15 @@ Set the
 .Ar host:port
 to be used when the inspector is activated.
 .
+.It Fl -inspect-publish-uid=stderr,http
+Specify how the inspector WebSocket URL is exposed.
+Valid values are
+.Sy stderr
+and
+.Sy http .
+Default is
+.Sy stderr,http .
+.
 .It Fl -inspect Ns = Ns Ar [host:]port
 Activate inspector on
 .Ar host:port .
