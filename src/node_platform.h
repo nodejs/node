@@ -169,6 +169,8 @@ class NodePlatform : public MultiIsolatePlatform {
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
 
+  Platform::StackTracePrinter GetStackTracePrinter() override;
+
  private:
   std::shared_ptr<PerIsolatePlatformData> ForIsolate(v8::Isolate* isolate);
 
