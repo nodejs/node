@@ -361,7 +361,7 @@ The first 3 are enabled by default. The last 2 `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
 are not enabled by default since they offer less security.
 
-## Class: tls.Server
+## Class: `tls.Server`
 <!-- YAML
 added: v0.3.2
 -->
@@ -370,7 +370,7 @@ added: v0.3.2
 
 Accepts encrypted connections using TLS or SSL.
 
-### Event: 'keylog'
+### Event: `'keylog'`
 <!-- YAML
 added: v12.3.0
 -->
@@ -398,7 +398,7 @@ server.on('keylog', (line, tlsSocket) => {
 });
 ```
 
-### Event: 'newSession'
+### Event: `'newSession'`
 <!-- YAML
 added: v0.9.2
 -->
@@ -417,7 +417,7 @@ The listener callback is passed three arguments when called:
 Listening for this event will have an effect only on connections established
 after the addition of the event listener.
 
-### Event: 'OCSPRequest'
+### Event: `'OCSPRequest'`
 <!-- YAML
 added: v0.11.13
 -->
@@ -464,7 +464,7 @@ after the addition of the event listener.
 
 An npm module like [asn1.js][] may be used to parse the certificates.
 
-### Event: 'resumeSession'
+### Event: `'resumeSession'`
 <!-- YAML
 added: v0.9.2
 -->
@@ -503,7 +503,7 @@ server.on('resumeSession', (id, cb) => {
 });
 ```
 
-### Event: 'secureConnection'
+### Event: `'secureConnection'`
 <!-- YAML
 added: v0.3.2
 -->
@@ -527,7 +527,7 @@ equals `false`.
 The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
 
-### Event: 'tlsClientError'
+### Event: `'tlsClientError'`
 <!-- YAML
 added: v6.0.0
 -->
@@ -540,7 +540,7 @@ called:
 * `tlsSocket` {tls.TLSSocket} The `tls.TLSSocket` instance from which the
   error originated.
 
-### server.addContext(hostname, context)
+### `server.addContext(hostname, context)`
 <!-- YAML
 added: v0.5.3
 -->
@@ -553,7 +553,7 @@ added: v0.5.3
 The `server.addContext()` method adds a secure context that will be used if
 the client request's SNI name matches the supplied `hostname` (or wildcard).
 
-### server.address()
+### `server.address()`
 <!-- YAML
 added: v0.6.0
 -->
@@ -564,7 +564,7 @@ Returns the bound address, the address family name, and port of the
 server as reported by the operating system. See [`net.Server.address()`][] for
 more information.
 
-### server.close(\[callback\])
+### `server.close([callback])`
 <!-- YAML
 added: v0.3.2
 -->
@@ -578,7 +578,7 @@ The `server.close()` method stops the server from accepting new connections.
 This function operates asynchronously. The `'close'` event will be emitted
 when the server has no more open connections.
 
-### server.connections
+### `server.connections`
 <!-- YAML
 added: v0.3.2
 deprecated: v0.9.7
@@ -590,7 +590,7 @@ deprecated: v0.9.7
 
 Returns the current number of concurrent connections on the server.
 
-### server.getTicketKeys()
+### `server.getTicketKeys()`
 <!-- YAML
 added: v3.0.0
 -->
@@ -601,12 +601,12 @@ Returns the session ticket keys.
 
 See [Session Resumption][] for more information.
 
-### server.listen()
+### `server.listen()`
 
 Starts the server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
-### server.setSecureContext(options)
+### `server.setSecureContext(options)`
 <!-- YAML
 added: v11.0.0
 -->
@@ -618,7 +618,7 @@ added: v11.0.0
 The `server.setSecureContext()` method replaces the secure context of an
 existing server. Existing connections to the server are not interrupted.
 
-### server.setTicketKeys(keys)
+### `server.setTicketKeys(keys)`
 <!-- YAML
 added: v3.0.0
 -->
@@ -632,7 +632,7 @@ Existing or currently pending server connections will use the previous keys.
 
 See [Session Resumption][] for more information.
 
-## Class: tls.TLSSocket
+## Class: `tls.TLSSocket`
 <!-- YAML
 added: v0.11.4
 -->
@@ -648,7 +648,7 @@ Methods that return TLS connection metadata (e.g.
 [`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
 connection is open.
 
-### new tls.TLSSocket(socket\[, options\])
+### `new tls.TLSSocket(socket[, options])`
 <!-- YAML
 added: v0.11.4
 changes:
@@ -690,7 +690,7 @@ changes:
 
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
-### Event: 'keylog'
+### Event: `'keylog'`
 <!-- YAML
 added: v12.3.0
 -->
@@ -711,7 +711,7 @@ const logFile = fs.createWriteStream('/tmp/ssl-keys.log', { flags: 'a' });
 tlsSocket.on('keylog', (line) => logFile.write(line));
 ```
 
-### Event: 'OCSPResponse'
+### Event: `'OCSPResponse'`
 <!-- YAML
 added: v0.11.13
 -->
@@ -725,7 +725,7 @@ The listener callback is passed a single argument when called:
 Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
 
-### Event: 'secureConnect'
+### Event: `'secureConnect'`
 <!-- YAML
 added: v0.11.4
 -->
@@ -740,7 +740,7 @@ determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.alpnProtocol` property can be checked to determine the negotiated
 protocol.
 
-### Event: 'session'
+### Event: `'session'`
 <!-- YAML
 added: v11.10.0
 -->
@@ -779,7 +779,7 @@ tlsSocket.once('session', (session) => {
 });
 ```
 
-### tlsSocket.address()
+### `tlsSocket.address()`
 <!-- YAML
 added: v0.11.4
 -->
@@ -790,7 +790,7 @@ Returns the bound `address`, the address `family` name, and `port` of the
 underlying socket as reported by the operating system:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
-### tlsSocket.authorizationError
+### `tlsSocket.authorizationError`
 <!-- YAML
 added: v0.11.4
 -->
@@ -798,7 +798,7 @@ added: v0.11.4
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
 
-### tlsSocket.authorized
+### `tlsSocket.authorized`
 <!-- YAML
 added: v0.11.4
 -->
@@ -808,7 +808,7 @@ added: v0.11.4
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
 
-### tlsSocket.disableRenegotiation()
+### `tlsSocket.disableRenegotiation()`
 <!-- YAML
 added: v8.4.0
 -->
@@ -816,7 +816,7 @@ added: v8.4.0
 Disables TLS renegotiation for this `TLSSocket` instance. Once called, attempts
 to renegotiate will trigger an `'error'` event on the `TLSSocket`.
 
-### tlsSocket.enableTrace()
+### `tlsSocket.enableTrace()`
 <!-- YAML
 added: v12.2.0
 -->
@@ -829,7 +829,7 @@ Note: The format of the output is identical to the output of `openssl s_client
 `SSL_trace()` function, the format is undocumented, can change without notice,
 and should not be relied on.
 
-### tlsSocket.encrypted
+### `tlsSocket.encrypted`
 <!-- YAML
 added: v0.11.4
 -->
@@ -837,7 +837,7 @@ added: v0.11.4
 Always returns `true`. This may be used to distinguish TLS sockets from regular
 `net.Socket` instances.
 
-### tlsSocket.getCertificate()
+### `tlsSocket.getCertificate()`
 <!-- YAML
 added: v11.2.0
 -->
@@ -853,7 +853,7 @@ structure.
 If there is no local certificate, an empty object will be returned. If the
 socket has been destroyed, `null` will be returned.
 
-### tlsSocket.getCipher()
+### `tlsSocket.getCipher()`
 <!-- YAML
 added: v0.11.4
 changes:
@@ -887,7 +887,7 @@ See
 [SSL_CIPHER_get_name](https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_name.html)
 for more information.
 
-### tlsSocket.getEphemeralKeyInfo()
+### `tlsSocket.getEphemeralKeyInfo()`
 <!-- YAML
 added: v5.0.0
 -->
@@ -903,7 +903,7 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
-### tlsSocket.getFinished()
+### `tlsSocket.getFinished()`
 <!-- YAML
 added: v9.9.0
 -->
@@ -920,7 +920,7 @@ provided by SSL/TLS is not desired or is not enough.
 Corresponds to the `SSL_get_finished` routine in OpenSSL and may be used
 to implement the `tls-unique` channel binding from [RFC 5929][].
 
-### tlsSocket.getPeerCertificate(\[detailed\])
+### `tlsSocket.getPeerCertificate([detailed])`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1026,7 +1026,7 @@ Example certificate:
   raw: <Buffer ... > }
 ```
 
-### tlsSocket.getPeerFinished()
+### `tlsSocket.getPeerFinished()`
 <!-- YAML
 added: v9.9.0
 -->
@@ -1043,7 +1043,7 @@ provided by SSL/TLS is not desired or is not enough.
 Corresponds to the `SSL_get_peer_finished` routine in OpenSSL and may be used
 to implement the `tls-unique` channel binding from [RFC 5929][].
 
-### tlsSocket.getProtocol()
+### `tlsSocket.getProtocol()`
 <!-- YAML
 added: v5.7.0
 -->
@@ -1065,7 +1065,7 @@ Protocol versions are:
 
 See the OpenSSL [`SSL_get_version`][] documentation for more information.
 
-### tlsSocket.getSession()
+### `tlsSocket.getSession()`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1082,7 +1082,7 @@ See [Session Resumption][] for more information.
 Note: `getSession()` works only for TLSv1.2 and below. For TLSv1.3, applications
 must use the [`'session'`][] event (it also works for TLSv1.2 and below).
 
-### tlsSocket.getSharedSigalgs()
+### `tlsSocket.getSharedSigalgs()`
 <!-- YAML
 added: v12.11.0
 -->
@@ -1094,7 +1094,7 @@ See
 [SSL_get_shared_sigalgs](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_shared_sigalgs.html)
 for more information.
 
-### tlsSocket.getTLSTicket()
+### `tlsSocket.getTLSTicket()`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1108,7 +1108,7 @@ It may be useful for debugging.
 
 See [Session Resumption][] for more information.
 
-### tlsSocket.isSessionReused()
+### `tlsSocket.isSessionReused()`
 <!-- YAML
 added: v0.5.6
 -->
@@ -1117,7 +1117,7 @@ added: v0.5.6
 
 See [Session Resumption][] for more information.
 
-### tlsSocket.localAddress
+### `tlsSocket.localAddress`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1126,7 +1126,7 @@ added: v0.11.4
 
 Returns the string representation of the local IP address.
 
-### tlsSocket.localPort
+### `tlsSocket.localPort`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1135,7 +1135,7 @@ added: v0.11.4
 
 Returns the numeric representation of the local port.
 
-### tlsSocket.remoteAddress
+### `tlsSocket.remoteAddress`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1145,7 +1145,7 @@ added: v0.11.4
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
-### tlsSocket.remoteFamily
+### `tlsSocket.remoteFamily`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1154,7 +1154,7 @@ added: v0.11.4
 
 Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
-### tlsSocket.remotePort
+### `tlsSocket.remotePort`
 <!-- YAML
 added: v0.11.4
 -->
@@ -1163,7 +1163,7 @@ added: v0.11.4
 
 Returns the numeric representation of the remote port. For example, `443`.
 
-### tlsSocket.renegotiate(options, callback)
+### `tlsSocket.renegotiate(options, callback)`
 <!-- YAML
 added: v0.11.8
 -->
@@ -1195,7 +1195,7 @@ When running as the server, the socket will be destroyed with an error after
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
 
-### tlsSocket.setMaxSendFragment(size)
+### `tlsSocket.setMaxSendFragment(size)`
 <!-- YAML
 added: v0.11.11
 -->
@@ -1214,7 +1214,7 @@ and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
 
-## tls.checkServerIdentity(hostname, cert)
+## `tls.checkServerIdentity(hostname, cert)`
 <!-- YAML
 added: v0.8.4
 -->
@@ -1237,7 +1237,7 @@ the checks done with additional verification.
 This function is only called if the certificate passed all other checks, such as
 being issued by trusted CA (`options.ca`).
 
-## tls.connect(options\[, callback\])
+## `tls.connect(options[, callback])`
 <!-- YAML
 added: v0.11.3
 changes:
@@ -1387,7 +1387,7 @@ socket.on('end', () => {
 });
 ```
 
-## tls.connect(path\[, options\]\[, callback\])
+## `tls.connect(path[, options][, callback])`
 <!-- YAML
 added: v0.11.3
 -->
@@ -1402,7 +1402,7 @@ as an argument instead of an option.
 
 A path option, if specified, will take precedence over the path argument.
 
-## tls.connect(port\[, host\]\[, options\]\[, callback\])
+## `tls.connect(port[, host][, options][, callback])`
 <!-- YAML
 added: v0.11.3
 -->
@@ -1419,7 +1419,7 @@ as arguments instead of options.
 A port or host option, if specified, will take precedence over any port or host
 argument.
 
-## tls.createSecureContext(\[options\])
+## `tls.createSecureContext([options])`
 <!-- YAML
 added: v0.11.13
 changes:
@@ -1591,7 +1591,7 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 If the `ca` option is not given, then Node.js will default to using
 [Mozilla's publicly trusted list of CAs][].
 
-## tls.createServer(\[options\]\[, secureConnectionListener\])
+## `tls.createServer([options][, secureConnectionListener])`
 <!-- YAML
 added: v0.3.2
 changes:
@@ -1713,7 +1713,7 @@ server.listen(8000, () => {
 The server can be tested by connecting to it using the example client from
 [`tls.connect()`][].
 
-## tls.getCiphers()
+## `tls.getCiphers()`
 <!-- YAML
 added: v0.10.2
 -->
@@ -1731,7 +1731,7 @@ TLSv1.2 and below.
 console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ```
 
-## tls.rootCertificates
+## `tls.rootCertificates`
 <!-- YAML
 added: v12.3.0
 -->
@@ -1742,7 +1742,7 @@ An immutable array of strings representing the root certificates (in PEM format)
 used for verifying peer certificates. This is the default value of the `ca`
 option to [`tls.createSecureContext()`][].
 
-## tls.DEFAULT_ECDH_CURVE
+## `tls.DEFAULT_ECDH_CURVE`
 <!-- YAML
 added: v0.11.13
 changes:
@@ -1755,7 +1755,7 @@ The default curve name to use for ECDH key agreement in a tls server. The
 default value is `'auto'`. See [`tls.createSecureContext()`][] for further
 information.
 
-## tls.DEFAULT_MAX_VERSION
+## `tls.DEFAULT_MAX_VERSION`
 <!-- YAML
 added: v11.4.0
 -->
@@ -1768,7 +1768,7 @@ added: v11.4.0
   the default to `'TLSv1.3'`. If multiple of the options are provided, the
   highest maximum is used.
 
-## tls.DEFAULT_MIN_VERSION
+## `tls.DEFAULT_MIN_VERSION`
 <!-- YAML
 added: v11.4.0
 -->
@@ -1784,7 +1784,7 @@ added: v11.4.0
 
 ## Deprecated APIs
 
-### Class: CryptoStream
+### Class: `CryptoStream`
 <!-- YAML
 added: v0.3.4
 deprecated: v0.11.3
@@ -1795,7 +1795,7 @@ deprecated: v0.11.3
 The `tls.CryptoStream` class represents a stream of encrypted data. This class
 is deprecated and should no longer be used.
 
-#### cryptoStream.bytesWritten
+#### `cryptoStream.bytesWritten`
 <!-- YAML
 added: v0.3.4
 deprecated: v0.11.3
@@ -1805,7 +1805,7 @@ The `cryptoStream.bytesWritten` property returns the total number of bytes
 written to the underlying socket *including* the bytes required for the
 implementation of the TLS protocol.
 
-### Class: SecurePair
+### Class: `SecurePair`
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3
@@ -1815,7 +1815,7 @@ deprecated: v0.11.3
 
 Returned by [`tls.createSecurePair()`][].
 
-#### Event: 'secure'
+#### Event: `'secure'`
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3
@@ -1829,7 +1829,7 @@ As with checking for the server
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
-### tls.createSecurePair(\[context\]\[, isServer\]\[, requestCert\]\[, rejectUnauthorized\]\[, options\])
+### `tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])`
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3
