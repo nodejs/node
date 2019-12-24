@@ -47,7 +47,7 @@ list like the following:
   'accepT', '*/*' ]
 ```
 
-## Class: http.Agent
+## Class: `http.Agent`
 <!-- YAML
 added: v0.3.4
 -->
@@ -107,7 +107,7 @@ http.get({
 });
 ```
 
-### new Agent(\[options\])
+### `new Agent([options])`
 <!-- YAML
 added: v0.3.4
 -->
@@ -149,7 +149,7 @@ options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
 
-### agent.createConnection(options\[, callback\])
+### `agent.createConnection(options[, callback])`
 <!-- YAML
 added: v0.11.4
 -->
@@ -173,7 +173,7 @@ type other than {net.Socket}.
 
 `callback` has a signature of `(err, stream)`.
 
-### agent.keepSocketAlive(socket)
+### `agent.keepSocketAlive(socket)`
 <!-- YAML
 added: v8.1.0
 -->
@@ -196,7 +196,7 @@ it for use with the next request.
 The `socket` argument can be an instance of {net.Socket}, a subclass of
 {stream.Duplex}.
 
-### agent.reuseSocket(socket, request)
+### `agent.reuseSocket(socket, request)`
 <!-- YAML
 added: v8.1.0
 -->
@@ -216,7 +216,7 @@ This method can be overridden by a particular `Agent` subclass.
 The `socket` argument can be an instance of {net.Socket}, a subclass of
 {stream.Duplex}.
 
-### agent.destroy()
+### `agent.destroy()`
 <!-- YAML
 added: v0.11.4
 -->
@@ -229,7 +229,7 @@ the agent when it will no longer be used. Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
 
-### agent.freeSockets
+### `agent.freeSockets`
 <!-- YAML
 added: v0.11.4
 -->
@@ -239,7 +239,7 @@ added: v0.11.4
 An object which contains arrays of sockets currently awaiting use by
 the agent when `keepAlive` is enabled. Do not modify.
 
-### agent.getName(options)
+### `agent.getName(options)`
 <!-- YAML
 added: v0.11.4
 -->
@@ -259,7 +259,7 @@ connection can be reused. For an HTTP agent, this returns
 the name includes the CA, cert, ciphers, and other HTTPS/TLS-specific options
 that determine socket reusability.
 
-### agent.maxFreeSockets
+### `agent.maxFreeSockets`
 <!-- YAML
 added: v0.11.7
 -->
@@ -270,7 +270,7 @@ By default set to 256. For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
-### agent.maxSockets
+### `agent.maxSockets`
 <!-- YAML
 added: v0.3.6
 -->
@@ -280,7 +280,7 @@ added: v0.3.6
 By default set to `Infinity`. Determines how many concurrent sockets the agent
 can have open per origin. Origin is the returned value of [`agent.getName()`][].
 
-### agent.requests
+### `agent.requests`
 <!-- YAML
 added: v0.5.9
 -->
@@ -290,7 +290,7 @@ added: v0.5.9
 An object which contains queues of requests that have not yet been assigned to
 sockets. Do not modify.
 
-### agent.sockets
+### `agent.sockets`
 <!-- YAML
 added: v0.3.6
 -->
@@ -300,7 +300,7 @@ added: v0.3.6
 An object which contains arrays of sockets currently in use by the
 agent. Do not modify.
 
-## Class: http.ClientRequest
+## Class: `http.ClientRequest`
 <!-- YAML
 added: v0.1.17
 -->
@@ -337,7 +337,7 @@ Unlike the `request` object, if the response closes prematurely, the
 Node.js does not check whether Content-Length and the length of the
 body which has been transmitted are equal or not.
 
-### Event: 'abort'
+### Event: `'abort'`
 <!-- YAML
 added: v1.4.1
 -->
@@ -345,7 +345,7 @@ added: v1.4.1
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
-### Event: 'connect'
+### Event: `'connect'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -419,7 +419,7 @@ proxy.listen(1337, '127.0.0.1', () => {
 });
 ```
 
-### Event: 'continue'
+### Event: `'continue'`
 <!-- YAML
 added: v0.3.2
 -->
@@ -428,7 +428,7 @@ Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
-### Event: 'information'
+### Event: `'information'`
 <!-- YAML
 added: v10.0.0
 -->
@@ -470,7 +470,7 @@ traditional HTTP request/response chain, such as web sockets, in-place TLS
 upgrades, or HTTP 2.0. To be notified of 101 Upgrade notices, listen for the
 [`'upgrade'`][] event instead.
 
-### Event: 'response'
+### Event: `'response'`
 <!-- YAML
 added: v0.1.0
 -->
@@ -480,7 +480,7 @@ added: v0.1.0
 Emitted when a response is received to this request. This event is emitted only
 once.
 
-### Event: 'socket'
+### Event: `'socket'`
 <!-- YAML
 added: v0.5.3
 -->
@@ -491,7 +491,7 @@ This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
-### Event: 'timeout'
+### Event: `'timeout'`
 <!-- YAML
 added: v0.7.8
 -->
@@ -501,7 +501,7 @@ that the socket has been idle. The request must be aborted manually.
 
 See also: [`request.setTimeout()`][].
 
-### Event: 'upgrade'
+### Event: `'upgrade'`
 <!-- YAML
 added: v0.1.94
 -->
@@ -562,7 +562,7 @@ srv.listen(1337, '127.0.0.1', () => {
 });
 ```
 
-### request.abort()
+### `request.abort()`
 <!-- YAML
 added: v0.3.8
 -->
@@ -570,7 +570,7 @@ added: v0.3.8
 Marks the request as aborting. Calling this will cause remaining data
 in the response to be dropped and the socket to be destroyed.
 
-### request.aborted
+### `request.aborted`
 <!-- YAML
 added: v0.11.14
 changes:
@@ -584,7 +584,7 @@ changes:
 The `request.aborted` property will be `true` if the request has
 been aborted.
 
-### request.connection
+### `request.connection`
 <!-- YAML
 added: v0.3.0
 deprecated: v13.0.0
@@ -596,7 +596,7 @@ deprecated: v13.0.0
 
 See [`request.socket`][].
 
-### request.end(\[data\[, encoding\]\]\[, callback\])
+### `request.end([data[, encoding]][, callback])`
 <!-- YAML
 added: v0.1.90
 changes:
@@ -620,7 +620,7 @@ If `data` is specified, it is equivalent to calling
 If `callback` is specified, it will be called when the request stream
 is finished.
 
-### request.finished
+### `request.finished`
 <!-- YAML
 added: v0.0.1
 deprecated: v13.4.0
@@ -634,7 +634,7 @@ The `request.finished` property will be `true` if [`request.end()`][]
 has been called. `request.end()` will automatically be called if the
 request was initiated via [`http.get()`][].
 
-### request.flushHeaders()
+### `request.flushHeaders()`
 <!-- YAML
 added: v1.6.0
 -->
@@ -649,7 +649,7 @@ That's usually desired (it saves a TCP round-trip), but not when the first
 data is not sent until possibly much later. `request.flushHeaders()` bypasses
 the optimization and kickstarts the request.
 
-### request.getHeader(name)
+### `request.getHeader(name)`
 <!-- YAML
 added: v1.6.0
 -->
@@ -673,20 +673,20 @@ const cookie = request.getHeader('Cookie');
 // 'cookie' is of type string[]
 ```
 
-### request.maxHeadersCount
+### `request.maxHeadersCount`
 
 * {number} **Default:** `2000`
 
 Limits maximum response headers count. If set to 0, no limit will be applied.
 
-### request.path
+### `request.path`
 <!-- YAML
 added: v0.4.0
 -->
 
 * {string} The request path.
 
-### request.removeHeader(name)
+### `request.removeHeader(name)`
 <!-- YAML
 added: v1.6.0
 -->
@@ -699,7 +699,7 @@ Removes a header that's already defined into headers object.
 request.removeHeader('Content-Type');
 ```
 
-### request.reusedSocket
+### `request.reusedSocket`
 
 <!-- YAML
 added: v13.0.0
@@ -755,7 +755,7 @@ function retriableRequest() {
 retriableRequest();
 ```
 
-### request.setHeader(name, value)
+### `request.setHeader(name, value)`
 <!-- YAML
 added: v1.6.0
 -->
@@ -780,7 +780,7 @@ or
 request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
 ```
 
-### request.setNoDelay(\[noDelay\])
+### `request.setNoDelay([noDelay])`
 <!-- YAML
 added: v0.5.9
 -->
@@ -790,7 +790,7 @@ added: v0.5.9
 Once a socket is assigned to this request and is connected
 [`socket.setNoDelay()`][] will be called.
 
-### request.setSocketKeepAlive(\[enable\]\[, initialDelay\])
+### `request.setSocketKeepAlive([enable][, initialDelay])`
 <!-- YAML
 added: v0.5.9
 -->
@@ -801,7 +801,7 @@ added: v0.5.9
 Once a socket is assigned to this request and is connected
 [`socket.setKeepAlive()`][] will be called.
 
-### request.setTimeout(timeout\[, callback\])
+### `request.setTimeout(timeout[, callback])`
 <!-- YAML
 added: v0.5.9
 changes:
@@ -818,7 +818,7 @@ changes:
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
 
-### request.socket
+### `request.socket`
 <!-- YAML
 added: v0.3.0
 -->
@@ -849,7 +849,7 @@ This property is guaranteed to be an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specified a socket
 type other than {net.Socket}.
 
-### request.writableEnded
+### `request.writableEnded`
 <!-- YAML
 added: v12.9.0
 -->
@@ -860,7 +860,7 @@ Is `true` after [`request.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
 [`request.writableFinished`][] instead.
 
-### request.writableFinished
+### `request.writableFinished`
 <!-- YAML
 added: v12.7.0
 -->
@@ -870,7 +870,7 @@ added: v12.7.0
 Is `true` if all data has been flushed to the underlying system, immediately
 before the [`'finish'`][] event is emitted.
 
-### request.write(chunk\[, encoding\]\[, callback\])
+### `request.write(chunk[, encoding][, callback])`
 <!-- YAML
 added: v0.1.29
 -->
@@ -899,14 +899,14 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 When `write` function is called with empty string or buffer, it does
 nothing and waits for more input.
 
-## Class: http.Server
+## Class: `http.Server`
 <!-- YAML
 added: v0.1.17
 -->
 
 * Extends: {net.Server}
 
-### Event: 'checkContinue'
+### Event: `'checkContinue'`
 <!-- YAML
 added: v0.3.0
 -->
@@ -926,7 +926,7 @@ the request body.
 When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
-### Event: 'checkExpectation'
+### Event: `'checkExpectation'`
 <!-- YAML
 added: v5.5.0
 -->
@@ -941,7 +941,7 @@ automatically respond with a `417 Expectation Failed` as appropriate.
 When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
-### Event: 'clientError'
+### Event: `'clientError'`
 <!-- YAML
 added: v0.1.94
 changes:
@@ -1003,14 +1003,14 @@ ensure the response is a properly formatted HTTP response message.
   correctly;
 * `rawPacket`: the raw packet of current request.
 
-### Event: 'close'
+### Event: `'close'`
 <!-- YAML
 added: v0.1.4
 -->
 
 Emitted when the server closes.
 
-### Event: 'connect'
+### Event: `'connect'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -1032,7 +1032,7 @@ After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
 
-### Event: 'connection'
+### Event: `'connection'`
 <!-- YAML
 added: v0.1.0
 -->
@@ -1056,7 +1056,7 @@ This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
-### Event: 'request'
+### Event: `'request'`
 <!-- YAML
 added: v0.1.0
 -->
@@ -1067,7 +1067,7 @@ added: v0.1.0
 Emitted each time there is a request. There may be multiple requests
 per connection (in the case of HTTP Keep-Alive connections).
 
-### Event: 'upgrade'
+### Event: `'upgrade'`
 <!-- YAML
 added: v0.1.94
 changes:
@@ -1093,7 +1093,7 @@ This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
-### server.close(\[callback\])
+### `server.close([callback])`
 <!-- YAML
 added: v0.1.90
 -->
@@ -1102,7 +1102,7 @@ added: v0.1.90
 
 Stops the server from accepting new connections. See [`net.Server.close()`][].
 
-### server.headersTimeout
+### `server.headersTimeout`
 <!-- YAML
 added: v11.3.0
 -->
@@ -1122,19 +1122,19 @@ event is emitted on the server object, and (by default) the socket is destroyed.
 See [`server.timeout`][] for more information on how timeout behavior can be
 customized.
 
-### server.listen()
+### `server.listen()`
 
 Starts the HTTP server listening for connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
-### server.listening
+### `server.listening`
 <!-- YAML
 added: v5.7.0
 -->
 
 * {boolean} Indicates whether or not the server is listening for connections.
 
-### server.maxHeadersCount
+### `server.maxHeadersCount`
 <!-- YAML
 added: v0.7.0
 -->
@@ -1143,7 +1143,7 @@ added: v0.7.0
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
-### server.setTimeout(\[msecs\]\[, callback\])
+### `server.setTimeout([msecs][, callback])`
 <!-- YAML
 added: v0.9.12
 changes:
@@ -1167,7 +1167,7 @@ By default, the Server does not timeout sockets. However, if a callback
 is assigned to the Server's `'timeout'` event, timeouts must be handled
 explicitly.
 
-### server.timeout
+### `server.timeout`
 <!-- YAML
 added: v0.9.12
 changes:
@@ -1186,7 +1186,7 @@ A value of `0` will disable the timeout behavior on incoming connections.
 The socket timeout logic is set up on connection, so changing this
 value only affects new connections to the server, not any existing connections.
 
-### server.keepAliveTimeout
+### `server.keepAliveTimeout`
 <!-- YAML
 added: v8.0.0
 -->
@@ -1207,7 +1207,7 @@ to 8.0.0, which did not have a keep-alive timeout.
 The socket timeout logic is set up on connection, so changing this value only
 affects new connections to the server, not any existing connections.
 
-## Class: http.ServerResponse
+## Class: `http.ServerResponse`
 <!-- YAML
 added: v0.1.17
 -->
@@ -1217,14 +1217,14 @@ added: v0.1.17
 This object is created internally by an HTTP server — not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
-### Event: 'close'
+### Event: `'close'`
 <!-- YAML
 added: v0.6.7
 -->
 
 Indicates that the underlying connection was terminated.
 
-### Event: 'finish'
+### Event: `'finish'`
 <!-- YAML
 added: v0.3.6
 -->
@@ -1234,7 +1234,7 @@ emitted when the last segment of the response headers and body have been
 handed off to the operating system for transmission over the network. It
 does not imply that the client has received anything yet.
 
-### response.addTrailers(headers)
+### `response.addTrailers(headers)`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1262,7 +1262,7 @@ response.end();
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-### response.connection
+### `response.connection`
 <!-- YAML
 added: v0.3.0
 deprecated: v13.0.0
@@ -1274,14 +1274,14 @@ deprecated: v13.0.0
 
 See [`response.socket`][].
 
-### response.cork()
+### `response.cork()`
 <!-- YAML
 added: v13.2.0
 -->
 
 See [`writable.cork()`][].
 
-### response.end(\[data\[, encoding\]\]\[, callback\])
+### `response.end([data[, encoding]][, callback])`
 <!-- YAML
 added: v0.1.90
 changes:
@@ -1305,7 +1305,7 @@ If `data` is specified, it is similar in effect to calling
 If `callback` is specified, it will be called when the response stream
 is finished.
 
-### response.finished
+### `response.finished`
 <!-- YAML
 added: v0.0.2
 deprecated: v13.4.0
@@ -1318,14 +1318,14 @@ deprecated: v13.4.0
 The `response.finished` property will be `true` if [`response.end()`][]
 has been called.
 
-### response.flushHeaders()
+### `response.flushHeaders()`
 <!-- YAML
 added: v1.6.0
 -->
 
 Flushes the response headers. See also: [`request.flushHeaders()`][].
 
-### response.getHeader(name)
+### `response.getHeader(name)`
 <!-- YAML
 added: v0.4.0
 -->
@@ -1349,7 +1349,7 @@ const setCookie = response.getHeader('set-cookie');
 // setCookie is of type string[]
 ```
 
-### response.getHeaderNames()
+### `response.getHeaderNames()`
 <!-- YAML
 added: v7.7.0
 -->
@@ -1367,7 +1367,7 @@ const headerNames = response.getHeaderNames();
 // headerNames === ['foo', 'set-cookie']
 ```
 
-### response.getHeaders()
+### `response.getHeaders()`
 <!-- YAML
 added: v7.7.0
 -->
@@ -1393,7 +1393,7 @@ const headers = response.getHeaders();
 // headers === { foo: 'bar', 'set-cookie': ['foo=bar', 'bar=baz'] }
 ```
 
-### response.hasHeader(name)
+### `response.hasHeader(name)`
 <!-- YAML
 added: v7.7.0
 -->
@@ -1408,7 +1408,7 @@ outgoing headers. The header name matching is case-insensitive.
 const hasContentType = response.hasHeader('content-type');
 ```
 
-### response.headersSent
+### `response.headersSent`
 <!-- YAML
 added: v0.9.3
 -->
@@ -1417,7 +1417,7 @@ added: v0.9.3
 
 Boolean (read-only). True if headers were sent, false otherwise.
 
-### response.removeHeader(name)
+### `response.removeHeader(name)`
 <!-- YAML
 added: v0.4.0
 -->
@@ -1430,7 +1430,7 @@ Removes a header that's queued for implicit sending.
 response.removeHeader('Content-Encoding');
 ```
 
-### response.sendDate
+### `response.sendDate`
 <!-- YAML
 added: v0.7.5
 -->
@@ -1443,7 +1443,7 @@ the response if it is not already present in the headers. Defaults to true.
 This should only be disabled for testing; HTTP requires the Date header
 in responses.
 
-### response.setHeader(name, value)
+### `response.setHeader(name, value)`
 <!-- YAML
 added: v0.4.0
 -->
@@ -1492,7 +1492,7 @@ header will not yield the expected result. If progressive population of headers
 is desired with potential future retrieval and modification, use
 [`response.setHeader()`][] instead of [`response.writeHead()`][].
 
-### response.setTimeout(msecs\[, callback\])
+### `response.setTimeout(msecs[, callback])`
 <!-- YAML
 added: v0.9.12
 -->
@@ -1510,7 +1510,7 @@ the server, then sockets are destroyed when they time out. If a handler is
 assigned to the request, the response, or the server's `'timeout'` events,
 timed out sockets must be handled explicitly.
 
-### response.socket
+### `response.socket`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1536,7 +1536,7 @@ This property is guaranteed to be an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specified a socket
 type other than {net.Socket}.
 
-### response.statusCode
+### `response.statusCode`
 <!-- YAML
 added: v0.4.0
 -->
@@ -1554,7 +1554,7 @@ response.statusCode = 404;
 After response header was sent to the client, this property indicates the
 status code which was sent out.
 
-### response.statusMessage
+### `response.statusMessage`
 <!-- YAML
 added: v0.11.8
 -->
@@ -1573,14 +1573,14 @@ response.statusMessage = 'Not found';
 After response header was sent to the client, this property indicates the
 status message which was sent out.
 
-### response.uncork()
+### `response.uncork()`
 <!-- YAML
 added: v13.2.0
 -->
 
 See [`writable.uncork()`][].
 
-### response.writableEnded
+### `response.writableEnded`
 <!-- YAML
 added: v12.9.0
 -->
@@ -1591,7 +1591,7 @@ Is `true` after [`response.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
 [`response.writableFinished`][] instead.
 
-### response.writableFinished
+### `response.writableFinished`
 <!-- YAML
 added: v12.7.0
 -->
@@ -1601,7 +1601,7 @@ added: v12.7.0
 Is `true` if all data has been flushed to the underlying system, immediately
 before the [`'finish'`][] event is emitted.
 
-### response.write(chunk\[, encoding\]\[, callback\])
+### `response.write(chunk[, encoding][, callback])`
 <!-- YAML
 added: v0.1.29
 -->
@@ -1638,7 +1638,7 @@ Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
-### response.writeContinue()
+### `response.writeContinue()`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1647,7 +1647,7 @@ Sends a HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the [`'checkContinue'`][] event on
 `Server`.
 
-### response.writeHead(statusCode\[, statusMessage\]\[, headers\])
+### `response.writeHead(statusCode[, statusMessage][, headers])`
 <!-- YAML
 added: v0.1.30
 changes:
@@ -1720,7 +1720,7 @@ which has been transmitted are equal or not.
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-### response.writeProcessing()
+### `response.writeProcessing()`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1728,7 +1728,7 @@ added: v10.0.0
 Sends a HTTP/1.1 102 Processing message to the client, indicating that
 the request body should be sent.
 
-## Class: http.IncomingMessage
+## Class: `http.IncomingMessage`
 <!-- YAML
 added: v0.1.17
 changes:
@@ -1744,21 +1744,21 @@ An `IncomingMessage` object is created by [`http.Server`][] or
 and [`'response'`][] event respectively. It may be used to access response
 status, headers and data.
 
-### Event: 'aborted'
+### Event: `'aborted'`
 <!-- YAML
 added: v0.3.8
 -->
 
 Emitted when the request has been aborted.
 
-### Event: 'close'
+### Event: `'close'`
 <!-- YAML
 added: v0.4.2
 -->
 
 Indicates that the underlying connection was closed.
 
-### message.aborted
+### `message.aborted`
 <!-- YAML
 added: v10.1.0
 -->
@@ -1768,7 +1768,7 @@ added: v10.1.0
 The `message.aborted` property will be `true` if the request has
 been aborted.
 
-### message.complete
+### `message.complete`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1796,7 +1796,7 @@ const req = http.request({
 });
 ```
 
-### message.destroy(\[error\])
+### `message.destroy([error])`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1807,7 +1807,7 @@ Calls `destroy()` on the socket that received the `IncomingMessage`. If `error`
 is provided, an `'error'` event is emitted on the socket and `error` is passed
 as an argument to any listeners on the event.
 
-### message.headers
+### `message.headers`
 <!-- YAML
 added: v0.1.5
 -->
@@ -1838,7 +1838,7 @@ header name:
 * For duplicate `cookie` headers, the values are joined together with '; '.
 * For all other headers, the values are joined together with ', '.
 
-### message.httpVersion
+### `message.httpVersion`
 <!-- YAML
 added: v0.1.1
 -->
@@ -1852,7 +1852,7 @@ Probably either `'1.1'` or `'1.0'`.
 Also `message.httpVersionMajor` is the first integer and
 `message.httpVersionMinor` is the second.
 
-### message.method
+### `message.method`
 <!-- YAML
 added: v0.1.1
 -->
@@ -1863,7 +1863,7 @@ added: v0.1.1
 
 The request method as a string. Read only. Examples: `'GET'`, `'DELETE'`.
 
-### message.rawHeaders
+### `message.rawHeaders`
 <!-- YAML
 added: v0.11.6
 -->
@@ -1892,7 +1892,7 @@ Header names are not lowercased, and duplicates are not merged.
 console.log(request.rawHeaders);
 ```
 
-### message.rawTrailers
+### `message.rawTrailers`
 <!-- YAML
 added: v0.11.6
 -->
@@ -1902,7 +1902,7 @@ added: v0.11.6
 The raw request/response trailer keys and values exactly as they were
 received. Only populated at the `'end'` event.
 
-### message.setTimeout(msecs\[, callback\])
+### `message.setTimeout(msecs[, callback])`
 <!-- YAML
 added: v0.5.9
 -->
@@ -1913,7 +1913,7 @@ added: v0.5.9
 
 Calls `message.connection.setTimeout(msecs, callback)`.
 
-### message.socket
+### `message.socket`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1929,7 +1929,7 @@ This property is guaranteed to be an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specified a socket
 type other than {net.Socket}.
 
-### message.statusCode
+### `message.statusCode`
 <!-- YAML
 added: v0.1.1
 -->
@@ -1940,7 +1940,7 @@ added: v0.1.1
 
 The 3-digit HTTP response status code. E.G. `404`.
 
-### message.statusMessage
+### `message.statusMessage`
 <!-- YAML
 added: v0.11.10
 -->
@@ -1952,7 +1952,7 @@ added: v0.11.10
 The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server
 Error`.
 
-### message.trailers
+### `message.trailers`
 <!-- YAML
 added: v0.3.0
 -->
@@ -1961,7 +1961,7 @@ added: v0.3.0
 
 The request/response trailers object. Only populated at the `'end'` event.
 
-### message.url
+### `message.url`
 <!-- YAML
 added: v0.1.90
 -->
@@ -2007,7 +2007,7 @@ URL {
 }
 ```
 
-## http.METHODS
+## `http.METHODS`
 <!-- YAML
 added: v0.11.8
 -->
@@ -2016,7 +2016,7 @@ added: v0.11.8
 
 A list of the HTTP methods that are supported by the parser.
 
-## http.STATUS_CODES
+## `http.STATUS_CODES`
 <!-- YAML
 added: v0.1.22
 -->
@@ -2027,7 +2027,7 @@ A collection of all the standard HTTP response status codes, and the
 short description of each. For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
-## http.createServer(\[options\]\[, requestListener\])
+## `http.createServer([options][, requestListener])`
 <!-- YAML
 added: v0.1.13
 changes:
@@ -2059,8 +2059,8 @@ Returns a new instance of [`http.Server`][].
 The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
-## http.get(options\[, callback\])
-## http.get(url\[, options\]\[, callback\])
+## `http.get(options[, callback])`
+## `http.get(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
@@ -2127,7 +2127,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
 });
 ```
 
-## http.globalAgent
+## `http.globalAgent`
 <!-- YAML
 added: v0.5.9
 -->
@@ -2137,7 +2137,7 @@ added: v0.5.9
 Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
-## http.maxHeaderSize
+## `http.maxHeaderSize`
 <!-- YAML
 added: v11.6.0
 -->
@@ -2150,8 +2150,8 @@ Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 This can be overridden for servers and client requests by passing the
 `maxHeaderSize` option.
 
-## http.request(options\[, callback\])
-## http.request(url\[, options\]\[, callback\])
+## `http.request(options[, callback])`
+## `http.request(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
