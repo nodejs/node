@@ -11,7 +11,7 @@ properties. It can be accessed using:
 const os = require('os');
 ```
 
-## os.EOL
+## `os.EOL`
 <!-- YAML
 added: v0.7.8
 -->
@@ -23,7 +23,7 @@ The operating system-specific end-of-line marker.
 * `\n` on POSIX
 * `\r\n` on Windows
 
-## os.arch()
+## `os.arch()`
 <!-- YAML
 added: v0.5.0
 -->
@@ -36,7 +36,7 @@ compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
 
 The return value is equivalent to [`process.arch`][].
 
-## os.constants
+## `os.constants`
 <!-- YAML
 added: v6.3.0
 -->
@@ -47,7 +47,7 @@ Contains commonly used operating system-specific constants for error codes,
 process signals, and so on. The specific constants defined are described in
 [OS Constants](#os_os_constants_1).
 
-## os.cpus()
+## `os.cpus()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -120,7 +120,7 @@ The properties included on each object include:
 `nice` values are POSIX-only. On Windows, the `nice` values of all processors
 are always 0.
 
-## os.endianness()
+## `os.endianness()`
 <!-- YAML
 added: v0.9.4
 -->
@@ -132,7 +132,7 @@ binary was compiled.
 
 Possible values are `'BE'` for big endian and `'LE'` for little endian.
 
-## os.freemem()
+## `os.freemem()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -141,7 +141,7 @@ added: v0.3.3
 
 Returns the amount of free system memory in bytes as an integer.
 
-## os.getPriority(\[pid\])
+## `os.getPriority([pid])`
 <!-- YAML
 added: v10.10.0
 -->
@@ -153,7 +153,7 @@ added: v10.10.0
 Returns the scheduling priority for the process specified by `pid`. If `pid` is
 not provided or is `0`, the priority of the current process is returned.
 
-## os.homedir()
+## `os.homedir()`
 <!-- YAML
 added: v2.3.0
 -->
@@ -168,7 +168,7 @@ uses the [effective UID][EUID] to look up the user's home directory.
 On Windows, it uses the `USERPROFILE` environment variable if defined.
 Otherwise it uses the path to the profile directory of the current user.
 
-## os.hostname()
+## `os.hostname()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -177,7 +177,7 @@ added: v0.3.3
 
 Returns the hostname of the operating system as a string.
 
-## os.loadavg()
+## `os.loadavg()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -192,7 +192,7 @@ system and expressed as a fractional number.
 The load average is a Unix-specific concept. On Windows, the return value is
 always `[0, 0, 0]`.
 
-## os.networkInterfaces()
+## `os.networkInterfaces()`
 <!-- YAML
 added: v0.6.0
 -->
@@ -263,7 +263,7 @@ The properties available on the assigned network address object include:
 }
 ```
 
-## os.platform()
+## `os.platform()`
 <!-- YAML
 added: v0.5.0
 -->
@@ -279,7 +279,7 @@ The return value is equivalent to [`process.platform`][].
 The value `'android'` may also be returned if Node.js is built on the Android
 operating system. [Android support is experimental][Android building].
 
-## os.release()
+## `os.release()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -292,7 +292,7 @@ On POSIX systems, the operating system release is determined by calling
 [uname(3)][]. On Windows, `GetVersionExW()` is used. See
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
-## os.setPriority(\[pid, \]priority)
+## `os.setPriority([pid, ]priority)`
 <!-- YAML
 added: v10.10.0
 -->
@@ -315,7 +315,7 @@ On Windows, setting priority to `PRIORITY_HIGHEST` requires elevated user
 privileges. Otherwise the set priority will be silently reduced to
 `PRIORITY_HIGH`.
 
-## os.tmpdir()
+## `os.tmpdir()`
 <!-- YAML
 added: v0.9.9
 changes:
@@ -330,7 +330,7 @@ changes:
 Returns the operating system's default directory for temporary files as a
 string.
 
-## os.totalmem()
+## `os.totalmem()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -339,7 +339,7 @@ added: v0.3.3
 
 Returns the total amount of system memory in bytes as an integer.
 
-## os.type()
+## `os.type()`
 <!-- YAML
 added: v0.3.3
 -->
@@ -352,7 +352,7 @@ returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
 See https://en.wikipedia.org/wiki/Uname#Examples for additional information
 about the output of running [uname(3)][] on various operating systems.
 
-## os.uptime()
+## `os.uptime()`
 <!-- YAML
 added: v0.3.3
 changes:
@@ -366,7 +366,7 @@ changes:
 
 Returns the system uptime in number of seconds.
 
-## os.userInfo(\[options\])
+## `os.userInfo([options])`
 <!-- YAML
 added: v6.0.0
 -->
