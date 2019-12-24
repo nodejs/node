@@ -7,7 +7,7 @@
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
-## Class: https.Agent
+## Class: `https.Agent`
 <!-- YAML
 added: v0.4.5
 changes:
@@ -23,7 +23,7 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
-### new Agent(\[options\])
+### `new Agent([options])`
 <!-- YAML
 changes:
   - version: v12.5.0
@@ -45,7 +45,7 @@ changes:
 
     See [`Session Resumption`][] for information about TLS session reuse.
 
-## Class: https.Server
+## Class: `https.Server`
 <!-- YAML
 added: v0.3.4
 -->
@@ -54,7 +54,7 @@ added: v0.3.4
 
 See [`http.Server`][] for more information.
 
-### server.close(\[callback\])
+### `server.close([callback])`
 <!-- YAML
 added: v0.1.90
 -->
@@ -64,7 +64,7 @@ added: v0.1.90
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
-### server.headersTimeout
+### `server.headersTimeout`
 <!-- YAML
 added: v11.3.0
 -->
@@ -73,18 +73,18 @@ added: v11.3.0
 
 See [`http.Server#headersTimeout`][].
 
-### server.listen()
+### `server.listen()`
 
 Starts the HTTPS server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
-### server.maxHeadersCount
+### `server.maxHeadersCount`
 
 * {number} **Default:** `2000`
 
 See [`http.Server#maxHeadersCount`][].
 
-### server.setTimeout(\[msecs\]\[, callback\])
+### `server.setTimeout([msecs][, callback])`
 <!-- YAML
 added: v0.11.2
 -->
@@ -95,7 +95,7 @@ added: v0.11.2
 
 See [`http.Server#setTimeout()`][].
 
-### server.timeout
+### `server.timeout`
 <!-- YAML
 added: v0.11.2
 -->
@@ -104,7 +104,7 @@ added: v0.11.2
 
 See [`http.Server#timeout`][].
 
-### server.keepAliveTimeout
+### `server.keepAliveTimeout`
 <!-- YAML
 added: v8.0.0
 -->
@@ -113,7 +113,7 @@ added: v8.0.0
 
 See [`http.Server#keepAliveTimeout`][].
 
-## https.createServer(\[options\]\[, requestListener\])
+## `https.createServer([options][, requestListener])`
 <!-- YAML
 added: v0.3.4
 -->
@@ -156,8 +156,8 @@ https.createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
-## https.get(options\[, callback\])
-## https.get(url\[, options\]\[, callback\])
+## `https.get(options[, callback])`
+## `https.get(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
@@ -197,15 +197,15 @@ https.get('https://encrypted.google.com/', (res) => {
 });
 ```
 
-## https.globalAgent
+## `https.globalAgent`
 <!-- YAML
 added: v0.5.9
 -->
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
-## https.request(options\[, callback\])
-## https.request(url\[, options\]\[, callback\])
+## `https.request(options[, callback])`
+## `https.request(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
