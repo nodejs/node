@@ -42,9 +42,9 @@ decoder.write(Buffer.from([0x82]));
 console.log(decoder.end(Buffer.from([0xAC])));
 ```
 
-## Class: StringDecoder
+## Class: `StringDecoder`
 
-### new StringDecoder(\[encoding\])
+### `new StringDecoder([encoding])`
 <!-- YAML
 added: v0.1.99
 -->
@@ -54,7 +54,7 @@ added: v0.1.99
 
 Creates a new `StringDecoder` instance.
 
-### stringDecoder.end(\[buffer\])
+### `stringDecoder.end([buffer])`
 <!-- YAML
 added: v0.9.3
 -->
@@ -70,7 +70,7 @@ substitution characters appropriate for the character encoding.
 If the `buffer` argument is provided, one final call to `stringDecoder.write()`
 is performed before returning the remaining input.
 
-### stringDecoder.write(buffer)
+### `stringDecoder.write(buffer)`
 <!-- YAML
 added: v0.1.99
 changes:
