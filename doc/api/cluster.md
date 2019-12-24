@@ -111,7 +111,7 @@ responsibility to manage the worker pool based on its own needs.
 Although a primary use case for the `cluster` module is networking, it can
 also be used for other use cases requiring worker processes.
 
-## Class: Worker
+## Class: `Worker`
 <!-- YAML
 added: v0.7.0
 -->
@@ -122,7 +122,7 @@ A `Worker` object contains all public information and method about a worker.
 In the master it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
-### Event: 'disconnect'
+### Event: `'disconnect'`
 <!-- YAML
 added: v0.7.7
 -->
@@ -135,7 +135,7 @@ cluster.fork().on('disconnect', () => {
 });
 ```
 
-### Event: 'error'
+### Event: `'error'`
 <!-- YAML
 added: v0.7.3
 -->
@@ -144,7 +144,7 @@ This event is the same as the one provided by [`child_process.fork()`][].
 
 Within a worker, `process.on('error')` may also be used.
 
-### Event: 'exit'
+### Event: `'exit'`
 <!-- YAML
 added: v0.11.2
 -->
@@ -168,7 +168,7 @@ worker.on('exit', (code, signal) => {
 });
 ```
 
-### Event: 'listening'
+### Event: `'listening'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -185,7 +185,7 @@ cluster.fork().on('listening', (address) => {
 
 It is not emitted in the worker.
 
-### Event: 'message'
+### Event: `'message'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -244,7 +244,7 @@ if (cluster.isMaster) {
 }
 ```
 
-### Event: 'online'
+### Event: `'online'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -259,7 +259,7 @@ cluster.fork().on('online', () => {
 
 It is not emitted in the worker.
 
-### worker.disconnect()
+### `worker.disconnect()`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -329,7 +329,7 @@ if (cluster.isMaster) {
 }
 ```
 
-### worker.exitedAfterDisconnect
+### `worker.exitedAfterDisconnect`
 <!-- YAML
 added: v6.0.0
 -->
@@ -355,7 +355,7 @@ cluster.on('exit', (worker, code, signal) => {
 worker.kill();
 ```
 
-### worker.id
+### `worker.id`
 <!-- YAML
 added: v0.8.0
 -->
@@ -368,7 +368,7 @@ Each new worker is given its own unique id, this id is stored in the
 While a worker is alive, this is the key that indexes it in
 `cluster.workers`.
 
-### worker.isConnected()
+### `worker.isConnected()`
 <!-- YAML
 added: v0.11.14
 -->
@@ -377,7 +377,7 @@ This function returns `true` if the worker is connected to its master via its
 IPC channel, `false` otherwise. A worker is connected to its master after it
 has been created. It is disconnected after the `'disconnect'` event is emitted.
 
-### worker.isDead()
+### `worker.isDead()`
 <!-- YAML
 added: v0.11.14
 -->
@@ -415,7 +415,7 @@ if (cluster.isMaster) {
 }
 ```
 
-### worker.kill(\[signal='SIGTERM'\])
+### `worker.kill([signal='SIGTERM'])`
 <!-- YAML
 added: v0.9.12
 -->
@@ -439,7 +439,7 @@ This method is aliased as `worker.destroy()` for backwards compatibility.
 In a worker, `process.kill()` exists, but it is not this function;
 it is [`kill()`][].
 
-### worker.process
+### `worker.process`
 <!-- YAML
 added: v0.7.0
 -->
@@ -456,7 +456,7 @@ Workers will call `process.exit(0)` if the `'disconnect'` event occurs
 on `process` and `.exitedAfterDisconnect` is not `true`. This protects against
 accidental disconnection.
 
-### worker.send(message\[, sendHandle\[, options\]\]\[, callback\])
+### `worker.send(message[, sendHandle[, options]][, callback])`
 <!-- YAML
 added: v0.7.0
 changes:
@@ -498,7 +498,7 @@ if (cluster.isMaster) {
 }
 ```
 
-## Event: 'disconnect'
+## Event: `'disconnect'`
 <!-- YAML
 added: v0.7.9
 -->
@@ -519,7 +519,7 @@ cluster.on('disconnect', (worker) => {
 });
 ```
 
-## Event: 'exit'
+## Event: `'exit'`
 <!-- YAML
 added: v0.7.9
 -->
@@ -543,7 +543,7 @@ cluster.on('exit', (worker, code, signal) => {
 
 See [`child_process` event: `'exit'`][].
 
-## Event: 'fork'
+## Event: `'fork'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -571,7 +571,7 @@ cluster.on('exit', (worker, code, signal) => {
 });
 ```
 
-## Event: 'listening'
+## Event: `'listening'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -602,7 +602,7 @@ The `addressType` is one of:
 * `-1` (Unix domain socket)
 * `'udp4'` or `'udp6'` (UDP v4 or v6)
 
-## Event: 'message'
+## Event: `'message'`
 <!-- YAML
 added: v2.5.0
 changes:
@@ -619,7 +619,7 @@ Emitted when the cluster master receives a message from any worker.
 
 See [`child_process` event: `'message'`][].
 
-## Event: 'online'
+## Event: `'online'`
 <!-- YAML
 added: v0.7.0
 -->
@@ -637,7 +637,7 @@ cluster.on('online', (worker) => {
 });
 ```
 
-## Event: 'setup'
+## Event: `'setup'`
 <!-- YAML
 added: v0.7.1
 -->
@@ -652,7 +652,7 @@ The `settings` object is the `cluster.settings` object at the time
 
 If accuracy is important, use `cluster.settings`.
 
-## cluster.disconnect(\[callback\])
+## `cluster.disconnect([callback])`
 <!-- YAML
 added: v0.7.7
 -->
@@ -670,7 +670,7 @@ finished.
 
 This can only be called from the master process.
 
-## cluster.fork(\[env\])
+## `cluster.fork([env])`
 <!-- YAML
 added: v0.6.0
 -->
@@ -682,7 +682,7 @@ Spawn a new worker process.
 
 This can only be called from the master process.
 
-## cluster.isMaster
+## `cluster.isMaster`
 <!-- YAML
 added: v0.8.1
 -->
@@ -693,7 +693,7 @@ True if the process is a master. This is determined
 by the `process.env.NODE_UNIQUE_ID`. If `process.env.NODE_UNIQUE_ID` is
 undefined, then `isMaster` is `true`.
 
-## cluster.isWorker
+## `cluster.isWorker`
 <!-- YAML
 added: v0.6.0
 -->
@@ -702,7 +702,7 @@ added: v0.6.0
 
 True if the process is not a master (it is the negation of `cluster.isMaster`).
 
-## cluster.schedulingPolicy
+## `cluster.schedulingPolicy`
 <!-- YAML
 added: v0.11.2
 -->
@@ -720,7 +720,7 @@ distribute IOCP handles without incurring a large performance hit.
 `NODE_CLUSTER_SCHED_POLICY` environment variable. Valid
 values are `'rr'` and `'none'`.
 
-## cluster.settings
+## `cluster.settings`
 <!-- YAML
 added: v0.7.1
 changes:
@@ -765,7 +765,7 @@ contain the settings, including the default values.
 
 This object is not intended to be changed or set manually.
 
-## cluster.setupMaster(\[settings\])
+## `cluster.setupMaster([settings])`
 <!-- YAML
 added: v0.7.1
 changes:
@@ -805,7 +805,7 @@ cluster.fork(); // http worker
 
 This can only be called from the master process.
 
-## cluster.worker
+## `cluster.worker`
 <!-- YAML
 added: v0.7.0
 -->
@@ -826,7 +826,7 @@ if (cluster.isMaster) {
 }
 ```
 
-## cluster.workers
+## `cluster.workers`
 <!-- YAML
 added: v0.7.0
 -->
