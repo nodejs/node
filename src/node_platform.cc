@@ -513,6 +513,14 @@ TracingController* NodePlatform::GetTracingController() {
   return tracing_controller_;
 }
 
+Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
+  return []() {
+    fprintf(stderr, "\n");
+    DumpBacktrace(stderr);
+    fflush(stderr);
+  };
+}
+
 template <class T>
 TaskQueue<T>::TaskQueue()
     : lock_(), tasks_available_(), tasks_drained_(),
