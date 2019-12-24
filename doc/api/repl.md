@@ -347,7 +347,7 @@ function myWriter(output) {
 }
 ```
 
-## Class: REPLServer
+## Class: `REPLServer`
 <!-- YAML
 added: v0.1.91
 -->
@@ -357,7 +357,7 @@ added: v0.1.91
 Instances of `repl.REPLServer` are created using the `repl.start()` method and
 *should not* be created directly using the JavaScript `new` keyword.
 
-### Event: 'exit'
+### Event: `'exit'`
 <!-- YAML
 added: v0.7.7
 -->
@@ -374,7 +374,7 @@ replServer.on('exit', () => {
 });
 ```
 
-### Event: 'reset'
+### Event: `'reset'`
 <!-- YAML
 added: v0.11.0
 -->
@@ -419,7 +419,7 @@ Clearing context...
 >
 ```
 
-### replServer.defineCommand(keyword, cmd)
+### `replServer.defineCommand(keyword, cmd)`
 <!-- YAML
 added: v0.3.0
 -->
@@ -465,7 +465,7 @@ Hello, Node.js User!
 Goodbye!
 ```
 
-### replServer.displayPrompt(\[preserveCursor\])
+### `replServer.displayPrompt([preserveCursor])`
 <!-- YAML
 added: v0.1.91
 -->
@@ -485,7 +485,7 @@ The `replServer.displayPrompt` method is primarily intended to be called from
 within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### replServer.clearBufferedCommand()
+### `replServer.clearBufferedCommand()`
 <!-- YAML
 added: v9.0.0
 -->
@@ -495,7 +495,7 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### replServer.parseREPLKeyword(keyword\[, rest\])
+### `replServer.parseREPLKeyword(keyword[, rest])`
 <!-- YAML
 added: v0.8.9
 deprecated: v9.0.0
@@ -510,7 +510,7 @@ deprecated: v9.0.0
 An internal method used to parse and execute `REPLServer` keywords.
 Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 
-### replServer.setupHistory(historyPath, callback)
+### `replServer.setupHistory(historyPath, callback)`
 <!-- YAML
 added: v11.10.0
 -->
@@ -526,7 +526,7 @@ by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
 
-## repl.start(\[options\])
+## `repl.start([options])`
 <!-- YAML
 added: v0.1.91
 changes:
