@@ -902,6 +902,7 @@ See [the WPT tests README][] for details.
 [&lt;ArrayBufferView>]: https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView
 [&lt;Buffer>]: https://nodejs.org/api/buffer.html#buffer_class_buffer
 [&lt;BufferSource>]: https://developer.mozilla.org/en-US/docs/Web/API/BufferSource
+[&lt;Error>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 [&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
