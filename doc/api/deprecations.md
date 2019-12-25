@@ -2297,7 +2297,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 `process.binding('uv').errname()` is deprecated. Please use
 [`util.getSystemErrorName()`][] instead.
