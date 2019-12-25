@@ -3,15 +3,16 @@
 
 // This test ensures that search throws errors appropriately
 
-const common = require('../common');
+require('../common');
 
+const assert = require('assert');
 const resolve = require('internal/modules/esm/default_resolve');
 
-common.expectsError(
+assert.throws(
   () => resolve('target', undefined),
   {
     code: 'ERR_MODULE_NOT_FOUND',
-    type: Error,
+    name: 'Error',
     message: /Cannot find package 'target'/
   }
 );

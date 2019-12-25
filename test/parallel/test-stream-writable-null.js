@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
@@ -11,14 +11,14 @@ class MyWritable extends stream.Writable {
   }
 }
 
-common.expectsError(
+assert.throws(
   () => {
     const m = new MyWritable({ objectMode: true });
     m.write(null, (err) => assert.ok(err));
   },
   {
     code: 'ERR_STREAM_NULL_VALUES',
-    type: TypeError,
+    name: 'TypeError',
     message: 'May not write null values to stream'
   }
 );
@@ -28,14 +28,14 @@ common.expectsError(
   m.write(null, assert);
 }
 
-common.expectsError(
+assert.throws(
   () => {
     const m = new MyWritable();
     m.write(false, (err) => assert.ok(err));
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   }
 );
 

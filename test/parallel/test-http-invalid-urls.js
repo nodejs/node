@@ -4,6 +4,7 @@
 
 const common = require('../common');
 
+const assert = require('assert');
 const http = require('http');
 const modules = { 'http': http };
 
@@ -19,8 +20,8 @@ function test(host) {
         `${module}.${fn} should not connect to ${host}`
       );
       const throws = () => { modules[module][fn](host, doNotCall); };
-      common.expectsError(throws, {
-        type: TypeError,
+      assert.throws(throws, {
+        name: 'TypeError',
         code: 'ERR_INVALID_URL'
       });
     });

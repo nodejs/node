@@ -5,6 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 // Monkey-patch SecureContext
 const { internalBinding } = require('internal/test/binding');
 const binding = internalBinding('crypto');
@@ -19,7 +20,7 @@ binding.SecureContext = function() {
 const tls = require('tls');
 
 {
-  common.expectsError(
+  assert.throws(
     () => { tls.createSecureContext({ clientCertEngine: 'Cannonmouth' }); },
     {
       code: 'ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED',

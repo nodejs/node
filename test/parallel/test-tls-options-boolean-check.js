@@ -6,6 +6,7 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const tls = require('tls');
 
 function toArrayBuffer(buf) {
@@ -81,11 +82,11 @@ const caArrDataView = toDataView(caCert);
   [true, [certBuff, certBuff2]]
 ].forEach(([key, cert, index]) => {
   const val = index === undefined ? key : key[index];
-  common.expectsError(() => {
+  assert.throws(() => {
     tls.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "options.key" property must be of type string or an ' +
              'instance of Buffer, TypedArray, or DataView.' +
              common.invalidArgTypeHelper(val)
@@ -107,11 +108,11 @@ const caArrDataView = toDataView(caCert);
   [[keyStr, keyStr2], true]
 ].forEach(([key, cert, index]) => {
   const val = index === undefined ? cert : cert[index];
-  common.expectsError(() => {
+  assert.throws(() => {
     tls.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "options.cert" property must be of type string or an ' +
              'instance of Buffer, TypedArray, or DataView.' +
              common.invalidArgTypeHelper(val)
@@ -142,11 +143,11 @@ const caArrDataView = toDataView(caCert);
   [keyBuff, certBuff, [caCert, true], 1]
 ].forEach(([key, cert, ca, index]) => {
   const val = index === undefined ? ca : ca[index];
-  common.expectsError(() => {
+  assert.throws(() => {
     tls.createServer({ key, cert, ca });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "options.ca" property must be of type string or an instance' +
              ' of Buffer, TypedArray, or DataView.' +
              common.invalidArgTypeHelper(val)

@@ -68,11 +68,11 @@ r._read = function(n) {
 };
 
 function pushError() {
-  common.expectsError(function() {
+  assert.throws(() => {
     r.push(Buffer.allocUnsafe(1));
   }, {
     code: 'ERR_STREAM_PUSH_AFTER_EOF',
-    type: Error,
+    name: 'Error',
     message: 'stream.push() after EOF'
   });
 }

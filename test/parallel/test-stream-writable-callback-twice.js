@@ -6,7 +6,7 @@ const stream = new Writable({
 });
 
 stream.on('error', common.expectsError({
-  type: Error,
+  name: 'Error',
   message: 'Callback called multiple times',
   code: 'ERR_MULTIPLE_CALLBACK'
 }));

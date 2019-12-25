@@ -104,10 +104,10 @@ server.listen(
       ].forEach((i) => {
         const settings = {};
         settings[i[0]] = i[1];
-        common.expectsError(
+        assert.throws(
           () => client.settings(settings),
           {
-            type: RangeError,
+            name: 'RangeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
             message: `Invalid value for setting "${i[0]}": ${i[1]}`
           }
@@ -116,10 +116,10 @@ server.listen(
 
       // Error checks for enablePush
       [1, {}, 'test', [], null, Infinity, NaN].forEach((i) => {
-        common.expectsError(
+        assert.throws(
           () => client.settings({ enablePush: i }),
           {
-            type: TypeError,
+            name: 'TypeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
             message: `Invalid value for setting "enablePush": ${i}`
           }

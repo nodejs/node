@@ -273,35 +273,35 @@ assert.throws(
 
 [1, true, NaN, null, undefined, {}, []].forEach((i) => {
   const buf = Buffer.alloc(10);
-  common.expectsError(
+  assert.throws(
     () => crypto.randomFillSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => crypto.randomFill(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => crypto.randomFill(buf, 0, 10, i),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
       message: `Callback must be a function. Received ${inspect(i)}`
     });
 });
 
 [1, true, NaN, null, {}, []].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => crypto.randomBytes(1, i),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
       message: `Callback must be a function. Received ${inspect(i)}`
     }
   );

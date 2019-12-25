@@ -16,14 +16,14 @@ const server = h2.createServer((request, response) => {
   response.write(servExpect);
 
   // Callback must be specified (and be a function)
-  common.expectsError(
+  assert.throws(
     () => response.createPushResponse({
       ':path': '/pushed',
       ':method': 'GET'
     }, undefined),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Callback must be a function. Received undefined'
     }
   );

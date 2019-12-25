@@ -1,60 +1,61 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const vm = require('vm');
 
 const invalidArgType = {
-  type: TypeError,
+  name: 'TypeError',
   code: 'ERR_INVALID_ARG_TYPE'
 };
 
 const outOfRange = {
-  type: RangeError,
+  name: 'RangeError',
   code: 'ERR_OUT_OF_RANGE'
 };
 
-common.expectsError(() => {
+assert.throws(() => {
   new vm.Script('void 0', 42);
 }, invalidArgType);
 
 [null, {}, [1], 'bad', true].forEach((value) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     new vm.Script('void 0', { lineOffset: value });
   }, invalidArgType);
 
-  common.expectsError(() => {
+  assert.throws(() => {
     new vm.Script('void 0', { columnOffset: value });
   }, invalidArgType);
 });
 
 [0.1, 2 ** 32].forEach((value) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     new vm.Script('void 0', { lineOffset: value });
   }, outOfRange);
 
-  common.expectsError(() => {
+  assert.throws(() => {
     new vm.Script('void 0', { columnOffset: value });
   }, outOfRange);
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   new vm.Script('void 0', { lineOffset: Number.MAX_SAFE_INTEGER });
 }, outOfRange);
 
-common.expectsError(() => {
+assert.throws(() => {
   new vm.Script('void 0', { columnOffset: Number.MAX_SAFE_INTEGER });
 }, outOfRange);
 
-common.expectsError(() => {
+assert.throws(() => {
   new vm.Script('void 0', { filename: 123 });
 }, invalidArgType);
 
-common.expectsError(() => {
+assert.throws(() => {
   new vm.Script('void 0', { produceCachedData: 1 });
 }, invalidArgType);
 
 [[0], {}, true, 'bad', 42].forEach((value) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     new vm.Script('void 0', { cachedData: value });
   }, invalidArgType);
 });
@@ -64,15 +65,15 @@ common.expectsError(() => {
   const sandbox = vm.createContext();
 
   function assertErrors(options, errCheck) {
-    common.expectsError(() => {
+    assert.throws(() => {
       script.runInThisContext(options);
     }, errCheck);
 
-    common.expectsError(() => {
+    assert.throws(() => {
       script.runInContext(sandbox, options);
     }, errCheck);
 
-    common.expectsError(() => {
+    assert.throws(() => {
       script.runInNewContext({}, options);
     }, errCheck);
   }

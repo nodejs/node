@@ -23,7 +23,7 @@ server.on('stream', common.mustCall((stream, headers) => {
       push.respond();
       // Cannot write to push() anymore
       push.on('error', common.expectsError({
-        type: Error,
+        name: 'Error',
         code: 'ERR_STREAM_WRITE_AFTER_END',
         message: 'write after end'
       }));

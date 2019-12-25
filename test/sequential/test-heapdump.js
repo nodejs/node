@@ -25,9 +25,9 @@ process.chdir(tmpdir.path);
 }
 
 [1, true, {}, [], null, Infinity, NaN].forEach((i) => {
-  common.expectsError(() => writeHeapSnapshot(i), {
+  assert.throws(() => writeHeapSnapshot(i), {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "path" argument must be of type string or an instance of ' +
              'Buffer or URL.' +
              common.invalidArgTypeHelper(i)

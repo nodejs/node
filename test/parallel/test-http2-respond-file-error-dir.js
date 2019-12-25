@@ -14,7 +14,7 @@ server.on('stream', (stream) => {
     onError(err) {
       common.expectsError({
         code: 'ERR_HTTP2_SEND_FILE',
-        type: Error,
+        name: 'Error',
         message: 'Directories cannot be sent'
       })(err);
 

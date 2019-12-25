@@ -255,11 +255,11 @@ const values = [
 {
   // Verify that non-function inputs throw.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       callbackify(value);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "original" argument must be of type function.' +
                common.invalidArgTypeHelper(value)
     });
@@ -277,11 +277,11 @@ const values = [
   // Verify that the last argument to the callbackified function is a function.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
     args.push(value);
-    common.expectsError(() => {
+    assert.throws(() => {
       cb(...args);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The last argument must be of type function.' +
                common.invalidArgTypeHelper(value)
     });

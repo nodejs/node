@@ -48,16 +48,16 @@ const assert = require('assert');
 });
 
 // Test that kill throws an error for unknown signal names
-common.expectsError(() => process.kill(0, 'test'), {
+assert.throws(() => process.kill(0, 'test'), {
   code: 'ERR_UNKNOWN_SIGNAL',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Unknown signal: test'
 });
 
 // Test that kill throws an error for invalid signal numbers
-common.expectsError(() => process.kill(0, 987), {
+assert.throws(() => process.kill(0, 987), {
   code: 'EINVAL',
-  type: Error,
+  name: 'Error',
   message: 'kill EINVAL'
 });
 

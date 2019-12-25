@@ -88,11 +88,11 @@ for (const testCase of cases) {
 }
 
 [false, 1, {}, [], null, undefined].forEach((input) => {
-  common.expectsError(
+  assert.throws(
     () => fs.watch(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });

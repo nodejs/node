@@ -68,25 +68,25 @@ assert.strictEqual(stringToFlags('sa+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')
   .forEach(function(flags) {
-    common.expectsError(
+    assert.throws(
       () => stringToFlags(flags),
-      { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+      { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
     );
   });
 
-common.expectsError(
+assert.throws(
   () => stringToFlags({}),
-  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+  { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
 );
 
-common.expectsError(
+assert.throws(
   () => stringToFlags(true),
-  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+  { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
 );
 
-common.expectsError(
+assert.throws(
   () => stringToFlags(null),
-  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+  { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
 );
 
 if (common.isLinux || common.isOSX) {

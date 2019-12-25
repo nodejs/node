@@ -35,21 +35,21 @@ const enabledCategories = getEnabledCategoriesFromCommandLine();
 
 assert.strictEqual(getEnabledCategories(), enabledCategories);
 [1, 'foo', true, false, null, undefined].forEach((i) => {
-  common.expectsError(() => createTracing(i), {
+  assert.throws(() => createTracing(i), {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
-  common.expectsError(() => createTracing({ categories: i }), {
+  assert.throws(() => createTracing({ categories: i }), {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 });
 
-common.expectsError(
+assert.throws(
   () => createTracing({ categories: [] }),
   {
     code: 'ERR_TRACE_EVENTS_CATEGORY_REQUIRED',
-    type: TypeError
+    name: 'TypeError'
   }
 );
 

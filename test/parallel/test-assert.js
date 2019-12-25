@@ -409,11 +409,11 @@ assert.throws(
 {
   // Verify that throws() and doesNotThrow() throw on non-functions.
   const testBlockTypeError = (method, fn) => {
-    common.expectsError(
+    assert.throws(
       () => method(fn),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "fn" argument must be of type function.' +
                  common.invalidArgTypeHelper(fn)
       }
@@ -542,7 +542,7 @@ a.throws(
   // Test setting the limit to zero and that assert.strict works properly.
   const tmpLimit = Error.stackTraceLimit;
   Error.stackTraceLimit = 0;
-  common.expectsError(
+  assert.throws(
     () => {
       assert.ok(
         typeof 123 === 'string'
@@ -550,7 +550,7 @@ a.throws(
     },
     {
       code: 'ERR_ASSERTION',
-      type: assert.AssertionError,
+      constructor: assert.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
                "assert.ok(\n    typeof 123 === 'string'\n  )\n"
     }
@@ -716,32 +716,32 @@ a.throws(
   /* eslint-enable no-restricted-properties */
 }
 
-common.expectsError(
+assert.throws(
   () => assert.ok(null),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     generatedMessage: true,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
              'assert.ok(null)\n'
   }
 );
-common.expectsError(
+assert.throws(
   () => assert(typeof 123n === 'string'),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     generatedMessage: true,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
              "assert(typeof 123n === 'string')\n"
   }
 );
 
-common.expectsError(
+assert.throws(
   () => assert(false, Symbol('foo')),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     generatedMessage: false,
     message: 'Symbol(foo)'
   }
@@ -757,20 +757,20 @@ common.expectsError(
       (Buffer.from('test') instanceof Error)
     );
   }
-  common.expectsError(
+  assert.throws(
     () => throwErr(),
     {
       code: 'ERR_ASSERTION',
-      type: assert.AssertionError,
+      constructor: assert.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
                "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
     }
   );
-  common.expectsError(
+  assert.throws(
     () => throwErr(),
     {
       code: 'ERR_ASSERTION',
-      type: assert.AssertionError,
+      constructor: assert.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
                "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
     }
@@ -778,7 +778,7 @@ common.expectsError(
   fs.close = tmp;
 }
 
-common.expectsError(
+assert.throws(
   () => {
     a(
       (() => 'string')()
@@ -790,7 +790,7 @@ common.expectsError(
   },
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n' +
              '  a(\n' +
              '    (() => \'string\')()\n' +
@@ -802,7 +802,7 @@ common.expectsError(
   }
 );
 
-common.expectsError(
+assert.throws(
   () => {
     a(
       (() => 'string')()
@@ -814,7 +814,7 @@ common.expectsError(
   },
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n' +
              '  a(\n' +
              '    (() => \'string\')()\n' +
@@ -827,7 +827,7 @@ common.expectsError(
 );
 
 /* eslint-disable indent */
-common.expectsError(() => {
+assert.throws(() => {
 a((
   () => 'string')() ===
 123 instanceof
@@ -835,7 +835,7 @@ Buffer
 );
 }, {
   code: 'ERR_ASSERTION',
-  type: assert.AssertionError,
+  constructor: assert.AssertionError,
   message: 'The expression evaluated to a falsy value:\n\n' +
            '  a((\n' +
            '    () => \'string\')() ===\n' +
@@ -846,81 +846,81 @@ Buffer
 );
 /* eslint-enable indent */
 
-common.expectsError(
+assert.throws(
   () => {
     assert(true); assert(null, undefined);
   },
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
              'assert(null, undefined)\n'
   }
 );
 
-common.expectsError(
+assert.throws(
   () => {
     assert
      .ok(null, undefined);
   },
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
              'ok(null, undefined)\n'
   }
 );
 
-common.expectsError(
+assert.throws(
   // eslint-disable-next-line dot-notation, quotes
   () => assert['ok']["apply"](null, [0]),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
              'assert[\'ok\']["apply"](null, [0])\n'
   }
 );
 
-common.expectsError(
+assert.throws(
   () => {
     const wrapper = (fn, value) => fn(value);
     wrapper(assert, false);
   },
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n  fn(value)\n'
   }
 );
 
-common.expectsError(
+assert.throws(
   () => assert.ok.call(null, 0),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n  ' +
              'assert.ok.call(null, 0)\n',
     generatedMessage: true
   }
 );
 
-common.expectsError(
+assert.throws(
   () => assert.ok.call(null, 0, 'test'),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'test',
     generatedMessage: false
   }
 );
 
 // Works in eval.
-common.expectsError(
+assert.throws(
   () => new Function('assert', 'assert(1 === 2);')(assert),
   {
     code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
+    constructor: assert.AssertionError,
     message: 'The expression evaluated to a falsy value:\n\n  assert(1 === 2)\n'
   }
 );
@@ -932,11 +932,11 @@ assert.throws(
   }
 );
 
-common.expectsError(
+assert.throws(
   () => assert.throws(() => {}, 'Error message', 'message'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "error" argument must be of type function or ' +
              'an instance of Error, RegExp, or Object. Received type string ' +
              "('Error message')"
@@ -1018,19 +1018,19 @@ common.expectsError(
     }
   );
 
-  common.expectsError(
+  assert.throws(
     () => assert.throws(() => { throw new Error(); }, { foo: 'bar' }, 'foobar'),
     {
-      type: assert.AssertionError,
+      constructor: assert.AssertionError,
       code: 'ERR_ASSERTION',
       message: 'foobar'
     }
   );
 
-  common.expectsError(
+  assert.throws(
     () => a.doesNotThrow(() => { throw new Error(); }, { foo: 'bar' }),
     {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "expected" argument must be of type function or an ' +
                'instance of RegExp. Received an instance of Object'

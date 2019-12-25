@@ -23,11 +23,11 @@ server.on('stream', common.mustCall((stream, headers) => {
       });
       push.end('pushed by server data');
 
-      common.expectsError(() => {
+      assert.throws(() => {
         push.pushStream({}, common.mustNotCall());
       }, {
         code: 'ERR_HTTP2_NESTED_PUSH',
-        type: Error
+        name: 'Error'
       });
 
       stream.end('test');

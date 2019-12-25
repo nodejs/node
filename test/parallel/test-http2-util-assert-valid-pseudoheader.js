@@ -1,7 +1,8 @@
 // Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 
 // Tests the assertValidPseudoHeader function that is used within the
 // mapToHeaders function. The assert function is not exported so we
@@ -16,8 +17,8 @@ mapToHeaders({ ':authority': 'a' });
 mapToHeaders({ ':scheme': 'a' });
 mapToHeaders({ ':method': 'a' });
 
-common.expectsError(() => mapToHeaders({ ':foo': 'a' }), {
+assert.throws(() => mapToHeaders({ ':foo': 'a' }), {
   code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
-  type: TypeError,
+  name: 'TypeError',
   message: '":foo" is an invalid pseudoheader or is used incorrectly'
 });

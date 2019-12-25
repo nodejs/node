@@ -19,12 +19,12 @@ myEE.prependOnceListener('foo',
 myEE.emit('foo');
 
 // Verify that the listener must be a function
-common.expectsError(() => {
+assert.throws(() => {
   const ee = new EventEmitter();
   ee.prependOnceListener('foo', null);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The "listener" argument must be of type function. ' +
            'Received null'
 });

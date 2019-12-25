@@ -20,7 +20,7 @@ server.on('stream', (stream) => {
     onError(err) {
       common.expectsError({
         code: 'ENOENT',
-        type: Error,
+        name: 'Error',
         message: `ENOENT: no such file or directory, open '${file}'`
       })(err);
 

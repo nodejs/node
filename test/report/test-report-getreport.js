@@ -31,7 +31,7 @@ common.expectWarning('ExperimentalWarning',
 
 // Test with an invalid error argument.
 [null, 1, Symbol(), function() {}, 'foo'].forEach((error) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     process.report.getReport(error);
   }, { code: 'ERR_INVALID_ARG_TYPE' });
 });

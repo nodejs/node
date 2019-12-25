@@ -66,12 +66,12 @@ const { spawn } = require('child_process');
 }
 
 // Assert only one IPC pipe allowed.
-common.expectsError(
+assert.throws(
   () => {
     spawn(
       ...common.pwdCommand,
       { stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc'] }
     );
   },
-  { code: 'ERR_IPC_ONE_PIPE', type: Error }
+  { code: 'ERR_IPC_ONE_PIPE', name: 'Error' }
 );

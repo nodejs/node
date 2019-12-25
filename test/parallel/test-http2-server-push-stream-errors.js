@@ -28,7 +28,7 @@ const specificTests = [
     ngError: constants.NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE,
     error: {
       code: 'ERR_HTTP2_OUT_OF_STREAMS',
-      type: Error,
+      name: 'Error',
       message: 'No stream ID is available because ' +
                'maximum stream ID has been reached'
     },
@@ -38,7 +38,7 @@ const specificTests = [
     ngError: constants.NGHTTP2_ERR_STREAM_CLOSED,
     error: {
       code: 'ERR_HTTP2_INVALID_STREAM',
-      type: Error
+      name: 'Error'
     },
     type: 'stream'
   },
@@ -52,7 +52,7 @@ const genericTests = Object.getOwnPropertyNames(constants)
     ngError: constants[key],
     error: {
       code: 'ERR_HTTP2_ERROR',
-      type: NghttpError,
+      constructor: NghttpError,
       name: 'Error',
       message: nghttp2ErrorString(constants[key])
     },
