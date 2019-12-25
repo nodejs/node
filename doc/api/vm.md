@@ -40,7 +40,7 @@ console.log(context.y); // 17
 console.log(x); // 1; y is not defined.
 ```
 
-## Class: vm.Script
+## Class: `vm.Script`
 <!-- YAML
 added: v0.3.1
 -->
@@ -48,7 +48,7 @@ added: v0.3.1
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific contexts.
 
-### Constructor: new vm.Script(code\[, options\])
+### Constructor: `new vm.Script(code[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -99,7 +99,7 @@ Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
 any global object; rather, it is bound before each run, just for that run.
 
-### script.createCachedData()
+### `script.createCachedData()`
 <!-- YAML
 added: v10.6.0
 -->
@@ -126,7 +126,7 @@ script.runInThisContext();
 const cacheWithX = script.createCachedData();
 ```
 
-### script.runInContext(contextifiedObject\[, options\])
+### `script.runInContext(contextifiedObject[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -184,7 +184,7 @@ Using the `timeout` or `breakOnSigint` options will result in new event loops
 and corresponding threads being started, which have a non-zero performance
 overhead.
 
-### script.runInNewContext(\[contextObject\[, options\]\])
+### `script.runInNewContext([contextObject[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -251,7 +251,7 @@ console.log(util.inspect(contexts));
 // [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 ```
 
-### script.runInThisContext(\[options\])
+### `script.runInThisContext([options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -297,7 +297,7 @@ console.log(globalVar);
 // 1000
 ```
 
-## Class: vm.Module
+## Class: `vm.Module`
 <!-- YAML
 added: v13.0.0
 -->
@@ -400,7 +400,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 })();
 ```
 
-### module.dependencySpecifiers
+### `module.dependencySpecifiers`
 
 * {string[]}
 
@@ -410,7 +410,7 @@ to disallow any changes to it.
 Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
 the ECMAScript specification.
 
-### module.error
+### `module.error`
 
 * {any}
 
@@ -424,7 +424,7 @@ exception due to possible ambiguity with `throw undefined;`.
 Corresponds to the `[[EvaluationError]]` field of [Cyclic Module Record][]s
 in the ECMAScript specification.
 
-### module.evaluate(\[options\])
+### `module.evaluate([options])`
 
 * `options` {Object}
   * `timeout` {integer} Specifies the number of milliseconds to evaluate
@@ -454,7 +454,7 @@ This method cannot be called while the module is being evaluated
 Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
 Record][]s in the ECMAScript specification.
 
-### module.link(linker)
+### `module.link(linker)`
 
 * `linker` {Function}
   * `specifier` {string} The specifier of the requested module:
@@ -502,7 +502,7 @@ specification.
 Corresponds to the [Link() concrete method][] field of [Cyclic Module
 Record][]s in the ECMAScript specification.
 
-### module.namespace
+### `module.namespace`
 
 * {Object}
 
@@ -512,7 +512,7 @@ The namespace object of the module. This is only available after linking
 Corresponds to the [GetModuleNamespace][] abstract operation in the ECMAScript
 specification.
 
-### module.status
+### `module.status`
 
 * {string}
 
@@ -538,13 +538,13 @@ Other than `'errored'`, this status string corresponds to the specification's
 `'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
 value that is not `undefined`.
 
-### module.identifier
+### `module.identifier`
 
 * {string}
 
 The identifier of the current module, as set in the constructor.
 
-## Class: vm.SourceTextModule
+## Class: `vm.SourceTextModule`
 <!-- YAML
 added: v9.6.0
 -->
@@ -559,7 +559,7 @@ flag enabled.*
 The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
 defined in the ECMAScript specification.
 
-### Constructor: new vm.SourceTextModule(code\[, options\])
+### Constructor: `new vm.SourceTextModule(code[, options])`
 
 * `code` {string} JavaScript Module code to parse
 * `options`
@@ -621,7 +621,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 })();
 ```
 
-## Class: vm.SyntheticModule
+## Class: `vm.SyntheticModule`
 <!-- YAML
 added: v13.0.0
 -->
@@ -650,7 +650,7 @@ const module = new vm.SyntheticModule(['default'], function() {
 // Use `module` in linking...
 ```
 
-### Constructor: new vm.SyntheticModule(exportNames, evaluateCallback\[, options\])
+### Constructor: `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
 <!-- YAML
 added: v13.0.0
 -->
@@ -670,7 +670,7 @@ Objects assigned to the exports of this instance may allow importers of
 the module to access information outside the specified `context`. Use
 `vm.runInContext()` to create objects in a specific context.
 
-### syntheticModule.setExport(name, value)
+### `syntheticModule.setExport(name, value)`
 <!-- YAML
 added: v13.0.0
 -->
@@ -697,7 +697,7 @@ const vm = require('vm');
 })();
 ```
 
-## vm.compileFunction(code\[, params\[, options\]\])
+## `vm.compileFunction(code[, params[, options]])`
 <!-- YAML
 added: v10.10.0
 -->
@@ -728,7 +728,7 @@ Compiles the given code into the provided context (if no context is
 supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
-## vm.createContext(\[contextObject\[, options\]\])
+## `vm.createContext([contextObject[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -795,7 +795,7 @@ context.
 The provided `name` and `origin` of the context are made visible through the
 Inspector API.
 
-## vm.isContext(object)
+## `vm.isContext(object)`
 <!-- YAML
 added: v0.11.7
 -->
@@ -806,7 +806,7 @@ added: v0.11.7
 Returns `true` if the given `oject` object has been [contextified][] using
 [`vm.createContext()`][].
 
-## vm.runInContext(code, contextifiedObject\[, options\])
+## `vm.runInContext(code, contextifiedObject[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -885,7 +885,7 @@ console.log(util.inspect(contextObject));
 // { globalVar: 1024 }
 ```
 
-## vm.runInNewContext(code\[, contextObject\[, options\]\])
+## `vm.runInNewContext(code[, contextObject[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -982,7 +982,7 @@ console.log(util.inspect(contextObject));
 // { animal: 'cat', count: 3, name: 'kitty' }
 ```
 
-## vm.runInThisContext(code\[, options\])
+## `vm.runInThisContext(code[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -1116,7 +1116,7 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `contextObject` is what this document refers to as
 "contextifying" the object.
 
-## Timeout limitations when using process.nextTick(), Promises, and queueMicrotask()
+## Timeout limitations when using `process.nextTick()`, Promises, and `queueMicrotask()`
 
 Because of the internal mechanics of how the `process.nextTick()` queue and
 the microtask queue that underlies Promises are implemented within V8 and
