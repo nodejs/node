@@ -43,7 +43,7 @@ console.log(sandbox.y); // 17
 console.log(x); // 1; y is not defined.
 ```
 
-## Class: vm.Script
+## Class: `vm.Script`
 <!-- YAML
 added: v0.3.1
 -->
@@ -51,7 +51,7 @@ added: v0.3.1
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific sandboxes (or "contexts").
 
-### Constructor: new vm.Script(code\[, options\])
+### Constructor: `new vm.Script(code[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -103,7 +103,7 @@ Creating a new `vm.Script` object compiles `code` but does not run it. The
 compiled `vm.Script` can be run later multiple times. The `code` is not bound to
 any global object; rather, it is bound before each run, just for that run.
 
-### script.createCachedData()
+### `script.createCachedData()`
 <!-- YAML
 added: v10.6.0
 -->
@@ -130,7 +130,7 @@ script.runInThisContext();
 const cacheWithX = script.createCachedData();
 ```
 
-### script.runInContext(contextifiedSandbox\[, options\])
+### `script.runInContext(contextifiedSandbox[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -188,7 +188,7 @@ Using the `timeout` or `breakOnSigint` options will result in new event loops
 and corresponding threads being started, which have a non-zero performance
 overhead.
 
-### script.runInNewContext(\[sandbox\[, options\]\])
+### `script.runInNewContext([sandbox[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -255,7 +255,7 @@ console.log(util.inspect(sandboxes));
 // [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 ```
 
-### script.runInThisContext(\[options\])
+### `script.runInThisContext([options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -301,7 +301,7 @@ console.log(globalVar);
 // 1000
 ```
 
-## Class: vm.SourceTextModule
+## Class: `vm.SourceTextModule`
 <!-- YAML
 added: v9.6.0
 -->
@@ -404,7 +404,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 })();
 ```
 
-### Constructor: new vm.SourceTextModule(code\[, options\])
+### Constructor: `new vm.SourceTextModule(code[, options])`
 
 * `code` {string} JavaScript Module code to parse
 * `options`
@@ -468,7 +468,7 @@ const contextifiedSandbox = vm.createContext({ secret: 42 });
 })();
 ```
 
-### module.dependencySpecifiers
+### `module.dependencySpecifiers`
 
 * {string[]}
 
@@ -478,7 +478,7 @@ to disallow any changes to it.
 Corresponds to the `[[RequestedModules]]` field of
 [Source Text Module Record][]s in the ECMAScript specification.
 
-### module.error
+### `module.error`
 
 * {any}
 
@@ -492,7 +492,7 @@ exception due to possible ambiguity with `throw undefined;`.
 Corresponds to the `[[EvaluationError]]` field of [Source Text Module Record][]s
 in the ECMAScript specification.
 
-### module.evaluate(\[options\])
+### `module.evaluate([options])`
 
 * `options` {Object}
   * `timeout` {integer} Specifies the number of milliseconds to evaluate
@@ -522,7 +522,7 @@ This method cannot be called while the module is being evaluated
 Corresponds to the [Evaluate() concrete method][] field of [Source Text Module
 Record][]s in the ECMAScript specification.
 
-### module.link(linker)
+### `module.link(linker)`
 
 * `linker` {Function}
   * `specifier` {string} The specifier of the requested module:
@@ -571,7 +571,7 @@ specification.
 Corresponds to the [Link() concrete method][] field of [Source Text Module
 Record][]s in the ECMAScript specification.
 
-### module.namespace
+### `module.namespace`
 
 * {Object}
 
@@ -581,7 +581,7 @@ The namespace object of the module. This is only available after linking
 Corresponds to the [GetModuleNamespace][] abstract operation in the ECMAScript
 specification.
 
-### module.status
+### `module.status`
 
 * {string}
 
@@ -607,13 +607,13 @@ Other than `'errored'`, this status string corresponds to the specification's
 `'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
 value that is not `undefined`.
 
-### module.identifier
+### `module.identifier`
 
 * {string}
 
 The identifier of the current module, as set in the constructor.
 
-## vm.compileFunction(code\[, params\[, options\]\])
+## `vm.compileFunction(code[, params[, options]])`
 <!-- YAML
 added: v10.10.0
 -->
@@ -644,7 +644,7 @@ Compiles the given code into the provided context/sandbox (if no context is
 supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
-## vm.createContext(\[sandbox\[, options\]\])
+## `vm.createContext([sandbox[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -711,7 +711,7 @@ of that sandbox.
 The provided `name` and `origin` of the context are made visible through the
 Inspector API.
 
-## vm.isContext(sandbox)
+## `vm.isContext(sandbox)`
 <!-- YAML
 added: v0.11.7
 -->
@@ -722,7 +722,7 @@ added: v0.11.7
 Returns `true` if the given `sandbox` object has been [contextified][] using
 [`vm.createContext()`][].
 
-## vm.runInContext(code, contextifiedSandbox\[, options\])
+## `vm.runInContext(code, contextifiedSandbox[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -802,7 +802,7 @@ console.log(util.inspect(sandbox));
 // { globalVar: 1024 }
 ```
 
-## vm.runInNewContext(code\[, sandbox\[, options\]\])
+## `vm.runInNewContext(code[, sandbox[, options]])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -900,7 +900,7 @@ console.log(util.inspect(sandbox));
 // { animal: 'cat', count: 3, name: 'kitty' }
 ```
 
-## vm.runInThisContext(code\[, options\])
+## `vm.runInThisContext(code[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -1035,7 +1035,7 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
-## Timeout limitations when using process.nextTick(), Promises, and queueMicrotask()
+## Timeout limitations when using `process.nextTick()`, Promises, and `queueMicrotask()`
 
 Because of the internal mechanics of how the `process.nextTick()` queue and
 the microtask queue that underlies Promises are implemented within V8 and
