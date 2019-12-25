@@ -15,13 +15,13 @@ server.listen(0, common.mustCall(function() {
     conn.on('error', common.expectsError({
       code: 'ERR_STREAM_DESTROYED',
       message: 'Cannot call write after a stream was destroyed',
-      type: Error
+      name: 'Error'
     }));
 
     conn.write(Buffer.from('kaboom'), common.expectsError({
       code: 'ERR_STREAM_DESTROYED',
       message: 'Cannot call write after a stream was destroyed',
-      type: Error
+      name: 'Error'
     }));
     server.close();
   }));

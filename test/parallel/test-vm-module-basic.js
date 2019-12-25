@@ -115,35 +115,35 @@ const util = require('util');
 
 // Check the impossibility of creating an abstract instance of the Module.
 {
-  common.expectsError(() => new Module(), {
+  assert.throws(() => new Module(), {
     message: 'Module is not a constructor',
-    type: TypeError
+    name: 'TypeError'
   });
 }
 
 // Check to throws invalid exportNames
 {
-  common.expectsError(() => new SyntheticModule(undefined, () => {}, {}), {
+  assert.throws(() => new SyntheticModule(undefined, () => {}, {}), {
     message: 'The "exportNames" argument must be an Array of strings.' +
       ' Received undefined',
-    type: TypeError
+    name: 'TypeError'
   });
 }
 
 // Check to throws invalid evaluateCallback
 {
-  common.expectsError(() => new SyntheticModule([], undefined, {}), {
+  assert.throws(() => new SyntheticModule([], undefined, {}), {
     message: 'The "evaluateCallback" argument must be of type function.' +
       ' Received undefined',
-    type: TypeError
+    name: 'TypeError'
   });
 }
 
 // Check to throws invalid options
 {
-  common.expectsError(() => new SyntheticModule([], () => {}, null), {
+  assert.throws(() => new SyntheticModule([], () => {}, null), {
     message: 'The "options" argument must be of type object.' +
       ' Received null',
-    type: TypeError
+    name: 'TypeError'
   });
 }

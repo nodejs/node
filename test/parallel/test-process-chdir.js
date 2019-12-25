@@ -40,5 +40,5 @@ const err = {
   code: 'ERR_INVALID_ARG_TYPE',
   message: /The "directory" argument must be of type string/
 };
-common.expectsError(function() { process.chdir({}); }, err);
-common.expectsError(function() { process.chdir(); }, err);
+assert.throws(function() { process.chdir({}); }, err);
+assert.throws(function() { process.chdir(); }, err);

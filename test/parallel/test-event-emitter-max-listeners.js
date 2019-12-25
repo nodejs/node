@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const events = require('events');
 const { inspect } = require('util');
 const e = new events.EventEmitter();
@@ -33,21 +34,21 @@ e.setMaxListeners(42);
 const throwsObjs = [NaN, -1, 'and even this'];
 
 for (const obj of throwsObjs) {
-  common.expectsError(
+  assert.throws(
     () => e.setMaxListeners(obj),
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
+      name: 'RangeError',
       message: 'The value of "n" is out of range. ' +
                `It must be a non-negative number. Received ${inspect(obj)}`
     }
   );
 
-  common.expectsError(
+  assert.throws(
     () => events.defaultMaxListeners = obj,
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
+      name: 'RangeError',
       message: 'The value of "defaultMaxListeners" is out of range. ' +
                `It must be a non-negative number. Received ${inspect(obj)}`
     }

@@ -19,7 +19,7 @@ const key = 'test-key';
   list._request('msg', 'cmd', false, common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
-      type: Error,
+      name: 'Error',
       message: 'Child closed before reply received'
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
@@ -61,7 +61,7 @@ const key = 'test-key';
   list._request('msg', 'cmd', false, common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
-      type: Error,
+      name: 'Error',
       message: 'Child closed before reply received'
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
@@ -140,7 +140,7 @@ const key = 'test-key';
   list.getConnections(common.mustCall((err) => {
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
-      type: Error,
+      name: 'Error',
       message: 'Child closed before reply received'
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);

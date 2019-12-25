@@ -352,11 +352,11 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
   {},
   []
 ].forEach((val) => {
-  common.expectsError(
+  assert.throws(
     () => b.indexOf(val),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "value" argument must be one of type number or string ' +
                'or an instance of Buffer or Uint8Array.' +
                common.invalidArgTypeHelper(val)

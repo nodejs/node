@@ -86,12 +86,12 @@ function testRejectSlice() {
 testRejectSlice();
 
 // It should throw on non-Buffer cachedData
-common.expectsError(() => {
+assert.throws(() => {
   new vm.Script('function abc() {}', {
     cachedData: 'ohai'
   });
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: /must be an instance of Buffer, TypedArray, or DataView/
 });

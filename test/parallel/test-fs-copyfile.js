@@ -101,41 +101,41 @@ fs.copyFile(src, dest, common.mustCall((err) => {
 }));
 
 // Throws if callback is not a function.
-common.expectsError(() => {
+assert.throws(() => {
   fs.copyFile(src, dest, 0, 0);
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  type: TypeError
+  name: 'TypeError'
 });
 
 // Throws if the source path is not a string.
 [false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.copyFile(i, dest, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.copyFile(src, i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.copyFileSync(i, dest),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.copyFileSync(src, i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });

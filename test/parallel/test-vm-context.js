@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
@@ -44,11 +44,11 @@ assert.strictEqual(context.foo, 3);
 assert.strictEqual(context.thing, 'lala');
 
 // Issue GH-227:
-common.expectsError(() => {
+assert.throws(() => {
   vm.runInNewContext('', null, 'some.js');
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError
+  name: 'TypeError'
 });
 
 // Issue GH-1140:
@@ -66,12 +66,12 @@ assert.strictEqual(gh1140Exception.toString(), 'Error');
 
 const nonContextualObjectError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: /must be of type object/
 };
 const contextifiedObjectError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: /The "contextifiedObject" argument must be an vm\.Context/
 };
 
@@ -84,8 +84,8 @@ const contextifiedObjectError = {
   [{}, contextifiedObjectError],
   [[], contextifiedObjectError]
 ].forEach((e) => {
-  common.expectsError(() => { script.runInContext(e[0]); }, e[1]);
-  common.expectsError(() => { vm.runInContext('', e[0]); }, e[1]);
+  assert.throws(() => { script.runInContext(e[0]); }, e[1]);
+  assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);
 });
 
 // Issue GH-693:

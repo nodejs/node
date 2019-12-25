@@ -26,11 +26,11 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
     message: /The "pid" argument must be of type number\./
   };
 
-  common.expectsError(() => {
+  assert.throws(() => {
     os.setPriority(pid, PRIORITY_NORMAL);
   }, errObj);
 
-  common.expectsError(() => {
+  assert.throws(() => {
     os.getPriority(pid);
   }, errObj);
 });
@@ -42,18 +42,18 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
     message: /The value of "pid" is out of range\./
   };
 
-  common.expectsError(() => {
+  assert.throws(() => {
     os.setPriority(pid, PRIORITY_NORMAL);
   }, errObj);
 
-  common.expectsError(() => {
+  assert.throws(() => {
     os.getPriority(pid);
   }, errObj);
 });
 
 // Test priority type validation.
 [null, true, false, 'foo', {}, [], /x/].forEach((priority) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     os.setPriority(0, priority);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -71,7 +71,7 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
   PRIORITY_HIGHEST - 1,
   PRIORITY_LOW + 1
 ].forEach((priority) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     os.setPriority(0, priority);
   }, {
     code: 'ERR_OUT_OF_RANGE',

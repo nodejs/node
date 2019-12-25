@@ -70,16 +70,16 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
 ].forEach((val) => {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: `The value "${val}" is invalid for option "rrtype"`
   };
 
-  common.expectsError(
+  assert.throws(
     () => dns.resolve('www.google.com', val),
     err
   );
 
-  common.expectsError(() => dnsPromises.resolve('www.google.com', val), err);
+  assert.throws(() => dnsPromises.resolve('www.google.com', val), err);
 });
 
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in

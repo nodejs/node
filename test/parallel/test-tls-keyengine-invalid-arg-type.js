@@ -4,9 +4,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const tls = require('tls');
 
-common.expectsError(
+assert.throws(
   () => {
     tls.createSecureContext({ privateKeyEngine: 0,
                               privateKeyIdentifier: 'key' });
@@ -14,7 +15,7 @@ common.expectsError(
   { code: 'ERR_INVALID_ARG_TYPE',
     message: / Received type number \(0\)$/ });
 
-common.expectsError(
+assert.throws(
   () => {
     tls.createSecureContext({ privateKeyEngine: 'engine',
                               privateKeyIdentifier: 0 });

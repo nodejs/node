@@ -32,7 +32,7 @@ server.listen(0, mustCall(() => {
   }));
 
   req.on('error', expectsError({
-    type: Error,
+    name: 'Error',
     code: 'ECONNRESET',
     message: 'socket hang up'
   }));

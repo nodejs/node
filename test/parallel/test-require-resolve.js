@@ -41,14 +41,14 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
 [1, false, null, undefined, {}].forEach((value) => {
   const message = 'The "request" argument must be of type string.' +
     common.invalidArgTypeHelper(value);
-  common.expectsError(
+  assert.throws(
     () => { require.resolve(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
       message
     });
 
-  common.expectsError(
+  assert.throws(
     () => { require.resolve.paths(value); },
     {
       code: 'ERR_INVALID_ARG_TYPE',

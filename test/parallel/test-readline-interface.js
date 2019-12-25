@@ -357,33 +357,33 @@ function isWarned(emitter) {
   // Constructor throws if completer is not a function or undefined
   {
     const fi = new FakeInput();
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi,
         completer: 'string is not valid'
       });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi,
         completer: ''
       });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi,
         completer: false
       });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
   }
@@ -391,30 +391,30 @@ function isWarned(emitter) {
   // Constructor throws if historySize is not a positive number
   {
     const fi = new FakeInput();
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi, historySize: 'not a number'
       });
     }, {
-      type: RangeError,
+      name: 'RangeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi, historySize: -1
       });
     }, {
-      type: RangeError,
+      name: 'RangeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi, historySize: NaN
       });
     }, {
-      type: RangeError,
+      name: 'RangeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
   }

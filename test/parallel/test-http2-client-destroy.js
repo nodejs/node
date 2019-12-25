@@ -62,7 +62,7 @@ const Countdown = require('../common/countdown');
     const req = client.request();
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_CANCEL',
-      type: Error,
+      name: 'Error',
       message: 'The pending stream has been canceled'
     }));
 
@@ -71,26 +71,26 @@ const Countdown = require('../common/countdown');
     req.on('response', common.mustNotCall());
 
     const sessionError = {
-      type: Error,
+      name: 'Error',
       code: 'ERR_HTTP2_INVALID_SESSION',
       message: 'The session has been destroyed'
     };
 
-    common.expectsError(() => client.setNextStreamID(), sessionError);
-    common.expectsError(() => client.ping(), sessionError);
-    common.expectsError(() => client.settings({}), sessionError);
-    common.expectsError(() => client.goaway(), sessionError);
-    common.expectsError(() => client.request(), sessionError);
+    assert.throws(() => client.setNextStreamID(), sessionError);
+    assert.throws(() => client.ping(), sessionError);
+    assert.throws(() => client.settings({}), sessionError);
+    assert.throws(() => client.goaway(), sessionError);
+    assert.throws(() => client.request(), sessionError);
     client.close();  // Should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
     setImmediate(() => {
-      common.expectsError(() => client.setNextStreamID(), sessionError);
-      common.expectsError(() => client.ping(), sessionError);
-      common.expectsError(() => client.settings({}), sessionError);
-      common.expectsError(() => client.goaway(), sessionError);
-      common.expectsError(() => client.request(), sessionError);
+      assert.throws(() => client.setNextStreamID(), sessionError);
+      assert.throws(() => client.ping(), sessionError);
+      assert.throws(() => client.settings({}), sessionError);
+      assert.throws(() => client.goaway(), sessionError);
+      assert.throws(() => client.request(), sessionError);
       client.close();  // Should be a non-op at this point
     });
 
@@ -155,7 +155,7 @@ const Countdown = require('../common/countdown');
     // Should throw goaway error
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_GOAWAY_SESSION',
-      type: Error,
+      name: 'Error',
       message: 'New streams cannot be created after receiving a GOAWAY'
     }));
 

@@ -71,44 +71,17 @@ the `unhandledRejection` hook is directly used by the test.
 
 Indicates if there is more than 1gb of total memory.
 
-### expectsError(\[fn, \]settings\[, exact\])
-* `fn` [&lt;Function>][] a function that should throw.
-* `settings` [&lt;Object>][]
-  that must contain the `code` property plus any of the other following
-  properties (some properties only apply for `AssertionError`):
-  * `code` [&lt;string>][]
-    expected error must have this value for its `code` property.
-  * `type` [&lt;Function>][]
-    expected error must be an instance of `type` and must be an Error subclass.
-  * `message` [&lt;string>][] or [&lt;RegExp>][]
-    if a string is provided for `message`, expected error must have it for its
-    `message` property; if a regular expression is provided for `message`, the
-    regular expression must match the `message` property of the expected error.
-  * `name` [&lt;string>][]
-    expected error must have this value for its `name` property.
-  * `info` &lt;Object> expected error must have the same `info` property
-    that is deeply equal to this value.
-  * `generatedMessage` [&lt;string>][]
-    (`AssertionError` only) expected error must have this value for its
-    `generatedMessage` property.
-  * `actual` &lt;any>
-    (`AssertionError` only) expected error must have this value for its
-    `actual` property.
-  * `expected` &lt;any>
-    (`AssertionError` only) expected error must have this value for its
-    `expected` property.
-  * `operator` &lt;any>
-    (`AssertionError` only) expected error must have this value for its
-    `operator` property.
+### expectsError(validator\[, exact\])
+* `validator` [&lt;Object>][] | [&lt;RegExp>][] | [&lt;Function>][] |
+  [&lt;Error>][] The validator behaves identical to
+  `assert.throws(fn, validator)`.
 * `exact` [&lt;number>][] default = 1
-* return [&lt;Function>][]
+* return [&lt;Function>][] A callback function that expects an error.
 
-  If `fn` is provided, it will be passed to `assert.throws` as first argument
-  and `undefined` will be returned.
-  Otherwise a function suitable as callback or for use as a validation function
-  passed as the second argument to `assert.throws()` will be returned. If the
-  returned function has not been called exactly `exact` number of times when the
-  test is complete, then the test will fail.
+A function suitable as callback to validate callback based errors. The error is
+validated using `assert.throws(() => { throw error; }, validator)`. If the
+returned function has not been called exactly `exact` number of times when the
+test is complete, then the test will fail.
 
 ### expectWarning(name\[, expected\[, code\]\])
 * `name` [&lt;string>][] | [&lt;Object>][]

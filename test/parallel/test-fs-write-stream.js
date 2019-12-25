@@ -58,11 +58,11 @@ tmpdir.refresh();
   const stream = fs.createWriteStream(file);
   stream.on('error', common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   }));
   stream.write(42, null, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   }));
   stream.destroy();
 }

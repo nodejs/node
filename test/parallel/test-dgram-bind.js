@@ -27,11 +27,11 @@ const dgram = require('dgram');
 const socket = dgram.createSocket('udp4');
 
 socket.on('listening', common.mustCall(() => {
-  common.expectsError(() => {
+  assert.throws(() => {
     socket.bind();
   }, {
     code: 'ERR_SOCKET_ALREADY_BOUND',
-    type: Error,
+    name: 'Error',
     message: /^Socket is already bound$/
   });
 

@@ -1,15 +1,16 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer((req, res) => {
   res.setHeader('header1', 1);
   res.write('abc');
-  common.expectsError(
+  assert.throws(
     () => res.setHeader('header2', 2),
     {
       code: 'ERR_HTTP_HEADERS_SENT',
-      type: Error,
+      name: 'Error',
       message: 'Cannot set headers after they are sent to the client'
     }
   );

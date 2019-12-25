@@ -2,7 +2,8 @@
 
 // This tests that AsyncHooks throws an error if bad parameters are passed.
 
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const async_hooks = require('async_hooks');
 const non_function = 10;
 
@@ -13,11 +14,11 @@ typeErrorForFunction('destroy');
 typeErrorForFunction('promiseResolve');
 
 function typeErrorForFunction(functionName) {
-  common.expectsError(() => {
+  assert.throws(() => {
     async_hooks.createHook({ [functionName]: non_function });
   }, {
     code: 'ERR_ASYNC_CALLBACK',
-    type: TypeError,
+    name: 'TypeError',
     message: `hook.${functionName} must be a function`
   });
 }

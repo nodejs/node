@@ -59,42 +59,42 @@ server.listen(0, common.mustCall(function() {
       ':path',
       ':authority',
       ':scheme'
-    ].forEach((header) => common.expectsError(
+    ].forEach((header) => assert.throws(
       () => response.setHeader(header, 'foobar'),
       {
         code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Cannot set HTTP/2 pseudo-headers'
       })
     );
-    common.expectsError(function() {
+    assert.throws(() => {
       response.setHeader(real, null);
     }, {
       code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Invalid value "null" for header "foo-bar"'
     });
-    common.expectsError(function() {
+    assert.throws(() => {
       response.setHeader(real, undefined);
     }, {
       code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Invalid value "undefined" for header "foo-bar"'
     });
-    common.expectsError(
+    assert.throws(
       () => response.setHeader(), // Header name undefined
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "name" argument must be of type string. Received ' +
                  'undefined'
       }
     );
-    common.expectsError(
+    assert.throws(
       () => response.setHeader(''),
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Header name must be a valid HTTP token [""]'
       }
     );
@@ -115,37 +115,37 @@ server.listen(0, common.mustCall(function() {
     response.on('finish', common.mustCall(function() {
       assert.strictEqual(response.headersSent, true);
 
-      common.expectsError(
+      assert.throws(
         () => response.setHeader(real, expectedValue),
         {
           code: 'ERR_HTTP2_HEADERS_SENT',
-          type: Error,
+          name: 'Error',
           message: 'Response has already been initiated.'
         }
       );
-      common.expectsError(
+      assert.throws(
         () => response.removeHeader(real, expectedValue),
         {
           code: 'ERR_HTTP2_HEADERS_SENT',
-          type: Error,
+          name: 'Error',
           message: 'Response has already been initiated.'
         }
       );
 
       process.nextTick(() => {
-        common.expectsError(
+        assert.throws(
           () => response.setHeader(real, expectedValue),
           {
             code: 'ERR_HTTP2_HEADERS_SENT',
-            type: Error,
+            name: 'Error',
             message: 'Response has already been initiated.'
           }
         );
-        common.expectsError(
+        assert.throws(
           () => response.removeHeader(real, expectedValue),
           {
             code: 'ERR_HTTP2_HEADERS_SENT',
-            type: Error,
+            name: 'Error',
             message: 'Response has already been initiated.'
           }
         );

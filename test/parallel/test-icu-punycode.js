@@ -41,11 +41,11 @@ const wptToASCIITests = require(
     if (comment)
       caseComment += ` (${comment})`;
     if (output === null) {
-      common.expectsError(
+      assert.throws(
         () => icu.toASCII(input),
         {
           code: 'ERR_INVALID_ARG_VALUE',
-          type: TypeError,
+          name: 'TypeError',
           message: 'Cannot convert name to ASCII'
         }
       );

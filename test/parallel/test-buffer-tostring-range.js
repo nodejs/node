@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const rangeBuffer = Buffer.from('abc');
@@ -84,17 +84,17 @@ assert.strictEqual(rangeBuffer.toString({ toString: function() {
 } }), 'abc');
 
 // Try toString() with 0 and null as the encoding
-common.expectsError(() => {
+assert.throws(() => {
   rangeBuffer.toString(0, 1, 2);
 }, {
   code: 'ERR_UNKNOWN_ENCODING',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Unknown encoding: 0'
 });
-common.expectsError(() => {
+assert.throws(() => {
   rangeBuffer.toString(null, 1, 2);
 }, {
   code: 'ERR_UNKNOWN_ENCODING',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Unknown encoding: null'
 });

@@ -1,12 +1,13 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const http = require('http');
 
-common.expectsError(() => {
+assert.throws(() => {
   http.request({
     path: '/thisisinvalid\uffe2'
   }).end();
 }, {
   code: 'ERR_UNESCAPED_CHARACTERS',
-  type: TypeError
+  name: 'TypeError'
 });

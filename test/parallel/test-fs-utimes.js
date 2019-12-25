@@ -172,15 +172,15 @@ if (common.isWindows) {
 
 const expectTypeError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError
+  name: 'TypeError'
 };
 // utimes-only error cases
 {
-  common.expectsError(
+  assert.throws(
     () => fs.utimes(0, new Date(), new Date(), common.mustNotCall()),
     expectTypeError
   );
-  common.expectsError(
+  assert.throws(
     () => fs.utimesSync(0, new Date(), new Date()),
     expectTypeError
   );
@@ -188,19 +188,19 @@ const expectTypeError = {
 
 // shared error cases
 [false, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.utimes(i, new Date(), new Date(), common.mustNotCall()),
     expectTypeError
   );
-  common.expectsError(
+  assert.throws(
     () => fs.utimesSync(i, new Date(), new Date()),
     expectTypeError
   );
-  common.expectsError(
+  assert.throws(
     () => fs.futimes(i, new Date(), new Date(), common.mustNotCall()),
     expectTypeError
   );
-  common.expectsError(
+  assert.throws(
     () => fs.futimesSync(i, new Date(), new Date()),
     expectTypeError
   );
@@ -208,17 +208,17 @@ const expectTypeError = {
 
 const expectRangeError = {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
+  name: 'RangeError',
   message: 'The value of "fd" is out of range. ' +
            'It must be >= 0 && <= 2147483647. Received -1'
 };
 // futimes-only error cases
 {
-  common.expectsError(
+  assert.throws(
     () => fs.futimes(-1, new Date(), new Date(), common.mustNotCall()),
     expectRangeError
   );
-  common.expectsError(
+  assert.throws(
     () => fs.futimesSync(-1, new Date(), new Date()),
     expectRangeError
   );

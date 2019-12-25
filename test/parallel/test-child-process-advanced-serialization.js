@@ -6,7 +6,7 @@ const { once } = require('events');
 
 if (process.argv[2] !== 'child') {
   for (const value of [null, 42, Infinity, 'foo']) {
-    common.expectsError(() => {
+    assert.throws(() => {
       child_process.spawn(process.execPath, [], { serialization: value });
     }, {
       code: 'ERR_INVALID_OPT_VALUE',
