@@ -1,15 +1,16 @@
 'use strict';
 const common = require('../common');
 const { Writable } = require('stream');
+const assert = require('assert');
 
 {
   // Sync + Sync
   const writable = new Writable({
     write: common.mustCall((buf, enc, cb) => {
       cb();
-      common.expectsError(cb, {
+      assert.throws(cb, {
         code: 'ERR_MULTIPLE_CALLBACK',
-        type: Error
+        name: 'Error'
       });
     })
   });
@@ -22,9 +23,9 @@ const { Writable } = require('stream');
     write: common.mustCall((buf, enc, cb) => {
       cb();
       process.nextTick(() => {
-        common.expectsError(cb, {
+        assert.throws(cb, {
           code: 'ERR_MULTIPLE_CALLBACK',
-          type: Error
+          name: 'Error'
         });
       });
     })
@@ -38,9 +39,9 @@ const { Writable } = require('stream');
     write: common.mustCall((buf, enc, cb) => {
       process.nextTick(cb);
       process.nextTick(() => {
-        common.expectsError(cb, {
+        assert.throws(cb, {
           code: 'ERR_MULTIPLE_CALLBACK',
-          type: Error
+          name: 'Error'
         });
       });
     })

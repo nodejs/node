@@ -20,30 +20,30 @@ const { sleep } = require('internal/util');
 
 {
   [null, 'a', 1, false, Infinity].forEach((i) => {
-    common.expectsError(
+    assert.throws(
       () => monitorEventLoopDelay(i),
       {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE'
       }
     );
   });
 
   [null, 'a', false, {}, []].forEach((i) => {
-    common.expectsError(
+    assert.throws(
       () => monitorEventLoopDelay({ resolution: i }),
       {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE'
       }
     );
   });
 
   [-1, 0, Infinity].forEach((i) => {
-    common.expectsError(
+    assert.throws(
       () => monitorEventLoopDelay({ resolution: i }),
       {
-        type: RangeError,
+        name: 'RangeError',
         code: 'ERR_INVALID_OPT_VALUE'
       }
     );
@@ -78,19 +78,19 @@ const { sleep } = require('internal/util');
       assert.strictEqual(histogram.percentiles.size, 1);
 
       ['a', false, {}, []].forEach((i) => {
-        common.expectsError(
+        assert.throws(
           () => histogram.percentile(i),
           {
-            type: TypeError,
+            name: 'TypeError',
             code: 'ERR_INVALID_ARG_TYPE'
           }
         );
       });
       [-1, 0, 101].forEach((i) => {
-        common.expectsError(
+        assert.throws(
           () => histogram.percentile(i),
           {
-            type: RangeError,
+            name: 'RangeError',
             code: 'ERR_INVALID_ARG_VALUE'
           }
         );

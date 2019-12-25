@@ -47,11 +47,11 @@ server.listen(0, baseOptions.host, common.mustCall(function() {
   baseOptions.port = this.address().port;
 
   failingAgentOptions.forEach((agent) => {
-    common.expectsError(
+    assert.throws(
       () => createRequest(agent),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "options.agent" property must be one of Agent-like ' +
                  'Object, undefined, or false.' +
                  common.invalidArgTypeHelper(agent)

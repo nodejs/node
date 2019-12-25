@@ -26,7 +26,7 @@ server.listen(0, common.mustCall(() => {
     const req = client.request({ ':path': `bad${String.fromCharCode(i)}path` });
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
-      type: Error,
+      name: 'Error',
       message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
     }));
     req.on('close', common.mustCall(() => countdown.dec()));

@@ -19,7 +19,7 @@ server.listen(0, common.mustCall(function() {
 
     assert.strictEqual(returnVal, response);
 
-    common.expectsError(() => { response.writeHead(300); }, {
+    assert.throws(() => { response.writeHead(300); }, {
       code: 'ERR_HTTP2_HEADERS_SENT'
     });
 

@@ -63,7 +63,7 @@ assert.throws(function() {
 }, /^TypeError: Invalid minimum value: \/foo\/$/);
 
 // assert.fail() tests
-common.expectsError(
+assert.throws(
   () => { assert.fail('fhqwhgads'); },
   {
     code: 'ERR_ASSERTION',

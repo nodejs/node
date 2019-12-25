@@ -13,48 +13,48 @@ assert.strictEqual(
   typeof ServerResponse.prototype._implicitHeader, 'function');
 
 // validateHeader
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader();
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Header name must be a valid HTTP token ["undefined"]'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader('test');
 }, {
   code: 'ERR_HTTP_INVALID_HEADER_VALUE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Invalid value "undefined" for header "test"'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader(404);
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Header name must be a valid HTTP token ["404"]'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader.call({ _header: 'test' }, 'test', 'value');
 }, {
   code: 'ERR_HTTP_HEADERS_SENT',
-  type: Error,
+  name: 'Error',
   message: 'Cannot set headers after they are sent to the client'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader('200', 'あ');
 }, {
   code: 'ERR_INVALID_CHAR',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Invalid character in header content ["200"]'
 });
 
@@ -64,7 +64,7 @@ common.expectsError(() => {
 
   outgoingMessage.on('error', common.expectsError({
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
-    type: Error,
+    name: 'Error',
     message: 'The _implicitHeader() method is not implemented'
   }));
 
@@ -73,22 +73,22 @@ common.expectsError(() => {
 
 assert(OutgoingMessage.prototype.write.call({ _header: 'test' }));
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' });
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The first argument must be of type string or an instance of ' +
            'Buffer. Received undefined'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' }, 1);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The first argument must be of type string or an instance of ' +
            'Buffer. Received type number (1)'
 });
@@ -102,20 +102,20 @@ assert.throws(() => {
   outgoingMessage.addTrailers();
 }, TypeError);
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.addTrailers({ 'あ': 'value' });
 }, {
   code: 'ERR_INVALID_HTTP_TOKEN',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Trailer name must be a valid HTTP token ["あ"]'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.addTrailers({ 404: 'あ' });
 }, {
   code: 'ERR_INVALID_CHAR',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Invalid character in trailer content ["404"]'
 });

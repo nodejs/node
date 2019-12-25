@@ -5,13 +5,13 @@ const common = require('../common');
 const assert = require('assert');
 const getValidStdio = require('internal/child_process').getValidStdio;
 
-const expectedError = { code: 'ERR_INVALID_OPT_VALUE', type: TypeError };
+const expectedError = { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' };
 
 // Should throw if string and not ignore, pipe, or inherit
-common.expectsError(() => getValidStdio('foo'), expectedError);
+assert.throws(() => getValidStdio('foo'), expectedError);
 
 // Should throw if not a string or array
-common.expectsError(() => getValidStdio(600), expectedError);
+assert.throws(() => getValidStdio(600), expectedError);
 
 // Should populate stdio with undefined if len < 3
 {
@@ -25,22 +25,22 @@ common.expectsError(() => getValidStdio(600), expectedError);
 
 // Should throw if stdio has ipc and sync is true
 const stdio2 = ['ipc', 'ipc', 'ipc'];
-common.expectsError(() => getValidStdio(stdio2, true),
-                    { code: 'ERR_IPC_SYNC_FORK', type: Error }
+assert.throws(() => getValidStdio(stdio2, true),
+              { code: 'ERR_IPC_SYNC_FORK', name: 'Error' }
 );
 
 // Should throw if stdio is not a valid input
 {
   const stdio = ['foo'];
-  common.expectsError(() => getValidStdio(stdio, false),
-                      { code: 'ERR_INVALID_SYNC_FORK_INPUT', type: TypeError }
+  assert.throws(() => getValidStdio(stdio, false),
+                { code: 'ERR_INVALID_SYNC_FORK_INPUT', name: 'TypeError' }
   );
 }
 
 // Should throw if stdio is not a valid option
 {
   const stdio = [{ foo: 'bar' }];
-  common.expectsError(() => getValidStdio(stdio), expectedError);
+  assert.throws(() => getValidStdio(stdio), expectedError);
 }
 
 if (common.isMainThread) {

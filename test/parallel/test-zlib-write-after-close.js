@@ -21,16 +21,17 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const zlib = require('zlib');
 
 zlib.gzip('hello', common.mustCall(function(err, out) {
   const unzip = zlib.createGunzip();
   unzip.close(common.mustCall());
-  common.expectsError(
+  assert.throws(
     () => unzip.write(out),
     {
       code: 'ERR_STREAM_DESTROYED',
-      type: Error,
+      name: 'Error',
       message: 'Cannot call write after a stream was destroyed'
     }
   );

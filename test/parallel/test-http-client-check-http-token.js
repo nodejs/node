@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
@@ -17,11 +18,11 @@ const server = http.createServer(common.mustCall((req, res) => {
 
 server.listen(0, common.mustCall(() => {
   expectedFails.forEach((method) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       http.request({ method, path: '/' }, common.mustNotCall());
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "method" argument must be of type string.' +
                common.invalidArgTypeHelper(method)
     });

@@ -572,11 +572,11 @@ testCipher4(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
 
 // update() should only take buffers / strings
-common.expectsError(
+assert.throws(
   () => crypto.createHash('sha1').update({ foo: 'bar' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 
 

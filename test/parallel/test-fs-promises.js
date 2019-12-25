@@ -54,7 +54,7 @@ assert.strictEqual(
     .then(common.mustNotCall())
     .catch(common.expectsError({
       code: 'ENOENT',
-      type: Error,
+      name: 'Error',
       message:
         /^ENOENT: no such file or directory, access/
     }));
@@ -196,7 +196,7 @@ async function getHandle(dest) {
         // expect it to be ENOSYS
         common.expectsError({
           code: 'ENOSYS',
-          type: Error
+          name: 'Error'
         })(err);
       }
 
@@ -236,7 +236,7 @@ async function getHandle(dest) {
               lchmod(newLink, newMode),
               common.expectsError({
                 code: 'ERR_METHOD_NOT_IMPLEMENTED',
-                type: Error,
+                name: 'Error',
                 message: 'The lchmod() method is not implemented'
               })
             )

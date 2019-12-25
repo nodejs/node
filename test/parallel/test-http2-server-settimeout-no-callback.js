@@ -13,10 +13,10 @@ const verifyCallbacks = (server) => {
   const testTimeout = 10;
 
   [true, 1, {}, [], null, 'test'].forEach((notFunction) => {
-    common.expectsError(
+    assert.throws(
       () => server.setTimeout(testTimeout, notFunction),
       {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_CALLBACK',
         message: 'Callback must be a function. ' +
                  `Received ${inspect(notFunction)}`

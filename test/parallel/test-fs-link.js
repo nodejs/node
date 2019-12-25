@@ -23,32 +23,32 @@ fs.link(srcPath, dstPath, common.mustCall(callback));
 // test error outputs
 
 [false, 1, [], {}, null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.link(i, '', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.link('', i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.linkSync(i, ''),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.linkSync('', i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });

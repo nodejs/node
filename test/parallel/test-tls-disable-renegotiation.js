@@ -21,7 +21,7 @@ const options = {
 const server = tls.Server(options, common.mustCall((socket) => {
   socket.on('error', common.mustCall((err) => {
     common.expectsError({
-      type: Error,
+      name: 'Error',
       code: 'ERR_TLS_RENEGOTIATION_DISABLED',
       message: 'TLS session renegotiation disabled for this socket'
     })(err);
@@ -50,24 +50,24 @@ server.listen(0, common.mustCall(() => {
   };
   const client = tls.connect(options, common.mustCall(() => {
 
-    common.expectsError(() => client.renegotiate(), {
+    assert.throws(() => client.renegotiate(), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
     });
 
-    common.expectsError(() => client.renegotiate(common.mustNotCall()), {
+    assert.throws(() => client.renegotiate(common.mustNotCall()), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
     });
 
-    common.expectsError(() => client.renegotiate({}, false), {
+    assert.throws(() => client.renegotiate({}, false), {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
     });
 
-    common.expectsError(() => client.renegotiate({}, null), {
+    assert.throws(() => client.renegotiate({}, null), {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
     });
 
 

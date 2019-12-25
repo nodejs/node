@@ -14,11 +14,11 @@ const throwsObjsAndReportTypes = [
 ];
 
 for (const urlObject of throwsObjsAndReportTypes) {
-  common.expectsError(function() {
+  assert.throws(() => {
     url.format(urlObject);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "urlObject" argument must be one of type object or string.' +
              common.invalidArgTypeHelper(urlObject)
   });

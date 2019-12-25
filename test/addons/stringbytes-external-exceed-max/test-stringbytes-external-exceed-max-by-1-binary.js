@@ -27,13 +27,13 @@ if (!binding.ensureAllocation(2 * kStringMaxLength))
   common.skip(skipMessage);
 
 const stringLengthHex = kStringMaxLength.toString(16);
-common.expectsError(() => {
+assert.throws(() => {
   buf.toString('latin1');
 }, {
   message: `Cannot create a string longer than 0x${stringLengthHex} ` +
            'characters',
   code: 'ERR_STRING_TOO_LONG',
-  type: Error
+  name: 'Error'
 });
 
 // FIXME: Free the memory early to avoid OOM.

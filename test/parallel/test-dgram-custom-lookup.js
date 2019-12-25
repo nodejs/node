@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const dgram = require('dgram');
 const dns = require('dns');
 
@@ -35,11 +36,11 @@ const dns = require('dns');
 {
   // Verify that non-functions throw.
   [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((value) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       dgram.createSocket({ type: 'udp4', lookup: value });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "lookup" argument must be of type function.' +
                common.invalidArgTypeHelper(value)
     });

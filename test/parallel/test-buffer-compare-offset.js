@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const a = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
@@ -86,9 +86,9 @@ assert.throws(() => a.compare(b, -1), oor);
 assert.throws(() => a.compare(b, 0, Infinity), oor);
 assert.throws(() => a.compare(b, 0, 1, -1), oor);
 assert.throws(() => a.compare(b, -Infinity, Infinity), oor);
-common.expectsError(() => a.compare(), {
+assert.throws(() => a.compare(), {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The "target" argument must be an instance of ' +
            'Buffer or Uint8Array. Received undefined'
 });

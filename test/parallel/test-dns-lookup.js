@@ -15,12 +15,12 @@ const dnsPromises = dns.promises;
 {
   const err = {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: /^The "hostname" argument must be of type string\. Received type number/
   };
 
-  common.expectsError(() => dns.lookup(1, {}), err);
-  common.expectsError(() => dnsPromises.lookup(1, {}), err);
+  assert.throws(() => dns.lookup(1, {}), err);
+  assert.throws(() => dnsPromises.lookup(1, {}), err);
 }
 
 // This also verifies different expectWarning notations.
@@ -36,24 +36,24 @@ common.expectWarning({
   }
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   dns.lookup(false, 'cb');
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  type: TypeError
+  name: 'TypeError'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   dns.lookup(false, 'options', 'cb');
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  type: TypeError
+  name: 'TypeError'
 });
 
 {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The value "100" is invalid for option "hints"'
   };
   const options = {
@@ -62,8 +62,8 @@ common.expectsError(() => {
     all: false
   };
 
-  common.expectsError(() => { dnsPromises.lookup(false, options); }, err);
-  common.expectsError(() => {
+  assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+  assert.throws(() => {
     dns.lookup(false, options, common.mustNotCall());
   }, err);
 }
@@ -71,7 +71,7 @@ common.expectsError(() => {
 {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The value "20" is invalid for option "family"'
   };
   const options = {
@@ -80,8 +80,8 @@ common.expectsError(() => {
     all: false
   };
 
-  common.expectsError(() => { dnsPromises.lookup(false, options); }, err);
-  common.expectsError(() => {
+  assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+  assert.throws(() => {
     dns.lookup(false, options, common.mustNotCall());
   }, err);
 }

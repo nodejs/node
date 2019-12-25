@@ -1,6 +1,7 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const timers = require('timers');
 
 [
@@ -10,11 +11,11 @@ const timers = require('timers');
   () => { },
   Symbol('foo')
 ].forEach((val) => {
-  common.expectsError(
+  assert.throws(
     () => timers.enroll({}, val),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });
@@ -24,11 +25,11 @@ const timers = require('timers');
   Infinity,
   NaN
 ].forEach((val) => {
-  common.expectsError(
+  assert.throws(
     () => timers.enroll({}, val),
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
+      name: 'RangeError',
       message: 'The value of "msecs" is out of range. ' +
                'It must be a non-negative finite number. ' +
                `Received ${val}`

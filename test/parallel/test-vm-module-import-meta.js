@@ -25,13 +25,13 @@ async function testInvalid() {
   for (const invalidValue of [
     null, {}, 0, Symbol.iterator, [], 'string', false
   ]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       new SourceTextModule('', {
         initializeImportMeta: invalidValue
       });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   }
 }

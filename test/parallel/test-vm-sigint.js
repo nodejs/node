@@ -24,7 +24,7 @@ if (process.argv[2] === 'child') {
   for (let i = 0; i < listeners; i++)
     process.on('SIGINT', common.mustNotCall());
 
-  common.expectsError(
+  assert.throws(
     () => { vm[method](script, ...args, options); },
     {
       code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED',
