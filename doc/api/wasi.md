@@ -32,7 +32,7 @@ const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 The `--experimental-wasi-unstable-preview1` and `--experimental-wasm-bigint`
 CLI arguments are needed for the previous example to run.
 
-## Class: WASI
+## Class: `WASI`
 <!-- YAML
 added: REPLACEME
 -->
@@ -43,7 +43,7 @@ represents a distinct sandbox environment. For security purposes, each `WASI`
 instance must have its command line arguments, environment variables, and
 sandbox directory structure configured explicitly.
 
-### new WASI(\[options\])
+### `new WASI([options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -59,7 +59,7 @@ added: REPLACEME
     directories within the sandbox. The corresponding values in `preopens` are
     the real paths to those directories on the host machine.
 
-### wasi.start(instance)
+### `wasi.start(instance)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -74,7 +74,7 @@ is present on `instance`, then `start()` does nothing.
 `start()` requires that `instance` exports a [`WebAssembly.Memory`][] named
 `memory`. If `instance` does not have a `memory` export an exception is thrown.
 
-### wasi.wasiImport
+### `wasi.wasiImport`
 <!-- YAML
 added: REPLACEME
 -->
