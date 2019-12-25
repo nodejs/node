@@ -4,59 +4,51 @@
 
 > Stability: 2 - Stable
 
-The `dns` module contains functions belonging to two different categories:
+The `dns` module enables name resolution. For example, use it to look up IP
+addresses of host names.
 
-1. Functions that use the underlying operating system facilities to perform
-    name resolution, and that do not necessarily perform any network
-    communication.
-    This category contains only one function: [`dns.lookup()`][]. **Developers
-    looking to perform name resolution in the same way that other applications
-    on the same operating system behave should use [`dns.lookup()`][].**
+Although named for the Domain Name System (DNS), it does not always use the DNS
+protocol for lookups. [`dns.lookup()`][] uses the operating system facilities to
+perform name resolution. It may not need to perform any network communication.
+Developers looking to perform name resolution in the same way that other
+applications on the same operating system behave should use [`dns.lookup()`][].
 
-    For example, looking up `iana.org`.
+```js
+const dns = require('dns');
 
-    ```js
-    const dns = require('dns');
+dns.lookup('example.org', (err, address, family) => {
+  console.log('address: %j family: IPv%s', address, family);
+});
+// address: "93.184.216.34" family: IPv4
+```
 
-    dns.lookup('iana.org', (err, address, family) => {
-      console.log('address: %j family: IPv%s', address, family);
+All other functions in the `dns` module connect to an actual DNS server to
+perform name resolution. They will always use the network to perform DNS
+queries. These functions do not use the same set of configuration files used by
+[`dns.lookup()`][] (e.g. `/etc/hosts`). These functions should be used by
+developers who do not want to use the underlying operating system's
+facilities for name resolution, and instead want to always perform DNS queries.
+
+```js
+const dns = require('dns');
+
+dns.resolve4('archive.org', (err, addresses) => {
+  if (err) throw err;
+
+  console.log(`addresses: ${JSON.stringify(addresses)}`);
+
+  addresses.forEach((a) => {
+    dns.reverse(a, (err, hostnames) => {
+      if (err) {
+        throw err;
+      }
+      console.log(`reverse for ${a}: ${JSON.stringify(hostnames)}`);
     });
-    // address: "192.0.43.8" family: IPv4
-    ```
+  });
+});
+```
 
-2. Functions that connect to an actual DNS server to perform name resolution,
-    and that _always_ use the network to perform DNS queries. This category
-    contains all functions in the `dns` module _except_ [`dns.lookup()`][].
-    These functions do not use the same set of configuration files used by
-    [`dns.lookup()`][] (e.g. `/etc/hosts`). These functions should be used by
-    developers who do not want to use the underlying operating system's
-    facilities for name resolution, and instead want to _always_ perform DNS
-    queries.
-
-    Below is an example that resolves `'archive.org'` then reverse resolves the
-    IP addresses that are returned.
-
-    ```js
-    const dns = require('dns');
-
-    dns.resolve4('archive.org', (err, addresses) => {
-      if (err) throw err;
-
-      console.log(`addresses: ${JSON.stringify(addresses)}`);
-
-      addresses.forEach((a) => {
-        dns.reverse(a, (err, hostnames) => {
-          if (err) {
-            throw err;
-          }
-          console.log(`reverse for ${a}: ${JSON.stringify(hostnames)}`);
-        });
-      });
-    });
-    ```
-
-There are subtle consequences in choosing one over the other, please consult
-the [Implementation considerations section][] for more information.
+See the [Implementation considerations section][] for more information.
 
 ## Class: `dns.Resolver`
 <!-- YAML
