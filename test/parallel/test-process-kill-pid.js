@@ -69,8 +69,8 @@ common.expectsError(() => process.kill(0, 987), {
 function kill(tryPid, trySig, expectPid, expectSig) {
   let getPid;
   let getSig;
-  const origKill = process._kill;
-  process._kill = function(pid, sig) {
+  const origKill = process.kill;
+  process.kill = function(pid, sig) {
     getPid = pid;
     getSig = sig;
 

@@ -161,31 +161,6 @@ static void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
   fields[0] = uv_hrtime();
 }
 
-static void Kill(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-
-  if (args.Length() != 2)
-    return env->ThrowError("Bad argument.");
-
-  int pid;
-  if (!args[0]->Int32Value(context).To(&pid)) return;
-  int sig;
-  if (!args[1]->Int32Value(context).To(&sig)) return;
-
-  uv_pid_t own_pid = uv_os_getpid();
-  if (sig > 0 &&
-      (pid == 0 || pid == -1 || pid == own_pid || pid == -own_pid) &&
-      !HasSignalJSHandler(sig)) {
-    // This is most likely going to terminate this process.
-    // It's not an exact method but it might be close enough.
-    RunAtExit(env);
-  }
-
-  int err = uv_kill(pid, sig);
-  args.GetReturnValue().Set(err);
-}
-
 static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -466,7 +441,6 @@ static void InitializeProcessMethods(Local<Object> target,
 
   env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(target, "_kill", Kill);
 
   env->SetMethodNoSideEffect(target, "cwd", Cwd);
   env->SetMethod(target, "dlopen", binding::DLOpen);
