@@ -18,6 +18,6 @@ const socket = new JSStreamWrap(new Duplex({
 
 socket.end('foo');
 socket.on('error', common.expectsError({
-  type: Error,
+  name: 'Error',
   message: 'write EPROTO'
 }));

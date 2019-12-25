@@ -9,10 +9,10 @@ const { promises } = fs;
 
 // Validate the path argument.
 [false, 1, {}, [], null, undefined].forEach((i) => {
-  const err = { type: TypeError, code: 'ERR_INVALID_ARG_TYPE' };
+  const err = { name: 'TypeError', code: 'ERR_INVALID_ARG_TYPE' };
 
-  common.expectsError(() => fs.lchown(i, 1, 1, common.mustNotCall()), err);
-  common.expectsError(() => fs.lchownSync(i, 1, 1), err);
+  assert.throws(() => fs.lchown(i, 1, 1, common.mustNotCall()), err);
+  assert.throws(() => fs.lchownSync(i, 1, 1), err);
   promises.lchown(false, 1, 1)
     .then(common.mustNotCall())
     .catch(common.expectsError(err));
@@ -20,18 +20,18 @@ const { promises } = fs;
 
 // Validate the uid and gid arguments.
 [false, 'test', {}, [], null, undefined].forEach((i) => {
-  const err = { type: TypeError, code: 'ERR_INVALID_ARG_TYPE' };
+  const err = { name: 'TypeError', code: 'ERR_INVALID_ARG_TYPE' };
 
-  common.expectsError(
+  assert.throws(
     () => fs.lchown('not_a_file_that_exists', i, 1, common.mustNotCall()),
     err
   );
-  common.expectsError(
+  assert.throws(
     () => fs.lchown('not_a_file_that_exists', 1, i, common.mustNotCall()),
     err
   );
-  common.expectsError(() => fs.lchownSync('not_a_file_that_exists', i, 1), err);
-  common.expectsError(() => fs.lchownSync('not_a_file_that_exists', 1, i), err);
+  assert.throws(() => fs.lchownSync('not_a_file_that_exists', i, 1), err);
+  assert.throws(() => fs.lchownSync('not_a_file_that_exists', 1, i), err);
 
   promises.lchown('not_a_file_that_exists', i, 1)
     .then(common.mustNotCall())
@@ -44,8 +44,8 @@ const { promises } = fs;
 
 // Validate the callback argument.
 [false, 1, 'test', {}, [], null, undefined].forEach((i) => {
-  common.expectsError(() => fs.lchown('not_a_file_that_exists', 1, 1, i), {
-    type: TypeError,
+  assert.throws(() => fs.lchown('not_a_file_that_exists', 1, 1, i), {
+    name: 'TypeError',
     code: 'ERR_INVALID_CALLBACK'
   });
 });

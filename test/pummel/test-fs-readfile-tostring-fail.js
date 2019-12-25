@@ -40,7 +40,7 @@ stream.on('finish', common.mustCall(function() {
         message: 'Cannot create a string longer than ' +
                  `0x${stringLengthHex} characters`,
         code: 'ERR_STRING_TOO_LONG',
-        type: Error
+        name: 'Error'
       })(err);
     }
     assert.strictEqual(buf, undefined);

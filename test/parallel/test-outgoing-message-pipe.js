@@ -1,14 +1,15 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const OutgoingMessage = require('_http_outgoing').OutgoingMessage;
 
 // Verify that an error is thrown upon a call to `OutgoingMessage.pipe`.
 
 const outgoingMessage = new OutgoingMessage();
-common.expectsError(
+assert.throws(
   () => { outgoingMessage.pipe(outgoingMessage); },
   {
     code: 'ERR_STREAM_CANNOT_PIPE',
-    type: Error
+    name: 'Error'
   }
 );

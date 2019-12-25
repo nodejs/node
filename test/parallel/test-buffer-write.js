@@ -66,7 +66,7 @@ for (let i = 1; i < 10; i++) {
   const encoding = String(i).repeat(i);
   const error = common.expectsError({
     code: 'ERR_UNKNOWN_ENCODING',
-    type: TypeError,
+    name: 'TypeError',
     message: `Unknown encoding: ${encoding}`
   });
 

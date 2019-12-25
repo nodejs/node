@@ -26,6 +26,7 @@
 // 'connect' and defer the handling until the 'connect' event is handled.
 
 const common = require('../common');
+const assert = require('assert');
 const net = require('net');
 
 const { addresses } = require('../common/internet');
@@ -41,14 +42,18 @@ const client = net.connect({
   lookup: common.mustCall(errorLookupMock())
 }, common.mustNotCall());
 
-client.once('error', common.expectsError({
-  code: mockedErrorCode,
-  errno: mockedErrorCode,
-  syscall: mockedSysCall,
-  hostname: addresses.INVALID_HOST,
-  message: 'getaddrinfo ENOTFOUND something.invalid',
-  port: undefined,
-  host: undefined
+client.once('error', common.mustCall((error) => {
+  // TODO(BridgeAR): Add a better way to handle not defined properties using
+  // `assert.throws(fn, object)`.
+  assert.ok(!('port' in error));
+  assert.ok(!('host' in error));
+  assert.throws(() => { throw error; }, {
+    code: mockedErrorCode,
+    errno: mockedErrorCode,
+    syscall: mockedSysCall,
+    hostname: addresses.INVALID_HOST,
+    message: 'getaddrinfo ENOTFOUND something.invalid'
+  });
 }));
 
 client.end();

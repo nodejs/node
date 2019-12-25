@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const { createContext, runInContext, runInNewContext } = require('vm');
@@ -64,7 +64,7 @@ assert.throws(() => {
   name: 'CompileError'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   createContext({}, {
     codeGeneration: {
       strings: 0,
@@ -74,7 +74,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   runInNewContext('eval("x")', {}, {
     contextCodeGeneration: {
       wasm: 1,
@@ -84,7 +84,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   createContext({}, {
     codeGeneration: 1,
   });
@@ -92,7 +92,7 @@ common.expectsError(() => {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   createContext({}, {
     codeGeneration: null,
   });

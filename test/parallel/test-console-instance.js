@@ -43,17 +43,17 @@ assert.ok(!({} instanceof Console));
 
 // Make sure that the Console constructor throws
 // when not given a writable stream instance.
-common.expectsError(
+assert.throws(
   () => { new Console(); },
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
-    type: TypeError,
+    name: 'TypeError',
     message: /stdout/
   }
 );
 
 // Console constructor should throw if stderr exists but is not writable.
-common.expectsError(
+assert.throws(
   () => {
     out.write = () => {};
     err.write = undefined;
@@ -61,7 +61,7 @@ common.expectsError(
   },
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
-    type: TypeError,
+    name: 'TypeError',
     message: /stderr/
   }
 );

@@ -68,25 +68,25 @@ const keySize = 2048;
   delete Object.prototype.opensslErrorStack;
 }
 
-common.expectsError(
+assert.throws(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
     padding: null,
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The value "null" is invalid for option "padding"'
   });
 
-common.expectsError(
+assert.throws(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
     saltLength: null,
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The value "null" is invalid for option "saltLength"'
   });
 
@@ -306,7 +306,7 @@ common.expectsError(
 {
   [null, NaN, 'boom', {}, [], true, false]
     .forEach((invalidValue) => {
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.createSign('SHA256')
           .update('Test123')
           .sign({
@@ -315,10 +315,10 @@ common.expectsError(
           });
       }, {
         code: 'ERR_INVALID_OPT_VALUE',
-        type: TypeError
+        name: 'TypeError'
       });
 
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.createSign('SHA256')
           .update('Test123')
           .sign({
@@ -328,7 +328,7 @@ common.expectsError(
           });
       }, {
         code: 'ERR_INVALID_OPT_VALUE',
-        type: TypeError
+        name: 'TypeError'
       });
     });
 
@@ -351,11 +351,11 @@ common.expectsError(
 
 // Test throws exception when key options is null
 {
-  common.expectsError(() => {
+  assert.throws(() => {
     crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
   }, {
     code: 'ERR_CRYPTO_SIGN_KEY_REQUIRED',
-    type: Error
+    name: 'Error'
   });
 }
 
@@ -531,7 +531,7 @@ common.expectsError(
     // Test invalid signature lengths.
     for (const i of [-2, -1, 1, 2, 4, 8]) {
       sig = crypto.randomBytes(length + i);
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.verify('sha1', data, opts, sig);
       }, {
         message: 'Malformed signature'
@@ -577,7 +577,7 @@ common.expectsError(
   );
 
   for (const dsaEncoding of ['foo', null, {}, 5, true, NaN]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       crypto.sign('sha1', data, {
         key: certPem,
         dsaEncoding

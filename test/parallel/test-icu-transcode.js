@@ -41,10 +41,10 @@ for (const test in tests) {
                      utf8_to_ucs2.toString('ucs2'));
 }
 
-common.expectsError(
+assert.throws(
   () => buffer.transcode(null, 'utf8', 'ascii'),
   {
-    type: TypeError,
+    name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "source" argument must be an instance of Buffer ' +
              'or Uint8Array. Received null'

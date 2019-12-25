@@ -32,32 +32,32 @@ const s = http.createServer(common.mustCall((req, res) => {
 
   // toLowerCase() is used on the name argument, so it must be a string.
   // Non-String header names should throw
-  common.expectsError(
+  assert.throws(
     () => res.setHeader(0xf00, 'bar'),
     {
       code: 'ERR_INVALID_HTTP_TOKEN',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Header name must be a valid HTTP token ["3840"]'
     }
   );
 
   // Undefined value should throw, via 979d0ca8
-  common.expectsError(
+  assert.throws(
     () => res.setHeader('foo', undefined),
     {
       code: 'ERR_HTTP_INVALID_HEADER_VALUE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Invalid value "undefined" for header "foo"'
     }
   );
 
   res.writeHead(200, { Test: '2' });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     res.writeHead(100, {});
   }, {
     code: 'ERR_HTTP_HEADERS_SENT',
-    type: Error,
+    name: 'Error',
     message: 'Cannot render headers after they are sent to the client'
   });
 

@@ -46,11 +46,11 @@ http2.getPackedSettings({ enablePush: false });
   ['maxHeaderListSize', -1],
   ['maxHeaderListSize', 2 ** 32]
 ].forEach((i) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     http2.getPackedSettings({ [i[0]]: i[1] });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-    type: RangeError,
+    name: 'RangeError',
     message: `Invalid value for setting "${i[0]}": ${i[1]}`
   });
 });
@@ -58,11 +58,11 @@ http2.getPackedSettings({ enablePush: false });
 [
   1, null, '', Infinity, new Date(), {}, NaN, [false]
 ].forEach((i) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     http2.getPackedSettings({ enablePush: i });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: `Invalid value for setting "enablePush": ${i}`
   });
 });
@@ -101,22 +101,22 @@ http2.getPackedSettings({ enablePush: false });
     0x00, 0x02, 0x00, 0x00, 0x00, 0x01]);
 
   [1, true, '', [], {}, NaN].forEach((input) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       http2.getUnpackedSettings(input);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message:
         'The "buf" argument must be an instance of Buffer, TypedArray, or ' +
         `DataView.${common.invalidArgTypeHelper(input)}`
     });
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     http2.getUnpackedSettings(packed.slice(5));
   }, {
     code: 'ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH',
-    type: RangeError,
+    name: 'RangeError',
     message: 'Packed settings length must be a multiple of six'
   });
 
@@ -161,11 +161,11 @@ http2.getPackedSettings({ enablePush: false });
 {
   const packed = Buffer.from([0x00, 0x05, 0x01, 0x00, 0x00, 0x00]);
 
-  common.expectsError(() => {
+  assert.throws(() => {
     http2.getUnpackedSettings(packed, { validate: true });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-    type: RangeError,
+    name: 'RangeError',
     message: 'Invalid value for setting "maxFrameSize": 16777216'
   });
 }

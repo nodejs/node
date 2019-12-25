@@ -7,7 +7,7 @@ const readable = new Readable();
 
 readable.on('error', common.expectsError({
   code: 'ERR_METHOD_NOT_IMPLEMENTED',
-  type: Error,
+  name: 'Error',
   message: 'The _read() method is not implemented'
 }));
 

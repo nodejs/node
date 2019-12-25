@@ -3,6 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const tls = require('tls');
 
 ['foobar', 1, {}, []].forEach(function connectThrows(input) {
@@ -12,11 +13,11 @@ const tls = require('tls');
     lookup: input
   };
 
-  common.expectsError(function() {
+  assert.throws(() => {
     tls.connect(opts);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 });
 

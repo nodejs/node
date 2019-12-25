@@ -6,12 +6,8 @@ const signals = require('os').constants.signals;
 const rootUser = common.isWindows ? false :
   common.isIBMi ? true : process.getuid() === 0;
 
-const invalidArgTypeError = common.expectsError(
-  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError },
-  common.isWindows || rootUser ? 42 : 62);
-
-const invalidRangeError =
-  common.expectsError({ code: 'ERR_OUT_OF_RANGE', type: RangeError }, 20);
+const invalidArgTypeError = { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' };
+const invalidRangeError = { code: 'ERR_OUT_OF_RANGE', name: 'RangeError' };
 
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,
@@ -189,8 +185,7 @@ if (!common.isWindows) {
 
 {
   // Validate the killSignal option
-  const unknownSignalErr =
-    common.expectsError({ code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }, 17);
+  const unknownSignalErr = { code: 'ERR_UNKNOWN_SIGNAL', name: 'TypeError' };
 
   pass('killSignal', undefined);
   pass('killSignal', null);

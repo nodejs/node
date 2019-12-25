@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
 
@@ -270,11 +270,11 @@ qsWeirdObjects.forEach((testCase) => {
 });
 
 // Invalid surrogate pair throws URIError
-common.expectsError(
+assert.throws(
   () => qs.stringify({ foo: '\udc00' }),
   {
     code: 'ERR_INVALID_URI',
-    type: URIError,
+    name: 'URIError',
     message: 'URI malformed'
   }
 );

@@ -109,11 +109,11 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode_async);
     }
 
-    common.expectsError(
+    assert.throws(
       () => fs.fchmod(fd, {}),
       {
         code: 'ERR_INVALID_ARG_VALUE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The argument \'mode\' must be a 32-bit unsigned integer ' +
                  'or an octal string. Received {}'
       }

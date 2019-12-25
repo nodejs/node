@@ -3,7 +3,6 @@
 const {
   mustCall,
   mustNotCall,
-  expectsError,
   hasCrypto,
   skip
 } = require('../common');
@@ -33,10 +32,10 @@ server.listen(0, mustCall(() => {
       response.on('error', mustNotCall());
 
       // response.write() without cb returns error
-      expectsError(
+      assert.throws(
         () => { response.write('muahaha'); },
         {
-          type: Error,
+          name: 'Error',
           code: 'ERR_HTTP2_INVALID_STREAM',
           message: 'The stream has been destroyed'
         }

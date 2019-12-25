@@ -10,11 +10,11 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [undefined, null, 'foo', 0, 1, NaN, true, false].forEach((options) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       child.spawn(options);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "options" argument must be of type object.' +
                `${common.invalidArgTypeHelper(options)}`
     });
@@ -26,11 +26,11 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [undefined, null, 0, 1, NaN, true, false, {}].forEach((file) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       child.spawn({ file });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "options.file" property must be of type string.' +
                `${common.invalidArgTypeHelper(file)}`
     });
@@ -42,11 +42,11 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((envPairs) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       child.spawn({ envPairs, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "options.envPairs" property must be an instance of Array.' +
               common.invalidArgTypeHelper(envPairs)
     });
@@ -58,11 +58,11 @@ assert.strictEqual(typeof ChildProcess, 'function');
   const child = new ChildProcess();
 
   [null, 0, 1, NaN, true, false, {}, 'foo'].forEach((args) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       child.spawn({ file: 'foo', args });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "options.args" property must be an instance of Array.' +
                common.invalidArgTypeHelper(args)
     });
@@ -82,9 +82,9 @@ assert.strictEqual(child.hasOwnProperty('pid'), true);
 assert(Number.isInteger(child.pid));
 
 // Try killing with invalid signal
-common.expectsError(
+assert.throws(
   () => { child.kill('foo'); },
-  { code: 'ERR_UNKNOWN_SIGNAL', type: TypeError }
+  { code: 'ERR_UNKNOWN_SIGNAL', name: 'TypeError' }
 );
 
 assert.strictEqual(child.kill(), true);

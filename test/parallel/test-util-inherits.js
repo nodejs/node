@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const { inherits } = require('util');
 
@@ -83,28 +83,28 @@ assert.strictEqual(e.e(), 'e');
 assert.strictEqual(e.constructor, E);
 
 // Should throw with invalid arguments
-common.expectsError(function() {
+assert.throws(() => {
   inherits(A, {});
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The "superCtor.prototype" property must be of type object. ' +
            'Received undefined'
 });
 
-common.expectsError(function() {
+assert.throws(() => {
   inherits(A, null);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The "superCtor" argument must be of type function. ' +
            'Received null'
 });
 
-common.expectsError(function() {
+assert.throws(() => {
   inherits(null, A);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The "ctor" argument must be of type function. Received null'
 });

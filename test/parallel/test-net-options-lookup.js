@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const net = require('net');
 
 ['foobar', 1, {}, []].forEach((input) => connectThrows(input));
@@ -12,11 +13,11 @@ function connectThrows(input) {
     lookup: input
   };
 
-  common.expectsError(() => {
+  assert.throws(() => {
     net.connect(opts);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 }
 

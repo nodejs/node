@@ -15,44 +15,44 @@ server.listen(0, common.mustCall(() => {
     });
     response.setTrailer('ABCD', 123);
 
-    common.expectsError(
+    assert.throws(
       () => response.addTrailers({ '': 'test' }),
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Header name must be a valid HTTP token [""]'
       }
     );
-    common.expectsError(
+    assert.throws(
       () => response.setTrailer('test', undefined),
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Invalid value "undefined" for header "test"'
       }
     );
-    common.expectsError(
+    assert.throws(
       () => response.setTrailer('test', null),
       {
         code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Invalid value "null" for header "test"'
       }
     );
-    common.expectsError(
+    assert.throws(
       () => response.setTrailer(), // Trailer name undefined
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "name" argument must be of type string. Received ' +
                  'undefined'
       }
     );
-    common.expectsError(
+    assert.throws(
       () => response.setTrailer(''),
       {
         code: 'ERR_INVALID_HTTP_TOKEN',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Header name must be a valid HTTP token [""]'
       }
     );

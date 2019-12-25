@@ -1,10 +1,11 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const { Console } = require('console');
 const { Writable } = require('stream');
 
 for (const method of ['dir', 'log', 'warn']) {
-  common.expectsError(() => {
+  assert.throws(() => {
     const out = new Writable({
       write: common.mustCall(function write(...args) {
         // Exceeds call stack.

@@ -30,11 +30,11 @@ const sock = dgram.createSocket('udp4');
 
 function checkArgs(connected) {
   // First argument should be a buffer.
-  common.expectsError(
+  assert.throws(
     () => { sock.send(); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "buffer" argument must be of type string or an instance ' +
       'of Buffer or Uint8Array. Received undefined'
     }
@@ -42,38 +42,38 @@ function checkArgs(connected) {
 
   // send(buf, offset, length, port, host)
   if (connected) {
-    common.expectsError(
+    assert.throws(
       () => { sock.send(buf, 1, 1, -1, host); },
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
-        type: Error,
+        name: 'Error',
         message: 'Already connected'
       }
     );
 
-    common.expectsError(
+    assert.throws(
       () => { sock.send(buf, 1, 1, 0, host); },
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
-        type: Error,
+        name: 'Error',
         message: 'Already connected'
       }
     );
 
-    common.expectsError(
+    assert.throws(
       () => { sock.send(buf, 1, 1, 65536, host); },
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
-        type: Error,
+        name: 'Error',
         message: 'Already connected'
       }
     );
 
-    common.expectsError(
+    assert.throws(
       () => { sock.send(buf, 1234, '127.0.0.1', common.mustNotCall()); },
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
-        type: Error,
+        name: 'Error',
         message: 'Already connected'
       }
     );
@@ -84,22 +84,22 @@ function checkArgs(connected) {
   }
 
   // send(buf, port, host)
-  common.expectsError(
+  assert.throws(
     () => { sock.send(23, 12345, host); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "buffer" argument must be of type string or an instance ' +
       'of Buffer or Uint8Array. Received type number (23)'
     }
   );
 
   // send([buf1, ..], port, host)
-  common.expectsError(
+  assert.throws(
     () => { sock.send([buf, 23], 12345, host); },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "buffer list arguments" argument must be of type string ' +
       'or an instance of Buffer. Received an instance of Array'
     }

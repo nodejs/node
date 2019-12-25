@@ -11,7 +11,7 @@ const h2 = require('http2');
 
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
-  type: Error,
+  name: 'Error',
   message: 'HTTP/2 sockets should not be directly manipulated ' +
            '(e.g. read and written)'
 };
@@ -68,10 +68,10 @@ server.on('request', common.mustCall(function(request, response) {
   request.socket._isProcessing = true;
   assert.strictEqual(request.stream.session.socket._isProcessing, true);
 
-  common.expectsError(() => request.socket.read = noop, errMsg);
-  common.expectsError(() => request.socket.write = noop, errMsg);
-  common.expectsError(() => request.socket.pause = noop, errMsg);
-  common.expectsError(() => request.socket.resume = noop, errMsg);
+  assert.throws(() => request.socket.read = noop, errMsg);
+  assert.throws(() => request.socket.write = noop, errMsg);
+  assert.throws(() => request.socket.pause = noop, errMsg);
+  assert.throws(() => request.socket.resume = noop, errMsg);
 
   request.stream.on('finish', common.mustCall(() => {
     setImmediate(() => {

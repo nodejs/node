@@ -152,7 +152,7 @@ test1({
   }));
 }
 
-common.expectsError(
+assert.throws(
   () => {
     fs.createReadStream(rangeFile, { start: 10, end: 2 });
   },
@@ -160,7 +160,7 @@ common.expectsError(
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. It must be <= "end"' +
              ' (here: 2). Received 10',
-    type: RangeError
+    name: 'RangeError'
   });
 
 {

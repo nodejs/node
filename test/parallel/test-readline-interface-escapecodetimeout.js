@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 
 // This test ensures that the escapeCodeTimeout option set correctly
 
@@ -31,7 +31,7 @@ class FakeInput extends EventEmitter {
   NaN,
   '50'
 ].forEach((invalidInput) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     const fi = new FakeInput();
     const rli = new readline.Interface({
       input: fi,
@@ -40,7 +40,7 @@ class FakeInput extends EventEmitter {
     });
     rli.close();
   }, {
-    type: TypeError,
+    name: 'TypeError',
     code: 'ERR_INVALID_OPT_VALUE'
   });
 });

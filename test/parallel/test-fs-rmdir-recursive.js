@@ -113,10 +113,10 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  common.expectsError(() => {
+  assert.throws(() => {
     fs.rmdirSync(dir);
   }, { syscall: 'rmdir' });
-  common.expectsError(() => {
+  assert.throws(() => {
     fs.rmdirSync(dir, { recursive: false });
   }, { syscall: 'rmdir' });
 
@@ -127,7 +127,7 @@ function removeAsync(dir) {
   fs.rmdirSync(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  common.expectsError(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
+  assert.throws(() => fs.rmdirSync(dir), { syscall: 'rmdir' });
 }
 
 // Test the Promises based version.
@@ -177,38 +177,38 @@ function removeAsync(dir) {
   });
 
   [null, 'foo', 5, NaN].forEach((bad) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       validateRmdirOptions(bad);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: /^The "options" argument must be of type object\./
     });
   });
 
   [undefined, null, 'foo', Infinity, function() {}].forEach((bad) => {
-    common.expectsError(() => {
+    assert.throws(() => {
       validateRmdirOptions({ recursive: bad });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: /^The "recursive" argument must be of type boolean\./
     });
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     validateRmdirOptions({ retryDelay: -1 });
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError,
+    name: 'RangeError',
     message: /^The value of "retryDelay" is out of range\./
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     validateRmdirOptions({ maxRetries: -1 });
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError,
+    name: 'RangeError',
     message: /^The value of "maxRetries" is out of range\./
   });
 }

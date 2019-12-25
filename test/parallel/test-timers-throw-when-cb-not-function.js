@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 function doSetTimeout(callback, after) {
@@ -8,10 +8,10 @@ function doSetTimeout(callback, after) {
   };
 }
 
-const errMessage = common.expectsError({
+const errMessage = {
   code: 'ERR_INVALID_CALLBACK',
-  type: TypeError
-}, 18);
+  name: 'TypeError'
+};
 
 assert.throws(doSetTimeout('foo'), errMessage);
 assert.throws(doSetTimeout({ foo: 'bar' }), errMessage);

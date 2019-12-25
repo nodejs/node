@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const b = Buffer.allocUnsafe(1024);
@@ -108,11 +108,11 @@ bb.fill('hello crazy world');
 b.copy(c, 0, 100, 10);
 
 // Copy throws at negative sourceStart
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(5).copy(Buffer.allocUnsafe(5), 0, -1),
   {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError,
+    name: 'RangeError',
     message: 'The value of "sourceStart" is out of range. ' +
              'It must be >= 0. Received -1'
   }
@@ -129,11 +129,11 @@ common.expectsError(
 }
 
 // Throw with negative sourceEnd
-common.expectsError(
+assert.throws(
   () => b.copy(c, 0, 0, -1),
   {
     code: 'ERR_OUT_OF_RANGE',
-    type: RangeError,
+    name: 'RangeError',
     message: 'The value of "sourceEnd" is out of range. ' +
              'It must be >= 0. Received -1'
   }

@@ -37,7 +37,6 @@ parallel/test-eslint-no-unescaped-regexp-dot: SLOW
 parallel/test-eslint-number-isnan: SLOW
 parallel/test-eslint-prefer-assert-iferror: SLOW
 parallel/test-eslint-prefer-assert-methods: SLOW
-parallel/test-eslint-prefer-common-expectserror: SLOW
 parallel/test-eslint-prefer-common-mustnotcall: SLOW
 parallel/test-eslint-prefer-util-format-errors: SLOW
 parallel/test-eslint-require-buffer: SLOW

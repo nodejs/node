@@ -66,18 +66,18 @@ function nextdir() {
 // mkdirSync and mkdir require path to be a string, buffer or url.
 // Anything else generates an error.
 [false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.mkdir(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.mkdirSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });
@@ -218,20 +218,20 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
   const pathname = path.join(tmpdir.path, nextdir());
   ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
     const received = common.invalidArgTypeHelper(recursive);
-    common.expectsError(
+    assert.throws(
       () => fs.mkdir(pathname, { recursive }, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "recursive" argument must be of type boolean.' +
           received
       }
     );
-    common.expectsError(
+    assert.throws(
       () => fs.mkdirSync(pathname, { recursive }),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "recursive" argument must be of type boolean.' +
           received
       }

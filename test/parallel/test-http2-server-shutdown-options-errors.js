@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 
 const server = http2.createServer();
@@ -20,29 +21,29 @@ server.on('stream', common.mustCall((stream) => {
 
   types.forEach((input) => {
     const received = common.invalidArgTypeHelper(input);
-    common.expectsError(
+    assert.throws(
       () => session.goaway(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "code" argument must be of type number.' +
                  received
       }
     );
-    common.expectsError(
+    assert.throws(
       () => session.goaway(0, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "lastStreamID" argument must be of type number.' +
                  received
       }
     );
-    common.expectsError(
+    assert.throws(
       () => session.goaway(0, 0, input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "opaqueData" argument must be an instance of Buffer, ' +
                  `TypedArray, or DataView.${received}`
       }
