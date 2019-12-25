@@ -41,7 +41,7 @@ const certPfx = fixtures.readKey('rsa_cert.pfx');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
-assert.throws(function() {
+assert.throws(() => {
   const credentials = tls.createSecureContext();
   const context = credentials.context;
   const notcontext = { setOptions: context.setOptions };
@@ -52,56 +52,52 @@ assert.throws(function() {
   notcontext.setOptions();
 }, (err) => {
   // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Illegal invocation$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+  return err instanceof TypeError &&
+         err.name === 'TypeError' &&
+         /^TypeError: Illegal invocation$/.test(err) &&
+         !('opensslErrorStack' in err);
 });
 
 // PFX tests
 tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 
-assert.throws(function() {
+assert.throws(() => {
   tls.createSecureContext({ pfx: certPfx });
 }, (err) => {
   // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^Error: mac verify failure$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+  return err instanceof Error &&
+         err.name === 'Error' &&
+         /^Error: mac verify failure$/.test(err) &&
+         !('opensslErrorStack' in err);
 });
 
-assert.throws(function() {
+assert.throws(() => {
   tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
 }, (err) => {
   // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^Error: mac verify failure$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+  return err instanceof Error &&
+         err.name === 'Error' &&
+         /^Error: mac verify failure$/.test(err) &&
+         !('opensslErrorStack' in err);
 });
 
-assert.throws(function() {
+assert.throws(() => {
   tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
 }, (err) => {
   // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^Error: not enough data$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+  return err instanceof Error &&
+         err.name === 'Error' &&
+         /^Error: not enough data$/.test(err) &&
+         !('opensslErrorStack' in err);
 });
 
 
 // update() should only take buffers / strings
-common.expectsError(
+assert.throws(
   () => crypto.createHash('sha1').update({ foo: 'bar' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 
 
@@ -167,44 +163,32 @@ testImmutability(crypto.getCurves);
 
 // Regression tests for https://github.com/nodejs/node-v0.x-archive/pull/5725:
 // hex input that's not a power of two should throw, not assert in C++ land.
-assert.throws(function() {
-  crypto.createCipher('aes192', 'test').update('0', 'hex');
-}, (err) => {
-  const errorMessage =
-    common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/;
-  // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      errorMessage.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+['createCipher', 'createDecipher'].forEach((funcName) => {
+  assert.throws(
+    () => crypto[funcName]('aes192', 'test').update('0', 'hex'),
+    (error) => {
+      assert.ok(!('opensslErrorStack' in error));
+      if (common.hasFipsCrypto) {
+        return error instanceof Error &&
+               error.name === 'Error' &&
+               /^Error: not supported in FIPS mode$/.test(error);
+      }
+      assert.throws(() => { throw error; }, /^TypeError: Bad input string$/);
+      return true;
+    }
+  );
 });
 
-assert.throws(function() {
-  crypto.createDecipher('aes192', 'test').update('0', 'hex');
-}, (err) => {
-  const errorMessage =
-    common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/;
-  // Throws general Error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      errorMessage.test(err) &&
-      err.opensslErrorStack === undefined) {
+assert.throws(
+  () => crypto.createHmac('sha256', 'a secret').update('0', 'hex'),
+  (error) => {
+    assert.ok(!('opensslErrorStack' in error));
+    assert.throws(() => { throw error; }, /^TypeError: Bad input string$/);
     return true;
   }
-});
+);
 
-assert.throws(function() {
-  crypto.createHash('sha1').update('0', 'hex');
-}, (err) => {
-  // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Bad input string$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
-
-assert.throws(function() {
+assert.throws(() => {
   const priv = [
     '-----BEGIN RSA PRIVATE KEY-----',
     'MIGrAgEAAiEA+3z+1QNF2/unumadiwEr+C5vfhezsb3hp4jAnCNRpPcCAwEAAQIgQNriSQK4',
@@ -216,14 +200,19 @@ assert.throws(function() {
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  if ((err instanceof Error) &&
-      /digest too big for rsa key$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+  assert.ok(!('opensslErrorStack' in err));
+  assert.throws(() => { throw err; }, {
+    name: 'Error',
+    message: /routines:RSA_sign:digest too big for rsa key$/,
+    library: 'rsa routines',
+    function: 'RSA_sign',
+    reason: 'digest too big for rsa key',
+    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY'
+  });
+  return true;
 });
 
-assert.throws(function() {
+assert.throws(() => {
   // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
   // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
   // instead of
@@ -251,15 +240,13 @@ assert.throws(function() {
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));
 
-assert.throws(function() {
+assert.throws(() => {
   tls.createSecureContext({ crl: 'not a CRL' });
 }, (err) => {
   // Throws general error, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^Error: Failed to parse CRL$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
+  return err instanceof Error &&
+         /^Error: Failed to parse CRL$/.test(err) &&
+         !('opensslErrorStack' in err);
 });
 
 /**

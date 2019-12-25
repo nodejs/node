@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 
 const assert = require('assert');
 const { Console } = require('console');
@@ -23,7 +23,7 @@ function test(data, only, expected) {
   );
 }
 
-common.expectsError(() => console.table([], false), {
+assert.throws(() => console.table([], false), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 

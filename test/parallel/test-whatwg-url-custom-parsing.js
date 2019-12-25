@@ -49,14 +49,13 @@ const failureTests = originalFailures
   .concat(typeFailures)
   .concat(aboutBlankFailures);
 
-const expectedError = common.expectsError(
-  { code: 'ERR_INVALID_URL', type: TypeError }, failureTests.length);
+const expectedError = { code: 'ERR_INVALID_URL', name: 'TypeError' };
 
 for (const test of failureTests) {
   assert.throws(
     () => new URL(test.input, test.base),
     (error) => {
-      expectedError(error);
+      assert.throws(() => { throw error; }, expectedError);
 
       // The input could be processed, so we don't do strict matching here
       let match;

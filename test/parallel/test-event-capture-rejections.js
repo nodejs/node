@@ -278,14 +278,14 @@ function resetCaptureOnThrowInError() {
 function argValidation() {
 
   function testType(obj) {
-    common.expectsError(() => new EventEmitter({ captureRejections: obj }), {
+    assert.throws(() => new EventEmitter({ captureRejections: obj }), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
 
-    common.expectsError(() => EventEmitter.captureRejections = obj, {
+    assert.throws(() => EventEmitter.captureRejections = obj, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   }
 

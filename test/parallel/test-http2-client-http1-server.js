@@ -20,13 +20,13 @@ server.listen(0, common.mustCall(() => {
 
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
-    type: NghttpError,
+    constructor: NghttpError,
     message: 'Protocol error'
   }));
 
   client.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
-    type: NghttpError,
+    constructor: NghttpError,
     name: 'Error',
     message: 'Protocol error'
   }));

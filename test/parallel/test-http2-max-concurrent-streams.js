@@ -49,7 +49,7 @@ server.listen(0, common.mustCall(() => {
     req.on('close', common.mustCall(() => countdown.dec()));
     req.on('error', common.expectsError({
       code: 'ERR_HTTP2_STREAM_ERROR',
-      type: Error,
+      name: 'Error',
       message: 'Stream closed with error code NGHTTP2_REFUSED_STREAM'
     }));
   }

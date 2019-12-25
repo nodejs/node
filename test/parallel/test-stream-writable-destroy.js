@@ -164,7 +164,7 @@ const assert = require('assert');
 
   writable.on('close', common.mustCall());
   writable.on('error', common.expectsError({
-    type: Error,
+    name: 'Error',
     message: 'kaboom 2'
   }));
 

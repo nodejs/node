@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 const { Worker } = require('worker_threads');
 
 {
@@ -14,11 +15,11 @@ const { Worker } = require('worker_threads');
     [],
     () => {}
   ].forEach((val) => {
-    common.expectsError(
+    assert.throws(
       () => new Worker(val),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The "filename" argument must be of type string.' +
                  common.invalidArgTypeHelper(val)
       }

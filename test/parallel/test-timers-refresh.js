@@ -4,7 +4,7 @@
 
 const common = require('../common');
 
-const { strictEqual } = require('assert');
+const { strictEqual, throws } = require('assert');
 const { setUnrefTimeout } = require('internal/timers');
 const { inspect } = require('util');
 
@@ -34,7 +34,7 @@ const { inspect } = require('util');
 // Should throw with non-functions
 {
   [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((cb) => {
-    common.expectsError(
+    throws(
       () => setUnrefTimeout(cb),
       {
         code: 'ERR_INVALID_CALLBACK',

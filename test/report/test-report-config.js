@@ -12,7 +12,7 @@ common.expectWarning('ExperimentalWarning',
 assert.strictEqual(process.report.directory, '');
 process.report.directory = __dirname;
 assert.strictEqual(process.report.directory, __dirname);
-common.expectsError(() => {
+assert.throws(() => {
   process.report.directory = {};
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(process.report.directory, __dirname);
@@ -21,7 +21,7 @@ assert.strictEqual(process.report.directory, __dirname);
 assert.strictEqual(process.report.filename, '');
 process.report.filename = 'test-report.json';
 assert.strictEqual(process.report.filename, 'test-report.json');
-common.expectsError(() => {
+assert.throws(() => {
   process.report.filename = {};
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(process.report.filename, 'test-report.json');
@@ -32,7 +32,7 @@ process.report.reportOnFatalError = false;
 assert.strictEqual(process.report.reportOnFatalError, false);
 process.report.reportOnFatalError = true;
 assert.strictEqual(process.report.reportOnFatalError, true);
-common.expectsError(() => {
+assert.throws(() => {
   process.report.reportOnFatalError = {};
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(process.report.reportOnFatalError, true);
@@ -44,7 +44,7 @@ process.report.reportOnUncaughtException = false;
 assert.strictEqual(process.report.reportOnUncaughtException, false);
 process.report.reportOnUncaughtException = true;
 assert.strictEqual(process.report.reportOnUncaughtException, true);
-common.expectsError(() => {
+assert.throws(() => {
   process.report.reportOnUncaughtException = {};
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(process.report.reportOnUncaughtException, true);
@@ -55,7 +55,7 @@ process.report.reportOnSignal = false;
 assert.strictEqual(process.report.reportOnSignal, false);
 process.report.reportOnSignal = true;
 assert.strictEqual(process.report.reportOnSignal, true);
-common.expectsError(() => {
+assert.throws(() => {
   process.report.reportOnSignal = {};
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(process.report.reportOnSignal, true);
@@ -63,16 +63,16 @@ assert.strictEqual(process.report.reportOnSignal, true);
 if (!common.isWindows) {
   // Verify that process.report.signal behaves properly.
   assert.strictEqual(process.report.signal, 'SIGUSR2');
-  common.expectsError(() => {
+  assert.throws(() => {
     process.report.signal = {};
   }, { code: 'ERR_INVALID_ARG_TYPE' });
-  common.expectsError(() => {
+  assert.throws(() => {
     process.report.signal = 'foo';
   }, {
     code: 'ERR_UNKNOWN_SIGNAL',
     message: 'Unknown signal: foo'
   });
-  common.expectsError(() => {
+  assert.throws(() => {
     process.report.signal = 'sigusr1';
   }, {
     code: 'ERR_UNKNOWN_SIGNAL',

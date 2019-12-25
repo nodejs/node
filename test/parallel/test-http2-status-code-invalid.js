@@ -11,7 +11,7 @@ const server = http2.createServer();
 function expectsError(code) {
   return common.expectsError({
     code: 'ERR_HTTP2_STATUS_INVALID',
-    type: RangeError,
+    name: 'RangeError',
     message: `Invalid status code: ${code}`
   });
 }

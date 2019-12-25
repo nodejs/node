@@ -52,12 +52,12 @@ tcp.listen(0, common.mustCall(function() {
   assert.strictEqual(socket.readyState, 'opening');
 
   // Make sure that anything besides a buffer or a string throws.
-  common.expectsError(() => socket.write(null),
-                      {
-                        code: 'ERR_STREAM_NULL_VALUES',
-                        type: TypeError,
-                        message: 'May not write null values to stream'
-                      });
+  assert.throws(() => socket.write(null),
+                {
+                  code: 'ERR_STREAM_NULL_VALUES',
+                  name: 'TypeError',
+                  message: 'May not write null values to stream'
+                });
   [
     true,
     false,
@@ -66,9 +66,9 @@ tcp.listen(0, common.mustCall(function() {
     +Infinity,
     -Infinity
   ].forEach((value) => {
-    common.expectsError(() => socket.write(value), {
+    assert.throws(() => socket.write(value), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "chunk" argument must be of type string or an instance ' +
                `of Buffer. Received type ${typeof value} (${value})`
     });

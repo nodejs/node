@@ -21,10 +21,10 @@ const stream = require('stream');
 
   for (const invalidHwm of [true, false, '5', {}, -5, NaN]) {
     for (const type of [stream.Readable, stream.Writable]) {
-      common.expectsError(() => {
+      assert.throws(() => {
         type({ highWaterMark: invalidHwm });
       }, {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_OPT_VALUE',
         message:
           `The value "${invalidHwm}" is invalid for option "highWaterMark"`

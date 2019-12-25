@@ -17,7 +17,7 @@ const { kTimeout } = require('internal/timers');
 
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
-  type: Error,
+  name: 'Error',
   message: 'HTTP/2 sockets should not be directly manipulated ' +
            '(e.g. read and written)'
 };
@@ -38,10 +38,10 @@ server.on('request', common.mustCall(function(request, response) {
   assert.strictEqual(request.stream.session[kTimeout]._idleTimeout, 987);
   request.socket.setTimeout(0);
 
-  common.expectsError(() => request.socket.read(), errMsg);
-  common.expectsError(() => request.socket.write(), errMsg);
-  common.expectsError(() => request.socket.pause(), errMsg);
-  common.expectsError(() => request.socket.resume(), errMsg);
+  assert.throws(() => request.socket.read(), errMsg);
+  assert.throws(() => request.socket.write(), errMsg);
+  assert.throws(() => request.socket.pause(), errMsg);
+  assert.throws(() => request.socket.resume(), errMsg);
 
   // Should have correct this context for socket methods & getters
   assert.ok(request.socket.address() != null);

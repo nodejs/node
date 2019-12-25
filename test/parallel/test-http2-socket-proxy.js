@@ -16,7 +16,7 @@ const { kTimeout } = require('internal/timers');
 
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
-  type: Error,
+  name: 'Error',
   message: 'HTTP/2 sockets should not be directly manipulated ' +
            '(e.g. read and written)'
 };
@@ -52,27 +52,27 @@ server.on('stream', common.mustCall(function(stream, headers) {
   assert(inspectedTimersList.includes('      _idleNext: [Timeout]'));
   assert(!inspectedTimersList.includes('       _idleNext: [Timeout]'));
 
-  common.expectsError(() => socket.destroy, errMsg);
-  common.expectsError(() => socket.emit, errMsg);
-  common.expectsError(() => socket.end, errMsg);
-  common.expectsError(() => socket.pause, errMsg);
-  common.expectsError(() => socket.read, errMsg);
-  common.expectsError(() => socket.resume, errMsg);
-  common.expectsError(() => socket.write, errMsg);
-  common.expectsError(() => socket.setEncoding, errMsg);
-  common.expectsError(() => socket.setKeepAlive, errMsg);
-  common.expectsError(() => socket.setNoDelay, errMsg);
+  assert.throws(() => socket.destroy, errMsg);
+  assert.throws(() => socket.emit, errMsg);
+  assert.throws(() => socket.end, errMsg);
+  assert.throws(() => socket.pause, errMsg);
+  assert.throws(() => socket.read, errMsg);
+  assert.throws(() => socket.resume, errMsg);
+  assert.throws(() => socket.write, errMsg);
+  assert.throws(() => socket.setEncoding, errMsg);
+  assert.throws(() => socket.setKeepAlive, errMsg);
+  assert.throws(() => socket.setNoDelay, errMsg);
 
-  common.expectsError(() => (socket.destroy = undefined), errMsg);
-  common.expectsError(() => (socket.emit = undefined), errMsg);
-  common.expectsError(() => (socket.end = undefined), errMsg);
-  common.expectsError(() => (socket.pause = undefined), errMsg);
-  common.expectsError(() => (socket.read = undefined), errMsg);
-  common.expectsError(() => (socket.resume = undefined), errMsg);
-  common.expectsError(() => (socket.write = undefined), errMsg);
-  common.expectsError(() => (socket.setEncoding = undefined), errMsg);
-  common.expectsError(() => (socket.setKeepAlive = undefined), errMsg);
-  common.expectsError(() => (socket.setNoDelay = undefined), errMsg);
+  assert.throws(() => (socket.destroy = undefined), errMsg);
+  assert.throws(() => (socket.emit = undefined), errMsg);
+  assert.throws(() => (socket.end = undefined), errMsg);
+  assert.throws(() => (socket.pause = undefined), errMsg);
+  assert.throws(() => (socket.read = undefined), errMsg);
+  assert.throws(() => (socket.resume = undefined), errMsg);
+  assert.throws(() => (socket.write = undefined), errMsg);
+  assert.throws(() => (socket.setEncoding = undefined), errMsg);
+  assert.throws(() => (socket.setKeepAlive = undefined), errMsg);
+  assert.throws(() => (socket.setNoDelay = undefined), errMsg);
 
   // Resetting the socket listeners to their own value should not throw.
   socket.on = socket.on;  // eslint-disable-line no-self-assign

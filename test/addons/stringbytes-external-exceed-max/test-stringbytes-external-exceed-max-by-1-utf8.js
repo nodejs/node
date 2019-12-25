@@ -35,7 +35,7 @@ assert.throws(() => {
       message: `Cannot create a string longer than 0x${stringLengthHex} ` +
                'characters',
       code: 'ERR_STRING_TOO_LONG',
-      type: Error
+      name: 'Error'
     })(e);
     return true;
   } else {
@@ -43,11 +43,11 @@ assert.throws(() => {
   }
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   buf.toString('utf8');
 }, {
   message: `Cannot create a string longer than 0x${stringLengthHex} ` +
            'characters',
   code: 'ERR_STRING_TOO_LONG',
-  type: Error
+  name: 'Error'
 });

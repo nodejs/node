@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const b = Buffer.alloc(1, 'a');
@@ -39,9 +39,9 @@ assert.throws(() => Buffer.compare('abc', Buffer.alloc(1)), {
            "Received type string ('abc')"
 });
 
-common.expectsError(() => Buffer.alloc(1).compare('abc'), {
+assert.throws(() => Buffer.alloc(1).compare('abc'), {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
+  name: 'TypeError',
   message: 'The "target" argument must be an instance of ' +
            "Buffer or Uint8Array. Received type string ('abc')"
 });

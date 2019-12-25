@@ -18,9 +18,9 @@ if (process.argv[2] === 'child') {
   }
 
   [null, undefined, 1, Date, {}, []].forEach((i) => {
-    common.expectsError(() => new Foo(i), {
+    assert.throws(() => new Foo(i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   });
 

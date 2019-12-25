@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const http = require('http');
 const net = require('net');
 const url = require('url');
@@ -23,11 +23,11 @@ const countdown = new Countdown(3, () => server.close());
 
 function test(res, code, key, value) {
   const header = { [key]: value };
-  common.expectsError(
+  assert.throws(
     () => res.writeHead(code, header),
     {
       code: 'ERR_INVALID_CHAR',
-      type: TypeError,
+      name: 'TypeError',
       message: `Invalid character in header content ["${key}"]`
     }
   );

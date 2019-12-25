@@ -76,17 +76,17 @@ server.listen(0, common.mustCall(() => {
     // Only max 2 pings at a time based on the maxOutstandingPings option
     assert(!client.ping(common.expectsError({
       code: 'ERR_HTTP2_PING_CANCEL',
-      type: Error,
+      name: 'Error',
       message: 'HTTP2 ping cancelled'
     })));
 
     // Should throw if payload is not of type ArrayBufferView
     {
       [1, true, {}, []].forEach((payload) =>
-        common.expectsError(
+        assert.throws(
           () => client.ping(payload),
           {
-            type: TypeError,
+            name: 'TypeError',
             code: 'ERR_INVALID_ARG_TYPE',
             message: 'The "payload" argument must be an instance of Buffer, ' +
                      'TypedArray, or DataView.' +
@@ -101,10 +101,10 @@ server.listen(0, common.mustCall(() => {
       const shortPayload = Buffer.from('abcdefg');
       const longPayload = Buffer.from('abcdefghi');
       [shortPayload, longPayload].forEach((payloadWithInvalidLength) =>
-        common.expectsError(
+        assert.throws(
           () => client.ping(payloadWithInvalidLength),
           {
-            type: RangeError,
+            name: 'RangeError',
             code: 'ERR_HTTP2_PING_LENGTH',
             message: 'HTTP2 ping payload must be 8 bytes'
           }
@@ -116,10 +116,10 @@ server.listen(0, common.mustCall(() => {
     {
       const payload = Buffer.from('abcdefgh');
       [1, true, {}, []].forEach((invalidCallback) =>
-        common.expectsError(
+        assert.throws(
           () => client.ping(payload, invalidCallback),
           {
-            type: TypeError,
+            name: 'TypeError',
             code: 'ERR_INVALID_CALLBACK',
             message: 'Callback must be a function. ' +
                      `Received ${inspect(invalidCallback)}`

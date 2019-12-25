@@ -23,11 +23,11 @@ const errMessage = /^Bad socket type specified\. Valid types are: udp4, udp6$/;
 
 // Error must be thrown with invalid types
 invalidTypes.forEach((invalidType) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     dgram.createSocket(invalidType);
   }, {
     code: 'ERR_SOCKET_BAD_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: errMessage
   });
 });

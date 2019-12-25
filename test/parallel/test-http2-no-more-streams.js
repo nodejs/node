@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(() => {
       const req = client.request();
       req.on('error', common.expectsError({
         code: 'ERR_HTTP2_OUT_OF_STREAMS',
-        type: Error,
+        name: 'Error',
         message:
           'No stream ID is available because maximum stream ID has been reached'
       }));

@@ -81,20 +81,20 @@ Buffer(0);
 
 const outOfRangeError = {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError
+  name: 'RangeError'
 };
 
 // Try to write a 0-length string beyond the end of b
-common.expectsError(() => b.write('', 2048), outOfRangeError);
+assert.throws(() => b.write('', 2048), outOfRangeError);
 
 // Throw when writing to negative offset
-common.expectsError(() => b.write('a', -1), outOfRangeError);
+assert.throws(() => b.write('a', -1), outOfRangeError);
 
 // Throw when writing past bounds from the pool
-common.expectsError(() => b.write('a', 2048), outOfRangeError);
+assert.throws(() => b.write('a', 2048), outOfRangeError);
 
 // Throw when writing to negative offset
-common.expectsError(() => b.write('a', -1), outOfRangeError);
+assert.throws(() => b.write('a', -1), outOfRangeError);
 
 // Try to copy 0 bytes worth of data into an empty buffer
 b.copy(Buffer.alloc(0), 0, 0, 0);
@@ -793,31 +793,31 @@ assert.strictEqual(Buffer.from('13.37').length, 5);
 Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 
 // issue GH-5587
-common.expectsError(
+assert.throws(
   () => Buffer.alloc(8).writeFloatLE(0, 5),
   outOfRangeError
 );
-common.expectsError(
+assert.throws(
   () => Buffer.alloc(16).writeDoubleLE(0, 9),
   outOfRangeError
 );
 
 // Attempt to overflow buffers, similar to previous bug in array buffers
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
   outOfRangeError
 );
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
   outOfRangeError
 );
 
 // Ensure negative values can't get past offset
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
   outOfRangeError
 );
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1),
   outOfRangeError
 );
@@ -917,11 +917,11 @@ common.expectsError(
 
 // Regression test for https://github.com/nodejs/node-v0.x-archive/issues/5482:
 // should throw but not assert in C++ land.
-common.expectsError(
+assert.throws(
   () => Buffer.from('', 'buffer'),
   {
     code: 'ERR_UNKNOWN_ENCODING',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Unknown encoding: buffer'
   }
 );
@@ -962,11 +962,11 @@ Buffer.poolSize = 0;
 assert(Buffer.allocUnsafe(1).parent instanceof ArrayBuffer);
 Buffer.poolSize = ps;
 
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(10).copy(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "target" argument must be an instance of Buffer or ' +
              'Uint8Array. Received undefined'
   });
@@ -1007,14 +1007,14 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 {
   const errMsg = common.expectsError({
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-    type: RangeError,
+    name: 'RangeError',
     message: '"offset" is outside of buffer bounds'
   });
   assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0), errMsg);
 }
 
 // ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
-common.expectsError(() => {
+assert.throws(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
@@ -1047,30 +1047,30 @@ assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);
   assert.strictEqual(buf.toLocaleString(), buf.toString());
 }
 
-common.expectsError(() => {
+assert.throws(() => {
   Buffer.alloc(0x1000, 'This is not correctly encoded', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  name: 'TypeError'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   Buffer.alloc(0x1000, 'c', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  name: 'TypeError'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   Buffer.alloc(1, Buffer.alloc(0));
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  name: 'TypeError'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   Buffer.alloc(40, 'x', 20);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError
+  name: 'TypeError'
 });

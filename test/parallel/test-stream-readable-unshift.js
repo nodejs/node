@@ -117,9 +117,9 @@ const { Readable } = require('stream');
 
   const readable = new Readable({ read() {} });
   function checkError(fn) {
-    common.expectsError(fn, {
+    assert.throws(fn, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   }
 

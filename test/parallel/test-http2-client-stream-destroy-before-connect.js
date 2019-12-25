@@ -32,7 +32,7 @@ server.listen(0, common.mustCall(() => {
   req.destroy(new Error('test'));
 
   req.on('error', common.expectsError({
-    type: Error,
+    name: 'Error',
     message: 'test'
   }));
 
