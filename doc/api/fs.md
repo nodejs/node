@@ -4044,7 +4044,7 @@ changes:
   * `err` {Error}
 
 When `file` is a filename, asynchronously writes data to the file, replacing the
-file if it already exists.  `data` can be a string or a buffer.
+file if it already exists. `data` can be a string or a buffer.
 
 When `file` is a file descriptor, the behavior is similar to calling
 `fs.write()` directly (which is recommended). See the notes below on using
