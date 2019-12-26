@@ -1687,7 +1687,8 @@ util.inspect(process);
     '      1,',
     '      2,',
     '      [length]: 2',
-    '    ]',
+    '    ],',
+    "    [Symbol(Symbol.toStringTag)]: 'Set Iterator'",
     '  } => [Map Iterator] {',
     '    Uint8Array(0) [',
     '      [BYTES_PER_ELEMENT]: 1,',
@@ -1699,7 +1700,8 @@ util.inspect(process);
     '        foo: true',
     '      }',
     '    ],',
-    '    [Circular]',
+    '    [Circular],',
+    "    [Symbol(Symbol.toStringTag)]: 'Map Iterator'",
     '  },',
     '  [size]: 2',
     '}'
@@ -1727,7 +1729,10 @@ util.inspect(process);
     '    [byteOffset]: 0,',
     '    [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
     '  ],',
-    '  [Set Iterator] { [ 1, 2, [length]: 2 ] } => [Map Iterator] {',
+    '  [Set Iterator] {',
+    '    [ 1, 2, [length]: 2 ],',
+    "    [Symbol(Symbol.toStringTag)]: 'Set Iterator'",
+    '  } => [Map Iterator] {',
     '    Uint8Array(0) [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
@@ -1735,7 +1740,8 @@ util.inspect(process);
     '      [byteOffset]: 0,',
     '      [buffer]: ArrayBuffer { byteLength: 0, foo: true }',
     '    ],',
-    '    [Circular]',
+    '    [Circular],',
+    "    [Symbol(Symbol.toStringTag)]: 'Map Iterator'",
     '  },',
     '  [size]: 2',
     '}'
@@ -1767,7 +1773,9 @@ util.inspect(process);
     '  [Set Iterator] {',
     '    [ 1,',
     '      2,',
-    '      [length]: 2 ] } => [Map Iterator] {',
+    '      [length]: 2 ],',
+    '    [Symbol(Symbol.toStringTag)]:',
+    "     'Set Iterator' } => [Map Iterator] {",
     '    Uint8Array(0) [',
     '      [BYTES_PER_ELEMENT]: 1,',
     '      [length]: 0,',
@@ -1776,7 +1784,9 @@ util.inspect(process);
     '      [buffer]: ArrayBuffer {',
     '        byteLength: 0,',
     '        foo: true } ],',
-    '    [Circular] },',
+    '    [Circular],',
+    '    [Symbol(Symbol.toStringTag)]:',
+    "     'Map Iterator' },",
     '  [size]: 2 }'
   ].join('\n');
 
@@ -2677,5 +2687,12 @@ assert.strictEqual(
     '  \x1B[2m[xyz]: \x1B[36m[Getter]\x1B[39m\x1B[22m,\n' +
     '  \x1B[2m[def]: \x1B[36m[Getter/Setter]\x1B[39m\x1B[22m\n' +
     '}'
+  );
+
+  const obj = Object.create({ abc: true, def: 5, toString() {} });
+  assert.strictEqual(
+    inspect(obj, { showHidden: true, colors: true }),
+    '{ \x1B[2mabc: \x1B[33mtrue\x1B[39m\x1B[22m, ' +
+      '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 }
