@@ -311,7 +311,7 @@
       'llvm_version=="0.0"', {
       'ldflags': [
         '-Wl,-T',
-        '<!(realpath src/large_pages/ld.implicit.script)',
+        '<!(echo "$(pwd)/src/large_pages/ld.implicit.script")',
       ]
     }],
     [ 'OS=="linux" and '
@@ -319,7 +319,7 @@
       'llvm_version!="0.0"', {
       'ldflags': [
         '-Wl,-T',
-        '<!(realpath src/large_pages/ld.implicit.script.lld)',
+        '<!(echo "$(pwd)/src/large_pages/ld.implicit.script.lld")',
       ]
     }],
     [ 'node_use_openssl=="true"', {
