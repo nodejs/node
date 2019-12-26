@@ -2761,14 +2761,6 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
 
 void* Heap::AllocateExternalBackingStore(
     const std::function<void*(size_t)>& allocate, size_t byte_length) {
-  size_t new_space_backing_store_bytes =
-      new_space()->ExternalBackingStoreBytes();
-  if (new_space_backing_store_bytes >= 2 * kMaxSemiSpaceSize &&
-      new_space_backing_store_bytes >= byte_length) {
-    // Performing a young generation GC amortizes over the allocated backing
-    // store bytes and may free enough external bytes for this allocation.
-    CollectGarbage(NEW_SPACE, GarbageCollectionReason::kExternalMemoryPressure);
-  }
   // TODO(ulan): Perform GCs proactively based on the byte_length and
   // the current external backing store counters.
   void* result = allocate(byte_length);

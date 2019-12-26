@@ -2804,14 +2804,14 @@ class V8_EXPORT_PRIVATE NewSpace
   void Shrink();
 
   // Return the allocated bytes in the active semispace.
-  size_t Size() final {
+  size_t Size() override {
     DCHECK_GE(top(), to_space_.page_low());
     return to_space_.pages_used() *
                MemoryChunkLayout::AllocatableMemoryInDataPage() +
            static_cast<size_t>(top() - to_space_.page_low());
   }
 
-  size_t SizeOfObjects() final { return Size(); }
+  size_t SizeOfObjects() override { return Size(); }
 
   // Return the allocatable capacity of a semispace.
   size_t Capacity() {
@@ -2829,36 +2829,28 @@ class V8_EXPORT_PRIVATE NewSpace
 
   // Committed memory for NewSpace is the committed memory of both semi-spaces
   // combined.
-  size_t CommittedMemory() final {
+  size_t CommittedMemory() override {
     return from_space_.CommittedMemory() + to_space_.CommittedMemory();
   }
 
-  size_t MaximumCommittedMemory() final {
+  size_t MaximumCommittedMemory() override {
     return from_space_.MaximumCommittedMemory() +
            to_space_.MaximumCommittedMemory();
   }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory() final;
+  size_t CommittedPhysicalMemory() override;
 
   // Return the available bytes without growing.
-  size_t Available() final {
+  size_t Available() override {
     DCHECK_GE(Capacity(), Size());
     return Capacity() - Size();
   }
 
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+  size_t ExternalBackingStoreBytes(
+      ExternalBackingStoreType type) const override {
     DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
     return to_space_.ExternalBackingStoreBytes(type);
-  }
-
-  size_t ExternalBackingStoreBytes() {
-    size_t result = 0;
-    for (int i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-      result +=
-          ExternalBackingStoreBytes(static_cast<ExternalBackingStoreType>(i));
-    }
-    return result;
   }
 
   size_t AllocatedSinceLastGC() {

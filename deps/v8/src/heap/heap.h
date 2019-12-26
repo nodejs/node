@@ -1793,6 +1793,10 @@ class Heap {
 
   void FinalizePartialMap(Map map);
 
+  // Allocate empty fixed typed array of given type.
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
+
   void set_force_oom(bool value) { force_oom_ = value; }
 
   // ===========================================================================

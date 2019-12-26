@@ -6823,27 +6823,6 @@ TEST(CodeObjectRegistry) {
   CHECK(MemoryChunk::FromAddress(code2_address)->Contains(code2_address));
 }
 
-TEST(Regress9701) {
-  ManualGCScope manual_gc_scope;
-  if (!FLAG_incremental_marking) return;
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  // Start with an empty new space.
-  CcTest::CollectGarbage(NEW_SPACE);
-  CcTest::CollectGarbage(NEW_SPACE);
-
-  int mark_sweep_count_before = heap->ms_count();
-  // Allocate many short living array buffers.
-  for (int i = 0; i < 1000; i++) {
-    HandleScope scope(heap->isolate());
-    CcTest::i_isolate()->factory()->NewJSArrayBufferAndBackingStore(
-        64 * KB, InitializedFlag::kZeroInitialized);
-  }
-  int mark_sweep_count_after = heap->ms_count();
-  // We expect only scavenges, no full GCs.
-  CHECK_EQ(mark_sweep_count_before, mark_sweep_count_after);
-}
-
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
