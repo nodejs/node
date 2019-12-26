@@ -2,7 +2,7 @@
 
 <!--introduced_in=v8.5.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The Performance Timing API provides an implementation of the
 [W3C Performance Timeline][] specification. The purpose of the API
