@@ -3979,7 +3979,7 @@ changes:
   * `string` {string}
 
 Write `string` to the file specified by `fd`. If `string` is not a string, then
-the value will be coerced to one.
+an exception will be thrown.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
@@ -4045,7 +4045,7 @@ changes:
   * `err` {Error}
 
 When `file` is a filename, asynchronously writes data to the file, replacing the
-file if it already exists.  `data` can be a string or a buffer.
+file if it already exists. `data` can be a string or a buffer.
 
 When `file` is a file descriptor, the behavior is similar to calling
 `fs.write()` directly (which is recommended). See the notes below on using
