@@ -1024,6 +1024,13 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
+  if options.node_use_large_pages:
+    warn('''The `--use-largepages` option has no effect during build time.
+         Support for mapping to large pages is now a runtime option of Node.js.
+         Run `node --use-largepages` or add `--use-largepages` to the
+         `NODE_OPTIONS` environment variable once Node.js is built to enable
+         mapping to large pages.''')
+
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
 
