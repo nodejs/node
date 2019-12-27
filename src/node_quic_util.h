@@ -90,8 +90,8 @@ class QuicPreferredAddress {
   inline const ngtcp2_cid* cid() const;
   inline const sockaddr_in6* PreferredIPv6Address() const;
   inline const sockaddr_in* PreferredIPv4Address() const;
-  inline const int16_t PreferredIPv6Port() const;
-  inline const int16_t PreferredIPv4Port() const;
+  inline int16_t PreferredIPv6Port() const;
+  inline int16_t PreferredIPv4Port() const;
   inline const uint8_t* StatelessResetToken() const;
 
   inline bool Use(int family = AF_INET) const;

@@ -203,10 +203,10 @@ const sockaddr_in* QuicPreferredAddress::PreferredIPv4Address() const {
   return reinterpret_cast<const sockaddr_in*>(&paddr_->ipv4_addr);
 }
 
-const int16_t QuicPreferredAddress::PreferredIPv6Port() const {
+int16_t QuicPreferredAddress::PreferredIPv6Port() const {
   return paddr_->ipv6_port;
 }
-const int16_t QuicPreferredAddress::PreferredIPv4Port() const {
+int16_t QuicPreferredAddress::PreferredIPv4Port() const {
   return paddr_->ipv4_port;
 }
 
@@ -221,6 +221,7 @@ bool QuicPreferredAddress::Use(int family) const {
   dest_->addrlen = req.addrinfo->ai_addrlen;
   memcpy(dest_->addr, req.addrinfo->ai_addr, req.addrinfo->ai_addrlen);
   uv_freeaddrinfo(req.addrinfo);
+  return true;
 }
 
 bool QuicPreferredAddress::IsEmptyAddress(

@@ -2131,7 +2131,7 @@ void QuicSession::RemoveFromSocket() {
   std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(Connection()));
   ngtcp2_conn_get_scid(Connection(), cids.data());
 
-  for (auto &cid : cids)
+  for (const ngtcp2_cid& cid : cids)
     socket_->DisassociateCID(QuicCID(&cid));
 
   Debug(this, "Removed from the QuicSocket.");
