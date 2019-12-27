@@ -138,11 +138,7 @@ const tests = [
       // UP - skipping const foo = true
       '\x1B[1G', '\x1B[0J',
       '> 555 + 909', '\x1B[12G',
-      // UP - matching the identical history entry again.
-      '\x1B[1G', '\x1B[0J',
-      '> 555 + 909',
       // UP, UP, ENTER. UPs at the end of the history have no effect.
-      '\x1B[12G',
       '\r\n',
       '1464\n',
       '\x1B[1G', '\x1B[0J',
