@@ -2352,10 +2352,12 @@ void QuicSession::SendPendingData() {
   //  * The QuicSession has been destroyed
   //  * The QuicSession is in the draining period
   //  * The QuicSession is a server in the closing period
+  //  * The QuicSession is not currently associated with a QuicSocket
   if (Ngtcp2CallbackScope::InNgtcp2CallbackScope(this) ||
       IsFlagSet(QUICSESSION_FLAG_DESTROYED) ||
       IsInDrainingPeriod() ||
-      (IsServer() && IsInClosingPeriod())) {
+      (IsServer() && IsInClosingPeriod()) ||
+      Socket() == nullptr) {
     return;
   }
 
