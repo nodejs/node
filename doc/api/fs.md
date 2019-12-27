@@ -1380,7 +1380,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {string|integer}
 * `callback` {Function}
   * `err` {Error}
 
@@ -1457,7 +1457,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {string|integer}
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.chmod()`][].
