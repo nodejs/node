@@ -2627,7 +2627,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
-* `mode` {integer} **Default:** `0o666` (readable and writable)
+* `mode` {string|integer} **Default:** `0o666` (readable and writable)
 * `callback` {Function}
   * `err` {Error}
   * `fd` {integer}
@@ -2719,7 +2719,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number} **Default:** `'r'`.
    See [support of file system `flags`][].
-* `mode` {integer} **Default:** `0o666`
+* `mode` {string|integer} **Default:** `0o666`
 * Returns: {number}
 
 Returns an integer representing the file descriptor.
@@ -4874,7 +4874,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
-* `mode` {integer} **Default:** `0o666` (readable and writable)
+* `mode` {string|integer} **Default:** `0o666` (readable and writable)
 * Returns: {Promise}
 
 Asynchronous file open that returns a `Promise` that, when resolved, yields a
