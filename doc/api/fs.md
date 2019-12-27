@@ -1979,7 +1979,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `mode` {integer}
+* `mode` {string|integer}
 * `callback` {Function}
   * `err` {Error}
 
@@ -1992,7 +1992,7 @@ added: v0.4.7
 -->
 
 * `fd` {integer}
-* `mode` {integer}
+* `mode` {string|integer}
 
 Synchronous fchmod(2). Returns `undefined`.
 
