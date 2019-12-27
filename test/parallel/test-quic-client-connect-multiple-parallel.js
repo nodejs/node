@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasQuic)
@@ -18,22 +19,12 @@ const { once } = require('events');
 (async function() {
   const servers = [];
   for (let i = 0; i < 3; i++) {
-    const server = quic.createSocket({
-      endpoint: { port: 0 },
-      validateAddress: true
-    });
+    const server = quic.createSocket();
 
-    server.listen({
-      key,
-      cert,
-      ca,
-      rejectUnauthorized: false,
-      maxCryptoBuffer: 4096,
-      alpn: 'meow'
-    });
+    server.listen({ key, cert, ca, alpn: 'meow' });
 
     server.on('session', common.mustCall((session) => {
-      session.on('secure', common.mustCall((servername, alpn, cipher) => {
+      session.on('secure', common.mustCall(() => {
         const stream = session.openStream({ halfOpen: true });
         stream.end('Hi!');
       }));
@@ -46,15 +37,7 @@ const { once } = require('events');
 
   await Promise.all(servers.map((server) => once(server, 'ready')));
 
-  const client = quic.createSocket({
-    endpoint: { port: 0 },
-    client: {
-      key,
-      cert,
-      ca,
-      alpn: 'meow'
-    }
-  });
+  const client = quic.createSocket({ client: { key, cert, ca, alpn: 'meow' } });
 
   let done = 0;
   for (const server of servers) {

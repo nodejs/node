@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // Test QuicSocket constructor option errors
@@ -39,7 +40,7 @@ const { createSocket } = require('quic');
 });
 
 // Test invalid QuicSocket lookup argument option
-[1, false, NaN, 1n, null, {}, []].forEach((lookup) => {
+[1, 1n, {}, [], 'test', true].forEach((lookup) => {
   assert.throws(() => createSocket({ lookup }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });

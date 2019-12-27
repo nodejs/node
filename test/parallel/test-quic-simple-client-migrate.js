@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -18,7 +18,7 @@ const { createSocket } = require('quic');
 
 let client;
 let client2;
-const server = createSocket({ endpoint: { port: 0 } });
+const server = createSocket();
 const kServerName = 'agent1';
 const kALPN = 'zzz';
 
@@ -28,12 +28,7 @@ const countdown = new Countdown(2, () => {
   client2.close();
 });
 
-server.listen({
-  key,
-  cert,
-  ca,
-  alpn: kALPN
-});
+server.listen({ key, cert, ca, alpn: kALPN });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
 
@@ -49,17 +44,14 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
-  client = createSocket({ endpoint: { port: 0 } });
-  client2 = createSocket({ endpoint: { port: 0 } });
+  const options = { key, cert, ca, alpn: kALPN };
+  client = createSocket({ client: options });
+  client2 = createSocket({ client: options });
 
   const req = client.connect({
-    key,
-    cert,
-    ca,
     address: 'localhost',
     port: server.endpoints[0].address.port,
     servername: kServerName,
-    alpn: kALPN,
   });
 
   client.on('close', () => debug('Client closing'));

@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // This test is not yet working correctly because data
@@ -19,12 +20,7 @@ const debug = debuglog('test');
 const { createSocket } = require('quic');
 
 let client;
-const server = createSocket({
-  endpoint: {
-    type: 'udp4',
-    port: 0
-  },
-});
+const server = createSocket();
 
 const kServerName = 'agent1';
 const kALPN = 'echo';
@@ -37,12 +33,7 @@ const countdown = new Countdown(1, () => {
   client.close();
 });
 
-server.listen({
-  key,
-  cert,
-  ca,
-  alpn: kALPN
-});
+server.listen({ key, cert, ca, alpn: kALPN });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
 
@@ -55,14 +46,10 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
-  client = createSocket({ endpoint: { port: 0 } });
+  client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   const req = client.connect({
     address: 'localhost',
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
     port: server.endpoints[0].address.port,
     servername: kServerName,
   });

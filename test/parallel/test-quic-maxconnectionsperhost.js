@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -17,10 +18,7 @@ const kALPN = 'zzz';
 // safe integer or is out of range.
 {
   [-1, 0].forEach((maxConnectionsPerHost) => {
-    common.expectsError(() => createSocket({
-      endpoint: { port: 0 },
-      maxConnectionsPerHost
-    }), {
+    common.expectsError(() => createSocket({ maxConnectionsPerHost }), {
       type: RangeError,
       code: 'ERR_OUT_OF_RANGE',
       message: /The value of "options\.maxConnectionsPerHost" is out of range/
@@ -28,10 +26,7 @@ const kALPN = 'zzz';
   });
 
   [Number.MAX_SAFE_INTEGER + 1, 1.1].forEach((maxConnectionsPerHost) => {
-    common.expectsError(() => createSocket({
-      endpoint: { port: 0 },
-      maxConnectionsPerHost
-    }), {
+    common.expectsError(() => createSocket({ maxConnectionsPerHost }), {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options\.maxConnectionsPerHost" property must be of type safe integer\. Received type/
@@ -61,18 +56,9 @@ const kALPN = 'zzz';
     });
   }
 
-  server = createSocket({
-    endpoint: { port: 0 },
-    maxConnectionsPerHost: kMaxConnectionsPerHost,
-  });
+  server = createSocket({ maxConnectionsPerHost: kMaxConnectionsPerHost });
 
-  server.listen({
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
-    idleTimeout: kIdleTimeout,
-  });
+  server.listen({ key, cert, ca, alpn: kALPN, idleTimeout: kIdleTimeout });
 
   server.on('session', common.mustCall(() => {
     // TODO(@oyyd): When maxConnectionsPerHost is exceeded, the new session
@@ -81,7 +67,7 @@ const kALPN = 'zzz';
   }, kMaxConnectionsPerHost + 1));
 
   server.on('ready', common.mustCall(async () => {
-    client = createSocket({ endpoint: { port: 0 } });
+    client = createSocket();
 
     const sessions = [];
 

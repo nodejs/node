@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 // Tests QUIC server busy support

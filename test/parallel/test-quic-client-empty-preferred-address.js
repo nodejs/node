@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // This test ensures that when we don't define `preferredAddress`
@@ -17,18 +18,10 @@ const { createSocket } = require('quic');
 
 const kALPN = 'zzz';
 const kServerName = 'agent2';
-const server = createSocket({
-  endpoint: { port: 0 },
-  validateAddress: true
-});
+const server = createSocket();
 
 let client;
-server.listen({
-  key,
-  cert,
-  ca,
-  alpn: kALPN,
-});
+server.listen({ key, cert, ca, alpn: kALPN });
 
 server.on('session', common.mustCall((serverSession) => {
   serverSession.on('stream', common.mustCall((stream) => {
@@ -44,14 +37,10 @@ server.on('session', common.mustCall((serverSession) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  client = createSocket({ endpoint: { port: 0 } });
+  client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   const clientSession = client.connect({
     address: 'localhost',
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
     port: server.endpoints[0].address.port,
     servername: kServerName,
     preferredAddressPolicy: 'accept',

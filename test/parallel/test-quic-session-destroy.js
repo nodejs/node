@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // Test that destroying a QuicStream immediately and synchronously

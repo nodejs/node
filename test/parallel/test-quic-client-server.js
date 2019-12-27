@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 // Tests a simple QUIC client/server round-trip
@@ -43,14 +43,6 @@ const server = createSocket({
   statelessResetSecret: kStatelessResetToken
 });
 
-// Diagnostic Packet Loss allows packets to be randomly ignored
-// to simulate network packet loss conditions. This is not a
-// feature that should be turned on in production unless the
-// intent is to simulate loss to gather performance data or
-// debug issues. The values for rx and tx must be between
-// 0.0 and 1.0 (inclusive)
-server.setDiagnosticPacketLoss({ rx: 0.00, tx: 0.00 });
-
 const unidata = ['I wonder if it worked.', 'test'];
 const kServerName = 'agent2';  // Intentionally the wrong servername
 const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
@@ -81,7 +73,6 @@ server.listen({
   requestCert: true,
   rejectUnauthorized: false,
   alpn: kALPN,
-  maxCryptoBuffer: 4096,
 });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
@@ -125,9 +116,7 @@ server.on('session', common.mustCall((session) => {
       debug('QuicServerSession Issuer: ', context.getIssuer());
 
       // The callback can be invoked asynchronously
-      // TODO(@jasnell): Using setImmediate here causes the test
-      // to fail, but it shouldn't. Investigate why.
-      process.nextTick(() => {
+      setImmediate(() => {
         // The first argument is a potential error,
         // in which case the session will be destroyed
         // immediately.
@@ -148,12 +137,6 @@ server.on('session', common.mustCall((session) => {
   }
 
   session.on('secure', common.mustCall((servername, alpn, cipher) => {
-    // Should not error and should return true... also shouldn't
-    // cause anything else to fail.
-
-    // TODO(@jasnell): Move updateKey to a separate test
-    // setTimeout(() => assert(session.updateKey()), 500);
-
     debug('QuicServerSession TLS Handshake Complete');
     debug('  Server name: %s', servername);
     debug('  ALPN: %s', alpn);
@@ -162,16 +145,11 @@ server.on('session', common.mustCall((session) => {
     assert.strictEqual(servername, kServerName);
     assert.strictEqual(session.alpnProtocol, alpn);
 
-    // TODO(@jasnell): Temporarily disable. Accessing the client
-    // certificate is currently broken with ngtcp2 and ngtcp2_crypto.
-    // See: https://github.com/ngtcp2/ngtcp2/issues/156
-    //
-    // assert.strictEqual(session.getPeerCertificate().subject.CN, 'agent1');
+    assert.strictEqual(session.getPeerCertificate().subject.CN, 'agent1');
 
-    // debug('QuicServerSession client is %sauthenticated',
-    //       session.authenticated ? '' : 'not ');
-    // assert(session.authenticated);
-    // assert.strictEqual(session.authenticationError, undefined);
+    // TODO(@jasnell): fix the following
+    //assert(session.authenticated);
+    //assert.strictEqual(session.authenticationError, undefined);
 
     const uni = session.openStream({ halfOpen: true });
     uni.write(unidata[0]);
@@ -221,7 +199,6 @@ server.on('session', common.mustCall((session) => {
     } = session.closeCode;
     debug(`Server session closed with code ${code} (family: ${family})`);
     assert.strictEqual(code, NGTCP2_NO_ERROR);
-    assert.strictEqual(family, QUIC_ERROR_APPLICATION);
 
     const err = {
       code: 'ERR_QUICSESSION_DESTROYED',
@@ -251,15 +228,10 @@ server.on('ready', common.mustCall(() => {
 
   client = createSocket({
     endpoint: { port: kClientPort },
-    client: {
-      key,
-      cert,
-      ca,
-      alpn: kALPN,
-    }
+    client: { key, cert, ca, alpn: kALPN }
   });
 
-  client.on('close', () => {
+  client.on('close', common.mustCall(() => {
     debug('Client closing. Duration', client.duration);
     debug('  Bound duration',
           client.boundDuration);
@@ -270,7 +242,7 @@ server.on('ready', common.mustCall(() => {
           client.packetsSent,
           client.packetsReceived);
     debug('  Sessions:', client.clientSessions);
-  });
+  }));
 
   const req = client.connect({
     address: 'localhost',

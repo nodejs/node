@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasQuic)
@@ -17,20 +17,11 @@ const ca = fixtures.readKey('ca1-cert.pem', 'binary');
 const { serverSide, clientSide } = makeUDPPair();
 
 const server = quic.createSocket({
-  endpoint: { port: 0 },
-  validateAddress: true,
-  [kUDPHandleForTesting]: serverSide._handle
+  endpoint: { [kUDPHandleForTesting]: serverSide._handle }
 });
 
 serverSide.afterBind();
-server.listen({
-  key,
-  cert,
-  ca,
-  rejectUnauthorized: false,
-  maxCryptoBuffer: 4096,
-  alpn: 'meow'
-});
+server.listen({ key, cert, ca, alpn: 'meow' });
 
 server.on('session', common.mustCall((session) => {
   session.on('secure', common.mustCall((servername, alpn, cipher) => {
@@ -47,20 +38,14 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   const client = quic.createSocket({
-    endpoint: { port: 0 },
-    [kUDPHandleForTesting]: clientSide._handle,
-    client: {
-      key,
-      cert,
-      ca,
-      alpn: 'meow'
-    }
+    endpoint: { [kUDPHandleForTesting]: clientSide._handle },
+    client: { key, cert, ca, alpn: 'meow' }
   });
   clientSide.afterBind();
 
   const req = client.connect({
     address: 'localhost',
-    port: server.address.port
+    port: server.endpoints[0].address.port
   });
 
   req.on('stream', common.mustCall((stream) => {

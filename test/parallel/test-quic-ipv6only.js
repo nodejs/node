@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // TODO support ipv6
@@ -17,13 +18,7 @@ const kALPN = 'zzz';
 // Setting `type` to `udp4` while setting `ipv6Only` to `true` is possible
 // and it will throw an error.
 {
-  const server = createSocket({
-    endpoint: {
-      type: 'udp4',
-      port: 0,
-      ipv6Only: true,
-    },
-  });
+  const server = createSocket({ endpoint: { type: 'udp4', ipv6Only: true } });
 
   server.on('error', common.mustCall((err) => {
     common.expectsError({
@@ -34,53 +29,31 @@ const kALPN = 'zzz';
     })(err);
   }));
 
-  server.listen({
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
-  });
+  server.listen({ key, cert, ca, alpn: kALPN });
 }
 
 // Connecting ipv6 server by "127.0.0.1" should work when `ipv6Only`
 // is set to `false`.
 {
-  const server = createSocket({
-    endpoint: {
-      type: 'udp6',
-      port: 0,
-      ipv6Only: false,
-    },
-  });
+  const server = createSocket({ endpoint: { type: 'udp6', ipv6Only: false } });
 
-  server.listen({
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
-  });
+  server.listen({ key, cert, ca, alpn: kALPN });
 
   server.on('session', common.mustCall((serverSession) => {
     serverSession.on('stream', common.mustCall());
   }));
 
   server.on('ready', common.mustCall(() => {
-    const client = createSocket({ endpoint: { port: 0 } });
+    const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
     const clientSession = client.connect({
-      key,
-      cert,
-      ca,
       address: common.localhostIPv4,
       port: server.endpoints[0].address.port,
       servername: kServerName,
-      alpn: kALPN,
     });
 
     clientSession.on('secure', common.mustCall(() => {
-      const clientStream = clientSession.openStream({
-        halfOpen: true,
-      });
+      const clientStream = clientSession.openStream({ halfOpen: true });
       clientStream.end('hello');
       clientStream.on('close', common.mustCall(() => {
         client.close();
@@ -93,34 +66,19 @@ const kALPN = 'zzz';
 // When the `ipv6Only` set to `true`, a client cann't connect to it
 // through "127.0.0.1".
 {
-  const server = createSocket({
-    endpoint: {
-      type: 'udp6',
-      port: 0,
-      ipv6Only: true,
-    },
-  });
+  const server = createSocket({ endpoint: { type: 'udp6', ipv6Only: true } });
 
-  server.listen({
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
-  });
+  server.listen({ key, cert, ca, alpn: kALPN });
 
   server.on('ready', common.mustCall(() => {
-    const client = createSocket({ endpoint: { port: 0 } });
+    const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
     client.on('ready', common.mustCall());
 
     const clientSession = client.connect({
-      key,
-      cert,
-      ca,
       address: common.localhostIPv4,
       port: server.endpoints[0].address.port,
       servername: kServerName,
-      alpn: kALPN,
       idleTimeout: common.platformTimeout(500),
     });
 

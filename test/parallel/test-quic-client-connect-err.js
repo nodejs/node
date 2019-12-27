@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // Tests QuicClientSession constructor options errors

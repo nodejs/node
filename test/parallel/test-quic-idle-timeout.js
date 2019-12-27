@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -20,29 +21,14 @@ const idleTimeout = common.platformTimeout(1000);
 // Test client idle timeout.
 {
   let client;
-  const server = createSocket({ endpoint: { port: 0 } });
-  server.listen({
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
-  });
+  const server = createSocket();
+  server.listen({ key, cert, ca, alpn: kALPN });
 
   server.on('session', common.mustCall());
 
   server.on('ready', common.mustCall(() => {
-    client = createSocket({
-      endpoint: { port: 0 },
-      client: {
-        key,
-        cert,
-        ca,
-        alpn: kALPN,
-      }
-    });
-
+    client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
     const start = Date.now();
-
     const clientSession = client.connect({
       address: 'localhost',
       port: server.endpoints[0].address.port,
@@ -62,14 +48,8 @@ const idleTimeout = common.platformTimeout(1000);
 {
   let client;
   let start;
-  const server = createSocket({ endpoint: { port: 0 } });
-  server.listen({
-    key,
-    cert,
-    ca,
-    alpn: kALPN,
-    idleTimeout,
-  });
+  const server = createSocket();
+  server.listen({ key, cert, ca, alpn: kALPN, idleTimeout });
 
   server.on('session', common.mustCall((serverSession) => {
     serverSession.on('close', common.mustCall(() => {
@@ -80,17 +60,7 @@ const idleTimeout = common.platformTimeout(1000);
   }));
 
   server.on('ready', common.mustCall(() => {
-    client = createSocket({
-      endpoint: { port: 0 },
-      client: {
-        key,
-        cert,
-        ca,
-        alpn: kALPN,
-      }
-    });
-
-
+    client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
     start = Date.now();
     const clientSession = client.connect({
       address: 'localhost',

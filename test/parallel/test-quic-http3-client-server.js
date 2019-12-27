@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --no-warnings
 'use strict';
 
 // Tests a simple QUIC HTTP/3 client/server round-trip
@@ -46,7 +46,6 @@ server.listen({
   requestCert: true,
   rejectUnauthorized: false,
   alpn: kALPN,
-  maxCryptoBuffer: 4096,
 });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
@@ -59,7 +58,7 @@ server.on('session', common.mustCall((session) => {
     session.on('keylog', kl.write.bind(kl));
   }
 
-  session.on('secure', common.mustCall((servername, alpn) => {
+  session.on('secure', common.mustCall((_, alpn) => {
     debug('QuicServerSession handshake completed');
     assert.strictEqual(session.alpnProtocol, alpn);
   }));
@@ -69,15 +68,12 @@ server.on('session', common.mustCall((session) => {
     const file = fs.createReadStream(__filename);
     let data = '';
 
-    assert(stream.submitInitialHeaders({
-      ':status': '200',
-    }));
+    assert(stream.submitInitialHeaders({ ':status': '200' }));
 
     file.pipe(stream);
     stream.setEncoding('utf8');
 
     stream.on('initialHeaders', common.mustCall((headers) => {
-      // TODO(@jasnell): Update when headers to changed to an object
       const expected = [
         [ ':path', '/' ],
         [ ':authority', 'localhost' ],
@@ -108,12 +104,7 @@ server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
   client = createSocket({
     endpoint: { port: kClientPort },
-    client: {
-      key,
-      cert,
-      ca,
-      alpn: kALPN,
-    }
+    client: { key, cert, ca, alpn: kALPN }
   });
 
   client.on('close', common.mustCall());
@@ -144,7 +135,6 @@ server.on('ready', common.mustCall(() => {
     stream.setEncoding('utf8');
 
     stream.on('initialHeaders', common.mustCall((headers) => {
-      // TODO(@jasnell): Update when headers to changed to an object
       const expected = [
         [ ':status', '200' ]
       ];

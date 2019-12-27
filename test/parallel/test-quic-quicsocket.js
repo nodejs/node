@@ -17,8 +17,10 @@ assert(socket);
 // Before listen is called, serverSecureContext is always undefined.
 assert.strictEqual(socket.serverSecureContext, undefined);
 
+assert.deepStrictEqual(socket.endpoints.length, 1);
+
 // Socket is not bound, so address should be empty
-assert.deepStrictEqual(socket.address, {});
+assert.deepStrictEqual(socket.endpoints[0].address, {});
 
 // Socket is not bound
 assert(!socket.bound);
@@ -40,16 +42,20 @@ assert.strictEqual(socket.packetsSent, 0n);
 assert.strictEqual(socket.serverSessions, 0n);
 assert.strictEqual(socket.clientSessions, 0n);
 
+const endpoint = socket.endpoints[0];
+
 // Will throw because the QuicSocket is not bound
 {
   const err = { code: 'EBADF' };
-  assert.throws(() => socket.setTTL(1), err);
-  assert.throws(() => socket.setMulticastTTL(1), err);
-  assert.throws(() => socket.setBroadcast(), err);
-  assert.throws(() => socket.setMulticastLoopback(), err);
-  assert.throws(() => socket.setMulticastInterface('0.0.0.0'), err);
-  // assert.throws(() => socket.addMembership('127.0.0.1', '127.0.0.1'), err);
-  // assert.throws(() => socket.dropMembership('127.0.0.1', '127.0.0.1'), err);
+  assert.throws(() => endpoint.setTTL(1), err);
+  assert.throws(() => endpoint.setMulticastTTL(1), err);
+  assert.throws(() => endpoint.setBroadcast(), err);
+  assert.throws(() => endpoint.setMulticastLoopback(), err);
+  assert.throws(() => endpoint.setMulticastInterface('0.0.0.0'), err);
+  // assert.throws(() => endpoint.addMembership(
+  //     '127.0.0.1', '127.0.0.1'), err);
+  // assert.throws(() => endpoint.dropMembership(
+  //     '127.0.0.1', '127.0.0.1'), err);
 }
 
 ['test', null, {}, [], 1n, false].forEach((rx) => {
@@ -112,34 +118,34 @@ socket.listen({ alpn: 'zzz' });
 assert(socket.pending);
 
 socket.on('ready', common.mustCall(() => {
-  assert(socket.bound);
+  assert(endpoint.bound);
 
   // QuicSocket is already listening.
   assert.throws(() => socket.listen(), {
     code: 'ERR_QUICSOCKET_LISTENING'
   });
 
-  assert.strictEqual(typeof socket.address.address, 'string');
-  assert.strictEqual(typeof socket.address.port, 'number');
-  assert.strictEqual(typeof socket.address.family, 'string');
+  assert.strictEqual(typeof endpoint.address.address, 'string');
+  assert.strictEqual(typeof endpoint.address.port, 'number');
+  assert.strictEqual(typeof endpoint.address.family, 'string');
 
   // On Windows, fd will always be undefined.
   if (common.isWindows)
-    assert.strictEqual(socket.fd, undefined);
+    assert.strictEqual(endpoint.fd, undefined);
   else
-    assert.strictEqual(typeof socket.fd, 'number');
+    assert.strictEqual(typeof endpoint.fd, 'number');
 
-  socket.setTTL(1);
-  socket.setMulticastTTL(1);
-  socket.setBroadcast();
-  socket.setBroadcast(true);
-  socket.setBroadcast(false);
+  endpoint.setTTL(1);
+  endpoint.setMulticastTTL(1);
+  endpoint.setBroadcast();
+  endpoint.setBroadcast(true);
+  endpoint.setBroadcast(false);
 
-  socket.setMulticastLoopback();
-  socket.setMulticastLoopback(true);
-  socket.setMulticastLoopback(false);
+  endpoint.setMulticastLoopback();
+  endpoint.setMulticastLoopback(true);
+  endpoint.setMulticastLoopback(false);
 
-  socket.setMulticastInterface('0.0.0.0');
+  endpoint.setMulticastInterface('0.0.0.0');
 
   socket.setDiagnosticPacketLoss({ rx: 0.5, tx: 0.5 });
 
@@ -162,31 +168,31 @@ socket.on('close', common.mustCall(() => {
     makeError('unref')
   );
   assert.throws(
-    () => socket.setTTL(1),
+    () => endpoint.setTTL(1),
     makeError('setTTL')
   );
   assert.throws(
-    () => socket.setMulticastTTL(1),
+    () => endpoint.setMulticastTTL(1),
     makeError('setMulticastTTL')
   );
   assert.throws(
-    () => socket.setBroadcast(true),
+    () => endpoint.setBroadcast(true),
     makeError('setBroadcast')
   );
   assert.throws(
-    () => socket.setMulticastLoopback(),
+    () => endpoint.setMulticastLoopback(),
     makeError('setMulticastLoopback')
   );
   assert.throws(
-    () => socket.setMulticastInterface(true),
+    () => endpoint.setMulticastInterface(true),
     makeError('setMulticastInterface')
   );
   assert.throws(
-    () => socket.addMembership('foo', 'bar'),
+    () => endpoint.addMembership('foo', 'bar'),
     makeError('addMembership')
   );
   assert.throws(
-    () => socket.dropMembership('foo', 'bar'),
+    () => endpoint.dropMembership('foo', 'bar'),
     makeError('dropMembership')
   );
   assert.throws(

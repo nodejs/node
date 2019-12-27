@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasQuic)
@@ -22,20 +23,10 @@ for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
 }
 
 for (const { variant, offset, length } of variants) {
-  const server = quic.createSocket({
-    endpoint: { port: 0 },
-    validateAddress: true
-  });
+  const server = quic.createSocket({ validateAddress: true });
   let fd;
 
-  server.listen({
-    key,
-    cert,
-    ca,
-    rejectUnauthorized: false,
-    maxCryptoBuffer: 4096,
-    alpn: 'meow'
-  });
+  server.listen({ key, cert, ca, alpn: 'meow', rejectUnauthorized: false });
 
   server.on('session', common.mustCall((session) => {
     session.on('secure', common.mustCall((servername, alpn, cipher) => {
@@ -64,15 +55,7 @@ for (const { variant, offset, length } of variants) {
   }));
 
   server.on('ready', common.mustCall(() => {
-    const client = quic.createSocket({
-      endpoint: { port: 0 },
-      client: {
-        key,
-        cert,
-        ca,
-        alpn: 'meow'
-      }
-    });
+    const client = quic.createSocket({ client: { key, cert, ca, alpn: 'meow' } });
 
     const req = client.connect({
       address: 'localhost',
