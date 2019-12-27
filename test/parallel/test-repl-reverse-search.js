@@ -309,10 +309,9 @@ function runTest() {
 
         lastChunks.push(output);
 
-        if (expected.length) {
+        if (expected.length && !opts.checkTotal) {
           try {
-            if (!opts.checkTotal)
-              assert.strictEqual(output, expected[i]);
+            assert.strictEqual(output, expected[i]);
           } catch (e) {
             console.error(`Failed test # ${numtests - tests.length}`);
             console.error('Last outputs: ' + inspect(lastChunks, {
@@ -342,7 +341,8 @@ function runTest() {
 
       if (opts.checkTotal) {
         assert.deepStrictEqual(lastChunks, expected);
-      } else if (expected.length !== 0) {
+      } else if (expected.length !== i) {
+        console.error(tests[numtests - tests.length - 1]);
         throw new Error(`Failed test # ${numtests - tests.length}`);
       }
 

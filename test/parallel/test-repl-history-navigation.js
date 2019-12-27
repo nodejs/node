@@ -78,6 +78,7 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    checkTotal: true,
     test: [UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN],
     expected: [prompt,
                `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
@@ -102,6 +103,52 @@ const tests = [
                  '1225, 1296, 1369, 1444, 1521, 1600, 1681, 1764, 1849, 1936,' +
                  ' 2025, 2116, 2209,...',
                prompt].filter((e) => typeof e === 'string'),
+    clean: false
+  },
+  { // Creates more history entries to navigate through.
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    test: [
+      '555 + 909', ENTER, // Add a duplicate to the history set.
+      'const foo = true', ENTER,
+      '555n + 111n', ENTER,
+      '5 + 5', ENTER,
+      '55 - 13 === 42', ENTER
+    ],
+    expected: [],
+    clean: false
+  },
+  {
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    checkTotal: true,
+    preview: false,
+    showEscapeCodes: true,
+    test: [
+      '55', UP, UP, UP, UP, UP, UP, ENTER
+    ],
+    expected: [
+      '\x1B[1G', '\x1B[0J', prompt, '\x1B[3G',
+      // '55'
+      '5', '5',
+      // UP
+      '\x1B[1G', '\x1B[0J',
+      '> 55 - 13 === 42', '\x1B[17G',
+      // UP - skipping 5 + 5
+      '\x1B[1G', '\x1B[0J',
+      '> 555n + 111n', '\x1B[14G',
+      // UP - skipping const foo = true
+      '\x1B[1G', '\x1B[0J',
+      '> 555 + 909', '\x1B[12G',
+      // UP - matching the identical history entry again.
+      '\x1B[1G', '\x1B[0J',
+      '> 555 + 909',
+      // UP, UP, ENTER. UPs at the end of the history have no effect.
+      '\x1B[12G',
+      '\r\n',
+      '1464\n',
+      '\x1B[1G', '\x1B[0J',
+      '> ', '\x1B[3G',
+      '\r\n'
+    ],
     clean: true
   },
   {
@@ -190,7 +237,7 @@ const tests = [
       '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 6. Backspace
       '\x1B[1G', '\x1B[0J',
-      prompt, '\x1B[3G'
+      prompt, '\x1B[3G', '\r\n'
     ],
     clean: true
   },
@@ -259,6 +306,11 @@ const tests = [
       // 10. Word right. Cleanup
       '\x1B[0K', '\x1B[3G', '\x1B[7C', ' // n', '\x1B[10G',
       '\x1B[0K',
+      // 11. ENTER
+      '\r\n',
+      'Uncaught ReferenceError: functio is not defined\n',
+      '\x1B[1G', '\x1B[0J',
+      prompt, '\x1B[3G', '\r\n'
     ],
     clean: true
   },
@@ -300,6 +352,7 @@ const tests = [
       prompt,
       's',
       ' // Always visible',
+      prompt,
     ],
     clean: true
   }
@@ -330,8 +383,8 @@ function runTest() {
     setImmediate(runTestWrap, true);
     return;
   }
-
   const lastChunks = [];
+  let i = 0;
 
   REPL.createInternalRepl(opts.env, {
     input: new ActionStream(),
@@ -344,11 +397,11 @@ function runTest() {
           return next();
         }
 
-        lastChunks.push(inspect(output));
+        lastChunks.push(output);
 
-        if (expected.length) {
+        if (expected.length && !opts.checkTotal) {
           try {
-            assert.strictEqual(output, expected[0]);
+            assert.strictEqual(output, expected[i]);
           } catch (e) {
             console.error(`Failed test # ${numtests - tests.length}`);
             console.error('Last outputs: ' + inspect(lastChunks, {
@@ -356,7 +409,8 @@ function runTest() {
             }));
             throw e;
           }
-          expected.shift();
+          // TODO(BridgeAR): Auto close on last chunk!
+          i++;
         }
 
         next();
@@ -365,6 +419,7 @@ function runTest() {
     completer: opts.completer,
     prompt,
     useColors: false,
+    preview: opts.preview,
     terminal: true
   }, function(err, repl) {
     if (err) {
@@ -376,9 +431,13 @@ function runTest() {
       if (opts.clean)
         cleanupTmpFile();
 
-      if (expected.length !== 0) {
+      if (opts.checkTotal) {
+        assert.deepStrictEqual(lastChunks, expected);
+      } else if (expected.length !== i) {
+        console.error(tests[numtests - tests.length - 1]);
         throw new Error(`Failed test # ${numtests - tests.length}`);
       }
+
       setImmediate(runTestWrap, true);
     });
 
