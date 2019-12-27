@@ -430,6 +430,7 @@ function isWarned(emitter) {
       removeHistoryDuplicates: true
     });
     const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
+    // ['foo', 'baz', 'bar', bat'];
     let callCount = 0;
     rli.on('line', function(line) {
       assert.strictEqual(line, expectedLines[callCount]);
@@ -450,12 +451,43 @@ function isWarned(emitter) {
     assert.strictEqual(callCount, 0);
     fi.emit('keypress', '.', { name: 'down' }); // 'baz'
     assert.strictEqual(rli.line, 'baz');
+    assert.strictEqual(rli.historyIndex, 2);
     fi.emit('keypress', '.', { name: 'n', ctrl: true }); // 'bar'
     assert.strictEqual(rli.line, 'bar');
+    assert.strictEqual(rli.historyIndex, 1);
+    fi.emit('keypress', '.', { name: 'n', ctrl: true });
+    assert.strictEqual(rli.line, 'bat');
+    assert.strictEqual(rli.historyIndex, 0);
+    // Activate the substring history search.
     fi.emit('keypress', '.', { name: 'down' }); // 'bat'
     assert.strictEqual(rli.line, 'bat');
-    fi.emit('keypress', '.', { name: 'down' }); // ''
-    assert.strictEqual(rli.line, '');
+    assert.strictEqual(rli.historyIndex, -1);
+    // Deactivate substring history search.
+    fi.emit('keypress', '.', { name: 'backspace' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    // Activate the substring history search.
+    fi.emit('keypress', '.', { name: 'down' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    fi.emit('keypress', '.', { name: 'down' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    fi.emit('keypress', '.', { name: 'up' }); // 'bat'
+    assert.strictEqual(rli.historyIndex, 0);
+    assert.strictEqual(rli.line, 'bat');
+    fi.emit('keypress', '.', { name: 'up' }); // 'bar'
+    assert.strictEqual(rli.historyIndex, 1);
+    assert.strictEqual(rli.line, 'bar');
+    fi.emit('keypress', '.', { name: 'up' }); // 'baz'
+    assert.strictEqual(rli.historyIndex, 2);
+    assert.strictEqual(rli.line, 'baz');
+    fi.emit('keypress', '.', { name: 'up' }); // 'baz'
+    assert.strictEqual(rli.historyIndex, 2);
+    assert.strictEqual(rli.line, 'baz');
+    fi.emit('keypress', '.', { name: 'up' }); // 'baz'
+    assert.strictEqual(rli.historyIndex, 2);
+    assert.strictEqual(rli.line, 'baz');
     rli.close();
   }
 
