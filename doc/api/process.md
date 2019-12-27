@@ -2297,7 +2297,7 @@ flag's behavior.
 added: v0.1.19
 -->
 
-* `mask` {number}
+* `mask` {string|integer}
 
 The `process.umask()` method sets or returns the Node.js process's file mode
 creation mask. Child processes inherit the mask from the parent process. Invoked
