@@ -4654,7 +4654,7 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `mode` {integer}
+* `mode` {string|integer}
 * Returns: {Promise}
 
 Changes the permissions of a file then resolves the `Promise` with no
