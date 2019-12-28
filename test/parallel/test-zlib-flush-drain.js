@@ -36,6 +36,11 @@ deflater.on('drain', function() {
   drainCount++;
 });
 
+deflater.on('data', function() {
+  // Keep reading data or flush will
+  // wait until buffer is emptied.
+});
+
 process.once('exit', function() {
   assert.strictEqual(
     beforeFlush, true);

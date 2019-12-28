@@ -66,25 +66,14 @@ const t = new stream.Transform({
     assert.strictEqual(++state, chunk + 2);
     process.nextTick(next);
   }, 3),
-  final: common.mustCall(function(done) {
-    state++;
-    // finalCallback part 1
-    assert.strictEqual(state, 10);
-    setTimeout(function() {
-      state++;
-      // finalCallback part 2
-      assert.strictEqual(state, 11);
-      done();
-    }, 100);
-  }, 1),
   flush: common.mustCall(function(done) {
     state++;
     // flushCallback part 1
-    assert.strictEqual(state, 12);
+    assert.strictEqual(state, 10);
     process.nextTick(function() {
       state++;
       // flushCallback part 2
-      assert.strictEqual(state, 15);
+      assert.strictEqual(state, 11);
       done();
     });
   }, 1)
@@ -92,12 +81,12 @@ const t = new stream.Transform({
 t.on('finish', common.mustCall(function() {
   state++;
   // finishListener
-  assert.strictEqual(state, 13);
+  assert.strictEqual(state, 12);
 }, 1));
 t.on('end', common.mustCall(function() {
   state++;
   // end event
-  assert.strictEqual(state, 16);
+  assert.strictEqual(state, 14);
 }, 1));
 t.on('data', common.mustCall(function(d) {
   // dataListener
@@ -108,5 +97,5 @@ t.write(4);
 t.end(7, common.mustCall(function() {
   state++;
   // endMethodCallback
-  assert.strictEqual(state, 14);
+  assert.strictEqual(state, 13);
 }, 1));
