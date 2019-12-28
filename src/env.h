@@ -30,7 +30,7 @@
 #include "inspector_profiler.h"
 #endif
 #if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
-#include "node_quic_state.h"
+#include "quic/node_quic_state.h"
 #endif
 #include "handle_wrap.h"
 #include "node.h"

@@ -1,7 +1,7 @@
 
 #include "base_object-inl.h"
-#include "node_quic_crypto.h"
-#include "node_quic_util-inl.h"
+#include "quic/node_quic_crypto.h"
+#include "quic/node_quic_util-inl.h"
 #include "node_sockaddr-inl.h"
 #include "util.h"
 #include "gtest/gtest.h"

@@ -1926,7 +1926,7 @@ Http2Stream::Http2Stream(Http2Session* session,
         nghttp2_session_get_local_settings(
           session->session(),
           NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE),
-      MAX_MAX_HEADER_LIST_SIZE);
+      static_cast<uint32_t>(MAX_MAX_HEADER_LIST_SIZE));
 
   if (options & STREAM_OPTION_GET_TRAILERS)
     flags_ |= NGHTTP2_STREAM_FLAG_TRAILERS;
