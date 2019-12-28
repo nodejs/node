@@ -544,7 +544,7 @@ void WASI::FdFilestatGet(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_filestat_get(%d, %d)\n", fd, buf);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
-  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 56);
+  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 64);
   uvwasi_filestat_t stats;
   uvwasi_errno_t err = uvwasi_fd_filestat_get(&wasi->uvw_, fd, &stats);
 
@@ -552,7 +552,7 @@ void WASI::FdFilestatGet(const FunctionCallbackInfo<Value>& args) {
     wasi->writeUInt64(memory, stats.st_dev, buf);
     wasi->writeUInt64(memory, stats.st_ino, buf + 8);
     wasi->writeUInt8(memory, stats.st_filetype, buf + 16);
-    wasi->writeUInt32(memory, stats.st_nlink, buf + 24);
+    wasi->writeUInt64(memory, stats.st_nlink, buf + 24);
     wasi->writeUInt64(memory, stats.st_size, buf + 32);
     wasi->writeUInt64(memory, stats.st_atim, buf + 40);
     wasi->writeUInt64(memory, stats.st_mtim, buf + 48);
@@ -1068,7 +1068,7 @@ void WASI::PathFilestatGet(const FunctionCallbackInfo<Value>& args) {
         path_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, path_ptr, path_len);
-  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf_ptr, 56);
+  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf_ptr, 64);
   uvwasi_filestat_t stats;
   uvwasi_errno_t err = uvwasi_path_filestat_get(&wasi->uvw_,
                                                 fd,
@@ -1080,7 +1080,7 @@ void WASI::PathFilestatGet(const FunctionCallbackInfo<Value>& args) {
     wasi->writeUInt64(memory, stats.st_dev, buf_ptr);
     wasi->writeUInt64(memory, stats.st_ino, buf_ptr + 8);
     wasi->writeUInt8(memory, stats.st_filetype, buf_ptr + 16);
-    wasi->writeUInt32(memory, stats.st_nlink, buf_ptr + 24);
+    wasi->writeUInt64(memory, stats.st_nlink, buf_ptr + 24);
     wasi->writeUInt64(memory, stats.st_size, buf_ptr + 32);
     wasi->writeUInt64(memory, stats.st_atim, buf_ptr + 40);
     wasi->writeUInt64(memory, stats.st_mtim, buf_ptr + 48);
@@ -1422,7 +1422,7 @@ void WASI::PollOneoff(const FunctionCallbackInfo<Value>& args) {
         nsubscriptions,
         nevents_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
-  CHECK_BOUNDS_OR_RETURN(args, mem_size, in_ptr, nsubscriptions * 56);
+  CHECK_BOUNDS_OR_RETURN(args, mem_size, in_ptr, nsubscriptions * 48);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, out_ptr, nsubscriptions * 32);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, nevents_ptr, 4);
   uvwasi_subscription_t* in =
