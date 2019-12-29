@@ -61,7 +61,7 @@ Stream instances are switched into object mode using the `objectMode` option
 when the stream is created. Attempting to switch an existing stream into
 object mode is not safe.
 
-The object mode indicates that the stream either accepts and / or emits objects.
+The object mode indicates that the stream accepts and/or emits objects.
 Be aware that streams which operate in the object mode can only pipe to streams
 which are also in the object mode. Otherwise an error will be thrown. To pipe a
 stream to an non object mode stream, create an appropriate implementation to
