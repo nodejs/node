@@ -1957,6 +1957,11 @@ An attempt was made to load a module with an unknown or unsupported format.
 An invalid or unknown process signal was passed to an API expecting a valid
 signal (such as [`subprocess.kill()`][]).
 
+<a id="ERR_UNSUPPORTED_ESM_URL_SCHEME"></a>
+### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
+
+`import` with URL schemes other than `file` and `data` is unsupported.
+
 <a id="ERR_V8BREAKITERATOR"></a>
 ### `ERR_V8BREAKITERATOR`
 
