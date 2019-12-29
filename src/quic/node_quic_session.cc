@@ -2634,7 +2634,8 @@ void QuicSession::UpdateIdleTimer() {
   CHECK_NOT_NULL(idle_);
   uint64_t now = uv_hrtime();
   uint64_t expiry = ngtcp2_conn_get_idle_expiry(Connection());
-  uint64_t timeout = expiry > now ? (expiry - now) / 1000 : 1;
+  // nano to millis
+  uint64_t timeout = expiry > now ? (expiry - now) / 1e6 : 1;
   if (timeout == 0) timeout = 1;
   Debug(this, "Updating idle timeout to %" PRIu64, timeout);
   idle_->Update(timeout);
