@@ -61,13 +61,14 @@ Stream instances are switched into object mode using the `objectMode` option
 when the stream is created. Attempting to switch an existing stream into
 object mode is not safe.
 
-The object mode indicates that the stream accepts and/or emits objects.
-Be aware that streams which operate in the object mode can only pipe to streams
-which are also in the object mode. Otherwise an error will be thrown. To pipe a
-stream which is not in object mode, create an appropriate implementation to
-transform the objects into buffers. You can use this stream to pipe to a non 
-object mode stream. The stream which transforms the object has to be in the
-object mode as well to be able to accept objects.
+The object mode indicates that the stream accepts and/or emits values which are
+not limited to `Buffer` or strings. Be aware that streams which are in object
+mode can be connected to streams not in the object mode but an exception will
+be raised if you attempt to write something except a `Buffer` or a string. To
+prevent this create an appropriate implementation to
+[transform][stream-_transform] the values into buffers or strings. The stream
+which transforms the values has to be in the object mode as well to be able to
+accept objects.
 
 ### Buffering
 
