@@ -78,8 +78,7 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
-    checkTotal: true,
-    test: [UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN],
+    test: [UP, UP, UP, UP, UP, DOWN, DOWN, DOWN, DOWN, DOWN],
     expected: [prompt,
                `${prompt}Array(100).fill(1).map((e, i) => i ** 2)`,
                prev && '\n// [ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, ' +
@@ -91,6 +90,8 @@ const tests = [
                prev && '\n// { key: { key2: [] } }',
                `${prompt}555 + 909`,
                prev && '\n// 1464',
+               `${prompt}let ab = 45`,
+               prompt,
                `${prompt}let ab = 45`,
                `${prompt}555 + 909`,
                prev && '\n// 1464',
@@ -138,9 +139,12 @@ const tests = [
       // UP - skipping const foo = true
       '\x1B[1G', '\x1B[0J',
       '> 555 + 909', '\x1B[12G',
-      // UP, UP, ENTER. UPs at the end of the history have no effect.
-      '\r\n',
-      '1464\n',
+      // UP, UP
+      // UPs at the end of the history reset the line to the original input.
+      '\x1B[1G', '\x1B[0J',
+      '> 55', '\x1B[5G',
+      // ENTER
+      '\r\n', '55\n',
       '\x1B[1G', '\x1B[0J',
       '> ', '\x1B[3G',
       '\r\n'
