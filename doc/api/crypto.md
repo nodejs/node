@@ -1232,6 +1232,9 @@ passing keys as strings or `Buffer`s due to improved security features.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31178
+    description: Added support for `'dh'`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26960
     description: Added support for `'rsa-pss'`
@@ -1260,6 +1263,7 @@ types are:
 * `'x448'` (OID 1.3.101.111)
 * `'ed25519'` (OID 1.3.101.112)
 * `'ed448'` (OID 1.3.101.113)
+* `'dh'` (OID 1.2.840.113549.1.3.1)
 
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
