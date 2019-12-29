@@ -192,6 +192,7 @@ constexpr size_t kFsStatsBufferLength =
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
+  V(crypto_dh_string, "dh")                                                    \
   V(crypto_dsa_string, "dsa")                                                  \
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
