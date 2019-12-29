@@ -64,10 +64,10 @@ object mode is not safe.
 The object mode indicates that the stream accepts and/or emits objects.
 Be aware that streams which operate in the object mode can only pipe to streams
 which are also in the object mode. Otherwise an error will be thrown. To pipe a
-stream to an non object mode stream, create an appropriate implementation to
-transform the objects into buffers, then you use this stream to pipe to a non 
-object mode stream (the stream which transforms the object has to be in the
-object mode as well to be able to accept objects!).
+stream which is not in object mode, create an appropriate implementation to
+transform the objects into buffers. You can use this stream to pipe to a non 
+object mode stream. The stream which transforms the object has to be in the
+object mode as well to be able to accept objects.
 
 ### Buffering
 
@@ -1473,12 +1473,12 @@ class MyWritable extends Writable {
 The new stream class must then implement one or more specific methods, depending
 on the type of stream being created, as detailed in the chart below:
 
-| Use-case | Class | Method(s) to implement |
-| -------- | ----- | ---------------------- |
-| Reading only | [`Readable`] | <code>[_read][stream-_read]</code> |
-| Writing only | [`Writable`] | <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
-| Reading and writing | [`Duplex`] | <code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
-| Operate on written data, then read the result | [`Transform`] | <code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>, <code>[_final][stream-_final]</code> |
+| Use-case                                      | Class         | Method(s) to implement                                                                                                                                 |
+|-----------------------------------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Reading only                                  | [`Readable`]  | <code>[_read][stream-_read]</code>                                                                                                                     |
+| Writing only                                  | [`Writable`]  | <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code>                                     |
+| Reading and writing                           | [`Duplex`]    | <code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>, <code>[_final][stream-_final]</code> |
+| Operate on written data, then read the result | [`Transform`] | <code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>, <code>[_final][stream-_final]</code>                               |
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the
