@@ -482,12 +482,20 @@ function isWarned(emitter) {
     fi.emit('keypress', '.', { name: 'up' }); // 'baz'
     assert.strictEqual(rli.historyIndex, 2);
     assert.strictEqual(rli.line, 'baz');
-    fi.emit('keypress', '.', { name: 'up' }); // 'baz'
-    assert.strictEqual(rli.historyIndex, 2);
-    assert.strictEqual(rli.line, 'baz');
-    fi.emit('keypress', '.', { name: 'up' }); // 'baz'
-    assert.strictEqual(rli.historyIndex, 2);
-    assert.strictEqual(rli.line, 'baz');
+    fi.emit('keypress', '.', { name: 'up' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, 4);
+    assert.strictEqual(rli.line, 'ba');
+    fi.emit('keypress', '.', { name: 'up' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, 4);
+    assert.strictEqual(rli.line, 'ba');
+    // Deactivate substring history search and reset history index.
+    fi.emit('keypress', '.', { name: 'right' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    // Substring history search activated.
+    fi.emit('keypress', '.', { name: 'up' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, 0);
+    assert.strictEqual(rli.line, 'bat');
     rli.close();
   }
 
