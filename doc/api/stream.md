@@ -63,7 +63,7 @@ object mode is not safe.
 
 The object mode indicates that the stream accepts and/or emits values which are
 not limited to `Buffer` or strings. Be aware that streams which are in object
-mode can be connected to streams not in the object mode but an exception will
+mode can be piped to streams not in the object mode but an exception will
 be raised if you attempt to write something except a `Buffer` or a string. To
 prevent this create an appropriate implementation to
 [transform][stream-_transform] the values into buffers or strings. The stream
