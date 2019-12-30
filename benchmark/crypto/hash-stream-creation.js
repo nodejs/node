@@ -20,8 +20,8 @@ function main({ api, type, len, out, writes, algo }) {
     api = 'legacy';
   }
 
-  var message;
-  var encoding;
+  let message;
+  let encoding;
   switch (type) {
     case 'asc':
       message = 'a'.repeat(len);
@@ -52,7 +52,7 @@ function legacyWrite(algo, message, encoding, writes, len, outEnc) {
   while (writes-- > 0) {
     const h = crypto.createHash(algo);
     h.update(message, encoding);
-    var res = h.digest(outEnc);
+    let res = h.digest(outEnc);
 
     // Include buffer creation costs for older versions
     if (outEnc === 'buffer' && typeof res === 'string')

@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, v }) {
   const method = require(v).getCiphers;
-  var i = 0;
+  let i = 0;
   // First call to getCiphers will dominate the results
   if (n > 1) {
     for (; i < n; i++)
