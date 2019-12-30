@@ -42,7 +42,8 @@ function fillHeaders(headers, currentSize, valid = false) {
 
   // Generate valid headers
   if (valid) {
-    headers = headers.slice(0, -1);
+    // TODO(mcollina): understand why -32 is needed instead of -1
+    headers = headers.slice(0, -32);
   }
   return headers + '\r\n\r\n';
 }
