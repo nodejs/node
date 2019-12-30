@@ -195,9 +195,12 @@ class Finalizer {
       _finalize_callback(finalize_callback),
       _finalize_data(finalize_data),
       _finalize_hint(finalize_hint) {
+    _env->Ref();
   }
 
-  ~Finalizer() = default;
+  ~Finalizer() {
+    _env->Unref();
+  }
 
  public:
   static Finalizer* New(napi_env env,
