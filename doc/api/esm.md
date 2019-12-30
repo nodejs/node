@@ -1517,6 +1517,8 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an "Invalid Package Configuration" error.
 > 1. If _exports_ is an Object and all keys of _exports_ start with _"."_, then
+>    1. If _exports_ contains any index property keys, as defined in ECMA-262
+>       6.1.7 Array Index, throw an _Invalid Package Configuration_ error.
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
 >       1. Let _target_ be the value of _exports\[packagePath\]_.

@@ -124,6 +124,11 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       'ERR_MODULE_NOT_FOUND');
   }));
 
+  // Package export with numeric index properties must throw a validation error
+  loadFixture('pkgexports-numeric').catch(mustCall((err) => {
+    strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+  }));
+
   // Sugar conditional exports main mixed failure case
   loadFixture('pkgexports-sugar-fail').catch(mustCall((err) => {
     strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');

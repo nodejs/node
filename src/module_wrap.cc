@@ -908,6 +908,20 @@ Maybe<URL> ResolveExportsTargetString(Environment* env,
   return Just(subpath_resolved);
 }
 
+bool IsArrayIndex(Environment* env, Local<String> p) {
+  Local<Context> context = env->context();
+  double n_dbl = static_cast<double>(p->NumberValue(context).FromJust());
+  Local<Number> n = Number::New(env->isolate(), n_dbl);
+  Local<String> cmp_str;
+  CHECK(n->ToString(context).ToLocal(&cmp_str));
+  if (!p->Equals(context, cmp_str).FromJust())
+    return false;
+  Local<Integer> cmp_integer;
+  if (!n->ToInteger(context).ToLocal(&cmp_integer))
+    return false;
+  return n_dbl >= 0 && n_dbl < (2 ^ 32) - 1;
+}
+
 Maybe<URL> ResolveExportsTarget(Environment* env,
                                 const URL& pjson_url,
                                 Local<Value> target,
@@ -957,6 +971,17 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
         target_obj->GetOwnPropertyNames(context).ToLocalChecked();
     Local<Value> conditionalTarget;
     bool matched = false;
+    for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
+      Local<String> key =
+          target_obj_keys->Get(context, i).ToLocalChecked().As<String>();
+      if (IsArrayIndex(env, key)) {
+        const std::string msg = "Invalid package config for " +
+            pjson_url.ToFilePath() + ", \"exports\" cannot contain numeric " +
+            "property keys.";
+        node::THROW_ERR_INVALID_PACKAGE_CONFIG(env, msg.c_str());
+        return Nothing<URL>();
+      }
+    }
     for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
       Local<String> key =
           target_obj_keys->Get(context, i).ToLocalChecked().As<String>();
