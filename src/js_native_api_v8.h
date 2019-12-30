@@ -186,29 +186,43 @@ inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
 
 // Adapter for napi_finalize callbacks.
 class Finalizer {
+ public:
+  // Some Finalizers are run during shutdown when the napi_env is destroyed,
+  // and some need to keep an explicit reference to the napi_env because they
+  // are run independently.
+  enum EnvReferenceMode {
+    kNoEnvReference,
+    kKeepEnvReference
+  };
+
  protected:
   Finalizer(napi_env env,
             napi_finalize finalize_callback,
             void* finalize_data,
-            void* finalize_hint)
+            void* finalize_hint,
+            EnvReferenceMode refmode = kNoEnvReference)
     : _env(env),
       _finalize_callback(finalize_callback),
       _finalize_data(finalize_data),
-      _finalize_hint(finalize_hint) {
-    _env->Ref();
+      _finalize_hint(finalize_hint),
+      _has_env_reference(refmode == kKeepEnvReference) {
+    if (_has_env_reference)
+      _env->Ref();
   }
 
   ~Finalizer() {
-    _env->Unref();
+    if (_has_env_reference)
+      _env->Unref();
   }
 
  public:
   static Finalizer* New(napi_env env,
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
-                        void* finalize_hint = nullptr) {
+                        void* finalize_hint = nullptr,
+                        EnvReferenceMode refmode = kNoEnvReference) {
     return new Finalizer(
-      env, finalize_callback, finalize_data, finalize_hint);
+        env, finalize_callback, finalize_data, finalize_hint, refmode);
   }
 
   static void Delete(Finalizer* finalizer) {
@@ -221,6 +235,7 @@ class Finalizer {
   void* _finalize_data;
   void* _finalize_hint;
   bool _finalize_ran = false;
+  bool _has_env_reference = false;
 };
 
 class TryCatch : public v8::TryCatch {
