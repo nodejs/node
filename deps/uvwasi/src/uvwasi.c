@@ -3,6 +3,8 @@
 
 #ifndef _WIN32
 # include <sched.h>
+# include <string.h>
+# include <dirent.h>
 # include <sys/types.h>
 # include <unistd.h>
 # include <dirent.h>
