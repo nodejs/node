@@ -101,6 +101,9 @@ future-proof the package in case the default type of Node.js ever changes, and
 it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
 
+Regardless of the value of the `"type"` field, `.mjs` files are always treated
+as ES modules and `.cjs` files are always treated as CommonJS modules.
+
 ### Package Scope and File Extensions
 
 A folder containing a `package.json` file, and all subfolders below that
