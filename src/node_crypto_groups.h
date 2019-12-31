@@ -32,7 +32,7 @@
 */
 
 
-static const unsigned char two_generator[] = { 2 };
+static const unsigned int two_generator = 2;
 
 static const unsigned char group_modp1[] = {
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,
@@ -394,20 +394,19 @@ typedef struct {
   const char* name;
   const char* prime;
   unsigned int prime_size;
-  const char* gen;
-  unsigned int gen_size;
+  unsigned int gen;
 } modp_group;
 
 static const modp_group modp_groups[] = {
 #define V(var) reinterpret_cast<const char*>(var)
-  { "modp1", V(group_modp1), sizeof(group_modp1), V(two_generator), 1 },
-  { "modp2", V(group_modp2), sizeof(group_modp2), V(two_generator), 1 },
-  { "modp5", V(group_modp5), sizeof(group_modp5), V(two_generator), 1 },
-  { "modp14", V(group_modp14), sizeof(group_modp14), V(two_generator), 1 },
-  { "modp15", V(group_modp15), sizeof(group_modp15), V(two_generator), 1 },
-  { "modp16", V(group_modp16), sizeof(group_modp16), V(two_generator), 1 },
-  { "modp17", V(group_modp17), sizeof(group_modp17), V(two_generator), 1 },
-  { "modp18", V(group_modp18), sizeof(group_modp18), V(two_generator), 1 }
+  { "modp1", V(group_modp1), sizeof(group_modp1), two_generator },
+  { "modp2", V(group_modp2), sizeof(group_modp2), two_generator },
+  { "modp5", V(group_modp5), sizeof(group_modp5), two_generator },
+  { "modp14", V(group_modp14), sizeof(group_modp14), two_generator },
+  { "modp15", V(group_modp15), sizeof(group_modp15), two_generator },
+  { "modp16", V(group_modp16), sizeof(group_modp16), two_generator },
+  { "modp17", V(group_modp17), sizeof(group_modp17), two_generator },
+  { "modp18", V(group_modp18), sizeof(group_modp18), two_generator }
 #undef V
 };
 
