@@ -728,16 +728,6 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
 // Refs: https://github.com/KDE/konsole/blob/8c6a5d13c0/src/konsole_wcwidth.cpp#L101-L223
 static int GetColumnWidth(UChar32 codepoint,
                           bool ambiguous_as_full_width = false) {
-  const auto zero_width_mask = U_GC_CC_MASK |  // C0/C1 control code
-                               U_GC_CF_MASK |  // Format control character
-                               U_GC_ME_MASK |  // Enclosing mark
-                               U_GC_MN_MASK;   // Nonspacing mark
-  if (codepoint != 0x00AD &&  // SOFT HYPHEN is Cf but not zero-width
-      ((U_MASK(u_charType(codepoint)) & zero_width_mask) ||
-       u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER))) {
-    return 0;
-  }
-
   // UCHAR_EAST_ASIAN_WIDTH is the Unicode property that identifies a
   // codepoint as being full width, wide, ambiguous, neutral, narrow,
   // or halfwidth.
@@ -761,6 +751,15 @@ static int GetColumnWidth(UChar32 codepoint,
     case U_EA_HALFWIDTH:
     case U_EA_NARROW:
     default:
+      const auto zero_width_mask = U_GC_CC_MASK |  // C0/C1 control code
+                                  U_GC_CF_MASK |  // Format control character
+                                  U_GC_ME_MASK |  // Enclosing mark
+                                  U_GC_MN_MASK;   // Nonspacing mark
+      if (codepoint != 0x00AD &&  // SOFT HYPHEN is Cf but not zero-width
+          ((U_MASK(u_charType(codepoint)) & zero_width_mask) ||
+          u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER))) {
+        return 0;
+      }
       return 1;
   }
 }
