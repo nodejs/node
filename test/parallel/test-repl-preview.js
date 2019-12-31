@@ -93,9 +93,9 @@ async function tests(options) {
      '\x1B[33mtrue\x1B[39m',
      '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
     [' \t { a: true};', [2, 5], '\x1B[33mtrue\x1B[39m',
-     ' \t { a: tru\x1B[90me\x1B[39m\x1B[19G\x1B[0Ke}',
-     '\x1B[90m{ a: true }\x1B[39m\x1B[8C\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
-     '\x1B[90mtrue\x1B[39m\x1B[16C\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+     ' \t { a: tru\x1B[90me\x1B[39m\x1B[26G\x1B[0Ke}',
+     '\x1B[90m{ a: true }\x1B[39m\x1B[16C\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
+     '\x1B[90mtrue\x1B[39m\x1B[24C\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
      '\x1B[33mtrue\x1B[39m',
      '\x1B[1G\x1B[0Jrepl > \x1B[8G']
   ];
