@@ -767,18 +767,10 @@ static int GetColumnWidth(UChar32 codepoint,
 // Returns the column width for the given String.
 static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (args.Length() < 1)
-    return;
+  CHECK(args[0]->IsString());
 
   bool ambiguous_as_full_width = args[1]->IsTrue();
-  bool expand_emoji_sequence = args[2]->IsTrue();
-
-  if (args[0]->IsNumber()) {
-    uint32_t val;
-    if (!args[0]->Uint32Value(env->context()).To(&val)) return;
-    args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
-    return;
-  }
+  bool expand_emoji_sequence = !args[2]->IsBoolean() || args[2]->IsTrue();
 
   TwoByteValue value(env->isolate(), args[0]);
   // reinterpret_cast is required by windows to compile
@@ -803,6 +795,7 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
     // in advance if a particular sequence is going to be supported.
     // The expand_emoji_sequence option allows the caller to skip this
     // check and count each code within an emoji sequence separately.
+    // https://www.unicode.org/reports/tr51/tr51-16.html#Emoji_ZWJ_Sequences
     if (!expand_emoji_sequence &&
         n > 0 && p == 0x200d &&  // 0x200d == ZWJ (zero width joiner)
         (u_hasBinaryProperty(c, UCHAR_EMOJI_PRESENTATION) ||
