@@ -731,11 +731,7 @@ function isWarned(emitter) {
       fi.emit('keypress', '.', { name: 'right' });
       cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '💻');
@@ -764,14 +760,7 @@ function isWarned(emitter) {
       fi.emit('data', '🐕');
       cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-        // Fix cursor position without internationalization
-        fi.emit('keypress', '.', { name: 'left' });
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '🐕💻');
@@ -795,22 +784,12 @@ function isWarned(emitter) {
       fi.emit('keypress', '.', { name: 'right' });
       let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-        // Fix cursor position without internationalization
-        fi.emit('keypress', '.', { name: 'right' });
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       fi.emit('data', '🐕');
       cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 4);
-      } else {
-        assert.strictEqual(cursorPos.cols, 2);
-      }
+      assert.strictEqual(cursorPos.cols, 4);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '💻🐕');
@@ -972,11 +951,7 @@ function isWarned(emitter) {
       fi.emit('data', '💻');
       let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-      }
+      assert.strictEqual(cursorPos.cols, 2);
       // Delete left character
       fi.emit('keypress', '.', { ctrl: true, name: 'h' });
       cursorPos = rli.getCursorPos();
@@ -1159,27 +1134,24 @@ function isWarned(emitter) {
     }
   }
 
-  // isFullWidthCodePoint() should return false for non-numeric values
-  [true, false, null, undefined, {}, [], 'あ'].forEach((v) => {
-    assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
-  });
-
   // Wide characters should be treated as two columns.
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)),
-                     false);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)),
-                     true);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('谢'.charCodeAt(0)),
-                     true);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('고'.charCodeAt(0)),
-                     true);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint(0x1f251), true);
+  assert.strictEqual(internalReadline.getStringWidth('a'), 1);
+  assert.strictEqual(internalReadline.getStringWidth('あ'), 2);
+  assert.strictEqual(internalReadline.getStringWidth('谢'), 2);
+  assert.strictEqual(internalReadline.getStringWidth('고'), 2);
+  assert.strictEqual(
+    internalReadline.getStringWidth(String.fromCodePoint(0x1f251)), 2);
   assert.strictEqual(internalReadline.getStringWidth('abcde'), 5);
   assert.strictEqual(internalReadline.getStringWidth('古池や'), 6);
   assert.strictEqual(internalReadline.getStringWidth('ノード.js'), 9);
   assert.strictEqual(internalReadline.getStringWidth('你好'), 4);
   assert.strictEqual(internalReadline.getStringWidth('안녕하세요'), 10);
   assert.strictEqual(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
+  assert.strictEqual(internalReadline.getStringWidth('👨‍👩‍👦‍👦'), 8);
+  assert.strictEqual(internalReadline.getStringWidth('🐕𐐷あ💻😀'), 9);
+  // TODO(BridgeAR): This should have a width of 4.
+  assert.strictEqual(internalReadline.getStringWidth('⓬⓪'), 2);
+  assert.strictEqual(internalReadline.getStringWidth('\u0301\u200D\u200E'), 0);
 
   // Check if vt control chars are stripped
   assert.strictEqual(
