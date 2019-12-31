@@ -6625,6 +6625,71 @@ class NidKeyPairGenerationConfig : public KeyPairGenerationConfig {
   const int id_;
 };
 
+// TODO(tniessen): Use std::variant instead.
+// Diffie-Hellman can either generate keys using a fixed prime, or by first
+// generating a random prime of a given size (in bits). Only one of both options
+// may be specified.
+struct PrimeInfo {
+  BignumPointer fixed_value_;
+  unsigned int prime_size_;
+};
+
+class DHKeyPairGenerationConfig : public KeyPairGenerationConfig {
+ public:
+  explicit DHKeyPairGenerationConfig(PrimeInfo&& prime_info,
+                                     unsigned int generator)
+      : prime_info_(std::move(prime_info)),
+        generator_(generator) {}
+
+  EVPKeyCtxPointer Setup() override {
+    EVPKeyPointer params;
+    if (prime_info_.fixed_value_) {
+      DHPointer dh(DH_new());
+      if (!dh)
+        return nullptr;
+
+      BIGNUM* prime = prime_info_.fixed_value_.get();
+      BignumPointer bn_g(BN_new());
+      if (!BN_set_word(bn_g.get(), generator_) ||
+          !DH_set0_pqg(dh.get(), prime, nullptr, bn_g.get()))
+        return nullptr;
+
+      prime_info_.fixed_value_.release();
+      bn_g.release();
+
+      params = EVPKeyPointer(EVP_PKEY_new());
+      CHECK(params);
+      EVP_PKEY_assign_DH(params.get(), dh.release());
+    } else {
+      EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, nullptr));
+      if (!param_ctx)
+        return nullptr;
+
+      if (EVP_PKEY_paramgen_init(param_ctx.get()) <= 0)
+        return nullptr;
+
+      if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(param_ctx.get(),
+                                                 prime_info_.prime_size_) <= 0)
+        return nullptr;
+
+      if (EVP_PKEY_CTX_set_dh_paramgen_generator(param_ctx.get(),
+                                                 generator_) <= 0)
+        return nullptr;
+
+      EVP_PKEY* raw_params = nullptr;
+      if (EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0)
+        return nullptr;
+      params = EVPKeyPointer(raw_params);
+    }
+
+    return EVPKeyCtxPointer(EVP_PKEY_CTX_new(params.get(), nullptr));
+  }
+
+ private:
+  PrimeInfo prime_info_;
+  unsigned int generator_;
+};
+
 class GenerateKeyPairJob : public CryptoJob {
  public:
   GenerateKeyPairJob(Environment* env,
@@ -6842,6 +6907,39 @@ void GenerateKeyPairNid(const FunctionCallbackInfo<Value>& args) {
   std::unique_ptr<KeyPairGenerationConfig> config(
       new NidKeyPairGenerationConfig(id));
   GenerateKeyPair(args, 1, std::move(config));
+}
+
+void GenerateKeyPairDH(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  PrimeInfo prime_info = {};
+  unsigned int generator;
+  if (args[0]->IsString()) {
+    String::Utf8Value group_name(args.GetIsolate(), args[0].As<String>());
+    const modp_group* group = FindDiffieHellmanGroup(*group_name);
+    if (group == nullptr)
+      return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
+
+    prime_info.fixed_value_ = BignumPointer(
+        BN_bin2bn(reinterpret_cast<const unsigned char*>(group->prime),
+                  group->prime_size, nullptr));
+    generator = group->gen;
+  } else {
+    if (args[0]->IsInt32()) {
+      prime_info.prime_size_ = args[0].As<Int32>()->Value();
+    } else {
+      ArrayBufferViewContents<unsigned char> input(args[0]);
+      prime_info.fixed_value_ = BignumPointer(
+          BN_bin2bn(input.data(), input.length(), nullptr));
+    }
+
+    CHECK(args[1]->IsInt32());
+    generator = args[1].As<Int32>()->Value();
+  }
+
+  std::unique_ptr<KeyPairGenerationConfig> config(
+      new DHKeyPairGenerationConfig(std::move(prime_info), generator));
+  GenerateKeyPair(args, 2, std::move(config));
 }
 
 
@@ -7250,6 +7348,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "generateKeyPairDSA", GenerateKeyPairDSA);
   env->SetMethod(target, "generateKeyPairEC", GenerateKeyPairEC);
   env->SetMethod(target, "generateKeyPairNid", GenerateKeyPairNid);
+  env->SetMethod(target, "generateKeyPairDH", GenerateKeyPairDH);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);

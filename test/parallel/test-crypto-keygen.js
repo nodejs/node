@@ -981,6 +981,75 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 }
 
+// Test classic Diffie-Hellman key generation.
+{
+  generateKeyPair('dh', {
+    primeLength: 1024
+  }, common.mustCall((err, publicKey, privateKey) => {
+    assert.ifError(err);
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(publicKey.asymmetricKeyType, 'dh');
+
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(privateKey.asymmetricKeyType, 'dh');
+  }));
+
+  assert.throws(() => {
+    generateKeyPair('dh', common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received undefined'
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {}, common.mustNotCall());
+  }, {
+    name: 'TypeError',
+    code: 'ERR_MISSING_OPTION',
+    message: 'At least one of the group, prime, or primeLength options is ' +
+             'required'
+  });
+
+  assert.throws(() => {
+    generateKeyPair('dh', {
+      group: 'modp0'
+    }, common.mustNotCall());
+  }, {
+    name: 'Error',
+    code: 'ERR_CRYPTO_UNKNOWN_DH_GROUP',
+    message: 'Unknown DH group'
+  });
+
+  // Test incompatible options.
+  const allOpts = {
+    group: 'modp5',
+    prime: Buffer.alloc(0),
+    primeLength: 1024,
+    generator: 2
+  };
+  const incompatible = [
+    ['group', 'prime'],
+    ['group', 'primeLength'],
+    ['group', 'generator'],
+    ['prime', 'primeLength']
+  ];
+  for (const [opt1, opt2] of incompatible) {
+    assert.throws(() => {
+      generateKeyPairSync('dh', {
+        [opt1]: allOpts[opt1],
+        [opt2]: allOpts[opt2]
+      });
+    }, {
+      name: 'TypeError',
+      code: 'ERR_INCOMPATIBLE_OPTION_PAIR',
+      message: `Option "${opt1}" can not be used in combination with option ` +
+               `"${opt2}"`
+    });
+  }
+}
+
 // Test invalid key encoding types.
 {
   // Invalid public key type.
