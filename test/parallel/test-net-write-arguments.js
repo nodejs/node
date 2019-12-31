@@ -29,6 +29,6 @@ assert.throws(() => socket.write(null),
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "chunk" argument must be of type string or an instance of ' +
-              `Buffer.${common.invalidArgTypeHelper(value)}`
+              `Buffer or Uint8Array.${common.invalidArgTypeHelper(value)}`
   }));
 });
