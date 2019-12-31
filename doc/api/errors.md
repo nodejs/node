@@ -826,6 +826,12 @@ A signing `key` was not provided to the [`sign.sign()`][] method.
 [`crypto.timingSafeEqual()`][] was called with `Buffer`, `TypedArray`, or
 `DataView` arguments of different lengths.
 
+<a id="ERR_CRYPTO_UNKNOWN_DH_GROUP"></a>
+### `ERR_CRYPTO_UNKNOWN_DH_GROUP`
+
+An unknown Diffie-Hellman group name was given. See
+[`crypto.getDiffieHellman()`][] for a list of valid group names.
+
 <a id="ERR_DIR_CLOSED"></a>
 ### `ERR_DIR_CLOSED`
 
@@ -1513,6 +1519,12 @@ strict compliance with the API specification (which in some cases may accept
 
 An [ES Module][] loader hook specified `format: 'dynamic'` but did not provide
 a `dynamicInstantiate` hook.
+
+<a id="ERR_MISSING_OPTION"></a>
+### `ERR_MISSING_OPTION`
+
+For APIs that accept options objects, some options might be mandatory. This code
+is thrown if a required option is missing.
 
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
@@ -2423,6 +2435,7 @@ such as `process.stdout.on('data')`.
 [`Writable`]: stream.html#stream_class_stream_writable
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
+[`crypto.getDiffieHellman()`]: crypto.html#crypto_crypto_getdiffiehellman_groupname
 [`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
