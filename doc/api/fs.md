@@ -5073,7 +5073,7 @@ changes:
 
 The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
 
-### `fsPromises.symlink(target, path\[, type\])`
+### `fsPromises.symlink(target, path[, type])`
 <!-- YAML
 added: v10.0.0
 -->
