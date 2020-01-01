@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const { Writable } = require('stream');
-const assert = require('assert');
 
 {
   // Sync + Sync
