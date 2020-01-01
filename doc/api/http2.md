@@ -3233,7 +3233,7 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
-#### `response.setTimeout(msecs\[, callback\])`
+#### `response.setTimeout(msecs[, callback])`
 <!-- YAML
 added: v8.4.0
 -->
