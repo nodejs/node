@@ -14,7 +14,7 @@ const assert = require('assert');
   writable.write('hi');
   writable.on('error', common.expectsError({
     code: 'ERR_MULTIPLE_CALLBACK',
-    type: Error
+    name: 'Error'
   }));
 }
 
@@ -31,7 +31,7 @@ const assert = require('assert');
   writable.write('hi');
   writable.on('error', common.expectsError({
     code: 'ERR_MULTIPLE_CALLBACK',
-    type: Error
+    name: 'Error'
   }));
 }
 
@@ -48,6 +48,6 @@ const assert = require('assert');
   writable.write('hi');
   writable.on('error', common.expectsError({
     code: 'ERR_MULTIPLE_CALLBACK',
-    type: Error
+    name: 'Error'
   }));
 }
