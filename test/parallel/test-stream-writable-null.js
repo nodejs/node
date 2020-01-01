@@ -26,27 +26,14 @@ class MyWritable extends stream.Writable {
   m.write(null, assert);
 }
 
-<<<<<<< HEAD
-assert.throws(
-  () => {
-    const m = new MyWritable();
-    m.write(false, (err) => assert.ok(err));
-  },
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError'
-  }
-);
-=======
 {
   const m = new MyWritable();
   m.write(false, (err) => assert.ok(err));
   m.on('error', common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   }));
 }
->>>>>>> stream: 'error' should be emitted asynchronously
 
 { // Should not throw.
   const m = new MyWritable().on('error', assert);
