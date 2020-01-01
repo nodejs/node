@@ -2,20 +2,26 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  asyncHooks: ['enabed', 'disabled', 'none'],
-  c: [50, 500]
+  asyncHooks: ['init', 'before', 'after', 'all', 'disabled', 'none'],
+  connections: [50, 500]
 });
 
-function main({ asyncHooks, c }) {
+function main({ asyncHooks, connections }) {
   if (asyncHooks !== 'none') {
-    const hook = require('async_hooks').createHook({
+    let hooks = {
       init() {},
       before() {},
       after() {},
       destroy() {},
       promiseResolve() {}
-    });
-    if (asyncHooks === 'enabed') {
+    };
+    if (asyncHooks !== 'all' || asyncHooks !== 'disabled') {
+      hooks = {
+        [asyncHooks]: () => {}
+      };
+    }
+    const hook = require('async_hooks').createHook(hooks);
+    if (asyncHooks !== 'disabled') {
       hook.enable();
     }
   }
@@ -25,8 +31,8 @@ function main({ asyncHooks, c }) {
     const path = '/buffer/4/4/normal/1';
 
     bench.http({
-      path: path,
-      connections: c
+      connections,
+      path,
     }, () => {
       server.close();
     });

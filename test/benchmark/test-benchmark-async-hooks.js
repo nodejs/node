@@ -14,7 +14,7 @@ runBenchmark('async_hooks',
              [
                'method=trackingDisabled',
                'n=10',
-               'asyncHooks=enabled',
-               'c=50'
+               'asyncHooks=all',
+               'connections=50'
              ],
              {});
