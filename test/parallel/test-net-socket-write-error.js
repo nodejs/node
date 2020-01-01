@@ -9,11 +9,11 @@ function connectToServer() {
   const client = net.createConnection(this.address().port, () => {
     client.write(1337, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }));
     client.on('error', common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }));
 
     client.destroy();

@@ -28,12 +28,12 @@ zlib.gzip('hello', common.mustCall(function(err, out) {
   unzip.close(common.mustCall());
   unzip.write(out, common.expectsError({
     code: 'ERR_STREAM_DESTROYED',
-    type: Error,
+    name: 'Error',
     message: 'Cannot call write after a stream was destroyed'
   }));
   unzip.on('error', common.expectsError({
     code: 'ERR_STREAM_DESTROYED',
-    type: Error,
+    name: 'Error',
     message: 'Cannot call write after a stream was destroyed'
   }));
 }));

@@ -7,12 +7,12 @@ const socket = net.Stream({ highWaterMark: 0 });
 // Make sure that anything besides a buffer or a string throws.
 socket.write(null, common.expectsError({
   code: 'ERR_STREAM_NULL_VALUES',
-  type: TypeError,
+  name: 'TypeError',
   message: 'May not write null values to stream'
 }));
 socket.on('error', common.expectsError({
   code: 'ERR_STREAM_NULL_VALUES',
-  type: TypeError,
+  name: 'TypeError',
   message: 'May not write null values to stream'
 }));
 
