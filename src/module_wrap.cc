@@ -9,10 +9,11 @@
 #include "node_watchdog.h"
 #include "node_process.h"
 
+
 #include <sys/stat.h>  // S_IFDIR
 
 #include <algorithm>
-#include <climits>  // PATH_MAX
+#include <cmath> // SIGNBIT
 
 namespace node {
 namespace loader {
@@ -916,6 +917,8 @@ bool IsArrayIndex(Environment* env, Local<String> p) {
   CHECK(n->ToString(context).ToLocal(&cmp_str));
   if (!p->Equals(context, cmp_str).FromJust())
     return false;
+  if (n_dbl == 0 && std::signbit(n_dbl) == false)
+    return true;
   Local<Integer> cmp_integer;
   if (!n->ToInteger(context).ToLocal(&cmp_integer))
     return false;

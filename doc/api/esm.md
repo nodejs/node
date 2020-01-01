@@ -1517,8 +1517,6 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an "Invalid Package Configuration" error.
 > 1. If _exports_ is an Object and all keys of _exports_ start with _"."_, then
->    1. If _exports_ contains any index property keys, as defined in ECMA-262
->       6.1.7 Array Index, throw an _Invalid Package Configuration_ error.
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
 >       1. Let _target_ be the value of _exports\[packagePath\]_.
@@ -1552,7 +1550,9 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. If _resolved_ is contained in _resolvedTarget_, then
 >          1. Return _resolved_.
 > 1. Otherwise, if _target_ is a non-null Object, then
->    1. For each property _p_ of _target_, in object insertion order,
+>    1. If _exports_ contains any index property keys, as defined in ECMA-262
+>       [6.1.7 Array Index][], throw an _Invalid Package Configuration_ error.
+>    1. For each property _p_ of _target_, in object insertion order as,
 >       1. If _env_ contains an entry for _p_, then
 >          1. Let _targetValue_ be the value of the _p_ property in _target_.
 >          1. Let _resolved_ be the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**
@@ -1654,3 +1654,4 @@ success!
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
+[6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
