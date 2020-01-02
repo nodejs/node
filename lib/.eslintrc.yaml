@@ -31,6 +31,8 @@ rules:
       message: "Use `const { Symbol } = primordials;` instead of the global."
     - name: WeakMap
       message: "Use `const { WeakMap } = primordials;` instead of the global."
+    - name: WeakSet
+      message: "Use `const { WeakSet } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
