@@ -26,15 +26,15 @@ function main({ asyncHooks, connections }) {
     }
   }
   const server = require('../fixtures/simple-http-server.js')
-  .listen(common.PORT)
-  .on('listening', () => {
-    const path = '/buffer/4/4/normal/1';
+    .listen(common.PORT)
+    .on('listening', () => {
+      const path = '/buffer/4/4/normal/1';
 
-    bench.http({
-      connections,
-      path,
-    }, () => {
-      server.close();
+      bench.http({
+        connections,
+        path,
+      }, () => {
+        server.close();
+      });
     });
-  });
 }
