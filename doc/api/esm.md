@@ -102,7 +102,7 @@ it will also make things easier for build tools and loaders to determine how the
 files in the package should be interpreted.
 
 Regardless of the value of the `"type"` field, `.mjs` files are always treated
-as ES modules and `.cjs` files are always treated as CommonJS modules.
+as ES modules and `.cjs` files are always treated as CommonJS.
 
 ### Package Scope and File Extensions
 
