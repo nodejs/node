@@ -11,7 +11,7 @@ const {
 } = require('internal/modules/esm/default_resolve');
 
 assert.throws(
-  () => resolve('target', undefined),
+  () => resolve({ specifier: 'target' }),
   {
     code: 'ERR_MODULE_NOT_FOUND',
     name: 'Error',

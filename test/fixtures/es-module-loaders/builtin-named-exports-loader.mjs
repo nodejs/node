@@ -13,12 +13,12 @@ export function dynamicInstantiate(url) {
   };
 }
 
-export function resolve(specifier, base, defaultResolver) {
+export function resolve({ specifier, parentURL }, defaultResolve, loader) {
   if (module.builtinModules.includes(specifier)) {
     return {
       url: `node:${specifier}`,
       format: 'dynamic'
     };
   }
-  return defaultResolver(specifier, base);
+  return defaultResolve({specifier, parentURL}, defaultResolve, loader);
 }

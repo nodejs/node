@@ -1,6 +1,6 @@
-export function resolve(specifier, parentModule, defaultResolver) {
+export function resolve({ specifier, parentURL }, defaultResolve, loader) {
   if (specifier !== 'test') {
-    return defaultResolver(specifier, parentModule);
+    return defaultResolve({specifier, parentURL}, defaultResolve, loader);
   }
   return { url: 'file://', format: 'dynamic' };
 }

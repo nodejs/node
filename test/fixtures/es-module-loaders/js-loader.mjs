@@ -4,7 +4,7 @@ import { builtinModules } from 'module';
 const baseURL = new URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
-export function resolve (specifier, base = baseURL) {
+export function resolve ({ specifier, parentURL = baseURL }) {
   if (builtinModules.includes(specifier)) {
     return {
       url: specifier,
@@ -12,7 +12,7 @@ export function resolve (specifier, base = baseURL) {
     };
   }
   // load all dependencies as esm, regardless of file extension
-  const url = new URL(specifier, base).href;
+  const url = new URL(specifier, parentURL).href;
   return {
     url,
     format: 'module'
