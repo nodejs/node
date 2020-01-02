@@ -921,7 +921,7 @@ bool IsArrayIndex(Environment* env, Local<String> p) {
   Local<Integer> cmp_integer;
   if (!n->ToInteger(context).ToLocal(&cmp_integer))
     return false;
-  return n_dbl >= 0 && n_dbl < (2 ^ 32) - 1;
+  return n_dbl > 0 && n_dbl < (2 ^ 32) - 1;
 }
 
 Maybe<URL> ResolveExportsTarget(Environment* env,
