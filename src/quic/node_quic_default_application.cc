@@ -142,17 +142,26 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
     return true;
   }
 
+  std::unique_ptr<QuicPacket> packet = CreateStreamDataPacket();
+  size_t packet_offset = 0;
+
   for (;;) {
     Debug(stream, "Starting packet serialization. Remaining? %d", remaining);
-    auto packet = CreateStreamDataPacket();
+
+    // If packet was sent on the previous iteration, it will have been reset
+    if (!packet)
+      packet = CreateStreamDataPacket();
+
     ssize_t nwrite =
         ngtcp2_conn_writev_stream(
             Session()->Connection(),
             &path.path,
-            packet->data(),
+            packet->data() + packet_offset,
             Session()->GetMaxPacketLength(),
             &ndatalen,
-            NGTCP2_WRITE_STREAM_FLAG_NONE,
+            remaining > 0 ?
+                NGTCP2_WRITE_STREAM_FLAG_MORE :
+                NGTCP2_WRITE_STREAM_FLAG_NONE,
             stream->GetID(),
             stream->IsWritable() ? 0 : 1,
             reinterpret_cast<const ngtcp2_vec*>(v),
@@ -187,6 +196,18 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
         case NGTCP2_ERR_STREAM_NOT_FOUND:
           Debug(stream, "Stream does not exist");
           return true;
+        case NGTCP2_ERR_WRITE_STREAM_MORE:
+          if (ndatalen > 0) {
+            remaining -= ndatalen;
+            Debug(stream,
+                "%" PRIu64 " stream bytes serialized into packet. %d remaining",
+                ndatalen,
+                remaining);
+            Consume(&v, &c, ndatalen);
+            stream->Commit(ndatalen);
+            packet_offset += ndatalen;
+          }
+          continue;
         default:
           Debug(stream, "Error writing packet. Code %" PRIu64, nwrite);
           Session()->SetLastError(
@@ -210,6 +231,9 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
     packet->SetLength(nwrite);
     if (!Session()->SendPacket(std::move(packet), path))
       return false;
+
+    packet.reset();
+    packet_offset = 0;
 
     if (IsEmpty(v, c)) {
       // fin will have been set if all of the data has been

@@ -457,6 +457,9 @@ bool Http3Application::SendPendingData() {
   QuicPathStorage path;
   int err;
 
+  std::unique_ptr<QuicPacket> packet = CreateStreamDataPacket();
+  size_t packet_offset = 0;
+
   for (;;) {
     int64_t stream_id = -1;
     int fin = 0;
@@ -482,21 +485,21 @@ bool Http3Application::SendPendingData() {
     nghttp3_vec* v = vec.data();
     size_t vcnt = static_cast<size_t>(sveccnt);
 
+    // If packet was sent on previous iteration, it will have been reset.
+    if (!packet)
+      packet = CreateStreamDataPacket();
+
     // Second, serialize as much of the outgoing data as possible to a
     // QUIC packet for transmission. We'll keep iterating until there
     // is no more data to transmit.
-
-    // TODO(@jasnell): Support the use of the NGTCP2_WRITE_STREAM_FLAG_MORE
-    // flag to allow more efficient coallescing of packets.
-    auto packet = CreateStreamDataPacket();
     ssize_t nwrite =
         ngtcp2_conn_writev_stream(
             Session()->Connection(),
             &path.path,
-            packet->data(),
+            packet->data() + packet_offset,
             Session()->GetMaxPacketLength(),
             &ndatalen,
-            NGTCP2_WRITE_STREAM_FLAG_NONE,
+            NGTCP2_WRITE_STREAM_FLAG_MORE,
             stream_id,
             fin,
             reinterpret_cast<const ngtcp2_vec *>(v),
@@ -517,14 +520,12 @@ bool Http3Application::SendPendingData() {
             return false;
           }
           continue;
-        // TODO(@jasnell): Once we support the use of the
-        // NGTCP2_WRITE_STREAM_FLAG_MORE flag, uncomment out
-        // the following case to properly handle it.
-        // case NGTCP2_ERR_WRITE_STREAM_MORE:
-        //   if (stream && !StreamCommit(stream_id, ndatalen)) {
-        //     return false;
-        //   }
-        //   continue;
+        case NGTCP2_ERR_WRITE_STREAM_MORE:
+          if (ndatalen > 0) {
+            CHECK(StreamCommit(stream_id, ndatalen));
+            packet_offset += ndatalen;
+          }
+          continue;
       }
       //  Session()->SetLastError(QUIC_ERROR_APPLICATION, nwrite);
       return false;
@@ -533,13 +534,16 @@ bool Http3Application::SendPendingData() {
     if (nwrite == 0)
       return true;  // Congestion limited
 
-    if (ndatalen > 0 && !StreamCommit(stream_id, ndatalen))
-      return false;
+    if (ndatalen > 0)
+      CHECK(StreamCommit(stream_id, ndatalen));
 
     Debug(Session(), "Sending %" PRIu64 " bytes in serialized packet", nwrite);
     packet->SetLength(nwrite);
     if (!Session()->SendPacket(std::move(packet), path))
       return false;
+
+    packet.reset();
+    packet_offset = 0;
 
     if (fin)
       SetStreamFin(stream_id);
