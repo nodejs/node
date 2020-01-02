@@ -132,3 +132,27 @@ function createServer() {
     }));
   }));
 }
+
+// `options` should not be modified
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = {
+      port: 3000,
+      rejectUnauthorized: false
+    };
+
+    const socket = agent.createConnection(port, host, options);
+    socket.on('connect', common.mustCall((data) => {
+      socket.end();
+    }));
+    socket.on('end', common.mustCall(() => {
+      assert.deepStrictEqual(options, {
+        port: 3000, rejectUnauthorized: false
+      });
+      server.close();
+    }));
+  }));
+}
