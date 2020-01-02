@@ -12,9 +12,9 @@ const runBenchmark = require('../common/benchmark');
 
 runBenchmark('async_hooks',
              [
-               'method=trackingDisabled',
-               'n=10',
                'asyncHooks=all',
-               'connections=50'
+               'connections=50',
+               'method=trackingDisabled',
+               'n=10'
              ],
              {});
