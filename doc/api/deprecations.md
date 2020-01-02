@@ -404,6 +404,9 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 ### DEP0016: `GLOBAL`/`root`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: End-of-Life
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
     description: A deprecation code has been assigned.
@@ -412,10 +415,10 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `GLOBAL` and `root` aliases for the `global` property are deprecated
-and should no longer be used.
+The `GLOBAL` and `root` aliases for the `global` property were deprecated
+in Node.js 6.0.0 and have since been removed.
 
 <a id="DEP0017"></a>
 ### DEP0017: `Intl.v8BreakIterator`
