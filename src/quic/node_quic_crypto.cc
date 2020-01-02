@@ -638,11 +638,10 @@ SSL_QUIC_METHOD quic_method = SSL_QUIC_METHOD{
 };
 
 void SetHostname(SSL* ssl, const std::string& hostname) {
-  // TODO(@jasnell): Need to determine if setting localhost
-  // here is the right thing to do.
-  if (hostname.length() == 0 ||
-      SocketAddress::is_numeric_host(hostname.c_str())) {
-    SSL_set_tlsext_host_name(ssl, "localhost");
+  // If the hostname is an IP address, use an empty string
+  // as the hostname instead.
+  if (SocketAddress::is_numeric_host(hostname.c_str())) {
+    SSL_set_tlsext_host_name(ssl, "");
   } else {
     SSL_set_tlsext_host_name(ssl, hostname.c_str());
   }
