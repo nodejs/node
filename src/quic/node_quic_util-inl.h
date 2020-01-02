@@ -196,11 +196,21 @@ const uint8_t* QuicPreferredAddress::StatelessResetToken() const {
   return paddr_->stateless_reset_token;
 }
 
-const sockaddr_in6* QuicPreferredAddress::PreferredIPv6Address() const {
-  return reinterpret_cast<const sockaddr_in6*>(&paddr_->ipv6_addr);
+std::string QuicPreferredAddress::PreferredIPv6Address() const {
+  char host[NI_MAXHOST];
+  // Return an empty string if unable to convert...
+  if (uv_inet_ntop(AF_INET6, paddr_->ipv6_addr, host, sizeof(host)) != 0)
+    return std::string();
+
+  return std::string(host);
 }
-const sockaddr_in* QuicPreferredAddress::PreferredIPv4Address() const {
-  return reinterpret_cast<const sockaddr_in*>(&paddr_->ipv4_addr);
+std::string QuicPreferredAddress::PreferredIPv4Address() const {
+  char host[NI_MAXHOST];
+  // Return an empty string if unable to convert...
+  if (uv_inet_ntop(AF_INET, paddr_->ipv4_addr, host, sizeof(host)) != 0)
+    return std::string();
+
+  return std::string(host);
 }
 
 int16_t QuicPreferredAddress::PreferredIPv6Port() const {
@@ -224,14 +234,6 @@ bool QuicPreferredAddress::Use(int family) const {
   return true;
 }
 
-bool QuicPreferredAddress::IsEmptyAddress(
-    const uint8_t* addr,
-    size_t len) const {
-  static constexpr uint8_t empty_addr[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                                           0, 0, 0, 0, 0, 0, 0, 0};
-  return memcmp(empty_addr, addr, len) == 0;
-}
-
 bool QuicPreferredAddress::ResolvePreferredAddress(
     int local_address_family,
     uv_getaddrinfo_t* req) const {
@@ -240,10 +242,9 @@ bool QuicPreferredAddress::ResolvePreferredAddress(
   int af;
   const uint8_t* binaddr;
   uint16_t port;
-
   switch (local_address_family) {
     case AF_INET:
-      if (!IsEmptyAddress(paddr_->ipv4_addr, len4)) {
+      if (paddr_->ipv4_port > 0) {
         af = AF_INET;
         binaddr = paddr_->ipv4_addr;
         port = paddr_->ipv4_port;
@@ -251,7 +252,7 @@ bool QuicPreferredAddress::ResolvePreferredAddress(
       }
       return false;
     case AF_INET6:
-      if (!IsEmptyAddress(paddr_->ipv6_addr, len6)) {
+      if (paddr_->ipv6_port > 0) {
         af = AF_INET6;
         binaddr = paddr_->ipv6_addr;
         port = paddr_->ipv6_port;

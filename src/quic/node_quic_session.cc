@@ -133,27 +133,25 @@ void QuicSessionConfig::Set(
   transport_params.idle_timeout = transport_params.idle_timeout * 1000000;
 
   // TODO(@jasnell): QUIC allows both IPv4 and IPv6 addresses to be
-  // specified. Here we're specifying one or the otherr. Need to
+  // specified. Here we're specifying one or the other. Need to
   // determine if that's what we want or should we support both.
   if (preferred_addr != nullptr) {
     transport_params.preferred_address_present = 1;
     switch (preferred_addr->sa_family) {
       case AF_INET: {
         auto& dest = transport_params.preferred_address.ipv4_addr;
-        memcpy(
-            &dest,
-            &(reinterpret_cast<const sockaddr_in*>(preferred_addr)->sin_addr),
-            sizeof(dest));
+        const sockaddr_in* ipv4 =
+            reinterpret_cast<const sockaddr_in*>(preferred_addr);
+        memcpy(&dest, &ipv4->sin_addr, sizeof(dest));
         transport_params.preferred_address.ipv4_port =
             SocketAddress::GetPort(preferred_addr);
         break;
       }
       case AF_INET6: {
         auto& dest = transport_params.preferred_address.ipv6_addr;
-        memcpy(
-            &dest,
-            &(reinterpret_cast<const sockaddr_in6*>(preferred_addr)->sin6_addr),
-            sizeof(dest));
+        const sockaddr_in6* ipv6 =
+            reinterpret_cast<const sockaddr_in6*>(preferred_addr);
+        memcpy(&dest, &ipv6->sin6_addr, sizeof(dest));
         transport_params.preferred_address.ipv6_port =
             SocketAddress::GetPort(preferred_addr);
         break;
@@ -292,6 +290,13 @@ void QuicSessionListener::OnSessionSilentClose(
     QuicError error) {
   if (previous_listener_ != nullptr)
     previous_listener_->OnSessionSilentClose(stateless_reset, error);
+}
+
+void QuicSessionListener::OnUsePreferredAddress(
+    int family,
+    const QuicPreferredAddress& preferred_address) {
+  if (previous_listener_ != nullptr)
+    previous_listener_->OnUsePreferredAddress(family, preferred_address);
 }
 
 void QuicSessionListener::OnVersionNegotiation(
@@ -630,6 +635,37 @@ void JSQuicSessionListener::OnSessionSilentClose(
   BaseObjectPtr<QuicSession> ptr(Session());
   Session()->MakeCallback(
       env->quic_on_session_silent_close_function(), arraysize(argv), argv);
+}
+
+void JSQuicSessionListener::OnUsePreferredAddress(
+    int family,
+    const QuicPreferredAddress& preferred_address) {
+  Environment* env = Session()->env();
+  HandleScope scope(env->isolate());
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
+
+  std::string hostname = family == AF_INET ?
+      preferred_address.PreferredIPv4Address():
+      preferred_address.PreferredIPv6Address();
+  int16_t port =
+      family == AF_INET ?
+          preferred_address.PreferredIPv4Port() :
+          preferred_address.PreferredIPv6Port();
+
+  Local<Value> argv[] = {
+      String::NewFromOneByte(
+          env->isolate(),
+          reinterpret_cast<const uint8_t*>(hostname.c_str()),
+          v8::NewStringType::kNormal).ToLocalChecked(),
+      Integer::New(env->isolate(), port),
+      Integer::New(env->isolate(), family)
+  };
+
+  BaseObjectPtr<QuicSession> ptr(Session());
+  Session()->MakeCallback(
+      env->quic_on_session_use_preferred_address_function(),
+      arraysize(argv), argv);
 }
 
 void JSQuicSessionListener::OnVersionNegotiation(
@@ -1244,7 +1280,7 @@ QuicSession::QuicSession(
         std::string(""),  // empty hostname. not used on server side
         rcid,
         options,
-        QUIC_PREFERRED_ADDRESS_ACCEPT,  // Not used on server sessions
+        nullptr,  // Not used on server sessions
         initial_connection_close) {
   // The config is copied by assignment in the call below.
   InitServer(config, local_addr, remote_addr, dcid, ocid, version, qlog);
@@ -1260,7 +1296,7 @@ QuicSession::QuicSession(
     Local<Value> early_transport_params,
     Local<Value> session_ticket,
     Local<Value> dcid,
-    SelectPreferredAddressPolicy select_preferred_address_policy,
+    PreferredAddressStrategy preferred_address_strategy,
     const std::string& alpn,
     const std::string& hostname,
     uint32_t options,
@@ -1275,7 +1311,7 @@ QuicSession::QuicSession(
         hostname,
         nullptr,  // rcid only used on the server
         options,
-        select_preferred_address_policy) {
+        preferred_address_strategy) {
   CHECK(InitClient(
       local_addr,
       remote_addr,
@@ -1297,7 +1333,7 @@ QuicSession::QuicSession(
     const std::string& hostname,
     const ngtcp2_cid* rcid,
     uint32_t options,
-    SelectPreferredAddressPolicy select_preferred_address_policy,
+    PreferredAddressStrategy preferred_address_strategy,
     uint64_t initial_connection_close)
   : AsyncWrap(socket->env(), wrap, provider_type),
     alloc_info_(MakeAllocator()),
@@ -1307,7 +1343,6 @@ QuicSession::QuicSession(
     initial_connection_close_(initial_connection_close),
     idle_(new Timer(socket->env(), [this]() { OnIdleTimeout(); })),
     retransmit_(new Timer(socket->env(), [this]() { MaybeTimeout(); })),
-    select_preferred_address_policy_(select_preferred_address_policy),
     state_(env()->isolate(), IDX_QUIC_SESSION_STATE_COUNT),
     crypto_rx_ack_(
         HistogramBase::New(
@@ -1328,6 +1363,7 @@ QuicSession::QuicSession(
   PushListener(&default_listener_);
   SetConnectionIDStrategy(RandomConnectionIDStrategy);
   SetStatelessResetTokenStrategy(CryptoStatelessResetTokenStrategy);
+  SetPreferredAddressStrategy(preferred_address_strategy);
   crypto_context_.reset(new QuicCryptoContext(this, ctx, side, options));
   application_.reset(SelectApplication(this));
   if (rcid != nullptr)
@@ -1695,22 +1731,6 @@ void QuicSession::GetLocalTransportParams(ngtcp2_transport_params* params) {
 uint32_t QuicSession::GetNegotiatedVersion() {
   CHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
   return ngtcp2_conn_get_negotiated_version(Connection());
-}
-
-// The connection ID Strategy is a function that generates
-// connection ID values. By default these are generated randomly.
-void QuicSession::SetConnectionIDStrategy(ConnectionIDStrategy strategy) {
-  CHECK_NOT_NULL(strategy);
-  connection_id_strategy_ = strategy;
-}
-
-// The stateless reset token strategy is a function that generates
-// stateless reset tokens. By default these are cryptographically
-// derived by the CID.
-void QuicSession::SetStatelessResetTokenStrategy(
-    StatelessResetTokenStrategy strategy) {
-  CHECK_NOT_NULL(strategy);
-  stateless_reset_strategy_ = strategy;
 }
 
 // Generates and associates a new connection ID for this QuicSession.
@@ -2251,6 +2271,33 @@ bool QuicSession::SendConnectionClose() {
   }
 }
 
+void QuicSession::IgnorePreferredAddressStrategy(
+    QuicSession* session,
+    const QuicPreferredAddress& preferred_address) {
+  Debug(session, "Ignoring server preferred address");
+}
+
+void QuicSession::UsePreferredAddressStrategy(
+    QuicSession* session,
+    const QuicPreferredAddress& preferred_address) {
+  static constexpr int idx =
+      IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED;
+  int family = session->Socket()->GetLocalAddress().GetFamily();
+  if (preferred_address.Use(family)) {
+    Debug(session, "Using server preferred address");
+    // Emit only if the QuicSession has a usePreferredAddress handler
+    // on the JavaScript side.
+    if (UNLIKELY(session->state_[idx] == 1)) {
+      session->Listener()->OnUsePreferredAddress(family, preferred_address);
+    }
+  } else {
+    // If Use returns false, the advertised preferred address does not
+    // match the current local preferred endpoint IP version.
+    Debug(session,
+          "Not using server preferred address due to IP version mismatch");
+  }
+}
+
 // When a server advertises a preferred address in its initial
 // transport parameters, ngtcp2 on the client side will trigger
 // the OnSelectPreferredAdddress callback which will call this.
@@ -2259,20 +2306,10 @@ bool QuicSession::SendConnectionClose() {
 // over to dest, otherwise dest is left alone. There are two
 // possible strategies that we currently support via user
 // configuration: use the preferred address or ignore it.
-bool QuicSession::SelectPreferredAddress(
+void QuicSession::SelectPreferredAddress(
     const QuicPreferredAddress& preferred_address) {
-  if (UNLIKELY(IsServer()))  // This should never happen, but handle anyway
-    return true;
-
-  switch (select_preferred_address_policy_) {
-    case QUIC_PREFERRED_ADDRESS_ACCEPT: {
-      return preferred_address.Use(local_address_.GetFamily());
-    }
-    case QUIC_PREFERRED_ADDRESS_IGNORE:
-      // Explicitly do nothing in this case.
-      break;
-  }
-  return true;
+  CHECK(!IsServer());
+  preferred_address_strategy_(this, preferred_address);
 }
 
 // This variant of SendPacket is used by QuicApplication
@@ -2978,7 +3015,7 @@ BaseObjectPtr<QuicSession> QuicSession::CreateClient(
     Local<Value> early_transport_params,
     Local<Value> session_ticket,
     Local<Value> dcid,
-    SelectPreferredAddressPolicy select_preferred_address_policy,
+    PreferredAddressStrategy preferred_address_strategy,
     const std::string& alpn,
     const std::string& hostname,
     uint32_t options,
@@ -3000,7 +3037,7 @@ BaseObjectPtr<QuicSession> QuicSession::CreateClient(
           early_transport_params,
           session_ticket,
           dcid,
-          select_preferred_address_policy,
+          preferred_address_strategy,
           alpn,
           hostname,
           options,
@@ -3381,8 +3418,7 @@ int QuicSession::OnSelectPreferredAddress(
   // If the preferred address is not selected, dest remains
   // unchanged.
   QuicPreferredAddress preferred_address(session->env(), dest, paddr);
-  if (!session->SelectPreferredAddress(preferred_address))
-    Debug(session, "Selecting preferred address failed");
+  session->SelectPreferredAddress(preferred_address);
   return 0;
 }
 
@@ -3721,7 +3757,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
   uint32_t flags;
   SecureContext* sc;
   sockaddr_storage addr;
-  int select_preferred_address_policy = QUIC_PREFERRED_ADDRESS_IGNORE;
+
   uint32_t options = QUICCLIENTSESSION_OPTION_VERIFY_HOSTNAME_IDENTITY;
   std::string alpn(NGTCP2_ALPN_H3);
 
@@ -3731,10 +3767,19 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->Uint32Value(env->context()).To(&flags));
   CHECK(args[5]->IsObject());
   CHECK(args[12]->Uint32Value(env->context()).To(&options));
-  CHECK(args[10]->Int32Value(env->context())
-      .To(&select_preferred_address_policy));
   ASSIGN_OR_RETURN_UNWRAP(&socket, args[0].As<Object>());
   ASSIGN_OR_RETURN_UNWRAP(&sc, args[5].As<Object>());
+
+  PreferredAddressStrategy preferred_address_strategy;
+  int32_t preferred_address_policy;
+  CHECK(args[10]->Int32Value(env->context()).To(&preferred_address_policy));
+  switch (preferred_address_policy) {
+    case QUIC_PREFERRED_ADDRESS_ACCEPT:
+      preferred_address_strategy = QuicSession::UsePreferredAddressStrategy;
+      break;
+    default:
+      preferred_address_strategy = QuicSession::IgnorePreferredAddressStrategy;
+  }
 
   node::Utf8Value address(env->isolate(), args[2]);
   node::Utf8Value servername(env->isolate(), args[6]);
@@ -3760,8 +3805,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
           args[7],
           args[8],
           args[9],
-          static_cast<SelectPreferredAddressPolicy>
-              (select_preferred_address_policy),
+          preferred_address_strategy,
           alpn,
           hostname,
           options,

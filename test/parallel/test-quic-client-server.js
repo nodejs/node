@@ -76,6 +76,8 @@ server.on('session', common.mustCall((session) => {
     debug(`QuicServerSession Client ${family} address ${address}:${port}`);
   }
 
+  session.on('usePreferredAddress', common.mustNotCall());
+
   session.on('clientHello', common.mustCall(
     (alpn, servername, ciphers, cb) => {
       assert.strictEqual(alpn, kALPN);
@@ -225,6 +227,8 @@ server.on('ready', common.mustCall(() => {
   });
 
   assert.strictEqual(req.servername, kServerName);
+
+  req.on('usePreferredAddress', common.mustNotCall());
 
   req.on('OCSPResponse', common.mustCall((response) => {
     debug(`QuicClientSession OCSP response: "${response.toString()}"`);

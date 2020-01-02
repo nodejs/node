@@ -59,6 +59,7 @@ void QuicSetCallbacks(const FunctionCallbackInfo<Value>& args) {
   SETFUNCTION("onSessionError", session_error);
   SETFUNCTION("onSessionHandshake", session_handshake);
   SETFUNCTION("onSessionKeylog", session_keylog);
+  SETFUNCTION("onSessionUsePreferredAddress", session_use_preferred_address);
   SETFUNCTION("onSessionPathValidation", session_path_validation);
   SETFUNCTION("onSessionQlog", session_qlog);
   SETFUNCTION("onSessionSilentClose", session_silent_close);
@@ -144,6 +145,8 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_CONNECTIONS_PER_HOST);
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_CERT_ENABLED);
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED);
+  NODE_DEFINE_CONSTANT(constants,
+                       IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED);
   NODE_DEFINE_CONSTANT(constants,
                        IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED);
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED);

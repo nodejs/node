@@ -51,6 +51,10 @@ typedef void(*StatelessResetTokenStrategy)(
     uint8_t* token,
     size_t tokenlen);
 
+typedef void(*PreferredAddressStrategy)(
+    QuicSession* session,
+    const QuicPreferredAddress& preferred_address);
+
 // The QuicSessionConfig class holds the initial transport parameters and
 // configuration options set by the JavaScript side when either a
 // client or server QuicSession is created. Instances are
@@ -181,6 +185,10 @@ enum QuicSessionState : int {
   // Communicates the current total number of bytes in flight
   IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT,
 
+  // Communicates whether a 'usePreferredAddress' event listener
+  // has been registered.
+  IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED,
+
   // Just the number of session state enums for use when
   // creating the AliasedBuffer.
   IDX_QUIC_SESSION_STATE_COUNT
@@ -241,6 +249,9 @@ class QuicSessionListener {
       ngtcp2_path_validation_result res,
       const sockaddr* local,
       const sockaddr* remote);
+  virtual void OnUsePreferredAddress(
+      int family,
+      const QuicPreferredAddress& preferred_address);
   virtual void OnSessionTicket(int size, SSL_SESSION* session);
   virtual void OnSessionSilentClose(bool stateless_reset, QuicError error);
   virtual void OnVersionNegotiation(
@@ -286,6 +297,9 @@ class JSQuicSessionListener : public QuicSessionListener {
       const sockaddr* remote) override;
   void OnSessionTicket(int size, SSL_SESSION* session) override;
   void OnSessionSilentClose(bool stateless_reset, QuicError error) override;
+  void OnUsePreferredAddress(
+      int family,
+      const QuicPreferredAddress& preferred_address) override;
   void OnVersionNegotiation(
       uint32_t supported_version,
       const uint32_t* versions,
@@ -544,6 +558,15 @@ class QuicApplication : public MemoryRetainer {
 class QuicSession : public AsyncWrap,
                     public mem::NgLibMemoryManager<QuicSession, ngtcp2_mem> {
  public:
+  // The default preferred address strategy is to ignore it
+  static void IgnorePreferredAddressStrategy(
+      QuicSession* session,
+      const QuicPreferredAddress& preferred_address);
+
+  static void UsePreferredAddressStrategy(
+      QuicSession* session,
+      const QuicPreferredAddress& preferred_address);
+
   static void Initialize(
       Environment* env,
       v8::Local<v8::Object> target,
@@ -571,8 +594,8 @@ class QuicSession : public AsyncWrap,
       v8::Local<v8::Value> early_transport_params,
       v8::Local<v8::Value> session_ticket,
       v8::Local<v8::Value> dcid,
-      SelectPreferredAddressPolicy select_preferred_address_policy =
-          QUIC_PREFERRED_ADDRESS_IGNORE,
+      PreferredAddressStrategy preferred_address_strategy =
+          IgnorePreferredAddressStrategy,
       const std::string& alpn = NGTCP2_ALPN_H3,
       const std::string& hostname = "",
       uint32_t options = 0,
@@ -602,8 +625,8 @@ class QuicSession : public AsyncWrap,
       const std::string& hostname,
       const ngtcp2_cid* rcid,
       uint32_t options = 0,
-      SelectPreferredAddressPolicy select_preferred_address_policy =
-          QUIC_PREFERRED_ADDRESS_ACCEPT,
+      PreferredAddressStrategy preferred_address_strategy =
+          IgnorePreferredAddressStrategy,
       uint64_t initial_connection_close = NGTCP2_NO_ERROR);
 
   // Server Constructor
@@ -632,7 +655,7 @@ class QuicSession : public AsyncWrap,
       v8::Local<v8::Value> early_transport_params,
       v8::Local<v8::Value> session_ticket,
       v8::Local<v8::Value> dcid,
-      SelectPreferredAddressPolicy select_preferred_address_policy,
+      PreferredAddressStrategy preferred_address_strategy,
       const std::string& alpn,
       const std::string& hostname,
       uint32_t options,
@@ -929,8 +952,15 @@ class QuicSession : public AsyncWrap,
   void PushListener(QuicSessionListener* listener);
   void RemoveListener(QuicSessionListener* listener);
 
-  void SetConnectionIDStrategy(ConnectionIDStrategy strategy);
-  void SetStatelessResetTokenStrategy(StatelessResetTokenStrategy strategy);
+  inline void SetConnectionIDStrategy(
+      ConnectionIDStrategy strategy);
+  inline void SetStatelessResetTokenStrategy(
+      StatelessResetTokenStrategy strategy);
+  inline void SetPreferredAddressStrategy(
+      PreferredAddressStrategy strategy);
+
+  void SelectPreferredAddress(
+      const QuicPreferredAddress& preferred_address);
 
   // Report that the stream data is flow control blocked
   void StreamDataBlocked(int64_t stream_id);
@@ -1018,7 +1048,6 @@ class QuicSession : public AsyncWrap,
   bool ReceiveRetry();
   void RemoveConnectionID(const ngtcp2_cid* cid);
   void ScheduleRetransmit();
-  bool SelectPreferredAddress(const QuicPreferredAddress& preferred_address);
   bool SendPacket(std::unique_ptr<QuicPacket> packet);
   void SetLocalAddress(const ngtcp2_addr* addr);
   void StreamClose(int64_t stream_id, uint64_t app_error_code);
@@ -1295,6 +1324,7 @@ class QuicSession : public AsyncWrap,
 
   ConnectionIDStrategy connection_id_strategy_ = nullptr;
   StatelessResetTokenStrategy stateless_reset_strategy_ = nullptr;
+  PreferredAddressStrategy preferred_address_strategy_ = nullptr;
 
   QuicSessionListener* listener_ = nullptr;
   JSQuicSessionListener default_listener_;
@@ -1306,7 +1336,6 @@ class QuicSession : public AsyncWrap,
   ngtcp2_cid rcid_;
   ngtcp2_cid pscid_{};
   ngtcp2_transport_params transport_params_;
-  SelectPreferredAddressPolicy select_preferred_address_policy_;
 
   std::unique_ptr<QuicPacket> conn_closebuf_;
 

@@ -847,6 +847,23 @@ three arguments:
 The `sessionTicket` and `remoteTransportParams` are useful when creating a new
 `QuicClientSession` to more quickly resume an existing session.
 
+#### Event: `'usePreferredAddress'`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'usePreferredAddress'` event is emitted when the client `QuicSession`
+is updated to use the server-advertised preferred address. The callback is
+invoked with a single `address` argument:
+
+* `address` {Object}
+  * `address` {string} The preferred hostname
+  * `port` {number} The preferred IP port
+  * `type` {string} Either `'udp4'` or `'udp6'`.
+
+This event is purely informational and will be emitted only when
+`preferredAddressPolicy` is set to `'accept'`.
+
 #### quicclientsession.ephemeralKeyInfo
 <!-- YAML
 added: REPLACEME
@@ -1172,7 +1189,9 @@ added: REPLACEME
     decrypted with `object.passphrase` if provided, or `options.passphrase` if
     it is not.
   * `port` {number} The IP port of the remote QUIC server.
-  * `preferredAddressPolicy` {string} `'accept'` or `'reject'`.
+  * `preferredAddressPolicy` {string} `'accept'` or `'reject'`. When `'accept'`,
+    indicates that the client will automatically use the preferred address
+    advertised by the server.
   * `remoteTransportParams` {Buffer|TypedArray|DataView} The serialized remote
     transport parameters from a previously established session. These would
     have been provided as part of the `'sessionTicket'` event on a previous

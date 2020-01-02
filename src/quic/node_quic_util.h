@@ -88,8 +88,8 @@ class QuicPreferredAddress {
       paddr_(paddr) {}
 
   inline const ngtcp2_cid* cid() const;
-  inline const sockaddr_in6* PreferredIPv6Address() const;
-  inline const sockaddr_in* PreferredIPv4Address() const;
+  inline std::string PreferredIPv6Address() const;
+  inline std::string PreferredIPv4Address() const;
   inline int16_t PreferredIPv6Port() const;
   inline int16_t PreferredIPv4Port() const;
   inline const uint8_t* StatelessResetToken() const;
@@ -100,10 +100,6 @@ class QuicPreferredAddress {
   inline bool ResolvePreferredAddress(
       int local_address_family,
       uv_getaddrinfo_t* req) const;
-
-  inline bool IsEmptyAddress(
-      const uint8_t* addr,
-      size_t len) const;
 
   Environment* env_;
   mutable ngtcp2_addr* dest_;

@@ -78,6 +78,27 @@ void QuicSession::StartGracefulClose() {
   session_stats_.closing_at = uv_hrtime();
 }
 
+// The connection ID Strategy is a function that generates
+// connection ID values. By default these are generated randomly.
+void QuicSession::SetConnectionIDStrategy(ConnectionIDStrategy strategy) {
+  CHECK_NOT_NULL(strategy);
+  connection_id_strategy_ = strategy;
+}
+
+// The stateless reset token strategy is a function that generates
+// stateless reset tokens. By default these are cryptographically
+// derived by the CID.
+void QuicSession::SetStatelessResetTokenStrategy(
+    StatelessResetTokenStrategy strategy) {
+  CHECK_NOT_NULL(strategy);
+  stateless_reset_strategy_ = strategy;
+}
+
+void QuicSession::SetPreferredAddressStrategy(
+    PreferredAddressStrategy strategy) {
+  preferred_address_strategy_ = strategy;
+}
+
 QuicSocket* QuicSession::Socket() const {
   return socket_.get();
 }
