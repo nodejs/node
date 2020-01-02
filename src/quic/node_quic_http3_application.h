@@ -50,6 +50,10 @@ constexpr size_t DEFAULT_MAX_PUSHES = 65535;
 
 using Http3ConnectionPointer = DeleteFnPtr<nghttp3_conn, nghttp3_conn_del>;
 
+// The Http3Header instance is used for inbound (received) header
+// name/value pairs. The class wraps instances of nghttp3_rcbuf
+// (ref counted buffers) and provides a utility for accessing the
+// contents of the buffers.
 class Http3Header : public QuicHeader {
  public:
   Http3Header(int32_t token, nghttp3_rcbuf* name, nghttp3_rcbuf* value);
@@ -69,6 +73,9 @@ class Http3Header : public QuicHeader {
   Http3RcBufferPointer value_;
 };
 
+// Http3Application is used whenever the h3 alpn identifier is used.
+// It causes the QuicSession to apply HTTP/3 semantics to the connection,
+// including handling of headers and other HTTP/3 specific processing.
 class Http3Application final :
     public QuicApplication,
     public mem::NgLibMemoryManager<Http3Application, nghttp3_mem> {

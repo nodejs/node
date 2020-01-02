@@ -11,6 +11,11 @@ namespace node {
 
 namespace quic {
 
+// The DefaultApplication is used whenever an unknown/unrecognized
+// alpn identifier is used. It switches the QUIC implementation into
+// a minimal/generic mode that defers all application level processing
+// to the user-code level. Headers are not supported by QuicStream
+// instances created under the default application.
 class DefaultApplication final : public QuicApplication {
  public:
   explicit DefaultApplication(QuicSession* session);

@@ -192,6 +192,8 @@ bool Http3Application::SubmitInformation(
       nva.length()) == 0;
 }
 
+// For client sessions, submits request headers. For server sessions,
+// submits response headers.
 bool Http3Application::SubmitHeaders(
     int64_t stream_id,
     v8::Local<v8::Array> headers,
@@ -238,6 +240,7 @@ bool Http3Application::SubmitHeaders(
   return false;
 }
 
+// Submits trailing headers for the HTTP/3 request or response.
 bool Http3Application::SubmitTrailers(
     int64_t stream_id,
     v8::Local<v8::Array> headers) {
@@ -271,6 +274,7 @@ void Http3Application::MemoryInfo(MemoryTracker* tracker) const {
                               current_nghttp3_memory_);
 }
 
+// Creates the underlying nghttp3 connection state for the session.
 nghttp3_conn* Http3Application::CreateConnection(
     nghttp3_conn_settings* settings) {
 
