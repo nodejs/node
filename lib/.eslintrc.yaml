@@ -29,6 +29,8 @@ rules:
       message: "Use `const { Reflect } = primordials;` instead of the global."
     - name: Symbol
       message: "Use `const { Symbol } = primordials;` instead of the global."
+    - name: WeakSet
+      message: "Use `const { WeakSet } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
