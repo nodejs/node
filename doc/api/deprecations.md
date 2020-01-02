@@ -82,6 +82,9 @@ The `_linklist` module is deprecated. Please use a userland alternative.
 ### DEP0003: `_writableState.buffer`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31165
+    description: End-of-Life
   - version:
     - v4.8.6
     - v6.12.0
@@ -92,10 +95,10 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `_writableState.buffer` property is deprecated. Use the
-`_writableState.getBuffer()` method instead.
+The `_writableState.buffer` has been removed. Use `_writableState.getBuffer()`
+instead.
 
 <a id="DEP0004"></a>
 ### DEP0004: `CryptoStream.prototype.readyState`
