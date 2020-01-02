@@ -15,6 +15,8 @@ rules:
       message: "Use `const { BigInt } = primordials;` instead of the global."
     - name: Boolean
       message: "Use `const { Boolean } = primordials;` instead of the global."
+    - name: Error
+      message: "Use `const { Error } = primordials;` instead of the global."
     - name: JSON
       message: "Use `const { JSON } = primordials;` instead of the global."
     - name: Math
