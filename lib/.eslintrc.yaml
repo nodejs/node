@@ -19,6 +19,8 @@ rules:
       message: "Use `const { Error } = primordials;` instead of the global."
     - name: JSON
       message: "Use `const { JSON } = primordials;` instead of the global."
+    - name: Map
+      message: "Use `const { Map } = primordials;` instead of the global."
     - name: Math
       message: "Use `const { Math } = primordials;` instead of the global."
     - name: Number
