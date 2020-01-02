@@ -55,15 +55,9 @@ server.on('ready', common.mustCall(() => {
 
   const kClientKeylogs = Array.from(kKeylogs);
 
-  // TODO(@jasnell): There's currently a bug that prevents
-  // the keylog event handler from being registered until
-  // the underlying handle is available... so we need to
-  // wait to attach on the ready event.
-  req.on('ready', common.mustCall(() => {
-    req.on('keylog', common.mustCall((line) => {
-      assert(kClientKeylogs.shift().test(line));
-    }, kClientKeylogs.length));
-  }));
+  req.on('keylog', common.mustCall((line) => {
+    assert(kClientKeylogs.shift().test(line));
+  }, kClientKeylogs.length));
 
   req.on('secure', common.mustCall((servername, alpn, cipher) => {
     const stream = req.openStream();
