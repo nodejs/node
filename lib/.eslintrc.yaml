@@ -27,6 +27,8 @@ rules:
       message: "Use `const { Promise } = primordials;` instead of the global."
     - name: Reflect
       message: "Use `const { Reflect } = primordials;` instead of the global."
+    - name: Set
+      message: "Use `const { Set } = primordials;` instead of the global."
     - name: Symbol
       message: "Use `const { Symbol } = primordials;` instead of the global."
     - name: WeakMap
