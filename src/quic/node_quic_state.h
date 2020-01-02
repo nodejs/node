@@ -55,6 +55,8 @@ class QuicState {
   AliasedFloat64Array quicsessionconfig_buffer;
   AliasedFloat64Array http3config_buffer;
 
+  bool warn_trace_tls = true;
+
  private:
   struct quic_state_internal {
     // doubles first so that they are always sizeof(double)-aligned

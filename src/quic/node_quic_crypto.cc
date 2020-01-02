@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "node_crypto.h"
 #include "node_crypto_common.h"
+#include "node_process.h"
 #include "node_quic_session-inl.h"
 #include "node_quic_util-inl.h"
 #include "node_sockaddr-inl.h"
@@ -631,16 +632,21 @@ void SetHostname(SSL* ssl, const std::string& hostname) {
 
 void InitializeTLS(QuicSession* session) {
   QuicCryptoContext* ctx = session->CryptoContext();
-
+  Environment* env = session->env();
   SSL* ssl = ctx->ssl();
   SSL_set_app_data(ssl, session);
   SSL_set_cert_cb(ssl, CertCB, session);
   SSL_set_verify(ssl, SSL_VERIFY_NONE, crypto::VerifyCallback);
 
-  // Enable tracing if the `--trace-tls` command line flag
-  // is used. TODO(@jasnell): Add process warning for this
-  if (session->env()->options()->trace_tls) {
+  // Enable tracing if the `--trace-tls` command line flag is used.
+  if (env->options()->trace_tls) {
     ctx->EnableTrace();
+    if (env->quic_state()->warn_trace_tls) {
+      env->quic_state()->warn_trace_tls = false;
+      ProcessEmitWarning(env,
+          "Enabling --trace-tls can expose sensitive data "
+          "in the resulting log");
+    }
   }
 
   switch (ctx->Side()) {
