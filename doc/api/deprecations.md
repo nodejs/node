@@ -519,14 +519,18 @@ The `Server.listenFD()` method was deprecated and removed. Please use
 ### DEP0022: `os.tmpDir()`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: End-of-Life.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/6739
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `os.tmpDir()` API is deprecated. Please use [`os.tmpdir()`][] instead.
+The `os.tmpDir()` API iws deprecated in Node.js 7.0.0 and has since been
+removed. Please use [`os.tmpdir()`][] instead.
 
 <a id="DEP0023"></a>
 ### DEP0023: `os.getNetworkInterfaces()`
