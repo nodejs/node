@@ -1833,19 +1833,13 @@ bool QuicSession::OpenUnidirectionalStream(int64_t* stream_id) {
 
 // When ngtcp2 receives a successfull response to a PATH_CHALLENGE,
 // it will trigger the OnPathValidation callback which will, in turn
-// invoke this. We currently handle it by updating the local and remote
-// paths to the validated path and will optionally notify the javascript
-// side if there is a handler registered. Notifying the JavaScript side
-// is purely informational.
+// invoke this. There's really nothing to do here but update stats and
+// and optionally notify the javascript side if there is a handler registered.
+// Notifying the JavaScript side is purely informational.
 void QuicSession::PathValidation(
     const ngtcp2_path* path,
     ngtcp2_path_validation_result res) {
   if (res == NGTCP2_PATH_VALIDATION_RESULT_SUCCESS) {
-    Debug(this,
-          "Path validation succeeded. Updating local and remote addresses");
-    // TODO(@jasnell): Need to revisit whether we want to do this automatically.
-    SetLocalAddress(&path->local);
-    UpdateEndpoint(*path);
     IncrementStat(
         1, &session_stats_,
         &session_stats::path_validation_success_count);
