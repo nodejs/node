@@ -44,6 +44,9 @@ However, the deprecation identifier will not be modified.
 ### DEP0001: `http.OutgoingMessage.prototype.flush`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31164
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
@@ -54,9 +57,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `OutgoingMessage.prototype.flush()` method is deprecated. Use
+`OutgoingMessage.prototype.flush()` has been removed. Use
 `OutgoingMessage.prototype.flushHeaders()` instead.
 
 <a id="DEP0002"></a>
