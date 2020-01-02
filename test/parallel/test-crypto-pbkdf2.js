@@ -6,11 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-common.expectWarning(
-  'DeprecationWarning',
-  'Calling pbkdf2 or pbkdf2Sync with "digest" set to null is deprecated.',
-  'DEP0009');
-
 //
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
@@ -61,7 +56,7 @@ function ondone(err, key) {
 
 // Error path should not leak memory (check with valgrind).
 assert.throws(
-  () => crypto.pbkdf2('password', 'salt', 1, 20, null),
+  () => crypto.pbkdf2('password', 'salt', 1, 20, 'sha1'),
   {
     code: 'ERR_INVALID_CALLBACK',
     name: 'TypeError'
@@ -127,7 +122,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be of type string or null. ' +
+    message: 'The "digest" argument must be of type string. ' +
              'Received undefined'
   });
 
@@ -136,10 +131,18 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be of type string or null. ' +
+    message: 'The "digest" argument must be of type string. ' +
              'Received undefined'
   });
 
+assert.throws(
+  () => crypto.pbkdf2Sync('password', 'salt', 8, 8, null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "digest" argument must be of type string. ' +
+             'Received null'
+  });
 [1, {}, [], true, undefined, null].forEach((input) => {
   const msgPart2 = 'an instance of Buffer, TypedArray, or DataView.' +
                    common.invalidArgTypeHelper(input);
