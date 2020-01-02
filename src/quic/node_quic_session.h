@@ -59,11 +59,9 @@ typedef void(*StatelessResetTokenStrategy)(
 // in non-numeric settings (e.g. preferred_addr).
 class QuicSessionConfig : public ngtcp2_settings {
  public:
-  QuicSessionConfig() {
-    ResetToDefaults();
-  }
+  QuicSessionConfig() {}
 
-  explicit QuicSessionConfig(Environment* env) : QuicSessionConfig() {
+  explicit QuicSessionConfig(Environment* env) {
     Set(env);
   }
 
@@ -75,7 +73,7 @@ class QuicSessionConfig : public ngtcp2_settings {
     token = config.token;
   }
 
-  void ResetToDefaults();
+  void ResetToDefaults(Environment* env);
 
   // QuicSessionConfig::Set() pulls values out of the AliasedBuffer
   // defined in node_quic_state.h and stores the values in settings_.

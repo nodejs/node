@@ -57,20 +57,22 @@ namespace quic {
 // the NODE_DEBUG_NATIVE=NGTCP2_DEBUG category.
 static void Ngtcp2DebugLog(void* user_data, const char* fmt, ...) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
-  if (UNLIKELY(session->env()->debug_enabled(DebugCategory::NGTCP2_DEBUG))) {
-    va_list ap;
-    va_start(ap, fmt);
-    std::string format(fmt, strlen(fmt) + 1);
-    format[strlen(fmt)] = '\n';
-    Debug(session->env(), DebugCategory::NGTCP2_DEBUG, format, ap);
-    va_end(ap);
-  }
+  va_list ap;
+  va_start(ap, fmt);
+  std::string format(fmt, strlen(fmt) + 1);
+  format[strlen(fmt)] = '\n';
+  Debug(session->env(), DebugCategory::NGTCP2_DEBUG, format, ap);
+  va_end(ap);
 }
 
-void QuicSessionConfig::ResetToDefaults() {
+void QuicSessionConfig::ResetToDefaults(Environment* env) {
   ngtcp2_settings_default(this);
   initial_ts = uv_hrtime();
-  log_printf = Ngtcp2DebugLog;
+  // Detailed(verbose) logging provided by ngtcp2 is only enabled
+  // when the NODE_DEBUG_NATIVE=NGTCP2_DEBUG category is used.
+  if (UNLIKELY(env->debug_enabled(DebugCategory::NGTCP2_DEBUG))) {
+    log_printf = Ngtcp2DebugLog;
+  }
   transport_params.active_connection_id_limit =
     DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   transport_params.initial_max_stream_data_bidi_local =
@@ -102,9 +104,10 @@ void SetConfig(Environment* env, int idx, uint64_t* val) {
 }  // namespace
 
 // Sets the QuicSessionConfig using an AliasedBuffer for efficiency.
-void QuicSessionConfig::Set(Environment* env,
-                            const sockaddr* preferred_addr) {
-  ResetToDefaults();
+void QuicSessionConfig::Set(
+    Environment* env,
+    const sockaddr* preferred_addr) {
+  ResetToDefaults(env);
 
   SetConfig(env, IDX_QUIC_SESSION_ACTIVE_CONNECTION_ID_LIMIT,
             &transport_params.active_connection_id_limit);
