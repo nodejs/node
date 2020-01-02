@@ -914,7 +914,7 @@ int QuicSocket::SendPacket(
         remote_addr.GetAddress().c_str(),
         remote_addr.GetPort(),
         local_addr.GetAddress().c_str(),
-        remote_addr.GetPort(),
+        local_addr.GetPort(),
         packet->diagnostic_label());
 
   // If DiagnosticPacketLoss returns true, it will call Done() internally
