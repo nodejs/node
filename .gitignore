@@ -23,6 +23,9 @@
 !.eslintrc.yaml
 !.cpplint
 
+# Special eslintrc for primordials
+!lib/.eslintrc.primordials.yaml
+
 # === Rules for root dir ===
 /core
 /vgcore.*

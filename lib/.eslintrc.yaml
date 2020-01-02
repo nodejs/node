@@ -1,34 +1,15 @@
 env:
   es6: true
 
+extends:
+  - ".eslintrc.primordials.yaml"
+
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
   no-mixed-operators:
     - error
     - groups: [[ "&&", "||" ]]
-  no-restricted-globals:
-    - error
-    - name: Array
-      message: "Use `const { Array } = primordials;` instead of the global."
-    - name: BigInt
-      message: "Use `const { BigInt } = primordials;` instead of the global."
-    - name: Boolean
-      message: "Use `const { Boolean } = primordials;` instead of the global."
-    - name: JSON
-      message: "Use `const { JSON } = primordials;` instead of the global."
-    - name: Math
-      message: "Use `const { Math } = primordials;` instead of the global."
-    - name: Number
-      message: "Use `const { Number } = primordials;` instead of the global."
-    - name: Object
-      message: "Use `const { Object } = primordials;` instead of the global."
-    - name: Promise
-      message: "Use `const { Promise } = primordials;` instead of the global."
-    - name: Reflect
-      message: "Use `const { Reflect } = primordials;` instead of the global."
-    - name: Symbol
-      message: "Use `const { Symbol } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
@@ -59,4 +40,3 @@ globals:
   exports: false
   module: false
   internalBinding: false
-  primordials: false

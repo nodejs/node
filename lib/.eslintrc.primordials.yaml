@@ -1,0 +1,26 @@
+rules:
+  no-restricted-globals:
+    - error
+    - name: Array
+      message: "Use `const { Array } = primordials;` instead of the global."
+    - name: BigInt
+      message: "Use `const { BigInt } = primordials;` instead of the global."
+    - name: Boolean
+      message: "Use `const { Boolean } = primordials;` instead of the global."
+    - name: JSON
+      message: "Use `const { JSON } = primordials;` instead of the global."
+    - name: Math
+      message: "Use `const { Math } = primordials;` instead of the global."
+    - name: Number
+      message: "Use `const { Number } = primordials;` instead of the global."
+    - name: Object
+      message: "Use `const { Object } = primordials;` instead of the global."
+    - name: Promise
+      message: "Use `const { Promise } = primordials;` instead of the global."
+    - name: Reflect
+      message: "Use `const { Reflect } = primordials;` instead of the global."
+    - name: Symbol
+      message: "Use `const { Symbol } = primordials;` instead of the global."
+
+globals:
+  primordials: false
