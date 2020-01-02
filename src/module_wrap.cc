@@ -13,7 +13,6 @@
 #include <sys/stat.h>  // S_IFDIR
 
 #include <algorithm>
-#include <cmath> // SIGNBIT
 
 namespace node {
 namespace loader {
