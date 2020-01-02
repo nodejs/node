@@ -5,6 +5,6 @@ import assert from 'assert';
 import('../fixtures/es-modules/test-esm-ok.mjs')
 .then(assert.fail, expectsError({
   code: 'ERR_UNKNOWN_FILE_EXTENSION',
-  message: /Unknown file extension "" for \/asdf imported from /
+  message: /Unknown file extension "" for \/asdf/
 }))
 .then(mustCall());
