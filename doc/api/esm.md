@@ -1011,50 +1011,35 @@ CommonJS modules loaded.
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
-The `resolve` hook returns the resolved file URL and module format for a
-given module specifier and parent file URL:
+The `resolve` hook returns the resolved file URL for a given module specifier
+and parent file URL:
 
 ```js
 import { URL, pathToFileURL } from 'url';
 const baseURL = pathToFileURL(process.cwd()).href;
 
 /**
- * @param {string} specifier
- * @param {string} parentModuleURL
- * @param {function} defaultResolver
+ * @param {{specifier, parentURL, defaultResolve}} parameters
+ * @returns {{url}}
  */
-export async function resolve(specifier,
-                              parentModuleURL = baseURL,
-                              defaultResolver) {
+export async function resolve({ specifier,
+                                parentURL = baseURL,
+                                defaultResolve }) {
   return {
-    url: new URL(specifier, parentModuleURL).href,
-    format: 'module'
+    url: new URL(specifier, parentUrl).href
   };
 }
 ```
 
-The `parentModuleURL` is provided as `undefined` when performing main Node.js
+The `parentURL` is provided as `undefined` when performing main Node.js
 load itself.
 
-The default Node.js ES module resolution function is provided as a third
-argument to the resolver for easy compatibility workflows.
-
-In addition to returning the resolved file URL value, the resolve hook also
-returns a `format` property specifying the module format of the resolved
-module. This can be one of the following:
-
-| `format` | Description |
-| --- | --- |
-| `'builtin'` | Load a Node.js builtin module |
-| `'commonjs'` | Load a Node.js CommonJS module |
-| `'dynamic'` | Use a [dynamic instantiate hook][] |
-| `'json'` | Load a JSON file |
-| `'module'` | Load a standard JavaScript module |
-| `'wasm'` | Load a WebAssembly module |
+The default Node.js ES module resolution function is provided to the resolver
+for easy compatibility workflows.
 
 For example, a dummy loader to load JavaScript restricted to browser resolution
-rules with only JS file extension and Node.js builtin modules support could
-be written:
+rules with only JavaScript file extensions and Node.js builtin modules support
+could be written:
 
 ```js
 import path from 'path';
@@ -1068,34 +1053,31 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = pathToFileURL(process.cwd()).href;
 
 /**
- * @param {string} specifier
- * @param {string} parentModuleURL
- * @param {function} defaultResolver
+ * @param {{specifier, parentURL, defaultResolve}} parameters
+ * @returns {{url}}
  */
-export async function resolve(specifier,
-                              parentModuleURL = baseURL,
-                              defaultResolver) {
+export async function resolve({ specifier,
+                                parentURL = baseURL,
+                                defaultResolve }) {
   if (builtins.includes(specifier)) {
     return {
-      url: specifier,
-      format: 'builtin'
+      url: specifier
     };
   }
   if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolver(specifier, parentModuleURL);
+    // return defaultResolve({specifier, parentURL, defaultResolve});
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
-  const resolved = new URL(specifier, parentModuleURL);
+  const resolved = new URL(specifier, parentURL);
   const ext = path.extname(resolved.pathname);
   if (!JS_EXTENSIONS.has(ext)) {
     throw new Error(
       `Cannot load file with non-JavaScript file extension ${ext}.`);
   }
   return {
-    url: resolved.href,
-    format: 'module'
+    url: resolved.href
   };
 }
 ```
@@ -1115,8 +1097,16 @@ would load the module `main.js` as an ES module with relative resolution support
 > signature may change. Do not rely on the API described below.
 
 The `getFormat` hook provides a way to define a custom method of determining how
-a URL should be interpreted. Using this hook will cause Node.js to ignore any
-format returned from `resolve`.
+a URL should be interpreted. This can be one of the following:
+
+| `format` | Description |
+| --- | --- |
+| `'builtin'` | Load a Node.js builtin module |
+| `'commonjs'` | Load a Node.js CommonJS module |
+| `'dynamic'` | Use a [dynamic instantiate hook][] |
+| `'json'` | Load a JSON file |
+| `'module'` | Load a standard JavaScript module (ES module) |
+| `'wasm'` | Load a WebAssembly module |
 
 ```js
 import { request } from 'https';
@@ -1126,21 +1116,21 @@ const formatMap = {
   'application/javascript': 'module'
 };
 /**
- * @param {{url}} parameters
+ * @param {{url, defaultGetFormat}} parameters
  * @returns {{format}}
  */
-export async function getFormat({ url, isMain }, defaultGetFormat) {
+export async function getFormat({ url, defaultGetFormat }) {
   if (url.startsWith('https://')) {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       request(url, {
         method: 'HEAD'
       }, (err, res) => {
         if (err) reject(err);
-        else fulfill({ format: formatMap[res.headers['content-type']] });
+        else resolve({ format: formatMap[res.headers['content-type']] });
       });
     });
   }
-  return defaultGetFormat({ url, isMain });
+  return defaultGetFormat({ url, defaultGetFormat });
 }
 ```
 
@@ -1157,43 +1147,40 @@ potentially avoid reading files from disk.
 import { get } from 'https';
 
 /**
- * @param {object} module
- * @param {string} module.url
- * @param {string} module.format
- * @param {function} defaultGetSource
- * @returns {string|Promise}
+ * @param {{url, format, defaultGetSource}} parameters
+ * @returns {{source}}
  */
-export async function getSource({ url, format }, defaultGetSource) {
-  if (!url.startsWith('https://')) {
-    return defaultGetSource(url);
-  } else {
+export async function getSource({ url, format, defaultGetSource }) {
+  if (url.startsWith('https://')) {
     return new Promise((resolve, reject) => {
       get(url, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
-        res.on('end', () => resolve(data));
+        res.on('end', () => resolve({ source: data }));
       }).on('error', (err) => reject(err));
     });
   }
+  return defaultGetSource({ url, format, defaultGetSource });
 }
 
-export async function resolve(specifier,
-                              parentModuleURL,
-                              defaultResolver) {
+/**
+ * @param {{specifier, parentURL, defaultResolve}} parameters
+ * @returns {{url}}
+ */
+export async function resolve({ specifier,
+                                parentURL,
+                                defaultResolve }) {
   if (specifier.startsWith('https://')) {
     return {
-      url: specifier,
-      format: 'module'
+      url: specifier
     };
-  } else if (parentModuleURL &&
-    parentModuleURL.startsWith('https://')) {
+  } else if (parentURL &&
+    parentURL.startsWith('https://')) {
     return {
-      url: new URL(specifier, parentModuleURL).href,
-      format: 'module'
+      url: new URL(specifier, parentURL).href
     };
-  } else {
-    return defaultResolver(specifier, parentModuleURL);
   }
+  return defaultResolve({ specifier, parentURL, defaultResolve });
 }
 ```
 
@@ -1224,17 +1211,19 @@ unknown-to-Node.js file extensions.
 import CoffeeScript from 'coffeescript';
 
 /**
- * @param {object} module
- * @param {string} module.url
- * @param {string} module.format
- * @param {string} source
- * @returns {Promise|string}
+ * @param {{url, format}} parameters
+ * @returns {{source}}
  */
-export async function transformSource({ url, format }, source) {
+export async function transformSource({ url,
+                                        format,
+                                        source, defaultTransformSource }) {
   if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(url)) {
-    return CoffeeScript.compile(source);
+    return {
+      source: CoffeeScript.compile(source)
+    };
   } else {
-    return source;
+    return defaultTransformSource(
+      { url, format, source, defaultTransformSource });
   }
 }
 
@@ -1243,19 +1232,35 @@ export async function transformSource({ url, format }, source) {
 import { URL, pathToFileURL } from 'url';
 
 const baseURL = pathToFileURL(`${process.cwd()}/`).href;
+const EXTENSIONS_REGEX = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
+/**
+ * @param {{specifier, parentURL, defaultResolve}} parameters
+ * @returns {{url}}
+ */
 export async function resolve(specifier,
-                              parentModuleURL = baseURL,
-                              defaultResolver) {
-  if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(specifier)) {
-    const resolved = new URL(specifier, parentModuleURL);
+                              parentURL = baseURL,
+                              defaultResolve) {
+  if (EXTENSIONS_REGEX.test(specifier)) {
+    const resolved = new URL(specifier, parentURL);
     return {
-      url: resolved.href,
+      url: resolved.href
+    };
+  }
+  return defaultResolve(specifier, parentURL);
+}
+
+/**
+ * @param {{url, defaultGetFormat}} parameters
+ * @returns {{format}}
+ */
+export async function getFormat({ url, defaultGetFormat }) {
+  if (EXTENSIONS_REGEX.test(url)) {
+    return {
       format: 'module'
     };
-  } else {
-    return defaultResolver(specifier, parentModuleURL);
   }
+  return defaultGetFormat({ url, defaultGetFormat });
 }
 ```
 
@@ -1282,7 +1287,8 @@ the `resolve` hook.
 
 ```js
 /**
- * @param {string} url
+ * @param {{url}} parameters
+ * @returns {{exports, execute}}
  */
 export async function dynamicInstantiate(url) {
   return {
