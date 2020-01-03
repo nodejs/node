@@ -237,8 +237,6 @@ bool QuicPreferredAddress::Use(int family) const {
 bool QuicPreferredAddress::ResolvePreferredAddress(
     int local_address_family,
     uv_getaddrinfo_t* req) const {
-  static constexpr size_t len4 = sizeof(sockaddr_in);
-  static constexpr size_t len6 = sizeof(sockaddr_in6);
   int af;
   const uint8_t* binaddr;
   uint16_t port;
