@@ -30,10 +30,6 @@
     'openssl_fips%': '',
     'openssl_no_asm%': 0,
 
-    # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
-    # between debug and non-debug mode.
-    'disable_glibcxx_debug': 1,
-
     # Don't use ICU data file (icudtl.dat) from V8, we use our own.
     'icu_use_data_file_flag%': 0,
 
