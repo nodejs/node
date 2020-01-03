@@ -4,7 +4,7 @@ import assert from 'assert';
 
 import('../fixtures/es-modules/test-esm-ok.mjs')
 .then(assert.fail, expectsError({
-  code: 'ERR_UNKNOWN_FILE_EXTENSION',
-  message: /Unknown file extension "" for \/asdf/
+  code: 'ERR_UNKNOWN_MODULE_FORMAT',
+  message: /Unknown module format: esm/
 }))
 .then(mustCall());
