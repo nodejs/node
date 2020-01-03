@@ -15,11 +15,10 @@ const noop = () => {};
 function main({ n, port, address }) {
   port = port === 'true' ? 0 : undefined;
   address = address === 'true' ? '0.0.0.0' : undefined;
-  var i;
 
   if (port !== undefined && address !== undefined) {
     bench.start();
-    for (i = 0; i < n; i++) {
+    for (let i = 0; i < n; i++) {
       dgram.createSocket('udp4').bind(port, address)
         .on('error', noop)
         .unref();
@@ -27,7 +26,7 @@ function main({ n, port, address }) {
     bench.end(n);
   } else if (port !== undefined) {
     bench.start();
-    for (i = 0; i < n; i++) {
+    for (let i = 0; i < n; i++) {
       dgram.createSocket('udp4')
         .bind(port)
         .on('error', noop)
@@ -36,7 +35,7 @@ function main({ n, port, address }) {
     bench.end(n);
   } else if (port === undefined && address === undefined) {
     bench.start();
-    for (i = 0; i < n; i++) {
+    for (let i = 0; i < n; i++) {
       dgram.createSocket('udp4')
         .bind()
         .on('error', noop)
