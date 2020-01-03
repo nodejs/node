@@ -10,7 +10,7 @@ const errCheck = common.expectsError({
   name: 'Error',
   code: 'ERR_STREAM_WRITE_AFTER_END',
   message: 'write after end'
-}, 2);
+}, 1);
 
 const {
   HTTP2_HEADER_PATH,
@@ -40,12 +40,6 @@ server.listen(0, () => {
     [HTTP2_HEADER_METHOD]: HTTP2_METHOD_HEAD,
     [HTTP2_HEADER_PATH]: '/'
   });
-
-  // Because it is a HEAD request, the payload is meaningless. The
-  // option.endStream flag is set automatically making the stream
-  // non-writable.
-  req.on('error', errCheck);
-  req.write('data');
 
   req.on('response', common.mustCall((headers, flags) => {
     assert.strictEqual(headers[HTTP2_HEADER_STATUS], 200);
