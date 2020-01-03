@@ -2420,7 +2420,7 @@ properties.
   header compression. The minimum allowed value is 0. The maximum allowed value
   is 2<sup>32</sup>-1. **Default:** `4,096 octets`.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
-  permitted on the `Http2Session` instances.
+  permitted on the `Http2Session` instances. **Default:** `true`.
 * `initialWindowSize` {number} Specifies the *senders* initial window size
   for stream-level flow control. The minimum allowed value is 0. The maximum
   allowed value is 2<sup>32</sup>-1. **Default:** `65,535 bytes`.
@@ -2440,6 +2440,7 @@ properties.
   Protocol" defined by [RFC 8441][] is to be enabled. This setting is only
   meaningful if sent by the server. Once the `enableConnectProtocol` setting
   has been enabled for a given `Http2Session`, it cannot be disabled.
+  **Default:** `false`.
 
 All additional properties on the settings object are ignored.
 
