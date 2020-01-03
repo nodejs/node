@@ -2089,6 +2089,20 @@ the corresponding digest algorithm. This does not work for all signature
 algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
 algorithm names.
 
+### `crypto.diffieHellman(options)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options`: {Object}
+  * `privateKey`: {KeyObject}
+  * `publicKey`: {KeyObject}
+* Returns: {Buffer}
+
+Computes the Diffie-Hellman secret based on a `privateKey` and a `publicKey`.
+Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
+(for Diffie-Hellman), `'ec'` (for ECDH), `'x448'`, or `'x25519'` (for ECDH-ES).
+
 ### `crypto.generateKeyPair(type, options, callback)`
 <!-- YAML
 added: v10.12.0
