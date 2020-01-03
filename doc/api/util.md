@@ -1399,6 +1399,35 @@ properties. Such objects are created either by Node.js internals or native
 addons. In JavaScript, they are [frozen][`Object.freeze()`] objects with a
 `null` prototype.
 
+```c++
+#include <js_native_api.h>
+#include <string.h>
+napi_value result;
+static napi_value MyNapi(napi_env env, napi_callback_info info) {
+  int* raw = (int*) malloc(1024);
+  napi_status status = napi_create_external(env, (void*) raw, NULL, NULL, &result);
+  if (status != napi_ok) {
+    napi_throw_error(env, NULL, "napi_create_external failed");
+    return NULL;
+  }
+  return result;
+}
+...
+DECLARE_NAPI_PROPERTY("myNapi", MyNapi)
+...
+```
+
+```js
+const native = require('napi_addon.node');
+const data = native.myNapi();
+util.types.isExternal(data); // returns true
+util.types.isExternal(0); // returns false
+util.types.isExternal(new String('foo')); // returns false
+```
+
+For further information on `napi_create_external`, refer to
+[`napi_create_external()`][].
+
 ### `util.types.isFloat32Array(value)`
 <!-- YAML
 added: v10.0.0
@@ -2358,5 +2387,6 @@ util.log('Timestamped message.');
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
+[`napi_create_external()`]: n-api.html#n_api_napi_create_external
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #util_util_inspect_custom
