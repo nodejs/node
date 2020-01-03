@@ -5827,6 +5827,20 @@ void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   }, "No private key - did you forget to generate one?");
 }
 
+static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
+                                       AllocatedBuffer* ret) {
+  // DH_size returns number of bytes in a prime number.
+  // DH_compute_key returns number of bytes in a remainder of exponent, which
+  // may have less bytes than a prime number. Therefore add 0-padding to the
+  // allocated buffer.
+  const size_t prime_size = ret->size();
+  if (remainder_size != prime_size) {
+    CHECK_LT(remainder_size, prime_size);
+    const size_t padding = prime_size - remainder_size;
+    memmove(ret->data() + padding, ret->data(), remainder_size);
+    memset(ret->data(), 0, padding);
+  }
+}
 
 void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -5877,16 +5891,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   CHECK_GE(size, 0);
-
-  // DH_size returns number of bytes in a prime number
-  // DH_compute_key returns number of bytes in a remainder of exponent, which
-  // may have less bytes than a prime number. Therefore add 0-padding to the
-  // allocated buffer.
-  if (static_cast<size_t>(size) != ret.size()) {
-    CHECK_GT(ret.size(), static_cast<size_t>(size));
-    memmove(ret.data() + ret.size() - size, ret.data(), size);
-    memset(ret.data(), 0, ret.size() - size);
-  }
+  ZeroPadDiffieHellmanSecret(static_cast<size_t>(size), &ret);
 
   args.GetReturnValue().Set(ret.ToBuffer().ToLocalChecked());
 }
@@ -7197,6 +7202,49 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buf);
 }
 
+AllocatedBuffer StatelessDiffieHellman(Environment* env, ManagedEVPPKey our_key,
+                                       ManagedEVPPKey their_key) {
+  size_t out_size;
+
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(our_key.get(), nullptr));
+  if (!ctx ||
+      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
+      EVP_PKEY_derive_set_peer(ctx.get(), their_key.get()) <= 0 ||
+      EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
+    return AllocatedBuffer();
+
+  AllocatedBuffer result = env->AllocateManaged(out_size);
+  CHECK_NOT_NULL(result.data());
+
+  unsigned char* data = reinterpret_cast<unsigned char*>(result.data());
+  if (EVP_PKEY_derive(ctx.get(), data, &out_size) <= 0)
+    return AllocatedBuffer();
+
+  ZeroPadDiffieHellmanSecret(out_size, &result);
+  return result;
+}
+
+void StatelessDiffieHellman(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsObject() && args[1]->IsObject());
+  KeyObject* our_key_object;
+  ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
+  CHECK_EQ(our_key_object->GetKeyType(), kKeyTypePrivate);
+  KeyObject* their_key_object;
+  ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
+  CHECK_NE(their_key_object->GetKeyType(), kKeyTypeSecret);
+
+  ManagedEVPPKey our_key = our_key_object->GetAsymmetricKey();
+  ManagedEVPPKey their_key = their_key_object->GetAsymmetricKey();
+
+  AllocatedBuffer out = StatelessDiffieHellman(env, our_key, their_key);
+  if (out.size() == 0)
+    return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
+
+  args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+}
+
 
 void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> buf1(args[0]);
@@ -7366,6 +7414,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
   NODE_DEFINE_CONSTANT(target, kSigEncDER);
   NODE_DEFINE_CONSTANT(target, kSigEncP1363);
+  env->SetMethodNoSideEffect(target, "statelessDH", StatelessDiffieHellman);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "signOneShot", SignOneShot);
   env->SetMethod(target, "verifyOneShot", VerifyOneShot);

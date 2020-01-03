@@ -776,6 +776,11 @@ be called no more than one time per instance of a `Hash` object.
 
 [`hash.update()`][] failed for any reason. This should rarely, if ever, happen.
 
+<a id="ERR_CRYPTO_INCOMPATIBLE_KEY"></a>
+### `ERR_CRYPTO_INCOMPATIBLE_KEY`
+
+The given crypto keys are incompatible with the attempted operation.
+
 <a id="ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS"></a>
 ### `ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS`
 
