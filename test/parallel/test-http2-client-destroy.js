@@ -95,7 +95,7 @@ const Countdown = require('../common/countdown');
     });
 
     req.resume();
-    req.on('end', common.mustCall());
+    req.on('end', common.mustNotCall());
     req.on('close', common.mustCall(() => server.close()));
   }));
 }
