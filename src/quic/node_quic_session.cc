@@ -8,6 +8,7 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_crypto.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "node_mem-inl.h"
 #include "node_quic_buffer.h"
@@ -42,6 +43,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
@@ -969,11 +971,9 @@ void QuicCryptoContext::OnOCSPDone(
     int err = crypto::UseSNIContext(ssl(), context);
     if (!err) {
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-      if (!err) {
-        // TODO(@jasnell): revisit to throw a proper error here
-        return session_->env()->ThrowError("CertCbDone");
-      }
-      return crypto::ThrowCryptoError(session_->env(), err);
+      return !err ?
+          THROW_ERR_QUIC_FAILURE_SETTING_SNI_CONTEXT(session_->env()) :
+          crypto::ThrowCryptoError(session_->env(), err);
     }
   }
 

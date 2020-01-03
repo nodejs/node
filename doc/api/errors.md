@@ -1640,6 +1640,11 @@ A non-context-aware native addon was loaded in a process that disallows them.
 
 A given value is out of the accepted range.
 
+<a id="ERR_QUIC_CANNOT_SET_GROUPS"></a>
+### ERR_QUIC_CANNOT_SET_GROUPS
+
+TBD
+
 <a id="ERR_QUIC_ERROR"></a>
 ### ERR_QUIC_ERROR
 
