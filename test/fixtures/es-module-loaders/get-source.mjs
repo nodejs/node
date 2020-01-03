@@ -1,8 +1,8 @@
-export async function getSource({ url, format }, defaultGetSource, loader) {
+export async function getSource({ url, format, defaultGetSource }) {
   if (url.endsWith('fixtures/es-modules/message.mjs')) {
     // Oh, I’ve got that one in my cache!
     return `export const message = 'Woohoo!'.toUpperCase();`
   } else {
-    return defaultGetSource({ url, format }, defaultGetSource, loader);
+    return defaultGetSource({ url, format, defaultGetSource });
   }
 }

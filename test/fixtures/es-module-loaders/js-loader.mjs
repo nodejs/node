@@ -4,7 +4,7 @@ import { builtinModules } from 'module';
 const baseURL = new URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
-export function resolve ({ specifier, parentURL = baseURL }) {
+export function resolve({ specifier, parentURL = baseURL }) {
   if (builtinModules.includes(specifier)) {
     return {
       url: specifier,

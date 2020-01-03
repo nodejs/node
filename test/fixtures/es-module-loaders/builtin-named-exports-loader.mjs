@@ -1,6 +1,6 @@
 import module from 'module';
 
-export function dynamicInstantiate(url) {
+export function dynamicInstantiate({ url }) {
   const builtinInstance = module._load(url.substr(5));
   const builtinExports = ['default', ...Object.keys(builtinInstance)];
   return {
@@ -13,12 +13,12 @@ export function dynamicInstantiate(url) {
   };
 }
 
-export function resolve({ specifier, parentURL }, defaultResolve, loader) {
+export function resolve({ specifier, parentURL, defaultResolve }) {
   if (module.builtinModules.includes(specifier)) {
     return {
       url: `node:${specifier}`,
       format: 'dynamic'
     };
   }
-  return defaultResolve({specifier, parentURL}, defaultResolve, loader);
+  return defaultResolve({specifier, parentURL, defaultResolve});
 }
