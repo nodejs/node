@@ -259,6 +259,9 @@ added: REPLACEME
   * `lookup` {Function} A custom DNS lookup function. Default `dns.lookup()`.
   * `maxConnectionsPerHost` {number} The maximum number of inbound connections
     allowed per remote host. Default: `100`.
+  * `maxStatelessResetsPerHost` {number} The maximum number of stateless
+    resets that the `QuicSocket` is permitted to send per remote host.
+    Default: `10`.
   * `qlog` {boolean} Whether to emit ['qlog'][] events for incoming sessions.
     (For outgoing client sessions, set `client.qlog`.) Default: `false`.
   * `retryTokenTimeout` {number} The maximum number of *seconds* for retry token

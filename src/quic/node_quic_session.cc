@@ -12,9 +12,10 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_mem-inl.h"
+#include "node_process.h"
 #include "node_quic_buffer-inl.h"
 #include "node_quic_crypto.h"
-#include "node_quic_socket.h"
+#include "node_quic_socket-inl.h"
 #include "node_quic_stream-inl.h"
 #include "node_quic_state.h"
 #include "node_quic_util-inl.h"
@@ -1532,6 +1533,17 @@ void QuicSession::AddToSocket(QuicSocket* socket) {
     default:
       UNREACHABLE();
   }
+
+  std::vector<ngtcp2_cid_token> tokens(
+      ngtcp2_conn_get_num_active_dcid(connection()));
+  ngtcp2_conn_get_active_dcid(connection(), tokens.data());
+  for (const ngtcp2_cid_token& token : tokens) {
+    if (token.token_present) {
+      socket->AssociateStatelessResetToken(
+          StatelessResetToken(token.token),
+          BaseObjectPtr<QuicSession>(this));
+    }
+  }
 }
 
 // Add the given QuicStream to this QuicSession's collection of streams. All
@@ -1875,7 +1887,7 @@ bool QuicSession::Receive(
     }
   }
 
-  if (is_flag_set(QUICSESSION_FLAG_DESTROYED)) {
+  if (is_destroyed()) {
     Debug(this, "Session was destroyed while processing the received packet");
     // If the QuicSession has been destroyed but it is not
     // in the closing period, a CONNECTION_CLOSE has not yet
@@ -2020,10 +2032,19 @@ void QuicSession::RemoveFromSocket() {
   }
 
   std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(connection()));
+  std::vector<ngtcp2_cid_token> tokens(
+      ngtcp2_conn_get_num_active_dcid(connection()));
   ngtcp2_conn_get_scid(connection(), cids.data());
+  ngtcp2_conn_get_active_dcid(connection(), tokens.data());
 
   for (const ngtcp2_cid& cid : cids)
     socket_->DisassociateCID(QuicCID(&cid));
+
+  for (const ngtcp2_cid_token& token : tokens) {
+    if (token.token_present)
+      socket_->DisassociateStatelessResetToken(
+          StatelessResetToken(token.token));
+  }
 
   Debug(this, "Removed from the QuicSocket.");
   socket_->RemoveSession(QuicCID(scid_), remote_address_);
@@ -2096,7 +2117,8 @@ bool QuicSession::SendConnectionClose() {
     }
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
       UpdateIdleTimer();
-      auto packet = QuicPacket::Create("client connection close", max_pktlen_);
+      auto packet = QuicPacket::Create(
+          "client connection close");
       QuicError error = last_error();
 
       // If we're not already in the closing period,
@@ -2318,7 +2340,7 @@ void QuicSession::ResetStream(int64_t stream_id, uint64_t code) {
 // absolutely no frames can be sent. What we need to do is
 // notify the JavaScript side and destroy the connection with
 // a flag set that indicates stateless reset.
-void QuicSession::SilentClose(bool stateless_reset) {
+void QuicSession::SilentClose() {
   // Calling either ImmediateClose or SilentClose will cause
   // the QUICSESSION_FLAG_CLOSING to be set. In either case,
   // we should never re-enter ImmediateClose or SilentClose.
@@ -2331,9 +2353,9 @@ void QuicSession::SilentClose(bool stateless_reset) {
         "Silent close with %s code %" PRIu64 " (stateless reset? %s)",
         err.family_name(),
         err.code,
-        stateless_reset ? "yes" : "no");
+        is_stateless_reset() ? "yes" : "no");
 
-  listener()->OnSessionSilentClose(stateless_reset, err);
+  listener()->OnSessionSilentClose(is_stateless_reset(), err);
 }
 // Begin connection close by serializing the CONNECTION_CLOSE packet.
 // There are two variants: one to serialize an application close, the
@@ -2356,7 +2378,8 @@ bool QuicSession::StartClosingPeriod() {
 
   // Once the CONNECTION_CLOSE packet is written,
   // is_in_closing_period will return true.
-  conn_closebuf_ = QuicPacket::Create("close connection", max_pktlen_);
+  conn_closebuf_ = QuicPacket::Create(
+      "server connection close");
   ssize_t nwrite =
       SelectCloseFn(error.family)(
           connection(),
@@ -2443,6 +2466,25 @@ void QuicSession::StreamReset(
 
   if (HasStream(stream_id))
     application_->StreamReset(stream_id, final_size, app_error_code);
+}
+
+void QuicSession::UpdateConnectionID(
+    int type,
+    const QuicCID& cid,
+    const uint8_t* token_) {
+  if (token_ == nullptr)
+    return;
+  StatelessResetToken token(token_);
+  switch (type) {
+    case NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE:
+      socket_->AssociateStatelessResetToken(
+          token,
+          BaseObjectPtr<QuicSession>(this));
+      break;
+    case NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE:
+      socket_->DisassociateStatelessResetToken(token);
+      break;
+  }
 }
 
 // Updates the idle timer timeout. If the idle timer fires, the connection
@@ -2647,18 +2689,18 @@ void QuicSession::InitServer(
 
   config.set_original_connection_id(ocid);
 
+  connection_id_strategy_(this, &scid_, NGTCP2_SV_SCIDLEN);
+
   config.GenerateStatelessResetToken(
       stateless_reset_strategy_,
       this,
-      const_cast<ngtcp2_cid*>(dcid));
+      &scid_);
 
   config.GeneratePreferredAddressToken(
       connection_id_strategy_,
       stateless_reset_strategy_,
       this,
       &pscid_);
-
-  connection_id_strategy_(this, &scid_, NGTCP2_SV_SCIDLEN);
 
   QuicPath path(local_addr, remote_address_);
 
@@ -2730,6 +2772,8 @@ void QuicSession::UpdateRecoveryStats() {
 // statistics such as amount of data in flight through the lifetime
 // of a connection.
 void QuicSession::UpdateDataStats() {
+  if (is_destroyed())
+    return;
   state_[IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT] =
     static_cast<double>(ngtcp2_conn_get_max_data_left(connection()));
   size_t bytes_in_flight = ngtcp2_conn_get_bytes_in_flight(connection());
@@ -3029,6 +3073,18 @@ int QuicSession::OnExtendMaxStreamData(
   return 0;
 }
 
+int QuicSession::OnConnectionIDStatus(
+    ngtcp2_conn* conn,
+    int type,
+    uint64_t seq,
+    const ngtcp2_cid* cid,
+    const uint8_t* token,
+    void* user_data) {
+  QuicSession* session = static_cast<QuicSession*>(user_data);
+  session->UpdateConnectionID(type, QuicCID(cid), token);
+  return 0;
+}
+
 // Called by ngtcp2 for both client and server connections
 // when ngtcp2 has determined that the TLS handshake has
 // been completed. It is important to understand that this
@@ -3298,7 +3354,7 @@ int QuicSession::OnStatelessReset(
     const ngtcp2_pkt_stateless_reset* sr,
     void* user_data) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
-  session->SilentClose(true);
+  session->set_flag(QUICSESSION_FLAG_STATELESS_RESET);
   return 0;
 }
 
@@ -3336,7 +3392,8 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnStreamReset,
     OnExtendMaxStreamsRemoteBidi,
     OnExtendMaxStreamsRemoteUni,
-    OnExtendMaxStreamData
+    OnExtendMaxStreamData,
+    OnConnectionIDStatus
   },
   // NGTCP2_CRYPTO_SIDE_SERVER
   {
@@ -3366,7 +3423,8 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnStreamReset,
     OnExtendMaxStreamsRemoteBidi,
     OnExtendMaxStreamsRemoteUni,
-    OnExtendMaxStreamData
+    OnExtendMaxStreamData,
+    OnConnectionIDStatus
   }
 };
 
@@ -3463,6 +3521,17 @@ void QuicSessionPing(const FunctionCallbackInfo<Value>& args) {
   QuicSession* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   session->Ping();
+}
+
+// Triggers a silent close of a QuicSession. This is currently only used
+// (and should ever only be used) for testing purposes...
+void QuicSessionSilentClose(const FunctionCallbackInfo<Value>& args) {
+  QuicSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
+  ProcessEmitWarning(
+      session->env(),
+      "Forcing silent close of QuicSession for testing purposes only");
+  session->SilentClose();
 }
 
 // TODO(addaleax): This is a temporary solution for testing and should be
@@ -3604,6 +3673,7 @@ void QuicSession::Initialize(
     env->set_quicclientsession_constructor_template(sessiont);
 
     env->SetMethod(target, "createClientSession", NewQuicClientSession);
+    env->SetMethod(target, "silentCloseSession", QuicSessionSilentClose);
   }
 }
 

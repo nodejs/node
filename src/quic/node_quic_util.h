@@ -14,6 +14,7 @@
 #include <functional>
 #include <limits>
 #include <string>
+#include <unordered_map>
 
 namespace node {
 namespace quic {
@@ -45,17 +46,6 @@ enum SelectPreferredAddressPolicy : int {
   // Accept the server-provided preferred address
   QUIC_PREFERRED_ADDRESS_ACCEPT
 };
-
-// Fun hash combine trick based on a variadic template that
-// I came across a while back but can't remember where. Will add an attribution
-// if I can find the source.
-inline void hash_combine(size_t* seed) { }
-
-template <typename T, typename... Args>
-inline void hash_combine(size_t* seed, const T& value, Args... rest) {
-    *seed ^= std::hash<T>{}(value) + 0x9e3779b9 + (*seed << 6) + (*seed >> 2);
-    hash_combine(seed, rest...);
-}
 
 // QUIC error codes generally fall into two distinct namespaces:
 // Connection Errors and Application Errors. Connection errors
@@ -166,26 +156,31 @@ struct QuicPathStorage : public ngtcp2_path_storage {
 
 // Simple wrapper for ngtcp2_cid that handles hex encoding
 // and conversion to std::string automatically
-class QuicCID {
+class QuicCID : public MemoryRetainer {
  public:
-  explicit QuicCID(ngtcp2_cid* cid) :
-      cid_(*cid),
-      str_(cid->data, cid->data + cid->datalen) {}
-  explicit QuicCID(const ngtcp2_cid* cid) :
-      cid_(*cid),
-      str_(cid->data, cid->data + cid->datalen) {}
-  explicit QuicCID(const ngtcp2_cid& cid) :
-      cid_(cid),
-      str_(cid.data, cid.data + cid.datalen) {}
+  QuicCID() {}
+  QuicCID(const QuicCID& cid) : cid_(cid.cid_) {}
+  explicit QuicCID(ngtcp2_cid* cid) : cid_(*cid) {}
+  explicit QuicCID(const ngtcp2_cid* cid) : cid_(*cid) {}
+  explicit QuicCID(const ngtcp2_cid& cid) : cid_(cid) {}
   QuicCID(const uint8_t* cid, size_t len) {
     ngtcp2_cid_init(&cid_, cid, len);
-    str_ = std::string(cid_.data, cid_.data + cid_.datalen);
   }
 
-  inline std::string ToStr() const;
+  struct Hash {
+    inline size_t operator()(const QuicCID& cid) const;
+  };
+
+  struct Compare {
+    inline bool operator()(const QuicCID& lcid, const QuicCID& rcid) const;
+  };
 
   inline std::string ToHex() const;
 
+  QuicCID& operator=(const QuicCID& cid) {
+    cid_ = cid.cid_;
+    return *this;
+  }
   const ngtcp2_cid& operator*() const { return cid_; }
   const ngtcp2_cid* operator->() const { return &cid_; }
   const ngtcp2_cid* cid() const { return &cid_; }
@@ -193,10 +188,12 @@ class QuicCID {
   const uint8_t* data() const { return cid_.data; }
   size_t length() const { return cid_.datalen; }
 
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(QuicCID)
+  SET_SELF_SIZE(QuicCID)
+
  private:
   ngtcp2_cid cid_;
-  std::string str_;
-  mutable std::string hex_;
 };
 
 // https://stackoverflow.com/questions/33701430/template-function-to-access-struct-members
@@ -255,6 +252,42 @@ using TimerPointer = DeleteFnPtr<Timer, Timer::Free>;
 
 inline ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
 inline const char* crypto_level_name(ngtcp2_crypto_level level);
+
+class StatelessResetToken : public MemoryRetainer{
+ public:
+  explicit StatelessResetToken(const uint8_t* token) : token_(token) {}
+
+  inline std::string ToHex() const;
+
+  struct Hash {
+    inline size_t operator()(const StatelessResetToken& token) const;
+  };
+
+  struct Compare {
+    inline bool operator()(
+        const StatelessResetToken& ltoken,
+        const StatelessResetToken& rtoken) const;
+  };
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(StatelessResetToken)
+  SET_SELF_SIZE(StatelessResetToken)
+
+ private:
+  const uint8_t* token_;
+};
+
+template <typename T>
+using StatelessResetTokenMap =
+    std::unordered_map<
+        StatelessResetToken,
+        BaseObjectPtr<T>,
+        StatelessResetToken::Hash,
+        StatelessResetToken::Compare>;
+
+template <typename T>
+using QuicCIDMap =
+    std::unordered_map<QuicCID, T, QuicCID::Hash, QuicCID::Compare>;
 
 }  // namespace quic
 }  // namespace node

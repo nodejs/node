@@ -731,6 +731,8 @@ class QuicSession : public AsyncWrap,
   // QuicSession is no longer usable.
   inline bool is_destroyed() const;
 
+  inline bool is_stateless_reset() const;
+
   // Returns true if the QuicSession has entered the
   // closing period following a call to ImmediateClose.
   // While true, the QuicSession is only permitted to
@@ -938,6 +940,10 @@ class QuicSession : public AsyncWrap,
   void HandleError();
 
   bool SendConnectionClose();
+  bool IsResetToken(
+      const QuicCID& cid,
+      const uint8_t* data,
+      size_t datalen);
 
   // Implementation for mem::NgLibMemoryManager
   inline void CheckAllocatedSize(size_t previous_size) const;
@@ -975,7 +981,7 @@ class QuicSession : public AsyncWrap,
   // code requests to forcefully terminate a QuicSession
   // without transmitting any additional frames to the
   // peer.
-  void SilentClose(bool stateless_reset = false);
+  void SilentClose();
 
   void PushListener(QuicSessionListener* listener);
   void RemoveListener(QuicSessionListener* listener);
@@ -1099,6 +1105,7 @@ class QuicSession : public AsyncWrap,
       uint64_t app_error_code);
   bool WritePackets(const char* diagnostic_label = nullptr);
   void UpdateRecoveryStats();
+  void UpdateConnectionID(int type, const QuicCID& cid, const uint8_t* token);
   void UpdateDataStats();
   inline void UpdateEndpoint(const ngtcp2_path& path);
 
@@ -1255,6 +1262,13 @@ class QuicSession : public AsyncWrap,
       ngtcp2_conn* conn,
       uint64_t max_streams,
       void* user_data);
+  static int OnConnectionIDStatus(
+      ngtcp2_conn* conn,
+      int type,
+      uint64_t seq,
+      const ngtcp2_cid* cid,
+      const uint8_t* token,
+      void* user_data);
   static void OnQlogWrite(void* user_data, const void* data, size_t len);
 
   void UpdateIdleTimer();
@@ -1296,7 +1310,10 @@ class QuicSession : public AsyncWrap,
     QUICSESSION_FLAG_SESSION_TX = 0x2000,
     QUICSESSION_FLAG_SESSION_KEYS =
         QUICSESSION_FLAG_SESSION_RX |
-        QUICSESSION_FLAG_SESSION_TX
+        QUICSESSION_FLAG_SESSION_TX,
+
+    // Set if the QuicSession was closed due to stateless reset
+    QUICSESSION_FLAG_STATELESS_RESET = 0x4000
   };
 
   void set_flag(QuicSessionFlags flag, bool on = true) {

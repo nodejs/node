@@ -24,8 +24,7 @@ inline void hash_combine(size_t* seed, const T& value, Args... rest) {
 }
 
 size_t SocketAddress::Hash::operator()(const SocketAddress& addr) const {
-  Hash hash;
-  return hash(addr.data());
+  return Hash()(addr.data());
 }
 
 size_t SocketAddress::Hash::operator()(const sockaddr* addr) const {
@@ -54,8 +53,7 @@ size_t SocketAddress::Hash::operator()(const sockaddr* addr) const {
 bool SocketAddress::Compare::operator()(
     const SocketAddress& laddr,
     const SocketAddress& raddr) const {
-  Compare compare;
-  return compare(laddr.data(), raddr.data());
+  return Compare()(laddr.data(), raddr.data());
 }
 
 bool SocketAddress::Compare::operator()(

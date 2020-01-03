@@ -32,6 +32,7 @@ using v8::Value;
 namespace quic {
 
 static constexpr size_t MAX_VALIDATE_ADDRESS_LRU = 10;
+static constexpr size_t DEFAULT_MAX_STATELESS_RESETS_PER_HOST = 10;
 
 enum QuicSocketOptions : uint32_t {
   // When enabled the QuicSocket will validate the address
@@ -121,54 +122,29 @@ class QuicPacket : public MemoryRetainer {
   // QuicSocket and ultimately become the responsibility of the
   // SendWrap instance. When the SendWrap is cleaned up, the
   // QuicPacket instance will be freed.
-  static std::unique_ptr<QuicPacket> Create(
+  static inline std::unique_ptr<QuicPacket> Create(
       const char* diagnostic_label = nullptr,
-      size_t len = NGTCP2_MAX_PKTLEN_IPV4) {
-    return std::make_unique<QuicPacket>(diagnostic_label, len);
-  }
+      size_t len = NGTCP2_MAX_PKTLEN_IPV4);
 
   // Copy the data of the QuicPacket to a new one. Currently,
   // this is only used when retransmitting close connection
   // packets from a QuicServer.
-  static std::unique_ptr<QuicPacket> Copy(
-      const std::unique_ptr<QuicPacket>& other) {
-    return std::make_unique<QuicPacket>(*other.get());
-  }
+  static inline std::unique_ptr<QuicPacket> Copy(
+      const std::unique_ptr<QuicPacket>& other);
 
-  QuicPacket(const char* diagnostic_label, size_t len) :
-      data_(len),
-      diagnostic_label_(diagnostic_label) {
-    CHECK_LE(len, NGTCP2_MAX_PKT_SIZE);
-  }
+  QuicPacket(const char* diagnostic_label, size_t len);
+  QuicPacket(const QuicPacket& other);
+  uint8_t* data() { return data_.data(); }
+  size_t length() const { return data_.size(); }
+  inline void set_length(size_t len);
+  const char* diagnostic_label() const;
 
-  QuicPacket(const QuicPacket& other) {
-    diagnostic_label_ = other.diagnostic_label_;
-    data_.AllocateSufficientStorage(other.data_.length());
-    memcpy(*data_, *other.data_, other.data_.length());
-  }
-
-  uint8_t* data() { return *data_; }
-  size_t length() const { return data_.length(); }
-  void set_length(size_t len) {
-    CHECK_LE(len, data_.length());
-    data_.SetLength(len);
-  }
-
-  const char* diagnostic_label() const {
-    return diagnostic_label_ != nullptr ?
-        diagnostic_label_ : "unspecified";
-  }
-
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("data", data_.length());
-    tracker->TrackFieldWithSize("label", strlen(diagnostic_label_));
-  }
-
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(QuicPacket);
   SET_SELF_SIZE(QuicPacket);
 
  private:
-  MaybeStackBuffer<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> data_;
+  std::vector<uint8_t> data_;
   const char* diagnostic_label_ = nullptr;
 };
 
@@ -224,16 +200,19 @@ class QuicEndpoint : public BaseObject,
 
   void OnAfterBind() override;
 
-  int ReceiveStart();
+  inline int ReceiveStart();
 
-  int ReceiveStop();
+  inline int ReceiveStop();
 
-  int Send(uv_buf_t* buf, size_t len, const sockaddr* addr);
+  inline int Send(
+      uv_buf_t* buf,
+      size_t len,
+      const sockaddr* addr);
 
   void IncrementPendingCallbacks() { pending_callbacks_++; }
   void DecrementPendingCallbacks() { pending_callbacks_--; }
   bool has_pending_callbacks() { return pending_callbacks_ > 0; }
-  void WaitForPendingCallbacks();
+  inline void WaitForPendingCallbacks();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(QuicEndpoint)
@@ -271,6 +250,8 @@ class QuicSocket : public AsyncWrap,
       // To prevent malicious clients from opening too many concurrent
       // connections, we limit the maximum number per remote sockaddr.
       size_t max_connections_per_host,
+      size_t max_stateless_resets_per_host
+          = DEFAULT_MAX_STATELESS_RESETS_PER_HOST,
       uint32_t options = 0,
       QlogMode qlog = QlogMode::kDisabled,
       const uint8_t* session_reset_secret = nullptr,
@@ -284,39 +265,43 @@ class QuicSocket : public AsyncWrap,
 
   void MaybeClose();
 
-  void AddSession(
+  inline void AddSession(
       const QuicCID& cid,
       BaseObjectPtr<QuicSession> session);
-  void AssociateCID(
+  inline void AssociateCID(
       const QuicCID& cid,
       const QuicCID& scid);
-  void DisassociateCID(
+  inline void DisassociateCID(
       const QuicCID& cid);
+  inline void AssociateStatelessResetToken(
+      const StatelessResetToken& token,
+      BaseObjectPtr<QuicSession> session);
+  inline void DisassociateStatelessResetToken(
+      const StatelessResetToken& token);
   void Listen(
       crypto::SecureContext* context,
       const sockaddr* preferred_address = nullptr,
       const std::string& alpn = NGTCP2_ALPN_H3,
       uint32_t options = 0);
-  void ReceiveStart();
-  void ReceiveStop();
-  void RemoveSession(
+  inline void ReceiveStart();
+  inline void ReceiveStop();
+  inline void RemoveSession(
       const QuicCID& cid,
       const SocketAddress& addr);
-  void ReportSendError(
-      int error);
+  inline void ReportSendError(int error);
   int SendPacket(
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
       std::unique_ptr<QuicPacket> packet,
       BaseObjectPtr<QuicSession> session = BaseObjectPtr<QuicSession>());
-  void set_server_busy(bool on);
-  void set_diagnostic_packet_loss(double rx = 0.0, double tx = 0.0);
-  void StopListening();
+  inline void set_server_busy(bool on);
+  inline void set_diagnostic_packet_loss(double rx = 0.0, double tx = 0.0);
+  inline void StopListening();
 
   // Toggles whether or not stateless reset is enabled or not.
   // Returns true if stateless reset is enabled, false if it
   // is not.
-  bool ToggleStatelessReset();
+  inline bool ToggleStatelessReset();
 
   crypto::SecureContext* server_secure_context() {
     return server_secure_context_;
@@ -360,7 +345,8 @@ class QuicSocket : public AsyncWrap,
   bool SendStatelessReset(
       const QuicCID& cid,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr);
+      const sockaddr* remote_addr,
+      size_t source_len);
 
   // Serializes and transmits a Version Negotiation packet to the
   // connected peer.
@@ -374,7 +360,7 @@ class QuicSocket : public AsyncWrap,
   void PushListener(QuicSocketListener* listener);
   void RemoveListener(QuicSocketListener* listener);
 
-  void AddEndpoint(QuicEndpoint* endpoint, bool preferred = false);
+  inline void AddEndpoint(QuicEndpoint* endpoint, bool preferred = false);
 
  private:
   static void OnAlloc(
@@ -384,8 +370,17 @@ class QuicSocket : public AsyncWrap,
 
   void OnSend(int status, QuicPacket* packet);
 
-  void set_validated_address(const sockaddr* addr);
-  bool is_validated_address(const sockaddr* addr) const;
+  inline void set_validated_address(const sockaddr* addr);
+  inline bool is_validated_address(const sockaddr* addr) const;
+
+  bool MaybeStatelessReset(
+      const QuicCID& dcid,
+      const QuicCID& scid,
+      ssize_t nread,
+      const uint8_t* data,
+      const SocketAddress& local_addr,
+      const sockaddr* remote_addr,
+      unsigned int flags);
 
   BaseObjectPtr<QuicSession> AcceptInitialPacket(
       uint32_t version,
@@ -399,13 +394,19 @@ class QuicSocket : public AsyncWrap,
 
   BaseObjectPtr<QuicSession> FindSession(const QuicCID& cid);
 
-  void IncrementSocketAddressCounter(const SocketAddress& addr);
-  void DecrementSocketAddressCounter(const SocketAddress& addr);
-  size_t GetCurrentSocketAddressCounter(const sockaddr* addr);
+  inline void IncrementSocketAddressCounter(const SocketAddress& addr);
+  inline void DecrementSocketAddressCounter(const SocketAddress& addr);
+  inline void IncrementStatelessResetCounter(const SocketAddress& addr);
+  inline size_t GetCurrentSocketAddressCounter(const sockaddr* addr);
+  inline size_t GetCurrentStatelessResetCounter(const sockaddr* addr);
 
   // Returns true if, and only if, diagnostic packet loss is enabled
   // and the current packet should be artificially considered lost.
-  bool is_diagnostic_packet_loss(double prob);
+  inline bool is_diagnostic_packet_loss(double prob) const;
+
+  bool is_stateless_reset_disabled() {
+    return is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
+  }
 
   enum QuicSocketFlags : uint32_t {
     QUICSOCKET_FLAGS_NONE = 0x0,
@@ -452,6 +453,7 @@ class QuicSocket : public AsyncWrap,
 
   size_t max_connections_per_host_;
   size_t current_ngtcp2_memory_ = 0;
+  size_t max_stateless_resets_per_host_ = DEFAULT_MAX_STATELESS_RESETS_PER_HOST;
 
   uint64_t retry_token_expiration_;
 
@@ -465,8 +467,8 @@ class QuicSocket : public AsyncWrap,
   QlogMode qlog_ = QlogMode::kDisabled;
   crypto::SecureContext* server_secure_context_ = nullptr;
   std::string server_alpn_;
-  std::unordered_map<std::string, BaseObjectPtr<QuicSession>> sessions_;
-  std::unordered_map<std::string, std::string> dcid_to_scid_;
+  QuicCIDMap<BaseObjectPtr<QuicSession>> sessions_;
+  QuicCIDMap<QuicCID> dcid_to_scid_;
 
   uint8_t token_secret_[TOKEN_SECRETLEN];
   uint8_t reset_token_secret_[NGTCP2_STATELESS_RESET_TOKENLEN];
@@ -479,8 +481,13 @@ class QuicSocket : public AsyncWrap,
   // value reaches the value of max_connections_per_host_,
   // attempts to create new connections will be ignored
   // until the value falls back below the limit.
-  std::unordered_map<const sockaddr*, size_t, SocketAddress::Hash,
-      SocketAddress::Compare> addr_counts_;
+  SocketAddressMap<size_t> addr_counts_;
+
+  // Counts the number of stateless resets sent per
+  // remote address.
+  SocketAddressMap<size_t> reset_counts_;
+
+  StatelessResetTokenMap<QuicSession> token_map_;
 
   // The validated_addrs_ vector is used as an LRU cache for
   // validated addresses only when the VALIDATE_ADDRESS_LRU

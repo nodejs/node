@@ -4,15 +4,17 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
+#include "memory_tracker.h"
 #include "node.h"
 #include "uv.h"
 #include "v8.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace node {
 
-class SocketAddress {
+class SocketAddress : public MemoryRetainer {
  public:
   struct Hash {
     inline size_t operator()(const sockaddr* addr) const;
@@ -116,6 +118,10 @@ class SocketAddress {
       Environment* env,
       v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
 
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(SocketAddress)
+  SET_SELF_SIZE(SocketAddress)
+
  private:
   template <typename T, typename F>
   static SocketAddress* FromUVHandle(
@@ -131,6 +137,13 @@ class SocketAddress {
 
   sockaddr_storage address_;
 };
+
+template <typename T>
+using SocketAddressMap =
+    std::unordered_map<
+        SocketAddress, T,
+        SocketAddress::Hash,
+        SocketAddress::Compare>;
 
 }  // namespace node
 

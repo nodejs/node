@@ -8,7 +8,7 @@
 #include "node_process.h"
 #include "node_quic_crypto.h"
 #include "node_quic_session-inl.h"
-#include "node_quic_socket.h"
+#include "node_quic_socket-inl.h"
 #include "node_quic_stream-inl.h"
 #include "node_quic_state.h"
 #include "node_quic_util-inl.h"
@@ -143,6 +143,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL);
   NODE_DEFINE_CONSTANT(constants, DEFAULT_RETRYTOKEN_EXPIRATION);
   NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_CONNECTIONS_PER_HOST);
+  NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_STATELESS_RESETS_PER_HOST);
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_CERT_ENABLED);
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED);
   NODE_DEFINE_CONSTANT(constants,

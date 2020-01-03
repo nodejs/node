@@ -4,7 +4,7 @@
 #include "node_quic_buffer-inl.h"
 #include "node_quic_http3_application.h"
 #include "node_quic_session-inl.h"
-#include "node_quic_socket.h"
+#include "node_quic_socket-inl.h"
 #include "node_quic_stream-inl.h"
 #include "node_quic_util-inl.h"
 #include "node_sockaddr-inl.h"

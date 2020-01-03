@@ -8,7 +8,7 @@
 #include "node_crypto_common.h"
 #include "node_quic_crypto.h"
 #include "node_quic_session.h"
-#include "node_quic_socket.h"
+#include "node_quic_socket-inl.h"
 #include "node_quic_stream-inl.h"
 
 #include <openssl/ssl.h>
@@ -352,6 +352,10 @@ bool QuicSession::is_gracefully_closing() const {
 
 bool QuicSession::is_destroyed() const {
   return is_flag_set(QUICSESSION_FLAG_DESTROYED);
+}
+
+bool QuicSession::is_stateless_reset() const {
+  return is_flag_set(QUICSESSION_FLAG_STATELESS_RESET);
 }
 
 bool QuicSession::is_server() const {

@@ -14,20 +14,34 @@ namespace node {
 
 namespace quic {
 
-std::string QuicCID::ToStr() const {
-  return std::string(cid_.data, cid_.data + cid_.datalen);
+size_t QuicCID::Hash::operator()(const QuicCID& token) const {
+  size_t hash = 0;
+  for (size_t n = 0; n < token.cid_.datalen; n++)
+    hash ^= std::hash<uint8_t>{}(token.cid_.data[n]) + 0x9e3779b9 +
+            (hash << 6) + (hash >> 2);
+  return hash;
+}
+
+bool QuicCID::Compare::operator()(
+    const QuicCID& lcid,
+    const QuicCID& rcid) const {
+  if (lcid.cid_.datalen != rcid.cid_.datalen)
+    return false;
+  return memcmp(
+      lcid.cid_.data,
+      rcid.cid_.data,
+      lcid.cid_.datalen) == 0;
 }
 
 std::string QuicCID::ToHex() const {
-  MaybeStackBuffer<char, 64> dest;
-  dest.AllocateSufficientStorage(cid_.datalen * 2);
-  dest.SetLengthAndZeroTerminate(cid_.datalen * 2);
+  std::vector<char> dest(cid_.datalen * 2 + 1);
+  dest[dest.size() - 1] = '\0';
   size_t written = StringBytes::hex_encode(
       reinterpret_cast<const char*>(cid_.data),
       cid_.datalen,
-      *dest,
-      dest.length());
-  return std::string(*dest, written);
+      dest.data(),
+      dest.size());
+  return std::string(dest.data(), written);
 }
 
 ngtcp2_addr* ToNgtcp2Addr(const SocketAddress& addr, ngtcp2_addr* dest) {
@@ -281,6 +295,35 @@ bool QuicPreferredAddress::ResolvePreferredAddress(
           host,
           std::to_string(port).c_str(),
           &hints) == 0;
+}
+
+std::string StatelessResetToken::ToHex() const {
+  std::vector<char> dest(NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1);
+  dest[dest.size() - 1] = '\0';
+  size_t written = StringBytes::hex_encode(
+      reinterpret_cast<const char*>(token_),
+      NGTCP2_STATELESS_RESET_TOKENLEN,
+      dest.data(),
+      dest.size());
+  return std::string(dest.data(), written);
+}
+
+size_t StatelessResetToken::Hash::operator()(
+    const StatelessResetToken& token) const {
+  size_t hash = 0;
+  for (size_t n = 0; n < NGTCP2_STATELESS_RESET_TOKENLEN; n++)
+    hash ^= std::hash<uint8_t>{}(token.token_[n]) + 0x9e3779b9 +
+            (hash << 6) + (hash >> 2);
+  return hash;
+}
+
+bool StatelessResetToken::Compare::operator()(
+    const StatelessResetToken& ltoken,
+    const StatelessResetToken& rtoken) const {
+  return memcmp(
+      ltoken.token_,
+      rtoken.token_,
+      NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
 }
 
 }  // namespace quic

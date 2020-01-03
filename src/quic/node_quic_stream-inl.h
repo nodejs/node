@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "debug_utils.h"
 #include "node_quic_session.h"
 #include "node_quic_stream.h"
 #include "node_quic_buffer-inl.h"
