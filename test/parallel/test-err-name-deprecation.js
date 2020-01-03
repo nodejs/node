@@ -1,8 +1,6 @@
 'use strict';
 const common = require('../common');
 
-// Flags: --pending-deprecation
-
 common.expectWarning({
   DeprecationWarning: [
     ['process.binding() is deprecated. Please use public APIs instead.',
