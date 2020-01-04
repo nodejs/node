@@ -487,7 +487,7 @@ Sampling interval in microseconds.
 Throws an `AssertionError` if there are no call frames with the expected
 `suffix` in the profiling data contained in `file`.
 
-## `DNS Module`
+## `DNS` Module
 
 The `DNS` module provides utilities related to the `dns` built-in module.
 
