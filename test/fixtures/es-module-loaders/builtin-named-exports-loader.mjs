@@ -1,15 +1,15 @@
 import module from 'module';
 
-export function getFormat({ url, defaultGetFormat }) {
+export function getFormat(url, context, defaultGetFormat) {
   if (module.builtinModules.includes(url)) {
     return {
       format: 'dynamic'
     };
   }
-  return defaultGetFormat({url, defaultGetFormat});
+  return defaultGetFormat(url, context, defaultGetFormat);
 }
 
-export function dynamicInstantiate({ url }) {
+export function dynamicInstantiate(url) {
   const builtinInstance = module._load(url);
   const builtinExports = ['default', ...Object.keys(builtinInstance)];
   return {

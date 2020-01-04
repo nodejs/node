@@ -1019,12 +1019,16 @@ import { URL, pathToFileURL } from 'url';
 const baseURL = pathToFileURL(process.cwd()).href;
 
 /**
- * @param {{specifier, parentURL, defaultResolve}} parameters
- * @returns {{url}}
+ * @param {string} specifier
+ * @param {object} context
+ * @param {string} context.parentURL
+ * @param {function} defaultResolve
+ * @returns {object} response
+ * @returns {string} response.url
  */
-export async function resolve({ specifier,
-                                parentURL = baseURL,
-                                defaultResolve }) {
+export async function resolve(specifier,
+                              { parentURL = baseURL },
+                              defaultResolve) {
   return {
     url: new URL(specifier, parentUrl).href
   };
@@ -1053,12 +1057,16 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = pathToFileURL(process.cwd()).href;
 
 /**
- * @param {{specifier, parentURL, defaultResolve}} parameters
- * @returns {{url}}
+ * @param {string} specifier
+ * @param {object} context
+ * @param {string} context.parentURL
+ * @param {function} defaultResolve
+ * @returns {object} response
+ * @returns {string} response.url
  */
-export async function resolve({ specifier,
-                                parentURL = baseURL,
-                                defaultResolve }) {
+export async function resolve(specifier,
+                              { parentURL = baseURL },
+                              defaultResolve) {
   if (builtins.includes(specifier)) {
     return {
       url: specifier
@@ -1066,7 +1074,7 @@ export async function resolve({ specifier,
   }
   if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolve({specifier, parentURL, defaultResolve});
+    // return defaultResolve(specifier, parentURL);
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
@@ -1115,11 +1123,15 @@ const formatMap = {
   'text/javascript': 'module',
   'application/javascript': 'module'
 };
+
 /**
- * @param {{url, defaultGetFormat}} parameters
- * @returns {{format}}
+ * @param {string} url
+ * @param {object} context (currently empty)
+ * @param {function} defaultGetFormat
+ * @returns {object} response
+ * @returns {string} response.format
  */
-export async function getFormat({ url, defaultGetFormat }) {
+export async function getFormat(url, context, defaultGetFormat) {
   if (url.startsWith('https://')) {
     return new Promise((resolve, reject) => {
       request(url, {
@@ -1130,7 +1142,7 @@ export async function getFormat({ url, defaultGetFormat }) {
       });
     });
   }
-  return defaultGetFormat({ url, defaultGetFormat });
+  return defaultGetFormat(url, context, defaultGetFormat);
 }
 ```
 
@@ -1147,10 +1159,14 @@ potentially avoid reading files from disk.
 import { get } from 'https';
 
 /**
- * @param {{url, format, defaultGetSource}} parameters
- * @returns {{source}}
+ * @param {string} url
+ * @param {object} context
+ * @param {string} context.format
+ * @param {function} defaultGetSource
+ * @returns {object} response
+ * @returns {string|buffer} response.source
  */
-export async function getSource({ url, format, defaultGetSource }) {
+export async function getSource(url, { format }, defaultGetSource) {
   if (url.startsWith('https://')) {
     return new Promise((resolve, reject) => {
       get(url, (res) => {
@@ -1160,16 +1176,20 @@ export async function getSource({ url, format, defaultGetSource }) {
       }).on('error', (err) => reject(err));
     });
   }
-  return defaultGetSource({ url, format, defaultGetSource });
+  return defaultGetSource(url, { format }, defaultGetSource);
 }
 
 /**
- * @param {{specifier, parentURL, defaultResolve}} parameters
- * @returns {{url}}
+ * @param {string} specifier
+ * @param {object} context
+ * @param {string} context.parentURL
+ * @param {function} defaultResolve
+ * @returns {object} response
+ * @returns {string} response.url
  */
-export async function resolve({ specifier,
-                                parentURL,
-                                defaultResolve }) {
+export async function resolve(specifier,
+                              { parentURL },
+                              defaultResolve) {
   if (specifier.startsWith('https://')) {
     return {
       url: specifier
@@ -1211,19 +1231,24 @@ unknown-to-Node.js file extensions.
 import CoffeeScript from 'coffeescript';
 
 /**
- * @param {{url, format}} parameters
- * @returns {{source}}
+ * @param {string} source
+ * @param {object} context
+ * @param {string} context.url
+ * @param {string} context.format
+ * @param {function} defaultTransformSource
+ * @returns {object} response
+ * @returns {string|buffer} response.source
  */
-export async function transformSource({ url,
-                                        format,
-                                        source, defaultTransformSource }) {
+export async function transformSource(source,
+                                      { url, format },
+                                      defaultTransformSource) {
   if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(url)) {
     return {
       source: CoffeeScript.compile(source)
     };
   } else {
     return defaultTransformSource(
-      { url, format, source, defaultTransformSource });
+      source, { url, format }, defaultTransformSource);
   }
 }
 
@@ -1235,11 +1260,15 @@ const baseURL = pathToFileURL(`${process.cwd()}/`).href;
 const EXTENSIONS_REGEX = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
 /**
- * @param {{specifier, parentURL, defaultResolve}} parameters
- * @returns {{url}}
+ * @param {string} specifier
+ * @param {object} context
+ * @param {string} context.parentURL
+ * @param {function} defaultResolve
+ * @returns {object} response
+ * @returns {string} response.url
  */
 export async function resolve(specifier,
-                              parentURL = baseURL,
+                              { parentURL = baseURL },
                               defaultResolve) {
   if (EXTENSIONS_REGEX.test(specifier)) {
     const resolved = new URL(specifier, parentURL);
@@ -1247,20 +1276,23 @@ export async function resolve(specifier,
       url: resolved.href
     };
   }
-  return defaultResolve(specifier, parentURL);
+  return defaultResolve(specifier, { parentURL }, defaultResolve);
 }
 
 /**
- * @param {{url, defaultGetFormat}} parameters
- * @returns {{format}}
+ * @param {string} url
+ * @param {object} context (currently empty)
+ * @param {function} defaultGetFormat
+ * @returns {object} response
+ * @returns {string} response.format
  */
-export async function getFormat({ url, defaultGetFormat }) {
+export async function getFormat(url, context, defaultGetFormat) {
   if (EXTENSIONS_REGEX.test(url)) {
     return {
       format: 'module'
     };
   }
-  return defaultGetFormat({ url, defaultGetFormat });
+  return defaultGetFormat(url, context, defaultGetFormat);
 }
 ```
 
@@ -1287,8 +1319,10 @@ the `resolve` hook.
 
 ```js
 /**
- * @param {{url}} parameters
- * @returns {{exports, execute}}
+ * @param {string} url
+ * @returns {object} response
+ * @returns {array} response.exports
+ * @returns {function} response.execute
  */
 export async function dynamicInstantiate(url) {
   return {
