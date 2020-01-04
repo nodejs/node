@@ -174,7 +174,7 @@ class Foo {
 
 ### `snake_case` for C-like structs
 
-For `plain C-like structs snake_case can be used.
+For plain C-like structs snake_case can be used.
 
 ```c++
 struct foo_bar {
