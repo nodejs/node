@@ -201,6 +201,9 @@ const tests = [
       // 236 + 2 + 4 + 8
       '\x1B[1G', '\x1B[0J',
       `${prompt}${' '.repeat(236)} fun`, '\x1B[243G',
+      ' // ction', '\x1B[243G',
+      ' // ction', '\x1B[243G',
+      '\x1B[0K',
       // 2. UP
       '\x1B[1G', '\x1B[0J',
       `${prompt}${' '.repeat(235)} fun`, '\x1B[242G',
