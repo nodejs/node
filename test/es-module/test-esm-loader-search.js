@@ -8,7 +8,7 @@ require('../common');
 const assert = require('assert');
 const {
   defaultResolve: resolve
-} = require('internal/modules/esm/default_resolve');
+} = require('internal/modules/esm/resolve');
 
 assert.throws(
   () => resolve('target'),
