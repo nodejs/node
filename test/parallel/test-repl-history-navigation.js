@@ -59,6 +59,8 @@ const BACKSPACE = { name: 'backspace' };
 const WORD_LEFT = { name: 'left', ctrl: true };
 const WORD_RIGHT = { name: 'right', ctrl: true };
 const GO_TO_END = { name: 'end' };
+const DELETE_WORD_LEFT = { name: 'backspace', ctrl: true };
+const SIGINT = { name: 'c', ctrl: true };
 
 const prompt = '> ';
 const WAIT = '€';
@@ -155,6 +157,24 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     skip: !process.features.inspector,
     test: [
+      // あ is a fill width character with a length of one.
+      // 🐕 is a full width character with a length of two.
+      // 𐐷 is a half width character with the length of two.
+      // '\u0301', '0x200D', '\u200E' are zero width characters.
+      `const x1 = '${'あ'.repeat(124)}'`, ENTER, // Fully visible
+      ENTER,
+      `const y1 = '${'あ'.repeat(125)}'`, ENTER, // Cut off
+      ENTER,
+      `const x2 = '${'🐕'.repeat(124)}'`, ENTER, // Fully visible
+      ENTER,
+      `const y2 = '${'🐕'.repeat(125)}'`, ENTER, // Cut off
+      ENTER,
+      `const x3 = '${'𐐷'.repeat(248)}'`, ENTER, // Fully visible
+      ENTER,
+      `const y3 = '${'𐐷'.repeat(249)}'`, ENTER, // Cut off
+      ENTER,
+      `const x4 = 'a${'\u0301'.repeat(1000)}'`, ENTER, // á
+      ENTER,
       `const ${'veryLongName'.repeat(30)} = 'I should be previewed'`,
       ENTER,
       'const e = new RangeError("visible\\ninvisible")',
@@ -174,6 +194,7 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     columns: 250,
+    checkTotal: true,
     showEscapeCodes: true,
     skip: !process.features.inspector,
     test: [
@@ -182,7 +203,21 @@ const tests = [
       UP,
       WORD_LEFT,
       UP,
-      BACKSPACE
+      BACKSPACE,
+      'x1',
+      BACKSPACE,
+      '2',
+      BACKSPACE,
+      '3',
+      BACKSPACE,
+      '4',
+      DELETE_WORD_LEFT,
+      'y1',
+      BACKSPACE,
+      '2',
+      BACKSPACE,
+      '3',
+      SIGINT
     ],
     // A = Cursor n up
     // B = Cursor n down
@@ -240,7 +275,44 @@ const tests = [
       '\x1B[1B', '\x1B[2K', '\x1B[1A',
       // 6. Backspace
       '\x1B[1G', '\x1B[0J',
-      prompt, '\x1B[3G', '\r\n'
+      '> ', '\x1B[3G', 'x', '1',
+      `\n// '${'あ'.repeat(124)}'`,
+      '\x1B[1C\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      '> x', '\x1B[4G', '2',
+      `\n// '${'🐕'.repeat(124)}'`,
+      '\x1B[1C\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      '> x', '\x1B[4G', '3',
+      `\n// '${'𐐷'.repeat(248)}'`,
+      '\x1B[1C\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      '> x', '\x1B[4G', '4',
+      `\n// 'a${'\u0301'.repeat(1000)}'`,
+      '\x1B[2D\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      '> ', '\x1B[3G', 'y', '1',
+      `\n// '${'あ'.repeat(121)}...`,
+      '\x1B[245D\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      '> y', '\x1B[4G', '2',
+      `\n// '${'🐕'.repeat(121)}...`,
+      '\x1B[245D\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      '> y', '\x1B[4G', '3',
+      `\n// '${'𐐷'.repeat(242)}...`,
+      '\x1B[245D\x1B[1A',
+      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\r\n',
+      '\x1B[1G', '\x1B[0J',
+      '> ', '\x1B[3G',
+      '\r\n'
     ],
     clean: true
   },
@@ -314,6 +386,46 @@ const tests = [
       'Uncaught ReferenceError: functio is not defined\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G', '\r\n'
+    ],
+    clean: true
+  },
+  {
+    // Check changed inspection defaults.
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'util.inspect.replDefaults.showHidden',
+      ENTER
+    ],
+    expected: [],
+    clean: false
+  },
+  {
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    checkTotal: true,
+    test: [
+      '[ ]',
+      WORD_LEFT,
+      WORD_LEFT,
+      UP,
+      ' = true',
+      ENTER,
+      '[ ]',
+      ENTER
+    ],
+    expected: [
+      prompt,
+      '[', ' ', ']',
+      '\n// []', '\n// []', '\n// []',
+      '> util.inspect.replDefaults.showHidden',
+      '\n// false', ' ', '\n// false',
+      '=', ' ', 't', 'r', 'u', ' // e', 'e',
+      'true\n',
+      '> ', '[', ' ', ']',
+      '\n// [ [length]: 0 ]',
+      '[ [length]: 0 ]\n',
+      '> ',
     ],
     clean: true
   },
