@@ -994,7 +994,7 @@ node --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
-## Experimental Loader hooks
+## Experimental Loaders
 
 **Note: This API is currently being redesigned and will still change.**
 
@@ -1006,7 +1006,9 @@ provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
 When hooks are used they only apply to ES module loading and not to any
 CommonJS modules loaded.
 
-### Resolve hook
+### Hooks
+
+#### <code>resolve</code> hook
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -1017,9 +1019,6 @@ and parent URL. The module specifier is the string in an `import` statement or
 this one, or `undefined` if this is the main entry point for the application.
 
 ```js
-import { URL, pathToFileURL } from 'url';
-const baseURL = pathToFileURL(process.cwd()).href;
-
 /**
  * @param {string} specifier
  * @param {object} context
@@ -1029,77 +1028,21 @@ const baseURL = pathToFileURL(process.cwd()).href;
  * @returns {string} response.url
  */
 export async function resolve(specifier, context, defaultResolve) {
-  const { parentURL = baseURL } = context;
-  return {
-    url: new URL(specifier, parentUrl).href
-  };
-}
-```
-
-The `parentURL` is provided as `undefined` when performing main Node.js
-load itself.
-
-The default Node.js ES module resolution function is provided to the resolver
-for easy compatibility workflows.
-
-For example, a dummy loader to load JavaScript restricted to browser resolution
-rules with only JavaScript file extensions and Node.js builtin modules support
-could be written:
-
-```js
-import path from 'path';
-import process from 'process';
-import Module from 'module';
-import { URL, pathToFileURL } from 'url';
-
-const builtins = Module.builtinModules;
-const JS_EXTENSIONS = new Set(['.js', '.mjs']);
-
-const baseURL = pathToFileURL(process.cwd()).href;
-
-/**
- * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
- */
-export async function resolve(specifier, context, defaultResolve) {
-  const { parentURL = baseURL } = context;
-  if (builtins.includes(specifier)) {
+  const { parentURL = null } = context;
+  if (someCondition) {
+    // For some or all specifiers, do some custom logic for resolving.
+    // Always return an object of the form {url: <string>}
     return {
-      url: specifier
+      url: (parentURL) ?
+        new URL(specifier, parentURL).href : new URL(specifier).href
     };
   }
-  if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
-    // For node_modules support:
-    // return defaultResolve(specifier, context, defaultResolve);
-    throw new Error(
-      `imports must begin with '/', './', or '../'; '${specifier}' does not`);
-  }
-  const resolved = new URL(specifier, parentURL);
-  const ext = path.extname(resolved.pathname);
-  if (!JS_EXTENSIONS.has(ext)) {
-    throw new Error(
-      `Cannot load file with non-JavaScript file extension ${ext}.`);
-  }
-  return {
-    url: resolved.href
-  };
+  // Defer to Node.js for all other specifiers.
+  return defaultResolve(specifier, context, defaultResolve);
 }
 ```
 
-With this loader, running:
-
-```console
-NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.js
-```
-
-would load the module `main.js` as an ES module with relative resolution support
-(with `node_modules` loading skipped in this example).
-
-### Get format hook
+#### <code>getFormat</code> hook
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -1117,13 +1060,6 @@ a URL should be interpreted. This can be one of the following:
 | `'wasm'` | Load a WebAssembly module |
 
 ```js
-import { request } from 'https';
-
-const formatMap = {
-  'text/javascript': 'module',
-  'application/javascript': 'module'
-};
-
 /**
  * @param {string} url
  * @param {object} context (currently empty)
@@ -1132,21 +1068,20 @@ const formatMap = {
  * @returns {string} response.format
  */
 export async function getFormat(url, context, defaultGetFormat) {
-  if (url.startsWith('https://')) {
-    return new Promise((resolve, reject) => {
-      request(url, {
-        method: 'HEAD'
-      }, (err, res) => {
-        if (err) reject(err);
-        else resolve({ format: formatMap[res.headers['content-type']] });
-      });
-    });
+  if (someCondition) {
+    // For some or all URLs, do some custom logic for determining format.
+    // Always return an object of the form {format: <string>}, where the
+    // format is one of the strings in the table above.
+    return {
+      format: 'module'
+    };
   }
+  // Defer to Node.js for all other URLs.
   return defaultGetFormat(url, context, defaultGetFormat);
 }
 ```
 
-### Get source hook
+#### <code>getSource</code> hook
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -1156,8 +1091,6 @@ the source code of an ES module specifier. This would allow a loader to
 potentially avoid reading files from disk.
 
 ```js
-import { request } from 'https';
-
 /**
  * @param {string} url
  * @param {object} context
@@ -1167,68 +1100,33 @@ import { request } from 'https';
  * @returns {string|buffer} response.source
  */
 export async function getSource(url, context, defaultGetSource) {
-  if (url.startsWith('https://')) {
-    return new Promise((resolve, reject) => {
-      request(url, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => resolve({ source: data }));
-      }).on('error', (err) => reject(err));
-    });
+  const { format } = context;
+  if (someCondition) {
+    // For some or all URLs, do some custom logic for retrieving the source.
+    // Always return an object of the form {source: <string|buffer>}.
+    return {
+      source: '...'
+    };
   }
+  // Defer to Node.js for all other URLs.
   return defaultGetSource(url, context, defaultGetSource);
 }
-
-/**
- * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
- */
-export async function resolve(specifier, context, defaultResolve) {
-  const { parentURL = null } = context;
-  if (specifier.startsWith('https://')) {
-    return {
-      url: specifier
-    };
-  } else if (parentURL &&
-    parentURL.startsWith('https://')) {
-    return {
-      url: new URL(specifier, parentURL).href
-    };
-  }
-  return defaultResolve({ specifier, parentURL, defaultResolve });
-}
 ```
 
-With this loader, running:
-
-```console
-NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.js
-```
-
-Will enable `main.js` to contain a statement like
-`import { foo } from 'https://example.com/es-module.js'`, which normally isn’t
-supported by Node.js as the specifier isn’t a `file://` or `data://` URL.
-
-### Transform source hook
+#### <code>transformSource</code> hook
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
 The `transformSource` hook provides a way to modify the source code of a loaded
-ES module file after the source string has been loaded from disk but before
-Node.js has done anything with it.
+ES module file after the source string has been loaded but before Node.js has
+done anything with it.
 
 If this hook is used to convert unknown-to-Node.js file types into executable
 JavaScript, a resolve hook is also necessary in order to register any
-unknown-to-Node.js file extensions.
+unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 
 ```js
-import CoffeeScript from 'coffeescript';
-
 /**
  * @param {string|buffer} source
  * @param {object} context
@@ -1241,72 +1139,21 @@ import CoffeeScript from 'coffeescript';
 export async function transformSource(source,
                                       context,
                                       defaultTransformSource) {
-  if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(url)) {
+  const { url, format } = context;
+  if (someCondition) {
+    // For some or all URLs, do some custom logic for modifying the source.
+    // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: CoffeeScript.compile(source)
-    };
-  } else {
-    return defaultTransformSource(
-      source, context, defaultTransformSource);
-  }
-}
-
-// The below is so that CoffeeScript file extensions don’t throw an
-// error for being unrecognized.
-import { URL, pathToFileURL } from 'url';
-
-const baseURL = pathToFileURL(`${process.cwd()}/`).href;
-const EXTENSIONS_REGEX = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
-
-/**
- * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
- */
-export async function resolve(specifier, context, defaultResolve) {
-  const { parentURL = baseURL } = context;
-
-  if (EXTENSIONS_REGEX.test(specifier)) {
-    const resolved = new URL(specifier, parentURL);
-    return {
-      url: resolved.href
+      source: '...'
     };
   }
-  return defaultResolve(specifier, { parentURL }, defaultResolve);
-}
-
-/**
- * @param {string} url
- * @param {object} context (currently empty)
- * @param {function} defaultGetFormat
- * @returns {object} response
- * @returns {string} response.format
- */
-export async function getFormat(url, context, defaultGetFormat) {
-  if (EXTENSIONS_REGEX.test(url)) {
-    return {
-      format: 'module'
-    };
-  }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  // Defer to Node.js for all other sources.
+  return defaultTransformSource(
+    source, context, defaultTransformSource);
 }
 ```
 
-With this loader, running:
-
-```console
-NODE_OPTIONS='--experimental-loader ./custom-loader.mjs' node main.coffee
-```
-
-Will cause `main.coffee` to be turned into JavaScript after its source code is
-loaded from disk but before Node.js executes it; and so on for any `.coffee`,
-`.litcoffee` or `.coffee.md` files referenced via `import` statements of any
-loaded file.
-
-### Dynamic instantiate hook
+#### <code>dynamicInstantiate</code> hook
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -1314,7 +1161,7 @@ loaded file.
 To create a custom dynamic module that doesn't correspond to one of the
 existing `format` interpretations, the `dynamicInstantiate` hook can be used.
 This hook is called only for modules that return `format: 'dynamic'` from
-the `resolve` hook.
+the [`getFormat` hook][].
 
 ```js
 /**
@@ -1337,6 +1184,179 @@ export async function dynamicInstantiate(url) {
 With the list of module exports provided upfront, the `execute` function will
 then be called at the exact point of module evaluation order for that module
 in the import tree.
+
+### Examples
+
+The various loader hooks can be used together to accomplish wide-ranging
+customizations of Node.js’ code loading and evaluation behaviors.
+
+#### HTTPS loader
+
+In current Node.js, specifiers starting with `https://` are unsupported. The
+loader below registers hooks to enable rudimentary support for such specifiers.
+While this may seem like a significant improvement to Node.js core
+functionality, there are substantial downsides to actually using this loader:
+performance is much slower than loading files from disk, there is no caching,
+and there is no security.
+
+```js
+// https-loader.mjs
+import { get } from 'https';
+
+export function resolve(specifier, context, defaultResolve) {
+  const { parentURL = null } = context;
+
+  // Normally Node.js would error on specifiers starting with 'https://', so
+  // this hook intercepts them and converts them into absolute URLs to be
+  // passed along to the later hooks below.
+  if (specifier.startsWith('https://')) {
+    return {
+      url: specifier
+    };
+  } else if (parentURL && parentURL.startsWith('https://')) {
+    return {
+      url: new URL(specifier, parentURL).href
+    };
+  }
+
+  // Let Node.js handle all other specifiers.
+  return defaultResolve(specifier, context, defaultResolve);
+}
+
+export function getFormat(url, context, defaultGetFormat) {
+  // This loader assumes all network-provided JavaScript is ES module code.
+  if (url.startsWith('https://')) {
+    return {
+      format: 'module'
+    };
+  }
+
+  // Let Node.js handle all other URLs.
+  return defaultGetFormat(url, context, defaultGetFormat);
+}
+
+export function getSource(url, context, defaultGetSource) {
+  // For JavaScript to be loaded over the network, we need to fetch and
+  // return it.
+  if (url.startsWith('https://')) {
+    return new Promise((resolve, reject) => {
+      get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => resolve({ source: data }));
+      }).on('error', (err) => reject(err));
+    });
+  }
+
+  // Let Node.js handle all other URLs.
+  return defaultGetSource(url, context, defaultGetSource);
+}
+```
+
+```js
+// main.mjs
+import { VERSION } from 'https://coffeescript.org/browser-compiler-modern/coffeescript.js';
+
+console.log(VERSION);
+```
+
+With this loader, running:
+
+```console
+node --experimental-loader ./https-loader.mjs ./main.js
+```
+
+Will print the current version of CoffeeScript per the module at the URL in
+`main.mjs`.
+
+#### Transpiler loader
+
+Sources that are in formats Node.js doesn’t understand can be converted into
+JavaScript using the [`transformSource` hook][]. Before that hook gets called,
+however, other hooks need to tell Node.js not to throw an error on unknown file
+types; and to tell Node.js how to load this new file type.
+
+This is obviously less performant than transpiling source files before running
+Node.js; a transpiler loader should only be used for development and testing
+purposes.
+
+```js
+// coffeescript-loader.mjs
+import { URL, pathToFileURL } from 'url';
+import CoffeeScript from 'coffeescript';
+
+const baseURL = pathToFileURL(`${process.cwd()}/`).href;
+
+// CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
+const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
+
+export function resolve(specifier, context, defaultResolve) {
+  const { parentURL = baseURL } = context;
+
+  // Node.js normally errors on unknown file extensions, so return a URL for
+  // specifiers ending in the CoffeeScript file extensions.
+  if (extensionsRegex.test(specifier)) {
+    return {
+      url: new URL(specifier, parentURL).href
+    };
+  }
+
+  // Let Node.js handle all other specifiers.
+  return defaultResolve(specifier, context, defaultResolve);
+}
+
+export function getFormat(url, context, defaultGetFormat) {
+  // Now that we patched resolve to let CoffeeScript URLs through, we need to
+  // tell Node.js what format such URLs should be interpreted as. For the
+  // purposes of this loader, all CoffeeScript URLs are ES modules.
+  if (extensionsRegex.test(url)) {
+    return {
+      format: 'module'
+    };
+  }
+
+  // Let Node.js handle all other URLs.
+  return defaultGetFormat(url, context, defaultGetFormat);
+}
+
+export function transformSource(source, context, defaultTransformSource) {
+  const { url, format } = context;
+
+  if (extensionsRegex.test(url)) {
+    return {
+      source: CoffeeScript.compile(source, { bare: true })
+    };
+  }
+
+  // Let Node.js handle all other sources.
+  return defaultTransformSource(source, context, defaultTransformSource);
+}
+```
+
+```coffee
+# main.coffee
+import { scream } from './scream.coffee'
+console.log scream 'hello, world'
+
+import { version } from 'process'
+console.log "Brought to you by Node.js version #{version}"
+```
+
+```coffee
+# scream.coffee
+export scream = (str) -> str.toUpperCase()
+```
+
+With this loader, running:
+
+```console
+node --experimental-loader ./coffeescript-loader.mjs main.coffee
+```
+
+Will cause `main.coffee` to be turned into JavaScript after its source code is
+loaded from disk but before Node.js executes it; and so on for any `.coffee`,
+`.litcoffee` or `.coffee.md` files referenced via `import` statements of any
+loaded file.
 
 ## Resolution Algorithm
 
@@ -1618,11 +1638,14 @@ success!
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
+[`getFormat` hook]: #esm_code_getformat_code_hook
 [`import()`]: #esm_import-expressions
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
-[dynamic instantiate hook]: #esm_dynamic_instantiate_hook
+[`transformSource` hook]: #esm_code_transformsource_code_hook
+[dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
+[transpiler loader example]: #esm_transpiler_loader
