@@ -101,6 +101,10 @@ const customTypesMap = {
   'https.Server': 'https.html#https_class_https_server',
 
   'module': 'modules.html#modules_the_module_object',
+
+  'module.SourceMap':
+    'modules.html#modules_class_module_sourcemap',
+
   'require': 'modules.html#modules_require_id',
 
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
