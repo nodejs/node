@@ -1012,7 +1012,9 @@ CommonJS modules loaded.
 > signature may change. Do not rely on the API described below.
 
 The `resolve` hook returns the resolved file URL for a given module specifier
-and parent file URL:
+and parent URL. The module specifier is the string in an `import` statement or
+`import()` expression, and the parent URL is the URL of the module that imported
+this one, or `undefined` if this is the main entry point for the application.
 
 ```js
 import { URL, pathToFileURL } from 'url';
@@ -1026,9 +1028,8 @@ const baseURL = pathToFileURL(process.cwd()).href;
  * @returns {object} response
  * @returns {string} response.url
  */
-export async function resolve(specifier,
-                              { parentURL = baseURL },
-                              defaultResolve) {
+export async function resolve(specifier, context, defaultResolve) {
+  const { parentURL = baseURL } = context;
   return {
     url: new URL(specifier, parentUrl).href
   };
@@ -1064,9 +1065,8 @@ const baseURL = pathToFileURL(process.cwd()).href;
  * @returns {object} response
  * @returns {string} response.url
  */
-export async function resolve(specifier,
-                              { parentURL = baseURL },
-                              defaultResolve) {
+export async function resolve(specifier, context, defaultResolve) {
+  const { parentURL = baseURL } = context;
   if (builtins.includes(specifier)) {
     return {
       url: specifier
@@ -1074,7 +1074,7 @@ export async function resolve(specifier,
   }
   if (/^\.{0,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolve(specifier, parentURL);
+    // return defaultResolve(specifier, context, defaultResolve);
     throw new Error(
       `imports must begin with '/', './', or '../'; '${specifier}' does not`);
   }
@@ -1156,7 +1156,7 @@ the source code of an ES module specifier. This would allow a loader to
 potentially avoid reading files from disk.
 
 ```js
-import { get } from 'https';
+import { request } from 'https';
 
 /**
  * @param {string} url
@@ -1166,17 +1166,17 @@ import { get } from 'https';
  * @returns {object} response
  * @returns {string|buffer} response.source
  */
-export async function getSource(url, { format }, defaultGetSource) {
+export async function getSource(url, context, defaultGetSource) {
   if (url.startsWith('https://')) {
     return new Promise((resolve, reject) => {
-      get(url, (res) => {
+      request(url, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => resolve({ source: data }));
       }).on('error', (err) => reject(err));
     });
   }
-  return defaultGetSource(url, { format }, defaultGetSource);
+  return defaultGetSource(url, context, defaultGetSource);
 }
 
 /**
@@ -1187,9 +1187,8 @@ export async function getSource(url, { format }, defaultGetSource) {
  * @returns {object} response
  * @returns {string} response.url
  */
-export async function resolve(specifier,
-                              { parentURL },
-                              defaultResolve) {
+export async function resolve(specifier, context, defaultResolve) {
+  const { parentURL = null } = context;
   if (specifier.startsWith('https://')) {
     return {
       url: specifier
@@ -1231,7 +1230,7 @@ unknown-to-Node.js file extensions.
 import CoffeeScript from 'coffeescript';
 
 /**
- * @param {string} source
+ * @param {string|buffer} source
  * @param {object} context
  * @param {string} context.url
  * @param {string} context.format
@@ -1240,7 +1239,7 @@ import CoffeeScript from 'coffeescript';
  * @returns {string|buffer} response.source
  */
 export async function transformSource(source,
-                                      { url, format },
+                                      context,
                                       defaultTransformSource) {
   if (/\.coffee$|\.litcoffee$|\.coffee\.md$/.test(url)) {
     return {
@@ -1248,7 +1247,7 @@ export async function transformSource(source,
     };
   } else {
     return defaultTransformSource(
-      source, { url, format }, defaultTransformSource);
+      source, context, defaultTransformSource);
   }
 }
 
@@ -1267,9 +1266,9 @@ const EXTENSIONS_REGEX = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
  * @returns {object} response
  * @returns {string} response.url
  */
-export async function resolve(specifier,
-                              { parentURL = baseURL },
-                              defaultResolve) {
+export async function resolve(specifier, context, defaultResolve) {
+  const { parentURL = baseURL } = context;
+
   if (EXTENSIONS_REGEX.test(specifier)) {
     const resolved = new URL(specifier, parentURL);
     return {
