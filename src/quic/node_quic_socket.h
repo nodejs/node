@@ -391,6 +391,8 @@ class QuicSocket : public AsyncWrap,
       const sockaddr* remote_addr,
       unsigned int flags);
 
+  BaseObjectPtr<QuicSession> FindSession(const QuicCID& cid);
+
   void IncrementSocketAddressCounter(const SocketAddress& addr);
   void DecrementSocketAddressCounter(const SocketAddress& addr);
   size_t GetCurrentSocketAddressCounter(const sockaddr* addr);

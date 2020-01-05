@@ -329,6 +329,8 @@ void QuicSocket::AddEndpoint(QuicEndpoint* endpoint_, bool preferred) {
   if (preferred || endpoints_.empty())
     preferred_endpoint_ = endpoint_;
   endpoints_.emplace_back(endpoint_);
+  if (IsFlagSet(QUICSOCKET_FLAGS_SERVER_LISTENING))
+    endpoint_->ReceiveStart();
 }
 
 void QuicSocket::AddSession(
@@ -382,6 +384,8 @@ void QuicSocket::StopListening() {
     return;
   Debug(this, "Stop listening.");
   SetFlag(QUICSOCKET_FLAGS_SERVER_LISTENING, false);
+  // It is important to not call ReceiveStop here as there
+  // is ongoing traffic being exchanged by the peers.
 }
 
 namespace {
@@ -421,6 +425,24 @@ void QuicSocket::OnBind(QuicEndpoint* endpoint) {
   socket_stats_.bound_at = uv_hrtime();
 }
 
+BaseObjectPtr<QuicSession> QuicSocket::FindSession(const QuicCID& cid) {
+  std::string cid_str = cid.ToStr();
+  BaseObjectPtr<QuicSession> session;
+  auto session_it = sessions_.find(cid_str);
+  if (session_it == std::end(sessions_)) {
+    auto scid_it = dcid_to_scid_.find(cid_str);
+    if (scid_it != std::end(dcid_to_scid_)) {
+      session_it = sessions_.find(scid_it->second);
+      CHECK_NE(session_it, std::end(sessions_));
+      session = session_it->second;
+    }
+  } else {
+    session = session_it->second;
+  }
+  return session;
+}
+
+// This is the primary entry point for data received for the QuicSocket.
 void QuicSocket::OnReceive(
     ssize_t nread,
     AllocatedBuffer buf,
@@ -446,6 +468,11 @@ void QuicSocket::OnReceive(
   const uint8_t* pscid;
   size_t pscidlen;
 
+  // This is our first check to see if the received data can be
+  // processed as a QUIC packet. If this fails, then the QUIC packet
+  // header is invalid and cannot be processed. If this fails, all
+  // we can do is ignore it. It's questionable whether we should even
+  // increment the packets_ignored statistic here but for now we do.
   if (ngtcp2_pkt_decode_version_cid(
         &pversion,
         &pdcid,
@@ -453,17 +480,15 @@ void QuicSocket::OnReceive(
         &pscid,
         &pscidlen,
         data, nread, NGTCP2_SV_SCIDLEN) < 0) {
-    // There's nothing we can do here but ignore the packet. The packet
-    // is likely not a QUIC packet or is malformed in some way.
     IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
     return;
   }
 
+  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. The
+  // ngtcp2 API allows non-standard lengths, and we may want to allow
+  // non-standard lengths later. But for now, we're going to ignore any
+  // packet with a non-standard CID length.
   if (pdcidlen > NGTCP2_MAX_CIDLEN || pscidlen > NGTCP2_MAX_CIDLEN) {
-    // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. The
-    // ngtcp2 API allows non-standard lengths, and we may want to allow
-    // non-standard lengths later. But for now, we're going to ignore any
-    // packet with a non-standard CID length.
     IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
     return;
   }
@@ -472,80 +497,73 @@ void QuicSocket::OnReceive(
   QuicCID scid(pscid, pscidlen);
 
   std::string dcid_hex = dcid.ToHex();
-  std::string dcid_str = dcid.ToStr();
   Debug(this, "Received a QUIC packet for dcid %s", dcid_hex.c_str());
 
-  // Grabbing a shared pointer to prevent the QuicSession from
-  // desconstructing while we're still using it. The session may
-  // end up being destroyed, however, so we have to make sure
-  // we're checking for that.
-  BaseObjectPtr<QuicSession> session;
+  BaseObjectPtr<QuicSession> session = FindSession(dcid);
 
-  // Identify the appropriate handler
-  auto session_it = sessions_.find(dcid_str);
-  if (session_it == std::end(sessions_)) {
-    auto scid_it = dcid_to_scid_.find(dcid_str);
-    if (scid_it == std::end(dcid_to_scid_)) {
-      Debug(this, "There is no existing session for dcid %s", dcid_hex.c_str());
-      // AcceptInitialPacket will first validate that the packet can be
-      // accepted, then create a new server QuicSession instance if able
-      // to do so. If a new instance cannot be created (for any reason),
-      // the session shared_ptr will be empty on return.
-      session = AcceptInitialPacket(
-          pversion,
-          dcid,
-          scid,
-          nread,
-          data,
-          local_addr,
-          remote_addr,
-          flags);
+  // If a session is not found, there are three possible reasons:
+  // 1. The session has not been created yet
+  // 2. The session existed once but we've lost the local state for it
+  // 3. This is a malicious or malformed packet.
+  //
+  // In the case of #1, the packet must be a valid initial packet with
+  // a long-form QUIC header. In the case of #2, the packet must have
+  // a short-form QUIC header and we should send a stateless reset token.
+  // Differentiating between cases 2 and 3 can be difficult, however.
+  if (!session) {
+    Debug(this, "There is no existing session for dcid %s", dcid_hex.c_str());
+    // AcceptInitialPacket will first validate that the packet can be
+    // accepted, then create a new server QuicSession instance if able
+    // to do so. If a new instance cannot be created (for any reason),
+    // the session shared_ptr will be empty on return.
+    session = AcceptInitialPacket(
+        pversion,
+        dcid,
+        scid,
+        nread,
+        data,
+        local_addr,
+        remote_addr,
+        flags);
 
-      // There are many reasons why a server QuicSession could not be
-      // created. The most common will be invalid packets or incorrect
-      // QUIC version. In any of these cases, however, to prevent a
-      // potential attacker from causing us to consume resources,
-      // we're just going to ignore the packet. It is possible that
-      // the AcceptInitialPacket sent a version negotiation packet,
-      // or (in the future) a CONNECTION_CLOSE packet.
-      if (!session) {
-        Debug(this, "Could not initialize a new server QuicSession.");
+    // There are many reasons why a server QuicSession could not be
+    // created. The most common will be invalid packets or incorrect
+    // QUIC version. In any of these cases, however, to prevent a
+    // potential attacker from causing us to consume resources,
+    // we're just going to ignore the packet. It is possible that
+    // the AcceptInitialPacket sent a version negotiation packet,
+    // or (in the future) a CONNECTION_CLOSE packet.
+    if (!session) {
+      Debug(this, "Could not initialize a new server QuicSession.");
 
-        // Ignore the packet if it's an unacceptable long header (initial)
-        if (!IsShortHeader(pversion, pscid, pscidlen)) {
+      // Ignore the packet if it's an unacceptable long header (initial)
+      if (!IsShortHeader(pversion, pscid, pscidlen)) {
+        IncrementSocketStat(
+            1, &socket_stats_,
+            &socket_stats::packets_ignored);
+      } else {
+        // Attempt to send a stateless reset. If it fails, we just ignore
+        // TODO(@jasnell): Need to verify that stateless reset is occurring
+        // correctly. Also need to determine how to test.
+        if (!SendStatelessReset(dcid, local_addr, remote_addr)) {
           IncrementSocketStat(
               1, &socket_stats_,
               &socket_stats::packets_ignored);
         } else {
-          // Attempt to send a stateless reset. If it fails, we just ignore
-          // TODO(@jasnell): Need to verify that stateless reset is occurring
-          // correctly. Also need to determine how to test.
-          if (!SendStatelessReset(dcid, local_addr, remote_addr)) {
-            IncrementSocketStat(
-                1, &socket_stats_,
-                &socket_stats::packets_ignored);
-          } else {
-            IncrementSocketStat(
-                1, &socket_stats_,
-                &socket_stats::stateless_reset_count);
-          }
+          IncrementSocketStat(
+              1, &socket_stats_,
+              &socket_stats::stateless_reset_count);
         }
-
-        return;
       }
-    } else {
-      session_it = sessions_.find(scid_it->second);
-      session = session_it->second;
-      CHECK_NE(session_it, std::end(sessions_));
+
+      return;
     }
-  } else {
-    session = session_it->second;
   }
 
   CHECK(session);
 
   // If the packet could not successfully processed for any reason (possibly
-  // due to being malformed or malicious in some way) we ignore it completely.
+  // due to being malformed or malicious in some way) we mark it ignored.
   if (!session->Receive(nread, data, local_addr, remote_addr, flags)) {
     IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
     return;
@@ -1119,20 +1137,6 @@ void QuicSocketStopListening(const FunctionCallbackInfo<Value>& args) {
   socket->StopListening();
 }
 
-void QuicSocketReceiveStart(const FunctionCallbackInfo<Value>& args) {
-  QuicSocket* socket;
-  ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
-  socket->ReceiveStart();
-}
-
-void QuicSocketReceiveStop(const FunctionCallbackInfo<Value>& args) {
-  QuicSocket* socket;
-  ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
-  socket->ReceiveStop();
-}
-
 void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
@@ -1189,12 +1193,6 @@ void QuicSocket::Initialize(
   env->SetProtoMethod(socket,
                       "listen",
                       QuicSocketListen);
-  env->SetProtoMethod(socket,
-                      "receiveStart",
-                      QuicSocketReceiveStart);
-  env->SetProtoMethod(socket,
-                      "receiveStop",
-                      QuicSocketReceiveStop);
   env->SetProtoMethod(socket,
                       "setDiagnosticPacketLoss",
                       QuicSocketSetDiagnosticPacketLoss);
