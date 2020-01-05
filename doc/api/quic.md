@@ -1622,6 +1622,20 @@ added: REPLACEME
 
 A `BigInt` that represents the number of stateless resets that have been sent.
 
+#### quicsocket.toggleStatelessReset()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {boolean} `true` if stateless reset processing is enabled; `false`
+  if disabled.
+
+By default, a listening `QuicSocket` will generate stateless reset tokens when
+appropriate. The `disableStatelessReset` option may be set when the
+`QuicSocket` is created to disable generation of stateless resets. The
+`toggleStatelessReset()` function allows stateless reset to be turned on and
+off dynamically through the lifetime of the `QuicSocket`.
+
 #### quicsocket.unref();
 <!-- YAML
 added: REPLACEME

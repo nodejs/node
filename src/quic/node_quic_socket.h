@@ -273,7 +273,8 @@ class QuicSocket : public AsyncWrap,
       size_t max_connections_per_host,
       uint32_t options = 0,
       QlogMode qlog = QlogMode::kDisabled,
-      const uint8_t* session_reset_secret = nullptr);
+      const uint8_t* session_reset_secret = nullptr,
+      bool disable_session_reset = false);
   ~QuicSocket() override;
 
   const SocketAddress& GetLocalAddress() {
@@ -311,6 +312,11 @@ class QuicSocket : public AsyncWrap,
   void SetServerBusy(bool on);
   void SetDiagnosticPacketLoss(double rx = 0.0, double tx = 0.0);
   void StopListening();
+
+  // Toggles whether or not stateless reset is enabled or not.
+  // Returns true if stateless reset is enabled, false if it
+  // is not.
+  bool ToggleStatelessReset();
 
   crypto::SecureContext* GetServerSecureContext() {
     return server_secure_context_;
@@ -410,6 +416,7 @@ class QuicSocket : public AsyncWrap,
     QUICSOCKET_FLAGS_WAITING_FOR_CALLBACKS = 0x2,
     QUICSOCKET_FLAGS_SERVER_LISTENING = 0x4,
     QUICSOCKET_FLAGS_SERVER_BUSY = 0x8,
+    QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET = 0x10
   };
 
   void SetFlag(QuicSocketFlags flag, bool on = true) {

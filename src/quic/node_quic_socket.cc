@@ -241,7 +241,8 @@ QuicSocket::QuicSocket(
     size_t max_connections_per_host,
     uint32_t options,
     QlogMode qlog,
-    const uint8_t* session_reset_secret)
+    const uint8_t* session_reset_secret,
+    bool disable_stateless_reset)
   : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_QUICSOCKET),
     alloc_info_(MakeAllocator()),
     options_(options),
@@ -260,6 +261,9 @@ QuicSocket::QuicSocket(
 
   EntropySource(token_secret_, TOKEN_SECRETLEN);
   socket_stats_.created_at = uv_hrtime();
+
+  if (disable_stateless_reset)
+    SetFlag(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
 
   // Set the session reset secret to the one provided or random.
   // Note that a random secret is going to make it exceedingly
@@ -539,7 +543,23 @@ void QuicSocket::OnReceive(
         IncrementSocketStat(
             1, &socket_stats_,
             &socket_stats::packets_ignored);
-      } else {
+      } else if (LIKELY(
+                      !IsFlagSet(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET))) {
+        // At this point, we don't have any state or knowledge of the dcid
+        // identified in the packet. This could be because it is garbage,
+        // or it could be that we crashed and lost the state but the peer
+        // doesn't know that yet. Sending a stateless reset is a discreet
+        // signal to the peer that we don't have the information necessary
+        // to process. There is a possible DOS risk here, however. A
+        // malicious peer could send a large number of garbage messages
+        // that trigger creation of the token. It's not a super expensive
+        // operation to create the token but it has a non-zero cost so
+        // too much garbage means we're eating up resources. There are
+        // mitigations such as limiting the number of stateless resets
+        // we send to a specific peer or we have the option of choosing
+        // not to send a stateless reset at all.
+        Debug(this, "Attempting to send stateless reset for %s",
+              dcid.ToHex().c_str());
         // Attempt to send a stateless reset. If it fails, we just ignore
         // TODO(@jasnell): Need to verify that stateless reset is occurring
         // correctly. Also need to determine how to test.
@@ -552,8 +572,11 @@ void QuicSocket::OnReceive(
               1, &socket_stats_,
               &socket_stats::stateless_reset_count);
         }
+      } else {
+        IncrementSocketStat(
+            1, &socket_stats_,
+            &socket_stats::packets_ignored);
       }
-
       return;
     }
   }
@@ -1002,6 +1025,13 @@ void QuicSocket::RemoveListener(QuicSocketListener* listener) {
   listener->previous_listener_ = nullptr;
 }
 
+bool QuicSocket::ToggleStatelessReset() {
+  SetFlag(
+      QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET,
+      !IsFlagSet(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET));
+  return !IsFlagSet(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
+}
+
 // JavaScript API
 namespace {
 void NewQuicEndpoint(const FunctionCallbackInfo<Value>& args) {
@@ -1046,7 +1076,8 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
       max_connections_per_host,
       options,
       args[3]->IsTrue() ? QlogMode::kEnabled : QlogMode::kDisabled,
-      session_reset_secret);
+      session_reset_secret,
+      args[5]->IsTrue());
 }
 
 void QuicSocketAddEndpoint(const FunctionCallbackInfo<Value>& args) {
@@ -1142,6 +1173,12 @@ void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
   socket->SetServerBusy(args[0]->IsTrue());
 }
 
+void QuicSocketToggleStatelessReset(const FunctionCallbackInfo<Value>& args) {
+  QuicSocket* socket;
+  ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
+  args.GetReturnValue().Set(socket->ToggleStatelessReset());
+}
+
 void QuicEndpointWaitForPendingCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   QuicEndpoint* endpoint;
@@ -1200,6 +1237,9 @@ void QuicSocket::Initialize(
   env->SetProtoMethod(socket,
                       "stopListening",
                       QuicSocketStopListening);
+  env->SetProtoMethod(socket,
+                      "toggleStatelessReset",
+                      QuicSocketToggleStatelessReset);
   socket->Inherit(HandleWrap::GetConstructorTemplate(env));
   target->Set(context, class_name,
               socket->GetFunction(env->context()).ToLocalChecked()).FromJust();
