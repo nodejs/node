@@ -1540,8 +1540,11 @@ def configure_intl(o):
     os.mkdir(icu_tmp_path)
     icu_data_path = os.path.join(icu_tmp_path, icu_data_file_l)
     with open(icu_data_path, 'wb') as outf:
-        with bz2.BZ2File(compressed_data, 'rb') as inf:
+        inf = bz2.BZ2File(compressed_data, 'rb')
+        try:
             shutil.copyfileobj(inf, outf)
+        finally:
+            inf.close()
     # Now, proceed..
 
   # relative to dep..
