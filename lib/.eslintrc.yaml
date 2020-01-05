@@ -17,6 +17,8 @@ rules:
       message: "Use `const { Boolean } = primordials;` instead of the global."
     - name: Error
       message: "Use `const { Error } = primordials;` instead of the global."
+    - name: Float32Array
+      message: "Use `const { Float32Array } = primordials;` instead of the global."
     - name: JSON
       message: "Use `const { JSON } = primordials;` instead of the global."
     - name: Map
