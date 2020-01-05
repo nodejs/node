@@ -22,7 +22,7 @@ const cert = getTLSCertSomehow();
 const { createSocket } = require('quic');
 
 // Create the QUIC UDP IPv4 socket bound to local IP port 1234
-const socket = createSocket({ port: 1234 });
+const socket = createSocket({ endpoint: { port: 1234 } });
 
 // Tell the socket to operate as a server using the given
 // key and certificate to secure new connections.
@@ -105,7 +105,7 @@ function on a `QuicSocket` as in the example below:
 const { createSocket } = require('quic');
 
 // Create a QuicSocket associated with localhost and port 1234
-const socket = createSocket({ port: 1234 });
+const socket = createSocket({ endpoint: { port: 1234 } });
 
 const client = socket.connect({
   address: 'example.com',
@@ -246,22 +246,24 @@ added: REPLACEME
 -->
 
 * `options` {Object}
-  * `address` {string} The local address to bind to. This may be an IPv4 or IPv6
-    address or a hostname. If a hostname is given, it will be resolved to an IP
-    address.
   * `client` {Object} A default configuration for QUIC client sessions created
     using `quicsocket.connect()`.
+  * `endpoint` {Object} An object describing the local address to bind to.
+    * `address` {string} The local address to bind to. This may be an IPv4 or
+      IPv6 address or a hostname. If a hostname is given, it will be resolved
+      to an IP address.
+    * `port` {number} The local port to bind to.
+    * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
+      respectively.
+    * `ipv6Only` {boolean}
   * `lookup` {Function} A custom DNS lookup function. Default `dns.lookup()`.
   * `maxConnectionsPerHost` {number} The maximum number of inbound connections
     allowed per remote host. Default: `100`.
-  * `port` {number} The local port to bind to.
   * `qlog` {boolean} Whether to emit ['qlog'][] events for incoming sessions.
     (For outgoing client sessions, set `client.qlog`.) Default: `false`.
   * `retryTokenTimeout` {number} The maximum number of *seconds* for retry token
     validation. Default: `10` seconds.
   * `server` {Object} A default configuration for QUIC server sessions.
-  * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
-     respectively.
   * `validateAddress` {boolean} When `true`, the `QuicSocket` will use explicit
     address validation using a QUIC `RETRY` frame when listening for new server
     sessions. Default: `false`.
@@ -270,10 +272,269 @@ added: REPLACEME
     recently validated addresses are remembered. Setting `validateAddressLRU`
     to `true`, will enable the `validateAddress` option as well. Default:
     `false`.
-  * `ipv6Only` {boolean}
 
 The `quic.createSocket()` function is used to create new `QuicSocket` instances
 associated with a local UDP address.
+
+### Class: QuicEndpoint
+<!-- YAML
+added: REPLACEME
+-->
+
+The `QuicEndpoint` wraps a local UDP binding used by a `QuicSocket` to send
+and receive data. A single `QuicSocket` may be bound to multiple
+`QuicEndpoint` instances at any given time.
+
+Users will not create instances of `QuicEndpoint` directly.
+
+#### quicendpoint.addMembership(address, iface)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `address` {string}
+* `iface` {string}
+
+Tells the kernel to join a multicast group at the given `multicastAddress` and
+`multicastInterface` using the `IP_ADD_MEMBERSHIP` socket option. If the
+`multicastInterface` argument is not specified, the operating system will
+choose one interface and will add membership to it. To add membership to every
+available interface, call `addMembership()` multiple times, once per
+interface.
+
+#### quicendpoint.address
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: Address
+
+An object containing the address information for a bound `QuicEndpoint`.
+
+The object will contain the properties:
+
+* `address` {string} The local IPv4 or IPv6 address to which the `QuicEndpoint` is
+  bound.
+* `family` {string} Either `'IPv4'` or `'IPv6'`.
+* `port` {number} The local IP port to which the `QuicEndpoint` is bound.
+
+If the `QuicEndpoint` is not bound, `quicsocket.address` is an empty object.
+
+#### quicendpoint.bound
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` if the `QuicEndpoint` is bound to the local UDP port.
+
+#### quicendpoint.closing
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` if the `QuicEndpoint` is in the process of closing.
+
+#### quicendpoint.destroy([error])
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes and destroys the `QuicEndpoint` instance making it usuable.
+
+#### quicendpoint.destroyed
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` if the `QuicEndpoint` has been destroyed.
+
+#### quicendpoint.dropMembership(address, iface)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `address` {string}
+* `iface` {string}
+
+Instructs the kernel to leave a multicast group at `multicastAddress` using the
+`IP_DROP_MEMBERSHIP` socket option. This method is automatically called by the
+kernel when the socket is closed or the process terminates, so most apps will
+never have reason to call this.
+
+If `multicastInterface` is not specified, the operating system will attempt to
+drop membership on all valid interfaces.
+
+#### quicendpoint.fd
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {integer}
+
+The system file descriptor the `QuicEndpoint` is bound to. This property
+is not set on Windows.
+
+#### quicendpoint.pending
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` if the `QuicEndpoint` is in the process of binding to
+the local UDP port.
+
+#### quicendpoint.ref()
+<!-- YAML
+added: REPLACEME
+-->
+
+#### quicendpoint.setBroadcast(\[on\])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `on` {boolean}
+
+Sets or clears the `SO_BROADCAST` socket option. When set to `true`, UDP
+packets may be sent to a local interface's broadcast address.
+
+#### quicendpoint.setMulticastInterface(iface)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `iface` {string}
+
+All references to scope in this section are referring to IPv6 Zone Indices,
+which are defined by [RFC 4007][]. In string form, an IP with a scope index
+is written as `'IP%scope'` where scope is an interface name or interface
+number.
+
+Sets the default outgoing multicast interface of the socket to a chosen
+interface or back to system interface selection. The multicastInterface must
+be a valid string representation of an IP from the socket's family.
+
+For IPv4 sockets, this should be the IP configured for the desired physical
+interface. All packets sent to multicast on the socket will be sent on the
+interface determined by the most recent successful use of this call.
+
+For IPv6 sockets, multicastInterface should include a scope to indicate the
+interface as in the examples that follow. In IPv6, individual send calls can
+also use explicit scope in addresses, so only packets sent to a multicast
+address without specifying an explicit scope are affected by the most recent
+successful use of this call.
+
+##### Examples: IPv6 Outgoing Multicast Interface
+<!-- YAML
+added: REPLACEME
+-->
+On most systems, where scope format uses the interface name:
+
+```js
+const socket = quic.createSocket({ endpoint: { type: 'udp6', port: 1234 } });
+
+socket.on('ready', () => {
+  socket.endpoints[0].setMulticastInterface('::%eth1');
+});
+```
+
+On Windows, where scope format uses an interface number:
+
+```js
+const socket = quic.createSocket({ endpoint: { type: 'udp6', port: 1234 } });
+
+socket.on('ready', () => {
+  socket.endpoints[0].setMulticastInterface('::%2');
+});
+```
+
+##### Example: IPv4 Outgoing Multicast Interface
+<!-- YAML
+added: REPLACEME
+-->
+All systems use an IP of the host on the desired physical interface:
+
+```js
+const socket = quic.createSocket({ endpoint: { type: 'udp4', port: 1234 } });
+
+socket.on('ready', () => {
+  socket.endpoints[0].setMulticastInterface('10.0.0.2');
+});
+```
+
+##### Call Results
+
+A call on a socket that is not ready to send or no longer open may throw a
+Not running Error.
+
+If multicastInterface can not be parsed into an IP then an `EINVAL` System
+Error is thrown.
+
+On IPv4, if `multicastInterface` is a valid address but does not match any
+interface, or if the address does not match the family then a System Error
+such as `EADDRNOTAVAIL` or `EPROTONOSUP` is thrown.
+
+On IPv6, most errors with specifying or omitting scope will result in the
+socket continuing to use (or returning to) the system's default interface
+selection.
+
+A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`)
+can be used to return control of the sockets default outgoing interface to
+the system for future multicast packets.
+
+#### quicendpoint.setMulticastLoopback(\[on\])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `on` {boolean}
+
+Sets or clears the `IP_MULTICAST_LOOP` socket option. When set to `true`,
+multicast packets will also be received on the local interface.
+
+#### quicendpoint.setMulticastTTL(ttl)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ttl` {number}
+
+Sets the `IP_MULTICAST_TTL` socket option. While TTL generally stands for
+"Time to Live", in this context it specifies the number of IP hops that a
+packet is allowed to travel through, specifically for multicast traffic. Each
+router or gateway that forwards a packet decrements the TTL. If the TTL is
+decremented to `0` by a router, it will not be forwarded.
+
+The argument passed to `setMulticastTTL()` is a number of hops between
+`0` and `255`. The default on most systems is `1` but can vary.
+
+#### quicendpoint.setTTL(ttl)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ttl` {number}
+
+Sets the `IP_TTL` socket option. While TTL generally stands for "Time to Live",
+in this context it specifies the number of IP hops that a packet is allowed to
+travel through. Each router or gateway that forwards a packet decrements the
+TTL. If the TTL is decremented to `0` by a router, it will not be forwarded.
+Changing TTL values is typically done for network probes or when multicasting.
+
+The argument to `setTTL()` is a number of hops between `1` and `255`.
+The default on most systems is `64` but can vary.
+
+#### quicendpoint.unref()
+<!-- YAML
+added: REPLACEME
+-->
 
 ### Class: QuicSession extends EventEmitter
 <!-- YAML
@@ -1001,38 +1262,22 @@ added: REPLACEME
 
 Emitted when a new `QuicServerSession` has been created.
 
-#### quicsocket.addMembership(address, iface)
+#### quicsocket.addEndpoint(options)
 <!-- YAML
 added: REPLACEME
 -->
 
-* `address` {string}
-* `iface` {string}
+* `options`: {Object} An object describing the local address to bind to.
+  * `address` {string} The local address to bind to. This may be an IPv4 or
+    IPv6 address or a hostname. If a hostname is given, it will be resolved
+    to an IP address.
+  * `port` {number} The local port to bind to.
+  * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
+    respectively.
+  * `ipv6Only` {boolean}
+ * Returns: {QuicEndpoint}
 
-Tells the kernel to join a multicast group at the given `multicastAddress` and
-`multicastInterface` using the `IP_ADD_MEMBERSHIP` socket option. If the
-`multicastInterface` argument is not specified, the operating system will
-choose one interface and will add membership to it. To add membership to every
-available interface, call `quicsocket.addMembership()` multiple times, once per
-interface.
-
-#### quicsocket.address
-<!-- YAML
-added: REPLACEME
--->
-
-* Type: Address
-
-An object containing the address information for a bound `QuicSocket`.
-
-The object will contain the properties:
-
-* `address` {string} The local IPv4 or IPv6 address to which the `QuicSocket` is
-  bound.
-* `family` {string} Either `'IPv4'` or `'IPv6'`.
-* `port` {number} The local IP port to which the `QuicSocket` is bound.
-
-If the `QuicSocket` is not bound, `quicsocket.address` is an empty object.
+Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance.
 
 #### quicsocket.bound
 <!-- YAML
@@ -1239,22 +1484,6 @@ added: REPLACEME
 
 Will be `true` if the `QuicSocket` has been destroyed.
 
-#### quicsocket.dropMembership(address, iface)
-<!-- YAML
-added: REPLACEME
--->
-
-* `address` {string}
-* `iface` {string}
-
-Instructs the kernel to leave a multicast group at `multicastAddress` using the
-`IP_DROP_MEMBERSHIP` socket option. This method is automatically called by the
-kernel when the socket is closed or the process terminates, so most apps will
-never have reason to call this.
-
-If `multicastInterface` is not specified, the operating system will attempt to
-drop membership on all valid interfaces.
-
 #### quicsocket.duration
 <!-- YAML
 added: REPLACEME
@@ -1264,15 +1493,14 @@ added: REPLACEME
 
 A `BitInt` representing the length of time this `QuicSocket` has been active,
 
-#### quicsocket.fd
+#### quicsocket.endpoints
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {integer}
+* Type: {QuicEndpoint[]}
 
-The system file descriptor the `QuicSocket` is bound to. This property
-is not set on Windows.
+An array of `QuicEndpoint` instances associated with the `QuicSocket`.
 
 #### quicsocket.listen(\[options\]\[, callback\])
 <!-- YAML
@@ -1437,16 +1665,6 @@ Set to `true` if the socket is not yet bound to the local UDP port.
 added: REPLACEME
 -->
 
-#### quicsocket.setBroadcast(\[on\])
-<!-- YAML
-added: REPLACEME
--->
-
-* `on` {boolean}
-
-Sets or clears the `SO_BROADCAST` socket option. When set to `true`, UDP
-packets may be sent to a local interface's broadcast address.
-
 #### quicsocket.serverSessions
 <!-- YAML
 added: REPLACEME
@@ -1474,116 +1692,6 @@ by artificially dropping received or transmitted packets.
 
 This method is *not* to be used in production applications.
 
-#### quicsocket.setMulticastLoopback(\[on\])
-<!-- YAML
-added: REPLACEME
--->
-
-* `on` {boolean}
-
-Sets or clears the `IP_MULTICAST_LOOP` socket option. When set to `true`,
-multicast packets will also be received on the local interface.
-
-#### quicsocket.setMulticastInterface(iface)
-<!-- YAML
-added: REPLACEME
--->
-
-* `iface` {string}
-
-All references to scope in this section are referring to IPv6 Zone Indices,
-which are defined by [RFC 4007][]. In string form, an IP with a scope index
-is written as `'IP%scope'` where scope is an interface name or interface
-number.
-
-Sets the default outgoing multicast interface of the socket to a chosen
-interface or back to system interface selection. The multicastInterface must
-be a valid string representation of an IP from the socket's family.
-
-For IPv4 sockets, this should be the IP configured for the desired physical
-interface. All packets sent to multicast on the socket will be sent on the
-interface determined by the most recent successful use of this call.
-
-For IPv6 sockets, multicastInterface should include a scope to indicate the
-interface as in the examples that follow. In IPv6, individual send calls can
-also use explicit scope in addresses, so only packets sent to a multicast
-address without specifying an explicit scope are affected by the most recent
-successful use of this call.
-
-##### Examples: IPv6 Outgoing Multicast Interface
-<!-- YAML
-added: REPLACEME
--->
-On most systems, where scope format uses the interface name:
-
-```js
-const socket = quic.createSocket({ type: 'udp6', port: 1234 });
-
-socket.on('ready', () => {
-  socket.setMulticastInterface('::%eth1');
-});
-```
-
-On Windows, where scope format uses an interface number:
-
-```js
-const socket = quic.createSocket({ type: 'udp6', port: 1234 });
-
-socket.on('ready', () => {
-  socket.setMulticastInterface('::%2');
-});
-```
-
-##### Example: IPv4 Outgoing Multicast Interface
-<!-- YAML
-added: REPLACEME
--->
-All systems use an IP of the host on the desired physical interface:
-
-```js
-const socket = quic.createSocket({ type: 'udp4', port: 1234 });
-
-socket.on('ready', () => {
-  socket.setMulticastInterface('10.0.0.2');
-});
-```
-
-##### Call Results
-
-A call on a socket that is not ready to send or no longer open may throw a
-Not running Error.
-
-If multicastInterface can not be parsed into an IP then an `EINVAL` System
-Error is thrown.
-
-On IPv4, if `multicastInterface` is a valid address but does not match any
-interface, or if the address does not match the family then a System Error
-such as `EADDRNOTAVAIL` or `EPROTONOSUP` is thrown.
-
-On IPv6, most errors with specifying or omitting scope will result in the
-socket continuing to use (or returning to) the system's default interface
-selection.
-
-A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`)
-can be used to return control of the sockets default outgoing interface to
-the system for future multicast packets.
-
-#### quicsocket.setMulticastTTL(ttl)
-<!-- YAML
-added: REPLACEME
--->
-
-* `ttl` {number}
-
-Sets the `IP_MULTICAST_TTL` socket option. While TTL generally stands for
-"Time to Live", in this context it specifies the number of IP hops that a
-packet is allowed to travel through, specifically for multicast traffic. Each
-router or gateway that forwards a packet decrements the TTL. If the TTL is
-decremented to `0` by a router, it will not be forwarded.
-
-The argument passed to `socket.setMulticastTTL()` is a number of hops between
-`0` and `255`. The default on most systems is `1` but can vary.
-
 #### quicsocket.setServerBusy(\[on\])
 <!-- YAML
 added: REPLACEME
@@ -1596,22 +1704,6 @@ Calling `setServerBusy()` or `setServerBusy(true)` will tell the `QuicSocket`
 to reject all new incoming connection requests using the `SERVER_BUSY` QUIC
 error code. To begin receiving connections again, disable busy mode by calling
 `setServerBusy(false)`.
-
-#### quicsocket.setTTL(ttl)
-<!-- YAML
-added: REPLACEME
--->
-
-* `ttl` {number}
-
-Sets the `IP_TTL` socket option. While TTL generally stands for "Time to Live",
-in this context it specifies the number of IP hops that a packet is allowed to
-travel through. Each router or gateway that forwards a packet decrements the
-TTL. If the TTL is decremented to `0` by a router, it will not be forwarded.
-Changing TTL values is typically done for network probes or when multicasting.
-
-The argument to `socket.setTTL()` is a number of hops between `1` and `255`.
-The default on most systems is `64` but can vary.
 
 #### quicsocket.statelessResetCount
 <!-- YAML
