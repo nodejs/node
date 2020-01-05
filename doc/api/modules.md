@@ -1033,6 +1033,85 @@ import('fs').then((esmFS) => {
 });
 ```
 
+## Source Map V3 Support
+
+<!--introduced_in=REPLACEME-->
+
+> Stability: 1 - Experimental
+
+Helpers for for interacting with the source map cache. This cache is
+populated when source map parsing is enabled and
+[source map include directives][] are found in a modules' footer.
+
+To enable source map parsing, Node.js must be run with the flag
+[`--enable-source-maps`][], or with code coverage enabled by setting
+[`NODE_V8_COVERAGE=dir`][].
+
+```js
+const { findSourceMap, SourceMap } = require('module');
+```
+
+### `module.findSourceMap(path[, error])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string}
+* `error` {Error}
+* Returns: {module.SourceMap}
+
+`path` is the resolved path for the file for which a corresponding source map
+should be fetched.
+
+The `error` instance should be passed as the second parameter to `findSourceMap`
+in exceptional flows, e.g., when an overridden
+[`Error.prepareStackTrace(error, trace)`][] is invoked. Modules are not added to
+the module cache until they are successfully loaded, in these cases source maps
+will be associated with the `error` instance along with the `path`.
+
+### Class: `module.SourceMap`
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `new SourceMap(payload)`
+
+* `payload` {Object}
+
+Creates a new `sourceMap` instance.
+
+`payload` is an object with keys matching the [Source Map V3 format][]:
+
+* `file`: {string}
+* `version`: {number}
+* `sources`: {string[]}
+* `sourcesContent`: {string[]}
+* `names`: {string[]}
+* `mappings`: {string}
+* `sourceRoot`: {string}
+
+#### `sourceMap.payload`
+
+* Returns: {Object}
+
+Getter for the payload used to construct the [`SourceMap`][] instance.
+
+#### `sourceMap.findEntry(lineNumber, columnNumber)`
+
+* `lineNumber` {number}
+* `columnNumber` {number}
+* Returns: {Object}
+
+Given a line number and column number in the generated source file, returns
+an object representing the position in the original file. The object returned
+consists of the following keys:
+
+* generatedLine: {number}
+* generatedColumn: {number}
+* originalSource: {string}
+* originalLine: {number}
+* originalColumn: {number}
+
 [GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
@@ -1046,3 +1125,9 @@ import('fs').then((esmFS) => {
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper
 [native addons]: addons.html
+[source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
+[`--enable-source-maps`]: cli.html#cli_enable_source_maps
+[`NODE_V8_COVERAGE=dir`]: cli.html#cli_node_v8_coverage_dir
+[`Error.prepareStackTrace(error, trace)`]: https://v8.dev/docs/stack-trace-api#customizing-stack-traces
+[`SourceMap`]: modules.html#modules_class_module_sourcemap
+[Source Map V3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
