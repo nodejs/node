@@ -495,7 +495,8 @@ added: v11.4.0
 
 * {boolean}
 
-Is `true` if it is safe to call [`writable.write()`][stream-write].
+Is `true` if it is safe to call [`writable.write()`][stream-write], which means
+the stream has not been destroyed, errored or ended.
 
 ##### `writable.writableEnded`
 <!-- YAML
@@ -1134,7 +1135,8 @@ added: v11.4.0
 
 * {boolean}
 
-Is `true` if it is safe to call [`readable.read()`][stream-read].
+Is `true` if it is safe to call [`readable.read()`][stream-read], which means
+the stream has not been destroyed or emitted `'error'` or `'end'`.
 
 ##### `readable.readableEncoding`
 <!-- YAML
