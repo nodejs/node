@@ -41,16 +41,6 @@ constexpr int NGTCP2_CRYPTO_TOKEN_SECRETLEN = 32;
 constexpr int NGTCP2_CRYPTO_TOKEN_KEYLEN = 32;
 constexpr int NGTCP2_CRYPTO_TOKEN_IVLEN = 32;
 
-using InitialSecret = std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN>;
-using InitialKey = std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN>;
-using InitialIV = std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_IVLEN>;
-using SessionSecret = std::array<uint8_t, NGTCP2_CRYPTO_SECRETLEN>;
-using SessionKey = std::array<uint8_t, NGTCP2_CRYPTO_KEYLEN>;
-using SessionIV = std::array<uint8_t, NGTCP2_CRYPTO_IVLEN>;
-using TokenSecret = std::array<uint8_t, NGTCP2_CRYPTO_TOKEN_SECRETLEN>;
-using TokenKey = std::array<uint8_t, NGTCP2_CRYPTO_TOKEN_KEYLEN>;
-using TokenIV = std::array<uint8_t, NGTCP2_CRYPTO_TOKEN_IVLEN>;
-
 constexpr char QUIC_CLIENT_EARLY_TRAFFIC_SECRET[] =
     "QUIC_CLIENT_EARLY_TRAFFIC_SECRET";
 constexpr char QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET[] =
@@ -70,16 +60,16 @@ bool DeriveTokenKey(
     const uint8_t* rand_data,
     size_t rand_datalen,
     const ngtcp2_crypto_ctx& ctx,
-    const RetryTokenSecret& token_secret) {
-  TokenSecret secret;
+    const uint8_t* token_secret) {
+  uint8_t secret[NGTCP2_CRYPTO_TOKEN_SECRETLEN];
 
   return
       NGTCP2_OK(ngtcp2_crypto_hkdf_extract(
-          secret.data(),
-          secret.size(),
+          secret,
+          NGTCP2_CRYPTO_TOKEN_SECRETLEN,
           &ctx.md,
-          token_secret.data(),
-          token_secret.size(),
+          token_secret,
+          TOKEN_SECRETLEN,
           rand_data,
           rand_datalen)) &&
       NGTCP2_OK(ngtcp2_crypto_derive_packet_protection_key(
@@ -88,8 +78,8 @@ bool DeriveTokenKey(
           nullptr,
           &ctx.aead,
           &ctx.md,
-          secret.data(),
-          secret.size()));
+          secret,
+          NGTCP2_CRYPTO_TOKEN_SECRETLEN));
 }
 
 void GenerateRandData(uint8_t* buf, size_t len) {
@@ -113,7 +103,7 @@ void GenerateRandData(uint8_t* buf, size_t len) {
 
 bool GenerateResetToken(
     uint8_t* token,
-   const ResetTokenSecret& secret,
+    const uint8_t* secret,
     const ngtcp2_cid* cid) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -121,28 +111,22 @@ bool GenerateResetToken(
       token,
       NGTCP2_STATELESS_RESET_TOKENLEN,
       &ctx.md,
-      secret.data(),
-      secret.size(),
+      secret,
+      NGTCP2_STATELESS_RESET_TOKENLEN,
       cid->data,
       cid->datalen));
 }
 
-// The Retry Token is an encrypted token that is sent to the client
-// by the server as part of the path validation flow. The plaintext
-// format within the token is opaque and only meaningful the server.
-// We can structure it any way we want. It needs to:
-//   * be hard to guess
-//   * be time limited
-//   * be specific to the client address
-//   * be specific to the original cid
-//   * contain random data.
 bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
     const sockaddr* addr,
     const ngtcp2_cid* ocid,
-    const RetryTokenSecret& token_secret) {
+    const uint8_t* token_secret) {
   std::array<uint8_t, 4096> plaintext;
+  uint8_t rand_data[TOKEN_RAND_DATALEN];
+  uint8_t token_key[NGTCP2_CRYPTO_TOKEN_KEYLEN];
+  uint8_t token_iv[NGTCP2_CRYPTO_TOKEN_IVLEN];
 
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -157,16 +141,12 @@ bool GenerateRetryToken(
   p = std::copy_n(reinterpret_cast<uint8_t*>(&now), sizeof(now), p);
   p = std::copy_n(ocid->data, ocid->datalen, p);
 
-  std::array<uint8_t, TOKEN_RAND_DATALEN> rand_data;
-  TokenKey token_key;
-  TokenIV token_iv;
-
-  GenerateRandData(rand_data.data(), TOKEN_RAND_DATALEN);
+  GenerateRandData(rand_data, TOKEN_RAND_DATALEN);
 
   if (!DeriveTokenKey(
-          token_key.data(),
-          token_iv.data(),
-          rand_data.data(),
+          token_key,
+          token_iv,
+          rand_data,
           TOKEN_RAND_DATALEN,
           ctx,
           token_secret)) {
@@ -179,8 +159,8 @@ bool GenerateRetryToken(
           &ctx.aead,
           plaintext.data(),
           plaintextlen,
-          token_key.data(),
-          token_iv.data(),
+          token_key,
+          token_iv,
           ivlen,
           reinterpret_cast<const uint8_t *>(addr),
           addrlen))) {
@@ -188,19 +168,22 @@ bool GenerateRetryToken(
   }
 
   *tokenlen = plaintextlen + ngtcp2_crypto_aead_taglen(&ctx.aead);
-  memcpy(token + (*tokenlen), rand_data.data(), rand_data.size());
-  *tokenlen += rand_data.size();
+  memcpy(token + (*tokenlen), rand_data, TOKEN_RAND_DATALEN);
+  *tokenlen += TOKEN_RAND_DATALEN;
   return true;
 }
 
 // True if the received retry token is invalid.
 bool InvalidRetryToken(
-    Environment* env,
-    ngtcp2_cid* ocid,
-    const ngtcp2_pkt_hd* hd,
+    const uint8_t* token,
+    size_t tokenlen,
     const sockaddr* addr,
-    const RetryTokenSecret& token_secret,
+    ngtcp2_cid* ocid,
+    const uint8_t* token_secret,
     uint64_t verification_expiration) {
+
+  if (tokenlen < TOKEN_RAND_DATALEN)
+    return true;
 
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -208,19 +191,16 @@ bool InvalidRetryToken(
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(&ctx.aead);
   const size_t addrlen = SocketAddress::GetLength(addr);
 
-  if (hd->tokenlen < TOKEN_RAND_DATALEN)
-    return true;
+  size_t ciphertextlen = tokenlen - TOKEN_RAND_DATALEN;
+  const uint8_t* ciphertext = token;
+  const uint8_t* rand_data = token + ciphertextlen;
 
-  uint8_t* rand_data = hd->token + hd->tokenlen - TOKEN_RAND_DATALEN;
-  uint8_t* ciphertext = hd->token;
-  size_t ciphertextlen = hd->tokenlen - TOKEN_RAND_DATALEN;
-
-  TokenKey token_key;
-  TokenIV token_iv;
+  uint8_t token_key[NGTCP2_CRYPTO_TOKEN_KEYLEN];
+  uint8_t token_iv[NGTCP2_CRYPTO_TOKEN_IVLEN];
 
   if (!DeriveTokenKey(
-          token_key.data(),
-          token_iv.data(),
+          token_key,
+          token_iv,
           rand_data,
           TOKEN_RAND_DATALEN,
           ctx,
@@ -235,8 +215,8 @@ bool InvalidRetryToken(
           &ctx.aead,
           ciphertext,
           ciphertextlen,
-          token_key.data(),
-          token_iv.data(),
+          token_key,
+          token_iv,
           ivlen,
           reinterpret_cast<const uint8_t*>(addr), addrlen))) {
     return true;
@@ -730,12 +710,13 @@ bool SetCryptoSecrets(
     const uint8_t* rx_secret,
     const uint8_t* tx_secret,
     size_t secretlen) {
-  SessionKey rx_key;
-  SessionIV rx_iv;
-  SessionKey rx_hp;
-  SessionKey tx_key;
-  SessionIV tx_iv;
-  SessionKey tx_hp;
+
+  uint8_t rx_key[NGTCP2_CRYPTO_KEYLEN];
+  uint8_t rx_hp[NGTCP2_CRYPTO_KEYLEN];
+  uint8_t tx_key[NGTCP2_CRYPTO_KEYLEN];
+  uint8_t tx_hp[NGTCP2_CRYPTO_KEYLEN];
+  uint8_t rx_iv[NGTCP2_CRYPTO_IVLEN];
+  uint8_t tx_iv[NGTCP2_CRYPTO_IVLEN];
 
   QuicCryptoContext* ctx = session->CryptoContext();
   SSL* ssl = ctx->ssl();
@@ -743,12 +724,12 @@ bool SetCryptoSecrets(
   if (NGTCP2_ERR(ngtcp2_crypto_derive_and_install_key(
           session->Connection(),
           ssl,
-          rx_key.data(),
-          rx_iv.data(),
-          rx_hp.data(),
-          tx_key.data(),
-          tx_iv.data(),
-          tx_hp.data(),
+          rx_key,
+          rx_iv,
+          rx_hp,
+          tx_key,
+          tx_iv,
+          tx_hp,
           level,
           rx_secret,
           tx_secret,
@@ -799,26 +780,26 @@ bool SetCryptoSecrets(
 bool DeriveAndInstallInitialKey(
     QuicSession* session,
     const ngtcp2_cid* dcid) {
-  InitialSecret initial_secret;
-  InitialSecret rx_secret;
-  InitialSecret tx_secret;
-  InitialKey rx_key;
-  InitialIV rx_iv;
-  InitialKey rx_hp;
-  InitialKey tx_key;
-  InitialIV tx_iv;
-  InitialKey tx_hp;
+  uint8_t initial_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t rx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t tx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t rx_key[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t tx_key[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t rx_hp[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t tx_hp[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t rx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
+  uint8_t tx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
   return NGTCP2_OK(ngtcp2_crypto_derive_and_install_initial_key(
       session->Connection(),
-      rx_secret.data(),
-      tx_secret.data(),
-      initial_secret.data(),
-      rx_key.data(),
-      rx_iv.data(),
-      rx_hp.data(),
-      tx_key.data(),
-      tx_iv.data(),
-      tx_hp.data(),
+      rx_secret,
+      tx_secret,
+      initial_secret,
+      rx_key,
+      rx_iv,
+      rx_hp,
+      tx_key,
+      tx_iv,
+      tx_hp,
       dcid,
       session->CryptoContext()->Side()));
 }

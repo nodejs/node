@@ -39,9 +39,6 @@ constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
 constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 10 * 10000000000;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10ULL;
 
-using RetryTokenSecret = std::array<uint8_t, TOKEN_SECRETLEN>;
-using ResetTokenSecret = std::array<uint8_t, NGTCP2_STATELESS_RESET_TOKENLEN>;
-
 enum SelectPreferredAddressPolicy : int {
   // Ignore the server-provided preferred address
   QUIC_PREFERRED_ADDRESS_IGNORE,

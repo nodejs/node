@@ -258,20 +258,18 @@ QuicSocket::QuicSocket(
 
   Debug(this, "New QuicSocket created.");
 
-  EntropySource(token_secret_.data(), token_secret_.size());
+  EntropySource(token_secret_, TOKEN_SECRETLEN);
   socket_stats_.created_at = uv_hrtime();
 
   // Set the session reset secret to the one provided or random.
   // Note that a random secret is going to make it exceedingly
   // difficult for the session reset token to be useful.
   if (session_reset_secret != nullptr) {
-    memcpy(reset_token_secret_.data(),
+    memcpy(reset_token_secret_,
            session_reset_secret,
-           reset_token_secret_.size());
+           NGTCP2_STATELESS_RESET_TOKENLEN);
   } else {
-    EntropySource(
-        reset_token_secret_.data(),
-        reset_token_secret_.size());
+    EntropySource(reset_token_secret_, NGTCP2_STATELESS_RESET_TOKENLEN);
   }
 
   USE(wrap->DefineOwnProperty(
@@ -797,10 +795,10 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     if (!IsValidatedAddress(remote_addr)) {
       Debug(this, "Performing explicit address validation.");
       if (InvalidRetryToken(
-              env(),
-              &ocid,
-              &hd,
+              hd.token,
+              hd.tokenlen,
               remote_addr,
+              &ocid,
               token_secret_,
               retry_token_expiration_)) {
         Debug(this, "A valid retry token was not found. Sending retry.");

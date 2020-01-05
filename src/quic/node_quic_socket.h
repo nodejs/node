@@ -325,7 +325,7 @@ class QuicSocket : public AsyncWrap,
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
 
-  const ResetTokenSecret& GetSessionResetSecret() {
+  const uint8_t* GetSessionResetSecret() {
     return reset_token_secret_;
   }
 
@@ -460,8 +460,9 @@ class QuicSocket : public AsyncWrap,
   std::string server_alpn_;
   std::unordered_map<std::string, BaseObjectPtr<QuicSession>> sessions_;
   std::unordered_map<std::string, std::string> dcid_to_scid_;
-  RetryTokenSecret token_secret_;
-  ResetTokenSecret reset_token_secret_;
+
+  uint8_t token_secret_[TOKEN_SECRETLEN];
+  uint8_t reset_token_secret_[NGTCP2_STATELESS_RESET_TOKENLEN];
 
   // Counts the number of active connections per remote
   // address. A custom std::hash specialization for

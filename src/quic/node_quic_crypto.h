@@ -53,24 +53,46 @@ bool DeriveAndInstallInitialKey(
     QuicSession* session,
     const ngtcp2_cid* dcid);
 
+// Generates a stateless reset token using HKDF with the
+// cid and token secret as input. The token secret is
+// either provided by user code when a QuicSocket is
+// created or is generated randomly.
+//
+// QUIC leaves the generation of stateless session tokens
+// up to the implementation to figure out. The idea, however,
+// is that it ought to be possible to generate a stateless
+// reset token reliably even when all state for a connection
+// has been lost. We use the cid as it's the only reliably
+// consistent bit of data we have when a session is destroyed.
 bool GenerateResetToken(
     uint8_t* token,
-    const ResetTokenSecret& secret,
+    const uint8_t* secret,
     const ngtcp2_cid* cid);
 
+// The Retry Token is an encrypted token that is sent to the client
+// by the server as part of the path validation flow. The plaintext
+// format within the token is opaque and only meaningful the server.
+// We can structure it any way we want. It needs to:
+//   * be hard to guess
+//   * be time limited
+//   * be specific to the client address
+//   * be specific to the original cid
+//   * contain random data.
 bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
     const sockaddr* addr,
     const ngtcp2_cid* ocid,
-    const RetryTokenSecret& token_secret);
+    const uint8_t* token_secret);
 
+// Verifies the validity of a retry token. Returns true if the
+// token is not valid, false otherwise.
 bool InvalidRetryToken(
-    Environment* env,
-    ngtcp2_cid* ocid,
-    const ngtcp2_pkt_hd* hd,
+    const uint8_t* token,
+    size_t tokenlen,
     const sockaddr* addr,
-    const RetryTokenSecret& token_secret,
+    ngtcp2_cid* ocid,
+    const uint8_t* token_secret,
     uint64_t verification_expiration);
 
 int VerifyHostnameIdentity(SSL* ssl, const char* hostname);
