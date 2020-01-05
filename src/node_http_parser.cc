@@ -190,8 +190,7 @@ class Parser : public AsyncWrap, public StreamListener {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Value> argv[0];
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 0, argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
