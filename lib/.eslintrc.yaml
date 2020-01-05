@@ -13,6 +13,8 @@ rules:
       message: "Use `const { Array } = primordials;` instead of the global."
     - name: BigInt
       message: "Use `const { BigInt } = primordials;` instead of the global."
+    - name: BigUint64Array
+      message: "Use `const { BigUint64Array } = primordials;` instead of the global."
     - name: Boolean
       message: "Use `const { Boolean } = primordials;` instead of the global."
     - name: Error
