@@ -1,4 +1,4 @@
-#include "quic/node_quic_buffer.h"
+#include "quic/node_quic_buffer-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 
@@ -7,6 +7,7 @@
 #include <vector>
 
 using node::quic::QuicBuffer;
+using node::quic::QuicBufferChunk;
 
 class TestBuffer {
  public:
@@ -283,15 +284,12 @@ TEST(QuicBuffer, Append) {
   CHECK_EQ(2, buffer2.Size());
 }
 
-TEST(QuicBuffer, MallocedBuffer) {
-  uint8_t* data = node::Malloc<uint8_t>(100);
-  int count = 0;
-  auto cb = [&](int status) {
-    count++;
-  };
+TEST(QuicBuffer, QuicBufferChunk) {
+  std::unique_ptr<QuicBufferChunk> chunk =
+      std::make_unique<QuicBufferChunk>(100);
 
   QuicBuffer buffer;
-  buffer.Push(node::MallocedBuffer<uint8_t>(data, 100), cb);
+  buffer.Push(std::move(chunk));
   CHECK_EQ(1, buffer.Size());
   CHECK_EQ(100, buffer.Length());
 
@@ -303,19 +301,18 @@ TEST(QuicBuffer, MallocedBuffer) {
   buffer.Consume(50);
   CHECK_EQ(1, buffer.Size());
   CHECK_EQ(50, buffer.Length());
-  CHECK_EQ(0, count);
 
   buffer.Consume(50);
   CHECK_EQ(0, buffer.Size());
   CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(1, count);
 }
 
 TEST(QuicBuffer, Head) {
-  uint8_t* data = node::Malloc<uint8_t>(100);
-  memset(data, 0, 100);
+  std::unique_ptr<QuicBufferChunk> chunk =
+      std::make_unique<QuicBufferChunk>(100);
+  memset(chunk->out(), 0, 100);
   QuicBuffer buffer;
-  buffer.Push(node::MallocedBuffer<uint8_t>(data, 100));
+  buffer.Push(std::move(chunk));
   CHECK_EQ(1, buffer.Size());
 
   // buffer.Head() returns the current read head

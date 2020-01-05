@@ -870,6 +870,7 @@
           'defines': ['NODE_EXPERIMENTAL_QUIC=1'],
           'sources': [
             'src/quic/node_quic_buffer.h',
+            'src/quic/node_quic_buffer-inl.h',
             'src/quic/node_quic_crypto.h',
             'src/quic/node_quic_session.h',
             'src/quic/node_quic_session-inl.h',
@@ -880,6 +881,7 @@
             'src/quic/node_quic_state.h',
             'src/quic/node_quic_default_application.h',
             'src/quic/node_quic_http3_application.h',
+            'src/quic/node_quic_buffer.cc',
             'src/quic/node_quic_crypto.cc',
             'src/quic/node_quic_session.cc',
             'src/quic/node_quic_socket.cc',

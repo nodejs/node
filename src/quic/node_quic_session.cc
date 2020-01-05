@@ -11,7 +11,7 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_mem-inl.h"
-#include "node_quic_buffer.h"
+#include "node_quic_buffer-inl.h"
 #include "node_quic_crypto.h"
 #include "node_quic_session.h"  // NOLINT(build/include_inline)
 #include "node_quic_session-inl.h"
@@ -1193,18 +1193,15 @@ void QuicCryptoContext::WriteHandshake(
         "Writing %d bytes of %s handshake data.",
         datalen,
         crypto_level_name(level));
-  // TODO(jasnell): Find a more efficient way of handling this.
-  // The data does have to be copied because it needs to be
-  // kept around until it is ack'd and the given data is not
-  // persistent.
-  MallocedBuffer<uint8_t> buffer(datalen);
-  memcpy(buffer.data, data, datalen);
+  std::unique_ptr<QuicBufferChunk> buffer =
+      std::make_unique<QuicBufferChunk>(datalen);
+  memcpy(buffer->out(), data, datalen);
   session_->session_stats_.handshake_send_at = uv_hrtime();
   CHECK_EQ(
       ngtcp2_conn_submit_crypto_data(
           session_->Connection(),
           level,
-          buffer.data,
+          buffer->out(),
           datalen), 0);
   handshake_[level].Push(std::move(buffer));
 }
