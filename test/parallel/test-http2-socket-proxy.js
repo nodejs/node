@@ -85,10 +85,14 @@ server.on('stream', common.mustCall(function(stream, headers) {
 
   stream.respond();
 
-  socket.writable = 0;
-  socket.readable = 0;
-  assert.strictEqual(socket.writable, 0);
-  assert.strictEqual(socket.readable, 0);
+  socket.writable = true;
+  socket.readable = true;
+  assert.strictEqual(socket.writable, true);
+  assert.strictEqual(socket.readable, true);
+  socket.writable = false;
+  socket.readable = false;
+  assert.strictEqual(socket.writable, false);
+  assert.strictEqual(socket.readable, false);
 
   stream.end();
 
