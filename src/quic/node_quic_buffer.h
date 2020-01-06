@@ -75,12 +75,12 @@ class QuicBufferChunk : public MemoryRetainer {
 // consumed, the corresponding Done callback will be invoked, allowing
 // any memory to be freed up.
 //
-// Use SeekHead(n) to advance the read head_ forward n positions.
+// Use Seek(n) to advance the read head_ forward n positions.
 //
 // DrainInto() will drain the remaining QuicBufferChunk instances
 // into a vector and will advance the read head_ to the end of the
 // QuicBuffer. The function will return the number of positions drained
-// which would then be passed to SeekHead(n) to advance the read head.
+// which would then be passed to Seek(n) to advance the read head.
 //
 // QuicBuffer supports move assignment that will completely reset the source.
 // That is,
@@ -105,10 +105,7 @@ class QuicBuffer : public MemoryRetainer {
   QuicBuffer(QuicBuffer&& src) noexcept
     : head_(src.head_),
       tail_(src.tail_),
-      size_(src.size_),
-      count_(src.count_),
-      length_(src.length_),
-      rlength_(src.rlength_) {
+      length_(src.length_) {
     root_ = std::move(src.root_);
     Reset(&src);
   }
@@ -145,14 +142,6 @@ class QuicBuffer : public MemoryRetainer {
   // The total buffered bytes
   size_t length() const { return length_; }
 
-  size_t remaining_length() const { return rlength_; }
-
-  // The total number of buffers
-  size_t size() const { return size_; }
-
-  // The number of buffers remaining to be read
-  size_t read_remaining() const { return count_; }
-
   // Drain the remaining buffers into the given vector.
   // The function will return the number of positions the
   // read head_ can be advanced.
@@ -176,14 +165,9 @@ class QuicBuffer : public MemoryRetainer {
 
   // Returns the current read head or an empty buffer if
   // we're empty
-  inline uv_buf_t Head();
+  inline uv_buf_t head();
 
-  // Moves the current read head forward the given
-  // number of buffers. If amount is greater than
-  // the number of buffers remaining, move to the
-  // end, and return the actual number advanced.
-  size_t SeekHead(size_t amount = 1);
-  void SeekHeadOffset(ssize_t amount);
+  void Seek(ssize_t amount);
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("root", root_);
@@ -202,10 +186,7 @@ class QuicBuffer : public MemoryRetainer {
   std::unique_ptr<QuicBufferChunk> root_;
   QuicBufferChunk* head_ = nullptr;  // Current Read Position
   QuicBufferChunk* tail_ = nullptr;  // Current Write Position
-  size_t size_ = 0;
-  size_t count_ = 0;
   size_t length_ = 0;
-  size_t rlength_ = 0;
 
   friend class QuicBufferChunk;
 };

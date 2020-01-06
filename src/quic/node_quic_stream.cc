@@ -236,7 +236,7 @@ void QuicStream::AckedDataOffset(uint64_t offset, size_t datalen) {
 
 void QuicStream::Commit(ssize_t amount) {
   CHECK(!is_destroyed());
-  streambuf_.SeekHeadOffset(amount);
+  streambuf_.Seek(amount);
 }
 
 inline void QuicStream::IncrementAvailableOutboundLength(size_t amount) {

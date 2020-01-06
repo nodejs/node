@@ -4,7 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_quic_buffer.h"
-#include "util.h"
+#include "util-inl.h"
 #include "uv.h"
 
 namespace node {
@@ -47,7 +47,7 @@ size_t QuicBuffer::Cancel(int status) {
   return remaining;
 }
 
-uv_buf_t QuicBuffer::Head() {
+uv_buf_t QuicBuffer::head() {
   if (head_ == nullptr)
     return uv_buf_init(nullptr, 0);
   return uv_buf_init(
@@ -62,12 +62,10 @@ void QuicBuffer::Push(uv_buf_t buf, done_cb done) {
 }
 
 void QuicBuffer::Reset(QuicBuffer* buffer) {
+  CHECK(!buffer->root_);
   buffer->head_ = nullptr;
   buffer->tail_ = nullptr;
-  buffer->size_ = 0;
   buffer->length_ = 0;
-  buffer->rlength_ = 0;
-  buffer->count_ = 0;
 }
 
 size_t QuicBuffer::DrainInto(
