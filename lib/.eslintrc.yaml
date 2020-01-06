@@ -29,6 +29,8 @@ rules:
       message: "Use `const { Int16Array } = primordials;` instead of the global."
     - name: Int32Array
       message: "Use `const { Int32Array } = primordials;` instead of the global."
+    - name: Int8Array
+      message: "Use `const { Int8Array } = primordials;` instead of the global."
     - name: JSON
       message: "Use `const { JSON } = primordials;` instead of the global."
     - name: Map
