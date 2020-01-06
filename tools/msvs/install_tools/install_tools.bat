@@ -38,7 +38,7 @@ echo result of a Chocolatey install. This acceptance occurs whether you know the
 echo license terms or not. Read and understand the license terms of the packages
 echo being installed and their dependencies prior to installation:
 echo - https://chocolatey.org/packages/chocolatey
-echo - https://chocolatey.org/packages/python2
+echo - https://chocolatey.org/packages/python
 echo - https://chocolatey.org/packages/visualstudio2017-workload-vctools
 echo.
 echo This script is provided AS-IS without any warranties of any kind
@@ -52,4 +52,4 @@ pause
 
 cls
 
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command Start-Process '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe' -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); choco upgrade -y python2 visualstudio2017-workload-vctools; Read-Host ''Type ENTER to exit'' ' -Verb RunAs
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command Start-Process '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe' -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); choco upgrade -y python visualstudio2017-workload-vctools; Read-Host ''Type ENTER to exit'' ' -Verb RunAs
