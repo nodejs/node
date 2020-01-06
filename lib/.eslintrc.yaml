@@ -41,6 +41,8 @@ rules:
       message: "Use `const { Set } = primordials;` instead of the global."
     - name: Symbol
       message: "Use `const { Symbol } = primordials;` instead of the global."
+    - name: Uint16Array
+      message: "Use `const { Uint16Array } = primordials;` instead of the global."
     - name: WeakMap
       message: "Use `const { WeakMap } = primordials;` instead of the global."
     - name: WeakSet
