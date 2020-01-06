@@ -78,7 +78,7 @@ bool DefaultApplication::SendPendingData() {
   // Prioritization is left entirely up to the application layer in QUIC.
   // HTTP/3, for instance, drops prioritization entirely.
   Debug(Session(), "Default QUIC Application sending pending data");
-  for (const auto& stream : *(Session()->GetStreams())) {
+  for (const auto& stream : Session()->GetStreams()) {
     if (!SendStreamData(stream.second.get()))
       return false;
 

@@ -13,7 +13,6 @@
 #include "node_mem-inl.h"
 #include "node_quic_buffer-inl.h"
 #include "node_quic_crypto.h"
-#include "node_quic_session.h"  // NOLINT(build/include_inline)
 #include "node_quic_session-inl.h"
 #include "node_quic_socket.h"
 #include "node_quic_stream.h"
@@ -43,7 +42,6 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
-using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
@@ -55,9 +53,17 @@ using v8::Value;
 
 namespace quic {
 
+namespace {
+void SetConfig(Environment* env, int idx, uint64_t* val) {
+  AliasedFloat64Array& buffer = env->quic_state()->quicsessionconfig_buffer;
+  uint64_t flags = static_cast<uint64_t>(buffer[IDX_QUIC_SESSION_CONFIG_COUNT]);
+  if (flags & (1ULL << idx))
+    *val = static_cast<uint64_t>(buffer[idx]);
+}
+
 // Forwards detailed(verbose) debugging information from ngtcp2. Enabled using
 // the NODE_DEBUG_NATIVE=NGTCP2_DEBUG category.
-static void Ngtcp2DebugLog(void* user_data, const char* fmt, ...) {
+void Ngtcp2DebugLog(void* user_data, const char* fmt, ...) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   va_list ap;
   va_start(ap, fmt);
@@ -66,6 +72,18 @@ static void Ngtcp2DebugLog(void* user_data, const char* fmt, ...) {
   Debug(session->env(), DebugCategory::NGTCP2_DEBUG, format, ap);
   va_end(ap);
 }
+
+void CopyPreferredAddress(
+    uint8_t* dest,
+    size_t destlen,
+    uint16_t* port,
+    const sockaddr* addr) {
+  const sockaddr_in* src = reinterpret_cast<const sockaddr_in*>(addr);
+  memcpy(dest, &src->sin_addr, destlen);
+  *port = SocketAddress::GetPort(addr);
+}
+
+}  // namespace
 
 void QuicSessionConfig::ResetToDefaults(Environment* env) {
   ngtcp2_settings_default(this);
@@ -95,15 +113,6 @@ void QuicSessionConfig::ResetToDefaults(Environment* env) {
   transport_params.preferred_address_present = 0;
   transport_params.stateless_reset_token_present = 0;
 }
-
-namespace {
-void SetConfig(Environment* env, int idx, uint64_t* val) {
-  AliasedFloat64Array& buffer = env->quic_state()->quicsessionconfig_buffer;
-  uint64_t flags = static_cast<uint64_t>(buffer[IDX_QUIC_SESSION_CONFIG_COUNT]);
-  if (flags & (1ULL << idx))
-    *val = static_cast<uint64_t>(buffer[idx]);
-}
-}  // namespace
 
 // Sets the QuicSessionConfig using an AliasedBuffer for efficiency.
 void QuicSessionConfig::Set(
@@ -141,71 +150,25 @@ void QuicSessionConfig::Set(
     transport_params.preferred_address_present = 1;
     switch (preferred_addr->sa_family) {
       case AF_INET: {
-        auto& dest = transport_params.preferred_address.ipv4_addr;
-        const sockaddr_in* ipv4 =
-            reinterpret_cast<const sockaddr_in*>(preferred_addr);
-        memcpy(&dest, &ipv4->sin_addr, sizeof(dest));
-        transport_params.preferred_address.ipv4_port =
-            SocketAddress::GetPort(preferred_addr);
+        CopyPreferredAddress(
+            transport_params.preferred_address.ipv4_addr,
+            sizeof(transport_params.preferred_address.ipv4_addr),
+            &transport_params.preferred_address.ipv4_port,
+            preferred_addr);
         break;
       }
       case AF_INET6: {
-        auto& dest = transport_params.preferred_address.ipv6_addr;
-        const sockaddr_in6* ipv6 =
-            reinterpret_cast<const sockaddr_in6*>(preferred_addr);
-        memcpy(&dest, &ipv6->sin6_addr, sizeof(dest));
-        transport_params.preferred_address.ipv6_port =
-            SocketAddress::GetPort(preferred_addr);
+        CopyPreferredAddress(
+            transport_params.preferred_address.ipv6_addr,
+            sizeof(transport_params.preferred_address.ipv6_addr),
+            &transport_params.preferred_address.ipv6_port,
+            preferred_addr);
         break;
       }
       default:
         UNREACHABLE();
     }
   }
-}
-
-void QuicSessionConfig::SetOriginalConnectionID(const ngtcp2_cid* ocid) {
-  if (ocid) {
-    transport_params.original_connection_id = *ocid;
-    transport_params.original_connection_id_present = 1;
-  }
-}
-
-void QuicSessionConfig::GenerateStatelessResetToken(
-    StatelessResetTokenStrategy strategy,
-    QuicSession* session,
-    ngtcp2_cid* cid) {
-  transport_params.stateless_reset_token_present = 1;
-  strategy(
-      session,
-      cid,
-      transport_params.stateless_reset_token,
-      NGTCP2_STATELESS_RESET_TOKENLEN);
-}
-
-void QuicSessionConfig::GeneratePreferredAddressToken(
-    ConnectionIDStrategy connection_id_strategy,
-    StatelessResetTokenStrategy stateless_reset_strategy,
-    QuicSession* session,
-    ngtcp2_cid* pscid) {
-
-  connection_id_strategy(session, pscid, NGTCP2_SV_SCIDLEN);
-  stateless_reset_strategy(
-      session,
-      pscid,
-      transport_params.preferred_address.stateless_reset_token,
-      NGTCP2_STATELESS_RESET_TOKENLEN);
-  transport_params.preferred_address.cid = *pscid;
-}
-
-void QuicSessionConfig::SetQlog(const ngtcp2_qlog_settings& qlog_) {
-  qlog = qlog_;
-}
-
-
-QuicSessionListener::~QuicSessionListener() {
-  if (session_ != nullptr)
-    session_->RemoveListener(this);
 }
 
 void QuicSessionListener::OnKeylog(const char* line, size_t len) {
@@ -218,6 +181,11 @@ void QuicSessionListener::OnClientHello(
     const char* server_name) {
   if (previous_listener_ != nullptr)
     previous_listener_->OnClientHello(alpn, server_name);
+}
+
+QuicSessionListener::~QuicSessionListener() {
+  if (session_ != nullptr)
+    session_->RemoveListener(this);
 }
 
 void QuicSessionListener::OnCert(const char* server_name) {
@@ -762,26 +730,6 @@ void QuicSession::CryptoStatelessResetTokenStrategy(
 # define HAVE_SSL_TRACE 1
 #endif
 
-QuicCryptoContext::QuicCryptoContext(
-    QuicSession* session,
-    SecureContext* ctx,
-    ngtcp2_crypto_side side,
-    uint32_t options) :
-    session_(session),
-    side_(side),
-    options_(options) {
-  ssl_.reset(SSL_new(ctx->ctx_.get()));
-  CHECK(ssl_);
-}
-
-// Cancels and frees any remaining outbound handshake data
-// at each crypto level.
-uint64_t QuicCryptoContext::Cancel() {
-  uint64_t len = handshake_[0].Cancel();
-  len += handshake_[1].Cancel();
-  len += handshake_[2].Cancel();
-  return len;
-}
 
 void QuicCryptoContext::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("initial_crypto", handshake_[0]);
@@ -840,29 +788,6 @@ void QuicCryptoContext::EnableTrace() {
 #endif
 }
 
-std::string QuicCryptoContext::GetOCSPResponse() {
-  return crypto::GetSSLOCSPResponse(ssl());
-}
-
-ngtcp2_crypto_level QuicCryptoContext::GetReadCryptoLevel() {
-  return from_ossl_level(SSL_quic_read_level(ssl()));
-}
-
-ngtcp2_crypto_level QuicCryptoContext::GetWriteCryptoLevel() {
-  return from_ossl_level(SSL_quic_write_level(ssl()));
-}
-
-// TLS Keylogging is enabled per-QuicSession by attaching an handler to the
-// "keylog" event. Each keylog line is emitted to JavaScript where it can
-// be routed to whatever destination makes sense. Typically, this will be
-// to a keylog file that can be consumed by tools like Wireshark to intercept
-// and decrypt QUIC network traffic.
-void QuicCryptoContext::Keylog(const char* line) {
-  if (LIKELY(session_->state_[IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED] == 0))
-    return;
-  session_->Listener()->OnKeylog(line, strlen(line));
-}
-
 // If a 'clientHello' event listener is registered on the JavaScript
 // QuicServerSession object, the STATE_CLIENT_HELLO_ENABLED state
 // will be set and the OnClientHello will cause the 'clientHello'
@@ -908,15 +833,6 @@ int QuicCryptoContext::OnClientHello() {
   // In case it is resolved synchronously, we need the check below.
   return in_client_hello_ ? -1 : 0;
 }
-
-void QuicCryptoContext::OnClientHelloDone() {
-  // Continue the TLS handshake when this function exits
-  // otherwise it will stall and fail.
-  TLSHandshakeScope handshake(this, &in_client_hello_);
-  // Disable the callback at this point so we don't loop continuously
-  session_->state_[IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED] = 0;
-}
-
 
 // The OnCert callback provides an opportunity to prompt the server to
 // perform on OCSP request on behalf of the client (when the client
@@ -1104,32 +1020,6 @@ int QuicCryptoContext::Receive(
   }
 }
 
-// Following a pause in the handshake for OCSP or client hello, we kickstart
-// the handshake again here by triggering ngtcp2 to serialize data.
-void QuicCryptoContext::ResumeHandshake() {
-  // We haven't received any actual new handshake data but calling
-  // this will trigger the handshake to continue.
-  Receive(GetReadCryptoLevel(), 0, nullptr, 0);
-  session_->SendPendingData();
-}
-
-// For 0RTT, this sets the TLS session data from the given buffer.
-bool QuicCryptoContext::SetSession(const unsigned char* data, size_t length) {
-  return crypto::SetTLSSession(ssl(), data, length);
-}
-
-void QuicCryptoContext::SetTLSAlert(int err) {
-  Debug(session_, "TLS Alert [%d]: %s", err, SSL_alert_type_string_long(err));
-  session_->SetLastError(QuicError(QUIC_ERROR_CRYPTO, err));
-}
-
-// Derives and installs the initial keying material for a newly
-// created session.
-bool QuicCryptoContext::SetupInitialKey(const ngtcp2_cid* dcid) {
-  Debug(session_, "Deriving and installing initial keys");
-  return DeriveAndInstallInitialKey(session_, dcid);
-}
-
 // Triggers key update to begin. This will fail and return false
 // if either a previous key update is in progress and has not been
 // confirmed or if the initial handshake has not yet been confirmed.
@@ -1206,12 +1096,6 @@ void QuicCryptoContext::WriteHandshake(
   handshake_[level].Push(std::move(buffer));
 }
 
-std::unique_ptr<QuicPacket> QuicApplication::CreateStreamDataPacket() {
-  return QuicPacket::Create(
-      "stream data",
-      Session()->GetMaxPacketLength());
-}
-
 void QuicApplication::StreamHeaders(
     int64_t stream_id,
     int kind,
@@ -1231,8 +1115,6 @@ void QuicApplication::StreamReset(
     uint64_t app_error_code) {
   Session()->Listener()->OnStreamReset(stream_id, final_size, app_error_code);
 }
-
-QuicApplication::QuicApplication(QuicSession* session) : session_(session) {}
 
 // Determines which QuicApplication variant the QuicSession will be using
 // based on the alpn configured for the application. For now, this is
@@ -1473,14 +1355,6 @@ void QuicSession::RemoveListener(QuicSessionListener* listener) {
   listener->previous_listener_ = nullptr;
 }
 
-// Indicates that the stream is blocked from transmitting any
-// data. The specific handling of this is application specific.
-// By default, we keep track of statistics but leave it up to
-// the application to perform specific handling.
-void QuicSession::StreamDataBlocked(int64_t stream_id) {
-  IncrementStat(1, &session_stats_, &session_stats::block_count);
-}
-
 // The diagnostic_name is used in Debug output.
 std::string QuicSession::diagnostic_name() const {
   return std::string("QuicSession ") +
@@ -1490,7 +1364,7 @@ std::string QuicSession::diagnostic_name() const {
 }
 
 // Locate the QuicStream with the given id or return nullptr
-QuicStream* QuicSession::FindStream(int64_t id) {
+QuicStream* QuicSession::FindStream(int64_t id) const {
   auto it = streams_.find(id);
   if (it == std::end(streams_))
     return nullptr;
@@ -1576,11 +1450,6 @@ void QuicSession::AddStream(BaseObjectPtr<QuicStream> stream) {
   }
 }
 
-// Every QUIC session will have multiple CIDs associated with it.
-void QuicSession::AssociateCID(ngtcp2_cid* cid) {
-  Socket()->AssociateCID(QuicCID(cid), QuicCID(scid_));
-}
-
 // Like the silent close, the immediate close must start with
 // the JavaScript side, first shutting down any existing
 // streams before entering the closing period. Unlike silent
@@ -1605,12 +1474,6 @@ void QuicSession::ImmediateClose() {
   Listener()->OnSessionClose(last_error);
 }
 
-void QuicSession::InitApplication() {
-  Debug(this, "Initializing application handler for ALPN %s",
-        GetALPN().c_str() + 1);
-  application_->Initialize();
-}
-
 // Creates a new stream object and passes it off to the javascript side.
 // This has to be called from within a handlescope/contextscope.
 QuicStream* QuicSession::CreateStream(int64_t stream_id) {
@@ -1622,11 +1485,6 @@ QuicStream* QuicSession::CreateStream(int64_t stream_id) {
   CHECK(stream);
   Listener()->OnStreamReady(stream);
   return stream.get();
-}
-
-void QuicSession::DisassociateCID(const ngtcp2_cid* cid) {
-  if (IsServer())
-    Socket()->DisassociateCID(QuicCID(cid));
 }
 
 // Mark the QuicSession instance destroyed. After this is called,
@@ -1670,66 +1528,6 @@ void QuicSession::Destroy() {
   RemoveFromSocket();
 }
 
-void QuicSession::ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) {
-  Debug(this,
-        "Extending max stream %" PRId64 " data to %" PRIu64,
-        stream_id, max_data);
-  application_->ExtendMaxStreamData(stream_id, max_data);
-}
-
-void QuicSession::ExtendMaxStreamsRemoteUni(uint64_t max_streams) {
-  Debug(this, "Extend remote max unidirectional streams: %" PRIu64,
-        max_streams);
-  application_->ExtendMaxStreamsRemoteUni(max_streams);
-}
-
-void QuicSession::ExtendMaxStreamsRemoteBidi(uint64_t max_streams) {
-  Debug(this, "Extend remote max bidirectional streams: %" PRIu64,
-        max_streams);
-  application_->ExtendMaxStreamsRemoteBidi(max_streams);
-}
-
-void QuicSession::ExtendMaxStreamsUni(uint64_t max_streams) {
-  Debug(this, "Setting max unidirectional streams to %" PRIu64, max_streams);
-  state_[IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI] =
-      static_cast<double>(max_streams);
-}
-
-void QuicSession::ExtendMaxStreamsBidi(uint64_t max_streams) {
-  Debug(this, "Setting max bidirectional streams to %" PRIu64, max_streams);
-  state_[IDX_QUIC_SESSION_STATE_MAX_STREAMS_BIDI] =
-      static_cast<double>(max_streams);
-}
-
-// Extends the stream-level flow control by the given number of bytes.
-void QuicSession::ExtendStreamOffset(QuicStream* stream, size_t amount) {
-  Debug(this, "Extending max stream %" PRId64 " offset by %" PRId64 " bytes",
-        stream->GetID(), amount);
-  ngtcp2_conn_extend_max_stream_offset(
-      Connection(),
-      stream->GetID(),
-      amount);
-}
-
-// Extends the connection-level flow control for the entire session by
-// the given number of bytes.
-void QuicSession::ExtendOffset(size_t amount) {
-  Debug(this, "Extending session offset by %" PRId64 " bytes", amount);
-  ngtcp2_conn_extend_max_offset(Connection(), amount);
-}
-
-// Copies the local transport params into the given struct for serialization.
-void QuicSession::GetLocalTransportParams(ngtcp2_transport_params* params) {
-  CHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  ngtcp2_conn_get_local_transport_params(Connection(), params);
-}
-
-// Gets the QUIC version negotiated for this QuicSession
-uint32_t QuicSession::GetNegotiatedVersion() {
-  CHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  return ngtcp2_conn_get_negotiated_version(Connection());
-}
-
 // Generates and associates a new connection ID for this QuicSession.
 // ngtcp2 will call this multiple times at the start of a new connection
 // in order to build a pool of available CIDs.
@@ -1758,30 +1556,6 @@ void QuicSession::HandleError() {
     SetLastError(QUIC_ERROR_SESSION, NGTCP2_ERR_INTERNAL);
     ImmediateClose();
   }
-}
-
-// The HandshakeCompleted function is called by ngtcp2 once it
-// determines that the TLS Handshake is done. The only thing we
-// need to do at this point is let the javascript side know.
-void QuicSession::HandshakeCompleted() {
-  Debug(this, "Handshake is completed");
-  session_stats_.handshake_completed_at = uv_hrtime();
-  Listener()->OnHandshakeCompleted();
-}
-
-bool QuicSession::IsHandshakeCompleted() {
-  DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  return ngtcp2_conn_get_handshake_completed(Connection());
-}
-
-// When a QuicSession hits the idle timeout, it is to be silently and
-// immediately closed without attempting to send any additional data to
-// the peer. All existing streams are abandoned and closed.
-void QuicSession::OnIdleTimeout() {
-  if (IsFlagSet(QUICSESSION_FLAG_DESTROYED))
-    return;
-  Debug(this, "Idle timeout");
-  return SilentClose();
 }
 
 // The the retransmit libuv timer fires, it will call MaybeTimeout,
@@ -2031,14 +1805,6 @@ bool QuicSession::ReceiveClientInitial(const ngtcp2_cid* dcid) {
          initial_connection_close_ == NGTCP2_NO_ERROR;
 }
 
-// Captures the error code and family information from a received
-// connection close frame.
-void QuicSession::GetConnectionCloseInfo() {
-  ngtcp2_connection_close_error_code close_code;
-  ngtcp2_conn_get_connection_close_error_code(Connection(), &close_code);
-  SetLastError(QuicError(close_code));
-}
-
 // Performs intake processing on a received QUIC packet. The received
 // data is passed on to ngtcp2 for parsing and processing. ngtcp2 will,
 // in turn, invoke a series of callbacks to handle the received packet.
@@ -2122,12 +1888,6 @@ bool QuicSession::ReceiveStreamData(
   return application_->ReceiveStreamData(stream_id, fin, data, datalen, offset);
 }
 
-// Removes the given connection id from the QuicSession.
-void QuicSession::RemoveConnectionID(const ngtcp2_cid* cid) {
-  if (!IsFlagSet(QUICSESSION_FLAG_DESTROYED))
-    DisassociateCID(cid);
-}
-
 // Removes the QuicSession from the current socket. This is
 // done with when the session is being destroyed or being
 // migrated to another QuicSocket. It is important to keep in mind
@@ -2182,17 +1942,6 @@ void QuicSession::ScheduleRetransmit() {
   if (expiry < now || interval == 0) interval = 1;
   Debug(this, "Scheduling the retransmit timer for %" PRIu64, interval);
   UpdateRetransmitTimer(interval);
-}
-
-// The retransmit timer allows us to trigger retransmission
-// of packets in case they are considered lost. The exact amount
-// of time is determined internally by ngtcp2 according to the
-// guidelines established by the QUIC spec but we use a libuv
-// timer to actually monitor. Here we take the calculated timeout
-// and extend out the libuv timer.
-void QuicSession::UpdateRetransmitTimer(uint64_t timeout) {
-  DCHECK_NOT_NULL(retransmit_);
-  retransmit_->Update(timeout);
 }
 
 // Transmits either a protocol or application connection
@@ -2287,30 +2036,6 @@ void QuicSession::UsePreferredAddressStrategy(
     Debug(session,
           "Not using server preferred address due to IP version mismatch");
   }
-}
-
-// When a server advertises a preferred address in its initial
-// transport parameters, ngtcp2 on the client side will trigger
-// the OnSelectPreferredAdddress callback which will call this.
-// The paddr argument contains the advertised preferred address.
-// If the new address is going to be used, it needs to be copied
-// over to dest, otherwise dest is left alone. There are two
-// possible strategies that we currently support via user
-// configuration: use the preferred address or ignore it.
-void QuicSession::SelectPreferredAddress(
-    const QuicPreferredAddress& preferred_address) {
-  CHECK(!IsServer());
-  preferred_address_strategy_(this, preferred_address);
-}
-
-// This variant of SendPacket is used by QuicApplication
-// instances to transmit a packet and update the network
-// path used at the same time.
-bool QuicSession::SendPacket(
-  std::unique_ptr<QuicPacket> packet,
-  const ngtcp2_path_storage& path) {
-  UpdateEndpoint(path.path);
-  return SendPacket(std::move(packet));
 }
 
 // Sends buffered stream data.
@@ -2416,18 +2141,6 @@ bool QuicSession::SetEarlyTransportParams(Local<Value> buffer) {
   memcpy(&params, sbuf.data(), sizeof(ngtcp2_transport_params));
   ngtcp2_conn_set_early_remote_transport_params(Connection(), &params);
   return true;
-}
-
-void QuicSession::SetLocalAddress(const ngtcp2_addr* addr) {
-  DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  ngtcp2_conn_set_local_addr(Connection(), addr);
-}
-
-// Set the transport parameters received from the remote peer
-void QuicSession::SetRemoteTransportParams() {
-  DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  ngtcp2_conn_get_remote_transport_params(Connection(), &transport_params_);
-  SetFlag(QUICSESSION_FLAG_HAS_TRANSPORT_PARAMS);
 }
 
 // When completing the TLS handshake, the TLS session information
@@ -2596,16 +2309,6 @@ void QuicSession::StreamClose(int64_t stream_id, uint64_t app_error_code) {
     application_->StreamClose(stream_id, app_error_code);
 }
 
-void QuicSession::StopIdleTimer() {
-  CHECK_NOT_NULL(idle_);
-  idle_->Stop();
-}
-
-void QuicSession::StopRetransmitTimer() {
-  CHECK_NOT_NULL(retransmit_);
-  retransmit_->Stop();
-}
-
 // Called by ngtcp2 when a stream has been opened. All we do is log
 // the activity here. We do not want to actually commit any resources
 // until data is received for the stream. This allows us to prevent
@@ -2672,15 +2375,6 @@ void QuicSession::UpdateIdleTimer() {
   idle_->Update(timeout);
 }
 
-// Called by the OnVersionNegotiation callback when a version
-// negotiation frame has been received by the client. The sv
-// parameter is an array of versions supported by the remote peer.
-void QuicSession::VersionNegotiation(const uint32_t* sv, size_t nsv) {
-  CHECK(!IsServer());
-  if (IsFlagSet(QUICSESSION_FLAG_DESTROYED))
-    return;
-  Listener()->OnVersionNegotiation(NGTCP2_PROTO_VER, sv, nsv);
-}
 
 // Write any packets current pending for the ngtcp2 connection based on
 // the current state of the QuicSession. If the QuicSession is in the
@@ -2750,42 +2444,6 @@ bool QuicSession::WritePackets(const char* diagnostic_label) {
     if (!SendPacket(std::move(packet)))
       return false;
   }
-}
-
-// Every QUIC session has a remote address and local address.
-// Those endpoints can change through the lifetime of a connection,
-// so whenever a packet is successfully processed, or when a
-// response is to be sent, we have to keep track of the path
-// and update as we go.
-void QuicSession::UpdateEndpoint(const ngtcp2_path& path) {
-  remote_address_.Update(path.remote.addr, path.remote.addrlen);
-  local_address_.Update(path.local.addr, path.local.addrlen);
-}
-
-// Submits information headers only if the selected application
-// supports headers.
-bool QuicSession::SubmitInformation(
-    int64_t stream_id,
-    v8::Local<v8::Array> headers) {
-  return application_->SubmitInformation(stream_id, headers);
-}
-
-// Submits initial headers only if the selected application
-// supports headers. For http3, for instance, this is the
-// method used to submit both request and response headers.
-bool QuicSession::SubmitHeaders(
-    int64_t stream_id,
-    v8::Local<v8::Array> headers,
-    uint32_t flags) {
-  return application_->SubmitHeaders(stream_id, headers, flags);
-}
-
-// Submits trailing headers only if the selected application
-// supports headers.
-bool QuicSession::SubmitTrailers(
-    int64_t stream_id,
-    v8::Local<v8::Array> headers) {
-  return application_->SubmitTrailers(stream_id, headers);
 }
 
 void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
@@ -2914,7 +2572,7 @@ void QuicSession::InitServer(
       connection_id_strategy_,
       stateless_reset_strategy_,
       this,
-      pscid());
+      &pscid_);
 
   connection_id_strategy_(this, &scid_, NGTCP2_SV_SCIDLEN);
 
@@ -2943,6 +2601,7 @@ void QuicSession::InitServer(
   UpdateIdleTimer();
 }
 
+namespace {
 // A pointer to this function is passed to the JavaScript side during
 // the client hello and is called by user code when the TLS handshake
 // should resume.
@@ -2968,6 +2627,7 @@ void QuicSessionOnCertDone(const FunctionCallbackInfo<Value>& args) {
     context = Unwrap<crypto::SecureContext>(args[0].As<Object>());
   session->CryptoContext()->OnOCSPDone(context, args[1]);
 }
+}  // namespace
 
 // Recovery stats are used to allow user code to keep track of
 // important round-trip timing statistics that are updated through

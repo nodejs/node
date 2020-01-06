@@ -133,7 +133,7 @@ class Http3Application final :
   void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
-  nghttp3_conn* Connection() { return connection_.get(); }
+  nghttp3_conn* Connection() const { return connection_.get(); }
   QuicStream* FindOrCreateStream(int64_t stream_id);
 
   bool CreateAndBindControlStream();
@@ -176,7 +176,7 @@ class Http3Application final :
   int H3PushStream(int64_t push_id, int64_t stream_id);
   int H3EndStream(int64_t stream_id);
 
-  bool IsControlStream(int64_t stream_id) {
+  bool IsControlStream(int64_t stream_id) const {
     return stream_id == control_stream_id_ ||
            stream_id == qpack_dec_stream_id_ ||
            stream_id == qpack_enc_stream_id_;
