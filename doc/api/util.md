@@ -1392,6 +1392,9 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is a native `External` value.
+`native external` is data that is:
+i) not stored inside JS heap
+ii) not conformant to JS types
 
 ### `util.types.isFloat32Array(value)`
 <!-- YAML
