@@ -475,7 +475,7 @@ Local<Value> GetALPNProtocol(QuicSession* session) {
   Local<Value> alpn;
   const unsigned char* alpn_buf = nullptr;
   unsigned int alpnlen;
-  QuicCryptoContext* ctx = session->CryptoContext();
+  QuicCryptoContext* ctx = session->crypto_context();
 
   SSL_get0_alpn_selected(ctx->ssl(), &alpn_buf, &alpnlen);
   if (alpnlen == sizeof(NGTCP2_ALPN_H3) - 2 &&
@@ -494,7 +494,7 @@ int CertCB(SSL* ssl, void* arg) {
   int type = SSL_get_tlsext_status_type(ssl);
   switch (type) {
     case TLSEXT_STATUSTYPE_ocsp:
-      return session->CryptoContext()->OnOCSP();
+      return session->crypto_context()->OnOCSP();
     default:
       return 1;
   }
@@ -502,7 +502,7 @@ int CertCB(SSL* ssl, void* arg) {
 
 void Keylog_CB(const SSL* ssl, const char* line) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  session->CryptoContext()->Keylog(line);
+  session->crypto_context()->Keylog(line);
 }
 
 int Client_Hello_CB(
@@ -510,7 +510,7 @@ int Client_Hello_CB(
     int* tls_alert,
     void* arg) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  int ret = session->CryptoContext()->OnClientHello();
+  int ret = session->crypto_context()->OnClientHello();
   switch (ret) {
     case 0:
       return 1;
@@ -540,8 +540,8 @@ int AlpnSelection(
   if (SSL_select_next_proto(
           &tmp,
           outlen,
-          reinterpret_cast<const unsigned char*>(session->GetALPN().c_str()),
-          session->GetALPN().length(),
+          reinterpret_cast<const unsigned char*>(session->alpn().c_str()),
+          session->alpn().length(),
           in,
           inlen) == OPENSSL_NPN_NO_OVERLAP) {
     return SSL_TLSEXT_ERR_NOACK;
@@ -552,12 +552,12 @@ int AlpnSelection(
 
 int TLS_Status_Callback(SSL* ssl, void* arg) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  return session->CryptoContext()->OnTLSStatus();
+  return session->crypto_context()->OnTLSStatus();
 }
 
 int New_Session_Callback(SSL* ssl, SSL_SESSION* session) {
   QuicSession* s = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  return s->SetSession(session);
+  return s->set_session(session);
 }
 
 int SetEncryptionSecrets(
@@ -567,7 +567,7 @@ int SetEncryptionSecrets(
     const uint8_t* write_secret,
     size_t secret_len) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  return session->CryptoContext()->OnSecrets(
+  return session->crypto_context()->OnSecrets(
       from_ossl_level(ossl_level),
       read_secret,
       write_secret,
@@ -580,7 +580,7 @@ int AddHandshakeData(
     const uint8_t* data,
     size_t len) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  session->CryptoContext()->WriteHandshake(
+  session->crypto_context()->WriteHandshake(
       from_ossl_level(ossl_level),
       data,
       len);
@@ -594,7 +594,7 @@ int SendAlert(
     enum ssl_encryption_level_t level,
     uint8_t alert) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
-  session->CryptoContext()->SetTLSAlert(alert);
+  session->crypto_context()->set_tls_alert(alert);
   return 1;
 }
 
@@ -631,8 +631,9 @@ void SetHostname(SSL* ssl, const std::string& hostname) {
 }  // namespace
 
 void InitializeTLS(QuicSession* session) {
-  QuicCryptoContext* ctx = session->CryptoContext();
+  QuicCryptoContext* ctx = session->crypto_context();
   Environment* env = session->env();
+
   SSL* ssl = ctx->ssl();
   SSL_set_app_data(ssl, session);
   SSL_set_cert_cb(ssl, CertCB, session);
@@ -649,20 +650,20 @@ void InitializeTLS(QuicSession* session) {
     }
   }
 
-  switch (ctx->Side()) {
+  switch (ctx->side()) {
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
       SSL_set_connect_state(ssl);
-      crypto::SetALPN(ssl, session->GetALPN());
-      SetHostname(ssl, session->GetHostname());
-      if (ctx->IsOptionSet(QUICCLIENTSESSION_OPTION_REQUEST_OCSP))
+      crypto::SetALPN(ssl, session->alpn());
+      SetHostname(ssl, session->hostname());
+      if (ctx->is_option_set(QUICCLIENTSESSION_OPTION_REQUEST_OCSP))
         SSL_set_tlsext_status_type(ssl, TLSEXT_STATUSTYPE_ocsp);
       break;
     }
     case NGTCP2_CRYPTO_SIDE_SERVER: {
       SSL_set_accept_state(ssl);
-      if (ctx->IsOptionSet(QUICSERVERSESSION_OPTION_REQUEST_CERT)) {
+      if (ctx->is_option_set(QUICSERVERSESSION_OPTION_REQUEST_CERT)) {
         int verify_mode = SSL_VERIFY_PEER;
-        if (ctx->IsOptionSet(QUICSERVERSESSION_OPTION_REJECT_UNAUTHORIZED))
+        if (ctx->is_option_set(QUICSERVERSESSION_OPTION_REJECT_UNAUTHORIZED))
           verify_mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
         SSL_set_verify(ssl, verify_mode, crypto::VerifyCallback);
       }
@@ -672,7 +673,7 @@ void InitializeTLS(QuicSession* session) {
       UNREACHABLE();
   }
 
-  SetTransportParams(session->Connection(), ssl);
+  SetTransportParams(session->connection(), ssl);
 }
 
 void InitializeSecureContext(
@@ -724,11 +725,11 @@ bool SetCryptoSecrets(
   uint8_t rx_iv[NGTCP2_CRYPTO_IVLEN];
   uint8_t tx_iv[NGTCP2_CRYPTO_IVLEN];
 
-  QuicCryptoContext* ctx = session->CryptoContext();
+  QuicCryptoContext* ctx = session->crypto_context();
   SSL* ssl = ctx->ssl();
 
   if (NGTCP2_ERR(ngtcp2_crypto_derive_and_install_key(
-          session->Connection(),
+          session->connection(),
           ssl,
           rx_key,
           rx_iv,
@@ -740,7 +741,7 @@ bool SetCryptoSecrets(
           rx_secret,
           tx_secret,
           secretlen,
-          session->CryptoContext()->Side()))) {
+          ctx->side()))) {
     return false;
   }
 
@@ -796,7 +797,7 @@ bool DeriveAndInstallInitialKey(
   uint8_t rx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
   uint8_t tx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
   return NGTCP2_OK(ngtcp2_crypto_derive_and_install_initial_key(
-      session->Connection(),
+      session->connection(),
       rx_secret,
       tx_secret,
       initial_secret,
@@ -807,7 +808,7 @@ bool DeriveAndInstallInitialKey(
       tx_iv,
       tx_hp,
       dcid,
-      session->CryptoContext()->Side()));
+      session->crypto_context()->side()));
 }
 
 }  // namespace quic

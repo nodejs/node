@@ -175,7 +175,7 @@ QuicError::QuicError(
   }
 }
 
-const char* QuicError::GetFamilyName() {
+const char* QuicError::family_name() {
   switch (family) {
     case QUIC_ERROR_SESSION:
       return "Session";
@@ -192,11 +192,11 @@ const ngtcp2_cid* QuicPreferredAddress::cid() const {
   return &paddr_->cid;
 }
 
-const uint8_t* QuicPreferredAddress::StatelessResetToken() const {
+const uint8_t* QuicPreferredAddress::stateless_reset_token() const {
   return paddr_->stateless_reset_token;
 }
 
-std::string QuicPreferredAddress::PreferredIPv6Address() const {
+std::string QuicPreferredAddress::preferred_ipv6_address() const {
   char host[NI_MAXHOST];
   // Return an empty string if unable to convert...
   if (uv_inet_ntop(AF_INET6, paddr_->ipv6_addr, host, sizeof(host)) != 0)
@@ -204,7 +204,7 @@ std::string QuicPreferredAddress::PreferredIPv6Address() const {
 
   return std::string(host);
 }
-std::string QuicPreferredAddress::PreferredIPv4Address() const {
+std::string QuicPreferredAddress::preferred_ipv4_address() const {
   char host[NI_MAXHOST];
   // Return an empty string if unable to convert...
   if (uv_inet_ntop(AF_INET, paddr_->ipv4_addr, host, sizeof(host)) != 0)
@@ -213,10 +213,10 @@ std::string QuicPreferredAddress::PreferredIPv4Address() const {
   return std::string(host);
 }
 
-int16_t QuicPreferredAddress::PreferredIPv6Port() const {
+int16_t QuicPreferredAddress::preferred_ipv6_port() const {
   return paddr_->ipv6_port;
 }
-int16_t QuicPreferredAddress::PreferredIPv4Port() const {
+int16_t QuicPreferredAddress::preferred_ipv4_port() const {
   return paddr_->ipv4_port;
 }
 

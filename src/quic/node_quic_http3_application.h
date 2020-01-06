@@ -62,10 +62,10 @@ class Http3Header : public QuicHeader {
   v8::MaybeLocal<v8::String> GetName(QuicApplication* app) const override;
   v8::MaybeLocal<v8::String> GetValue(QuicApplication* app) const override;
 
-  std::string GetName() const override;
-  std::string GetValue() const override;
+  std::string name() const override;
+  std::string value() const override;
 
-  size_t GetLength() const override;
+  size_t length() const override;
 
  private:
   int32_t token_ = -1;
@@ -133,14 +133,14 @@ class Http3Application final :
   void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
-  nghttp3_conn* Connection() const { return connection_.get(); }
+  nghttp3_conn* connection() const { return connection_.get(); }
   QuicStream* FindOrCreateStream(int64_t stream_id);
 
   bool CreateAndBindControlStream();
   bool CreateAndBindQPackStreams();
 
   bool StreamCommit(int64_t stream_id, ssize_t datalen);
-  void SetStreamFin(int64_t stream_id);
+  void set_stream_fin(int64_t stream_id);
 
   ssize_t H3ReadData(
       int64_t stream_id,
@@ -176,7 +176,7 @@ class Http3Application final :
   int H3PushStream(int64_t push_id, int64_t stream_id);
   int H3EndStream(int64_t stream_id);
 
-  bool IsControlStream(int64_t stream_id) const {
+  bool is_control_stream(int64_t stream_id) const {
     return stream_id == control_stream_id_ ||
            stream_id == qpack_dec_stream_id_ ||
            stream_id == qpack_enc_stream_id_;

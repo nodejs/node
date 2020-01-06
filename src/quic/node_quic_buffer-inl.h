@@ -42,7 +42,7 @@ QuicBuffer& QuicBuffer::operator=(QuicBuffer&& src) noexcept {
 void QuicBuffer::Consume(ssize_t amount) { Consume(0, amount); }
 
 size_t QuicBuffer::Cancel(int status) {
-  size_t remaining = Length();
+  size_t remaining = length();
   Consume(status, -1);
   return remaining;
 }

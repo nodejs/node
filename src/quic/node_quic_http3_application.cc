@@ -107,7 +107,7 @@ MaybeLocal<String> Http3Header::GetValue(QuicApplication* app) const {
       value_);
 }
 
-std::string Http3Header::GetName() const {
+std::string Http3Header::name() const {
   const char* header_name = to_http_header_name(token_);
   if (header_name != nullptr)
     return std::string(header_name);
@@ -120,7 +120,7 @@ std::string Http3Header::GetName() const {
       name_.len());
 }
 
-std::string Http3Header::GetValue() const {
+std::string Http3Header::value() const {
   if (UNLIKELY(!value_))
     return std::string();  // Empty String
 
@@ -129,8 +129,8 @@ std::string Http3Header::GetValue() const {
       value_.len());
 }
 
-size_t Http3Header::GetLength() const {
-  return GetName().length() + GetValue().length();
+size_t Http3Header::length() const {
+  return name().length() + value().length();
 }
 
 namespace {
@@ -158,14 +158,14 @@ Http3Application::Http3Application(
 
   size_t max_header_pairs = DEFAULT_MAX_HEADER_LIST_PAIRS;
   SetConfig(env, IDX_HTTP3_MAX_HEADER_PAIRS, &max_header_pairs);
-  SetMaxHeaderPairs(
-      session->IsServer()
+  set_max_header_pairs(
+      session->is_server()
           ? GetServerMaxHeaderPairs(max_header_pairs)
           : GetClientMaxHeaderPairs(max_header_pairs));
 
   size_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
   SetConfig(env, IDX_HTTP3_MAX_HEADER_LENGTH, &max_header_length);
-  SetMaxHeaderLength(max_header_length);
+  set_max_header_length(max_header_length);
 
   env->quic_state()->http3config_buffer[IDX_HTTP3_CONFIG_COUNT] = 0;  // Reset
 }
@@ -178,17 +178,17 @@ bool Http3Application::SubmitInformation(
   // If the QuicSession is not a server session, return false
   // immediately. Informational headers cannot be sent by an
   // HTTP/3 client
-  if (!Session()->IsServer())
+  if (!session()->is_server())
     return false;
 
-  Http3Headers nva(Session()->env(), headers);
+  Http3Headers nva(session()->env(), headers);
   Debug(
-      Session(),
+      session(),
       "Submitting %d informational headers for stream %" PRId64,
       nva.length(),
       stream_id);
   return nghttp3_conn_submit_info(
-      Connection(),
+      connection(),
       stream_id,
       *nva,
       nva.length()) == 0;
@@ -200,7 +200,7 @@ bool Http3Application::SubmitHeaders(
     int64_t stream_id,
     v8::Local<v8::Array> headers,
     uint32_t flags) {
-  Http3Headers nva(Session()->env(), headers);
+  Http3Headers nva(session()->env(), headers);
 
   // If the TERMINAL flag is set, reader_ptr should be nullptr
   // so the stream will be terminated immediately after submitting
@@ -210,15 +210,15 @@ bool Http3Application::SubmitHeaders(
   if (!(flags & QUICSTREAM_HEADER_FLAGS_TERMINAL))
     reader_ptr = &reader;
 
-  switch (Session()->CryptoContext()->Side()) {
+  switch (session()->crypto_context()->side()) {
     case NGTCP2_CRYPTO_SIDE_CLIENT:
       Debug(
-          Session(),
+          session(),
           "Submitting %d request headers for stream %" PRId64,
           nva.length(),
           stream_id);
       return nghttp3_conn_submit_request(
-          Connection(),
+          connection(),
           stream_id,
           *nva,
           nva.length(),
@@ -226,12 +226,12 @@ bool Http3Application::SubmitHeaders(
           nullptr) == 0;
     case NGTCP2_CRYPTO_SIDE_SERVER:
       Debug(
-          Session(),
+          session(),
           "Submitting %d response headers for stream %" PRId64,
           nva.length(),
           stream_id);
       return nghttp3_conn_submit_response(
-          Connection(),
+          connection(),
           stream_id,
           *nva,
           nva.length(),
@@ -246,14 +246,14 @@ bool Http3Application::SubmitHeaders(
 bool Http3Application::SubmitTrailers(
     int64_t stream_id,
     v8::Local<v8::Array> headers) {
-  Http3Headers nva(Session()->env(), headers);
+  Http3Headers nva(session()->env(), headers);
   Debug(
-      Session(),
+      session(),
       "Submitting %d trailing headers for stream %" PRId64,
       nva.length(),
       stream_id);
   return nghttp3_conn_submit_trailers(
-      Connection(),
+      connection(),
       stream_id,
       *nva,
       nva.length()) == 0;
@@ -288,7 +288,7 @@ nghttp3_conn* Http3Application::CreateConnection(
     nghttp3_conn_server_new,  // NGTCP2_CRYPTO_SIDE_SERVER
   };
 
-  ngtcp2_crypto_side side = Session()->CryptoContext()->Side();
+  ngtcp2_crypto_side side = session()->crypto_context()->side();
   nghttp3_conn* conn;
 
   if (new_fns[side](
@@ -303,43 +303,43 @@ nghttp3_conn* Http3Application::CreateConnection(
 // stream in each direction to exchange frames impacting the entire
 // connection.
 bool Http3Application::CreateAndBindControlStream() {
-  if (!Session()->OpenUnidirectionalStream(&control_stream_id_))
+  if (!session()->OpenUnidirectionalStream(&control_stream_id_))
     return false;
   Debug(
-      Session(),
+      session(),
       "Open stream %" PRId64 " and bind as control stream",
       control_stream_id_);
   return nghttp3_conn_bind_control_stream(
-      Connection(),
+      connection(),
       control_stream_id_) == 0;
 }
 
 // The HTTP/3 QUIC binding creates two unidirectional streams in
 // each direction to exchange header compression details.
 bool Http3Application::CreateAndBindQPackStreams() {
-  if (!Session()->OpenUnidirectionalStream(&qpack_enc_stream_id_) ||
-      !Session()->OpenUnidirectionalStream(&qpack_dec_stream_id_)) {
+  if (!session()->OpenUnidirectionalStream(&qpack_enc_stream_id_) ||
+      !session()->OpenUnidirectionalStream(&qpack_dec_stream_id_)) {
     return false;
   }
   Debug(
-      Session(),
+      session(),
       "Open streams %" PRId64 " and %" PRId64 " and bind as qpack streams",
       qpack_enc_stream_id_,
       qpack_dec_stream_id_);
   return nghttp3_conn_bind_qpack_streams(
-      Connection(),
+      connection(),
       qpack_enc_stream_id_,
       qpack_dec_stream_id_) == 0;
 }
 
 bool Http3Application::Initialize() {
-  if (!NeedsInit())
+  if (!needs_init())
     return false;
 
   // The QuicSession must allow for at least three local unidirectional streams.
   // This number is fixed by the http3 specification and represent the
   // control stream and two qpack management streams.
-  if (Session()->GetMaxLocalStreamsUni() < 3)
+  if (session()->max_local_streams_uni() < 3)
     return false;
 
   nghttp3_conn_settings settings;
@@ -348,24 +348,24 @@ bool Http3Application::Initialize() {
   settings.qpack_blocked_streams = qpack_blocked_streams_;
   settings.max_header_list_size = max_header_list_size_;
   settings.max_pushes = max_pushes_;
-  Debug(Session(), "QPack Max Table Capacity: %" PRIu64,
+  Debug(session(), "QPack Max Table Capacity: %" PRIu64,
         qpack_max_table_capacity_);
-  Debug(Session(), "QPack Blocked Streams: %" PRIu64,
+  Debug(session(), "QPack Blocked Streams: %" PRIu64,
         qpack_blocked_streams_);
-  Debug(Session(), "Max Header List Size: %" PRIu64,
+  Debug(session(), "Max Header List Size: %" PRIu64,
         max_header_list_size_);
-  Debug(Session(), "Max Pushes: %" PRIu64, max_pushes_);
+  Debug(session(), "Max Pushes: %" PRIu64, max_pushes_);
 
   connection_.reset(CreateConnection(&settings));
   CHECK(connection_);
-  Debug(Session(), "HTTP/3 connection created");
+  Debug(session(), "HTTP/3 connection created");
 
   ngtcp2_transport_params params;
-  Session()->GetLocalTransportParams(&params);
+  session()->GetLocalTransportParams(&params);
 
-  if (Session()->IsServer()) {
+  if (session()->is_server()) {
     nghttp3_conn_set_max_client_streams_bidi(
-        Connection(),
+        connection(),
         params.initial_max_streams_bidi);
   }
 
@@ -374,7 +374,7 @@ bool Http3Application::Initialize() {
     return false;
   }
 
-  SetInitDone();
+  set_init_done();
   return true;
 }
 
@@ -389,9 +389,9 @@ bool Http3Application::ReceiveStreamData(
     uint64_t offset) {
   ssize_t nread =
       nghttp3_conn_read_stream(
-          Connection(), stream_id, data, datalen, fin);
+          connection(), stream_id, data, datalen, fin);
   if (nread < 0) {
-    Debug(Session(), "Failure to read HTTP/3 Stream Data [%" PRId64 "]", nread);
+    Debug(session(), "Failure to read HTTP/3 Stream Data [%" PRId64 "]", nread);
     return false;
   }
 
@@ -402,12 +402,12 @@ void Http3Application::AcknowledgeStreamData(
     int64_t stream_id,
     uint64_t offset,
     size_t datalen) {
-  if (nghttp3_conn_add_ack_offset(Connection(), stream_id, datalen) != 0)
-    Debug(Session(), "Failure to acknowledge HTTP/3 Stream Data");
+  if (nghttp3_conn_add_ack_offset(connection(), stream_id, datalen) != 0)
+    Debug(session(), "Failure to acknowledge HTTP/3 Stream Data");
 }
 
 void Http3Application::StreamOpen(int64_t stream_id) {
-  Debug(Session(), "HTTP/3 Stream %" PRId64 " is open.");
+  Debug(session(), "HTTP/3 Stream %" PRId64 " is open.");
 }
 
 void Http3Application::StreamClose(
@@ -415,7 +415,7 @@ void Http3Application::StreamClose(
     uint64_t app_error_code) {
   if (app_error_code == 0)
     app_error_code = NGTCP2_APP_NOERROR;
-  nghttp3_conn_close_stream(Connection(), stream_id, app_error_code);
+  nghttp3_conn_close_stream(connection(), stream_id, app_error_code);
   QuicApplication::StreamClose(stream_id, app_error_code);
 }
 
@@ -423,38 +423,38 @@ void Http3Application::StreamReset(
     int64_t stream_id,
     uint64_t final_size,
     uint64_t app_error_code) {
-  nghttp3_conn_reset_stream(Connection(), stream_id);
+  nghttp3_conn_reset_stream(connection(), stream_id);
   QuicApplication::StreamReset(stream_id, final_size, app_error_code);
 }
 
 void Http3Application::ExtendMaxStreamsRemoteUni(uint64_t max_streams) {
-  nghttp3_conn_set_max_client_streams_bidi(Connection(), max_streams);
+  nghttp3_conn_set_max_client_streams_bidi(connection(), max_streams);
 }
 
 void Http3Application::ExtendMaxStreamData(
     int64_t stream_id,
     uint64_t max_data) {
-  nghttp3_conn_unblock_stream(Connection(), stream_id);
+  nghttp3_conn_unblock_stream(connection(), stream_id);
 }
 
 bool Http3Application::StreamCommit(int64_t stream_id, ssize_t datalen) {
   CHECK_GT(datalen, 0);
   int err = nghttp3_conn_add_write_offset(
-      Connection(),
+      connection(),
       stream_id,
       datalen);
   if (err != 0) {
-    Session()->SetLastError(QUIC_ERROR_APPLICATION, err);
+    session()->set_last_error(QUIC_ERROR_APPLICATION, err);
     return false;
   }
   return true;
 }
 
-void Http3Application::SetStreamFin(int64_t stream_id) {
-  if (!IsControlStream(stream_id)) {
-    QuicStream* stream = Session()->FindStream(stream_id);
+void Http3Application::set_stream_fin(int64_t stream_id) {
+  if (!is_control_stream(stream_id)) {
+    QuicStream* stream = session()->FindStream(stream_id);
     if (stream != nullptr)
-      stream->SetFinSent();
+      stream->set_fin_sent();
   }
 }
 
@@ -472,10 +472,10 @@ bool Http3Application::SendPendingData() {
     ssize_t sveccnt = 0;
 
     // First, grab the outgoing data from nghttp3
-    if (Connection() && Session()->GetMaxDataLeft()) {
+    if (connection() && session()->max_data_left()) {
       sveccnt =
           nghttp3_conn_writev_stream(
-              Connection(),
+              connection(),
               &stream_id,
               &fin,
               vec.data(),
@@ -485,7 +485,7 @@ bool Http3Application::SendPendingData() {
         return false;
     }
 
-    Debug(Session(), "Serializing packets for stream id %" PRId64, stream_id);
+    Debug(session(), "Serializing packets for stream id %" PRId64, stream_id);
 
     ssize_t ndatalen;
     nghttp3_vec* v = vec.data();
@@ -500,10 +500,10 @@ bool Http3Application::SendPendingData() {
     // is no more data to transmit.
     ssize_t nwrite =
         ngtcp2_conn_writev_stream(
-            Session()->Connection(),
+            session()->connection(),
             &path.path,
             packet->data() + packet_offset,
-            Session()->GetMaxPacketLength(),
+            session()->max_packet_length(),
             &ndatalen,
             NGTCP2_WRITE_STREAM_FLAG_MORE,
             stream_id,
@@ -515,14 +515,14 @@ bool Http3Application::SendPendingData() {
     if (nwrite < 0) {
       switch (nwrite) {
         case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-          Session()->StreamDataBlocked(stream_id);
-          if (Session()->GetMaxDataLeft() == 0)
+          session()->StreamDataBlocked(stream_id);
+          if (session()->max_data_left() == 0)
             return true;
           // Fall through
         case NGTCP2_ERR_STREAM_SHUT_WR:
-          err = nghttp3_conn_block_stream(Connection(), stream_id);
+          err = nghttp3_conn_block_stream(connection(), stream_id);
           if (err != 0) {
-            Session()->SetLastError(QUIC_ERROR_APPLICATION, err);
+            session()->set_last_error(QUIC_ERROR_APPLICATION, err);
             return false;
           }
           continue;
@@ -533,7 +533,7 @@ bool Http3Application::SendPendingData() {
           }
           continue;
       }
-      //  Session()->SetLastError(QUIC_ERROR_APPLICATION, nwrite);
+      //  session()->set_last_error(QUIC_ERROR_APPLICATION, nwrite);
       return false;
     }
 
@@ -543,23 +543,23 @@ bool Http3Application::SendPendingData() {
     if (ndatalen > 0)
       CHECK(StreamCommit(stream_id, ndatalen));
 
-    Debug(Session(), "Sending %" PRIu64 " bytes in serialized packet", nwrite);
-    packet->SetLength(nwrite);
-    if (!Session()->SendPacket(std::move(packet), path))
+    Debug(session(), "Sending %" PRIu64 " bytes in serialized packet", nwrite);
+    packet->set_length(nwrite);
+    if (!session()->SendPacket(std::move(packet), path))
       return false;
 
     packet.reset();
     packet_offset = 0;
 
     if (fin)
-      SetStreamFin(stream_id);
+      set_stream_fin(stream_id);
   }
   return true;
 }
 
 bool Http3Application::SendStreamData(QuicStream* stream) {
   // Data is available now, so resume the stream.
-  nghttp3_conn_resume_stream(Connection(), stream->GetID());
+  nghttp3_conn_resume_stream(connection(), stream->GetID());
   return SendPendingData();
 }
 
@@ -570,7 +570,7 @@ ssize_t Http3Application::H3ReadData(
     nghttp3_vec* vec,
     size_t veccnt,
     uint32_t* pflags) {
-  QuicStream* stream = Session()->FindStream(stream_id);
+  QuicStream* stream = session()->FindStream(stream_id);
   CHECK_NOT_NULL(stream);
 
   size_t count = 0;
@@ -580,12 +580,12 @@ ssize_t Http3Application::H3ReadData(
   stream->Commit(numbytes);
 
   Debug(
-      Session(),
+      session(),
       "Sending %" PRIu64 " bytes in %d vectors for stream %" PRId64,
       numbytes, count, stream_id);
 
-  if (!stream->IsWritable()) {
-    Debug(Session(), "Ending stream %" PRId64, stream_id);
+  if (!stream->is_writable()) {
+    Debug(session(), "Ending stream %" PRId64, stream_id);
     *pflags |= NGHTTP3_DATA_FLAG_EOF;
     return count;
   }
@@ -603,28 +603,28 @@ ssize_t Http3Application::H3ReadData(
 void Http3Application::H3AckedStreamData(
     int64_t stream_id,
     size_t datalen) {
-  QuicStream* stream = Session()->FindStream(stream_id);
+  QuicStream* stream = session()->FindStream(stream_id);
   if (stream) {
     stream->AckedDataOffset(0, datalen);
-    nghttp3_conn_resume_stream(Connection(), stream_id);
+    nghttp3_conn_resume_stream(connection(), stream_id);
   }
 }
 
 void Http3Application::H3StreamClose(
     int64_t stream_id,
     uint64_t app_error_code) {
-  Session()->Listener()->OnStreamClose(stream_id, app_error_code);
+  session()->listener()->OnStreamClose(stream_id, app_error_code);
 }
 
 QuicStream* Http3Application::FindOrCreateStream(int64_t stream_id) {
-  QuicStream* stream = Session()->FindStream(stream_id);
+  QuicStream* stream = session()->FindStream(stream_id);
   if (!stream) {
-    if (Session()->IsGracefullyClosing()) {
-      nghttp3_conn_close_stream(Connection(), stream_id, NGTCP2_ERR_CLOSING);
+    if (session()->is_gracefully_closing()) {
+      nghttp3_conn_close_stream(connection(), stream_id, NGTCP2_ERR_CLOSING);
       return nullptr;
     }
-    stream = Session()->CreateStream(stream_id);
-    nghttp3_conn_set_stream_user_data(Connection(), stream_id, stream);
+    stream = session()->CreateStream(stream_id);
+    nghttp3_conn_set_stream_user_data(connection(), stream_id, stream);
   }
   CHECK_NOT_NULL(stream);
   return stream;
@@ -649,7 +649,7 @@ void Http3Application::H3BeginHeaders(
   int64_t stream_id,
   QuicStreamHeadersKind kind) {
   QuicStream* stream = FindOrCreateStream(stream_id);
-  Debug(Session(), "Starting header block for stream %" PRId64, stream_id);
+  Debug(session(), "Starting header block for stream %" PRId64, stream_id);
   if (stream != nullptr)
     stream->BeginHeaders(kind);
 }
@@ -667,15 +667,15 @@ bool Http3Application::H3ReceiveHeader(
   // Protect against zero-length headers (zero-length if either the
   // name or value are zero-length). Such headers are simply ignored.
   if (!IsZeroLengthHeader(name, value)) {
-    Debug(Session(), "Receiving header for stream %" PRId64, stream_id);
-    QuicStream* stream = Session()->FindStream(stream_id);
+    Debug(session(), "Receiving header for stream %" PRId64, stream_id);
+    QuicStream* stream = session()->FindStream(stream_id);
     if (stream) {
       if (token == NGHTTP3_QPACK_TOKEN__STATUS) {
         nghttp3_vec vec = nghttp3_rcbuf_get_buf(value);
         if (vec.base[0] == '1')
-          stream->SetHeadersKind(QUICSTREAM_HEADERS_KIND_INFORMATIONAL);
+          stream->set_headers_kind(QUICSTREAM_HEADERS_KIND_INFORMATIONAL);
         else
-          stream->SetHeadersKind(QUICSTREAM_HEADERS_KIND_INITIAL);
+          stream->set_headers_kind(QUICSTREAM_HEADERS_KIND_INITIAL);
       }
       auto header = std::make_unique<Http3Header>(token, name, value);
       return stream->AddHeader(std::move(header));
@@ -685,8 +685,8 @@ bool Http3Application::H3ReceiveHeader(
 }
 
 void Http3Application::H3EndHeaders(int64_t stream_id) {
-  Debug(Session(), "Ending header block for stream %" PRId64, stream_id);
-  QuicStream* stream = Session()->FindStream(stream_id);
+  Debug(session(), "Ending header block for stream %" PRId64, stream_id);
+  QuicStream* stream = session()->FindStream(stream_id);
   if (stream)
     stream->EndHeaders();
 }
@@ -732,7 +732,7 @@ int Http3Application::H3PushStream(
 void Http3Application::H3SendStopSending(
     int64_t stream_id,
     uint64_t app_error_code) {
-  Session()->ResetStream(stream_id, app_error_code);
+  session()->ResetStream(stream_id, app_error_code);
 }
 
 int Http3Application::H3EndStream(

@@ -85,11 +85,11 @@ class QuicPreferredAddress {
       paddr_(paddr) {}
 
   inline const ngtcp2_cid* cid() const;
-  inline std::string PreferredIPv6Address() const;
-  inline std::string PreferredIPv4Address() const;
-  inline int16_t PreferredIPv6Port() const;
-  inline int16_t PreferredIPv4Port() const;
-  inline const uint8_t* StatelessResetToken() const;
+  inline std::string preferred_ipv6_address() const;
+  inline std::string preferred_ipv4_address() const;
+  inline int16_t preferred_ipv6_port() const;
+  inline int16_t preferred_ipv4_port() const;
+  inline const uint8_t* stateless_reset_token() const;
 
   inline bool Use(int family = AF_INET) const;
 
@@ -118,7 +118,7 @@ struct QuicError {
       v8::Local<v8::Value> codeArg,
       v8::Local<v8::Value> familyArg = v8::Local<v8::Object>(),
       int32_t family_ = QUIC_ERROR_SESSION);
-  inline const char* GetFamilyName();
+  inline const char* family_name();
 };
 
 inline size_t GetMaxPktLen(const sockaddr* addr);

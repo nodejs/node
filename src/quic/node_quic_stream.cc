@@ -33,30 +33,30 @@ using v8::Value;
 namespace quic {
 
 QuicStream::QuicStream(
-    QuicSession* session,
+    QuicSession* sess,
     Local<Object> wrap,
     int64_t stream_id)
-  : AsyncWrap(session->env(), wrap, AsyncWrap::PROVIDER_QUICSTREAM),
-    StreamBase(session->env()),
-    session_(session),
+  : AsyncWrap(sess->env(), wrap, AsyncWrap::PROVIDER_QUICSTREAM),
+    StreamBase(sess->env()),
+    session_(sess),
     stream_id_(stream_id),
     data_rx_rate_(
         HistogramBase::New(
-            session->env(),
+            sess->env(),
             1, std::numeric_limits<int64_t>::max())),
     data_rx_size_(
         HistogramBase::New(
-            session->env(),
+            sess->env(),
             1, NGTCP2_MAX_PKT_SIZE)),
     data_rx_ack_(
         HistogramBase::New(
-            session->env(),
+            sess->env(),
             1, std::numeric_limits<int64_t>::max())),
     stats_buffer_(
-        session->env()->isolate(),
+        sess->env()->isolate(),
         sizeof(stream_stats_) / sizeof(uint64_t),
         reinterpret_cast<uint64_t*>(&stream_stats_)) {
-  CHECK_NOT_NULL(session);
+  CHECK_NOT_NULL(sess);
   Debug(this, "Created");
   StreamBase::AttachToObject(GetObject());
   stream_stats_.created_at = uv_hrtime();
@@ -86,7 +86,7 @@ QuicStream::QuicStream(
           PropertyAttribute::ReadOnly).IsNothing()) return;
 
   ngtcp2_transport_params params;
-  ngtcp2_conn_get_local_transport_params(Session()->Connection(), &params);
+  ngtcp2_conn_get_local_transport_params(session()->connection(), &params);
   IncrementStat(
       params.initial_max_data,
       &stream_stats_,
@@ -100,11 +100,11 @@ std::string QuicStream::diagnostic_name() const {
 }
 
 void QuicStream::Destroy() {
-  if (IsDestroyed())
+  if (is_destroyed())
     return;
-  SetDestroyed();
-  SetReadClose();
-  SetWriteClose();
+  set_destroyed();
+  set_read_close();
+  set_write_close();
 
   uint64_t now = uv_hrtime();
   Debug(this,
@@ -122,7 +122,7 @@ void QuicStream::Destroy() {
   // that callback, however, the QuicStream will no longer
   // be usable to send or receive data.
   streambuf_.Cancel();
-  CHECK_EQ(streambuf_.Length(), 0);
+  CHECK_EQ(streambuf_.length(), 0);
 
   // The QuicSession maintains a map of std::unique_ptrs to
   // QuicStream instances. Removing this here will cause
@@ -137,15 +137,15 @@ void QuicStream::Destroy() {
 // called, a final stream frame will be sent for this QuicStream,
 // but it may not be sent right away.
 int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
-  if (IsDestroyed())
+  if (is_destroyed())
     return UV_EPIPE;
   Debug(this, "Shutdown writable side");
   // Do nothing if the stream was already shutdown. Specifically,
   // we should not attempt to send anything on the QuicSession
-  if (!IsWritable())
+  if (!is_writable())
     return UV_EPIPE;
   stream_stats_.closing_at = uv_hrtime();
-  SetWriteClose();
+  set_write_close();
 
   // If we're not currently within an ngtcp2 callback, then we need to
   // tell the QuicSession to initiate serialization and sending of any
@@ -165,7 +165,7 @@ int QuicStream::DoWrite(
 
   // A write should not have happened if we've been destroyed or
   // the QuicStream is no longer (or was never) writable.
-  if (IsDestroyed() || !IsWritable()) {
+  if (is_destroyed() || !is_writable()) {
     req_wrap->Done(UV_EPIPE);
     return 0;
   }
@@ -212,7 +212,7 @@ int QuicStream::DoWrite(
 // data stored in the streambuf_ outbound queue to be consumed and may
 // result in the JavaScript callback for the write to be invoked.
 void QuicStream::AckedDataOffset(uint64_t offset, size_t datalen) {
-  if (IsDestroyed())
+  if (is_destroyed())
     return;
 
   // ngtcp2 guarantees that offset must always be greater
@@ -235,7 +235,7 @@ void QuicStream::AckedDataOffset(uint64_t offset, size_t datalen) {
 }
 
 void QuicStream::Commit(ssize_t amount) {
-  CHECK(!IsDestroyed());
+  CHECK(!is_destroyed());
   streambuf_.SeekHeadOffset(amount);
 }
 
@@ -248,10 +248,10 @@ inline void QuicStream::DecrementAvailableOutboundLength(size_t amount) {
 }
 
 int QuicStream::ReadStart() {
-  CHECK(!this->IsDestroyed());
-  CHECK(IsReadable());
-  SetReadStart();
-  SetReadResume();
+  CHECK(!is_destroyed());
+  CHECK(is_readable());
+  set_read_start();
+  set_read_resume();
   IncrementStat(
       inbound_consumed_data_while_paused_,
       &stream_stats_,
@@ -261,9 +261,9 @@ int QuicStream::ReadStart() {
 }
 
 int QuicStream::ReadStop() {
-  CHECK(!this->IsDestroyed());
-  CHECK(IsReadable());
-  SetReadPause();
+  CHECK(!is_destroyed());
+  CHECK(is_readable());
+  set_read_pause();
   return 0;
 }
 
@@ -280,14 +280,14 @@ void QuicStream::ReceiveData(
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
-  CHECK(!IsDestroyed());
+  CHECK(!is_destroyed());
   Debug(this, "Receiving %d bytes. Final? %s. Readable? %s",
         datalen,
         fin ? "yes" : "no",
-        IsReadable() ? "yes" : "no");
+        is_readable() ? "yes" : "no");
 
   // If the QuicStream is not (or was never) readable, just ignore the chunk.
-  if (!IsReadable())
+  if (!is_readable())
     return;
 
   // ngtcp2 guarantees that datalen will only be 0 if fin is set.
@@ -330,7 +330,7 @@ void QuicStream::ReceiveData(
       datalen -= avail;
       // Capture read_paused before EmitRead in case user code callbacks
       // alter the state when EmitRead is called.
-      bool read_paused = IsReadPaused();
+      bool read_paused = is_read_paused();
       EmitRead(avail, buf);
       // Reading can be paused while we are processing. If that's
       // the case, we still want to acknowledge the current bytes
@@ -350,7 +350,7 @@ void QuicStream::ReceiveData(
   // When fin != 0, we've received that last chunk of data for this
   // stream, indicating that the stream will no longer be readable.
   if (fin) {
-    SetFinReceived();
+    set_fin_received();
     EmitRead(UV_EOF);
   }
 }
@@ -372,8 +372,8 @@ void QuicStream::ResetStream(uint64_t app_error_code) {
   // streambuf_ will be canceled, and all data pending
   // to be acknowledged at the ngtcp2 level will be
   // abandoned.
-  SetReadClose();
-  SetWriteClose();
+  set_read_close();
+  set_write_close();
   session_->ResetStream(GetID(), app_error_code);
 }
 
@@ -396,26 +396,26 @@ void QuicStream::BeginHeaders(QuicStreamHeadersKind kind) {
   // Upon start of a new block of headers, ensure that any
   // previously collected ones are cleaned up.
   headers_.clear();
-  SetHeadersKind(kind);
+  set_headers_kind(kind);
 }
 
-void QuicStream::SetHeadersKind(QuicStreamHeadersKind kind) {
+void QuicStream::set_headers_kind(QuicStreamHeadersKind kind) {
   headers_kind_ = kind;
 }
 
 bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
   Debug(this, "Header Added");
-  size_t len = header->GetLength();
-  QuicApplication* app = Session()->Application();
+  size_t len = header->length();
+  QuicApplication* app = session()->application();
   // We cannot add the header if we've either reached
   // * the max number of header pairs or
   // * the max number of header bytes
-  if (headers_.size() == app->GetMaxHeaderPairs() ||
-      current_headers_length_ + len > app->GetMaxHeaderLength()) {
+  if (headers_.size() == app->max_header_pairs() ||
+      current_headers_length_ + len > app->max_header_length()) {
     return false;
   }
 
-  current_headers_length_ += header->GetLength();
+  current_headers_length_ += header->length();
   headers_.emplace_back(std::move(header));
   return true;
 }
@@ -425,7 +425,7 @@ void QuicStream::EndHeaders() {
   // Upon completion of a block of headers, convert the
   // vector of Header objects into an array of name+value
   // pairs, then call the on_stream_headers function.
-  Session()->Application()->StreamHeaders(GetID(), headers_kind_, headers_);
+  session()->application()->StreamHeaders(GetID(), headers_kind_, headers_);
   headers_.clear();
 }
 

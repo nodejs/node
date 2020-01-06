@@ -47,14 +47,14 @@ void QuicSessionConfig::GeneratePreferredAddressToken(
   transport_params.preferred_address.cid = *pscid;
 }
 
-void QuicSessionConfig::SetOriginalConnectionID(const ngtcp2_cid* ocid) {
+void QuicSessionConfig::set_original_connection_id(const ngtcp2_cid* ocid) {
   if (ocid) {
     transport_params.original_connection_id = *ocid;
     transport_params.original_connection_id_present = 1;
   }
 }
 
-void QuicSessionConfig::SetQlog(const ngtcp2_qlog_settings& qlog_) {
+void QuicSessionConfig::set_qlog(const ngtcp2_qlog_settings& qlog_) {
   qlog = qlog_;
 }
 
@@ -79,15 +79,15 @@ uint64_t QuicCryptoContext::Cancel() {
   return len;
 }
 
-std::string QuicCryptoContext::GetOCSPResponse() const {
+std::string QuicCryptoContext::ocsp_response() const {
   return crypto::GetSSLOCSPResponse(ssl());
 }
 
-ngtcp2_crypto_level QuicCryptoContext::GetReadCryptoLevel() const {
+ngtcp2_crypto_level QuicCryptoContext::read_crypto_level() const {
   return from_ossl_level(SSL_quic_read_level(ssl()));
 }
 
-ngtcp2_crypto_level QuicCryptoContext::GetWriteCryptoLevel() const {
+ngtcp2_crypto_level QuicCryptoContext::write_crypto_level() const {
   return from_ossl_level(SSL_quic_write_level(ssl()));
 }
 
@@ -99,7 +99,7 @@ ngtcp2_crypto_level QuicCryptoContext::GetWriteCryptoLevel() const {
 void QuicCryptoContext::Keylog(const char* line) {
   if (LIKELY(session_->state_[IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED] == 0))
     return;
-  session_->Listener()->OnKeylog(line, strlen(line));
+  session_->listener()->OnKeylog(line, strlen(line));
 }
 
 void QuicCryptoContext::OnClientHelloDone() {
@@ -115,18 +115,18 @@ void QuicCryptoContext::OnClientHelloDone() {
 void QuicCryptoContext::ResumeHandshake() {
   // We haven't received any actual new handshake data but calling
   // this will trigger the handshake to continue.
-  Receive(GetReadCryptoLevel(), 0, nullptr, 0);
+  Receive(read_crypto_level(), 0, nullptr, 0);
   session_->SendPendingData();
 }
 
 // For 0RTT, this sets the TLS session data from the given buffer.
-bool QuicCryptoContext::SetSession(const unsigned char* data, size_t length) {
+bool QuicCryptoContext::set_session(const unsigned char* data, size_t length) {
   return crypto::SetTLSSession(ssl(), data, length);
 }
 
-void QuicCryptoContext::SetTLSAlert(int err) {
+void QuicCryptoContext::set_tls_alert(int err) {
   Debug(session_, "TLS Alert [%d]: %s", err, SSL_alert_type_string_long(err));
-  session_->SetLastError(QuicError(QUIC_ERROR_CRYPTO, err));
+  session_->set_last_error(QuicError(QUIC_ERROR_CRYPTO, err));
 }
 
 // Derives and installs the initial keying material for a newly
@@ -141,21 +141,21 @@ QuicApplication::QuicApplication(QuicSession* session) : session_(session) {}
 std::unique_ptr<QuicPacket> QuicApplication::CreateStreamDataPacket() {
   return QuicPacket::Create(
       "stream data",
-      Session()->GetMaxPacketLength());
+      session()->max_packet_length());
 }
 
 Environment* QuicApplication::env() const {
-  return Session()->env();
+  return session()->env();
 }
 
 // Every QUIC session will have multiple CIDs associated with it.
 void QuicSession::AssociateCID(ngtcp2_cid* cid) {
-  Socket()->AssociateCID(QuicCID(cid), QuicCID(scid_));
+  socket()->AssociateCID(QuicCID(cid), QuicCID(scid_));
 }
 
 void QuicSession::DisassociateCID(const ngtcp2_cid* cid) {
-  if (IsServer())
-    Socket()->DisassociateCID(QuicCID(cid));
+  if (is_server())
+    socket()->DisassociateCID(QuicCID(cid));
 }
 
 void QuicSession::ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) {
@@ -194,7 +194,7 @@ void QuicSession::ExtendStreamOffset(QuicStream* stream, size_t amount) {
   Debug(this, "Extending max stream %" PRId64 " offset by %" PRId64 " bytes",
         stream->GetID(), amount);
   ngtcp2_conn_extend_max_stream_offset(
-      Connection(),
+      connection(),
       stream->GetID(),
       amount);
 }
@@ -203,19 +203,19 @@ void QuicSession::ExtendStreamOffset(QuicStream* stream, size_t amount) {
 // the given number of bytes.
 void QuicSession::ExtendOffset(size_t amount) {
   Debug(this, "Extending session offset by %" PRId64 " bytes", amount);
-  ngtcp2_conn_extend_max_offset(Connection(), amount);
+  ngtcp2_conn_extend_max_offset(connection(), amount);
 }
 
 // Copies the local transport params into the given struct for serialization.
 void QuicSession::GetLocalTransportParams(ngtcp2_transport_params* params) {
-  CHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  ngtcp2_conn_get_local_transport_params(Connection(), params);
+  CHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
+  ngtcp2_conn_get_local_transport_params(connection(), params);
 }
 
 // Gets the QUIC version negotiated for this QuicSession
-uint32_t QuicSession::GetNegotiatedVersion() const {
-  CHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  return ngtcp2_conn_get_negotiated_version(Connection());
+uint32_t QuicSession::negotiated_version() const {
+  CHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
+  return ngtcp2_conn_get_negotiated_version(connection());
 }
 
 // The HandshakeCompleted function is called by ngtcp2 once it
@@ -224,17 +224,17 @@ uint32_t QuicSession::GetNegotiatedVersion() const {
 void QuicSession::HandshakeCompleted() {
   Debug(this, "Handshake is completed");
   session_stats_.handshake_completed_at = uv_hrtime();
-  Listener()->OnHandshakeCompleted();
+  listener()->OnHandshakeCompleted();
 }
 
-bool QuicSession::IsHandshakeCompleted() const {
-  DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  return ngtcp2_conn_get_handshake_completed(Connection());
+bool QuicSession::is_handshake_completed() const {
+  DCHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
+  return ngtcp2_conn_get_handshake_completed(connection());
 }
 
 void QuicSession::InitApplication() {
   Debug(this, "Initializing application handler for ALPN %s",
-        GetALPN().c_str() + 1);
+        alpn().c_str() + 1);
   application_->Initialize();
 }
 
@@ -242,7 +242,7 @@ void QuicSession::InitApplication() {
 // immediately closed without attempting to send any additional data to
 // the peer. All existing streams are abandoned and closed.
 void QuicSession::OnIdleTimeout() {
-  if (IsFlagSet(QUICSESSION_FLAG_DESTROYED))
+  if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
     return;
   Debug(this, "Idle timeout");
   return SilentClose();
@@ -252,13 +252,13 @@ void QuicSession::OnIdleTimeout() {
 // connection close frame.
 void QuicSession::GetConnectionCloseInfo() {
   ngtcp2_connection_close_error_code close_code;
-  ngtcp2_conn_get_connection_close_error_code(Connection(), &close_code);
-  SetLastError(QuicError(close_code));
+  ngtcp2_conn_get_connection_close_error_code(connection(), &close_code);
+  set_last_error(QuicError(close_code));
 }
 
 // Removes the given connection id from the QuicSession.
 void QuicSession::RemoveConnectionID(const ngtcp2_cid* cid) {
-  if (!IsFlagSet(QUICSESSION_FLAG_DESTROYED))
+  if (!is_flag_set(QUICSESSION_FLAG_DESTROYED))
     DisassociateCID(cid);
 }
 
@@ -285,64 +285,58 @@ void QuicSession::DecreaseAllocatedSize(size_t size) {
   current_ngtcp2_memory_ -= size;
 }
 
-size_t QuicSession::GetMaxPacketLength() const {
-  return max_pktlen_;
+uint64_t QuicSession::max_data_left() const {
+  return ngtcp2_conn_get_max_data_left(connection());
 }
 
-uint64_t QuicSession::GetMaxDataLeft() const {
-  return ngtcp2_conn_get_max_data_left(Connection());
+uint64_t QuicSession::max_local_streams_uni() const {
+  return ngtcp2_conn_get_max_local_streams_uni(connection());
 }
 
-uint64_t QuicSession::GetMaxLocalStreamsUni() const {
-  return ngtcp2_conn_get_max_local_streams_uni(Connection());
-}
-
-void QuicSession::SetLastError(QuicError error) {
+void QuicSession::set_last_error(QuicError error) {
   last_error_ = error;
 }
 
-void QuicSession::SetLastError(int32_t family, uint64_t code) {
-  SetLastError({ family, code });
+void QuicSession::set_last_error(int32_t family, uint64_t code) {
+  set_last_error({ family, code });
 }
 
-void QuicSession::SetLastError(int32_t family, int code) {
-  SetLastError({ family, code });
+void QuicSession::set_last_error(int32_t family, int code) {
+  set_last_error({ family, code });
 }
 
-bool QuicSession::IsInClosingPeriod() const {
-  return ngtcp2_conn_is_in_closing_period(Connection());
+bool QuicSession::is_in_closing_period() const {
+  return ngtcp2_conn_is_in_closing_period(connection());
 }
 
-bool QuicSession::IsInDrainingPeriod() const {
-  return ngtcp2_conn_is_in_draining_period(Connection());
+bool QuicSession::is_in_draining_period() const {
+  return ngtcp2_conn_is_in_draining_period(connection());
 }
 
 bool QuicSession::HasStream(int64_t id) const {
   return streams_.find(id) != std::end(streams_);
 }
 
-QuicError QuicSession::GetLastError() const { return last_error_; }
-
-bool QuicSession::IsGracefullyClosing() const {
-  return IsFlagSet(QUICSESSION_FLAG_GRACEFUL_CLOSING);
+bool QuicSession::is_gracefully_closing() const {
+  return is_flag_set(QUICSESSION_FLAG_GRACEFUL_CLOSING);
 }
 
-bool QuicSession::IsDestroyed() const {
-  return IsFlagSet(QUICSESSION_FLAG_DESTROYED);
+bool QuicSession::is_destroyed() const {
+  return is_flag_set(QUICSESSION_FLAG_DESTROYED);
 }
 
-bool QuicSession::IsServer() const {
-  return crypto_context_->Side() == NGTCP2_CRYPTO_SIDE_SERVER;
+bool QuicSession::is_server() const {
+  return crypto_context_->side() == NGTCP2_CRYPTO_SIDE_SERVER;
 }
 
 void QuicSession::StartGracefulClose() {
-  SetFlag(QUICSESSION_FLAG_GRACEFUL_CLOSING);
+  set_flag(QUICSESSION_FLAG_GRACEFUL_CLOSING);
   session_stats_.closing_at = uv_hrtime();
 }
 
 // The connection ID Strategy is a function that generates
 // connection ID values. By default these are generated randomly.
-void QuicSession::SetConnectionIDStrategy(ConnectionIDStrategy strategy) {
+void QuicSession::set_connection_id_strategy(ConnectionIDStrategy strategy) {
   CHECK_NOT_NULL(strategy);
   connection_id_strategy_ = strategy;
 }
@@ -350,18 +344,18 @@ void QuicSession::SetConnectionIDStrategy(ConnectionIDStrategy strategy) {
 // The stateless reset token strategy is a function that generates
 // stateless reset tokens. By default these are cryptographically
 // derived by the CID.
-void QuicSession::SetStatelessResetTokenStrategy(
+void QuicSession::set_stateless_reset_token_strategy(
     StatelessResetTokenStrategy strategy) {
   CHECK_NOT_NULL(strategy);
   stateless_reset_strategy_ = strategy;
 }
 
-void QuicSession::SetPreferredAddressStrategy(
+void QuicSession::set_preferred_address_strategy(
     PreferredAddressStrategy strategy) {
   preferred_address_strategy_ = strategy;
 }
 
-QuicSocket* QuicSession::Socket() const {
+QuicSocket* QuicSession::socket() const {
   return socket_.get();
 }
 
@@ -383,7 +377,7 @@ void QuicSession::StreamDataBlocked(int64_t stream_id) {
 // configuration: use the preferred address or ignore it.
 void QuicSession::SelectPreferredAddress(
     const QuicPreferredAddress& preferred_address) {
-  CHECK(!IsServer());
+  CHECK(!is_server());
   preferred_address_strategy_(this, preferred_address);
 }
 
@@ -397,16 +391,16 @@ bool QuicSession::SendPacket(
   return SendPacket(std::move(packet));
 }
 
-void QuicSession::SetLocalAddress(const ngtcp2_addr* addr) {
-  DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  ngtcp2_conn_set_local_addr(Connection(), addr);
+void QuicSession::set_local_address(const ngtcp2_addr* addr) {
+  DCHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
+  ngtcp2_conn_set_local_addr(connection(), addr);
 }
 
 // Set the transport parameters received from the remote peer
-void QuicSession::SetRemoteTransportParams() {
-  DCHECK(!IsFlagSet(QUICSESSION_FLAG_DESTROYED));
-  ngtcp2_conn_get_remote_transport_params(Connection(), &transport_params_);
-  SetFlag(QUICSESSION_FLAG_HAS_TRANSPORT_PARAMS);
+void QuicSession::set_remote_transport_params() {
+  DCHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
+  ngtcp2_conn_get_remote_transport_params(connection(), &transport_params_);
+  set_flag(QUICSESSION_FLAG_HAS_TRANSPORT_PARAMS);
 }
 
 void QuicSession::StopIdleTimer() {
@@ -423,10 +417,10 @@ void QuicSession::StopRetransmitTimer() {
 // negotiation frame has been received by the client. The sv
 // parameter is an array of versions supported by the remote peer.
 void QuicSession::VersionNegotiation(const uint32_t* sv, size_t nsv) {
-  CHECK(!IsServer());
-  if (IsFlagSet(QUICSESSION_FLAG_DESTROYED))
+  CHECK(!is_server());
+  if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
     return;
-  Listener()->OnVersionNegotiation(NGTCP2_PROTO_VER, sv, nsv);
+  listener()->OnVersionNegotiation(NGTCP2_PROTO_VER, sv, nsv);
 }
 
 // Every QUIC session has a remote address and local address.

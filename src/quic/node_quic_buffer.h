@@ -143,15 +143,15 @@ class QuicBuffer : public MemoryRetainer {
   inline size_t Cancel(int status = UV_ECANCELED);
 
   // The total buffered bytes
-  size_t Length() const { return length_; }
+  size_t length() const { return length_; }
 
-  size_t RemainingLength() const { return rlength_; }
+  size_t remaining_length() const { return rlength_; }
 
   // The total number of buffers
-  size_t Size() const { return size_; }
+  size_t size() const { return size_; }
 
   // The number of buffers remaining to be read
-  size_t ReadRemaining() const { return count_; }
+  size_t read_remaining() const { return count_; }
 
   // Drain the remaining buffers into the given vector.
   // The function will return the number of positions the

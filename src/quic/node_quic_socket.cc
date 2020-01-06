@@ -104,38 +104,38 @@ void QuicSocketListener::OnDestroy() {
 }
 
 void JSQuicSocketListener::OnError(ssize_t code) {
-  Environment* env = Socket()->env();
+  Environment* env = socket()->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> arg = Number::New(env->isolate(), static_cast<double>(code));
-  Socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
+  socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
 }
 
 void JSQuicSocketListener::OnError(int code) {
-  Environment* env = Socket()->env();
+  Environment* env = socket()->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> arg = Integer::New(env->isolate(), code);
-  Socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
+  socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
 }
 
 void JSQuicSocketListener::OnSessionReady(BaseObjectPtr<QuicSession> session) {
-  Environment* env = Socket()->env();
+  Environment* env = socket()->env();
   Local<Value> arg = session->object();
   Context::Scope context_scope(env->context());
-  Socket()->MakeCallback(env->quic_on_session_ready_function(), 1, &arg);
+  socket()->MakeCallback(env->quic_on_session_ready_function(), 1, &arg);
 }
 
 void JSQuicSocketListener::OnServerBusy(bool busy) {
-  Environment* env = Socket()->env();
+  Environment* env = socket()->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> arg = Boolean::New(env->isolate(), busy);
-  Socket()->MakeCallback(env->quic_on_socket_server_busy_function(), 1, &arg);
+  socket()->MakeCallback(env->quic_on_socket_server_busy_function(), 1, &arg);
 }
 
 void JSQuicSocketListener::OnEndpointDone(QuicEndpoint* endpoint) {
-  Environment* env = Socket()->env();
+  Environment* env = socket()->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
   MakeCallback(
@@ -205,7 +205,7 @@ void QuicEndpoint::OnRecv(
   listener_->OnReceive(
       nread,
       std::move(buf),
-      GetLocalAddress(),
+      local_address(),
       addr,
       flags);
 }
@@ -217,7 +217,7 @@ ReqWrap<uv_udp_send_t>* QuicEndpoint::CreateSendWrap(size_t msg_size) {
 void QuicEndpoint::OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) {
   DecrementPendingCallbacks();
   listener_->OnSendDone(wrap, status);
-  if (!HasPendingCallbacks() && waiting_for_callbacks_)
+  if (!has_pending_callbacks() && waiting_for_callbacks_)
     listener_->OnEndpointDone(this);
 }
 
@@ -226,7 +226,7 @@ void QuicEndpoint::OnAfterBind() {
 }
 
 void QuicEndpoint::WaitForPendingCallbacks() {
-  if (!HasPendingCallbacks()) {
+  if (!has_pending_callbacks()) {
     listener_->OnEndpointDone(this);
     return;
   }
@@ -263,7 +263,7 @@ QuicSocket::QuicSocket(
   socket_stats_.created_at = uv_hrtime();
 
   if (disable_stateless_reset)
-    SetFlag(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
+    set_flag(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
 
   // Set the session reset secret to the one provided or random.
   // Note that a random secret is going to make it exceedingly
@@ -331,7 +331,7 @@ void QuicSocket::AddEndpoint(QuicEndpoint* endpoint_, bool preferred) {
   if (preferred || endpoints_.empty())
     preferred_endpoint_ = endpoint_;
   endpoints_.emplace_back(endpoint_);
-  if (IsFlagSet(QUICSOCKET_FLAGS_SERVER_LISTENING))
+  if (is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING))
     endpoint_->ReceiveStart();
 }
 
@@ -339,10 +339,10 @@ void QuicSocket::AddSession(
     const QuicCID& cid,
     BaseObjectPtr<QuicSession> session) {
   sessions_[cid.ToStr()] = session;
-  IncrementSocketAddressCounter(session->GetRemoteAddress());
+  IncrementSocketAddressCounter(session->remote_address());
   IncrementSocketStat(
       1, &socket_stats_,
-      session->IsServer() ?
+      session->is_server() ?
           &socket_stats::server_sessions :
           &socket_stats::client_sessions);
 }
@@ -365,13 +365,13 @@ void QuicSocket::Listen(
     uint32_t options) {
   CHECK_NOT_NULL(sc);
   CHECK_NULL(server_secure_context_);
-  CHECK(!IsFlagSet(QUICSOCKET_FLAGS_SERVER_LISTENING));
+  CHECK(!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING));
   Debug(this, "Starting to listen.");
   server_session_config_.Set(env(), preferred_address);
   server_secure_context_ = sc;
   server_alpn_ = alpn;
   server_options_ = options;
-  SetFlag(QUICSOCKET_FLAGS_SERVER_LISTENING);
+  set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING);
   socket_stats_.listen_at = uv_hrtime();
   ReceiveStart();
 }
@@ -382,10 +382,10 @@ void QuicSocket::Listen(
 // existing sessions are allowed to close naturally but new
 // sessions are rejected.
 void QuicSocket::StopListening() {
-  if (!IsFlagSet(QUICSOCKET_FLAGS_SERVER_LISTENING))
+  if (!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING))
     return;
   Debug(this, "Stop listening.");
-  SetFlag(QUICSOCKET_FLAGS_SERVER_LISTENING, false);
+  set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING, false);
   // It is important to not call ReceiveStop here as there
   // is ongoing traffic being exchanged by the peers.
 }
@@ -420,7 +420,7 @@ void QuicSocket::OnEndpointDone(QuicEndpoint* endpoint) {
 }
 
 void QuicSocket::OnBind(QuicEndpoint* endpoint) {
-  const SocketAddress& local_address = endpoint->GetLocalAddress();
+  const SocketAddress& local_address = endpoint->local_address();
   Debug(this, "Endpoint %s:%d bound",
         local_address.GetAddress().c_str(),
         local_address.GetPort());
@@ -455,7 +455,7 @@ void QuicSocket::OnReceive(
 
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped based on the rx_loss_ probability.
-  if (UNLIKELY(IsDiagnosticPacketLoss(rx_loss_))) {
+  if (UNLIKELY(is_diagnostic_packet_loss(rx_loss_))) {
     Debug(this, "Simulating received packet loss.");
     return;
   }
@@ -544,7 +544,7 @@ void QuicSocket::OnReceive(
             1, &socket_stats_,
             &socket_stats::packets_ignored);
       } else if (LIKELY(
-                      !IsFlagSet(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET))) {
+                      !is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET))) {
         // At this point, we don't have any state or knowledge of the dcid
         // identified in the packet. This could be because it is garbage,
         // or it could be that we crashed and lost the state but the peer
@@ -640,7 +640,7 @@ void QuicSocket::SendVersionNegotiation(
       sv.size());
   if (nwrite <= 0)
     return;
-  packet->SetLength(nwrite);
+  packet->set_length(nwrite);
   SocketAddress remote_address(remote_addr);
   SendPacket(local_addr, remote_address, std::move(packet));
 }
@@ -666,7 +666,7 @@ bool QuicSocket::SendStatelessReset(
         RANDLEN);
     if (nwrite <= 0)
       return false;
-    packet->SetLength(nwrite);
+    packet->set_length(nwrite);
     SocketAddress remote_address(remote_addr);
     return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
 }
@@ -713,7 +713,7 @@ bool QuicSocket::SendRetry(
           tokenlen);
   if (nwrite <= 0)
     return false;
-  packet->SetLength(nwrite);
+  packet->set_length(nwrite);
   SocketAddress remote_address(remote_addr);
   return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
 }
@@ -722,8 +722,8 @@ namespace {
   SocketAddress::Hash addr_hash;
 };
 
-void QuicSocket::SetValidatedAddress(const sockaddr* addr) {
-  if (IsOptionSet(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
+void QuicSocket::set_validated_address(const sockaddr* addr) {
+  if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     // Remove the oldest item if we've hit the LRU limit
     validated_addrs_.push_back(addr_hash(addr));
     if (validated_addrs_.size() > MAX_VALIDATE_ADDRESS_LRU)
@@ -731,8 +731,8 @@ void QuicSocket::SetValidatedAddress(const sockaddr* addr) {
   }
 }
 
-bool QuicSocket::IsValidatedAddress(const sockaddr* addr) const {
-  if (IsOptionSet(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
+bool QuicSocket::is_validated_address(const sockaddr* addr) const {
+  if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     auto res = std::find(std::begin(validated_addrs_),
                          std::end(validated_addrs_),
                          addr_hash(addr));
@@ -757,7 +757,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   ngtcp2_cid* ocid_ptr = nullptr;
   uint64_t initial_connection_close = NGTCP2_NO_ERROR;
 
-  if (!IsFlagSet(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
+  if (!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
     Debug(this, "QuicSocket is not listening");
     return {};
   }
@@ -785,7 +785,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
 
   // If the server is busy, new connections will be shut down immediately
   // after the initial keys are installed.
-  if (IsFlagSet(QUICSOCKET_FLAGS_SERVER_BUSY)) {
+  if (is_flag_set(QUICSOCKET_FLAGS_SERVER_BUSY)) {
     Debug(this, "QuicSocket is busy");
     initial_connection_close = NGTCP2_SERVER_BUSY;
   }
@@ -809,13 +809,13 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // If initial_connection_close is not NGTCP2_NO_ERROR, skip address
   // validation since we're going to reject the connection anyway.
   if (initial_connection_close == NGTCP2_NO_ERROR &&
-      IsOptionSet(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS) &&
+      is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS) &&
       hd.type == NGTCP2_PKT_INITIAL) {
       // If the VALIDATE_ADDRESS_LRU option is set, IsValidatedAddress
       // will check to see if the given address is in the validated_addrs_
       // LRU cache. If it is, we'll skip the validation step entirely.
       // The VALIDATE_ADDRESS_LRU option is disable by default.
-    if (!IsValidatedAddress(remote_addr)) {
+    if (!is_validated_address(remote_addr)) {
       Debug(this, "Performing explicit address validation.");
       if (InvalidRetryToken(
               hd.token,
@@ -829,7 +829,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
         return {};
       }
       Debug(this, "A valid retry token was found. Continuing.");
-      SetValidatedAddress(remote_addr);
+      set_validated_address(remote_addr);
       ocid_ptr = &ocid;
     } else {
       Debug(this, "Skipping validation for recently validated address.");
@@ -877,9 +877,9 @@ size_t QuicSocket::GetCurrentSocketAddressCounter(const sockaddr* addr) {
   return it->second;
 }
 
-void QuicSocket::SetServerBusy(bool on) {
+void QuicSocket::set_server_busy(bool on) {
   Debug(this, "Turning Server Busy Response %s", on ? "on" : "off");
-  SetFlag(QUICSOCKET_FLAGS_SERVER_BUSY, on);
+  set_flag(QUICSOCKET_FLAGS_SERVER_BUSY, on);
   listener_->OnServerBusy(on);
 }
 
@@ -918,7 +918,7 @@ int QuicSocket::SendPacket(
         packet->diagnostic_label());
 
   // If DiagnosticPacketLoss returns true, it will call Done() internally
-  if (UNLIKELY(IsDiagnosticPacketLoss(tx_loss_))) {
+  if (UNLIKELY(is_diagnostic_packet_loss(tx_loss_))) {
     Debug(this, "Simulating transmitted packet loss.");
     return 0;
   }
@@ -965,17 +965,17 @@ void QuicSocket::OnSend(int status, QuicPacket* packet) {
 
 void QuicSocket::OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) {
   std::unique_ptr<SendWrap> req_wrap(static_cast<SendWrap*>(wrap));
-  OnSend(status, req_wrap->get_packet());
+  OnSend(status, req_wrap->packet());
 }
 
-bool QuicSocket::IsDiagnosticPacketLoss(double prob) {
+bool QuicSocket::is_diagnostic_packet_loss(double prob) {
   if (LIKELY(prob == 0.0)) return false;
   unsigned char c = 255;
   EntropySource(&c, 1);
   return (static_cast<double>(c) / 255) < prob;
 }
 
-void QuicSocket::SetDiagnosticPacketLoss(double rx, double tx) {
+void QuicSocket::set_diagnostic_packet_loss(double rx, double tx) {
   rx_loss_ = rx;
   tx_loss_ = tx;
 }
@@ -1026,10 +1026,10 @@ void QuicSocket::RemoveListener(QuicSocketListener* listener) {
 }
 
 bool QuicSocket::ToggleStatelessReset() {
-  SetFlag(
+  set_flag(
       QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET,
-      !IsFlagSet(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET));
-  return !IsFlagSet(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
+      !is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET));
+  return !is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
 }
 
 // JavaScript API
@@ -1108,7 +1108,7 @@ void QuicSocketSetDiagnosticPacketLoss(
   CHECK_GE(tx, 0.0f);
   CHECK_LE(rx, 1.0f);
   CHECK_LE(tx, 1.0f);
-  socket->SetDiagnosticPacketLoss(rx, tx);
+  socket->set_diagnostic_packet_loss(rx, tx);
 }
 
 void QuicSocketDestroy(const FunctionCallbackInfo<Value>& args) {
@@ -1166,11 +1166,11 @@ void QuicSocketStopListening(const FunctionCallbackInfo<Value>& args) {
   socket->StopListening();
 }
 
-void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
+void QuicSocketset_server_busy(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
   CHECK_EQ(args.Length(), 1);
-  socket->SetServerBusy(args[0]->IsTrue());
+  socket->set_server_busy(args[0]->IsTrue());
 }
 
 void QuicSocketToggleStatelessReset(const FunctionCallbackInfo<Value>& args) {
@@ -1233,7 +1233,7 @@ void QuicSocket::Initialize(
                       QuicSocketSetDiagnosticPacketLoss);
   env->SetProtoMethod(socket,
                       "setServerBusy",
-                      QuicSocketSetServerBusy);
+                      QuicSocketset_server_busy);
   env->SetProtoMethod(socket,
                       "stopListening",
                       QuicSocketStopListening);

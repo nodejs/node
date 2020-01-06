@@ -76,7 +76,7 @@ class QuicSocketListener {
   virtual void OnEndpointDone(QuicEndpoint* endpoint);
   virtual void OnDestroy();
 
-  QuicSocket* Socket() { return socket_; }
+  QuicSocket* socket() { return socket_; }
 
  private:
   QuicSocket* socket_ = nullptr;
@@ -109,7 +109,7 @@ class QuicPacket : public MemoryRetainer {
   // size in to an ngtcp2 function that serializes the data.
   // ngtcp2 will fill the buffer as much as possible then return
   // the number of bytes serialized. User code is then responsible
-  // for calling SetLength() to set the final length of the
+  // for calling set_length() to set the final length of the
   // QuicPacket prior to sending it off to the QuicSocket.
   //
   // The diagnostic label is used in NODE_DEBUG_NATIVE output
@@ -149,7 +149,7 @@ class QuicPacket : public MemoryRetainer {
 
   uint8_t* data() { return *data_; }
   size_t length() const { return data_.length(); }
-  void SetLength(size_t len) {
+  void set_length(size_t len) {
     CHECK_LE(len, data_.length());
     data_.SetLength(len);
   }
@@ -205,7 +205,7 @@ class QuicEndpoint : public BaseObject,
       QuicSocket* listener,
       Local<Object> udp_wrap);
 
-  const SocketAddress& GetLocalAddress() const {
+  const SocketAddress& local_address() const {
     udp_->GetSockName(&local_address_);
     return local_address_;
   }
@@ -232,7 +232,7 @@ class QuicEndpoint : public BaseObject,
 
   void IncrementPendingCallbacks() { pending_callbacks_++; }
   void DecrementPendingCallbacks() { pending_callbacks_--; }
-  bool HasPendingCallbacks() { return pending_callbacks_ > 0; }
+  bool has_pending_callbacks() { return pending_callbacks_ > 0; }
   void WaitForPendingCallbacks();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -277,9 +277,9 @@ class QuicSocket : public AsyncWrap,
       bool disable_session_reset = false);
   ~QuicSocket() override;
 
-  const SocketAddress& GetLocalAddress() {
+  const SocketAddress& local_address() {
     CHECK_NOT_NULL(preferred_endpoint_);
-    return preferred_endpoint_->GetLocalAddress();
+    return preferred_endpoint_->local_address();
   }
 
   void MaybeClose();
@@ -309,8 +309,8 @@ class QuicSocket : public AsyncWrap,
       const SocketAddress& remote_addr,
       std::unique_ptr<QuicPacket> packet,
       BaseObjectPtr<QuicSession> session = BaseObjectPtr<QuicSession>());
-  void SetServerBusy(bool on);
-  void SetDiagnosticPacketLoss(double rx = 0.0, double tx = 0.0);
+  void set_server_busy(bool on);
+  void set_diagnostic_packet_loss(double rx = 0.0, double tx = 0.0);
   void StopListening();
 
   // Toggles whether or not stateless reset is enabled or not.
@@ -318,7 +318,7 @@ class QuicSocket : public AsyncWrap,
   // is not.
   bool ToggleStatelessReset();
 
-  crypto::SecureContext* GetServerSecureContext() {
+  crypto::SecureContext* server_secure_context() {
     return server_secure_context_;
   }
 
@@ -331,7 +331,7 @@ class QuicSocket : public AsyncWrap,
   void IncreaseAllocatedSize(size_t size);
   void DecreaseAllocatedSize(size_t size);
 
-  const uint8_t* GetSessionResetSecret() {
+  const uint8_t* session_reset_secret() {
     return reset_token_secret_;
   }
 
@@ -384,8 +384,8 @@ class QuicSocket : public AsyncWrap,
 
   void OnSend(int status, QuicPacket* packet);
 
-  void SetValidatedAddress(const sockaddr* addr);
-  bool IsValidatedAddress(const sockaddr* addr) const;
+  void set_validated_address(const sockaddr* addr);
+  bool is_validated_address(const sockaddr* addr) const;
 
   BaseObjectPtr<QuicSession> AcceptInitialPacket(
       uint32_t version,
@@ -405,7 +405,7 @@ class QuicSocket : public AsyncWrap,
 
   // Returns true if, and only if, diagnostic packet loss is enabled
   // and the current packet should be artificially considered lost.
-  bool IsDiagnosticPacketLoss(double prob);
+  bool is_diagnostic_packet_loss(double prob);
 
   enum QuicSocketFlags : uint32_t {
     QUICSOCKET_FLAGS_NONE = 0x0,
@@ -419,25 +419,25 @@ class QuicSocket : public AsyncWrap,
     QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET = 0x10
   };
 
-  void SetFlag(QuicSocketFlags flag, bool on = true) {
+  void set_flag(QuicSocketFlags flag, bool on = true) {
     if (on)
       flags_ |= flag;
     else
       flags_ &= ~flag;
   }
 
-  bool IsFlagSet(QuicSocketFlags flag) const {
+  bool is_flag_set(QuicSocketFlags flag) const {
     return flags_ & flag;
   }
 
-  void SetOption(QuicSocketOptions option, bool on = true) {
+  void set_option(QuicSocketOptions option, bool on = true) {
     if (on)
       options_ |= option;
     else
       options_ &= ~option;
   }
 
-  bool IsOptionSet(QuicSocketOptions option) const {
+  bool is_option_set(QuicSocketOptions option) const {
     return options_ & option;
   }
 
@@ -552,7 +552,7 @@ class QuicSocket : public AsyncWrap,
     void set_packet(std::unique_ptr<QuicPacket> packet) {
       packet_ = std::move(packet);
     }
-    QuicPacket* get_packet() { return packet_.get(); }
+    QuicPacket* packet() { return packet_.get(); }
     void set_session(BaseObjectPtr<QuicSession> session) { session_ = session; }
     size_t total_length() const { return total_length_; }
 

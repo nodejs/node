@@ -18,10 +18,10 @@ DefaultApplication::DefaultApplication(
     QuicApplication(session) {}
 
 bool DefaultApplication::Initialize() {
-  if (!NeedsInit())
+  if (!needs_init())
     return false;
-  Debug(Session(), "Default QUIC Application Initialized");
-  SetInitDone();
+  Debug(session(), "Default QUIC Application Initialized");
+  set_init_done();
   return true;
 }
 
@@ -33,12 +33,12 @@ bool DefaultApplication::ReceiveStreamData(
     uint64_t offset) {
   // Ensure that the QuicStream exists before deferring to
   // QuicApplication specific processing logic.
-  Debug(Session(), "Default QUIC Application receiving stream data");
-  QuicStream* stream = Session()->FindStream(stream_id);
+  Debug(session(), "Default QUIC Application receiving stream data");
+  QuicStream* stream = session()->FindStream(stream_id);
   if (stream == nullptr) {
     // Shutdown the stream explicitly if the session is being closed.
-    if (Session()->IsGracefullyClosing()) {
-      Session()->ResetStream(stream_id, NGTCP2_ERR_CLOSING);
+    if (session()->is_gracefully_closing()) {
+      session()->ResetStream(stream_id, NGTCP2_ERR_CLOSING);
       return true;
     }
 
@@ -51,7 +51,7 @@ bool DefaultApplication::ReceiveStreamData(
     if (UNLIKELY(datalen == 0))
       return true;
 
-    stream = Session()->CreateStream(stream_id);
+    stream = session()->CreateStream(stream_id);
   }
   CHECK_NOT_NULL(stream);
 
@@ -63,8 +63,8 @@ void DefaultApplication::AcknowledgeStreamData(
     int64_t stream_id,
     uint64_t offset,
     size_t datalen) {
-  QuicStream* stream = Session()->FindStream(stream_id);
-  Debug(Session(), "Default QUIC Application acknowledging stream data");
+  QuicStream* stream = session()->FindStream(stream_id);
+  Debug(session(), "Default QUIC Application acknowledging stream data");
   // It's possible that the stream has already been destroyed and
   // removed. If so, just silently ignore the ack
   if (stream != nullptr)
@@ -77,15 +77,15 @@ bool DefaultApplication::SendPendingData() {
   // scheme to allow higher priority streams to be serialized first.
   // Prioritization is left entirely up to the application layer in QUIC.
   // HTTP/3, for instance, drops prioritization entirely.
-  Debug(Session(), "Default QUIC Application sending pending data");
-  for (const auto& stream : Session()->GetStreams()) {
+  Debug(session(), "Default QUIC Application sending pending data");
+  for (const auto& stream : session()->streams()) {
     if (!SendStreamData(stream.second.get()))
       return false;
 
     // Check to make sure QuicSession state did not change in this iteration
-    if (Session()->IsInDrainingPeriod() ||
-        Session()->IsInClosingPeriod() ||
-        Session()->IsDestroyed()) {
+    if (session()->is_in_draining_period() ||
+        session()->is_in_closing_period() ||
+        session()->is_destroyed()) {
       break;
     }
   }
@@ -121,7 +121,7 @@ int IsEmpty(const ngtcp2_vec* vec, size_t cnt) {
 bool DefaultApplication::SendStreamData(QuicStream* stream) {
   ssize_t ndatalen = 0;
   QuicPathStorage path;
-  Debug(Session(), "Default QUIC Application sending stream %" PRId64 " data",
+  Debug(session(), "Default QUIC Application sending stream %" PRId64 " data",
         stream->GetID());
 
   std::vector<ngtcp2_vec> vec;
@@ -131,7 +131,7 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
   size_t remaining = stream->DrainInto(&vec);
   Debug(stream, "Sending %d bytes of stream data. Still writable? %s",
         remaining,
-        stream->IsWritable() ? "yes" : "no");
+        stream->is_writable() ? "yes" : "no");
 
   // c and v are used to track the current serialization position
   // for each iteration of the for(;;) loop below.
@@ -140,7 +140,7 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
 
   // If there is no stream data and we're not sending fin,
   // Just return without doing anything.
-  if (c == 0 && stream->IsWritable()) {
+  if (c == 0 && stream->is_writable()) {
     Debug(stream, "There is no stream data to send");
     return true;
   }
@@ -157,16 +157,16 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
 
     ssize_t nwrite =
         ngtcp2_conn_writev_stream(
-            Session()->Connection(),
+            session()->connection(),
             &path.path,
             packet->data() + packet_offset,
-            Session()->GetMaxPacketLength(),
+            session()->max_packet_length(),
             &ndatalen,
             remaining > 0 ?
                 NGTCP2_WRITE_STREAM_FLAG_MORE :
                 NGTCP2_WRITE_STREAM_FLAG_NONE,
             stream->GetID(),
-            stream->IsWritable() ? 0 : 1,
+            stream->is_writable() ? 0 : 1,
             reinterpret_cast<const ngtcp2_vec*>(v),
             c,
             uv_hrtime());
@@ -187,11 +187,11 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
           // to be silent because we can't even send a
           // CONNECTION_CLOSE since even those require a
           // packet number.
-          Session()->SilentClose();
+          session()->SilentClose();
           return false;
         case NGTCP2_ERR_STREAM_DATA_BLOCKED:
           Debug(stream, "Stream data blocked");
-          Session()->StreamDataBlocked(stream->GetID());
+          session()->StreamDataBlocked(stream->GetID());
           return true;
         case NGTCP2_ERR_STREAM_SHUT_WR:
           Debug(stream, "Stream writable side is closed");
@@ -213,7 +213,7 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
           continue;
         default:
           Debug(stream, "Error writing packet. Code %" PRIu64, nwrite);
-          Session()->SetLastError(
+          session()->set_last_error(
               QUIC_ERROR_SESSION,
               static_cast<int>(nwrite));
           return false;
@@ -231,8 +231,8 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
     }
 
     Debug(stream, "Sending %" PRIu64 " bytes in serialized packet", nwrite);
-    packet->SetLength(nwrite);
-    if (!Session()->SendPacket(std::move(packet), path))
+    packet->set_length(nwrite);
+    if (!session()->SendPacket(std::move(packet), path))
       return false;
 
     packet.reset();
@@ -240,10 +240,10 @@ bool DefaultApplication::SendStreamData(QuicStream* stream) {
 
     if (IsEmpty(v, c)) {
       // fin will have been set if all of the data has been
-      // encoded in the packet and IsWritable() returns false.
-      if (!stream->IsWritable()) {
+      // encoded in the packet and is_writable() returns false.
+      if (!stream->is_writable()) {
         Debug(stream, "Final stream has been sent");
-        stream->SetFinSent();
+        stream->set_fin_sent();
       }
       break;
     }
