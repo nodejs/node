@@ -202,7 +202,10 @@
             'RuntimeLibrary': '<(MSVC_runtimeType)',
             'RuntimeTypeInfo': 'false',
           }
-        }
+        },
+        'xcode_settings': {
+          'GCC_OPTIMIZATION_LEVEL': '3', # stop gyp from defaulting to -Os
+        },
       }
     },
 
