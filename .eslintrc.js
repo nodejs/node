@@ -244,6 +244,10 @@ module.exports = {
         selector: "CallExpression[callee.property.name='strictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
         message: 'The first argument should be the `actual`, not the `expected` value.',
       },
+      {
+        selector: "CallExpression[callee.name='isNaN']",
+        message: 'Use Number.isNaN() instead of the global isNaN() function.',
+      },
     ],
     /* eslint-enable max-len */
     'no-return-await': 'error',
