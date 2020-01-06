@@ -81,6 +81,16 @@ int ZEXPORT compress (dest, destLen, source, sourceLen)
 uLong ZEXPORT compressBound (sourceLen)
     uLong sourceLen;
 {
-    return sourceLen + (sourceLen >> 12) + (sourceLen >> 14) +
-           (sourceLen >> 25) + 13;
+    sourceLen = sourceLen + (sourceLen >> 12) + (sourceLen >> 14) +
+                (sourceLen >> 25) + 13;
+    /* FIXME(cavalcantii): usage of CRC32 Castagnoli as a hash function
+     * for the hash table of symbols used for compression has a side effect
+     * where for compression level [4, 5] it will increase the output buffer size
+     * by 0.1% (i.e. less than 1%) for a high entropy input (i.e. random data).
+     * To avoid a scenario where client code would fail, for safety we increase
+     * the expected output size by 0.8% (i.e. 8x more than the worst scenario).
+     * See: http://crbug.com/990489
+     */
+    sourceLen += sourceLen >> 7; // Equivalent to 1.0078125
+    return sourceLen;
 }

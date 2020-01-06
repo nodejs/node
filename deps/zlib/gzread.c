@@ -443,7 +443,11 @@ z_size_t ZEXPORT gzfread(buf, size, nitems, file)
 #  undef z_gzgetc
 #else
 #  undef gzgetc
+#  ifdef Z_CR_PREFIX_SET
+#    define gzgetc Cr_z_gzgetc
+#  endif
 #endif
+
 int ZEXPORT gzgetc(file)
     gzFile file;
 {

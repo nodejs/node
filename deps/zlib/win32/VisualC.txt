@@ -1,3 +1,0 @@
-
-To build zlib using the Microsoft Visual C++ environment,
-use the appropriate project from the contrib/vstudio/ directory.

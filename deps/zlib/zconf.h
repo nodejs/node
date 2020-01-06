@@ -9,6 +9,18 @@
 #define ZCONF_H
 
 /*
+ * This library is also built as a part of AOSP, which does not need to include
+ * chromeconf.h. This config does not want chromeconf.h, so it can set this
+ * macro to opt out. While this works today, there's no guarantee that building
+ * zlib outside of Chromium keeps working in the future.
+ */
+#if !defined(CHROMIUM_ZLIB_NO_CHROMECONF)
+/* This include does prefixing as below, but with an updated set of names.  Also
+ * sets up export macros in component builds. */
+//#include "chromeconf.h"
+#endif
+
+/*
  * If you *really* need a unique prefix for all types and library functions,
  * compile with -DZ_PREFIX. The "standard" zlib should be compiled without it.
  * Even better than compiling with -DZ_PREFIX would be to use configure to set
@@ -386,6 +398,9 @@
 #ifndef FAR
 #  define FAR
 #endif
+#ifndef far
+#  define far
+#endif
 
 #if !defined(__MACTYPES__)
 typedef unsigned char  Byte;  /* 8 bits */
@@ -431,7 +446,7 @@ typedef uLong FAR uLongf;
    typedef unsigned long z_crc_t;
 #endif
 
-#ifdef HAVE_UNISTD_H    /* may be set to #if 1 by ./configure */
+#if !defined(_WIN32)
 #  define Z_HAVE_UNISTD_H
 #endif
 

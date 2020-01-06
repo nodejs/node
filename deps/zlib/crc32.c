@@ -28,7 +28,16 @@
 #  endif /* !DYNAMIC_CRC_TABLE */
 #endif /* MAKECRCH */
 
+#include "deflate.h"
+#include "x86.h"
 #include "zutil.h"      /* for STDC and FAR definitions */
+
+#if defined(CRC32_SIMD_SSE42_PCLMUL)
+#include "crc32_simd.h"
+#elif defined(CRC32_ARMV8_CRC32)
+#include "arm_features.h"
+#include "crc32_simd.h"
+#endif
 
 /* Definitions for doing the crc four data bytes at a time. */
 #if !defined(NOBYFOUR) && defined(Z_U4)
@@ -204,7 +213,39 @@ unsigned long ZEXPORT crc32_z(crc, buf, len)
     const unsigned char FAR *buf;
     z_size_t len;
 {
-    if (buf == Z_NULL) return 0UL;
+    /*
+     * zlib convention is to call crc32(0, NULL, 0); before making
+     * calls to crc32(). So this is a good, early (and infrequent)
+     * place to cache CPU features if needed for those later, more
+     * interesting crc32() calls.
+     */
+#if defined(CRC32_SIMD_SSE42_PCLMUL)
+    /*
+     * Use x86 sse4.2+pclmul SIMD to compute the crc32. Since this
+     * routine can be freely used, check CPU features here.
+     */
+    if (buf == Z_NULL) {
+        if (!len) /* Assume user is calling crc32(0, NULL, 0); */
+            x86_check_features();
+        return 0UL;
+    }
+
+    if (x86_cpu_enable_simd && len >= Z_CRC32_SSE42_MINIMUM_LENGTH) {
+        /* crc32 16-byte chunks */
+        z_size_t chunk_size = len & ~Z_CRC32_SSE42_CHUNKSIZE_MASK;
+        crc = ~crc32_sse42_simd_(buf, chunk_size, ~(uint32_t)crc);
+        /* check remaining data */
+        len -= chunk_size;
+        if (!len)
+            return crc;
+        /* Fall into the default crc32 for the remaining data. */
+        buf += chunk_size;
+    }
+#else
+    if (buf == Z_NULL) {
+        return 0UL;
+    }
+#endif /* CRC32_SIMD_SSE42_PCLMUL */
 
 #ifdef DYNAMIC_CRC_TABLE
     if (crc_table_empty)
@@ -239,6 +280,22 @@ unsigned long ZEXPORT crc32(crc, buf, len)
     const unsigned char FAR *buf;
     uInt len;
 {
+#if defined(CRC32_ARMV8_CRC32)
+    /* We got to verify ARM CPU features, so exploit the common usage pattern
+     * of calling this function with Z_NULL for an initial valid crc value.
+     * This allows to cache the result of the feature check and avoid extraneous
+     * function calls.
+     * TODO: try to move this to crc32_z if we don't loose performance on ARM.
+     */
+    if (buf == Z_NULL) {
+        if (!len) /* Assume user is calling crc32(0, NULL, 0); */
+            arm_check_features();
+        return 0UL;
+    }
+
+    if (arm_cpu_enable_crc32)
+        return armv8_crc32_little(crc, buf, len);
+#endif
     return crc32_z(crc, buf, len);
 }
 
@@ -439,4 +496,29 @@ uLong ZEXPORT crc32_combine64(crc1, crc2, len2)
     z_off64_t len2;
 {
     return crc32_combine_(crc1, crc2, len2);
+}
+
+ZLIB_INTERNAL void crc_reset(deflate_state *const s)
+{
+    if (x86_cpu_enable_simd) {
+        crc_fold_init(s);
+        return;
+    }
+    s->strm->adler = crc32(0L, Z_NULL, 0);
+}
+
+ZLIB_INTERNAL void crc_finalize(deflate_state *const s)
+{
+    if (x86_cpu_enable_simd)
+        s->strm->adler = crc_fold_512to32(s);
+}
+
+ZLIB_INTERNAL void copy_with_crc(z_streamp strm, Bytef *dst, long size)
+{
+    if (x86_cpu_enable_simd) {
+        crc_fold_copy(strm->state, dst, strm->next_in, size);
+        return;
+    }
+    zmemcpy(dst, strm->next_in, size);
+    strm->adler = crc32(strm->adler, dst, size);
 }

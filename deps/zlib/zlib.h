@@ -1824,6 +1824,11 @@ ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));  /* backward compatibility */
 #  undef z_gzgetc
 #  define z_gzgetc(g) \
           ((g)->have ? ((g)->have--, (g)->pos++, *((g)->next)++) : (gzgetc)(g))
+#elif defined(Z_CR_PREFIX_SET)
+#    undef gzgetc
+#    define gzgetc(g) \
+          ((g)->have ? ((g)->have--, (g)->pos++, *((g)->next)++) \
+                     : (Cr_z_gzgetc)(g))
 #else
 #  define gzgetc(g) \
           ((g)->have ? ((g)->have--, (g)->pos++, *((g)->next)++) : (gzgetc)(g))
@@ -1853,11 +1858,29 @@ ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));  /* backward compatibility */
 #    define z_adler32_combine z_adler32_combine64
 #    define z_crc32_combine z_crc32_combine64
 #  else
+#    ifdef gzopen
+#      undef gzopen
+#    endif
 #    define gzopen gzopen64
+#    ifdef gzseek
+#      undef gzseek
+#    endif
 #    define gzseek gzseek64
+#    ifdef gztell
+#      undef gztell
+#    endif
 #    define gztell gztell64
+#    ifdef gzoffset
+#      undef gzoffset
+#    endif
 #    define gzoffset gzoffset64
+#    ifdef adler32_combine
+#      undef adler32_combine
+#    endif
 #    define adler32_combine adler32_combine64
+#    ifdef crc32_combine
+#      undef crc32_combine
+#    endif
 #    define crc32_combine crc32_combine64
 #  endif
 #  ifndef Z_LARGE64
