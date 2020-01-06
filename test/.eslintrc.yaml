@@ -18,7 +18,6 @@ rules:
   node-core/crypto-check: error
   node-core/eslint-check: error
   node-core/inspector-check: error
-  node-core/number-isnan: error
   ## common module is mandatory in tests
   node-core/required-modules:
     - error

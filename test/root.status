@@ -34,7 +34,6 @@ parallel/test-eslint-eslint-check: SLOW
 parallel/test-eslint-inspector-check: SLOW
 parallel/test-eslint-lowercase-name-for-primitive: SLOW
 parallel/test-eslint-no-unescaped-regexp-dot: SLOW
-parallel/test-eslint-number-isnan: SLOW
 parallel/test-eslint-prefer-assert-iferror: SLOW
 parallel/test-eslint-prefer-assert-methods: SLOW
 parallel/test-eslint-prefer-common-mustnotcall: SLOW
