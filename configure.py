@@ -498,6 +498,14 @@ parser.add_option('--use-largepages-script-lld',
     dest='node_use_large_pages_script_lld',
     help='This option has no effect. --use-largepages is now a runtime option.')
 
+parser.add_option('--use-section-ordering-file',
+    action='store',
+    dest='node_section_ordering_info',
+    default='',
+    help='Pass a section ordering file to the linker. This requires that ' +
+         'Node.js be linked using the gold linker. The gold linker must have ' +
+         'version 1.2 or greater.')
+
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
@@ -1748,6 +1756,29 @@ def configure_inspector(o):
                        options.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
+def configure_section_file(o):
+  try:
+    proc = subprocess.Popen(['ld.gold'] + ['-v'], stdin = subprocess.PIPE,
+                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+  except OSError:
+    warn('''No acceptable ld.gold linker found!''')
+    return 0
+
+  match = re.match(r"^GNU gold.*([0-9]+)\.([0-9]+)$",
+                   proc.communicate()[0].decode("utf-8"))
+
+  if match:
+    gold_major_version = match.group(1)
+    gold_minor_version = match.group(2)
+    if int(gold_major_version) == 1 and int(gold_minor_version) <= 1:
+      error('''GNU gold version must be greater than 1.2 in order to use section
+            reordering''')
+
+  if options.node_section_ordering_info != "":
+    o['variables']['node_section_ordering_info'] = os.path.realpath(
+      str(options.node_section_ordering_info))
+  else:
+    o['variables']['node_section_ordering_info'] = ""
 
 def make_bin_override():
   if sys.platform == 'win32':
@@ -1813,6 +1844,7 @@ configure_openssl(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
+configure_section_file(output)
 
 # Forward OSS-Fuzz settings
 output['variables']['ossfuzz'] = b(options.ossfuzz)
