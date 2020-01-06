@@ -1542,9 +1542,9 @@ def configure_intl(o):
     with open(icu_data_path, 'wb') as outf:
         inf = bz2.BZ2File(compressed_data, 'rb')
         try:
-            shutil.copyfileobj(inf, outf)
+          shutil.copyfileobj(inf, outf)
         finally:
-            inf.close()
+          inf.close()
     # Now, proceed..
 
   # relative to dep..
