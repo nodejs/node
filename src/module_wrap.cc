@@ -1,3 +1,4 @@
+#define V8_ENABLE_CHECKS 1
 #include "module_wrap.h"
 
 #include "env.h"
@@ -8,7 +9,6 @@
 #include "node_contextify.h"
 #include "node_watchdog.h"
 #include "node_process.h"
-
 
 #include <sys/stat.h>  // S_IFDIR
 
@@ -908,19 +908,22 @@ Maybe<URL> ResolveExportsTargetString(Environment* env,
   return Just(subpath_resolved);
 }
 
-bool IsArrayIndex(Environment* env, Local<String> p) {
+bool IsArrayIndex(Environment* env, Local<Value> p) {
   Local<Context> context = env->context();
-  double n_dbl = static_cast<double>(p->NumberValue(context).FromJust());
+  Local<String> p_str = p->ToString(context).ToLocalChecked();
+  double n_dbl = static_cast<double>(p_str->NumberValue(context).FromJust());
   Local<Number> n = Number::New(env->isolate(), n_dbl);
-  Local<String> cmp_str;
-  CHECK(n->ToString(context).ToLocal(&cmp_str));
-  if (!p->Equals(context, cmp_str).FromJust())
+  Local<String> cmp_str = n->ToString(context).ToLocalChecked();
+  if (!p_str->Equals(context, cmp_str).FromJust()) {
     return false;
-  if (n_dbl == 0 && std::signbit(n_dbl) == false)
+  }
+  if (n_dbl == 0 && std::signbit(n_dbl) == false) {
     return true;
+  }
   Local<Integer> cmp_integer;
-  if (!n->ToInteger(context).ToLocal(&cmp_integer))
+  if (!n->ToInteger(context).ToLocal(&cmp_integer)) {
     return false;
+  }
   return n_dbl > 0 && n_dbl < (2 ^ 32) - 1;
 }
 
@@ -974,8 +977,8 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
     Local<Value> conditionalTarget;
     bool matched = false;
     for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
-      Local<String> key =
-          target_obj_keys->Get(context, i).ToLocalChecked().As<String>();
+      Local<Value> key =
+          target_obj_keys->Get(context, i).ToLocalChecked();
       if (IsArrayIndex(env, key)) {
         const std::string msg = "Invalid package config for " +
             pjson_url.ToFilePath() + ", \"exports\" cannot contain numeric " +
@@ -985,9 +988,9 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
       }
     }
     for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
-      Local<String> key =
-          target_obj_keys->Get(context, i).ToLocalChecked().As<String>();
-      Utf8Value key_utf8(env->isolate(), key);
+      Local<Value> key = target_obj_keys->Get(context, i).ToLocalChecked();
+      Utf8Value key_utf8(env->isolate(),
+                         key->ToString(context).ToLocalChecked());
       std::string key_str(*key_utf8, key_utf8.length());
       if (key_str == "node" || key_str == "import") {
         if (!env->options()->experimental_conditional_exports) continue;
@@ -1035,8 +1038,8 @@ Maybe<bool> IsConditionalExportsMainSugar(Environment* env,
       exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
   bool isConditionalSugar = false;
   for (uint32_t i = 0; i < keys->Length(); ++i) {
-    Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
-    Utf8Value key_utf8(env->isolate(), key);
+    Local<Value> key = keys->Get(context, i).ToLocalChecked();
+    Utf8Value key_utf8(env->isolate(), key->ToString(context).ToLocalChecked());
     bool curIsConditionalSugar = key_utf8.length() == 0 || key_utf8[0] != '.';
     if (i == 0) {
       isConditionalSugar = curIsConditionalSugar;
@@ -1144,13 +1147,13 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Local<Array> keys =
       exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
   for (uint32_t i = 0; i < keys->Length(); ++i) {
-    Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
-    Utf8Value key_utf8(isolate, key);
+    Local<Value> key = keys->Get(context, i).ToLocalChecked();
+    Utf8Value key_utf8(isolate, key->ToString(context).ToLocalChecked());
     std::string key_str(*key_utf8, key_utf8.length());
     if (key_str.back() != '/') continue;
     if (pkg_subpath.substr(0, key_str.length()) == key_str &&
         key_str.length() > best_match_str.length()) {
-      best_match = key;
+      best_match = key->ToString(context).ToLocalChecked();
       best_match_str = key_str;
     }
   }
