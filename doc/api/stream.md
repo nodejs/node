@@ -1555,17 +1555,26 @@ const cleanup = finished(rs, (err) => {
 });
 ```
 
-### `stream.pipeline(...streams, callback)`
+### `stream.pipeline(source, ...streams, callback)`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31223
+    description: Add support for functions and generators.
 -->
 
-* `...streams` {Stream} Two or more streams to pipe between.
+* `source` {Stream|Iterable|AsyncIterable|Function}
+  * Returns: {Stream|Iterable|AsyncIterable}
+* `...streams` {Stream|Function}
+  * `source` {AsyncIterable}
+  * Returns: {Stream|AsyncIterable|Promise}
 * `callback` {Function} Called when the pipeline is fully done.
   * `err` {Error}
+* Returns: {Stream}
 
-A module method to pipe between streams forwarding errors and properly cleaning
-up and provide a callback when the pipeline is complete.
+A module method to pipe between streams and generators forwarding errors and
+properly cleaning up and provide a callback when the pipeline is complete.
 
 ```js
 const { pipeline } = require('stream');
@@ -1601,6 +1610,41 @@ async function run() {
     fs.createReadStream('archive.tar'),
     zlib.createGzip(),
     fs.createWriteStream('archive.tar.gz')
+  );
+  console.log('Pipeline succeeded.');
+}
+
+run().catch(console.error);
+```
+
+```js
+const pipeline = util.promisify(stream.pipeline);
+const fs = require('fs').promises;
+
+async function run() {
+  await pipeline(
+    async function*() {
+      const fd = await fs.open('archive.tar');
+      try {
+        const chunk = new Buffer(1024);
+        const { bytesRead } = await fs.read(fd, chunk, 0, chunk.length, null);
+        if (bytesRead === 0) return;
+        yield chunk.slice(0, bytesRead);
+      } finally {
+        await fs.close(fd);
+      }
+    },
+    zlib.createGzip(),
+    async function(source) {
+      const fd = await fs.open('archive.tar', 'w');
+      try {
+        for await (const chunk of source) {
+          fs.write(fd, chunk);
+        }
+      } finally {
+        await fs.close(fd);
+      }
+    }
   );
   console.log('Pipeline succeeded.');
 }
@@ -2700,8 +2744,7 @@ const pipeline = util.promisify(stream.pipeline);
 const writable = fs.createWriteStream('./file');
 
 (async function() {
-  const readable = Readable.from(iterable);
-  await pipeline(readable, writable);
+  await pipeline(iterator, writable);
 })();
 ```
 
@@ -2836,7 +2879,7 @@ contain multi-byte characters.
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
-[`stream.pipeline()`]: #stream_stream_pipeline_streams_callback
+[`stream.pipeline()`]: #stream_stream_pipeline_source_streams_callback
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
