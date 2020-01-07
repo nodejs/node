@@ -374,16 +374,16 @@ const proxy = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-proxy.on('connect', (req, cltSocket, head) => {
+proxy.on('connect', (req, clientSocket, head) => {
   // Connect to an origin server
   const { port, hostname } = new URL(`http://${req.url}`);
-  const srvSocket = net.connect(port || 80, hostname, () => {
-    cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
+  const serverSocket = net.connect(port || 80, hostname, () => {
+    clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
                     '\r\n');
-    srvSocket.write(head);
-    srvSocket.pipe(cltSocket);
-    cltSocket.pipe(srvSocket);
+    serverSocket.write(head);
+    serverSocket.pipe(clientSocket);
+    clientSocket.pipe(serverSocket);
   });
 });
 
@@ -525,11 +525,11 @@ A client server pair demonstrating how to listen for the `'upgrade'` event.
 const http = require('http');
 
 // Create an HTTP server
-const srv = http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-srv.on('upgrade', (req, socket, head) => {
+server.on('upgrade', (req, socket, head) => {
   socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                'Upgrade: WebSocket\r\n' +
                'Connection: Upgrade\r\n' +
@@ -539,7 +539,7 @@ srv.on('upgrade', (req, socket, head) => {
 });
 
 // Now that server is running
-srv.listen(1337, '127.0.0.1', () => {
+server.listen(1337, '127.0.0.1', () => {
 
   // make a request
   const options = {
