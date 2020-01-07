@@ -236,7 +236,7 @@ undefined
 
 ### Reverse-i-search
 <!-- YAML
-added: REPLACEME
+added: v13.6.0
 -->
 
 The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is

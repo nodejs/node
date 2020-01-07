@@ -226,7 +226,7 @@ Enable experimental ES Module support in the `vm` module.
 <!-- YAML
 added: v13.3.0
 changes:
-  - version: REPLACEME
+  - version: v13.6.0
     pr-url: https://github.com/nodejs/node/pull/30980
     description: changed from `--experimental-wasi-unstable-preview0` to
                  `--experimental-wasi-unstable-preview1`
@@ -870,7 +870,7 @@ See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
 ### `--use-largepages=mode`
 <!-- YAML
-added: REPLACEME
+added: v13.6.0
 -->
 
 Re-map the Node.js static code to large memory pages at startup. If supported on
