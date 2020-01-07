@@ -2647,15 +2647,23 @@ const finished = util.promisify(stream.finished);
 
 const writable = fs.createWriteStream('./file');
 
-(async function() {
+async function pump(iterator, writable) {
   for await (const chunk of iterator) {
     // Handle backpressure on write().
-    if (!writable.write(chunk))
+    if (!writable.write(chunk)) {
+      if (writable.destroyed) return;
       await once(writable, 'drain');
+    }
   }
   writable.end();
+}
+
+(async function() {
   // Ensure completion without errors.
-  await finished(writable);
+  await Promise.all([
+    pump(iterator, writable),
+    finished(writable)
+  ]);
 })();
 ```
 
