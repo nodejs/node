@@ -360,11 +360,6 @@ MultiIsolatePlatform* CreatePlatform(
   return new NodePlatform(thread_pool_size, tracing_controller);
 }
 
-MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size) {
-  per_process::v8_platform.Initialize(thread_pool_size);
-  return per_process::v8_platform.Platform();
-}
-
 void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
