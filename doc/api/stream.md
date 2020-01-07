@@ -2650,10 +2650,10 @@ const writable = fs.createWriteStream('./file');
 async function pump(iterable, writable) {
   for await (const chunk of iterable) {
     // Handle backpressure on write().
-    if (writable.destroyed) return;
-    if (!writable.write(chunk)) {}
+    if (!writable.write(chunk)) {
+      if (writable.destroyed) return;
       await once(writable, 'drain');
-    if (writable.destroyed) return;
+    }
   }
   writable.end();
 }
