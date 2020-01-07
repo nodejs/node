@@ -49,19 +49,18 @@ size_t QuicBuffer::Push(uv_buf_t* bufs, size_t nbufs, done_cb done) {
   while (nbufs > 1) {
     if (!IsEmptyBuffer(bufs[n])) {
       Push(bufs[n]);
-      length_ += bufs[n].len;
       len += bufs[n].len;
     }
     n++;
     nbufs--;
   }
-  length_ += bufs[n].len;
   len += bufs[n].len;
   Push(bufs[n], done);
   return len;
 }
 
 void QuicBuffer::Push(std::unique_ptr<QuicBufferChunk> chunk) {
+  length_ += chunk->buf_.len;
   if (!tail_) {
     root_ = std::move(chunk);
     head_ = tail_ = root_.get();

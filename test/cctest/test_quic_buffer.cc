@@ -260,7 +260,7 @@ TEST(QuicBuffer, Append) {
   CHECK_EQ(200, buffer2.length());
 }
 
-TEST(QuicBuffer, DISABLED_QuicBufferChunk) {
+TEST(QuicBuffer, QuicBufferChunk) {
   std::unique_ptr<QuicBufferChunk> chunk =
       std::make_unique<QuicBufferChunk>(100);
 
