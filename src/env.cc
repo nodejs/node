@@ -332,8 +332,8 @@ Environment::Environment(IsolateData* isolate_data,
 
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
-    TracingController* tracing_controller = writer->GetTracingController();
-    tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+    if (TracingController* tracing_controller = writer->GetTracingController())
+      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
   }
 
   destroy_async_id_list_.reserve(512);
@@ -409,8 +409,8 @@ Environment::~Environment() {
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
     CHECK_NOT_NULL(writer);
-    TracingController* tracing_controller = writer->GetTracingController();
-    tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+    if (TracingController* tracing_controller = writer->GetTracingController())
+      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
   }
 
   delete[] http_parser_buffer_;
