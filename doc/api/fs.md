@@ -4253,17 +4253,13 @@ added: v10.0.0
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
 * Returns: {Promise}
 
-Asynchronously append data to this file, creating the file if it does not yet
-exist. `data` can be a string or a [`Buffer`][]. The `Promise` will be
-resolved with no arguments upon success.
+Alias of [`filehandle.writeFile()`][].
 
-If `options` is a string, then it specifies the encoding.
-
-The `FileHandle` must have been opened for appending.
+When operating on file handles, the mode cannot be changed from what it was set
+to with [`fsPromises.open()`][]. Therefore, this is equivalent to
+[`filehandle.writeFile()`][].
 
 #### `filehandle.chmod(mode)`
 <!-- YAML
@@ -4364,7 +4360,6 @@ added: v10.0.0
 
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
 * Returns: {Promise}
 
 Asynchronously reads the entire contents of a file.
@@ -4374,11 +4369,6 @@ specified (using `options.encoding`), the data is returned as a `Buffer`
 object. Otherwise, the data will be a string.
 
 If `options` is a string, then it specifies the encoding.
-
-When the `path` is a directory, the behavior of `fsPromises.readFile()` is
-platform-specific. On macOS, Linux, and Windows, the promise will be rejected
-with an error. On FreeBSD, a representation of the directory's contents will be
-returned.
 
 The `FileHandle` has to support reading.
 
@@ -4569,8 +4559,6 @@ added: v10.0.0
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
@@ -5545,6 +5533,7 @@ the file contents.
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [`WriteStream`]: #fs_class_fs_writestream
 [`event ports`]: https://illumos.org/man/port_create
+[`filehandle.writeFile()`]: #fs_filehandle_writefile_data_options
 [`fs.Dir`]: #fs_class_fs_dir
 [`fs.Dirent`]: #fs_class_fs_dirent
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
@@ -5579,6 +5568,7 @@ the file contents.
 [`fs.write(fd, string...)`]: #fs_fs_write_fd_string_position_encoding_callback
 [`fs.writeFile()`]: #fs_fs_writefile_file_data_options_callback
 [`fs.writev()`]: #fs_fs_writev_fd_buffers_position_callback
+[`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
 [`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
