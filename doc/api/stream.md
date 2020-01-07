@@ -2647,8 +2647,8 @@ const finished = util.promisify(stream.finished);
 
 const writable = fs.createWriteStream('./file');
 
-async function pump(iterator, writable) {
-  for await (const chunk of iterator) {
+async function pump(iterable, writable) {
+  for await (const chunk of iterable) {
     // Handle backpressure on write().
     if (!writable.write(chunk)) {
       if (writable.destroyed) return;
@@ -2661,7 +2661,7 @@ async function pump(iterator, writable) {
 (async function() {
   // Ensure completion without errors.
   await Promise.all([
-    pump(iterator, writable),
+    pump(iterable, writable),
     finished(writable)
   ]);
 })();
@@ -2685,7 +2685,7 @@ const finished = util.promisify(stream.finished);
 const writable = fs.createWriteStream('./file');
 
 (async function() {
-  const readable = Readable.from(iterator);
+  const readable = Readable.from(iterable);
   readable.pipe(writable);
   // Ensure completion without errors.
   await finished(writable);
@@ -2700,7 +2700,7 @@ const pipeline = util.promisify(stream.pipeline);
 const writable = fs.createWriteStream('./file');
 
 (async function() {
-  const readable = Readable.from(iterator);
+  const readable = Readable.from(iterable);
   await pipeline(readable, writable);
 })();
 ```
