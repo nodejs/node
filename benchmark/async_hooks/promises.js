@@ -1,39 +1,30 @@
 'use strict';
 const common = require('../common.js');
+const { createHook } = require('async_hooks');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  method: [
-    'trackingEnabled',
-    'trackingDisabled',
+  asyncHooks: [
+    'enabled',
+    'disabled',
   ]
 });
 
 async function run(n) {
   for (let i = 0; i < n; i++) {
     await new Promise((resolve) => resolve())
-    .then(() => { throw new Error('foobar'); })
-    .catch((e) => e);
+      .then(() => { throw new Error('foobar'); })
+      .catch((e) => e);
   }
 }
 
-function main({ n, method }) {
-  const hook = require('async_hooks').createHook({ promiseResolve() {} });
-  switch (method) {
-    case 'trackingEnabled':
-      hook.enable();
-      bench.start();
-      run(n).then(() => {
-        bench.end(n);
-      });
-      break;
-    case 'trackingDisabled':
-      bench.start();
-      run(n).then(() => {
-        bench.end(n);
-      });
-      break;
-    default:
-      throw new Error(`Unsupported method "${method}"`);
+function main({ n, asyncHooks }) {
+  const hook = createHook({ promiseResolve() {} });
+  if (asyncHooks !== 'disabled') {
+    hook.enable();
   }
+  bench.start();
+  run(n).then(() => {
+    bench.end(n);
+  });
 }
