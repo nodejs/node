@@ -49,14 +49,12 @@ TEST(QuicBuffer, Simple) {
   });
 
   buffer.Consume(100);
-  CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(0, buffer.Size());
+  CHECK_EQ(0, buffer.length());
 
   // We have to move the read head forward in order to consume
-  buffer.SeekHead(1);
+  buffer.Seek(1);
   buffer.Consume(100);
-  CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(0, buffer.Size());
+  CHECK_EQ(0, buffer.length());
   CHECK_EQ(true, done);
 }
 
@@ -73,11 +71,10 @@ TEST(QuicBuffer, ConsumeMore) {
     done = true;
   });
 
-  buffer.SeekHead();
+  buffer.Seek(1);
   buffer.Consume(150);  // Consume more than what was buffered
   CHECK_EQ(true, done);
-  CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(0, buffer.Size());
+  CHECK_EQ(0, buffer.length());
 }
 
 TEST(QuicBuffer, Multiple) {
@@ -98,19 +95,16 @@ TEST(QuicBuffer, Multiple) {
     buffer.Push(&b, 1, [&](int status) { cb(status, &buf2); });
   }
 
-  buffer.SeekHead(2);
+  buffer.Seek(2);
 
   buffer.Consume(25);
-  CHECK_EQ(125, buffer.Length());
-  CHECK_EQ(2, buffer.Size());
+  CHECK_EQ(125, buffer.length());
 
   buffer.Consume(100);
-  CHECK_EQ(25, buffer.Length());
-  CHECK_EQ(1, buffer.Size());
+  CHECK_EQ(25, buffer.length());
 
   buffer.Consume(25);
-  CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(0, buffer.Size());
+  CHECK_EQ(0, buffer.length());
 }
 
 
@@ -134,20 +128,16 @@ TEST(QuicBuffer, Multiple2) {
     CHECK_EQ(0, status);
     delete[] ptr;
   });
-  buffer.SeekHead(node::arraysize(bufs));
+  buffer.Seek(node::arraysize(bufs));
 
   buffer.Consume(25);
-  CHECK_EQ(2, buffer.Size());
-  CHECK_EQ(75, buffer.Length());
+  CHECK_EQ(75, buffer.length());
   buffer.Consume(25);
-  CHECK_EQ(1, buffer.Size());
-  CHECK_EQ(50, buffer.Length());
+  CHECK_EQ(50, buffer.length());
   buffer.Consume(25);
-  CHECK_EQ(1, buffer.Size());
-  CHECK_EQ(25, buffer.Length());
+  CHECK_EQ(25, buffer.length());
   buffer.Consume(25);
-  CHECK_EQ(0, buffer.Size());
-  CHECK_EQ(0, buffer.Length());
+  CHECK_EQ(0, buffer.length());
 
   // The callback was only called once tho
   CHECK_EQ(1, count);
@@ -174,13 +164,11 @@ TEST(QuicBuffer, Cancel) {
     delete[] ptr;
   });
 
-  buffer.SeekHead();
+  buffer.Seek(1);
   buffer.Consume(25);
-  CHECK_EQ(2, buffer.Size());
-  CHECK_EQ(75, buffer.Length());
+  CHECK_EQ(75, buffer.length());
   buffer.Cancel();
-  CHECK_EQ(0, buffer.Size());
-  CHECK_EQ(0, buffer.Length());
+  CHECK_EQ(0, buffer.length());
 
   // The callback was only called once tho
   CHECK_EQ(1, count);
@@ -204,31 +192,26 @@ TEST(QuicBuffer, Multiple3) {
     uv_buf_t b = buf2.ToUVBuf();
     buffer.Push(&b, 1, [&](int status) { cb(status, &buf2); });
   }
-  CHECK_EQ(150, buffer.Length());
-  CHECK_EQ(2, buffer.Size());
+  CHECK_EQ(150, buffer.length());
 
-  buffer.SeekHead(2);
+  buffer.Seek(2);
 
   buffer.Consume(25);
-  CHECK_EQ(125, buffer.Length());
-  CHECK_EQ(2, buffer.Size());
+  CHECK_EQ(125, buffer.length());
 
   buffer.Consume(100);
-  CHECK_EQ(25, buffer.Length());
-  CHECK_EQ(1, buffer.Size());
+  CHECK_EQ(25, buffer.length());
 
   {
     uv_buf_t b = buf2.ToUVBuf();
     buffer.Push(&b, 1, [&](int status) { cb(status, &buf3); });
   }
 
-  CHECK_EQ(75, buffer.Length());
-  CHECK_EQ(2, buffer.Size());
+  CHECK_EQ(75, buffer.length());
 
-  buffer.SeekHead();
+  buffer.Seek(1);
   buffer.Consume(75);
-  CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(0, buffer.Size());
+  CHECK_EQ(0, buffer.length());
 }
 
 TEST(QuicBuffer, Move) {
@@ -241,14 +224,11 @@ TEST(QuicBuffer, Move) {
 
   buffer1.Push(&buf, 1);
 
-  CHECK_EQ(100, buffer1.Length());
-  CHECK_EQ(1, buffer1.Size());
+  CHECK_EQ(100, buffer1.length());
 
   buffer2 = std::move(buffer1);
-  CHECK_EQ(0, buffer1.Length());
-  CHECK_EQ(0, buffer1.Size());
-  CHECK_EQ(100, buffer2.Length());
-  CHECK_EQ(1, buffer2.Size());
+  CHECK_EQ(0, buffer1.length());
+  CHECK_EQ(100, buffer2.length());
 }
 
 TEST(QuicBuffer, Append) {
@@ -271,79 +251,67 @@ TEST(QuicBuffer, Append) {
     buffer2.Push(&buf, 1);
   }
 
-  CHECK_EQ(100, buffer1.Length());
-  CHECK_EQ(1, buffer1.Size());
-  CHECK_EQ(100, buffer2.Length());
-  CHECK_EQ(1, buffer2.Size());
+  CHECK_EQ(100, buffer1.length());
+  CHECK_EQ(100, buffer2.length());
 
   buffer2 += std::move(buffer1);
 
-  CHECK_EQ(0, buffer1.Length());
-  CHECK_EQ(0, buffer1.Size());
-  CHECK_EQ(200, buffer2.Length());
-  CHECK_EQ(2, buffer2.Size());
+  CHECK_EQ(0, buffer1.length());
+  CHECK_EQ(200, buffer2.length());
 }
 
-TEST(QuicBuffer, QuicBufferChunk) {
+TEST(QuicBuffer, DISABLED_QuicBufferChunk) {
   std::unique_ptr<QuicBufferChunk> chunk =
       std::make_unique<QuicBufferChunk>(100);
 
   QuicBuffer buffer;
   buffer.Push(std::move(chunk));
-  CHECK_EQ(1, buffer.Size());
-  CHECK_EQ(100, buffer.Length());
+  CHECK_EQ(100, buffer.length());
 
   std::vector<uv_buf_t> vec;
   size_t len = buffer.DrainInto(&vec);
-  CHECK_EQ(1, vec.size());
-  buffer.SeekHead(len);
+  buffer.Seek(len);
 
   buffer.Consume(50);
-  CHECK_EQ(1, buffer.Size());
-  CHECK_EQ(50, buffer.Length());
+  CHECK_EQ(50, buffer.length());
 
   buffer.Consume(50);
-  CHECK_EQ(0, buffer.Size());
-  CHECK_EQ(0, buffer.Length());
+  CHECK_EQ(0, buffer.length());
 }
 
-TEST(QuicBuffer, Head) {
+TEST(QuicBuffer, DISABLED_Head) {
   std::unique_ptr<QuicBufferChunk> chunk =
       std::make_unique<QuicBufferChunk>(100);
   memset(chunk->out(), 0, 100);
   QuicBuffer buffer;
   buffer.Push(std::move(chunk));
-  CHECK_EQ(1, buffer.Size());
 
   // buffer.Head() returns the current read head
   {
-    uv_buf_t buf = buffer.Head();
+    uv_buf_t buf = buffer.head();
     CHECK_EQ(100, buf.len);
     CHECK_EQ(0, buf.base[0]);
   }
 
   buffer.Consume(50);
-  CHECK_EQ(1, buffer.Size());
 
   {
-    uv_buf_t buf = buffer.Head();
+    uv_buf_t buf = buffer.head();
     CHECK_EQ(100, buf.len);
     CHECK_EQ(0, buf.base[0]);
   }
 
   // Seeking the head to the end will
   // result in an empty head
-  buffer.SeekHead();
+  buffer.Seek(1);
   {
-    uv_buf_t buf = buffer.Head();
+    uv_buf_t buf = buffer.head();
     CHECK_EQ(0, buf.len);
     CHECK_EQ(nullptr, buf.base);
   }
   // But the buffer will still have unconsumed data
-  CHECK_EQ(50, buffer.Length());
-  CHECK_EQ(1, buffer.Size());
+  CHECK_EQ(50, buffer.length());
 
   buffer.Consume(100);
-  CHECK_EQ(0, buffer.Length());
-  CHECK_EQ(0, buffer.Size());
+  CHECK_EQ(0, buffer.length());
 }
