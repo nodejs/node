@@ -3,8 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_quic_stream.h"
 #include "node_quic_session.h"
 #include "node_quic_util.h"
+#include "util.h"
 #include "v8.h"
 
 namespace node {
@@ -28,17 +30,23 @@ class DefaultApplication final : public QuicApplication {
       const uint8_t* data,
       size_t datalen,
       uint64_t offset) override;
-  void AcknowledgeStreamData(
-      int64_t stream_id,
-      uint64_t offset,
-      size_t datalen) override;
 
-  bool SendPendingData() override;
-  bool SendStreamData(QuicStream* stream) override;
+  int GetStreamData(StreamData* stream_data) override;
+
+  void ResumeStream(int64_t stream_id) override;
+  void StreamClose(int64_t stream_id, uint64_t app_error_code) override;
+  bool ShouldSetFin(const StreamData& stream_data) override;
+  bool StreamCommit(StreamData* stream_data, size_t datalen) override;
 
   SET_SELF_SIZE(DefaultApplication)
   SET_MEMORY_INFO_NAME(DefaultApplication)
   SET_NO_MEMORY_INFO()
+
+ private:
+  void ScheduleStream(int64_t stream_id);
+  void UnscheduleStream(int64_t stream_id);
+
+  QuicStream::Queue stream_queue_;
 };
 
 }  // namespace quic

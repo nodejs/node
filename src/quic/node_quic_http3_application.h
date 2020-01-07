@@ -7,7 +7,7 @@
 #include "node_http_common.h"
 #include "node_mem.h"
 #include "node_quic_session.h"
-#include "node_quic_stream.h"
+#include "node_quic_stream-inl.h"
 #include "node_quic_util.h"
 #include "v8.h"
 #include <ngtcp2/ngtcp2.h>
@@ -67,6 +67,10 @@ class Http3Header : public QuicHeader {
 
   size_t length() const override;
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(Http3Header)
+  SET_SELF_SIZE(Http3Header)
+
  private:
   int32_t token_ = -1;
   Http3RcBufferPointer name_;
@@ -104,6 +108,8 @@ class Http3Application final :
       uint64_t final_size,
       uint64_t app_error_code) override;
 
+  void ResumeStream(int64_t stream_id) override;
+
   void ExtendMaxStreamsRemoteUni(uint64_t max_streams) override;
   void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) override;
 
@@ -119,9 +125,6 @@ class Http3Application final :
   bool SubmitTrailers(
       int64_t stream_id,
       v8::Local<v8::Array> headers) override;
-
-  bool SendPendingData() override;
-  bool SendStreamData(QuicStream* stream) override;
 
   // Implementation for mem::NgLibMemoryManager
   void CheckAllocatedSize(size_t previous_size) const;
@@ -139,42 +142,45 @@ class Http3Application final :
   bool CreateAndBindControlStream();
   bool CreateAndBindQPackStreams();
 
-  bool StreamCommit(int64_t stream_id, ssize_t datalen);
-  void set_stream_fin(int64_t stream_id);
+  int GetStreamData(StreamData* stream_data) override;
 
-  ssize_t H3ReadData(
+  bool BlockStream(int64_t stream_id) override;
+  bool StreamCommit(StreamData* stream_data, size_t datalen) override;
+  bool ShouldSetFin(const StreamData& data) override;
+
+  ssize_t ReadData(
       int64_t stream_id,
       nghttp3_vec* vec,
       size_t veccnt,
       uint32_t* pflags);
 
-  void H3AckedStreamData(int64_t stream_id, size_t datalen);
-  void H3StreamClose(int64_t stream_id, uint64_t app_error_code);
-  void H3ReceiveData(int64_t stream_id, const uint8_t* data, size_t datalen);
-  void H3DeferredConsume(int64_t stream_id, size_t consumed);
-  void H3BeginHeaders(
+  void AckedStreamData(int64_t stream_id, size_t datalen);
+  void StreamClosed(int64_t stream_id, uint64_t app_error_code);
+  void ReceiveData(int64_t stream_id, const uint8_t* data, size_t datalen);
+  void DeferredConsume(int64_t stream_id, size_t consumed);
+  void BeginHeaders(
       int64_t stream_id,
       QuicStreamHeadersKind kind = QUICSTREAM_HEADERS_KIND_NONE);
-  bool H3ReceiveHeader(
+  bool ReceiveHeader(
       int64_t stream_id,
       int32_t token,
       nghttp3_rcbuf* name,
       nghttp3_rcbuf* value,
       uint8_t flags);
-  void H3EndHeaders(int64_t stream_id);
-  int H3BeginPushPromise(int64_t stream_id, int64_t push_id);
-  bool H3ReceivePushPromise(
+  void EndHeaders(int64_t stream_id);
+  int BeginPushPromise(int64_t stream_id, int64_t push_id);
+  bool ReceivePushPromise(
       int64_t stream_id,
       int64_t push_id,
       int32_t token,
       nghttp3_rcbuf* name,
       nghttp3_rcbuf* value,
       uint8_t flags);
-  int H3EndPushPromise(int64_t stream_id, int64_t push_id);
-  void H3CancelPush(int64_t push_id, int64_t stream_id);
-  void H3SendStopSending(int64_t stream_id, uint64_t app_error_code);
-  int H3PushStream(int64_t push_id, int64_t stream_id);
-  int H3EndStream(int64_t stream_id);
+  int EndPushPromise(int64_t stream_id, int64_t push_id);
+  void CancelPush(int64_t push_id, int64_t stream_id);
+  void SendStopSending(int64_t stream_id, uint64_t app_error_code);
+  int PushStream(int64_t push_id, int64_t stream_id);
+  void EndStream(int64_t stream_id);
 
   bool is_control_stream(int64_t stream_id) const {
     return stream_id == control_stream_id_ ||

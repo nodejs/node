@@ -9,6 +9,7 @@
 #include "histogram-inl.h"
 #include "node_quic_util.h"
 #include "stream_base-inl.h"
+#include "util-inl.h"
 #include "v8.h"
 
 #include <string>
@@ -18,6 +19,7 @@ namespace node {
 namespace quic {
 
 class QuicSession;
+class QuicApplication;
 
 enum QuicStreamHeaderFlags : uint32_t {
   // No flags
@@ -54,7 +56,7 @@ enum QuicStreamStatsIdx : int {
 // different internal representations for a header name+value
 // pair. QuicApplication implementations that support headers
 // per stream must create a specialization of the Header class.
-class QuicHeader {
+class QuicHeader : public MemoryRetainer {
  public:
   QuicHeader() {}
 
@@ -67,6 +69,55 @@ class QuicHeader {
   // Returns the total length of the header in bytes
   // (including the name and value)
   virtual size_t length() const = 0;
+};
+
+enum QuicStreamStates : uint32_t {
+  // QuicStream is fully open. Readable and Writable
+  QUICSTREAM_FLAG_INITIAL = 0x0,
+
+  // QuicStream Read State is closed because a final stream frame
+  // has been received from the peer or the QuicStream is unidirectional
+  // outbound only (i.e. it was never readable)
+  QUICSTREAM_FLAG_READ_CLOSED = 0x1,
+
+  // QuicStream Write State is closed. There may still be data
+  // in the outbound queue waiting to be serialized or acknowledged.
+  // No additional data may be added to the queue, however, and a
+  // final stream packet will be sent once all of the data in the
+  // queue has been serialized.
+  QUICSTREAM_FLAG_WRITE_CLOSED = 0x2,
+
+  // JavaScript side has switched into flowing mode (Readable side)
+  QUICSTREAM_FLAG_READ_STARTED = 0x4,
+
+  // JavaScript side has paused the flow of data (Readable side)
+  QUICSTREAM_FLAG_READ_PAUSED = 0x8,
+
+  // QuicStream has received a final stream frame (Readable side)
+  QUICSTREAM_FLAG_FIN = 0x10,
+
+  // QuicStream has sent a final stream frame (Writable side)
+  QUICSTREAM_FLAG_FIN_SENT = 0x20,
+
+  // QuicStream has been destroyed
+  QUICSTREAM_FLAG_DESTROYED = 0x40
+};
+
+enum QuicStreamDirection {
+  // The QuicStream is readable and writable in both directions
+  QUIC_STREAM_BIRECTIONAL,
+
+  // The QuicStream is writable and readable in only one direction.
+  // The direction depends on the QuicStreamOrigin.
+  QUIC_STREAM_UNIDIRECTIONAL
+};
+
+enum QuicStreamOrigin {
+  // The QuicStream was created by the server.
+  QUIC_STREAM_SERVER,
+
+  // The QuicStream was created by the client.
+  QUIC_STREAM_CLIENT
 };
 
 // QuicStream's are simple data flows that, fortunately, do not
@@ -137,183 +188,96 @@ class QuicHeader {
 // ngtcp2 level.
 class QuicStream : public AsyncWrap, public StreamBase {
  public:
-  enum QuicStreamStates : uint32_t {
-    // QuicStream is fully open. Readable and Writable
-    QUICSTREAM_FLAG_INITIAL = 0x0,
-
-    // QuicStream Read State is closed because a final stream frame
-    // has been received from the peer or the QuicStream is unidirectional
-    // outbound only (i.e. it was never readable)
-    QUICSTREAM_FLAG_READ_CLOSED = 0x1,
-
-    // QuicStream Write State is closed. There may still be data
-    // in the outbound queue waiting to be serialized or acknowledged.
-    // No additional data may be added to the queue, however, and a
-    // final stream packet will be sent once all of the data in the
-    // queue has been serialized.
-    QUICSTREAM_FLAG_WRITE_CLOSED = 0x2,
-
-    // JavaScript side has switched into flowing mode (Readable side)
-    QUICSTREAM_FLAG_READ_STARTED = 0x4,
-
-    // JavaScript side has paused the flow of data (Readable side)
-    QUICSTREAM_FLAG_READ_PAUSED = 0x8,
-
-    // QuicStream has received a final stream frame (Readable side)
-    QUICSTREAM_FLAG_FIN = 0x10,
-
-    // QuicStream has sent a final stream frame (Writable side)
-    QUICSTREAM_FLAG_FIN_SENT = 0x20,
-
-    // QuicStream has been destroyed
-    QUICSTREAM_FLAG_DESTROYED = 0x40
-  };
-
-  enum QuicStreamDirection {
-    // The QuicStream is readable and writable in both directions
-    QUIC_STREAM_BIRECTIONAL,
-
-    // The QuicStream is writable and readable in only one direction.
-    // The direction depends on the QuicStreamOrigin.
-    QUIC_STREAM_UNIDIRECTIONAL
-  };
-
-  enum QuicStreamOrigin {
-    // The QuicStream was created by the server.
-    QUIC_STREAM_SERVER,
-
-    // The QuicStream was created by the client.
-    QUIC_STREAM_CLIENT
-  };
-
-
   static void Initialize(
       Environment* env,
       v8::Local<v8::Object> target,
       v8::Local<v8::Context> context);
 
   static BaseObjectPtr<QuicStream> New(
-      QuicSession* session, int64_t stream_id);
+      QuicSession* session,
+      int64_t stream_id);
+
+  QuicStream(
+      QuicSession* session,
+      v8::Local<v8::Object> target,
+      int64_t stream_id);
 
   std::string diagnostic_name() const override;
 
-  inline QuicStreamDirection direction() const {
-    return stream_id_ & 0b10 ?
-        QUIC_STREAM_UNIDIRECTIONAL :
-        QUIC_STREAM_BIRECTIONAL;
-  }
+  int64_t id() const { return stream_id_; }
+  QuicSession* session() const { return session_.get(); }
 
-  inline QuicStreamOrigin origin() const {
-    return stream_id_ & 0b01 ?
-        QUIC_STREAM_SERVER :
-        QUIC_STREAM_CLIENT;
-  }
+  // A QuicStream can be either uni- or bi-directional.
+  inline QuicStreamDirection direction() const;
 
-  int64_t GetID() const { return stream_id_; }
+  // A QuicStream can be initiated by either the client
+  // or the server.
+  inline QuicStreamOrigin origin() const;
 
-  inline bool is_destroyed() const {
-    return flags_ & QUICSTREAM_FLAG_DESTROYED;
-  }
+  // The QuicStream has been destroyed and is no longer usable.
+  inline bool is_destroyed() const;
 
   // The QUICSTREAM_FLAG_FIN flag will be set only when a final stream
   // frame has been received from the peer.
-  inline bool has_received_fin() const {
-    return flags_ & QUICSTREAM_FLAG_FIN;
-  }
+  inline bool has_received_fin() const;
 
   // The QUICSTREAM_FLAG_FIN_SENT flag will be set only when a final
   // stream frame has been transmitted to the peer. Once sent, no
   // additional data may be transmitted to the peer. If has_sent_fin()
   // is set, is_writable() can be assumed to be false.
-  inline bool has_sent_fin() const {
-    return flags_ & QUICSTREAM_FLAG_FIN_SENT;
-  }
+  inline bool has_sent_fin() const;
 
   // WasEverWritable returns true if it is a bidirectional stream,
   // or a Unidirectional stream originating from the local peer.
   // If was_ever_writable() is false, then no stream frames should
   // ever be sent from the local peer, including final stream frames.
-  inline bool was_ever_writable() const {
-    if (direction() == QUIC_STREAM_UNIDIRECTIONAL) {
-      return session_->is_server() ?
-          origin() == QUIC_STREAM_SERVER :
-          origin() == QUIC_STREAM_CLIENT;
-    }
-    return true;
-  }
+  inline bool was_ever_writable() const;
 
   // A QuicStream will not be writable if:
   //  - The QUICSTREAM_FLAG_WRITE_CLOSED flag is set or
   //  - It is a Unidirectional stream originating from the peer
-  inline bool is_writable() const {
-    if (flags_ & QUICSTREAM_FLAG_WRITE_CLOSED)
-      return false;
-
-    return was_ever_writable();
-  }
+  inline bool is_writable() const;
 
   // WasEverReadable returns true if it is a bidirectional stream,
   // or a Unidirectional stream originating from the remote
   // peer.
-  inline bool was_ever_readable() const {
-    if (direction() == QUIC_STREAM_UNIDIRECTIONAL) {
-      return session_->is_server() ?
-          origin() == QUIC_STREAM_CLIENT :
-          origin() == QUIC_STREAM_SERVER;
-    }
-
-    return true;
-  }
+  inline bool was_ever_readable() const;
 
   // A QuicStream will not be readable if:
   //  - The QUICSTREAM_FLAG_READ_CLOSED flag is set or
   //  - It is a Unidirectional stream originating from the local peer.
-  inline bool is_readable() const {
-    if (flags_ & QUICSTREAM_FLAG_READ_CLOSED)
-      return false;
+  inline bool is_readable() const;
 
-    return was_ever_readable();
-  }
+  // True if reading from this QuicStream has ever initiated.
+  inline bool is_read_started() const;
 
-  inline bool is_read_started() const {
-    return flags_ & QUICSTREAM_FLAG_READ_STARTED;
-  }
-
-  inline bool is_read_paused() const {
-    return flags_ & QUICSTREAM_FLAG_READ_PAUSED;
-  }
-
-  bool IsAlive() override {
-    return !is_destroyed() && !IsClosing();
-  }
-
-  bool IsClosing() override {
-    return !is_writable() && !is_readable();
-  }
+  // True if reading from this QuicStream is currently paused.
+  inline bool is_read_paused() const;
 
   // Records the fact that a final stream frame has been
   // serialized and sent to the peer. There still may be
   // unacknowledged data in the outbound queue, but no
   // additional frames may be sent for the stream other
   // than reset stream.
-  inline void set_fin_sent() {
-    CHECK(!is_writable());
-    flags_ |= QUICSTREAM_FLAG_FIN_SENT;
-  }
+  inline void set_fin_sent();
 
   // IsWriteFinished will return true if a final stream frame
   // has been sent and all data has been acknowledged (the
   // send buffer is empty).
-  inline bool is_write_finished() {
-    return has_sent_fin() && streambuf_.length() == 0;
-  }
+  inline bool is_write_finished() const;
 
-  QuicSession* session() const { return session_.get(); }
+  // Specifies the kind of headers currently being processed.
+  inline void set_headers_kind(QuicStreamHeadersKind kind);
 
-  virtual void AckedDataOffset(uint64_t offset, size_t datalen);
+  // Marks the given data range as having been acknowledged.
+  // This means that the data range may be released from
+  // memory.
+  void Acknowledge(uint64_t offset, size_t datalen);
 
-  virtual void Destroy();
+  // Destroy the QuicStream and render it no longer usable.
+  void Destroy();
 
+  // Buffers chunks of data to be written to the QUIC connection.
   int DoWrite(
       WriteWrap* req_wrap,
       uv_buf_t* bufs,
@@ -323,118 +287,83 @@ class QuicStream : public AsyncWrap, public StreamBase {
   inline void IncrementAvailableOutboundLength(size_t amount);
   inline void DecrementAvailableOutboundLength(size_t amount);
 
-  virtual void ReceiveData(
-      int fin,
-      const uint8_t* data,
-      size_t datalen,
-      uint64_t offset);
-
-  bool SubmitInformation(v8::Local<v8::Array> headers);
-  bool SubmitHeaders(v8::Local<v8::Array> headers, uint32_t flags);
-  bool SubmitTrailers(v8::Local<v8::Array> headers);
-
-  // Required for StreamBase
-  int ReadStart() override;
-
-  // Required for StreamBase
-  int ReadStop() override;
-
-  // Required for StreamBase
-  int DoShutdown(ShutdownWrap* req_wrap) override;
-
-  void ResetStream(uint64_t app_error_code);
-
-  void Commit(ssize_t amount);
-
-  template <typename T>
-  inline size_t DrainInto(
-      std::vector<T>* vec,
-      size_t max_count = MAX_VECTOR_COUNT) {
-    CHECK(!is_destroyed());
-    size_t length = 0;
-    streambuf_.DrainInto(vec, &length, max_count);
-    return length;
-  }
-
-  template <typename T>
-  inline size_t DrainInto(
-      T* vec,
-      size_t* count,
-      size_t max_count = MAX_VECTOR_COUNT) {
-    CHECK(!is_destroyed());
-    size_t length = 0;
-    streambuf_.DrainInto(vec, count, &length, max_count);
-    return length;
-  }
-
-  AsyncWrap* GetAsyncWrap() override { return this; }
+  // Returns false if the header cannot be added. This will
+  // typically only happen if a maximimum number of headers
+  // has been reached.
+  bool AddHeader(std::unique_ptr<QuicHeader> header);
 
   // Some QUIC applications support headers, others do not.
   // The following methods allow consistent handling of
   // headers at the QuicStream level regardless of the
   // protocol. For applications that do not support headers,
   // these are simply not used.
-  void BeginHeaders(QuicStreamHeadersKind kind = QUICSTREAM_HEADERS_KIND_NONE);
+  inline void BeginHeaders(
+      QuicStreamHeadersKind kind = QUICSTREAM_HEADERS_KIND_NONE);
 
-  // Returns false if the header cannot be added. This will
-  // typically only happen if a maximimum number of headers
-  // has been reached.
-  bool AddHeader(std::unique_ptr<QuicHeader> header);
-  void EndHeaders();
+  // Indicates an amount of unacknowledged data that has been
+  // submitted to the QUIC connection.
+  inline void Commit(ssize_t amount);
 
-  // Sets the kind of headers currently being processed.
-  void set_headers_kind(QuicStreamHeadersKind kind);
+  template <typename T>
+  inline size_t DrainInto(
+      std::vector<T>* vec,
+      size_t max_count = MAX_VECTOR_COUNT);
 
+  template <typename T>
+  inline size_t DrainInto(
+      T* vec,
+      size_t* count,
+      size_t max_count = MAX_VECTOR_COUNT);
+
+  inline void EndHeaders();
+
+  // Passes a chunk of data on to the QuicStream listener.
+  void ReceiveData(
+      int fin,
+      const uint8_t* data,
+      size_t datalen,
+      uint64_t offset);
+
+  // Resets the QUIC stream, sending a signal to the peer that
+  // no additional data will be transmitted for this stream.
+  inline void ResetStream(uint64_t app_error_code = 0);
+
+  // Submits informational headers. Returns false if headers are not
+  // supported on the underlying QuicApplication.
+  inline bool SubmitInformation(v8::Local<v8::Array> headers);
+
+  // Submits initial headers. Returns false if headers are not
+  // supported on the underlying QuicApplication.
+  inline bool SubmitHeaders(v8::Local<v8::Array> headers, uint32_t flags);
+
+  // Submits trailing headers. Returns false if headers are not
+  // supported on the underlying QuicApplication.
+  inline bool SubmitTrailers(v8::Local<v8::Array> headers);
+
+  // Required for StreamBase
+  bool IsAlive() override;
+  bool IsClosing() override;
+  int ReadStart() override;
+  int ReadStop() override;
+  int DoShutdown(ShutdownWrap* req_wrap) override;
+
+  AsyncWrap* GetAsyncWrap() override { return this; }
+
+  // Required for MemoryRetainer
   void MemoryInfo(MemoryTracker* tracker) const override;
-
   SET_MEMORY_INFO_NAME(QuicStream)
   SET_SELF_SIZE(QuicStream)
 
-  QuicStream(
-      QuicSession* session,
-      v8::Local<v8::Object> target,
-      int64_t stream_id);
-
  private:
-  // Called only when a final stream frame has been received from
-  // the peer. This has the side effect of marking the readable
-  // side of the stream closed. No additional data will be received
-  // on this QuicStream.
-  inline void set_fin_received() {
-    flags_ |= QUICSTREAM_FLAG_FIN;
-    set_read_close();
-  }
+  inline void set_fin_received();
+  inline void set_write_close();
+  inline void set_read_close();
+  inline void set_read_start();
+  inline void set_read_pause();
+  inline void set_read_resume();
+  inline void set_destroyed();
 
-  // SetWriteClose is called either when the QuicStream is created
-  // and is unidirectional from the peer, or when DoShutdown is called.
-  // This will indicate that the writable side of the QuicStream is
-  // closed and that no data will be pushed to the outbound queue.
-  inline void set_write_close() {
-    flags_ |= QUICSTREAM_FLAG_WRITE_CLOSED;
-  }
-
-  // Called when no additional data can be received on the QuicStream.
-  inline void set_read_close() {
-    flags_ |= QUICSTREAM_FLAG_READ_CLOSED;
-  }
-
-  inline void set_read_start() {
-    flags_ |= QUICSTREAM_FLAG_READ_STARTED;
-  }
-
-  inline void set_read_pause() {
-    flags_ |= QUICSTREAM_FLAG_READ_PAUSED;
-  }
-
-  inline void set_read_resume() {
-    flags_ &= QUICSTREAM_FLAG_READ_PAUSED;
-  }
-
-  inline void set_destroyed() {
-    flags_ |= QUICSTREAM_FLAG_DESTROYED;
-  }
-
-  inline void IncrementStats(size_t datalen);
+  void IncrementStats(size_t datalen);
 
   BaseObjectWeakPtr<QuicSession> session_;
   int64_t stream_id_;
@@ -493,6 +422,14 @@ class QuicStream : public AsyncWrap, public StreamBase {
   BaseObjectPtr<HistogramBase> data_rx_ack_;
 
   AliasedBigUint64Array stats_buffer_;
+
+  ListNode<QuicStream> stream_queue_;
+
+ public:
+  // Linked List of QuicStream objects
+  using Queue = ListHead<QuicStream, &QuicStream::stream_queue_>;
+  inline void Schedule(Queue* queue);
+  inline void Unschedule();
 };
 
 }  // namespace quic

@@ -22,7 +22,7 @@
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <openssl/ssl.h>
 
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 namespace node {
@@ -34,6 +34,8 @@ class QuicSocket;
 class QuicPacket;
 class QuicStream;
 class QuicHeader;
+
+using StreamsMap = std::unordered_map<int64_t, BaseObjectPtr<QuicStream>>;
 
 enum class QlogMode {
   kDisabled,
@@ -495,12 +497,12 @@ class QuicApplication : public MemoryRetainer {
   virtual void AcknowledgeStreamData(
       int64_t stream_id,
       uint64_t offset,
-      size_t datalen) = 0;
+      size_t datalen) { Acknowledge(stream_id, offset, datalen); }
+  virtual bool BlockStream(int64_t id) { return true; }
   virtual void ExtendMaxStreamsRemoteUni(uint64_t max_streams) {}
   virtual void ExtendMaxStreamsRemoteBidi(uint64_t max_streams) {}
   virtual void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) {}
-  virtual bool SendPendingData() = 0;
-  virtual bool SendStreamData(QuicStream* stream) = 0;
+  virtual void ResumeStream(int64_t stream_id) {}
   virtual void StreamHeaders(
       int64_t stream_id,
       int kind,
@@ -526,6 +528,7 @@ class QuicApplication : public MemoryRetainer {
 
   inline Environment* env() const;
 
+  bool SendPendingData();
   size_t max_header_pairs() const { return max_header_pairs_; }
   size_t max_header_length() const { return max_header_length_; }
 
@@ -533,11 +536,38 @@ class QuicApplication : public MemoryRetainer {
   QuicSession* session() const { return session_; }
   bool needs_init() const { return needs_init_; }
   void set_init_done() { needs_init_ = false; }
+  inline void set_stream_fin(int64_t stream_id);
   void set_max_header_pairs(size_t max) { max_header_pairs_ = max; }
   void set_max_header_length(size_t max) { max_header_length_ = max; }
   inline std::unique_ptr<QuicPacket> CreateStreamDataPacket();
 
+  struct StreamData {
+    size_t count = 0;
+    size_t remaining = 0;
+    int64_t id = -1;
+    int fin = 0;
+    ngtcp2_vec data[MAX_VECTOR_COUNT] {};
+    ngtcp2_vec* buf = nullptr;
+    BaseObjectPtr<QuicStream> stream;
+    StreamData() { buf = data; }
+  };
+
+  void Acknowledge(
+      int64_t stream_id,
+      uint64_t offset,
+      size_t datalen);
+  virtual int GetStreamData(StreamData* data) = 0;
+  virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
+  virtual bool ShouldSetFin(const StreamData& data) = 0;
+
+  inline ssize_t WriteVStream(
+      QuicPathStorage* path,
+      uint8_t* buf,
+      ssize_t* ndatalen,
+      const StreamData& stream_data);
+
  private:
+  void MaybeSetFin(const StreamData& stream_data);
   QuicSession* session_;
   bool needs_init_ = true;
   size_t max_header_pairs_ = 0;
@@ -823,9 +853,6 @@ class QuicSession : public AsyncWrap,
   // Causes pending ngtcp2 frames to be serialized and sent
   void SendPendingData();
 
-  // Causes pending QuicStream data to be serialized and sent
-  bool SendStreamData(QuicStream* stream);
-
   inline bool SendPacket(
       std::unique_ptr<QuicPacket> packet,
       const ngtcp2_path_storage& path);
@@ -847,9 +874,7 @@ class QuicSession : public AsyncWrap,
   int set_session(SSL_SESSION* session);
   bool set_session(v8::Local<v8::Value> buffer);
 
-  const std::map<int64_t, BaseObjectPtr<QuicStream>>& streams() const {
-    return streams_;
-  }
+  const StreamsMap& streams() const { return streams_; }
 
   // ResetStream will cause ngtcp2 to queue a
   // RESET_STREAM and STOP_SENDING frame, as appropriate,
@@ -881,6 +906,8 @@ class QuicSession : public AsyncWrap,
   void ResetStream(
       int64_t stream_id,
       uint64_t error_code = NGTCP2_APP_NOERROR);
+
+  void ResumeStream(int64_t stream_id);
 
   // Submits informational headers to the QUIC Application
   // implementation. If headers are not supported, false
@@ -965,6 +992,19 @@ class QuicSession : public AsyncWrap,
 
   // Report that the stream data is flow control blocked
   inline void StreamDataBlocked(int64_t stream_id);
+
+  class SendSessionScope {
+   public:
+    explicit SendSessionScope(QuicSession* session) : session_(session) {}
+
+    ~SendSessionScope() {
+      if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_))
+        session_->SendPendingData();
+    }
+
+   private:
+    QuicSession* session_;
+  };
 
   // Tracks whether or not we are currently within an ngtcp2 callback
   // function. Certain ngtcp2 APIs are not supposed to be called when
@@ -1340,7 +1380,7 @@ class QuicSession : public AsyncWrap,
 
   std::unique_ptr<QuicPacket> conn_closebuf_;
 
-  std::map<int64_t, BaseObjectPtr<QuicStream>> streams_;
+  StreamsMap streams_;
 
   AliasedFloat64Array state_;
 

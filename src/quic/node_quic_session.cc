@@ -15,7 +15,7 @@
 #include "node_quic_buffer-inl.h"
 #include "node_quic_crypto.h"
 #include "node_quic_socket.h"
-#include "node_quic_stream.h"
+#include "node_quic_stream-inl.h"
 #include "node_quic_state.h"
 #include "node_quic_util-inl.h"
 #include "node_quic_default_application.h"
@@ -466,7 +466,7 @@ void JSQuicSessionListener::OnStreamReady(BaseObjectPtr<QuicStream> stream) {
   Environment* env = session()->env();
   Local<Value> argv[] = {
     stream->object(),
-    Number::New(env->isolate(), static_cast<double>(stream->GetID()))
+    Number::New(env->isolate(), static_cast<double>(stream->id()))
   };
 
   // Grab a shared pointer to this to prevent the QuicSession
@@ -1098,6 +1098,121 @@ void QuicCryptoContext::WriteHandshake(
   handshake_[level].Push(std::move(buffer));
 }
 
+void QuicApplication::Acknowledge(
+    int64_t stream_id,
+    uint64_t offset,
+    size_t datalen) {
+  QuicStream* stream = session()->FindStream(stream_id);
+  if (stream != nullptr) {
+    stream->Acknowledge(offset, datalen);
+    ResumeStream(stream_id);
+  }
+}
+
+bool QuicApplication::SendPendingData() {
+  // The maximum number of packets to send per call
+  static constexpr size_t kMaxPackets = 16;
+  QuicPathStorage path;
+  std::unique_ptr<QuicPacket> packet;
+  uint8_t* pos = nullptr;
+  size_t packets_sent = 0;
+  int err;
+
+  for (;;) {
+    ssize_t ndatalen;
+    StreamData stream_data;
+    err = GetStreamData(&stream_data);
+    if (err < 0) {
+      session()->set_last_error(QUIC_ERROR_APPLICATION, err);
+      return false;
+    }
+
+    // If stream_data.id is -1, then we're not serializing any data for any
+    // specific stream. We still need to process QUIC session packets tho.
+    if (stream_data.id > -1)
+      Debug(session(), "Serializing packets for stream id %" PRId64,
+            stream_data.id);
+    else
+      Debug(session(), "Serializing session packets");
+
+    // If the packet was sent previously, then packet will have been reset.
+    if (!packet) {
+      packet = CreateStreamDataPacket();
+      pos = packet->data();
+    }
+
+    ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, stream_data);
+
+    if (nwrite <= 0) {
+      switch (nwrite) {
+        case 0:
+          goto congestion_limited;
+        case NGTCP2_ERR_PKT_NUM_EXHAUSTED:
+          // There is a finite number of packets that can be sent
+          // per connection. Once those are exhausted, there's
+          // absolutely nothing we can do except immediately
+          // and silently tear down the QuicSession. This has
+          // to be silent because we can't even send a
+          // CONNECTION_CLOSE since even those require a
+          // packet number.
+          session()->SilentClose();
+          return false;
+        case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+          session()->StreamDataBlocked(stream_data.id);
+          if (session()->max_data_left() == 0)
+            goto congestion_limited;
+          // Fall through
+        case NGTCP2_ERR_STREAM_SHUT_WR:
+          if (UNLIKELY(!BlockStream(stream_data.id)))
+            return false;
+          continue;
+        case NGTCP2_ERR_STREAM_NOT_FOUND:
+          continue;
+        case NGTCP2_ERR_WRITE_STREAM_MORE:
+          CHECK_GT(ndatalen, 0);
+          CHECK(StreamCommit(&stream_data, ndatalen));
+          pos += ndatalen;
+          continue;
+      }
+      session()->set_last_error(QUIC_ERROR_SESSION, static_cast<int>(nwrite));
+      return false;
+    }
+
+    pos += nwrite;
+
+    if (ndatalen >= 0)
+      CHECK(StreamCommit(&stream_data, ndatalen));
+
+    Debug(session(), "Sending %" PRIu64 " bytes in serialized packet", nwrite);
+    packet->set_length(nwrite);
+    if (!session()->SendPacket(std::move(packet), path))
+      return false;
+    packet.reset();
+    pos = nullptr;
+    MaybeSetFin(stream_data);
+    if (++packets_sent == kMaxPackets)
+      break;
+  }
+  return true;
+
+ congestion_limited:
+  // We are either congestion limited or done.
+  if (pos - packet->data()) {
+    // Some data was serialized into the packet. We need to send it.
+    packet->set_length(pos - packet->data());
+    Debug(session(), "Congestion limited, but %" PRIu64 " bytes pending.",
+          packet->length());
+    if (!session()->SendPacket(std::move(packet), path))
+      return false;
+  }
+  return true;
+}
+
+void QuicApplication::MaybeSetFin(const StreamData& stream_data) {
+  if (ShouldSetFin(stream_data))
+    set_stream_fin(stream_data.id);
+}
+
 void QuicApplication::StreamHeaders(
     int64_t stream_id,
     int kind,
@@ -1423,19 +1538,19 @@ void QuicSession::AddToSocket(QuicSocket* socket) {
 // streams added must be removed before the QuicSession instance is freed.
 void QuicSession::AddStream(BaseObjectPtr<QuicStream> stream) {
   DCHECK(!is_flag_set(QUICSESSION_FLAG_GRACEFUL_CLOSING));
-  Debug(this, "Adding stream %" PRId64 " to session.", stream->GetID());
-  streams_.emplace(stream->GetID(), stream);
+  Debug(this, "Adding stream %" PRId64 " to session.", stream->id());
+  streams_.emplace(stream->id(), stream);
 
   // Update tracking statistics for the number of streams associated with
   // this session.
   switch (stream->origin()) {
-    case QuicStream::QuicStreamOrigin::QUIC_STREAM_CLIENT:
+    case QuicStreamOrigin::QUIC_STREAM_CLIENT:
       if (is_server())
         IncrementStat(1, &session_stats_, &session_stats::streams_in_count);
       else
         IncrementStat(1, &session_stats_, &session_stats::streams_out_count);
       break;
-    case QuicStream::QuicStreamOrigin::QUIC_STREAM_SERVER:
+    case QuicStreamOrigin::QUIC_STREAM_SERVER:
       if (is_server())
         IncrementStat(1, &session_stats_, &session_stats::streams_out_count);
       else
@@ -1443,10 +1558,10 @@ void QuicSession::AddStream(BaseObjectPtr<QuicStream> stream) {
   }
   IncrementStat(1, &session_stats_, &session_stats::streams_out_count);
   switch (stream->direction()) {
-    case QuicStream::QuicStreamDirection::QUIC_STREAM_BIRECTIONAL:
+    case QuicStreamDirection::QUIC_STREAM_BIRECTIONAL:
       IncrementStat(1, &session_stats_, &session_stats::bidi_stream_count);
       break;
-    case QuicStream::QuicStreamDirection::QUIC_STREAM_UNIDIRECTIONAL:
+    case QuicStreamDirection::QUIC_STREAM_UNIDIRECTIONAL:
       IncrementStat(1, &session_stats_, &session_stats::uni_stream_count);
       break;
   }
@@ -2040,32 +2155,6 @@ void QuicSession::UsePreferredAddressStrategy(
   }
 }
 
-// Sends buffered stream data.
-bool QuicSession::SendStreamData(QuicStream* stream) {
-  // Because SendStreamData calls ngtcp2_conn_writev_streams,
-  // it is not permitted to be called while we are running within
-  // an ngtcp2 callback function.
-  CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
-
-  // No stream data may be serialized and sent if:
-  //   - the QuicSession is destroyed
-  //   - the QuicStream was never writable,
-  //   - a final stream frame has already been sent,
-  //   - the QuicSession is in the draining period,
-  //   - the QuicSession is in the closing period, or
-  //   - we are blocked from sending any data because of flow control
-  if (is_destroyed() ||
-      !stream->was_ever_writable() ||
-      stream->has_sent_fin() ||
-      is_in_draining_period() ||
-      is_in_closing_period() ||
-      max_data_left() == 0) {
-    return true;
-  }
-
-  return application_->SendStreamData(stream);
-}
-
 // Passes a serialized packet to the associated QuicSocket.
 bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
   CHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
@@ -2178,6 +2267,8 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
   if (socket == nullptr || socket == socket_.get())
     return true;
 
+  SendSessionScope send(this);
+
   // Step 1: Add this Session to the given Socket
   AddToSocket(socket);
 
@@ -2204,25 +2295,16 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
     }
   }
 
-  SendPendingData();
   return true;
 }
 
-void QuicSession::ResetStream(int64_t stream_id, uint64_t code) {
-  // First, update the internal ngtcp2 state of the given stream
-  // and schedule the STOP_SENDING and RESET_STREAM frames as
-  // appropriate.
-  CHECK_EQ(
-      ngtcp2_conn_shutdown_stream(
-          connection(),
-          stream_id,
-          code), 0);
+void QuicSession::ResumeStream(int64_t stream_id) {
+  application()->ResumeStream(stream_id);
+}
 
-  // If ShutdownStream is called outside of an ngtcp2 callback,
-  // we need to trigger SendPendingData manually to cause the
-  // RESET_STREAM and STOP_SENDING frames to be transmitted.
-  if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this))
-    SendPendingData();
+void QuicSession::ResetStream(int64_t stream_id, uint64_t code) {
+  SendSessionScope scope(this);
+  CHECK_EQ(ngtcp2_conn_shutdown_stream(connection(), stream_id, code), 0);
 }
 
 // Silent Close must start with the JavaScript side, which must

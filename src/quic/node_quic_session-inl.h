@@ -9,7 +9,7 @@
 #include "node_quic_crypto.h"
 #include "node_quic_session.h"
 #include "node_quic_socket.h"
-#include "node_quic_stream.h"
+#include "node_quic_stream-inl.h"
 
 #include <openssl/ssl.h>
 #include <memory>
@@ -138,6 +138,35 @@ bool QuicCryptoContext::SetupInitialKey(const ngtcp2_cid* dcid) {
 
 QuicApplication::QuicApplication(QuicSession* session) : session_(session) {}
 
+void QuicApplication::set_stream_fin(int64_t stream_id) {
+  QuicStream* stream = session()->FindStream(stream_id);
+  if (stream != nullptr)
+    stream->set_fin_sent();
+}
+
+ssize_t QuicApplication::WriteVStream(
+    QuicPathStorage* path,
+    uint8_t* buf,
+    ssize_t* ndatalen,
+    const StreamData& stream_data) {
+  CHECK_LE(stream_data.count, MAX_VECTOR_COUNT);
+  return ngtcp2_conn_writev_stream(
+    session()->connection(),
+    &path->path,
+    buf,
+    session()->max_packet_length(),
+    ndatalen,
+    stream_data.remaining > 0 ?
+        NGTCP2_WRITE_STREAM_FLAG_MORE :
+        NGTCP2_WRITE_STREAM_FLAG_NONE,
+    stream_data.id,
+    stream_data.fin,
+    stream_data.buf,
+    stream_data.count,
+    uv_hrtime()
+  );
+}
+
 std::unique_ptr<QuicPacket> QuicApplication::CreateStreamDataPacket() {
   return QuicPacket::Create(
       "stream data",
@@ -192,10 +221,10 @@ void QuicSession::ExtendMaxStreamsBidi(uint64_t max_streams) {
 // Extends the stream-level flow control by the given number of bytes.
 void QuicSession::ExtendStreamOffset(QuicStream* stream, size_t amount) {
   Debug(this, "Extending max stream %" PRId64 " offset by %" PRId64 " bytes",
-        stream->GetID(), amount);
+        stream->id(), amount);
   ngtcp2_conn_extend_max_stream_offset(
       connection(),
-      stream->GetID(),
+      stream->id(),
       amount);
 }
 

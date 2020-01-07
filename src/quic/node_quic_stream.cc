@@ -6,10 +6,9 @@
 #include "node_internals.h"
 #include "stream_base-inl.h"
 #include "node_quic_session-inl.h"
-#include "node_quic_stream.h"
+#include "node_quic_stream-inl.h"
 #include "node_quic_socket.h"
 #include "node_quic_util-inl.h"
-#include "node_sockaddr-inl.h"
 #include "v8.h"
 #include "uv.h"
 
@@ -31,6 +30,15 @@ using v8::String;
 using v8::Value;
 
 namespace quic {
+
+namespace {
+size_t get_length(uv_buf_t* bufs, size_t nbufs) {
+  size_t len = 0;
+  for (size_t n = 0; n < nbufs; n++)
+    len += bufs[n].len;
+  return len;
+}
+}  // namespace
 
 QuicStream::QuicStream(
     QuicSession* sess,
@@ -93,8 +101,54 @@ QuicStream::QuicStream(
       &stream_stats::max_offset);
 }
 
+// Acknowledge is called when ngtcp2 has received an acknowledgement
+// for one or more stream frames for this QuicStream. This will cause
+// data stored in the streambuf_ outbound queue to be consumed and may
+// result in the JavaScript callback for the write to be invoked.
+void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
+  if (is_destroyed())
+    return;
+
+  // ngtcp2 guarantees that offset must always be greater
+  // than the previously received offset, but let's just
+  // make sure that holds.
+  CHECK_GE(offset, max_offset_ack_);
+  max_offset_ack_ = offset;
+
+  Debug(this, "Acknowledging %d bytes", datalen);
+
+  // Consumes the given number of bytes in the buffer. This may
+  // have the side-effect of causing the onwrite callback to be
+  // invoked if a complete chunk of buffered data has been acknowledged.
+  streambuf_.Consume(datalen);
+
+  uint64_t now = uv_hrtime();
+  if (stream_stats_.stream_acked_at > 0)
+    data_rx_ack_->Record(now - stream_stats_.stream_acked_at);
+  stream_stats_.stream_acked_at = now;
+}
+
+// While not all QUIC applications will support headers, QuicStream
+// includes basic, generic support for storing them.
+bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
+  Debug(this, "Header Added");
+  size_t len = header->length();
+  QuicApplication* app = session()->application();
+  // We cannot add the header if we've either reached
+  // * the max number of header pairs or
+  // * the max number of header bytes
+  if (headers_.size() == app->max_header_pairs() ||
+      current_headers_length_ + len > app->max_header_length()) {
+    return false;
+  }
+
+  current_headers_length_ += header->length();
+  headers_.emplace_back(std::move(header));
+  return true;
+}
+
 std::string QuicStream::diagnostic_name() const {
-  return std::string("QuicStream ") + std::to_string(GetID()) +
+  return std::string("QuicStream ") + std::to_string(stream_id_) +
          " (" + std::to_string(static_cast<int64_t>(get_async_id())) +
          ", " + session_->diagnostic_name() + ")";
 }
@@ -139,19 +193,15 @@ void QuicStream::Destroy() {
 int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
   if (is_destroyed())
     return UV_EPIPE;
-  Debug(this, "Shutdown writable side");
-  // Do nothing if the stream was already shutdown. Specifically,
-  // we should not attempt to send anything on the QuicSession
-  if (!is_writable())
-    return UV_EPIPE;
-  stream_stats_.closing_at = uv_hrtime();
-  set_write_close();
 
-  // If we're not currently within an ngtcp2 callback, then we need to
-  // tell the QuicSession to initiate serialization and sending of any
-  // pending frames.
-  if (!QuicSession::Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()))
-    session_->SendStreamData(this);
+  QuicSession::SendSessionScope send_scope(session());
+
+  if (is_writable()) {
+    Debug(this, "Shutdown writable side");
+    stream_stats_.closing_at = uv_hrtime();
+    set_write_close();
+    session()->ResumeStream(stream_id_);
+  }
 
   return 1;
 }
@@ -170,81 +220,56 @@ int QuicStream::DoWrite(
     return 0;
   }
 
-  BaseObjectPtr<AsyncWrap> strong_ref{req_wrap->GetAsyncWrap()};
-  // The list of buffers will be appended onto streambuf_ without
-  // copying. Those will remain in that buffer until the serialized
-  // stream frames are acknowledged.
-  uint64_t length =
-      streambuf_.Push(
-          bufs,
-          nbufs,
-          [req_wrap, strong_ref](int status) {
-            // This callback function will be invoked once this
-            // complete batch of buffers has been acknowledged
-            // by the peer. This will have the side effect of
-            // blocking additional pending writes from the
-            // javascript side, so writing data to the stream
-            // will be throttled by how quickly the peer is
-            // able to acknowledge stream packets. This is good
-            // in the sense of providing back-pressure, but
-            // also means that writes will be significantly
-            // less performant unless written in batches.
-            req_wrap->Done(status);
-          });
+  // Nothing to write.
+  size_t length = get_length(bufs, nbufs);
+  if (length == 0) {
+    req_wrap->Done(0);
+    return 0;
+  }
+
+  QuicSession::SendSessionScope send_scope(session());
+
   Debug(this, "Queuing %" PRIu64 " bytes of data from %d buffers",
         length, nbufs);
-  IncrementStat(length, &stream_stats_, &stream_stats::bytes_sent);
+  IncrementStat(
+      static_cast<uint64_t>(length),
+      &stream_stats_,
+      &stream_stats::bytes_sent);
+
+  BaseObjectPtr<AsyncWrap> strong_ref{req_wrap->GetAsyncWrap()};
+  // The list of buffers will be appended onto streambuf_ without
+  // copying. Those will remain in the buffer until the serialized
+  // stream frames are acknowledged.
+  // This callback function will be invoked once this
+  // complete batch of buffers has been acknowledged
+  // by the peer. This will have the side effect of
+  // blocking additional pending writes from the
+  // javascript side, so writing data to the stream
+  // will be throttled by how quickly the peer is
+  // able to acknowledge stream packets. This is good
+  // in the sense of providing back-pressure, but
+  // also means that writes will be significantly
+  // less performant unless written in batches.
+  streambuf_.Push(
+      bufs,
+      nbufs,
+      [req_wrap, strong_ref](int status) {
+        req_wrap->Done(status);
+      });
   stream_stats_.stream_sent_at = uv_hrtime();
 
-  // If we're not within an ngtcp2 callback, go ahead and send
-  // the pending stream data. Otherwise, the data will be flushed
-  // once the ngtcp2 callback scope exits and all streams with
-  // data pending are flushed.
-  if (!QuicSession::Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()))
-    session_->SendStreamData(this);
+  session()->ResumeStream(stream_id_);
 
   // IncrementAvailableOutboundLength(len);
   return 0;
 }
 
-// AckedDataOffset is called when ngtcp2 has received an acknowledgement
-// for one or more stream frames for this QuicStream. This will cause
-// data stored in the streambuf_ outbound queue to be consumed and may
-// result in the JavaScript callback for the write to be invoked.
-void QuicStream::AckedDataOffset(uint64_t offset, size_t datalen) {
-  if (is_destroyed())
-    return;
-
-  // ngtcp2 guarantees that offset must always be greater
-  // than the previously received offset, but let's just
-  // make sure that holds.
-  CHECK_GE(offset, max_offset_ack_);
-  max_offset_ack_ = offset;
-
-  Debug(this, "Acknowledging %d bytes", datalen);
-
-  // Consumes the given number of bytes in the buffer. This may
-  // have the side-effect of causing the onwrite callback to be
-  // invoked if a complete chunk of buffered data has been acknowledged.
-  streambuf_.Consume(datalen);
-
-  uint64_t now = uv_hrtime();
-  if (stream_stats_.stream_acked_at > 0)
-    data_rx_ack_->Record(now - stream_stats_.stream_acked_at);
-  stream_stats_.stream_acked_at = now;
+bool QuicStream::IsAlive() {
+  return !is_destroyed() && !IsClosing();
 }
 
-void QuicStream::Commit(ssize_t amount) {
-  CHECK(!is_destroyed());
-  streambuf_.Seek(amount);
-}
-
-inline void QuicStream::IncrementAvailableOutboundLength(size_t amount) {
-  available_outbound_length_ += amount;
-}
-
-inline void QuicStream::DecrementAvailableOutboundLength(size_t amount) {
-  available_outbound_length_ -= amount;
+bool QuicStream::IsClosing() {
+  return !is_writable() && !is_readable();
 }
 
 int QuicStream::ReadStart() {
@@ -265,6 +290,41 @@ int QuicStream::ReadStop() {
   CHECK(is_readable());
   set_read_pause();
   return 0;
+}
+
+void QuicStream::IncrementStats(size_t datalen) {
+  uint64_t len = static_cast<uint64_t>(datalen);
+  IncrementStat(len, &stream_stats_, &stream_stats::bytes_received);
+
+  uint64_t now = uv_hrtime();
+  if (stream_stats_.stream_received_at > 0)
+    data_rx_rate_->Record(now - stream_stats_.stream_received_at);
+  stream_stats_.stream_received_at = now;
+  data_rx_size_->Record(len);
+}
+
+void QuicStream::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("buffer", &streambuf_);
+  tracker->TrackField("data_rx_rate", data_rx_rate_);
+  tracker->TrackField("data_rx_size", data_rx_size_);
+  tracker->TrackField("data_rx_ack", data_rx_ack_);
+  tracker->TrackField("stats_buffer", stats_buffer_);
+  tracker->TrackField("headers", headers_);
+}
+
+BaseObjectPtr<QuicStream> QuicStream::New(
+    QuicSession* session,
+    int64_t stream_id) {
+  Local<Object> obj;
+  if (!session->env()
+              ->quicserverstream_constructor_template()
+              ->NewInstance(session->env()->context()).ToLocal(&obj)) {
+    return {};
+  }
+  BaseObjectPtr<QuicStream> stream =
+      MakeDetachedBaseObject<QuicStream>(session, obj, stream_id);
+  session->AddStream(stream);
+  return stream;
 }
 
 // Passes chunks of data on to the JavaScript side as soon as they are
@@ -355,106 +415,12 @@ void QuicStream::ReceiveData(
   }
 }
 
-inline void QuicStream::IncrementStats(size_t datalen) {
-  uint64_t len = static_cast<uint64_t>(datalen);
-  IncrementStat(len, &stream_stats_, &stream_stats::bytes_received);
-
-  uint64_t now = uv_hrtime();
-  if (stream_stats_.stream_received_at > 0)
-    data_rx_rate_->Record(now - stream_stats_.stream_received_at);
-  stream_stats_.stream_received_at = now;
-  data_rx_size_->Record(len);
-}
-
-void QuicStream::ResetStream(uint64_t app_error_code) {
-  // On calling shutdown, the stream will no longer be
-  // readable or writable, all any pending data in the
-  // streambuf_ will be canceled, and all data pending
-  // to be acknowledged at the ngtcp2 level will be
-  // abandoned.
-  set_read_close();
-  set_write_close();
-  session_->ResetStream(GetID(), app_error_code);
-}
-
-BaseObjectPtr<QuicStream> QuicStream::New(
-    QuicSession* session, int64_t stream_id) {
-  Local<Object> obj;
-  if (!session->env()
-              ->quicserverstream_constructor_template()
-              ->NewInstance(session->env()->context()).ToLocal(&obj)) {
-    return {};
-  }
-  BaseObjectPtr<QuicStream> stream =
-      MakeDetachedBaseObject<QuicStream>(session, obj, stream_id);
-  session->AddStream(stream);
-  return stream;
-}
-
-void QuicStream::BeginHeaders(QuicStreamHeadersKind kind) {
-  Debug(this, "Beginning Headers");
-  // Upon start of a new block of headers, ensure that any
-  // previously collected ones are cleaned up.
-  headers_.clear();
-  set_headers_kind(kind);
-}
-
-void QuicStream::set_headers_kind(QuicStreamHeadersKind kind) {
-  headers_kind_ = kind;
-}
-
-bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
-  Debug(this, "Header Added");
-  size_t len = header->length();
-  QuicApplication* app = session()->application();
-  // We cannot add the header if we've either reached
-  // * the max number of header pairs or
-  // * the max number of header bytes
-  if (headers_.size() == app->max_header_pairs() ||
-      current_headers_length_ + len > app->max_header_length()) {
-    return false;
-  }
-
-  current_headers_length_ += header->length();
-  headers_.emplace_back(std::move(header));
-  return true;
-}
-
-void QuicStream::EndHeaders() {
-  Debug(this, "End Headers");
-  // Upon completion of a block of headers, convert the
-  // vector of Header objects into an array of name+value
-  // pairs, then call the on_stream_headers function.
-  session()->application()->StreamHeaders(GetID(), headers_kind_, headers_);
-  headers_.clear();
-}
-
-void QuicStream::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("buffer", &streambuf_);
-  tracker->TrackField("data_rx_rate", data_rx_rate_);
-  tracker->TrackField("data_rx_size", data_rx_size_);
-  tracker->TrackField("data_rx_ack", data_rx_ack_);
-  tracker->TrackField("stats_buffer", stats_buffer_);
-}
-
-bool QuicStream::SubmitInformation(v8::Local<v8::Array> headers) {
-  return session_->SubmitInformation(GetID(), headers);
-}
-
-bool QuicStream::SubmitHeaders(v8::Local<v8::Array> headers, uint32_t flags) {
-  return session_->SubmitHeaders(GetID(), headers, flags);
-}
-
-bool QuicStream::SubmitTrailers(v8::Local<v8::Array> headers) {
-  return session_->SubmitTrailers(GetID(), headers);
-}
-
 // JavaScript API
 namespace {
 void QuicStreamGetID(const FunctionCallbackInfo<Value>& args) {
   QuicStream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
-  args.GetReturnValue().Set(static_cast<double>(stream->GetID()));
+  args.GetReturnValue().Set(static_cast<double>(stream->id()));
 }
 
 void OpenUnidirectionalStream(const FunctionCallbackInfo<Value>& args) {

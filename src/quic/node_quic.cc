@@ -9,7 +9,7 @@
 #include "node_quic_crypto.h"
 #include "node_quic_session-inl.h"
 #include "node_quic_socket.h"
-#include "node_quic_stream.h"
+#include "node_quic_stream-inl.h"
 #include "node_quic_state.h"
 #include "node_quic_util-inl.h"
 #include "node_sockaddr-inl.h"
