@@ -362,7 +362,7 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 
 ### `EventEmitter.errorMonitor`
 <!-- YAML
-added: REPLACEME
+added: v13.6.0
 -->
 
 This symbol shall be used to install a listener for only monitoring `'error'`
@@ -888,7 +888,7 @@ See how to write a custom [rejection handler][rejection].
 
 ## `events.on(emitter, eventName)`
 <!-- YAML
-added: REPLACEME
+added: v13.6.0
 -->
 
 * `emitter` {EventEmitter}

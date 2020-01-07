@@ -1674,8 +1674,8 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v13.6.0
+    pr-url: https://github.com/nodejs/node/pull/29083
     description: The `fs` options allow overriding the used `fs`
                  implementation.
 -->
@@ -1777,8 +1777,8 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v13.6.0
+    pr-url: https://github.com/nodejs/node/pull/29083
     description: The `fs` options allow overriding the used `fs`
                  implementation.
 -->

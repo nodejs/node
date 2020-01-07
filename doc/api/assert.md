@@ -427,7 +427,7 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 
 ## `assert.doesNotMatch(string, regexp[, message])`
 <!-- YAML
-added: REPLACEME
+added: v13.6.0
 -->
 
 * `string` {string}
@@ -766,7 +766,7 @@ let err;
 
 ## `assert.match(string, regexp[, message])`
 <!-- YAML
-added: REPLACEME
+added: v13.6.0
 -->
 
 * `string` {string}
