@@ -135,6 +135,24 @@ enum class FsStatsOffset {
 constexpr size_t kFsStatsBufferLength =
     static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
 
+enum class FsStatfsOffset {
+  kType = 0,
+  kBSize,
+  kBlocks,
+  kBFree,
+  kBAvail,
+  kFiles,
+  kFFree,
+  kSpare1,
+  kSpare2,
+  kSpare3,
+  kSpare4,
+  kFsStatFsFieldsNumber
+};
+
+constexpr size_t kFsStatfsBufferLength =
+    static_cast<size_t>(FsStatfsOffset::kFsStatFsFieldsNumber);
+
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
 // difficult so let's make the preprocessor generate them for us.
@@ -1025,6 +1043,9 @@ class Environment : public MemoryRetainer {
   inline AliasedFloat64Array* fs_stats_field_array();
   inline AliasedBigUint64Array* fs_stats_field_bigint_array();
 
+  inline AliasedFloat64Array* fs_statfs_field_array();
+  inline AliasedBigUint64Array* fs_statfs_field_bigint_array();
+
   inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
       file_handle_read_wrap_freelist();
 
@@ -1385,6 +1406,9 @@ class Environment : public MemoryRetainer {
 
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;
+
+  AliasedFloat64Array fs_statfs_field_array_;
+  AliasedBigUint64Array fs_statfs_field_bigint_array_;
 
   std::vector<std::unique_ptr<fs::FileHandleReadWrap>>
       file_handle_read_wrap_freelist_;

@@ -502,6 +502,10 @@ void FSReqCallback::ResolveStat(const uv_stat_t* stat) {
   Resolve(FillGlobalStatsArray(env(), use_bigint(), stat));
 }
 
+void FSReqCallback::ResolveStatfs(const uv_statfs_t* stat) {
+  Resolve(FillGlobalStatfsArray(env(), use_bigint(), stat));
+}
+
 void FSReqCallback::Resolve(Local<Value> value) {
   Local<Value> argv[2] {
     Null(env()->isolate()),
@@ -575,6 +579,15 @@ void AfterStat(uv_fs_t* req) {
 
   if (after.Proceed()) {
     req_wrap->ResolveStat(&req->statbuf);
+  }
+}
+
+void AfterStatfs(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  if (after.Proceed()) {
+    req_wrap->ResolveStatfs(reinterpret_cast<uv_statfs_t*>(req->ptr));
   }
 }
 
@@ -1016,6 +1029,38 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 
     Local<Value> arr = FillGlobalStatsArray(env, use_bigint,
         static_cast<const uv_stat_t*>(req_wrap_sync.req.ptr));
+    args.GetReturnValue().Set(arr);
+  }
+}
+
+static void Statfs(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 2);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  bool use_bigint = args[1]->IsTrue();
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[2], use_bigint);
+  if (req_wrap_async != nullptr) {  // statfs(path, use_bigint, req)
+    AsyncCall(env, req_wrap_async, args, "statfs", UTF8, AfterStatfs,
+              uv_fs_statfs, *path);
+  } else {
+    CHECK_EQ(argc, 4);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(statfs);
+    int err = SyncCall(env, args[3], &req_wrap_sync, "statfs", uv_fs_statfs,
+                       *path);
+    FS_SYNC_TRACE_END(statfs);
+
+    if (err != 0) {
+      return;  // error info is in ctx
+    }
+
+    Local<Value> arr = FillGlobalStatfsArray(env, use_bigint,
+        static_cast<const uv_statfs_t*>(req_wrap_sync.req.ptr));
     args.GetReturnValue().Set(arr);
   }
 }
@@ -2254,6 +2299,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
   env->SetMethod(target, "fstat", FStat);
+  env->SetMethod(target, "statfs", Statfs);
   env->SetMethod(target, "link", Link);
   env->SetMethod(target, "symlink", Symlink);
   env->SetMethod(target, "readlink", ReadLink);

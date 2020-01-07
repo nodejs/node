@@ -615,6 +615,14 @@ inline AliasedBigUint64Array* Environment::fs_stats_field_bigint_array() {
   return &fs_stats_field_bigint_array_;
 }
 
+inline AliasedFloat64Array* Environment::fs_statfs_field_array() {
+  return &fs_statfs_field_array_;
+}
+
+inline AliasedBigUint64Array* Environment::fs_statfs_field_bigint_array() {
+  return &fs_statfs_field_bigint_array_;
+}
+
 inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
 Environment::file_handle_read_wrap_freelist() {
   return file_handle_read_wrap_freelist_;
