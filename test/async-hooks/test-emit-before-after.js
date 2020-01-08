@@ -14,9 +14,23 @@ const expectedType = 'test_emit_before_after_type';
 async_hooks.emitBefore(expectedId, expectedTriggerId);
 async_hooks.emitAfter(expectedId);
 
+const chkBefore = common.mustCall((id) => assert.strictEqual(id, expectedId));
+const chkAfter = common.mustCall((id) => assert.strictEqual(id, expectedId));
+
+const checkOnce = (fn) => {
+  let called = false;
+  return (...args) => {
+    if (called) return;
+
+    called = true;
+    fn(...args);
+  };
+};
+
 initHooks({
-  onbefore: common.mustCall((id) => assert.strictEqual(id, expectedId)),
-  onafter: common.mustCall((id) => assert.strictEqual(id, expectedId)),
+  oninit: (id, type) => process.stdout.write(`${id} ${type}`),
+  onbefore: checkOnce(chkBefore),
+  onafter: checkOnce(chkAfter),
   allowNoInit: true
 }).enable();
 
