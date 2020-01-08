@@ -12,6 +12,7 @@
 #include "tracing/node_trace_writer.h"
 #include "tracing/trace_event.h"
 #include "tracing/traced_value.h"
+#include "util.h"
 
 namespace node {
 
@@ -79,8 +80,15 @@ class NodeTraceStateObserver
 };
 
 struct V8Platform {
+  bool initialize_;
+
+  V8Platform()
+      : initialize_(false) {}
+
 #if NODE_USE_V8_PLATFORM
   inline void Initialize(int thread_pool_size) {
+    CHECK(!initialize_);
+    initialize_ = true;
     tracing_agent_ = std::make_unique<tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
     node::tracing::TracingController* controller =
@@ -99,6 +107,10 @@ struct V8Platform {
   }
 
   inline void Dispose() {
+    if(!initialize_)
+      return;
+    initialize_ = false;
+
     StopTracingAgent();
     platform_->Shutdown();
     delete platform_;
