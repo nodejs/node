@@ -64,7 +64,7 @@ class FSEventWrap: public HandleWrap {
   static const encoding kDefaultEncoding = UTF8;
 
   FSEventWrap(Environment* env, Local<Object> object);
-  ~FSEventWrap() = default;
+  ~FSEventWrap() override = default;
 
   static void OnEvent(uv_fs_event_t* handle, const char* filename, int events,
     int status);
