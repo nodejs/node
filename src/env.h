@@ -589,7 +589,7 @@ struct AllocatedBuffer {
 class AsyncRequest : public MemoryRetainer {
  public:
   AsyncRequest() = default;
-  ~AsyncRequest();
+  ~AsyncRequest() override;
 
   AsyncRequest(const AsyncRequest&) = delete;
   AsyncRequest& operator=(const AsyncRequest&) = delete;
@@ -907,7 +907,7 @@ class Environment : public MemoryRetainer {
               const std::vector<std::string>& exec_args,
               Flags flags = Flags(),
               uint64_t thread_id = kNoThreadId);
-  ~Environment();
+  ~Environment() override;
 
   void InitializeLibuv(bool start_profiler_idle_notifier);
   inline const std::vector<std::string>& exec_argv();
@@ -1379,7 +1379,8 @@ class Environment : public MemoryRetainer {
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
 
-  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
+  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {
+      false};
 
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;
