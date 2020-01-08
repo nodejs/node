@@ -597,8 +597,9 @@ changes:
     `SIGINT` is received, such as when `Ctrl+C` is pressed. This cannot be used
     together with a custom `eval` function. **Default:** `false`.
   * `preview` {boolean} Defines if the repl prints autocomplete and output
-    previews or not. **Default:** `true`. If `terminal` is falsy, then there are
-    no previews and the value of `preview` has no effect.
+    previews or not. **Default:** `true` with the default eval function and
+    `false` in case a custom eval function is used. If `terminal` is falsy, then
+    there are no previews and the value of `preview` has no effect.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
