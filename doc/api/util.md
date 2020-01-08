@@ -1394,8 +1394,10 @@ added: v10.0.0
 Returns `true` if the value is a native `External` value.
 
 A native `External` value is a special type of object that contains a
-C++ `void*` pointer for access from native code, and has no other properties.
-Such objects are created either by Node.js internals or native addons.
+raw C++ pointer (`void*`) for access from native code, and has no other
+properties. Such objects are created either by Node.js internals or native
+addons. In JS, they are [frozen][`Object.freeze()`] objects with a `null`
+prototype.
 
 ### `util.types.isFloat32Array(value)`
 <!-- YAML
@@ -2318,6 +2320,7 @@ util.log('Timestamped message.');
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`Promise`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [`Proxy`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
 [`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
