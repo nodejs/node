@@ -828,6 +828,18 @@ const { createInterface } = require('readline');
   </tr>
 </table>
 
+Below bindings doesn't work on all platforms
+1. ctrl + shift + backspace: doesn't work on Linux, Mac and Windows
+2. ctrl + shift + delete: doesn't work on Linux and Mac
+3. ctrl + d: doesn't work on Windows
+4. ctrl + z: doesn't work on Windows
+5. ctrl + backspace: doesn't work as expected on Windows
+6. ctrl + delete: doesn't work on Mac
+7. ctrl + left: doesn't work on Mac
+8. ctrl + right: doesn't work on Mac
+9. meta + delete: deosn't work on windows
+10. meta + backspace: doesn't work on Mac
+
 [`'SIGCONT'`]: readline.html#readline_event_sigcont
 [`'SIGTSTP'`]: readline.html#readline_event_sigtstp
 [`'line'`]: #readline_event_line
