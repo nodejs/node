@@ -28,7 +28,6 @@ const checkOnce = (fn) => {
 };
 
 initHooks({
-  oninit: (id, type) => process.stdout.write(`${id} ${type}`),
   onbefore: checkOnce(chkBefore),
   onafter: checkOnce(chkAfter),
   allowNoInit: true
