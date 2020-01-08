@@ -1392,8 +1392,8 @@ added: v10.0.0
 * Returns: {boolean}
 
 A native `External` value is a special type of object whose
-data is (a) not stored within the JavaScript managed heap
-and (b) does not conform to standard JavaScript types. Such
+data is not stored within the JavaScript managed heap
+and does not conform to standard JavaScript types. Such
 objects are created either by Node.js internals or native
 addons and are wrapped by a JavaScript object.
 
