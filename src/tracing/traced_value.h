@@ -18,7 +18,7 @@ namespace tracing {
 
 class TracedValue : public v8::ConvertableToTraceFormat {
  public:
-  ~TracedValue() = default;
+  ~TracedValue() override = default;
 
   static std::unique_ptr<TracedValue> Create();
   static std::unique_ptr<TracedValue> CreateArray();
