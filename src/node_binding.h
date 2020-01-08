@@ -10,6 +10,7 @@
 #include "node.h"
 #define NAPI_EXPERIMENTAL
 #include "node_api.h"
+#include "uv.h"
 
 enum {
   NM_F_BUILTIN = 1 << 0,  // Unused.
