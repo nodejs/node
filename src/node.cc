@@ -877,7 +877,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       }
 
       if (will_start_new_arg) {
-        env_argv.push_back(std::string(1, c));
+        env_argv.emplace_back(std::string(1, c));
         will_start_new_arg = false;
       } else {
         env_argv.back() += c;
