@@ -1391,6 +1391,7 @@ added: v10.0.0
 * `value` {any}
 * Returns: {boolean}
 
+Returns `true` if the value is a native `External` value.
 A native `External` value is a special type of object whose
 data is not stored within the JavaScript managed heap
 and does not conform to standard JavaScript types. Such
