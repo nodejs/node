@@ -729,18 +729,21 @@ const { createInterface } = require('readline');
   <tr>
     <th>Keybindings</th>
     <th>Description</th>
+    <th>Notes</th>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>shift</code> + <code>backspace</code></td>
     <td>Delete line left</td>
+    <td>Doesn't work on Linux, Mac and Windows</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>shift</code> + <code>delete</code></td>
     <td>Delete line right</td>
+    <td>Doesn't work on Linux and Mac</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>c</code></td>
-    <td>Emit SIGINT</td>
+    <td>Emit <code>SIGINT</code> or close the readline instance</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>h</code></td>
@@ -748,15 +751,16 @@ const { createInterface } = require('readline');
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>d</code></td>
-    <td>Delete right or EOF</td>
+    <td>Delete right or close the readline instance in case the current line is empty / EOF</td>
+    <td>Doesn't work on Windows</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>u</code></td>
-    <td>Delete from current to line start</td>
+    <td>Delete from the current position to the line start</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>k</code></td>
-    <td>Delete from current to end of line</td>
+    <td>Delete from the current position to the end of line</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>a</code></td>
@@ -791,54 +795,47 @@ const { createInterface } = require('readline');
     <td>Moves running process into background. Type
     <code>fg</code> and press <code>enter</code>
     to return.</td>
+    <td>Doesn't work on Windows</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>w</code> or <code>ctrl</code>
     + <code>backspace</code></td>
     <td>Delete backwards to a word boundary</td>
+    <td><code>ctrl</code> + <code>backspace</code> Doesn't
+    work as expected on Windows</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>delete</code></td>
     <td>Delete forward to a word boundary</td>
+    <td>Doesn't work on Mac</td>
   </tr>
   <tr>
-    <td><code>ctrl</code> + <code>left</code></td>
-    <td>Word left </td>
-  </tr>
-  <tr>
-    <td><code>ctrl</code> + <code>right</code></td>
-    <td>Word right</td>
-  </tr>
-  <tr>
-    <td><code>meta</code> + <code>b</code></td>
+    <td><code>ctrl</code> + <code>left</code> or
+    <code>meta</code> + <code>b</code></td>
     <td>Word left</td>
+    <td><code>ctrl</code> + <code>left</code> Doesn't work
+    on Mac</td>
   </tr>
   <tr>
-    <td><code>meta</code> + <code>f</code></td>
+    <td><code>ctrl</code> + <code>right</code> or
+    <code>meta</code> + <code>f</code></td>
     <td>Word right</td>
+    <td><code>ctrl</code> + <code>right</code> Doesn't work
+    on Mac</td>
   </tr>
   <tr>
     <td><code>meta</code> + <code>d</code> or <code>meta</code>
     + <code>delete</code></td>
     <td>Delete word right</td>
+    <td><code>meta</code> + <code>delete</code> Doesn't work
+    on windows</td>
   </tr>
   <tr>
     <td><code>meta</code> + <code>backspace</code></td>
-    <td>Delete word left </td>
+    <td>Delete word left</td>
+    <td>Doesn't work on Mac</td>
   </tr>
 </table>
-
-Below bindings doesn't work on all platforms
-1. ctrl + shift + backspace: doesn't work on Linux, Mac and Windows
-2. ctrl + shift + delete: doesn't work on Linux and Mac
-3. ctrl + d: doesn't work on Windows
-4. ctrl + z: doesn't work on Windows
-5. ctrl + backspace: doesn't work as expected on Windows
-6. ctrl + delete: doesn't work on Mac
-7. ctrl + left: doesn't work on Mac
-8. ctrl + right: doesn't work on Mac
-9. meta + delete: deosn't work on windows
-10. meta + backspace: doesn't work on Mac
 
 [`'SIGCONT'`]: readline.html#readline_event_sigcont
 [`'SIGTSTP'`]: readline.html#readline_event_sigtstp
