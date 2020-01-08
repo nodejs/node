@@ -2,6 +2,25 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { execFile } = require('child_process');
+const fixtures = require('../common/fixtures');
+
+{
+  // Verify exit behavior is unchanged
+  const fixture = fixtures.path('uncaught-exceptions', 'uncaught-monitor.js');
+  execFile(
+    process.execPath,
+    [fixture],
+    common.mustCall((err, stdout, stderr) => {
+      assert.strictEqual(err.code, 1);
+      assert.strictEqual(Object.getPrototypeOf(err).name, 'Error');
+      assert.strictEqual(stdout, 'Monitored: Shall exit\n');
+      const errLines = stderr.trim().split(/[\r\n]+/);
+      const errLine = errLines.find((l) => /^Error/.exec(l));
+      assert.strictEqual(errLine, 'Error: Shall exit');
+    })
+  );
+}
 
 const theErr = new Error('MyError');
 
@@ -18,8 +37,8 @@ process.on('uncaughtException', common.mustCall((err, origin) => {
   assert.strictEqual(err, theErr);
 }));
 
-// Test with uncaughtExceptionCaptureCallback installed
 process.nextTick(common.mustCall(() => {
+  // Test with uncaughtExceptionCaptureCallback installed
   process.setUncaughtExceptionCaptureCallback(common.mustCall(
     (err) => assert.strictEqual(err, theErr))
   );
