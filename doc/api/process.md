@@ -262,6 +262,10 @@ nonexistentFunc();
 console.log('This will not run.');
 ```
 
+It is possible to monitor `'uncaughtException'` events without overriding the
+default behavior to exit the process by installing a
+`'uncaughtExceptionMonitor'` listener.
+
 #### Warning: Using `'uncaughtException'` correctly
 
 `'uncaughtException'` is a crude mechanism for exception handling
@@ -288,6 +292,34 @@ To restart a crashed application in a more reliable way, whether
 `'uncaughtException'` is emitted or not, an external monitor should be employed
 in a separate process to detect application failures and recover or restart as
 needed.
+
+### Event: `'uncaughtExceptionMonitor'`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {Error} The uncaught exception.
+* `origin` {string} Indicates if the exception originates from an unhandled
+  rejection or from synchronous errors. Can either be `'uncaughtException'` or
+  `'unhandledRejection'`.
+
+The `'uncaughtExceptionMonitor'` event is emitted before an
+`'uncaughtException'` event is emitted or a hook installed via
+[`process.setUncaughtExceptionCaptureCallback()`][] is called.
+
+Installing an `'uncaughtExceptionMonitor'` listener does not change the behavior
+once an `'uncaughtException'` event is emitted. The process will
+still crash if no `'uncaughtException'` listener is installed.
+
+```js
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+  MyMonitoringTool.logSync(err, origin);
+});
+
+// Intentionally cause an exception, but don't catch it.
+nonexistentFunc();
+// Still crashes Node.js
+```
 
 ### Event: `'unhandledRejection'`
 <!-- YAML
