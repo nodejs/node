@@ -338,7 +338,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicEndpoint` is in the process of closing.
 
-#### quicendpoint.destroy([error])
+#### quicendpoint.destroy(\[error\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1275,7 +1275,7 @@ added: REPLACEME
   * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
     respectively.
   * `ipv6Only` {boolean}
- * Returns: {QuicEndpoint}
+* Returns: {QuicEndpoint}
 
 Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance.
 
