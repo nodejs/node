@@ -345,8 +345,8 @@ typedef struct ngtcp2_vec {
  *
  * `ngtcp2_cid_init` initializes Connection ID |cid| with the byte
  * string pointed by |data| and its length is |datalen|.  |datalen|
- * must be at least :enum:`NGTCP2_MIN_CDLEN`, and at most
- * :enum:`NGTCP2_MAX_CDLEN`.
+ * must be at least :enum:`NGTCP2_MIN_CIDLEN`, and at most
+ * :enum:`NGTCP2_MAX_CIDLEN`.
  */
 NGTCP2_EXTERN void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data,
                                    size_t datalen);
@@ -1403,6 +1403,37 @@ typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
                                             const ngtcp2_preferred_addr *paddr,
                                             void *user_data);
 
+typedef enum ngtcp2_connection_id_status_type {
+  /* NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE indicates that a local
+     endpoint starts using new destination Connection ID. */
+  NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE,
+  /* NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE indicates that a
+     local endpoint stops using a given destination Connection ID. */
+  NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE
+} ngtcp2_connection_id_status_type;
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_connection_id_status` is a callback function which is
+ * called when the status of Connection ID changes.
+ *
+ * |token| is the associated stateless reset token and it is NULL if
+ * no token is present.
+ *
+ * |type| is the one of the value defined in
+ * :enum:`ngtcp2_connection_id_status_type`.  The new value might be
+ * added in the future release.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_connection_id_status)(ngtcp2_conn *conn, int type,
+                                           uint64_t seq, const ngtcp2_cid *cid,
+                                           const uint8_t *token,
+                                           void *user_data);
+
 typedef struct ngtcp2_conn_callbacks {
   /**
    * client_initial is a callback function which is invoked when
@@ -1571,6 +1602,12 @@ typedef struct ngtcp2_conn_callbacks {
    * is increased.  This callback function is optional.
    */
   ngtcp2_extend_max_stream_data extend_max_stream_data;
+  /**
+   * dcid_status is a callback function which is invoked when the new
+   * destination Connection ID is activated or the activated
+   * destination Connection ID is now deactivated.
+   */
+  ngtcp2_connection_id_status dcid_status;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -2349,6 +2386,45 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_num_scid(ngtcp2_conn *conn);
  * value of `ngtcp2_conn_get_num_scid()`.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_num_active_dcid` returns the number of the active
+ * destination connection ID.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_num_active_dcid(ngtcp2_conn *conn);
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_cid_token` is the convenient struct to store
+ * Connection ID, its associated path, and stateless reset token.
+ */
+typedef struct ngtcp2_cid_token {
+  /* seq is the sequence number of this Connection ID. */
+  uint64_t seq;
+  /* cid is Connection ID. */
+  ngtcp2_cid cid;
+  /* ps is the path which is associated to this Connection ID. */
+  ngtcp2_path_storage ps;
+  /* token is the stateless reset token for this Connection ID. */
+  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  /* token_resent is nonzero if token contains stateless reset
+     token. */
+  uint8_t token_present;
+} ngtcp2_cid_token;
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_active_dcid` writes the all active destination
+ * connection IDs and tokens to |dest|.  The buffer pointed by |dest|
+ * must have ``sizeof(ngtcp2_cid_token) * n`` bytes available, where n
+ * is the return value of `ngtcp2_conn_get_num_active_dcid()`.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
+                                                 ngtcp2_cid_token *dest);
 
 /**
  * @function

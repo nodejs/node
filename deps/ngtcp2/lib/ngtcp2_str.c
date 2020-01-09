@@ -74,22 +74,16 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
 
 int ngtcp2_verify_stateless_reset_token(const uint8_t *want,
                                         const uint8_t *got) {
-  size_t i;
-
-  /* We consider that token with all bits not set is invalid. */
-  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
-    if (got[i] != 0) {
-      break;
-    }
-  }
-
-  if (i == NGTCP2_STATELESS_RESET_TOKENLEN) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  return ngtcp2_cmemeq(want, got, NGTCP2_STATELESS_RESET_TOKENLEN)
+  return !ngtcp2_check_invalid_stateless_reset_token(got) &&
+                 ngtcp2_cmemeq(want, got, NGTCP2_STATELESS_RESET_TOKENLEN)
              ? 0
              : NGTCP2_ERR_INVALID_ARGUMENT;
+}
+
+int ngtcp2_check_invalid_stateless_reset_token(const uint8_t *token) {
+  static uint8_t invalid_token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0};
+
+  return 0 == memcmp(invalid_token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 }
 
 int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n) {

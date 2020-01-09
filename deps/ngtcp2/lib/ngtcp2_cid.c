@@ -95,6 +95,14 @@ void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
   dest->ts_retired = src->ts_retired;
 }
 
+void ngtcp2_dcid_copy_no_path(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
+  dest->seq = src->seq;
+  dest->cid = src->cid;
+  memcpy(dest->token, src->token, NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  dest->ts_retired = src->ts_retired;
+}
+
 int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
                                   const ngtcp2_cid *cid, const uint8_t *token) {
 

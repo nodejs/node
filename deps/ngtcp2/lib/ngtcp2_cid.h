@@ -126,6 +126,12 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
 
 /*
+ * ngtcp2_dcid_copy_no_path behaves like ngtcp2_dcid_copy, but it does
+ * not copy path.
+ */
+void ngtcp2_dcid_copy_no_path(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
+
+/*
  * ngtcp2_dcid_verify_uniqueness verifies uniqueness of (|seq|, |cid|,
  * |token|) tuple against |dcid|.
  */

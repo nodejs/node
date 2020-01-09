@@ -69,6 +69,13 @@ int ngtcp2_verify_stateless_reset_token(const uint8_t *want,
                                         const uint8_t *got);
 
 /*
+ * ngtcp2_check_invalid_stateless_reset_token returns nonzero if
+ * |token| is invalid stateless reset token.  Currently, token which
+ * consists of all zeros is considered invalid.
+ */
+int ngtcp2_check_invalid_stateless_reset_token(const uint8_t *token);
+
+/*
  * ngtcp2_cmemeq returns nonzero if the first |n| bytes of the buffers
  * pointed by |a| and |b| are equal.  The comparison is done in a
  * constant time manner.

@@ -277,6 +277,12 @@ struct ngtcp2_conn {
     /* retired is a set of CID retired by local endpoint.  Keep them
        in 3*PTO to catch packets in flight along the old path. */
     ngtcp2_ringbuf retired;
+    /* retire_prior_to is the larget retire_prior_to received so
+       far. */
+    uint64_t retire_prior_to;
+    /* num_retire_queued is the number of RETIRE_CONNECTION_ID frames
+       queued for transmission. */
+    size_t num_retire_queued;
   } dcid;
 
   struct {
