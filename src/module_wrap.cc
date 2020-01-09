@@ -2,12 +2,13 @@
 
 #include "env.h"
 #include "memory_tracker-inl.h"
-#include "node_errors.h"
-#include "node_url.h"
-#include "util-inl.h"
 #include "node_contextify.h"
-#include "node_watchdog.h"
+#include "node_errors.h"
+#include "node_internals.h"
 #include "node_process.h"
+#include "node_url.h"
+#include "node_watchdog.h"
+#include "util-inl.h"
 
 #include <sys/stat.h>  // S_IFDIR
 
@@ -22,6 +23,7 @@ using node::contextify::ContextifyContext;
 using node::url::URL;
 using node::url::URL_FLAGS_FAILED;
 using v8::Array;
+using v8::ArrayBufferView;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -44,6 +46,7 @@ using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
+using v8::UnboundModuleScript;
 using v8::Undefined;
 using v8::Value;
 
@@ -131,7 +134,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     // new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
     CHECK(args[3]->IsFunction());
   } else {
-    // new ModuleWrap(url, context, source, lineOffset, columOffset)
+    // new ModuleWrap(url, context, source, lineOffset, columOffset, cachedData)
     CHECK(args[2]->IsString());
     CHECK(args[3]->IsNumber());
     line_offset = args[3].As<Integer>();
@@ -167,6 +170,17 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       module = Module::CreateSyntheticModule(isolate, url, export_names,
         SyntheticModuleEvaluationStepsCallback);
     } else {
+      ScriptCompiler::CachedData* cached_data = nullptr;
+      if (!args[5]->IsUndefined()) {
+        CHECK(args[5]->IsArrayBufferView());
+        Local<ArrayBufferView> cached_data_buf = args[5].As<ArrayBufferView>();
+        uint8_t* data = static_cast<uint8_t*>(
+            cached_data_buf->Buffer()->GetBackingStore()->Data());
+        cached_data =
+            new ScriptCompiler::CachedData(data + cached_data_buf->ByteOffset(),
+                                           cached_data_buf->ByteLength());
+      }
+
       Local<String> source_text = args[2].As<String>();
       ScriptOrigin origin(url,
                           line_offset,                      // line offset
@@ -178,8 +192,15 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                           False(isolate),                   // is WASM
                           True(isolate),                    // is ES Module
                           host_defined_options);
-      ScriptCompiler::Source source(source_text, origin);
-      if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+      ScriptCompiler::Source source(source_text, origin, cached_data);
+      ScriptCompiler::CompileOptions options;
+      if (source.GetCachedData() == nullptr) {
+        options = ScriptCompiler::kNoCompileOptions;
+      } else {
+        options = ScriptCompiler::kConsumeCodeCache;
+      }
+      if (!ScriptCompiler::CompileModule(isolate, &source, options)
+               .ToLocal(&module)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
           CHECK(!try_catch.Message().IsEmpty());
           CHECK(!try_catch.Exception().IsEmpty());
@@ -187,6 +208,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                               ErrorHandlingMode::MODULE_ERROR);
           try_catch.ReThrow();
         }
+        return;
+      }
+      if (options == ScriptCompiler::kConsumeCodeCache &&
+          source.GetCachedData()->rejected) {
+        THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
+            env, "cachedData buffer was rejected");
+        try_catch.ReThrow();
         return;
       }
     }
@@ -1507,8 +1535,7 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
   return ret;
 }
 
-void ModuleWrap::SetSyntheticExport(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ModuleWrap::SetSyntheticExport(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Object> that = args.This();
 
@@ -1528,6 +1555,35 @@ void ModuleWrap::SetSyntheticExport(
   USE(module->SetSyntheticModuleExport(isolate, export_name, export_value));
 }
 
+void ModuleWrap::CreateCachedData(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Object> that = args.This();
+
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, that);
+
+  CHECK(!obj->synthetic_);
+
+  Local<Module> module = obj->module_.Get(isolate);
+
+  CHECK_LT(module->GetStatus(), v8::Module::Status::kEvaluating);
+
+  Local<UnboundModuleScript> unbound_module_script =
+      module->GetUnboundModuleScript();
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+      ScriptCompiler::CreateCodeCache(unbound_module_script));
+  Environment* env = Environment::GetCurrent(args);
+  if (!cached_data) {
+    args.GetReturnValue().Set(Buffer::New(env, 0).ToLocalChecked());
+  } else {
+    MaybeLocal<Object> buf =
+        Buffer::Copy(env,
+                     reinterpret_cast<const char*>(cached_data->data),
+                     cached_data->length);
+    args.GetReturnValue().Set(buf.ToLocalChecked());
+  }
+}
+
 void ModuleWrap::Initialize(Local<Object> target,
                             Local<Value> unused,
                             Local<Context> context,
@@ -1543,6 +1599,7 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
   env->SetProtoMethod(tpl, "setExport", SetSyntheticExport);
+  env->SetProtoMethodNoSideEffect(tpl, "createCachedData", CreateCachedData);
   env->SetProtoMethodNoSideEffect(tpl, "getNamespace", GetNamespace);
   env->SetProtoMethodNoSideEffect(tpl, "getStatus", GetStatus);
   env->SetProtoMethodNoSideEffect(tpl, "getError", GetError);

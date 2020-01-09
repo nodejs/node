@@ -59,6 +59,7 @@ void PrintErrorString(const char* format, ...);
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                              \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                              \
+  V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                               \
 
 #define V(code, type)                                                         \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
