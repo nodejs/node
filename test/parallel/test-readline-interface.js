@@ -731,11 +731,7 @@ function isWarned(emitter) {
       fi.emit('keypress', '.', { name: 'right' });
       cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '💻');
@@ -764,14 +760,7 @@ function isWarned(emitter) {
       fi.emit('data', '🐕');
       cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-        // Fix cursor position without internationalization
-        fi.emit('keypress', '.', { name: 'left' });
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '🐕💻');
@@ -795,22 +784,12 @@ function isWarned(emitter) {
       fi.emit('keypress', '.', { name: 'right' });
       let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-        // Fix cursor position without internationalization
-        fi.emit('keypress', '.', { name: 'right' });
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       fi.emit('data', '🐕');
       cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 4);
-      } else {
-        assert.strictEqual(cursorPos.cols, 2);
-      }
+      assert.strictEqual(cursorPos.cols, 4);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '💻🐕');
@@ -972,11 +951,7 @@ function isWarned(emitter) {
       fi.emit('data', '💻');
       let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-      }
+      assert.strictEqual(cursorPos.cols, 2);
       // Delete left character
       fi.emit('keypress', '.', { ctrl: true, name: 'h' });
       cursorPos = rli.getCursorPos();
