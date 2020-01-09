@@ -747,6 +747,21 @@ def get_llvm_version(cc):
   return get_version_helper(
     cc, r"(^(?:FreeBSD )?clang version|based on LLVM) ([0-9]+\.[0-9]+)")
 
+def get_lld_version(cc):
+  try:
+    proc = subprocess.Popen(shlex.split(cc) + ['-Xlinker', '-v'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    return '0.0'
+
+  match = re.match(r"LLD ([0-9]+\.[0-9]+)", to_utf8(proc.communicate()[0]))
+
+  if match:
+    return match.group(1)
+  else:
+    return '0.0'
+
 def get_xcode_version(cc):
   return get_version_helper(
     cc, r"(^Apple (?:clang|LLVM) version) ([0-9]+\.[0-9]+)")
@@ -807,6 +822,7 @@ def check_compiler(o):
       (CC, ".".join(map(str, gcc_version))))
 
   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
+  o['variables']['lld_version'] = get_lld_version(CC) if is_clang else '0.0'
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:

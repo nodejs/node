@@ -308,7 +308,7 @@
     }],
     [ 'OS=="linux" and '
       'target_arch=="x64" and '
-      'llvm_version=="0.0"', {
+      'lld_version=="0.0"', {
       'ldflags': [
         '-Wl,-T',
         '<!(echo "$(pwd)/src/large_pages/ld.implicit.script")',
@@ -316,7 +316,7 @@
     }],
     [ 'OS=="linux" and '
       'target_arch=="x64" and '
-      'llvm_version!="0.0"', {
+      'lld_version!="0.0"', {
       'ldflags': [
         '-Wl,-T',
         '<!(echo "$(pwd)/src/large_pages/ld.implicit.script.lld")',
