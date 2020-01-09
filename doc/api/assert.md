@@ -1164,8 +1164,8 @@ changes:
 Tests strict equality between the `actual` and `expected` parameters as
 determined by the [SameValue Comparison][].
 
-[`assert.deepStrictEqual()`][] should be used for all objects and all
-arrays, not only nested ones.
+[`assert.deepStrictEqual()`][] should be used for all objects, not only
+nested ones.
 
 ```js
 const assert = require('assert').strict;
