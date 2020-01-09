@@ -125,8 +125,8 @@ server.on('session', common.mustCall((session) => {
     assert.strictEqual(session.getPeerCertificate().subject.CN, 'agent1');
 
     // TODO(@jasnell): fix the following
-    //assert(session.authenticated);
-    //assert.strictEqual(session.authenticationError, undefined);
+    // assert(session.authenticated);
+    // assert.strictEqual(session.authenticationError, undefined);
 
     const uni = session.openStream({ halfOpen: true });
     uni.write(unidata[0]);

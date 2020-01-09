@@ -55,7 +55,8 @@ for (const { variant, offset, length } of variants) {
   }));
 
   server.on('ready', common.mustCall(() => {
-    const client = quic.createSocket({ client: { key, cert, ca, alpn: 'meow' } });
+    const client = quic.createSocket({
+      client: { key, cert, ca, alpn: 'meow' } });
 
     const req = client.connect({
       address: 'localhost',

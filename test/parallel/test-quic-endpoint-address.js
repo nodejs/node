@@ -22,7 +22,7 @@ async function Test1(options, address) {
   assert.strictEqual(server.endpoints[0].bound, false);
   assert.deepStrictEqual({}, server.endpoints[0].address);
 
-  server.listen({ key, cert, ca, alpn: 'zzz' })
+  server.listen({ key, cert, ca, alpn: 'zzz' });
 
   await once(server, 'ready');
 
@@ -41,13 +41,13 @@ async function Test1(options, address) {
 
 async function Test2(options) {
   // Creates a server with multiple endpoints (one on udp4 and udp6)
-  const server = createSocket({ endpoint: { type: 'udp6' }});
+  const server = createSocket({ endpoint: { type: 'udp6' } });
   server.addEndpoint();
   assert.strictEqual(server.endpoints.length, 2);
   assert.strictEqual(server.endpoints[0].bound, false);
   assert.deepStrictEqual({}, server.endpoints[0].address);
 
-  server.listen({ key, cert, ca, alpn: 'zzz' })
+  server.listen({ key, cert, ca, alpn: 'zzz' });
 
   await once(server, 'ready');
 

@@ -5,7 +5,6 @@ const common = require('../common');
 if (!common.hasQuic)
   common.skip('missing quic');
 
-const { Buffer } = require('buffer');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
@@ -20,7 +19,6 @@ const { createSocket } = require('quic');
 let client;
 
 const server = createSocket();
-const endpoint2 = server.addEndpoint({ port: common.PORT });
 
 const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
 
@@ -72,7 +70,7 @@ server.on('ready', common.mustCall(() => {
   });
 
   req.on('ready', common.mustCall(() => {
-    req.on('usePreferredAddress', common.mustCall(({address, port, type}) => {
+    req.on('usePreferredAddress', common.mustCall(({ address, port, type }) => {
       assert.strictEqual(address, '0.0.0.0');
       assert.strictEqual(port, common.PORT);
       assert.strictEqual(type, 'udp4');
