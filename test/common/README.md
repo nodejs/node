@@ -570,6 +570,10 @@ If set, `NODE_COMMON_PORT`'s value overrides the `common.PORT` default value of
 
 If set, command line arguments passed to individual tests are not validated.
 
+### `NODE_SKIP_CRYPTO`
+
+If set, crypto tests are skipped.
+
 ### `NODE_TEST_KNOWN_GLOBALS`
 
 A comma-separated list of variables names that are appended to the global
