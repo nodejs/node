@@ -1,3 +1,4 @@
+#include "node_quic_session-inl.h"  // NOLINT(build/include)
 #include "aliased_buffer.h"
 #include "debug_utils.h"
 #include "env-inl.h"
@@ -13,7 +14,6 @@
 #include "node_mem-inl.h"
 #include "node_quic_buffer-inl.h"
 #include "node_quic_crypto.h"
-#include "node_quic_session-inl.h"
 #include "node_quic_socket.h"
 #include "node_quic_stream.h"
 #include "node_quic_state.h"

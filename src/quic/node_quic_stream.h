@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_STREAM_H_
-#define SRC_NODE_QUIC_STREAM_H_
+#ifndef SRC_QUIC_NODE_QUIC_STREAM_H_
+#define SRC_QUIC_NODE_QUIC_STREAM_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -500,4 +500,4 @@ class QuicStream : public AsyncWrap, public StreamBase {
 
 #endif  // NODE_WANT_INTERNALS
 
-#endif  // SRC_NODE_QUIC_STREAM_H_
+#endif  // SRC_QUIC_NODE_QUIC_STREAM_H_

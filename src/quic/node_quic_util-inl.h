@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_UTIL_INL_H_
-#define SRC_NODE_QUIC_UTIL_INL_H_
+#ifndef SRC_QUIC_NODE_QUIC_UTIL_INL_H_
+#define SRC_QUIC_NODE_QUIC_UTIL_INL_H_
 
 #include "node_internals.h"
 #include "node_quic_util.h"
@@ -286,4 +286,4 @@ bool QuicPreferredAddress::ResolvePreferredAddress(
 }  // namespace quic
 }  // namespace node
 
-#endif  // SRC_NODE_QUIC_UTIL_INL_H_
+#endif  // SRC_QUIC_NODE_QUIC_UTIL_INL_H_

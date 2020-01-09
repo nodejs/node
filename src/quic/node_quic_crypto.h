@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_CRYPTO_H_
-#define SRC_NODE_QUIC_CRYPTO_H_
+#ifndef SRC_QUIC_NODE_QUIC_CRYPTO_H_
+#define SRC_QUIC_NODE_QUIC_CRYPTO_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -108,4 +108,4 @@ v8::Local<v8::Value> GetALPNProtocol(QuicSession* session);
 }  // namespace node
 
 #endif  // NODE_WANT_INTERNALS
-#endif  // SRC_NODE_QUIC_CRYPTO_H_
+#endif  // SRC_QUIC_NODE_QUIC_CRYPTO_H_

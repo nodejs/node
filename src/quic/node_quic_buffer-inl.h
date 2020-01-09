@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_BUFFER_INL_H_
-#define SRC_NODE_QUIC_BUFFER_INL_H_
+#ifndef SRC_QUIC_NODE_QUIC_BUFFER_INL_H_
+#define SRC_QUIC_NODE_QUIC_BUFFER_INL_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -16,8 +16,8 @@ QuicBufferChunk::QuicBufferChunk(size_t len)
       buf_(uv_buf_init(reinterpret_cast<char*>(data_buf_.data()), len)),
       done_called_(true) {}
 
-QuicBufferChunk::QuicBufferChunk(uv_buf_t buf_, done_cb done)
-    : buf_(buf_) {
+QuicBufferChunk::QuicBufferChunk(uv_buf_t buf, done_cb done)
+    : buf_(buf) {
   if (done != nullptr)
     done_ = std::move(done);
 }
@@ -132,4 +132,4 @@ size_t QuicBuffer::DrainInto(
 }  // namespace node
 
 #endif  // NODE_WANT_INTERNALS
-#endif  // SRC_NODE_QUIC_BUFFER_INL_H_
+#endif  // SRC_QUIC_NODE_QUIC_BUFFER_INL_H_

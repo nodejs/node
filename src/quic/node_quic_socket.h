@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_SOCKET_H_
-#define SRC_NODE_QUIC_SOCKET_H_
+#ifndef SRC_QUIC_NODE_QUIC_SOCKET_H_
+#define SRC_QUIC_NODE_QUIC_SOCKET_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -576,4 +576,4 @@ class QuicSocket : public AsyncWrap,
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif  // SRC_NODE_QUIC_SOCKET_H_
+#endif  // SRC_QUIC_NODE_QUIC_SOCKET_H_

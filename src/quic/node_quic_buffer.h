@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_BUFFER_H_
-#define SRC_NODE_QUIC_BUFFER_H_
+#ifndef SRC_QUIC_NODE_QUIC_BUFFER_H_
+#define SRC_QUIC_NODE_QUIC_BUFFER_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -46,7 +46,7 @@ class QuicBufferChunk : public MemoryRetainer {
 
   uint8_t* out() { return reinterpret_cast<uint8_t*>(buf_.base); }
 
- void MemoryInfo(MemoryTracker* tracker) const override;
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
   SET_MEMORY_INFO_NAME(QuicBufferChunk)
   SET_SELF_SIZE(QuicBufferChunk)
@@ -196,4 +196,4 @@ class QuicBuffer : public MemoryRetainer {
 
 #endif  // NODE_WANT_INTERNALS
 
-#endif  // SRC_NODE_QUIC_BUFFER_H_
+#endif  // SRC_QUIC_NODE_QUIC_BUFFER_H_

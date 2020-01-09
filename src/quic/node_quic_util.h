@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_QUIC_UTIL_H_
-#define SRC_NODE_QUIC_UTIL_H_
+#ifndef SRC_QUIC_NODE_QUIC_UTIL_H_
+#define SRC_QUIC_NODE_QUIC_UTIL_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -261,4 +261,4 @@ inline const char* crypto_level_name(ngtcp2_crypto_level level);
 
 #endif  // NOE_WANT_INTERNALS
 
-#endif  // SRC_NODE_QUIC_UTIL_H_
+#endif  // SRC_QUIC_NODE_QUIC_UTIL_H_
