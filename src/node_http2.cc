@@ -1959,6 +1959,12 @@ void Http2Stream::Close(int32_t code) {
   Debug(this, "closed with code %d", code);
 }
 
+ShutdownWrap* Http2Stream::CreateShutdownWrap(v8::Local<v8::Object> object) {
+  // DoShutdown() always finishes synchronously, so there's no need to create
+  // a structure to store asynchronous context.
+  return nullptr;
+}
+
 int Http2Stream::DoShutdown(ShutdownWrap* req_wrap) {
   if (IsDestroyed())
     return UV_EPIPE;

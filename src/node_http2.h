@@ -470,6 +470,7 @@ class Http2Stream : public AsyncWrap,
   int ReadStop() override;
 
   // Required for StreamBase
+  ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
   bool HasWantsWrite() const override { return true; }
