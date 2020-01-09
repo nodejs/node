@@ -566,6 +566,10 @@ defined in the ECMAScript specification.
   * `identifier` {string} String used in stack traces.
     **Default:** `'vm:module(i)'` where `i` is a context-specific ascending
     index.
+  * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
+    `TypedArray`, or `DataView` with V8's code cache data for the supplied
+     source. The `code` must be the same as the module from which this
+     `cachedData` was created.
   * `context` {Object} The [contextified][] object as returned by the
     `vm.createContext()` method, to compile and evaluate this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
@@ -619,6 +623,28 @@ const contextifiedObject = vm.createContext({ secret: 42 });
   // above with
   //     meta.prop = vm.runInContext('{}', contextifiedObject);
 })();
+```
+
+### `sourceTextModule.createCachedData()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Buffer}
+
+Creates a code cache that can be used with the SourceTextModule constructor's
+`cachedData` option. Returns a Buffer. This method may be called any number
+of times before the module has been evaluated.
+
+```js
+// Create an initial module
+const module = new vm.SourceTextModule('const a = 1;');
+
+// Create cached data from this module
+const cachedData = module.createCachedData();
+
+// Create a new module using the cached data. The code must be the same.
+const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 ```
 
 ## Class: `vm.SyntheticModule`

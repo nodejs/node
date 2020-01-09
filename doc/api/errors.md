@@ -1988,6 +1988,16 @@ the following reasons:
 * It is being linked (`linkingStatus` is `'linking'`)
 * Linking has failed for this module (`linkingStatus` is `'errored'`)
 
+<a id="ERR_VM_MODULE_CACHED_DATA_REJECTED"></a>
+### `ERR_VM_MODULE_CACHED_DATA_REJECTED`
+
+The `cachedData` option passed to a module constructor is invalid.
+
+<a id="ERR_VM_MODULE_CANNOT_CREATE_CACHED_DATA"></a>
+### `ERR_VM_MODULE_CANNOT_CREATE_CACHED_DATA`
+
+Cached data cannot be created for modules which have already been evaluated.
+
 <a id="ERR_VM_MODULE_DIFFERENT_CONTEXT"></a>
 ### `ERR_VM_MODULE_DIFFERENT_CONTEXT`
 
