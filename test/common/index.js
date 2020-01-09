@@ -48,7 +48,8 @@ if (isMainThread)
 
 const noop = () => {};
 
-const hasCrypto = Boolean(process.versions.openssl);
+const hasCrypto = Boolean(process.versions.openssl) &&
+                  !process.env.NODE_SKIP_CRYPTO;
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
 // `worker_threads`) and child processes.
