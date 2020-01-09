@@ -301,6 +301,7 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
       if (req->result < 0) {
+        HandleScope handle_scope(isolate);
         close->Reject(UVException(isolate, req->result, "close"));
       } else {
         close->Resolve();
