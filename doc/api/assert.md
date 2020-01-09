@@ -1134,6 +1134,21 @@ if the `asyncFn` fails to reject.
 ```
 
 ```js
+(async () => {
+  await assert.rejects(
+    async () => {
+      throw new TypeError('Wrong value');
+    },
+    (err) => {
+      assert.strictEqual(err.name, 'TypeError');
+      assert.strictEqual(err.message, 'Wrong value');
+      return true;
+    }
+  );
+})();
+```
+
+```js
 assert.rejects(
   Promise.reject(new Error('Wrong value')),
   Error
