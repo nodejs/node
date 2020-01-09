@@ -3,7 +3,6 @@
 require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
-const util = process.binding('util');
 
 [
   'isArrayBuffer',
@@ -23,14 +22,12 @@ const util = process.binding('util');
   'isUint8Array',
   'isAnyArrayBuffer'
 ].forEach((method) => {
-//  const { stderr } = spawnSync(process.execPath, ['-p', `
-//    process.binding('util')['${method}']('meow');
-//  `]);
-//  const expectedWarning = '[DEP0103] DeprecationWarning: ' +
-//                          'Accessing native typechecking bindings ' +
-//                          'of Node directly is deprecated. ' +
-//                          `Please use \`util.types.${method}\` instead.`;
-//  assert(stderr.includes(expectedWarning), stderr);
-  util[method]('meow')
-  console.log(method)
+  const { stderr } = spawnSync(process.execPath, ['-p', `
+    process.binding('util')['${method}']('meow');
+  `]);
+  const expectedWarning = '[DEP0103] DeprecationWarning: ' +
+                          'Accessing native typechecking bindings ' +
+                          'of Node directly is deprecated. ' +
+                          `Please use \`util.types.${method}\` instead.`;
+  assert(stderr.includes(expectedWarning), stderr);
 });
