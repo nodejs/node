@@ -1396,8 +1396,8 @@ Returns `true` if the value is a native `External` value.
 A native `External` value is a special type of object that contains a
 raw C++ pointer (`void*`) for access from native code, and has no other
 properties. Such objects are created either by Node.js internals or native
-addons. In JS, they are [frozen][`Object.freeze()`] objects with a `null`
-prototype.
+addons. In JavaScript, they are [frozen][`Object.freeze()`] objects with a
+`null` prototype.
 
 ### `util.types.isFloat32Array(value)`
 <!-- YAML
