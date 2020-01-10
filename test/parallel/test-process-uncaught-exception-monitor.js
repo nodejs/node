@@ -25,7 +25,7 @@ const fixtures = require('../common/fixtures');
 const theErr = new Error('MyError');
 
 process.on(
-  process.uncaughtExceptionMonitor,
+  'uncaughtExceptionMonitor',
   common.mustCall((err, origin) => {
     assert.strictEqual(err, theErr);
     assert.strictEqual(origin, 'uncaughtException');

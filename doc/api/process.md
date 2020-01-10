@@ -263,18 +263,8 @@ console.log('This will not run.');
 ```
 
 It is possible to monitor `'uncaughtException'` events without overriding the
-default behavior to exit the process by installing a listener using the symbol
-`uncaughtExceptionMonitor`.
-
-```js
-process.on(process.uncaughtExceptionMonitor, (err, origin) => {
-  MyMonitoringTool.logSync(err, origin);
-});
-
-// Intentionally cause an exception, but don't catch it.
-nonexistentFunc();
-// Still crashes Node.js
-```
+default behavior to exit the process by installing a
+`'uncaughtExceptionMonitor'` listener.
 
 #### Warning: Using `'uncaughtException'` correctly
 
@@ -302,6 +292,34 @@ To restart a crashed application in a more reliable way, whether
 `'uncaughtException'` is emitted or not, an external monitor should be employed
 in a separate process to detect application failures and recover or restart as
 needed.
+
+### Event: `'uncaughtExceptionMonitor'`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {Error} The uncaught exception.
+* `origin` {string} Indicates if the exception originates from an unhandled
+  rejection or from synchronous errors. Can either be `'uncaughtException'` or
+  `'unhandledRejection'`.
+
+The `'uncaughtExceptionMonitor'` event is emitted before an
+`'uncaughtException'` event is emitted or a hook installed via
+[`process.setUncaughtExceptionCaptureCallback()`][] is called.
+
+Installing a `'uncaughtExceptionMonitor'` listener does not change the behavior
+once an `'uncaughtException'` event is emitted, therefore the process will
+still crash if no regular `'uncaughtException'` listener is installed.
+
+```js
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+  MyMonitoringTool.logSync(err, origin);
+});
+
+// Intentionally cause an exception, but don't catch it.
+nonexistentFunc();
+// Still crashes Node.js
+```
 
 ### Event: `'unhandledRejection'`
 <!-- YAML
@@ -2333,20 +2351,6 @@ The `process.traceDeprecation` property indicates whether the
 documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
-
-## `process.uncaughtExceptionMonitor`
-<!-- YAML
-added: REPLACEME
--->
-
-This symbol shall be used to install a listener for only monitoring
-`'uncaughtException'` events. Listeners installed using this symbol are called
-before the regular `'uncaughtException'` listeners and before a hook
-installed via [`process.setUncaughtExceptionCaptureCallback()`][].
-
-Installing a listener using this symbol does not change the behavior once an
-`'uncaughtException'` event is emitted, therefore the process will still crash
-if no regular `'uncaughtException'` listener is installed.
 
 ## `process.umask([mask])`
 <!-- YAML

@@ -3,7 +3,7 @@
 // Keep the event loop alive.
 setTimeout(() => {}, 1e6);
 
-process.on(process.uncaughtExceptionMonitor, (err) => {
+process.on('uncaughtExceptionMonitor', (err) => {
   console.log(`Monitored: ${err.message}`);
 });
 
