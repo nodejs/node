@@ -3,12 +3,12 @@ const common = require('../common.js');
 const http = require('http');
 
 const bench = common.createBenchmark(main, {
-  // Unicode confuses ab on os x.
-  c: [50, 500],
-  n: [0, 5, 20]
+  c: [50],     // Concurrent connections
+  n: [20],     // Number of header lines to append after the common headers
+  w: [0, 6],   // Amount of trailing whitespace
 });
 
-function main({ c, n }) {
+function main({ c, n, w }) {
   const server = http.createServer((req, res) => {
     res.end();
   });
@@ -22,7 +22,12 @@ function main({ c, n }) {
       'Cache-Control': 'no-cache'
     };
     for (let i = 0; i < n; i++) {
-      headers[`foo${i}`] = `some header value ${i}`;
+      // Note:
+      // - autocannon does not send header values with OWS
+      // - wrk can only send trailing OWS. This is a side-effect of wrk
+      // processing requests with http-parser before sending them, causing
+      // leading OWS to be stripped.
+      headers[`foo${i}`] = `some header value ${i}${' \t'.repeat(w / 2)}`;
     }
     bench.http({
       path: '/',
