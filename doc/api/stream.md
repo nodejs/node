@@ -1642,7 +1642,7 @@ async function run() {
       const fd = await fs.open('archive.tar', 'w');
       try {
         for await (const chunk of source) {
-          fs.write(fd, chunk);
+          await fs.write(fd, chunk);
         }
       } finally {
         await fs.close(fd);
