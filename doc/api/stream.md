@@ -1565,13 +1565,13 @@ changes:
 -->
 
 * `source` {Stream|Iterable|AsyncIterable|Function}
-  * Returns: {Stream|Iterable|AsyncIterable}
+  * Returns: {Iterable|AsyncIterable}
 * `...streams` {Stream|Function}
   * `source` {AsyncIterable}
-  * Returns: {Stream|AsyncIterable}
+  * Returns: {AsyncIterable}
 * `destination` {Stream|Function}
   * `source` {AsyncIterable}
-  * Returns: {Stream|AsyncIterable|Promise}
+  * Returns: {AsyncIterable|Promise}
 * `callback` {Function} Called when the pipeline is fully done.
   * `err` {Error}
 * Returns: {Stream}
