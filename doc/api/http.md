@@ -1990,7 +1990,7 @@ When `request.url` is `'/status?name=ryan'` and
 
 ```console
 $ node
-> new URL(request.url, request.headers.host)
+> new URL(request.url, `http://${request.headers.host}`)
 URL {
   href: 'http://localhost:3000/status?name=ryan',
   origin: 'http://localhost:3000',
