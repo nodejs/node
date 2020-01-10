@@ -1672,7 +1672,8 @@ typedef enum {
 
 Describes the `Keys/Properties` filter enums:
 
-`napi_key_conversion` limits the range of collected properties.
+`napi_key_collection_mode` limits the range of collected properties.
+
 `napi_key_own_only` limits the collected properties to the given
 Object only. `napi_key_include_prototypes` will include all keys
 of the objects's prototype chain as well.
