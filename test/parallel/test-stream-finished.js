@@ -184,3 +184,52 @@ const { promisify } = require('util');
   finished(streamLike, common.mustCall);
   streamLike.emit('close');
 }
+
+
+{
+  // Test is readable check through readable
+  const streamLike = new EE();
+  streamLike.readable = false;
+  finished(streamLike, common.mustCall());
+  streamLike.emit('end');
+}
+
+{
+  // Test is readable check through readableEnded
+  const streamLike = new EE();
+  streamLike.readableEnded = true;
+  finished(streamLike, common.mustCall());
+  streamLike.emit('end');
+}
+
+{
+  // Test is readable check through _readableState
+  const streamLike = new EE();
+  streamLike._readableState = {};
+  finished(streamLike, common.mustCall());
+  streamLike.emit('end');
+}
+
+{
+  // Test is writable check through writable
+  const streamLike = new EE();
+  streamLike.writable = false;
+  finished(streamLike, common.mustCall());
+  streamLike.emit('finish');
+}
+
+{
+  // Test is writable check through writableEnded
+  const streamLike = new EE();
+  streamLike.writableEnded = true;
+  finished(streamLike, common.mustCall());
+  streamLike.emit('finish');
+}
+
+{
+  // Test is writable check through _writableState
+  const streamLike = new EE();
+  streamLike._writableState = {};
+  finished(streamLike, common.mustCall());
+  streamLike.emit('finish');
+}
