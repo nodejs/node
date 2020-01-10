@@ -785,11 +785,7 @@ const { promisify } = require('util');
   process.nextTick(() => {
     s.emit('error', new Error('kaboom'));
   });
-  let ret = '';
   pipeline(s, async function(source) {
-    for await (const chunk of source) {
-      ret += chunk;
-    }
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
   }));
