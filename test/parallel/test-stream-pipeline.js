@@ -830,6 +830,18 @@ const { promisify } = require('util');
 }
 
 {
+  const s = new PassThrough();
+  assert.throws(() => {
+    pipeline(s, function*(source) {
+    }, () => {});
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+    assert.strictEqual(s.destroyed, false);
+    return true;
+  });
+}
+
+{
   let res = '';
   pipeline(async function*() {
     await Promise.resolve();
