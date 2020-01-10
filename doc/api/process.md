@@ -308,7 +308,7 @@ The `'uncaughtExceptionMonitor'` event is emitted before an
 [`process.setUncaughtExceptionCaptureCallback()`][] is called.
 
 Installing an `'uncaughtExceptionMonitor'` listener does not change the behavior
-once an `'uncaughtException'` event is emitted, therefore the process will
+once an `'uncaughtException'` event is emitted. The process will
 still crash if no regular `'uncaughtException'` listener is installed.
 
 ```js
