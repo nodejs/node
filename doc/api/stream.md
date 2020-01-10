@@ -1555,7 +1555,7 @@ const cleanup = finished(rs, (err) => {
 });
 ```
 
-### `stream.pipeline(source, ...streams, callback)`
+### `stream.pipeline(source, ...transforms, destination, callback)`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1566,7 +1566,7 @@ changes:
 
 * `source` {Stream|Iterable|AsyncIterable|Function}
   * Returns: {Iterable|AsyncIterable}
-* `...streams` {Stream|Function}
+* `...transforms` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable}
 * `destination` {Stream|Function}
@@ -2883,7 +2883,7 @@ contain multi-byte characters.
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
-[`stream.pipeline()`]: #stream_stream_pipeline_source_streams_callback
+[`stream.pipeline()`]: #stream_stream_pipeline_source_transforms_destination_callback
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
