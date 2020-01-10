@@ -307,7 +307,7 @@ The `'uncaughtExceptionMonitor'` event is emitted before an
 `'uncaughtException'` event is emitted or a hook installed via
 [`process.setUncaughtExceptionCaptureCallback()`][] is called.
 
-Installing a `'uncaughtExceptionMonitor'` listener does not change the behavior
+Installing an `'uncaughtExceptionMonitor'` listener does not change the behavior
 once an `'uncaughtException'` event is emitted, therefore the process will
 still crash if no regular `'uncaughtException'` listener is installed.
 
