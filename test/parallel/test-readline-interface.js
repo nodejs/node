@@ -561,15 +561,20 @@ function isWarned(emitter) {
       { input: fi, output: fi, terminal: true }
     );
     const keys = [];
+    const err = new Error('bad thing happened');
     fi.on('keypress', function(key) {
       keys.push(key);
       if (key === 'X') {
-        throw new Error('bad thing happened');
+        throw err;
       }
     });
-    try {
-      fi.emit('data', 'fooX');
-    } catch { }
+    assert.throws(
+      () => fi.emit('data', 'fooX'),
+      (e) => {
+        assert.strictEqual(e, err);
+        return true;
+      }
+    );
     fi.emit('data', 'bar');
     assert.strictEqual(keys.join(''), 'fooXbar');
     rli.close();
