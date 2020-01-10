@@ -891,20 +891,11 @@ const { promisify } = require('util');
 {
   // Ensure no unhandled rejection from async function.
 
-  let res = '';
-  const ret = pipeline(async function*() {
-    await Promise.resolve();
+  pipeline(async function*() {
     yield 'hello';
-    yield 'world';
-  }, async function*() {
+  }, async function(source) {
     throw new Error('kaboom');
-  }, async function*(source) {
-    for await (const chunk of source) {
-      res += chunk;
-    }
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
-    assert.strictEqual(res, '');
   }));
-  ret.resume();
 }
