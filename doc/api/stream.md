@@ -1561,7 +1561,7 @@ added: v10.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/31223
-    description: Add support for functions and generators.
+    description: Add support for functions generators and async generators.
 -->
 
 * `source` {Stream|Iterable|AsyncIterable|Function}
