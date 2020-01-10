@@ -791,3 +791,64 @@ const { promisify } = require('util');
     return true;
   });
 }
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, new Transform({
+    transform(chunk, encoding, cb) {
+      cb(new Error('kaboom'));
+    }
+  }), async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(res, '');
+  }));
+}
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, new Transform({
+    transform(chunk, encoding, cb) {
+      process.nextTick(cb, new Error('kaboom'));
+    }
+  }), async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(res, '');
+  }));
+}
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, new Transform({
+    decodeStrings: false,
+    transform(chunk, encoding, cb) {
+      cb(null, chunk.toUpperCase());
+    }
+  }), async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'HELLOWORLD');
+  }));
+}
