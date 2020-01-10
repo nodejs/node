@@ -633,9 +633,9 @@ const { promisify } = require('util');
 {
   // AsyncIterable destination is returned and finalizes.
 
-  const ret = pipeline(async function() {
+  const ret = pipeline(async function*() {
     await Promise.resolve();
-    return ['hello'];
+    yield 'hello';
   }, async function*(source) {
     for await (const chunk of source) {
       chunk;
@@ -651,7 +651,7 @@ const { promisify } = require('util');
   // AsyncFunction destination is not returned and error is
   // propagated.
 
-  const ret = pipeline(async function() {
+  const ret = pipeline(async function*() {
     await Promise.resolve();
     throw new Error('kaboom');
   }, async function*(source) {
@@ -667,7 +667,7 @@ const { promisify } = require('util');
 
 {
   const s = new PassThrough();
-  pipeline(async function() {
+  pipeline(async function*() {
     throw new Error('kaboom');
   }, s, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
@@ -861,7 +861,7 @@ const { promisify } = require('util');
     await Promise.resolve();
     yield 'hello';
     yield 'world';
-  }, async function() {
+  }, async function*() {
     throw new Error('kaboom');
   }, async function*(source) {
     for await (const chunk of source) {
