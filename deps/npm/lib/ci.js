@@ -33,7 +33,7 @@ function ci (args, cb) {
   }
 
   for (const key in npm.config.list[0]) {
-    if (key !== 'log') {
+    if (!['log', 'cache'].includes(key)) {
       opts[key] = npm.config.list[0][key]
     }
   }
