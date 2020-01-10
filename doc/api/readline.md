@@ -744,10 +744,12 @@ const { createInterface } = require('readline');
   <tr>
     <td><code>ctrl</code> + <code>c</code></td>
     <td>Emit <code>SIGINT</code> or close the readline instance</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>h</code></td>
     <td>Delete left</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>d</code></td>
@@ -757,38 +759,47 @@ const { createInterface } = require('readline');
   <tr>
     <td><code>ctrl</code> + <code>u</code></td>
     <td>Delete from the current position to the line start</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>k</code></td>
     <td>Delete from the current position to the end of line</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>a</code></td>
     <td>Go to start of line</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>e</code></td>
     <td>Go to to end of line</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>b</code></td>
     <td>Back one character</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>f</code></td>
     <td>Forward one character</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>l</code></td>
     <td>Clear screen</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>n</code></td>
     <td>Next history item</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>p</code></td>
     <td>Previous history item</td>
+    <td></td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>z</code></td>
