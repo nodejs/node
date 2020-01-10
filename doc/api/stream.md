@@ -1561,7 +1561,7 @@ added: v10.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/31223
-    description: Add support for functions generators and async generators.
+    description: Add support for async generators.
 -->
 
 * `source` {Stream|Iterable|AsyncIterable|Function}
@@ -2747,7 +2747,7 @@ const pipeline = util.promisify(stream.pipeline);
 const writable = fs.createWriteStream('./file');
 
 (async function() {
-  await pipeline(iterator, writable);
+  await pipeline(iterable, writable);
 })();
 ```
 
