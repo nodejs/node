@@ -25,22 +25,22 @@ async function testBreakpointBeforeScriptExecution(session) {
   // Break on start
   await session.waitForBreakOnLine(
     0, UrlResolve(session.scriptURL().toString(), 'main.js'));
-  await session.send([{'method': 'Debugger.resume'}]);
+  await session.send([{ 'method': 'Debugger.resume' }]);
 
   // Script loaded
   await session.waitForBreakOnLine(
     0, UrlResolve(session.scriptURL().toString(), 'main.js'));
-  await session.send([{'method': 'Debugger.resume'}]);
+  await session.send([{ 'method': 'Debugger.resume' }]);
 
   // Script loaded
   await session.waitForBreakOnLine(
     0, UrlResolve(session.scriptURL().toString(), 'dep.js'));
-  await session.send([{'method': 'Debugger.resume'}]);
+  await session.send([{ 'method': 'Debugger.resume' }]);
 }
 
 async function runTest() {
-  const child = new NodeInstance(['--inspect-brk=0'], '',
-                                 fixtures.path('inspector-instrumentation-breakpoint', 'main.js'));
+  const main = fixtures.path('inspector-instrumentation-breakpoint', 'main.js');
+  const child = new NodeInstance(['--inspect-brk=0'], '', main);
 
   const session = await child.connectInspectorSession();
   await testBreakpointBeforeScriptExecution(session);
