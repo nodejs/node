@@ -289,6 +289,10 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
+Within `worker_threads`, this API will return `false` for process.stdout.
+This is because the `process.stdout` of the worker is a pipe into the parent,
+not actually a TTY.
+
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
