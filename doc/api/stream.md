@@ -1574,6 +1574,7 @@ changes:
   * Returns: {AsyncIterable|Promise}
 * `callback` {Function} Called when the pipeline is fully done.
   * `err` {Error}
+  * `val` Resolved value of `Promise` returned by `destination`.
 * Returns: {Stream}
 
 A module method to pipe between streams and generators forwarding errors and
