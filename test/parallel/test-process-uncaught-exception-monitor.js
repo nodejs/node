@@ -7,7 +7,7 @@ const fixtures = require('../common/fixtures');
 
 {
   // Verify exit behavior is unchanged
-  const fixture = fixtures.path('uncaught-exceptions', 'uncaught-monitor.js');
+  const fixture = fixtures.path('uncaught-exceptions', 'uncaught-monitor1.js');
   execFile(
     process.execPath,
     [fixture],
@@ -18,6 +18,26 @@ const fixtures = require('../common/fixtures');
       const errLines = stderr.trim().split(/[\r\n]+/);
       const errLine = errLines.find((l) => /^Error/.exec(l));
       assert.strictEqual(errLine, 'Error: Shall exit');
+    })
+  );
+}
+
+{
+  // Verify exit behavior is unchanged
+  const fixture = fixtures.path('uncaught-exceptions', 'uncaught-monitor2.js');
+  execFile(
+    process.execPath,
+    [fixture],
+    common.mustCall((err, stdout, stderr) => {
+      assert.strictEqual(err.code, 7);
+      assert.strictEqual(Object.getPrototypeOf(err).name, 'Error');
+      assert.strictEqual(stdout, 'Monitored: Shall exit, will throw now\n');
+      const errLines = stderr.trim().split(/[\r\n]+/);
+      const errLine = errLines.find((l) => /^ReferenceError/.exec(l));
+      assert.strictEqual(
+        errLine,
+        'ReferenceError: missingFunction is not defined'
+      );
     })
   );
 }
