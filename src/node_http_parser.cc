@@ -77,6 +77,10 @@ const uint32_t kOnExecute = 4;
 // Any more fields than this will be flushed into JS
 const size_t kMaxHeaderFieldsCount = 32;
 
+inline bool IsOWS(char c) {
+  return c == ' ' || c == '\t';
+}
+
 // helper class for the Parser
 struct StringPtr {
   StringPtr() {
@@ -136,10 +140,19 @@ struct StringPtr {
 
 
   Local<String> ToString(Environment* env) const {
-    if (str_)
+    if (size_ != 0)
       return OneByteString(env->isolate(), str_, size_);
     else
       return String::Empty(env->isolate());
+  }
+
+
+  // Strip trailing OWS (SPC or HTAB) from string.
+  Local<String> ToTrimmedString(Environment* env) {
+    while (size_ > 0 && IsOWS(str_[size_ - 1])) {
+      size_--;
+    }
+    return ToString(env);
   }
 
 
@@ -730,7 +743,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     for (size_t i = 0; i < num_values_; ++i) {
       headers_v[i * 2] = fields_[i].ToString(env());
-      headers_v[i * 2 + 1] = values_[i].ToString(env());
+      headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
 
     return Array::New(env()->isolate(), headers_v, num_values_ * 2);
