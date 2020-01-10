@@ -766,6 +766,7 @@ const { promisify } = require('util');
     s.emit('data', 'asd');
     s.emit('end');
   });
+  s.close = common.mustCall();
   let ret = '';
   pipeline(s, async function(source) {
     for await (const chunk of source) {
@@ -785,6 +786,7 @@ const { promisify } = require('util');
   process.nextTick(() => {
     s.emit('error', new Error('kaboom'));
   });
+  s.destroy = common.mustCall();
   pipeline(s, async function(source) {
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
