@@ -852,3 +852,24 @@ const { promisify } = require('util');
     assert.strictEqual(res, 'HELLOWORLD');
   }));
 }
+
+{
+  // Ensure no unhandled rejection from async function.
+
+  let res = '';
+  const ret = pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, async function() {
+    throw new Error('kaboom');
+  }, async function*(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(res, '');
+  }));
+  ret.resume();
+}
