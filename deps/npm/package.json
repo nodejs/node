@@ -1,5 +1,5 @@
 {
-  "version": "6.13.4",
+  "version": "6.13.6",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -110,7 +110,7 @@
     "once": "~1.4.0",
     "opener": "^1.5.1",
     "osenv": "^0.1.5",
-    "pacote": "^9.5.11",
+    "pacote": "^9.5.12",
     "path-is-inside": "~1.0.2",
     "promise-inflight": "~1.0.1",
     "qrcode-terminal": "^0.12.0",

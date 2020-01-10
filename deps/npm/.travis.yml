@@ -2,45 +2,15 @@
 language: node_js
 
 os:
-  - linux
+  - windows
 
 node_js:
   - 12
   - 10
   - 8
+  - 6
 
 env: "DEPLOY_VERSION=testing"
-
-# having top-level `env:` adds a phantom build
-# https://github.com/travis-ci/travis-ci/issues/4681
-#env: DEPLOY_VERSION=testing
-matrix:
-  include:
-    # Run the sudotest, but only on Linux
-    - node_js: "12"
-      # DEPLOY_VERSION is used to set the couchapp setup mode for test/tap/registry.js
-      # only gather coverage info for LTS
-      env: DEPLOY_VERSION=testing COVERALLS_REPO_TOKEN="$COVERALLS_OPTIONAL_TOKEN"
-      script:
-        # run the sudo tests, with coverage enabled
-        - "sudo PATH=$PATH $(which node) . run tap -- \"test/tap/*.js\" --coverage  --timeout 600"
-
-    # also run standard and license checking
-    - node_js: "10"
-      script:
-        - "npx standard"
-        - "node . run licenses"
-
-    # separate out node 6 so we can turn off caching, because that
-    # always breaks for some reason.
-    - node_js: "6"
-      cache: false
-      env: "DEPLOY_VERSION=testing"
-
-    # only run one test on Windows, because it's hella slow
-    - node_js: "12"
-      os: "windows"
-      env: "DEPLOY_VERSION=testing"
 
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
