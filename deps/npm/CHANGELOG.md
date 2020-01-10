@@ -1,3 +1,35 @@
+## 6.13.6 (2020-01-09)
+
+### DEPENDENCIES
+
+* [`6dba897a1`](https://github.com/npm/cli/commit/6dba897a1e2d56388fb6df0c814b0bb85af366b4)
+  `pacote@9.5.12`:
+    * [`d2f4176`](https://github.com/npm/pacote/commit/d2f4176b6af393d7e29de27e9b638dbcbab9a0c7)
+      fix(git): Do not drop uid/gid when executing in root-owned directory
+      ([@isaacs](https://github.com/isaacs))
+
+## 6.13.5 (2020-01-09)
+
+### BUG FIXES
+
+* [`fd0a802ec`](https://github.com/npm/cli/commit/fd0a802ec468ec7b98d6c15934c355fef0e7ff60) [#550](https://github.com/npm/cli/pull/550) Fix cache location for `npm ci` ([@zhenyavinogradov](https://github.com/zhenyavinogradov))
+* [`4b30f3cca`](https://github.com/npm/cli/commit/4b30f3ccaebf50d6ab3bad130ff94827c017cc16) [#648](https://github.com/npm/cli/pull/648) fix(version): using 'allow-same-version', git commit --allow-empty and git tag -f ([@rhengles](https://github.com/rhengles))
+
+### TESTING
+
+* [`e16f68d30`](https://github.com/npm/cli/commit/e16f68d30d59ce1ddde9fe62f7681b2c07fce84d) test(ci): add failing cache config test ([@ruyadorno](https://github.com/ruyadorno))
+* [`3f009fbf2`](https://github.com/npm/cli/commit/3f009fbf2c42f68c5127efecc6e22db105a74fe0) [#659](https://github.com/npm/cli/pull/659) test: fix bin-overwriting test on Windows ([@isaacs](https://github.com/isaacs))
+* [`43ae0791f`](https://github.com/npm/cli/commit/43ae0791f74f68e02850201a64a6af693657b241) [#601](https://github.com/npm/cli/pull/601) ci: Allow builds to run even if one fails ([@XhmikosR](https://github.com/XhmikosR))
+* [`4a669bee4`](https://github.com/npm/cli/commit/4a669bee4ac54c70adc6979d45cd0605b6dc33fd) [#603](https://github.com/npm/cli/pull/603) Remove the unused appveyor.yml ([@XhmikosR](https://github.com/XhmikosR))
+* [`9295046ac`](https://github.com/npm/cli/commit/9295046ac92bbe82f4d84e1ec90cc81d3b80bfc7) [#600](https://github.com/npm/cli/pull/600) ci: switch to `actions/checkout@v2` ([@XhmikosR](https://github.com/XhmikosR))
+
+### DOCUMENTATION
+
+* [`f2d770ac7`](https://github.com/npm/cli/commit/f2d770ac768ea84867772b90a3c9acbdd0c1cb6a) [#569](https://github.com/npm/cli/pull/569) fix netlify publish path config ([@claudiahdz](https://github.com/claudiahdz))
+* [`462cf0983`](https://github.com/npm/cli/commit/462cf0983dbc18a3d93f77212ca69f878060b2ec) [#627](https://github.com/npm/cli/pull/627) update gatsby dependencies ([@felixonmars](https://github.com/felixonmars))
+* [`6fb5dbb72`](https://github.com/npm/cli/commit/6fb5dbb7213c4c050c9a47a7d5131447b8b7dcc8)
+  [#532](https://github.com/npm/cli/pull/532) docs: clarify usage of global prefix ([@jgehrcke](https://github.com/jgehrcke))
+
 ## 6.13.4 (2019-12-11)
 
 ## BUGFIXES

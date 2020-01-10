@@ -8,10 +8,11 @@ const path = require('path')
 const readBinCb = process.platform === 'win32' ? readCmdShim : readlink
 const readBin = bin => new Promise((resolve, reject) => {
   readBinCb(bin, (er, target) => {
-    if (er)
+    if (er) {
       reject(er)
-    else
-      resolve(path.resolve(pkg + '/global/bin', target))
+    } else {
+      resolve(path.resolve(path.dirname(bin), target))
+    }
   })
 })
 
