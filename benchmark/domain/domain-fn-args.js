@@ -15,7 +15,7 @@ function main({ n, args }) {
   bench.start();
 
   bdomain.enter();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     if (myArguments.length >= 2) {
       const args = Array.prototype.slice.call(myArguments, 1);
       fn.apply(this, args);
