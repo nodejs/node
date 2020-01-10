@@ -740,6 +740,8 @@ const { promisify } = require('util');
 }
 
 {
+  // Legacy streams without async iterator.
+
   const s = new PassThrough();
   s.push('asd');
   s.push(null);
@@ -753,6 +755,43 @@ const { promisify } = require('util');
     assert.strictEqual(err, undefined);
     assert.strictEqual(ret, 'asd');
     assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  // v1 streams without read().
+
+  const s = new Stream();
+  process.nextTick(() => {
+    s.emit('data', 'asd');
+    s.emit('end');
+  });
+  let ret = '';
+  pipeline(s, async function(source) {
+    for await (const chunk of source) {
+      ret += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(ret, 'asd');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  // v1 error streams without read().
+
+  const s = new Stream();
+  process.nextTick(() => {
+    s.emit('error', new Error('kaboom'));
+  });
+  let ret = '';
+  pipeline(s, async function(source) {
+    for await (const chunk of source) {
+      ret += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
   }));
 }
 
