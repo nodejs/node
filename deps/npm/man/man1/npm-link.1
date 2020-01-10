@@ -1,4 +1,4 @@
-.TH "NPM\-LINK" "1" "December 2019" "" ""
+.TH "NPM\-LINK" "1" "January 2020" "" ""
 .SH "NAME"
 \fBnpm-link\fR \- Symlink a package folder
 .SS Synopsis
@@ -17,8 +17,8 @@ Package linking is a two\-step process\.
 .P
 First, \fBnpm link\fP in a package folder will create a symlink in the global folder
 \fB{prefix}/lib/node_modules/<package>\fP that links to the package where the \fBnpm
-link\fP command was executed\. (see \fBnpm\-config\fP \fInpm\-config\fR for the value of \fBprefix\fP)\. It
-will also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.
+link\fP command was executed\. It will also link any bins in the package to \fB{prefix}/bin/{name}\fP\|\.
+Note that \fBnpm link\fP uses the global prefix (see \fBnpm prefix \-g\fP for its value)\.
 .P
 Next, in some other location, \fBnpm link package\-name\fP will create a
 symbolic link from globally\-installed \fBpackage\-name\fP to \fBnode_modules/\fP

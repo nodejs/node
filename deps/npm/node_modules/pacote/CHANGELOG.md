@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="9.5.12"></a>
+## [9.5.12](https://github.com/npm/pacote/compare/v9.5.11...v9.5.12) (2020-01-06)
+
+
+### Bug Fixes
+
+* **git:** Do not drop uid/gid when executing in root-owned directory ([d2f4176](https://github.com/npm/pacote/commit/d2f4176))
+
+
+
 <a name="9.5.11"></a>
 ## [9.5.11](https://github.com/npm/pacote/compare/v9.5.10...v9.5.11) (2019-12-09)
 
