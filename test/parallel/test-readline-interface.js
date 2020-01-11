@@ -25,7 +25,10 @@ const common = require('../common');
 
 const assert = require('assert');
 const readline = require('readline');
-const internalReadline = require('internal/readline/utils');
+const {
+  getStringWidth,
+  stripVTControlCharacters
+} = require('internal/util/inspect');
 const EventEmitter = require('events').EventEmitter;
 const { Writable, Readable } = require('stream');
 
@@ -1140,48 +1143,44 @@ function isWarned(emitter) {
   }
 
   // Wide characters should be treated as two columns.
-  assert.strictEqual(internalReadline.getStringWidth('a'), 1);
-  assert.strictEqual(internalReadline.getStringWidth('あ'), 2);
-  assert.strictEqual(internalReadline.getStringWidth('谢'), 2);
-  assert.strictEqual(internalReadline.getStringWidth('고'), 2);
-  assert.strictEqual(
-    internalReadline.getStringWidth(String.fromCodePoint(0x1f251)), 2);
-  assert.strictEqual(internalReadline.getStringWidth('abcde'), 5);
-  assert.strictEqual(internalReadline.getStringWidth('古池や'), 6);
-  assert.strictEqual(internalReadline.getStringWidth('ノード.js'), 9);
-  assert.strictEqual(internalReadline.getStringWidth('你好'), 4);
-  assert.strictEqual(internalReadline.getStringWidth('안녕하세요'), 10);
-  assert.strictEqual(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
-  assert.strictEqual(internalReadline.getStringWidth('👨‍👩‍👦‍👦'), 8);
-  assert.strictEqual(internalReadline.getStringWidth('🐕𐐷あ💻😀'), 9);
+  assert.strictEqual(getStringWidth('a'), 1);
+  assert.strictEqual(getStringWidth('あ'), 2);
+  assert.strictEqual(getStringWidth('谢'), 2);
+  assert.strictEqual(getStringWidth('고'), 2);
+  assert.strictEqual(getStringWidth(String.fromCodePoint(0x1f251)), 2);
+  assert.strictEqual(getStringWidth('abcde'), 5);
+  assert.strictEqual(getStringWidth('古池や'), 6);
+  assert.strictEqual(getStringWidth('ノード.js'), 9);
+  assert.strictEqual(getStringWidth('你好'), 4);
+  assert.strictEqual(getStringWidth('안녕하세요'), 10);
+  assert.strictEqual(getStringWidth('A\ud83c\ude00BC'), 5);
+  assert.strictEqual(getStringWidth('👨‍👩‍👦‍👦'), 8);
+  assert.strictEqual(getStringWidth('🐕𐐷あ💻😀'), 9);
   // TODO(BridgeAR): This should have a width of 4.
-  assert.strictEqual(internalReadline.getStringWidth('⓬⓪'), 2);
-  assert.strictEqual(internalReadline.getStringWidth('\u0301\u200D\u200E'), 0);
+  assert.strictEqual(getStringWidth('⓬⓪'), 2);
+  assert.strictEqual(getStringWidth('\u0301\u200D\u200E'), 0);
 
   // Check if vt control chars are stripped
   assert.strictEqual(
-    internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m'),
+    stripVTControlCharacters('\u001b[31m> \u001b[39m'),
     '> '
   );
   assert.strictEqual(
-    internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m> '),
+    stripVTControlCharacters('\u001b[31m> \u001b[39m> '),
     '> > '
   );
   assert.strictEqual(
-    internalReadline.stripVTControlCharacters('\u001b[31m\u001b[39m'),
+    stripVTControlCharacters('\u001b[31m\u001b[39m'),
     ''
   );
   assert.strictEqual(
-    internalReadline.stripVTControlCharacters('> '),
+    stripVTControlCharacters('> '),
     '> '
   );
-  assert.strictEqual(internalReadline
-    .getStringWidth('\u001b[31m> \u001b[39m'), 2);
-  assert.strictEqual(internalReadline
-    .getStringWidth('\u001b[31m> \u001b[39m> '), 4);
-  assert.strictEqual(internalReadline
-    .getStringWidth('\u001b[31m\u001b[39m'), 0);
-  assert.strictEqual(internalReadline.getStringWidth('> '), 2);
+  assert.strictEqual(getStringWidth('\u001b[31m> \u001b[39m'), 2);
+  assert.strictEqual(getStringWidth('\u001b[31m> \u001b[39m> '), 4);
+  assert.strictEqual(getStringWidth('\u001b[31m\u001b[39m'), 0);
+  assert.strictEqual(getStringWidth('> '), 2);
 
   {
     const fi = new FakeInput();
