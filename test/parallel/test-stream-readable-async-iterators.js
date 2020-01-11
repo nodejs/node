@@ -487,7 +487,7 @@ async function tests() {
 
   {
     const r = new Readable({
-      read () {
+      read() {
       },
       destroy(err, callback) {
         setTimeout(() => callback(new Error('asd')), 1);
