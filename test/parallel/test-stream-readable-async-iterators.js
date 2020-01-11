@@ -57,6 +57,25 @@ async function tests() {
   }
 
   {
+    // Non standard stream cleanup
+
+    const readable = new Readable({ autoDestroy: false, read() {} });
+    readable.push('asd');
+    readable.push('asd');
+    readable.destroy = null;
+    readable.close = common.mustCall(() => {
+      readable.emit('close');
+    });
+
+    await (async () => {
+      for await (const d of readable) {
+        d;
+        return;
+      }
+    })();
+  }
+
+  {
     const readable = new Readable({ objectMode: true, read() {} });
     readable.push(0);
     readable.push(1);
