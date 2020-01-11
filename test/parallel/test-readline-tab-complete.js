@@ -6,7 +6,7 @@ const common = require('../common');
 const readline = require('readline');
 const assert = require('assert');
 const EventEmitter = require('events').EventEmitter;
-const { getStringWidth } = require('internal/readline/utils');
+const { getStringWidth } = require('internal/util/inspect');
 
 // This test verifies that the tab completion supports unicode and the writes
 // are limited to the minimum.
