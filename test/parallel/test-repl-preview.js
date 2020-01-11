@@ -1,18 +1,27 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const { REPLServer } = require('repl');
+const { Stream } = require('stream');
 
 common.skipIfInspectorDisabled();
 
 const PROMPT = 'repl > ';
 
-class REPLStream extends ArrayStream {
+class REPLStream extends Stream {
+  readable = true;
+  writable = true;
+
   constructor() {
     super();
     this.lines = [''];
+  }
+  run(data) {
+    for (const entry of data) {
+      this.emit('data', entry);
+    }
+    this.emit('data', '\n');
   }
   write(chunk) {
     const chunkLines = chunk.toString('utf8').split('\n');
@@ -41,12 +50,14 @@ class REPLStream extends ArrayStream {
       this.on('line', onLine);
     });
   }
+  pause() {}
+  resume() {}
 }
 
 function runAndWait(cmds, repl) {
   const promise = repl.inputStream.wait();
   for (const cmd of cmds) {
-    repl.inputStream.run([cmd]);
+    repl.inputStream.run(cmd);
   }
   return promise;
 }
@@ -93,9 +104,9 @@ async function tests(options) {
      '\x1B[33mtrue\x1B[39m',
      '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
     [' \t { a: true};', [2, 5], '\x1B[33mtrue\x1B[39m',
-     ' \t { a: tru\x1B[90me\x1B[39m\x1B[26G\x1B[0Ke}',
-     '\x1B[90m{ a: true }\x1B[39m\x1B[28G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
-     '\x1B[90mtrue\x1B[39m\x1B[29G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+     '  { a: tru\x1B[90me\x1B[39m\x1B[18G\x1B[0Ke}',
+     '\x1B[90m{ a: true }\x1B[39m\x1B[20G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
+     '\x1B[90mtrue\x1B[39m\x1B[21G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
      '\x1B[33mtrue\x1B[39m',
      '\x1B[1G\x1B[0Jrepl > \x1B[8G']
   ];

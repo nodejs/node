@@ -9,7 +9,6 @@ const ArrayStream = require('../common/arraystream');
 // \u001b[0J - Clear screen
 // \u001b[0K - Clear to line end
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
-const previewCode = (str, n) => ` // ${str}\x1B[${n}G\x1B[0K`;
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 
 function run({ input, output, event, checkTerminalCodes = true }) {
@@ -18,9 +17,7 @@ function run({ input, output, event, checkTerminalCodes = true }) {
 
   stream.write = (msg) => found += msg.replace('\r', '');
 
-  let expected = `${terminalCode}.ed${previewCode('itor', 6)}i` +
-                   `${previewCode('tor', 7)}t${previewCode('or', 8)}o` +
-                   `${previewCode('r', 9)}r\n` +
+  let expected = `${terminalCode}.editor\n` +
                  '// Entering editor mode (^D to finish, ^C to cancel)\n' +
                  `${input}${output}\n${terminalCode}`;
 
