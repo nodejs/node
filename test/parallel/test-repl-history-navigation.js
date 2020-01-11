@@ -157,7 +157,7 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     skip: !process.features.inspector,
     test: [
-      // あ is a fill width character with a length of one.
+      // あ is a full width character with a length of one.
       // 🐕 is a full width character with a length of two.
       // 𐐷 is a half width character with the length of two.
       // '\u0301', '0x200D', '\u200E' are zero width characters.
