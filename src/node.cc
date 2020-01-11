@@ -27,6 +27,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_binding.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"

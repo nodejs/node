@@ -174,6 +174,64 @@ MaybeLocal<Function> NativeModuleLoader::CompileAsModule(
   return LookupAndCompile(context, id, &parameters, result);
 }
 
+#ifdef NODE_BUILTIN_MODULES_PATH
+static std::string OnDiskFileName(const char* id) {
+  std::string filename = NODE_BUILTIN_MODULES_PATH;
+  filename += "/";
+
+  if (strncmp(id, "internal/deps", strlen("internal/deps")) == 0) {
+    id += strlen("internal/");
+  } else {
+    filename += "lib/";
+  }
+  filename += id;
+  filename += ".js";
+
+  return filename;
+}
+#endif  // NODE_BUILTIN_MODULES_PATH
+
+MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
+                                                               const char* id) {
+#ifdef NODE_BUILTIN_MODULES_PATH
+  std::string filename = OnDiskFileName(id);
+
+  uv_fs_t req;
+  uv_file file =
+      uv_fs_open(nullptr, &req, filename.c_str(), O_RDONLY, 0, nullptr);
+  CHECK_GE(req.result, 0);
+  uv_fs_req_cleanup(&req);
+
+  std::shared_ptr<void> defer_close(nullptr, [file](...) {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  std::string contents;
+  char buffer[4096];
+  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
+
+  while (true) {
+    const int r =
+        uv_fs_read(nullptr, &req, file, &buf, 1, contents.length(), nullptr);
+    CHECK_GE(req.result, 0);
+    uv_fs_req_cleanup(&req);
+    if (r <= 0) {
+      break;
+    }
+    contents.append(buf.base, r);
+  }
+
+  return String::NewFromUtf8(
+      isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
+#else
+  const auto source_it = source_.find(id);
+  CHECK_NE(source_it, source_.end());
+  return source_it->second.ToStringChecked(isolate);
+#endif  // NODE_BUILTIN_MODULES_PATH
+}
+
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
 // Otherwise return a Local<Object> containing the cache.
@@ -185,9 +243,10 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
 
-  const auto source_it = source_.find(id);
-  CHECK_NE(source_it, source_.end());
-  Local<String> source = source_it->second.ToStringChecked(isolate);
+  Local<String> source;
+  if (!LoadBuiltinModuleSource(isolate, id).ToLocal(&source)) {
+    return {};
+  }
 
   std::string filename_s = id + std::string(".js");
   Local<String> filename =
