@@ -66,6 +66,8 @@ class NativeModuleLoader {
   NativeModuleCacheMap* code_cache();
   v8::ScriptCompiler::CachedData* GetCodeCache(const char* id) const;
   enum class Result { kWithCache, kWithoutCache };
+  v8::MaybeLocal<v8::String> LoadBuiltinModuleSource(v8::Isolate* isolate,
+                                                     const char* id);
   // If an exception is encountered (e.g. source code contains
   // syntax error), the returned value is empty.
   v8::MaybeLocal<v8::Function> LookupAndCompile(
