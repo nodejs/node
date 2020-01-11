@@ -32,6 +32,7 @@
       'cflags': [
         '-W3', '-wd4090', '-Gs0', '-GF', '-Gy', '-nologo','/O2',
       ],
+      'msvs_disabled_warnings': [4090],
       'link_settings': {
         'libraries': [
           '-lws2_32.lib',
