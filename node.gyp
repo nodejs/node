@@ -25,6 +25,7 @@
     'node_core_target_name%': 'node',
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
+    'node_builtin_modules_path%': '',
     'library_files': [
       'lib/internal/bootstrap/environment.js',
       'lib/internal/bootstrap/loaders.js',
@@ -709,6 +710,9 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'node_builtin_modules_path!=""', {
+          'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
+        }],
         [ 'node_shared=="true"', {
           'sources': [
             'src/node_snapshot_stub.cc',
