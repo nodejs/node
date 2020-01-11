@@ -76,5 +76,9 @@ const { readFileSync } = require('fs');
   assert.strictEqual(originalLine, 2);
   assert.strictEqual(originalColumn, 4);
   assert(originalSource.endsWith('disk.js'));
-  assert.strictEqual(payload, sourceMap.payload);
+  // The stored payload should be a clone:
+  assert.strictEqual(payload.mappings, sourceMap.payload.mappings);
+  assert.notStrictEqual(payload, sourceMap.payload);
+  assert.strictEqual(payload.sources[0], sourceMap.payload.sources[0]);
+  assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
 }

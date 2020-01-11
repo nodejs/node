@@ -1034,8 +1034,9 @@ import('fs').then((esmFS) => {
 ```
 
 ## Source Map V3 Support
-
-<!--introduced_in=REPLACEME-->
+<!-- YAML
+added: REPLACEME
+-->
 
 > Stability: 1 - Experimental
 
