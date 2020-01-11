@@ -283,6 +283,28 @@ async function tests() {
   }
 
   {
+    // Iterator throw.
+
+    const readable = new Readable({
+      objectMode: true,
+      read() {
+        this.push('hello');
+      }
+    });
+
+    readable.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.message, 'kaboom');
+    }));
+
+    const it = readable[Symbol.asyncIterator]();
+    it.throw(new Error('kaboom')).catch(common.mustCall((err) => {
+      assert.strictEqual(err.message, 'kaboom');
+    }));
+
+    assert.strictEqual(readable.destroyed, true);
+  }
+
+  {
     console.log('destroyed by throw');
     const readable = new Readable({
       objectMode: true,
