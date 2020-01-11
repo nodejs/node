@@ -4,6 +4,8 @@ Hi! 👋 You’ve found the C++ code backing Node.js. This README aims to help y
 get started working on it and document some idioms you may encounter while
 doing so.
 
+Hello world. This is really hard. 
+
 ## Coding style
 
 Node.js has a document detailing its [C++ coding style][]
