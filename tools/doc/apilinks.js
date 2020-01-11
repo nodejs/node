@@ -54,10 +54,15 @@ inputs.forEach((file) => {
 
   // Parse source.
   const source = fs.readFileSync(file, 'utf8');
-  const ast = acorn.parse(
-    source,
-    { allowReturnOutsideFunction: true, ecmaVersion: 10, locations: true });
-  const program = ast.body;
+  let program;
+  try {
+    const ast = acorn.parse(
+      source,
+      { allowReturnOutsideFunction: true, ecmaVersion: 10, locations: true });
+    program = ast.body;
+  } catch {
+    return;
+  }
 
   // Build link
   const link = `https://github.com/${repo}/blob/${tag}/` +
