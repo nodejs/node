@@ -1364,8 +1364,8 @@ const signature = sign.sign(privateKey, 'hex');
 const verify = crypto.createVerify('SHA256');
 verify.write('some data to sign');
 verify.end();
-console.log(verify.verify(publicKey, signature));
-// Prints: true or false
+console.log(verify.verify(publicKey, signature, 'hex'));
+// Prints: true
 ```
 
 Example: Using the [`sign.update()`][] and [`verify.update()`][] methods:
