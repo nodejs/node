@@ -41,3 +41,39 @@ jobs:
         run: npx envinfo
       - name: Build
         run: ./configure && make -j8
+  lint-addon-docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10.x
+    - name: Lint addon docs
+      run: NODE=$(which node) make lint-addon-docs
+  lint-cpp:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Lint C/C++ files
+      run: make lint-cpp
+  lint-md:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10.x
+    - name: Lint docs
+      run: NODE=$(which node) make lint-md
+  lint-js:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10.x
+    - name: Lint JavaScript files
+      run: NODE=$(which node) make lint-js
