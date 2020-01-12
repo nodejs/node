@@ -138,6 +138,39 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     name: 'RangeError',
     code: 'ERR_INVALID_OPT_VALUE'
   });
+
+  // Check for invalid tab sizes.
+  assert.throws(
+    () => new readline.Interface({
+      input,
+      tabSize: 0
+    }),
+    {
+      message: 'The value of "tabSize" is out of range. ' +
+                'It must be >= 1 && < 4294967296. Received 0',
+      code: 'ERR_OUT_OF_RANGE'
+    }
+  );
+
+  assert.throws(
+    () => new readline.Interface({
+      input,
+      tabSize: '4'
+    }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+
+  assert.throws(
+    () => new readline.Interface({
+      input,
+      tabSize: 4.5
+    }),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'The value of "tabSize" is out of range. ' +
+                'It must be an integer. Received 4.5'
+    }
+  );
 }
 
 // Sending a single character with no newline
@@ -630,6 +663,25 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   fi.emit('data', 'multi-line text');
   assertCursorRowsAndCols(rli, 1, 5);
   rli.close();
+}
+
+// Multi-line input cursor position and long tabs
+{
+  const [rli, fi] = getInterface({ tabSize: 16, terminal: true, prompt: '' });
+  fi.columns = 10;
+  fi.emit('data', 'multi-line\ttext \t');
+  assert.strictEqual(rli.cursor, 17);
+  assertCursorRowsAndCols(rli, 3, 2);
+  rli.close();
+}
+
+// Check for the default tab size.
+{
+  const [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', 'the quick\tbrown\tfox');
+  assert.strictEqual(rli.cursor, 19);
+  // The first tab is 7 spaces long, the second one 3 spaces.
+  assertCursorRowsAndCols(rli, 0, 27);
 }
 
 // Multi-line prompt cursor position
