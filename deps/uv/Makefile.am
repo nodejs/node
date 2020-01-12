@@ -123,7 +123,6 @@ EXTRA_DIST = test/fixtures/empty_file \
              include \
              docs \
              img \
-             samples \
              android-configure-arm \
              android-configure-arm64 \
              android-configure-x86 \

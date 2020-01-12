@@ -565,6 +565,7 @@ static void uv__signal_stop(uv_signal_t* handle) {
     if (first_oneshot && !rem_oneshot) {
       ret = uv__signal_register_handler(handle->signum, 1);
       assert(ret == 0);
+      (void)ret;
     }
   }
 
