@@ -126,7 +126,7 @@ Unlike network I/O, there are no platform-specific file I/O primitives libuv cou
 so the current approach is to run blocking file I/O operations in a thread pool.
 
 For a thorough explanation of the cross-platform file I/O landscape, checkout
-`this post <http://blog.libtorrent.org/2012/10/asynchronous-disk-io/>`_.
+`this post <https://blog.libtorrent.org/2012/10/asynchronous-disk-io/>`_.
 
 libuv currently uses a global thread pool on which all loops can queue work. 3 types of
 operations are currently run on this pool:

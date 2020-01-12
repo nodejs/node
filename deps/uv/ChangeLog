@@ -1,3 +1,70 @@
+2020.01.13, Version 1.34.1 (Stable), 8aa5636ec72990bb2856f81e14c95813024a5c2b
+
+Changes since version 1.34.0:
+
+* unix: fix -Wstrict-aliasing compiler warning (Ben Noordhuis)
+
+* unix: cache address of dlsym("mkostemp") (Ben Noordhuis)
+
+* build: remove -pedantic from compiler flags (Ben Noordhuis)
+
+* Revert "darwin: assume pthread_setname_np() is available" (Ben Noordhuis)
+
+* Revert "darwin: speed up uv_set_process_title()" (Ben Noordhuis)
+
+* darwin: assume pthread_setname_np() is available (Ben Noordhuis)
+
+* ibmi: fix the false isatty() issue on IBMi (Xu Meng)
+
+* test: fix test failure under NetBSD and OpenBSD (David Carlier)
+
+* test: skip some test cases on IBMi (Xu Meng)
+
+* test: skip uv_(get|set)_process_title on IBMi (Xu Meng)
+
+* doc: remove binaries for Windows from README (Richard Lau)
+
+* unix: fix -Wunused-but-set-variable warning (George Zhao)
+
+* unix: pass sysctl size arg using ARRAY_SIZE macro (David Carlier)
+
+* test: disallow running the test suite as root (cjihrig)
+
+* unix: suppress -Waddress-of-packed-member warning (Ben Noordhuis)
+
+* misc: make more tags "not-stale" (Jameson Nash)
+
+* test: fix pthread memory leak (Trevor Norris)
+
+* docs: delete socks5-proxy sample (Jameson Nash)
+
+* ibmi: fix the CMSG length issue (Xu Meng)
+
+* docs: fix formatting (Jameson Nash)
+
+* unix: squelch fchmod() EPERM on CIFS share (Ben Noordhuis)
+
+* docs: fix linkcheck (Jameson Nash)
+
+* docs: switch from linux.die.net to man7.org (Jameson Nash)
+
+* win: remove abort when non-IFS LSP detection fails (virtualyw)
+
+* docs: clarify that uv_pipe_t is a pipe (Jameson Nash)
+
+* win,tty: avoid regressions in utf-8 handling (Jameson Nash)
+
+* win: remove bad assert in uv_loop_close (Jameson Nash)
+
+* test: fix -fno-common build errors (Ben Noordhuis)
+
+* build: turn on -fno-common to catch regressions (Ben Noordhuis)
+
+* test: fix fs birth time test failure (Ben Noordhuis)
+
+* tty,unix: avoid affecting controlling TTY (Jameson Nash)
+
+
 2019.12.05, Version 1.34.0 (Stable), 15ae750151ac9341e5945eb38f8982d59fb99201
 
 Changes since version 1.33.1:

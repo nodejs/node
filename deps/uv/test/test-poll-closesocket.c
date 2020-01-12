@@ -25,10 +25,9 @@
 #include "uv.h"
 #include "task.h"
 
-uv_os_sock_t sock;
-uv_poll_t handle;
-
 #ifdef _WIN32
+static uv_os_sock_t sock;
+static uv_poll_t handle;
 static int close_cb_called = 0;
 
 
