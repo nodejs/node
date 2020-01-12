@@ -74,11 +74,6 @@ BOOL uv_get_connectex_function(SOCKET socket, LPFN_CONNECTEX* target) {
 }
 
 
-static int error_means_no_support(DWORD error) {
-  return error == WSAEPROTONOSUPPORT || error == WSAESOCKTNOSUPPORT ||
-         error == WSAEPFNOSUPPORT || error == WSAEAFNOSUPPORT;
-}
-
 
 void uv_winsock_init(void) {
   WSADATA wsa_data;
@@ -105,50 +100,36 @@ void uv_winsock_init(void) {
     uv_fatal_error(errorno, "WSAStartup");
   }
 
-  /* Detect non-IFS LSPs */
+  /* Try to detect non-IFS LSPs */
+  uv_tcp_non_ifs_lsp_ipv4 = 1;
   dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-
   if (dummy != INVALID_SOCKET) {
     opt_len = (int) sizeof protocol_info;
     if (getsockopt(dummy,
                    SOL_SOCKET,
                    SO_PROTOCOL_INFOW,
                    (char*) &protocol_info,
-                   &opt_len) == SOCKET_ERROR)
-      uv_fatal_error(WSAGetLastError(), "getsockopt");
-
-    if (!(protocol_info.dwServiceFlags1 & XP1_IFS_HANDLES))
-      uv_tcp_non_ifs_lsp_ipv4 = 1;
-
-    if (closesocket(dummy) == SOCKET_ERROR)
-      uv_fatal_error(WSAGetLastError(), "closesocket");
-
-  } else if (!error_means_no_support(WSAGetLastError())) {
-    /* Any error other than "socket type not supported" is fatal. */
-    uv_fatal_error(WSAGetLastError(), "socket");
+                   &opt_len) == 0) {
+      if (protocol_info.dwServiceFlags1 & XP1_IFS_HANDLES)
+        uv_tcp_non_ifs_lsp_ipv4 = 0;
+    }
+    closesocket(dummy);
   }
 
-  /* Detect IPV6 support and non-IFS LSPs */
+  /* Try to detect IPV6 support and non-IFS LSPs */
+  uv_tcp_non_ifs_lsp_ipv6 = 1;
   dummy = socket(AF_INET6, SOCK_STREAM, IPPROTO_IP);
-
   if (dummy != INVALID_SOCKET) {
     opt_len = (int) sizeof protocol_info;
     if (getsockopt(dummy,
                    SOL_SOCKET,
                    SO_PROTOCOL_INFOW,
                    (char*) &protocol_info,
-                   &opt_len) == SOCKET_ERROR)
-      uv_fatal_error(WSAGetLastError(), "getsockopt");
-
-    if (!(protocol_info.dwServiceFlags1 & XP1_IFS_HANDLES))
-      uv_tcp_non_ifs_lsp_ipv6 = 1;
-
-    if (closesocket(dummy) == SOCKET_ERROR)
-      uv_fatal_error(WSAGetLastError(), "closesocket");
-
-  } else if (!error_means_no_support(WSAGetLastError())) {
-    /* Any error other than "socket type not supported" is fatal. */
-    uv_fatal_error(WSAGetLastError(), "socket");
+                   &opt_len) == 0) {
+      if (protocol_info.dwServiceFlags1 & XP1_IFS_HANDLES)
+        uv_tcp_non_ifs_lsp_ipv6 = 0;
+    }
+    closesocket(dummy);
   }
 }
 

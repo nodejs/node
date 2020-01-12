@@ -116,9 +116,6 @@ libuv can be downloaded either from the
 [GitHub repository](https://github.com/libuv/libuv)
 or from the [downloads site](http://dist.libuv.org/dist/).
 
-Starting with libuv 1.7.0, binaries for Windows are also provided. This is to
-be considered EXPERIMENTAL.
-
 Before verifying the git tags or signature files, importing the relevant keys
 is necessary. Key IDs are listed in the
 [MAINTAINERS](https://github.com/libuv/libuv/blob/master/MAINTAINERS.md)
