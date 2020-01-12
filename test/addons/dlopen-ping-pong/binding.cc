@@ -5,7 +5,9 @@
 
 #include <dlfcn.h>
 
-extern "C" const char* dlopen_pong(void) {
+extern "C"
+__attribute__((visibility("default")))
+const char* dlopen_pong(void) {
   return "pong";
 }
 
