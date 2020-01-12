@@ -486,18 +486,19 @@ async function tests() {
   }
 
   {
+    const _err = new Error('asd');
     const r = new Readable({
       read() {
       },
       destroy(err, callback) {
-        setTimeout(() => callback(new Error('asd')), 1);
+        setTimeout(() => callback(_err), 1);
       }
     });
 
     r.destroy();
     const it = r[Symbol.asyncIterator]();
     it.next().catch(common.mustCall((err) => {
-      assert.strictEqual(err.message, 'asd');
+      assert.strictEqual(err, _err);
     }));
   }
 }
