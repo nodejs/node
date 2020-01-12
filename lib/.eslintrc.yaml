@@ -11,18 +11,42 @@ rules:
     - error
     - name: Array
       message: "Use `const { Array } = primordials;` instead of the global."
+    - name: BigInt
+      message: "Use `const { BigInt } = primordials;` instead of the global."
+    - name: BigUint64Array
+      message: "Use `const { BigUint64Array } = primordials;` instead of the global."
     - name: Boolean
       message: "Use `const { Boolean } = primordials;` instead of the global."
+    - name: Error
+      message: "Use `const { Error } = primordials;` instead of the global."
+    - name: Float32Array
+      message: "Use `const { Float32Array } = primordials;` instead of the global."
     - name: JSON
       message: "Use `const { JSON } = primordials;` instead of the global."
+    - name: Map
+      message: "Use `const { Map } = primordials;` instead of the global."
     - name: Math
       message: "Use `const { Math } = primordials;` instead of the global."
     - name: Number
       message: "Use `const { Number } = primordials;` instead of the global."
     - name: Object
       message: "Use `const { Object } = primordials;` instead of the global."
+    - name: Promise
+      message: "Use `const { Promise } = primordials;` instead of the global."
     - name: Reflect
       message: "Use `const { Reflect } = primordials;` instead of the global."
+    - name: RegExp
+      message: "Use `const { RegExp } = primordials;` instead of the global."
+    - name: Set
+      message: "Use `const { Set } = primordials;` instead of the global."
+    - name: Symbol
+      message: "Use `const { Symbol } = primordials;` instead of the global."
+    - name: Uint16Array
+      message: "Use `const { Uint16Array } = primordials;` instead of the global."
+    - name: WeakMap
+      message: "Use `const { WeakMap } = primordials;` instead of the global."
+    - name: WeakSet
+      message: "Use `const { WeakSet } = primordials;` instead of the global."
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
@@ -41,26 +65,13 @@ rules:
       message: "Please use `require('internal/errors').hideStackFrames()` instead."
     - selector: "AssignmentExpression:matches([left.name='prepareStackTrace'], [left.property.name='prepareStackTrace'])"
       message: "Use 'overrideStackTrace' from 'lib/internal/errors.js' instead of 'Error.prepareStackTrace'."
+    - selector: "CallExpression[callee.name='isNaN']"
+      message: "Use NumberIsNaN() primordial instead of the global isNaN() function."
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
 globals:
   Intl: false
-  # Assertions
-  CHECK: false
-  CHECK_EQ: false
-  CHECK_GE: false
-  CHECK_GT: false
-  CHECK_LE: false
-  CHECK_LT: false
-  CHECK_NE: false
-  DCHECK: false
-  DCHECK_EQ: false
-  DCHECK_GE: false
-  DCHECK_GT: false
-  DCHECK_LE: false
-  DCHECK_LT: false
-  DCHECK_NE: false
   # Parameters passed to internal modules
   global: false
   require: false

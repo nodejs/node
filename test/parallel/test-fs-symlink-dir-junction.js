@@ -53,3 +53,20 @@ fs.symlink(linkData, linkPath, 'junction', common.mustCall(function(err) {
     }));
   }));
 }));
+
+// Test invalid symlink
+{
+  const linkData = fixtures.path('/not/exists/dir');
+  const linkPath = path.join(tmpdir.path, 'invalid_junction_link');
+
+  fs.symlink(linkData, linkPath, 'junction', common.mustCall(function(err) {
+    assert.ifError(err);
+
+    assert(!fs.existsSync(linkPath));
+
+    fs.unlink(linkPath, common.mustCall(function(err) {
+      assert.ifError(err);
+      assert(!fs.existsSync(linkPath));
+    }));
+  }));
+}

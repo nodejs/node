@@ -278,11 +278,11 @@ UnicodeSet& UnicodeSet::copyFrom(const UnicodeSet& o, UBool asThawed) {
  * to support cloning in order to allow classes using
  * UnicodeMatchers, such as Transliterator, to implement cloning.
  */
-UnicodeFunctor* UnicodeSet::clone() const {
+UnicodeSet* UnicodeSet::clone() const {
     return new UnicodeSet(*this);
 }
 
-UnicodeFunctor *UnicodeSet::cloneAsThawed() const {
+UnicodeSet *UnicodeSet::cloneAsThawed() const {
     return new UnicodeSet(*this, TRUE);
 }
 
@@ -2172,7 +2172,7 @@ void UnicodeSet::setPattern(const char16_t *newPat, int32_t newPatLen) {
     // We can regenerate an equivalent pattern later when requested.
 }
 
-UnicodeFunctor *UnicodeSet::freeze() {
+UnicodeSet *UnicodeSet::freeze() {
     if(!isFrozen() && !isBogus()) {
         compact();
 

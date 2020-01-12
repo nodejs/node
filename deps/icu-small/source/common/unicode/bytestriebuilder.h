@@ -23,6 +23,9 @@
 #define __BYTESTRIEBUILDER_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/bytestrie.h"
 #include "unicode/stringpiece.h"
 #include "unicode/stringtriebuilder.h"
@@ -178,5 +181,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __BYTESTRIEBUILDER_H__

@@ -728,16 +728,6 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
 // Refs: https://github.com/KDE/konsole/blob/8c6a5d13c0/src/konsole_wcwidth.cpp#L101-L223
 static int GetColumnWidth(UChar32 codepoint,
                           bool ambiguous_as_full_width = false) {
-  const auto zero_width_mask = U_GC_CC_MASK |  // C0/C1 control code
-                               U_GC_CF_MASK |  // Format control character
-                               U_GC_ME_MASK |  // Enclosing mark
-                               U_GC_MN_MASK;   // Nonspacing mark
-  if (codepoint != 0x00AD &&  // SOFT HYPHEN is Cf but not zero-width
-      ((U_MASK(u_charType(codepoint)) & zero_width_mask) ||
-       u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER))) {
-    return 0;
-  }
-
   // UCHAR_EAST_ASIAN_WIDTH is the Unicode property that identifies a
   // codepoint as being full width, wide, ambiguous, neutral, narrow,
   // or halfwidth.
@@ -761,6 +751,15 @@ static int GetColumnWidth(UChar32 codepoint,
     case U_EA_HALFWIDTH:
     case U_EA_NARROW:
     default:
+      const auto zero_width_mask = U_GC_CC_MASK |  // C0/C1 control code
+                                  U_GC_CF_MASK |  // Format control character
+                                  U_GC_ME_MASK |  // Enclosing mark
+                                  U_GC_MN_MASK;   // Nonspacing mark
+      if (codepoint != 0x00AD &&  // SOFT HYPHEN is Cf but not zero-width
+          ((U_MASK(u_charType(codepoint)) & zero_width_mask) ||
+          u_hasBinaryProperty(codepoint, UCHAR_EMOJI_MODIFIER))) {
+        return 0;
+      }
       return 1;
   }
 }
@@ -768,18 +767,10 @@ static int GetColumnWidth(UChar32 codepoint,
 // Returns the column width for the given String.
 static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (args.Length() < 1)
-    return;
+  CHECK(args[0]->IsString());
 
   bool ambiguous_as_full_width = args[1]->IsTrue();
-  bool expand_emoji_sequence = args[2]->IsTrue();
-
-  if (args[0]->IsNumber()) {
-    uint32_t val;
-    if (!args[0]->Uint32Value(env->context()).To(&val)) return;
-    args.GetReturnValue().Set(GetColumnWidth(val, ambiguous_as_full_width));
-    return;
-  }
+  bool expand_emoji_sequence = !args[2]->IsBoolean() || args[2]->IsTrue();
 
   TwoByteValue value(env->isolate(), args[0]);
   // reinterpret_cast is required by windows to compile
@@ -804,6 +795,7 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
     // in advance if a particular sequence is going to be supported.
     // The expand_emoji_sequence option allows the caller to skip this
     // check and count each code within an emoji sequence separately.
+    // https://www.unicode.org/reports/tr51/tr51-16.html#Emoji_ZWJ_Sequences
     if (!expand_emoji_sequence &&
         n > 0 && p == 0x200d &&  // 0x200d == ZWJ (zero width joiner)
         (u_hasBinaryProperty(c, UCHAR_EMOJI_PRESENTATION) ||

@@ -50,10 +50,13 @@ const expectedModules = new Set([
   'NativeModule internal/modules/cjs/helpers',
   'NativeModule internal/modules/cjs/loader',
   'NativeModule internal/modules/esm/create_dynamic_module',
-  'NativeModule internal/modules/esm/default_resolve',
+  'NativeModule internal/modules/esm/get_format',
+  'NativeModule internal/modules/esm/get_source',
   'NativeModule internal/modules/esm/loader',
   'NativeModule internal/modules/esm/module_job',
   'NativeModule internal/modules/esm/module_map',
+  'NativeModule internal/modules/esm/resolve',
+  'NativeModule internal/modules/esm/transform_source',
   'NativeModule internal/modules/esm/translators',
   'NativeModule internal/process/esm_loader',
   'NativeModule internal/options',
@@ -61,6 +64,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/execution',
   'NativeModule internal/process/per_thread',
   'NativeModule internal/process/promises',
+  'NativeModule internal/process/signal',
   'NativeModule internal/process/task_queues',
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
@@ -79,10 +83,7 @@ const expectedModules = new Set([
   'NativeModule vm',
 ]);
 
-if (common.isMainThread) {
-  expectedModules.add('NativeModule internal/process/main_thread_only');
-  expectedModules.add('NativeModule internal/process/stdio');
-} else {
+if (!common.isMainThread) {
   expectedModules.add('Internal Binding messaging');
   expectedModules.add('Internal Binding symbols');
   expectedModules.add('Internal Binding worker');

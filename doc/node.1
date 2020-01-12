@@ -110,8 +110,8 @@ Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
 .Sy ./configure --openssl-fips .
 .
-.It Fl -es-module-specifier-resolution
-Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
+.It Fl -enable-source-maps
+Enable experimental Source Map V3 support for stack traces.
 .
 .It Fl -experimental-conditional-exports
 Enable experimental support for "require" and "node" conditional export targets.
@@ -130,22 +130,25 @@ Enable experimental top-level
 .Sy await
 keyword support in REPL.
 .
+.It Fl -experimental-specifier-resolution
+Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
+.
 .It Fl -experimental-report
 Enable experimental
 .Sy diagnostic report
 feature.
 .
-.It Fl -experimental-resolve-self
-Enable experimental support for a package to load itself.
-.
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
 .
-.It Fl -experimental-wasi-unstable-preview0
+.It Fl -experimental-wasi-unstable-preview1
 Enable experimental WebAssembly System Interface support.
 .
 .It Fl -experimental-wasm-modules
 Enable experimental WebAssembly module support.
+.
+.It Fl -force-context-aware
+Disable loading native addons that are not context-aware.
 .
 .It Fl -force-fips
 Force FIPS-compliant crypto on startup
@@ -199,6 +202,15 @@ Set the
 .Ar host:port
 to be used when the inspector is activated.
 .
+.It Fl -inspect-publish-uid=stderr,http
+Specify how the inspector WebSocket URL is exposed.
+Valid values are
+.Sy stderr
+and
+.Sy http .
+Default is
+.Sy stderr,http .
+.
 .It Fl -inspect Ns = Ns Ar [host:]port
 Activate inspector on
 .Ar host:port .
@@ -212,6 +224,12 @@ It uses the Chrome DevTools Protocol.
 Specify the
 .Ar module
 to use as a custom module loader.
+.
+.It Fl -insecure-http-parser
+Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
+interoperability with non-conformant HTTP implementations. It may also allow
+request smuggling and other HTTP attacks that rely on invalid headers being
+accepted. Avoid using this option.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 8KB.
@@ -349,6 +367,10 @@ and
 .It Fl -trace-events-enabled
 Enable the collection of trace event tracing information.
 .
+.It Fl -trace-exit
+Prints a stack trace whenever an environment is exited proactively,
+i.e. invoking `process.exit()`.
+.
 .It Fl -trace-sync-io
 Print a stack trace whenever synchronous I/O is detected after the first turn of the event loop.
 .
@@ -391,6 +413,16 @@ See
 .Ev SSL_CERT_DIR
 and
 .Ev SSL_CERT_FILE .
+.
+.It Fl -use-largepages Ns = Ns Ar mode
+Re-map the Node.js static code to large memory pages at startup. If supported on
+the target system, this will cause the Node.js static code to be moved onto 2
+MiB pages instead of 4 KiB pages.
+.Pp
+.Ar mode
+must have one of the following values:
+`off` (the default value, meaning do not map), `on` (map and ignore failure,
+reporting it to stderr), or `silent` (map and silently ignore failure).
 .
 .It Fl -v8-options
 Print V8 command-line options.

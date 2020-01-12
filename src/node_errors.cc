@@ -10,6 +10,10 @@
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 namespace node {
 
 using errors::TryCatchScope;
@@ -141,7 +145,7 @@ static std::string GetErrorSource(Isolate* isolate,
 }
 
 void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
-  for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
+  for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
     node::Utf8Value fn_name_s(isolate, stack_frame->GetFunctionName());
     node::Utf8Value script_name(isolate, stack_frame->GetScriptName());
@@ -429,6 +433,8 @@ void PrintErrorString(const char* format, ...) {
   // Don't include the null character in the output
   CHECK_GT(n, 0);
   WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
+#elif defined(__ANDROID__)
+  __android_log_vprint(ANDROID_LOG_ERROR, "nodejs", format, ap);
 #else
   vfprintf(stderr, format, ap);
 #endif

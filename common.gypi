@@ -39,7 +39,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.23',
+    'v8_embedder_string': '-node.27',
 
     ##### V8 defaults for Node.js #####
 
@@ -72,9 +72,6 @@
 
     # TODO(refack): make v8-perfetto happen
     'v8_use_perfetto': 0,
-
-    'v8_enable_pointer_compression': 0,
-    'v8_enable_31bit_smis_on_64bit_arch': 0,
 
     ##### end V8 defaults #####
 
@@ -130,8 +127,8 @@
             'ldflags': [ '-Wl,-bbigtoc' ],
           }],
           ['OS == "android"', {
-            'cflags': [ '-fPIE' ],
-            'ldflags': [ '-fPIE', '-pie' ]
+            'cflags': [ '-fPIC' ],
+            'ldflags': [ '-fPIC' ]
           }],
         ],
         'msvs_settings': {
@@ -190,8 +187,8 @@
             ],
           },],
           ['OS == "android"', {
-            'cflags': [ '-fPIE' ],
-            'ldflags': [ '-fPIE', '-pie' ]
+            'cflags': [ '-fPIC' ],
+            'ldflags': [ '-fPIC' ]
           }],
         ],
         'msvs_settings': {
@@ -336,6 +333,7 @@
       [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1y' ],
+        'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           # The 1990s toolchain on SmartOS can't handle thin archives.

@@ -4,6 +4,10 @@
 // already destroyed will result in a noop instead of a crash.
 
 const common = require('../common');
+
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const path = require('path');

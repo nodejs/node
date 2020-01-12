@@ -17,18 +17,6 @@ const UDP = internalBinding('udp_wrap').UDP;
 {
   // Should throw instead of raise assertions
   assert.throws(() => {
-    TTY.prototype.bytesRead;
-  }, TypeError);
-
-  assert.throws(() => {
-    TTY.prototype.fd;
-  }, TypeError);
-
-  assert.throws(() => {
-    TTY.prototype._externalStream;
-  }, TypeError);
-
-  assert.throws(() => {
     UDP.prototype.fd;
   }, TypeError);
 
@@ -36,6 +24,11 @@ const UDP = internalBinding('udp_wrap').UDP;
   const properties = ['bytesRead', 'fd', '_externalStream'];
 
   properties.forEach((property) => {
+    // Should throw instead of raise assertions
+    assert.throws(() => {
+      TTY.prototype[property];
+    }, TypeError, `Missing expected TypeError for TTY.prototype.${property}`);
+
     // Should not throw for Object.getOwnPropertyDescriptor
     assert.strictEqual(
       typeof Object.getOwnPropertyDescriptor(StreamWrapProto, property),

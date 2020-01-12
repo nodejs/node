@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const fs = require('fs');
@@ -12,8 +12,8 @@ const fs = require('fs');
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "fd" argument must be of type number. Received type ' +
-             typeof input
+    message: 'The "fd" argument must be of type number.' +
+             common.invalidArgTypeHelper(input)
   };
   assert.throws(() => fs.fchmod(input), errObj);
   assert.throws(() => fs.fchmodSync(input), errObj);

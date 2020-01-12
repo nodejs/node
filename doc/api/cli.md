@@ -156,20 +156,6 @@ Enable experimental Source Map V3 support for stack traces.
 Currently, overriding `Error.prepareStackTrace` is ignored when the
 `--enable-source-maps` flag is set.
 
-### `--es-module-specifier-resolution=mode`
-<!-- YAML
-added: v12.0.0
--->
-
-Sets the resolution algorithm for resolving ES module specifiers. Valid options
-are `explicit` and `node`.
-
-The default is `explicit`, which requires providing the full path to a
-module. The `node` mode will enable support for optional file extensions and
-the ability to import a directory that has an index file.
-
-Please see [customizing ESM specifier resolution][] for example usage.
-
 ### `--experimental-conditional-exports`
 <!-- YAML
 added: v13.2.0
@@ -192,7 +178,7 @@ added: v8.5.0
 -->
 
 Enable latest experimental modules features (currently
-`--experimental-conditional-exports` and `--experimental-resolve-self`).
+`--experimental-conditional-exports`).
 
 ### `--experimental-policy`
 <!-- YAML
@@ -215,13 +201,19 @@ added: v11.8.0
 
 Enable experimental diagnostic report feature.
 
-### `--experimental-resolve-self`
+### `--experimental-specifier-resolution=mode`
 <!-- YAML
-added: v13.1.0
+added: v13.4.0
 -->
 
-Enable experimental support for a package using `require` or `import` to load
-itself.
+Sets the resolution algorithm for resolving ES module specifiers. Valid options
+are `explicit` and `node`.
+
+The default is `explicit`, which requires providing the full path to a
+module. The `node` mode will enable support for optional file extensions and
+the ability to import a directory that has an index file.
+
+Please see [customizing ESM specifier resolution][] for example usage.
 
 ### `--experimental-vm-modules`
 <!-- YAML
@@ -230,9 +222,14 @@ added: v9.6.0
 
 Enable experimental ES Module support in the `vm` module.
 
-### `--experimental-wasi-unstable-preview0`
+### `--experimental-wasi-unstable-preview1`
 <!-- YAML
-added: REPLACEME
+added: v13.3.0
+changes:
+  - version: v13.6.0
+    pr-url: https://github.com/nodejs/node/pull/30980
+    description: changed from `--experimental-wasi-unstable-preview0` to
+                 `--experimental-wasi-unstable-preview1`
 -->
 
 Enable experimental WebAssembly System Interface (WASI) support.
@@ -418,6 +415,16 @@ added: v9.0.0
 
 Specify the `module` of a custom [experimental ECMAScript Module loader][].
 `module` may be either a path to a file, or an ECMAScript Module name.
+
+### `--insecure-http-parser`
+<!-- YAML
+added: v13.4.0
+-->
+
+Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
+interoperability with non-conformant HTTP implementations. It may also allow
+request smuggling and other HTTP attacks that rely on invalid headers being
+accepted. Avoid using this option.
 
 ### `--max-http-header-size=size`
 <!-- YAML
@@ -774,6 +781,14 @@ added: v7.7.0
 
 Enables the collection of trace event tracing information.
 
+### `--trace-exit`
+<!-- YAML
+added: v13.5.0
+-->
+
+Prints a stack trace whenever an environment is exited proactively,
+i.e. invoking `process.exit()`.
+
 ### `--trace-sync-io`
 <!-- YAML
 added: v2.1.0
@@ -852,6 +867,22 @@ configuration of the OpenSSL library but this can be altered at runtime using
 environment variables.
 
 See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
+
+### `--use-largepages=mode`
+<!-- YAML
+added: v13.6.0
+-->
+
+Re-map the Node.js static code to large memory pages at startup. If supported on
+the target system, this will cause the Node.js static code to be moved onto 2
+MiB pages instead of 4 KiB pages.
+
+The following values are valid for `mode`:
+* `off`: No mapping will be attempted. This is the default.
+* `on`: If supported by the OS, mapping will be attempted. Failure to map will
+  be ignored and a message will be printed to standard error.
+* `silent`: If supported by the OS, mapping will be attempted. Failure to map
+  will be ignored and will not be reported.
 
 ### `--v8-options`
 <!-- YAML
@@ -1045,7 +1076,6 @@ Node.js options that are allowed are:
 <!-- node-options-node start -->
 * `--enable-fips`
 * `--enable-source-maps`
-* `--es-module-specifier-resolution`
 * `--experimental-conditional-exports`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -1053,9 +1083,9 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-report`
-* `--experimental-resolve-self`
+* `--experimental-specifier-resolution`
 * `--experimental-vm-modules`
-* `--experimental-wasi-unstable-preview0`
+* `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
 * `--force-context-aware`
 * `--force-fips`
@@ -1064,6 +1094,7 @@ Node.js options that are allowed are:
 * `--http-parser`
 * `--icu-data-dir`
 * `--input-type`
+* `--insecure-http-parser`
 * `--inspect-brk`
 * `--inspect-port`, `--debug-port`
 * `--inspect-publish-uid`
@@ -1101,6 +1132,7 @@ Node.js options that are allowed are:
 * `--trace-event-categories`
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
+* `--trace-exit`
 * `--trace-sync-io`
 * `--trace-tls`
 * `--trace-uncaught`
@@ -1108,6 +1140,7 @@ Node.js options that are allowed are:
 * `--track-heap-objects`
 * `--unhandled-rejections`
 * `--use-bundled-ca`
+* `--use-largepages`
 * `--use-openssl-ca`
 * `--v8-pool-size`
 * `--zero-fill-buffers`
@@ -1350,6 +1383,6 @@ greater than `4` (its current default value). For more information, see the
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module loader]: esm.html#esm_resolve_hook
+[experimental ECMAScript Module loader]: esm.html#esm_experimental_loaders
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection

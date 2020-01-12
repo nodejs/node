@@ -23,11 +23,11 @@
 #include "os390-syscalls.h"
 #include <errno.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <search.h>
 #include <termios.h>
 #include <sys/msg.h>
 
+#define CW_INTRPT 1
 #define CW_CONDVAR 32
 
 #pragma linkage(BPX4CTW, OS)
@@ -350,27 +350,34 @@ int nanosleep(const struct timespec* req, struct timespec* rem) {
   unsigned secrem;
   unsigned nanorem;
   int rv;
-  int rc;
+  int err;
   int rsn;
 
   nano = (int)req->tv_nsec;
   seconds = req->tv_sec;
-  events = CW_CONDVAR;
+  events = CW_CONDVAR | CW_INTRPT;
+  secrem = 0;
+  nanorem = 0;
 
 #if defined(_LP64)
-  BPX4CTW(&seconds, &nano, &events, &secrem, &nanorem, &rv, &rc, &rsn);
+  BPX4CTW(&seconds, &nano, &events, &secrem, &nanorem, &rv, &err, &rsn);
 #else
-  BPX1CTW(&seconds, &nano, &events, &secrem, &nanorem, &rv, &rc, &rsn);
+  BPX1CTW(&seconds, &nano, &events, &secrem, &nanorem, &rv, &err, &rsn);
 #endif
 
-  assert(rv == -1 && errno == EAGAIN);
+  /* Don't clobber errno unless BPX1CTW/BPX4CTW errored.
+   * Don't leak EAGAIN, that just means the timeout expired.
+   */
+  if (rv == -1)
+    if (err != EAGAIN)
+      errno = err;
 
-  if(rem != NULL) {
+  if (rem != NULL && (rv == 0 || err == EINTR || err == EAGAIN)) {
     rem->tv_nsec = nanorem;
     rem->tv_sec = secrem;
   }
 
-  return 0;
+  return rv;
 }
 
 

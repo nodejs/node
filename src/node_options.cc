@@ -4,6 +4,8 @@
 #include "env-inl.h"
 #include "node_binding.h"
 
+#include <errno.h>
+#include <sstream>
 #include <cstdlib>  // strtoul, errno
 
 using v8::Boolean;
@@ -63,6 +65,11 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
                       "used, not both");
   }
 #endif
+  if (use_largepages != "off" &&
+      use_largepages != "on" &&
+      use_largepages != "silent") {
+    errors->push_back("invalid value for --use-largepages");
+  }
   per_isolate->CheckOptions(errors);
 }
 
@@ -128,9 +135,23 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (!es_module_specifier_resolution.empty()) {
-    if (es_module_specifier_resolution != "node" &&
-        es_module_specifier_resolution != "explicit") {
-      errors->push_back("invalid value for --es-module-specifier-resolution");
+    if (!experimental_specifier_resolution.empty()) {
+      errors->push_back(
+        "bad option: cannot use --es-module-specifier-resolution"
+        " and --experimental-specifier-resolution at the same time");
+    } else {
+      experimental_specifier_resolution = es_module_specifier_resolution;
+      if (experimental_specifier_resolution != "node" &&
+          experimental_specifier_resolution != "explicit") {
+        errors->push_back(
+          "invalid value for --es-module-specifier-resolution");
+      }
+    }
+  } else if (!experimental_specifier_resolution.empty()) {
+    if (experimental_specifier_resolution != "node" &&
+        experimental_specifier_resolution != "explicit") {
+      errors->push_back(
+        "invalid value for --experimental-specifier-resolution");
     }
   }
 
@@ -304,15 +325,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
   AddAlias("--loader", "--experimental-loader");
-  AddAlias("--experimental-modules", { "--experimental-conditional-exports",
-                                       "--experimental-resolve-self" });
+  AddAlias("--experimental-modules", "--experimental-conditional-exports");
   AddOption("--experimental-conditional-exports",
             "experimental support for conditional exports targets",
             &EnvironmentOptions::experimental_conditional_exports,
-            kAllowedInEnvironment);
-  AddOption("--experimental-resolve-self",
-            "experimental support for require/import of the current package",
-            &EnvironmentOptions::experimental_resolve_self,
             kAllowedInEnvironment);
   AddOption("--experimental-wasm-modules",
             "experimental ES Module support for webassembly modules",
@@ -347,7 +363,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_report,
             kAllowedInEnvironment);
 #endif  // NODE_REPORT
-  AddOption("--experimental-wasi-unstable-preview0",
+  AddOption("--experimental-wasi-unstable-preview1",
             "experimental WASI support",
             &EnvironmentOptions::experimental_wasi,
             kAllowedInEnvironment);
@@ -361,13 +377,21 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::heap_snapshot_signal,
             kAllowedInEnvironment);
   AddOption("--http-parser", "", NoOp{}, kAllowedInEnvironment);
+  AddOption("--insecure-http-parser",
+            "use an insecure HTTP parser that accepts invalid HTTP headers",
+            &EnvironmentOptions::insecure_http_parser,
+            kAllowedInEnvironment);
   AddOption("--input-type",
             "set module type for string input",
             &EnvironmentOptions::module_type,
             kAllowedInEnvironment);
-  AddOption("--es-module-specifier-resolution",
+  AddOption("--experimental-specifier-resolution",
             "Select extension resolution algorithm for es modules; "
             "either 'explicit' (default) or 'node'",
+            &EnvironmentOptions::experimental_specifier_resolution,
+            kAllowedInEnvironment);
+  AddOption("--es-module-specifier-resolution",
+            "",
             &EnvironmentOptions::es_module_specifier_resolution,
             kAllowedInEnvironment);
   AddOption("--no-deprecation",
@@ -440,6 +464,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "profile generated with --heap-prof. (default: 512 * 1024)",
             &EnvironmentOptions::heap_prof_interval);
 #endif  // HAVE_INSPECTOR
+  AddOption("--max-http-header-size",
+            "set the maximum size of HTTP headers (default: 8192 (8KB))",
+            &EnvironmentOptions::max_http_header_size,
+            kAllowedInEnvironment);
   AddOption("--redirect-warnings",
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,
@@ -453,6 +481,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--trace-deprecation",
             "show stack traces on deprecations",
             &EnvironmentOptions::trace_deprecation,
+            kAllowedInEnvironment);
+  AddOption("--trace-exit",
+            "show stack trace when an environment exits",
+            &EnvironmentOptions::trace_exit,
             kAllowedInEnvironment);
   AddOption("--trace-sync-io",
             "show stack trace when use of sync IO is detected after the "
@@ -632,10 +664,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
   AddAlias("--trace-events-enabled", {
     "--trace-event-categories", "v8,node,node.async_hooks" });
-  AddOption("--max-http-header-size",
-            "set the maximum size of HTTP headers (default: 8KB)",
-            &PerProcessOptions::max_http_header_size,
-            kAllowedInEnvironment);
   AddOption("--v8-pool-size",
             "set V8's thread pool size",
             &PerProcessOptions::v8_thread_pool_size,
@@ -726,6 +754,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
 #endif
 #endif
+  AddOption("--use-largepages",
+            "Map the Node.js static code to large pages",
+            &PerProcessOptions::use_largepages,
+            kAllowedInEnvironment);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 }
@@ -772,6 +804,43 @@ HostPort SplitHostPort(const std::string& arg,
   // Host and port found:
   return HostPort { RemoveBrackets(arg.substr(0, colon)),
                     ParseAndValidatePort(arg.substr(colon + 1), errors) };
+}
+
+std::string GetBashCompletion() {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  const auto& parser = _ppop_instance;
+
+  std::ostringstream out;
+
+  out << "_node_complete() {\n"
+         "  local cur_word options\n"
+         "  cur_word=\"${COMP_WORDS[COMP_CWORD]}\"\n"
+         "  if [[ \"${cur_word}\" == -* ]] ; then\n"
+         "    COMPREPLY=( $(compgen -W '";
+
+  for (const auto& item : parser.options_) {
+    if (item.first[0] != '[') {
+      out << item.first << " ";
+    }
+  }
+  for (const auto& item : parser.aliases_) {
+    if (item.first[0] != '[') {
+      out << item.first << " ";
+    }
+  }
+  if (parser.aliases_.size() > 0) {
+    out.seekp(-1, out.cur);  // Strip the trailing space
+  }
+
+  out << "' -- \"${cur_word}\") )\n"
+         "    return 0\n"
+         "  else\n"
+         "    COMPREPLY=( $(compgen -f \"${cur_word}\") )\n"
+         "    return 0\n"
+         "  fi\n"
+         "}\n"
+         "complete -F _node_complete node node_g";
+  return out.str();
 }
 
 // Return a map containing all the options and their metadata as well

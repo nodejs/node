@@ -79,7 +79,7 @@ if (process.argv[2] === 'child') {
     const publicModules = new Set();
     for (const id of allBuiltins) {
       if (id.startsWith('internal/')) {
-        common.expectsError(() => {
+        assert.throws(() => {
           require(id);
         }, {
           code: 'MODULE_NOT_FOUND',

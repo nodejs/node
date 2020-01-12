@@ -28,6 +28,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HeapCodeStatistics;
@@ -157,17 +158,16 @@ void Initialize(Local<Object> target,
                  "updateHeapStatisticsArrayBuffer",
                  UpdateHeapStatisticsArrayBuffer);
 
-  env->set_heap_statistics_buffer(new double[kHeapStatisticsPropertiesCount]);
-
   const size_t heap_statistics_buffer_byte_length =
       sizeof(*env->heap_statistics_buffer()) * kHeapStatisticsPropertiesCount;
 
+  Local<ArrayBuffer> heap_statistics_ab =
+      ArrayBuffer::New(env->isolate(), heap_statistics_buffer_byte_length);
+  env->set_heap_statistics_buffer(heap_statistics_ab->GetBackingStore());
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "heapStatisticsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
-                               env->heap_statistics_buffer(),
-                               heap_statistics_buffer_byte_length)).Check();
+              heap_statistics_ab).Check();
 
 #define V(i, _, name)                                                         \
   target->Set(env->context(),                                                 \
@@ -182,19 +182,19 @@ void Initialize(Local<Object> target,
                  "updateHeapCodeStatisticsArrayBuffer",
                  UpdateHeapCodeStatisticsArrayBuffer);
 
-  env->set_heap_code_statistics_buffer(
-    new double[kHeapCodeStatisticsPropertiesCount]);
-
   const size_t heap_code_statistics_buffer_byte_length =
       sizeof(*env->heap_code_statistics_buffer())
       * kHeapCodeStatisticsPropertiesCount;
 
+  Local<ArrayBuffer> heap_code_statistics_ab =
+      ArrayBuffer::New(env->isolate(),
+                       heap_code_statistics_buffer_byte_length);
+  env->set_heap_code_statistics_buffer(
+      heap_code_statistics_ab->GetBackingStore());
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "heapCodeStatisticsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
-                               env->heap_code_statistics_buffer(),
-                               heap_code_statistics_buffer_byte_length))
+              heap_code_statistics_ab)
   .Check();
 
 #define V(i, _, name)                                                         \
@@ -236,20 +236,20 @@ void Initialize(Local<Object> target,
                  "updateHeapSpaceStatisticsArrayBuffer",
                  UpdateHeapSpaceStatisticsBuffer);
 
-  env->set_heap_space_statistics_buffer(
-    new double[kHeapSpaceStatisticsPropertiesCount * number_of_heap_spaces]);
-
   const size_t heap_space_statistics_buffer_byte_length =
       sizeof(*env->heap_space_statistics_buffer()) *
       kHeapSpaceStatisticsPropertiesCount *
       number_of_heap_spaces;
 
+  Local<ArrayBuffer> heap_space_statistics_ab =
+      ArrayBuffer::New(env->isolate(),
+                       heap_space_statistics_buffer_byte_length);
+  env->set_heap_space_statistics_buffer(
+      heap_space_statistics_ab->GetBackingStore());
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(),
                                     "heapSpaceStatisticsArrayBuffer"),
-              ArrayBuffer::New(env->isolate(),
-                               env->heap_space_statistics_buffer(),
-                               heap_space_statistics_buffer_byte_length))
+              heap_space_statistics_ab)
               .Check();
 
 #define V(i, _, name)                                                         \

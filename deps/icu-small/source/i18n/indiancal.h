@@ -186,7 +186,7 @@ public:
   // TODO: copy c'tor, etc
 
   // clone
-  virtual Calendar* clone() const;
+  virtual IndianCalendar* clone() const;
 
  private:
   /**

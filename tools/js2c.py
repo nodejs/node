@@ -45,137 +45,6 @@ def ReadFile(filename):
     return lines
 
 
-def ReadMacroFiles(filenames):
-  """
-
-  :rtype: List(str)
-  """
-  result = []
-  for filename in filenames:
-    with open(filename, "rt") as f:
-      # strip python-like comments and whitespace padding
-      lines = [line.split('#')[0].strip() for line in f]
-      # filter empty lines
-      result.extend(filter(bool, lines))
-  return result
-
-
-def ExpandConstants(lines, constants):
-  for key, value in constants.items():
-    lines = lines.replace(key, str(value))
-  return lines
-
-
-def ExpandMacros(lines, macros):
-  def expander(s):
-    return ExpandMacros(s, macros)
-
-  for name, macro in macros.items():
-    name_pattern = re.compile("\\b%s\\(" % name)
-    pattern_match = name_pattern.search(lines, 0)
-    while pattern_match is not None:
-      # Scan over the arguments
-      height = 1
-      start = pattern_match.start()
-      end = pattern_match.end()
-      assert lines[end - 1] == '('
-      last_match = end
-      arg_index = [0]  # Wrap state into array, to work around Python "scoping"
-      mapping = {}
-
-      def add_arg(s):
-        # Remember to expand recursively in the arguments
-        if arg_index[0] >= len(macro.args):
-          return
-        replacement = expander(s.strip())
-        mapping[macro.args[arg_index[0]]] = replacement
-        arg_index[0] += 1
-
-      while end < len(lines) and height > 0:
-        # We don't count commas at higher nesting levels.
-        if lines[end] == ',' and height == 1:
-          add_arg(lines[last_match:end])
-          last_match = end + 1
-        elif lines[end] in ['(', '{', '[']:
-          height = height + 1
-        elif lines[end] in [')', '}', ']']:
-          height = height - 1
-        end = end + 1
-      # Remember to add the last match.
-      add_arg(lines[last_match:end - 1])
-      if arg_index[0] < len(macro.args) - 1:
-        lineno = lines.count(os.linesep, 0, start) + 1
-        raise Exception(
-          'line %s: Too few arguments for macro "%s"' % (lineno, name))
-      result = macro.expand(mapping)
-      # Replace the occurrence of the macro with the expansion
-      lines = lines[:start] + result + lines[end:]
-      pattern_match = name_pattern.search(lines, start + len(result))
-  return lines
-
-
-class TextMacro:
-  def __init__(self, args, body):
-    self.args = args
-    self.body = body
-
-  def expand(self, mapping):
-    result = self.body
-    for key, value in mapping.items():
-      result = result.replace(key, value)
-    return result
-
-
-class PythonMacro:
-  def __init__(self, args, fun):
-    self.args = args
-    self.fun = fun
-
-  def expand(self, mapping):
-    args = []
-    for arg in self.args:
-      args.append(mapping[arg])
-    return str(self.fun(*args))
-
-
-CONST_PATTERN = re.compile('^const\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
-MACRO_PATTERN = re.compile('^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
-PYTHON_MACRO_PATTERN = re.compile('^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
-
-
-def ReadMacros(macro_files):
-  lines = ReadMacroFiles(macro_files)
-  constants = {}
-  macros = {}
-  for line in lines:
-    line = line.split('#')[0].strip()
-    if len(line) == 0:
-      continue
-    const_match = CONST_PATTERN.match(line)
-    if const_match:
-      name = const_match.group(1)
-      value = const_match.group(2).strip()
-      constants[name] = value
-    else:
-      macro_match = MACRO_PATTERN.match(line)
-      if macro_match:
-        name = macro_match.group(1)
-        args = [p.strip() for p in macro_match.group(2).split(',')]
-        body = macro_match.group(3).strip()
-        macros[name] = TextMacro(args, body)
-      else:
-        python_match = PYTHON_MACRO_PATTERN.match(line)
-        if python_match:
-          name = python_match.group(1)
-          args = [p.strip() for p in macro_match.group(2).split(',')]
-          body = python_match.group(3).strip()
-          fun = eval("lambda " + ",".join(args) + ': ' + body)
-          macros[name] = PythonMacro(args, fun)
-        else:
-          raise Exception("Illegal line: " + line)
-  return constants, macros
-
-
 TEMPLATE = """
 #include "env-inl.h"
 #include "node_native_module.h"
@@ -243,10 +112,8 @@ def GetDefinition(var, source, step=30):
   return definition, len(code_points)
 
 
-def AddModule(filename, consts, macros, definitions, initializers):
+def AddModule(filename, definitions, initializers):
   code = ReadFile(filename)
-  code = ExpandConstants(code, consts)
-  code = ExpandMacros(code, macros)
   name = NormalizeFileName(filename)
   slug = SLUGGER_RE.sub('_', name)
   var = slug + '_raw'
@@ -267,15 +134,12 @@ def NormalizeFileName(filename):
 
 
 def JS2C(source_files, target):
-  # Process input from all *macro.py files
-  consts, macros = ReadMacros(source_files['.py'])
-
   # Build source code lines
   definitions = []
   initializers = []
 
   for filename in source_files['.js']:
-    AddModule(filename, consts, macros, definitions, initializers)
+    AddModule(filename, definitions, initializers)
 
   config_def, config_size = handle_config_gypi(source_files['config.gypi'])
   definitions.append(config_def)
@@ -341,8 +205,8 @@ def main():
   global is_verbose
   is_verbose = options.verbose
   source_files = functools.reduce(SourceFileByExt, options.sources, {})
-  # Should have exactly 3 types: `.js`, `.py`, and `.gypi`
-  assert len(source_files) == 3
+  # Should have exactly 2 types: `.js`, and `.gypi`
+  assert len(source_files) == 2
   # Currently config.gypi is the only `.gypi` file allowed
   assert source_files['.gypi'] == ['config.gypi']
   source_files['config.gypi'] = source_files.pop('.gypi')[0]

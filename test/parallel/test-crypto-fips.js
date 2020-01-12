@@ -71,7 +71,7 @@ testHelper(
   [],
   FIPS_DISABLED,
   'require("crypto").getFips()',
-  Object.assign({}, process.env, { 'OPENSSL_CONF': '' }));
+  { ...process.env, 'OPENSSL_CONF': '' });
 
 // --enable-fips should turn FIPS mode on
 testHelper(

@@ -489,6 +489,7 @@ test-all-valgrind: test-build
 test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run all test suites.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
+# CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
 ifeq ($(node_use_openssl), false)
@@ -841,6 +842,7 @@ endif
 endif
 endif
 endif
+endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
 else
@@ -863,7 +865,6 @@ ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
 ARCH=x86
-endif
 endif
 endif
 endif

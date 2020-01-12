@@ -19,6 +19,7 @@
 using node::kDisallowedInEnvironment;
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -189,8 +190,13 @@ class WorkerThreadData {
         *static_cast<bool*>(data) = true;
       }, &platform_finished);
 
-      isolate->Dispose();
+      // The order of these calls is important; if the Isolate is first disposed
+      // and then unregistered, there is a race condition window in which no
+      // new Isolate at the same address can successfully be registered with
+      // the platform.
+      // (Refs: https://github.com/nodejs/node/issues/30846)
       w_->platform_->UnregisterIsolate(isolate);
+      isolate->Dispose();
 
       // Wait until the platform has cleaned up all relevant resources.
       while (!platform_finished)
@@ -622,6 +628,7 @@ void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {
 
 Local<Float64Array> Worker::GetResourceLimits(Isolate* isolate) const {
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sizeof(resource_limits_));
+
   memcpy(ab->GetBackingStore()->Data(),
          resource_limits_,
          sizeof(resource_limits_));

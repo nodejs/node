@@ -8,6 +8,9 @@ const common = require('../common');
 if (!common.isWindows && process.getuid() === 0)
   common.skip('as this test should not be run as `root`');
 
+if (common.isIBMi)
+  common.skip('IBMi has a different access permission mechanism');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -132,22 +135,22 @@ fs.promises.access(readOnlyFile, fs.F_OK | fs.R_OK)
     .catch(throwNextTick);
 }
 
-common.expectsError(
+assert.throws(
   () => {
     fs.access(__filename, fs.F_OK);
   },
   {
     code: 'ERR_INVALID_CALLBACK',
-    type: TypeError
+    name: 'TypeError'
   });
 
-common.expectsError(
+assert.throws(
   () => {
     fs.access(__filename, fs.F_OK, {});
   },
   {
     code: 'ERR_INVALID_CALLBACK',
-    type: TypeError
+    name: 'TypeError'
   });
 
 // Regular access should not throw.

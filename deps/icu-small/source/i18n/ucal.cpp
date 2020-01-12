@@ -34,7 +34,7 @@ U_NAMESPACE_USE
 static TimeZone*
 _createTimeZone(const UChar* zoneID, int32_t len, UErrorCode* ec) {
     TimeZone* zone = NULL;
-    if (ec!=NULL && U_SUCCESS(*ec)) {
+    if (ec != NULL && U_SUCCESS(*ec)) {
         // Note that if zoneID is invalid, we get back GMT. This odd
         // behavior is by design and goes back to the JDK. The only
         // failure we will see is a memory allocation failure.
@@ -69,7 +69,7 @@ ucal_openCountryTimeZones(const char* country, UErrorCode* ec) {
 U_CAPI int32_t U_EXPORT2
 ucal_getDefaultTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec) {
     int32_t len = 0;
-    if (ec!=NULL && U_SUCCESS(*ec)) {
+    if (ec != NULL && U_SUCCESS(*ec)) {
         TimeZone* zone = TimeZone::createDefault();
         if (zone == NULL) {
             *ec = U_MEMORY_ALLOCATION_ERROR;
@@ -89,6 +89,23 @@ ucal_setDefaultTimeZone(const UChar* zoneID, UErrorCode* ec) {
     if (zone != NULL) {
         TimeZone::adoptDefault(zone);
     }
+}
+
+U_DRAFT int32_t U_EXPORT2
+ucal_getHostTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec) {
+    int32_t len = 0;
+    if (ec != NULL && U_SUCCESS(*ec)) {
+        TimeZone *zone = TimeZone::detectHostTimeZone();
+        if (zone == NULL) {
+            *ec = U_MEMORY_ALLOCATION_ERROR;
+        } else {
+            UnicodeString id;
+            zone->getID(id);
+            delete zone;
+            len = id.extract(result, resultCapacity, *ec);
+        }
+    }
+    return len;
 }
 
 U_CAPI int32_t U_EXPORT2
@@ -140,8 +157,8 @@ ucal_open(  const UChar*  zoneID,
 
   if(U_FAILURE(*status)) return 0;
 
-  TimeZone* zone = (zoneID==NULL) ? TimeZone::createDefault()
-      : _createTimeZone(zoneID, len, status);
+  LocalPointer<TimeZone> zone( (zoneID==NULL) ? TimeZone::createDefault()
+      : _createTimeZone(zoneID, len, status), *status);
 
   if (U_FAILURE(*status)) {
       return NULL;
@@ -157,9 +174,9 @@ ucal_open(  const UChar*  zoneID,
       if (U_FAILURE(*status)) {
           return NULL;
       }
-      return (UCalendar*)Calendar::createInstance(zone, Locale(localeBuf), *status);
+      return (UCalendar*)Calendar::createInstance(zone.orphan(), Locale(localeBuf), *status);
   }
-  return (UCalendar*)Calendar::createInstance(zone, Locale(locale), *status);
+  return (UCalendar*)Calendar::createInstance(zone.orphan(), Locale(locale), *status);
 }
 
 U_CAPI void U_EXPORT2

@@ -43,17 +43,17 @@ assert.ok(!({} instanceof Console));
 
 // Make sure that the Console constructor throws
 // when not given a writable stream instance.
-common.expectsError(
+assert.throws(
   () => { new Console(); },
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
-    type: TypeError,
+    name: 'TypeError',
     message: /stdout/
   }
 );
 
 // Console constructor should throw if stderr exists but is not writable.
-common.expectsError(
+assert.throws(
   () => {
     out.write = () => {};
     err.write = undefined;
@@ -61,7 +61,7 @@ common.expectsError(
   },
   {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
-    type: TypeError,
+    name: 'TypeError',
     message: /stderr/
   }
 );
@@ -141,7 +141,7 @@ out.write = err.write = (d) => {};
     },
     {
       message: 'The "inspectOptions" argument must be of type object.' +
-               ` Received type ${typeof inspectOptions}`,
+               common.invalidArgTypeHelper(inspectOptions),
       code: 'ERR_INVALID_ARG_TYPE'
     }
   );

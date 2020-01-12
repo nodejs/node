@@ -14,7 +14,7 @@ server.on('stream', common.mustCall((stream, headers) => {
   const port = server.address().port;
 
   // Must receive a callback (function)
-  common.expectsError(
+  assert.throws(
     () => stream.pushStream({
       ':scheme': 'http',
       ':path': '/foobar',
@@ -27,7 +27,7 @@ server.on('stream', common.mustCall((stream, headers) => {
   );
 
   // Must validate headers
-  common.expectsError(
+  assert.throws(
     () => stream.pushStream({ 'connection': 'test' }, {}, () => {}),
     {
       code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',

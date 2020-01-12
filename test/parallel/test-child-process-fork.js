@@ -52,7 +52,7 @@ assert.throws(() => n.send(), {
 assert.throws(() => n.send(Symbol()), {
   name: 'TypeError',
   message: 'The "message" argument must be one of type string,' +
-           ' object, number, or boolean. Received type symbol',
+           ' object, number, or boolean. Received type symbol (Symbol())',
   code: 'ERR_INVALID_ARG_TYPE'
 });
 n.send({ hello: 'world' });

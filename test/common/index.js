@@ -23,17 +23,20 @@
 /* eslint-disable node-core/crypto-check */
 'use strict';
 const process = global.process;  // Some tests tamper with the process global.
-const path = require('path');
-const fs = require('fs');
+
 const assert = require('assert');
-const os = require('os');
 const { exec, execSync, spawnSync } = require('child_process');
+const fs = require('fs');
+// Do not require 'os' until needed so that test-os-checked-fucnction can
+// monkey patch it. If 'os' is required here, that test will fail.
+const path = require('path');
 const util = require('util');
+const { isMainThread } = require('worker_threads');
+
 const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
-const { isMainThread } = require('worker_threads');
 
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
 // different umask will set it themselves.
@@ -45,7 +48,8 @@ if (isMainThread)
 
 const noop = () => {};
 
-const hasCrypto = Boolean(process.versions.openssl);
+const hasCrypto = Boolean(process.versions.openssl) &&
+                  !process.env.NODE_SKIP_CRYPTO;
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
 // `worker_threads`) and child processes.
@@ -102,19 +106,11 @@ if (process.argv.length === 2 &&
 
 const isWindows = process.platform === 'win32';
 const isAIX = process.platform === 'aix';
-const isLinuxPPCBE = (process.platform === 'linux') &&
-                     (process.arch === 'ppc64') &&
-                     (os.endianness() === 'BE');
 const isSunOS = process.platform === 'sunos';
 const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
-
-const enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
-const cpus = os.cpus();
-const enoughTestCpu = Array.isArray(cpus) &&
-                      (cpus.length > 1 || cpus[0].speed > 999);
 
 const rootDir = isWindows ? 'c:\\' : '/';
 
@@ -193,15 +189,6 @@ const PIPE = (() => {
   const pipePrefix = isWindows ? '\\\\.\\pipe\\' : localRelative;
   const pipeName = `node-test.${process.pid}.sock`;
   return path.join(pipePrefix, pipeName);
-})();
-
-const hasIPv6 = (() => {
-  const iFaces = os.networkInterfaces();
-  const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
-  return Object.keys(iFaces).some((name) => {
-    return re.test(name) &&
-           iFaces[name].some(({ family }) => family === 'IPv6');
-  });
 })();
 
 /*
@@ -478,12 +465,6 @@ function nodeProcessAborted(exitCode, signal) {
   }
 }
 
-function busyLoop(time) {
-  const startTime = Date.now();
-  const stopTime = startTime + time;
-  while (Date.now() < stopTime) {}
-}
-
 function isAlive(pid) {
   try {
     process.kill(pid, 'SIGCONT');
@@ -545,92 +526,22 @@ function expectWarning(nameOrMap, expected, code) {
   }
 }
 
-class Comparison {
-  constructor(obj, keys) {
-    for (const key of keys) {
-      if (key in obj)
-        this[key] = obj[key];
-    }
-  }
-}
-
 // Useful for testing expected internal/error objects
-function expectsError(fn, settings, exact) {
-  if (typeof fn !== 'function') {
-    exact = settings;
-    settings = fn;
-    fn = undefined;
-  }
-
-  function innerFn(error) {
-    if (arguments.length !== 1) {
+function expectsError(validator, exact) {
+  return mustCall((...args) => {
+    if (args.length !== 1) {
       // Do not use `assert.strictEqual()` to prevent `util.inspect` from
       // always being called.
-      assert.fail(`Expected one argument, got ${util.inspect(arguments)}`);
+      assert.fail(`Expected one argument, got ${util.inspect(args)}`);
     }
+    const error = args.pop();
     const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
     // The error message should be non-enumerable
     assert.strictEqual(descriptor.enumerable, false);
 
-    let innerSettings = settings;
-    if ('type' in settings) {
-      const type = settings.type;
-      if (type !== Error && !Error.isPrototypeOf(type)) {
-        throw new TypeError('`settings.type` must inherit from `Error`');
-      }
-      let constructor = error.constructor;
-      if (constructor.name === 'NodeError' && type.name !== 'NodeError') {
-        constructor = Object.getPrototypeOf(error.constructor);
-      }
-      // Add the `type` to the error to properly compare and visualize it.
-      if (!('type' in error))
-        error.type = constructor;
-    }
-
-    if ('message' in settings &&
-        typeof settings.message === 'object' &&
-        settings.message.test(error.message)) {
-      // Make a copy so we are able to modify the settings.
-      innerSettings = Object.create(
-        settings, Object.getOwnPropertyDescriptors(settings));
-      // Visualize the message as identical in case of other errors.
-      innerSettings.message = error.message;
-    }
-
-    // Check all error properties.
-    const keys = Object.keys(settings);
-    for (const key of keys) {
-      if (!util.isDeepStrictEqual(error[key], innerSettings[key])) {
-        // Create placeholder objects to create a nice output.
-        const a = new Comparison(error, keys);
-        const b = new Comparison(innerSettings, keys);
-
-        const tmpLimit = Error.stackTraceLimit;
-        Error.stackTraceLimit = 0;
-        const err = new assert.AssertionError({
-          actual: a,
-          expected: b,
-          operator: 'strictEqual',
-          stackStartFn: assert.throws
-        });
-        Error.stackTraceLimit = tmpLimit;
-
-        throw new assert.AssertionError({
-          actual: error,
-          expected: settings,
-          operator: 'common.expectsError',
-          message: err.message
-        });
-      }
-
-    }
+    assert.throws(() => { throw error; }, validator);
     return true;
-  }
-  if (fn) {
-    assert.throws(fn, innerFn);
-    return;
-  }
-  return mustCall(innerFn, exact);
+  }, exact);
 }
 
 const suffix = 'This is caused by either a bug in Node.js ' +
@@ -738,16 +649,33 @@ function runWithInvalidFD(func) {
   printSkipMessage('Could not generate an invalid fd');
 }
 
+// A helper function to simplify checking for ERR_INVALID_ARG_TYPE output.
+function invalidArgTypeHelper(input) {
+  if (input == null) {
+    return ` Received ${input}`;
+  }
+  if (typeof input === 'function' && input.name) {
+    return ` Received function ${input.name}`;
+  }
+  if (typeof input === 'object') {
+    if (input.constructor && input.constructor.name) {
+      return ` Received an instance of ${input.constructor.name}`;
+    }
+    return ` Received ${util.inspect(input, { depth: -1 })}`;
+  }
+  let inspected = util.inspect(input, { colors: false });
+  if (inspected.length > 25)
+    inspected = `${inspected.slice(0, 25)}...`;
+  return ` Received type ${typeof input} (${inspected})`;
+}
+
 module.exports = {
   allowGlobals,
   buildType,
-  busyLoop,
   canCreateSymLink,
   childShouldThrowAndAbort,
   createZeroFilledFile,
   disableCrashOnUnhandledRejection,
-  enoughTestCpu,
-  enoughTestMem,
   expectsError,
   expectsInternalAssertion,
   expectWarning,
@@ -757,13 +685,12 @@ module.exports = {
   getTTYfd,
   hasIntl,
   hasCrypto,
-  hasIPv6,
   hasMultiLocalhost,
+  invalidArgTypeHelper,
   isAIX,
   isAlive,
   isFreeBSD,
   isLinux,
-  isLinuxPPCBE,
   isMainThread,
   isOpenBSD,
   isOSX,
@@ -787,10 +714,26 @@ module.exports = {
   skipIfReportDisabled,
   skipIfWorker,
 
-  get localhostIPv6() { return '::1'; },
+  get enoughTestCPU() {
+    const cpus = require('os').cpus();
+    return Array.isArray(cpus) && (cpus.length > 1 || cpus[0].speed > 999);
+  },
+
+  get enoughTestMem() {
+    return require('os').totalmem() > 0x70000000; /* 1.75 Gb */
+  },
 
   get hasFipsCrypto() {
     return hasCrypto && require('crypto').getFips();
+  },
+
+  get hasIPv6() {
+    const iFaces = require('os').networkInterfaces();
+    const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
+    return Object.keys(iFaces).some((name) => {
+      return re.test(name) &&
+             iFaces[name].some(({ family }) => family === 'IPv6');
+    });
   },
 
   get inFreeBSDJail() {
@@ -803,6 +746,17 @@ module.exports = {
       inFreeBSDJail = false;
     }
     return inFreeBSDJail;
+  },
+
+  // On IBMi, process.platform and os.platform() both return 'aix',
+  // It is not enough to differentiate between IBMi and real AIX system.
+  get isIBMi() {
+    return require('os').type() === 'OS400';
+  },
+
+  get isLinuxPPCBE() {
+    return (process.platform === 'linux') && (process.arch === 'ppc64') &&
+           (require('os').endianness() === 'BE');
   },
 
   get localhostIPv4() {
@@ -825,6 +779,8 @@ module.exports = {
 
     return localhostIPv4;
   },
+
+  get localhostIPv6() { return '::1'; },
 
   // opensslCli defined lazily to reduce overhead of spawnSync
   get opensslCli() {

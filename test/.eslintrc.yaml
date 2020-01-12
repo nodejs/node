@@ -14,12 +14,10 @@ rules:
   # Custom rules in tools/eslint-rules
   node-core/prefer-assert-iferror: error
   node-core/prefer-assert-methods: error
-  node-core/prefer-common-expectserror: error
   node-core/prefer-common-mustnotcall: error
   node-core/crypto-check: error
   node-core/eslint-check: error
   node-core/inspector-check: error
-  node-core/number-isnan: error
   ## common module is mandatory in tests
   node-core/required-modules:
     - error

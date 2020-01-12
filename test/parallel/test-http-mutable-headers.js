@@ -50,38 +50,38 @@ const s = http.createServer(common.mustCall((req, res) => {
       assert.deepStrictEqual(res.hasHeader('Connection'), false);
       assert.deepStrictEqual(res.getHeader('Connection'), undefined);
 
-      common.expectsError(
+      assert.throws(
         () => res.setHeader(),
         {
           code: 'ERR_INVALID_HTTP_TOKEN',
-          type: TypeError,
+          name: 'TypeError',
           message: 'Header name must be a valid HTTP token ["undefined"]'
         }
       );
-      common.expectsError(
+      assert.throws(
         () => res.setHeader('someHeader'),
         {
           code: 'ERR_HTTP_INVALID_HEADER_VALUE',
-          type: TypeError,
+          name: 'TypeError',
           message: 'Invalid value "undefined" for header "someHeader"'
         }
       );
-      common.expectsError(
+      assert.throws(
         () => res.getHeader(),
         {
           code: 'ERR_INVALID_ARG_TYPE',
-          type: TypeError,
+          name: 'TypeError',
           message: 'The "name" argument must be of type string. ' +
-                   'Received type undefined'
+                   'Received undefined'
         }
       );
-      common.expectsError(
+      assert.throws(
         () => res.removeHeader(),
         {
           code: 'ERR_INVALID_ARG_TYPE',
-          type: TypeError,
+          name: 'TypeError',
           message: 'The "name" argument must be of type string. ' +
-                   'Received type undefined'
+                   'Received undefined'
         }
       );
 
@@ -119,13 +119,13 @@ const s = http.createServer(common.mustCall((req, res) => {
         { toString: () => 'X-TEST-HEADER2' },
         () => { }
       ].forEach((val) => {
-        common.expectsError(
+        assert.throws(
           () => res.hasHeader(val),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            type: TypeError,
-            message: 'The "name" argument must be of type string. ' +
-                     `Received type ${typeof val}`
+            name: 'TypeError',
+            message: 'The "name" argument must be of type string.' +
+                     common.invalidArgTypeHelper(val)
           }
         );
       });

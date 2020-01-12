@@ -37,6 +37,14 @@ const MB = KB * KB;
   cat.stdout._handle.readStart = common.mustNotCall();
   grep.stdout._handle.readStart = common.mustNotCall();
 
+  // Keep an array of error codes and assert on them during process exit. This
+  // is because stdio can still be open when a child process exits, and we don't
+  // want to lose information about what caused the error.
+  const errors = [];
+  process.on('exit', () => {
+    assert.deepStrictEqual(errors, []);
+  });
+
   [cat, grep, wc].forEach((child, index) => {
     const errorHandler = (thing, type) => {
       // Don't want to assert here, as we might miss error code info.
@@ -46,7 +54,9 @@ const MB = KB * KB;
     child.stderr.on('data', (d) => { errorHandler(d, 'data'); });
     child.on('error', (err) => { errorHandler(err, 'error'); });
     child.on('exit', common.mustCall((code) => {
-      assert.strictEqual(code, 0, `child ${index} exited with code ${code}`);
+      if (code !== 0) {
+        errors.push(`child ${index} exited with code ${code}`);
+      }
     }));
   });
 

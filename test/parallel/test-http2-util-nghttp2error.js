@@ -1,17 +1,17 @@
 // Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
-const { strictEqual } = require('assert');
+require('../common');
+const { strictEqual, throws } = require('assert');
 const { NghttpError } = require('internal/http2/util');
 
-common.expectsError(() => {
+throws(() => {
   const err = new NghttpError(-501);
   strictEqual(err.errno, -501);
   throw err;
 }, {
   code: 'ERR_HTTP2_ERROR',
-  type: NghttpError,
+  constructor: NghttpError,
   message: 'Invalid argument'
 });
 

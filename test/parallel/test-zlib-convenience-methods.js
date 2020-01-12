@@ -122,12 +122,12 @@ for (const [type, expect] of [
   }
 }
 
-common.expectsError(
+assert.throws(
   () => zlib.gzip('abc'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "callback" argument must be of type function. ' +
-             'Received type undefined'
+             'Received undefined'
   }
 );

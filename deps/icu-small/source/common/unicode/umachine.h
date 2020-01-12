@@ -140,6 +140,42 @@
 #define U_FINAL final
 #endif
 
+// Before ICU 65, function-like, multi-statement ICU macros were just defined as
+// series of statements wrapped in { } blocks and the caller could choose to
+// either treat them as if they were actual functions and end the invocation
+// with a trailing ; creating an empty statement after the block or else omit
+// this trailing ; using the knowledge that the macro would expand to { }.
+//
+// But doing so doesn't work well with macros that look like functions and
+// compiler warnings about empty statements (ICU-20601) and ICU 65 therefore
+// switches to the standard solution of wrapping such macros in do { } while.
+//
+// This will however break existing code that depends on being able to invoke
+// these macros without a trailing ; so to be able to remain compatible with
+// such code the wrapper is itself defined as macros so that it's possible to
+// build ICU 65 and later with the old macro behaviour, like this:
+//
+// export CPPFLAGS='-DUPRV_BLOCK_MACRO_BEGIN="" -DUPRV_BLOCK_MACRO_END=""'
+// runConfigureICU ...
+//
+
+/**
+ * \def UPRV_BLOCK_MACRO_BEGIN
+ * Defined as the "do" keyword by default.
+ * @internal
+ */
+#ifndef UPRV_BLOCK_MACRO_BEGIN
+#define UPRV_BLOCK_MACRO_BEGIN do
+#endif
+
+/**
+ * \def UPRV_BLOCK_MACRO_END
+ * Defined as "while (FALSE)" by default.
+ * @internal
+ */
+#ifndef UPRV_BLOCK_MACRO_END
+#define UPRV_BLOCK_MACRO_END while (FALSE)
+#endif
 
 /*==========================================================================*/
 /* limits for int32_t etc., like in POSIX inttypes.h                        */

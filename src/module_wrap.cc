@@ -7,11 +7,11 @@
 #include "util-inl.h"
 #include "node_contextify.h"
 #include "node_watchdog.h"
+#include "node_process.h"
 
 #include <sys/stat.h>  // S_IFDIR
 
 #include <algorithm>
-#include <climits>  // PATH_MAX
 
 namespace node {
 namespace loader {
@@ -789,7 +789,7 @@ inline Maybe<URL> ResolveIndex(const URL& search) {
 Maybe<URL> FinalizeResolution(Environment* env,
                               const URL& resolved,
                               const URL& base) {
-  if (env->options()->es_module_specifier_resolution == "node") {
+  if (env->options()->experimental_specifier_resolution == "node") {
     Maybe<URL> file = ResolveExtensions<TRY_EXACT_NAME>(resolved);
     if (!file.IsNothing()) {
       return file;
@@ -907,6 +907,25 @@ Maybe<URL> ResolveExportsTargetString(Environment* env,
   return Just(subpath_resolved);
 }
 
+bool IsArrayIndex(Environment* env, Local<Value> p) {
+  Local<Context> context = env->context();
+  Local<String> p_str = p->ToString(context).ToLocalChecked();
+  double n_dbl = static_cast<double>(p_str->NumberValue(context).FromJust());
+  Local<Number> n = Number::New(env->isolate(), n_dbl);
+  Local<String> cmp_str = n->ToString(context).ToLocalChecked();
+  if (!p_str->Equals(context, cmp_str).FromJust()) {
+    return false;
+  }
+  if (n_dbl == 0 && std::signbit(n_dbl) == false) {
+    return true;
+  }
+  Local<Integer> cmp_integer;
+  if (!n->ToInteger(context).ToLocal(&cmp_integer)) {
+    return false;
+  }
+  return n_dbl > 0 && n_dbl < (2 ^ 32) - 1;
+}
+
 Maybe<URL> ResolveExportsTarget(Environment* env,
                                 const URL& pjson_url,
                                 Local<Value> target,
@@ -952,32 +971,50 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
       return Nothing<URL>();
   } else if (target->IsObject()) {
     Local<Object> target_obj = target.As<Object>();
-    bool matched = false;
+    Local<Array> target_obj_keys =
+        target_obj->GetOwnPropertyNames(context).ToLocalChecked();
     Local<Value> conditionalTarget;
-    if (env->options()->experimental_conditional_exports &&
-        target_obj->HasOwnProperty(context, env->node_string()).FromJust()) {
-      matched = true;
-      conditionalTarget =
-          target_obj->Get(context, env->node_string()).ToLocalChecked();
-      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
-            conditionalTarget, subpath, pkg_subpath, base, false);
-      if (!resolved.IsNothing()) {
-        return resolved;
+    bool matched = false;
+    for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
+      Local<Value> key =
+          target_obj_keys->Get(context, i).ToLocalChecked();
+      if (IsArrayIndex(env, key)) {
+        const std::string msg = "Invalid package config for " +
+            pjson_url.ToFilePath() + ", \"exports\" cannot contain numeric " +
+            "property keys.";
+        node::THROW_ERR_INVALID_PACKAGE_CONFIG(env, msg.c_str());
+        return Nothing<URL>();
       }
     }
-    if (target_obj->HasOwnProperty(context, env->default_string()).FromJust()) {
-      matched = true;
-      conditionalTarget =
-          target_obj->Get(context, env->default_string()).ToLocalChecked();
-      Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+    for (uint32_t i = 0; i < target_obj_keys->Length(); ++i) {
+      Local<Value> key = target_obj_keys->Get(context, i).ToLocalChecked();
+      Utf8Value key_utf8(env->isolate(),
+                         key->ToString(context).ToLocalChecked());
+      std::string key_str(*key_utf8, key_utf8.length());
+      if (key_str == "node" || key_str == "import") {
+        if (!env->options()->experimental_conditional_exports) continue;
+        matched = true;
+        conditionalTarget = target_obj->Get(context, key).ToLocalChecked();
+        Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
             conditionalTarget, subpath, pkg_subpath, base, false);
-      if (!resolved.IsNothing()) {
-        return resolved;
+        if (!resolved.IsNothing()) {
+          ProcessEmitExperimentalWarning(env, "Conditional exports");
+          return resolved;
+        }
+      } else if (key_str == "default") {
+        matched = true;
+        conditionalTarget = target_obj->Get(context, key).ToLocalChecked();
+        Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
+            conditionalTarget, subpath, pkg_subpath, base, false);
+        if (!resolved.IsNothing()) {
+          ProcessEmitExperimentalWarning(env, "Conditional exports");
+          return resolved;
+        }
       }
     }
     if (matched && throw_invalid) {
       Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
-            conditionalTarget, subpath, pkg_subpath, base, true);
+          conditionalTarget, subpath, pkg_subpath, base, true);
       CHECK(resolved.IsNothing());
       return Nothing<URL>();
     }
@@ -1000,8 +1037,8 @@ Maybe<bool> IsConditionalExportsMainSugar(Environment* env,
       exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
   bool isConditionalSugar = false;
   for (uint32_t i = 0; i < keys->Length(); ++i) {
-    Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
-    Utf8Value key_utf8(env->isolate(), key);
+    Local<Value> key = keys->Get(context, i).ToLocalChecked();
+    Utf8Value key_utf8(env->isolate(), key->ToString(context).ToLocalChecked());
     bool curIsConditionalSugar = key_utf8.length() == 0 || key_utf8[0] != '.';
     if (i == 0) {
       isConditionalSugar = curIsConditionalSugar;
@@ -1053,7 +1090,7 @@ Maybe<URL> PackageMainResolve(Environment* env,
         return Just(resolved);
       }
     }
-    if (env->options()->es_module_specifier_resolution == "node") {
+    if (env->options()->experimental_specifier_resolution == "node") {
       if (pcfg.has_main == HasMain::Yes) {
         return FinalizeResolution(env, URL(pcfg.main, pjson_url), base);
       } else {
@@ -1109,13 +1146,13 @@ Maybe<URL> PackageExportsResolve(Environment* env,
   Local<Array> keys =
       exports_obj->GetOwnPropertyNames(context).ToLocalChecked();
   for (uint32_t i = 0; i < keys->Length(); ++i) {
-    Local<String> key = keys->Get(context, i).ToLocalChecked().As<String>();
-    Utf8Value key_utf8(isolate, key);
+    Local<Value> key = keys->Get(context, i).ToLocalChecked();
+    Utf8Value key_utf8(isolate, key->ToString(context).ToLocalChecked());
     std::string key_str(*key_utf8, key_utf8.length());
     if (key_str.back() != '/') continue;
     if (pkg_subpath.substr(0, key_str.length()) == key_str &&
         key_str.length() > best_match_str.length()) {
-      best_match = key;
+      best_match = key->ToString(context).ToLocalChecked();
       best_match_str = key_str;
     }
   }
@@ -1137,12 +1174,9 @@ Maybe<URL> PackageExportsResolve(Environment* env,
 }
 
 Maybe<URL> ResolveSelf(Environment* env,
-                       const std::string& specifier,
+                       const std::string& pkg_name,
+                       const std::string& pkg_subpath,
                        const URL& base) {
-  if (!env->options()->experimental_resolve_self) {
-    return Nothing<URL>();
-  }
-
   const PackageConfig* pcfg;
   if (GetPackageScopeConfig(env, base, base).To(&pcfg) &&
       pcfg->exists == Exists::Yes) {
@@ -1158,34 +1192,12 @@ Maybe<URL> ResolveSelf(Environment* env,
         found_pjson = true;
       }
     }
-
-    if (!found_pjson) {
-      return Nothing<URL>();
-    }
-
-    // "If specifier starts with pcfg name"
-    std::string subpath;
-    if (specifier.rfind(pcfg->name, 0)) {
-      // We know now: specifier is either equal to name or longer.
-      if (specifier == subpath) {
-        subpath = "";
-      } else if (specifier[pcfg->name.length()] == '/') {
-        // Return everything after the slash
-        subpath = "." + specifier.substr(pcfg->name.length() + 1);
-      } else {
-        // The specifier is neither the name of the package nor a subpath of it
-        return Nothing<URL>();
-      }
-    }
-
-    if (found_pjson && !subpath.length()) {
+    if (!found_pjson || pcfg->name != pkg_name) return Nothing<URL>();
+    if (pcfg->exports.IsEmpty()) return Nothing<URL>();
+    if (!pkg_subpath.length()) {
       return PackageMainResolve(env, pjson_url, *pcfg, base);
-    } else if (found_pjson) {
-      if (!pcfg->exports.IsEmpty()) {
-        return PackageExportsResolve(env, pjson_url, subpath, *pcfg, base);
-      } else {
-        return FinalizeResolution(env, URL(subpath, pjson_url), base);
-      }
+    } else {
+      return PackageExportsResolve(env, pjson_url, pkg_subpath, *pcfg, base);
     }
   }
 
@@ -1232,6 +1244,13 @@ Maybe<URL> PackageResolve(Environment* env,
   } else {
     pkg_subpath = "." + specifier.substr(sep_index);
   }
+
+  Maybe<URL> self_url = ResolveSelf(env, pkg_name, pkg_subpath, base);
+  if (self_url.IsJust()) {
+    ProcessEmitExperimentalWarning(env, "Package name self resolution");
+    return self_url;
+  }
+
   URL pjson_url("./node_modules/" + pkg_name + "/package.json", &base);
   std::string pjson_path = pjson_url.ToFilePath();
   std::string last_path;
@@ -1264,11 +1283,6 @@ Maybe<URL> PackageResolve(Environment* env,
     CHECK(false);
     // Cross-platform root check.
   } while (pjson_path.length() != last_path.length());
-
-  Maybe<URL> self_url = ResolveSelf(env, specifier, base);
-  if (self_url.IsJust()) {
-    return self_url;
-  }
 
   std::string msg = "Cannot find package '" + pkg_name +
       "' imported from " + base.ToFilePath();

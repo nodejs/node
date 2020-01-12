@@ -25,7 +25,7 @@ if (process.argv[2] !== 'child') {
   }
 } else {
   const NODE_EXTRA_CA_CERTS = fixtures.path('keys', 'ca1-cert.pem');
-  const extendsEnv = (obj) => Object.assign({}, process.env, obj);
+  const extendsEnv = (obj) => ({ ...process.env, ...obj });
 
   [
     extendsEnv({ CHILD_USE_EXTRA_CA_CERTS: 'yes', NODE_EXTRA_CA_CERTS }),

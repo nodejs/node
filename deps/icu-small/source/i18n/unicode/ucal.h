@@ -441,11 +441,13 @@ enum UCalendarDateFields {
 
     /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
      * it is needed for layout of Calendar, DateFormat, and other objects */
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UCalendarDateFields value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-  UCAL_FIELD_COUNT,
+    UCAL_FIELD_COUNT,
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
  /**
    * Field number indicating the
@@ -656,6 +658,42 @@ ucal_getDefaultTimeZone(UChar* result, int32_t resultCapacity, UErrorCode* ec);
  */
 U_STABLE void U_EXPORT2
 ucal_setDefaultTimeZone(const UChar* zoneID, UErrorCode* ec);
+
+#ifndef U_HIDE_DRAFT_API
+
+/**
+ * Return the current host time zone. The host time zone is detected from
+ * the current host system configuration by querying the host operating
+ * system. If the host system detection routines fail, or if they specify
+ * a TimeZone or TimeZone offset which is not recognized, then the special
+ * TimeZone "Etc/Unknown" is returned.
+ *
+ * Note that host time zone and the ICU default time zone can be different.
+ *
+ * The ICU default time zone does not change once initialized unless modified
+ * by calling `ucal_setDefaultTimeZone()` or with the C++ TimeZone API,
+ * `TimeZone::adoptDefault(TimeZone*)`.
+ *
+ * If the host operating system configuration has changed since ICU has
+ * initialized then the returned value can be different than the ICU default
+ * time zone, even if the default has not changed.
+ *
+ * <p>This function is not thread safe.</p>
+ *
+ * @param result A buffer to receive the result, or NULL
+ * @param resultCapacity The capacity of the result buffer
+ * @param ec input/output error code
+ * @return The result string length, not including the terminating
+ * null
+ *
+ * @see #UCAL_UNKNOWN_ZONE_ID
+ *
+ * @draft ICU 65
+ */
+U_DRAFT int32_t U_EXPORT2
+ucal_getHostTimeZone(UChar *result, int32_t resultCapacity, UErrorCode *ec);
+
+#endif // U_HIDE_DRAFT_API
 
 /**
  * Return the amount of time in milliseconds that the clock is

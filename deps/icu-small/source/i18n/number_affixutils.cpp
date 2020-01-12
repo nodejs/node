@@ -156,7 +156,7 @@ Field AffixUtils::getFieldForType(AffixPatternType type) {
 }
 
 int32_t
-AffixUtils::unescape(const UnicodeString &affixPattern, NumberStringBuilder &output, int32_t position,
+AffixUtils::unescape(const UnicodeString &affixPattern, FormattedStringBuilder &output, int32_t position,
                      const SymbolProvider &provider, Field field, UErrorCode &status) {
     int32_t length = 0;
     AffixTag tag;
@@ -230,7 +230,7 @@ UnicodeString AffixUtils::replaceType(const UnicodeString &affixPattern, AffixPa
     UnicodeString output(affixPattern); // copy
     if (affixPattern.length() == 0) {
         return output;
-    };
+    }
     AffixTag tag;
     while (hasNext(tag, affixPattern)) {
         tag = nextToken(tag, affixPattern, status);
@@ -246,7 +246,7 @@ bool AffixUtils::containsOnlySymbolsAndIgnorables(const UnicodeString& affixPatt
                                                   const UnicodeSet& ignorables, UErrorCode& status) {
     if (affixPattern.length() == 0) {
         return true;
-    };
+    }
     AffixTag tag;
     while (hasNext(tag, affixPattern)) {
         tag = nextToken(tag, affixPattern, status);
@@ -262,7 +262,7 @@ void AffixUtils::iterateWithConsumer(const UnicodeString& affixPattern, TokenCon
                                      UErrorCode& status) {
     if (affixPattern.length() == 0) {
         return;
-    };
+    }
     AffixTag tag;
     while (hasNext(tag, affixPattern)) {
         tag = nextToken(tag, affixPattern, status);

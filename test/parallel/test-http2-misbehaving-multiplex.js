@@ -19,7 +19,7 @@ server.on('stream', common.mustCall((stream) => {
 
   // The error will be emitted asynchronously
   stream.on('error', common.expectsError({
-    type: NghttpError,
+    constructor: NghttpError,
     code: 'ERR_HTTP2_ERROR',
     message: 'Stream was already closed or invalid'
   }));
@@ -28,7 +28,7 @@ server.on('stream', common.mustCall((stream) => {
 server.on('session', common.mustCall((session) => {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
-    type: NghttpError,
+    constructor: NghttpError,
     message: 'Stream was already closed or invalid'
   }));
 }));

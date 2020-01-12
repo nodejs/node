@@ -58,7 +58,7 @@ LowercaseTransliterator::LowercaseTransliterator(const LowercaseTransliterator& 
 /**
  * Transliterator API.
  */
-Transliterator* LowercaseTransliterator::clone(void) const {
+LowercaseTransliterator* LowercaseTransliterator::clone() const {
     return new LowercaseTransliterator(*this);
 }
 

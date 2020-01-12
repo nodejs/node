@@ -15,16 +15,16 @@ server.on('error', common.mustNotCall());
 server.on('session', (session) => {
   session.on('close', common.mustCall());
   session.on('error', common.mustCall((err) => {
-    assert(errRegEx.test(err));
+    assert.ok(errRegEx.test(err), `server session err: ${err}`);
     assert.strictEqual(session.closed, false);
     assert.strictEqual(session.destroyed, true);
   }));
 
   session.on('stream', common.mustCall((stream) => {
     stream.on('error', common.mustCall((err) => {
+      assert.ok(errRegEx.test(err), `server stream err: ${err}`);
       assert.strictEqual(session.closed, false);
       assert.strictEqual(session.destroyed, true);
-      assert(errRegEx.test(err));
       assert.strictEqual(stream.rstCode, destroyCode);
     }));
 
@@ -36,7 +36,7 @@ server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);
 
   session.on('error', common.mustCall((err) => {
-    assert(errRegEx.test(err));
+    assert.ok(errRegEx.test(err), `client session err: ${err}`);
     assert.strictEqual(session.closed, false);
     assert.strictEqual(session.destroyed, true);
   }));
@@ -44,7 +44,7 @@ server.listen(0, common.mustCall(() => {
   const stream = session.request({ [http2.constants.HTTP2_HEADER_PATH]: '/' });
 
   stream.on('error', common.mustCall((err) => {
-    assert(errRegEx.test(err));
+    assert.ok(errRegEx.test(err), `client stream err: ${err}`);
     assert.strictEqual(stream.rstCode, destroyCode);
   }));
 

@@ -577,14 +577,14 @@ however.
 computer.
 
 **e.** Sign the `SHASUMS256.txt` file using a command similar to: `gpg
---default-key YOURKEY --clearsign /path/to/SHASUMS256.txt`. You will be prompted
-by GPG for your password. The signed file will be named `SHASUMS256.txt.asc`.
+--default-key YOURKEY --digest-algo SHA256 --clearsign /path/to/SHASUMS256.txt`.
+You will be prompted by GPG for your password. The signed file will be named
+SHASUMS256.txt.asc.
 
 **f.** Output an ASCII armored version of your public GPG key using a command
-similar to: `gpg --default-key YOURKEY --armor --export --output
-/path/to/SHASUMS256.txt.gpg`. This does not require your password and is mainly
-a convenience for users, although not the recommended way to get a copy of your
-key.
+similar to: `gpg --default-key YOURKEY --digest-algo SHA256 --detach-sign /path/to/SHASUMS256.txt`.
+You will be prompted by GPG for your password. The signed file will be named
+SHASUMS256.txt.sig.
 
 **g.** Upload the `SHASUMS256.txt` files back to the server into the release
 directory.
@@ -594,8 +594,8 @@ release, you should re-run `tools/release.sh` after the ARM builds have
 finished. That will move the ARM artifacts into the correct location. You will
 be prompted to re-sign `SHASUMS256.txt`.
 
-It is possible to only sign a release by running `./tools/release.sh -s
-vX.Y.Z`.
+**It is possible to only sign a release by running `./tools/release.sh -s
+vX.Y.Z`.**
 
 ### 14. Check the Release
 

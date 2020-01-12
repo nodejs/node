@@ -23,13 +23,14 @@ if (!workerData && process.argv[2] !== 'child') {
     env: { 'MANUALLY_SET': true }
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     new Worker(__filename, { env: 42 });
   }, {
-    type: TypeError,
+    name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options.env" property must be one of type object, ' +
-      'undefined, null, or worker_threads.SHARE_ENV. Received type number'
+    message: 'The "options.env" property must be of type object or ' +
+      'one of undefined, null, or worker_threads.SHARE_ENV. Received type ' +
+      'number (42)'
   });
 } else if (workerData === 'runInWorker') {
   // Env vars from the parent thread are inherited.

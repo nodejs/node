@@ -346,6 +346,11 @@ parser.add_option('--enable-trace-maps',
     dest='trace_maps',
     help='Enable the --trace-maps flag in V8 (use at your own risk)')
 
+parser.add_option('--experimental-enable-pointer-compression',
+    action='store_true',
+    dest='enable_pointer_compression',
+    help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
+
 parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
@@ -402,13 +407,12 @@ parser.add_option('--with-etw',
 parser.add_option('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
-    help='build with Large Pages support. This feature is supported only on Linux kernel' +
-         '>= 2.6.38 with Transparent Huge pages enabled and FreeBSD')
+    help='This option has no effect. --use-largepages is now a runtime option.')
 
 parser.add_option('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
-    help='link against the LLVM ld linker script. Implies -fuse-ld=lld in the linker flags')
+    help='This option has no effect. --use-largepages is now a runtime option.')
 
 intl_optgroup.add_option('--with-intl',
     action='store',
@@ -445,6 +449,14 @@ intl_optgroup.add_option('--with-icu-source',
         'the icu4c source archive. '
         'v%d.x or later recommended.' % icu_versions['minimum_icu'])
 
+intl_optgroup.add_option('--with-icu-default-data-dir',
+    action='store',
+    dest='with_icu_default_data_dir',
+    help='Path to the icuXXdt{lb}.dat file. If unspecified, ICU data will '
+         'only be read if the NODE_ICU_DATA environment variable or the '
+         '--icu-data-dir runtime argument is used. This option has effect '
+         'only when Node.js is built with --with-intl=small-icu.')
+
 parser.add_option('--with-ltcg',
     action='store_true',
     dest='with_ltcg',
@@ -454,6 +466,11 @@ parser.add_option('--without-node-snapshot',
     action='store_true',
     dest='without_node_snapshot',
     help='Turn off V8 snapshot integration. Currently experimental.')
+
+parser.add_option('--without-node-code-cache',
+    action='store_true',
+    dest='without_node_code_cache',
+    help='Turn off V8 Code cache integration.')
 
 intl_optgroup.add_option('--download',
     action='store',
@@ -976,9 +993,17 @@ def configure_node(o):
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
   if not options.without_node_snapshot:
-    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
+    o['variables']['node_use_node_snapshot'] = b(
+      not cross_compiling and not options.shared)
   else:
     o['variables']['node_use_node_snapshot'] = 'false'
+
+  if not options.without_node_code_cache:
+    # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
+    o['variables']['node_use_node_code_cache'] = b(
+      not cross_compiling and not options.shared)
+  else:
+    o['variables']['node_use_node_code_cache'] = 'false'
 
   if target_arch == 'arm':
     configure_arm(o)
@@ -1042,27 +1067,12 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
-  if options.node_use_large_pages and not flavor in ('linux', 'freebsd', 'mac'):
-    raise Exception(
-      'Large pages are supported only on Linux, FreeBSD and MacOS Systems.')
-  if options.node_use_large_pages and flavor in ('linux', 'freebsd', 'mac'):
-    if options.shared or options.enable_static:
-      raise Exception(
-        'Large pages are supported only while creating node executable.')
-    if target_arch!="x64":
-      raise Exception(
-        'Large pages are supported only x64 platform.')
-    if flavor == 'mac':
-      info('macOS server with 32GB or more is recommended')
-    if flavor == 'linux':
-      # Example full version string: 2.6.32-696.28.1.el6.x86_64
-      FULL_KERNEL_VERSION=os.uname()[2]
-      KERNEL_VERSION=FULL_KERNEL_VERSION.split('-')[0]
-      if KERNEL_VERSION < "2.6.38" and flavor == 'linux':
-        raise Exception(
-          'Large pages need Linux kernel version >= 2.6.38')
-  o['variables']['node_use_large_pages'] = b(options.node_use_large_pages)
-  o['variables']['node_use_large_pages_script_lld'] = b(options.node_use_large_pages_script_lld)
+  if options.node_use_large_pages or options.node_use_large_pages_script_lld:
+    warn('''The `--use-largepages` and `--use-largepages-script-lld` options
+         have no effect during build time. Support for mapping to large pages is
+         now a runtime option of Node.js. Run `node --use-largepages` or add
+         `--use-largepages` to the `NODE_OPTIONS` environment variable once
+         Node.js is built to enable mapping to large pages.''')
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
@@ -1100,20 +1110,21 @@ def configure_node(o):
     o['variables']['debug_nghttp2'] = 'false'
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
-  # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-  if o['variables']['want_separate_host_toolset'] == 0:
-    o['variables']['node_code_cache'] = 'yes' # For testing
+
   o['variables']['node_shared'] = b(options.shared)
   node_module_version = getmoduleversion.get_version()
 
-  if sys.platform == 'darwin':
+  if options.dest_os == 'android':
+    shlib_suffix = 'so'
+  elif sys.platform == 'darwin':
     shlib_suffix = '%s.dylib'
   elif sys.platform.startswith('aix'):
     shlib_suffix = '%s.a'
   else:
     shlib_suffix = 'so.%s'
+  if '%s' in shlib_suffix:
+    shlib_suffix %= node_module_version
 
-  shlib_suffix %= node_module_version
   o['variables']['node_module_version'] = int(node_module_version)
   o['variables']['shlib_suffix'] = shlib_suffix
 
@@ -1181,6 +1192,8 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
+  o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
+  o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -1373,6 +1386,7 @@ def configure_intl(o):
     locs.add('root')  # must have root
     o['variables']['icu_locales'] = ','.join(str(loc) for loc in locs)
     # We will check a bit later if we can use the canned deps/icu-small
+    o['variables']['icu_default_data'] = options.with_icu_default_data_dir or ''
   elif with_intl == 'full-icu':
     # full ICU
     o['variables']['v8_enable_i18n_support'] = 1
@@ -1526,8 +1540,11 @@ def configure_intl(o):
     os.mkdir(icu_tmp_path)
     icu_data_path = os.path.join(icu_tmp_path, icu_data_file_l)
     with open(icu_data_path, 'wb') as outf:
-        with bz2.BZ2File(compressed_data, 'rb') as inf:
-            shutil.copyfileobj(inf, outf)
+        inf = bz2.BZ2File(compressed_data, 'rb')
+        try:
+          shutil.copyfileobj(inf, outf)
+        finally:
+          inf.close()
     # Now, proceed..
 
   # relative to dep..

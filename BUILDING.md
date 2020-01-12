@@ -23,7 +23,7 @@ file a new issue.
   * [Unix and macOS](#unix-and-macos)
     * [Unix prerequisites](#unix-prerequisites)
     * [macOS prerequisites](#macos-prerequisites)
-    * [Building Node.js](#building-nodejs)
+    * [Building Node.js](#building-nodejs-1)
     * [Running Tests](#running-tests)
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
@@ -31,7 +31,7 @@ file a new issue.
   * [Windows](#windows)
     * [Prerequisites](#prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
-      * [Option 1: Automated install with Boxstarter](#option-1-automated-install-with-boxstarter)
+      * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-1)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
@@ -69,30 +69,25 @@ There are three support tiers:
 
 * **Tier 1**: These platforms represent the majority of Node.js users. The
   Node.js Build Working Group maintains infrastructure for full test coverage.
-  All commits to the Node.js repository are tested on these platforms. Test
-  failures on tier 1 platforms will block releases.
+  Test failures on tier 1 platforms will block releases.
 * **Tier 2**: These platforms represent smaller segments of the Node.js user
   base. The Node.js Build Working Group maintains infrastructure for full test
-  coverage. All commits to the Node.js repository are tested on these platforms.
-  Test failures on tier 2 platforms will block releases. Delays in release of
-  binaries for these platforms are acceptable where necessary due to
-  infrastructure concerns.
+  coverage. Test failures on tier 2 platforms will block releases.
+  Infrastructure issues may delay the release of binaries for these platforms.
 * **Experimental**: May not compile or test suite may not pass. The core team
   does not create releases for these platforms. Test failures on experimental
   platforms do not block releases. Contributions to improve support for these
   platforms are welcome.
 
 Platforms may move between tiers between major release lines. The table below
-will be updated to reflect those changes.
+will reflect those changes.
 
 ### Platform list
 
-Compiling and running Node.js is supported for a limited set of operating
-systems, architectures and libc versions. The table below lists the
-combinations that the core team has committed to supporting and the nature of
-that support as per the support tiers above. A list of
-[supported compile toolchains](#supported-toolchains) is also supplied for
-tier 1 platforms.
+Node.js compilation/execution support depends on operating system, architecture,
+and libc version. The table below lists the support tier for each supported
+combination. A list of [supported compile toolchains](#supported-toolchains) is
+also supplied for tier 1 platforms.
 
 **For production applications, run Node.js on supported platforms only.**
 
@@ -118,26 +113,26 @@ platforms. This is true regardless of entries in the table below.
 | AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
-<em id="fn1">1</em>: GCC 6 is not provided on the base platform, users will
+<em id="fn1">1</em>: GCC 6 is not provided on the base platform. Users will
   need the
   [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
   or similar to source a newer compiler.
 
-<em id="fn2">2</em>: GCC 6 is not provided on the base platform, users will
+<em id="fn2">2</em>: GCC 6 is not provided on the base platform. Users will
   need the
   [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
   or later to source a newer compiler.
 
-<em id="fn3">3</em>: Older kernel versions may work for ARM64, however the
+<em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
   Node.js test infrastructure only tests >= 4.5.
 
 <em id="fn4">4</em>: On Windows, running Node.js in Windows terminal emulators
   like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
-  for the tty channels to work correctly (e.g. `winpty node.exe script.js`).
+  for the tty channels to work (e.g. `winpty node.exe script.js`).
   In "Git bash" if you call the node shell alias (`node` without the `.exe`
   extension), `winpty` is used automatically.
 
-<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not directly
+<em id="fn5">5</em>: The Windows Subsystem for Linux (WSL) is not
   supported, but the GNU/Linux build process and binaries should work. The
   community will only address issues that reproduce on native GNU/Linux
   systems. Issues that only reproduce on WSL should be reported in the
@@ -147,11 +142,11 @@ platforms. This is true regardless of entries in the table below.
 
 <em id="fn6">6</em>: Running Node.js on x86 Windows should work and binaries
 are provided. However, tests in our infrastructure only run on WoW64.
-Furthermore, compiling on x86 Windows is currently considered Experimental and
+Furthermore, compiling on x86 Windows is Experimental and
 may not be possible.
 
 <em id="fn7">7</em>: The default FreeBSD 12.0 compiler is Clang 6.0.1, but
-FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are provided
+FreeBSD 12.1 upgrades to 8.0.1. Other Clang/LLVM versions are available
 via the system's package manager, including Clang 9.0.
 
 ### Supported toolchains
@@ -227,18 +222,10 @@ Consult previous versions of this document for older versions of Node.js:
 
 ### Note about Python 2 and Python 3
 
-The Node.js project uses Python as part of its build process and has
-historically only been Python 2 compatible.
-
-Python 2 will reach its _end-of-life_ at the end of 2019 at which point the
-interpreter will cease receiving updates. See https://python3statement.org/
-for more information.
-
-The Node.js project is in the process of transitioning its Python code to
-Python 3 compatibility. Installing both versions of Python while building
-and testing Node.js allows developers and end users to test, benchmark,
-and debug Node.js running on both versions to ensure a smooth and complete
-transition before the year-end deadline.
+The Node.js project supports both Python 3 and Python 2 for building.
+If both are installed Python 3 will be used. If only Python 2 is available
+it will be used instead. When possible we recommend that you build and
+test with Python 3.
 
 ### Unix and macOS
 
@@ -248,7 +235,7 @@ transition before the year-end deadline.
 * GNU Make 3.81 or newer
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8 are experimental.
+  * Python 3.5, 3.6, 3.7, and 3.8.
 
 Installation via Linux package manager can be achieved with:
 
@@ -264,7 +251,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 * Xcode Command Line Tools >= 10 for macOS
 * Python (see note above)
   * Python 2.7
-  * Python 3.5, 3.6, 3.7, and 3.8 are experimental.
+  * Python 3.5, 3.6, 3.7, and 3.8.
 
 macOS users can install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode

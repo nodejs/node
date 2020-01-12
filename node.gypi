@@ -103,6 +103,13 @@
       'conditions': [
         [ 'icu_small=="true"', {
           'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
+          'conditions': [
+            [ 'icu_default_data!=""', {
+              'defines': [
+                'NODE_ICU_DEFAULT_DATA_DIR="<(icu_default_data)"',
+              ],
+            }],
+          ],
       }]],
     }],
     [ 'node_no_browser_globals=="true"', {
@@ -301,20 +308,18 @@
     }],
     [ 'OS=="linux" and '
       'target_arch=="x64" and '
-      'node_use_large_pages=="true" and '
-      'node_use_large_pages_script_lld=="false"', {
+      'llvm_version=="0.0"', {
       'ldflags': [
         '-Wl,-T',
-        '<!(realpath src/large_pages/ld.implicit.script)',
+        '<!(echo "$(pwd)/src/large_pages/ld.implicit.script")',
       ]
     }],
     [ 'OS=="linux" and '
       'target_arch=="x64" and '
-      'node_use_large_pages=="true" and '
-      'node_use_large_pages_script_lld=="true"', {
+      'llvm_version!="0.0"', {
       'ldflags': [
         '-Wl,-T',
-        '<!(realpath src/large_pages/ld.implicit.script.lld)',
+        '<!(echo "$(pwd)/src/large_pages/ld.implicit.script.lld")',
       ]
     }],
     [ 'node_use_openssl=="true"', {

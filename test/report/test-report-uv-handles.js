@@ -2,6 +2,9 @@
 
 // Testcase to check reporting of uv handles.
 const common = require('../common');
+if (common.isIBMi)
+  common.skip('IBMi does not support fs.watch()');
+
 common.skipIfReportDisabled();
 if (process.argv[2] === 'child') {
   // Exit on loss of parent process

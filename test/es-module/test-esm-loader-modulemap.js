@@ -4,8 +4,9 @@
 // This test ensures that the type checking of ModuleMap throws
 // errors appropriately
 
-const common = require('../common');
+require('../common');
 
+const assert = require('assert');
 const { URL } = require('url');
 const { Loader } = require('internal/modules/esm/loader');
 const ModuleMap = require('internal/modules/esm/module_map');
@@ -20,39 +21,42 @@ const moduleMap = new ModuleMap();
 const moduleJob = new ModuleJob(loader, stubModule.module,
                                 () => new Promise(() => {}));
 
-common.expectsError(
+assert.throws(
   () => moduleMap.get(1),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "url" argument must be of type string. Received type number'
+    name: 'TypeError',
+    message: 'The "url" argument must be of type string. Received type number' +
+             ' (1)'
   }
 );
 
-common.expectsError(
+assert.throws(
   () => moduleMap.set(1, moduleJob),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "url" argument must be of type string. Received type number'
+    name: 'TypeError',
+    message: 'The "url" argument must be of type string. Received type number' +
+             ' (1)'
   }
 );
 
-common.expectsError(
+assert.throws(
   () => moduleMap.set('somestring', 'notamodulejob'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "job" argument must be of type ModuleJob. ' +
-             'Received type string'
+    name: 'TypeError',
+    message: 'The "job" argument must be an instance of ModuleJob. ' +
+             "Received type string ('notamodulejob')"
   }
 );
 
-common.expectsError(
+assert.throws(
   () => moduleMap.has(1),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "url" argument must be of type string. Received type number'
+    name: 'TypeError',
+    message: 'The "url" argument must be of type string. Received type number' +
+             ' (1)'
   }
 );

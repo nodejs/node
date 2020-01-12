@@ -1,6 +1,6 @@
 # WebAssembly System Interface (WASI)
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v13.3.0-->
 
 > Stability: 1 - Experimental
 
@@ -19,7 +19,7 @@ const wasi = new WASI({
     '/sandbox': '/some/real/path/that/wasm/can/access'
   }
 });
-const importObject = { wasi_unstable: wasi.wasiImport };
+const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
 (async () => {
   const wasm = await WebAssembly.compile(fs.readFileSync('./binary.wasm'));
@@ -29,12 +29,12 @@ const importObject = { wasi_unstable: wasi.wasiImport };
 })();
 ```
 
-The `--experimental-wasi-unstable-preview0` and `--experimental-wasm-bigint`
+The `--experimental-wasi-unstable-preview1` and `--experimental-wasm-bigint`
 CLI arguments are needed for the previous example to run.
 
-## Class: WASI
+## Class: `WASI`
 <!-- YAML
-added: REPLACEME
+added: v13.3.0
 -->
 
 The `WASI` class provides the WASI system call API and additional convenience
@@ -43,9 +43,9 @@ represents a distinct sandbox environment. For security purposes, each `WASI`
 instance must have its command line arguments, environment variables, and
 sandbox directory structure configured explicitly.
 
-### new WASI(\[options\])
+### `new WASI([options])`
 <!-- YAML
-added: REPLACEME
+added: v13.3.0
 -->
 
 * `options` {Object}
@@ -59,9 +59,9 @@ added: REPLACEME
     directories within the sandbox. The corresponding values in `preopens` are
     the real paths to those directories on the host machine.
 
-### wasi.start(instance)
+### `wasi.start(instance)`
 <!-- YAML
-added: REPLACEME
+added: v13.3.0
 -->
 
 * `instance` {WebAssembly.Instance}
@@ -74,16 +74,16 @@ is present on `instance`, then `start()` does nothing.
 `start()` requires that `instance` exports a [`WebAssembly.Memory`][] named
 `memory`. If `instance` does not have a `memory` export an exception is thrown.
 
-### wasi.wasiImport
+### `wasi.wasiImport`
 <!-- YAML
-added: REPLACEME
+added: v13.3.0
 -->
 
 * {Object}
 
 `wasiImport` is an object that implements the WASI system call API. This object
-should be passed as the `wasi_unstable` import during the instantiation of a
-[`WebAssembly.Instance`][].
+should be passed as the `wasi_snapshot_preview1` import during the instantiation
+of a [`WebAssembly.Instance`][].
 
 [`WebAssembly.Instance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance
 [`WebAssembly.Memory`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory

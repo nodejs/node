@@ -21,9 +21,12 @@ result. Input and output may be from `stdin` and `stdout`, respectively, or may
 be connected to any Node.js [stream][].
 
 Instances of [`repl.REPLServer`][] support automatic completion of inputs,
-simplistic Emacs-style line editing, multi-line inputs, ANSI-styled output,
-saving and restoring current REPL session state, error recovery, and
-customizable evaluation functions.
+completion preview, simplistic Emacs-style line editing, multi-line inputs,
+[ZSH][]-like reverse-i-search, [ZSH][]-like substring-based history search,
+ANSI-styled output, saving and restoring current REPL session state, error
+recovery, and customizable evaluation functions. Terminals that do not support
+ANSI styles and Emacs-style line editing automatically fall back to a limited
+feature set.
 
 ### Commands and Special Keys
 
@@ -151,10 +154,9 @@ REPL session.
 
 This use of the [`domain`][] module in the REPL has these side effects:
 
-* Uncaught exceptions only emit the [`'uncaughtException'`][] event if the
-  `repl` is used as standalone program. If the `repl` is included anywhere in
-  another application, adding a listener for this event will throw an
-  [`ERR_INVALID_REPL_INPUT`][] exception.
+* Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
+  standalone REPL. Adding a listener for this event in a REPL within
+  another Node.js program throws [`ERR_INVALID_REPL_INPUT`][].
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
 
@@ -232,6 +234,24 @@ undefined
 1002
 undefined
 ```
+
+### Reverse-i-search
+<!-- YAML
+added: v13.6.0
+-->
+
+The REPL supports bi-directional reverse-i-search similar to [ZSH][]. It is
+triggered with `<ctrl> + R` to search backwards and `<ctrl> + S` to search
+forwards.
+
+Duplicated history entires will be skipped.
+
+Entries are accepted as soon as any button is pressed that doesn't correspond
+with the reverse search. Cancelling is possible by pressing `escape` or
+`<ctrl> + C`.
+
+Changing the direction immediately searches for the next entry in the expected
+direction from the current position on.
 
 ### Custom Evaluation Functions
 
@@ -328,17 +348,27 @@ function myWriter(output) {
 }
 ```
 
-## Class: REPLServer
+## Class: `REPLServer`
 <!-- YAML
 added: v0.1.91
 -->
 
+* `options` {Object|string} See [`repl.start()`][]
 * Extends: {readline.Interface}
 
-Instances of `repl.REPLServer` are created using the `repl.start()` method and
-*should not* be created directly using the JavaScript `new` keyword.
+Instances of `repl.REPLServer` are created using the [`repl.start()`][] method
+or directly using the JavaScript `new` keyword.
 
-### Event: 'exit'
+```js
+const repl = require('repl');
+
+const options = { useColors: true };
+
+const firstInstance = repl.start(options);
+const secondInstance = new repl.REPLServer(options);
+```
+
+### Event: `'exit'`
 <!-- YAML
 added: v0.7.7
 -->
@@ -355,7 +385,7 @@ replServer.on('exit', () => {
 });
 ```
 
-### Event: 'reset'
+### Event: `'reset'`
 <!-- YAML
 added: v0.11.0
 -->
@@ -400,7 +430,7 @@ Clearing context...
 >
 ```
 
-### replServer.defineCommand(keyword, cmd)
+### `replServer.defineCommand(keyword, cmd)`
 <!-- YAML
 added: v0.3.0
 -->
@@ -446,7 +476,7 @@ Hello, Node.js User!
 Goodbye!
 ```
 
-### replServer.displayPrompt(\[preserveCursor\])
+### `replServer.displayPrompt([preserveCursor])`
 <!-- YAML
 added: v0.1.91
 -->
@@ -466,7 +496,7 @@ The `replServer.displayPrompt` method is primarily intended to be called from
 within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### replServer.clearBufferedCommand()
+### `replServer.clearBufferedCommand()`
 <!-- YAML
 added: v9.0.0
 -->
@@ -476,7 +506,7 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### replServer.parseREPLKeyword(keyword\[, rest\])
+### `replServer.parseREPLKeyword(keyword[, rest])`
 <!-- YAML
 added: v0.8.9
 deprecated: v9.0.0
@@ -491,7 +521,7 @@ deprecated: v9.0.0
 An internal method used to parse and execute `REPLServer` keywords.
 Returns `true` if `keyword` is a valid keyword, otherwise `false`.
 
-### replServer.setupHistory(historyPath, callback)
+### `replServer.setupHistory(historyPath, callback)`
 <!-- YAML
 added: v11.10.0
 -->
@@ -507,10 +537,13 @@ by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
 
-## repl.start(\[options\])
+## `repl.start([options])`
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: v13.4.0
+    pr-url: https://github.com/nodejs/node/pull/30811
+    description: The `preview` option is now available.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26518
     description: The `terminal` option now follows the default description in
@@ -563,6 +596,10 @@ changes:
   * `breakEvalOnSigint` {boolean} Stop evaluating the current piece of code when
     `SIGINT` is received, such as when `Ctrl+C` is pressed. This cannot be used
     together with a custom `eval` function. **Default:** `false`.
+  * `preview` {boolean} Defines if the repl prints autocomplete and output
+    previews or not. **Default:** `true` with the default eval function and
+    `false` in case a custom eval function is used. If `terminal` is falsy, then
+    there are no previews and the value of `preview` has no effect.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
@@ -690,6 +727,7 @@ a `net.Server` and `net.Socket` instance, see:
 For an example of running a REPL instance over [curl(1)][], see:
 <https://gist.github.com/TooTallNate/2053342>.
 
+[ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--experimental-repl-await`]: cli.html#cli_experimental_repl_await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.html#errors_err_domain_cannot_set_uncaught_exception_capture
@@ -698,6 +736,7 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [`repl.ReplServer`]: #repl_class_replserver
+[`repl.start()`]: #repl_repl_start_options
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html

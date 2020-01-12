@@ -1,25 +1,25 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const path = require('path');
 const assert = require('assert');
 const { Worker } = require('worker_threads');
 
 {
-  const expectedErr = common.expectsError({
+  const expectedErr = {
     code: 'ERR_WORKER_UNSUPPORTED_EXTENSION',
-    type: TypeError
-  }, 3);
+    name: 'TypeError'
+  };
   assert.throws(() => { new Worker('/b'); }, expectedErr);
   assert.throws(() => { new Worker('/c.wasm'); }, expectedErr);
   assert.throws(() => { new Worker('/d.txt'); }, expectedErr);
 }
 
 {
-  const expectedErr = common.expectsError({
+  const expectedErr = {
     code: 'ERR_WORKER_PATH',
-    type: TypeError
-  }, 4);
+    name: 'TypeError'
+  };
   const existingRelPathNoDot = path.relative('.', __filename);
   assert.throws(() => { new Worker(existingRelPathNoDot); }, expectedErr);
   assert.throws(() => { new Worker('relative_no_dot'); }, expectedErr);

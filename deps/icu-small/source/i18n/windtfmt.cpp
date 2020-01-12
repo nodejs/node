@@ -213,7 +213,7 @@ Win32DateFormat &Win32DateFormat::operator=(const Win32DateFormat &other)
     return *this;
 }
 
-Format *Win32DateFormat::clone(void) const
+Win32DateFormat *Win32DateFormat::clone() const
 {
     return new Win32DateFormat(*this);
 }

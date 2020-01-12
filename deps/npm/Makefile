@@ -129,11 +129,11 @@ publish: gitclean ls-ok link docs-clean docs
 	git push origin --tags &&\
 	node bin/npm-cli.js publish --tag=$(PUBLISHTAG)
 
-release: gitclean ls-ok markedclean marked-manclean docs-clean doc
+release: gitclean ls-ok markedclean marked-manclean docs-clean docs
 	node bin/npm-cli.js prune --production --no-save
 	@bash scripts/release.sh
 
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link doc clean uninstall test man docs-clean docclean release ls-ok realclean
+.PHONY: all latest install dev link docs clean uninstall test man docs-clean docclean release ls-ok realclean

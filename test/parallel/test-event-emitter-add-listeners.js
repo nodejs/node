@@ -86,12 +86,12 @@ const EventEmitter = require('events');
 }
 
 // Verify that the listener must be a function
-common.expectsError(() => {
+assert.throws(() => {
   const ee = new EventEmitter();
   ee.on('foo', null);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "listener" argument must be of type Function. ' +
-           'Received type object'
+  name: 'TypeError',
+  message: 'The "listener" argument must be of type function. ' +
+           'Received null'
 });

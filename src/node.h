@@ -298,6 +298,7 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.
+  // This needs to be called right before calling `Isolate::Dispose()`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
 
   // The platform should call the passed function once all state associated
@@ -400,7 +401,6 @@ NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller);
-MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size);
 NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
@@ -892,7 +892,7 @@ class NODE_EXTERN AsyncResource {
 
  private:
   Environment* env_;
-  v8::Persistent<v8::Object> resource_;
+  v8::Global<v8::Object> resource_;
   async_context async_context_;
 };
 

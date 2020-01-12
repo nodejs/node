@@ -243,7 +243,7 @@ struct UToolMemory {
     char name[64];
     int32_t capacity, maxCapacity, size, idx;
     void *array;
-    UAlignedMemory staticArray[1];
+    alignas(max_align_t) char staticArray[1];
 };
 
 U_CAPI UToolMemory * U_EXPORT2

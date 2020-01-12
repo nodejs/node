@@ -9,12 +9,13 @@ socket.on('listening', common.mustCall(() => {
   const result = socket.setTTL(16);
   assert.strictEqual(result, 16);
 
-  common.expectsError(() => {
+  assert.throws(() => {
     socket.setTTL('foo');
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "ttl" argument must be of type number. Received type string'
+    name: 'TypeError',
+    message: 'The "ttl" argument must be of type number. Received type string' +
+             " ('foo')"
   });
 
   // TTL must be a number from > 0 to < 256

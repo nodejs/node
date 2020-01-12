@@ -3,9 +3,9 @@
 
 #include "env-inl.h"
 #include "debug_utils.h"
-#include <algorithm>
-#include <cmath>
-#include <memory>
+#include <algorithm>  // find_if(), find(), move()
+#include <cmath>  // llround()
+#include <memory>  // unique_ptr(), shared_ptr(), make_shared()
 
 namespace node {
 
@@ -511,6 +511,14 @@ double NodePlatform::CurrentClockTimeMillis() {
 TracingController* NodePlatform::GetTracingController() {
   CHECK_NOT_NULL(tracing_controller_);
   return tracing_controller_;
+}
+
+Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
+  return []() {
+    fprintf(stderr, "\n");
+    DumpBacktrace(stderr);
+    fflush(stderr);
+  };
 }
 
 template <class T>

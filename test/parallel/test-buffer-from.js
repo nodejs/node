@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { deepStrictEqual, throws } = require('assert');
 const { runInNewContext } = require('vm');
 
@@ -35,26 +35,26 @@ deepStrictEqual(
 );
 
 [
-  [{}, 'object'],
-  [new Boolean(true), 'boolean'],
-  [{ valueOf() { return null; } }, 'object'],
-  [{ valueOf() { return undefined; } }, 'object'],
-  [{ valueOf: null }, 'object'],
-  [Object.create(null), 'object'],
-  [new Number(true), 'number'],
-  [new MyBadPrimitive(), 'number'],
-  [Symbol(), 'symbol'],
-  [5n, 'bigint'],
-  [(one, two, three) => {}, 'function'],
-  [undefined, 'undefined'],
-  [null, 'object']
-].forEach(([input, actualType]) => {
+  {},
+  new Boolean(true),
+  { valueOf() { return null; } },
+  { valueOf() { return undefined; } },
+  { valueOf: null },
+  Object.create(null),
+  new Number(true),
+  new MyBadPrimitive(),
+  Symbol(),
+  5n,
+  (one, two, three) => {},
+  undefined,
+  null
+].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The first argument must be one of type string, Buffer, ' +
-             'ArrayBuffer, Array, or Array-like Object. Received ' +
-             `type ${actualType}`
+    message: 'The first argument must be of type string or an instance of ' +
+             'Buffer, ArrayBuffer, or Array or an Array-like Object.' +
+             common.invalidArgTypeHelper(input)
   };
   throws(() => Buffer.from(input), errObj);
   throws(() => Buffer.from(input, 'hex'), errObj);

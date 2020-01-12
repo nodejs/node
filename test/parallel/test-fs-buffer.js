@@ -18,15 +18,15 @@ fs.open(buf, 'w+', common.mustCall((err, fd) => {
   fs.close(fd, common.mustCall(assert.ifError));
 }));
 
-common.expectsError(
+assert.throws(
   () => {
     fs.accessSync(true);
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ' Received type boolean'
+    name: 'TypeError',
+    message: 'The "path" argument must be of type string or an instance of ' +
+             'Buffer or URL. Received type boolean (true)'
   }
 );
 

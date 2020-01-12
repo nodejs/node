@@ -280,8 +280,9 @@ function errorMessage (er) {
 
     case 'EEXIST':
       short.push(['', er.message])
-      short.push(['', 'File exists: ' + er.path])
-      detail.push(['', 'Move it away, and try again.'])
+      short.push(['', 'File exists: ' + (er.dest || er.path)])
+      detail.push(['', 'Remove the existing file and try again, or run npm'])
+      detail.push(['', 'with --force to overwrite files recklessly.'])
       break
 
     case 'ENEEDAUTH':

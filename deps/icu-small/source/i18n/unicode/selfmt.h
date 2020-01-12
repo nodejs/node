@@ -18,9 +18,12 @@
 #ifndef SELFMT
 #define SELFMT
 
+#include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/messagepattern.h"
 #include "unicode/numfmt.h"
-#include "unicode/utypes.h"
 
 /**
  * \file
@@ -272,7 +275,7 @@ public:
      * result and should delete it when done.
      * @stable ICU 4.4
      */
-    virtual Format* clone(void) const;
+    virtual SelectFormat* clone() const;
 
     /**
      * Format an object to produce a string.
@@ -364,6 +367,8 @@ private:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _SELFMT
 //eof

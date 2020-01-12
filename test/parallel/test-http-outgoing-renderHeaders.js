@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --expose-internals
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const kOutHeaders = require('internal/http').kOutHeaders;
@@ -11,11 +11,11 @@ const OutgoingMessage = http.OutgoingMessage;
 {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage._header = {};
-  common.expectsError(
-    outgoingMessage._renderHeaders.bind(outgoingMessage),
+  assert.throws(
+    () => outgoingMessage._renderHeaders(),
     {
       code: 'ERR_HTTP_HEADERS_SENT',
-      type: Error,
+      name: 'Error',
       message: 'Cannot render headers after they are sent to the client'
     }
   );

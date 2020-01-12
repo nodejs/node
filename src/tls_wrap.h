@@ -169,6 +169,23 @@ class TLSWrap : public AsyncWrap,
   static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
+#ifndef OPENSSL_NO_PSK
+  static void SetPskIdentityHint(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnablePskCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static unsigned int PskServerCallback(SSL* s,
+                                        const char* identity,
+                                        unsigned char* psk,
+                                        unsigned int max_psk_len);
+  static unsigned int PskClientCallback(SSL* s,
+                                        const char* hint,
+                                        char* identity,
+                                        unsigned int max_identity_len,
+                                        unsigned char* psk,
+                                        unsigned int max_psk_len);
+#endif
+
   crypto::SecureContext* sc_;
   // BIO buffers hold encrypted data.
   BIO* enc_in_ = nullptr;   // StreamListener fills this for SSL_read().

@@ -160,11 +160,12 @@ constexpr size_t kFsStatsBufferLength =
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
-#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
-  V(handle_onclose_symbol, "handle_onclose")                                  \
-  V(no_message_symbol, "no_message_symbol")                                   \
-  V(oninit_symbol, "oninit")                                                  \
-  V(owner_symbol, "owner")                                                    \
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(handle_onclose_symbol, "handle_onclose")                                   \
+  V(no_message_symbol, "no_message_symbol")                                    \
+  V(oninit_symbol, "oninit")                                                   \
+  V(owner_symbol, "owner")                                                     \
+  V(onpskexchange_symbol, "onpskexchange")                                     \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -201,7 +202,6 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
-  V(default_string, "default")                                                 \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
@@ -254,6 +254,7 @@ constexpr size_t kFsStatsBufferLength =
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
+  V(identity_string, "identity")                                               \
   V(ignore_string, "ignore")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
@@ -324,6 +325,7 @@ constexpr size_t kFsStatsBufferLength =
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
   V(promise_string, "promise")                                                 \
+  V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
   V(raw_string, "raw")                                                         \
@@ -351,6 +353,7 @@ constexpr size_t kFsStatsBufferLength =
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
   V(stack_string, "stack")                                                     \
+  V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
@@ -586,7 +589,7 @@ struct AllocatedBuffer {
 class AsyncRequest : public MemoryRetainer {
  public:
   AsyncRequest() = default;
-  ~AsyncRequest();
+  ~AsyncRequest() override;
 
   AsyncRequest(const AsyncRequest&) = delete;
   AsyncRequest& operator=(const AsyncRequest&) = delete;
@@ -904,7 +907,7 @@ class Environment : public MemoryRetainer {
               const std::vector<std::string>& exec_args,
               Flags flags = Flags(),
               uint64_t thread_id = kNoThreadId);
-  ~Environment();
+  ~Environment() override;
 
   void InitializeLibuv(bool start_profiler_idle_notifier);
   inline const std::vector<std::string>& exec_argv();
@@ -1018,13 +1021,16 @@ class Environment : public MemoryRetainer {
       package_json_cache;
 
   inline double* heap_statistics_buffer() const;
-  inline void set_heap_statistics_buffer(double* pointer);
+  inline void set_heap_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline double* heap_space_statistics_buffer() const;
-  inline void set_heap_space_statistics_buffer(double* pointer);
+  inline void set_heap_space_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline double* heap_code_statistics_buffer() const;
-  inline void set_heap_code_statistics_buffer(double* pointer);
+  inline void set_heap_code_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
@@ -1226,6 +1232,8 @@ class Environment : public MemoryRetainer {
   inline void modify_base_object_count(int64_t delta);
   inline int64_t base_object_count() const;
 
+  inline int32_t stack_trace_limit() const { return 10; }
+
 #if HAVE_INSPECTOR
   void set_coverage_connection(
       std::unique_ptr<profiler::V8CoverageConnection> connection);
@@ -1363,15 +1371,16 @@ class Environment : public MemoryRetainer {
   int handle_cleanup_waiting_ = 0;
   int request_waiting_ = 0;
 
-  double* heap_statistics_buffer_ = nullptr;
-  double* heap_space_statistics_buffer_ = nullptr;
-  double* heap_code_statistics_buffer_ = nullptr;
+  std::shared_ptr<v8::BackingStore> heap_statistics_buffer_;
+  std::shared_ptr<v8::BackingStore> heap_space_statistics_buffer_;
+  std::shared_ptr<v8::BackingStore> heap_code_statistics_buffer_;
 
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
 
-  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
+  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {
+      false};
 
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;

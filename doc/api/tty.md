@@ -30,7 +30,7 @@ In most cases, there should be little to no reason for an application to
 manually create instances of the `tty.ReadStream` and `tty.WriteStream`
 classes.
 
-## Class: tty.ReadStream
+## Class: `tty.ReadStream`
 <!-- YAML
 added: v0.5.8
 -->
@@ -41,7 +41,7 @@ Represents the readable side of a TTY. In normal circumstances
 [`process.stdin`][] will be the only `tty.ReadStream` instance in a Node.js
 process and there should be no reason to create additional instances.
 
-### readStream.isRaw
+### `readStream.isRaw`
 <!-- YAML
 added: v0.7.7
 -->
@@ -49,14 +49,14 @@ added: v0.7.7
 A `boolean` that is `true` if the TTY is currently configured to operate as a
 raw device. Defaults to `false`.
 
-### readStream.isTTY
+### `readStream.isTTY`
 <!-- YAML
 added: v0.5.8
 -->
 
 A `boolean` that is always `true` for `tty.ReadStream` instances.
 
-### readStream.setRawMode(mode)
+### `readStream.setRawMode(mode)`
 <!-- YAML
 added: v0.7.7
 -->
@@ -74,7 +74,7 @@ including modifiers. Additionally, all special processing of characters by the
 terminal is disabled, including echoing input characters.
 `CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
 
-## Class: tty.WriteStream
+## Class: `tty.WriteStream`
 <!-- YAML
 added: v0.5.8
 -->
@@ -86,7 +86,7 @@ Represents the writable side of a TTY. In normal circumstances,
 `tty.WriteStream` instances created for a Node.js process and there
 should be no reason to create additional instances.
 
-### Event: 'resize'
+### Event: `'resize'`
 <!-- YAML
 added: v0.7.7
 -->
@@ -102,7 +102,7 @@ process.stdout.on('resize', () => {
 });
 ```
 
-### writeStream.clearLine(dir\[, callback\])
+### `writeStream.clearLine(dir[, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -123,7 +123,7 @@ changes:
 `writeStream.clearLine()` clears the current line of this `WriteStream` in a
 direction identified by `dir`.
 
-### writeStream.clearScreenDown(\[callback\])
+### `writeStream.clearScreenDown([callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -140,7 +140,7 @@ changes:
 `writeStream.clearScreenDown()` clears this `WriteStream` from the current
 cursor down.
 
-### writeStream.columns
+### `writeStream.columns`
 <!-- YAML
 added: v0.7.7
 -->
@@ -148,7 +148,7 @@ added: v0.7.7
 A `number` specifying the number of columns the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
-### writeStream.cursorTo(x\[, y\]\[, callback\])
+### `writeStream.cursorTo(x[, y][, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -167,7 +167,7 @@ changes:
 `writeStream.cursorTo()` moves this `WriteStream`'s cursor to the specified
 position.
 
-### writeStream.getColorDepth(\[env\])
+### `writeStream.getColorDepth([env])`
 <!-- YAML
 added: v9.9.0
 -->
@@ -202,7 +202,7 @@ To enforce a specific color support, use one of the below environment settings.
 Disabling color support is also possible by using the `NO_COLOR` and
 `NODE_DISABLE_COLORS` environment variables.
 
-### writeStream.getWindowSize()
+### `writeStream.getWindowSize()`
 <!-- YAML
 added: v0.7.7
 -->
@@ -214,7 +214,7 @@ corresponding to this `WriteStream`. The array is of the type
 `[numColumns, numRows]` where `numColumns` and `numRows` represent the number
 of columns and rows in the corresponding [TTY](tty.html).
 
-### writeStream.hasColors(\[count\]\[, env\])
+### `writeStream.hasColors([count][, env])`
 <!-- YAML
 added: v11.13.0
 -->
@@ -243,14 +243,14 @@ process.stdout.hasColors(2 ** 24, { TMUX: '1' });
 // Returns false (the environment setting pretends to support 2 ** 8 colors).
 ```
 
-### writeStream.isTTY
+### `writeStream.isTTY`
 <!-- YAML
 added: v0.5.8
 -->
 
 A `boolean` that is always `true`.
 
-### writeStream.moveCursor(dx, dy\[, callback\])
+### `writeStream.moveCursor(dx, dy[, callback])`
 <!-- YAML
 added: v0.7.7
 changes:
@@ -269,7 +269,7 @@ changes:
 `writeStream.moveCursor()` moves this `WriteStream`'s cursor *relative* to its
 current position.
 
-### writeStream.rows
+### `writeStream.rows`
 <!-- YAML
 added: v0.7.7
 -->
@@ -277,7 +277,7 @@ added: v0.7.7
 A `number` specifying the number of rows the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
 
-## tty.isatty(fd)
+## `tty.isatty(fd)`
 <!-- YAML
 added: v0.5.8
 -->

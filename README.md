@@ -8,8 +8,9 @@
   </a>
 </p>
 
-Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. For
-more information on using Node.js, see the [Node.js Website][].
+Node.js is an open-source, cross-platform, JavaScript runtime environment. It
+executes JavaScript code outside of a browser. For more information on using
+Node.js, see the [Node.js Website][].
 
 The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
@@ -49,7 +50,7 @@ Looking for help? Check out the
   each October.
 * **LTS**: Releases that receive Long-term Support, with a focus on stability
   and security. Every even-numbered major version will become an LTS release.
-  LTS releases receive 18 months of _Active LTS_ support and a further 12 months
+  LTS releases receive 12 months of _Active LTS_ support and a further 18 months
   of _Maintenance_. LTS release lines have alphabetically-ordered codenames,
   beginning with v4 Argon. There are no breaking changes or feature additions,
   except in some special circumstances.
@@ -302,6 +303,8 @@ For information about the governance of the Node.js project, see
 **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gengjiawen](https://github.com/gengjiawen) -
 **Jiawen Geng** &lt;technicalcute@gmail.com&gt;
+* [GeoffreyBooth](https://github.com/geoffreybooth) -
+**Geoffrey Booth** &lt;webmaster@geoffreybooth.com&gt; (he/him)
 * [gibfahn](https://github.com/gibfahn) -
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -

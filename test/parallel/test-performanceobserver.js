@@ -31,11 +31,11 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
 
 {
   [1, null, undefined, {}, [], Infinity].forEach((i) => {
-    common.expectsError(
+    assert.throws(
       () => new PerformanceObserver(i),
       {
         code: 'ERR_INVALID_CALLBACK',
-        type: TypeError,
+        name: 'TypeError',
         message: `Callback must be a function. Received ${inspect(i)}`
       }
     );
@@ -43,24 +43,24 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
   const observer = new PerformanceObserver(common.mustNotCall());
 
   [1, null, undefined].forEach((input) => {
-    common.expectsError(
+    assert.throws(
       () => observer.observe(input),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "options" argument must be of type Object. ' +
-                 `Received type ${typeof input}`
+        name: 'TypeError',
+        message: 'The "options" argument must be of type object.' +
+                 common.invalidArgTypeHelper(input)
       });
   });
 
   [1, undefined, null, {}, Infinity].forEach((i) => {
-    common.expectsError(() => observer.observe({ entryTypes: i }),
-                        {
-                          code: 'ERR_INVALID_OPT_VALUE',
-                          type: TypeError,
-                          message: 'The value "[object Object]" is invalid ' +
+    assert.throws(() => observer.observe({ entryTypes: i }),
+                  {
+                    code: 'ERR_INVALID_OPT_VALUE',
+                    name: 'TypeError',
+                    message: 'The value "[object Object]" is invalid ' +
                                    'for option "entryTypes"'
-                        });
+                  });
   });
 
   const obs = new PerformanceObserver(common.mustNotCall());

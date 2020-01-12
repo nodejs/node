@@ -3,24 +3,24 @@ const common = require('../common');
 const assert = require('assert');
 const url = require('url');
 
-const throwsObjsAndReportTypes = new Map([
-  [undefined, 'undefined'],
-  [null, 'object'],
-  [true, 'boolean'],
-  [false, 'boolean'],
-  [0, 'number'],
-  [function() {}, 'function'],
-  [Symbol('foo'), 'symbol']
-]);
+const throwsObjsAndReportTypes = [
+  undefined,
+  null,
+  true,
+  false,
+  0,
+  function() {},
+  Symbol('foo')
+];
 
-for (const [urlObject, type] of throwsObjsAndReportTypes) {
-  common.expectsError(function() {
+for (const urlObject of throwsObjsAndReportTypes) {
+  assert.throws(() => {
     url.format(urlObject);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "urlObject" argument must be one of type Object or string. ' +
-             `Received type ${type}`
+    name: 'TypeError',
+    message: 'The "urlObject" argument must be one of type object or string.' +
+             common.invalidArgTypeHelper(urlObject)
   });
 }
 assert.strictEqual(url.format(''), '');

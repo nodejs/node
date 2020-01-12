@@ -62,7 +62,7 @@ server.listen(common.PIPE, common.mustCall(function() {
         server.close(common.expectsError({
           code: 'ERR_SERVER_NOT_RUNNING',
           message: 'Server is not running.',
-          type: Error
+          name: 'Error'
         }));
       }));
     }));

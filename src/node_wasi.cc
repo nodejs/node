@@ -1,6 +1,8 @@
 #include "env-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils.h"
+#include "memory_tracker-inl.h"
+#include "node_mem-inl.h"
 #include "util-inl.h"
 #include "node.h"
 #include "uv.h"
@@ -72,27 +74,88 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Integer;
+using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
 
 
+static MaybeLocal<Value> WASIException(Local<Context> context,
+                                       int errorno,
+                                       const char* syscall) {
+  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  CHECK_NOT_NULL(env);
+  const char* err_name = uvwasi_embedder_err_code_to_string(errorno);
+  Local<String> js_code = OneByteString(isolate, err_name);
+  Local<String> js_syscall = OneByteString(isolate, syscall);
+  Local<String> js_msg = js_code;
+  js_msg =
+      String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, ", "));
+  js_msg = String::Concat(isolate, js_msg, js_syscall);
+  Local<Object> e =
+    Exception::Error(js_msg)->ToObject(context)
+      .ToLocalChecked();
+
+  if (e->Set(context,
+             env->errno_string(),
+             Integer::New(isolate, errorno)).IsNothing() ||
+      e->Set(context, env->code_string(), js_code).IsNothing() ||
+      e->Set(context, env->syscall_string(), js_syscall).IsNothing()) {
+    return MaybeLocal<Value>();
+  }
+
+  return e;
+}
+
+
 WASI::WASI(Environment* env,
            Local<Object> object,
            uvwasi_options_t* options) : BaseObject(env, object) {
   MakeWeak();
-  CHECK_EQ(uvwasi_init(&uvw_, options), UVWASI_ESUCCESS);
+  alloc_info_ = MakeAllocator();
+  options->allocator = &alloc_info_;
+  int err = uvwasi_init(&uvw_, options);
+  if (err != UVWASI_ESUCCESS) {
+    Local<Context> context = env->context();
+    MaybeLocal<Value> exception = WASIException(context, err, "uvwasi_init");
+
+    if (exception.IsEmpty())
+      return;
+
+    context->GetIsolate()->ThrowException(exception.ToLocalChecked());
+  }
 }
 
 
 WASI::~WASI() {
   uvwasi_destroy(&uvw_);
+  CHECK_EQ(current_uvwasi_memory_, 0);
 }
 
+void WASI::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("memory", memory_);
+  tracker->TrackFieldWithSize("uvwasi_memory", current_uvwasi_memory_);
+}
+
+void WASI::CheckAllocatedSize(size_t previous_size) const {
+  CHECK_GE(current_uvwasi_memory_, previous_size);
+}
+
+void WASI::IncreaseAllocatedSize(size_t size) {
+  current_uvwasi_memory_ += size;
+}
+
+void WASI::DecreaseAllocatedSize(size_t size) {
+  current_uvwasi_memory_ -= size;
+}
 
 void WASI::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
@@ -134,7 +197,7 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   Local<Array> preopens = args[2].As<Array>();
   CHECK_EQ(preopens->Length() % 2, 0);
   options.preopenc = preopens->Length() / 2;
-  options.preopens = UncheckedCalloc<uvwasi_preopen_t>(options.preopenc);
+  options.preopens = Calloc<uvwasi_preopen_t>(options.preopenc);
   int index = 0;
   for (uint32_t i = 0; i < preopens->Length(); i += 2) {
     auto mapped = preopens->Get(context, i).ToLocalChecked();
@@ -144,7 +207,9 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
     node::Utf8Value mapped_path(env->isolate(), mapped);
     node::Utf8Value real_path(env->isolate(), real);
     options.preopens[index].mapped_path = strdup(*mapped_path);
+    CHECK_NOT_NULL(options.preopens[index].mapped_path);
     options.preopens[index].real_path = strdup(*real_path);
+    CHECK_NOT_NULL(options.preopens[index].real_path);
     index++;
   }
 
@@ -160,6 +225,15 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
     for (uint32_t i = 0; options.envp[i]; i++)
       free(options.envp[i]);
     delete[] options.envp;
+  }
+
+  if (options.preopens != nullptr) {
+    for (uint32_t i = 0; i < options.preopenc; i++) {
+      free(options.preopens[i].mapped_path);
+      free(options.preopens[i].real_path);
+    }
+
+    delete[] options.preopens;
   }
 }
 
@@ -471,7 +545,7 @@ void WASI::FdFilestatGet(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_filestat_get(%d, %d)\n", fd, buf);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
-  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 56);
+  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 64);
   uvwasi_filestat_t stats;
   uvwasi_errno_t err = uvwasi_fd_filestat_get(&wasi->uvw_, fd, &stats);
 
@@ -479,11 +553,11 @@ void WASI::FdFilestatGet(const FunctionCallbackInfo<Value>& args) {
     wasi->writeUInt64(memory, stats.st_dev, buf);
     wasi->writeUInt64(memory, stats.st_ino, buf + 8);
     wasi->writeUInt8(memory, stats.st_filetype, buf + 16);
-    wasi->writeUInt32(memory, stats.st_nlink, buf + 20);
-    wasi->writeUInt64(memory, stats.st_size, buf + 24);
-    wasi->writeUInt64(memory, stats.st_atim, buf + 32);
-    wasi->writeUInt64(memory, stats.st_mtim, buf + 40);
-    wasi->writeUInt64(memory, stats.st_ctim, buf + 48);
+    wasi->writeUInt64(memory, stats.st_nlink, buf + 24);
+    wasi->writeUInt64(memory, stats.st_size, buf + 32);
+    wasi->writeUInt64(memory, stats.st_atim, buf + 40);
+    wasi->writeUInt64(memory, stats.st_mtim, buf + 48);
+    wasi->writeUInt64(memory, stats.st_ctim, buf + 56);
   }
 
   args.GetReturnValue().Set(err);
@@ -995,7 +1069,7 @@ void WASI::PathFilestatGet(const FunctionCallbackInfo<Value>& args) {
         path_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, path_ptr, path_len);
-  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf_ptr, 56);
+  CHECK_BOUNDS_OR_RETURN(args, mem_size, buf_ptr, 64);
   uvwasi_filestat_t stats;
   uvwasi_errno_t err = uvwasi_path_filestat_get(&wasi->uvw_,
                                                 fd,
@@ -1007,11 +1081,11 @@ void WASI::PathFilestatGet(const FunctionCallbackInfo<Value>& args) {
     wasi->writeUInt64(memory, stats.st_dev, buf_ptr);
     wasi->writeUInt64(memory, stats.st_ino, buf_ptr + 8);
     wasi->writeUInt8(memory, stats.st_filetype, buf_ptr + 16);
-    wasi->writeUInt32(memory, stats.st_nlink, buf_ptr + 20);
-    wasi->writeUInt64(memory, stats.st_size, buf_ptr + 24);
-    wasi->writeUInt64(memory, stats.st_atim, buf_ptr + 32);
-    wasi->writeUInt64(memory, stats.st_mtim, buf_ptr + 40);
-    wasi->writeUInt64(memory, stats.st_ctim, buf_ptr + 48);
+    wasi->writeUInt64(memory, stats.st_nlink, buf_ptr + 24);
+    wasi->writeUInt64(memory, stats.st_size, buf_ptr + 32);
+    wasi->writeUInt64(memory, stats.st_atim, buf_ptr + 40);
+    wasi->writeUInt64(memory, stats.st_mtim, buf_ptr + 48);
+    wasi->writeUInt64(memory, stats.st_ctim, buf_ptr + 56);
   }
 
   args.GetReturnValue().Set(err);
@@ -1349,7 +1423,7 @@ void WASI::PollOneoff(const FunctionCallbackInfo<Value>& args) {
         nsubscriptions,
         nevents_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
-  CHECK_BOUNDS_OR_RETURN(args, mem_size, in_ptr, nsubscriptions * 56);
+  CHECK_BOUNDS_OR_RETURN(args, mem_size, in_ptr, nsubscriptions * 48);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, out_ptr, nsubscriptions * 32);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, nevents_ptr, 4);
   uvwasi_subscription_t* in =
@@ -1374,11 +1448,10 @@ void WASI::PollOneoff(const FunctionCallbackInfo<Value>& args) {
     wasi->readUInt8(memory, &sub.type, in_ptr + 8);
 
     if (sub.type == UVWASI_EVENTTYPE_CLOCK) {
-      wasi->readUInt64(memory, &sub.u.clock.identifier, in_ptr + 16);
-      wasi->readUInt32(memory, &sub.u.clock.clock_id, in_ptr + 24);
-      wasi->readUInt64(memory, &sub.u.clock.timeout, in_ptr + 32);
-      wasi->readUInt64(memory, &sub.u.clock.precision, in_ptr + 40);
-      wasi->readUInt16(memory, &sub.u.clock.flags, in_ptr + 48);
+      wasi->readUInt32(memory, &sub.u.clock.clock_id, in_ptr + 16);
+      wasi->readUInt64(memory, &sub.u.clock.timeout, in_ptr + 24);
+      wasi->readUInt64(memory, &sub.u.clock.precision, in_ptr + 32);
+      wasi->readUInt16(memory, &sub.u.clock.flags, in_ptr + 40);
     } else if (sub.type == UVWASI_EVENTTYPE_FD_READ ||
                sub.type == UVWASI_EVENTTYPE_FD_WRITE) {
       wasi->readUInt32(memory, &sub.u.fd_readwrite.fd, in_ptr + 16);

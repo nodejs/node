@@ -122,8 +122,9 @@ enum {
     QUIET,
     WITHOUT_ASSEMBLY,
     PDS_BUILD,
-    UWP_BUILD,
-    UWP_ARM_BUILD
+    WIN_UWP_BUILD,
+    WIN_DLL_ARCH,
+    WIN_DYNAMICBASE
 };
 
 /* This sets the modes that are available */
@@ -167,7 +168,8 @@ static UOption options[]={
     /*20*/    UOPTION_DEF( "without-assembly", 'w', UOPT_NO_ARG),
     /*21*/    UOPTION_DEF("zos-pds-build", 'z', UOPT_NO_ARG),
     /*22*/    UOPTION_DEF("windows-uwp-build", 'u', UOPT_NO_ARG),
-    /*23*/    UOPTION_DEF("windows-uwp-arm-build", 'a', UOPT_NO_ARG)
+    /*23*/    UOPTION_DEF("windows-DLL-arch", 'a', UOPT_REQUIRES_ARG),
+    /*24*/    UOPTION_DEF("windows-dynamicbase", 'b', UOPT_NO_ARG),
 };
 
 /* This enum and the following char array should be kept in sync. */
@@ -258,7 +260,8 @@ const char options_help[][320]={
     "Build the data without assembly code",
     "Build PDS dataset (zOS build only)",
     "Build for Universal Windows Platform (Windows build only)",
-    "Set DLL machine type for UWP to target windows ARM (Windows UWP build only)"
+    "Specify the DLL machine architecture for LINK.exe (Windows build only)",
+    "Ignored. Enable DYNAMICBASE on the DLL. This is now the default. (Windows build only)",
 };
 
 const char  *progname = "PKGDATA";
@@ -466,6 +469,10 @@ main(int argc, char* argv[]) {
 #else
         o.withoutAssembly = TRUE;
 #endif
+    }
+
+    if (options[WIN_DYNAMICBASE].doesOccur) {
+        fprintf(stdout, "Note: Ignoring option -b (windows-dynamicbase).\n");
     }
 
     /* OK options are set up. Now the file lists. */
@@ -718,7 +725,13 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                 if (genccodeAssembly &&
                     (uprv_strlen(genccodeAssembly)>3) &&
                     checkAssemblyHeaderName(genccodeAssembly+3)) {
-                    writeAssemblyCode(datFileNamePath, o->tmpDir, o->entryName, NULL, gencFilePath);
+                    writeAssemblyCode(
+                        datFileNamePath,
+                        o->tmpDir,
+                        o->entryName,
+                        NULL,
+                        gencFilePath,
+                        sizeof(gencFilePath));
 
                     result = pkg_createWithAssemblyCode(targetDir, mode, gencFilePath);
                     if (result != 0) {
@@ -753,7 +766,14 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                     /* Try to detect the arch type, use NULL if unsuccessful */
                     char optMatchArch[10] = { 0 };
                     pkg_createOptMatchArch(optMatchArch);
-                    writeObjectCode(datFileNamePath, o->tmpDir, o->entryName, (optMatchArch[0] == 0 ? NULL : optMatchArch), NULL, gencFilePath);
+                    writeObjectCode(
+                        datFileNamePath,
+                        o->tmpDir,
+                        o->entryName,
+                        (optMatchArch[0] == 0 ? NULL : optMatchArch),
+                        NULL,
+                        gencFilePath,
+                        sizeof(gencFilePath));
                     pkg_destroyOptMatchArch(optMatchArch);
 #if U_PLATFORM_IS_LINUX_BASED
                     result = pkg_generateLibraryFile(targetDir, mode, gencFilePath);
@@ -1685,7 +1705,13 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
               printf("# Generating %s \n", gencmnFile);
             }
 
-            writeCCode(file, o->tmpDir, dataName[0] != 0 ? dataName : o->shortName, newName[0] != 0 ? newName : NULL, gencmnFile);
+            writeCCode(
+                file,
+                o->tmpDir,
+                dataName[0] != 0 ? dataName : o->shortName,
+                newName[0] != 0 ? newName : NULL,
+                gencmnFile,
+                sizeof(gencmnFile));
 
 #ifdef USE_SINGLE_CCODE_FILE
             sprintf(cmd, "#include \"%s\"\n", gencmnFile);
@@ -1758,14 +1784,12 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
 
 #ifdef WINDOWS_WITH_MSVC
 #define LINK_CMD "link.exe /nologo /release /out:"
-#define LINK_FLAGS "/DLL /NOENTRY /MANIFEST:NO /implib:"
-#ifdef _WIN64
-#define LINK_EXTRA_UWP_FLAGS "/NXCOMPAT /DYNAMICBASE /APPCONTAINER "
-#else
-#define LINK_EXTRA_UWP_FLAGS "/NXCOMPAT /SAFESEH /DYNAMICBASE /APPCONTAINER /MACHINE:X86"
-#endif
-#define LINK_EXTRA_UWP_FLAGS_ARM "/NXCOMPAT /DYNAMICBASE /APPCONTAINER /MACHINE:ARM"
-#define LINK_EXTRA_NO_UWP_FLAGS "/base:0x4ad00000 "
+#define LINK_FLAGS "/NXCOMPAT /DYNAMICBASE /DLL /NOENTRY /MANIFEST:NO /implib:"
+
+#define LINK_EXTRA_UWP_FLAGS "/APPCONTAINER "
+#define LINK_EXTRA_UWP_FLAGS_X86_ONLY "/SAFESEH "
+
+#define LINK_EXTRA_FLAGS_MACHINE "/MACHINE:"
 #define LIB_CMD "LIB.exe /nologo /out:"
 #define LIB_FILE "icudt.lib"
 #define LIB_EXT UDATA_LIB_SUFFIX
@@ -1845,23 +1869,23 @@ static int32_t pkg_createWindowsDLL(const char mode, const char *gencFilePath, U
           return 0;
         }
 
-        char *extraFlags = "";
+        char extraFlags[SMALL_BUFFER_MAX_SIZE] = "";
 #ifdef WINDOWS_WITH_MSVC
-        if (options[UWP_BUILD].doesOccur)
-        {
-            if (options[UWP_ARM_BUILD].doesOccur)
-            {
-                extraFlags = LINK_EXTRA_UWP_FLAGS_ARM;
-            }
-            else
-            {
-                extraFlags = LINK_EXTRA_UWP_FLAGS;
+        if (options[WIN_UWP_BUILD].doesOccur) {
+            uprv_strcat(extraFlags, LINK_EXTRA_UWP_FLAGS);
+
+            if (options[WIN_DLL_ARCH].doesOccur) {
+                if (uprv_strcmp(options[WIN_DLL_ARCH].value, "X86") == 0) {
+                    uprv_strcat(extraFlags, LINK_EXTRA_UWP_FLAGS_X86_ONLY);
+                }
             }
         }
-        else
-        {
-            extraFlags = LINK_EXTRA_NO_UWP_FLAGS;
+
+        if (options[WIN_DLL_ARCH].doesOccur) {
+            uprv_strcat(extraFlags, LINK_EXTRA_FLAGS_MACHINE);
+            uprv_strcat(extraFlags, options[WIN_DLL_ARCH].value);
         }
+
 #endif
         sprintf(cmd, "%s\"%s\" %s %s\"%s\" \"%s\" %s",
             LINK_CMD,

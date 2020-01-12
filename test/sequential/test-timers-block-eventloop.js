@@ -1,7 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
+const { sleep } = require('internal/util');
 
 let called = false;
 const t1 = setInterval(() => {
@@ -14,5 +16,5 @@ const t1 = setInterval(() => {
 }, 10);
 
 const t2 = setInterval(() => {
-  common.busyLoop(20);
+  sleep(20);
 }, 10);

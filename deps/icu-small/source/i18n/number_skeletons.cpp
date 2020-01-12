@@ -20,6 +20,7 @@
 #include "unicode/numberformatter.h"
 #include "uinvchar.h"
 #include "charstr.h"
+#include "string_segment.h"
 
 using namespace icu;
 using namespace icu::number;
@@ -119,17 +120,17 @@ inline void appendMultiple(UnicodeString& sb, UChar32 cp, int32_t count) {
 
 
 #define CHECK_NULL(seen, field, status) (void)(seen); /* for auto-format line wrapping */ \
-{ \
+UPRV_BLOCK_MACRO_BEGIN { \
     if ((seen).field) { \
         (status) = U_NUMBER_SKELETON_SYNTAX_ERROR; \
         return STATE_NULL; \
     } \
     (seen).field = true; \
-}
+} UPRV_BLOCK_MACRO_END
 
 
 #define SKELETON_UCHAR_TO_CHAR(dest, src, start, end, status) (void)(dest); \
-{ \
+UPRV_BLOCK_MACRO_BEGIN { \
     UErrorCode conversionStatus = U_ZERO_ERROR; \
     (dest).appendInvariantChars({FALSE, (src).getBuffer() + (start), (end) - (start)}, conversionStatus); \
     if (conversionStatus == U_INVARIANT_CONVERSION_ERROR) { \
@@ -140,7 +141,7 @@ inline void appendMultiple(UnicodeString& sb, UChar32 cp, int32_t count) {
         (status) = conversionStatus; \
         return; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 
 } // anonymous namespace
@@ -1217,7 +1218,7 @@ void blueprint_helpers::parseIntegerWidthOption(const StringSegment& segment, Ma
         maxInt = 0;
     }
     for (; offset < segment.length(); offset++) {
-        if (segment.charAt(offset) == u'#') {
+        if (maxInt != -1 && segment.charAt(offset) == u'#') {
             maxInt++;
         } else {
             break;

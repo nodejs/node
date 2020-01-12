@@ -87,31 +87,31 @@ function testCipher3(key, iv) {
   assert(instance instanceof Cipheriv, 'Cipheriv is expected to return a new ' +
                                        'instance when called without `new`');
 
-  common.expectsError(
+  assert.throws(
     () => crypto.createCipheriv(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received null'
     });
 
-  common.expectsError(
+  assert.throws(
     () => crypto.createCipheriv('des-ede3-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
-               'DataView, string, or KeyObject. Received type object'
+      name: 'TypeError',
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject. Received null'
     });
 
-  common.expectsError(
+  assert.throws(
     () => crypto.createCipheriv('des-ede3-cbc', key, 10),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "iv" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type number'
+      name: 'TypeError',
+      message: 'The "iv" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, or DataView. Received type number (10)'
     });
 }
 
@@ -124,31 +124,31 @@ function testCipher3(key, iv) {
   assert(instance instanceof Decipheriv, 'Decipheriv expected to return a new' +
                                          ' instance when called without `new`');
 
-  common.expectsError(
+  assert.throws(
     () => crypto.createDecipheriv(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "cipher" argument must be of type string. ' +
-               'Received type object'
+               'Received null'
     });
 
-  common.expectsError(
+  assert.throws(
     () => crypto.createDecipheriv('des-ede3-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
-               'DataView, string, or KeyObject. Received type object'
+      name: 'TypeError',
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject. Received null'
     });
 
-  common.expectsError(
+  assert.throws(
     () => crypto.createDecipheriv('des-ede3-cbc', key, 10),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "iv" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView. Received type number'
+      name: 'TypeError',
+      message: 'The "iv" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, or DataView. Received type number (10)'
     });
 }
 

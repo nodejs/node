@@ -48,13 +48,14 @@ assert.strictEqual(dh2.verifyError, 0);
   /abc/,
   {}
 ].forEach((input) => {
-  common.expectsError(
+  assert.throws(
     () => crypto.createDiffieHellman(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "sizeOrKey" argument must be one of type number, string, ' +
-               `Buffer, TypedArray, or DataView. Received type ${typeof input}`
+      name: 'TypeError',
+      message: 'The "sizeOrKey" argument must be one of type number or string' +
+               ' or an instance of Buffer, TypedArray, or DataView.' +
+               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -232,11 +233,11 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert(firstByte === 6 || firstByte === 7);
   // Format value should be string
 
-  common.expectsError(
+  assert.throws(
     () => ecdh1.getPublicKey('buffer', 10),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Invalid ECDH format: 10'
     });
 
@@ -244,11 +245,11 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const ecdh3 = crypto.createECDH('secp256k1');
   const key3 = ecdh3.generateKeys();
 
-  common.expectsError(
+  assert.throws(
     () => ecdh2.computeSecret(key3, 'latin1', 'buffer'),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
-      type: Error,
+      name: 'Error',
       message: 'Public key is not valid for specified curve'
     });
 
@@ -357,11 +358,11 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   const invalidKey = Buffer.alloc(65);
   invalidKey.fill('\0');
   curve.generateKeys();
-  common.expectsError(
+  assert.throws(
     () => curve.computeSecret(invalidKey),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
-      type: Error,
+      name: 'Error',
       message: 'Public key is not valid for specified curve'
     });
   // Check that signing operations are not impacted by the above error.
@@ -375,13 +376,13 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
 }
 
 // Invalid test: curve argument is undefined
-common.expectsError(
+assert.throws(
   () => crypto.createECDH(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "curve" argument must be of type string. ' +
-             'Received type undefined'
+             'Received undefined'
   });
 
 assert.throws(

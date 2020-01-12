@@ -65,37 +65,37 @@ async function promise() {
 
 promise().then(common.mustCall()).catch(common.mustNotCall());
 
-common.expectsError(
+assert.throws(
   () => fs.open(__filename, 'r', 'boom', common.mustNotCall()),
   {
     code: 'ERR_INVALID_ARG_VALUE',
-    type: TypeError
+    name: 'TypeError'
   }
 );
 
 for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
-  common.expectsError(
+  assert.throws(
     () => fs.open(__filename, ...extra),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 }
 
 [false, 1, [], {}, null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.open(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.openSync(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
   assert.rejects(

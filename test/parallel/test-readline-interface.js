@@ -357,33 +357,33 @@ function isWarned(emitter) {
   // Constructor throws if completer is not a function or undefined
   {
     const fi = new FakeInput();
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi,
         completer: 'string is not valid'
       });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi,
         completer: ''
       });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi,
         completer: false
       });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
   }
@@ -391,30 +391,30 @@ function isWarned(emitter) {
   // Constructor throws if historySize is not a positive number
   {
     const fi = new FakeInput();
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi, historySize: 'not a number'
       });
     }, {
-      type: RangeError,
+      name: 'RangeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi, historySize: -1
       });
     }, {
-      type: RangeError,
+      name: 'RangeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
 
-    common.expectsError(function() {
+    assert.throws(() => {
       readline.createInterface({
         input: fi, historySize: NaN
       });
     }, {
-      type: RangeError,
+      name: 'RangeError',
       code: 'ERR_INVALID_OPT_VALUE'
     });
   }
@@ -430,6 +430,7 @@ function isWarned(emitter) {
       removeHistoryDuplicates: true
     });
     const expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
+    // ['foo', 'baz', 'bar', bat'];
     let callCount = 0;
     rli.on('line', function(line) {
       assert.strictEqual(line, expectedLines[callCount]);
@@ -450,12 +451,51 @@ function isWarned(emitter) {
     assert.strictEqual(callCount, 0);
     fi.emit('keypress', '.', { name: 'down' }); // 'baz'
     assert.strictEqual(rli.line, 'baz');
+    assert.strictEqual(rli.historyIndex, 2);
     fi.emit('keypress', '.', { name: 'n', ctrl: true }); // 'bar'
     assert.strictEqual(rli.line, 'bar');
+    assert.strictEqual(rli.historyIndex, 1);
+    fi.emit('keypress', '.', { name: 'n', ctrl: true });
+    assert.strictEqual(rli.line, 'bat');
+    assert.strictEqual(rli.historyIndex, 0);
+    // Activate the substring history search.
     fi.emit('keypress', '.', { name: 'down' }); // 'bat'
     assert.strictEqual(rli.line, 'bat');
-    fi.emit('keypress', '.', { name: 'down' }); // ''
-    assert.strictEqual(rli.line, '');
+    assert.strictEqual(rli.historyIndex, -1);
+    // Deactivate substring history search.
+    fi.emit('keypress', '.', { name: 'backspace' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    // Activate the substring history search.
+    fi.emit('keypress', '.', { name: 'down' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    fi.emit('keypress', '.', { name: 'down' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    fi.emit('keypress', '.', { name: 'up' }); // 'bat'
+    assert.strictEqual(rli.historyIndex, 0);
+    assert.strictEqual(rli.line, 'bat');
+    fi.emit('keypress', '.', { name: 'up' }); // 'bar'
+    assert.strictEqual(rli.historyIndex, 1);
+    assert.strictEqual(rli.line, 'bar');
+    fi.emit('keypress', '.', { name: 'up' }); // 'baz'
+    assert.strictEqual(rli.historyIndex, 2);
+    assert.strictEqual(rli.line, 'baz');
+    fi.emit('keypress', '.', { name: 'up' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, 4);
+    assert.strictEqual(rli.line, 'ba');
+    fi.emit('keypress', '.', { name: 'up' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, 4);
+    assert.strictEqual(rli.line, 'ba');
+    // Deactivate substring history search and reset history index.
+    fi.emit('keypress', '.', { name: 'right' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, -1);
+    assert.strictEqual(rli.line, 'ba');
+    // Substring history search activated.
+    fi.emit('keypress', '.', { name: 'up' }); // 'ba'
+    assert.strictEqual(rli.historyIndex, 0);
+    assert.strictEqual(rli.line, 'bat');
     rli.close();
   }
 
@@ -590,7 +630,7 @@ function isWarned(emitter) {
       rli.question(expectedLines[0], function() {
         rli.close();
       });
-      const cursorPos = rli._getCursorPos();
+      const cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, expectedLines[0].length);
       rli.close();
@@ -606,7 +646,7 @@ function isWarned(emitter) {
       rli.question(expectedLines.join('\n'), function() {
         rli.close();
       });
-      const cursorPos = rli._getCursorPos();
+      const cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, expectedLines.length - 1);
       assert.strictEqual(cursorPos.cols, expectedLines.slice(-1)[0].length);
       rli.close();
@@ -623,11 +663,11 @@ function isWarned(emitter) {
       });
       fi.emit('data', 'the quick brown fox');
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
       fi.emit('keypress', '.', { ctrl: true, name: 'e' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
       rli.close();
@@ -643,28 +683,28 @@ function isWarned(emitter) {
         terminal: terminal
       });
       fi.emit('data', 'the quick brown fox');
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
 
       // Back one character
       fi.emit('keypress', '.', { ctrl: true, name: 'b' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 18);
       // Back one character
       fi.emit('keypress', '.', { ctrl: true, name: 'b' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 17);
       // Forward one character
       fi.emit('keypress', '.', { ctrl: true, name: 'f' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 18);
       // Forward one character
       fi.emit('keypress', '.', { ctrl: true, name: 'f' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
       rli.close();
@@ -683,19 +723,15 @@ function isWarned(emitter) {
 
       // Move left one character/code point
       fi.emit('keypress', '.', { name: 'left' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
       // Move right one character/code point
       fi.emit('keypress', '.', { name: 'right' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '💻');
@@ -717,21 +753,14 @@ function isWarned(emitter) {
 
       // Move left one character/code point
       fi.emit('keypress', '.', { name: 'left' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
       fi.emit('data', '🐕');
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-        // Fix cursor position without internationalization
-        fi.emit('keypress', '.', { name: 'left' });
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '🐕💻');
@@ -753,24 +782,14 @@ function isWarned(emitter) {
 
       // Move left one character/code point
       fi.emit('keypress', '.', { name: 'right' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-        // Fix cursor position without internationalization
-        fi.emit('keypress', '.', { name: 'right' });
-      }
+      assert.strictEqual(cursorPos.cols, 2);
 
       fi.emit('data', '🐕');
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 4);
-      } else {
-        assert.strictEqual(cursorPos.cols, 2);
-      }
+      assert.strictEqual(cursorPos.cols, 4);
 
       rli.on('line', common.mustCall((line) => {
         assert.strictEqual(line, '💻🐕');
@@ -790,19 +809,19 @@ function isWarned(emitter) {
       });
       fi.emit('data', 'the quick brown fox');
       fi.emit('keypress', '.', { ctrl: true, name: 'left' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 16);
       fi.emit('keypress', '.', { meta: true, name: 'b' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 10);
       fi.emit('keypress', '.', { ctrl: true, name: 'right' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 16);
       fi.emit('keypress', '.', { meta: true, name: 'f' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
       rli.close();
@@ -904,13 +923,13 @@ function isWarned(emitter) {
         terminal: terminal
       });
       fi.emit('data', 'the quick brown fox');
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
 
       // Delete left character
       fi.emit('keypress', '.', { ctrl: true, name: 'h' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 18);
       rli.on('line', common.mustCall((line) => {
@@ -930,16 +949,12 @@ function isWarned(emitter) {
         terminal: terminal
       });
       fi.emit('data', '💻');
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
-      if (common.hasIntl) {
-        assert.strictEqual(cursorPos.cols, 2);
-      } else {
-        assert.strictEqual(cursorPos.cols, 1);
-      }
+      assert.strictEqual(cursorPos.cols, 2);
       // Delete left character
       fi.emit('keypress', '.', { ctrl: true, name: 'h' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
       rli.on('line', common.mustCall((line) => {
@@ -962,13 +977,13 @@ function isWarned(emitter) {
 
       // Go to the start of the line
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
       // Delete right character
       fi.emit('keypress', '.', { ctrl: true, name: 'd' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
       rli.on('line', common.mustCall((line) => {
@@ -991,13 +1006,13 @@ function isWarned(emitter) {
 
       // Go to the start of the line
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
       // Delete right character
       fi.emit('keypress', '.', { ctrl: true, name: 'd' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
       rli.on('line', common.mustCall((line) => {
@@ -1017,13 +1032,13 @@ function isWarned(emitter) {
         terminal: terminal
       });
       fi.emit('data', 'the quick brown fox');
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 19);
 
       // Delete from current to start of line
       fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'backspace' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
       rli.on('line', common.mustCall((line) => {
@@ -1046,13 +1061,13 @@ function isWarned(emitter) {
 
       // Go to the start of the line
       fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-      let cursorPos = rli._getCursorPos();
+      let cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
 
       // Delete from current to end of line
       fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
-      cursorPos = rli._getCursorPos();
+      cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 0);
       rli.on('line', common.mustCall((line) => {
@@ -1073,7 +1088,7 @@ function isWarned(emitter) {
       });
       fi.columns = 10;
       fi.emit('data', 'multi-line text');
-      const cursorPos = rli._getCursorPos();
+      const cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 1);
       assert.strictEqual(cursorPos.cols, 5);
       rli.close();
@@ -1090,7 +1105,7 @@ function isWarned(emitter) {
       });
       fi.columns = 10;
       fi.emit('data', 't');
-      const cursorPos = rli._getCursorPos();
+      const cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 4);
       assert.strictEqual(cursorPos.cols, 3);
       rli.close();
@@ -1108,7 +1123,7 @@ function isWarned(emitter) {
       const lines = ['line 1', 'line 2', 'line 3'];
       fi.emit('data', lines.join('\n'));
       fi.emit('keypress', '.', { ctrl: true, name: 'l' });
-      const cursorPos = rli._getCursorPos();
+      const cursorPos = rli.getCursorPos();
       assert.strictEqual(cursorPos.rows, 0);
       assert.strictEqual(cursorPos.cols, 6);
       rli.on('line', common.mustCall((line) => {
@@ -1119,27 +1134,24 @@ function isWarned(emitter) {
     }
   }
 
-  // isFullWidthCodePoint() should return false for non-numeric values
-  [true, false, null, undefined, {}, [], 'あ'].forEach((v) => {
-    assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
-  });
-
   // Wide characters should be treated as two columns.
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)),
-                     false);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)),
-                     true);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('谢'.charCodeAt(0)),
-                     true);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('고'.charCodeAt(0)),
-                     true);
-  assert.strictEqual(internalReadline.isFullWidthCodePoint(0x1f251), true);
+  assert.strictEqual(internalReadline.getStringWidth('a'), 1);
+  assert.strictEqual(internalReadline.getStringWidth('あ'), 2);
+  assert.strictEqual(internalReadline.getStringWidth('谢'), 2);
+  assert.strictEqual(internalReadline.getStringWidth('고'), 2);
+  assert.strictEqual(
+    internalReadline.getStringWidth(String.fromCodePoint(0x1f251)), 2);
   assert.strictEqual(internalReadline.getStringWidth('abcde'), 5);
   assert.strictEqual(internalReadline.getStringWidth('古池や'), 6);
   assert.strictEqual(internalReadline.getStringWidth('ノード.js'), 9);
   assert.strictEqual(internalReadline.getStringWidth('你好'), 4);
   assert.strictEqual(internalReadline.getStringWidth('안녕하세요'), 10);
   assert.strictEqual(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
+  assert.strictEqual(internalReadline.getStringWidth('👨‍👩‍👦‍👦'), 8);
+  assert.strictEqual(internalReadline.getStringWidth('🐕𐐷あ💻😀'), 9);
+  // TODO(BridgeAR): This should have a width of 4.
+  assert.strictEqual(internalReadline.getStringWidth('⓬⓪'), 2);
+  assert.strictEqual(internalReadline.getStringWidth('\u0301\u200D\u200E'), 0);
 
   // Check if vt control chars are stripped
   assert.strictEqual(

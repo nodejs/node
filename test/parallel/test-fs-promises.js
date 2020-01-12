@@ -54,7 +54,7 @@ assert.strictEqual(
     .then(common.mustNotCall())
     .catch(common.expectsError({
       code: 'ENOENT',
-      type: Error,
+      name: 'Error',
       message:
         /^ENOENT: no such file or directory, access/
     }));
@@ -203,7 +203,7 @@ async function getHandle(dest) {
         // expect it to be ENOSYS
         common.expectsError({
           code: 'ENOSYS',
-          type: Error
+          name: 'Error'
         })(err);
       }
 
@@ -243,7 +243,7 @@ async function getHandle(dest) {
               lchmod(newLink, newMode),
               common.expectsError({
                 code: 'ERR_METHOD_NOT_IMPLEMENTED',
-                type: Error,
+                name: 'Error',
                 message: 'The lchmod() method is not implemented'
               })
             )
@@ -363,9 +363,7 @@ async function getHandle(dest) {
           async () => mkdir(dir, { recursive }),
           {
             code: 'ERR_INVALID_ARG_TYPE',
-            name: 'TypeError',
-            message: 'The "recursive" argument must be of type boolean. ' +
-              `Received type ${typeof recursive}`
+            name: 'TypeError'
           }
         );
       });

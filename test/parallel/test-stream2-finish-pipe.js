@@ -35,7 +35,10 @@ w._write = function(data, encoding, cb) {
 
 r.pipe(w);
 
-// This might sound unrealistic, but it happens in net.js. When
-// `socket.allowHalfOpen === false`, EOF will cause `.destroySoon()` call which
-// ends the writable side of net.Socket.
-w.end();
+// end() must be called in nextTick or a WRITE_AFTER_END error occurs.
+process.nextTick(() => {
+  // This might sound unrealistic, but it happens in net.js. When
+  // socket.allowHalfOpen === false, EOF will cause .destroySoon() call which
+  // ends the writable side of net.Socket.
+  w.end();
+});

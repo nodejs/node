@@ -1,8 +1,9 @@
 // Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
+require('../common');
 
+const assert = require('assert');
 const { validateOffsetLengthWrite } = require('internal/fs/utils');
 const { kMaxLength } = require('buffer');
 
@@ -11,11 +12,11 @@ const { kMaxLength } = require('buffer');
   const offset = 100;
   const length = 100;
   const byteLength = 50;
-  common.expectsError(
+  assert.throws(
     () => validateOffsetLengthWrite(offset, length, byteLength),
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
+      name: 'RangeError',
       message: 'The value of "offset" is out of range. ' +
                `It must be <= ${byteLength}. Received ${offset}`
     }
@@ -27,11 +28,11 @@ const { kMaxLength } = require('buffer');
   const offset = kMaxLength - 150;
   const length = 200;
   const byteLength = kMaxLength - 100;
-  common.expectsError(
+  assert.throws(
     () => validateOffsetLengthWrite(offset, length, byteLength),
     {
       code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
+      name: 'RangeError',
       message: 'The value of "length" is out of range. ' +
                `It must be <= ${byteLength - offset}. Received ${length}`
     }

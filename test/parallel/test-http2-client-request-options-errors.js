@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 
 // Check if correct errors are emitted when wrong type of data is passed
@@ -38,14 +39,14 @@ server.listen(0, common.mustCall(() => {
         if (type === optionsToTest[option])
           return;
 
-        common.expectsError(
+        assert.throws(
           () => client.request({
             ':method': 'CONNECT',
             ':authority': `localhost:${port}`
           }, {
             [option]: types[type]
           }), {
-            type: TypeError,
+            name: 'TypeError',
             code: 'ERR_INVALID_OPT_VALUE',
             message: `The value "${String(types[type])}" is invalid ` +
                     `for option "${option}"`

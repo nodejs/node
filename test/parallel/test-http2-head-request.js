@@ -7,10 +7,10 @@ const assert = require('assert');
 const http2 = require('http2');
 
 const errCheck = common.expectsError({
-  type: Error,
+  name: 'Error',
   code: 'ERR_STREAM_WRITE_AFTER_END',
   message: 'write after end'
-}, 2);
+}, 1);
 
 const {
   HTTP2_HEADER_PATH,
@@ -27,7 +27,7 @@ server.on('stream', (stream, headers) => {
   stream.respond({ [HTTP2_HEADER_STATUS]: 200 });
 
   // Because this is a head request, the outbound stream is closed automatically
-  stream.on('error', common.mustCall(errCheck));
+  stream.on('error', errCheck);
   stream.write('data');
 });
 
@@ -40,12 +40,6 @@ server.listen(0, () => {
     [HTTP2_HEADER_METHOD]: HTTP2_METHOD_HEAD,
     [HTTP2_HEADER_PATH]: '/'
   });
-
-  // Because it is a HEAD request, the payload is meaningless. The
-  // option.endStream flag is set automatically making the stream
-  // non-writable.
-  req.on('error', common.mustCall(errCheck));
-  req.write('data');
 
   req.on('response', common.mustCall((headers, flags) => {
     assert.strictEqual(headers[HTTP2_HEADER_STATUS], 200);

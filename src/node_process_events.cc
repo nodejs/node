@@ -1,4 +1,5 @@
 #include <cstdarg>
+#include <set>
 
 #include "env-inl.h"
 #include "node_process.h"
@@ -93,6 +94,21 @@ Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...) {
   va_end(ap);
 
   return ProcessEmitWarningGeneric(env, warning);
+}
+
+
+std::set<std::string> experimental_warnings;
+
+Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
+                                          const char* warning) {
+  if (experimental_warnings.find(warning) != experimental_warnings.end())
+    return Nothing<bool>();
+
+  experimental_warnings.insert(warning);
+  std::string message(warning);
+  message.append(
+      " is an experimental feature. This feature could change at any time");
+  return ProcessEmitWarningGeneric(env, message.c_str(), "ExperimentalWarning");
 }
 
 Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,

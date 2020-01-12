@@ -129,13 +129,20 @@ const assert = require('assert');
     cb(expected);
   });
 
+  let ticked = false;
   read.on('end', common.mustNotCall('no end event'));
   read.on('error', common.mustCall((err) => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(read._readableState.errorEmitted, true);
+    assert.strictEqual(read._readableState.errored, true);
     assert.strictEqual(err, expected);
   }));
 
   read.destroy();
+  assert.strictEqual(read._readableState.errorEmitted, false);
+  assert.strictEqual(read._readableState.errored, true);
   assert.strictEqual(read.destroyed, true);
+  ticked = true;
 }
 
 {
@@ -174,10 +181,58 @@ const assert = require('assert');
 
   const expected = new Error('kaboom');
 
-  read.on('close', common.mustCall());
+  let ticked = false;
+  read.on('close', common.mustCall(() => {
+    assert.strictEqual(read._readableState.errorEmitted, false);
+    assert.strictEqual(ticked, true);
+  }));
+  // 'error' should not be emitted since a callback is passed to
+  // destroy(err, callback);
+  read.on('error', common.mustNotCall());
+
+  assert.strictEqual(read._readableState.errored, false);
+  assert.strictEqual(read._readableState.errorEmitted, false);
+
   read.destroy(expected, common.mustCall(function(err) {
+    assert.strictEqual(read._readableState.errored, true);
     assert.strictEqual(err, expected);
   }));
+  assert.strictEqual(read._readableState.errorEmitted, false);
+  assert.strictEqual(read._readableState.errored, true);
+  ticked = true;
+}
+
+{
+  const readable = new Readable({
+    destroy: common.mustCall(function(err, cb) {
+      process.nextTick(cb, new Error('kaboom 1'));
+    }),
+    read() {}
+  });
+
+  let ticked = false;
+  readable.on('close', common.mustCall(() => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(readable._readableState.errorEmitted, true);
+  }));
+  readable.on('error', common.mustCall((err) => {
+    assert.strictEqual(ticked, true);
+    assert.strictEqual(err.message, 'kaboom 2');
+    assert.strictEqual(readable._readableState.errorEmitted, true);
+  }));
+
+  readable.destroy();
+  assert.strictEqual(readable.destroyed, true);
+  assert.strictEqual(readable._readableState.errored, false);
+  assert.strictEqual(readable._readableState.errorEmitted, false);
+
+  // Test case where `readable.destroy()` is called again with an error before
+  // the `_destroy()` callback is called.
+  readable.destroy(new Error('kaboom 2'));
+  assert.strictEqual(readable._readableState.errorEmitted, false);
+  assert.strictEqual(readable._readableState.errored, true);
+
+  ticked = true;
 }
 
 {

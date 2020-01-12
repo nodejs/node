@@ -55,11 +55,11 @@ for (let i = 0; i < validDelays.length; i++) {
 
 for (let i = 0; i < invalidCallbacks.length; i++) {
   [0, 1].forEach((mesc) =>
-    common.expectsError(
+    assert.throws(
       () => s.setTimeout(mesc, invalidCallbacks[i]),
       {
         code: 'ERR_INVALID_CALLBACK',
-        type: TypeError,
+        name: 'TypeError',
         message: 'Callback must be a function. ' +
                  `Received ${inspect(invalidCallbacks[i])}`
       }

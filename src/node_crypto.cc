@@ -2118,7 +2118,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   rsa.reset();
   ec.reset();
 
-  ASN1_TIME_print(bio.get(), X509_get_notBefore(cert));
+  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert));
   BIO_get_mem_ptr(bio.get(), &mem);
   info->Set(context, env->valid_from_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
@@ -2126,7 +2126,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                 mem->length).ToLocalChecked()).Check();
   USE(BIO_reset(bio.get()));
 
-  ASN1_TIME_print(bio.get(), X509_get_notAfter(cert));
+  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert));
   BIO_get_mem_ptr(bio.get(), &mem);
   info->Set(context, env->valid_to_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
@@ -2620,6 +2620,16 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   if (X509* peer_cert = SSL_get_peer_certificate(w->ssl_.get())) {
     X509_free(peer_cert);
     x509_verify_error = SSL_get_verify_result(w->ssl_.get());
+  } else {
+    const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(w->ssl_.get());
+    const SSL_SESSION* sess = SSL_get_session(w->ssl_.get());
+    // Allow no-cert for PSK authentication in TLS1.2 and lower.
+    // In TLS1.3 check that session was reused because TLS1.3 PSK
+    // looks like session resumption. Is there a better way?
+    if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
+        (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
+         SSL_session_reused(w->ssl_.get())))
+      return args.GetReturnValue().SetNull();
   }
 
   if (x509_verify_error == X509_V_OK)
@@ -2685,6 +2695,9 @@ void SSLWrap<Base>::GetCipher(const FunctionCallbackInfo<Value>& args) {
   const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(context, env->name_string(),
             OneByteString(args.GetIsolate(), cipher_name)).Check();
+  const char* cipher_standard_name = SSL_CIPHER_standard_name(c);
+  info->Set(context, env->standard_name_string(),
+            OneByteString(args.GetIsolate(), cipher_standard_name)).Check();
   const char* cipher_version = SSL_CIPHER_get_version(c);
   info->Set(context, env->version_string(),
             OneByteString(args.GetIsolate(), cipher_version)).Check();
@@ -2697,11 +2710,11 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->ssl_env();
-  std::vector<Local<Value>> ret_arr;
 
   SSL* ssl = w->ssl_.get();
   int nsig = SSL_get_shared_sigalgs(ssl, 0, nullptr, nullptr, nullptr, nullptr,
                                     nullptr);
+  MaybeStackBuffer<Local<Value>, 16> ret_arr(nsig);
 
   for (int i = 0; i < nsig; i++) {
     int hash_nid;
@@ -2765,12 +2778,11 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
     } else {
       sig_with_md += "UNDEF";
     }
-
-    ret_arr.push_back(OneByteString(env->isolate(), sig_with_md.c_str()));
+    ret_arr[i] = OneByteString(env->isolate(), sig_with_md.c_str());
   }
 
   args.GetReturnValue().Set(
-                 Array::New(env->isolate(), ret_arr.data(), ret_arr.size()));
+                 Array::New(env->isolate(), ret_arr.out(), ret_arr.length()));
 }
 
 
@@ -5508,8 +5520,9 @@ bool PublicKeyCipher::Cipher(Environment* env,
     // OpenSSL takes ownership of the label, so we need to create a copy.
     void* label = OPENSSL_memdup(oaep_label, oaep_label_len);
     CHECK_NOT_NULL(label);
-    if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(), label,
-                                              oaep_label_len)) {
+    if (0 >= EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.get(),
+                reinterpret_cast<unsigned char*>(label),
+                                      oaep_label_len)) {
       OPENSSL_free(label);
       return false;
     }

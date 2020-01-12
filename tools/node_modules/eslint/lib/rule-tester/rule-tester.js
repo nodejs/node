@@ -596,8 +596,10 @@ class RuleTester {
                         if (hasOwnProperty(error, "suggestions")) {
 
                             // Support asserting there are no suggestions
-                            if (!error.suggestions) {
-                                assert.strictEqual(message.suggestions, error.suggestions, `Error should have no suggestions on error with message: "${message.message}"`);
+                            if (!error.suggestions || (Array.isArray(error.suggestions) && error.suggestions.length === 0)) {
+                                if (Array.isArray(message.suggestions) && message.suggestions.length > 0) {
+                                    assert.fail(`Error should have no suggestions on error with message: "${message.message}"`);
+                                }
                             } else {
                                 assert.strictEqual(Array.isArray(message.suggestions), true, `Error should have an array of suggestions. Instead received "${message.suggestions}" on error with message: "${message.message}"`);
                                 assert.strictEqual(message.suggestions.length, error.suggestions.length, `Error should have ${error.suggestions.length} suggestions. Instead found ${message.suggestions.length} suggestions`);

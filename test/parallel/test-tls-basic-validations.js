@@ -7,80 +7,84 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 
-common.expectsError(
+assert.throws(
   () => tls.createSecureContext({ ciphers: 1 }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "options.ciphers" property must be of type string.' +
-      ' Received type number'
+      ' Received type number (1)'
   });
 
-common.expectsError(
+assert.throws(
   () => tls.createServer({ ciphers: 1 }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "options.ciphers" property must be of type string.' +
-      ' Received type number'
+      ' Received type number (1)'
   });
 
-common.expectsError(
+assert.throws(
   () => tls.createSecureContext({ key: 'dummykey', passphrase: 1 }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Pass phrase must be a string'
   });
 
-common.expectsError(
+assert.throws(
   () => tls.createServer({ key: 'dummykey', passphrase: 1 }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Pass phrase must be a string'
   });
 
-common.expectsError(
+assert.throws(
   () => tls.createServer({ ecdhCurve: 1 }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'ECDH curve name must be a string'
   });
 
-common.expectsError(
+assert.throws(
   () => tls.createServer({ handshakeTimeout: 'abcd' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "options.handshakeTimeout" property must ' +
-              'be of type number. Received type string'
+    name: 'TypeError',
+    message: 'The "options.handshakeTimeout" property must be of type number.' +
+              " Received type string ('abcd')"
   }
 );
 
-common.expectsError(
+assert.throws(
   () => tls.createServer({ sessionTimeout: 'abcd' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Session timeout must be a 32-bit integer'
   });
 
-common.expectsError(
+assert.throws(
   () => tls.createServer({ ticketKeys: 'abcd' }),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Ticket keys must be a buffer'
   });
 
 assert.throws(() => tls.createServer({ ticketKeys: Buffer.alloc(0) }),
               /TypeError: Ticket keys length must be 48 bytes/);
 
-common.expectsInternalAssertion(
+assert.throws(
   () => tls.createSecurePair({}),
-  'context.context must be a NativeSecureContext'
+  {
+    message: 'context must be a SecureContext',
+    code: 'ERR_TLS_INVALID_CONTEXT',
+    name: 'TypeError',
+  }
 );
 
 {
@@ -105,7 +109,7 @@ common.expectsInternalAssertion(
 {
   const protocols = [(new String('a')).repeat(500)];
   const out = {};
-  common.expectsError(
+  assert.throws(
     () => tls.convertALPNProtocols(protocols, out),
     {
       code: 'ERR_OUT_OF_RANGE',
@@ -114,3 +118,15 @@ common.expectsInternalAssertion(
     }
   );
 }
+
+assert.throws(() => { tls.createSecureContext({ minVersion: 'fhqwhgads' }); },
+              {
+                code: 'ERR_TLS_INVALID_PROTOCOL_VERSION',
+                name: 'TypeError'
+              });
+
+assert.throws(() => { tls.createSecureContext({ maxVersion: 'fhqwhgads' }); },
+              {
+                code: 'ERR_TLS_INVALID_PROTOCOL_VERSION',
+                name: 'TypeError'
+              });

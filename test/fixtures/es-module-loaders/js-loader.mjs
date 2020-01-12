@@ -1,20 +1,9 @@
-import { URL } from 'url';
-import { builtinModules } from 'module';
-
-const baseURL = new URL('file://');
-baseURL.pathname = process.cwd() + '/';
-
-export function resolve (specifier, base = baseURL) {
-  if (builtinModules.includes(specifier)) {
+export function getFormat(url, context, defaultGetFormat) {
+  // Load all .js files as ESM, regardless of package scope
+  if (url.endsWith('.js')) {
     return {
-      url: specifier,
-      format: 'builtin'
-    };
+      format: 'module'
+    }
   }
-  // load all dependencies as esm, regardless of file extension
-  const url = new URL(specifier, base).href;
-  return {
-    url,
-    format: 'module'
-  };
+  return defaultGetFormat(url, context, defaultGetFormat);
 }

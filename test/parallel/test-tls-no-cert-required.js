@@ -39,13 +39,14 @@ tls.createServer(assert.fail)
 tls.createServer({})
   .listen(0, common.mustCall(close));
 
-common.expectsError(() => tls.createServer('this is not valid'),
-                    {
-                      code: 'ERR_INVALID_ARG_TYPE',
-                      type: TypeError,
-                      message: 'The "options" argument must be of type ' +
-                               'Object. Received type string'
-                    }
+assert.throws(
+  () => tls.createServer('this is not valid'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "options" argument must be of type object. ' +
+             "Received type string ('this is not valid')"
+  }
 );
 
 tls.createServer()

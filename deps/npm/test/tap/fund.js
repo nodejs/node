@@ -14,6 +14,7 @@ const base = common.pkg
 const noFunding = path.join(base, 'no-funding-package')
 const maintainerOwnsAllDeps = path.join(base, 'maintainer-owns-all-deps')
 const nestedNoFundingPackages = path.join(base, 'nested-no-funding-packages')
+const fundingStringShorthand = path.join(base, 'funding-string-shorthand')
 
 function getFixturePackage ({ name, version, dependencies, funding }, extras) {
   const getDeps = () => Object
@@ -36,6 +37,13 @@ function getFixturePackage ({ name, version, dependencies, funding }, extras) {
 }
 
 const fixture = new Tacks(Dir({
+  'funding-string-shorthand': Dir({
+    'package.json': File({
+      name: 'funding-string-shorthand',
+      version: '0.0.0',
+      funding: 'https://example.com/sponsor'
+    })
+  }),
   'no-funding-package': Dir({
     'package.json': File({
       name: 'no-funding-package',
@@ -251,6 +259,13 @@ testFundCmd({
   assertionMsg: 'should open funding url',
   args: ['.', '--no-browser'],
   opts: { cwd: maintainerOwnsAllDeps }
+})
+
+testFundCmd({
+  title: 'fund using string shorthand',
+  assertionMsg: 'should open string-only url',
+  args: ['.', '--no-browser'],
+  opts: { cwd: fundingStringShorthand }
 })
 
 testFundCmd({

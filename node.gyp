@@ -2,6 +2,8 @@
   'variables': {
     'v8_use_siphash%': 0,
     'v8_trace_maps%': 0,
+    'v8_enable_pointer_compression%': 0,
+    'v8_enable_31bit_smis_on_64bit_arch%': 0,
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
@@ -28,6 +30,10 @@
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',
       'lib/internal/bootstrap/pre_execution.js',
+      'lib/internal/bootstrap/switches/does_own_process_state.js',
+      'lib/internal/bootstrap/switches/does_not_own_process_state.js',
+      'lib/internal/bootstrap/switches/is_main_thread.js',
+      'lib/internal/bootstrap/switches/is_not_main_thread.js',
       'lib/internal/per_context/primordials.js',
       'lib/internal/per_context/domexception.js',
       'lib/async_hooks.js',
@@ -139,7 +145,6 @@
       'lib/internal/main/eval_string.js',
       'lib/internal/main/eval_stdin.js',
       'lib/internal/main/inspect.js',
-      'lib/internal/main/print_bash_completion.js',
       'lib/internal/main/print_help.js',
       'lib/internal/main/prof_process.js',
       'lib/internal/main/repl.js',
@@ -151,9 +156,12 @@
       'lib/internal/modules/cjs/loader.js',
       'lib/internal/modules/esm/loader.js',
       'lib/internal/modules/esm/create_dynamic_module.js',
-      'lib/internal/modules/esm/default_resolve.js',
+      'lib/internal/modules/esm/get_format.js',
+      'lib/internal/modules/esm/get_source.js',
       'lib/internal/modules/esm/module_job.js',
       'lib/internal/modules/esm/module_map.js',
+      'lib/internal/modules/esm/resolve.js',
+      'lib/internal/modules/esm/transform_source.js',
       'lib/internal/modules/esm/translators.js',
       'lib/internal/net.js',
       'lib/internal/options.js',
@@ -162,14 +170,13 @@
       'lib/internal/priority_queue.js',
       'lib/internal/process/esm_loader.js',
       'lib/internal/process/execution.js',
-      'lib/internal/process/main_thread_only.js',
       'lib/internal/process/per_thread.js',
       'lib/internal/process/policy.js',
       'lib/internal/process/promises.js',
-      'lib/internal/process/stdio.js',
       'lib/internal/process/warning.js',
       'lib/internal/process/worker_thread_only.js',
       'lib/internal/process/report.js',
+      'lib/internal/process/signal.js',
       'lib/internal/process/task_queues.js',
       'lib/internal/querystring.js',
       'lib/internal/readline/utils.js',
@@ -294,7 +301,7 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS in ("linux", "mac") and llvm_version != "0.0"', {
+      ['OS == "linux" and llvm_version != "0.0"', {
         'libraries': ['-latomic'],
       }],
     ],
@@ -436,7 +443,7 @@
             },
           },
          }],
-        ['want_separate_host_toolset==0', {
+        ['node_use_node_code_cache=="true"', {
           'dependencies': [
             'mkcodecache',
           ],
@@ -627,6 +634,8 @@
         'src/node_i18n.h',
         'src/node_internals.h',
         'src/node_main_instance.h',
+        'src/node_mem.h',
+        'src/node_mem-inl.h',
         'src/node_messaging.h',
         'src/node_metadata.h',
         'src/node_mutex.h',
@@ -829,10 +838,9 @@
             }],
           ],
         }],
-        [ 'node_use_large_pages=="true" and OS in "linux freebsd mac"', {
+        [ 'OS in "linux freebsd mac" and '
+          'target_arch=="x64"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
-          # The current implementation of Large Pages is under Linux.
-          # Other implementations are possible but not currently supported.
           'sources': [
             'src/large_pages/node_large_page.cc',
             'src/large_pages/node_large_page.h'
@@ -892,22 +900,10 @@
             # Put the code first so it's a dependency and can be used for invocation.
             'tools/js2c.py',
             '<@(library_files)',
-            'config.gypi',
-            'tools/js2c_macros/check_macros.py'
+            'config.gypi'
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-          ],
-          'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'tools/js2c_macros/notrace_macros.py' ]
-            }],
-            [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/js2c_macros/nodcheck_macros.py' ]
-            }],
-            [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/js2c_macros/dcheck_macros.py' ]
-            }]
           ],
           'action': [
             'python', '<@(_inputs)',

@@ -237,17 +237,17 @@ for (const test of TEST_CASES) {
 // throw.
 {
   for (const length of [0, 1, 2, 6, 9, 10, 11, 17]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       const decrypt = crypto.createDecipheriv('aes-128-gcm',
                                               'FxLKsqdmv0E9xrQh',
                                               'qkuZpJWCewa6Szih');
       decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
     }, {
-      type: Error,
+      name: 'Error',
       message: `Invalid authentication tag length: ${length}`
     });
 
-    common.expectsError(() => {
+    assert.throws(() => {
       crypto.createCipheriv('aes-256-gcm',
                             'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                             'qkuZpJWCewa6Szih',
@@ -255,11 +255,11 @@ for (const test of TEST_CASES) {
                               authTagLength: length
                             });
     }, {
-      type: Error,
+      name: 'Error',
       message: `Invalid authentication tag length: ${length}`
     });
 
-    common.expectsError(() => {
+    assert.throws(() => {
       crypto.createDecipheriv('aes-256-gcm',
                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                               'qkuZpJWCewa6Szih',
@@ -267,7 +267,7 @@ for (const test of TEST_CASES) {
                                 authTagLength: length
                               });
     }, {
-      type: Error,
+      name: 'Error',
       message: `Invalid authentication tag length: ${length}`
     });
   }
@@ -298,11 +298,11 @@ for (const test of TEST_CASES) {
                                              authTagLength: 8
                                            });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     // This tag would normally be allowed.
     decipher.setAuthTag(Buffer.from('1'.repeat(12)));
   }, {
-    type: Error,
+    name: 'Error',
     message: 'Invalid authentication tag length: 12'
   });
 
@@ -319,7 +319,7 @@ for (const test of TEST_CASES) {
 // authentication tag length has been specified.
 {
   for (const authTagLength of [-1, true, false, NaN, 5.5]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       crypto.createCipheriv('aes-256-ccm',
                             'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                             'qkuZpJWCewa6S',
@@ -327,13 +327,13 @@ for (const test of TEST_CASES) {
                               authTagLength
                             });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE',
       message: `The value "${authTagLength}" is invalid for option ` +
                '"authTagLength"'
     });
 
-    common.expectsError(() => {
+    assert.throws(() => {
       crypto.createDecipheriv('aes-256-ccm',
                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                               'qkuZpJWCewa6S',
@@ -341,26 +341,26 @@ for (const test of TEST_CASES) {
                                 authTagLength
                               });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE',
       message: `The value "${authTagLength}" is invalid for option ` +
                '"authTagLength"'
     });
 
     if (!common.hasFipsCrypto) {
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_OPT_VALUE',
         message: `The value "${authTagLength}" is invalid for option ` +
                  '"authTagLength"'
       });
 
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_OPT_VALUE',
         message: `The value "${authTagLength}" is invalid for option ` +
                  '"authTagLength"'
@@ -448,10 +448,10 @@ for (const test of TEST_CASES) {
                                        });
 
   for (const plaintextLength of [-1, true, false, NaN, 5.5]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
     }, {
-      type: TypeError,
+      name: 'TypeError',
       code: 'ERR_INVALID_OPT_VALUE',
       message: `The value "${plaintextLength}" is invalid for option ` +
                '"plaintextLength"'

@@ -72,14 +72,14 @@ module.exports = {
                 arrayOfStringsOrObjects,
                 {
                     type: "array",
-                    items: {
+                    items: [{
                         type: "object",
                         properties: {
                             paths: arrayOfStringsOrObjects,
                             patterns: arrayOfStrings
                         },
                         additionalProperties: false
-                    },
+                    }],
                     additionalItems: false
                 }
             ]

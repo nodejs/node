@@ -14,9 +14,9 @@ codebase not related to stylistic issues.
   * [Align function arguments vertically](#align-function-arguments-vertically)
   * [Initialization lists](#initialization-lists)
   * [CamelCase for methods, functions, and classes](#camelcase-for-methods-functions-and-classes)
-  * [snake\_case for local variables and parameters](#snake_case-for-local-variables-and-parameters)
-  * [snake\_case\_ for private class fields](#snake_case_-for-private-class-fields)
-  * [snake\_case for C-like structs](#snake_case-for-c-like-structs)
+  * [`snake_case` for local variables and parameters](#snake_case-for-local-variables-and-parameters)
+  * [`snake_case_` for private class fields](#snake_case_-for-private-class-fields)
+  * [`snake_case` for C-like structs](#snake_case-for-c-like-structs)
   * [Space after `template`](#space-after-template)
 * [Memory Management](#memory-management)
   * [Memory allocation](#memory-allocation)
@@ -155,7 +155,7 @@ class FooBar {
 };
 ```
 
-### snake\_case for local variables and parameters
+### `snake_case` for local variables and parameters
 
 ```c++
 int FunctionThatDoesSomething(const char* important_string) {
@@ -163,7 +163,7 @@ int FunctionThatDoesSomething(const char* important_string) {
 }
 ```
 
-### snake\_case\_ for private class fields
+### `snake_case_` for private class fields
 
 ```c++
 class Foo {
@@ -172,7 +172,8 @@ class Foo {
 };
 ```
 
-### snake\_case for C-like structs
+### `snake_case` for C-like structs
+
 For plain C-like structs snake_case can be used.
 
 ```c++

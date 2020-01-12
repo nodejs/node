@@ -31,6 +31,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: TimeZone object
@@ -321,10 +323,6 @@ public:
      * zone is set to the default host time zone.  This call adopts the TimeZone object
      * passed in; the client is no longer responsible for deleting it.
      *
-     * <p>This function is not thread safe. It is an error for multiple threads
-     * to concurrently attempt to set the default time zone, or for any thread
-     * to attempt to reference the default zone while another thread is setting it.
-     *
      * @param zone  A pointer to the new TimeZone object to use as the default.
      * @stable ICU 2.0
      */
@@ -334,8 +332,6 @@ public:
     /**
      * Same as adoptDefault(), except that the TimeZone object passed in is NOT adopted;
      * the caller remains responsible for deleting it.
-     *
-     * <p>See the thread safety note under adoptDefault().
      *
      * @param zone  The given timezone.
      * @system
@@ -726,6 +722,7 @@ public:
      */
     virtual UBool useDaylightTime(void) const = 0;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Queries if the given date is in daylight savings time in
      * this time zone.
@@ -740,6 +737,7 @@ public:
      * @deprecated ICU 2.4. Use Calendar::inDaylightTime() instead.
      */
     virtual UBool inDaylightTime(UDate date, UErrorCode& status) const = 0;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Returns true if this zone has the same rule and offset as another zone.
@@ -758,7 +756,7 @@ public:
      * @return   A new copy of this TimeZone object.
      * @stable ICU 2.0
      */
-    virtual TimeZone* clone(void) const = 0;
+    virtual TimeZone* clone() const = 0;
 
     /**
      * Return the class ID for this class.  This is useful only for
@@ -971,6 +969,8 @@ TimeZone::setID(const UnicodeString& ID)
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif //_TIMEZONE
 //eof

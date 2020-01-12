@@ -8,6 +8,7 @@
 #include "nghttp2/nghttp2.h"
 
 #include "node_http2_state.h"
+#include "node_mem.h"
 #include "node_perf.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
@@ -44,6 +45,7 @@ using performance::PerformanceEntry;
 #define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
 #define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
 #define DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE 65535
+#define DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL 0
 #define MAX_MAX_FRAME_SIZE 16777215
 #define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
@@ -468,6 +470,7 @@ class Http2Stream : public AsyncWrap,
   int ReadStop() override;
 
   // Required for StreamBase
+  ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
   bool HasWantsWrite() const override { return true; }
@@ -703,7 +706,9 @@ enum SessionBitfieldFlags {
   kSessionHasAltsvcListeners
 };
 
-class Http2Session : public AsyncWrap, public StreamListener {
+class Http2Session : public AsyncWrap,
+                     public StreamListener,
+                     public mem::NgLibMemoryManager<Http2Session, nghttp2_mem> {
  public:
   Http2Session(Environment* env,
                Local<Object> wrap,
@@ -712,7 +717,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   class Http2Ping;
   class Http2Settings;
-  class MemoryAllocatorInfo;
 
   void EmitStatistics();
 
@@ -790,6 +794,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
     tracker->TrackFieldWithSize("outgoing_storage", outgoing_storage_.size());
     tracker->TrackFieldWithSize("pending_rst_streams",
                                 pending_rst_streams_.size() * sizeof(int32_t));
+    tracker->TrackFieldWithSize("nghttp2_memory", current_nghttp2_memory_);
   }
 
   SET_MEMORY_INFO_NAME(Http2Session)
@@ -812,6 +817,11 @@ class Http2Session : public AsyncWrap, public StreamListener {
   uv_buf_t OnStreamAlloc(size_t suggested_size) override;
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
   void OnStreamAfterWrite(WriteWrap* w, int status) override;
+
+  // Implementation for mem::NgLibMemoryManager
+  void CheckAllocatedSize(size_t previous_size) const;
+  void IncreaseAllocatedSize(size_t size);
+  void DecreaseAllocatedSize(size_t size);
 
   // The JavaScript API
   static void New(const FunctionCallbackInfo<Value>& args);
@@ -981,6 +991,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   // JS-accessible numeric fields, as indexed by SessionUint8Fields.
   SessionJSFields js_fields_ = {};
+  v8::Global<v8::ArrayBuffer> js_fields_ab_;
 
   // The session type: client or server
   nghttp2_session_type session_type_;

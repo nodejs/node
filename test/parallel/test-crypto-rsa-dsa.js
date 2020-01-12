@@ -193,7 +193,7 @@ test_rsa('RSA_PKCS1_OAEP_PADDING', undefined, 'sha1');
 test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha1', undefined);
 test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha256');
 test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha512', 'sha512');
-common.expectsError(() => {
+assert.throws(() => {
   test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha512');
 }, {
   code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
@@ -228,7 +228,7 @@ for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
   });
 
   for (const oaepHash of [0, false, null, Symbol(), () => {}]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       fn({
         key: rsaPubPem,
         oaepHash
@@ -239,7 +239,7 @@ for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
   }
 
   for (const oaepLabel of [0, false, null, Symbol(), () => {}, {}, 'foo']) {
-    common.expectsError(() => {
+    assert.throws(() => {
       fn({
         key: rsaPubPem,
         oaepLabel

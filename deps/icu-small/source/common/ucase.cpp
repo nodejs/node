@@ -116,7 +116,7 @@ static const uint8_t flagsOffset[256]={
  *               moved to the last uint16_t of the value, use +1 for beginning of next slot
  * @param value (out) int32_t or uint32_t output if hasSlot, otherwise not modified
  */
-#define GET_SLOT_VALUE(excWord, idx, pExc16, value) \
+#define GET_SLOT_VALUE(excWord, idx, pExc16, value) UPRV_BLOCK_MACRO_BEGIN { \
     if(((excWord)&UCASE_EXC_DOUBLE_SLOTS)==0) { \
         (pExc16)+=SLOT_OFFSET(excWord, idx); \
         (value)=*pExc16; \
@@ -124,7 +124,8 @@ static const uint8_t flagsOffset[256]={
         (pExc16)+=2*SLOT_OFFSET(excWord, idx); \
         (value)=*pExc16++; \
         (value)=((value)<<16)|*pExc16; \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /* simple case mappings ----------------------------------------------------- */
 

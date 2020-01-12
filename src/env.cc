@@ -332,8 +332,8 @@ Environment::Environment(IsolateData* isolate_data,
 
   if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
     trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
-    TracingController* tracing_controller = writer->GetTracingController();
-    tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
+    if (TracingController* tracing_controller = writer->GetTracingController())
+      tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
   }
 
   destroy_async_id_list_.reserve(512);
@@ -409,14 +409,11 @@ Environment::~Environment() {
   if (trace_state_observer_) {
     tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
     CHECK_NOT_NULL(writer);
-    TracingController* tracing_controller = writer->GetTracingController();
-    tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
+    if (TracingController* tracing_controller = writer->GetTracingController())
+      tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
   }
 
-  delete[] heap_statistics_buffer_;
-  delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-  delete[] heap_code_statistics_buffer_;
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
@@ -595,9 +592,9 @@ void Environment::PrintSyncTrace() const {
 
   fprintf(
       stderr, "(node:%d) WARNING: Detected use of sync API\n", uv_os_getpid());
-  PrintStackTrace(
-      isolate(),
-      StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed));
+  PrintStackTrace(isolate(),
+                  StackTrace::CurrentStackTrace(
+                      isolate(), stack_trace_limit(), StackTrace::kDetailed));
 }
 
 void Environment::RunCleanup() {
@@ -940,6 +937,22 @@ void AsyncHooks::grow_async_ids_stack() {
 uv_key_t Environment::thread_local_env = {};
 
 void Environment::Exit(int exit_code) {
+  if (options()->trace_exit) {
+    HandleScope handle_scope(isolate());
+
+    if (is_main_thread()) {
+      fprintf(stderr, "(node:%d) ", uv_os_getpid());
+    } else {
+      fprintf(stderr, "(node:%d, thread:%" PRIu64 ") ",
+              uv_os_getpid(), thread_id());
+    }
+
+    fprintf(
+        stderr, "WARNING: Exited the environment with code %d\n", exit_code);
+    PrintStackTrace(isolate(),
+                    StackTrace::CurrentStackTrace(
+                        isolate(), stack_trace_limit(), StackTrace::kDetailed));
+  }
   if (is_main_thread()) {
     stop_sub_worker_contexts();
     DisposePlatform();

@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // Testing basic buffer read functions
@@ -7,7 +7,7 @@ const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea, 0xcf, 0xff, 0xd9, 0x01, 0xde]);
 
 function read(buff, funx, args, expected) {
   assert.strictEqual(buff[funx](...args), expected);
-  common.expectsError(
+  assert.throws(
     () => buff[funx](-1, args[1]),
     { code: 'ERR_OUT_OF_RANGE' }
   );

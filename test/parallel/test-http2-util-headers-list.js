@@ -175,9 +175,9 @@ const {
     ':statuS': 204,
   };
 
-  common.expectsError(() => mapToHeaders(headers), {
+  assert.throws(() => mapToHeaders(headers), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Header field ":status" must only have a single value'
   });
 }
@@ -224,7 +224,7 @@ const {
   HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS
 ].forEach((name) => {
   const msg = `Header field "${name}" must only have a single value`;
-  common.expectsError(() => mapToHeaders({ [name]: [1, 2, 3] }), {
+  assert.throws(() => mapToHeaders({ [name]: [1, 2, 3] }), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     message: msg
   });
@@ -281,7 +281,7 @@ const {
   'Proxy-Connection',
   'Keep-Alive'
 ].forEach((name) => {
-  common.expectsError(() => mapToHeaders({ [name]: 'abc' }), {
+  assert.throws(() => mapToHeaders({ [name]: 'abc' }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError',
     message: 'HTTP/1 Connection specific headers are forbidden: ' +
@@ -289,14 +289,14 @@ const {
   });
 });
 
-common.expectsError(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
+assert.throws(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
   name: 'TypeError',
   message: 'HTTP/1 Connection specific headers are forbidden: ' +
            `"${HTTP2_HEADER_TE}"`
 });
 
-common.expectsError(
+assert.throws(
   () => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError',

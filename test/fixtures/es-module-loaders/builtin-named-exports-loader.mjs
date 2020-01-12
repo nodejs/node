@@ -1,7 +1,16 @@
 import module from 'module';
 
+export function getFormat(url, context, defaultGetFormat) {
+  if (module.builtinModules.includes(url)) {
+    return {
+      format: 'dynamic'
+    };
+  }
+  return defaultGetFormat(url, context, defaultGetFormat);
+}
+
 export function dynamicInstantiate(url) {
-  const builtinInstance = module._load(url.substr(5));
+  const builtinInstance = module._load(url);
   const builtinExports = ['default', ...Object.keys(builtinInstance)];
   return {
     exports: builtinExports,
@@ -11,14 +20,4 @@ export function dynamicInstantiate(url) {
       exports.default.set(builtinInstance);
     }
   };
-}
-
-export function resolve(specifier, base, defaultResolver) {
-  if (module.builtinModules.includes(specifier)) {
-    return {
-      url: `node:${specifier}`,
-      format: 'dynamic'
-    };
-  }
-  return defaultResolver(specifier, base);
 }

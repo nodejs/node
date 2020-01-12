@@ -295,7 +295,7 @@ class U_I18N_API PatternStringUtils {
      * substitution, and plural forms for CurrencyPluralInfo.
      */
     static void patternInfoToStringBuilder(const AffixPatternProvider& patternInfo, bool isPrefix,
-                                           int8_t signum, UNumberSignDisplay signDisplay,
+                                           Signum signum, UNumberSignDisplay signDisplay,
                                            StandardPlural::Form plural, bool perMilleReplacesPercent,
                                            UnicodeString& output);
 

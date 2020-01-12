@@ -32,33 +32,33 @@ assert.strictEqual(
   }
 }
 
-common.expectsError(
+assert.throws(
   () => crypto.timingSafeEqual(Buffer.from([1, 2, 3]), Buffer.from([1, 2])),
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
-    type: RangeError,
+    name: 'RangeError',
     message: 'Input buffers must have the same byte length'
   }
 );
 
-common.expectsError(
+assert.throws(
   () => crypto.timingSafeEqual('not a buffer', Buffer.from([1, 2])),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message:
-      'The "buf1" argument must be one of type Buffer, TypedArray, or ' +
-      'DataView. Received type string'
+      'The "buf1" argument must be an instance of Buffer, TypedArray, or ' +
+      "DataView. Received type string ('not a buffer')"
   }
 );
 
-common.expectsError(
+assert.throws(
   () => crypto.timingSafeEqual(Buffer.from([1, 2]), 'not a buffer'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message:
-      'The "buf2" argument must be one of type Buffer, TypedArray, or ' +
-      'DataView. Received type string'
+      'The "buf2" argument must be an instance of Buffer, TypedArray, or ' +
+      "DataView. Received type string ('not a buffer')"
   }
 );

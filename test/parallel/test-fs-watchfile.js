@@ -8,27 +8,27 @@ const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 // Basic usage tests.
-common.expectsError(
+assert.throws(
   () => {
     fs.watchFile('./some-file');
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 
-common.expectsError(
+assert.throws(
   () => {
     fs.watchFile('./another-file', {}, 'bad listener');
   },
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 
-common.expectsError(function() {
+assert.throws(() => {
   fs.watchFile(new Object(), common.mustNotCall());
-}, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
+}, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 
 const enoentFile = path.join(tmpdir.path, 'non-existent-file');
 const expectedStatObject = new fs.Stats(

@@ -31,11 +31,11 @@
 #define SHAPE_LOGICAL           U_SHAPE_TEXT_DIRECTION_LOGICAL
 #define SHAPE_VISUAL            U_SHAPE_TEXT_DIRECTION_VISUAL_LTR
 
-#define CHECK_LEN(STR, LEN, ERROR) { \
-        if (LEN == 0) return 0; \
-        if (LEN < -1) { *(ERROR) = U_ILLEGAL_ARGUMENT_ERROR; return 0; } \
-        if (LEN == -1) LEN = u_strlen(STR); \
-    }
+#define CHECK_LEN(STR, LEN, ERROR) UPRV_BLOCK_MACRO_BEGIN { \
+    if (LEN == 0) return 0; \
+    if (LEN < -1) { *(ERROR) = U_ILLEGAL_ARGUMENT_ERROR; return 0; } \
+    if (LEN == -1) LEN = u_strlen(STR); \
+} UPRV_BLOCK_MACRO_END
 
 #define MAX_ACTIONS     7
 

@@ -45,7 +45,7 @@ public:
     WholeStringBreakIterator() : BreakIterator(), length(0) {}
     ~WholeStringBreakIterator() U_OVERRIDE;
     UBool operator==(const BreakIterator&) const U_OVERRIDE;
-    BreakIterator *clone() const U_OVERRIDE;
+    WholeStringBreakIterator *clone() const U_OVERRIDE;
     static UClassID U_EXPORT2 getStaticClassID();
     UClassID getDynamicClassID() const U_OVERRIDE;
     CharacterIterator &getText() const U_OVERRIDE;
@@ -62,9 +62,9 @@ public:
     int32_t preceding(int32_t offset) U_OVERRIDE;
     UBool isBoundary(int32_t offset) U_OVERRIDE;
     int32_t next(int32_t n) U_OVERRIDE;
-    BreakIterator *createBufferClone(void *stackBuffer, int32_t &BufferSize,
-                                     UErrorCode &errorCode) U_OVERRIDE;
-    BreakIterator &refreshInputText(UText *input, UErrorCode &errorCode) U_OVERRIDE;
+    WholeStringBreakIterator *createBufferClone(void *stackBuffer, int32_t &BufferSize,
+                                                UErrorCode &errorCode) U_OVERRIDE;
+    WholeStringBreakIterator &refreshInputText(UText *input, UErrorCode &errorCode) U_OVERRIDE;
 
 private:
     int32_t length;
@@ -74,7 +74,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(WholeStringBreakIterator)
 
 WholeStringBreakIterator::~WholeStringBreakIterator() {}
 UBool WholeStringBreakIterator::operator==(const BreakIterator&) const { return FALSE; }
-BreakIterator *WholeStringBreakIterator::clone() const { return nullptr; }
+WholeStringBreakIterator *WholeStringBreakIterator::clone() const { return nullptr; }
 
 CharacterIterator &WholeStringBreakIterator::getText() const {
     UPRV_UNREACHABLE;  // really should not be called
@@ -113,14 +113,14 @@ int32_t WholeStringBreakIterator::preceding(int32_t /*offset*/) { return 0; }
 UBool WholeStringBreakIterator::isBoundary(int32_t /*offset*/) { return FALSE; }
 int32_t WholeStringBreakIterator::next(int32_t /*n*/) { return length; }
 
-BreakIterator *WholeStringBreakIterator::createBufferClone(
+WholeStringBreakIterator *WholeStringBreakIterator::createBufferClone(
         void * /*stackBuffer*/, int32_t & /*BufferSize*/, UErrorCode &errorCode) {
     if (U_SUCCESS(errorCode)) {
         errorCode = U_UNSUPPORTED_ERROR;
     }
     return nullptr;
 }
-BreakIterator &WholeStringBreakIterator::refreshInputText(
+WholeStringBreakIterator &WholeStringBreakIterator::refreshInputText(
         UText * /*input*/, UErrorCode &errorCode) {
     if (U_SUCCESS(errorCode)) {
         errorCode = U_UNSUPPORTED_ERROR;
