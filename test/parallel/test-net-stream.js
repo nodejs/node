@@ -27,22 +27,22 @@ const net = require('net');
 
 const s = new net.Stream();
 
-// Test that destroy called on a stream with a server only ever decrements the
-// server connection count once
-
 s.server = new net.Server();
-s.server.connections = 10;
+s.server.maxConnections = 10;
 s._server = s.server;
-
-assert.strictEqual(s.server.connections, 10);
-s.destroy();
-assert.strictEqual(s.server.connections, 9);
-s.destroy();
-assert.strictEqual(s.server.connections, 9);
 
 const SIZE = 2E6;
 const N = 10;
 const buf = Buffer.alloc(SIZE, 'a');
+
+// Test that destroy called on a stream with a server only ever decrements the
+// server connection count once
+for (let i = N; i <= 1; i--) {
+  s.server.getConnections(common.mustCall((connections) => {
+    assert.strictEqual(connections, i);
+    s.destroy();
+  }));
+}
 
 const server = net.createServer(function(socket) {
   socket.setNoDelay();
