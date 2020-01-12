@@ -39,7 +39,7 @@ changes:
   * `servername` {string} the value of
     [Server Name Indication extension][sni wiki] to be sent to the server. Use
     empty string `''` to disable sending the extension.
-    **Default:** hostname of the target server, unless the target server
+    **Default:** host name of the target server, unless the target server
     is specified using an IP address, in which case the default is `''` (no
     extension).
 
