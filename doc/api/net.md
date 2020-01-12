@@ -503,13 +503,13 @@ changes:
     description: The `host` parameter is supported now.
 -->
 
-Emitted after resolving the hostname but before connecting.
+Emitted after resolving the host name but before connecting.
 Not applicable to Unix sockets.
 
 * `err` {Error|null} The error object. See [`dns.lookup()`][].
 * `address` {string} The IP address.
 * `family` {string|null} The address type. See [`dns.lookup()`][].
-* `host` {string} The hostname.
+* `host` {string} The host name.
 
 ### Event: `'ready'`
 <!-- YAML
