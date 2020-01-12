@@ -19,6 +19,12 @@
 #define AGENT_KEY           "test/fixtures/keys/agent1-key.pem"
 #define AGENT_CERT          "test/fixtures/keys/agent1-cert.pem"
 
+#ifdef _WIN32
+# define DEFAULT_VISIBILITY __declspec(dllexport)
+#else
+# define DEFAULT_VISIBILITY __attribute__((visibility("default")))
+#endif
+
 namespace {
 
 int EngineInit(ENGINE* engine) {
@@ -93,8 +99,8 @@ int bind_fn(ENGINE* engine, const char* id) {
 }
 
 extern "C" {
-  IMPLEMENT_DYNAMIC_CHECK_FN();
-  IMPLEMENT_DYNAMIC_BIND_FN(bind_fn);
+  DEFAULT_VISIBILITY IMPLEMENT_DYNAMIC_CHECK_FN();
+  DEFAULT_VISIBILITY IMPLEMENT_DYNAMIC_BIND_FN(bind_fn);
 }
 
 }  // anonymous namespace
