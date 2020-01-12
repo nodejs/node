@@ -42,13 +42,17 @@ TEST_IMPL(dlerror) {
 
   msg = uv_dlerror(&lib);
   ASSERT(msg != NULL);
+#ifndef __OpenBSD__
   ASSERT(strstr(msg, path) != NULL);
+#endif
   ASSERT(strstr(msg, dlerror_no_error) == NULL);
 
   /* Should return the same error twice in a row. */
   msg = uv_dlerror(&lib);
   ASSERT(msg != NULL);
+#ifndef __OpenBSD__
   ASSERT(strstr(msg, path) != NULL);
+#endif
   ASSERT(strstr(msg, dlerror_no_error) == NULL);
 
   uv_dlclose(&lib);

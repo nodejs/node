@@ -35,7 +35,7 @@
         },
         'conditions': [
           ['OS != "zos"', {
-            'cflags': [ '-O0', '-fwrapv' ]
+            'cflags': [ '-O0', '-fno-common', '-fwrapv' ]
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
@@ -80,9 +80,10 @@
         'conditions': [
           ['OS != "zos"', {
             'cflags': [
-              '-fomit-frame-pointer',
               '-fdata-sections',
               '-ffunction-sections',
+              '-fno-common',
+              '-fomit-frame-pointer',
             ],
           }],
         ]

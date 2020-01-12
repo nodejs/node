@@ -51,6 +51,13 @@ static int maybe_run_test(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
+#ifndef _WIN32
+  if (0 == geteuid() && NULL == getenv("UV_RUN_AS_ROOT")) {
+    fprintf(stderr, "The libuv test suite cannot be run as root.\n");
+    return EXIT_FAILURE;
+  }
+#endif
+
   if (platform_init(argc, argv))
     return EXIT_FAILURE;
 

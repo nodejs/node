@@ -24,7 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern void uv__set_process_title_platform_init(void);
 extern void uv__set_process_title(const char* title);
 
 static uv_mutex_t process_title_mutex;
@@ -39,9 +38,6 @@ static struct {
 
 static void init_process_title_mutex_once(void) {
   uv_mutex_init(&process_title_mutex);
-#ifdef __APPLE__
-  uv__set_process_title_platform_init();
-#endif
 }
 
 

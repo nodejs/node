@@ -1048,7 +1048,12 @@ static int uv__stream_queue_fd(uv_stream_t* stream, int fd) {
 }
 
 
-#define UV__CMSG_FD_COUNT 64
+#if defined(__PASE__)
+/* on IBMi PASE the control message length can not exceed 256. */
+# define UV__CMSG_FD_COUNT 60
+#else
+# define UV__CMSG_FD_COUNT 64
+#endif
 #define UV__CMSG_FD_SIZE (UV__CMSG_FD_COUNT * sizeof(int))
 
 
