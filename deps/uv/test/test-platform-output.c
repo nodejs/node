@@ -58,9 +58,13 @@ TEST_IMPL(platform_output) {
 #endif
 
   err = uv_uptime(&uptime);
+#if defined(__PASE__)
+  ASSERT(err == UV_ENOSYS);
+#else
   ASSERT(err == 0);
   ASSERT(uptime > 0);
   printf("uv_uptime: %f\n", uptime);
+#endif
 
   err = uv_getrusage(&rusage);
   ASSERT(err == 0);

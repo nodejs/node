@@ -259,10 +259,29 @@ static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
 }
 
 
+static int (*uv__mkostemp)(char*, int);
+
+
+static void uv__mkostemp_initonce(void) {
+  /* z/os doesn't have RTLD_DEFAULT but that's okay
+   * because it doesn't have mkostemp(O_CLOEXEC) either.
+   */
+#ifdef RTLD_DEFAULT
+  uv__mkostemp = (int (*)(char*, int)) dlsym(RTLD_DEFAULT, "mkostemp");
+
+  /* We don't care about errors, but we do want to clean them up.
+   * If there has been no error, then dlerror() will just return
+   * NULL.
+   */
+  dlerror();
+#endif  /* RTLD_DEFAULT */
+}
+
+
 static int uv__fs_mkstemp(uv_fs_t* req) {
+  static uv_once_t once = UV_ONCE_INIT;
   int r;
 #ifdef O_CLOEXEC
-  int (*mkostemp_function)(char*, int);
   static int no_cloexec_support;
 #endif
   static const char pattern[] = "XXXXXX";
@@ -284,30 +303,23 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
     return -1;
   }
 
+  uv_once(&once, uv__mkostemp_initonce);
+
 #ifdef O_CLOEXEC
-  if (no_cloexec_support == 0) {
-    *(int**)(&mkostemp_function) = dlsym(RTLD_DEFAULT, "mkostemp");
+  if (no_cloexec_support == 0 && uv__mkostemp != NULL) {
+    r = uv__mkostemp(path, O_CLOEXEC);
 
-    /* We don't care about errors, but we do want to clean them up.
-       If there has been no error, then dlerror() will just return
-       NULL. */
-    dlerror();
+    if (r >= 0)
+      return r;
 
-    if (mkostemp_function != NULL) {
-      r = mkostemp_function(path, O_CLOEXEC);
+    /* If mkostemp() returns EINVAL, it means the kernel doesn't
+       support O_CLOEXEC, so we just fallback to mkstemp() below. */
+    if (errno != EINVAL)
+      return r;
 
-      if (r >= 0)
-        return r;
-
-      /* If mkostemp() returns EINVAL, it means the kernel doesn't
-         support O_CLOEXEC, so we just fallback to mkstemp() below. */
-      if (errno != EINVAL)
-        return r;
-
-      /* We set the static variable so that next calls don't even
-         try to use mkostemp. */
-      no_cloexec_support = 1;
-    }
+    /* We set the static variable so that next calls don't even
+       try to use mkostemp. */
+    no_cloexec_support = 1;
   }
 #endif  /* O_CLOEXEC */
 
@@ -1125,7 +1137,28 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
 
   if (fchmod(dstfd, src_statsbuf.st_mode) == -1) {
     err = UV__ERR(errno);
+#ifdef __linux__
+    if (err != UV_EPERM)
+      goto out;
+
+    {
+      struct statfs s;
+
+      /* fchmod() on CIFS shares always fails with EPERM unless the share is
+       * mounted with "noperm". As fchmod() is a meaningless operation on such
+       * shares anyway, detect that condition and squelch the error.
+       */
+      if (fstatfs(dstfd, &s) == -1)
+        goto out;
+
+      if (s.f_type != /* CIFS */ 0xFF534D42u)
+        goto out;
+    }
+
+    err = 0;
+#else  /* !__linux__ */
     goto out;
+#endif  /* !__linux__ */
   }
 
 #ifdef FICLONE

@@ -93,7 +93,7 @@
           '-Wno-unused-parameter',
           '-Wstrict-prototypes',
         ],
-        'OTHER_CFLAGS': [ '-g', '--std=gnu89', '-pedantic' ],
+        'OTHER_CFLAGS': [ '-g', '--std=gnu89' ],
       },
       'conditions': [
         [ 'OS=="win"', {
@@ -217,7 +217,6 @@
             '-fvisibility=hidden',
             '-g',
             '--std=gnu89',
-            '-pedantic',
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter',

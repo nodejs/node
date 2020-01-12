@@ -403,7 +403,7 @@ API
 .. c:function:: int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb)
 .. c:function:: int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime, double mtime, uv_fs_cb cb)
 
-    Equivalent to :man:`utime(2)` and :man:`futime(2)` respectively.
+    Equivalent to :man:`utime(2)` and :man:`futimes(3)` respectively.
 
     .. note::
       AIX: This function only works for AIX 7.1 and newer. It can still be called on older
@@ -435,7 +435,7 @@ API
 
 .. c:function:: int uv_fs_realpath(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb)
 
-    Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandle <https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx>`_.
+    Equivalent to :man:`realpath(3)` on Unix. Windows uses `GetFinalPathNameByHandle <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlea>`_.
     The resulting string is stored in `req->ptr`.
 
     .. warning::
@@ -512,7 +512,7 @@ Helper functions
 .. c:function:: uv_os_fd_t uv_get_osfhandle(int fd)
 
    For a file descriptor in the C runtime, get the OS-dependent handle.
-   On UNIX, returns the ``fd`` intact. On Windows, this calls `_get_osfhandle <https://msdn.microsoft.com/en-us/library/ks2530z6.aspx>`_.
+   On UNIX, returns the ``fd`` intact. On Windows, this calls `_get_osfhandle <https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/get-osfhandle?view=vs-2019>`_.
    Note that the return value is still owned by the C runtime,
    any attempts to close it or to use it after closing the fd may lead to malfunction.
 
@@ -521,7 +521,7 @@ Helper functions
 .. c:function:: int uv_open_osfhandle(uv_os_fd_t os_fd)
 
    For a OS-dependent handle, get the file descriptor in the C runtime.
-   On UNIX, returns the ``os_fd`` intact. On Windows, this calls `_open_osfhandle <https://msdn.microsoft.com/en-us/library/bdts1c9x.aspx>`_.
+   On UNIX, returns the ``os_fd`` intact. On Windows, this calls `_open_osfhandle <https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/open-osfhandle?view=vs-2019>`_.
    Note that the return value is still owned by the CRT,
    any attempts to close it or to use it after closing the handle may lead to malfunction.
 
@@ -547,7 +547,7 @@ File open constants
 
     .. note::
         `UV_FS_O_DIRECT` is supported on Linux, and on Windows via
-        `FILE_FLAG_NO_BUFFERING <https://msdn.microsoft.com/en-us/library/windows/desktop/cc644950.aspx>`_.
+        `FILE_FLAG_NO_BUFFERING <https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
         `UV_FS_O_DIRECT` is not supported on macOS.
 
 .. c:macro:: UV_FS_O_DIRECTORY
@@ -564,7 +564,7 @@ File open constants
 
     .. note::
         `UV_FS_O_DSYNC` is supported on Windows via
-        `FILE_FLAG_WRITE_THROUGH <https://msdn.microsoft.com/en-us/library/windows/desktop/cc644950.aspx>`_.
+        `FILE_FLAG_WRITE_THROUGH <https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
 
 .. c:macro:: UV_FS_O_EXCL
 
@@ -631,7 +631,7 @@ File open constants
 
     .. note::
         `UV_FS_O_RANDOM` is only supported on Windows via
-        `FILE_FLAG_RANDOM_ACCESS <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+        `FILE_FLAG_RANDOM_ACCESS <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea>`_.
 
 .. c:macro:: UV_FS_O_RDONLY
 
@@ -648,7 +648,7 @@ File open constants
 
     .. note::
         `UV_FS_O_SEQUENTIAL` is only supported on Windows via
-        `FILE_FLAG_SEQUENTIAL_SCAN <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+        `FILE_FLAG_SEQUENTIAL_SCAN <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea>`_.
 
 .. c:macro:: UV_FS_O_SHORT_LIVED
 
@@ -656,7 +656,7 @@ File open constants
 
     .. note::
         `UV_FS_O_SHORT_LIVED` is only supported on Windows via
-        `FILE_ATTRIBUTE_TEMPORARY <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+        `FILE_ATTRIBUTE_TEMPORARY <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea>`_.
 
 .. c:macro:: UV_FS_O_SYMLINK
 
@@ -669,7 +669,7 @@ File open constants
 
     .. note::
         `UV_FS_O_SYNC` is supported on Windows via
-        `FILE_FLAG_WRITE_THROUGH <https://msdn.microsoft.com/en-us/library/windows/desktop/cc644950.aspx>`_.
+        `FILE_FLAG_WRITE_THROUGH <https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering>`_.
 
 .. c:macro:: UV_FS_O_TEMPORARY
 
@@ -677,7 +677,7 @@ File open constants
 
     .. note::
         `UV_FS_O_TEMPORARY` is only supported on Windows via
-        `FILE_ATTRIBUTE_TEMPORARY <https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx>`_.
+        `FILE_ATTRIBUTE_TEMPORARY <https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea>`_.
 
 .. c:macro:: UV_FS_O_TRUNC
 
