@@ -2783,7 +2783,7 @@ console.log(request.headers);
 
 See [HTTP/2 Headers Object][].
 
-In HTTP/2, the request path, hostname, protocol, and method are represented as
+In HTTP/2, the request path, host name, protocol, and method are represented as
 special headers prefixed with the `:` character (e.g. `':path'`). These special
 headers will be included in the `request.headers` object. Care must be taken not
 to inadvertently modify these special headers or errors may occur. For instance,
