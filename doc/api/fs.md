@@ -175,9 +175,9 @@ fs.readFileSync(fileUrl);
 
 Using WHATWG [`URL`][] objects might introduce platform-specific behaviors.
 
-On Windows, `file:` URLs with a hostname convert to UNC paths, while `file:`
+On Windows, `file:` URLs with a host name convert to UNC paths, while `file:`
 URLs with drive letters convert to local absolute paths. `file:` URLs without a
-hostname nor a drive letter will result in a throw:
+host name nor a drive letter will result in a throw:
 
 ```js
 // On Windows :
@@ -199,7 +199,7 @@ fs.readFileSync(new URL('file:///c/p/a/t/h/file'));
 `file:` URLs with drive letters must use `:` as a separator just after
 the drive letter. Using another separator will result in a throw.
 
-On all other platforms, `file:` URLs with a hostname are unsupported and will
+On all other platforms, `file:` URLs with a host name are unsupported and will
 result in a throw:
 
 ```js
