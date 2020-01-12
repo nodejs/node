@@ -114,7 +114,7 @@ const myURL = new URL({ toString: () => 'https://example.org/' });
 // https://example.org/
 ```
 
-Unicode characters appearing within the hostname of `input` will be
+Unicode characters appearing within the host name of `input` will be
 automatically converted to ASCII using the [Punycode][] algorithm.
 
 ```js
@@ -192,7 +192,7 @@ Invalid host values assigned to the `host` property are ignored.
 
 * {string}
 
-Gets and sets the hostname portion of the URL. The key difference between
+Gets and sets the host name portion of the URL. The key difference between
 `url.host` and `url.hostname` is that `url.hostname` does *not* include the
 port.
 
@@ -206,7 +206,7 @@ console.log(myURL.href);
 // Prints https://example.com:81/foo
 ```
 
-Invalid hostname values assigned to the `hostname` property are ignored.
+Invalid host name values assigned to the `hostname` property are ignored.
 
 #### `url.href`
 
@@ -1298,8 +1298,8 @@ path of most URLs. The *fragment percent-encode set* is used for URL fragments.
 The *C0 control percent-encode set* is used for host and path under certain
 specific conditions, in addition to all other cases.
 
-When non-ASCII characters appear within a hostname, the hostname is encoded
-using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
+When non-ASCII characters appear within a host name, the host name is encoded
+using the [Punycode][] algorithm. Note, however, that a host name *may* contain
 *both* Punycode encoded and percent-encoded characters:
 
 ```js
