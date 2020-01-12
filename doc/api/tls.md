@@ -545,7 +545,7 @@ called:
 added: v0.5.3
 -->
 
-* `hostname` {string} A SNI hostname or wildcard (e.g. `'*'`)
+* `hostname` {string} A SNI host name or wildcard (e.g. `'*'`)
 * `context` {Object} An object containing any of the possible properties
   from the [`tls.createSecureContext()`][] `options` arguments (e.g. `key`,
   `cert`, `ca`, etc).
@@ -1308,7 +1308,7 @@ changes:
     with optional identity `hint` provided by the server or `null`
     in case of TLS 1.3 where `hint` was removed.
     It will be necessary to provide a custom `tls.checkServerIdentity()`
-    for the connection as the default one will try to check hostname/IP
+    for the connection as the default one will try to check host name/IP
     of the server against the certificate but that's not applicable for PSK
     because there won't be a certificate present.
     More information can be found in the [RFC 4279][].
@@ -1328,7 +1328,7 @@ changes:
     `SNICallback` option to [`tls.createServer()`][].
   * `checkServerIdentity(servername, cert)` {Function} A callback function
     to be used (instead of the builtin `tls.checkServerIdentity()` function)
-    when checking the server's hostname (or the provided `servername` when
+    when checking the server's host name (or the provided `servername` when
     explicitly set) against the certificate. This should return an {Error} if
     verification fails. The method should return `undefined` if the `servername`
     and `cert` are verified.
