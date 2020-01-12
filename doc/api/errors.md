@@ -1792,7 +1792,7 @@ additional details.
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
 ### `ERR_TLS_CERT_ALTNAME_INVALID`
 
-While using TLS, the hostname/IP of the peer did not match any of the
+While using TLS, the host name/IP of the peer did not match any of the
 `subjectAltNames` in its certificate.
 
 <a id="ERR_TLS_DH_PARAM_SIZE"></a>
@@ -1843,7 +1843,7 @@ An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
 ### `ERR_TLS_REQUIRED_SERVER_NAME`
 
 While using TLS, the `server.addContext()` method was called without providing
-a hostname in the first parameter.
+a host name in the first parameter.
 
 <a id="ERR_TLS_SESSION_ATTACK"></a>
 ### `ERR_TLS_SESSION_ATTACK`
