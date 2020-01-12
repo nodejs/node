@@ -296,7 +296,7 @@ of propagating what resource is responsible for the new resource's existence.
 `resource` is an object that represents the actual async resource that has
 been initialized. This can contain useful information that can vary based on
 the value of `type`. For instance, for the `GETADDRINFOREQWRAP` resource type,
-`resource` provides the hostname used when looking up the IP address for the
+`resource` provides the host name used when looking up the IP address for the
 host in `net.Server.listen()`. The API for accessing this information is
 currently not considered public, but using the Embedder API, users can provide
 and document their own resource objects. For example, such a resource object
@@ -383,8 +383,8 @@ Timeout(7) -> TickObject(6) -> root(1)
 ```
 
 The `TCPSERVERWRAP` is not part of this graph, even though it was the reason for
-`console.log()` being called. This is because binding to a port without a
-hostname is a *synchronous* operation, but to maintain a completely asynchronous
+`console.log()` being called. This is because binding to a port without a host
+name is a *synchronous* operation, but to maintain a completely asynchronous
 API the user's callback is placed in a `process.nextTick()`.
 
 The graph only shows *when* a resource was created, not *why*, so to track
