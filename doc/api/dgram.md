@@ -400,7 +400,7 @@ changes:
 * `offset` {integer} Offset in the buffer where the message starts.
 * `length` {integer} Number of bytes in the message.
 * `port` {integer} Destination port.
-* `address` {string} Destination hostname or IP address.
+* `address` {string} Destination host name or IP address.
 * `callback` {Function} Called when the message has been sent.
 
 Broadcasts a datagram on the socket.
