@@ -2270,7 +2270,7 @@ The `_handle` property has been removed because improper use of the native
 object can lead to crashing the application.
 
 <a id="DEP0118"></a>
-### DEP0118: `dns.lookup()` support for a falsy hostname
+### DEP0118: `dns.lookup()` support for a falsy host name
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -2280,7 +2280,7 @@ changes:
 
 Type: Runtime
 
-Previous versions of Node.js supported `dns.lookup()` with a falsy hostname
+Previous versions of Node.js supported `dns.lookup()` with a falsy host name
 like `dns.lookup(false)` due to backward compatibility.
 This behavior is undocumented and is thought to be unused in real world apps.
 It will become an error in future versions of Node.js.
