@@ -30,7 +30,7 @@ jobs:
       - name: Build
         run: ./vcbuild.bat
   build-macOS:
-    runs-on: macOS-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js 13
