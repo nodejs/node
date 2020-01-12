@@ -232,6 +232,7 @@ static void thread_check_stack(void* arg) {
   if (expected == 0)
     expected = (size_t)lim.rlim_cur;
   ASSERT(stack_size >= expected);
+  ASSERT(0 == pthread_attr_destroy(&attr));
 #endif
 }
 
