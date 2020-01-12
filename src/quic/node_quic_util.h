@@ -37,7 +37,7 @@ constexpr uint64_t DEFAULT_MAX_STREAM_DATA_UNI = 256 * 1024;
 constexpr uint64_t DEFAULT_MAX_DATA = 1 * 1024 * 1024;
 constexpr uint64_t DEFAULT_MAX_STREAMS_BIDI = 100;
 constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
-constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 10 * 10000000000;
+constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 10;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10ULL;
 
 enum SelectPreferredAddressPolicy : int {

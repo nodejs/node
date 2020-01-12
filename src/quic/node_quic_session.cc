@@ -120,7 +120,6 @@ void QuicSessionConfig::Set(
     Environment* env,
     const sockaddr* preferred_addr) {
   ResetToDefaults(env);
-
   SetConfig(env, IDX_QUIC_SESSION_ACTIVE_CONNECTION_ID_LIMIT,
             &transport_params.active_connection_id_limit);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_LOCAL,
@@ -142,7 +141,7 @@ void QuicSessionConfig::Set(
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACK_DELAY,
             &transport_params.max_ack_delay);
 
-  transport_params.idle_timeout = transport_params.idle_timeout * 1000000;
+  transport_params.idle_timeout = transport_params.idle_timeout * 1000000000;
 
   // TODO(@jasnell): QUIC allows both IPv4 and IPv6 addresses to be
   // specified. Here we're specifying one or the other. Need to
@@ -2495,7 +2494,7 @@ void QuicSession::UpdateIdleTimer() {
   uint64_t now = uv_hrtime();
   uint64_t expiry = ngtcp2_conn_get_idle_expiry(connection());
   // nano to millis
-  uint64_t timeout = expiry > now ? (expiry - now) / 1e6 : 1;
+  uint64_t timeout = expiry > now ? (expiry - now) / 1000000ULL : 1;
   if (timeout == 0) timeout = 1;
   Debug(this, "Updating idle timeout to %" PRIu64, timeout);
   idle_->Update(timeout);
