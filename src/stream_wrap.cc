@@ -30,6 +30,7 @@
 #include "tcp_wrap.h"
 #include "udp_wrap.h"
 #include "util-inl.h"
+#include "node_sockaddr-inl.h"
 
 #include <cstring>  // memcpy()
 #include <climits>  // INT_MAX
