@@ -1075,6 +1075,13 @@ When the child process is a Node.js instance (e.g. spawned using
 [`child_process.fork()`][]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 
+###subprocess.exitCode:
+
+* {integer}
+
+`subprocess.exitcode` property indicates  exit code of the child process.
+If child process is still running, the field will be null.
+
 ### `subprocess.kill([signal])`
 <!-- YAML
 added: v0.1.90
@@ -1367,6 +1374,34 @@ this occurs.
 It is also recommended that any `'message'` handlers in the child process
 verify that `socket` exists, as the connection may have been closed during the
 time it takes to send the connection to the child.
+
+###subprocess.signalCode:
+
+* {integer}
+
+`subprocess.signalCode` property indicates the signal number received by
+the child process if any, from the parent node prcess, else null.
+
+###subprocess.spawnfie:
+
+* {string}
+
+`subprocess.spawnfile` property indicates the executable file name of
+the child process that is launched.
+
+For [`child_process.fork()`][], its value will be equal to
+[`process.execPath`][].
+For [`child_process.spawn()`][], its value will be the name of
+the executable file.
+For [`child_process.exec()`][],  its value will be the name of the shell
+in which the child process is launched.
+
+###subprocess.spawnargs:
+
+* {Array}
+
+`subprocess.spawnargs` property represents the full list of command line
+arguments the child process was launched with.
 
 ### `subprocess.stderr`
 <!-- YAML
