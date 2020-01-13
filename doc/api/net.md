@@ -92,6 +92,13 @@ added: v0.1.90
 Emitted when a new connection is made. `socket` is an instance of
 `net.Socket`.
 
+### Event: `'maxConnections'`
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the server has reached his connection limit defined in [`server.maxConnections`][].
+
 ### Event: `'error'`
 <!-- YAML
 added: v0.1.90
@@ -1251,6 +1258,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
+[`server.maxConnections`]: #net_server_maxconnections
 [`socket(7)`]: http://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #net_socket_connect
 [`socket.connect(options)`]: #net_socket_connect_options_connectlistener
