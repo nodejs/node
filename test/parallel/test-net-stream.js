@@ -47,7 +47,7 @@ const buf = Buffer.alloc(SIZE, 'a');
 const server = net.createServer(function(socket) {
   socket.setNoDelay();
 
-  socket.on('error', function(err) {
+  socket.on('error', function() {
     socket.destroy();
   }).on('close', function() {
     server.close();
