@@ -343,6 +343,8 @@ Set to `true` if the `QuicEndpoint` is in the process of closing.
 added: REPLACEME
 -->
 
+* `error` {Object} An `Error` object.
+
 Closes and destroys the `QuicEndpoint` instance making it usuable.
 
 #### quicendpoint.destroyed
