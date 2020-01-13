@@ -447,7 +447,6 @@ void Http3Application::ExtendMaxStreamData(
 }
 
 bool Http3Application::StreamCommit(StreamData* stream_data, size_t datalen) {
-  CHECK_GE(datalen, 0);
   int err = nghttp3_conn_add_write_offset(
       connection(),
       stream_data->id,

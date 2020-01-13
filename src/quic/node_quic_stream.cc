@@ -6,6 +6,7 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "stream_base-inl.h"
+#include "node_sockaddr-inl.h"
 #include "node_quic_session-inl.h"
 #include "node_quic_socket-inl.h"
 #include "node_quic_util-inl.h"

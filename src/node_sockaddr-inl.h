@@ -158,14 +158,6 @@ const sockaddr* SocketAddress::operator->() const {
   return this->data();
 }
 
-const sockaddr* SocketAddress::data() const {
-  return reinterpret_cast<const sockaddr*>(&address_);
-}
-
-size_t SocketAddress::GetLength() const {
-  return GetLength(&address_);
-}
-
 int SocketAddress::GetFamily() const {
   return address_.ss_family;
 }

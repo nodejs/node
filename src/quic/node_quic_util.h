@@ -118,34 +118,12 @@ inline ngtcp2_addr* ToNgtcp2Addr(
     ngtcp2_addr* dest);
 
 struct QuicPath : public ngtcp2_path {
-  QuicPath(
+  inline QuicPath(
       SocketAddress* local,
-      SocketAddress* remote) {
-    ngtcp2_addr_init(
-        &this->local,
-        local->data(),
-        local->GetLength(),
-        local);
-    ngtcp2_addr_init(
-        &this->remote,
-        local->data(),
-        remote->GetLength(),
-        remote);
-  }
-  QuicPath(
+      SocketAddress* remote);
+  inline QuicPath(
       const SocketAddress& local,
-      const SocketAddress& remote) {
-    ngtcp2_addr_init(
-        &this->local,
-        local.data(),
-        local.GetLength(),
-        const_cast<SocketAddress*>(&local));
-    ngtcp2_addr_init(
-        &this->remote,
-        remote.data(),
-        remote.GetLength(),
-        const_cast<SocketAddress*>(&remote));
-  }
+      const SocketAddress& remote);
 };
 
 struct QuicPathStorage : public ngtcp2_path_storage {

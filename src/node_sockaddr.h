@@ -64,9 +64,14 @@ class SocketAddress : public MemoryRetainer {
 
   inline const sockaddr& operator*() const;
   inline const sockaddr* operator->() const;
-  inline const sockaddr* data() const;
 
-  inline size_t GetLength() const;
+  const sockaddr* data() const {
+    return reinterpret_cast<const sockaddr*>(&address_);
+  }
+
+  size_t GetLength() const {
+    return GetLength(&address_);
+  }
 
   inline int GetFamily() const;
 

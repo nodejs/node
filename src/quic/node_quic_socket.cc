@@ -624,7 +624,7 @@ bool QuicSocket::SendStatelessReset(
         token,
         random,
         RANDLEN);
-    if (nwrite < MIN_STATELESS_RESET_LEN)
+    if (nwrite < static_cast<ssize_t>(MIN_STATELESS_RESET_LEN))
       return false;
     packet->set_length(nwrite);
     SocketAddress remote_address(remote_addr);

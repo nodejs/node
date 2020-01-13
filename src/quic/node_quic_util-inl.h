@@ -14,6 +14,36 @@ namespace node {
 
 namespace quic {
 
+QuicPath::QuicPath(
+    SocketAddress* local,
+    SocketAddress* remote) {
+  ngtcp2_addr_init(
+      &this->local,
+      local->data(),
+      local->GetLength(),
+      local);
+  ngtcp2_addr_init(
+      &this->remote,
+      local->data(),
+      remote->GetLength(),
+      remote);
+}
+
+QuicPath::QuicPath(
+    const SocketAddress& local,
+    const SocketAddress& remote) {
+  ngtcp2_addr_init(
+      &this->local,
+      local.data(),
+      local.GetLength(),
+      const_cast<SocketAddress*>(&local));
+  ngtcp2_addr_init(
+      &this->remote,
+      remote.data(),
+      remote.GetLength(),
+      const_cast<SocketAddress*>(&remote));
+}
+
 size_t QuicCID::Hash::operator()(const QuicCID& token) const {
   size_t hash = 0;
   for (size_t n = 0; n < token.cid_.datalen; n++)
