@@ -1399,9 +1399,9 @@ properties. Such objects are created either by Node.js internals or native
 addons. In JavaScript, they are [frozen][`Object.freeze()`] objects with a
 `null` prototype.
 
-```c++
+```c
 #include <js_native_api.h>
-#include <string.h>
+#include <stdlib.h>
 napi_value result;
 static napi_value MyNapi(napi_env env, napi_callback_info info) {
   int* raw = (int*) malloc(1024);
