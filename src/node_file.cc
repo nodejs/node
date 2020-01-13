@@ -829,20 +829,46 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   }
 
   const size_t size = offset - start;
-  if (size == 0 || (
-    size == SearchString(&chars[start], size, "\"name\"") &&
-    size == SearchString(&chars[start], size, "\"main\"") &&
-    size == SearchString(&chars[start], size, "\"exports\"") &&
-    size == SearchString(&chars[start], size, "\"type\""))) {
-    args.GetReturnValue().Set(env->empty_object_string());
-  } else {
-    Local<String> chars_string =
+  char* p = &chars[start];
+  char* pe = &chars[size];
+  char* pos[2];
+  char** ppos = &pos[0];
+
+  while (p < pe) {
+    char c = *p++;
+    if (c == '"') goto quote;  // Keeps code flat and inner loop small.
+    if (c == '\\' && p < pe && *p == '"') p++;
+    continue;
+quote:
+    *ppos++ = p;
+    if (ppos < &pos[2]) continue;
+    ppos = &pos[0];
+
+    char* s = &pos[0][0];
+    char* se = &pos[1][-1];  // Exclude quote.
+    size_t n = se - s;
+
+    if (n == 4) {
+      if (0 == memcmp(s, "main", 4)) break;
+      if (0 == memcmp(s, "name", 4)) break;
+      if (0 == memcmp(s, "type", 4)) break;
+    } else if (n == 7) {
+      if (0 == memcmp(s, "exports", 7)) break;
+    }
+  }
+
+  Local<String> return_value;
+  if (p < pe) {
+    return_value =
         String::NewFromUtf8(isolate,
                             &chars[start],
                             v8::NewStringType::kNormal,
                             size).ToLocalChecked();
-    args.GetReturnValue().Set(chars_string);
+  } else {
+    return_value = env->empty_object_string();
   }
+
+  args.GetReturnValue().Set(return_value);
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
