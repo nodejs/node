@@ -493,6 +493,13 @@ bool QuicSession::SubmitTrailers(
   return application_->SubmitTrailers(stream_id, headers);
 }
 
+// Submits a new push stream
+BaseObjectPtr<QuicStream> QuicSession::SubmitPush(
+    int64_t stream_id,
+    v8::Local<v8::Array> headers) {
+  return application_->SubmitPush(stream_id, headers);
+}
+
 }  // namespace quic
 }  // namespace node
 

@@ -36,7 +36,8 @@ enum QuicStreamHeadersKind : int {
   QUICSTREAM_HEADERS_KIND_NONE = 0,
   QUICSTREAM_HEADERS_KIND_INFORMATIONAL,
   QUICSTREAM_HEADERS_KIND_INITIAL,
-  QUICSTREAM_HEADERS_KIND_TRAILING
+  QUICSTREAM_HEADERS_KIND_TRAILING,
+  QUICSTREAM_HEADERS_KIND_PUSH
 };
 
 #define STREAM_STATS(V)                                                        \
@@ -208,16 +209,20 @@ class QuicStream : public AsyncWrap,
 
   static BaseObjectPtr<QuicStream> New(
       QuicSession* session,
-      int64_t stream_id);
+      int64_t stream_id,
+      int64_t push_id = 0);
 
   QuicStream(
       QuicSession* session,
       v8::Local<v8::Object> target,
-      int64_t stream_id);
+      int64_t stream_id,
+      int64_t push_id = 0);
 
   std::string diagnostic_name() const override;
 
   int64_t id() const { return stream_id_; }
+  int64_t push_id() const { return push_id_; }
+
   QuicSession* session() const { return session_.get(); }
 
   // A QuicStream can be either uni- or bi-directional.
@@ -328,7 +333,7 @@ class QuicStream : public AsyncWrap,
       size_t* count,
       size_t max_count = kMaxVectorCount);
 
-  inline void EndHeaders();
+  inline void EndHeaders(int64_t push_id = 0);
 
   // Passes a chunk of data on to the QuicStream listener.
   void ReceiveData(
@@ -352,6 +357,8 @@ class QuicStream : public AsyncWrap,
   // Submits trailing headers. Returns false if headers are not
   // supported on the underlying QuicApplication.
   inline bool SubmitTrailers(v8::Local<v8::Array> headers);
+
+  inline BaseObjectPtr<QuicStream> SubmitPush(v8::Local<v8::Array> headers);
 
   // Required for StreamBase
   bool IsAlive() override;
@@ -379,7 +386,8 @@ class QuicStream : public AsyncWrap,
   void IncrementStats(size_t datalen);
 
   BaseObjectWeakPtr<QuicSession> session_;
-  int64_t stream_id_;
+  int64_t stream_id_ = 0;
+  int64_t push_id_ = 0;
   uint64_t max_offset_ = 0;
   uint64_t max_offset_ack_ = 0;
   uint32_t flags_ = QUICSTREAM_FLAG_INITIAL;

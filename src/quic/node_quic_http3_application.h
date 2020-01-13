@@ -126,6 +126,10 @@ class Http3Application final :
       int64_t stream_id,
       v8::Local<v8::Array> headers) override;
 
+  BaseObjectPtr<QuicStream> SubmitPush(
+      int64_t id,
+      v8::Local<v8::Array> headers) override;
+
   // Implementation for mem::NgLibMemoryManager
   void CheckAllocatedSize(size_t previous_size) const;
   void IncreaseAllocatedSize(size_t size);
@@ -141,6 +145,7 @@ class Http3Application final :
 
   bool CreateAndBindControlStream();
   bool CreateAndBindQPackStreams();
+  int64_t CreateAndBindPushStream(int64_t push_id);
 
   int GetStreamData(StreamData* stream_data) override;
 
@@ -167,19 +172,10 @@ class Http3Application final :
       nghttp3_rcbuf* name,
       nghttp3_rcbuf* value,
       uint8_t flags);
-  void EndHeaders(int64_t stream_id);
-  int BeginPushPromise(int64_t stream_id, int64_t push_id);
-  bool ReceivePushPromise(
-      int64_t stream_id,
-      int64_t push_id,
-      int32_t token,
-      nghttp3_rcbuf* name,
-      nghttp3_rcbuf* value,
-      uint8_t flags);
-  int EndPushPromise(int64_t stream_id, int64_t push_id);
+  void EndHeaders(int64_t stream_id, int64_t push_id = 0);
   void CancelPush(int64_t push_id, int64_t stream_id);
   void SendStopSending(int64_t stream_id, uint64_t app_error_code);
-  int PushStream(int64_t push_id, int64_t stream_id);
+  void PushStream(int64_t push_id, int64_t stream_id);
   void EndStream(int64_t stream_id);
 
   bool is_control_stream(int64_t stream_id) const {

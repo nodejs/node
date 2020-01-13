@@ -249,7 +249,8 @@ class QuicSessionListener {
   virtual void OnStreamHeaders(
       int64_t stream_id,
       int kind,
-      const std::vector<std::unique_ptr<QuicHeader>>& headers);
+      const std::vector<std::unique_ptr<QuicHeader>>& headers,
+      int64_t push_id);
   virtual void OnStreamClose(
       int64_t stream_id,
       uint64_t app_error_code);
@@ -297,7 +298,8 @@ class JSQuicSessionListener : public QuicSessionListener {
   void OnStreamHeaders(
       int64_t stream_id,
       int kind,
-      const std::vector<std::unique_ptr<QuicHeader>>& headers) override;
+      const std::vector<std::unique_ptr<QuicHeader>>& headers,
+      int64_t push_id) override;
   void OnStreamClose(
       int64_t stream_id,
       uint64_t app_error_code) override;
@@ -522,7 +524,8 @@ class QuicApplication : public MemoryRetainer {
   virtual void StreamHeaders(
       int64_t stream_id,
       int kind,
-      const std::vector<std::unique_ptr<QuicHeader>>& headers);
+      const std::vector<std::unique_ptr<QuicHeader>>& headers,
+      int64_t push_id = 0);
   virtual void StreamClose(
       int64_t stream_id,
       uint64_t app_error_code);
@@ -541,6 +544,13 @@ class QuicApplication : public MemoryRetainer {
   virtual bool SubmitTrailers(
       int64_t stream_id,
       v8::Local<v8::Array> headers) { return false; }
+  virtual BaseObjectPtr<QuicStream> SubmitPush(
+      int64_t stream_id,
+      v8::Local<v8::Array> headers) {
+    // By default, push streams are not supported
+    // by an application.
+    return {};
+  }
 
   inline Environment* env() const;
 
@@ -943,6 +953,10 @@ class QuicSession : public AsyncWrap,
   // implementation. If headers are not supported, false
   // will be returned. Otherwise, returns true
   inline bool SubmitTrailers(
+      int64_t stream_id,
+      v8::Local<v8::Array> headers);
+
+  inline BaseObjectPtr<QuicStream> SubmitPush(
       int64_t stream_id,
       v8::Local<v8::Array> headers);
 

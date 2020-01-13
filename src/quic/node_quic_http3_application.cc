@@ -169,6 +169,51 @@ Http3Application::Http3Application(
   env->quic_state()->http3config_buffer[IDX_HTTP3_CONFIG_COUNT] = 0;  // Reset
 }
 
+int64_t Http3Application::CreateAndBindPushStream(int64_t push_id) {
+  int64_t stream_id;
+  if (!session()->OpenUnidirectionalStream(&stream_id))
+    return 0;
+  return nghttp3_conn_bind_push_stream(
+      connection(),
+      push_id,
+      stream_id) == 0 ? stream_id : 0;
+}
+
+BaseObjectPtr<QuicStream> Http3Application::SubmitPush(
+    int64_t id,
+    v8::Local<v8::Array> headers) {
+  // If the QuicSession is not a server session, return false
+  // immediately. Push streams cannot be sent by an HTTP/3 client.
+  if (!session()->is_server())
+    return {};
+
+  Http3Headers nva(session()->env(), headers);
+  int64_t push_id;
+
+  Debug(
+    session(),
+    "Submitting %d push promise headers",
+    nva.length());
+
+  if (nghttp3_conn_submit_push_promise(
+          connection(),
+          &push_id,
+          id,
+          *nva,
+          nva.length()) != 0) {
+    // There are several reasons why push may fail. We currently handle
+    // them all the same. Later we might want to differentiate when the
+    // return value is NGHTTP3_ERR_PUSH_ID_BLOCKED.
+    return {};
+  }
+
+  int64_t new_id = CreateAndBindPushStream(push_id);
+
+  return new_id == 0 ?
+      BaseObjectPtr<QuicStream>() :
+      QuicStream::New(session(), new_id, push_id);
+}
+
 // Submit informational headers (response headers that use a 1xx
 // status code).
 bool Http3Application::SubmitInformation(
@@ -386,6 +431,8 @@ bool Http3Application::ReceiveStreamData(
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
+  Debug(session(), "Receiving %" PRIu64 " bytes for stream %" PRIu64 "%s",
+        datalen, stream_id, fin == 1 ? " (fin)" : "");
   ssize_t nread =
       nghttp3_conn_read_stream(
           connection(), stream_id, data, datalen, fin);
@@ -431,7 +478,7 @@ void Http3Application::ResumeStream(int64_t stream_id) {
 }
 
 void Http3Application::ExtendMaxStreamsRemoteUni(uint64_t max_streams) {
-  nghttp3_conn_set_max_client_streams_bidi(connection(), max_streams);
+  // Do nothing
 }
 
 void Http3Application::ExtendMaxStreamData(
@@ -534,6 +581,9 @@ void Http3Application::AckedStreamData(
 void Http3Application::StreamClosed(
     int64_t stream_id,
     uint64_t app_error_code) {
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  CHECK(stream);
+  stream->ReceiveData(1, nullptr, 0, 0);
   session()->listener()->OnStreamClose(stream_id, app_error_code);
 }
 
@@ -562,7 +612,9 @@ void Http3Application::ReceiveData(
 void Http3Application::DeferredConsume(
     int64_t stream_id,
     size_t consumed) {
-  ReceiveData(stream_id, nullptr, consumed);
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  CHECK(stream);
+  session()->ExtendStreamOffset(stream->id(), consumed);
 }
 
 void Http3Application::BeginHeaders(
@@ -601,49 +653,25 @@ bool Http3Application::ReceiveHeader(
   return true;
 }
 
-void Http3Application::EndHeaders(int64_t stream_id) {
+void Http3Application::EndHeaders(int64_t stream_id, int64_t push_id) {
   Debug(session(), "Ending header block for stream %" PRId64, stream_id);
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
   CHECK(stream);
   stream->EndHeaders();
 }
 
-// TODO(@jasnell): Implement Push Promise Support
-int Http3Application::BeginPushPromise(
-    int64_t stream_id,
-    int64_t push_id) {
-  return 0;
-}
-
-// TODO(@jasnell): Implement Push Promise Support
-bool Http3Application::ReceivePushPromise(
-    int64_t stream_id,
-    int64_t push_id,
-    int32_t token,
-    nghttp3_rcbuf* name,
-    nghttp3_rcbuf* value,
-    uint8_t flags) {
-  return true;
-}
-
-// TODO(@jasnell): Implement Push Promise Support
-int Http3Application::EndPushPromise(
-    int64_t stream_id,
-    int64_t push_id) {
-  return 0;
-}
-
-// TODO(@jasnell): Implement Push Promise Support
 void Http3Application::CancelPush(
     int64_t push_id,
     int64_t stream_id) {
+  Debug(session(), "push stream canceled");
 }
 
 // TODO(@jasnell): Implement Push Promise Support
-int Http3Application::PushStream(
+void Http3Application::PushStream(
     int64_t push_id,
     int64_t stream_id) {
-  return 0;
+  Debug(session(), "Received push stream %" PRIu64 " (%" PRIu64 ")",
+        stream_id, push_id);
 }
 
 void Http3Application::SendStopSending(
@@ -799,7 +827,8 @@ int Http3Application::OnBeginPushPromise(
     void* conn_user_data,
     void* stream_user_data) {
   Http3Application* app = static_cast<Http3Application*>(conn_user_data);
-  return app->BeginPushPromise(stream_id, push_id);
+  app->BeginHeaders(stream_id, QUICSTREAM_HEADERS_KIND_PUSH);
+  return 0;
 }
 
 int Http3Application::OnReceivePushPromise(
@@ -813,13 +842,9 @@ int Http3Application::OnReceivePushPromise(
     void* conn_user_data,
     void* stream_user_data) {
   Http3Application* app = static_cast<Http3Application*>(conn_user_data);
-  return app->ReceivePushPromise(
-      stream_id,
-      push_id,
-      token,
-      name,
-      value,
-      flags) ? 0 : NGHTTP3_ERR_CALLBACK_FAILURE;
+  if (!app->ReceiveHeader(stream_id, token, name, value, flags))
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  return 0;
 }
 
 int Http3Application::OnEndPushPromise(
@@ -829,7 +854,8 @@ int Http3Application::OnEndPushPromise(
     void* conn_user_data,
     void* stream_user_data) {
   Http3Application* app = static_cast<Http3Application*>(conn_user_data);
-  return app->EndPushPromise(stream_id, push_id);
+  app->EndHeaders(stream_id, push_id);
+  return 0;
 }
 
 int Http3Application::OnCancelPush(
@@ -860,7 +886,8 @@ int Http3Application::OnPushStream(
     int64_t stream_id,
     void* conn_user_data) {
   Http3Application* app = static_cast<Http3Application*>(conn_user_data);
-  return app->PushStream(push_id, stream_id);
+  app->PushStream(push_id, stream_id);
+  return 0;
 }
 
 int Http3Application::OnEndStream(

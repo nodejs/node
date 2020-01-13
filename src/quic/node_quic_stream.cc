@@ -44,7 +44,8 @@ size_t get_length(uv_buf_t* bufs, size_t nbufs) {
 QuicStream::QuicStream(
     QuicSession* sess,
     Local<Object> wrap,
-    int64_t stream_id)
+    int64_t stream_id,
+    int64_t push_id)
   : AsyncWrap(sess->env(), wrap, AsyncWrap::PROVIDER_QUICSTREAM),
     StreamBase(sess->env()),
     StatsBase(sess->env(), wrap,
@@ -52,7 +53,8 @@ QuicStream::QuicStream(
               HistogramOptions::RATE |
               HistogramOptions::SIZE),
     session_(sess),
-    stream_id_(stream_id) {
+    stream_id_(stream_id),
+    push_id_(push_id) {
   CHECK_NOT_NULL(sess);
   Debug(this, "Created");
   StreamBase::AttachToObject(GetObject());
@@ -261,7 +263,8 @@ void QuicStream::MemoryInfo(MemoryTracker* tracker) const {
 
 BaseObjectPtr<QuicStream> QuicStream::New(
     QuicSession* session,
-    int64_t stream_id) {
+    int64_t stream_id,
+    int64_t push_id) {
   Local<Object> obj;
   if (!session->env()
               ->quicserverstream_constructor_template()
@@ -269,7 +272,12 @@ BaseObjectPtr<QuicStream> QuicStream::New(
     return {};
   }
   BaseObjectPtr<QuicStream> stream =
-      MakeDetachedBaseObject<QuicStream>(session, obj, stream_id);
+      MakeDetachedBaseObject<QuicStream>(
+          session,
+          obj,
+          stream_id,
+          push_id);
+  CHECK(stream);
   session->AddStream(stream);
   return stream;
 }
@@ -447,6 +455,21 @@ void QuicStreamSubmitTrailers(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArray());
   args.GetReturnValue().Set(stream->SubmitTrailers(args[0].As<Array>()));
 }
+
+// Requests creation of a push stream. Not all QUIC Applications will
+// support push streams. If pushes are not supported, the return value
+// will be undefined, otherwise the return value will be the created
+// QuicStream representing the push.
+void QuicStreamSubmitPush(const FunctionCallbackInfo<Value>& args) {
+  QuicStream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
+  CHECK(args[0]->IsArray());
+  BaseObjectPtr<QuicStream> push_stream =
+      stream->SubmitPush(args[0].As<Array>());
+  if (push_stream)
+    args.GetReturnValue().Set(push_stream->object());
+}
+
 }  // namespace
 
 void QuicStream::Initialize(
@@ -468,6 +491,7 @@ void QuicStream::Initialize(
   env->SetProtoMethod(stream, "submitInformation", QuicStreamSubmitInformation);
   env->SetProtoMethod(stream, "submitHeaders", QuicStreamSubmitHeaders);
   env->SetProtoMethod(stream, "submitTrailers", QuicStreamSubmitTrailers);
+  env->SetProtoMethod(stream, "submitPush", QuicStreamSubmitPush);
   env->set_quicserverstream_constructor_template(streamt);
   target->Set(env->context(),
               class_name,

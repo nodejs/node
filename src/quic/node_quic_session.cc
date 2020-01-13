@@ -201,9 +201,10 @@ void QuicSessionListener::OnOCSP(const std::string& ocsp) {
 void QuicSessionListener::OnStreamHeaders(
     int64_t stream_id,
     int kind,
-    const std::vector<std::unique_ptr<QuicHeader>>& headers) {
+    const std::vector<std::unique_ptr<QuicHeader>>& headers,
+    int64_t push_id) {
   if (previous_listener_ != nullptr)
-    previous_listener_->OnStreamHeaders(stream_id, kind, headers);
+    previous_listener_->OnStreamHeaders(stream_id, kind, headers, push_id);
 }
 
 void QuicSessionListener::OnStreamClose(
@@ -354,7 +355,8 @@ void JSQuicSessionListener::OnCert(const char* server_name) {
 void JSQuicSessionListener::OnStreamHeaders(
     int64_t stream_id,
     int kind,
-    const std::vector<std::unique_ptr<QuicHeader>>& headers) {
+    const std::vector<std::unique_ptr<QuicHeader>>& headers,
+    int64_t push_id) {
   Environment* env = session()->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -372,8 +374,11 @@ void JSQuicSessionListener::OnStreamHeaders(
   Local<Value> argv[] = {
       Number::New(env->isolate(), static_cast<double>(stream_id)),
       Array::New(env->isolate(), head.out(), n),
-      Integer::New(env->isolate(), kind)
+      Integer::New(env->isolate(), kind),
+      Undefined(env->isolate())
   };
+  if (kind == QUICSTREAM_HEADERS_KIND_PUSH)
+    argv[3] = Number::New(env->isolate(), static_cast<double>(push_id));
   BaseObjectPtr<QuicSession> ptr(session());
   session()->MakeCallback(
       env->quic_on_stream_headers_function(),
@@ -464,9 +469,12 @@ void JSQuicSessionListener::OnSessionClose(QuicError error) {
 
 void JSQuicSessionListener::OnStreamReady(BaseObjectPtr<QuicStream> stream) {
   Environment* env = session()->env();
+  HandleScope scope(env->isolate());
+  Context::Scope context_scope(env->context());
   Local<Value> argv[] = {
     stream->object(),
-    Number::New(env->isolate(), static_cast<double>(stream->id()))
+    Number::New(env->isolate(), static_cast<double>(stream->id())),
+    Number::New(env->isolate(), static_cast<double>(stream->push_id()))
   };
 
   // Grab a shared pointer to this to prevent the QuicSession
@@ -1209,8 +1217,9 @@ void QuicApplication::MaybeSetFin(const StreamData& stream_data) {
 void QuicApplication::StreamHeaders(
     int64_t stream_id,
     int kind,
-    const std::vector<std::unique_ptr<QuicHeader>>& headers) {
-  session()->listener()->OnStreamHeaders(stream_id, kind, headers);
+    const std::vector<std::unique_ptr<QuicHeader>>& headers,
+    int64_t push_id) {
+  session()->listener()->OnStreamHeaders(stream_id, kind, headers, push_id);
 }
 
 void QuicApplication::StreamClose(

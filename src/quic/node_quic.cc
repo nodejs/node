@@ -188,6 +188,7 @@ void Initialize(Local<Object> target,
   V(QUICSTREAM_HEADER_FLAGS_TERMINAL)                                          \
   V(QUICSTREAM_HEADERS_KIND_NONE)                                              \
   V(QUICSTREAM_HEADERS_KIND_INFORMATIONAL)                                     \
+  V(QUICSTREAM_HEADERS_KIND_PUSH)                                              \
   V(QUICSTREAM_HEADERS_KIND_INITIAL)                                           \
   V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
   V(UV_EBADF)
