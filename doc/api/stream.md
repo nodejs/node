@@ -1621,34 +1621,21 @@ async function run() {
 run().catch(console.error);
 ```
 
+The `pipeline` API also supports async generators:
+
 ```js
 const pipeline = util.promisify(stream.pipeline);
 const fs = require('fs').promises;
 
 async function run() {
   await pipeline(
-    async function*() {
-      const fd = await fs.open('archive.tar');
-      try {
-        const chunk = new Buffer(1024);
-        const { bytesRead } = await fs.read(fd, chunk, 0, chunk.length, null);
-        if (bytesRead === 0) return;
-        yield chunk.slice(0, bytesRead);
-      } finally {
-        await fs.close(fd);
+    fs.createReadStream('lowercase.txt'),
+    async function* (source) {
+      for await (const chunk of source) {
+        yield String(chunk).toUpperCase();
       }
     },
-    zlib.createGzip(),
-    async function(source) {
-      const fd = await fs.open('archive.tar', 'w');
-      try {
-        for await (const chunk of source) {
-          await fs.write(fd, chunk);
-        }
-      } finally {
-        await fs.close(fd);
-      }
-    }
+    fs.createWriteStream('uppercase.txt')
   );
   console.log('Pipeline succeeded.');
 }
