@@ -47,47 +47,15 @@ QuicStream::QuicStream(
     int64_t stream_id)
   : AsyncWrap(sess->env(), wrap, AsyncWrap::PROVIDER_QUICSTREAM),
     StreamBase(sess->env()),
-    StatsBase(sess->env(), wrap),
+    StatsBase(sess->env(), wrap,
+              HistogramOptions::ACK |
+              HistogramOptions::RATE |
+              HistogramOptions::SIZE),
     session_(sess),
-    stream_id_(stream_id),
-    data_rx_rate_(
-        HistogramBase::New(
-            sess->env(),
-            1, std::numeric_limits<int64_t>::max())),
-    data_rx_size_(
-        HistogramBase::New(
-            sess->env(),
-            1, NGTCP2_MAX_PKT_SIZE)),
-    data_rx_ack_(
-        HistogramBase::New(
-            sess->env(),
-            1, std::numeric_limits<int64_t>::max())) {
+    stream_id_(stream_id) {
   CHECK_NOT_NULL(sess);
   Debug(this, "Created");
   StreamBase::AttachToObject(GetObject());
-
-  // TODO(@jasnell): For now, the following are checks rather than properly
-  // handled. Before this code moves out of experimental, these should be
-  // properly handled.
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->data_rx_rate_string(),
-      data_rx_rate_->object(),
-      PropertyAttribute::ReadOnly).Check();
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->data_rx_size_string(),
-      data_rx_size_->object(),
-      PropertyAttribute::ReadOnly).Check();
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->data_rx_ack_string(),
-      data_rx_ack_->object(),
-      PropertyAttribute::ReadOnly).Check();
-
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(session()->connection(), &params);
   IncrementStat(&QuicStreamStats::max_offset, params.initial_max_data);
@@ -114,10 +82,7 @@ void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
   // invoked if a complete chunk of buffered data has been acknowledged.
   streambuf_.Consume(datalen);
 
-  uint64_t acked_at = GetStat(&QuicStreamStats::acked_at);
-  if (acked_at > 0)
-    data_rx_ack_->Record(uv_hrtime() - acked_at);
-  RecordTimestamp(&QuicStreamStats::acked_at);
+  RecordAck(&QuicStreamStats::acked_at);
 }
 
 // While not all QUIC applications will support headers, QuicStream
@@ -284,19 +249,13 @@ void QuicStream::IncrementStats(size_t datalen) {
   uint64_t len = static_cast<uint64_t>(datalen);
   IncrementStat(&QuicStreamStats::bytes_received, len);
 
-  uint64_t received_at = GetStat(&QuicStreamStats::received_at);
-  if (received_at > 0)
-    data_rx_rate_->Record(uv_hrtime() - received_at);
-  RecordTimestamp(&QuicStreamStats::received_at);
-  data_rx_size_->Record(len);
+  RecordRate(&QuicStreamStats::received_at);
+  RecordSize(len);
 }
 
 void QuicStream::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("buffer", &streambuf_);
-  tracker->TrackField("data_rx_rate", data_rx_rate_);
-  tracker->TrackField("data_rx_size", data_rx_size_);
-  tracker->TrackField("data_rx_ack", data_rx_ack_);
-  tracker->TrackField("stats_buffer", stats_buffer());
+  StatsBase::StatsMemoryInfo(tracker);
   tracker->TrackField("headers", headers_);
 }
 
@@ -388,7 +347,6 @@ void QuicStream::ReceiveData(
       } else {
         IncrementStat(&QuicStreamStats::max_offset, avail);
         session_->ExtendStreamOffset(id(), avail);
-
       }
     }
   }

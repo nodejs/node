@@ -761,10 +761,7 @@ void QuicCryptoContext::AcknowledgeCryptoData(
   // crypto data for a long time by not sending an acknowledgement.
   // The histogram will allow us to track the time periods between
   // acknowlegements.
-  uint64_t acked_at = session_->GetStat(&QuicSessionStats::handshake_acked_at);
-  if (acked_at > 0)
-    session_->crypto_rx_ack_->Record(uv_hrtime() - acked_at);
-  session_->RecordTimestamp(&QuicSessionStats::handshake_acked_at);
+  session()->RecordAck(&QuicSessionStats::handshake_acked_at);
 }
 
 void QuicCryptoContext::EnableTrace() {
@@ -1328,7 +1325,9 @@ QuicSession::QuicSession(
     PreferredAddressStrategy preferred_address_strategy,
     uint64_t initial_connection_close)
   : AsyncWrap(socket->env(), wrap, provider_type),
-    StatsBase(socket->env(), wrap),
+    StatsBase(socket->env(), wrap,
+              HistogramOptions::ACK |
+              HistogramOptions::RATE),
     alloc_info_(MakeAllocator()),
     socket_(socket),
     alpn_(alpn),
@@ -1336,15 +1335,7 @@ QuicSession::QuicSession(
     initial_connection_close_(initial_connection_close),
     idle_(new Timer(socket->env(), [this]() { OnIdleTimeout(); })),
     retransmit_(new Timer(socket->env(), [this]() { MaybeTimeout(); })),
-    state_(env()->isolate(), IDX_QUIC_SESSION_STATE_COUNT),
-    crypto_rx_ack_(
-        HistogramBase::New(
-            socket->env(),
-            1, std::numeric_limits<int64_t>::max())),
-    crypto_handshake_rate_(
-        HistogramBase::New(
-            socket->env(),
-            1, std::numeric_limits<int64_t>::max())) {
+    state_(env()->isolate(), IDX_QUIC_SESSION_STATE_COUNT) {
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
   set_stateless_reset_token_strategy(CryptoStatelessResetTokenStrategy);
@@ -1354,25 +1345,13 @@ QuicSession::QuicSession(
   if (rcid != nullptr)
     rcid_ = *rcid;
 
-  // TODO(@jasnell): For now, the following are checks rather than properly
-  // handled. Before this code moves out of experimental, these should be
+  // TODO(@jasnell): For now, the following is a check rather than properly
+  // handled. Before this code moves out of experimental, this should be
   // properly handled.
   wrap->DefineOwnProperty(
       env()->context(),
       env()->state_string(),
       state_.GetJSArray(),
-      PropertyAttribute::ReadOnly).Check();
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->crypto_rx_ack_string(),
-      crypto_rx_ack_->object(),
-      PropertyAttribute::ReadOnly).Check();
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->crypto_handshake_rate_string(),
-      crypto_handshake_rate_->object(),
       PropertyAttribute::ReadOnly).Check();
 
   // TODO(@jasnell): memory accounting
@@ -2545,12 +2524,10 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("retransmit", retransmit_);
   tracker->TrackField("streams", streams_);
   tracker->TrackField("state", state_);
-  tracker->TrackField("crypto_rx_ack", crypto_rx_ack_);
-  tracker->TrackField("crypto_handshake_rate", crypto_handshake_rate_);
-  tracker->TrackField("stats_buffer", stats_buffer());
   tracker->TrackFieldWithSize("current_ngtcp2_memory", current_ngtcp2_memory_);
   tracker->TrackField("conn_closebuf", conn_closebuf_);
   tracker->TrackField("application", application_);
+  StatsBase::StatsMemoryInfo(tracker);
 }
 
 // When an initial packet is received by a QuicSocket, and there

@@ -318,7 +318,7 @@ void QuicSocket::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("reset_counts", reset_counts_);
   tracker->TrackField("token_map", token_map_);
   tracker->TrackField("validated_addrs", validated_addrs_);
-  tracker->TrackField("stats_buffer", stats_buffer());
+  StatsBase::StatsMemoryInfo(tracker);
   tracker->TrackFieldWithSize(
       "current_ngtcp2_memory",
       current_ngtcp2_memory_);

@@ -64,9 +64,9 @@ enum QuicSocketStatsIdx : int {
 #undef V
 
 #define V(_, name) uint64_t name;
-  struct QuicSocketStats {
-    SOCKET_STATS(V)
-  };
+struct QuicSocketStats {
+  SOCKET_STATS(V)
+};
 #undef V
 
 class QuicSocket;

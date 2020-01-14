@@ -173,6 +173,7 @@ constexpr size_t kFsStatsBufferLength =
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                       \
+  V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
   V(args_string, "args")                                                       \
@@ -200,16 +201,11 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
   V(crypto_ed448_string, "ed448")                                              \
-  V(crypto_handshake_rate_string, "crypto_handshake_rate")                     \
   V(crypto_x25519_string, "x25519")                                            \
   V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
-  V(crypto_rx_ack_string, "crypto_rx_ack")                                     \
   V(cwd_string, "cwd")                                                         \
-  V(data_rx_ack_string, "data_rx_ack")                                         \
-  V(data_rx_rate_string, "data_rx_rate")                                       \
-  V(data_rx_size_string, "data_rx_size")                                       \
   V(data_string, "data")                                                       \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
@@ -338,6 +334,7 @@ constexpr size_t kFsStatsBufferLength =
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
   V(quic_alpn_string, "h3-24")                                                 \
+  V(rate_string, "rate")                                                       \
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \

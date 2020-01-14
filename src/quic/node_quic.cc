@@ -1,7 +1,6 @@
 #include "debug_utils.h"
 #include "node.h"
 #include "env-inl.h"
-#include "histogram-inl.h"
 #include "node_crypto.h"  // SecureContext
 #include "node_crypto_common.h"
 #include "node_errors.h"
@@ -75,7 +74,6 @@ void QuicSetCallbacks(const FunctionCallbackInfo<Value>& args) {
 #undef SETFUNCTION
 }
 
-
 // Sets QUIC specific configuration options for the SecureContext.
 // It's entirely likely that there's a better way to do this, but
 // for now this works.
@@ -95,7 +93,6 @@ void QuicInitSecureContext(const FunctionCallbackInfo<Value>& args) {
     THROW_ERR_QUIC_CANNOT_SET_GROUPS(env);
 }
 }  // namespace
-
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -195,9 +192,18 @@ void Initialize(Local<Object> target,
   V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
   V(UV_EBADF)
 
-#define V(name, _) NODE_DEFINE_CONSTANT(constants, name);
+#define V(name, _)                                                             \
+  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_##name);
   SESSION_STATS(V)
+#undef V
+
+#define V(name, _)                                                             \
+  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_##name);
   SOCKET_STATS(V)
+#undef V
+
+#define V(name, _)                                                             \
+  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_##name);
   STREAM_STATS(V)
 #undef V
 

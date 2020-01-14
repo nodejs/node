@@ -7,6 +7,8 @@
 #include "node_sockaddr.h"
 #include "uv.h"
 #include "v8.h"
+#include "histogram.h"
+#include "memory_tracker.h"
 
 #include <ngtcp2/ngtcp2.h>
 #include <openssl/ssl.h>
@@ -74,17 +76,51 @@ enum QuicErrorFamily : int32_t {
 template <typename T>
 class StatsBase {
  public:
+  enum HistogramOptions {
+    NONE = 0,
+    RATE = 1,
+    SIZE = 2,
+    ACK = 4
+  };
   inline StatsBase(
       Environment* env,
-      v8::Local<v8::Object> wrap);
+      v8::Local<v8::Object> wrap,
+      int options = HistogramOptions::NONE);
+
  protected:
+  // Increments the given stat field by the given amount
   inline void IncrementStat(uint64_t T::*member, uint64_t amount = 1);
+
+  // Sets an entirely new value for the given stat field
   inline void SetStat(uint64_t T::*member, uint64_t value);
+
+  // Sets the given stat field to the current uv_hrtime()
   inline void RecordTimestamp(uint64_t T::*member);
+
+  // Gets the current value of the given stat field
   inline uint64_t GetStat(uint64_t T::*member) const;
-  inline const AliasedBigUint64Array& stats_buffer() const;
+
+  // If the rate histogram is used, records the time elapsed
+  // between now and the timestamp specified by the member
+  // field.
+  inline void RecordRate(uint64_t T::*member);
+
+  // If the size histogram is used, records the given size.
+  inline void RecordSize(uint64_t val);
+
+  // If the ack rate histogram is used, records the time
+  // elapsed between now and the timestamp specified by
+  // the member field.
+  inline void RecordAck(uint64_t T::*member);
+
+ protected:
+  inline void StatsMemoryInfo(MemoryTracker* tracker) const;
+
  private:
   T stats_{};
+  BaseObjectPtr<HistogramBase> rate_;
+  BaseObjectPtr<HistogramBase> size_;
+  BaseObjectPtr<HistogramBase> ack_;
   AliasedBigUint64Array stats_buffer_;
 };
 

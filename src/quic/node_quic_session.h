@@ -7,7 +7,6 @@
 #include "async_wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
-#include "histogram-inl.h"
 #include "node.h"
 #include "node_crypto.h"
 #include "node_mem.h"
@@ -203,11 +202,11 @@ enum QuicSessionState : int {
   V(HANDSHAKE_CONTINUE_AT, handshake_continue_at)                              \
   V(HANDSHAKE_COMPLETED_AT, handshake_completed_at)                            \
   V(HANDSHAKE_ACKED_AT, handshake_acked_at)                                    \
-  V(SENT_AT,sent_at)                                                           \
+  V(SENT_AT, sent_at)                                                          \
   V(RECEIVED_AT, received_at)                                                  \
   V(CLOSING_AT, closing_at)                                                    \
   V(BYTES_RECEIVED, bytes_received)                                            \
-  V(BYTES_SENT,bytes_sent)                                                     \
+  V(BYTES_SENT, bytes_sent)                                                    \
   V(BIDI_STREAM_COUNT, bidi_stream_count)                                      \
   V(UNI_STREAM_COUNT, uni_stream_count)                                        \
   V(STREAMS_IN_COUNT, streams_in_count)                                        \
@@ -232,10 +231,10 @@ enum QuicSessionStatsIdx : int {
 #undef V
 
 #define V(_, name) uint64_t name;
-  struct QuicSessionStats {
-    SESSION_STATS(V)
-  };
-#undef
+struct QuicSessionStats {
+  SESSION_STATS(V)
+};
+#undef V
 
 class QuicSessionListener {
  public:
@@ -1421,17 +1420,6 @@ class QuicSession : public AsyncWrap,
   StreamsMap streams_;
 
   AliasedFloat64Array state_;
-
-  // crypto_rx_ack_ measures the elapsed time between crypto acks
-  // for this stream. This data can be used to detect peers that are
-  // generally taking too long to acknowledge crypto data.
-  BaseObjectPtr<HistogramBase> crypto_rx_ack_;
-
-  // crypto_handshake_rate_ measures the elapsed time between
-  // crypto continuation steps. This data can be used to detect
-  // peers that are generally taking too long to carry out the
-  // handshake
-  BaseObjectPtr<HistogramBase> crypto_handshake_rate_;
 
   static const ngtcp2_conn_callbacks callbacks[2];
 

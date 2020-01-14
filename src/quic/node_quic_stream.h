@@ -6,7 +6,6 @@
 #include "memory_tracker-inl.h"
 #include "async_wrap.h"
 #include "env.h"
-#include "histogram-inl.h"
 #include "node_quic_util.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
@@ -392,27 +391,6 @@ class QuicStream : public AsyncWrap,
   std::vector<std::unique_ptr<QuicHeader>> headers_;
   QuicStreamHeadersKind headers_kind_;
   size_t current_headers_length_ = 0;
-
-  // data_rx_rate_ measures the elapsed time between data packets
-  // for this stream. When used in combination with the data_rx_size,
-  // this can be used to track the overall data throughput over time
-  // for the stream. Specifically, this can be used to detect
-  // potentially bad acting peers that are sending many small chunks
-  // of data too slowly in an attempt to DOS the peer.
-  BaseObjectPtr<HistogramBase> data_rx_rate_;
-
-  // data_rx_size_ measures the size of data packets for this stream
-  // over time. When used in combination with the data_rx_rate_,
-  // this can be used to track the overall data throughout over time
-  // for the stream. Specifically, this can be used to detect
-  // potentially bad acting peers that are sending many small chunks
-  // of data too slowly in an attempt to DOS the peer.
-  BaseObjectPtr<HistogramBase> data_rx_size_;
-
-  // data_rx_ack_ measures the elapsed time between data acks
-  // for this stream. This data can be used to detect peers that are
-  // generally taking too long to acknowledge sent stream data.
-  BaseObjectPtr<HistogramBase> data_rx_ack_;
 
   ListNode<QuicStream> stream_queue_;
 

@@ -3,7 +3,9 @@
 
 #include "node_internals.h"
 #include "node_quic_util.h"
+#include "memory_tracker-inl.h"
 #include "env-inl.h"
+#include "histogram-inl.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -307,17 +309,51 @@ bool StatelessResetToken::Compare::operator()(
 template <typename T>
 StatsBase<T>::StatsBase(
     Environment* env,
-    v8::Local<v8::Object> wrap)
+    v8::Local<v8::Object> wrap,
+    int options)
     : stats_buffer_(
           env->isolate(),
           sizeof(T) / sizeof(uint64_t),
           reinterpret_cast<uint64_t*>(&stats_)) {
+  static constexpr uint64_t kMax = std::numeric_limits<int64_t>::max();
   stats_.created_at = uv_hrtime();
-  CHECK(wrap->DefineOwnProperty(
+
+  // TODO(@jasnell): The follow are checks instead of handling
+  // the error. Before this code moves out of experimental,
+  // these should be change to properly handle the error.
+
+  wrap->DefineOwnProperty(
       env->context(),
       env->stats_string(),
       stats_buffer_.GetJSArray(),
-      PropertyAttribute::ReadOnly).IsJust());
+      PropertyAttribute::ReadOnly).Check();
+
+  if (options & HistogramOptions::ACK) {
+    ack_ = HistogramBase::New(env, 1, kMax);
+    wrap->DefineOwnProperty(
+        env->context(),
+        env->ack_string(),
+        ack_->object(),
+        PropertyAttribute::ReadOnly).Check();
+  }
+
+  if (options & HistogramOptions::RATE) {
+    rate_ = HistogramBase::New(env, 1, kMax);
+    wrap->DefineOwnProperty(
+        env->context(),
+        env->rate_string(),
+        rate_->object(),
+        PropertyAttribute::ReadOnly).Check();
+  }
+
+  if (options & HistogramOptions::SIZE) {
+    size_ = HistogramBase::New(env, 1, kMax);
+    wrap->DefineOwnProperty(
+        env->context(),
+        env->size_string(),
+        size_->object(),
+        PropertyAttribute::ReadOnly).Check();
+  }
 }
 
 template <typename T>
@@ -342,8 +378,38 @@ uint64_t StatsBase<T>::GetStat(uint64_t T::*member) const {
 }
 
 template <typename T>
-const AliasedBigUint64Array& StatsBase<T>::stats_buffer() const {
-  return stats_buffer_;
+inline void StatsBase<T>::RecordRate(uint64_t T::*member) {
+  CHECK(rate_);
+
+  uint64_t received_at = GetStat(member);
+  uint64_t now = uv_hrtime();
+  if (received_at > 0)
+    rate_->Record(now - received_at);
+  SetStat(member, now);
+}
+
+template <typename T>
+inline void StatsBase<T>::RecordSize(uint64_t val) {
+  CHECK(size_);
+  size_->Record(val);
+}
+
+template <typename T>
+inline void StatsBase<T>::RecordAck(uint64_t T::*member) {
+  CHECK(ack_);
+  uint64_t acked_at = GetStat(member);
+  uint64_t now = uv_hrtime();
+  if (acked_at > 0)
+    ack_->Record(now - acked_at);
+  SetStat(member, now);
+}
+
+template <typename T>
+void StatsBase<T>::StatsMemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("stats_buffer", stats_buffer_);
+  tracker->TrackField("rate_histogram", rate_);
+  tracker->TrackField("size_histogram", size_);
+  tracker->TrackField("ack_histogram", ack_);
 }
 
 }  // namespace quic
