@@ -203,7 +203,23 @@ The character encodings currently supported by Node.js include:
 
 * `'binary'`: Alias for `'latin1'`.
 
-* `'hex'`: Encode each byte as two hexadecimal characters.
+* `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
+  may occur for unsanitized input. For example:
+
+```js
+Buffer.from('1ag', 'hex');
+// Prints <Buffer 1a>, data truncated when first non-hexa-decimal value
+// ('g') encountered
+
+Buffer.from('1a7g', 'hex');
+// Prints <Buffer 1a> , data truncated when data ends in single digit ('7').
+
+Buffer.from('1634', 'hex');
+// Prints <Buffer 16 34> , fully qualified hexadecimal data
+
+Buffer.from((163).toString(16), 'hex');
+// Prints <Buffer a3> , sanitized hexadecimal data
+```
 
 Modern Web browsers follow the [WHATWG Encoding Standard][] which aliases
 both `'latin1'` and `'ISO-8859-1'` to `'win-1252'`. This means that while doing
