@@ -163,8 +163,7 @@ ssize_t QuicApplication::WriteVStream(
     stream_data.fin,
     stream_data.buf,
     stream_data.count,
-    uv_hrtime()
-  );
+    uv_hrtime());
 }
 
 std::unique_ptr<QuicPacket> QuicApplication::CreateStreamDataPacket() {
