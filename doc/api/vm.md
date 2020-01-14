@@ -299,7 +299,7 @@ console.log(globalVar);
 
 ## Class: `vm.Module`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -623,7 +623,7 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 
 ## Class: `vm.SyntheticModule`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -652,7 +652,7 @@ const module = new vm.SyntheticModule(['default'], function() {
 
 ### Constructor: `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 * `exportNames` {string[]} Array of names that will be exported from the module.
@@ -672,7 +672,7 @@ the module to access information outside the specified `context`. Use
 
 ### `syntheticModule.setExport(name, value)`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 * `name` {string} Name of the export to set.

@@ -2525,7 +2525,7 @@ an officially supported API.
 ### DEP0136: `http` `finished`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/28679
     description: Documentation-only deprecation.
 -->

@@ -224,7 +224,7 @@ recommendation is to **not use `async` functions as `'error'` event handlers**.
 <!-- YAML
 added: v0.1.26
 changes:
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/27867
     description: Added captureRejections option.
 -->
@@ -362,7 +362,7 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 
 ### `EventEmitter.errorMonitor`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 This symbol shall be used to install a listener for only monitoring `'error'`
@@ -784,7 +784,7 @@ emitter.emit('log');
 
 ### `emitter[Symbol.for('nodejs.rejection')](err, eventName[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 > Stability: 1 - captureRejections is experimental.
@@ -866,7 +866,7 @@ run();
 
 ## events.captureRejections
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 > Stability: 1 - captureRejections is experimental.
@@ -877,7 +877,7 @@ Change the default `captureRejections` option on all new `EventEmitter` objects.
 
 ## events.captureRejectionSymbol
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 > Stability: 1 - captureRejections is experimental.
@@ -888,7 +888,7 @@ See how to write a custom [rejection handler][rejection].
 
 ## events.on(emitter, eventName)
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 * `emitter` {EventEmitter}

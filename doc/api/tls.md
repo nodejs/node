@@ -861,7 +861,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/26625
     description: Return the minimum cipher version, instead of a fixed string
       (`'TLSv1/SSLv3'`).
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/30637
     description: Return the IETF cipher name as `standardName`.
 -->
@@ -1241,7 +1241,7 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/23188
     description: The `pskCallback` option is now supported.
   - version: v12.9.0

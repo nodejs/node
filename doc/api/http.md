@@ -620,7 +620,7 @@ is finished.
 ### `request.finished`
 <!-- YAML
 added: v0.0.1
-deprecated: REPLACEME
+deprecated: v12.15.0
 -->
 
 > Stability: 0 - Deprecated. Use [`request.writableEnded`][].
@@ -699,7 +699,7 @@ request.removeHeader('Content-Type');
 ### `request.reusedSocket`
 
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 * {boolean} Whether the request is send through a reused socket.
@@ -1268,7 +1268,7 @@ See [`response.socket`][].
 
 ### `response.cork()`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 See [`writable.cork()`][].
@@ -1300,7 +1300,7 @@ is finished.
 ### `response.finished`
 <!-- YAML
 added: v0.0.2
-deprecated: REPLACEME
+deprecated: v12.15.0
 -->
 
 > Stability: 0 - Deprecated. Use [`response.writableEnded`][].
@@ -1567,7 +1567,7 @@ status message which was sent out.
 
 ### `response.uncork()`
 <!-- YAML
-added: REPLACEME
+added: v12.15.0
 -->
 
 See [`writable.uncork()`][].
@@ -1724,7 +1724,7 @@ the request body should be sent.
 <!-- YAML
 added: v0.1.17
 changes:
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/30135
     description: The `readableHighWaterMark` value mirrors that of the socket.
 -->
