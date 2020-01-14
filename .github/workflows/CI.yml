@@ -7,10 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js 13
-        uses: actions/setup-node@v1
-        with:
-          node-version: 13.x
       - name: Environment Information
         run: npx envinfo
       - name: Build
@@ -19,10 +15,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js 13
-        uses: actions/setup-node@v1
-        with:
-          node-version: 13.x
       - name: Environment Information
         run: npx envinfo
       - name: Install deps
@@ -33,10 +25,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js 13
-        uses: actions/setup-node@v1
-        with:
-          node-version: 13.x
       - name: Environment Information
         run: npx envinfo
       - name: Build
