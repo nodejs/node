@@ -64,6 +64,9 @@ class WrkBenchmarker {
       '-t', 8,
       `http://127.0.0.1:${options.port}${options.path}`,
     ];
+    for (const field in options.headers) {
+      args.push('-H', `${field}: ${options.headers[field]}`);
+    }
     const child = child_process.spawn(this.executable, args);
     return child;
   }
