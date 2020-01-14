@@ -54,7 +54,7 @@ the next argument will be used as a script filename.
 
 ### `--abort-on-uncaught-exception`
 <!-- YAML
-added: v0.10
+added: v0.10.8
 -->
 
 Aborting instead of exiting causes a core file to be generated for post-mortem
