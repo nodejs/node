@@ -1344,11 +1344,7 @@ QuicSession::QuicSession(
     crypto_handshake_rate_(
         HistogramBase::New(
             socket->env(),
-            1, std::numeric_limits<int64_t>::max())),
-    recovery_stats_buffer_(
-        socket->env()->isolate(),
-        sizeof(recovery_stats_) / sizeof(double),
-        reinterpret_cast<double*>(&recovery_stats_)) {
+            1, std::numeric_limits<int64_t>::max())) {
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
   set_stateless_reset_token_strategy(CryptoStatelessResetTokenStrategy);
@@ -2552,7 +2548,6 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("crypto_rx_ack", crypto_rx_ack_);
   tracker->TrackField("crypto_handshake_rate", crypto_handshake_rate_);
   tracker->TrackField("stats_buffer", stats_buffer());
-  tracker->TrackField("recovery_stats_buffer", recovery_stats_buffer_);
   tracker->TrackFieldWithSize("current_ngtcp2_memory", current_ngtcp2_memory_);
   tracker->TrackField("conn_closebuf", conn_closebuf_);
   tracker->TrackField("application", application_);
@@ -2729,9 +2724,9 @@ void QuicSessionOnCertDone(const FunctionCallbackInfo<Value>& args) {
 void QuicSession::UpdateRecoveryStats() {
   const ngtcp2_rcvry_stat* stat =
       ngtcp2_conn_get_rcvry_stat(connection());
-  recovery_stats_.min_rtt = static_cast<double>(stat->min_rtt);
-  recovery_stats_.latest_rtt = static_cast<double>(stat->latest_rtt);
-  recovery_stats_.smoothed_rtt = static_cast<double>(stat->smoothed_rtt);
+  SetStat(&QuicSessionStats::min_rtt, stat->min_rtt);
+  SetStat(&QuicSessionStats::latest_rtt, stat->latest_rtt);
+  SetStat(&QuicSessionStats::smoothed_rtt, stat->smoothed_rtt);
 }
 
 // Data stats are used to allow user code to keep track of important

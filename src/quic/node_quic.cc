@@ -162,29 +162,6 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_DISABLE_MIGRATION)                                        \
   V(IDX_QUIC_SESSION_MAX_ACK_DELAY)                                            \
   V(IDX_QUIC_SESSION_CONFIG_COUNT)                                             \
-  V(IDX_QUIC_SESSION_STATS_CREATED_AT)                                         \
-  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_START_AT)                                 \
-  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_SEND_AT)                                  \
-  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_CONTINUE_AT)                              \
-  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_COMPLETED_AT)                             \
-  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_ACKED_AT)                                 \
-  V(IDX_QUIC_SESSION_STATS_SENT_AT)                                            \
-  V(IDX_QUIC_SESSION_STATS_RECEIVED_AT)                                        \
-  V(IDX_QUIC_SESSION_STATS_CLOSING_AT)                                         \
-  V(IDX_QUIC_SESSION_STATS_BYTES_RECEIVED)                                     \
-  V(IDX_QUIC_SESSION_STATS_BYTES_SENT)                                         \
-  V(IDX_QUIC_SESSION_STATS_BIDI_STREAM_COUNT)                                  \
-  V(IDX_QUIC_SESSION_STATS_UNI_STREAM_COUNT)                                   \
-  V(IDX_QUIC_SESSION_STATS_STREAMS_IN_COUNT)                                   \
-  V(IDX_QUIC_SESSION_STATS_STREAMS_OUT_COUNT)                                  \
-  V(IDX_QUIC_SESSION_STATS_KEYUPDATE_COUNT)                                    \
-  V(IDX_QUIC_SESSION_STATS_RETRY_COUNT)                                        \
-  V(IDX_QUIC_SESSION_STATS_LOSS_RETRANSMIT_COUNT)                              \
-  V(IDX_QUIC_SESSION_STATS_ACK_DELAY_RETRANSMIT_COUNT)                         \
-  V(IDX_QUIC_SESSION_STATS_PATH_VALIDATION_SUCCESS_COUNT)                      \
-  V(IDX_QUIC_SESSION_STATS_PATH_VALIDATION_FAILURE_COUNT)                      \
-  V(IDX_QUIC_SESSION_STATS_MAX_BYTES_IN_FLIGHT)                                \
-  V(IDX_QUIC_SESSION_STATS_BLOCK_COUNT)                                        \
   V(IDX_QUIC_SESSION_STATE_CERT_ENABLED)                                       \
   V(IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED)                               \
   V(IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED)                      \
@@ -194,25 +171,6 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI)                                    \
   V(IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT)                                      \
   V(IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT)                                    \
-  V(IDX_QUIC_SOCKET_STATS_CREATED_AT)                                          \
-  V(IDX_QUIC_SOCKET_STATS_BOUND_AT)                                            \
-  V(IDX_QUIC_SOCKET_STATS_LISTEN_AT)                                           \
-  V(IDX_QUIC_SOCKET_STATS_BYTES_RECEIVED)                                      \
-  V(IDX_QUIC_SOCKET_STATS_BYTES_SENT)                                          \
-  V(IDX_QUIC_SOCKET_STATS_PACKETS_RECEIVED)                                    \
-  V(IDX_QUIC_SOCKET_STATS_PACKETS_IGNORED)                                     \
-  V(IDX_QUIC_SOCKET_STATS_PACKETS_SENT)                                        \
-  V(IDX_QUIC_SOCKET_STATS_SERVER_SESSIONS)                                     \
-  V(IDX_QUIC_SOCKET_STATS_CLIENT_SESSIONS)                                     \
-  V(IDX_QUIC_SOCKET_STATS_STATELESS_RESET_COUNT)                               \
-  V(IDX_QUIC_STREAM_STATS_CREATED_AT)                                          \
-  V(IDX_QUIC_STREAM_STATS_SENT_AT)                                             \
-  V(IDX_QUIC_STREAM_STATS_RECEIVED_AT)                                         \
-  V(IDX_QUIC_STREAM_STATS_ACKED_AT)                                            \
-  V(IDX_QUIC_STREAM_STATS_CLOSING_AT)                                          \
-  V(IDX_QUIC_STREAM_STATS_BYTES_RECEIVED)                                      \
-  V(IDX_QUIC_STREAM_STATS_BYTES_SENT)                                          \
-  V(IDX_QUIC_STREAM_STATS_MAX_OFFSET)                                          \
   V(MAX_RETRYTOKEN_EXPIRATION)                                                 \
   V(MIN_RETRYTOKEN_EXPIRATION)                                                 \
   V(NGTCP2_APP_NOERROR)                                                        \
@@ -236,6 +194,12 @@ void Initialize(Local<Object> target,
   V(QUICSTREAM_HEADERS_KIND_INITIAL)                                           \
   V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
   V(UV_EBADF)
+
+#define V(name, _) NODE_DEFINE_CONSTANT(constants, name);
+  SESSION_STATS(V)
+  SOCKET_STATS(V)
+  STREAM_STATS(V)
+#undef V
 
 #define V(name) NODE_DEFINE_CONSTANT(constants, name);
   QUIC_CONSTANTS(V)

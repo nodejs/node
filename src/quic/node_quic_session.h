@@ -219,7 +219,10 @@ enum QuicSessionState : int {
   V(PATH_VALIDATION_SUCCESS_COUNT, path_validation_success_count)              \
   V(PATH_VALIDATION_FAILURE_COUNT, path_validation_failure_count)              \
   V(MAX_BYTES_IN_FLIGHT, max_bytes_in_flight)                                  \
-  V(BLOCK_COUNT, block_count)
+  V(BLOCK_COUNT, block_count)                                                  \
+  V(MIN_RTT, min_rtt)                                                          \
+  V(LATEST_RTT, latest_rtt)                                                    \
+  V(SMOOTHED_RTT, smoothed_rtt)
 
 #define V(name, _) IDX_QUIC_SESSION_STATS_##name,
 enum QuicSessionStatsIdx : int {
@@ -1429,15 +1432,6 @@ class QuicSession : public AsyncWrap,
   // peers that are generally taking too long to carry out the
   // handshake
   BaseObjectPtr<HistogramBase> crypto_handshake_rate_;
-
-  struct recovery_stats {
-    double min_rtt;
-    double latest_rtt;
-    double smoothed_rtt;
-  };
-  recovery_stats recovery_stats_{};
-
-  AliasedFloat64Array recovery_stats_buffer_;
 
   static const ngtcp2_conn_callbacks callbacks[2];
 
