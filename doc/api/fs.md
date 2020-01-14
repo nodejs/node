@@ -1006,7 +1006,7 @@ of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
 Provides information about a mounted filesystem.
 
 Objects returned from [`fs.statfs()`][] and its synchronous counterpart are of
-this type. If `bigint` in the `options` passed to those methods is true, the
+this type. If `bigint` in the `options` passed to those methods is `true`, the
 numeric values will be `bigint` instead of `number`.
 
 ```console
@@ -5248,7 +5248,7 @@ added: REPLACEME
 
 The `Promise` is resolved with the [`fs.StatFs`][] object for the given `path`.
 
-### `fsPromises.symlink(target, path\[, type\])`
+### `fsPromises.symlink(target, path[, type])`
 <!-- YAML
 added: v10.0.0
 -->
