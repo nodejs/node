@@ -69,8 +69,8 @@ bool SocketAddress::is_numeric_host(const char* hostname) {
 }
 
 bool SocketAddress::is_numeric_host(const char* hostname, int family) {
-  std::array<uint8_t, sizeof(struct in6_addr)> dst;
-  return inet_pton(family, hostname, dst.data()) == 1;
+  in6_addr dst;
+  return inet_pton(family, hostname, &dst) == 1;
 }
 
 sockaddr_storage* SocketAddress::ToSockAddr(

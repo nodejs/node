@@ -307,13 +307,13 @@ class QuicStream : public AsyncWrap, public StreamBase {
   template <typename T>
   inline size_t DrainInto(
       std::vector<T>* vec,
-      size_t max_count = MAX_VECTOR_COUNT);
+      size_t max_count = kMaxVectorCount);
 
   template <typename T>
   inline size_t DrainInto(
       T* vec,
       size_t* count,
-      size_t max_count = MAX_VECTOR_COUNT);
+      size_t max_count = kMaxVectorCount);
 
   inline void EndHeaders();
 

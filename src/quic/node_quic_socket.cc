@@ -98,7 +98,7 @@ void QuicPacket::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 QuicSocketListener::~QuicSocketListener() {
-  if (socket_ != nullptr)
+  if (socket_)
     socket_->RemoveListener(this);
 }
 
@@ -263,7 +263,7 @@ QuicSocket::QuicSocket(
 
   Debug(this, "New QuicSocket created.");
 
-  EntropySource(token_secret_, TOKEN_SECRETLEN);
+  EntropySource(token_secret_, kTokenSecretLen);
   socket_stats_.created_at = uv_hrtime();
 
   if (disable_stateless_reset)
@@ -280,11 +280,14 @@ QuicSocket::QuicSocket(
     EntropySource(reset_token_secret_, NGTCP2_STATELESS_RESET_TOKENLEN);
   }
 
-  USE(wrap->DefineOwnProperty(
+  // TODO(@jasnell): For now, the following is a check rather than properly
+  // handled. Before this code moves out of experimental, this should be
+  // properly handled.
+  wrap->DefineOwnProperty(
       env->context(),
       env->stats_string(),
       stats_buffer_.GetJSArray(),
-      PropertyAttribute::ReadOnly));
+      PropertyAttribute::ReadOnly).Check();
 }
 
 QuicSocket::~QuicSocket() {
@@ -340,11 +343,11 @@ void QuicSocket::Listen(
     const std::string& alpn,
     uint32_t options) {
   CHECK_NOT_NULL(sc);
-  CHECK_NULL(server_secure_context_);
+  CHECK(!server_secure_context_);
   CHECK(!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING));
   Debug(this, "Starting to listen.");
   server_session_config_.Set(env(), preferred_address);
-  server_secure_context_ = sc;
+  server_secure_context_.reset(sc);
   server_alpn_ = alpn;
   server_options_ = options;
   set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING);
@@ -450,7 +453,7 @@ void QuicSocket::OnReceive(
         &pdcidlen,
         &pscid,
         &pscidlen,
-        data, nread, NGTCP2_SV_SCIDLEN) < 0) {
+        data, nread, kScidLen) < 0) {
     IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
     return;
   }
@@ -554,15 +557,14 @@ void QuicSocket::SendVersionNegotiation(
       const QuicCID& scid,
       const SocketAddress& local_addr,
       const sockaddr* remote_addr) {
-  std::array<uint32_t, 2> sv;
+  uint32_t sv[2];
   sv[0] = GenerateReservedVersion(remote_addr, version);
   sv[1] = NGTCP2_PROTO_VER;
 
   uint8_t unused_random;
   EntropySource(&unused_random, 1);
 
-  size_t pktlen = dcid.length() + scid.length() +
-                  (sv.size() * sizeof(uint32_t)) + 7;
+  size_t pktlen = dcid.length() + scid.length() + (sizeof(sv)) + 7;
 
   auto packet = QuicPacket::Create("version negotiation", pktlen);
   ssize_t nwrite = ngtcp2_pkt_write_version_negotiation(
@@ -573,8 +575,8 @@ void QuicSocket::SendVersionNegotiation(
       dcid.length(),
       scid.data(),
       scid.length(),
-      sv.data(),
-      sv.size());
+      sv,
+      arraysize(sv));
   if (nwrite <= 0)
     return;
   packet->set_length(nwrite);
@@ -589,10 +591,10 @@ bool QuicSocket::SendStatelessReset(
     size_t source_len) {
   if (UNLIKELY(is_stateless_reset_disabled()))
     return false;
-  constexpr static size_t RANDLEN = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
-  constexpr static size_t MIN_STATELESS_RESET_LEN = 41;
+  constexpr static size_t kRandlen = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
+  constexpr static size_t kMinStatelessResetLen = 41;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  uint8_t random[RANDLEN];
+  uint8_t random[kRandlen];
 
   // Per the QUIC spec, we need to protect against sending too
   // many stateless reset tokens to an endpoint to prevent
@@ -610,11 +612,11 @@ bool QuicSocket::SendStatelessReset(
   // 41 bytes may allow an observer to determine that it's a stateless
   // reset.
   size_t pktlen = source_len - 1;
-  if (pktlen < MIN_STATELESS_RESET_LEN)
+  if (pktlen < kMinStatelessResetLen)
     return false;
 
   GenerateResetToken(token, reset_token_secret_, cid.cid());
-  EntropySource(random, RANDLEN);
+  EntropySource(random, kRandlen);
 
   auto packet = QuicPacket::Create("stateless reset", pktlen);
   ssize_t nwrite =
@@ -623,8 +625,8 @@ bool QuicSocket::SendStatelessReset(
         NGTCP2_MAX_PKTLEN_IPV4,
         token,
         random,
-        RANDLEN);
-    if (nwrite < static_cast<ssize_t>(MIN_STATELESS_RESET_LEN))
+        kRandlen);
+    if (nwrite < static_cast<ssize_t>(kMinStatelessResetLen))
       return false;
     packet->set_length(nwrite);
     SocketAddress remote_address(remote_addr);
@@ -659,9 +661,9 @@ bool QuicSocket::SendRetry(
   hd.tokenlen = 0;
   hd.len = 0;
   hd.dcid = *scid.cid();
-  hd.scid.datalen = NGTCP2_SV_SCIDLEN;
+  hd.scid.datalen = kScidLen;
 
-  EntropySource(hd.scid.data, NGTCP2_SV_SCIDLEN);
+  EntropySource(hd.scid.data, kScidLen);
 
   size_t pktlen = tokenlen + (2 * NGTCP2_MAX_CIDLEN) + scid.length() + 8;
   CHECK_LE(pktlen, NGTCP2_MAX_PKT_SIZE);
@@ -896,10 +898,10 @@ void QuicSocket::DecreaseAllocatedSize(size_t size) {
 
 void QuicSocket::PushListener(QuicSocketListener* listener) {
   CHECK_NOT_NULL(listener);
-  CHECK_NULL(listener->socket_);
+  CHECK(!listener->socket_);
 
   listener->previous_listener_ = listener_;
-  listener->socket_ = this;
+  listener->socket_.reset(this);
 
   listener_ = listener;
 }
@@ -923,7 +925,7 @@ void QuicSocket::RemoveListener(QuicSocketListener* listener) {
     }
   }
 
-  listener->socket_ = nullptr;
+  listener->socket_.reset();
   listener->previous_listener_ = nullptr;
 }
 
@@ -963,7 +965,7 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
   const uint8_t* session_reset_secret = nullptr;
   if (args[5]->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(args[5].As<ArrayBufferView>());
-    CHECK_EQ(buf.length(), TOKEN_SECRETLEN);
+    CHECK_EQ(buf.length(), kTokenSecretLen);
     session_reset_secret = buf.data();
   }
 

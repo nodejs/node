@@ -31,9 +31,6 @@ using v8::Value;
 
 namespace quic {
 
-static constexpr size_t MAX_VALIDATE_ADDRESS_LRU = 10;
-static constexpr size_t DEFAULT_MAX_STATELESS_RESETS_PER_HOST = 10;
-
 enum QuicSocketOptions : uint32_t {
   // When enabled the QuicSocket will validate the address
   // using a RETRY packet to the peer.
@@ -77,10 +74,10 @@ class QuicSocketListener {
   virtual void OnEndpointDone(QuicEndpoint* endpoint);
   virtual void OnDestroy();
 
-  QuicSocket* socket() { return socket_; }
+  QuicSocket* socket() { return socket_.get(); }
 
  private:
-  QuicSocket* socket_ = nullptr;
+  BaseObjectWeakPtr<QuicSocket> socket_;
   QuicSocketListener* previous_listener_ = nullptr;
   friend class QuicSocket;
 };
@@ -303,8 +300,8 @@ class QuicSocket : public AsyncWrap,
   // is not.
   inline bool ToggleStatelessReset();
 
-  crypto::SecureContext* server_secure_context() {
-    return server_secure_context_;
+  crypto::SecureContext* server_secure_context() const {
+    return server_secure_context_.get();
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -445,7 +442,7 @@ class QuicSocket : public AsyncWrap,
   ngtcp2_mem alloc_info_;
 
   std::vector<BaseObjectWeakPtr<QuicEndpoint>> endpoints_;
-  QuicEndpoint* preferred_endpoint_;
+  QuicEndpoint* preferred_endpoint_ = nullptr;
 
   uint32_t flags_ = QUICSOCKET_FLAGS_NONE;
   uint32_t options_;
@@ -465,12 +462,12 @@ class QuicSocket : public AsyncWrap,
   JSQuicSocketListener default_listener_;
   QuicSessionConfig server_session_config_;
   QlogMode qlog_ = QlogMode::kDisabled;
-  crypto::SecureContext* server_secure_context_ = nullptr;
+  BaseObjectPtr<crypto::SecureContext> server_secure_context_;
   std::string server_alpn_;
   QuicCIDMap<BaseObjectPtr<QuicSession>> sessions_;
   QuicCIDMap<QuicCID> dcid_to_scid_;
 
-  uint8_t token_secret_[TOKEN_SECRETLEN];
+  uint8_t token_secret_[kTokenSecretLen];
   uint8_t reset_token_secret_[NGTCP2_STATELESS_RESET_TOKENLEN];
 
   // Counts the number of active connections per remote

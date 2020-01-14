@@ -38,7 +38,7 @@ void QuicSessionConfig::GeneratePreferredAddressToken(
     QuicSession* session,
     ngtcp2_cid* pscid) {
 
-  connection_id_strategy(session, pscid, NGTCP2_SV_SCIDLEN);
+  connection_id_strategy(session, pscid, kScidLen);
   stateless_reset_strategy(
       session,
       pscid,
@@ -97,9 +97,8 @@ ngtcp2_crypto_level QuicCryptoContext::write_crypto_level() const {
 // to a keylog file that can be consumed by tools like Wireshark to intercept
 // and decrypt QUIC network traffic.
 void QuicCryptoContext::Keylog(const char* line) {
-  if (LIKELY(session_->state_[IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED] == 0))
-    return;
-  session_->listener()->OnKeylog(line, strlen(line));
+  if (UNLIKELY(session_->state_[IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED] == 1))
+    session_->listener()->OnKeylog(line, strlen(line));
 }
 
 void QuicCryptoContext::OnClientHelloDone() {
@@ -125,23 +124,23 @@ bool QuicCryptoContext::set_session(const unsigned char* data, size_t length) {
 }
 
 void QuicCryptoContext::set_tls_alert(int err) {
-  Debug(session_, "TLS Alert [%d]: %s", err, SSL_alert_type_string_long(err));
+  Debug(session(), "TLS Alert [%d]: %s", err, SSL_alert_type_string_long(err));
   session_->set_last_error(QuicError(QUIC_ERROR_CRYPTO, err));
 }
 
 // Derives and installs the initial keying material for a newly
 // created session.
 bool QuicCryptoContext::SetupInitialKey(const ngtcp2_cid* dcid) {
-  Debug(session_, "Deriving and installing initial keys");
-  return DeriveAndInstallInitialKey(session_, dcid);
+  Debug(session(), "Deriving and installing initial keys");
+  return DeriveAndInstallInitialKey(session(), dcid);
 }
 
 QuicApplication::QuicApplication(QuicSession* session) : session_(session) {}
 
 void QuicApplication::set_stream_fin(int64_t stream_id) {
-  QuicStream* stream = session()->FindStream(stream_id);
-  if (stream != nullptr)
-    stream->set_fin_sent();
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  CHECK(stream);
+  stream->set_fin_sent();
 }
 
 ssize_t QuicApplication::WriteVStream(
@@ -149,7 +148,7 @@ ssize_t QuicApplication::WriteVStream(
     uint8_t* buf,
     ssize_t* ndatalen,
     const StreamData& stream_data) {
-  CHECK_LE(stream_data.count, MAX_VECTOR_COUNT);
+  CHECK_LE(stream_data.count, kMaxVectorCount);
   return ngtcp2_conn_writev_stream(
     session()->connection(),
     &path->path,
@@ -218,12 +217,12 @@ void QuicSession::ExtendMaxStreamsBidi(uint64_t max_streams) {
 }
 
 // Extends the stream-level flow control by the given number of bytes.
-void QuicSession::ExtendStreamOffset(QuicStream* stream, size_t amount) {
+void QuicSession::ExtendStreamOffset(int64_t stream_id, size_t amount) {
   Debug(this, "Extending max stream %" PRId64 " offset by %" PRId64 " bytes",
-        stream->id(), amount);
+        stream_id, amount);
   ngtcp2_conn_extend_max_stream_offset(
       connection(),
-      stream->id(),
+      stream_id,
       amount);
 }
 
@@ -270,10 +269,10 @@ void QuicSession::InitApplication() {
 // immediately closed without attempting to send any additional data to
 // the peer. All existing streams are abandoned and closed.
 void QuicSession::OnIdleTimeout() {
-  if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
-    return;
-  Debug(this, "Idle timeout");
-  return SilentClose();
+  if (!is_flag_set(QUICSESSION_FLAG_DESTROYED)) {
+    Debug(this, "Idle timeout");
+    SilentClose();
+  }
 }
 
 // Captures the error code and family information from a received
@@ -450,9 +449,8 @@ void QuicSession::StopRetransmitTimer() {
 // parameter is an array of versions supported by the remote peer.
 void QuicSession::VersionNegotiation(const uint32_t* sv, size_t nsv) {
   CHECK(!is_server());
-  if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
-    return;
-  listener()->OnVersionNegotiation(NGTCP2_PROTO_VER, sv, nsv);
+  if (!is_flag_set(QUICSESSION_FLAG_DESTROYED))
+    listener()->OnVersionNegotiation(NGTCP2_PROTO_VER, sv, nsv);
 }
 
 // Every QUIC session has a remote address and local address.

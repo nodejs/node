@@ -17,7 +17,7 @@ namespace quic {
 
 class QuicBuffer;
 
-constexpr size_t MAX_VECTOR_COUNT = 16;
+constexpr size_t kMaxVectorCount = 16;
 
 typedef std::function<void(int status)> done_cb;
 
@@ -148,7 +148,7 @@ class QuicBuffer : public MemoryRetainer {
   inline size_t DrainInto(
       std::vector<uv_buf_t>* list,
       size_t* length = nullptr,
-      size_t max_count = MAX_VECTOR_COUNT);
+      size_t max_count = kMaxVectorCount);
 
   template <typename T>
   inline size_t DrainInto(

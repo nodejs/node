@@ -48,11 +48,11 @@ size_t QuicBuffer::Cancel(int status) {
 }
 
 uv_buf_t QuicBuffer::head() {
-  if (head_ == nullptr)
-    return uv_buf_init(nullptr, 0);
-  return uv_buf_init(
-      head_->buf_.base + head_->roffset_,
-      head_->buf_.len - head_->roffset_);
+  return head_ == nullptr ?
+      uv_buf_init(nullptr, 0) :
+      uv_buf_init(
+          head_->buf_.base + head_->roffset_,
+          head_->buf_.len - head_->roffset_);
 }
 
 void QuicBuffer::Push(uv_buf_t buf, done_cb done) {

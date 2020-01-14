@@ -87,12 +87,12 @@ void QuicSocket::DisassociateStatelessResetToken(
 // existing sessions are allowed to close naturally but new
 // sessions are rejected.
 void QuicSocket::StopListening() {
-  if (!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING))
-    return;
-  Debug(this, "Stop listening.");
-  set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING, false);
-  // It is important to not call ReceiveStop here as there
-  // is ongoing traffic being exchanged by the peers.
+  if (is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
+    Debug(this, "Stop listening.");
+    set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING, false);
+    // It is important to not call ReceiveStop here as there
+    // is ongoing traffic being exchanged by the peers.
+  }
 }
 
 void QuicSocket::ReceiveStart() {
@@ -138,16 +138,12 @@ void QuicSocket::DecrementSocketAddressCounter(const SocketAddress& addr) {
 
 size_t QuicSocket::GetCurrentSocketAddressCounter(const sockaddr* addr) {
   auto it = addr_counts_.find(SocketAddress(addr));
-  if (it == std::end(addr_counts_))
-    return 0;
-  return it->second;
+  return it == std::end(addr_counts_) ? 0 : it->second;
 }
 
 size_t QuicSocket::GetCurrentStatelessResetCounter(const sockaddr* addr) {
   auto it = reset_counts_.find(SocketAddress(addr));
-  if (it == std::end(reset_counts_))
-    return 0;
-  return it->second;
+  return it == std::end(reset_counts_) ? 0 : it->second;
 }
 
 void QuicSocket::set_server_busy(bool on) {
@@ -179,7 +175,7 @@ void QuicSocket::set_validated_address(const sockaddr* addr) {
   if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     // Remove the oldest item if we've hit the LRU limit
     validated_addrs_.push_back(SocketAddress::Hash()(addr));
-    if (validated_addrs_.size() > MAX_VALIDATE_ADDRESS_LRU)
+    if (validated_addrs_.size() > kMaxValidateAddressLru)
       validated_addrs_.pop_front();
   }
 }

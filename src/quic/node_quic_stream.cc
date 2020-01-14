@@ -70,29 +70,33 @@ QuicStream::QuicStream(
   StreamBase::AttachToObject(GetObject());
   stream_stats_.created_at = uv_hrtime();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          env()->stats_string(),
-          stats_buffer_.GetJSArray(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  // TODO(@jasnell): For now, the following are checks rather than properly
+  // handled. Before this code moves out of experimental, these should be
+  // properly handled.
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          FIXED_ONE_BYTE_STRING(env()->isolate(), "data_rx_rate"),
-          data_rx_rate_->object(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->stats_string(),
+      stats_buffer_.GetJSArray(),
+      PropertyAttribute::ReadOnly).Check();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          FIXED_ONE_BYTE_STRING(env()->isolate(), "data_rx_size"),
-          data_rx_size_->object(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->data_rx_rate_string(),
+      data_rx_rate_->object(),
+      PropertyAttribute::ReadOnly).Check();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          FIXED_ONE_BYTE_STRING(env()->isolate(), "data_rx_ack"),
-          data_rx_ack_->object(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->data_rx_size_string(),
+      data_rx_size_->object(),
+      PropertyAttribute::ReadOnly).Check();
+
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->data_rx_ack_string(),
+      data_rx_ack_->object(),
+      PropertyAttribute::ReadOnly).Check();
 
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(session()->connection(), &params);
@@ -282,7 +286,7 @@ int QuicStream::ReadStart() {
       inbound_consumed_data_while_paused_,
       &stream_stats_,
       &stream_stats::max_offset);
-  session_->ExtendStreamOffset(this, inbound_consumed_data_while_paused_);
+  session_->ExtendStreamOffset(id(), inbound_consumed_data_while_paused_);
   return 0;
 }
 
@@ -403,7 +407,7 @@ void QuicStream::ReceiveData(
             avail,
             &stream_stats_,
             &stream_stats::max_offset);
-        session_->ExtendStreamOffset(this, avail);
+        session_->ExtendStreamOffset(id(), avail);
       }
     }
   }

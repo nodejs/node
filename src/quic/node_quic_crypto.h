@@ -104,6 +104,9 @@ int VerifyHostnameIdentity(
 // Get the ALPN protocol identifier that was negotiated for the session
 v8::Local<v8::Value> GetALPNProtocol(QuicSession* session);
 
+ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
+const char* crypto_level_name(ngtcp2_crypto_level level);
+
 }  // namespace quic
 }  // namespace node
 

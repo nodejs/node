@@ -200,11 +200,16 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
   V(crypto_ed448_string, "ed448")                                              \
+  V(crypto_handshake_rate_string, "crypto_handshake_rate")                     \
   V(crypto_x25519_string, "x25519")                                            \
   V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
+  V(crypto_rx_ack_string, "crypto_rx_ack")                                     \
   V(cwd_string, "cwd")                                                         \
+  V(data_rx_ack_string, "data_rx_ack")                                         \
+  V(data_rx_rate_string, "data_rx_rate")                                       \
+  V(data_rx_size_string, "data_rx_size")                                       \
   V(data_string, "data")                                                       \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \

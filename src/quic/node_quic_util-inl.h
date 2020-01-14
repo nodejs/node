@@ -15,21 +15,6 @@ namespace node {
 namespace quic {
 
 QuicPath::QuicPath(
-    SocketAddress* local,
-    SocketAddress* remote) {
-  ngtcp2_addr_init(
-      &this->local,
-      local->data(),
-      local->GetLength(),
-      local);
-  ngtcp2_addr_init(
-      &this->remote,
-      local->data(),
-      remote->GetLength(),
-      remote);
-}
-
-QuicPath::QuicPath(
     const SocketAddress& local,
     const SocketAddress& remote) {
   ngtcp2_addr_init(
@@ -72,12 +57,6 @@ std::string QuicCID::ToHex() const {
       dest.data(),
       dest.size());
   return std::string(dest.data(), written);
-}
-
-ngtcp2_addr* ToNgtcp2Addr(const SocketAddress& addr, ngtcp2_addr* dest) {
-  if (dest == nullptr)
-    dest = new ngtcp2_addr();
-  return ngtcp2_addr_init(dest, addr.data(), addr.GetLength(), nullptr);
 }
 
 size_t GetMaxPktLen(const sockaddr* addr) {
@@ -127,36 +106,6 @@ void Timer::Free(Timer* timer) {
 void Timer::OnTimeout(uv_timer_t* timer) {
   Timer* t = ContainerOf(&Timer::timer_, timer);
   t->fn_();
-}
-
-ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
-  switch (ossl_level) {
-  case ssl_encryption_initial:
-    return NGTCP2_CRYPTO_LEVEL_INITIAL;
-  case ssl_encryption_early_data:
-    return NGTCP2_CRYPTO_LEVEL_EARLY;
-  case ssl_encryption_handshake:
-    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
-  case ssl_encryption_application:
-    return NGTCP2_CRYPTO_LEVEL_APP;
-  default:
-    UNREACHABLE();
-  }
-}
-
-const char* crypto_level_name(ngtcp2_crypto_level level) {
-  switch (level) {
-    case NGTCP2_CRYPTO_LEVEL_INITIAL:
-      return "initial";
-    case NGTCP2_CRYPTO_LEVEL_EARLY:
-      return "early";
-    case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-      return "handshake";
-    case NGTCP2_CRYPTO_LEVEL_APP:
-      return "app";
-    default:
-      UNREACHABLE();
-  }
 }
 
 QuicError::QuicError(
@@ -267,10 +216,8 @@ int16_t QuicPreferredAddress::preferred_ipv4_port() const {
 bool QuicPreferredAddress::Use(int family) const {
   uv_getaddrinfo_t req;
 
-  if (!ResolvePreferredAddress(family, &req) ||
-      req.addrinfo == nullptr) {
+  if (!ResolvePreferredAddress(family, &req))
     return false;
-  }
 
   dest_->addrlen = req.addrinfo->ai_addrlen;
   memcpy(dest_->addr, req.addrinfo->ai_addr, req.addrinfo->ai_addrlen);
@@ -324,7 +271,8 @@ bool QuicPreferredAddress::ResolvePreferredAddress(
           nullptr,
           host,
           std::to_string(port).c_str(),
-          &hints) == 0;
+          &hints) == 0 &&
+      req->addrinfo != nullptr;
 }
 
 std::string StatelessResetToken::ToHex() const {

@@ -184,7 +184,7 @@ void QuicSessionListener::OnClientHello(
 }
 
 QuicSessionListener::~QuicSessionListener() {
-  if (session_ != nullptr)
+  if (session_)
     session_->RemoveListener(this);
 }
 
@@ -747,7 +747,7 @@ void QuicCryptoContext::AcknowledgeCryptoData(
   // is nothing to do but wait for further cleanup to happen.
   if (UNLIKELY(session_->is_destroyed()))
     return;
-  Debug(session_,
+  Debug(session(),
         "Acknowledging %d crypto bytes for %s level",
         datalen,
         crypto_level_name(level));
@@ -846,11 +846,11 @@ int QuicCryptoContext::OnClientHello() {
 // continue.
 int QuicCryptoContext::OnOCSP() {
   if (LIKELY(session_->state_[IDX_QUIC_SESSION_STATE_CERT_ENABLED] == 0)) {
-    Debug(session_, "No OCSPRequest handler registered");
+    Debug(session(), "No OCSPRequest handler registered");
     return 1;
   }
 
-  Debug(session_, "Client is requesting an OCSP Response");
+  Debug(session(), "Client is requesting an OCSP Response");
   TLSCallbackScope callback_scope(this);
 
   // As in node_crypto.cc, this is not an error, but does suspend the
@@ -874,7 +874,7 @@ int QuicCryptoContext::OnOCSP() {
 void QuicCryptoContext::OnOCSPDone(
     crypto::SecureContext* context,
     Local<Value> ocsp_response) {
-  Debug(session_,
+  Debug(session(),
         "OCSPRequest completed. Context Provided? %s, OCSP Provided? %s",
         context != nullptr ? "Yes" : "No",
         ocsp_response->IsArrayBufferView() ? "Yes" : "No");
@@ -919,11 +919,11 @@ bool QuicCryptoContext::OnSecrets(
       session_->InitApplication();
   });
 
-  Debug(session_,
+  Debug(session(),
         "Received secrets for %s crypto level",
         crypto_level_name(level));
 
-  if (!SetCryptoSecrets(session_, level, rx_secret, tx_secret, secretlen))
+  if (!SetCryptoSecrets(session(), level, rx_secret, tx_secret, secretlen))
     return false;
 
   if (level == NGTCP2_CRYPTO_LEVEL_APP)
@@ -943,7 +943,7 @@ int QuicCryptoContext::OnTLSStatus() {
   switch (side_) {
     case NGTCP2_CRYPTO_SIDE_SERVER: {
       if (ocsp_response_.IsEmpty()) {
-        Debug(session_, "There is no OCSP response");
+        Debug(session(), "There is no OCSP response");
         return SSL_TLSEXT_ERR_NOACK;
       }
 
@@ -956,7 +956,7 @@ int QuicCryptoContext::OnTLSStatus() {
       unsigned char* data = crypto::MallocOpenSSL<unsigned char>(len);
       obj->CopyContents(data, len);
 
-      Debug(session_, "There is an OCSP response of %d bytes", len);
+      Debug(session(), "There is an OCSP response of %d bytes", len);
 
       if (!SSL_set_tlsext_status_ocsp_resp(ssl(), data, len))
         OPENSSL_free(data);
@@ -968,7 +968,7 @@ int QuicCryptoContext::OnTLSStatus() {
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
       std::string resp = ocsp_response();
       if (resp.length() > 0)
-        Debug(session_, "An OCSP Response has been received");
+        Debug(session(), "An OCSP Response has been received");
       session_->listener()->OnOCSP(resp);
       return 1;
     }
@@ -995,7 +995,7 @@ int QuicCryptoContext::Receive(
     session_->session_stats_.handshake_start_at = now;
   session_->session_stats_.handshake_continue_at = now;
 
-  Debug(session_, "Receiving %d bytes of crypto data.", datalen);
+  Debug(session(), "Receiving %d bytes of crypto data.", datalen);
 
   // Internally, this passes the handshake data off to openssl
   // for processing. The handshake may or may not complete.
@@ -1012,10 +1012,10 @@ int QuicCryptoContext::Receive(
     // paused waiting for user code to take action (for instance
     // OCSP requests or client hello modification)
     case NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP:
-      Debug(session_, "TLS handshake wants X509 Lookup");
+      Debug(session(), "TLS handshake wants X509 Lookup");
       return 0;
     case NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB:
-      Debug(session_, "TLS handshake wants client hello callback");
+      Debug(session(), "TLS handshake wants client hello callback");
       return 0;
     default:
       return ret;
@@ -1034,7 +1034,7 @@ bool QuicCryptoContext::InitiateKeyUpdate() {
   auto leave = OnScopeLeave([&]() { in_key_update_ = false; });
   CHECK(!in_key_update_);
   in_key_update_ = true;
-  Debug(session_, "Initiating Key Update");
+  Debug(session(), "Initiating Key Update");
 
   IncrementStat(
       1, &session_->session_stats_,
@@ -1081,7 +1081,7 @@ void QuicCryptoContext::WriteHandshake(
     ngtcp2_crypto_level level,
     const uint8_t* data,
     size_t datalen) {
-  Debug(session_,
+  Debug(session(),
         "Writing %d bytes of %s handshake data.",
         datalen,
         crypto_level_name(level));
@@ -1102,8 +1102,8 @@ void QuicApplication::Acknowledge(
     int64_t stream_id,
     uint64_t offset,
     size_t datalen) {
-  QuicStream* stream = session()->FindStream(stream_id);
-  if (stream != nullptr) {
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  if (LIKELY(stream)) {
     stream->Acknowledge(offset, datalen);
     ResumeStream(stream_id);
   }
@@ -1367,35 +1367,38 @@ QuicSession::QuicSession(
 
   session_stats_.created_at = uv_hrtime();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          env()->state_string(),
-          state_.GetJSArray(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  // TODO(@jasnell): For now, the following are checks rather than properly
+  // handled. Before this code moves out of experimental, these should be
+  // properly handled.
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->state_string(),
+      state_.GetJSArray(),
+      PropertyAttribute::ReadOnly).Check();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          env()->stats_string(),
-          stats_buffer_.GetJSArray(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->stats_string(),
+      stats_buffer_.GetJSArray(),
+      PropertyAttribute::ReadOnly).Check();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          env()->recovery_stats_string(),
-          recovery_stats_buffer_.GetJSArray(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->recovery_stats_string(),
+      recovery_stats_buffer_.GetJSArray(),
+      PropertyAttribute::ReadOnly).Check();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          FIXED_ONE_BYTE_STRING(env()->isolate(), "crypto_rx_ack"),
-          crypto_rx_ack_->object(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->crypto_rx_ack_string(),
+      crypto_rx_ack_->object(),
+      PropertyAttribute::ReadOnly).Check();
 
-  if (wrap->DefineOwnProperty(
-          env()->context(),
-          FIXED_ONE_BYTE_STRING(env()->isolate(), "crypto_handshake_rate"),
-          crypto_handshake_rate_->object(),
-          PropertyAttribute::ReadOnly).IsNothing()) return;
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->crypto_handshake_rate_string(),
+      crypto_handshake_rate_->object(),
+      PropertyAttribute::ReadOnly).Check();
 
   // TODO(@jasnell): memory accounting
   // env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
@@ -1441,10 +1444,10 @@ QuicSession::~QuicSession() {
 
 void QuicSession::PushListener(QuicSessionListener* listener) {
   CHECK_NOT_NULL(listener);
-  CHECK_NULL(listener->session_);
+  CHECK(!listener->session_);
 
   listener->previous_listener_ = listener_;
-  listener->session_ = this;
+  listener->session_.reset(this);
 
   listener_ = listener;
 }
@@ -1468,7 +1471,7 @@ void QuicSession::RemoveListener(QuicSessionListener* listener) {
     }
   }
 
-  listener->session_ = nullptr;
+  listener->session_.reset();
   listener->previous_listener_ = nullptr;
 }
 
@@ -1481,11 +1484,9 @@ std::string QuicSession::diagnostic_name() const {
 }
 
 // Locate the QuicStream with the given id or return nullptr
-QuicStream* QuicSession::FindStream(int64_t id) const {
+BaseObjectPtr<QuicStream> QuicSession::FindStream(int64_t id) const {
   auto it = streams_.find(id);
-  if (it == std::end(streams_))
-    return nullptr;
-  return it->second.get();
+  return it == std::end(streams_) ? BaseObjectPtr<QuicStream>() : it->second;
 }
 
 // Invoked when ngtcp2 receives an acknowledgement for stream data.
@@ -1496,14 +1497,14 @@ void QuicSession::AckedStreamDataOffset(
   // It is possible for the QuicSession to have been destroyed but not yet
   // deconstructed. In such cases, we want to ignore the callback as there
   // is nothing to do but wait for further cleanup to happen.
-  if (UNLIKELY(is_flag_set(QUICSESSION_FLAG_DESTROYED)))
-    return;
-  Debug(this,
-        "Received acknowledgement for %" PRIu64
-        " bytes of stream %" PRId64 " data",
-        datalen, stream_id);
+  if (LIKELY(!is_flag_set(QUICSESSION_FLAG_DESTROYED))) {
+    Debug(this,
+          "Received acknowledgement for %" PRIu64
+          " bytes of stream %" PRId64 " data",
+          datalen, stream_id);
 
-  application_->AcknowledgeStreamData(stream_id, offset, datalen);
+    application_->AcknowledgeStreamData(stream_id, offset, datalen);
+  }
 }
 
 // Attaches the session to the given QuicSocket. The complexity
@@ -1604,7 +1605,7 @@ void QuicSession::ImmediateClose() {
 
 // Creates a new stream object and passes it off to the javascript side.
 // This has to be called from within a handlescope/contextscope.
-QuicStream* QuicSession::CreateStream(int64_t stream_id) {
+BaseObjectPtr<QuicStream> QuicSession::CreateStream(int64_t stream_id) {
   CHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
   CHECK(!is_flag_set(QUICSESSION_FLAG_GRACEFUL_CLOSING));
   CHECK(!is_flag_set(QUICSESSION_FLAG_CLOSING));
@@ -1612,7 +1613,7 @@ QuicStream* QuicSession::CreateStream(int64_t stream_id) {
   BaseObjectPtr<QuicStream> stream = QuicStream::New(this, stream_id);
   CHECK(stream);
   listener()->OnStreamReady(stream);
-  return stream.get();
+  return stream;
 }
 
 // Mark the QuicSession instance destroyed. After this is called,
@@ -1677,7 +1678,7 @@ int QuicSession::GetNewConnectionID(
 }
 
 void QuicSession::HandleError() {
-  if (connection_ && is_in_closing_period() && !is_server())
+  if (is_in_closing_period() && !is_server())
     return;
 
   if (!SendConnectionClose()) {
@@ -1750,13 +1751,12 @@ void QuicSession::PathValidation(
 
   // Only emit the callback if there is a handler for the pathValidation
   // event on the JavaScript QuicSession object.
-  if (LIKELY(state_[IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED] == 0))
-    return;
-
-  listener_->OnPathValidation(
-      res,
-      reinterpret_cast<const sockaddr*>(path->local.addr),
-      reinterpret_cast<const sockaddr*>(path->remote.addr));
+  if (UNLIKELY(state_[IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED] == 1)) {
+    listener_->OnPathValidation(
+        res,
+        reinterpret_cast<const sockaddr*>(path->local.addr),
+        reinterpret_cast<const sockaddr*>(path->remote.addr));
+  }
 }
 
 // Calling Ping will trigger the ngtcp2_conn to serialize any
@@ -1872,17 +1872,16 @@ bool QuicSession::Receive(
               last_error().code);
         HandleError();
         return false;
-      } else {
-        // When initial_connection_close_ is some value other than
-        // NGTCP2_NO_ERROR, then the QuicSession is going to be
-        // immediately responded to with a CONNECTION_CLOSE and
-        // no additional processing will be performed.
-        Debug(this, "Initial connection close with code %" PRIu64,
-              initial_connection_close_);
-        set_last_error(QUIC_ERROR_SESSION, initial_connection_close_);
-        SendConnectionClose();
-        return true;
       }
+      // When initial_connection_close_ is some value other than
+      // NGTCP2_NO_ERROR, then the QuicSession is going to be
+      // immediately responded to with a CONNECTION_CLOSE and
+      // no additional processing will be performed.
+      Debug(this, "Initial connection close with code %" PRIu64,
+            initial_connection_close_);
+      set_last_error(QUIC_ERROR_SESSION, initial_connection_close_);
+      SendConnectionClose();
+      return true;
     }
   }
 
@@ -1910,11 +1909,9 @@ bool QuicSession::Receive(
     GetConnectionCloseInfo();
     SilentClose();
     return true;
-  } else {
-    Debug(this, "Sending pending data after processing packet");
-    SendPendingData();
   }
-
+  Debug(this, "Sending pending data after processing packet");
+  SendPendingData();
   UpdateIdleTimer();
   UpdateRecoveryStats();
   Debug(this, "Successfully processed received packet");
@@ -2040,9 +2037,10 @@ void QuicSession::RemoveFromSocket() {
     socket_->DisassociateCID(QuicCID(&cid));
 
   for (const ngtcp2_cid_token& token : tokens) {
-    if (token.token_present)
+    if (token.token_present) {
       socket_->DisassociateStatelessResetToken(
           StatelessResetToken(token.token));
+    }
   }
 
   Debug(this, "Removed from the QuicSocket.");
@@ -2304,7 +2302,11 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
   auto& local_address = socket->local_address();
   if (nat_rebinding) {
     ngtcp2_addr addr;
-    ToNgtcp2Addr(local_address, &addr);
+    ngtcp2_addr_init(
+        &addr,
+        local_address.data(),
+        local_address.GetLength(),
+        nullptr);
     ngtcp2_conn_set_local_addr(connection(), &addr);
   } else {
     QuicPath path(local_address, remote_address_);
@@ -2602,7 +2604,7 @@ QuicSession::InitialPacketResult QuicSession::Accept(
   // headers are used after the TLS handshake has been completed.
   // If the received packet is smaller than the smallest allowable
   // size for an initial QUIC packet, we're not going to process it
-  if (static_cast<size_t>(nread) < MIN_INITIAL_QUIC_PKT_SIZE)
+  if (static_cast<size_t>(nread) < kMinInitialQuicPktSize)
     return PACKET_IGNORE;
 
   switch (ngtcp2_accept(hd, data, nread)) {
@@ -2621,10 +2623,7 @@ QuicSession::InitialPacketResult QuicSession::Accept(
   // to check against a range of possible versions.
   // See NGTCP2_PROTO_VER and NGTCP2_PROTO_VER_MAX in the
   // ngtcp2.h header file for more details.
-  if (version != NGTCP2_PROTO_VER)
-    return PACKET_VERSION;
-
-  return PACKET_OK;
+  return version != NGTCP2_PROTO_VER ? PACKET_VERSION : PACKET_OK;
 }
 
 // Static function to create a new server QuicSession instance
@@ -2688,7 +2687,7 @@ void QuicSession::InitServer(
 
   config.set_original_connection_id(ocid);
 
-  connection_id_strategy_(this, &scid_, NGTCP2_SV_SCIDLEN);
+  connection_id_strategy_(this, &scid_, kScidLen);
 
   config.GenerateStatelessResetToken(
       stateless_reset_strategy_,

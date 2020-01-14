@@ -264,10 +264,10 @@ class QuicSessionListener {
       size_t vcnt);
   virtual void OnQLog(const uint8_t* data, size_t len);
 
-  QuicSession* session() const { return session_; }
+  QuicSession* session() const { return session_.get(); }
 
  private:
-  QuicSession* session_ = nullptr;
+  BaseObjectWeakPtr<QuicSession> session_;
   QuicSessionListener* previous_listener_ = nullptr;
   friend class QuicSession;
 };
@@ -401,6 +401,8 @@ class QuicCryptoContext : public MemoryRetainer {
 
   int VerifyPeerIdentity(const char* hostname);
 
+  QuicSession* session() const { return session_.get(); }
+
   void MemoryInfo(MemoryTracker* tracker) const override;
 
   SET_MEMORY_INFO_NAME(QuicCryptoContext)
@@ -413,7 +415,7 @@ class QuicCryptoContext : public MemoryRetainer {
       ngtcp2_crypto_side side,
       uint32_t options);
 
-  QuicSession* session_;
+  BaseObjectWeakPtr<QuicSession> session_;
   ngtcp2_crypto_side side_;
   crypto::SSLPointer ssl_;
   QuicBuffer handshake_[3];
@@ -533,7 +535,7 @@ class QuicApplication : public MemoryRetainer {
   size_t max_header_length() const { return max_header_length_; }
 
  protected:
-  QuicSession* session() const { return session_; }
+  QuicSession* session() const { return session_.get(); }
   bool needs_init() const { return needs_init_; }
   void set_init_done() { needs_init_ = false; }
   inline void set_stream_fin(int64_t stream_id);
@@ -546,7 +548,7 @@ class QuicApplication : public MemoryRetainer {
     size_t remaining = 0;
     int64_t id = -1;
     int fin = 0;
-    ngtcp2_vec data[MAX_VECTOR_COUNT] {};
+    ngtcp2_vec data[kMaxVectorCount] {};
     ngtcp2_vec* buf = nullptr;
     BaseObjectPtr<QuicStream> stream;
     StreamData() { buf = data; }
@@ -568,7 +570,7 @@ class QuicApplication : public MemoryRetainer {
 
  private:
   void MaybeSetFin(const StreamData& stream_data);
-  QuicSession* session_;
+  BaseObjectWeakPtr<QuicSession> session_;
   bool needs_init_ = true;
   size_t max_header_pairs_ = 0;
   size_t max_header_length_ = 0;
@@ -719,8 +721,8 @@ class QuicSession : public AsyncWrap,
 
   QuicSessionListener* listener() const { return listener_; }
 
-  QuicStream* CreateStream(int64_t id);
-  QuicStream* FindStream(int64_t id) const;
+  BaseObjectPtr<QuicStream> CreateStream(int64_t id);
+  BaseObjectPtr<QuicStream> FindStream(int64_t id) const;
   inline bool HasStream(int64_t id) const;
 
   // Returns true if StartGracefulClose() has been called and the
@@ -800,7 +802,7 @@ class QuicSession : public AsyncWrap,
   // Extends the QUIC stream flow control window. This is
   // called after received data has been consumed and we
   // want to allow the peer to send more data.
-  inline void ExtendStreamOffset(QuicStream* stream, size_t amount);
+  inline void ExtendStreamOffset(int64_t stream_id, size_t amount);
 
   // Extends the QUIC session flow control window
   inline void ExtendOffset(size_t amount);
@@ -1001,15 +1003,17 @@ class QuicSession : public AsyncWrap,
 
   class SendSessionScope {
    public:
-    explicit SendSessionScope(QuicSession* session) : session_(session) {}
+    explicit SendSessionScope(QuicSession* session) : session_(session) {
+      CHECK(session_);
+    }
 
     ~SendSessionScope() {
-      if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_))
+      if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()))
         session_->SendPendingData();
     }
 
    private:
-    QuicSession* session_;
+    BaseObjectPtr<QuicSession> session_;
   };
 
   // Tracks whether or not we are currently within an ngtcp2 callback
@@ -1018,6 +1022,7 @@ class QuicSession : public AsyncWrap,
   class Ngtcp2CallbackScope {
    public:
     explicit Ngtcp2CallbackScope(QuicSession* session) : session_(session) {
+      CHECK(session_);
       CHECK(!InNgtcp2CallbackScope(session));
       session_->set_flag(QUICSESSION_FLAG_NGTCP2_CALLBACK);
     }
@@ -1031,7 +1036,7 @@ class QuicSession : public AsyncWrap,
     }
 
    private:
-    QuicSession* session_;
+    BaseObjectPtr<QuicSession> session_;
   };
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -1352,9 +1357,9 @@ class QuicSession : public AsyncWrap,
     ngtcp2_tstamp ts);
 
   static inline ngtcp2_close_fn SelectCloseFn(uint32_t family) {
-    if (family == QUIC_ERROR_APPLICATION)
-      return ngtcp2_conn_write_application_close;
-    return ngtcp2_conn_write_connection_close;
+    return family == QUIC_ERROR_APPLICATION ?
+        ngtcp2_conn_write_application_close :
+        ngtcp2_conn_write_connection_close;
   }
 
   // Select the QUIC Application based on the configured ALPN identifier

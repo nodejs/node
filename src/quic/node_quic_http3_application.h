@@ -137,7 +137,7 @@ class Http3Application final :
 
  private:
   nghttp3_conn* connection() const { return connection_.get(); }
-  QuicStream* FindOrCreateStream(int64_t stream_id);
+  BaseObjectPtr<QuicStream> FindOrCreateStream(int64_t stream_id);
 
   bool CreateAndBindControlStream();
   bool CreateAndBindQPackStreams();

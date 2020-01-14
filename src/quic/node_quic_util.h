@@ -19,15 +19,17 @@
 namespace node {
 namespace quic {
 
-constexpr uint64_t NGTCP2_APP_NOERROR = 0xff00;
-
-constexpr size_t MIN_INITIAL_QUIC_PKT_SIZE = 1200;
-constexpr size_t NGTCP2_SV_SCIDLEN = NGTCP2_MAX_CIDLEN;
-constexpr size_t TOKEN_RAND_DATALEN = 16;
-constexpr size_t TOKEN_SECRETLEN = 16;
-
+// k-constants are used internally, all-caps constants
+// are exposed to javascript.
 constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
-constexpr size_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
+constexpr size_t kMaxValidateAddressLru = 10;
+constexpr size_t kMinInitialQuicPktSize = 1200;
+constexpr size_t kScidLen = NGTCP2_MAX_CIDLEN;
+constexpr size_t kTokenRandLen = 16;
+constexpr size_t kTokenSecretLen = 16;
+
+constexpr uint64_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
+constexpr uint64_t NGTCP2_APP_NOERROR = 0xff00;
 constexpr uint64_t MIN_RETRYTOKEN_EXPIRATION = 1;
 constexpr uint64_t MAX_RETRYTOKEN_EXPIRATION = 60;
 constexpr uint64_t DEFAULT_ACTIVE_CONNECTION_ID_LIMIT = 10;
@@ -35,10 +37,12 @@ constexpr uint64_t DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL = 256 * 1024;
 constexpr uint64_t DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE = 256 * 1024;
 constexpr uint64_t DEFAULT_MAX_STREAM_DATA_UNI = 256 * 1024;
 constexpr uint64_t DEFAULT_MAX_DATA = 1 * 1024 * 1024;
+constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS_PER_HOST = 10;
 constexpr uint64_t DEFAULT_MAX_STREAMS_BIDI = 100;
 constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
 constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 10;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10ULL;
+
 
 enum SelectPreferredAddressPolicy : int {
   // Ignore the server-provided preferred address
@@ -64,6 +68,11 @@ enum QuicErrorFamily : int32_t {
   QUIC_ERROR_APPLICATION
 };
 
+// QuicPreferredAddress is a helper class used only when a
+// client QuicSession receives an advertised preferred address
+// from a server. The helper provides information about the
+// preferred address. The Use() function is used to let
+// ngtcp2 know to use the preferred address for the given family
 class QuicPreferredAddress {
  public:
   QuicPreferredAddress(
@@ -93,6 +102,9 @@ class QuicPreferredAddress {
   const ngtcp2_preferred_addr* paddr_;
 };
 
+// QuicError is a helper class used to encapsulate basic
+// details about a QUIC protocol error. There are three
+// basic types of errors (see QuicErrorFamily)
 struct QuicError {
   int32_t family;
   uint64_t code;
@@ -111,19 +123,14 @@ struct QuicError {
   inline const char* family_name();
 };
 
+// Helper function that returns the maximum QUIC packet size for
+// the given socket address.
 inline size_t GetMaxPktLen(const sockaddr* addr);
 
-inline ngtcp2_addr* ToNgtcp2Addr(
-    const SocketAddress& addr,
-    ngtcp2_addr* dest);
-
+// QuicPath is a utility class that wraps ngtcp2_path to adapt
+// it to work with SocketAddress
 struct QuicPath : public ngtcp2_path {
-  inline QuicPath(
-      SocketAddress* local,
-      SocketAddress* remote);
-  inline QuicPath(
-      const SocketAddress& local,
-      const SocketAddress& remote);
+  inline QuicPath(const SocketAddress& local, const SocketAddress& remote);
 };
 
 struct QuicPathStorage : public ngtcp2_path_storage {
@@ -133,12 +140,10 @@ struct QuicPathStorage : public ngtcp2_path_storage {
 };
 
 // Simple wrapper for ngtcp2_cid that handles hex encoding
-// and conversion to std::string automatically
 class QuicCID : public MemoryRetainer {
  public:
   QuicCID() {}
   QuicCID(const QuicCID& cid) : cid_(cid.cid_) {}
-  explicit QuicCID(ngtcp2_cid* cid) : cid_(*cid) {}
   explicit QuicCID(const ngtcp2_cid* cid) : cid_(*cid) {}
   explicit QuicCID(const ngtcp2_cid& cid) : cid_(cid) {}
   QuicCID(const uint8_t* cid, size_t len) {
@@ -227,9 +232,6 @@ class Timer final : public MemoryRetainer {
 };
 
 using TimerPointer = DeleteFnPtr<Timer, Timer::Free>;
-
-inline ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
-inline const char* crypto_level_name(ngtcp2_crypto_level level);
 
 class StatelessResetToken : public MemoryRetainer{
  public:

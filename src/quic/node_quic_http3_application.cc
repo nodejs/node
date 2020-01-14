@@ -56,9 +56,8 @@ Http3Header::Http3Header(
     nghttp3_rcbuf* value) :
     token_(token) {
   // Only retain the name buffer if it's not a known token
-  if (token == -1) {
+  if (token == -1)
     name_.reset(name, true);  // Internalizable
-  }
   value_.reset(value);
 }
 
@@ -89,44 +88,39 @@ MaybeLocal<String> Http3Header::GetName(QuicApplication* app) const {
   }
 
   // This is exceedingly unlikely but we need to be prepared just in case.
-  if (UNLIKELY(!name_))
-    return String::Empty(env->isolate());
-
-  return Http3RcBufferPointer::External::New(
-      static_cast<Http3Application*>(app),
-      name_);
+  return UNLIKELY(!name_) ?
+      String::Empty(env->isolate()) :
+      Http3RcBufferPointer::External::New(
+          static_cast<Http3Application*>(app),
+          name_);
 }
 
 MaybeLocal<String> Http3Header::GetValue(QuicApplication* app) const {
   Environment* env = app->env();
-  if (UNLIKELY(!value_))
-    return String::Empty(env->isolate());
-
-  return Http3RcBufferPointer::External::New(
-      static_cast<Http3Application*>(app),
-      value_);
+  return UNLIKELY(!value_) ?
+      String::Empty(env->isolate()) :
+      Http3RcBufferPointer::External::New(
+          static_cast<Http3Application*>(app),
+          value_);
 }
 
 std::string Http3Header::name() const {
   const char* header_name = to_http_header_name(token_);
-  if (header_name != nullptr)
-    return std::string(header_name);
-
-  if (UNLIKELY(!name_))
-    return std::string();  // Empty String
-
-  return std::string(
-      reinterpret_cast<const char*>(name_.data()),
-      name_.len());
+  return header_name != nullptr ?
+        std::string(header_name) :
+        UNLIKELY(!name_) ?
+            std::string() :
+            std::string(
+                reinterpret_cast<const char*>(name_.data()),
+                name_.len());
 }
 
 std::string Http3Header::value() const {
-  if (UNLIKELY(!value_))
-    return std::string();  // Empty String
-
-  return std::string(
-      reinterpret_cast<const char*>(value_.data()),
-      value_.len());
+  return UNLIKELY(!value_) ?
+      std::string() :
+      std::string(
+          reinterpret_cast<const char*>(value_.data()),
+          value_.len());
 }
 
 size_t Http3Header::length() const {
@@ -296,12 +290,12 @@ nghttp3_conn* Http3Application::CreateConnection(
   ngtcp2_crypto_side side = session()->crypto_context()->side();
   nghttp3_conn* conn;
 
-  if (new_fns[side](
-          &conn, &callbacks_[side], settings, &alloc_info_, this) != 0) {
-    return nullptr;
-  }
-
-  return conn;
+  return new_fns[side](
+      &conn,
+      &callbacks_[side],
+      settings,
+      &alloc_info_,
+      this) != 0 ? nullptr : conn;
 }
 
 // The HTTP/3 QUIC binding uses a single unidirectional control
@@ -503,12 +497,12 @@ ssize_t Http3Application::ReadData(
     nghttp3_vec* vec,
     size_t veccnt,
     uint32_t* pflags) {
-  QuicStream* stream = session()->FindStream(stream_id);
-  CHECK_NOT_NULL(stream);
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  CHECK(stream);
 
   size_t count = 0;
-  stream->DrainInto(&vec, &count, std::min(veccnt, MAX_VECTOR_COUNT));
-  CHECK_LE(count, MAX_VECTOR_COUNT);
+  stream->DrainInto(&vec, &count, std::min(veccnt, kMaxVectorCount));
+  CHECK_LE(count, kMaxVectorCount);
   size_t numbytes = nghttp3_vec_len(vec, count);
   stream->Commit(numbytes);
 
@@ -527,9 +521,7 @@ ssize_t Http3Application::ReadData(
   // available to send but there might be later, so return WOULDBLOCK
   // to tell nghttp3 to hold off attempting to serialize any more
   // data for this stream until it is resumed.
-  if (count == 0)
-    return NGHTTP3_ERR_WOULDBLOCK;
-  return count;
+  return count == 0 ? NGHTTP3_ERR_WOULDBLOCK : count;
 }
 
 // Outgoing data is retained in memory until it is acknowledged.
@@ -545,17 +537,18 @@ void Http3Application::StreamClosed(
   session()->listener()->OnStreamClose(stream_id, app_error_code);
 }
 
-QuicStream* Http3Application::FindOrCreateStream(int64_t stream_id) {
-  QuicStream* stream = session()->FindStream(stream_id);
-  if (stream == nullptr) {
+BaseObjectPtr<QuicStream> Http3Application::FindOrCreateStream(
+    int64_t stream_id) {
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  if (!stream) {
     if (session()->is_gracefully_closing()) {
       nghttp3_conn_close_stream(connection(), stream_id, NGTCP2_ERR_CLOSING);
-      return nullptr;
+      return {};
     }
     stream = session()->CreateStream(stream_id);
-    nghttp3_conn_set_stream_user_data(connection(), stream_id, stream);
+    nghttp3_conn_set_stream_user_data(connection(), stream_id, stream.get());
   }
-  CHECK_NOT_NULL(stream);
+  CHECK(stream);
   return stream;
 }
 
@@ -563,9 +556,7 @@ void Http3Application::ReceiveData(
     int64_t stream_id,
     const uint8_t* data,
     size_t datalen) {
-  QuicStream* stream = FindOrCreateStream(stream_id);
-  if (stream != nullptr)
-    stream->ReceiveData(0, data, datalen, 0);
+  FindOrCreateStream(stream_id)->ReceiveData(0, data, datalen, 0);
 }
 
 void Http3Application::DeferredConsume(
@@ -577,10 +568,8 @@ void Http3Application::DeferredConsume(
 void Http3Application::BeginHeaders(
   int64_t stream_id,
   QuicStreamHeadersKind kind) {
-  QuicStream* stream = FindOrCreateStream(stream_id);
   Debug(session(), "Starting header block for stream %" PRId64, stream_id);
-  if (stream != nullptr)
-    stream->BeginHeaders(kind);
+  FindOrCreateStream(stream_id)->BeginHeaders(kind);
 }
 
 // As each header name+value pair is received, it is stored internally
@@ -597,27 +586,26 @@ bool Http3Application::ReceiveHeader(
   // name or value are zero-length). Such headers are simply ignored.
   if (!IsZeroLengthHeader(name, value)) {
     Debug(session(), "Receiving header for stream %" PRId64, stream_id);
-    QuicStream* stream = session()->FindStream(stream_id);
-    if (stream != nullptr) {
-      if (token == NGHTTP3_QPACK_TOKEN__STATUS) {
-        nghttp3_vec vec = nghttp3_rcbuf_get_buf(value);
-        if (vec.base[0] == '1')
-          stream->set_headers_kind(QUICSTREAM_HEADERS_KIND_INFORMATIONAL);
-        else
-          stream->set_headers_kind(QUICSTREAM_HEADERS_KIND_INITIAL);
-      }
-      auto header = std::make_unique<Http3Header>(token, name, value);
-      return stream->AddHeader(std::move(header));
+    BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+    CHECK(stream);
+    if (token == NGHTTP3_QPACK_TOKEN__STATUS) {
+      nghttp3_vec vec = nghttp3_rcbuf_get_buf(value);
+      if (vec.base[0] == '1')
+        stream->set_headers_kind(QUICSTREAM_HEADERS_KIND_INFORMATIONAL);
+      else
+        stream->set_headers_kind(QUICSTREAM_HEADERS_KIND_INITIAL);
     }
+    auto header = std::make_unique<Http3Header>(token, name, value);
+    return stream->AddHeader(std::move(header));
   }
   return true;
 }
 
 void Http3Application::EndHeaders(int64_t stream_id) {
   Debug(session(), "Ending header block for stream %" PRId64, stream_id);
-  QuicStream* stream = session()->FindStream(stream_id);
-  if (stream != nullptr)
-    stream->EndHeaders();
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  CHECK(stream);
+  stream->EndHeaders();
 }
 
 // TODO(@jasnell): Implement Push Promise Support
@@ -665,9 +653,9 @@ void Http3Application::SendStopSending(
 }
 
 void Http3Application::EndStream(int64_t stream_id) {
-  QuicStream* stream = session()->FindStream(stream_id);
-  if (stream != nullptr)
-    stream->ReceiveData(1, nullptr, 0, 0);
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  CHECK(stream);
+  stream->ReceiveData(1, nullptr, 0, 0);
 }
 
 const nghttp3_conn_callbacks Http3Application::callbacks_[2] = {

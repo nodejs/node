@@ -51,16 +51,16 @@ bool DefaultApplication::Initialize() {
 }
 
 void DefaultApplication::ScheduleStream(int64_t stream_id) {
-  QuicStream* stream = session()->FindStream(stream_id);
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
   Debug(session(), "Scheduling stream %" PRIu64, stream_id);
-  if (stream != nullptr)
+  if (LIKELY(stream))
     stream->Schedule(&stream_queue_);
 }
 
 void DefaultApplication::UnscheduleStream(int64_t stream_id) {
-  QuicStream* stream = session()->FindStream(stream_id);
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
   Debug(session(), "Unscheduling stream %" PRIu64, stream_id);
-  if (stream != nullptr)
+  if (LIKELY(stream))
     stream->Unschedule();
 }
 
@@ -87,8 +87,8 @@ bool DefaultApplication::ReceiveStreamData(
   // Ensure that the QuicStream exists before deferring to
   // QuicApplication specific processing logic.
   Debug(session(), "Default QUIC Application receiving stream data");
-  QuicStream* stream = session()->FindStream(stream_id);
-  if (stream == nullptr) {
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  if (!stream) {
     // Shutdown the stream explicitly if the session is being closed.
     if (session()->is_gracefully_closing()) {
       session()->ResetStream(stream_id, NGTCP2_ERR_CLOSING);
@@ -106,7 +106,7 @@ bool DefaultApplication::ReceiveStreamData(
 
     stream = session()->CreateStream(stream_id);
   }
-  CHECK_NOT_NULL(stream);
+  CHECK(stream);
 
   stream->ReceiveData(fin, data, datalen, offset);
   return true;
@@ -122,7 +122,7 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
       stream->DrainInto(
           &stream_data->data,
           &stream_data->count,
-          MAX_VECTOR_COUNT);
+          kMaxVectorCount);
 
   stream_data->stream.reset(stream);
   stream_data->id = stream->id();

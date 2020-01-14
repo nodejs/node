@@ -21,14 +21,12 @@ namespace node {
 
 using crypto::SecureContext;
 using v8::Context;
-using v8::DontDelete;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
-using v8::ReadOnly;
 using v8::Value;
 
 namespace quic {
@@ -109,15 +107,14 @@ void Initialize(Local<Object> target,
 
   HistogramBase::Initialize(env);
 
-  std::unique_ptr<QuicState> state(new QuicState(isolate));
+  std::unique_ptr<QuicState> state = std::make_unique<QuicState>(isolate);
+
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \
               FIXED_ONE_BYTE_STRING(isolate, (name)), \
-              (field)).FromJust()
-  SET_STATE_TYPEDARRAY(
-    "sessionConfig", state->quicsessionconfig_buffer.GetJSArray());
-  SET_STATE_TYPEDARRAY(
-    "http3Config", state->http3config_buffer.GetJSArray());
+              (field.GetJSArray())).FromJust()
+  SET_STATE_TYPEDARRAY("sessionConfig", state->quicsessionconfig_buffer);
+  SET_STATE_TYPEDARRAY("http3Config", state->http3config_buffer);
 #undef SET_STATE_TYPEDARRAY
 
   env->set_quic_state(std::move(state));
@@ -138,150 +135,122 @@ void Initialize(Local<Object> target,
                  QuicInitSecureContext<NGTCP2_CRYPTO_SIDE_CLIENT>);
 
   Local<Object> constants = Object::New(env->isolate());
-  NODE_DEFINE_CONSTANT(constants, AF_INET);
-  NODE_DEFINE_CONSTANT(constants, AF_INET6);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_RETRYTOKEN_EXPIRATION);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_CONNECTIONS_PER_HOST);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_MAX_STATELESS_RESETS_PER_HOST);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_CERT_ENABLED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED);
-  NODE_DEFINE_CONSTANT(constants,
-                       IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED);
-  NODE_DEFINE_CONSTANT(constants,
-                       IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_MAX_STREAMS_BIDI);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT);
-  NODE_DEFINE_CONSTANT(constants, MAX_RETRYTOKEN_EXPIRATION);
-  NODE_DEFINE_CONSTANT(constants, MIN_RETRYTOKEN_EXPIRATION);
+
+// TODO(@jasnell): Audit which constants are actually being used in JS
+#define QUIC_CONSTANTS(V)                                                      \
+  V(DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL)                                        \
+  V(DEFAULT_RETRYTOKEN_EXPIRATION)                                             \
+  V(DEFAULT_MAX_CONNECTIONS_PER_HOST)                                          \
+  V(DEFAULT_MAX_STATELESS_RESETS_PER_HOST)                                     \
+  V(IDX_HTTP3_QPACK_MAX_TABLE_CAPACITY)                                        \
+  V(IDX_HTTP3_QPACK_BLOCKED_STREAMS)                                           \
+  V(IDX_HTTP3_MAX_HEADER_LIST_SIZE)                                            \
+  V(IDX_HTTP3_MAX_PUSHES)                                                      \
+  V(IDX_HTTP3_MAX_HEADER_PAIRS)                                                \
+  V(IDX_HTTP3_MAX_HEADER_LENGTH)                                               \
+  V(IDX_HTTP3_CONFIG_COUNT)                                                    \
+  V(IDX_QUIC_SESSION_ACTIVE_CONNECTION_ID_LIMIT)                               \
+  V(IDX_QUIC_SESSION_IDLE_TIMEOUT)                                             \
+  V(IDX_QUIC_SESSION_MAX_DATA)                                                 \
+  V(IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_LOCAL)                               \
+  V(IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_REMOTE)                              \
+  V(IDX_QUIC_SESSION_MAX_STREAM_DATA_UNI)                                      \
+  V(IDX_QUIC_SESSION_MAX_STREAMS_BIDI)                                         \
+  V(IDX_QUIC_SESSION_MAX_STREAMS_UNI)                                          \
+  V(IDX_QUIC_SESSION_MAX_PACKET_SIZE)                                          \
+  V(IDX_QUIC_SESSION_ACK_DELAY_EXPONENT)                                       \
+  V(IDX_QUIC_SESSION_DISABLE_MIGRATION)                                        \
+  V(IDX_QUIC_SESSION_MAX_ACK_DELAY)                                            \
+  V(IDX_QUIC_SESSION_CONFIG_COUNT)                                             \
+  V(IDX_QUIC_SESSION_STATS_CREATED_AT)                                         \
+  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_START_AT)                                 \
+  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_SEND_AT)                                  \
+  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_CONTINUE_AT)                              \
+  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_COMPLETED_AT)                             \
+  V(IDX_QUIC_SESSION_STATS_HANDSHAKE_ACKED_AT)                                 \
+  V(IDX_QUIC_SESSION_STATS_SENT_AT)                                            \
+  V(IDX_QUIC_SESSION_STATS_RECEIVED_AT)                                        \
+  V(IDX_QUIC_SESSION_STATS_CLOSING_AT)                                         \
+  V(IDX_QUIC_SESSION_STATS_BYTES_RECEIVED)                                     \
+  V(IDX_QUIC_SESSION_STATS_BYTES_SENT)                                         \
+  V(IDX_QUIC_SESSION_STATS_BIDI_STREAM_COUNT)                                  \
+  V(IDX_QUIC_SESSION_STATS_UNI_STREAM_COUNT)                                   \
+  V(IDX_QUIC_SESSION_STATS_STREAMS_IN_COUNT)                                   \
+  V(IDX_QUIC_SESSION_STATS_STREAMS_OUT_COUNT)                                  \
+  V(IDX_QUIC_SESSION_STATS_KEYUPDATE_COUNT)                                    \
+  V(IDX_QUIC_SESSION_STATS_RETRY_COUNT)                                        \
+  V(IDX_QUIC_SESSION_STATS_LOSS_RETRANSMIT_COUNT)                              \
+  V(IDX_QUIC_SESSION_STATS_ACK_DELAY_RETRANSMIT_COUNT)                         \
+  V(IDX_QUIC_SESSION_STATS_PATH_VALIDATION_SUCCESS_COUNT)                      \
+  V(IDX_QUIC_SESSION_STATS_PATH_VALIDATION_FAILURE_COUNT)                      \
+  V(IDX_QUIC_SESSION_STATS_MAX_BYTES_IN_FLIGHT)                                \
+  V(IDX_QUIC_SESSION_STATS_BLOCK_COUNT)                                        \
+  V(IDX_QUIC_SESSION_STATE_CERT_ENABLED)                                       \
+  V(IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED)                               \
+  V(IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED)                      \
+  V(IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED)                             \
+  V(IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED)                                     \
+  V(IDX_QUIC_SESSION_STATE_MAX_STREAMS_BIDI)                                   \
+  V(IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI)                                    \
+  V(IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT)                                      \
+  V(IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT)                                    \
+  V(IDX_QUIC_SOCKET_STATS_CREATED_AT)                                          \
+  V(IDX_QUIC_SOCKET_STATS_BOUND_AT)                                            \
+  V(IDX_QUIC_SOCKET_STATS_LISTEN_AT)                                           \
+  V(IDX_QUIC_SOCKET_STATS_BYTES_RECEIVED)                                      \
+  V(IDX_QUIC_SOCKET_STATS_BYTES_SENT)                                          \
+  V(IDX_QUIC_SOCKET_STATS_PACKETS_RECEIVED)                                    \
+  V(IDX_QUIC_SOCKET_STATS_PACKETS_IGNORED)                                     \
+  V(IDX_QUIC_SOCKET_STATS_PACKETS_SENT)                                        \
+  V(IDX_QUIC_SOCKET_STATS_SERVER_SESSIONS)                                     \
+  V(IDX_QUIC_SOCKET_STATS_CLIENT_SESSIONS)                                     \
+  V(IDX_QUIC_SOCKET_STATS_STATELESS_RESET_COUNT)                               \
+  V(IDX_QUIC_STREAM_STATS_CREATED_AT)                                          \
+  V(IDX_QUIC_STREAM_STATS_SENT_AT)                                             \
+  V(IDX_QUIC_STREAM_STATS_RECEIVED_AT)                                         \
+  V(IDX_QUIC_STREAM_STATS_ACKED_AT)                                            \
+  V(IDX_QUIC_STREAM_STATS_CLOSING_AT)                                          \
+  V(IDX_QUIC_STREAM_STATS_BYTES_RECEIVED)                                      \
+  V(IDX_QUIC_STREAM_STATS_BYTES_SENT)                                          \
+  V(IDX_QUIC_STREAM_STATS_MAX_OFFSET)                                          \
+  V(MAX_RETRYTOKEN_EXPIRATION)                                                 \
+  V(MIN_RETRYTOKEN_EXPIRATION)                                                 \
+  V(NGTCP2_APP_NOERROR)                                                        \
+  V(NGTCP2_PATH_VALIDATION_RESULT_FAILURE)                                     \
+  V(NGTCP2_PATH_VALIDATION_RESULT_SUCCESS)                                     \
+  V(QUIC_ERROR_APPLICATION)                                                    \
+  V(QUIC_ERROR_CRYPTO)                                                         \
+  V(QUIC_ERROR_SESSION)                                                        \
+  V(QUIC_PREFERRED_ADDRESS_ACCEPT)                                             \
+  V(QUIC_PREFERRED_ADDRESS_IGNORE)                                             \
+  V(QUICCLIENTSESSION_OPTION_REQUEST_OCSP)                                     \
+  V(QUICCLIENTSESSION_OPTION_VERIFY_HOSTNAME_IDENTITY)                         \
+  V(QUICSERVERSESSION_OPTION_REJECT_UNAUTHORIZED)                              \
+  V(QUICSERVERSESSION_OPTION_REQUEST_CERT)                                     \
+  V(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS)                                       \
+  V(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)                                   \
+  V(QUICSTREAM_HEADER_FLAGS_NONE)                                              \
+  V(QUICSTREAM_HEADER_FLAGS_TERMINAL)                                          \
+  V(QUICSTREAM_HEADERS_KIND_NONE)                                              \
+  V(QUICSTREAM_HEADERS_KIND_INFORMATIONAL)                                     \
+  V(QUICSTREAM_HEADERS_KIND_INITIAL)                                           \
+  V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
+  V(UV_EBADF)
+
+#define V(name) NODE_DEFINE_CONSTANT(constants, name);
+  QUIC_CONSTANTS(V)
+#undef V
+
+  NODE_DEFINE_CONSTANT(constants, NGTCP2_PROTO_VER);
+  NODE_DEFINE_CONSTANT(constants, NGTCP2_DEFAULT_MAX_ACK_DELAY);
   NODE_DEFINE_CONSTANT(constants, NGTCP2_MAX_CIDLEN);
   NODE_DEFINE_CONSTANT(constants, NGTCP2_MIN_CIDLEN);
   NODE_DEFINE_CONSTANT(constants, NGTCP2_NO_ERROR);
-  NODE_DEFINE_CONSTANT(constants, NGTCP2_PROTO_VER);
-  NODE_DEFINE_CONSTANT(constants, QUIC_ERROR_APPLICATION);
-  NODE_DEFINE_CONSTANT(constants, QUIC_ERROR_CRYPTO);
-  NODE_DEFINE_CONSTANT(constants, QUIC_ERROR_SESSION);
-  NODE_DEFINE_CONSTANT(constants, QUIC_PREFERRED_ADDRESS_ACCEPT);
-  NODE_DEFINE_CONSTANT(constants, QUIC_PREFERRED_ADDRESS_IGNORE);
-  NODE_DEFINE_CONSTANT(constants, NGTCP2_DEFAULT_MAX_ACK_DELAY);
-  NODE_DEFINE_CONSTANT(constants, NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
-  NODE_DEFINE_CONSTANT(constants, NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
-  NODE_DEFINE_CONSTANT(constants, SSL_OP_ALL);
-  NODE_DEFINE_CONSTANT(constants, SSL_OP_CIPHER_SERVER_PREFERENCE);
-  NODE_DEFINE_CONSTANT(constants, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
-  NODE_DEFINE_CONSTANT(constants, SSL_OP_NO_ANTI_REPLAY);
-  NODE_DEFINE_CONSTANT(constants, SSL_OP_SINGLE_ECDH_USE);
-  NODE_DEFINE_CONSTANT(constants, TLS1_3_VERSION);
-  NODE_DEFINE_CONSTANT(constants, UV_EBADF);
+  NODE_DEFINE_CONSTANT(constants, AF_INET);
+  NODE_DEFINE_CONSTANT(constants, AF_INET6);
+  NODE_DEFINE_STRING_CONSTANT(constants, NGTCP2_ALPN_H3, NGTCP2_ALPN_H3);
 
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_ACTIVE_CONNECTION_ID_LIMIT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_LOCAL);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_REMOTE);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_STREAM_DATA_UNI);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_DATA);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_STREAMS_BIDI);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_STREAMS_UNI);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_IDLE_TIMEOUT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_PACKET_SIZE);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_ACK_DELAY_EXPONENT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_DISABLE_MIGRATION);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_MAX_ACK_DELAY);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_CONFIG_COUNT);
-
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_CREATED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_HANDSHAKE_START_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_HANDSHAKE_SEND_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_HANDSHAKE_CONTINUE_AT);
-  NODE_DEFINE_CONSTANT(constants,
-                       IDX_QUIC_SESSION_STATS_HANDSHAKE_COMPLETED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_HANDSHAKE_ACKED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_SENT_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_RECEIVED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_CLOSING_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_BYTES_RECEIVED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_BYTES_SENT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_BIDI_STREAM_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_UNI_STREAM_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_STREAMS_IN_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_STREAMS_OUT_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_KEYUPDATE_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_RETRY_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_LOSS_RETRANSMIT_COUNT);
-  NODE_DEFINE_CONSTANT(constants,
-                       IDX_QUIC_SESSION_STATS_ACK_DELAY_RETRANSMIT_COUNT);
-  NODE_DEFINE_CONSTANT(constants,
-                       IDX_QUIC_SESSION_STATS_PATH_VALIDATION_SUCCESS_COUNT);
-  NODE_DEFINE_CONSTANT(constants,
-                       IDX_QUIC_SESSION_STATS_PATH_VALIDATION_FAILURE_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_MAX_BYTES_IN_FLIGHT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_BLOCK_COUNT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_CREATED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_SENT_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_RECEIVED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_ACKED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_CLOSING_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_BYTES_RECEIVED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_BYTES_SENT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_MAX_OFFSET);
-
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_CREATED_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_BOUND_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_LISTEN_AT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_BYTES_RECEIVED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_BYTES_SENT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_PACKETS_RECEIVED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_PACKETS_IGNORED);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_PACKETS_SENT);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_SERVER_SESSIONS);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_CLIENT_SESSIONS);
-  NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_STATELESS_RESET_COUNT);
-
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_QPACK_MAX_TABLE_CAPACITY);
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_QPACK_BLOCKED_STREAMS);
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_MAX_HEADER_LIST_SIZE);
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_MAX_PUSHES);
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_MAX_HEADER_PAIRS);
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_MAX_HEADER_LENGTH);
-  NODE_DEFINE_CONSTANT(constants, IDX_HTTP3_CONFIG_COUNT);
-
-  NODE_DEFINE_CONSTANT(constants, QUICSTREAM_HEADER_FLAGS_NONE);
-  NODE_DEFINE_CONSTANT(constants, QUICSTREAM_HEADER_FLAGS_TERMINAL);
-
-  NODE_DEFINE_CONSTANT(constants, QUICSTREAM_HEADERS_KIND_NONE);
-  NODE_DEFINE_CONSTANT(constants, QUICSTREAM_HEADERS_KIND_INFORMATIONAL);
-  NODE_DEFINE_CONSTANT(constants, QUICSTREAM_HEADERS_KIND_INITIAL);
-  NODE_DEFINE_CONSTANT(constants, QUICSTREAM_HEADERS_KIND_TRAILING);
-
-  NODE_DEFINE_CONSTANT(
-      constants,
-      QUICSERVERSESSION_OPTION_REJECT_UNAUTHORIZED);
-  NODE_DEFINE_CONSTANT(
-      constants,
-      QUICSERVERSESSION_OPTION_REQUEST_CERT);
-  NODE_DEFINE_CONSTANT(
-      constants,
-      QUICCLIENTSESSION_OPTION_REQUEST_OCSP);
-  NODE_DEFINE_CONSTANT(
-      constants,
-      QUICCLIENTSESSION_OPTION_VERIFY_HOSTNAME_IDENTITY);
-  NODE_DEFINE_CONSTANT(
-      constants,
-      QUICSOCKET_OPTIONS_VALIDATE_ADDRESS);
-  NODE_DEFINE_CONSTANT(
-      constants,
-      QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU);
-
-  target->Set(context,
-              env->constants_string(),
-              constants).FromJust();
-
-  constants->DefineOwnProperty(context,
-      FIXED_ONE_BYTE_STRING(isolate, NODE_STRINGIFY_HELPER(NGTCP2_ALPN_H3)),
-      FIXED_ONE_BYTE_STRING(isolate, NGTCP2_ALPN_H3),
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete)).Check();
+  target->Set(context, env->constants_string(), constants).FromJust();
 }
 
 }  // namespace quic

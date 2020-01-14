@@ -35,23 +35,24 @@ using v8::Value;
 
 namespace quic {
 
-constexpr int NGTCP2_CRYPTO_SECRETLEN = 64;
-constexpr int NGTCP2_CRYPTO_KEYLEN = 64;
-constexpr int NGTCP2_CRYPTO_IVLEN = 64;
-constexpr int NGTCP2_CRYPTO_TOKEN_SECRETLEN = 32;
-constexpr int NGTCP2_CRYPTO_TOKEN_KEYLEN = 32;
-constexpr int NGTCP2_CRYPTO_TOKEN_IVLEN = 32;
+namespace {
+constexpr int kCryptoKeylen = 64;
+constexpr int kCryptoIvlen = 64;
+constexpr int kCryptoTokenSecretlen = 32;
+constexpr int kCryptoTokenKeylen = 32;
+constexpr int kCryptoTokenIvlen = 32;
 
-constexpr char QUIC_CLIENT_EARLY_TRAFFIC_SECRET[] =
+constexpr char kQuicClientEarlyTrafficSecret[] =
     "QUIC_CLIENT_EARLY_TRAFFIC_SECRET";
-constexpr char QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET[] =
+constexpr char kQuicClientHandshakeTrafficSecret[] =
     "QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET";
-constexpr char QUIC_CLIENT_TRAFFIC_SECRET_0[] =
+constexpr char kQuicClientTrafficSecret0[] =
     "QUIC_CLIENT_TRAFFIC_SECRET_0";
-constexpr char QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET[] =
+constexpr char kQuicServerHandshakeTrafficSecret[] =
     "QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET";
-constexpr char QUIC_SERVER_TRAFFIC_SECRET_0[] =
+constexpr char kQuicServerTrafficSecret[] =
     "QUIC_SERVER_TRAFFIC_SECRET_0";
+}  // namespace
 
 namespace {
 // Used solely to derive the keys used to generate retry tokens.
@@ -62,15 +63,15 @@ bool DeriveTokenKey(
     size_t rand_datalen,
     const ngtcp2_crypto_ctx& ctx,
     const uint8_t* token_secret) {
-  uint8_t secret[NGTCP2_CRYPTO_TOKEN_SECRETLEN];
+  uint8_t secret[kCryptoTokenSecretlen];
 
   return
       NGTCP2_OK(ngtcp2_crypto_hkdf_extract(
           secret,
-          NGTCP2_CRYPTO_TOKEN_SECRETLEN,
+          kCryptoTokenSecretlen,
           &ctx.md,
           token_secret,
-          TOKEN_SECRETLEN,
+          kTokenSecretLen,
           rand_data,
           rand_datalen)) &&
       NGTCP2_OK(ngtcp2_crypto_derive_packet_protection_key(
@@ -80,12 +81,12 @@ bool DeriveTokenKey(
           &ctx.aead,
           &ctx.md,
           secret,
-          NGTCP2_CRYPTO_TOKEN_SECRETLEN));
+          kCryptoTokenSecretlen));
 }
 
 void GenerateRandData(uint8_t* buf, size_t len) {
-  std::array<uint8_t, 16> rand;
-  std::array<uint8_t, 32> md;
+  uint8_t rand[16];
+  uint8_t md[32];
 
   const EVP_MD* meth = EVP_sha256();
   unsigned int mdlen = EVP_MD_size(meth);
@@ -93,11 +94,11 @@ void GenerateRandData(uint8_t* buf, size_t len) {
   ctx.reset(EVP_MD_CTX_new());
   CHECK(ctx);
 
-  EntropySource(rand.data(), rand.size());
+  EntropySource(rand, arraysize(rand));
   CHECK_EQ(EVP_DigestInit_ex(ctx.get(), meth, nullptr), 1);
-  CHECK_EQ(EVP_DigestUpdate(ctx.get(), rand.data(), rand.size()), 1);
-  CHECK_EQ(EVP_DigestFinal_ex(ctx.get(), rand.data(), &mdlen), 1);
-  CHECK_LE(len, md.size());
+  CHECK_EQ(EVP_DigestUpdate(ctx.get(), rand, arraysize(rand)), 1);
+  CHECK_EQ(EVP_DigestFinal_ex(ctx.get(), rand, &mdlen), 1);
+  CHECK_LE(len, arraysize(md));
   std::copy_n(std::begin(md), len, buf);
 }
 }  // namespace
@@ -125,9 +126,9 @@ bool GenerateRetryToken(
     const ngtcp2_cid* ocid,
     const uint8_t* token_secret) {
   std::array<uint8_t, 4096> plaintext;
-  uint8_t rand_data[TOKEN_RAND_DATALEN];
-  uint8_t token_key[NGTCP2_CRYPTO_TOKEN_KEYLEN];
-  uint8_t token_iv[NGTCP2_CRYPTO_TOKEN_IVLEN];
+  uint8_t rand_data[kTokenRandLen];
+  uint8_t token_key[kCryptoTokenKeylen];
+  uint8_t token_iv[kCryptoTokenIvlen];
 
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -142,13 +143,13 @@ bool GenerateRetryToken(
   p = std::copy_n(reinterpret_cast<uint8_t*>(&now), sizeof(now), p);
   p = std::copy_n(ocid->data, ocid->datalen, p);
 
-  GenerateRandData(rand_data, TOKEN_RAND_DATALEN);
+  GenerateRandData(rand_data, kTokenRandLen);
 
   if (!DeriveTokenKey(
           token_key,
           token_iv,
           rand_data,
-          TOKEN_RAND_DATALEN,
+          kTokenRandLen,
           ctx,
           token_secret)) {
     return false;
@@ -169,8 +170,8 @@ bool GenerateRetryToken(
   }
 
   *tokenlen = plaintextlen + ngtcp2_crypto_aead_taglen(&ctx.aead);
-  memcpy(token + (*tokenlen), rand_data, TOKEN_RAND_DATALEN);
-  *tokenlen += TOKEN_RAND_DATALEN;
+  memcpy(token + (*tokenlen), rand_data, kTokenRandLen);
+  *tokenlen += kTokenRandLen;
   return true;
 }
 
@@ -183,7 +184,7 @@ bool InvalidRetryToken(
     const uint8_t* token_secret,
     uint64_t verification_expiration) {
 
-  if (tokenlen < TOKEN_RAND_DATALEN)
+  if (tokenlen < kTokenRandLen)
     return true;
 
   ngtcp2_crypto_ctx ctx;
@@ -192,18 +193,18 @@ bool InvalidRetryToken(
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(&ctx.aead);
   const size_t addrlen = SocketAddress::GetLength(addr);
 
-  size_t ciphertextlen = tokenlen - TOKEN_RAND_DATALEN;
+  size_t ciphertextlen = tokenlen - kTokenRandLen;
   const uint8_t* ciphertext = token;
   const uint8_t* rand_data = token + ciphertextlen;
 
-  uint8_t token_key[NGTCP2_CRYPTO_TOKEN_KEYLEN];
-  uint8_t token_iv[NGTCP2_CRYPTO_TOKEN_IVLEN];
+  uint8_t token_key[kCryptoTokenKeylen];
+  uint8_t token_iv[kCryptoTokenIvlen];
 
   if (!DeriveTokenKey(
           token_key,
           token_iv,
           rand_data,
-          TOKEN_RAND_DATALEN,
+          kTokenRandLen,
           ctx,
           token_secret)) {
     return true;
@@ -601,14 +602,13 @@ int SendAlert(
 bool SetTransportParams(ngtcp2_conn* connection, SSL* ssl) {
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(connection, &params);
-  std::array<uint8_t, 512> buf;
+  uint8_t buf[512];
   ssize_t nwrite = ngtcp2_encode_transport_params(
-      buf.data(),
-      buf.size(),
+      buf,
+      arraysize(buf),
       NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
-  return nwrite >= 0 &&
-      SSL_set_quic_transport_params(ssl, buf.data(), nwrite) == 1;
+  return nwrite >= 0 && SSL_set_quic_transport_params(ssl, buf, nwrite) == 1;
 }
 
 SSL_QUIC_METHOD quic_method = SSL_QUIC_METHOD{
@@ -718,12 +718,12 @@ bool SetCryptoSecrets(
     const uint8_t* tx_secret,
     size_t secretlen) {
 
-  uint8_t rx_key[NGTCP2_CRYPTO_KEYLEN];
-  uint8_t rx_hp[NGTCP2_CRYPTO_KEYLEN];
-  uint8_t tx_key[NGTCP2_CRYPTO_KEYLEN];
-  uint8_t tx_hp[NGTCP2_CRYPTO_KEYLEN];
-  uint8_t rx_iv[NGTCP2_CRYPTO_IVLEN];
-  uint8_t tx_iv[NGTCP2_CRYPTO_IVLEN];
+  uint8_t rx_key[kCryptoKeylen];
+  uint8_t rx_hp[kCryptoKeylen];
+  uint8_t tx_key[kCryptoKeylen];
+  uint8_t tx_hp[kCryptoKeylen];
+  uint8_t rx_iv[kCryptoIvlen];
+  uint8_t tx_iv[kCryptoIvlen];
 
   QuicCryptoContext* ctx = session->crypto_context();
   SSL* ssl = ctx->ssl();
@@ -749,31 +749,31 @@ bool SetCryptoSecrets(
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     crypto::LogSecret(
         ssl,
-        QUIC_CLIENT_EARLY_TRAFFIC_SECRET,
+        kQuicClientEarlyTrafficSecret,
         rx_secret,
         secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     crypto::LogSecret(
         ssl,
-        QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
+        kQuicClientHandshakeTrafficSecret,
         rx_secret,
         secretlen);
     crypto::LogSecret(
         ssl,
-        QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
+        kQuicServerHandshakeTrafficSecret,
         tx_secret,
         secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
     crypto::LogSecret(
         ssl,
-        QUIC_CLIENT_TRAFFIC_SECRET_0,
+        kQuicClientTrafficSecret0,
         rx_secret,
         secretlen);
     crypto::LogSecret(
         ssl,
-        QUIC_SERVER_TRAFFIC_SECRET_0,
+        kQuicServerTrafficSecret,
         tx_secret,
         secretlen);
     break;
@@ -809,6 +809,36 @@ bool DeriveAndInstallInitialKey(
       tx_hp,
       dcid,
       session->crypto_context()->side()));
+}
+
+ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
+  switch (ossl_level) {
+  case ssl_encryption_initial:
+    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+  case ssl_encryption_early_data:
+    return NGTCP2_CRYPTO_LEVEL_EARLY;
+  case ssl_encryption_handshake:
+    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+  case ssl_encryption_application:
+    return NGTCP2_CRYPTO_LEVEL_APP;
+  default:
+    UNREACHABLE();
+  }
+}
+
+const char* crypto_level_name(ngtcp2_crypto_level level) {
+  switch (level) {
+    case NGTCP2_CRYPTO_LEVEL_INITIAL:
+      return "initial";
+    case NGTCP2_CRYPTO_LEVEL_EARLY:
+      return "early";
+    case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+      return "handshake";
+    case NGTCP2_CRYPTO_LEVEL_APP:
+      return "app";
+    default:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace quic
