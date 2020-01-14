@@ -106,8 +106,8 @@ added: v10.6.0
 
 * Returns: {Buffer}
 
-Creates a code cache that can be used with the Script constructor's
-`cachedData` option. Returns a Buffer. This method may be called at any
+Creates a code cache that can be used with the `Script` constructor's
+`cachedData` option. Returns a `Buffer`. This method may be called at any
 time and any number of times.
 
 ```js
@@ -632,8 +632,8 @@ added: REPLACEME
 
 * Returns: {Buffer}
 
-Creates a code cache that can be used with the SourceTextModule constructor's
-`cachedData` option. Returns a Buffer. This method may be called any number
+Creates a code cache that can be used with the `SourceTextModule` constructor's
+`cachedData` option. Returns a `Buffer`. This method may be called any number
 of times before the module has been evaluated.
 
 ```js
