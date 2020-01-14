@@ -11,6 +11,7 @@
 #include <ngtcp2/ngtcp2.h>
 #include <openssl/ssl.h>
 
+#include <algorithm>
 #include <functional>
 #include <limits>
 #include <string>
@@ -66,6 +67,25 @@ enum QuicErrorFamily : int32_t {
   QUIC_ERROR_SESSION,
   QUIC_ERROR_CRYPTO,
   QUIC_ERROR_APPLICATION
+};
+
+// StatsBase is a utility help for classes (like QuicSession)
+// that record performance statistics
+template <typename T>
+class StatsBase {
+ public:
+  inline StatsBase(
+      Environment* env,
+      v8::Local<v8::Object> wrap);
+ protected:
+  inline void IncrementStat(uint64_t T::*member, uint64_t amount = 1);
+  inline void SetStat(uint64_t T::*member, uint64_t value);
+  inline void RecordTimestamp(uint64_t T::*member);
+  inline uint64_t GetStat(uint64_t T::*member) const;
+  inline const AliasedBigUint64Array& stats_buffer() const;
+ private:
+  T stats_{};
+  AliasedBigUint64Array stats_buffer_;
 };
 
 // QuicPreferredAddress is a helper class used only when a
@@ -178,28 +198,6 @@ class QuicCID : public MemoryRetainer {
  private:
   ngtcp2_cid cid_;
 };
-
-// https://stackoverflow.com/questions/33701430/template-function-to-access-struct-members
-template <typename C, typename T>
-decltype(auto) access(C* cls, T C::*member) {
-  return (cls->*member);
-}
-
-template <typename C, typename T, typename... Mems>
-decltype(auto) access(C* cls, T C::*member, Mems... rest) {
-  return access((cls->*member), rest...);
-}
-
-template <typename A, typename... Members>
-void IncrementStat(
-    uint64_t amount,
-    A* a,
-    Members... mems) {
-  static uint64_t max = std::numeric_limits<uint64_t>::max();
-  uint64_t current = access(a, mems...);
-  uint64_t delta = std::min(amount, max - current);
-  access(a, mems...) += delta;
-}
 
 // Simple timer wrapper that is used to implement the internals
 // for idle and retransmission timeouts. Call Update to start or

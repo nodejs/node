@@ -304,6 +304,48 @@ bool StatelessResetToken::Compare::operator()(
       NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
 }
 
+template <typename T>
+StatsBase<T>::StatsBase(
+    Environment* env,
+    v8::Local<v8::Object> wrap)
+    : stats_buffer_(
+          env->isolate(),
+          sizeof(T) / sizeof(uint64_t),
+          reinterpret_cast<uint64_t*>(&stats_)) {
+  stats_.created_at = uv_hrtime();
+  CHECK(wrap->DefineOwnProperty(
+      env->context(),
+      env->stats_string(),
+      stats_buffer_.GetJSArray(),
+      PropertyAttribute::ReadOnly).IsJust());
+}
+
+template <typename T>
+void StatsBase<T>::IncrementStat(uint64_t T::*member, uint64_t amount) {
+  static constexpr uint64_t kMax = std::numeric_limits<uint64_t>::max();
+  stats_.*member += std::min(amount, kMax - stats_.*member);
+}
+
+template <typename T>
+void StatsBase<T>::SetStat(uint64_t T::*member, uint64_t value) {
+  stats_.*member = value;
+}
+
+template <typename T>
+void StatsBase<T>::RecordTimestamp(uint64_t T::*member) {
+  stats_.*member = uv_hrtime();
+}
+
+template <typename T>
+uint64_t StatsBase<T>::GetStat(uint64_t T::*member) const {
+  return stats_.*member;
+}
+
+template <typename T>
+const AliasedBigUint64Array& StatsBase<T>::stats_buffer() const {
+  return stats_buffer_;
+}
+
 }  // namespace quic
 }  // namespace node
 

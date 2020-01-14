@@ -47,6 +47,7 @@ QuicStream::QuicStream(
     int64_t stream_id)
   : AsyncWrap(sess->env(), wrap, AsyncWrap::PROVIDER_QUICSTREAM),
     StreamBase(sess->env()),
+    StatsBase(sess->env(), wrap),
     session_(sess),
     stream_id_(stream_id),
     data_rx_rate_(
@@ -60,25 +61,14 @@ QuicStream::QuicStream(
     data_rx_ack_(
         HistogramBase::New(
             sess->env(),
-            1, std::numeric_limits<int64_t>::max())),
-    stats_buffer_(
-        sess->env()->isolate(),
-        sizeof(stream_stats_) / sizeof(uint64_t),
-        reinterpret_cast<uint64_t*>(&stream_stats_)) {
+            1, std::numeric_limits<int64_t>::max())) {
   CHECK_NOT_NULL(sess);
   Debug(this, "Created");
   StreamBase::AttachToObject(GetObject());
-  stream_stats_.created_at = uv_hrtime();
 
   // TODO(@jasnell): For now, the following are checks rather than properly
   // handled. Before this code moves out of experimental, these should be
   // properly handled.
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->stats_string(),
-      stats_buffer_.GetJSArray(),
-      PropertyAttribute::ReadOnly).Check();
 
   wrap->DefineOwnProperty(
       env()->context(),
@@ -100,10 +90,7 @@ QuicStream::QuicStream(
 
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(session()->connection(), &params);
-  IncrementStat(
-      params.initial_max_data,
-      &stream_stats_,
-      &stream_stats::max_offset);
+  IncrementStat(&QuicStreamStats::max_offset, params.initial_max_data);
 }
 
 // Acknowledge is called when ngtcp2 has received an acknowledgement
@@ -127,10 +114,10 @@ void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
   // invoked if a complete chunk of buffered data has been acknowledged.
   streambuf_.Consume(datalen);
 
-  uint64_t now = uv_hrtime();
-  if (stream_stats_.stream_acked_at > 0)
-    data_rx_ack_->Record(now - stream_stats_.stream_acked_at);
-  stream_stats_.stream_acked_at = now;
+  uint64_t acked_at = GetStat(&QuicStreamStats::acked_at);
+  if (acked_at > 0)
+    data_rx_ack_->Record(uv_hrtime() - acked_at);
+  RecordTimestamp(&QuicStreamStats::acked_at);
 }
 
 // While not all QUIC applications will support headers, QuicStream
@@ -171,9 +158,9 @@ void QuicStream::Destroy() {
         "  Duration: %" PRIu64 "\n"
         "  Bytes Received: %" PRIu64 "\n"
         "  Bytes Sent: %" PRIu64,
-        now - stream_stats_.created_at,
-        stream_stats_.bytes_received,
-        stream_stats_.bytes_sent);
+        uv_hrtime() - GetStat(&QuicStreamStats::created_at),
+        GetStat(&QuicStreamStats::bytes_received),
+        GetStat(&QuicStreamStats::bytes_sent));
 
   // If there is data currently buffered in the streambuf_,
   // then cancel will call out to invoke an arbitrary
@@ -203,7 +190,7 @@ int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
 
   if (is_writable()) {
     Debug(this, "Shutdown writable side");
-    stream_stats_.closing_at = uv_hrtime();
+    RecordTimestamp(&QuicStreamStats::closing_at);
     set_write_close();
     session()->ResumeStream(stream_id_);
   }
@@ -236,10 +223,7 @@ int QuicStream::DoWrite(
 
   Debug(this, "Queuing %" PRIu64 " bytes of data from %d buffers",
         length, nbufs);
-  IncrementStat(
-      static_cast<uint64_t>(length),
-      &stream_stats_,
-      &stream_stats::bytes_sent);
+  IncrementStat(&QuicStreamStats::bytes_sent, static_cast<uint64_t>(length));
 
   BaseObjectPtr<AsyncWrap> strong_ref{req_wrap->GetAsyncWrap()};
   // The list of buffers will be appended onto streambuf_ without
@@ -261,7 +245,7 @@ int QuicStream::DoWrite(
       [req_wrap, strong_ref](int status) {
         req_wrap->Done(status);
       });
-  stream_stats_.stream_sent_at = uv_hrtime();
+  RecordTimestamp(&QuicStreamStats::sent_at);
 
   session()->ResumeStream(stream_id_);
 
@@ -283,9 +267,8 @@ int QuicStream::ReadStart() {
   set_read_start();
   set_read_resume();
   IncrementStat(
-      inbound_consumed_data_while_paused_,
-      &stream_stats_,
-      &stream_stats::max_offset);
+      &QuicStreamStats::max_offset,
+      inbound_consumed_data_while_paused_);
   session_->ExtendStreamOffset(id(), inbound_consumed_data_while_paused_);
   return 0;
 }
@@ -299,12 +282,12 @@ int QuicStream::ReadStop() {
 
 void QuicStream::IncrementStats(size_t datalen) {
   uint64_t len = static_cast<uint64_t>(datalen);
-  IncrementStat(len, &stream_stats_, &stream_stats::bytes_received);
+  IncrementStat(&QuicStreamStats::bytes_received, len);
 
-  uint64_t now = uv_hrtime();
-  if (stream_stats_.stream_received_at > 0)
-    data_rx_rate_->Record(now - stream_stats_.stream_received_at);
-  stream_stats_.stream_received_at = now;
+  uint64_t received_at = GetStat(&QuicStreamStats::received_at);
+  if (received_at > 0)
+    data_rx_rate_->Record(uv_hrtime() - received_at);
+  RecordTimestamp(&QuicStreamStats::received_at);
   data_rx_size_->Record(len);
 }
 
@@ -313,7 +296,7 @@ void QuicStream::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("data_rx_rate", data_rx_rate_);
   tracker->TrackField("data_rx_size", data_rx_size_);
   tracker->TrackField("data_rx_ack", data_rx_ack_);
-  tracker->TrackField("stats_buffer", stats_buffer_);
+  tracker->TrackField("stats_buffer", stats_buffer());
   tracker->TrackField("headers", headers_);
 }
 
@@ -403,11 +386,9 @@ void QuicStream::ReceiveData(
       if (read_paused) {
         inbound_consumed_data_while_paused_ += avail;
       } else {
-        IncrementStat(
-            avail,
-            &stream_stats_,
-            &stream_stats::max_offset);
+        IncrementStat(&QuicStreamStats::max_offset, avail);
         session_->ExtendStreamOffset(id(), avail);
+
       }
     }
   }

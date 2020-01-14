@@ -196,31 +196,43 @@ enum QuicSessionState : int {
   IDX_QUIC_SESSION_STATE_COUNT
 };
 
+#define SESSION_STATS(V)                                                       \
+  V(CREATED_AT, created_at)                                                    \
+  V(HANDSHAKE_START_AT, handshake_start_at)                                    \
+  V(HANDSHAKE_SEND_AT, handshake_send_at)                                      \
+  V(HANDSHAKE_CONTINUE_AT, handshake_continue_at)                              \
+  V(HANDSHAKE_COMPLETED_AT, handshake_completed_at)                            \
+  V(HANDSHAKE_ACKED_AT, handshake_acked_at)                                    \
+  V(SENT_AT,sent_at)                                                           \
+  V(RECEIVED_AT, received_at)                                                  \
+  V(CLOSING_AT, closing_at)                                                    \
+  V(BYTES_RECEIVED, bytes_received)                                            \
+  V(BYTES_SENT,bytes_sent)                                                     \
+  V(BIDI_STREAM_COUNT, bidi_stream_count)                                      \
+  V(UNI_STREAM_COUNT, uni_stream_count)                                        \
+  V(STREAMS_IN_COUNT, streams_in_count)                                        \
+  V(STREAMS_OUT_COUNT, streams_out_count)                                      \
+  V(KEYUPDATE_COUNT, keyupdate_count)                                          \
+  V(RETRY_COUNT, retry_count)                                                  \
+  V(LOSS_RETRANSMIT_COUNT, loss_retransmit_count)                              \
+  V(ACK_DELAY_RETRANSMIT_COUNT, ack_delay_retransmit_count)                    \
+  V(PATH_VALIDATION_SUCCESS_COUNT, path_validation_success_count)              \
+  V(PATH_VALIDATION_FAILURE_COUNT, path_validation_failure_count)              \
+  V(MAX_BYTES_IN_FLIGHT, max_bytes_in_flight)                                  \
+  V(BLOCK_COUNT, block_count)
+
+#define V(name, _) IDX_QUIC_SESSION_STATS_##name,
 enum QuicSessionStatsIdx : int {
-  IDX_QUIC_SESSION_STATS_CREATED_AT,
-  IDX_QUIC_SESSION_STATS_HANDSHAKE_START_AT,
-  IDX_QUIC_SESSION_STATS_HANDSHAKE_SEND_AT,
-  IDX_QUIC_SESSION_STATS_HANDSHAKE_CONTINUE_AT,
-  IDX_QUIC_SESSION_STATS_HANDSHAKE_COMPLETED_AT,
-  IDX_QUIC_SESSION_STATS_HANDSHAKE_ACKED_AT,
-  IDX_QUIC_SESSION_STATS_SENT_AT,
-  IDX_QUIC_SESSION_STATS_RECEIVED_AT,
-  IDX_QUIC_SESSION_STATS_CLOSING_AT,
-  IDX_QUIC_SESSION_STATS_BYTES_RECEIVED,
-  IDX_QUIC_SESSION_STATS_BYTES_SENT,
-  IDX_QUIC_SESSION_STATS_BIDI_STREAM_COUNT,
-  IDX_QUIC_SESSION_STATS_UNI_STREAM_COUNT,
-  IDX_QUIC_SESSION_STATS_STREAMS_IN_COUNT,
-  IDX_QUIC_SESSION_STATS_STREAMS_OUT_COUNT,
-  IDX_QUIC_SESSION_STATS_KEYUPDATE_COUNT,
-  IDX_QUIC_SESSION_STATS_RETRY_COUNT,
-  IDX_QUIC_SESSION_STATS_LOSS_RETRANSMIT_COUNT,
-  IDX_QUIC_SESSION_STATS_ACK_DELAY_RETRANSMIT_COUNT,
-  IDX_QUIC_SESSION_STATS_PATH_VALIDATION_SUCCESS_COUNT,
-  IDX_QUIC_SESSION_STATS_PATH_VALIDATION_FAILURE_COUNT,
-  IDX_QUIC_SESSION_STATS_MAX_BYTES_IN_FLIGHT,
-  IDX_QUIC_SESSION_STATS_BLOCK_COUNT,
+  SESSION_STATS(V)
+  IDX_QUIC_SESSION_STATS_COUNT
 };
+#undef V
+
+#define V(_, name) uint64_t name;
+  struct QuicSessionStats {
+    SESSION_STATS(V)
+  };
+#undef
 
 class QuicSessionListener {
  public:
@@ -593,7 +605,8 @@ class QuicApplication : public MemoryRetainer {
 // control. In other words, there's quite a bit going on within
 // a QuicSession object.
 class QuicSession : public AsyncWrap,
-                    public mem::NgLibMemoryManager<QuicSession, ngtcp2_mem> {
+                    public mem::NgLibMemoryManager<QuicSession, ngtcp2_mem>,
+                    public StatsBase<QuicSessionStats> {
  public:
   // The default preferred address strategy is to ignore it
   static void IgnorePreferredAddressStrategy(
@@ -1406,62 +1419,6 @@ class QuicSession : public AsyncWrap,
 
   AliasedFloat64Array state_;
 
-  struct session_stats {
-    // The timestamp at which the session was created
-    uint64_t created_at;
-    // The timestamp at which the handshake was started
-    uint64_t handshake_start_at;
-    // The timestamp at which the most recent handshake
-    // message was sent
-    uint64_t handshake_send_at;
-    // The timestamp at which the most recent handshake
-    // message was received
-    uint64_t handshake_continue_at;
-    // The timestamp at which handshake completed
-    uint64_t handshake_completed_at;
-    // The timestamp at which the handshake was most recently acked
-    uint64_t handshake_acked_at;
-    // The timestamp at which the most recently sent
-    // non-handshake packets were sent
-    uint64_t session_sent_at;
-    // The timestamp at which the most recently received
-    // non-handshake packets were received
-    uint64_t session_received_at;
-    // The timestamp at which a graceful close was started
-    uint64_t closing_at;
-    // The total number of bytes received (and not ignored)
-    // by this QuicSession
-    uint64_t bytes_received;
-    // The total number of bytes sent by this QuicSession
-    uint64_t bytes_sent;
-    // The total bidirectional stream count
-    uint64_t bidi_stream_count;
-    // The total unidirectional stream count
-    uint64_t uni_stream_count;
-    // The total number of peer-initiated streams
-    uint64_t streams_in_count;
-    // The total number of local-initiated streams
-    uint64_t streams_out_count;
-    // The total number of keyupdates
-    uint64_t keyupdate_count;
-    // The total number of retries received
-    uint64_t retry_count;
-    // The total number of loss detection retransmissions
-    uint64_t loss_retransmit_count;
-    // The total number of ack delay retransmissions
-    uint64_t ack_delay_retransmit_count;
-    // The total number of successful path validations
-    uint64_t path_validation_success_count;
-    // The total number of failed path validations
-    uint64_t path_validation_failure_count;
-    // The max number of in flight bytes recorded
-    uint64_t max_bytes_in_flight;
-    // The total number of times the session has been
-    // flow control blocked.
-    uint64_t block_count;
-  };
-  session_stats session_stats_{};
-
   // crypto_rx_ack_ measures the elapsed time between crypto acks
   // for this stream. This data can be used to detect peers that are
   // generally taking too long to acknowledge crypto data.
@@ -1480,7 +1437,6 @@ class QuicSession : public AsyncWrap,
   };
   recovery_stats recovery_stats_{};
 
-  AliasedBigUint64Array stats_buffer_;
   AliasedFloat64Array recovery_stats_buffer_;
 
   static const ngtcp2_conn_callbacks callbacks[2];

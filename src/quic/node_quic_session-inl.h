@@ -250,7 +250,7 @@ uint32_t QuicSession::negotiated_version() const {
 // need to do at this point is let the javascript side know.
 void QuicSession::HandshakeCompleted() {
   Debug(this, "Handshake is completed");
-  session_stats_.handshake_completed_at = uv_hrtime();
+  RecordTimestamp(&QuicSessionStats::handshake_completed_at);
   listener()->OnHandshakeCompleted();
 }
 
@@ -362,7 +362,7 @@ bool QuicSession::is_server() const {
 
 void QuicSession::StartGracefulClose() {
   set_flag(QUICSESSION_FLAG_GRACEFUL_CLOSING);
-  session_stats_.closing_at = uv_hrtime();
+  RecordTimestamp(&QuicSessionStats::closing_at);
 }
 
 // The connection ID Strategy is a function that generates
@@ -395,7 +395,7 @@ QuicSocket* QuicSession::socket() const {
 // By default, we keep track of statistics but leave it up to
 // the application to perform specific handling.
 void QuicSession::StreamDataBlocked(int64_t stream_id) {
-  IncrementStat(1, &session_stats_, &session_stats::block_count);
+  IncrementStat(&QuicSessionStats::block_count);
 }
 
 // When a server advertises a preferred address in its initial

@@ -247,24 +247,20 @@ QuicSocket::QuicSocket(
     const uint8_t* session_reset_secret,
     bool disable_stateless_reset)
   : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_QUICSOCKET),
+    StatsBase(env, wrap),
     alloc_info_(MakeAllocator()),
     options_(options),
     max_connections_per_host_(max_connections_per_host),
     max_stateless_resets_per_host_(max_stateless_resets_per_host),
     retry_token_expiration_(retry_token_expiration),
     qlog_(qlog),
-    server_alpn_(NGTCP2_ALPN_H3),
-    stats_buffer_(
-        env->isolate(),
-        sizeof(socket_stats_) / sizeof(uint64_t),
-        reinterpret_cast<uint64_t*>(&socket_stats_)) {
+    server_alpn_(NGTCP2_ALPN_H3) {
   MakeWeak();
   PushListener(&default_listener_);
 
   Debug(this, "New QuicSocket created.");
 
   EntropySource(token_secret_, kTokenSecretLen);
-  socket_stats_.created_at = uv_hrtime();
 
   if (disable_stateless_reset)
     set_flag(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
@@ -279,15 +275,6 @@ QuicSocket::QuicSocket(
   } else {
     EntropySource(reset_token_secret_, NGTCP2_STATELESS_RESET_TOKENLEN);
   }
-
-  // TODO(@jasnell): For now, the following is a check rather than properly
-  // handled. Before this code moves out of experimental, this should be
-  // properly handled.
-  wrap->DefineOwnProperty(
-      env->context(),
-      env->stats_string(),
-      stats_buffer_.GetJSArray(),
-      PropertyAttribute::ReadOnly).Check();
 }
 
 QuicSocket::~QuicSocket() {
@@ -305,17 +292,17 @@ QuicSocket::~QuicSocket() {
         "  Server Sessions: %" PRIu64 "\n"
         "  Client Sessions: %" PRIu64 "\n"
         "  Stateless Resets: %" PRIu64 "\n",
-        now - socket_stats_.created_at,
-        socket_stats_.bound_at > 0 ? now - socket_stats_.bound_at : 0,
-        socket_stats_.listen_at > 0 ? now - socket_stats_.listen_at : 0,
-        socket_stats_.bytes_received,
-        socket_stats_.bytes_sent,
-        socket_stats_.packets_received,
-        socket_stats_.packets_sent,
-        socket_stats_.packets_ignored,
-        socket_stats_.server_sessions,
-        socket_stats_.client_sessions,
-        socket_stats_.stateless_reset_count);
+        now - GetStat(&QuicSocketStats::created_at),
+        now - GetStat(&QuicSocketStats::bound_at),
+        now - GetStat(&QuicSocketStats::listen_at),
+        GetStat(&QuicSocketStats::bytes_received),
+        GetStat(&QuicSocketStats::bytes_sent),
+        GetStat(&QuicSocketStats::packets_received),
+        GetStat(&QuicSocketStats::packets_sent),
+        GetStat(&QuicSocketStats::packets_ignored),
+        GetStat(&QuicSocketStats::server_sessions),
+        GetStat(&QuicSocketStats::client_sessions),
+        GetStat(&QuicSocketStats::stateless_reset_count));
   QuicSocketListener* listener = listener_;
   listener_->OnDestroy();
   // Remove the listener if it didn't remove itself already.
@@ -331,7 +318,7 @@ void QuicSocket::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("reset_counts", reset_counts_);
   tracker->TrackField("token_map", token_map_);
   tracker->TrackField("validated_addrs", validated_addrs_);
-  tracker->TrackField("stats_buffer", stats_buffer_);
+  tracker->TrackField("stats_buffer", stats_buffer());
   tracker->TrackFieldWithSize(
       "current_ngtcp2_memory",
       current_ngtcp2_memory_);
@@ -351,7 +338,7 @@ void QuicSocket::Listen(
   server_alpn_ = alpn;
   server_options_ = options;
   set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING);
-  socket_stats_.listen_at = uv_hrtime();
+  RecordTimestamp(&QuicSocketStats::listen_at);
   ReceiveStart();
 }
 
@@ -378,7 +365,7 @@ void QuicSocket::OnBind(QuicEndpoint* endpoint) {
   Debug(this, "Endpoint %s:%d bound",
         local_address.GetAddress().c_str(),
         local_address.GetPort());
-  socket_stats_.bound_at = uv_hrtime();
+  RecordTimestamp(&QuicSocketStats::bound_at);
 }
 
 BaseObjectPtr<QuicSession> QuicSocket::FindSession(const QuicCID& cid) {
@@ -432,7 +419,7 @@ void QuicSocket::OnReceive(
     return;
   }
 
-  IncrementSocketStat(nread, &socket_stats_, &socket_stats::bytes_received);
+  IncrementStat(&QuicSocketStats::bytes_received, nread);
 
   const uint8_t* data = reinterpret_cast<const uint8_t*>(buf.data());
 
@@ -454,7 +441,7 @@ void QuicSocket::OnReceive(
         &pscid,
         &pscidlen,
         data, nread, kScidLen) < 0) {
-    IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
+    IncrementStat(&QuicSocketStats::packets_ignored);
     return;
   }
 
@@ -463,7 +450,7 @@ void QuicSocket::OnReceive(
   // non-standard lengths later. But for now, we're going to ignore any
   // packet with a non-standard CID length.
   if (pdcidlen > NGTCP2_MAX_CIDLEN || pscidlen > NGTCP2_MAX_CIDLEN) {
-    IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
+    IncrementStat(&QuicSocketStats::packets_ignored);
     return;
   }
 
@@ -529,12 +516,10 @@ void QuicSocket::OnReceive(
       if (is_short_header &&
           SendStatelessReset(dcid, local_addr, remote_addr, nread)) {
         Debug(this, "Sent stateless reset");
-        IncrementSocketStat(
-            1, &socket_stats_,
-            &socket_stats::stateless_reset_count);
+        IncrementStat(&QuicSocketStats::stateless_reset_count);
         return;
       }
-      IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
+      IncrementStat(&QuicSocketStats::packets_ignored);
       return;
     }
   }
@@ -544,11 +529,11 @@ void QuicSocket::OnReceive(
   // If the packet could not successfully processed for any reason (possibly
   // due to being malformed or malicious in some way) we mark it ignored.
   if (!session->Receive(nread, data, local_addr, remote_addr, flags)) {
-    IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_ignored);
+    IncrementStat(&QuicSocketStats::packets_ignored);
     return;
   }
 
-  IncrementSocketStat(1, &socket_stats_, &socket_stats::packets_received);
+  IncrementStat(&QuicSocketStats::packets_received);
 }
 
 void QuicSocket::SendVersionNegotiation(
@@ -863,14 +848,8 @@ void QuicSocket::OnSend(int status, QuicPacket* packet) {
     Debug(this, "Sent %" PRIu64 " bytes (label: %s)",
           packet->length(),
           packet->diagnostic_label());
-    IncrementSocketStat(
-        packet->length(),
-        &socket_stats_,
-        &socket_stats::bytes_sent);
-    IncrementSocketStat(
-        1,
-        &socket_stats_,
-        &socket_stats::packets_sent);
+    IncrementStat(&QuicSocketStats::bytes_sent, packet->length());
+    IncrementStat(&QuicSocketStats::packets_sent);
   } else {
     Debug(this, "Failed to send %" PRIu64 " bytes (status: %d, label: %s)",
           packet->length(),

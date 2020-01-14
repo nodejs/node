@@ -43,19 +43,31 @@ enum QuicSocketOptions : uint32_t {
   QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU = 0x2,
 };
 
+#define SOCKET_STATS(V)                                                        \
+  V(CREATED_AT, created_at)                                                    \
+  V(BOUND_AT, bound_at)                                                        \
+  V(LISTEN_AT, listen_at)                                                      \
+  V(BYTES_RECEIVED, bytes_received)                                            \
+  V(BYTES_SENT, bytes_sent)                                                    \
+  V(PACKETS_RECEIVED, packets_received)                                        \
+  V(PACKETS_IGNORED, packets_ignored)                                          \
+  V(PACKETS_SENT, packets_sent)                                                \
+  V(SERVER_SESSIONS, server_sessions)                                          \
+  V(CLIENT_SESSIONS, client_sessions)                                          \
+  V(STATELESS_RESET_COUNT, stateless_reset_count)
+
+#define V(name, _) IDX_QUIC_SOCKET_STATS_##name,
 enum QuicSocketStatsIdx : int {
-    IDX_QUIC_SOCKET_STATS_CREATED_AT,
-    IDX_QUIC_SOCKET_STATS_BOUND_AT,
-    IDX_QUIC_SOCKET_STATS_LISTEN_AT,
-    IDX_QUIC_SOCKET_STATS_BYTES_RECEIVED,
-    IDX_QUIC_SOCKET_STATS_BYTES_SENT,
-    IDX_QUIC_SOCKET_STATS_PACKETS_RECEIVED,
-    IDX_QUIC_SOCKET_STATS_PACKETS_IGNORED,
-    IDX_QUIC_SOCKET_STATS_PACKETS_SENT,
-    IDX_QUIC_SOCKET_STATS_SERVER_SESSIONS,
-    IDX_QUIC_SOCKET_STATS_CLIENT_SESSIONS,
-    IDX_QUIC_SOCKET_STATS_STATELESS_RESET_COUNT
+  SOCKET_STATS(V)
+  IDX_QUIC_SOCKET_STATS_COUNT
 };
+#undef V
+
+#define V(_, name) uint64_t name;
+  struct QuicSocketStats {
+    SOCKET_STATS(V)
+  };
+#undef V
 
 class QuicSocket;
 class QuicEndpoint;
@@ -230,7 +242,8 @@ class QuicEndpoint : public BaseObject,
 // passing data two and from the remote peer.
 class QuicSocket : public AsyncWrap,
                    public QuicEndpointListener,
-                   public mem::NgLibMemoryManager<QuicSocket, ngtcp2_mem> {
+                   public mem::NgLibMemoryManager<QuicSocket, ngtcp2_mem>,
+                   public StatsBase<QuicSocketStats> {
  public:
   static void Initialize(
       Environment* env,
@@ -491,61 +504,6 @@ class QuicSocket : public AsyncWrap,
   // option is set.
   typedef size_t SocketAddressHash;
   std::deque<SocketAddressHash> validated_addrs_;
-
-  struct socket_stats {
-    // The timestamp at which the socket was created
-    uint64_t created_at;
-    // The timestamp at which the socket was bound
-    uint64_t bound_at;
-    // The timestamp at which the socket began listening
-    uint64_t listen_at;
-    // The total number of bytes received (and not ignored)
-    // by this QuicSocket instance.
-    uint64_t bytes_received;
-
-    // The total number of bytes successfully sent by this
-    // QuicSocket instance.
-    uint64_t bytes_sent;
-
-    // The total number of packets received (and not ignored)
-    // by this QuicSocket instance.
-    uint64_t packets_received;
-
-    // The total number of packets ignored by this QuicSocket
-    // instance. Packets are ignored if they are invalid in
-    // some way. A high number of ignored packets could signal
-    // a buggy or malicious peer.
-    uint64_t packets_ignored;
-
-    // The total number of packets successfully sent by this
-    // QuicSocket instance.
-    uint64_t packets_sent;
-
-    // The total number of server QuicSessions that have been
-    // associated with this QuicSocket instance.
-    uint64_t server_sessions;
-
-    // The total number of client QuicSessions that have been
-    // associated with this QuicSocket instance.
-    uint64_t client_sessions;
-
-    // The total number of stateless resets that have been sent
-    uint64_t stateless_reset_count;
-  };
-  socket_stats socket_stats_{};
-
-  AliasedBigUint64Array stats_buffer_;
-
-  template <typename... Members>
-  void IncrementSocketStat(
-      uint64_t amount,
-      socket_stats* a,
-      Members... mems) {
-    static uint64_t max = std::numeric_limits<uint64_t>::max();
-    uint64_t current = access(a, mems...);
-    uint64_t delta = std::min(amount, max - current);
-    access(a, mems...) += delta;
-  }
 
   class SendWrap : public ReqWrap<uv_udp_send_t> {
    public:

@@ -40,16 +40,28 @@ enum QuicStreamHeadersKind : int {
   QUICSTREAM_HEADERS_KIND_TRAILING
 };
 
+#define STREAM_STATS(V)                                                        \
+  V(CREATED_AT, created_at)                                                    \
+  V(SENT_AT, sent_at)                                                          \
+  V(RECEIVED_AT, received_at)                                                  \
+  V(ACKED_AT, acked_at)                                                        \
+  V(CLOSING_AT, closing_at)                                                    \
+  V(BYTES_RECEIVED, bytes_received)                                            \
+  V(BYTES_SENT, bytes_sent)                                                    \
+  V(MAX_OFFSET, max_offset)
+
+#define V(name, _) IDX_QUIC_STREAM_STATS_##name,
 enum QuicStreamStatsIdx : int {
-  IDX_QUIC_STREAM_STATS_CREATED_AT,
-  IDX_QUIC_STREAM_STATS_SENT_AT,
-  IDX_QUIC_STREAM_STATS_RECEIVED_AT,
-  IDX_QUIC_STREAM_STATS_ACKED_AT,
-  IDX_QUIC_STREAM_STATS_CLOSING_AT,
-  IDX_QUIC_STREAM_STATS_BYTES_RECEIVED,
-  IDX_QUIC_STREAM_STATS_BYTES_SENT,
-  IDX_QUIC_STREAM_STATS_MAX_OFFSET
+  STREAM_STATS(V)
+  IDX_QUIC_STREAM_STATS_COUNT
 };
+#undef V
+
+#define V(_, name) uint64_t name;
+struct QuicStreamStats {
+  STREAM_STATS(V)
+};
+#undef V
 
 // QuicHeader is a base class for implementing QUIC application
 // specific headers. Each type of QUIC application may have
@@ -186,7 +198,9 @@ enum QuicStreamOrigin {
 // This causes all queued data and pending JavaScript writes to be
 // abandoned, and causes the QuicStream to be immediately closed at the
 // ngtcp2 level.
-class QuicStream : public AsyncWrap, public StreamBase {
+class QuicStream : public AsyncWrap,
+                   public StreamBase,
+                   public StatsBase<QuicStreamStats> {
  public:
   static void Initialize(
       Environment* env,
@@ -379,27 +393,6 @@ class QuicStream : public AsyncWrap, public StreamBase {
   QuicStreamHeadersKind headers_kind_;
   size_t current_headers_length_ = 0;
 
-  struct stream_stats {
-    // The timestamp at which the stream was created
-    uint64_t created_at;
-    // The timestamp at which the stream most recently sent data
-    uint64_t stream_sent_at;
-    // The timestamp at which the stream most recently received data
-    uint64_t stream_received_at;
-    // The timestamp at which the stream most recently received an
-    // acknowledgement for data
-    uint64_t stream_acked_at;
-    // The timestamp at which a graceful close started
-    uint64_t closing_at;
-    // The total number of bytes received
-    uint64_t bytes_received;
-    // The total number of bytes sent
-    uint64_t bytes_sent;
-    // The maximum extended stream offset
-    uint64_t max_offset;
-  };
-  stream_stats stream_stats_{};
-
   // data_rx_rate_ measures the elapsed time between data packets
   // for this stream. When used in combination with the data_rx_size,
   // this can be used to track the overall data throughput over time
@@ -420,8 +413,6 @@ class QuicStream : public AsyncWrap, public StreamBase {
   // for this stream. This data can be used to detect peers that are
   // generally taking too long to acknowledge sent stream data.
   BaseObjectPtr<HistogramBase> data_rx_ack_;
-
-  AliasedBigUint64Array stats_buffer_;
 
   ListNode<QuicStream> stream_queue_;
 

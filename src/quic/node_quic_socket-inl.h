@@ -195,11 +195,10 @@ void QuicSocket::AddSession(
     BaseObjectPtr<QuicSession> session) {
   sessions_[cid] = session;
   IncrementSocketAddressCounter(session->remote_address());
-  IncrementSocketStat(
-      1, &socket_stats_,
+  IncrementStat(
       session->is_server() ?
-          &socket_stats::server_sessions :
-          &socket_stats::client_sessions);
+          &QuicSocketStats::server_sessions :
+          &QuicSocketStats::client_sessions);
 }
 
 void QuicSocket::AddEndpoint(QuicEndpoint* endpoint_, bool preferred) {

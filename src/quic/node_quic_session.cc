@@ -761,11 +761,10 @@ void QuicCryptoContext::AcknowledgeCryptoData(
   // crypto data for a long time by not sending an acknowledgement.
   // The histogram will allow us to track the time periods between
   // acknowlegements.
-  uint64_t now = uv_hrtime();
-  if (session_->session_stats_.handshake_acked_at > 0)
-    session_->crypto_rx_ack_->Record(
-        now - session_->session_stats_.handshake_acked_at);
-  session_->session_stats_.handshake_acked_at = now;
+  uint64_t acked_at = session_->GetStat(&QuicSessionStats::handshake_acked_at);
+  if (acked_at > 0)
+    session_->crypto_rx_ack_->Record(uv_hrtime() - acked_at);
+  session_->RecordTimestamp(&QuicSessionStats::handshake_acked_at);
 }
 
 void QuicCryptoContext::EnableTrace() {
@@ -990,10 +989,9 @@ int QuicCryptoContext::Receive(
 
   // Statistics are collected so we can monitor how long the
   // handshake is taking to operate and complete.
-  uint64_t now = uv_hrtime();
-  if (session_->session_stats_.handshake_start_at == 0)
-    session_->session_stats_.handshake_start_at = now;
-  session_->session_stats_.handshake_continue_at = now;
+  if (session_->GetStat(&QuicSessionStats::handshake_start_at) == 0)
+    session_->RecordTimestamp(&QuicSessionStats::handshake_start_at);
+  session_->RecordTimestamp(&QuicSessionStats::handshake_continue_at);
 
   Debug(session(), "Receiving %d bytes of crypto data.", datalen);
 
@@ -1036,9 +1034,7 @@ bool QuicCryptoContext::InitiateKeyUpdate() {
   in_key_update_ = true;
   Debug(session(), "Initiating Key Update");
 
-  IncrementStat(
-      1, &session_->session_stats_,
-      &QuicSession::session_stats::keyupdate_count);
+  session_->IncrementStat(&QuicSessionStats::keyupdate_count);
 
   return ngtcp2_conn_initiate_key_update(
       session_->connection(),
@@ -1088,7 +1084,7 @@ void QuicCryptoContext::WriteHandshake(
   std::unique_ptr<QuicBufferChunk> buffer =
       std::make_unique<QuicBufferChunk>(datalen);
   memcpy(buffer->out(), data, datalen);
-  session_->session_stats_.handshake_send_at = uv_hrtime();
+  session_->RecordTimestamp(&QuicSessionStats::handshake_send_at);
   CHECK_EQ(
       ngtcp2_conn_submit_crypto_data(
           session_->connection(),
@@ -1332,6 +1328,7 @@ QuicSession::QuicSession(
     PreferredAddressStrategy preferred_address_strategy,
     uint64_t initial_connection_close)
   : AsyncWrap(socket->env(), wrap, provider_type),
+    StatsBase(socket->env(), wrap),
     alloc_info_(MakeAllocator()),
     socket_(socket),
     alpn_(alpn),
@@ -1348,10 +1345,6 @@ QuicSession::QuicSession(
         HistogramBase::New(
             socket->env(),
             1, std::numeric_limits<int64_t>::max())),
-    stats_buffer_(
-        socket->env()->isolate(),
-        sizeof(session_stats_) / sizeof(uint64_t),
-        reinterpret_cast<uint64_t*>(&session_stats_)),
     recovery_stats_buffer_(
         socket->env()->isolate(),
         sizeof(recovery_stats_) / sizeof(double),
@@ -1365,8 +1358,6 @@ QuicSession::QuicSession(
   if (rcid != nullptr)
     rcid_ = *rcid;
 
-  session_stats_.created_at = uv_hrtime();
-
   // TODO(@jasnell): For now, the following are checks rather than properly
   // handled. Before this code moves out of experimental, these should be
   // properly handled.
@@ -1374,18 +1365,6 @@ QuicSession::QuicSession(
       env()->context(),
       env()->state_string(),
       state_.GetJSArray(),
-      PropertyAttribute::ReadOnly).Check();
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->stats_string(),
-      stats_buffer_.GetJSArray(),
-      PropertyAttribute::ReadOnly).Check();
-
-  wrap->DefineOwnProperty(
-      env()->context(),
-      env()->recovery_stats_string(),
-      recovery_stats_buffer_.GetJSArray(),
       PropertyAttribute::ReadOnly).Check();
 
   wrap->DefineOwnProperty(
@@ -1422,17 +1401,17 @@ QuicSession::~QuicSession() {
         "  Streams Out Count: %" PRIu64 "\n"
         "  Remaining handshake_: %" PRIu64 "\n"
         "  Max In Flight Bytes: %" PRIu64 "\n",
-        uv_hrtime() - session_stats_.created_at,
-        session_stats_.handshake_start_at,
-        session_stats_.handshake_completed_at,
-        session_stats_.bytes_received,
-        session_stats_.bytes_sent,
-        session_stats_.bidi_stream_count,
-        session_stats_.uni_stream_count,
-        session_stats_.streams_in_count,
-        session_stats_.streams_out_count,
+        uv_hrtime() - GetStat(&QuicSessionStats::created_at),
+        GetStat(&QuicSessionStats::handshake_start_at),
+        GetStat(&QuicSessionStats::handshake_completed_at),
+        GetStat(&QuicSessionStats::bytes_received),
+        GetStat(&QuicSessionStats::bytes_sent),
+        GetStat(&QuicSessionStats::bidi_stream_count),
+        GetStat(&QuicSessionStats::uni_stream_count),
+        GetStat(&QuicSessionStats::streams_in_count),
+        GetStat(&QuicSessionStats::streams_out_count),
         handshake_length,
-        session_stats_.max_bytes_in_flight);
+        GetStat(&QuicSessionStats::max_bytes_in_flight));
 
   connection_.reset();
 
@@ -1558,23 +1537,23 @@ void QuicSession::AddStream(BaseObjectPtr<QuicStream> stream) {
   switch (stream->origin()) {
     case QuicStreamOrigin::QUIC_STREAM_CLIENT:
       if (is_server())
-        IncrementStat(1, &session_stats_, &session_stats::streams_in_count);
+        IncrementStat(&QuicSessionStats::streams_in_count);
       else
-        IncrementStat(1, &session_stats_, &session_stats::streams_out_count);
+        IncrementStat(&QuicSessionStats::streams_out_count);
       break;
     case QuicStreamOrigin::QUIC_STREAM_SERVER:
       if (is_server())
-        IncrementStat(1, &session_stats_, &session_stats::streams_out_count);
+        IncrementStat(&QuicSessionStats::streams_out_count);
       else
-        IncrementStat(1, &session_stats_, &session_stats::streams_in_count);
+        IncrementStat(&QuicSessionStats::streams_in_count);
   }
-  IncrementStat(1, &session_stats_, &session_stats::streams_out_count);
+  IncrementStat(&QuicSessionStats::streams_out_count);
   switch (stream->direction()) {
     case QuicStreamDirection::QUIC_STREAM_BIRECTIONAL:
-      IncrementStat(1, &session_stats_, &session_stats::bidi_stream_count);
+      IncrementStat(&QuicSessionStats::bidi_stream_count);
       break;
     case QuicStreamDirection::QUIC_STREAM_UNIDIRECTIONAL:
-      IncrementStat(1, &session_stats_, &session_stats::uni_stream_count);
+      IncrementStat(&QuicSessionStats::uni_stream_count);
       break;
   }
 }
@@ -1698,16 +1677,12 @@ void QuicSession::MaybeTimeout() {
   if (ngtcp2_conn_loss_detection_expiry(connection()) <= now) {
     Debug(this, "Retransmitting due to loss detection");
     CHECK_EQ(ngtcp2_conn_on_loss_detection_timer(connection(), now), 0);
-    IncrementStat(
-        1, &session_stats_,
-        &session_stats::loss_retransmit_count);
+    IncrementStat(&QuicSessionStats::loss_retransmit_count);
     transmit = true;
   } else if (ngtcp2_conn_ack_delay_expiry(connection()) <= now) {
     Debug(this, "Retransmitting due to ack delay");
     ngtcp2_conn_cancel_expired_ack_delay_timer(connection(), now);
-    IncrementStat(
-        1, &session_stats_,
-        &session_stats::ack_delay_retransmit_count);
+    IncrementStat(&QuicSessionStats::ack_delay_retransmit_count);
     transmit = true;
   }
   if (transmit)
@@ -1740,13 +1715,9 @@ void QuicSession::PathValidation(
     const ngtcp2_path* path,
     ngtcp2_path_validation_result res) {
   if (res == NGTCP2_PATH_VALIDATION_RESULT_SUCCESS) {
-    IncrementStat(
-        1, &session_stats_,
-        &session_stats::path_validation_success_count);
+    IncrementStat(&QuicSessionStats::path_validation_success_count);
   } else {
-    IncrementStat(
-        1, &session_stats_,
-        &session_stats::path_validation_failure_count);
+    IncrementStat(&QuicSessionStats::path_validation_failure_count);
   }
 
   // Only emit the callback if there is a handler for the pathValidation
@@ -1790,7 +1761,7 @@ bool QuicSession::ReceiveRetry() {
   if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
     return false;
   Debug(this, "A retry packet was received. Restarting the handshake.");
-  IncrementStat(1, &session_stats_, &session_stats::retry_count);
+  IncrementStat(&QuicSessionStats::retry_count);
   return DeriveAndInstallInitialKey(
     this,
     ngtcp2_conn_get_dcid(connection()));
@@ -1810,7 +1781,7 @@ bool QuicSession::Receive(
   }
 
   Debug(this, "Receiving QUIC packet.");
-  IncrementStat(nread, &session_stats_, &session_stats::bytes_received);
+  IncrementStat(&QuicSessionStats::bytes_received, nread);
 
   // Closing period starts once ngtcp2 has detected that the session
   // is being shutdown locally. Note that this is different that the
@@ -1945,7 +1916,7 @@ bool QuicSession::ReceivePacket(
     return true;
 
   uint64_t now = uv_hrtime();
-  session_stats_.session_received_at = now;
+  SetStat(&QuicSessionStats::received_at, now);
   int err = ngtcp2_conn_read_pkt(connection(), path, data, nread, now);
   if (err < 0) {
     switch (err) {
@@ -2183,11 +2154,8 @@ bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
   if (packet->length() == 0)
     return true;
 
-  IncrementStat(
-      packet->length(),
-      &session_stats_,
-      &session_stats::bytes_sent);
-  session_stats_.session_sent_at = uv_hrtime();
+  IncrementStat(&QuicSessionStats::bytes_sent, packet->length());
+  RecordTimestamp(&QuicSessionStats::sent_at);
   ScheduleRetransmit();
 
   Debug(this, "Sending %" PRIu64 " bytes to %s:%d from %s:%d",
@@ -2583,7 +2551,7 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("state", state_);
   tracker->TrackField("crypto_rx_ack", crypto_rx_ack_);
   tracker->TrackField("crypto_handshake_rate", crypto_handshake_rate_);
-  tracker->TrackField("stats_buffer", stats_buffer_);
+  tracker->TrackField("stats_buffer", stats_buffer());
   tracker->TrackField("recovery_stats_buffer", recovery_stats_buffer_);
   tracker->TrackFieldWithSize("current_ngtcp2_memory", current_ngtcp2_memory_);
   tracker->TrackField("conn_closebuf", conn_closebuf_);
@@ -2779,8 +2747,8 @@ void QuicSession::UpdateDataStats() {
     static_cast<double>(bytes_in_flight);
   // The max_bytes_in_flight is a highwater mark that can be used
   // in performance analysis operations.
-  if (bytes_in_flight > session_stats_.max_bytes_in_flight)
-    session_stats_.max_bytes_in_flight = bytes_in_flight;
+  if (bytes_in_flight > GetStat(&QuicSessionStats::max_bytes_in_flight))
+    SetStat(&QuicSessionStats::max_bytes_in_flight, bytes_in_flight);
 }
 
 // Static method for creating a new client QuicSession instance.
