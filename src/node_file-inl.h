@@ -143,16 +143,12 @@ void FillStatfsArray(AliasedBufferBase<NativeT, V8T>* fields,
   SET_FIELD(kBAvail, s->f_bavail);
   SET_FIELD(kFiles, s->f_files);
   SET_FIELD(kFFree, s->f_ffree);
-  SET_FIELD(kSpare1, s->f_spare[0]);
-  SET_FIELD(kSpare2, s->f_spare[1]);
-  SET_FIELD(kSpare3, s->f_spare[2]);
-  SET_FIELD(kSpare4, s->f_spare[3]);
 #undef SET_FIELD
 }
 
 v8::Local<v8::Value> FillGlobalStatfsArray(Environment* env,
-                                          const bool use_bigint,
-                                          const uv_statfs_t* s) {
+                                           const bool use_bigint,
+                                           const uv_statfs_t* s) {
   if (use_bigint) {
     auto* const arr = env->fs_statfs_field_bigint_array();
     FillStatfsArray(arr, s);

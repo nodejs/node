@@ -12,8 +12,6 @@ fs.statfs(__filename, common.mustCall(function(err, stats) {
     assert.ok(stats.hasOwnProperty(k));
     assert.strictEqual(typeof stats[k], 'number', `${k} should be a number`);
   });
-  assert.ok(stats.hasOwnProperty('spare'));
-  assert.ok(stats.spare instanceof Array);
   // Confirm that we are not running in the context of the internal binding
   // layer.
   // Ref: https://github.com/nodejs/node/commit/463d6bac8b349acc462d345a6e298a76f7d06fb1

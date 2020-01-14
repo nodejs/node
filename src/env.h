@@ -143,10 +143,6 @@ enum class FsStatfsOffset {
   kBAvail,
   kFiles,
   kFFree,
-  kSpare1,
-  kSpare2,
-  kSpare3,
-  kSpare4,
   kFsStatFsFieldsNumber
 };
 

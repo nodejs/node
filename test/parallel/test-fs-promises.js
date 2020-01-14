@@ -92,7 +92,6 @@ function verifyStatfsObject(stat) {
   assert.strictEqual(typeof stat.bavail, 'number');
   assert.strictEqual(typeof stat.files, 'number');
   assert.strictEqual(typeof stat.ffree, 'number');
-  assert.ok(stat.spare instanceof Array);
 }
 
 async function getHandle(dest) {

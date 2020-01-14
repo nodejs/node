@@ -587,7 +587,7 @@ void AfterStatfs(uv_fs_t* req) {
   FSReqAfterScope after(req_wrap, req);
 
   if (after.Proceed()) {
-    req_wrap->ResolveStatfs(reinterpret_cast<uv_statfs_t*>(req->ptr));
+    req_wrap->ResolveStatfs(static_cast<uv_statfs_t*>(req->ptr));
   }
 }
 
