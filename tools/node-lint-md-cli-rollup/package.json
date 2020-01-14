@@ -3,11 +3,7 @@
   "description": "remark packaged for Node.js Markdown linting",
   "version": "2.0.1",
   "devDependencies": {
-    "@zeit/ncc": "^0.21.0",
-    "rollup": "^1.27.11",
-    "rollup-plugin-commonjs": "^10.1.0",
-    "rollup-plugin-json": "^4.0.0",
-    "rollup-plugin-node-resolve": "^5.2.0"
+    "@zeit/ncc": "^0.21.0"
   },
   "dependencies": {
     "markdown-extensions": "^1.1.1",
