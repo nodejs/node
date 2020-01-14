@@ -74,8 +74,8 @@
 
 * [[`a80c59130e`](https://github.com/nodejs/node/commit/a80c59130e)] - **build**: fix configure script to work with Apple Clang 11 (Saagar Jha) [#28071](https://github.com/nodejs/node/pull/28071)
 * [[`68b2b5cc51`](https://github.com/nodejs/node/commit/68b2b5cc51)] - **build,win**: propagate error codes in vcbuild (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
-* [[`3e0709cf5e`](https://github.com/nodejs/node/commit/3e0709cf5e)] - **deps**: V8: backport fb63e5cf55e9 (Michaël Zasso)
-* [[`25b8fbda35`](https://github.com/nodejs/node/commit/25b8fbda35)] - **doc**: allow <code> in header elements (Rich Trott) [#31086](https://github.com/nodejs/node/pull/31086)
+* [[`3e0709cf5e`](https://github.com/nodejs/node/commit/3e0709cf5e)] - **deps**: V8: backport fb63e5cf55e9 (Michaël Zasso) [#30372](https://github.com/nodejs/node/pull/30372)
+* [[`25b8fbda35`](https://github.com/nodejs/node/commit/25b8fbda35)] - **doc**: allow \<code\> in header elements (Rich Trott) [#31086](https://github.com/nodejs/node/pull/31086)
 * [[`a1b095dd46`](https://github.com/nodejs/node/commit/a1b095dd46)] - **doc,dns**: use code markup/markdown in headers (Rich Trott) [#31086](https://github.com/nodejs/node/pull/31086)
 * [[`8f3b8ca515`](https://github.com/nodejs/node/commit/8f3b8ca515)] - **http2**: fix session memory accounting after pausing (Michael Lehenbauer) [#30684](https://github.com/nodejs/node/pull/30684)
 * [[`20f64a96de`](https://github.com/nodejs/node/commit/20f64a96de)] - **http2**: use the latest settings (ZYSzys) [#29780](https://github.com/nodejs/node/pull/29780)
