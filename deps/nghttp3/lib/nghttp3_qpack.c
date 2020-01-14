@@ -2491,7 +2491,7 @@ static nghttp3_ssize qpack_read_varint(int *fin,
 nghttp3_ssize nghttp3_qpack_encoder_read_decoder(nghttp3_qpack_encoder *encoder,
                                                  const uint8_t *src,
                                                  size_t srclen) {
-  const uint8_t *p = src, *end = src + srclen;
+  const uint8_t *p = src, *end;
   int rv;
   nghttp3_ssize nread;
   int rfin;
@@ -2499,6 +2499,12 @@ nghttp3_ssize nghttp3_qpack_encoder_read_decoder(nghttp3_qpack_encoder *encoder,
   if (encoder->ctx.bad) {
     return NGHTTP3_ERR_QPACK_FATAL;
   }
+
+  if (srclen == 0) {
+    return 0;
+  }
+
+  end = src + srclen;
 
   for (; p != end;) {
     switch (encoder->state) {
@@ -2749,7 +2755,7 @@ static void qpack_read_state_terminate_value(nghttp3_qpack_read_state *rstate) {
 nghttp3_ssize nghttp3_qpack_decoder_read_encoder(nghttp3_qpack_decoder *decoder,
                                                  const uint8_t *src,
                                                  size_t srclen) {
-  const uint8_t *p = src, *end = src + srclen;
+  const uint8_t *p = src, *end;
   int rv;
   int busy = 0;
   const nghttp3_mem *mem = decoder->ctx.mem;
@@ -2759,6 +2765,12 @@ nghttp3_ssize nghttp3_qpack_decoder_read_encoder(nghttp3_qpack_decoder *decoder,
   if (decoder->ctx.bad) {
     return NGHTTP3_ERR_QPACK_FATAL;
   }
+
+  if (srclen == 0) {
+    return 0;
+  }
+
+  end = src + srclen;
 
   for (; p != end || busy;) {
     busy = 0;
@@ -3219,7 +3231,7 @@ nghttp3_qpack_decoder_read_request(nghttp3_qpack_decoder *decoder,
                                    nghttp3_qpack_stream_context *sctx,
                                    nghttp3_qpack_nv *nv, uint8_t *pflags,
                                    const uint8_t *src, size_t srclen, int fin) {
-  const uint8_t *p = src, *end = src + srclen;
+  const uint8_t *p = src, *end = src ? src + srclen : src;
   int rv;
   int busy = 0;
   nghttp3_ssize nread;

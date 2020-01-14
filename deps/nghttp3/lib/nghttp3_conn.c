@@ -448,6 +448,10 @@ nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn, int64_t stream_id,
         rv = nghttp3_conn_create_stream(conn, &stream, stream_id);
       } else {
         /* unidirectional stream */
+        if (srclen == 0 && fin) {
+          return 0;
+        }
+
         rv = nghttp3_conn_create_stream_dependency(conn, &stream, stream_id, 0,
                                                    NULL);
       }
@@ -458,6 +462,10 @@ nghttp3_ssize nghttp3_conn_read_stream(nghttp3_conn *conn, int64_t stream_id,
       stream->rx.hstate = NGHTTP3_HTTP_STATE_REQ_INITIAL;
       stream->tx.hstate = NGHTTP3_HTTP_STATE_REQ_INITIAL;
     } else if (nghttp3_stream_uni(stream_id)) {
+      if (srclen == 0 && fin) {
+        return 0;
+      }
+
       rv = nghttp3_conn_create_stream_dependency(conn, &stream, stream_id, 0,
                                                  NULL);
       if (rv != 0) {
@@ -562,6 +570,8 @@ static nghttp3_ssize conn_read_type(nghttp3_conn *conn, nghttp3_stream *stream,
   return nread;
 }
 
+static int conn_delete_stream(nghttp3_conn *conn, nghttp3_stream *stream);
+
 nghttp3_ssize nghttp3_conn_read_uni(nghttp3_conn *conn, nghttp3_stream *stream,
                                     const uint8_t *src, size_t srclen,
                                     int fin) {
@@ -570,9 +580,22 @@ nghttp3_ssize nghttp3_conn_read_uni(nghttp3_conn *conn, nghttp3_stream *stream,
   size_t push_nproc;
   int rv;
 
-  assert(srclen);
+  assert(srclen || fin);
 
   if (!(stream->flags & NGHTTP3_STREAM_FLAG_TYPE_IDENTIFIED)) {
+    if (srclen == 0 && fin) {
+      /* Ignore stream if it is closed before reading stream header.
+         If it is closed while reading it, return error, making it
+         consistent in our code base. */
+      if (stream->rstate.rvint.left) {
+        return NGHTTP3_ERR_H3_GENERAL_PROTOCOL_ERROR;
+      }
+
+      rv = conn_delete_stream(conn, stream);
+      assert(0 == rv);
+
+      return 0;
+    }
     nread = conn_read_type(conn, stream, src, srclen, fin);
     if (nread < 0) {
       return (int)nread;
@@ -939,7 +962,7 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
 nghttp3_ssize nghttp3_conn_read_push(nghttp3_conn *conn, size_t *pnproc,
                                      nghttp3_stream *stream, const uint8_t *src,
                                      size_t srclen, int fin) {
-  const uint8_t *p = src, *end = src + srclen;
+  const uint8_t *p = src, *end = src ? src + srclen : src;
   int rv;
   nghttp3_stream_read_state *rstate = &stream->rstate;
   nghttp3_varint_read_state *rvint = &rstate->rvint;
@@ -1393,7 +1416,7 @@ nghttp3_ssize nghttp3_conn_read_qpack_decoder(nghttp3_conn *conn,
 nghttp3_ssize nghttp3_conn_read_bidi(nghttp3_conn *conn, size_t *pnproc,
                                      nghttp3_stream *stream, const uint8_t *src,
                                      size_t srclen, int fin) {
-  const uint8_t *p = src, *end = src + srclen;
+  const uint8_t *p = src, *end = src ? src + srclen : src;
   int rv;
   nghttp3_stream_read_state *rstate = &stream->rstate;
   nghttp3_varint_read_state *rvint = &rstate->rvint;

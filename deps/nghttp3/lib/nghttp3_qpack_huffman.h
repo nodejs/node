@@ -59,7 +59,7 @@ typedef struct {
      the node ID of internal huffman tree with
      nghttp3_qpack_huffman_decode_flag OR-ed.  We have 257 leaf nodes,
      but they are identical to root node other than emitting a symbol,
-     so we have 256 internal nodes [1..255], inclusive.  The node ID
+     so we have 256 internal nodes [1..256], inclusive.  The node ID
      256 is a special node and it is a terminal state that means
      decoding failed. */
   uint16_t fstate;
