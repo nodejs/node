@@ -1017,8 +1017,7 @@ StatFs {
   bfree: 61058895,
   bavail: 61058895,
   files: 999,
-  ffree: 1000000,
-  spare: [ 0, 0, 0, 0 ]
+  ffree: 1000000
 }
 ```
 
@@ -1032,8 +1031,7 @@ StatFs {
   bfree: 61058895n,
   bavail: 61058895n,
   files: 999n,
-  ffree: 1000000n,
-  spare: [ 0n, 0n, 0n, 0n ]
+  ffree: 1000000n
 }
 ```
 
@@ -1078,12 +1076,6 @@ Total file nodes in filesystem.
 * {number|bigint}
 
 Free file nodes in filesystem.
-
-### `statfs.spare`
-
-* {Array}
-
-Padding bytes reserved for future use.
 
 ## Class: `fs.WriteStream`
 <!-- YAML
@@ -3553,6 +3545,7 @@ Synchronous stat(2).
 <!-- YAML
 added: REPLACEME
 -->
+
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
@@ -3569,6 +3562,10 @@ Returns information about the mounted filesystem which contains `path`.
 In case of an error, the `err.code` will be one of [Common System Errors][].
 
 ## `fs.statfsSync(path[, options])`
+<!-- YAML
+added: REPLACME
+-->
+
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
@@ -5240,6 +5237,7 @@ The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
 <!-- YAML
 added: REPLACEME
 -->
+
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
