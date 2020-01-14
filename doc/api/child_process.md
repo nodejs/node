@@ -1075,12 +1075,12 @@ When the child process is a Node.js instance (e.g. spawned using
 [`child_process.fork()`][]), the `process.disconnect()` method can be invoked
 within the child process to close the IPC channel as well.
 
-###subprocess.exitCode:
+###`subprocess.exitCode`
 
 * {integer}
 
-`subprocess.exitcode` property indicates  exit code of the child process.
-If child process is still running, the field will be null.
+The `subprocess.exitcode` property indicates the exit code of the child process.
+If the child process is still running, the field will be null.
 
 ### `subprocess.kill([signal])`
 <!-- YAML
@@ -1375,18 +1375,18 @@ It is also recommended that any `'message'` handlers in the child process
 verify that `socket` exists, as the connection may have been closed during the
 time it takes to send the connection to the child.
 
-###subprocess.signalCode:
+###`subprocess.signalCode`
 
 * {integer}
 
-`subprocess.signalCode` property indicates the signal number received by
-the child process if any, from the parent node prcess, else null.
+The `subprocess.signalCode` property indicates the signal number received by
+the child process if any, else null.
 
-###subprocess.spawnfie:
+###`subprocess.spawnfile`
 
 * {string}
 
-`subprocess.spawnfile` property indicates the executable file name of
+The `subprocess.spawnfile` property indicates the executable file name of
 the child process that is launched.
 
 For [`child_process.fork()`][], its value will be equal to
@@ -1396,11 +1396,11 @@ the executable file.
 For [`child_process.exec()`][],  its value will be the name of the shell
 in which the child process is launched.
 
-###subprocess.spawnargs:
+###`subprocess.spawnargs`
 
 * {Array}
 
-`subprocess.spawnargs` property represents the full list of command line
+The `subprocess.spawnargs` property represents the full list of command line
 arguments the child process was launched with.
 
 ### `subprocess.stderr`
