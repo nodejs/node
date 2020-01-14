@@ -97,7 +97,7 @@ Emitted when a new connection is made. `socket` is an instance of
 added: REPLACEME
 -->
 
-Emitted when the server has reached his connection limit defined in [`server.maxConnections`][].
+Emitted when the server has reached its connection limit defined in [`server.maxConnections`][].
 
 ### Event: `'error'`
 <!-- YAML

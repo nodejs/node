@@ -44,7 +44,7 @@ server.listen(0, function() {
 
 server.maxConnections = N / 2;
 
-server.on('maxConnections', common.mustCall(N / 2));
+server.on('maxConnections', common.mustCall(server.maxConnections));
 
 function makeConnection(index) {
   const c = net.createConnection(server.address().port);
