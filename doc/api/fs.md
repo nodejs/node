@@ -5236,10 +5236,10 @@ changes:
 
 The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
 
-<<<<<<< HEAD
-
 ### `fsPromises.statfs(path[, options])`
-
+<!-- YAML
+added: REPLACEME
+-->
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
