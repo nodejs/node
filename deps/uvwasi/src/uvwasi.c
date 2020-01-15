@@ -7,16 +7,13 @@
 # include <unistd.h>
 # include <dirent.h>
 # include <time.h>
-# define SLASH '/'
-# define SLASH_STR "/"
 # define IS_SLASH(c) ((c) == '/')
 #else
-# define SLASH '\\'
-# define SLASH_STR "\\"
 # define IS_SLASH(c) ((c) == '/' || (c) == '\\')
 #endif /* _WIN32 */
 
 #define UVWASI__READDIR_NUM_ENTRIES 1
+#define UVWASI__MAX_SYMLINK_FOLLOWS 32
 
 #include "uvwasi.h"
 #include "uvwasi_alloc.h"
@@ -86,120 +83,312 @@ static int uvwasi__is_absolute_path(const char* path, size_t path_len) {
 }
 
 
+static char* uvwasi__strchr_slash(const char* s) {
+  /* strchr() that identifies /, as well as \ on Windows. */
+  do {
+    if (IS_SLASH(*s))
+      return (char*) s;
+  } while (*s++);
+
+  return NULL;
+}
+
+
+static uvwasi_errno_t uvwasi__normalize_path(const char* path,
+                                             size_t path_len,
+                                             char* normalized_path,
+                                             size_t normalized_len) {
+  const char* cur;
+  char* ptr;
+  char* next;
+  size_t cur_len;
+
+  if (path_len > normalized_len)
+    return UVWASI_ENOBUFS;
+
+  normalized_path[0] = '\0';
+  ptr = normalized_path;
+  for (cur = path; cur != NULL; cur = next + 1) {
+    next = uvwasi__strchr_slash(cur);
+    cur_len = (next == NULL) ? strlen(cur) : (size_t) (next - cur);
+
+    if (cur_len == 0 || (cur_len == 1 && cur[0] == '.'))
+      continue;
+
+    if (cur_len == 2 && cur[0] == '.' && cur[1] == '.') {
+      while (!IS_SLASH(*ptr) && ptr != normalized_path)
+        ptr--;
+      *ptr = '\0';
+      continue;
+    }
+
+    *ptr = '/';
+    ptr++;
+    memcpy(ptr, cur, cur_len);
+    ptr += cur_len;
+    *ptr = '\0';
+
+    if (next == NULL)
+      break;
+  }
+
+  return UVWASI_ESUCCESS;
+}
+
+
+static uvwasi_errno_t uvwasi__resolve_path_to_host(
+                                              const uvwasi_t* uvwasi,
+                                              const struct uvwasi_fd_wrap_t* fd,
+                                              const char* path,
+                                              size_t path_len,
+                                              char** resolved_path,
+                                              size_t* resolved_len
+                                            ) {
+  /* Return the normalized path, but resolved to the host's real path. */
+  int real_path_len;
+  int fake_path_len;
+#ifdef _WIN32
+  size_t i;
+#endif /* _WIN32 */
+
+  real_path_len = strlen(fd->real_path);
+  fake_path_len = strlen(fd->path);
+  *resolved_len = path_len - fake_path_len + real_path_len;
+  *resolved_path = uvwasi__malloc(uvwasi, *resolved_len + 1);
+
+  if (*resolved_path == NULL)
+    return UVWASI_ENOMEM;
+
+  memcpy(*resolved_path, fd->real_path, real_path_len);
+  memcpy(*resolved_path + real_path_len,
+         path + fake_path_len,
+         path_len - fake_path_len + 1);
+
+#ifdef _WIN32
+  /* Replace / with \ on Windows. */
+  for (i = real_path_len; i < *resolved_len; i++) {
+    if ((*resolved_path)[i] == '/')
+      (*resolved_path)[i] = '\\';
+  }
+#endif /* _WIN32 */
+
+  return UVWASI_ESUCCESS;
+}
+
+
+static uvwasi_errno_t uvwasi__normalize_absolute_path(
+                                              const uvwasi_t* uvwasi,
+                                              const struct uvwasi_fd_wrap_t* fd,
+                                              const char* path,
+                                              size_t path_len,
+                                              char** normalized_path,
+                                              size_t* normalized_len
+                                            ) {
+  uvwasi_errno_t err;
+  char* abs_path;
+  int abs_size;
+
+  *normalized_path = NULL;
+  *normalized_len = 0;
+  abs_size = path_len + 1;
+  abs_path = uvwasi__malloc(uvwasi, abs_size);
+  if (abs_path == NULL) {
+    err = UVWASI_ENOMEM;
+    goto exit;
+  }
+
+  /* Normalize the input path first. */
+  err = uvwasi__normalize_path(path,
+                               path_len,
+                               abs_path,
+                               path_len);
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
+
+  /* Once the input is normalized, ensure that it is still sandboxed. */
+  if (abs_path != strstr(abs_path, fd->path)) {
+    err = UVWASI_ENOTCAPABLE;
+    goto exit;
+  }
+
+  *normalized_path = abs_path;
+  *normalized_len = abs_size - 1;
+  return UVWASI_ESUCCESS;
+
+exit:
+  uvwasi__free(uvwasi, abs_path);
+  return err;
+}
+
+
+static uvwasi_errno_t uvwasi__normalize_relative_path(
+                                              const uvwasi_t* uvwasi,
+                                              const struct uvwasi_fd_wrap_t* fd,
+                                              const char* path,
+                                              size_t path_len,
+                                              char** normalized_path,
+                                              size_t* normalized_len
+                                            ) {
+  uvwasi_errno_t err;
+  char* abs_path;
+  int abs_size;
+  int r;
+
+  *normalized_path = NULL;
+  *normalized_len = 0;
+  abs_size = path_len + strlen(fd->path) + 2;
+  abs_path = uvwasi__malloc(uvwasi, abs_size);
+  if (abs_path == NULL) {
+    err = UVWASI_ENOMEM;
+    goto exit;
+  }
+
+  /* Resolve the relative path to an absolute path based on fd's fake path. */
+  r = snprintf(abs_path, abs_size, "%s/%s", fd->path, path);
+  if (r <= 0) {
+    err = uvwasi__translate_uv_error(uv_translate_sys_error(errno));
+    goto exit;
+  }
+
+  err = uvwasi__normalize_absolute_path(uvwasi,
+                                        fd,
+                                        abs_path,
+                                        abs_size - 1,
+                                        normalized_path,
+                                        normalized_len);
+exit:
+  uvwasi__free(uvwasi, abs_path);
+  return err;
+}
+
+
 static uvwasi_errno_t uvwasi__resolve_path(const uvwasi_t* uvwasi,
                                            const struct uvwasi_fd_wrap_t* fd,
                                            const char* path,
                                            size_t path_len,
                                            char* resolved_path,
                                            uvwasi_lookupflags_t flags) {
-  uv_fs_t realpath_req;
+  uv_fs_t req;
   uvwasi_errno_t err;
-  char* abs_path;
-  char* tok;
-  char* ptr;
-  int realpath_size;
-  int abs_size;
-  int input_is_absolute;
+  const char* input;
+  char* host_path;
+  char* normalized_path;
+  char* link_target;
+  size_t input_len;
+  size_t host_path_len;
+  size_t normalized_len;
+  int follow_count;
   int r;
-#ifdef _WIN32
-  int i;
-#endif /* _WIN32 */
 
+  input = path;
+  input_len = path_len;
+  link_target = NULL;
+  follow_count = 0;
+  host_path = NULL;
+
+start:
+  normalized_path = NULL;
   err = UVWASI_ESUCCESS;
-  input_is_absolute = uvwasi__is_absolute_path(path, path_len);
 
-  if (1 == input_is_absolute) {
-    /* TODO(cjihrig): Revisit this. Copying is probably not necessary here. */
-    abs_size = path_len;
-    abs_path = uvwasi__malloc(uvwasi, abs_size);
-    if (abs_path == NULL) {
-      err = UVWASI_ENOMEM;
-      goto exit;
-    }
-
-    memcpy(abs_path, path, abs_size);
+  if (1 == uvwasi__is_absolute_path(input, input_len)) {
+    err = uvwasi__normalize_absolute_path(uvwasi,
+                                          fd,
+                                          input,
+                                          input_len,
+                                          &normalized_path,
+                                          &normalized_len);
   } else {
-    /* Resolve the relative path to fd's real path. */
-    abs_size = path_len + strlen(fd->real_path) + 2;
-    abs_path = uvwasi__malloc(uvwasi, abs_size);
-    if (abs_path == NULL) {
-      err = UVWASI_ENOMEM;
-      goto exit;
-    }
-
-    r = snprintf(abs_path, abs_size, "%s/%s", fd->real_path, path);
-    if (r <= 0) {
-      err = uvwasi__translate_uv_error(uv_translate_sys_error(errno));
-      goto exit;
-    }
+    err = uvwasi__normalize_relative_path(uvwasi,
+                                          fd,
+                                          input,
+                                          input_len,
+                                          &normalized_path,
+                                          &normalized_len);
   }
 
-#ifdef _WIN32
-  /* On Windows, convert slashes to backslashes. */
-  for (i = 0; i < abs_size; ++i) {
-    if (abs_path[i] == '/')
-      abs_path[i] = SLASH;
-  }
-#endif /* _WIN32 */
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
 
-  ptr = resolved_path;
-  tok = strtok(abs_path, SLASH_STR);
-  for (; tok != NULL; tok = strtok(NULL, SLASH_STR)) {
-    if (0 == strcmp(tok, "."))
-      continue;
+  uvwasi__free(uvwasi, host_path);
+  err = uvwasi__resolve_path_to_host(uvwasi,
+                                     fd,
+                                     normalized_path,
+                                     normalized_len,
+                                     &host_path,
+                                     &host_path_len);
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
 
-    if (0 == strcmp(tok, "..")) {
-      while (*ptr != SLASH && ptr != resolved_path)
-        ptr--;
-      *ptr = '\0';
-      continue;
-    }
-
-#ifdef _WIN32
-    /* On Windows, prevent a leading slash in the path. */
-    if (ptr == resolved_path)
-      r = sprintf(ptr, "%s", tok);
-    else
-#endif /* _WIN32 */
-    r = sprintf(ptr, "%c%s", SLASH, tok);
-
-    if (r < 1) { /* At least one character should have been written. */
-      err = uvwasi__translate_uv_error(uv_translate_sys_error(errno));
-      goto exit;
-    }
-
-    ptr += r;
-  }
-
-  if ((flags & UVWASI_LOOKUP_SYMLINK_FOLLOW) == UVWASI_LOOKUP_SYMLINK_FOLLOW) {
-    r = uv_fs_realpath(NULL, &realpath_req, resolved_path, NULL);
-    if (r == 0) {
-      realpath_size = strlen(realpath_req.ptr) + 1;
-      if (realpath_size > PATH_MAX_BYTES) {
-        err = UVWASI_ENOBUFS;
-        uv_fs_req_cleanup(&realpath_req);
-        goto exit;
-      }
-
-      memcpy(resolved_path, realpath_req.ptr, realpath_size);
-    } else if (r != UV_ENOENT) {
-      /* Report errors except ENOENT. */
-      err = uvwasi__translate_uv_error(r);
-      uv_fs_req_cleanup(&realpath_req);
-      goto exit;
-    }
-
-    uv_fs_req_cleanup(&realpath_req);
-  }
-
-  /* Verify that the resolved path is still in the sandbox. */
-  if (resolved_path != strstr(resolved_path, fd->real_path)) {
-    err = UVWASI_ENOTCAPABLE;
+  /* TODO(cjihrig): Currently performing a bounds check here. The TODO is to
+     stop allocating resolved_path in every caller and instead return the
+     path allocated in this function. */
+  if (host_path_len > PATH_MAX_BYTES) {
+    err = UVWASI_ENOBUFS;
     goto exit;
   }
 
+  if ((flags & UVWASI_LOOKUP_SYMLINK_FOLLOW) == UVWASI_LOOKUP_SYMLINK_FOLLOW) {
+    r = uv_fs_readlink(NULL, &req, host_path, NULL);
+
+    if (r != 0) {
+#ifdef _WIN32
+      /* uv_fs_readlink() returns UV__UNKNOWN on Windows. Try to get a better
+         error using uv_fs_stat(). */
+      if (r == UV__UNKNOWN) {
+        uv_fs_req_cleanup(&req);
+        r = uv_fs_stat(NULL, &req, host_path, NULL);
+
+        if (r == 0) {
+          if (uvwasi__stat_to_filetype(&req.statbuf) !=
+              UVWASI_FILETYPE_SYMBOLIC_LINK) {
+            r = UV_EINVAL;
+          }
+        }
+
+        // Fall through.
+      }
+#endif /* _WIN32 */
+
+      /* Don't report UV_EINVAL or UV_ENOENT. They mean that either the file
+          does not exist, or it is not a symlink. Both are OK. */
+      if (r != UV_EINVAL && r != UV_ENOENT)
+        err = uvwasi__translate_uv_error(r);
+
+      uv_fs_req_cleanup(&req);
+      goto exit;
+    }
+
+    /* Clean up memory and follow the link, unless it's time to return ELOOP. */
+    follow_count++;
+    if (follow_count >= UVWASI__MAX_SYMLINK_FOLLOWS) {
+      uv_fs_req_cleanup(&req);
+      err = UVWASI_ELOOP;
+      goto exit;
+    }
+
+    input_len = strlen(req.ptr);
+    uvwasi__free(uvwasi, link_target);
+    link_target = uvwasi__malloc(uvwasi, input_len + 1);
+    if (link_target == NULL) {
+      uv_fs_req_cleanup(&req);
+      err = UVWASI_ENOMEM;
+      goto exit;
+    }
+
+    memcpy(link_target, req.ptr, input_len + 1);
+    input = link_target;
+    uvwasi__free(uvwasi, normalized_path);
+    uv_fs_req_cleanup(&req);
+    goto start;
+  }
+
 exit:
-  uvwasi__free(uvwasi, abs_path);
+  if (err == UVWASI_ESUCCESS)
+    memcpy(resolved_path, host_path, host_path_len + 1);
+
+  uvwasi__free(uvwasi, link_target);
+  uvwasi__free(uvwasi, normalized_path);
+  uvwasi__free(uvwasi, host_path);
   return err;
 }
 
