@@ -2647,12 +2647,22 @@ const finished = util.promisify(stream.finished);
 
 const writable = fs.createWriteStream('./file');
 
+function drain(writable) {
+  if (writable.destroyed) {
+    return Promise.reject(new Error('premature close'));
+  }
+  return Promise.race([
+    once(writable, 'drain'),
+    once(writable, 'close')
+      .then(() => Promise.reject(new Error('premature close')))
+  ]);
+}
+
 async function pump(iterable, writable) {
   for await (const chunk of iterable) {
     // Handle backpressure on write().
     if (!writable.write(chunk)) {
-      if (writable.destroyed) return;
-      await once(writable, 'drain');
+      await drain(writable);
     }
   }
   writable.end();
