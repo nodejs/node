@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "uv.h"
 #include "wasi_types.h"
-#include "uv_mapping.h"
 
 struct uvwasi_s;
 
