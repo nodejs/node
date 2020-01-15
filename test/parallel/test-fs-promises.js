@@ -85,7 +85,7 @@ function verifyStatObject(stat) {
 
 function verifyStatfsObject(stat, isBigint = false) {
   const valueType = isBigint ? 'bigint' : 'number';
-  
+
   assert.strictEqual(typeof stat, 'object');
   assert.strictEqual(typeof stat.type, valueType);
   assert.strictEqual(typeof stat.bsize, valueType);
@@ -140,13 +140,13 @@ async function getHandle(dest) {
       await handle.close();
     }
 
-    // file system stats
+    // File system stats
     {
       const statFs = await statfs(dest);
       verifyStatfsObject(statFs);
     }
 
-    // file system stats bigint
+    // File system stats bigint
     {
       const statFs = await statfs(dest, { bigint: true });
       verifyStatfsObject(statFs, true);

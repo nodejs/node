@@ -6,12 +6,13 @@ const fs = require('fs');
 
 function verifyStatFsObject(statfs, isBigint = false) {
   const valueType = isBigint ? 'bigint' : 'number';
-  
+
   [
     'type', 'bsize', 'blocks', 'bfree', 'bavail', 'files', 'ffree'
   ].forEach((k) => {
     assert.ok(statfs.hasOwnProperty(k));
-    assert.strictEqual(typeof statfs[k], valueType, `${k} should be a ${valueType}`);
+    assert.strictEqual(typeof statfs[k], valueType,
+                       `${k} should be a ${valueType}`);
   });
 }
 
