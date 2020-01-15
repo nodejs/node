@@ -218,7 +218,9 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, NGTCP2_NO_ERROR);
   NODE_DEFINE_CONSTANT(constants, AF_INET);
   NODE_DEFINE_CONSTANT(constants, AF_INET6);
-  NODE_DEFINE_STRING_CONSTANT(constants, NGTCP2_ALPN_H3, NGTCP2_ALPN_H3);
+  NODE_DEFINE_STRING_CONSTANT(constants,
+                              NODE_STRINGIFY_HELPER(NGTCP2_ALPN_H3),
+                              NGTCP2_ALPN_H3);
 
   target->Set(context, env->constants_string(), constants).FromJust();
 }
