@@ -33,29 +33,26 @@ QuicPath::QuicPath(
 
 size_t QuicCID::Hash::operator()(const QuicCID& token) const {
   size_t hash = 0;
-  for (size_t n = 0; n < token.cid_.datalen; n++)
-    hash ^= std::hash<uint8_t>{}(token.cid_.data[n]) + 0x9e3779b9 +
+  for (size_t n = 0; n < token->datalen; n++) {
+    hash ^= std::hash<uint8_t>{}(token->data[n]) + 0x9e3779b9 +
             (hash << 6) + (hash >> 2);
+  }
   return hash;
 }
 
 bool QuicCID::Compare::operator()(
     const QuicCID& lcid,
     const QuicCID& rcid) const {
-  if (lcid.cid_.datalen != rcid.cid_.datalen)
-    return false;
-  return memcmp(
-      lcid.cid_.data,
-      rcid.cid_.data,
-      lcid.cid_.datalen) == 0;
+  return lcid->datalen != rcid->datalen ?
+      false : memcmp(lcid->data, rcid->data, lcid->datalen) == 0;
 }
 
 std::string QuicCID::ToHex() const {
-  std::vector<char> dest(cid_.datalen * 2 + 1);
+  std::vector<char> dest(ptr_->datalen * 2 + 1);
   dest[dest.size() - 1] = '\0';
   size_t written = StringBytes::hex_encode(
-      reinterpret_cast<const char*>(cid_.data),
-      cid_.datalen,
+      reinterpret_cast<const char*>(ptr_->data),
+      ptr_->datalen,
       dest.data(),
       dest.size());
   return std::string(dest.data(), written);

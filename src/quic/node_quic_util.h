@@ -198,12 +198,22 @@ struct QuicPathStorage : public ngtcp2_path_storage {
 // Simple wrapper for ngtcp2_cid that handles hex encoding
 class QuicCID : public MemoryRetainer {
  public:
-  QuicCID() {}
-  QuicCID(const QuicCID& cid) : cid_(cid.cid_) {}
-  explicit QuicCID(const ngtcp2_cid* cid) : cid_(*cid) {}
-  explicit QuicCID(const ngtcp2_cid& cid) : cid_(cid) {}
-  QuicCID(const uint8_t* cid, size_t len) {
-    ngtcp2_cid_init(&cid_, cid, len);
+  // Empty constructor
+  QuicCID() : ptr_(&cid_) {}
+
+  // Copy constructor
+  QuicCID(const QuicCID& cid) : QuicCID(cid->data, cid->datalen) {}
+
+  // Copy constructor
+  explicit QuicCID(const ngtcp2_cid& cid) : QuicCID(cid.data, cid.datalen) {}
+
+  // Wrap constructor
+  explicit QuicCID(const ngtcp2_cid* cid) : ptr_(cid) {}
+
+  QuicCID(const uint8_t* cid, size_t len) : QuicCID() {
+    ngtcp2_cid* ptr = this->cid();
+    ngtcp2_cid_init(ptr, cid, len);
+    ptr_ = ptr;
   }
 
   struct Hash {
@@ -216,28 +226,40 @@ class QuicCID : public MemoryRetainer {
 
   inline std::string ToHex() const;
 
+  // Copy assignment
   QuicCID& operator=(const QuicCID& cid) {
-    cid_ = cid.cid_;
-    return *this;
+    if (this == &cid) return *this;
+    this->~QuicCID();
+    return *new(this) QuicCID(std::move(cid));
   }
-  const ngtcp2_cid& operator*() const { return cid_; }
-  const ngtcp2_cid* operator->() const { return &cid_; }
-  const ngtcp2_cid* cid() const { return &cid_; }
-  ngtcp2_cid* cid() { return &cid_; }
-  operator bool() const { return cid_.datalen > 0; }
 
-  const uint8_t* data() const { return cid_.data; }
-  size_t length() const { return cid_.datalen; }
+  const ngtcp2_cid& operator*() const { return *ptr_; }
+  const ngtcp2_cid* operator->() const { return ptr_; }
+  const ngtcp2_cid* cid() const { return ptr_; }
+  const uint8_t* data() const { return ptr_->data; }
+  operator bool() const { return ptr_->datalen > 0; }
+  size_t length() const { return ptr_->datalen; }
 
-  unsigned char* data() { return reinterpret_cast<unsigned char*>(cid_.data); }
-  void set_length(size_t length) { cid_.datalen = length; }
+  ngtcp2_cid* cid() {
+    CHECK_EQ(ptr_, &cid_);
+    return &cid_;
+  }
+
+  unsigned char* data() {
+    return reinterpret_cast<unsigned char*>(cid()->data);
+  }
+
+  void set_length(size_t length) {
+    cid()->datalen = length;
+  }
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(QuicCID)
   SET_SELF_SIZE(QuicCID)
 
  private:
-  ngtcp2_cid cid_;
+  ngtcp2_cid cid_{};
+  const ngtcp2_cid* ptr_;
 };
 
 // Simple timer wrapper that is used to implement the internals

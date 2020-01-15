@@ -1465,7 +1465,6 @@ void QuicSession::AckedStreamDataOffset(
 // be associated with the new QuicSocket.
 void QuicSession::AddToSocket(QuicSocket* socket) {
   socket->AddSession(scid_, BaseObjectPtr<QuicSession>(this));
-
   switch (crypto_context_->side()) {
     case NGTCP2_CRYPTO_SIDE_SERVER: {
       socket->AssociateCID(rcid_, scid_);
@@ -1475,8 +1474,9 @@ void QuicSession::AddToSocket(QuicSocket* socket) {
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
       std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(connection()));
       ngtcp2_conn_get_scid(connection(), cids.data());
-      for (const ngtcp2_cid& cid : cids)
+      for (const ngtcp2_cid& cid : cids) {
         socket->AssociateCID(QuicCID(&cid), scid_);
+      }
       break;
     }
     default:
@@ -2748,6 +2748,7 @@ BaseObjectPtr<QuicSession> QuicSession::CreateClient(
           qlog);
 
   session->AddToSocket(socket);
+
   return session;
 }
 
