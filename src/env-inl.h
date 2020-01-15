@@ -242,14 +242,6 @@ inline bool ImmediateInfo::has_outstanding() const {
   return fields_[kHasOutstanding] == 1;
 }
 
-inline void ImmediateInfo::count_inc(uint32_t increment) {
-  fields_[kCount] += increment;
-}
-
-inline void ImmediateInfo::count_dec(uint32_t decrement) {
-  fields_[kCount] -= decrement;
-}
-
 inline void ImmediateInfo::ref_count_inc(uint32_t increment) {
   fields_[kRefCount] += increment;
 }
@@ -787,7 +779,6 @@ void Environment::CreateImmediate(Fn&& cb, bool ref) {
   auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
       std::move(cb), ref);
   native_immediates_.Push(std::move(callback));
-  immediate_info()->count_inc(1);
 }
 
 template <typename Fn>
