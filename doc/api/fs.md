@@ -5574,4 +5574,4 @@ the file contents.
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
-[Writable Stream]: #stream_class_stream_writable
+[Writable Stream]: stream.html#stream_class_stream_writable
