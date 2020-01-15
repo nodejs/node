@@ -83,15 +83,17 @@ function verifyStatObject(stat) {
   assert.strictEqual(typeof stat.mode, 'number');
 }
 
-function verifyStatfsObject(stat) {
+function verifyStatfsObject(stat, isBigint = false) {
+  const valueType = isBigint ? 'bigint' : 'number';
+  
   assert.strictEqual(typeof stat, 'object');
-  assert.strictEqual(typeof stat.type, 'number');
-  assert.strictEqual(typeof stat.bsize, 'number');
-  assert.strictEqual(typeof stat.blocks, 'number');
-  assert.strictEqual(typeof stat.bfree, 'number');
-  assert.strictEqual(typeof stat.bavail, 'number');
-  assert.strictEqual(typeof stat.files, 'number');
-  assert.strictEqual(typeof stat.ffree, 'number');
+  assert.strictEqual(typeof stat.type, valueType);
+  assert.strictEqual(typeof stat.bsize, valueType);
+  assert.strictEqual(typeof stat.blocks, valueType);
+  assert.strictEqual(typeof stat.bfree, valueType);
+  assert.strictEqual(typeof stat.bavail, valueType);
+  assert.strictEqual(typeof stat.files, valueType);
+  assert.strictEqual(typeof stat.ffree, valueType);
 }
 
 async function getHandle(dest) {
@@ -142,6 +144,12 @@ async function getHandle(dest) {
     {
       const statFs = await statfs(dest);
       verifyStatfsObject(statFs);
+    }
+
+    // file system stats bigint
+    {
+      const statFs = await statfs(dest, { bigint: true });
+      verifyStatfsObject(statFs, true);
     }
 
     // Test fs.read promises when length to read is zero bytes
