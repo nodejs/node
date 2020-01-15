@@ -20,6 +20,14 @@
       'direct_dependent_settings': {
         'include_dirs': ['include']
       },
+      'conditions': [
+        [ 'OS=="linux"', {
+          'defines': [
+            '_GNU_SOURCE',
+            '_POSIX_C_SOURCE=200112',
+          ],
+        }],
+      ],
     }
   ]
 }
