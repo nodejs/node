@@ -471,14 +471,6 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 
-  thread_stopper()->Install(
-    this, static_cast<void*>(this), [](uv_async_t* handle) {
-      Environment* env = static_cast<Environment*>(handle->data);
-      uv_stop(env->event_loop());
-    });
-  thread_stopper()->set_stopped(false);
-  uv_unref(reinterpret_cast<uv_handle_t*>(thread_stopper()->GetHandle()));
-
   // Register clean-up cb to be called to clean up the handles
   // when the environment is freed, note that they are not cleaned in
   // the one environment per process setup, but will be called in
@@ -496,8 +488,9 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
 
 void Environment::ExitEnv() {
   set_can_call_into_js(false);
-  thread_stopper()->Stop();
+  set_stopping(true);
   isolate_->TerminateExecution();
+  SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
 }
 
 void Environment::RegisterHandleCleanups() {
@@ -602,7 +595,6 @@ void Environment::RunCleanup() {
   started_cleanup_ = true;
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
-  thread_stopper()->Uninstall();
   CleanupHandles();
 
   while (!cleanup_hooks_.empty()) {
@@ -1014,7 +1006,6 @@ inline size_t Environment::SelfSize() const {
   // TODO(joyeecheung): refactor the MemoryTracker interface so
   // this can be done for common types within the Track* calls automatically
   // if a certain scope is entered.
-  size -= sizeof(thread_stopper_);
   size -= sizeof(async_hooks_);
   size -= sizeof(tick_info_);
   size -= sizeof(immediate_info_);
@@ -1036,7 +1027,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fs_stats_field_array", fs_stats_field_array_);
   tracker->TrackField("fs_stats_field_bigint_array",
                       fs_stats_field_bigint_array_);
-  tracker->TrackField("thread_stopper", thread_stopper_);
   tracker->TrackField("cleanup_hooks", cleanup_hooks_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
@@ -1098,38 +1088,6 @@ void Environment::CleanupFinalizationGroups() {
       return;
     }
   }
-}
-
-void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
-  CHECK_NULL(async_);
-  env_ = env;
-  async_ = new uv_async_t;
-  async_->data = data;
-  CHECK_EQ(uv_async_init(env_->event_loop(), async_, target), 0);
-}
-
-void AsyncRequest::Uninstall() {
-  if (async_ != nullptr) {
-    env_->CloseHandle(async_, [](uv_async_t* async) { delete async; });
-    async_ = nullptr;
-  }
-}
-
-void AsyncRequest::Stop() {
-  set_stopped(true);
-  if (async_ != nullptr) uv_async_send(async_);
-}
-
-uv_async_t* AsyncRequest::GetHandle() {
-  return async_;
-}
-
-void AsyncRequest::MemoryInfo(MemoryTracker* tracker) const {
-  if (async_ != nullptr) tracker->TrackField("async_request", *async_);
-}
-
-AsyncRequest::~AsyncRequest() {
-  CHECK_NULL(async_);
 }
 
 // Not really any better place than env.cc at this moment.
