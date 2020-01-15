@@ -664,7 +664,6 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
   size_t ref_count = 0;
-  size_t count = 0;
 
   NativeImmediateQueue queue;
   queue.ConcatMove(std::move(native_immediates_));
@@ -673,7 +672,6 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
     TryCatchScope try_catch(this);
     DebugSealHandleScope seal_handle_scope(isolate());
     while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift()) {
-      count++;
       if (head->is_refed())
         ref_count++;
 
@@ -691,9 +689,10 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   };
   while (queue.size() > 0 && drain_list()) {}
 
-  DCHECK_GE(immediate_info()->count(), count);
-  immediate_info()->count_dec(count);
   immediate_info()->ref_count_dec(ref_count);
+
+  if (immediate_info()->ref_count() == 0)
+    ToggleImmediateRef(false);
 }
 
 
@@ -779,15 +778,12 @@ void Environment::CheckImmediate(uv_check_t* handle) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "CheckImmediate", env);
 
-  if (env->immediate_info()->count() == 0)
-    return;
-
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
   env->RunAndClearNativeImmediates();
 
-  if (!env->can_call_into_js())
+  if (env->immediate_info()->count() == 0 || !env->can_call_into_js())
     return;
 
   do {
