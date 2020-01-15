@@ -5,13 +5,13 @@
 extern "C" {
 #endif
 
+#include "uv.h"
 #include "wasi_types.h"
-#include "uv_mapping.h"
 #include "fd_table.h"
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 3
+#define UVWASI_VERSION_PATCH 4
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
