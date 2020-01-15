@@ -44,6 +44,12 @@ using v8::Value;
 namespace quic {
 
 namespace {
+// The reserved version is a mechanism QUIC endpoints
+// can use to ensure correct handling of version
+// negotiation. It is defined by the QUIC spec in
+// https://tools.ietf.org/html/draft-ietf-quic-transport-24#section-6.3
+// Specifically, any version that follows the pattern
+// 0x?a?a?a?a may be used to force version negotiation.
 inline uint32_t GenerateReservedVersion(
     const sockaddr* addr,
     uint32_t version) {
@@ -384,7 +390,19 @@ BaseObjectPtr<QuicSession> QuicSocket::FindSession(const QuicCID& cid) {
   return session;
 }
 
-// This is the primary entry point for data received for the QuicSocket.
+// When a received packet contains a QUIC short header but cannot be
+// matched to a known QuicSession, it is either (a) garbage,
+// (b) a valid packet for a connection we no longer have state
+// for, or (c) a stateless reset. Because we do not yet know if
+// we are going to process the packet, we need to try to quickly
+// determine -- with as little cost as possible -- whether the
+// packet contains a reset token. We do so by checking the final
+// NGTCP2_STATELESS_RESET_TOKENLEN bytes in the packet to see if
+// they match one of the known reset tokens previously given by
+// the remote peer. If there's a match, then it's a reset token,
+// if not, we move on the to the next check. It is very important
+// that this check be as inexpensive as possible to avoid a DOS
+// vector.
 bool QuicSocket::MaybeStatelessReset(
     const QuicCID& dcid,
     const QuicCID& scid,
@@ -404,6 +422,13 @@ bool QuicSocket::MaybeStatelessReset(
   return it->second->Receive(nread, data, local_addr, remote_addr, flags);
 }
 
+// When a packet is received here, we do not yet know if we can
+// process it successfully as a QUIC packet or not. Given the
+// nature of UDP, we may receive a great deal of garbage here
+// so it is extremely important not to commit resources until
+// we're certain we can process the data we received as QUIC
+// packet.
+// Any packet we choose not to process must be ignored.
 void QuicSocket::OnReceive(
     ssize_t nread,
     AllocatedBuffer buf,
@@ -431,9 +456,11 @@ void QuicSocket::OnReceive(
 
   // This is our first check to see if the received data can be
   // processed as a QUIC packet. If this fails, then the QUIC packet
-  // header is invalid and cannot be processed. If this fails, all
-  // we can do is ignore it. It's questionable whether we should even
-  // increment the packets_ignored statistic here but for now we do.
+  // header is invalid and cannot be processed; all we can do is ignore
+  // it. It's questionable whether we should even increment the
+  // packets_ignored statistic here but for now we do. If it succeeds,
+  // we have a valid QUIC header but there's still no guarantee that
+  // the packet can be successfully processed.
   if (ngtcp2_pkt_decode_version_cid(
         &pversion,
         &pdcid,
@@ -457,25 +484,30 @@ void QuicSocket::OnReceive(
   QuicCID dcid(pdcid, pdcidlen);
   QuicCID scid(pscid, pscidlen);
 
+  // TODO(@jasnell): It would be fantastic if Debug() could be
+  // modified to accept objects with a ToString-like capability
+  // similar to what we can do with TraceEvents... that would
+  // allow us to pass the QuicCID directly to Debug and have it
+  // converted to hex only if the category is enabled so we can
+  // skip committing resources here.
   std::string dcid_hex = dcid.ToHex();
   Debug(this, "Received a QUIC packet for dcid %s", dcid_hex.c_str());
 
   BaseObjectPtr<QuicSession> session = FindSession(dcid);
 
-  // If a session is not found, there are three possible reasons:
+  // If a session is not found, there are four possible reasons:
   // 1. The session has not been created yet
   // 2. The session existed once but we've lost the local state for it
-  // 3. This is a malicious or malformed packet.
-  //
-  // In the case of #1, the packet must be a valid initial packet with
-  // a long-form QUIC header. In the case of #2, the packet must have
-  // a short-form QUIC header and we should send a stateless reset token.
-  // Differentiating between cases 2 and 3 can be difficult, however.
+  // 3. The packet is a stateless reset sent by the peer
+  // 4. This is a malicious or malformed packet.
   if (!session) {
     Debug(this, "There is no existing session for dcid %s", dcid_hex.c_str());
     bool is_short_header = IsShortHeader(pversion, pscid, pscidlen);
 
     // Handle possible reception of a stateless reset token...
+    // If it is a stateless reset, the packet will be handled with
+    // no additional action necessary here. We want to return immediately
+    // without committing any further resources.
     if (is_short_header &&
         MaybeStatelessReset(
             dcid,
@@ -492,7 +524,7 @@ void QuicSocket::OnReceive(
     // AcceptInitialPacket will first validate that the packet can be
     // accepted, then create a new server QuicSession instance if able
     // to do so. If a new instance cannot be created (for any reason),
-    // the session shared_ptr will be empty on return.
+    // the session BaseObjectPtr will be empty on return.
     session = AcceptInitialPacket(
         pversion,
         dcid,
@@ -509,10 +541,26 @@ void QuicSocket::OnReceive(
     // potential attacker from causing us to consume resources,
     // we're just going to ignore the packet. It is possible that
     // the AcceptInitialPacket sent a version negotiation packet,
-    // or (in the future) a CONNECTION_CLOSE packet.
+    // or a CONNECTION_CLOSE packet.
     if (!session) {
       Debug(this, "Unable to create a new server QuicSession.");
-
+      // If the packet contained a short header, we might need to send
+      // a stateless reset. The stateless reset contains a token derived
+      // from the received destination connection ID.
+      //
+      // TODO(@jasnell): Stateless resets are generated programmatically
+      // using HKDF with the sender provided dcid and a locally provided
+      // secret as input. It is entirely possible that a malicious
+      // peer could send multiple stateless reset eliciting packets
+      // with the specific intent of using the returned stateless
+      // reset to guess the stateless reset token secret used by
+      // the server. Once guessed, the malicious peer could use
+      // that secret as a DOS vector against other peers. We currently
+      // implement some mitigations for this by limiting the number
+      // of stateless resets that can be sent to a specific remote
+      // address but there are other possible mitigations, such as
+      // including the remote address as input in the generation of
+      // the stateless token.
       if (is_short_header &&
           SendStatelessReset(dcid, local_addr, remote_addr, nread)) {
         Debug(this, "Sent stateless reset");
@@ -536,6 +584,12 @@ void QuicSocket::OnReceive(
   IncrementStat(&QuicSocketStats::packets_received);
 }
 
+// Generates and sends a version negotiation packet. This is
+// terminal for the connection and is sent only when a QUIC
+// packet is received for an unsupported Node.js version.
+// It is possible that a malicious packet triggered this
+// so we need to be careful not to commit too many resources.
+// Currently, we only support one QUIC version at a time.
 void QuicSocket::SendVersionNegotiation(
       uint32_t version,
       const QuicCID& dcid,
@@ -569,6 +623,10 @@ void QuicSocket::SendVersionNegotiation(
   SendPacket(local_addr, remote_address, std::move(packet));
 }
 
+// Possible generates and sends a stateless reset packet.
+// This is terminal for the connection. It is possible
+// that a malicious packet triggered this so we need to
+// be careful not to commit too many resources.
 bool QuicSocket::SendStatelessReset(
     const QuicCID& cid,
     const SocketAddress& local_addr,
@@ -619,6 +677,25 @@ bool QuicSocket::SendStatelessReset(
     return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
 }
 
+// Generates and sends a retry packet. This is terminal
+// for the connection. Retry packets are used to force
+// explicit path validation by issuing a token to the
+// peer that it must thereafter include in all subsequent
+// initial packets. Upon receiving a retry packet, the
+// peer must termination it's initial attempt to
+// establish a connection and start a new attempt.
+//
+// TODO(@jasnell): Retry packets will only ever be
+// generated by QUIC servers, and only if the QuicSocket
+// is configured for explicit path validation. There is
+// no way for a client to force a retry packet to be created.
+// However, once a client determines that explicit
+// path validation is enabled, it could attempt to
+// DOS by sending a large number of malicious
+// initial packets to intentionally ellicit retry
+// packets. To help mitigate that risk, we should
+// limit the number of retries we send to a given
+// remote endpoint.
 bool QuicSocket::SendRetry(
     uint32_t version,
     const QuicCID& dcid,
@@ -628,6 +705,8 @@ bool QuicSocket::SendRetry(
   uint8_t token[256];
   size_t tokenlen = sizeof(token);
 
+  // Retry tokens are generated cryptographically. They
+  // aren't super expensive but they are still not zero-cost.
   if (!GenerateRetryToken(
           token,
           &tokenlen,
@@ -669,6 +748,10 @@ bool QuicSocket::SendRetry(
   return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
 }
 
+// Inspects the packet and possibly accepts it as a new
+// initial packet creating a new QuicSession instance.
+// If the packet is not acceptable, it is very important
+// not to commit resources.
 BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     uint32_t version,
     const QuicCID& dcid,
@@ -685,6 +768,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   ngtcp2_cid* ocid_ptr = nullptr;
   uint64_t initial_connection_close = NGTCP2_NO_ERROR;
 
+  // If the QuicSocket is not listening, the paket will be ignored.
   if (!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
     Debug(this, "QuicSocket is not listening");
     return {};
@@ -712,8 +796,11 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   }
 
   // If the server is busy, new connections will be shut down immediately
-  // after the initial keys are installed.
-  if (is_flag_set(QUICSOCKET_FLAGS_SERVER_BUSY)) {
+  // after the initial keys are installed. The busy state is controlled
+  // entirely by local user code. It is important to understand that
+  // a QuicSession is created and resources are committed even though
+  // the QuicSession will be torn down as quickly as possible.
+  if (UNLIKELY(is_flag_set(QUICSOCKET_FLAGS_SERVER_BUSY))) {
     Debug(this, "QuicSocket is busy");
     initial_connection_close = NGTCP2_SERVER_BUSY;
   }
@@ -725,6 +812,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
       max_connections_per_host_) {
     Debug(this, "Connection count for address exceeded");
     initial_connection_close = NGTCP2_SERVER_BUSY;
+    IncrementStat(&QuicSocketStats::server_busy_count);
   }
 
   // QUIC has address validation built in to the handshake but allows for
@@ -743,6 +831,10 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
       // will check to see if the given address is in the validated_addrs_
       // LRU cache. If it is, we'll skip the validation step entirely.
       // The VALIDATE_ADDRESS_LRU option is disable by default.
+      // TODO(@jasnell): The VALIDATE_ADDRESS_LRU may not be sufficient
+      // to protect against the threat of a malicious peer intentionally
+      // soliciting retry tokens in order to attempt to guess the
+      // retry secret.
     if (!is_validated_address(remote_addr)) {
       Debug(this, "Performing explicit address validation.");
       if (InvalidRetryToken(
@@ -778,6 +870,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
           server_options_,
           initial_connection_close,
           qlog_);
+  CHECK(session);
 
   listener_->OnSessionReady(session);
 

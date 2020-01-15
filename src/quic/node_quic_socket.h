@@ -54,7 +54,8 @@ enum QuicSocketOptions : uint32_t {
   V(PACKETS_SENT, packets_sent)                                                \
   V(SERVER_SESSIONS, server_sessions)                                          \
   V(CLIENT_SESSIONS, client_sessions)                                          \
-  V(STATELESS_RESET_COUNT, stateless_reset_count)
+  V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
+  V(SERVER_BUSY_COUNT, server_busy_count)
 
 #define V(name, _) IDX_QUIC_SOCKET_STATS_##name,
 enum QuicSocketStatsIdx : int {

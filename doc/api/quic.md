@@ -1301,7 +1301,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the length of time this `QuicSocket` has been bound
+A `BigInt` representing the length of time this `QuicSocket` has been bound
 to a local port.
 
 #### quicsocket.bytesReceived
@@ -1311,7 +1311,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of bytes received by this `QuicSocket`.
+A `BigInt` representing the number of bytes received by this `QuicSocket`.
 
 #### quicsocket.bytesSent
 <!-- YAML
@@ -1320,7 +1320,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of bytes sent by this `QuicSocket`.
+A `BigInt` representing the number of bytes sent by this `QuicSocket`.
 
 #### quicsocket.clientSessions
 <!-- YAML
@@ -1329,7 +1329,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of client `QuicSession` instances that
+A `BigInt` representing the number of client `QuicSession` instances that
 have been associated with this `QuicSocket`.
 
 #### quicsocket.close(\[callback\])
@@ -1496,7 +1496,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the length of time this `QuicSocket` has been active,
+A `BigInt` representing the length of time this `QuicSocket` has been active,
 
 #### quicsocket.endpoints
 <!-- YAML
@@ -1624,7 +1624,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the length of time this `QuicSocket` has been listening
+A `BigInt` representing the length of time this `QuicSocket` has been listening
 for connections.
 
 #### quicsocket.packetsIgnored
@@ -1634,7 +1634,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of packets received by this `QuicSocket` that
+A `BigInt` representing the number of packets received by this `QuicSocket` that
 have been ignored.
 
 #### quicsocket.packetsReceived
@@ -1644,7 +1644,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of packets successfully received by this
+A `BigInt` representing the number of packets successfully received by this
 `QuicSocket`.
 
 #### quicsocket.packetsSent
@@ -1654,7 +1654,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of packets sent by this `QuicSocket`.
+A `BigInt` representing the number of packets sent by this `QuicSocket`.
 
 #### quicsocket.pending
 <!-- YAML
@@ -1670,6 +1670,16 @@ Set to `true` if the socket is not yet bound to the local UDP port.
 added: REPLACEME
 -->
 
+#### quicsocket.serverBusyCount
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {BigInt}
+
+A `BigInt` representing the number of `QuicSession` instances rejected
+due to server busy status.
+
 #### quicsocket.serverSessions
 <!-- YAML
 added: REPLACEME
@@ -1677,7 +1687,7 @@ added: REPLACEME
 
 * Type: {BigInt}
 
-A `BitInt` representing the number of server `QuicSession` instances that
+A `BigInt` representing the number of server `QuicSession` instances that
 have been associated with this `QuicSocket`.
 
 #### quicsocket.setDiagnosticPacketLoss(options)
