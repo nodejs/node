@@ -1199,6 +1199,9 @@ class Environment : public MemoryRetainer {
   inline void SetImmediate(Fn&& cb);
   template <typename Fn>
   inline void SetUnrefImmediate(Fn&& cb);
+  template <typename Fn>
+  // This behaves like SetImmediate() but can be called from any thread.
+  inline void SetImmediateThreadsafe(Fn&& cb);
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
@@ -1284,7 +1287,7 @@ class Environment : public MemoryRetainer {
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
-  uv_async_t cleanup_finalization_groups_async_;
+  uv_async_t task_queues_async_;
   bool profiler_idle_notifier_started_ = false;
 
   AsyncHooks async_hooks_;
@@ -1436,12 +1439,18 @@ class Environment : public MemoryRetainer {
     // 'other' afterwards.
     inline void ConcatMove(NativeImmediateQueue&& other);
 
+    // size() is atomic and may be called from any thread.
+    inline size_t size() const;
+
    private:
+    std::atomic<size_t> size_ {0};
     std::unique_ptr<NativeImmediateCallback> head_;
     NativeImmediateCallback* tail_ = nullptr;
   };
 
   NativeImmediateQueue native_immediates_;
+  Mutex native_immediates_threadsafe_mutex_;
+  NativeImmediateQueue native_immediates_threadsafe_;
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   static void CheckImmediate(uv_check_t* handle);

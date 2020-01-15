@@ -460,15 +460,16 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   uv_check_init(event_loop(), &idle_check_handle_);
   uv_async_init(
       event_loop(),
-      &cleanup_finalization_groups_async_,
+      &task_queues_async_,
       [](uv_async_t* async) {
         Environment* env = ContainerOf(
-            &Environment::cleanup_finalization_groups_async_, async);
+            &Environment::task_queues_async_, async);
         env->CleanupFinalizationGroups();
+        env->RunAndClearNativeImmediates();
       });
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
-  uv_unref(reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 
   thread_stopper()->Install(
     this, static_cast<void*>(this), [](uv_async_t* handle) {
@@ -532,7 +533,7 @@ void Environment::RegisterHandleCleanups() {
       close_and_finish,
       nullptr);
   RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_),
+      reinterpret_cast<uv_handle_t*>(&task_queues_async_),
       close_and_finish,
       nullptr);
 }
@@ -662,6 +663,15 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
   size_t ref_count = 0;
+
+  // It is safe to check .size() first, because there is a causal relationship
+  // between pushes to the threadsafe and this function being called.
+  // For the common case, it's worth checking the size first before establishing
+  // a mutex lock.
+  if (native_immediates_threadsafe_.size() > 0) {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    native_immediates_.ConcatMove(std::move(native_immediates_threadsafe_));
+  }
 
   NativeImmediateQueue queue;
   queue.ConcatMove(std::move(native_immediates_));
@@ -1084,7 +1094,7 @@ void Environment::CleanupFinalizationGroups() {
       if (try_catch.HasCaught() && !try_catch.HasTerminated())
         errors::TriggerUncaughtException(isolate(), try_catch);
       // Re-schedule the execution of the remainder of the queue.
-      uv_async_send(&cleanup_finalization_groups_async_);
+      uv_async_send(&task_queues_async_);
       return;
     }
   }
