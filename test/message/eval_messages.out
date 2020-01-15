@@ -62,4 +62,64 @@ var ______________________________________________; throw 10
                                                     ^
 10
 (Use `node --trace-uncaught ...` to show where the exception was thrown)
+[eval]:1
+const x = 100; x = 10;
+                 ^
+
+TypeError: Assignment to constant variable.
+    at [eval]:1:18
+    at Script.runInThisContext (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
+    at Object.<anonymous> ([eval]-wrapper:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/process/execution.js:*:*)
+    at internal/main/eval_string.js:*:*
+[eval]:1
+const x = 100; x = 10;
+                 ^
+
+TypeError: Assignment to constant variable.
+    at [eval]:1:18
+    at Script.runInThisContext (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
+    at Object.<anonymous> ([eval]-wrapper:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/process/execution.js:*:*)
+    at internal/main/eval_string.js:*:*
+[eval]:1
+const ______________________________________________; throw 10
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SyntaxError: Missing initializer in const declaration
+    at new Script (vm.js:*:*)
+    at createScript (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
+    at Object.<anonymous> ([eval]-wrapper:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/process/execution.js:*:*)
+    at internal/main/eval_string.js:*:*
+[eval]:1
+const ______________________________________________; throw 10
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SyntaxError: Missing initializer in const declaration
+    at new Script (vm.js:*:*)
+    at createScript (vm.js:*:*)
+    at Object.runInThisContext (vm.js:*:*)
+    at Object.<anonymous> ([eval]-wrapper:*:*)
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at evalScript (internal/process/execution.js:*:*)
+    at internal/main/eval_string.js:*:*
+
+[eval]:1
+let ______________________________________________; throw 10
+                                                    ^
+10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
+
+[eval]:1
+let ______________________________________________; throw 10
+                                                    ^
+10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
 done
