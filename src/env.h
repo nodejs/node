@@ -736,8 +736,6 @@ class ImmediateInfo : public MemoryRetainer {
   inline uint32_t count() const;
   inline uint32_t ref_count() const;
   inline bool has_outstanding() const;
-  inline void count_inc(uint32_t increment);
-  inline void count_dec(uint32_t decrement);
   inline void ref_count_inc(uint32_t increment);
   inline void ref_count_dec(uint32_t decrement);
 
