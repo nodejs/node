@@ -41,7 +41,6 @@ class Worker : public AsyncWrap {
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("parent_port", parent_port_);
-    tracker->TrackInlineField(&on_thread_finished_, "on_thread_finished_");
   }
 
   SET_MEMORY_INFO_NAME(Worker)
@@ -107,13 +106,13 @@ class Worker : public AsyncWrap {
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
 
-  AsyncRequest on_thread_finished_;
-
   // A raw flag that is used by creator and worker threads to
   // sync up on pre-mature termination of worker  - while in the
   // warmup phase.  Once the worker is fully warmed up, use the
   // async handle of the worker's Environment for the same purpose.
   bool stopped_ = true;
+
+  bool has_ref_ = true;
 
   // The real Environment of the worker object. It has a lesser
   // lifespan than the worker object itself - comes to life
