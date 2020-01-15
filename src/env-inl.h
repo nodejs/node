@@ -897,8 +897,21 @@ inline void Environment::remove_sub_worker_context(worker::Worker* context) {
   sub_worker_contexts_.erase(context);
 }
 
+inline void Environment::add_refs(int64_t diff) {
+  task_queues_async_refs_ += diff;
+  CHECK_GE(task_queues_async_refs_, 0);
+  if (task_queues_async_refs_ == 0)
+    uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  else
+    uv_ref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+}
+
 inline bool Environment::is_stopping() const {
-  return thread_stopper_.is_stopped();
+  return is_stopping_.load();
+}
+
+inline void Environment::set_stopping(bool value) {
+  is_stopping_.store(value);
 }
 
 inline std::list<node_module>* Environment::extra_linked_bindings() {
@@ -1216,14 +1229,6 @@ void Environment::modify_base_object_count(int64_t delta) {
 
 int64_t Environment::base_object_count() const {
   return base_object_count_;
-}
-
-bool AsyncRequest::is_stopped() const {
-  return stopped_.load();
-}
-
-void AsyncRequest::set_stopped(bool flag) {
-  stopped_.store(flag);
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)

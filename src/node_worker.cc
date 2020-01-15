@@ -268,7 +268,7 @@ void Worker::Run() {
           stopped_ = true;
           this->env_ = nullptr;
         }
-        env_->thread_stopper()->set_stopped(true);
+        env_->set_stopping(true);
         env_->stop_sub_worker_contexts();
         env_->RunCleanup();
         RunAtExit(env_.get());
@@ -412,7 +412,6 @@ void Worker::JoinThread() {
   thread_joined_ = true;
 
   env()->remove_sub_worker_context(this);
-  on_thread_finished_.Uninstall();
 
   {
     HandleScope handle_scope(env()->isolate());
@@ -439,6 +438,8 @@ void Worker::JoinThread() {
 }
 
 Worker::~Worker() {
+  JoinThread();
+
   Mutex::ScopedLock lock(mutex_);
 
   CHECK(stopped_);
@@ -574,18 +575,16 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   w->stopped_ = false;
   w->thread_joined_ = false;
 
-  w->on_thread_finished_.Install(w->env(), w, [](uv_async_t* handle) {
-    Worker* w_ = static_cast<Worker*>(handle->data);
-    CHECK(w_->is_stopped());
-    w_->parent_port_ = nullptr;
-    w_->JoinThread();
-    delete w_;
-  });
+  if (w->has_ref_)
+    w->env()->add_refs(1);
 
   uv_thread_options_t thread_options;
   thread_options.flags = UV_THREAD_HAS_STACK_SIZE;
   thread_options.stack_size = kStackSize;
   CHECK_EQ(uv_thread_create_ex(&w->tid_, &thread_options, [](void* arg) {
+    // XXX: This could become a std::unique_ptr, but that makes at least
+    // gcc 6.3 detect undefined behaviour when there shouldn't be any.
+    // gcc 7+ handles this well.
     Worker* w = static_cast<Worker*>(arg);
     const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
 
@@ -596,7 +595,12 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     w->Run();
 
     Mutex::ScopedLock lock(w->mutex_);
-    w->on_thread_finished_.Stop();
+    w->env()->SetImmediateThreadsafe(
+        [w = std::unique_ptr<Worker>(w)](Environment* env) {
+          if (w->has_ref_)
+            env->add_refs(-1);
+          // implicitly delete w
+        });
   }, static_cast<void*>(w)), 0);
 }
 
@@ -611,13 +615,19 @@ void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
 void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  uv_ref(reinterpret_cast<uv_handle_t*>(w->on_thread_finished_.GetHandle()));
+  if (!w->has_ref_) {
+    w->has_ref_ = true;
+    w->env()->add_refs(1);
+  }
 }
 
 void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  uv_unref(reinterpret_cast<uv_handle_t*>(w->on_thread_finished_.GetHandle()));
+  if (w->has_ref_) {
+    w->has_ref_ = false;
+    w->env()->add_refs(-1);
+  }
 }
 
 void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {

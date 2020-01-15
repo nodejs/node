@@ -587,34 +587,6 @@ struct AllocatedBuffer {
   friend class Environment;
 };
 
-class AsyncRequest : public MemoryRetainer {
- public:
-  AsyncRequest() = default;
-  ~AsyncRequest() override;
-
-  AsyncRequest(const AsyncRequest&) = delete;
-  AsyncRequest& operator=(const AsyncRequest&) = delete;
-  AsyncRequest(AsyncRequest&&) = delete;
-  AsyncRequest& operator=(AsyncRequest&&) = delete;
-
-  void Install(Environment* env, void* data, uv_async_cb target);
-  void Uninstall();
-  void Stop();
-  inline void set_stopped(bool flag);
-  inline bool is_stopped() const;
-  uv_async_t* GetHandle();
-  void MemoryInfo(MemoryTracker* tracker) const override;
-
-
-  SET_MEMORY_INFO_NAME(AsyncRequest)
-  SET_SELF_SIZE(AsyncRequest)
-
- private:
-  Environment* env_;
-  uv_async_t* async_ = nullptr;
-  std::atomic_bool stopped_ {true};
-};
-
 class KVStore {
  public:
   KVStore() = default;
@@ -1065,6 +1037,14 @@ class Environment : public MemoryRetainer {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
+  // Increase or decrease a counter that manages whether this Environment
+  // keeps the event loop alive on its own or not. The counter starts out at 0,
+  // meaning it does not, and any positive value will make it keep the event
+  // loop alive.
+  // This is used by Workers to manage their own .ref()/.unref() implementation,
+  // as Workers aren't directly associated with their own libuv handles.
+  inline void add_refs(int64_t diff);
+
   inline bool has_run_bootstrapping_code() const;
   inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
 
@@ -1085,6 +1065,7 @@ class Environment : public MemoryRetainer {
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
   inline bool is_stopping() const;
+  inline void set_stopping(bool value);
   inline std::list<node_module>* extra_linked_bindings();
   inline node_module* extra_linked_bindings_head();
   inline const Mutex& extra_linked_bindings_mutex() const;
@@ -1226,8 +1207,6 @@ class Environment : public MemoryRetainer {
   inline std::shared_ptr<EnvironmentOptions> options();
   inline std::shared_ptr<HostPort> inspector_host_port();
 
-  inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
-
   // The BaseObject count is a debugging helper that makes sure that there are
   // no memory leaks caused by BaseObjects staying alive longer than expected
   // (in particular, no circular BaseObjectPtr references).
@@ -1288,6 +1267,7 @@ class Environment : public MemoryRetainer {
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   uv_async_t task_queues_async_;
+  int64_t task_queues_async_refs_ = 0;
   bool profiler_idle_notifier_started_ = false;
 
   AsyncHooks async_hooks_;
@@ -1345,7 +1325,7 @@ class Environment : public MemoryRetainer {
   bool has_run_bootstrapping_code_ = false;
   bool has_serialized_options_ = false;
 
-  bool can_call_into_js_ = true;
+  std::atomic_bool can_call_into_js_ { true };
   Flags flags_;
   uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
@@ -1463,10 +1443,7 @@ class Environment : public MemoryRetainer {
   bool started_cleanup_ = false;
 
   int64_t base_object_count_ = 0;
-
-  // A custom async abstraction (a pair of async handle and a state variable)
-  // Used by embedders to shutdown running Node instance.
-  AsyncRequest thread_stopper_;
+  std::atomic_bool is_stopping_ { false };
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);
