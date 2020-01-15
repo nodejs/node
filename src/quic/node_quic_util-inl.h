@@ -326,7 +326,7 @@ StatsBase<T>::StatsBase(
       env->context(),
       env->stats_string(),
       stats_buffer_.GetJSArray(),
-      PropertyAttribute::ReadOnly).Check();
+      v8::PropertyAttribute::ReadOnly).Check();
 
   if (options & HistogramOptions::ACK) {
     ack_ = HistogramBase::New(env, 1, kMax);
@@ -334,7 +334,7 @@ StatsBase<T>::StatsBase(
         env->context(),
         env->ack_string(),
         ack_->object(),
-        PropertyAttribute::ReadOnly).Check();
+        v8::PropertyAttribute::ReadOnly).Check();
   }
 
   if (options & HistogramOptions::RATE) {
@@ -343,7 +343,7 @@ StatsBase<T>::StatsBase(
         env->context(),
         env->rate_string(),
         rate_->object(),
-        PropertyAttribute::ReadOnly).Check();
+        v8::PropertyAttribute::ReadOnly).Check();
   }
 
   if (options & HistogramOptions::SIZE) {
@@ -352,7 +352,7 @@ StatsBase<T>::StatsBase(
         env->context(),
         env->size_string(),
         size_->object(),
-        PropertyAttribute::ReadOnly).Check();
+        v8::PropertyAttribute::ReadOnly).Check();
   }
 }
 
