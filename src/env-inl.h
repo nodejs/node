@@ -732,6 +732,7 @@ Environment::NativeImmediateQueue::Shift() {
     if (!head_)
       tail_ = nullptr;  // The queue is now empty.
   }
+  size_--;
   return ret;
 }
 
@@ -739,6 +740,7 @@ void Environment::NativeImmediateQueue::Push(
     std::unique_ptr<Environment::NativeImmediateCallback> cb) {
   NativeImmediateCallback* prev_tail = tail_;
 
+  size_++;
   tail_ = cb.get();
   if (prev_tail != nullptr)
     prev_tail->set_next(std::move(cb));
@@ -756,6 +758,10 @@ void Environment::NativeImmediateQueue::ConcatMove(
   tail_ = other.tail_;
   other.tail_ = nullptr;
   other.size_ = 0;
+}
+
+size_t Environment::NativeImmediateQueue::size() const {
+  return size_.load();
 }
 
 template <typename Fn>
@@ -777,6 +783,17 @@ void Environment::SetImmediate(Fn&& cb) {
 template <typename Fn>
 void Environment::SetUnrefImmediate(Fn&& cb) {
   CreateImmediate(std::move(cb), false);
+}
+
+template <typename Fn>
+void Environment::SetImmediateThreadsafe(Fn&& cb) {
+  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
+      std::move(cb), false);
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    native_immediates_threadsafe_.Push(std::move(callback));
+  }
+  uv_async_send(&task_queues_async_);
 }
 
 Environment::NativeImmediateCallback::NativeImmediateCallback(bool refed)
@@ -1138,7 +1155,7 @@ void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
 inline void Environment::RegisterFinalizationGroupForCleanup(
     v8::Local<v8::FinalizationGroup> group) {
   cleanup_finalization_groups_.emplace_back(isolate(), group);
-  uv_async_send(&cleanup_finalization_groups_async_);
+  uv_async_send(&task_queues_async_);
 }
 
 size_t CleanupHookCallback::Hash::operator()(
