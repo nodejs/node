@@ -48,7 +48,7 @@ typedef void(*ConnectionIDStrategy)(
 
 typedef void(*StatelessResetTokenStrategy)(
     QuicSession* session,
-    ngtcp2_cid* cid,
+    const QuicCID& cid,
     uint8_t* token,
     size_t tokenlen);
 
@@ -87,20 +87,20 @@ class QuicSessionConfig : public ngtcp2_settings {
   void Set(Environment* env,
            const struct sockaddr* preferred_addr = nullptr);
 
-  inline void set_original_connection_id(const ngtcp2_cid* ocid);
+  inline void set_original_connection_id(const QuicCID& ocid);
 
   // Generates the stateless reset token for the settings_
   inline void GenerateStatelessResetToken(
       StatelessResetTokenStrategy strategy,
       QuicSession* session,
-      ngtcp2_cid* cid);
+      const QuicCID& cid);
 
   // If the preferred address is set, generates the associated tokens
   inline void GeneratePreferredAddressToken(
       ConnectionIDStrategy connection_id_strategy,
       StatelessResetTokenStrategy stateless_reset_strategy,
       QuicSession* session,
-      ngtcp2_cid* pscid);
+      QuicCID* pscid);
 
   inline void set_qlog(const ngtcp2_qlog_settings& qlog);
 };
@@ -399,7 +399,7 @@ class QuicCryptoContext : public MemoryRetainer {
 
   inline void set_tls_alert(int err);
 
-  inline  bool SetupInitialKey(const ngtcp2_cid* dcid);
+  inline bool SetupInitialKey(const QuicCID& dcid);
 
   ngtcp2_crypto_side side() const { return side_; }
 
@@ -627,11 +627,11 @@ class QuicSession : public AsyncWrap,
   static BaseObjectPtr<QuicSession> CreateServer(
       QuicSocket* socket,
       const QuicSessionConfig& config,
-      const ngtcp2_cid* rcid,
+      const QuicCID& rcid,
       const SocketAddress& local_addr,
       const struct sockaddr* remote_addr,
-      const ngtcp2_cid* dcid,
-      const ngtcp2_cid* ocid,
+      const QuicCID& dcid,
+      const QuicCID& ocid,
       uint32_t version,
       const std::string& alpn = NGTCP2_ALPN_H3,
       uint32_t options = 0,
@@ -675,7 +675,7 @@ class QuicSession : public AsyncWrap,
       // is always required.
       const std::string& alpn,
       const std::string& hostname,
-      const ngtcp2_cid* rcid,
+      const QuicCID& rcid,
       uint32_t options = 0,
       PreferredAddressStrategy preferred_address_strategy =
           IgnorePreferredAddressStrategy,
@@ -686,11 +686,11 @@ class QuicSession : public AsyncWrap,
       QuicSocket* socket,
       const QuicSessionConfig& config,
       v8::Local<v8::Object> wrap,
-      const ngtcp2_cid* rcid,
+      const QuicCID& rcid,
       const SocketAddress& local_addr,
       const struct sockaddr* remote_addr,
-      const ngtcp2_cid* dcid,
-      const ngtcp2_cid* ocid,
+      const QuicCID& dcid,
+      const QuicCID& ocid,
       uint32_t version,
       const std::string& alpn,
       uint32_t options,
@@ -716,6 +716,7 @@ class QuicSession : public AsyncWrap,
   ~QuicSession() override;
 
   std::string diagnostic_name() const override;
+  inline QuicCID dcid() const;
 
   QuicApplication* application() const { return application_.get(); }
 
@@ -796,11 +797,6 @@ class QuicSession : public AsyncWrap,
   // The fact that the session is not tied intrinsically to
   // a single address is one of the benefits of QUIC.
   const SocketAddress& remote_address() const { return remote_address_; }
-
-  const ngtcp2_cid* scid() const { return &scid_; }
-
-  // Only used with server sessions
-  const ngtcp2_cid* rcid() const { return &rcid_; }
 
   inline QuicSocket* socket() const;
 
@@ -1066,7 +1062,7 @@ class QuicSession : public AsyncWrap,
 
   static void CryptoStatelessResetTokenStrategy(
         QuicSession* session,
-        ngtcp2_cid* cid,
+        const QuicCID& cid,
         uint8_t* token,
         size_t tokenlen);
 
@@ -1075,8 +1071,8 @@ class QuicSession : public AsyncWrap,
       QuicSessionConfig config,
       const SocketAddress& local_addr,
       const struct sockaddr* remote_addr,
-      const ngtcp2_cid* dcid,
-      const ngtcp2_cid* ocid,
+      const QuicCID& dcid,
+      const QuicCID& ocid,
       uint32_t version,
       QlogMode qlog);
 
@@ -1095,9 +1091,9 @@ class QuicSession : public AsyncWrap,
       int64_t stream_id,
       uint64_t offset,
       size_t datalen);
-  inline void AssociateCID(ngtcp2_cid* cid);
 
-  inline void DisassociateCID(const ngtcp2_cid* cid);
+  inline void AssociateCID(const QuicCID& cid);
+  inline void DisassociateCID(const QuicCID& cid);
   inline void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data);
   void ExtendMaxStreams(bool bidi, uint64_t max_streams);
   inline void ExtendMaxStreamsUni(uint64_t max_streams);
@@ -1110,10 +1106,10 @@ class QuicSession : public AsyncWrap,
   void PathValidation(
     const ngtcp2_path* path,
     ngtcp2_path_validation_result res);
-  bool ReceiveClientInitial(const ngtcp2_cid* dcid);
+  bool ReceiveClientInitial(const QuicCID& dcid);
   bool ReceivePacket(ngtcp2_path* path, const uint8_t* data, ssize_t nread);
   bool ReceiveRetry();
-  inline void RemoveConnectionID(const ngtcp2_cid* cid);
+  inline void RemoveConnectionID(const QuicCID& cid);
   void ScheduleRetransmit();
   bool SendPacket(std::unique_ptr<QuicPacket> packet);
   inline void set_local_address(const ngtcp2_addr* addr);
@@ -1410,9 +1406,9 @@ class QuicSession : public AsyncWrap,
   TimerPointer idle_;
   TimerPointer retransmit_;
 
-  ngtcp2_cid scid_;
-  ngtcp2_cid rcid_;
-  ngtcp2_cid pscid_{};
+  QuicCID scid_;
+  QuicCID rcid_;
+  QuicCID pscid_;
   ngtcp2_transport_params transport_params_;
 
   std::unique_ptr<QuicPacket> conn_closebuf_;

@@ -23,7 +23,7 @@ namespace quic {
 void QuicSessionConfig::GenerateStatelessResetToken(
     StatelessResetTokenStrategy strategy,
     QuicSession* session,
-    ngtcp2_cid* cid) {
+    const QuicCID& cid) {
   transport_params.stateless_reset_token_present = 1;
   strategy(
       session,
@@ -36,18 +36,18 @@ void QuicSessionConfig::GeneratePreferredAddressToken(
     ConnectionIDStrategy connection_id_strategy,
     StatelessResetTokenStrategy stateless_reset_strategy,
     QuicSession* session,
-    ngtcp2_cid* pscid) {
+    QuicCID* pscid) {
 
-  connection_id_strategy(session, pscid, kScidLen);
+  connection_id_strategy(session, pscid->cid(), kScidLen);
   stateless_reset_strategy(
       session,
-      pscid,
+      *pscid,
       transport_params.preferred_address.stateless_reset_token,
       NGTCP2_STATELESS_RESET_TOKENLEN);
-  transport_params.preferred_address.cid = *pscid;
+  transport_params.preferred_address.cid = **pscid;
 }
 
-void QuicSessionConfig::set_original_connection_id(const ngtcp2_cid* ocid) {
+void QuicSessionConfig::set_original_connection_id(const QuicCID& ocid) {
   if (ocid) {
     transport_params.original_connection_id = *ocid;
     transport_params.original_connection_id_present = 1;
@@ -130,7 +130,7 @@ void QuicCryptoContext::set_tls_alert(int err) {
 
 // Derives and installs the initial keying material for a newly
 // created session.
-bool QuicCryptoContext::SetupInitialKey(const ngtcp2_cid* dcid) {
+bool QuicCryptoContext::SetupInitialKey(const QuicCID& dcid) {
   Debug(session(), "Deriving and installing initial keys");
   return DeriveAndInstallInitialKey(session(), dcid);
 }
@@ -176,13 +176,13 @@ Environment* QuicApplication::env() const {
 }
 
 // Every QUIC session will have multiple CIDs associated with it.
-void QuicSession::AssociateCID(ngtcp2_cid* cid) {
-  socket()->AssociateCID(QuicCID(cid), QuicCID(scid_));
+void QuicSession::AssociateCID(const QuicCID& cid) {
+  socket()->AssociateCID(cid, scid_);
 }
 
-void QuicSession::DisassociateCID(const ngtcp2_cid* cid) {
+void QuicSession::DisassociateCID(const QuicCID& cid) {
   if (is_server())
-    socket()->DisassociateCID(QuicCID(cid));
+    socket()->DisassociateCID(cid);
 }
 
 void QuicSession::ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) {
@@ -284,9 +284,13 @@ void QuicSession::GetConnectionCloseInfo() {
 }
 
 // Removes the given connection id from the QuicSession.
-void QuicSession::RemoveConnectionID(const ngtcp2_cid* cid) {
+void QuicSession::RemoveConnectionID(const QuicCID& cid) {
   if (!is_flag_set(QUICSESSION_FLAG_DESTROYED))
     DisassociateCID(cid);
+}
+
+QuicCID QuicSession::dcid() const {
+  return QuicCID(ngtcp2_conn_get_dcid(connection()));
 }
 
 // The retransmit timer allows us to trigger retransmission

@@ -1179,6 +1179,7 @@
           ],
           'sources': [
             'test/cctest/test_quic_buffer.cc',
+            'test/cctest/test_quic_cid.cc',
             'test/cctest/test_quic_verifyhostnameidentity.cc'
           ]
         }],

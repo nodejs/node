@@ -106,7 +106,7 @@ void GenerateRandData(uint8_t* buf, size_t len) {
 bool GenerateResetToken(
     uint8_t* token,
     const uint8_t* secret,
-    const ngtcp2_cid* cid) {
+    const QuicCID& cid) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
   return NGTCP2_OK(ngtcp2_crypto_hkdf_expand(
@@ -123,7 +123,7 @@ bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
     const sockaddr* addr,
-    const ngtcp2_cid* ocid,
+    const QuicCID& ocid,
     const uint8_t* token_secret) {
   std::array<uint8_t, 4096> plaintext;
   uint8_t rand_data[kTokenRandLen];
@@ -180,7 +180,7 @@ bool InvalidRetryToken(
     const uint8_t* token,
     size_t tokenlen,
     const sockaddr* addr,
-    ngtcp2_cid* ocid,
+    QuicCID* ocid,
     const uint8_t* token_secret,
     uint64_t verification_expiration) {
 
@@ -245,7 +245,10 @@ bool InvalidRetryToken(
   if (t + verification_expiration * NGTCP2_SECONDS < now)
     return true;
 
-  ngtcp2_cid_init(ocid, plaintext.data() + addrlen + sizeof(uint64_t), cil);
+  ngtcp2_cid_init(
+      ocid->cid(),
+      plaintext.data() + addrlen + sizeof(uint64_t),
+      cil);
 
   return false;
 }
@@ -786,7 +789,7 @@ bool SetCryptoSecrets(
 
 bool DeriveAndInstallInitialKey(
     QuicSession* session,
-    const ngtcp2_cid* dcid) {
+    const QuicCID& dcid) {
   uint8_t initial_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
   uint8_t rx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
   uint8_t tx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
@@ -807,7 +810,7 @@ bool DeriveAndInstallInitialKey(
       tx_key,
       tx_iv,
       tx_hp,
-      dcid,
+      dcid.cid(),
       session->crypto_context()->side()));
 }
 

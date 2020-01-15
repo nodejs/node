@@ -223,9 +223,14 @@ class QuicCID : public MemoryRetainer {
   const ngtcp2_cid& operator*() const { return cid_; }
   const ngtcp2_cid* operator->() const { return &cid_; }
   const ngtcp2_cid* cid() const { return &cid_; }
+  ngtcp2_cid* cid() { return &cid_; }
+  operator bool() const { return cid_.datalen > 0; }
 
   const uint8_t* data() const { return cid_.data; }
   size_t length() const { return cid_.datalen; }
+
+  unsigned char* data() { return reinterpret_cast<unsigned char*>(cid_.data); }
+  void set_length(size_t length) { cid_.datalen = length; }
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(QuicCID)

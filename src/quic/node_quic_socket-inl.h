@@ -60,12 +60,15 @@ void QuicEndpoint::WaitForPendingCallbacks() {
 void QuicSocket::AssociateCID(
     const QuicCID& cid,
     const QuicCID& scid) {
-  dcid_to_scid_[cid] = scid;
+  if (cid && scid)
+    dcid_to_scid_[cid] = scid;
 }
 
 void QuicSocket::DisassociateCID(const QuicCID& cid) {
-  Debug(this, "Removing association for cid %s", cid.ToHex().c_str());
-  dcid_to_scid_.erase(cid);
+  if (cid) {
+    Debug(this, "Removing association for cid %s", cid.ToHex().c_str());
+    dcid_to_scid_.erase(cid);
+  }
 }
 
 void QuicSocket::AssociateStatelessResetToken(

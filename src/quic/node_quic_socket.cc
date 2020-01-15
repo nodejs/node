@@ -658,7 +658,7 @@ bool QuicSocket::SendStatelessReset(
   if (pktlen < kMinStatelessResetLen)
     return false;
 
-  GenerateResetToken(token, reset_token_secret_, cid.cid());
+  GenerateResetToken(token, reset_token_secret_, cid);
   EntropySource(random, kRandlen);
 
   auto packet = QuicPacket::Create("stateless reset", pktlen);
@@ -707,14 +707,8 @@ bool QuicSocket::SendRetry(
 
   // Retry tokens are generated cryptographically. They
   // aren't super expensive but they are still not zero-cost.
-  if (!GenerateRetryToken(
-          token,
-          &tokenlen,
-          remote_addr,
-          dcid.cid(),
-          token_secret_)) {
+  if (!GenerateRetryToken(token, &tokenlen, remote_addr, dcid, token_secret_))
     return false;
-  }
 
   ngtcp2_pkt_hd hd;
   hd.version = version;
@@ -724,7 +718,7 @@ bool QuicSocket::SendRetry(
   hd.token = nullptr;
   hd.tokenlen = 0;
   hd.len = 0;
-  hd.dcid = *scid.cid();
+  hd.dcid = *scid;
   hd.scid.datalen = kScidLen;
 
   EntropySource(hd.scid.data, kScidLen);
@@ -764,8 +758,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   ngtcp2_pkt_hd hd;
-  ngtcp2_cid ocid;
-  ngtcp2_cid* ocid_ptr = nullptr;
+  QuicCID ocid;
   uint64_t initial_connection_close = NGTCP2_NO_ERROR;
 
   // If the QuicSocket is not listening, the paket will be ignored.
@@ -850,7 +843,6 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
       }
       Debug(this, "A valid retry token was found. Continuing.");
       set_validated_address(remote_addr);
-      ocid_ptr = &ocid;
     } else {
       Debug(this, "Skipping validation for recently validated address.");
     }
@@ -860,11 +852,11 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
       QuicSession::CreateServer(
           this,
           server_session_config_,
-          dcid.cid(),
+          dcid,
           local_addr,
           remote_addr,
-          scid.cid(),
-          ocid_ptr,
+          scid,
+          ocid,
           version,
           server_alpn_,
           server_options_,

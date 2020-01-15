@@ -708,7 +708,7 @@ void QuicSession::RandomConnectionIDStrategy(
 // additional state.
 void QuicSession::CryptoStatelessResetTokenStrategy(
     QuicSession* session,
-    ngtcp2_cid* cid,
+    const QuicCID& cid,
     uint8_t* token,
     size_t tokenlen) {
   // For the current time, we limit stateless reset token lengths to
@@ -1249,11 +1249,11 @@ QuicSession::QuicSession(
     QuicSocket* socket,
     const QuicSessionConfig& config,
     Local<Object> wrap,
-    const ngtcp2_cid* rcid,
+    const QuicCID& rcid,
     const SocketAddress& local_addr,
     const struct sockaddr* remote_addr,
-    const ngtcp2_cid* dcid,
-    const ngtcp2_cid* ocid,
+    const QuicCID& dcid,
+    const QuicCID& ocid,
     uint32_t version,
     const std::string& alpn,
     uint32_t options,
@@ -1298,7 +1298,7 @@ QuicSession::QuicSession(
         AsyncWrap::PROVIDER_QUICCLIENTSESSION,
         alpn,
         hostname,
-        nullptr,  // rcid only used on the server
+        QuicCID(),
         options,
         preferred_address_strategy) {
   CHECK(InitClient(
@@ -1320,7 +1320,7 @@ QuicSession::QuicSession(
     AsyncWrap::ProviderType provider_type,
     const std::string& alpn,
     const std::string& hostname,
-    const ngtcp2_cid* rcid,
+    const QuicCID& rcid,
     uint32_t options,
     PreferredAddressStrategy preferred_address_strategy,
     uint64_t initial_connection_close)
@@ -1335,6 +1335,7 @@ QuicSession::QuicSession(
     initial_connection_close_(initial_connection_close),
     idle_(new Timer(socket->env(), [this]() { OnIdleTimeout(); })),
     retransmit_(new Timer(socket->env(), [this]() { MaybeTimeout(); })),
+    rcid_(rcid),
     state_(env()->isolate(), IDX_QUIC_SESSION_STATE_COUNT) {
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
@@ -1342,8 +1343,6 @@ QuicSession::QuicSession(
   set_preferred_address_strategy(preferred_address_strategy);
   crypto_context_.reset(new QuicCryptoContext(this, ctx, side, options));
   application_.reset(SelectApplication(this));
-  if (rcid != nullptr)
-    rcid_ = *rcid;
 
   // TODO(@jasnell): For now, the following is a check rather than properly
   // handled. Before this code moves out of experimental, this should be
@@ -1465,23 +1464,19 @@ void QuicSession::AckedStreamDataOffset(
 // here is that any CID's associated with the session have to
 // be associated with the new QuicSocket.
 void QuicSession::AddToSocket(QuicSocket* socket) {
-  QuicCID scid(scid_);
-  socket->AddSession(scid, BaseObjectPtr<QuicSession>(this));
+  socket->AddSession(scid_, BaseObjectPtr<QuicSession>(this));
 
   switch (crypto_context_->side()) {
     case NGTCP2_CRYPTO_SIDE_SERVER: {
-      socket->AssociateCID(QuicCID(rcid_), scid);
-
-      if (pscid_.datalen)
-        socket->AssociateCID(QuicCID(pscid_), scid);
-
+      socket->AssociateCID(rcid_, scid_);
+      socket->AssociateCID(pscid_, scid_);
       break;
     }
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
       std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(connection()));
       ngtcp2_conn_get_scid(connection(), cids.data());
       for (const ngtcp2_cid& cid : cids)
-        socket->AssociateCID(QuicCID(&cid), scid);
+        socket->AssociateCID(QuicCID(&cid), scid_);
       break;
     }
     default:
@@ -1621,13 +1616,9 @@ int QuicSession::GetNewConnectionID(
   DCHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
   CHECK_NOT_NULL(connection_id_strategy_);
   connection_id_strategy_(this, cid, cidlen);
-  stateless_reset_strategy_(
-      this,
-      cid,
-      token,
-      NGTCP2_STATELESS_RESET_TOKENLEN);
-
-  AssociateCID(cid);
+  QuicCID cid_(cid);
+  stateless_reset_strategy_(this, cid_, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  AssociateCID(cid_);
   return 0;
 }
 
@@ -1737,9 +1728,7 @@ bool QuicSession::ReceiveRetry() {
     return false;
   Debug(this, "A retry packet was received. Restarting the handshake.");
   IncrementStat(&QuicSessionStats::retry_count);
-  return DeriveAndInstallInitialKey(
-    this,
-    ngtcp2_conn_get_dcid(connection()));
+  return DeriveAndInstallInitialKey(this, dcid());
 }
 
 // When the QuicSocket receives a QUIC packet, it is forwarded on to here
@@ -1868,7 +1857,7 @@ bool QuicSession::Receive(
 // a new connection has been initiated. The very first step to
 // establishing a communication channel is to setup the keys
 // that will be used to secure the communication.
-bool QuicSession::ReceiveClientInitial(const ngtcp2_cid* dcid) {
+bool QuicSession::ReceiveClientInitial(const QuicCID& dcid) {
   if (UNLIKELY(is_flag_set(QUICSESSION_FLAG_DESTROYED)))
     return false;
   Debug(this, "Receiving client initial parameters.");
@@ -1908,8 +1897,8 @@ bool QuicSession::ReceivePacket(
         if (err == NGTCP2_ERR_RETRY && is_server()) {
           socket()->SendRetry(
               negotiated_version(),
-              QuicCID(scid()),
-              QuicCID(rcid()),
+              scid_,
+              rcid_,
               local_address_,
               remote_address_.data());
           ImmediateClose();
@@ -1967,10 +1956,8 @@ bool QuicSession::ReceiveStreamData(
 // the session object will be destroyed automatically.
 void QuicSession::RemoveFromSocket() {
   if (is_server()) {
-    socket_->DisassociateCID(QuicCID(rcid_));
-
-    if (pscid_.datalen > 0)
-      socket_->DisassociateCID(QuicCID(pscid_));
+    socket_->DisassociateCID(rcid_);
+    socket_->DisassociateCID(pscid_);
   }
 
   std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(connection()));
@@ -1990,7 +1977,7 @@ void QuicSession::RemoveFromSocket() {
   }
 
   Debug(this, "Removed from the QuicSocket.");
-  socket_->RemoveSession(QuicCID(scid_), remote_address_);
+  socket_->RemoveSession(scid_, remote_address_);
   socket_.reset();
 }
 
@@ -2570,11 +2557,11 @@ QuicSession::InitialPacketResult QuicSession::Accept(
 BaseObjectPtr<QuicSession> QuicSession::CreateServer(
     QuicSocket* socket,
     const QuicSessionConfig& config,
-    const ngtcp2_cid* rcid,
+    const QuicCID& rcid,
     const SocketAddress& local_addr,
     const struct sockaddr* remote_addr,
-    const ngtcp2_cid* dcid,
-    const ngtcp2_cid* ocid,
+    const QuicCID& dcid,
+    const QuicCID& ocid,
     uint32_t version,
     const std::string& alpn,
     uint32_t options,
@@ -2611,8 +2598,8 @@ void QuicSession::InitServer(
     QuicSessionConfig config,
     const SocketAddress& local_addr,
     const struct sockaddr* remote_addr,
-    const ngtcp2_cid* dcid,
-    const ngtcp2_cid* ocid,
+    const QuicCID& dcid,
+    const QuicCID& ocid,
     uint32_t version,
     QlogMode qlog) {
 
@@ -2627,12 +2614,12 @@ void QuicSession::InitServer(
 
   config.set_original_connection_id(ocid);
 
-  connection_id_strategy_(this, &scid_, kScidLen);
+  connection_id_strategy_(this, scid_.cid(), kScidLen);
 
   config.GenerateStatelessResetToken(
       stateless_reset_strategy_,
       this,
-      &scid_);
+      scid_);
 
   config.GeneratePreferredAddressToken(
       connection_id_strategy_,
@@ -2649,8 +2636,8 @@ void QuicSession::InitServer(
   CHECK_EQ(
       ngtcp2_conn_server_new(
           &conn,
-          dcid,
-          &scid_,
+          dcid.cid(),
+          scid_.cid(),
           &path,
           version,
           &callbacks[crypto_context_->side()],
@@ -2796,7 +2783,7 @@ bool QuicSession::InitClient(
   ExtendMaxStreamsBidi(DEFAULT_MAX_STREAMS_BIDI);
   ExtendMaxStreamsUni(DEFAULT_MAX_STREAMS_UNI);
 
-  connection_id_strategy_(this, &scid_, NGTCP2_MAX_CIDLEN);
+  connection_id_strategy_(this, scid_.cid(), NGTCP2_MAX_CIDLEN);
 
   ngtcp2_cid dcid;
   if (dcid_value->IsArrayBufferView()) {
@@ -2819,7 +2806,7 @@ bool QuicSession::InitClient(
       ngtcp2_conn_client_new(
           &conn,
           &dcid,
-          &scid_,
+          scid_.cid(),
           &path,
           NGTCP2_PROTO_VER,
           &callbacks[crypto_context_->side()],
@@ -2832,8 +2819,7 @@ bool QuicSession::InitClient(
 
   InitializeTLS(this);
 
-  CHECK(DeriveAndInstallInitialKey(
-      this, ngtcp2_conn_get_dcid(connection())));
+  CHECK(DeriveAndInstallInitialKey(this, this->dcid()));
 
   // Remote Transport Params
   if (early_transport_params->IsArrayBufferView()) {
@@ -2886,7 +2872,7 @@ int QuicSession::OnReceiveClientInitial(
     void* user_data) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   QuicSession::Ngtcp2CallbackScope callback_scope(session);
-  if (!session->ReceiveClientInitial(dcid)) {
+  if (!session->ReceiveClientInitial(QuicCID(dcid))) {
     Debug(session, "Receiving initial client handshake failed");
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -3233,7 +3219,7 @@ int QuicSession::OnRemoveConnectionID(
     const ngtcp2_cid* cid,
     void* user_data) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
-  session->RemoveConnectionID(cid);
+  session->RemoveConnectionID(QuicCID(cid));
   return 0;
 }
 

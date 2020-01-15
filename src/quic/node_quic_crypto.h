@@ -51,7 +51,7 @@ void InitializeTLS(QuicSession* session);
 // client hello.
 bool DeriveAndInstallInitialKey(
     QuicSession* session,
-    const ngtcp2_cid* dcid);
+    const QuicCID& dcid);
 
 // Generates a stateless reset token using HKDF with the
 // cid and token secret as input. The token secret is
@@ -67,7 +67,7 @@ bool DeriveAndInstallInitialKey(
 bool GenerateResetToken(
     uint8_t* token,
     const uint8_t* secret,
-    const ngtcp2_cid* cid);
+    const QuicCID& cid);
 
 // The Retry Token is an encrypted token that is sent to the client
 // by the server as part of the path validation flow. The plaintext
@@ -82,7 +82,7 @@ bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
     const sockaddr* addr,
-    const ngtcp2_cid* ocid,
+    const QuicCID& ocid,
     const uint8_t* token_secret);
 
 // Verifies the validity of a retry token. Returns true if the
@@ -91,7 +91,7 @@ bool InvalidRetryToken(
     const uint8_t* token,
     size_t tokenlen,
     const sockaddr* addr,
-    ngtcp2_cid* ocid,
+    QuicCID* ocid,
     const uint8_t* token_secret,
     uint64_t verification_expiration);
 
