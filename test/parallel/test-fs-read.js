@@ -75,7 +75,7 @@ assert.throws(() => new fs.Dir(), {
 assert.throws(
   () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
   {
-    message: 'Callback must be a function. Received undefined',
+    message: 'Callback must be a function. Received 0',
     code: 'ERR_INVALID_CALLBACK',
   }
 );
