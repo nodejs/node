@@ -900,6 +900,10 @@ void MessagePort::Entangle(MessagePort* a, MessagePortData* b) {
   MessagePortData::Entangle(a->data_.get(), b);
 }
 
+void MessagePort::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("data", data_);
+}
+
 Local<FunctionTemplate> GetMessagePortConstructorTemplate(Environment* env) {
   // Factor generating the MessagePort JS constructor into its own piece
   // of code, because it is needed early on in the child environment setup.

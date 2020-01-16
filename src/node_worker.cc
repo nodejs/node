@@ -656,6 +656,10 @@ void Worker::Exit(int code) {
   }
 }
 
+void Worker::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("parent_port", parent_port_);
+}
+
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates

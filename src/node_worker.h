@@ -39,13 +39,10 @@ class Worker : public AsyncWrap {
   // Wait for the worker thread to stop (in a blocking manner).
   void JoinThread();
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("parent_port", parent_port_);
-  }
-
   template <typename Fn>
   inline bool RequestInterrupt(Fn&& cb);
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
 
