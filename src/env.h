@@ -1064,6 +1064,8 @@ class Environment : public MemoryRetainer {
   inline void add_sub_worker_context(worker::Worker* context);
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
+  template <typename Fn>
+  inline void ForEachWorker(Fn&& iterator);
   inline bool is_stopping() const;
   inline void set_stopping(bool value);
   inline std::list<node_module>* extra_linked_bindings();
