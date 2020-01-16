@@ -50,7 +50,6 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     object_(object),
     skip_hooks_(flags & kSkipAsyncHooks),
     skip_task_queues_(flags & kSkipTaskQueues) {
-  CHECK_IMPLIES(!(flags & kAllowEmptyResource), !object.IsEmpty());
   CHECK_NOT_NULL(env);
   env->PushAsyncCallbackScope();
 

@@ -68,10 +68,7 @@ inline AsyncHooks::AsyncHooks()
     : async_ids_stack_(env()->isolate(), 16 * 2),
       fields_(env()->isolate(), kFieldsCount),
       async_id_fields_(env()->isolate(), kUidFieldsCount) {
-  v8::Isolate* isolate = env()->isolate();
-  v8::HandleScope handle_scope(isolate);
-
-  execution_async_resources_.Reset(isolate, v8::Array::New(isolate));
+  clear_async_id_stack();
 
   // Always perform async_hooks checks, not just when async_hooks is enabled.
   // TODO(AndreasMadsen): Consider removing this for LTS releases.
@@ -117,7 +114,7 @@ inline AliasedFloat64Array& AsyncHooks::async_ids_stack() {
 }
 
 inline v8::Local<v8::Array> AsyncHooks::execution_async_resources() {
-  return execution_async_resources_.Get(env()->isolate());
+  return PersistentToLocal::Strong(execution_async_resources_);
 }
 
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
@@ -155,7 +152,7 @@ inline void AsyncHooks::push_async_context(double async_id,
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
 
   auto resources = execution_async_resources();
-  resources->Set(env()->context(), offset, resource).Check();
+  USE(resources->Set(env()->context(), offset, resource));
 }
 
 // Remember to keep this code aligned with popAsyncContext() in JS.
@@ -189,7 +186,7 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
   fields_[kStackLength] = offset;
 
   auto resources = execution_async_resources();
-  resources->Delete(env()->context(), offset).FromJust();
+  USE(resources->Delete(env()->context(), offset));
 
   return fields_[kStackLength] > 0;
 }
@@ -197,6 +194,7 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
 // Keep in sync with clearAsyncIdStack in lib/internal/async_hooks.js.
 inline void AsyncHooks::clear_async_id_stack() {
   auto isolate = env()->isolate();
+  v8::HandleScope handle_scope(isolate);
   execution_async_resources_.Reset(isolate, v8::Array::New(isolate));
 
   async_id_fields_[kExecutionAsyncId] = 0;

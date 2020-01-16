@@ -45,7 +45,6 @@
 #include <cstdint>
 #include <functional>
 #include <list>
-#include <stack>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -664,7 +663,7 @@ class AsyncHooks : public MemoryRetainer {
   inline Environment* env();
 
   inline void push_async_context(double async_id, double trigger_async_id,
-    v8::Local<v8::Value> execution_async_resource_);
+      v8::Local<v8::Value> execution_async_resource_);
   inline bool pop_async_context(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
 

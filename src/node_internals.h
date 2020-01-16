@@ -208,15 +208,13 @@ class InternalCallbackScope {
  public:
   enum Flags {
     kNoFlags = 0,
-    // Tell the constructor whether its `object` parameter may be empty or not.
-    kAllowEmptyResource = 1,
     // Indicates whether 'before' and 'after' hooks should be skipped.
-    kSkipAsyncHooks = 2,
+    kSkipAsyncHooks = 1,
     // Indicates whether nextTick and microtask queues should be skipped.
     // This should only be used when there is no call into JS in this scope.
     // (The HTTP parser also uses it for some weird backwards
     // compatibility issues, but it shouldn't.)
-    kSkipTaskQueues = 4
+    kSkipTaskQueues = 2
   };
   InternalCallbackScope(Environment* env,
                         v8::Local<v8::Object> object,

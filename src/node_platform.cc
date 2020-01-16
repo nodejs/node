@@ -389,7 +389,7 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   if (env != nullptr) {
     v8::HandleScope scope(isolate);
     InternalCallbackScope cb_scope(env, Object::New(isolate), { 0, 0 },
-                                   InternalCallbackScope::kAllowEmptyResource);
+                                   InternalCallbackScope::kNoFlags);
     task->Run();
   } else {
     task->Run();

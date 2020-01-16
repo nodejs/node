@@ -123,8 +123,7 @@ int NodeMainInstance::Run() {
           env.get(),
           Object::New(isolate_),
           { 1, 0 },
-          InternalCallbackScope::kAllowEmptyResource |
-              InternalCallbackScope::kSkipAsyncHooks);
+          InternalCallbackScope::kSkipAsyncHooks);
       LoadEnvironment(env.get());
     }
 

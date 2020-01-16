@@ -5,7 +5,6 @@ const assert = require('assert');
 const { executionAsyncResource, createHook } = require('async_hooks');
 const { createServer, get } = require('http');
 const sym = Symbol('cls');
-const id = Symbol('id');
 
 // Tests continuation local storage with the executionAsyncResource API
 
@@ -14,10 +13,7 @@ assert.ok(executionAsyncResource());
 createHook({
   init(asyncId, type, triggerAsyncId, resource) {
     const cr = executionAsyncResource();
-    resource[id] = asyncId;
-    if (cr) {
-      resource[sym] = cr[sym];
-    }
+    resource[sym] = cr[sym];
   }
 }).enable();
 
