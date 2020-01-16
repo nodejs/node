@@ -2775,6 +2775,29 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
+## `fs.read(fd, [options,] callback)`
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31402
+    description: Options object can be passed in
+                 to make Buffer, offset, length and position optional
+-->
+* `fd` {integer}
+* `options` {Object}
+  * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.length`
+  * `position` {integer} **Default:** `null`
+* `callback` {Function}
+  * `err` {Error}
+  * `bytesRead` {integer}
+  * `buffer` {Buffer}
+
+Similar to the above `fs.read` function, this version takes an optional `options` object.
+If no `options` object is specified, it will default with the above values.
+
 ## `fs.readdir(path[, options], callback)`
 <!-- YAML
 added: v0.1.8
@@ -4364,6 +4387,17 @@ If `position` is an integer, the file position will remain unchanged.
 Following successful read, the `Promise` is resolved with an object with a
 `bytesRead` property specifying the number of bytes read, and a `buffer`
 property that is a reference to the passed in `buffer` argument.
+
+#### `filehandle.read(options)`
+<!-- YAML
+added: REPLACEME
+-->
+* `options` {Object}
+  * `buffer` {Buffer|Uint8Array} **Default:** `Buffer.alloc(16384)`
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.length`
+  * `position` {integer} **Default:** `null`
+* Returns: {Promise}
 
 #### `filehandle.readFile(options)`
 <!-- YAML
