@@ -895,6 +895,9 @@ added: v0.1.90
 Sets the socket to timeout after `timeout` milliseconds of inactivity on
 the socket. By default `net.Socket` do not have a timeout.
 
+ > Note: Prior to Node.js 13.0.0, [`http.Server`][], [`https.Server`][] and
+ > [`http2.Http2Server`][] have a different default socket timeout value.
+
 When an idle timeout is triggered the socket will receive a [`'timeout'`][]
 event but the connection will not be severed. The user must manually call
 [`socket.end()`][] or [`socket.destroy()`][] to end the connection.
@@ -1244,6 +1247,9 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`net.createConnection(port, host)`]: #net_net_createconnection_port_host_connectlistener
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`new net.Socket(options)`]: #net_new_net_socket_options
+[`http.Server`]: http.html#http_class_http_server
+[`http2.Http2Server`]: http2.html#http2_class_http2server
+[`https.Server`]: https.html#https_class_https_server
 [`readable.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [`server.close()`]: #net_server_close_callback
 [`server.getConnections()`]: #net_server_getconnections_callback
