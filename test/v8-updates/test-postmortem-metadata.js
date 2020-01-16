@@ -48,7 +48,8 @@ const missing = getExpectedSymbols().filter((symbol) => {
   return !symbols.includes(symbol);
 });
 
-assert.strictEqual(missing.length, 0, `Missing constants: ${missing}`);
+assert.strictEqual(missing.length, 0,
+                   `Missing constants: \n${missing.join('\n')}`);
 
 // This is only a function so that the long list of expected symbols can be
 // pushed to the bottom of the file for improved readability.
@@ -58,6 +59,7 @@ function getExpectedSymbols() {
     // should only consist of postmortem constants, and some of them can be
     // relatively long.
     /* eslint-disable max-len */
+    'v8dbg_class_DescriptorArray__header_size__uintptr_t',
     'v8dbg_bit_field3_is_dictionary_map_shift',
     'v8dbg_bit_field3_number_of_own_descriptors_shift',
     'v8dbg_class_Code__instruction_size__int',
