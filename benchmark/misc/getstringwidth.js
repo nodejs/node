@@ -10,6 +10,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, type }) {
+  // Default value for testing purposes.
+  type = type || 'ascii';
   const { getStringWidth } = require('internal/readline/utils');
 
   const str = ({
