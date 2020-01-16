@@ -53,6 +53,10 @@ When implementing a worker pool, use the [`AsyncResource`][] API to inform
 diagnostic tools (e.g. in order to provide asynchronous stack traces) about the
 correlation between tasks and their outcomes.
 
+Worker threads inherit non-process-specific options by default. Refer to
+[`Worker constructor options`][] to know how to customize worker thread options,
+specifically `argv` and `execArgv` options.
+
 ## `worker.isMainThread`
 <!-- YAML
 added: v10.5.0
@@ -748,6 +752,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`trace_events`]: tracing.html
 [`vm`]: vm.html
+[`Worker constructor options`]: #worker_threads_new_worker_filename_options
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
 [`worker.SHARE_ENV`]: #worker_threads_worker_share_env
