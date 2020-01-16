@@ -191,10 +191,7 @@ class MessagePort : public HandleWrap {
   // NULL pointer to the C++ MessagePort object is also detached.
   inline bool IsDetached() const;
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("data", data_);
-  }
-
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(MessagePort)
   SET_SELF_SIZE(MessagePort)
 
