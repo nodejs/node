@@ -53,7 +53,6 @@ namespace fs {
 
 using v8::Array;
 using v8::Context;
-using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -68,8 +67,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::PropertyAttribute;
-using v8::ReadOnly;
 using v8::String;
 using v8::Symbol;
 using v8::Uint32;
@@ -138,15 +135,6 @@ FileHandle* FileHandle::New(Environment* env, int fd, Local<Object> obj) {
                             .ToLocal(&obj)) {
     return nullptr;
   }
-  PropertyAttribute attr =
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  if (obj->DefineOwnProperty(env->context(),
-                             env->fd_string(),
-                             Integer::New(env->isolate(), fd),
-                             attr)
-          .IsNothing()) {
-    return nullptr;
-  }
   return new FileHandle(env, obj, fd);
 }
 
@@ -190,11 +178,12 @@ inline void FileHandle::Close() {
   uv_fs_t req;
   int ret = uv_fs_close(env()->event_loop(), &req, fd_, nullptr);
   uv_fs_req_cleanup(&req);
-  AfterClose();
 
   struct err_detail { int ret; int fd; };
 
   err_detail detail { ret, fd_ };
+
+  AfterClose();
 
   if (ret < 0) {
     // Do not unref this
@@ -340,6 +329,7 @@ void FileHandle::ReleaseFD(const FunctionCallbackInfo<Value>& args) {
 void FileHandle::AfterClose() {
   closing_ = false;
   closed_ = true;
+  fd_ = -1;
   if (reading_ && !persistent().IsEmpty())
     EmitRead(UV_EOF);
 }
