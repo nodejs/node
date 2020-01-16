@@ -100,6 +100,8 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
 // This is also handling the case where the first line is not the binary.
 
 static struct text_region FindNodeTextRegion() {
+  struct text_region nregion;
+  nregion.found_text_region = false;
 #if defined(__linux__)
   std::ifstream ifs;
   std::string map_line;
@@ -107,9 +109,6 @@ static struct text_region FindNodeTextRegion() {
   std::string dev;
   char dash;
   uintptr_t start, end, offset, inode;
-  struct text_region nregion;
-
-  nregion.found_text_region = false;
 
   ifs.open("/proc/self/maps");
   if (!ifs) {
@@ -161,9 +160,6 @@ static struct text_region FindNodeTextRegion() {
 
   ifs.close();
 #elif defined(__FreeBSD__)
-  struct text_region nregion;
-  nregion.found_text_region = false;
-
   std::string exename;
   {
     char selfexe[PATH_MAX];
@@ -220,8 +216,6 @@ static struct text_region FindNodeTextRegion() {
     start += cursz;
   }
 #elif defined(__APPLE__)
-  struct text_region nregion;
-  nregion.found_text_region = false;
   struct vm_region_submap_info_64 map;
   mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
   vm_address_t addr = 0UL;
