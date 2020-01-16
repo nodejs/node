@@ -94,7 +94,7 @@ struct PackageConfig {
   enum class IsValid { Yes, No };
   enum class HasMain { Yes, No };
   enum class HasName { Yes, No };
-  enum PackageType : uint32_t { None = 0, CommonJS, Module };
+  enum PackageType : uint32_t { None = 0, CommonJS, Module, WASM };
 
   const Exists exists;
   const IsValid is_valid;
@@ -377,6 +377,7 @@ constexpr size_t kFsStatsBufferLength =
   V(value_string, "value")                                                     \
   V(verify_error_string, "verifyError")                                        \
   V(version_string, "version")                                                 \
+  V(wasm_string, "wasm")                                                       \
   V(weight_string, "weight")                                                   \
   V(windows_hide_string, "windowsHide")                                        \
   V(windows_verbatim_arguments_string, "windowsVerbatimArguments")             \

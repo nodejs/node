@@ -649,6 +649,8 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
       pkg_type = PackageType::Module;
     } else if (type_v->StrictEquals(env->commonjs_string())) {
       pkg_type = PackageType::CommonJS;
+    } else if (type_v->StrictEquals(env->wasm_string())) {
+      pkg_type = PackageType::WASM;
     }
     // ignore unknown types for forwards compatibility
   }
