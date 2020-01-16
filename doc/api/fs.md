@@ -1011,13 +1011,13 @@ numeric values will be `bigint` instead of `number`.
 
 ```console
 StatFs {
-  type: 1397114950,
-  bsize: 4096,
-  blocks: 121938943,
-  bfree: 61058895,
   bavail: 61058895,
+  bfree: 61058895,
+  blocks: 121938943,
+  bsize: 4096,
+  ffree: 1000000,
   files: 999,
-  ffree: 1000000
+  type: 1397114950
 }
 ```
 
@@ -1025,39 +1025,15 @@ StatFs {
 
 ```console
 StatFs {
-  type: 1397114950n,
-  bsize: 4096n,
-  blocks: 121938943n,
-  bfree: 61058895n,
   bavail: 61058895n,
+  bfree: 61058895n,
+  blocks: 121938943n,
+  bsize: 4096n,
+  ffree: 1000000n,
   files: 999n,
-  ffree: 1000000n
+  type: 1397114950n
 }
 ```
-
-### `statfs.type`
-
-* {number|bigint}
-
-Type of filesystem.
-
-### `statfs.bsize`
-
-* {number|bigint}
-
-Optimal transfer block size.
-
-### `statfs.blocks`
-
-* {number|bigint}
-
-Total data blocks in filesystem.
-
-### `statfs.bfree`
-
-* {number|bigint}
-
-Free blocks in filesystem.
 
 ### `statfs.bavail`
 
@@ -1065,17 +1041,41 @@ Free blocks in filesystem.
 
 Free blocks available to unprivileged user.
 
-### `statfs.files`
+### `statfs.bfree`
 
 * {number|bigint}
 
-Total file nodes in filesystem.
+Free blocks in filesystem.
+
+### `statfs.blocks`
+
+* {number|bigint}
+
+Total data blocks in filesystem.
+
+### `statfs.bsize`
+
+* {number|bigint}
+
+Optimal transfer block size.
 
 ### `statfs.ffree`
 
 * {number|bigint}
 
 Free file nodes in filesystem.
+
+### `statfs.files`
+
+* {number|bigint}
+
+Total file nodes in filesystem.
+
+### `statfs.type`
+
+* {number|bigint}
+
+Type of filesystem.
 
 ## Class: `fs.WriteStream`
 <!-- YAML
