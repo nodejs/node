@@ -1183,6 +1183,12 @@ class Environment : public MemoryRetainer {
   template <typename Fn>
   // This behaves like SetImmediate() but can be called from any thread.
   inline void SetImmediateThreadsafe(Fn&& cb);
+  // This behaves like V8's Isolate::RequestInterrupt(), but also accounts for
+  // the event loop (i.e. combines the V8 function with SetImmediate()).
+  // The passed callback may not throw exceptions.
+  // This function can be called from any thread.
+  template <typename Fn>
+  inline void RequestInterrupt(Fn&& cb);
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
@@ -1431,8 +1437,12 @@ class Environment : public MemoryRetainer {
   NativeImmediateQueue native_immediates_;
   Mutex native_immediates_threadsafe_mutex_;
   NativeImmediateQueue native_immediates_threadsafe_;
+  NativeImmediateQueue native_immediates_interrupts_;
 
   void RunAndClearNativeImmediates(bool only_refed = false);
+  void RunAndClearInterrupts();
+  Environment** interrupt_data_ = nullptr;
+  void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
   // Use an unordered_set, so that we have efficient insertion and removal.

@@ -388,6 +388,8 @@ Environment::Environment(IsolateData* isolate_data,
 }
 
 Environment::~Environment() {
+  if (interrupt_data_ != nullptr) *interrupt_data_ = nullptr;
+
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
 
@@ -651,10 +653,28 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_front(ExitCallback{cb, arg});
 }
 
+void Environment::RunAndClearInterrupts() {
+  while (native_immediates_interrupts_.size() > 0) {
+    NativeImmediateQueue queue;
+    {
+      Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+      queue.ConcatMove(std::move(native_immediates_interrupts_));
+    }
+    DebugSealHandleScope seal_handle_scope(isolate());
+
+    while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift())
+      head->Call(this);
+  }
+}
+
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
   size_t ref_count = 0;
+
+  // Handle interrupts first. These functions are not allowed to throw
+  // exceptions, so we do not need to handle that.
+  RunAndClearInterrupts();
 
   // It is safe to check .size() first, because there is a causal relationship
   // between pushes to the threadsafe and this function being called.
@@ -695,6 +715,27 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
     ToggleImmediateRef(false);
 }
 
+void Environment::RequestInterruptFromV8() {
+  if (interrupt_data_ != nullptr) return;  // Already scheduled.
+
+  // The Isolate may outlive the Environment, so some logic to handle the
+  // situation in which the Environment is destroyed before the handler runs
+  // is required.
+  interrupt_data_ = new Environment*(this);
+
+  isolate()->RequestInterrupt([](Isolate* isolate, void* data) {
+    std::unique_ptr<Environment*> env_ptr { static_cast<Environment**>(data) };
+    Environment* env = *env_ptr;
+    if (env == nullptr) {
+      // The Environment has already been destroyed. That should be okay; any
+      // callback added before the Environment shuts down would have been
+      // handled during cleanup.
+      return;
+    }
+    env->interrupt_data_ = nullptr;
+    env->RunAndClearInterrupts();
+  }, interrupt_data_);
+}
 
 void Environment::ScheduleTimer(int64_t duration_ms) {
   if (started_cleanup_) return;
