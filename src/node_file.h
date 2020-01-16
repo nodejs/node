@@ -205,7 +205,7 @@ class FileHandle final : public AsyncWrap, public StreamBase {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  int fd() const { return fd_; }
+  int GetFD() override { return fd_; }
 
   // Will asynchronously close the FD and return a Promise that will
   // be resolved once closing is complete.
