@@ -43,6 +43,9 @@ class Worker : public AsyncWrap {
     tracker->TrackField("parent_port", parent_port_);
   }
 
+  template <typename Fn>
+  inline bool RequestInterrupt(Fn&& cb);
+
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
 
@@ -122,6 +125,14 @@ class Worker : public AsyncWrap {
 
   friend class WorkerThreadData;
 };
+
+template <typename Fn>
+bool Worker::RequestInterrupt(Fn&& cb) {
+  Mutex::ScopedLock lock(mutex_);
+  if (env_ == nullptr) return false;
+  env_->RequestInterrupt(std::move(cb));
+  return true;
+}
 
 }  // namespace worker
 }  // namespace node

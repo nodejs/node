@@ -812,6 +812,18 @@ void Environment::SetImmediateThreadsafe(Fn&& cb) {
   uv_async_send(&task_queues_async_);
 }
 
+template <typename Fn>
+void Environment::RequestInterrupt(Fn&& cb) {
+  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
+      std::move(cb), false);
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    native_immediates_interrupts_.Push(std::move(callback));
+  }
+  uv_async_send(&task_queues_async_);
+  RequestInterruptFromV8();
+}
+
 Environment::NativeImmediateCallback::NativeImmediateCallback(bool refed)
   : refed_(refed) {}
 
