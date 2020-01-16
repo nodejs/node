@@ -134,8 +134,8 @@ class AsyncWrap : public BaseObject {
                          void* priv);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PushAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void PopAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PopAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
@@ -148,8 +148,7 @@ class AsyncWrap : public BaseObject {
                             double trigger_async_id);
 
   static void EmitDestroy(Environment* env, double async_id);
-  static void EmitBefore(Environment* env, double async_id,
-    v8::Local<v8::Object> resource);
+  static void EmitBefore(Environment* env, double async_id);
   static void EmitAfter(Environment* env, double async_id);
   static void EmitPromiseResolve(Environment* env, double async_id);
 

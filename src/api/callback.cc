@@ -66,11 +66,12 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   if (asyncContext.async_id != 0 && !skip_hooks_) {
     // No need to check a return value because the application will exit if
     // an exception occurs.
-    AsyncWrap::EmitBefore(env, asyncContext.async_id, object);
+    AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
 
-  env->async_hooks()->push_async_ids(async_context_.async_id,
-                               async_context_.trigger_async_id);
+  env->async_hooks()->push_async_context(async_context_.async_id,
+                              async_context_.trigger_async_id, object);
+
   pushed_ids_ = true;
 }
 
@@ -89,7 +90,7 @@ void InternalCallbackScope::Close() {
   }
 
   if (pushed_ids_)
-    env_->async_hooks()->pop_async_id(async_context_.async_id);
+    env_->async_hooks()->pop_async_context(async_context_.async_id);
 
   if (failed_) return;
 

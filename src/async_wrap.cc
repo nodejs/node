@@ -145,10 +145,7 @@ void AsyncWrap::EmitTraceEventBefore() {
 }
 
 
-void AsyncWrap::EmitBefore(Environment* env, double async_id,
-    v8::Local<v8::Object> resource) {
-  env->async_hooks()->push_execution_async_resource(resource);
-
+void AsyncWrap::EmitBefore(Environment* env, double async_id) {
   Emit(env, async_id, AsyncHooks::kBefore,
        env->async_hooks_before_function());
 }
@@ -175,8 +172,6 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
   // end of _fatalException().
   Emit(env, async_id, AsyncHooks::kAfter,
        env->async_hooks_after_function());
-
-  env->async_hooks()->pop_execution_async_resource();
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -265,10 +260,10 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   if (wrap == nullptr) return;
 
   if (type == PromiseHookType::kBefore) {
-    env->async_hooks()->push_async_ids(
-      wrap->get_async_id(), wrap->get_trigger_async_id());
+    env->async_hooks()->push_async_context(wrap->get_async_id(),
+      wrap->get_trigger_async_id(), wrap->object());
     wrap->EmitTraceEventBefore();
-    AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id(), wrap->object());
+    AsyncWrap::EmitBefore(wrap->env(), wrap->get_async_id());
   } else if (type == PromiseHookType::kAfter) {
     wrap->EmitTraceEventAfter(wrap->provider_type(), wrap->get_async_id());
     AsyncWrap::EmitAfter(wrap->env(), wrap->get_async_id());
@@ -278,7 +273,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       // Popping it off the stack can be skipped in that case, because it is
       // known that it would correspond to exactly one call with
       // PromiseHookType::kBefore that was not witnessed by the PromiseHook.
-      env->async_hooks()->pop_async_id(wrap->get_async_id());
+      env->async_hooks()->pop_async_context(wrap->get_async_id());
     }
   } else if (type == PromiseHookType::kResolve) {
     AsyncWrap::EmitPromiseResolve(wrap->env(), wrap->get_async_id());
@@ -387,22 +382,6 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
   p->target.SetWeak(p, AsyncWrap::WeakCallback, WeakCallbackType::kParameter);
 }
 
-static void GetExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(env->async_hooks()->get_execution_async_resource());
-}
-
-static void PushExecutionAsyncResource(
-  const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->async_hooks()->push_execution_async_resource(args[0]);
-}
-
-static void PopExecutionAsyncResource(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->async_hooks()->pop_execution_async_resource();
-}
-
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   args.GetReturnValue().Set(kInvalidAsyncId);
@@ -411,20 +390,20 @@ void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void AsyncWrap::PushAsyncIds(const FunctionCallbackInfo<Value>& args) {
+void AsyncWrap::PushAsyncContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   // No need for CHECK(IsNumber()) on args because if FromJust() doesn't fail
   // then the checks in push_async_ids() and pop_async_id() will.
   double async_id = args[0]->NumberValue(env->context()).FromJust();
   double trigger_async_id = args[1]->NumberValue(env->context()).FromJust();
-  env->async_hooks()->push_async_ids(async_id, trigger_async_id);
+  env->async_hooks()->push_async_context(async_id, trigger_async_id, args[2]);
 }
 
 
-void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
+void AsyncWrap::PopAsyncContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   double async_id = args[0]->NumberValue(env->context()).FromJust();
-  args.GetReturnValue().Set(env->async_hooks()->pop_async_id(async_id));
+  args.GetReturnValue().Set(env->async_hooks()->pop_async_context(async_id));
 }
 
 
@@ -484,17 +463,12 @@ void AsyncWrap::Initialize(Local<Object> target,
   HandleScope scope(isolate);
 
   env->SetMethod(target, "setupHooks", SetupHooks);
-  env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
-  env->SetMethod(target, "popAsyncIds", PopAsyncIds);
+  env->SetMethod(target, "pushAsyncContext", PushAsyncContext);
+  env->SetMethod(target, "popAsyncContext", PopAsyncContext);
   env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
   env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
-  env->SetMethod(target, "executionAsyncResource", GetExecutionAsyncResource);
-  env->SetMethod(target, "pushExecutionAsyncResource",
-                 PushExecutionAsyncResource);
-  env->SetMethod(target, "popExecutionAsyncResource",
-                 PopExecutionAsyncResource);
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
@@ -526,6 +500,10 @@ void AsyncWrap::Initialize(Local<Object> target,
   FORCE_SET_TARGET_FIELD(target,
                          "async_id_fields",
                          env->async_hooks()->async_id_fields().GetJSArray());
+
+  FORCE_SET_TARGET_FIELD(target,
+                         "execution_async_resources",
+                         env->async_hooks()->execution_async_resources());
 
   target->Set(context,
               env->async_ids_stack_string(),
