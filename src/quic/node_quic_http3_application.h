@@ -56,6 +56,11 @@ using Http3ConnectionPointer = DeleteFnPtr<nghttp3_conn, nghttp3_conn_del>;
 // contents of the buffers.
 class Http3Header : public QuicHeader {
  public:
+  static bool IsZeroLength(nghttp3_rcbuf* name, nghttp3_rcbuf* value) {
+    return Http3RcBufferPointer::IsZeroLength(name) ||
+           Http3RcBufferPointer::IsZeroLength(value);
+  }
+
   Http3Header(int32_t token, nghttp3_rcbuf* name, nghttp3_rcbuf* value);
   Http3Header(Http3Header&& other) noexcept;
 
@@ -72,9 +77,40 @@ class Http3Header : public QuicHeader {
   SET_SELF_SIZE(Http3Header)
 
  private:
+  // nghttp3 uses a numeric identifier for a large number
+  // of known HTTP header names. These allow us to use
+  // static strings for those rather than allocating new
+  // strings all of the time. The list of strings supported
+  // is included in node_http_common.h
+#define V1(name, value) case NGHTTP3_QPACK_TOKEN__##name: return value;
+#define V2(name, value) case NGHTTP3_QPACK_TOKEN_##name: return value;
+  static const char* ToHttpHeaderName(int32_t token) {
+    switch (token) {
+      default:
+        // Fall through
+      case -1: return nullptr;
+      HTTP_SPECIAL_HEADERS(V1)
+      HTTP_REGULAR_HEADERS(V2)
+    }
+  }
+#undef V1
+#undef V2
+
   int32_t token_ = -1;
   Http3RcBufferPointer name_;
   Http3RcBufferPointer value_;
+};
+
+struct Http3ApplicationConfig : public nghttp3_conn_settings {
+  Http3ApplicationConfig() {
+    nghttp3_conn_settings_default(this);
+    qpack_max_table_capacity = DEFAULT_QPACK_MAX_TABLE_CAPACITY;
+    qpack_blocked_streams = DEFAULT_QPACK_BLOCKED_STREAMS;
+    max_header_list_size = DEFAULT_MAX_HEADER_LIST_SIZE;
+    max_pushes = DEFAULT_MAX_PUSHES;
+  }
+  uint64_t max_header_pairs = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  uint64_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
 };
 
 // Http3Application is used whenever the h3 alpn identifier is used.
@@ -100,7 +136,6 @@ class Http3Application final :
       uint64_t offset,
       size_t datalen) override;
 
-  void StreamOpen(int64_t stream_id) override;
   void StreamClose(int64_t stream_id, uint64_t app_error_code) override;
 
   void StreamReset(
@@ -110,7 +145,6 @@ class Http3Application final :
 
   void ResumeStream(int64_t stream_id) override;
 
-  void ExtendMaxStreamsRemoteUni(uint64_t max_streams) override;
   void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) override;
 
   bool SubmitInformation(
@@ -140,6 +174,8 @@ class Http3Application final :
   void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
+  void SetConfig(int idx, uint64_t Http3ApplicationConfig::*member);
+
   nghttp3_conn* connection() const { return connection_.get(); }
   BaseObjectPtr<QuicStream> FindOrCreateStream(int64_t stream_id);
 
@@ -152,6 +188,14 @@ class Http3Application final :
   bool BlockStream(int64_t stream_id) override;
   bool StreamCommit(StreamData* stream_data, size_t datalen) override;
   bool ShouldSetFin(const StreamData& data) override;
+  bool SubmitPushPromise(
+      int64_t id,
+      int64_t* push_id,
+      int64_t* stream_id,
+      const Http3Headers& headers);
+  bool SubmitInformation(int64_t id, const Http3Headers& headers);
+  bool SubmitTrailers(int64_t id, const Http3Headers& headers);
+  bool SubmitHeaders(int64_t id, const Http3Headers& headers, int32_t flags);
 
   ssize_t ReadData(
       int64_t stream_id,
@@ -191,12 +235,9 @@ class Http3Application final :
   int64_t qpack_dec_stream_id_;
   size_t current_nghttp3_memory_ = 0;
 
-  uint64_t qpack_max_table_capacity_ = DEFAULT_QPACK_MAX_TABLE_CAPACITY;
-  uint64_t qpack_blocked_streams_ = DEFAULT_QPACK_BLOCKED_STREAMS;
-  size_t max_header_list_size_ = DEFAULT_MAX_HEADER_LIST_SIZE;
-  size_t max_pushes_ = DEFAULT_MAX_PUSHES;
+  Http3ApplicationConfig config_;
 
-  nghttp3_conn* CreateConnection(nghttp3_conn_settings* settings);
+  void CreateConnection();
 
   static const nghttp3_conn_callbacks callbacks_[2];
 

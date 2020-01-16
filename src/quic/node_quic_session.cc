@@ -1214,6 +1214,10 @@ void QuicApplication::MaybeSetFin(const StreamData& stream_data) {
     set_stream_fin(stream_data.id);
 }
 
+void QuicApplication::StreamOpen(int64_t stream_id) {
+  Debug(session(), "QUIC Stream %" PRId64 " is open.");
+}
+
 void QuicApplication::StreamHeaders(
     int64_t stream_id,
     int kind,

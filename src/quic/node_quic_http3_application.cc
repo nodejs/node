@@ -24,43 +24,32 @@ using v8::Value;
 
 namespace quic {
 
-namespace {
-bool IsZeroLengthHeader(nghttp3_rcbuf* name, nghttp3_rcbuf* value) {
-  return Http3RcBufferPointer::IsZeroLength(name) ||
-         Http3RcBufferPointer::IsZeroLength(value);
-}
-
-// nghttp3 uses a numeric identifier for a large number
-// of known HTTP header names. These allow us to use
-// static strings for those rather than allocating new
-// strings all of the time. The list of strings supported
-// is included in node_http_common.h
-const char* to_http_header_name(int32_t token) {
-  switch (token) {
-    default:
-      // Fall through
-    case -1: return nullptr;
-#define V(name, value) case NGHTTP3_QPACK_TOKEN__##name: return value;
-    HTTP_SPECIAL_HEADERS(V)
-#undef V
-#define V(name, value) case NGHTTP3_QPACK_TOKEN_##name: return value;
-    HTTP_REGULAR_HEADERS(V)
-#undef V
-  }
-}
-}  // namespace
-
+// When a header name value pair is received, nghttp3 determines
+// if it's a known header or not. If it's known, token will be the
+// corresponding index. To get the matching header name, pass the
+// token value to the Http3Header::ToHttpHeaderName function. If
+// the header name is not known, token will be -1 and the name
+// buffer will be non-nullptr.
+// The name and value buffers are reference-counted buffers provided
+// and owned by nghttp3. nghttp3 will keep the buffers alive so long
+// as the reference count is greater than 0. The utility class
+// Http3RcBufferPointer is a smart pointer like object that handles
+// the reference counting for us.
 Http3Header::Http3Header(
     int32_t token,
     nghttp3_rcbuf* name,
-    nghttp3_rcbuf* value) :
-    token_(token) {
+    nghttp3_rcbuf* value)
+    : token_(token) {
   // Only retain the name buffer if it's not a known token
-  if (token == -1)
+  if (token == -1) {
+    CHECK_NOT_NULL(name);
     name_.reset(name, true);  // Internalizable
+  }
+  CHECK_NOT_NULL(value);
   value_.reset(value);
 }
 
+// Move constructor
 Http3Header::Http3Header(Http3Header&& other) noexcept :
   token_(other.token_),
   name_(std::move(other.name_)),
@@ -69,7 +58,7 @@ Http3Header::Http3Header(Http3Header&& other) noexcept :
 }
 
 MaybeLocal<String> Http3Header::GetName(QuicApplication* app) const {
-  const char* header_name = to_http_header_name(token_);
+  const char* header_name = ToHttpHeaderName(token_);
   Environment* env = app->env();
 
   // If header_name is not nullptr, then it is a known header with
@@ -87,40 +76,29 @@ MaybeLocal<String> Http3Header::GetName(QuicApplication* app) const {
     return eternal.Get(env->isolate());
   }
 
-  // This is exceedingly unlikely but we need to be prepared just in case.
-  return UNLIKELY(!name_) ?
-      String::Empty(env->isolate()) :
-      Http3RcBufferPointer::External::New(
-          static_cast<Http3Application*>(app),
-          name_);
+  return Http3RcBufferPointer::External::New(
+      static_cast<Http3Application*>(app),
+      name_);
 }
 
 MaybeLocal<String> Http3Header::GetValue(QuicApplication* app) const {
   Environment* env = app->env();
-  return UNLIKELY(!value_) ?
-      String::Empty(env->isolate()) :
-      Http3RcBufferPointer::External::New(
-          static_cast<Http3Application*>(app),
-          value_);
+  return Http3RcBufferPointer::External::New(
+      static_cast<Http3Application*>(app),
+      value_);
 }
 
 std::string Http3Header::name() const {
-  const char* header_name = to_http_header_name(token_);
+  const char* header_name = ToHttpHeaderName(token_);
   return header_name != nullptr ?
         std::string(header_name) :
-        UNLIKELY(!name_) ?
-            std::string() :
-            std::string(
-                reinterpret_cast<const char*>(name_.data()),
-                name_.len());
+        std::string(reinterpret_cast<const char*>(name_.data()), name_.len());
 }
 
 std::string Http3Header::value() const {
-  return UNLIKELY(!value_) ?
-      std::string() :
-      std::string(
-          reinterpret_cast<const char*>(value_.data()),
-          value_.len());
+  return std::string(
+      reinterpret_cast<const char*>(value_.data()),
+      value_.len());
 }
 
 size_t Http3Header::length() const {
@@ -132,44 +110,87 @@ void Http3Header::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("value", value_);
 }
 
-namespace {
-template <typename t>
-inline void SetConfig(Environment* env, int idx, t* val) {
-  AliasedFloat64Array& buffer = env->quic_state()->http3config_buffer;
+void Http3Application::SetConfig(
+    int idx,
+    uint64_t Http3ApplicationConfig::*member) {
+  AliasedFloat64Array& buffer = env()->quic_state()->http3config_buffer;
   uint64_t flags = static_cast<uint64_t>(buffer[IDX_HTTP3_CONFIG_COUNT]);
   if (flags & (1ULL << idx))
-    *val = static_cast<t>(buffer[idx]);
+    config_.*member = static_cast<uint64_t>(buffer[idx]);
 }
-}  // namespace
 
 Http3Application::Http3Application(
     QuicSession* session)
   : QuicApplication(session),
     alloc_info_(MakeAllocator()) {
-  // Collect Configuration Details. An aliased buffer is used here.
-  Environment* env = session->env();
-  SetConfig(env, IDX_HTTP3_QPACK_MAX_TABLE_CAPACITY,
-            &qpack_max_table_capacity_);
-  SetConfig(env, IDX_HTTP3_QPACK_BLOCKED_STREAMS,
-            &qpack_blocked_streams_);
-  SetConfig(env, IDX_HTTP3_MAX_HEADER_LIST_SIZE, &max_header_list_size_);
-  SetConfig(env, IDX_HTTP3_MAX_PUSHES, &max_pushes_);
-
-  size_t max_header_pairs = DEFAULT_MAX_HEADER_LIST_PAIRS;
-  SetConfig(env, IDX_HTTP3_MAX_HEADER_PAIRS, &max_header_pairs);
+  // Collect Configuration Details.
+  SetConfig(IDX_HTTP3_QPACK_MAX_TABLE_CAPACITY,
+            &Http3ApplicationConfig::qpack_max_table_capacity);
+  SetConfig(IDX_HTTP3_QPACK_BLOCKED_STREAMS,
+            &Http3ApplicationConfig::qpack_blocked_streams);
+  SetConfig(IDX_HTTP3_MAX_HEADER_LIST_SIZE,
+            &Http3ApplicationConfig::max_header_list_size);
+  SetConfig(IDX_HTTP3_MAX_PUSHES,
+            &Http3ApplicationConfig::max_pushes);
+  SetConfig(IDX_HTTP3_MAX_HEADER_PAIRS,
+            &Http3ApplicationConfig::max_header_pairs);
+  SetConfig(IDX_HTTP3_MAX_HEADER_LENGTH,
+            &Http3ApplicationConfig::max_header_length);
   set_max_header_pairs(
       session->is_server()
-          ? GetServerMaxHeaderPairs(max_header_pairs)
-          : GetClientMaxHeaderPairs(max_header_pairs));
+          ? GetServerMaxHeaderPairs(config_.max_header_pairs)
+          : GetClientMaxHeaderPairs(config_.max_header_pairs));
+  set_max_header_length(config_.max_header_length);
 
-  size_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
-  SetConfig(env, IDX_HTTP3_MAX_HEADER_LENGTH, &max_header_length);
-  set_max_header_length(max_header_length);
-
-  env->quic_state()->http3config_buffer[IDX_HTTP3_CONFIG_COUNT] = 0;  // Reset
+  session->env()->quic_state()->http3config_buffer[IDX_HTTP3_CONFIG_COUNT] = 0;
 }
 
+// Push streams in HTTP/3 are a bit complicated.
+// First, it's important to know that only an HTTP/3 server can
+// create a push stream.
+// Second, it's important to recognize that a push stream is
+// essentially an *assumed* request. For instance, if a client
+// requests a webpage that has links to css and js files, and
+// the server expects the client to send subsequent requests
+// for those css and js files, the server can shortcut the
+// process by opening a push stream for each additional resource
+// it assumes the client to make.
+// Third, a push stream can only be opened within the context
+// of an HTTP/3 request/response. Essentially, a server receives
+// a request and while processing the response, the server can
+// open one or more push streams.
+//
+// Now... a push stream consists of two components: a push promise
+// and a push fulfillment. The push promise is sent *as part of
+// the response on the original stream* and is assigned a push id
+// and a block of headers containing the *assumed request headers*.
+// The push promise is sent on the request/response bidirectional
+// stream.
+// The push fulfillment is a unidirectional stream opened by the
+// server that contains the push id, the response header block, and
+// the response payload.
+// Here's where it can get a bit complicated: the server sends the
+// push promise and the push fulfillment on two different, and
+// independent QUIC streams. The push id is used to correlate
+// those on the client side, but, it's entirely possible for the
+// client to receive the push fulfillment before it actually receives
+// the push promise. It's *unlikely*, but it's possible. Fortunately,
+// nghttp3 handles the complexity of that for us internally but
+// makes for some weird timing and could lead to some amount of
+// buffering to occur.
+//
+// The *logical* order of events from the client side *should*
+// be: (a) receive the push promise containing assumed request
+// headers, (b) receive the push fulfillment containing the
+// response headers followed immediately by the response payload.
+//
+// On the server side, the steps are: (a) first create the push
+// promise creating the push_id then (b) open the unidirectional
+// stream that will be used to fullfil the push promise. Once that
+// unidirectional stream is created, the push id and unidirectional
+// stream ID must be bound. The CreateAndBindPushStream handles (b)
 int64_t Http3Application::CreateAndBindPushStream(int64_t push_id) {
+  CHECK(session()->is_server());
   int64_t stream_id;
   if (!session()->OpenUnidirectionalStream(&stream_id))
     return 0;
@@ -179,6 +200,108 @@ int64_t Http3Application::CreateAndBindPushStream(int64_t push_id) {
       stream_id) == 0 ? stream_id : 0;
 }
 
+bool Http3Application::SubmitPushPromise(
+    int64_t id,
+    int64_t* push_id,
+    int64_t* stream_id,
+    const Http3Headers& headers) {
+  // Successfully creating the push promise and opening the
+  // fulfillment stream will queue nghttp3 up to send data.
+  // Creating the SendSessionScope here ensures that when
+  // SubmitPush exits, SendPendingData will be called if
+  // we are not within the context of an ngtcp2 callback.
+  QuicSession::SendSessionScope send_scope(session());
+
+  Debug(
+    session(),
+    "Submitting %d push promise headers",
+    headers.length());
+  if (nghttp3_conn_submit_push_promise(
+          connection(),
+          push_id,
+          id,
+          headers.data(),
+          headers.length()) != 0) {
+    return false;
+  }
+  // Once we've successfully submitting the push promise and have
+  // a push id assigned, we create the push fulfillment stream.
+  *stream_id = CreateAndBindPushStream(*push_id);
+  return *stream_id != 0;  // push stream can never use stream id 0
+}
+
+bool Http3Application::SubmitInformation(
+    int64_t id,
+    const Http3Headers& headers) {
+  QuicSession::SendSessionScope send_scope(session());
+  Debug(
+      session(),
+      "Submitting %d informational headers for stream %" PRId64,
+      headers.length(),
+      id);
+  return nghttp3_conn_submit_info(
+      connection(),
+      id,
+      headers.data(),
+      headers.length()) == 0;
+}
+
+bool Http3Application::SubmitTrailers(
+    int64_t id,
+    const Http3Headers& headers) {
+  QuicSession::SendSessionScope send_scope(session());
+  Debug(
+      session(),
+      "Submitting %d trailing headers for stream %" PRId64,
+      headers.length(),
+      id);
+  return nghttp3_conn_submit_trailers(
+      connection(),
+      id,
+      headers.data(),
+      headers.length()) == 0;
+}
+
+bool Http3Application::SubmitHeaders(
+    int64_t id,
+    const Http3Headers& headers,
+    int32_t flags) {
+  QuicSession::SendSessionScope send_scope(session());
+  static constexpr nghttp3_data_reader reader = {
+      Http3Application::OnReadData };
+  const nghttp3_data_reader* reader_ptr = nullptr;
+  if (!(flags & QUICSTREAM_HEADER_FLAGS_TERMINAL))
+    reader_ptr = &reader;
+
+  switch (session()->crypto_context()->side()) {
+    case NGTCP2_CRYPTO_SIDE_CLIENT:
+      return nghttp3_conn_submit_request(
+          connection(),
+          id,
+          headers.data(),
+          headers.length(),
+          reader_ptr,
+          nullptr) == 0;
+    case NGTCP2_CRYPTO_SIDE_SERVER:
+      return nghttp3_conn_submit_response(
+          connection(),
+          id,
+          headers.data(),
+          headers.length(),
+          reader_ptr) == 0;
+    default:
+      UNREACHABLE();
+  }
+}
+
+// SubmitPush initiates a push stream by first creating a push promise
+// with an associated push id, then opening the unidirectional stream
+// that is used to fullfill it. Assuming both operations are successful,
+// the QuicStream instance is created and added to the server QuicSession.
+//
+// The headers block passed to the submit push contains the assumed
+// *request* headers. The response headers are provided using the
+// SubmitHeaders() function on the created QuicStream.
 BaseObjectPtr<QuicStream> Http3Application::SubmitPush(
     int64_t id,
     v8::Local<v8::Array> headers) {
@@ -187,55 +310,29 @@ BaseObjectPtr<QuicStream> Http3Application::SubmitPush(
   if (!session()->is_server())
     return {};
 
-  Http3Headers nva(session()->env(), headers);
+  Http3Headers nva(env(), headers);
   int64_t push_id;
+  int64_t stream_id;
 
-  Debug(
-    session(),
-    "Submitting %d push promise headers",
-    nva.length());
-
-  if (nghttp3_conn_submit_push_promise(
-          connection(),
-          &push_id,
-          id,
-          *nva,
-          nva.length()) != 0) {
-    // There are several reasons why push may fail. We currently handle
-    // them all the same. Later we might want to differentiate when the
-    // return value is NGHTTP3_ERR_PUSH_ID_BLOCKED.
-    return {};
-  }
-
-  int64_t new_id = CreateAndBindPushStream(push_id);
-
-  return new_id == 0 ?
-      BaseObjectPtr<QuicStream>() :
-      QuicStream::New(session(), new_id, push_id);
+  // There are several reasons why push may fail. We currently handle
+  // them all the same. Later we might want to differentiate when the
+  // return value is NGHTTP3_ERR_PUSH_ID_BLOCKED.
+  return SubmitPushPromise(id, &push_id, &stream_id, nva) ?
+      QuicStream::New(session(), stream_id, push_id) :
+      BaseObjectPtr<QuicStream>();
 }
 
 // Submit informational headers (response headers that use a 1xx
-// status code).
+// status code). If the QuicSession is not a server session, return
+// false immediately because info headers cannot be sent by a
+// client
 bool Http3Application::SubmitInformation(
     int64_t stream_id,
     v8::Local<v8::Array> headers) {
-  // If the QuicSession is not a server session, return false
-  // immediately. Informational headers cannot be sent by an
-  // HTTP/3 client
   if (!session()->is_server())
     return false;
-
   Http3Headers nva(session()->env(), headers);
-  Debug(
-      session(),
-      "Submitting %d informational headers for stream %" PRId64,
-      nva.length(),
-      stream_id);
-  return nghttp3_conn_submit_info(
-      connection(),
-      stream_id,
-      *nva,
-      nva.length()) == 0;
+  return SubmitInformation(stream_id, nva);
 }
 
 // For client sessions, submits request headers. For server sessions,
@@ -245,45 +342,7 @@ bool Http3Application::SubmitHeaders(
     v8::Local<v8::Array> headers,
     uint32_t flags) {
   Http3Headers nva(session()->env(), headers);
-
-  // If the TERMINAL flag is set, reader_ptr should be nullptr
-  // so the stream will be terminated immediately after submitting
-  // the headers.
-  nghttp3_data_reader reader = { Http3Application::OnReadData };
-  nghttp3_data_reader* reader_ptr = nullptr;
-  if (!(flags & QUICSTREAM_HEADER_FLAGS_TERMINAL))
-    reader_ptr = &reader;
-
-  switch (session()->crypto_context()->side()) {
-    case NGTCP2_CRYPTO_SIDE_CLIENT:
-      Debug(
-          session(),
-          "Submitting %d request headers for stream %" PRId64,
-          nva.length(),
-          stream_id);
-      return nghttp3_conn_submit_request(
-          connection(),
-          stream_id,
-          *nva,
-          nva.length(),
-          reader_ptr,
-          nullptr) == 0;
-    case NGTCP2_CRYPTO_SIDE_SERVER:
-      Debug(
-          session(),
-          "Submitting %d response headers for stream %" PRId64,
-          nva.length(),
-          stream_id);
-      return nghttp3_conn_submit_response(
-          connection(),
-          stream_id,
-          *nva,
-          nva.length(),
-          reader_ptr) == 0;
-    default:
-      UNREACHABLE();
-  }
-  return false;
+  return SubmitHeaders(stream_id, nva, flags);
 }
 
 // Submits trailing headers for the HTTP/3 request or response.
@@ -291,16 +350,7 @@ bool Http3Application::SubmitTrailers(
     int64_t stream_id,
     v8::Local<v8::Array> headers) {
   Http3Headers nva(session()->env(), headers);
-  Debug(
-      session(),
-      "Submitting %d trailing headers for stream %" PRId64,
-      nva.length(),
-      stream_id);
-  return nghttp3_conn_submit_trailers(
-      connection(),
-      stream_id,
-      *nva,
-      nva.length()) == 0;
+  return SubmitTrailers(stream_id, nva);
 }
 
 void Http3Application::CheckAllocatedSize(size_t previous_size) const {
@@ -321,13 +371,12 @@ void Http3Application::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 // Creates the underlying nghttp3 connection state for the session.
-nghttp3_conn* Http3Application::CreateConnection(
-    nghttp3_conn_settings* settings) {
+void Http3Application::CreateConnection() {
 
   // nghttp3_conn_server_new and nghttp3_conn_client_new share
   // identical definitions, so new_fn will work for both.
   using new_fn = decltype(&nghttp3_conn_server_new);
-  static new_fn new_fns[] = {
+  static new_fn fns[] = {
     nghttp3_conn_client_new,  // NGTCP2_CRYPTO_SIDE_CLIENT
     nghttp3_conn_server_new,  // NGTCP2_CRYPTO_SIDE_SERVER
   };
@@ -335,12 +384,14 @@ nghttp3_conn* Http3Application::CreateConnection(
   ngtcp2_crypto_side side = session()->crypto_context()->side();
   nghttp3_conn* conn;
 
-  return new_fns[side](
+  CHECK_EQ(fns[side](
       &conn,
       &callbacks_[side],
-      settings,
+      &config_,
       &alloc_info_,
-      this) != 0 ? nullptr : conn;
+      this), 0);
+  CHECK_NOT_NULL(conn);
+  connection_.reset(conn);
 }
 
 // The HTTP/3 QUIC binding uses a single unidirectional control
@@ -386,22 +437,16 @@ bool Http3Application::Initialize() {
   if (session()->max_local_streams_uni() < 3)
     return false;
 
-  nghttp3_conn_settings settings;
-  nghttp3_conn_settings_default(&settings);
-  settings.qpack_max_table_capacity = qpack_max_table_capacity_;
-  settings.qpack_blocked_streams = qpack_blocked_streams_;
-  settings.max_header_list_size = max_header_list_size_;
-  settings.max_pushes = max_pushes_;
   Debug(session(), "QPack Max Table Capacity: %" PRIu64,
-        qpack_max_table_capacity_);
+        config_.qpack_max_table_capacity);
   Debug(session(), "QPack Blocked Streams: %" PRIu64,
-        qpack_blocked_streams_);
+        config_.qpack_blocked_streams);
   Debug(session(), "Max Header List Size: %" PRIu64,
-        max_header_list_size_);
-  Debug(session(), "Max Pushes: %" PRIu64, max_pushes_);
+        config_.max_header_list_size);
+  Debug(session(), "Max Pushes: %" PRIu64,
+        config_.max_pushes);
 
-  connection_.reset(CreateConnection(&settings));
-  CHECK(connection_);
+  CreateConnection();
   Debug(session(), "HTTP/3 connection created");
 
   ngtcp2_transport_params params;
@@ -444,16 +489,16 @@ bool Http3Application::ReceiveStreamData(
   return true;
 }
 
+// This is the QUIC-level stream data acknowledgement. It is called for
+// all streams, including unidirectional streams. This has to forward on
+// to nghttp3 for processing. The Http3Application::AckedStreamData might
+// be called as a result to acknowledge (and free) QuicStream data.
 void Http3Application::AcknowledgeStreamData(
     int64_t stream_id,
     uint64_t offset,
     size_t datalen) {
   if (nghttp3_conn_add_ack_offset(connection(), stream_id, datalen) != 0)
     Debug(session(), "Failure to acknowledge HTTP/3 Stream Data");
-}
-
-void Http3Application::StreamOpen(int64_t stream_id) {
-  Debug(session(), "HTTP/3 Stream %" PRId64 " is open.");
 }
 
 void Http3Application::StreamClose(
@@ -473,20 +518,36 @@ void Http3Application::StreamReset(
   QuicApplication::StreamReset(stream_id, final_size, app_error_code);
 }
 
+// When SendPendingData tries to send data for a given stream and there
+// is no data to send but the QuicStream is still writable, it will
+// be paused. When there's data available, the stream is resumed.
 void Http3Application::ResumeStream(int64_t stream_id) {
   nghttp3_conn_resume_stream(connection(), stream_id);
 }
 
-void Http3Application::ExtendMaxStreamsRemoteUni(uint64_t max_streams) {
-  // Do nothing
-}
-
+// When stream data cannot be sent because of flow control, it is marked
+// as being blocked. When the flow control windows expands, nghttp3 has
+// to be told to unblock the stream so it knows to try sending data again.
 void Http3Application::ExtendMaxStreamData(
     int64_t stream_id,
     uint64_t max_data) {
   nghttp3_conn_unblock_stream(connection(), stream_id);
 }
 
+// When stream data cannot be sent because of flow control, it is marked
+// as being blocked.
+bool Http3Application::BlockStream(int64_t stream_id) {
+  int err = nghttp3_conn_block_stream(connection(), stream_id);
+  if (err != 0) {
+    session()->set_last_error(QUIC_ERROR_APPLICATION, err);
+    return false;
+  }
+  return true;
+}
+
+// nghttp3 keeps track of how much QuicStream data it has available and
+// has sent. StreamCommit is called when a QuicPacket is serialized
+// and updates nghttp3's internal state.
 bool Http3Application::StreamCommit(StreamData* stream_data, size_t datalen) {
   int err = nghttp3_conn_add_write_offset(
       connection(),
@@ -499,6 +560,12 @@ bool Http3Application::StreamCommit(StreamData* stream_data, size_t datalen) {
   return true;
 }
 
+// GetStreamData is called by SendPendingData to collect the QuicStream data
+// that is to be packaged into a serialized QuicPacket. There may or may not
+// be any stream data to send. The call to nghttp3_conn_writev_stream will
+// provide any available stream data (if any). If nghttp3 is not sure if
+// there is data to send, it will subsequently call Http3Application::ReadData
+// to collect available data from the QuicStream.
 int Http3Application::GetStreamData(StreamData* stream_data) {
   ssize_t ret = 0;
   if (connection() && session()->max_data_left()) {
@@ -522,15 +589,7 @@ int Http3Application::GetStreamData(StreamData* stream_data) {
   return 0;
 }
 
-bool Http3Application::BlockStream(int64_t stream_id) {
-  int err = nghttp3_conn_block_stream(connection(), stream_id);
-  if (err != 0) {
-    session()->set_last_error(QUIC_ERROR_APPLICATION, err);
-    return false;
-  }
-  return true;
-}
-
+// Determines whether SendPendingData should set fin on the QuicStream
 bool Http3Application::ShouldSetFin(const StreamData& stream_data) {
   return stream_data.id > -1 &&
          !is_control_stream(stream_data.id) &&
@@ -572,9 +631,7 @@ ssize_t Http3Application::ReadData(
 }
 
 // Outgoing data is retained in memory until it is acknowledged.
-void Http3Application::AckedStreamData(
-    int64_t stream_id,
-    size_t datalen) {
+void Http3Application::AckedStreamData(int64_t stream_id, size_t datalen) {
   Acknowledge(stream_id, 0, datalen);
 }
 
@@ -617,6 +674,11 @@ void Http3Application::DeferredConsume(
   session()->ExtendStreamOffset(stream->id(), consumed);
 }
 
+// Called when a nghttp3 detects that a new block of headers
+// has been received. Http3Application::ReceiveHeader will
+// be called for each name+value pair received, then
+// Http3Application::EndHeaders will be called to finalize
+// the header block.
 void Http3Application::BeginHeaders(
   int64_t stream_id,
   QuicStreamHeadersKind kind) {
@@ -636,7 +698,7 @@ bool Http3Application::ReceiveHeader(
     uint8_t flags) {
   // Protect against zero-length headers (zero-length if either the
   // name or value are zero-length). Such headers are simply ignored.
-  if (!IsZeroLengthHeader(name, value)) {
+  if (!Http3Header::IsZeroLength(name, value)) {
     Debug(session(), "Receiving header for stream %" PRId64, stream_id);
     BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
     CHECK(stream);
@@ -653,6 +715,7 @@ bool Http3Application::ReceiveHeader(
   return true;
 }
 
+// Marks the completion of a headers block.
 void Http3Application::EndHeaders(int64_t stream_id, int64_t push_id) {
   Debug(session(), "Ending header block for stream %" PRId64, stream_id);
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
@@ -666,7 +729,6 @@ void Http3Application::CancelPush(
   Debug(session(), "push stream canceled");
 }
 
-// TODO(@jasnell): Implement Push Promise Support
 void Http3Application::PushStream(
     int64_t push_id,
     int64_t stream_id) {

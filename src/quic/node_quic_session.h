@@ -529,7 +529,7 @@ class QuicApplication : public MemoryRetainer {
   virtual void StreamClose(
       int64_t stream_id,
       uint64_t app_error_code);
-  virtual void StreamOpen(int64_t stream_id) {}
+  virtual void StreamOpen(int64_t stream_id);
   virtual void StreamReset(
       int64_t stream_id,
       uint64_t final_size,
@@ -1026,6 +1026,10 @@ class QuicSession : public AsyncWrap,
   // Report that the stream data is flow control blocked
   inline void StreamDataBlocked(int64_t stream_id);
 
+  // SendSessionScope triggers SendPendingData() when not executing
+  // within the context of an ngtcp2 callback. When within an ngtcp2
+  // callback, SendPendingData will always be called when the callbacks
+  // complete.
   class SendSessionScope {
    public:
     explicit SendSessionScope(QuicSession* session) : session_(session) {

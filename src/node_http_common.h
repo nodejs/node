@@ -247,8 +247,12 @@ class NgHeaders {
   inline NgHeaders(Environment* env, v8::Local<v8::Array> headers);
   ~NgHeaders() = default;
 
-  nv_t* operator*() {
-    return reinterpret_cast<nv_t*>(*buf_);
+  const nv_t* operator*() const {
+    return reinterpret_cast<const nv_t*>(*buf_);
+  }
+
+  const nv_t* data() const {
+    return reinterpret_cast<const nv_t*>(*buf_);
   }
 
   size_t length() const {

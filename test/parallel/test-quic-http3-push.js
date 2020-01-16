@@ -39,10 +39,13 @@ server.on('session', common.mustCall((session) => {
     });
     assert(push);
     push.submitInitialHeaders({ ':status': '200' });
-    // TODO(@jasnell): There's currently a bug if we only call end() to write.
-    // push.write('push ');
-    push.write('test');
-    push.end('ing');
+    // TODO(@jasnell): If we call write('test') followed by end('ing')
+    // things work great. However, if we call end('testing) only, the
+    // client does not receive the frames in the right order and there
+    // are some definite processing problems. Putting the end('testing')
+    // in a setImmediate(), it works, so there's some weird timing issue
+    // at play that's rather difficult to track down.
+    setImmediate(() => push.end('testing'));
     push.on('close', common.mustCall());
     push.on('finish', common.mustCall());
 
