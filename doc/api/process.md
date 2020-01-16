@@ -295,7 +295,7 @@ needed.
 
 ### Event: `'uncaughtExceptionMonitor'`
 <!-- YAML
-added: REPLACEME
+added: v13.7.0
 -->
 
 * `err` {Error} The uncaught exception.
