@@ -44,6 +44,7 @@ void GetNodeReport(v8::Isolate* isolate,
 // Function declarations - utility functions in src/node_report_utils.cc
 void WalkHandle(uv_handle_t* h, void* arg);
 std::string EscapeJsonChars(const std::string& str);
+std::string Reindent(const std::string& str, int indentation);
 
 template <typename T>
 std::string ValueToHexString(T value) {
@@ -146,6 +147,10 @@ class JSONWriter {
 
   struct Null {};  // Usable as a JSON value.
 
+  struct ForeignJSON {
+    std::string as_string;
+  };
+
  private:
   template <typename T,
             typename test_for_number = typename std::
@@ -160,6 +165,10 @@ class JSONWriter {
   inline void write_value(Null null) { out_ << "null"; }
   inline void write_value(const char* str) { write_string(str); }
   inline void write_value(const std::string& str) { write_string(str); }
+
+  inline void write_value(const ForeignJSON& json) {
+    out_ << Reindent(json.as_string, indent_);
+  }
 
   inline void write_string(const std::string& str) {
     out_ << '"' << EscapeJsonChars(str) << '"';

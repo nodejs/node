@@ -909,6 +909,11 @@ inline void Environment::remove_sub_worker_context(worker::Worker* context) {
   sub_worker_contexts_.erase(context);
 }
 
+template <typename Fn>
+inline void Environment::ForEachWorker(Fn&& iterator) {
+  for (worker::Worker* w : sub_worker_contexts_) iterator(w);
+}
+
 inline void Environment::add_refs(int64_t diff) {
   task_queues_async_refs_ += diff;
   CHECK_GE(task_queues_async_refs_, 0);
