@@ -216,9 +216,6 @@ Buffer.from('1a7g', 'hex');
 
 Buffer.from('1634', 'hex');
 // Prints <Buffer 16 34>, fully qualified hexadecimal data
-
-Buffer.from((163).toString(16), 'hex');
-// Prints <Buffer a3>, sanitized hexadecimal data
 ```
 
 Modern Web browsers follow the [WHATWG Encoding Standard][] which aliases
