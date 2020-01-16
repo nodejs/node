@@ -6,6 +6,9 @@
 Node.js comes with a variety of CLI options. These options expose built-in
 debugging, multiple ways to execute scripts, and other helpful runtime options.
 
+Worker threads inherit non-process-specific options by default. Refer to
+[`Worker constructor options`][] to know how to customize worker thread options.
+
 To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
@@ -1371,6 +1374,7 @@ greater than `4` (its current default value). For more information, see the
 [`tls.DEFAULT_MAX_VERSION`]: tls.html#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
 [`unhandledRejection`]: process.html#process_event_unhandledrejection
+[`Worker constructor options`]: worker_threads.html#worker_threads_new_worker_filename_options
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Conditional Exports]: esm.html#esm_conditional_exports
 [REPL]: repl.html
