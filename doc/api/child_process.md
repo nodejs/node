@@ -1382,6 +1382,13 @@ time it takes to send the connection to the child.
 The `subprocess.signalCode` property indicates the signal number received by
 the child process if any, else null.
 
+### `subprocess.spawnargs`
+
+* {Array}
+
+The `subprocess.spawnargs` property represents the full list of command line
+arguments the child process was launched with.
+
 ### `subprocess.spawnfile`
 
 * {string}
@@ -1395,13 +1402,6 @@ For [`child_process.spawn()`][], its value will be the name of
 the executable file.
 For [`child_process.exec()`][],  its value will be the name of the shell
 in which the child process is launched.
-
-### `subprocess.spawnargs`
-
-* {Array}
-
-The `subprocess.spawnargs` property represents the full list of command line
-arguments the child process was launched with.
 
 ### `subprocess.stderr`
 <!-- YAML
