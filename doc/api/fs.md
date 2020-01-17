@@ -1011,13 +1011,13 @@ numeric values will be `bigint` instead of `number`.
 
 ```console
 StatFs {
-  bavail: 61058895,
-  bfree: 61058895,
-  blocks: 121938943,
+  type: 1397114950,
   bsize: 4096,
-  ffree: 1000000,
+  blocks: 121938943,
+  bfree: 61058895,
+  bavail: 61058895,
   files: 999,
-  type: 1397114950
+  ffree: 1000000
 }
 ```
 
@@ -1025,13 +1025,13 @@ StatFs {
 
 ```console
 StatFs {
-  bavail: 61058895n,
-  bfree: 61058895n,
-  blocks: 121938943n,
+  type: 1397114950n,
   bsize: 4096n,
-  ffree: 1000000n,
+  blocks: 121938943n,
+  bfree: 61058895n,
+  bavail: 61058895n,
   files: 999n,
-  type: 1397114950n
+  ffree: 1000000n
 }
 ```
 
