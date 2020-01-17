@@ -209,13 +209,13 @@ The character encodings currently supported by Node.js include:
 ```js
 Buffer.from('1ag', 'hex');
 // Prints <Buffer 1a>, data truncated when first non-hexadecimal value
-// ('g') encountered
+// ('g') encountered.
 
 Buffer.from('1a7g', 'hex');
 // Prints <Buffer 1a>, data truncated when data ends in single digit ('7').
 
 Buffer.from('1634', 'hex');
-// Prints <Buffer 16 34>, fully qualified hexadecimal data
+// Prints <Buffer 16 34>, all data represented.
 ```
 
 Modern Web browsers follow the [WHATWG Encoding Standard][] which aliases
