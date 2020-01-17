@@ -9,6 +9,7 @@
 # include <time.h>
 # define IS_SLASH(c) ((c) == '/')
 #else
+# include <io.h>
 # define IS_SLASH(c) ((c) == '/' || (c) == '\\')
 #endif /* _WIN32 */
 
