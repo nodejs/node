@@ -270,6 +270,7 @@
           '<(torque_output_root)/torque-generated/exported-macros-assembler-tq.cc',
           '<(torque_output_root)/torque-generated/exported-macros-assembler-tq.h',
           '<(torque_output_root)/torque-generated/csa-types-tq.h',
+          '<(V8_ROOT)/src/torque/runtime-support.h',
           '<@(torque_outputs)',
         ],
       }
