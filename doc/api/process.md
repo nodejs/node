@@ -2162,9 +2162,9 @@ a [Writable][] stream.
 
 * {number}
 
-This property refers to the value of underlying file descriptor
-(in POSIX) or handle (an abstract resource reference in Windows) of
-`process.stderr`. In `worker_thread`s, this field does not exist.
+This property refers to the value of underlying file descriptor of
+`process.stderr`. The value is fixed at `2`. In `worker_thread`s,
+this field does not exist.
 
 ## `process.stdin`
 
@@ -2203,9 +2203,9 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 * {number}
 
-This property refers to the value of underlying file descriptor
-(in POSIX) or handle (an abstract resource reference in Windows) of
-`process.stdin`. In `worker_thread`s, this field does not exist.
+This property refers to the value of underlying file descriptor of
+`process.stdin`. The value is fixed at `0`. In `worker_thread`s,
+this field does not exist.
 
 ## `process.stdout`
 
@@ -2229,9 +2229,9 @@ process.stdin.pipe(process.stdout);
 
 * {number}
 
-This property refers to the value of underlying file descriptor
-(in POSIX) or handle (an abstract resource reference in Windows) of
-`process.stdout`. In `worker_thread`s, this field does not exist.
+This property refers to the value of underlying file descriptor of
+`process.stdout`. The value is fixed at `1`. In `worker_thread`s,
+this field does not exist.
 
 ### A note on process I/O
 
