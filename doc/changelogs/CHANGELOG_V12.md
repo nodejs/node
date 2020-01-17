@@ -57,7 +57,231 @@
 
 ### Notable changes
 
-TODO
+#### Semver-minor changes
+
+##### Advanced serialization for IPC
+
+The `child_process` and `cluster` modules now support a `serialization` option
+to change the serialization mechanism used for IPC. The option can have one of
+two values:
+
+* `'json'` (default): `JSON.stringify()` and `JSON.parse()` are used. This is
+  how message serialization was done before.
+* `'advanced'`: The serialization API of the `v8` module is used. It is based on
+  the [HTML structured clone algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)
+  and is able to serialize more built-in JavaScript object types, such as
+  `BigInt`, `Map`, `Set` etc. as well as circular data structures.
+
+Anna Henningsen [#30162](https://github.com/nodejs/node/pull/30162).
+
+##### CLI flags
+
+The new `--trace-exit` CLI flag makes Node.js print a stack trace whenever the
+Node.js environment is exited proactively (i.e. by invoking the `process.exit()`
+function or pressing Ctrl+C).
+
+legendecas [#30516](https://github.com/nodejs/node/pull/30516).
+
+___
+
+The new `--trace-uncaught` CLI flag makes Node.js print a stack trace at the
+time of throwing uncaught exceptions, rather than at the creation of the `Error`
+object, if there is any.  
+This option is not enabled by default because it may affect garbage collection
+behavior negatively.
+
+Anna Henningsen [#30025](https://github.com/nodejs/node/pull/30025).
+
+___
+
+The `--disallow-code-generation-from-strings` V8 CLI flag is now whitelisted in
+the `NODE_OPTIONS` environment variable.
+
+Shelley Vohr [#30094](https://github.com/nodejs/node/pull/30094).
+
+##### New crypto APIs
+
+For DSA and ECDSA, a new signature encoding is now supported in addition to the
+existing one (DER). The `verify` and `sign` methods accept a `dsaEncoding`
+option, which can have one of two values:
+
+* `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
+* `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
+
+Tobias Nießen [#29292](https://github.com/nodejs/node/pull/29292).
+
+___
+
+A new method was added to `Hash`: `Hash.prototype.copy`. It makes it possible to
+clone the internal state of a `Hash` object into a new `Hash` object, allowing
+to compute the digest between updates:
+
+```js
+// Calculate a rolling hash.
+const crypto = require('crypto');
+const hash = crypto.createHash('sha256');
+
+hash.update('one');
+console.log(hash.copy().digest('hex'));
+
+hash.update('two');
+console.log(hash.copy().digest('hex'));
+
+hash.update('three');
+console.log(hash.copy().digest('hex'));
+
+// Etc.
+```
+
+Ben Noordhuis [#29910](https://github.com/nodejs/node/pull/29910).
+
+##### Dependency updates
+
+libuv was updated to 1.34.0. This includes fixes to `uv_fs_copyfile()` and
+`uv_interface_addresses()` and adds two new functions: `uv_sleep()` and
+`uv_fs_mkstemp()`.
+
+Colin Ihrig [#30783](https://github.com/nodejs/node/pull/30783).
+
+___
+
+V8 was updated to 7.8.279.23. This includes performance improvements to object
+destructuring, RegExp match failures and WebAssembly startup time.  
+The official release notes are available at https://v8.dev/blog/v8-release-78.
+
+Michaël Zasso [#30109](https://github.com/nodejs/node/pull/30109).
+
+##### New EventEmitter APIs
+
+The new `EventEmitter.on` static method allows to async iterate over events:
+
+```js
+const { on, EventEmitter } = require('events');
+
+(async () => {
+
+  const ee = new EventEmitter();
+
+  // Emit later on
+  process.nextTick(() => {
+    ee.emit('foo', 'bar');
+    ee.emit('foo', 42);
+  });
+
+  for await (const event of on(ee, 'foo')) {
+    // The execution of this inner block is synchronous and it
+    // processes one event at a time (even with await). Do not use
+    // if concurrent execution is required.
+    console.log(event); // prints ['bar'] [42]
+  }
+
+})();
+```
+
+Matteo Collina [#27994](https://github.com/nodejs/node/pull/27994).
+
+___
+
+It is now possible to monitor `'error'` events on an `EventEmitter` without
+consuming the emitted error by installing a listener using the symbol
+`EventEmitter.errorMonitor`:
+
+```js
+const myEmitter = new MyEmitter();
+
+myEmitter.on(EventEmitter.errorMonitor, (err) => {
+  MyMonitoringTool.log(err);
+});
+
+myEmitter.emit('error', new Error('whoops!'));
+// Still throws and crashes Node.js
+```
+
+Gerhard Stoebich [#30932](https://github.com/nodejs/node/pull/30932).
+
+___
+
+Using `async` functions with event handlers is problematic, because it
+can lead to an unhandled rejection in case of a thrown exception:
+
+```js
+const ee = new EventEmitter();
+
+ee.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+```
+
+The `captureRejections` option in the `EventEmitter` constructor or the global
+setting change this behavior, installing a `.then(undefined, handler)` handler
+on the `Promise`. This handler routes the exception asynchronously to the
+`Symbol.for('nodejs.rejection')` method if there is one, or to the `'error'`
+event handler if there is none.
+
+```js
+const ee1 = new EventEmitter({ captureRejections: true });
+ee1.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+
+ee1.on('error', console.log);
+
+const ee2 = new EventEmitter({ captureRejections: true });
+ee2.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+
+ee2[Symbol.for('nodejs.rejection')] = console.log;
+```
+
+Setting `EventEmitter.captureRejections = true` will change the default for all
+new instances of `EventEmitter`.
+
+```js
+EventEmitter.captureRejections = true;
+const ee1 = new EventEmitter();
+ee1.on('something', async (value) => {
+  throw new Error('kaboom');
+});
+
+ee1.on('error', console.log);
+```
+
+This is an experimental feature.
+
+Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
+
+##### Other
+
+* **dgram**: add source-specific multicast support (Lucas Pardue) [#15735](https://github.com/nodejs/node/pull/15735)
+* **esm**: unflag --experimental-exports (Guy Bedford) [#29867](https://github.com/nodejs/node/pull/29867)
+* **fs**: add `bufferSize` option to `fs.opendir()` (Anna Henningsen) [#30114](https://github.com/nodejs/node/pull/30114)
+* **http**: outgoing cork (Robert Nagy) [#29053](https://github.com/nodejs/node/pull/29053)
+* **http**: support readable hwm in IncomingMessage (Colin Ihrig) [#30135](https://github.com/nodejs/node/pull/30135)
+* **http**: add reusedSocket property on client request (themez) [#29715](https://github.com/nodejs/node/pull/29715)
+* **http2**: make maximum tolerated rejected streams configurable (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
+* **http2**: allow to configure maximum tolerated invalid frames (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
+* **https**: add client support for TLS keylog events (Sam Roberts) [#30053](https://github.com/nodejs/node/pull/30053)
+* **module**: resolve self-references (Jan Krems) [#29327](https://github.com/nodejs/node/pull/29327)
+* **n-api**: add `napi\_detach\_arraybuffer` (legendecas) [#29768](https://github.com/nodejs/node/pull/29768)
+* **perf_hooks**: move perf\_hooks out of experimental (legendecas) [#31101](https://github.com/nodejs/node/pull/31101)
+* **readline**: promote \_getCursorPos to public api (Jeremy Albright) [#30687](https://github.com/nodejs/node/pull/30687)
+* **repl**: check for NODE\_REPL\_EXTERNAL\_MODULE (Gus Caplan) [#29778](https://github.com/nodejs/node/pull/29778)
+* **src**: expose ArrayBuffer version of Buffer::New() (Anna Henningsen) [#30476](https://github.com/nodejs/node/pull/30476)
+* **src**: expose ability to set options (Shelley Vohr) [#30466](https://github.com/nodejs/node/pull/30466)
+* **src**: allow adding linked bindings to Environment (Anna Henningsen) [#30274](https://github.com/nodejs/node/pull/30274)
+* **src**: deprecate two- and one-argument AtExit() (Anna Henningsen) [#30227](https://github.com/nodejs/node/pull/30227)
+* **src**: expose granular SetIsolateUpForNode (Shelley Vohr) [#30150](https://github.com/nodejs/node/pull/30150)
+* **stream**: add writableCorked to Duplex (Anna Henningsen) [#29053](https://github.com/nodejs/node/pull/29053)
+* **stream**: add writableCorked property (Robert Nagy) [#29012](https://github.com/nodejs/node/pull/29012)
+* **tls**: add PSK support (Denys Otrishko) [#23188](https://github.com/nodejs/node/pull/23188)
+* **tls**: expose IETF name for current cipher suite (Sam Roberts) [#30637](https://github.com/nodejs/node/pull/30637)
+* **tls**: cli option to enable TLS key logging to file (Sam Roberts) [#30055](https://github.com/nodejs/node/pull/30055)
+* **util**: add more predefined color codes to inspect.colors (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
+* **vm**: add Synthetic modules (Gus Caplan) [#29864](https://github.com/nodejs/node/pull/29864)
+* **wasi**: introduce initial WASI support (Colin Ihrig) [#30258](https://github.com/nodejs/node/pull/30258)
+* **worker**: add argv constructor option (legendecas) [#30559](https://github.com/nodejs/node/pull/30559)
+* **worker**: allow specifying resource limits (Anna Henningsen) [#26628](https://github.com/nodejs/node/pull/26628)
 
 ### Commits
 
@@ -303,7 +527,7 @@ TODO
 * [[`a534058d3c`](https://github.com/nodejs/node/commit/a534058d3c)] - **http2**: small clean up in OnStreamRead (Denys Otrishko) [#30351](https://github.com/nodejs/node/pull/30351)
 * [[`fb4f71bff7`](https://github.com/nodejs/node/commit/fb4f71bff7)] - **(SEMVER-MINOR)** **http2**: make maximum tolerated rejected streams configurable (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
 * [[`3bed1fa7da`](https://github.com/nodejs/node/commit/3bed1fa7da)] - **(SEMVER-MINOR)** **http2**: allow to configure maximum tolerated invalid frames (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
-* [[`46cb0da9bf`](https://github.com/nodejs/node/commit/46cb0da9bf)] - **(SEMVER-MINOR)** **http2**: replace direct array usage with struct for js\_fields\_ (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
+* [[`46cb0da9bf`](https://github.com/nodejs/node/commit/46cb0da9bf)] - **http2**: replace direct array usage with struct for js\_fields\_ (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
 * [[`3fe37e6e2b`](https://github.com/nodejs/node/commit/3fe37e6e2b)] - **https**: prevent options object from being mutated (Vighnesh Raut) [#31151](https://github.com/nodejs/node/pull/31151)
 * [[`dc521b03a2`](https://github.com/nodejs/node/commit/dc521b03a2)] - **(SEMVER-MINOR)** **https**: add client support for TLS keylog events (Sam Roberts) [#30053](https://github.com/nodejs/node/pull/30053)
 * [[`a8bf7db040`](https://github.com/nodejs/node/commit/a8bf7db040)] - **inspector**: do not access queueMicrotask from global (Michaël Zasso) [#30732](https://github.com/nodejs/node/pull/30732)
@@ -493,7 +717,7 @@ TODO
 * [[`b9c057c85a`](https://github.com/nodejs/node/commit/b9c057c85a)] - **tools,src**: forbid usage of v8::Persistent (Anna Henningsen) [#31018](https://github.com/nodejs/node/pull/31018)
 * [[`70dc7a2672`](https://github.com/nodejs/node/commit/70dc7a2672)] - **url**: declare iterator inside loop (Trivikram Kamat) [#30509](https://github.com/nodejs/node/pull/30509)
 * [[`219c8e9885`](https://github.com/nodejs/node/commit/219c8e9885)] - **(SEMVER-MINOR)** **util**: add more predefined color codes to inspect.colors (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
-* [[`1fbd7ac32e`](https://github.com/nodejs/node/commit/1fbd7ac32e)] - **(SEMVER-MINOR)** **util**: improve inspect's customInspect performance (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
+* [[`1fbd7ac32e`](https://github.com/nodejs/node/commit/1fbd7ac32e)] - **util**: improve inspect's customInspect performance (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
 * [[`5aecbcfdbe`](https://github.com/nodejs/node/commit/5aecbcfdbe)] - **util**: add internal sleep() function (Colin Ihrig) [#30787](https://github.com/nodejs/node/pull/30787)
 * [[`74f7844a71`](https://github.com/nodejs/node/commit/74f7844a71)] - **v8**: use of TypedArray constructors from primordials (Sebastien Ahkrin) [#30740](https://github.com/nodejs/node/pull/30740)
 * [[`faf3ad2cb4`](https://github.com/nodejs/node/commit/faf3ad2cb4)] - **(SEMVER-MINOR)** **vm**: add Synthetic modules (Gus Caplan) [#29864](https://github.com/nodejs/node/pull/29864)
