@@ -2158,6 +2158,14 @@ a [Writable][] stream.
 `process.stderr` differs from other Node.js streams in important ways. See
 [note on process I/O][] for more information.
 
+### `process.stderr.fd`
+
+* {number}
+
+This property refers to the value of underlying file descriptor
+(in POSIX) or handle (an abstract resource reference in Windows) of
+`process.stderr`. In `worker_thread`s, this field does not exist.
+
 ## `process.stdin`
 
 * {Stream}
@@ -2191,6 +2199,14 @@ In "old" streams mode the `stdin` stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
 
+### `process.stdin.fd`
+
+* {number}
+
+This property refers to the value of underlying file descriptor
+(in POSIX) or handle (an abstract resource reference in Windows) of
+`process.stdin`. In `worker_thread`s, this field does not exist.
+
 ## `process.stdout`
 
 * {Stream}
@@ -2208,6 +2224,14 @@ process.stdin.pipe(process.stdout);
 
 `process.stdout` differs from other Node.js streams in important ways. See
 [note on process I/O][] for more information.
+
+### `process.stdout.fd`
+
+* {number}
+
+This property refers to the value of underlying file descriptor
+(in POSIX) or handle (an abstract resource reference in Windows) of
+`process.stdout`. In `worker_thread`s, this field does not exist.
 
 ### A note on process I/O
 
