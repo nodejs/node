@@ -350,6 +350,12 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
     v8::Local<v8::ObjectTemplate> object_template =
         v8::Local<v8::ObjectTemplate>());
 
+// Create a new context for an existing environment.
+// This add several fields to make inspector work properly.
+NODE_EXTERN v8::Local<v8::Context> NewContext(Environment *env,
+    v8::Local<v8::ObjectTemplate> object_template,
+    bool initialize = false);
+
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
 NODE_EXTERN bool InitializeContext(v8::Local<v8::Context> context);
