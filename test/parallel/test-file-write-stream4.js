@@ -1,4 +1,8 @@
 'use strict';
+
+// Test that 'close' emits once and not twice when `emitClose: true` is set.
+// Refs: https://github.com/nodejs/node/issues/31366
+
 const common = require('../common');
 const path = require('path');
 const fs = require('fs');
