@@ -74,6 +74,7 @@ if (process.argv[2] === 'wasi-child') {
     assert.strictEqual(child.stdout.toString(), options.stdout || '');
   }
 
+  runWASI({ test: 'create_symlink', stdout: 'hello from input.txt' });
   runWASI({ test: 'follow_symlink', stdout: 'hello from input.txt' });
   runWASI({ test: 'symlink_escape' });
   runWASI({ test: 'symlink_loop' });
