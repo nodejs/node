@@ -39,7 +39,11 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.29',
+<<<<<<< HEAD
+    'v8_embedder_string': '-node.30',
+=======
+    'v8_embedder_string': '-node.28',
+>>>>>>> deps: V8: backport a494bcf
 
     ##### V8 defaults for Node.js #####
 
