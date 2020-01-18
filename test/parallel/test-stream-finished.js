@@ -197,10 +197,14 @@ const { promisify } = require('util');
 {
   // Completed if readable-like is ended before.
 
+  let ticked = false;
   const streamLike = new EE();
   streamLike.readableEnded = true;
   streamLike.readable = true;
-  finished(streamLike, common.mustCall());
+  finished(streamLike, common.mustCall(() => {
+    assert.strictEqual(ticked, true);
+  }));
+  ticked = true;
 }
 
 {
@@ -213,42 +217,6 @@ const { promisify } = require('util');
     code: 'ERR_STREAM_PREMATURE_CLOSE'
   }));
   streamLike.emit('close');
-}
-
-{
-  // Completed if writable-like is destroyed before.
-
-  const streamLike = new EE();
-  streamLike.destroyed = true;
-  streamLike.writable = true;
-  finished(streamLike, common.mustCall());
-}
-
-{
-  // Completed if readable-like is aborted before.
-
-  const streamLike = new EE();
-  streamLike.destroyed = true;
-  streamLike.readable = true;
-  finished(streamLike, common.mustCall());
-}
-
-{
-  // Completed if writable-like is aborted before.
-
-  const streamLike = new EE();
-  streamLike.aborted = true;
-  streamLike.writable = true;
-  finished(streamLike, common.mustCall());
-}
-
-{
-  // Completed if readable-like is aborted before.
-
-  const streamLike = new EE();
-  streamLike.aborted = true;
-  streamLike.readable = true;
-  finished(streamLike, common.mustCall());
 }
 
 {
