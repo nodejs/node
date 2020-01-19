@@ -4087,6 +4087,7 @@ void ParserBase<Impl>::ParseFunctionBody(
       inner_body.Rewind();
       inner_body.Add(inner_block);
       inner_block->set_scope(inner_scope);
+      impl()->RecordBlockSourceRange(inner_block, scope()->end_position());
       if (!impl()->HasCheckedSyntax()) {
         const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
             function_scope, VariableMode::kLastLexicalVariableMode);
