@@ -1097,4 +1097,41 @@ f(43);                                    // 0450
  {"start":204,"end":226,"count":1}]
 );
 
+TestCoverage(
+"https://crbug.com/v8/9857",
+`function foo() {function bar() {}}; foo()`,
+[{"start":0,"end":41,"count":1},
+  {"start":0,"end":34,"count":1},
+  {"start":16,"end":33,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/9952",
+`
+function test(foo = "foodef") {           // 0000
+  return {bar};                           // 0050
+                                          // 0100
+  function bar() {                        // 0150
+    console.log("test");                  // 0200
+  }                                       // 0250
+}                                         // 0300
+test().bar();                             // 0350`,
+[{"start":0,"end":399,"count":1},
+ {"start":0,"end":301,"count":1},
+ {"start":152,"end":253,"count":1}]);
+
+TestCoverage(
+"https://crbug.com/v8/9952",
+`
+function test(foo = (()=>{})) {           // 0000
+  return {foo};                           // 0050
+}                                         // 0100
+                                          // 0150
+test(()=>{}).foo();                       // 0200`,
+[{"start":0,"end":249,"count":1},
+ {"start":0,"end":101,"count":1},
+ {"start":21,"end":27,"count":0},
+ {"start":205,"end":211,"count":1}]
+);
+
 %DebugToggleBlockCoverage(false);
