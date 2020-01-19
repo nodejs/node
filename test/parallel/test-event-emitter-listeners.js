@@ -122,3 +122,23 @@ function listener4() {
   assert.strictEqual(rawListener.length, 1);
   assert.strictEqual(rawListener[0](), 1);
 }
+
+{
+  const ee = new events.EventEmitter();
+  assert.throws(() => {
+    ee.listeners(() => {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "type" argument must be one of type string or symbol. ' +
+             'Received type function ([Function (anonymous)])'
+  });
+  assert.throws(() => {
+    ee.rawListeners(() => {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "type" argument must be one of type string or symbol. ' +
+             'Received type function ([Function (anonymous)])'
+  });
+}

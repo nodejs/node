@@ -60,6 +60,17 @@ assert.throws(() => {
            'Received null'
 });
 
+// Verify that the type must be a string or symbol
+assert.throws(() => {
+  const ee = new EventEmitter();
+  ee.once(() => {}, () => {});
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message: 'The "type" argument must be one of type string or symbol. ' +
+           'Received type function ([Function (anonymous)])'
+});
+
 {
   // once() has different code paths based on the number of arguments being
   // emitted. Verify that all of the cases are covered.

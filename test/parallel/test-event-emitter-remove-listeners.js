@@ -155,6 +155,19 @@ assert.throws(() => {
            'Received null'
 });
 
+// Verify that the removed type must be a function
+{
+  assert.throws(() => {
+    const ee = new EventEmitter();
+    ee.removeAllListeners(() => {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "type" argument must be one of type string or symbol. ' +
+             'Received type function ([Function (anonymous)])'
+  });
+}
+
 {
   const ee = new EventEmitter();
   const listener = () => {};

@@ -95,3 +95,24 @@ assert.throws(() => {
   message: 'The "listener" argument must be of type function. ' +
            'Received null'
 });
+
+// Verify that illegal types for event name are rejected
+[
+  () => {},
+  undefined,
+  {},
+  async function named() {},
+  /regex/,
+  true,
+  null
+].forEach((value) => {
+  assert.throws(() => {
+    const ee = new EventEmitter();
+    ee.on(value, () => {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "type" argument must be one of type string or symbol.' +
+             common.invalidArgTypeHelper(value)
+  });
+});

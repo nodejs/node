@@ -29,6 +29,17 @@ assert.throws(() => {
            'Received null'
 });
 
+// Verify that the type must be a string or symbol
+assert.throws(() => {
+  const ee = new EventEmitter();
+  ee.prependOnceListener(() => {}, () => {});
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message: 'The "type" argument must be one of type string or symbol. ' +
+           'Received type function ([Function (anonymous)])'
+});
+
 // Test fallback if prependListener is undefined.
 const stream = require('stream');
 

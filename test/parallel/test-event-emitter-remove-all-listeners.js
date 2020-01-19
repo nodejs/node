@@ -108,3 +108,15 @@ function expect(expected) {
   ee._events = undefined;
   assert.strictEqual(ee, ee.removeAllListeners());
 }
+
+{
+  assert.throws(() => {
+    const ee = new events.EventEmitter();
+    ee.removeAllListeners(() => {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "type" argument must be one of type string or symbol. ' +
+             'Received type function ([Function (anonymous)])'
+  });
+}
