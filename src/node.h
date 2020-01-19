@@ -352,7 +352,7 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
 
 // Create a new context for an existing environment.
 // This add several fields to make inspector work properly.
-NODE_EXTERN v8::Local<v8::Context> NewContext(Environment *env,
+NODE_EXTERN v8::Local<v8::Context> NewContext(Environment* env,
     v8::Local<v8::ObjectTemplate> object_template,
     bool initialize = false);
 

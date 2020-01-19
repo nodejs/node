@@ -405,7 +405,7 @@ Local<Context> NewContext(Isolate* isolate,
   return context;
 }
 
-Local<Context> NewContext(Environment *env,
+Local<Context> NewContext(Environment* env,
                           Local<ObjectTemplate> object_template,
                           bool initialize) {
   v8::EscapableHandleScope scope(env->isolate());
