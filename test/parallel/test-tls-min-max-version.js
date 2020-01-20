@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const { inspect } = require('util');
 
 // Check min/max protocol versions.
 
@@ -16,7 +17,7 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   // Report where test was called from. Strip leading garbage from
   //     at Object.<anonymous> (file:line)
   // from the stack location, we only want the file:line part.
-  const where = (new Error()).stack.split('\n')[2].replace(/[^(]*/, '');
+  const where = inspect(new Error()).split('\n')[2].replace(/[^(]*/, '');
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
