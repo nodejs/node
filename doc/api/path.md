@@ -477,7 +477,8 @@ an absolute path.
 The given sequence of paths is processed from right to left, with each
 subsequent `path` prepended until an absolute path is constructed.
 For instance, given the sequence of path segments: `/foo`, `/bar`, `baz`,
-calling `path.resolve('/foo', '/bar', 'baz')` would return `/bar/baz`.
+calling `path.resolve('/foo', '/bar', 'baz')` would return `/bar/baz`
+because `'baz'` is not an absolute path but `'/bar' + '/' + 'baz'` is.
 
 If after processing all given `path` segments an absolute path has not yet
 been generated, the current working directory is used.
