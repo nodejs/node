@@ -22,6 +22,7 @@
 #include "uv_mapping.h"
 #include "fd_table.h"
 #include "clocks.h"
+#include "wasi_rights.h"
 
 /* TODO(cjihrig): PATH_MAX_BYTES shouldn't be stack allocated. On Windows, paths
    can be 32k long, and this PATH_MAX_BYTES is an artificial limitation. */
@@ -1485,41 +1486,10 @@ exit:
 uvwasi_errno_t uvwasi_fd_renumber(uvwasi_t* uvwasi,
                                   uvwasi_fd_t from,
                                   uvwasi_fd_t to) {
-  struct uvwasi_fd_wrap_t* to_wrap;
-  struct uvwasi_fd_wrap_t* from_wrap;
-  uv_fs_t req;
-  uvwasi_errno_t err;
-  int r;
-
   if (uvwasi == NULL)
     return UVWASI_EINVAL;
 
-  if (from == to)
-    return UVWASI_ESUCCESS;
-
-  err = uvwasi_fd_table_get(&uvwasi->fds, from, &from_wrap, 0, 0);
-  if (err != UVWASI_ESUCCESS)
-    return err;
-
-  err = uvwasi_fd_table_get(&uvwasi->fds, to, &to_wrap, 0, 0);
-  if (err != UVWASI_ESUCCESS) {
-    uv_mutex_unlock(&from_wrap->mutex);
-    return err;
-  }
-
-  r = uv_fs_close(NULL, &req, to_wrap->fd, NULL);
-  uv_fs_req_cleanup(&req);
-  if (r != 0) {
-    uv_mutex_unlock(&from_wrap->mutex);
-    uv_mutex_unlock(&to_wrap->mutex);
-    return uvwasi__translate_uv_error(r);
-  }
-
-  memcpy(to_wrap, from_wrap, sizeof(*to_wrap));
-  to_wrap->id = to;
-  uv_mutex_unlock(&from_wrap->mutex);
-  uv_mutex_unlock(&to_wrap->mutex);
-  return uvwasi_fd_table_remove(uvwasi, &uvwasi->fds, from);
+  return uvwasi_fd_table_renumber(uvwasi, &uvwasi->fds, to, from);
 }
 
 
@@ -1871,8 +1841,11 @@ uvwasi_errno_t uvwasi_path_open(uvwasi_t* uvwasi,
   char resolved_path[PATH_MAX_BYTES];
   uvwasi_rights_t needed_inheriting;
   uvwasi_rights_t needed_base;
+  uvwasi_rights_t max_base;
+  uvwasi_rights_t max_inheriting;
   struct uvwasi_fd_wrap_t* dirfd_wrap;
-  struct uvwasi_fd_wrap_t wrap;
+  struct uvwasi_fd_wrap_t *wrap;
+  uvwasi_filetype_t filetype;
   uvwasi_errno_t err;
   uv_fs_t req;
   int flags;
@@ -1956,33 +1929,42 @@ uvwasi_errno_t uvwasi_path_open(uvwasi_t* uvwasi,
     return uvwasi__translate_uv_error(r);
   }
 
-  err = uvwasi_fd_table_insert_fd(uvwasi,
-                                  &uvwasi->fds,
-                                  r,
-                                  flags,
-                                  resolved_path,
-                                  fs_rights_base,
-                                  fs_rights_inheriting,
-                                  &wrap);
-  if (err != UVWASI_ESUCCESS) {
-    uv_mutex_unlock(&dirfd_wrap->mutex);
+  /* Not all platforms support UV_FS_O_DIRECTORY, so get the file type and check
+     it here. */
+  err = uvwasi__get_filetype_by_fd(r, &filetype);
+  if (err != UVWASI_ESUCCESS)
     goto close_file_and_error_exit;
-  }
 
-  /* Not all platforms support UV_FS_O_DIRECTORY, so enforce it here as well. */
   if ((o_flags & UVWASI_O_DIRECTORY) != 0 &&
-      wrap.type != UVWASI_FILETYPE_DIRECTORY) {
-    uv_mutex_unlock(&dirfd_wrap->mutex);
-    uvwasi_fd_table_remove(uvwasi, &uvwasi->fds, wrap.id);
+      filetype != UVWASI_FILETYPE_DIRECTORY) {
     err = UVWASI_ENOTDIR;
     goto close_file_and_error_exit;
   }
 
-  *fd = wrap.id;
+  err = uvwasi__get_rights(r, flags, filetype, &max_base, &max_inheriting);
+  if (err != UVWASI_ESUCCESS)
+    goto close_file_and_error_exit;
+
+  err = uvwasi_fd_table_insert(uvwasi,
+                               &uvwasi->fds,
+                               r,
+                               resolved_path,
+                               resolved_path,
+                               filetype,
+                               fs_rights_base & max_base,
+                               fs_rights_inheriting & max_inheriting,
+                               0,
+                               &wrap);
+  if (err != UVWASI_ESUCCESS)
+    goto close_file_and_error_exit;
+
+  *fd = wrap->id;
+  uv_mutex_unlock(&wrap->mutex);
   uv_mutex_unlock(&dirfd_wrap->mutex);
   return UVWASI_ESUCCESS;
 
 close_file_and_error_exit:
+  uv_mutex_unlock(&dirfd_wrap->mutex);
   uv_fs_close(NULL, &req, r, NULL);
   uv_fs_req_cleanup(&req);
   return err;
