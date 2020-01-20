@@ -33,8 +33,7 @@ initial input, or when referenced by `import` statements within ES module code:
 
 * Files ending in `.mjs`.
 
-* Files ending in `.js`, or extensionless files when run as main entry points on
-  the command line, when the nearest parent `package.json` file contains a
+* Files ending in `.js` when the nearest parent `package.json` file contains a
   top-level field `"type"` with a value of `"module"`.
 
 * Strings passed in as an argument to `--eval` or `--print`, or piped to
@@ -50,8 +49,7 @@ or when referenced by `import` statements within ES module code:
 
 * Files ending in `.cjs`.
 
-* Files ending in `.js`, or extensionless files when run as main entry points on
-  the command line, when the nearest parent `package.json` file contains a
+* Files ending in `.js` when the nearest parent `package.json` file contains a
   top-level field `"type"` with a value of `"commonjs"`.
 
 * Strings passed in as an argument to `--eval` or `--print`, or piped to
@@ -59,9 +57,9 @@ or when referenced by `import` statements within ES module code:
 
 ### `package.json` `"type"` field
 
-Files ending with `.js` or lacking any extension will be loaded as ES modules
-when the nearest parent `package.json` file contains a top-level field `"type"`
-with a value of `"module"`.
+Files ending with `.js` will be loaded as ES modules when the nearest parent
+`package.json` file contains a top-level field `"type"` with a value of
+`"module"`.
 
 The nearest parent `package.json` is defined as the first `package.json` found
 when searching in the current folder, that folder’s parent, and so on up
@@ -81,14 +79,12 @@ node my-app.js # Runs as ES module
 ```
 
 If the nearest parent `package.json` lacks a `"type"` field, or contains
-`"type": "commonjs"`, extensionless and `.js` files are treated as CommonJS.
-If the volume root is reached and no `package.json` is found,
-Node.js defers to the default, a `package.json` with no `"type"`
-field. "Extensionless" refers to file paths which do not contain
-an extension as opposed to optionally dropping a file extension in a specifier.
+`"type": "commonjs"`, `.js` files are treated as CommonJS. If the volume root is
+reached and no `package.json` is found, Node.js defers to the default, a
+`package.json` with no `"type"` field.
 
-`import` statements of `.js` and extensionless files are treated as ES modules
-if the nearest parent `package.json` contains `"type": "module"`.
+`import` statements of `.js` files are treated as ES modules if the nearest
+parent `package.json` contains `"type": "module"`.
 
 ```js
 // my-app.js, part of the same example as above
@@ -106,14 +102,13 @@ as ES modules and `.cjs` files are always treated as CommonJS.
 
 ### Package Scope and File Extensions
 
-A folder containing a `package.json` file, and all subfolders below that
-folder down until the next folder containing another `package.json`, is
-considered a _package scope_. The `"type"` field defines how `.js` and
-extensionless files should be treated within a particular `package.json` file’s
-package scope. Every package in a project’s `node_modules` folder contains its
-own `package.json` file, so each project’s dependencies have their own package
-scopes. A `package.json` lacking a `"type"` field is treated as if it contained
-`"type": "commonjs"`.
+A folder containing a `package.json` file, and all subfolders below that folder
+down until the next folder containing another `package.json`, is considered a
+_package scope_. The `"type"` field defines how `.js` files should be treated
+within a particular `package.json` file’s package scope. Every package in a
+project’s `node_modules` folder contains its own `package.json` file, so each
+project’s dependencies have their own package scopes. A `package.json` lacking a
+`"type"` field is treated as if it contained `"type": "commonjs"`.
 
 The package scope applies not only to initial entry points (`node my-app.js`)
 but also to files referenced by `import` statements and `import()` expressions.
@@ -1042,8 +1037,7 @@ a URL should be interpreted. This can be one of the following:
 ```js
 /**
  * @param {string} url
- * @param {object} context
- * @param {string} context.parentURL
+ * @param {object} context (currently empty)
  * @param {function} defaultGetFormat
  * @returns {object} response
  * @returns {string} response.format
@@ -1367,15 +1361,13 @@ updates.
 In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines unless stated otherwise.
 
-_isMain_ is **true** when resolving the Node.js application entry point.
-
 _defaultEnv_ is the conditional environment name priority array,
 `["node", "import"]`.
 
 <details>
 <summary>Resolver algorithm specification</summary>
 
-**ESM_RESOLVE**(_specifier_, _parentURL_, _isMain_)
+**ESM_RESOLVE**(_specifier_, _parentURL_)
 
 > 1. Let _resolvedURL_ be **undefined**.
 > 1. If _specifier_ is a valid URL, then
@@ -1396,7 +1388,7 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If the file at _resolvedURL_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
 > 1. Set _resolvedURL_ to the real path of _resolvedURL_.
-> 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_, _isMain_).
+> 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_).
 > 1. Load _resolvedURL_ as module format, _format_.
 
 **PACKAGE_RESOLVE**(_packageSpecifier_, _parentURL_)
@@ -1549,7 +1541,7 @@ _defaultEnv_ is the conditional environment name priority array,
 >       1. Return _resolved_.
 > 1. Throw a _Module Not Found_ error.
 
-**ESM_FORMAT**(_url_, _isMain_)
+**ESM_FORMAT**(_url_)
 
 > 1. Assert: _url_ corresponds to an existing file.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
@@ -1558,12 +1550,10 @@ _defaultEnv_ is the conditional environment name priority array,
 > 1. If _url_ ends in _".cjs"_, then
 >    1. Return _"commonjs"_.
 > 1. If _pjson?.type_ exists and is _"module"_, then
->    1. If _isMain_ is **true** or _url_ ends in _".js"_, then
+>    1. If _url_ ends in _".js"_, then
 >       1. Return _"module"_.
 >    1. Throw an _Unsupported File Extension_ error.
 > 1. Otherwise,
->    1. If _isMain_ is **true**, then
->       1. Return _"commonjs"_.
 >    1. Throw an _Unsupported File Extension_ error.
 
 **READ_PACKAGE_SCOPE**(_url_)
