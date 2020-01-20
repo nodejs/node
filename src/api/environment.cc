@@ -413,7 +413,7 @@ Local<Context> NewContext(Environment* env,
   v8::Local<v8::String> name;
 
   {
-    // A consstructor name should be invoked in the newly created context
+    // A constructor name should be invoked in the newly created context
     // to prevent access check failures.
     v8::Context::Scope scope(context);
     name = context->Global()->GetConstructorName();
