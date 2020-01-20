@@ -15,7 +15,7 @@ if (process.argv[2] === 'wasi-child') {
   tmpdir.refresh();
   const wasmDir = path.join(__dirname, 'wasm');
   const wasi = new WASI({
-    args: [],
+    args: ['foo', '-bar', '--baz=value'],
     env: process.env,
     preopens: {
       '/sandbox': fixtures.path('wasi'),
@@ -64,6 +64,7 @@ if (process.argv[2] === 'wasi-child') {
   runWASI({ test: 'getentropy' });
   runWASI({ test: 'getrusage' });
   runWASI({ test: 'gettimeofday' });
+  runWASI({ test: 'main_args' });
   runWASI({ test: 'notdir' });
   // runWASI({ test: 'poll' });
   runWASI({ test: 'preopen_populates' });
