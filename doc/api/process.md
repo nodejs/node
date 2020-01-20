@@ -2163,7 +2163,7 @@ a [Writable][] stream.
 * {number}
 
 This property refers to the value of underlying file descriptor of
-`process.stderr`. The value is fixed at `2`. In `worker_thread`s,
+`process.stderr`. The value is fixed at `2`. In [`Worker`][] threads,
 this field does not exist.
 
 ## `process.stdin`
@@ -2204,7 +2204,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 * {number}
 
 This property refers to the value of underlying file descriptor of
-`process.stdin`. The value is fixed at `0`. In `worker_thread`s,
+`process.stdin`. The value is fixed at `0`. In [`Worker`][] threads,
 this field does not exist.
 
 ## `process.stdout`
@@ -2230,7 +2230,7 @@ process.stdin.pipe(process.stdout);
 * {number}
 
 This property refers to the value of underlying file descriptor of
-`process.stdout`. The value is fixed at `1`. In `worker_thread`s,
+`process.stdout`. The value is fixed at `1`. In [`Worker`][] threads,
 this field does not exist.
 
 ### A note on process I/O
