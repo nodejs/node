@@ -25,5 +25,5 @@ assert.throws(() => Buffer.allocUnsafe(kMaxLength + 1), bufferMaxSizeMsg);
 assert.throws(() => Buffer.allocUnsafeSlow(kMaxLength + 1), bufferMaxSizeMsg);
 
 // issue GH-4331
-assert.throws(() => Buffer.allocUnsafe(0xFFFFFFFF), bufferMaxSizeMsg);
+assert.throws(() => Buffer.allocUnsafe(0x100000000), bufferMaxSizeMsg);
 assert.throws(() => Buffer.allocUnsafe(0xFFFFFFFFF), bufferMaxSizeMsg);
