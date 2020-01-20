@@ -2,15 +2,12 @@
 require('../common');
 const assert = require('assert').strict;
 
-try {
-  // Activate colors even if the tty does not support colors.
-  process.env.COLORTERM = '1';
-  // Make sure TERM is not set to e.g., 'dumb' and NODE_DISABLE_COLORS is not
-  // active.
-  process.env.TERM = 'FOOBAR';
+assert.throws(() => {
+  process.env.FORCE_COLOR = '1';
   delete process.env.NODE_DISABLE_COLORS;
+  delete process.env.NO_COLOR;
   assert.deepStrictEqual([1, 2, 2, 2, 2], [2, 2, 2, 2, 2]);
-} catch (err) {
+}, (err) => {
   const expected = 'Expected values to be strictly deep-equal:\n' +
     '\u001b[32m+ actual\u001b[39m \u001b[31m- expected\u001b[39m' +
       ' \u001b[34m...\u001b[39m Lines skipped\n\n' +
@@ -23,4 +20,5 @@ try {
     '    2\n' +
     '  ]';
   assert.strictEqual(err.message, expected);
-}
+  return true;
+});
