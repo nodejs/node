@@ -1044,7 +1044,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INCOMPATIBLE_OPTION_PAIR',
-      message: `Option "${opt1}" can not be used in combination with option ` +
+      message: `Option "${opt1}" cannot be used in combination with option ` +
                `"${opt2}"`
     });
   }
