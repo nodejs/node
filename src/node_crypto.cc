@@ -3549,7 +3549,7 @@ static NonCopyableMaybe<PrivateKeyEncodingConfig> GetPrivateKeyEncodingFromJs(
                                       args[*offset].As<String>());
         result.cipher_ = EVP_get_cipherbyname(*cipher_name);
         if (result.cipher_ == nullptr) {
-          env->ThrowError("Unknown cipher");
+          THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
           return NonCopyableMaybe<PrivateKeyEncodingConfig>();
         }
         needs_passphrase = true;
@@ -4055,7 +4055,7 @@ void CipherBase::Init(const char* cipher_type,
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr)
-    return env()->ThrowError("Unknown cipher");
+    return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
 
   unsigned char key[EVP_MAX_KEY_LENGTH];
   unsigned char iv[EVP_MAX_IV_LENGTH];
@@ -4119,7 +4119,7 @@ void CipherBase::InitIv(const char* cipher_type,
 
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr) {
-    return env()->ThrowError("Unknown cipher");
+    return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
   }
 
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);

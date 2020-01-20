@@ -210,7 +210,11 @@ for (let n = 1; n < 256; n += 1) {
   // Passing an invalid cipher name should throw.
   assert.throws(
     () => crypto.createCipheriv('aes-127', Buffer.alloc(16), null),
-    /Unknown cipher/);
+    {
+      name: 'Error',
+      code: 'ERR_CRYPTO_UNKNOWN_CIPHER',
+      message: 'Unknown cipher'
+    });
 
   // Passing a key with an invalid length should throw.
   assert.throws(

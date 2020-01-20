@@ -831,6 +831,11 @@ A signing `key` was not provided to the [`sign.sign()`][] method.
 [`crypto.timingSafeEqual()`][] was called with `Buffer`, `TypedArray`, or
 `DataView` arguments of different lengths.
 
+<a id="ERR_CRYPTO_UNKNOWN_CIPHRE"></a>
+### `ERR_CRYPTO_UNKNOWN_CIPHER`
+
+An unknown cipher was specified.
+
 <a id="ERR_CRYPTO_UNKNOWN_DH_GROUP"></a>
 ### `ERR_CRYPTO_UNKNOWN_DH_GROUP`
 

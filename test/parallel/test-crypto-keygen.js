@@ -822,6 +822,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }), {
     name: 'Error',
+    code: 'ERR_CRYPTO_UNKNOWN_CIPHER',
     message: 'Unknown cipher'
   });
 
