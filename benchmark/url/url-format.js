@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ type, n }) {
-  const input = inputs[type] || '';
+  const input = inputs[type];
 
   // Force-optimize url.format() so that the benchmark doesn't get
   // disrupted by the optimizer kicking in halfway through.
