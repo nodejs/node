@@ -330,6 +330,9 @@ template <typename T>
 using QuicCIDMap =
     std::unordered_map<QuicCID, T, QuicCID::Hash, QuicCID::Compare>;
 
+template <typename T>
+inline size_t get_length(const T*, size_t len);
+
 }  // namespace quic
 }  // namespace node
 

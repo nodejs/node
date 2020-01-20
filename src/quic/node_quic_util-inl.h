@@ -409,6 +409,15 @@ void StatsBase<T>::StatsMemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("ack_histogram", ack_);
 }
 
+template <typename T>
+size_t get_length(const T* vec, size_t count) {
+  CHECK_NOT_NULL(vec);
+  size_t len = 0;
+  for (size_t n = 0; n < count; n++)
+    len += vec[n].len;
+  return len;
+}
+
 }  // namespace quic
 }  // namespace node
 

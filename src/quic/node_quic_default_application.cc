@@ -118,27 +118,41 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
   if (stream == nullptr)
     return 0;
 
-  stream_data->remaining =
-      stream->DrainInto(
-          &stream_data->data,
-          &stream_data->count,
-          kMaxVectorCount);
-
   stream_data->stream.reset(stream);
   stream_data->id = stream->id();
-  stream_data->fin = stream->is_writable() ? 0 : 1;
 
-  // Schedule the stream again only if there is data to write. There
-  // might not actually be any more data to write but we can't know
-  // that yet as it depends entirely on how much data actually gets
-  // serialized by ngtcp2.
-  if (stream_data->count > 0)
-    stream->Schedule(&stream_queue_);
+  auto next = [&](
+      int status,
+      const ngtcp2_vec* data,
+      size_t count,
+      QuicStream::Done done) {
+    switch (status) {
+      case bob::Status::STATUS_BLOCK:
+        // Fall through
+      case bob::Status::STATUS_WAIT:
+        // Fall through
+      case bob::Status::STATUS_EOS:
+        return;
+      case bob::Status::STATUS_END:
+        stream_data->fin = 1;
+    }
+    stream_data->count = count;
 
-  Debug(session(), "Selected %" PRId64 " buffers for stream %" PRId64 "%s",
-        stream_data->count,
-        stream_data->id,
-        stream_data->fin == 1 ? " (fin)" : "");
+    if (count > 0) {
+      stream->Schedule(&stream_queue_);
+      stream_data->remaining = get_length(data, count);
+    } else {
+      stream_data->remaining = 0;
+    }
+  };
+
+  CHECK_GE(stream->Pull(
+      std::move(next),
+      bob::Options::OPTIONS_SYNC,
+      stream_data->data,
+      arraysize(stream_data->data),
+      kMaxVectorCount), 0);
+
   return 0;
 }
 

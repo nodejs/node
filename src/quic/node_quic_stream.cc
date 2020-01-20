@@ -32,15 +32,6 @@ using v8::Value;
 
 namespace quic {
 
-namespace {
-size_t get_length(uv_buf_t* bufs, size_t nbufs) {
-  size_t len = 0;
-  for (size_t n = 0; n < nbufs; n++)
-    len += bufs[n].len;
-  return len;
-}
-}  // namespace
-
 QuicStream::QuicStream(
     QuicSession* sess,
     Local<Object> wrap,
@@ -82,7 +73,7 @@ void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
   // Consumes the given number of bytes in the buffer. This may
   // have the side-effect of causing the onwrite callback to be
   // invoked if a complete chunk of buffered data has been acknowledged.
-  streambuf_.consume(datalen);
+  streambuf_.Consume(datalen);
 
   RecordAck(&QuicStreamStats::acked_at);
 }
@@ -117,7 +108,7 @@ void QuicStream::Destroy() {
     return;
   set_flag(QUICSTREAM_FLAG_DESTROYED);
   set_flag(QUICSTREAM_FLAG_READ_CLOSED);
-  streambuf_.end();
+  streambuf_.End();
 
   uint64_t now = uv_hrtime();
   Debug(this,
@@ -134,7 +125,7 @@ void QuicStream::Destroy() {
   // JavaScript callback (the on write callback). Within
   // that callback, however, the QuicStream will no longer
   // be usable to send or receive data.
-  streambuf_.cancel();
+  streambuf_.Cancel();
   CHECK_EQ(streambuf_.length(), 0);
 
   // The QuicSession maintains a map of std::unique_ptrs to
@@ -158,7 +149,7 @@ int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
   if (is_writable()) {
     Debug(this, "Shutdown writable side");
     RecordTimestamp(&QuicStreamStats::closing_at);
-    streambuf_.end();
+    streambuf_.End();
     session()->ResumeStream(stream_id_);
   }
 
@@ -206,7 +197,7 @@ int QuicStream::DoWrite(
   // in the sense of providing back-pressure, but
   // also means that writes will be significantly
   // less performant unless written in batches.
-  streambuf_.push(
+  streambuf_.Push(
       bufs,
       nbufs,
       [req_wrap, strong_ref](int status) {
@@ -365,6 +356,20 @@ void QuicStream::ReceiveData(
     set_flag(QUICSTREAM_FLAG_FIN);
     EmitRead(UV_EOF);
   }
+}
+
+int QuicStream::DoPull(
+    Next next,
+    int options,
+    ngtcp2_vec* data,
+    size_t count,
+    size_t max_count_hint) {
+  return streambuf_.Pull(
+      std::move(next),
+      options,
+      data,
+      count,
+      max_count_hint);
 }
 
 // JavaScript API

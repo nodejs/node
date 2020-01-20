@@ -19,7 +19,7 @@ const { createSocket } = require('quic');
 let client;
 const server = createSocket();
 
-const countdown = new Countdown(2, () => {
+const countdown = new Countdown(1, () => {
   server.close();
   client.close();
 });
@@ -31,18 +31,7 @@ server.on('session', common.mustCall((session) => {
   session.on('stream', common.mustCall((stream) => {
     assert(stream.submitInitialHeaders({ ':status': '200' }));
 
-    const push = stream.pushStream({
-      ':method': 'GET',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      ':path': '/foo'
-    });
-    assert(push);
-    push.submitInitialHeaders({ ':status': '200' });
-    push.end('testing');
-    push.on('close', common.mustCall());
-    push.on('finish', common.mustCall());
-
+    stream.submitTrailingHeaders({ 'a': 1 });
     stream.end('hello world');
     stream.resume();
     stream.on('end', common.mustCall());
@@ -58,8 +47,13 @@ server.on('session', common.mustCall((session) => {
       ];
       assert.deepStrictEqual(expected, headers);
     }));
+
+    stream.on('trailingHeaders', common.mustCall((headers) => {
+      const expected = [ [ 'b', '2' ] ];
+      assert.deepStrictEqual(expected, headers);
+    }));
+
     stream.on('informationalHeaders', common.mustNotCall());
-    stream.on('trailingHeaders', common.mustNotCall());
   }));
 
   session.on('close', common.mustCall());
@@ -76,39 +70,13 @@ server.on('ready', common.mustCall(() => {
     h3: { maxPushes: 10 }
   });
 
-  req.on('stream', common.mustCall((stream) => {
-    let data = '';
-
-    stream.on('initialHeaders', common.mustCall((headers) => {
-      const expected = [
-        [':status', '200']
-      ];
-      assert.deepStrictEqual(expected, headers);
-    }));
-
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk) => data += chunk);
-    stream.on('end', common.mustCall(() => {
-      assert.strictEqual(data, 'testing');
-    }));
-    stream.on('close', common.mustCall(() => {
-      countdown.dec();
-    }));
-  }));
-
   req.on('close', common.mustCall());
   req.on('secure', common.mustCall((servername, alpn, cipher) => {
     const stream = req.openStream();
 
-    stream.on('pushHeaders', common.mustCall((headers, push_id) => {
-      const expected = [
-        [ ':path', '/foo' ],
-        [ ':authority', 'localhost' ],
-        [ ':scheme', 'https' ],
-        [ ':method', 'GET' ]
-      ];
+    stream.on('trailingHeaders', common.mustCall((headers) => {
+      const expected = [ [ 'a', '1' ] ];
       assert.deepStrictEqual(expected, headers);
-      assert.strictEqual(push_id, 0);
     }));
 
     assert(stream.submitInitialHeaders({
@@ -118,6 +86,7 @@ server.on('ready', common.mustCall(() => {
       ':path': '/',
     }));
 
+    stream.submitTrailingHeaders({ 'b': 2 });
     stream.end('hello world');
     stream.resume();
     stream.on('finish', common.mustCall());
@@ -130,7 +99,6 @@ server.on('ready', common.mustCall(() => {
       assert.deepStrictEqual(expected, headers);
     }));
     stream.on('informationalHeaders', common.mustNotCall());
-    stream.on('trailingHeaders', common.mustNotCall());
 
     stream.on('close', common.mustCall(() => {
       countdown.dec();

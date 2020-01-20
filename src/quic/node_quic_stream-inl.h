@@ -127,7 +127,7 @@ void QuicStream::BeginHeaders(QuicStreamHeadersKind kind) {
 
 void QuicStream::Commit(size_t amount) {
   CHECK(!is_destroyed());
-  streambuf_.seek(amount);
+  streambuf_.Seek(amount);
 }
 
 void QuicStream::ResetStream(uint64_t app_error_code) {
@@ -137,29 +137,8 @@ void QuicStream::ResetStream(uint64_t app_error_code) {
   // to be acknowledged at the ngtcp2 level will be
   // abandoned.
   set_flag(QUICSTREAM_FLAG_READ_CLOSED);
-  streambuf_.end();
+  streambuf_.End();
   session_->ResetStream(stream_id_, app_error_code);
-}
-
-template <typename T>
-size_t QuicStream::DrainInto(
-    std::vector<T>* vec,
-    size_t max_count) {
-  CHECK(!is_destroyed());
-  size_t length = 0;
-  streambuf_.DrainInto(vec, &length, max_count);
-  return length;
-}
-
-template <typename T>
-size_t QuicStream::DrainInto(
-    T* vec,
-    size_t* count,
-    size_t max_count) {
-  CHECK(!is_destroyed());
-  size_t length = 0;
-  streambuf_.DrainInto(vec, count, &length, max_count);
-  return length;
 }
 
 void QuicStream::Schedule(Queue* queue) {

@@ -372,7 +372,6 @@ void Http3Application::MemoryInfo(MemoryTracker* tracker) const {
 
 // Creates the underlying nghttp3 connection state for the session.
 void Http3Application::CreateConnection() {
-
   // nghttp3_conn_server_new and nghttp3_conn_client_new share
   // identical definitions, so new_fn will work for both.
   using new_fn = decltype(&nghttp3_conn_server_new);
@@ -606,28 +605,48 @@ ssize_t Http3Application::ReadData(
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
   CHECK(stream);
 
-  size_t count = 0;
-  stream->DrainInto(&vec, &count, std::min(veccnt, kMaxVectorCount));
-  CHECK_LE(count, kMaxVectorCount);
-  size_t numbytes = nghttp3_vec_len(vec, count);
-  stream->Commit(numbytes);
+  ssize_t ret = NGHTTP3_ERR_WOULDBLOCK;
 
-  Debug(
-      session(),
-      "Sending %" PRIu64 " bytes in %d vectors for stream %" PRId64,
-      numbytes, count, stream_id);
+  auto next = [&](
+      int status,
+      const ngtcp2_vec* data,
+      size_t count,
+      QuicStream::Done done) {
+    CHECK_LE(count, veccnt);
 
-  if (!stream->is_writable()) {
-    Debug(session(), "Ending stream %" PRId64, stream_id);
-    *pflags |= NGHTTP3_DATA_FLAG_EOF;
-    return count;
-  }
+    switch (status) {
+      case bob::Status::STATUS_BLOCK:
+        // Fall through
+      case bob::Status::STATUS_WAIT:
+        // Fall through
+      case bob::Status::STATUS_EOS:
+        return;
+      case bob::Status::STATUS_END:
+        *pflags |= NGHTTP3_DATA_FLAG_EOF;
+        break;
+    }
 
-  // If count is zero here, it means that there is no data currently
-  // available to send but there might be later, so return WOULDBLOCK
-  // to tell nghttp3 to hold off attempting to serialize any more
-  // data for this stream until it is resumed.
-  return count == 0 ? NGHTTP3_ERR_WOULDBLOCK : count;
+    ret = count;
+    size_t numbytes =
+        nghttp3_vec_len(
+            reinterpret_cast<const nghttp3_vec*>(data),
+            count);
+    std::move(done)(numbytes);
+
+    Debug(session(), "Sending %" PRIu64 " bytes for stream %" PRId64,
+          numbytes, stream_id);
+  };
+
+  CHECK_GE(stream->Pull(
+      std::move(next),
+      // Set OPTIONS_END here because nghttp3 takes over responsibility
+      // for ensuring the data all gets written out.
+      bob::Options::OPTIONS_END | bob::Options::OPTIONS_SYNC,
+      reinterpret_cast<ngtcp2_vec*>(vec),
+      veccnt,
+      kMaxVectorCount), 0);
+
+  return ret;
 }
 
 // Outgoing data is retained in memory until it is acknowledged.

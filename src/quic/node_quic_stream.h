@@ -192,6 +192,7 @@ enum QuicStreamOrigin {
 // abandoned, and causes the QuicStream to be immediately closed at the
 // ngtcp2 level.
 class QuicStream : public AsyncWrap,
+                   public bob::SourceImpl<ngtcp2_vec>,
                    public StreamBase,
                    public StatsBase<QuicStreamStats> {
  public:
@@ -288,17 +289,6 @@ class QuicStream : public AsyncWrap,
   // submitted to the QUIC connection.
   inline void Commit(size_t amount);
 
-  template <typename T>
-  inline size_t DrainInto(
-      std::vector<T>* vec,
-      size_t max_count = kMaxVectorCount);
-
-  template <typename T>
-  inline size_t DrainInto(
-      T* vec,
-      size_t* count,
-      size_t max_count = kMaxVectorCount);
-
   inline void EndHeaders(int64_t push_id = 0);
 
   // Passes a chunk of data on to the QuicStream listener.
@@ -339,6 +329,14 @@ class QuicStream : public AsyncWrap,
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(QuicStream)
   SET_SELF_SIZE(QuicStream)
+
+ protected:
+  int DoPull(
+      Next next,
+      int options,
+      ngtcp2_vec* data,
+      size_t count,
+      size_t max_count_hint) override;
 
  private:
   inline bool is_flag_set(int32_t flag) const;

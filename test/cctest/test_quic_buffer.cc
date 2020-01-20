@@ -1,4 +1,5 @@
 #include "quic/node_quic_buffer-inl.h"
+#include "node_bob-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 
@@ -8,32 +9,8 @@
 
 using node::quic::QuicBuffer;
 using node::quic::QuicBufferChunk;
-
-class TestBuffer {
- public:
-  explicit TestBuffer(size_t size, int val = 0) {
-    buf_.AllocateSufficientStorage(size);
-    buf_.SetLength(size);
-    memset(*buf_, val, size);
-  }
-
-  ~TestBuffer() {
-    CHECK_EQ(true, done_);
-  }
-
-  uv_buf_t ToUVBuf() {
-    return uv_buf_init(*buf_, buf_.length());
-  }
-
-  void Done() {
-    CHECK_EQ(false, done_);
-    done_ = true;
-  }
-
- private:
-  node::MaybeStackBuffer<char> buf_;
-  bool done_ = false;
-};
+using node::bob::Status;
+using node::bob::Options;
 
 TEST(QuicBuffer, Simple) {
   char data[100];
@@ -43,19 +20,19 @@ TEST(QuicBuffer, Simple) {
   bool done = false;
 
   QuicBuffer buffer;
-  buffer.Push(&buf, 1, [&](int status) {
+  buffer.push(&buf, 1, [&](int status) {
     EXPECT_EQ(0, status);
     done = true;
   });
 
-  buffer.Consume(100);
+  buffer.consume(100);
   CHECK_EQ(0, buffer.length());
 
   // We have to move the read head forward in order to consume
-  buffer.Seek(1);
-  buffer.Consume(100);
-  CHECK_EQ(0, buffer.length());
+  buffer.seek(1);
+  buffer.consume(100);
   CHECK_EQ(true, done);
+  CHECK_EQ(0, buffer.length());
 }
 
 TEST(QuicBuffer, ConsumeMore) {
@@ -66,47 +43,40 @@ TEST(QuicBuffer, ConsumeMore) {
   bool done = false;
 
   QuicBuffer buffer;
-  buffer.Push(&buf, 1, [&](int status) {
+  buffer.push(&buf, 1, [&](int status) {
     EXPECT_EQ(0, status);
     done = true;
   });
 
-  buffer.Seek(1);
-  buffer.Consume(150);  // Consume more than what was buffered
+  buffer.seek(1);
+  buffer.consume(150);  // Consume more than what was buffered
   CHECK_EQ(true, done);
   CHECK_EQ(0, buffer.length());
 }
 
 TEST(QuicBuffer, Multiple) {
-  TestBuffer buf1(100);
-  TestBuffer buf2(50, 1);
-
-  auto cb = [](int status, TestBuffer* test_buffer) {
-    test_buffer->Done();
+  uv_buf_t bufs[] {
+    uv_buf_init("abcdefghijklmnopqrstuvwxyz", 26),
+    uv_buf_init("zyxwvutsrqponmlkjihgfedcba", 26)
   };
 
-  QuicBuffer buffer;
-  {
-    uv_buf_t b = buf1.ToUVBuf();
-    buffer.Push(&b, 1, [&](int status) { cb(status, &buf1); });
-  }
-  {
-    uv_buf_t b = buf2.ToUVBuf();
-    buffer.Push(&b, 1, [&](int status) { cb(status, &buf2); });
-  }
+  QuicBuffer buf;
+  bool done = false;
+  buf.push(bufs, 2, [&](int status) { done = true; });
 
-  buffer.Seek(2);
+  buf.seek(2);
+  CHECK_EQ(buf.remaining(), 50);
+  CHECK_EQ(buf.length(), 52);
 
-  buffer.Consume(25);
-  CHECK_EQ(125, buffer.length());
+  buf.consume(25);
+  CHECK_EQ(buf.length(), 27);
 
-  buffer.Consume(100);
-  CHECK_EQ(25, buffer.length());
+  buf.consume(25);
+  CHECK_EQ(buf.length(), 2);
 
-  buffer.Consume(25);
-  CHECK_EQ(0, buffer.length());
+  buf.consume(2);
+  CHECK_EQ(0, buf.length());
 }
-
 
 TEST(QuicBuffer, Multiple2) {
   char* ptr = new char[100];
@@ -121,22 +91,22 @@ TEST(QuicBuffer, Multiple2) {
   int count = 0;
 
   QuicBuffer buffer;
-  buffer.Push(
+  buffer.push(
       bufs, node::arraysize(bufs),
       [&](int status) {
     count++;
     CHECK_EQ(0, status);
     delete[] ptr;
   });
-  buffer.Seek(node::arraysize(bufs));
+  buffer.seek(node::arraysize(bufs));
 
-  buffer.Consume(25);
+  buffer.consume(25);
   CHECK_EQ(75, buffer.length());
-  buffer.Consume(25);
+  buffer.consume(25);
   CHECK_EQ(50, buffer.length());
-  buffer.Consume(25);
+  buffer.consume(25);
   CHECK_EQ(25, buffer.length());
-  buffer.Consume(25);
+  buffer.consume(25);
   CHECK_EQ(0, buffer.length());
 
   // The callback was only called once tho
@@ -156,7 +126,7 @@ TEST(QuicBuffer, Cancel) {
   int count = 0;
 
   QuicBuffer buffer;
-  buffer.Push(
+  buffer.push(
       bufs, node::arraysize(bufs),
       [&](int status) {
     count++;
@@ -164,54 +134,14 @@ TEST(QuicBuffer, Cancel) {
     delete[] ptr;
   });
 
-  buffer.Seek(1);
-  buffer.Consume(25);
+  buffer.seek(1);
+  buffer.consume(25);
   CHECK_EQ(75, buffer.length());
-  buffer.Cancel();
+  buffer.cancel();
   CHECK_EQ(0, buffer.length());
 
   // The callback was only called once tho
   CHECK_EQ(1, count);
-}
-
-TEST(QuicBuffer, Multiple3) {
-  TestBuffer buf1(100);
-  TestBuffer buf2(50, 1);
-  TestBuffer buf3(50, 2);
-
-  auto cb = [](int status, TestBuffer* test_buffer) {
-    test_buffer->Done();
-  };
-
-  QuicBuffer buffer;
-  {
-    uv_buf_t b = buf1.ToUVBuf();
-    buffer.Push(&b, 1, [&](int status) { cb(status, &buf1); });
-  }
-  {
-    uv_buf_t b = buf2.ToUVBuf();
-    buffer.Push(&b, 1, [&](int status) { cb(status, &buf2); });
-  }
-  CHECK_EQ(150, buffer.length());
-
-  buffer.Seek(2);
-
-  buffer.Consume(25);
-  CHECK_EQ(125, buffer.length());
-
-  buffer.Consume(100);
-  CHECK_EQ(25, buffer.length());
-
-  {
-    uv_buf_t b = buf2.ToUVBuf();
-    buffer.Push(&b, 1, [&](int status) { cb(status, &buf3); });
-  }
-
-  CHECK_EQ(75, buffer.length());
-
-  buffer.Seek(1);
-  buffer.Consume(75);
-  CHECK_EQ(0, buffer.length());
 }
 
 TEST(QuicBuffer, Move) {
@@ -222,7 +152,7 @@ TEST(QuicBuffer, Move) {
   memset(&data, 0, node::arraysize(data));
   uv_buf_t buf = uv_buf_init(data, node::arraysize(data));
 
-  buffer1.Push(&buf, 1);
+  buffer1.push(&buf, 1);
 
   CHECK_EQ(100, buffer1.length());
 
@@ -231,87 +161,38 @@ TEST(QuicBuffer, Move) {
   CHECK_EQ(100, buffer2.length());
 }
 
-TEST(QuicBuffer, Append) {
-  QuicBuffer buffer1;
-  QuicBuffer buffer2;
-
-  {
-    char data[100];
-    memset(&data, 0, node::arraysize(data));
-    uv_buf_t buf = uv_buf_init(data, node::arraysize(data));
-
-    buffer1.Push(&buf, 1);
-  }
-
-  {
-    char data[100];
-    memset(&data, 1, node::arraysize(data));
-    uv_buf_t buf = uv_buf_init(data, node::arraysize(data));
-
-    buffer2.Push(&buf, 1);
-  }
-
-  CHECK_EQ(100, buffer1.length());
-  CHECK_EQ(100, buffer2.length());
-
-  buffer2 += std::move(buffer1);
-
-  CHECK_EQ(0, buffer1.length());
-  CHECK_EQ(200, buffer2.length());
-}
-
 TEST(QuicBuffer, QuicBufferChunk) {
   std::unique_ptr<QuicBufferChunk> chunk =
       std::make_unique<QuicBufferChunk>(100);
+  memset(chunk->out(), 1, 100);
 
   QuicBuffer buffer;
-  buffer.Push(std::move(chunk));
+  buffer.push(std::move(chunk));
+  buffer.end();
   CHECK_EQ(100, buffer.length());
 
-  std::vector<uv_buf_t> vec;
-  size_t len = buffer.DrainInto(&vec);
-  buffer.Seek(len);
+  auto next = [&](
+      int status,
+      const ngtcp2_vec* data,
+      size_t count,
+      QuicBuffer::Done done) {
+    CHECK_EQ(status, Status::STATUS_END);
+    CHECK_EQ(count, 1);
+    CHECK_NOT_NULL(data);
+    done(100);
+  };
 
-  buffer.Consume(50);
+  CHECK_EQ(buffer.remaining(), 100);
+
+  ngtcp2_vec data[2];
+  size_t len = sizeof(data) / sizeof(ngtcp2_vec);
+  buffer.pull(next, Options::OPTIONS_SYNC | Options::OPTIONS_END, data, len);
+
+  CHECK_EQ(buffer.remaining(), 0);
+
+  buffer.consume(50);
   CHECK_EQ(50, buffer.length());
 
-  buffer.Consume(50);
-  CHECK_EQ(0, buffer.length());
-}
-
-TEST(QuicBuffer, DISABLED_Head) {
-  std::unique_ptr<QuicBufferChunk> chunk =
-      std::make_unique<QuicBufferChunk>(100);
-  memset(chunk->out(), 0, 100);
-  QuicBuffer buffer;
-  buffer.Push(std::move(chunk));
-
-  // buffer.Head() returns the current read head
-  {
-    uv_buf_t buf = buffer.head();
-    CHECK_EQ(100, buf.len);
-    CHECK_EQ(0, buf.base[0]);
-  }
-
-  buffer.Consume(50);
-
-  {
-    uv_buf_t buf = buffer.head();
-    CHECK_EQ(100, buf.len);
-    CHECK_EQ(0, buf.base[0]);
-  }
-
-  // Seeking the head to the end will
-  // result in an empty head
-  buffer.Seek(1);
-  {
-    uv_buf_t buf = buffer.head();
-    CHECK_EQ(0, buf.len);
-    CHECK_EQ(nullptr, buf.base);
-  }
-  // But the buffer will still have unconsumed data
-  CHECK_EQ(50, buffer.length());
-
-  buffer.Consume(100);
+  buffer.consume(50);
   CHECK_EQ(0, buffer.length());
 }

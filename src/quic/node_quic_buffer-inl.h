@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_quic_buffer.h"
+#include "node_bob-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 
@@ -30,20 +31,20 @@ QuicBufferChunk::~QuicBufferChunk() {
   CHECK(done_called_);
 }
 
-size_t QuicBufferChunk::seek(size_t amount) {
+size_t QuicBufferChunk::Seek(size_t amount) {
   amount = std::min(amount, remaining());
   buf_.base += amount;
   buf_.len -= amount;
   return amount;
 }
 
-size_t QuicBufferChunk::consume(size_t amount) {
+size_t QuicBufferChunk::Consume(size_t amount) {
   amount = std::min(amount, length_);
   length_ -= amount;
   return amount;
 }
 
-void QuicBufferChunk::done(int status) {
+void QuicBufferChunk::Done(int status) {
   if (done_called_) return;
   done_called_ = true;
   if (done_ != nullptr)
@@ -53,12 +54,14 @@ void QuicBufferChunk::done(int status) {
 QuicBuffer::QuicBuffer(QuicBuffer&& src) noexcept
   : head_(src.head_),
     tail_(src.tail_),
-    length_(src.length_) {
+    length_(src.length_),
+    ended_(src.ended_) {
   root_ = std::move(src.root_);
   src.head_ = nullptr;
   src.tail_ = nullptr;
   src.length_ = 0;
   src.remaining_ = 0;
+  src.ended_ = false;
 }
 
 
@@ -69,82 +72,23 @@ QuicBuffer& QuicBuffer::operator=(QuicBuffer&& src) noexcept {
 }
 
 bool QuicBuffer::is_empty(uv_buf_t buf) {
-  return buf.len == 0 || buf.base == nullptr;
+  DCHECK_IMPLIES(buf.base == nullptr, buf.len == 0);
+  return buf.len == 0;
 }
 
-size_t QuicBuffer::consume(size_t amount) {
-  return consume(0, amount);
+size_t QuicBuffer::Consume(size_t amount) {
+  return Consume(0, amount);
 }
 
-size_t QuicBuffer::cancel(int status) {
-  return consume(status, length());
+size_t QuicBuffer::Cancel(int status) {
+  return Consume(status, length());
 }
 
-void QuicBuffer::push(uv_buf_t buf, DoneCB done) {
+void QuicBuffer::Push(uv_buf_t buf, DoneCB done) {
   std::unique_ptr<QuicBufferChunk> chunk =
       std::make_unique<QuicBufferChunk>(buf, done);
-  push(std::move(chunk));
+  Push(std::move(chunk));
 }
-
-size_t QuicBuffer::DrainInto(
-    std::vector<uv_buf_t>* list,
-    size_t* length,
-    size_t max_count) {
-  return DrainInto(
-      [&](uv_buf_t buf) { list->push_back(buf); },
-      length,
-      max_count);
-}
-
-template <typename T>
-size_t QuicBuffer::DrainInto(
-    std::vector<T>* list,
-    size_t* length,
-    size_t max_count) {
-  return DrainInto([&](uv_buf_t buf) {
-    list->push_back(T {
-      reinterpret_cast<uint8_t*>(buf.base), buf.len });
-  }, length, max_count);
-}
-
-template <typename T>
-size_t QuicBuffer::DrainInto(
-    T* list,
-    size_t* count,
-    size_t* length,
-    size_t max_count) {
-  *count = 0;
-  return DrainInto([&](uv_buf_t buf) {
-    list[*count]->base = reinterpret_cast<uint8_t*>(buf.base);
-    list[*count]->len = buf.len;
-    *count += 1;
-  }, length, max_count);
-  CHECK_LE(*count, max_count);
-}
-
-template <typename Fn>
-size_t QuicBuffer::DrainInto(
-    Fn&& add_to_list,
-    size_t* length,
-    size_t max_count) {
-  size_t len = 0;
-  size_t count = 0;
-  bool seen_head = false;
-  QuicBufferChunk* pos = head_;
-  if (pos == nullptr)
-    return 0;
-  if (length != nullptr) *length = 0;
-  while (pos != nullptr && count < max_count) {
-    count++;
-    if (length != nullptr) *length += pos->remaining();
-    add_to_list(pos->buf());
-    if (pos == head_) seen_head = true;
-    if (seen_head) len++;
-    pos = pos->next_.get();
-  }
-  return len;
-}
-
 }  // namespace quic
 }  // namespace node
 

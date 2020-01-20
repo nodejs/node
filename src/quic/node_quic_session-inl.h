@@ -73,9 +73,9 @@ QuicCryptoContext::QuicCryptoContext(
 // Cancels and frees any remaining outbound handshake data
 // at each crypto level.
 uint64_t QuicCryptoContext::Cancel() {
-  uint64_t len = handshake_[0].cancel();
-  len += handshake_[1].cancel();
-  len += handshake_[2].cancel();
+  uint64_t len = handshake_[0].Cancel();
+  len += handshake_[1].Cancel();
+  len += handshake_[2].Cancel();
   return len;
 }
 

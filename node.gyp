@@ -633,6 +633,8 @@
         'src/node_api.h',
         'src/node_api_types.h',
         'src/node_binding.h',
+        'src/node_bob.h',
+        'src/node_bob-inl.h',
         'src/node_buffer.h',
         'src/node_constants.h',
         'src/node_context_data.h',
