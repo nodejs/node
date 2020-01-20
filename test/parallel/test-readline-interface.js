@@ -56,6 +56,12 @@ function getInterface(options) {
   return [rli, fi];
 }
 
+function assertCursorRowsAndCols(rli, rows, cols) {
+  const cursorPos = rli.getCursorPos();
+  assert.strictEqual(cursorPos.rows, rows);
+  assert.strictEqual(cursorPos.cols, cols);
+}
+
 [
   undefined,
   50,
@@ -338,9 +344,7 @@ function getInterface(options) {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo'];
   rli.question(expectedLines[0], () => rli.close());
-  const cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, expectedLines[0].length);
+  assertCursorRowsAndCols(rli, 0, expectedLines[0].length);
   rli.close();
 }
 
@@ -349,9 +353,8 @@ function getInterface(options) {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo', 'bar'];
   rli.question(expectedLines.join('\n'), () => rli.close());
-  const cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, expectedLines.length - 1);
-  assert.strictEqual(cursorPos.cols, expectedLines.slice(-1)[0].length);
+  assertCursorRowsAndCols(
+    rli, expectedLines.length - 1, expectedLines.slice(-1)[0].length);
   rli.close();
 }
 
@@ -360,13 +363,9 @@ function getInterface(options) {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
   fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
   fi.emit('keypress', '.', { ctrl: true, name: 'e' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 19);
+  assertCursorRowsAndCols(rli, 0, 19);
   rli.close();
 }
 
@@ -374,30 +373,20 @@ function getInterface(options) {
   // Back and Forward one character
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 19);
+  assertCursorRowsAndCols(rli, 0, 19);
 
   // Back one character
   fi.emit('keypress', '.', { ctrl: true, name: 'b' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 18);
+  assertCursorRowsAndCols(rli, 0, 18);
   // Back one character
   fi.emit('keypress', '.', { ctrl: true, name: 'b' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 17);
+  assertCursorRowsAndCols(rli, 0, 17);
   // Forward one character
   fi.emit('keypress', '.', { ctrl: true, name: 'f' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 18);
+  assertCursorRowsAndCols(rli, 0, 18);
   // Forward one character
   fi.emit('keypress', '.', { ctrl: true, name: 'f' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 19);
+  assertCursorRowsAndCols(rli, 0, 19);
   rli.close();
 }
 
@@ -408,15 +397,11 @@ function getInterface(options) {
 
   // Move left one character/code point
   fi.emit('keypress', '.', { name: 'left' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
 
   // Move right one character/code point
   fi.emit('keypress', '.', { name: 'right' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 2);
+  assertCursorRowsAndCols(rli, 0, 2);
 
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '💻');
@@ -432,14 +417,10 @@ function getInterface(options) {
 
   // Move left one character/code point
   fi.emit('keypress', '.', { name: 'left' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
 
   fi.emit('data', '🐕');
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 2);
+  assertCursorRowsAndCols(rli, 0, 2);
 
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '🐕💻');
@@ -455,14 +436,10 @@ function getInterface(options) {
 
   // Move left one character/code point
   fi.emit('keypress', '.', { name: 'right' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 2);
+  assertCursorRowsAndCols(rli, 0, 2);
 
   fi.emit('data', '🐕');
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 4);
+  assertCursorRowsAndCols(rli, 0, 4);
 
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '💻🐕');
@@ -476,21 +453,13 @@ function getInterface(options) {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
   fi.emit('keypress', '.', { ctrl: true, name: 'left' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 16);
+  assertCursorRowsAndCols(rli, 0, 16);
   fi.emit('keypress', '.', { meta: true, name: 'b' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 10);
+  assertCursorRowsAndCols(rli, 0, 10);
   fi.emit('keypress', '.', { ctrl: true, name: 'right' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 16);
+  assertCursorRowsAndCols(rli, 0, 16);
   fi.emit('keypress', '.', { meta: true, name: 'f' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 19);
+  assertCursorRowsAndCols(rli, 0, 19);
   rli.close();
 }
 
@@ -554,15 +523,11 @@ function getInterface(options) {
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 19);
+  assertCursorRowsAndCols(rli, 0, 19);
 
   // Delete left character
   fi.emit('keypress', '.', { ctrl: true, name: 'h' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 18);
+  assertCursorRowsAndCols(rli, 0, 18);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, 'the quick brown fo');
   }));
@@ -574,14 +539,10 @@ function getInterface(options) {
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', '💻');
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 2);
+  assertCursorRowsAndCols(rli, 0, 2);
   // Delete left character
   fi.emit('keypress', '.', { ctrl: true, name: 'h' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '');
   }));
@@ -596,15 +557,11 @@ function getInterface(options) {
 
   // Go to the start of the line
   fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
 
   // Delete right character
   fi.emit('keypress', '.', { ctrl: true, name: 'd' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, 'he quick brown fox');
   }));
@@ -619,15 +576,11 @@ function getInterface(options) {
 
   // Go to the start of the line
   fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
 
   // Delete right character
   fi.emit('keypress', '.', { ctrl: true, name: 'd' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '');
   }));
@@ -639,15 +592,11 @@ function getInterface(options) {
 {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 19);
+  assertCursorRowsAndCols(rli, 0, 19);
 
   // Delete from current to start of line
   fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'backspace' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '');
   }));
@@ -662,15 +611,11 @@ function getInterface(options) {
 
   // Go to the start of the line
   fi.emit('keypress', '.', { ctrl: true, name: 'a' });
-  let cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
 
   // Delete from current to end of line
   fi.emit('keypress', '.', { ctrl: true, shift: true, name: 'delete' });
-  cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 0);
+  assertCursorRowsAndCols(rli, 0, 0);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, '');
   }));
@@ -683,9 +628,7 @@ function getInterface(options) {
   const [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.columns = 10;
   fi.emit('data', 'multi-line text');
-  const cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 1);
-  assert.strictEqual(cursorPos.cols, 5);
+  assertCursorRowsAndCols(rli, 1, 5);
   rli.close();
 }
 
@@ -697,9 +640,7 @@ function getInterface(options) {
   });
   fi.columns = 10;
   fi.emit('data', 't');
-  const cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 4);
-  assert.strictEqual(cursorPos.cols, 3);
+  assertCursorRowsAndCols(rli, 4, 3);
   rli.close();
 }
 
@@ -709,9 +650,7 @@ function getInterface(options) {
   const lines = ['line 1', 'line 2', 'line 3'];
   fi.emit('data', lines.join('\n'));
   fi.emit('keypress', '.', { ctrl: true, name: 'l' });
-  const cursorPos = rli.getCursorPos();
-  assert.strictEqual(cursorPos.rows, 0);
-  assert.strictEqual(cursorPos.cols, 6);
+  assertCursorRowsAndCols(rli, 0, 6);
   rli.on('line', common.mustCall((line) => {
     assert.strictEqual(line, 'line 3');
   }));
