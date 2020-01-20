@@ -13,12 +13,10 @@ const bench = common.createBenchmark(main, {
   primitive: Object.keys(primValues),
   n: [2e4],
   strict: [0, 1],
-  method: [ 'deepEqual', 'notDeepEqual' ],
+  method: ['deepEqual', 'notDeepEqual'],
 });
 
 function main({ n, primitive, method, strict }) {
-  if (!method)
-    method = 'deepEqual';
   const prim = primValues[primitive];
   const actual = prim;
   const expected = prim;

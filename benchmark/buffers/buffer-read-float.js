@@ -9,7 +9,6 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, type, endian, value }) {
-  type = type || 'Double';
   const buff = Buffer.alloc(8);
   const fn = `read${type}${endian}`;
   const values = {
