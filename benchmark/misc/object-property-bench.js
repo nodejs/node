@@ -64,8 +64,6 @@ function runSymbol(n) {
 function main({ n, method }) {
 
   switch (method) {
-    // '' is a default case for tests
-    case '':
     case 'property':
       runProperty(n);
       break;
