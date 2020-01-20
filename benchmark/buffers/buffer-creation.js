@@ -16,7 +16,6 @@ const bench = common.createBenchmark(main, {
 function main({ len, n, type }) {
   let fn, i;
   switch (type) {
-    case '':
     case 'fast-alloc':
       fn = Buffer.alloc;
       break;

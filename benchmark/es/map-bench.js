@@ -104,8 +104,6 @@ function runMap(n) {
 
 function main({ n, method }) {
   switch (method) {
-    case '':
-      // Empty string falls through to next line as default, mostly for tests.
     case 'object':
       runObject(n);
       break;
