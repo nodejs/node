@@ -7,6 +7,8 @@
 #include "util-inl.h"
 #include "uv.h"
 
+#include <algorithm>
+
 namespace node {
 
 namespace quic {
@@ -14,10 +16,12 @@ namespace quic {
 QuicBufferChunk::QuicBufferChunk(size_t len)
     : data_buf_(len, 0),
       buf_(uv_buf_init(reinterpret_cast<char*>(data_buf_.data()), len)),
+      length_(len),
       done_called_(true) {}
 
-QuicBufferChunk::QuicBufferChunk(uv_buf_t buf, done_cb done)
-    : buf_(buf) {
+QuicBufferChunk::QuicBufferChunk(uv_buf_t buf, DoneCB done)
+    : buf_(buf),
+      length_(buf.len) {
   if (done != nullptr)
     done_ = std::move(done);
 }
@@ -26,12 +30,37 @@ QuicBufferChunk::~QuicBufferChunk() {
   CHECK(done_called_);
 }
 
-void QuicBufferChunk::Done(int status) {
+size_t QuicBufferChunk::seek(size_t amount) {
+  amount = std::min(amount, remaining());
+  buf_.base += amount;
+  buf_.len -= amount;
+  return amount;
+}
+
+size_t QuicBufferChunk::consume(size_t amount) {
+  amount = std::min(amount, length_);
+  length_ -= amount;
+  return amount;
+}
+
+void QuicBufferChunk::done(int status) {
   if (done_called_) return;
   done_called_ = true;
   if (done_ != nullptr)
     std::move(done_)(status);
 }
+
+QuicBuffer::QuicBuffer(QuicBuffer&& src) noexcept
+  : head_(src.head_),
+    tail_(src.tail_),
+    length_(src.length_) {
+  root_ = std::move(src.root_);
+  src.head_ = nullptr;
+  src.tail_ = nullptr;
+  src.length_ = 0;
+  src.remaining_ = 0;
+}
+
 
 QuicBuffer& QuicBuffer::operator=(QuicBuffer&& src) noexcept {
   if (this == &src) return *this;
@@ -39,33 +68,22 @@ QuicBuffer& QuicBuffer::operator=(QuicBuffer&& src) noexcept {
   return *new(this) QuicBuffer(std::move(src));
 }
 
-void QuicBuffer::Consume(ssize_t amount) { Consume(0, amount); }
-
-size_t QuicBuffer::Cancel(int status) {
-  size_t remaining = length();
-  Consume(status, -1);
-  return remaining;
+bool QuicBuffer::is_empty(uv_buf_t buf) {
+  return buf.len == 0 || buf.base == nullptr;
 }
 
-uv_buf_t QuicBuffer::head() {
-  return head_ == nullptr ?
-      uv_buf_init(nullptr, 0) :
-      uv_buf_init(
-          head_->buf_.base + head_->roffset_,
-          head_->buf_.len - head_->roffset_);
+size_t QuicBuffer::consume(size_t amount) {
+  return consume(0, amount);
 }
 
-void QuicBuffer::Push(uv_buf_t buf, done_cb done) {
+size_t QuicBuffer::cancel(int status) {
+  return consume(status, length());
+}
+
+void QuicBuffer::push(uv_buf_t buf, DoneCB done) {
   std::unique_ptr<QuicBufferChunk> chunk =
       std::make_unique<QuicBufferChunk>(buf, done);
-  Push(std::move(chunk));
-}
-
-void QuicBuffer::Reset(QuicBuffer* buffer) {
-  CHECK(!buffer->root_);
-  buffer->head_ = nullptr;
-  buffer->tail_ = nullptr;
-  buffer->length_ = 0;
+  push(std::move(chunk));
 }
 
 size_t QuicBuffer::DrainInto(
@@ -118,9 +136,8 @@ size_t QuicBuffer::DrainInto(
   if (length != nullptr) *length = 0;
   while (pos != nullptr && count < max_count) {
     count++;
-    size_t datalen = pos->buf_.len - pos->roffset_;
-    if (length != nullptr) *length += datalen;
-    add_to_list(uv_buf_init(pos->buf_.base + pos->roffset_, datalen));
+    if (length != nullptr) *length += pos->remaining();
+    add_to_list(pos->buf());
     if (pos == head_) seen_head = true;
     if (seen_head) len++;
     pos = pos->next_.get();

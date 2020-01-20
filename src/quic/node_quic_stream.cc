@@ -82,7 +82,7 @@ void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
   // Consumes the given number of bytes in the buffer. This may
   // have the side-effect of causing the onwrite callback to be
   // invoked if a complete chunk of buffered data has been acknowledged.
-  streambuf_.Consume(datalen);
+  streambuf_.consume(datalen);
 
   RecordAck(&QuicStreamStats::acked_at);
 }
@@ -115,9 +115,9 @@ std::string QuicStream::diagnostic_name() const {
 void QuicStream::Destroy() {
   if (is_destroyed())
     return;
-  set_destroyed();
-  set_read_close();
-  set_write_close();
+  set_flag(QUICSTREAM_FLAG_DESTROYED);
+  set_flag(QUICSTREAM_FLAG_READ_CLOSED);
+  streambuf_.end();
 
   uint64_t now = uv_hrtime();
   Debug(this,
@@ -134,7 +134,7 @@ void QuicStream::Destroy() {
   // JavaScript callback (the on write callback). Within
   // that callback, however, the QuicStream will no longer
   // be usable to send or receive data.
-  streambuf_.Cancel();
+  streambuf_.cancel();
   CHECK_EQ(streambuf_.length(), 0);
 
   // The QuicSession maintains a map of std::unique_ptrs to
@@ -158,7 +158,7 @@ int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
   if (is_writable()) {
     Debug(this, "Shutdown writable side");
     RecordTimestamp(&QuicStreamStats::closing_at);
-    set_write_close();
+    streambuf_.end();
     session()->ResumeStream(stream_id_);
   }
 
@@ -206,7 +206,7 @@ int QuicStream::DoWrite(
   // in the sense of providing back-pressure, but
   // also means that writes will be significantly
   // less performant unless written in batches.
-  streambuf_.Push(
+  streambuf_.push(
       bufs,
       nbufs,
       [req_wrap, strong_ref](int status) {
@@ -231,8 +231,8 @@ bool QuicStream::IsClosing() {
 int QuicStream::ReadStart() {
   CHECK(!is_destroyed());
   CHECK(is_readable());
-  set_read_start();
-  set_read_resume();
+  set_flag(QUICSTREAM_FLAG_READ_STARTED);
+  set_flag(QUICSTREAM_FLAG_READ_PAUSED, false);
   IncrementStat(
       &QuicStreamStats::max_offset,
       inbound_consumed_data_while_paused_);
@@ -243,7 +243,7 @@ int QuicStream::ReadStart() {
 int QuicStream::ReadStop() {
   CHECK(!is_destroyed());
   CHECK(is_readable());
-  set_read_pause();
+  set_flag(QUICSTREAM_FLAG_READ_PAUSED);
   return 0;
 }
 
@@ -345,7 +345,7 @@ void QuicStream::ReceiveData(
       datalen -= avail;
       // Capture read_paused before EmitRead in case user code callbacks
       // alter the state when EmitRead is called.
-      bool read_paused = is_read_paused();
+      bool read_paused = is_flag_set(QUICSTREAM_FLAG_READ_PAUSED);
       EmitRead(avail, buf);
       // Reading can be paused while we are processing. If that's
       // the case, we still want to acknowledge the current bytes
@@ -362,7 +362,7 @@ void QuicStream::ReceiveData(
   // When fin != 0, we've received that last chunk of data for this
   // stream, indicating that the stream will no longer be readable.
   if (fin) {
-    set_fin_received();
+    set_flag(QUICSTREAM_FLAG_FIN);
     EmitRead(UV_EOF);
   }
 }

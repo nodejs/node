@@ -85,34 +85,27 @@ class QuicHeader : public MemoryRetainer {
 
 enum QuicStreamStates : uint32_t {
   // QuicStream is fully open. Readable and Writable
-  QUICSTREAM_FLAG_INITIAL = 0x0,
+  QUICSTREAM_FLAG_INITIAL = 0,
 
   // QuicStream Read State is closed because a final stream frame
   // has been received from the peer or the QuicStream is unidirectional
   // outbound only (i.e. it was never readable)
-  QUICSTREAM_FLAG_READ_CLOSED = 0x1,
-
-  // QuicStream Write State is closed. There may still be data
-  // in the outbound queue waiting to be serialized or acknowledged.
-  // No additional data may be added to the queue, however, and a
-  // final stream packet will be sent once all of the data in the
-  // queue has been serialized.
-  QUICSTREAM_FLAG_WRITE_CLOSED = 0x2,
+  QUICSTREAM_FLAG_READ_CLOSED,
 
   // JavaScript side has switched into flowing mode (Readable side)
-  QUICSTREAM_FLAG_READ_STARTED = 0x4,
+  QUICSTREAM_FLAG_READ_STARTED,
 
   // JavaScript side has paused the flow of data (Readable side)
-  QUICSTREAM_FLAG_READ_PAUSED = 0x8,
+  QUICSTREAM_FLAG_READ_PAUSED,
 
   // QuicStream has received a final stream frame (Readable side)
-  QUICSTREAM_FLAG_FIN = 0x10,
+  QUICSTREAM_FLAG_FIN,
 
   // QuicStream has sent a final stream frame (Writable side)
-  QUICSTREAM_FLAG_FIN_SENT = 0x20,
+  QUICSTREAM_FLAG_FIN_SENT,
 
   // QuicStream has been destroyed
-  QUICSTREAM_FLAG_DESTROYED = 0x40
+  QUICSTREAM_FLAG_DESTROYED
 };
 
 enum QuicStreamDirection {
@@ -235,42 +228,15 @@ class QuicStream : public AsyncWrap,
   // The QuicStream has been destroyed and is no longer usable.
   inline bool is_destroyed() const;
 
-  // The QUICSTREAM_FLAG_FIN flag will be set only when a final stream
-  // frame has been received from the peer.
-  inline bool has_received_fin() const;
-
-  // The QUICSTREAM_FLAG_FIN_SENT flag will be set only when a final
-  // stream frame has been transmitted to the peer. Once sent, no
-  // additional data may be transmitted to the peer. If has_sent_fin()
-  // is set, is_writable() can be assumed to be false.
-  inline bool has_sent_fin() const;
-
-  // WasEverWritable returns true if it is a bidirectional stream,
-  // or a Unidirectional stream originating from the local peer.
-  // If was_ever_writable() is false, then no stream frames should
-  // ever be sent from the local peer, including final stream frames.
-  inline bool was_ever_writable() const;
-
   // A QuicStream will not be writable if:
-  //  - The QUICSTREAM_FLAG_WRITE_CLOSED flag is set or
+  //  - The streambuf_ is ended
   //  - It is a Unidirectional stream originating from the peer
   inline bool is_writable() const;
-
-  // WasEverReadable returns true if it is a bidirectional stream,
-  // or a Unidirectional stream originating from the remote
-  // peer.
-  inline bool was_ever_readable() const;
 
   // A QuicStream will not be readable if:
   //  - The QUICSTREAM_FLAG_READ_CLOSED flag is set or
   //  - It is a Unidirectional stream originating from the local peer.
   inline bool is_readable() const;
-
-  // True if reading from this QuicStream has ever initiated.
-  inline bool is_read_started() const;
-
-  // True if reading from this QuicStream is currently paused.
-  inline bool is_read_paused() const;
 
   // Records the fact that a final stream frame has been
   // serialized and sent to the peer. There still may be
@@ -320,7 +286,7 @@ class QuicStream : public AsyncWrap,
 
   // Indicates an amount of unacknowledged data that has been
   // submitted to the QUIC connection.
-  inline void Commit(ssize_t amount);
+  inline void Commit(size_t amount);
 
   template <typename T>
   inline size_t DrainInto(
@@ -375,13 +341,19 @@ class QuicStream : public AsyncWrap,
   SET_SELF_SIZE(QuicStream)
 
  private:
-  inline void set_fin_received();
-  inline void set_write_close();
-  inline void set_read_close();
-  inline void set_read_start();
-  inline void set_read_pause();
-  inline void set_read_resume();
-  inline void set_destroyed();
+  inline bool is_flag_set(int32_t flag) const;
+  inline void set_flag(int32_t flag, bool on = true);
+
+  // WasEverWritable returns true if it is a bidirectional stream,
+  // or a Unidirectional stream originating from the local peer.
+  // If was_ever_writable() is false, then no stream frames should
+  // ever be sent from the local peer, including final stream frames.
+  inline bool was_ever_writable() const;
+
+  // WasEverReadable returns true if it is a bidirectional stream,
+  // or a Unidirectional stream originating from the remote
+  // peer.
+  inline bool was_ever_readable() const;
 
   void IncrementStats(size_t datalen);
 

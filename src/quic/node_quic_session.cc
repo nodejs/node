@@ -761,7 +761,7 @@ void QuicCryptoContext::AcknowledgeCryptoData(
         crypto_level_name(level));
 
   // Consumes (frees) the given number of bytes in the handshake buffer.
-  handshake_[level].Consume(datalen);
+  handshake_[level].consume(datalen);
 
   // Update the statistics for the handshake, allowing us to track
   // how long the handshake is taking to be acknowledged. A malicious
@@ -1096,7 +1096,7 @@ void QuicCryptoContext::WriteHandshake(
           level,
           buffer->out(),
           datalen), 0);
-  handshake_[level].Push(std::move(buffer));
+  handshake_[level].push(std::move(buffer));
 }
 
 void QuicApplication::Acknowledge(

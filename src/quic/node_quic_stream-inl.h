@@ -23,16 +23,19 @@ QuicStreamOrigin QuicStream::origin() const {
       QUIC_STREAM_CLIENT;
 }
 
+inline bool QuicStream::is_flag_set(int32_t flag) const {
+  return flags_ & (1 << flag);
+}
+
+inline void QuicStream::set_flag(int32_t flag, bool on) {
+  if (on)
+    flags_ |= (1 << flag);
+  else
+    flags_ &= ~(1 << flag);
+}
+
 bool QuicStream::is_destroyed() const {
-  return flags_ & QUICSTREAM_FLAG_DESTROYED;
-}
-
-bool QuicStream::has_received_fin() const {
-  return flags_ & QUICSTREAM_FLAG_FIN;
-}
-
-bool QuicStream::has_sent_fin() const {
-  return flags_ & QUICSTREAM_FLAG_FIN_SENT;
+  return is_flag_set(QUICSTREAM_FLAG_DESTROYED);
 }
 
 bool QuicStream::was_ever_writable() const {
@@ -45,10 +48,7 @@ bool QuicStream::was_ever_writable() const {
 }
 
 bool QuicStream::is_writable() const {
-  if (flags_ & QUICSTREAM_FLAG_WRITE_CLOSED)
-    return false;
-
-  return was_ever_writable();
+  return was_ever_writable() && !streambuf_.is_ended();
 }
 
 bool QuicStream::was_ever_readable() const {
@@ -62,27 +62,17 @@ bool QuicStream::was_ever_readable() const {
 }
 
 bool QuicStream::is_readable() const {
-  if (flags_ & QUICSTREAM_FLAG_READ_CLOSED)
-    return false;
-
-  return was_ever_readable();
-}
-
-bool QuicStream::is_read_started() const {
-  return flags_ & QUICSTREAM_FLAG_READ_STARTED;
-}
-
-bool QuicStream::is_read_paused() const {
-  return flags_ & QUICSTREAM_FLAG_READ_PAUSED;
+  return was_ever_readable() && !is_flag_set(QUICSTREAM_FLAG_READ_CLOSED);
 }
 
 void QuicStream::set_fin_sent() {
   CHECK(!is_writable());
-  flags_ |= QUICSTREAM_FLAG_FIN_SENT;
+  set_flag(QUICSTREAM_FLAG_FIN_SENT);
 }
 
 bool QuicStream::is_write_finished() const {
-  return has_sent_fin() && streambuf_.length() == 0;
+  return is_flag_set(QUICSTREAM_FLAG_FIN_SENT) &&
+         streambuf_.length() == 0;
 }
 
 void QuicStream::IncrementAvailableOutboundLength(size_t amount) {
@@ -91,35 +81,6 @@ void QuicStream::IncrementAvailableOutboundLength(size_t amount) {
 
 void QuicStream::DecrementAvailableOutboundLength(size_t amount) {
   available_outbound_length_ -= amount;
-}
-
-void QuicStream::set_fin_received() {
-  flags_ |= QUICSTREAM_FLAG_FIN;
-  set_read_close();
-}
-
-void QuicStream::set_write_close() {
-  flags_ |= QUICSTREAM_FLAG_WRITE_CLOSED;
-}
-
-void QuicStream::set_read_close() {
-  flags_ |= QUICSTREAM_FLAG_READ_CLOSED;
-}
-
-void QuicStream::set_read_start() {
-  flags_ |= QUICSTREAM_FLAG_READ_STARTED;
-}
-
-void QuicStream::set_read_pause() {
-  flags_ |= QUICSTREAM_FLAG_READ_PAUSED;
-}
-
-void QuicStream::set_read_resume() {
-  flags_ &= QUICSTREAM_FLAG_READ_PAUSED;
-}
-
-void QuicStream::set_destroyed() {
-  flags_ |= QUICSTREAM_FLAG_DESTROYED;
 }
 
 bool QuicStream::SubmitInformation(v8::Local<v8::Array> headers) {
@@ -164,10 +125,9 @@ void QuicStream::BeginHeaders(QuicStreamHeadersKind kind) {
   set_headers_kind(kind);
 }
 
-void QuicStream::Commit(ssize_t amount) {
+void QuicStream::Commit(size_t amount) {
   CHECK(!is_destroyed());
-  CHECK_GE(amount, 0);
-  streambuf_.Seek(amount);
+  streambuf_.seek(amount);
 }
 
 void QuicStream::ResetStream(uint64_t app_error_code) {
@@ -176,8 +136,8 @@ void QuicStream::ResetStream(uint64_t app_error_code) {
   // streambuf_ will be canceled, and all data pending
   // to be acknowledged at the ngtcp2 level will be
   // abandoned.
-  set_read_close();
-  set_write_close();
+  set_flag(QUICSTREAM_FLAG_READ_CLOSED);
+  streambuf_.end();
   session_->ResetStream(stream_id_, app_error_code);
 }
 
