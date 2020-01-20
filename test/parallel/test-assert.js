@@ -390,7 +390,7 @@ assert.throws(
     threw = true;
     assert.ok(e.message.includes(rangeError.message));
     assert.ok(e instanceof assert.AssertionError);
-    assert.ok(!e.stack.includes('doesNotThrow'), e.stack);
+    assert.ok(!e.stack.includes('doesNotThrow'), e);
   }
   assert.ok(threw);
 }

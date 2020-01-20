@@ -7,6 +7,7 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
 const vm = require('vm');
+const { inspect } = require('util');
 
 // https://github.com/w3c/testharness.js/blob/master/testharness.js
 // TODO: get rid of this half-baked harness in favor of the one
@@ -354,7 +355,7 @@ class WPTRunner {
         this.fail(filename, {
           name: '',
           message: err.message,
-          stack: err.stack
+          stack: inspect(err)
         }, 'UNCAUGHT');
         this.inProgress.delete(filename);
       }

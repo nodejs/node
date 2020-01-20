@@ -83,7 +83,7 @@ assert.ifError(undefined);
   } catch (e) {
     threw = true;
     assert.strictEqual(e.message, 'Missing expected exception.');
-    assert(!e.stack.includes('throws'), e.stack);
+    assert(!e.stack.includes('throws'), e);
   }
   assert(threw);
 }

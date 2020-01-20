@@ -34,7 +34,7 @@ server.listen(0, common.mustCall(function() {
     res.resume();
     server.close();
   })).on('error', function(e) {
-    console.error(e.stack);
+    console.error(e);
     process.exit(1);
   });
 }));
