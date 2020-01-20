@@ -9,183 +9,21 @@
 #include "uv.h"
 #include "fd_table.h"
 #include "wasi_types.h"
+#include "wasi_rights.h"
 #include "uv_mapping.h"
 #include "uvwasi_alloc.h"
 
 
-#define UVWASI__RIGHTS_ALL (UVWASI_RIGHT_FD_DATASYNC |                        \
-                            UVWASI_RIGHT_FD_READ |                            \
-                            UVWASI_RIGHT_FD_SEEK |                            \
-                            UVWASI_RIGHT_FD_FDSTAT_SET_FLAGS |                \
-                            UVWASI_RIGHT_FD_SYNC |                            \
-                            UVWASI_RIGHT_FD_TELL |                            \
-                            UVWASI_RIGHT_FD_WRITE |                           \
-                            UVWASI_RIGHT_FD_ADVISE |                          \
-                            UVWASI_RIGHT_FD_ALLOCATE |                        \
-                            UVWASI_RIGHT_PATH_CREATE_DIRECTORY |              \
-                            UVWASI_RIGHT_PATH_CREATE_FILE |                   \
-                            UVWASI_RIGHT_PATH_LINK_SOURCE |                   \
-                            UVWASI_RIGHT_PATH_LINK_TARGET |                   \
-                            UVWASI_RIGHT_PATH_OPEN |                          \
-                            UVWASI_RIGHT_FD_READDIR |                         \
-                            UVWASI_RIGHT_PATH_READLINK |                      \
-                            UVWASI_RIGHT_PATH_RENAME_SOURCE |                 \
-                            UVWASI_RIGHT_PATH_RENAME_TARGET |                 \
-                            UVWASI_RIGHT_PATH_FILESTAT_GET |                  \
-                            UVWASI_RIGHT_PATH_FILESTAT_SET_SIZE |             \
-                            UVWASI_RIGHT_PATH_FILESTAT_SET_TIMES |            \
-                            UVWASI_RIGHT_FD_FILESTAT_GET |                    \
-                            UVWASI_RIGHT_FD_FILESTAT_SET_TIMES |              \
-                            UVWASI_RIGHT_FD_FILESTAT_SET_SIZE |               \
-                            UVWASI_RIGHT_PATH_SYMLINK |                       \
-                            UVWASI_RIGHT_PATH_UNLINK_FILE |                   \
-                            UVWASI_RIGHT_PATH_REMOVE_DIRECTORY |              \
-                            UVWASI_RIGHT_POLL_FD_READWRITE |                  \
-                            UVWASI_RIGHT_SOCK_SHUTDOWN)
-
-#define UVWASI__RIGHTS_BLOCK_DEVICE_BASE UVWASI__RIGHTS_ALL
-#define UVWASI__RIGHTS_BLOCK_DEVICE_INHERITING UVWASI__RIGHTS_ALL
-
-#define UVWASI__RIGHTS_CHARACTER_DEVICE_BASE UVWASI__RIGHTS_ALL
-#define UVWASI__RIGHTS_CHARACTER_DEVICE_INHERITING UVWASI__RIGHTS_ALL
-
-#define UVWASI__RIGHTS_REGULAR_FILE_BASE (UVWASI_RIGHT_FD_DATASYNC |          \
-                                          UVWASI_RIGHT_FD_READ |              \
-                                          UVWASI_RIGHT_FD_SEEK |              \
-                                          UVWASI_RIGHT_FD_FDSTAT_SET_FLAGS |  \
-                                          UVWASI_RIGHT_FD_SYNC |              \
-                                          UVWASI_RIGHT_FD_TELL |              \
-                                          UVWASI_RIGHT_FD_WRITE |             \
-                                          UVWASI_RIGHT_FD_ADVISE |            \
-                                          UVWASI_RIGHT_FD_ALLOCATE |          \
-                                          UVWASI_RIGHT_FD_FILESTAT_GET |      \
-                                          UVWASI_RIGHT_FD_FILESTAT_SET_SIZE | \
-                                          UVWASI_RIGHT_FD_FILESTAT_SET_TIMES |\
-                                          UVWASI_RIGHT_POLL_FD_READWRITE)
-#define UVWASI__RIGHTS_REGULAR_FILE_INHERITING 0
-
-#define UVWASI__RIGHTS_DIRECTORY_BASE (UVWASI_RIGHT_FD_FDSTAT_SET_FLAGS |     \
-                                       UVWASI_RIGHT_FD_SYNC |                 \
-                                       UVWASI_RIGHT_FD_ADVISE |               \
-                                       UVWASI_RIGHT_PATH_CREATE_DIRECTORY |   \
-                                       UVWASI_RIGHT_PATH_CREATE_FILE |        \
-                                       UVWASI_RIGHT_PATH_LINK_SOURCE |        \
-                                       UVWASI_RIGHT_PATH_LINK_TARGET |        \
-                                       UVWASI_RIGHT_PATH_OPEN |               \
-                                       UVWASI_RIGHT_FD_READDIR |              \
-                                       UVWASI_RIGHT_PATH_READLINK |           \
-                                       UVWASI_RIGHT_PATH_RENAME_SOURCE |      \
-                                       UVWASI_RIGHT_PATH_RENAME_TARGET |      \
-                                       UVWASI_RIGHT_PATH_FILESTAT_GET |       \
-                                       UVWASI_RIGHT_PATH_FILESTAT_SET_SIZE |  \
-                                       UVWASI_RIGHT_PATH_FILESTAT_SET_TIMES | \
-                                       UVWASI_RIGHT_FD_FILESTAT_GET |         \
-                                       UVWASI_RIGHT_FD_FILESTAT_SET_TIMES |   \
-                                       UVWASI_RIGHT_PATH_SYMLINK |            \
-                                       UVWASI_RIGHT_PATH_UNLINK_FILE |        \
-                                       UVWASI_RIGHT_PATH_REMOVE_DIRECTORY |   \
-                                       UVWASI_RIGHT_POLL_FD_READWRITE)
-#define UVWASI__RIGHTS_DIRECTORY_INHERITING (UVWASI__RIGHTS_DIRECTORY_BASE |  \
-                                             UVWASI__RIGHTS_REGULAR_FILE_BASE)
-
-#define UVWASI__RIGHTS_SOCKET_BASE (UVWASI_RIGHT_FD_READ |                    \
-                                    UVWASI_RIGHT_FD_FDSTAT_SET_FLAGS |        \
-                                    UVWASI_RIGHT_FD_WRITE |                   \
-                                    UVWASI_RIGHT_FD_FILESTAT_GET |            \
-                                    UVWASI_RIGHT_POLL_FD_READWRITE |          \
-                                    UVWASI_RIGHT_SOCK_SHUTDOWN)
-#define UVWASI__RIGHTS_SOCKET_INHERITING UVWASI__RIGHTS_ALL;
-
-#define UVWASI__RIGHTS_TTY_BASE (UVWASI_RIGHT_FD_READ |                       \
-                                 UVWASI_RIGHT_FD_FDSTAT_SET_FLAGS |           \
-                                 UVWASI_RIGHT_FD_WRITE |                      \
-                                 UVWASI_RIGHT_FD_FILESTAT_GET |               \
-                                 UVWASI_RIGHT_POLL_FD_READWRITE)
-#define UVWASI__RIGHTS_TTY_INHERITING 0
-
-static uvwasi_errno_t uvwasi__get_type_and_rights(uv_file fd,
-                                           int flags,
-                                           uvwasi_filetype_t* type,
-                                           uvwasi_rights_t* rights_base,
-                                           uvwasi_rights_t* rights_inheriting) {
-  uv_fs_t req;
-  uvwasi_filetype_t filetype;
-  int read_or_write_only;
-  int r;
-
-  r = uv_fs_fstat(NULL, &req, fd, NULL);
-  filetype = uvwasi__stat_to_filetype(&req.statbuf);
-  uv_fs_req_cleanup(&req);
-  if (r != 0)
-    return uvwasi__translate_uv_error(r);
-
-  *type = filetype;
-  switch (filetype) {
-    case UVWASI_FILETYPE_REGULAR_FILE:
-      *rights_base = UVWASI__RIGHTS_REGULAR_FILE_BASE;
-      *rights_inheriting = UVWASI__RIGHTS_REGULAR_FILE_INHERITING;
-      break;
-
-    case UVWASI_FILETYPE_DIRECTORY:
-      *rights_base = UVWASI__RIGHTS_DIRECTORY_BASE;
-      *rights_inheriting = UVWASI__RIGHTS_DIRECTORY_INHERITING;
-      break;
-
-    /* uvwasi__stat_to_filetype() cannot differentiate socket types. It only
-       returns UVWASI_FILETYPE_SOCKET_STREAM. */
-    case UVWASI_FILETYPE_SOCKET_STREAM:
-      if (uv_guess_handle(fd) == UV_UDP)
-        *type = UVWASI_FILETYPE_SOCKET_DGRAM;
-
-      *rights_base = UVWASI__RIGHTS_SOCKET_BASE;
-      *rights_inheriting = UVWASI__RIGHTS_SOCKET_INHERITING;
-      break;
-
-    case UVWASI_FILETYPE_CHARACTER_DEVICE:
-      if (uv_guess_handle(fd) == UV_TTY) {
-        *rights_base = UVWASI__RIGHTS_TTY_BASE;
-        *rights_inheriting = UVWASI__RIGHTS_TTY_INHERITING;
-      } else {
-        *rights_base = UVWASI__RIGHTS_CHARACTER_DEVICE_BASE;
-        *rights_inheriting = UVWASI__RIGHTS_CHARACTER_DEVICE_INHERITING;
-      }
-      break;
-
-    case UVWASI_FILETYPE_BLOCK_DEVICE:
-      *rights_base = UVWASI__RIGHTS_BLOCK_DEVICE_BASE;
-      *rights_inheriting = UVWASI__RIGHTS_BLOCK_DEVICE_INHERITING;
-      break;
-
-    default:
-      *rights_base = 0;
-      *rights_inheriting = 0;
-  }
-
-  if (*type == UVWASI_FILETYPE_UNKNOWN)
-    return UVWASI_EINVAL;
-
-  /* Disable read/write bits depending on access mode. */
-  read_or_write_only = flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR);
-
-  if (read_or_write_only == UV_FS_O_RDONLY)
-    *rights_base &= ~UVWASI_RIGHT_FD_WRITE;
-  else if (read_or_write_only == UV_FS_O_WRONLY)
-    *rights_base &= ~UVWASI_RIGHT_FD_READ;
-
-  return UVWASI_ESUCCESS;
-}
-
-
-static uvwasi_errno_t uvwasi__fd_table_insert(uvwasi_t* uvwasi,
-                                              struct uvwasi_fd_table_t* table,
-                                              uv_file fd,
-                                              const char* mapped_path,
-                                              const char* real_path,
-                                              uvwasi_filetype_t type,
-                                              uvwasi_rights_t rights_base,
-                                              uvwasi_rights_t rights_inheriting,
-                                              int preopen,
-                                              struct uvwasi_fd_wrap_t** wrap) {
+uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
+                                      struct uvwasi_fd_table_t* table,
+                                      uv_file fd,
+                                      const char* mapped_path,
+                                      const char* real_path,
+                                      uvwasi_filetype_t type,
+                                      uvwasi_rights_t rights_base,
+                                      uvwasi_rights_t rights_inheriting,
+                                      int preopen,
+                                      struct uvwasi_fd_wrap_t** wrap) {
   struct uvwasi_fd_wrap_t* entry;
   struct uvwasi_fd_wrap_t** new_fds;
   uvwasi_errno_t err;
@@ -263,11 +101,13 @@ static uvwasi_errno_t uvwasi__fd_table_insert(uvwasi_t* uvwasi,
   entry->rights_base = rights_base;
   entry->rights_inheriting = rights_inheriting;
   entry->preopen = preopen;
-  table->used++;
 
-  if (wrap != NULL)
+  if (wrap != NULL) {
+    uv_mutex_lock(&entry->mutex);
     *wrap = entry;
+  }
 
+  table->used++;
   err = UVWASI_ESUCCESS;
 exit:
   uv_rwlock_wrunlock(&table->rwlock);
@@ -314,28 +154,30 @@ uvwasi_errno_t uvwasi_fd_table_init(uvwasi_t* uvwasi,
 
   /* Create the stdio FDs. */
   for (i = 0; i < 3; ++i) {
-    err = uvwasi__get_type_and_rights(i,
-                                      UV_FS_O_RDWR,
-                                      &type,
-                                      &base,
-                                      &inheriting);
+    err = uvwasi__get_filetype_by_fd(i, &type);
     if (err != UVWASI_ESUCCESS)
       goto error_exit;
 
-    err = uvwasi__fd_table_insert(uvwasi,
-                                  table,
-                                  i,
-                                  "",
-                                  "",
-                                  type,
-                                  base,
-                                  inheriting,
-                                  0,
-                                  &wrap);
+    err = uvwasi__get_rights(i, UV_FS_O_RDWR, type, &base, &inheriting);
     if (err != UVWASI_ESUCCESS)
       goto error_exit;
 
-    if (wrap->id != i || wrap->id != (uvwasi_fd_t) wrap->fd) {
+    err = uvwasi_fd_table_insert(uvwasi,
+                                 table,
+                                 i,
+                                 "",
+                                 "",
+                                 type,
+                                 base,
+                                 inheriting,
+                                 0,
+                                 &wrap);
+    if (err != UVWASI_ESUCCESS)
+      goto error_exit;
+
+    r = wrap->id != i || wrap->id != (uvwasi_fd_t) wrap->fd;
+    uv_mutex_unlock(&wrap->mutex);
+    if (r) {
       err = UVWASI_EBADF;
       goto error_exit;
     }
@@ -386,14 +228,18 @@ uvwasi_errno_t uvwasi_fd_table_insert_preopen(uvwasi_t* uvwasi,
   if (table == NULL || path == NULL || real_path == NULL)
     return UVWASI_EINVAL;
 
-  err = uvwasi__get_type_and_rights(fd, 0, &type, &base, &inheriting);
+  err = uvwasi__get_filetype_by_fd(fd, &type);
   if (err != UVWASI_ESUCCESS)
     return err;
 
   if (type != UVWASI_FILETYPE_DIRECTORY)
     return UVWASI_ENOTDIR;
 
-  err = uvwasi__fd_table_insert(uvwasi,
+  err = uvwasi__get_rights(fd, 0, type, &base, &inheriting);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  return uvwasi_fd_table_insert(uvwasi,
                                 table,
                                 fd,
                                 path,
@@ -403,49 +249,6 @@ uvwasi_errno_t uvwasi_fd_table_insert_preopen(uvwasi_t* uvwasi,
                                 UVWASI__RIGHTS_DIRECTORY_INHERITING,
                                 1,
                                 NULL);
-  if (err != UVWASI_ESUCCESS)
-    return err;
-
-  return UVWASI_ESUCCESS;
-}
-
-
-uvwasi_errno_t uvwasi_fd_table_insert_fd(uvwasi_t* uvwasi,
-                                         struct uvwasi_fd_table_t* table,
-                                         const uv_file fd,
-                                         const int flags,
-                                         const char* path,
-                                         uvwasi_rights_t rights_base,
-                                         uvwasi_rights_t rights_inheriting,
-                                         struct uvwasi_fd_wrap_t* wrap) {
-  struct uvwasi_fd_wrap_t* fd_wrap;
-  uvwasi_filetype_t type;
-  uvwasi_rights_t max_base;
-  uvwasi_rights_t max_inheriting;
-  uvwasi_errno_t r;
-
-  if (table == NULL || path == NULL || wrap == NULL)
-    return UVWASI_EINVAL;
-
-  r = uvwasi__get_type_and_rights(fd, flags, &type, &max_base, &max_inheriting);
-  if (r != UVWASI_ESUCCESS)
-    return r;
-
-  r = uvwasi__fd_table_insert(uvwasi,
-                              table,
-                              fd,
-                              path,
-                              path,
-                              type,
-                              rights_base & max_base,
-                              rights_inheriting & max_inheriting,
-                              0,
-                              &fd_wrap);
-  if (r != UVWASI_ESUCCESS)
-    return r;
-
-  *wrap = *fd_wrap;
-  return UVWASI_ESUCCESS;
 }
 
 
@@ -517,6 +320,70 @@ uvwasi_errno_t uvwasi_fd_table_remove(uvwasi_t* uvwasi,
   uvwasi__free(uvwasi, entry);
   table->fds[id] = NULL;
   table->used--;
+  err = UVWASI_ESUCCESS;
+exit:
+  uv_rwlock_wrunlock(&table->rwlock);
+  return err;
+}
+
+
+uvwasi_errno_t uvwasi_fd_table_renumber(struct uvwasi_s* uvwasi,
+                                        struct uvwasi_fd_table_t* table,
+                                        const uvwasi_fd_t dst,
+                                        const uvwasi_fd_t src) {
+  struct uvwasi_fd_wrap_t* dst_entry;
+  struct uvwasi_fd_wrap_t* src_entry;
+  uv_fs_t req;
+  uvwasi_errno_t err;
+  int r;
+
+  if (uvwasi == NULL || table == NULL)
+    return UVWASI_EINVAL;
+
+  if (dst == src)
+    return UVWASI_ESUCCESS;
+
+  uv_rwlock_wrlock(&table->rwlock);
+
+  if (dst >= table->size || src >= table->size) {
+    err = UVWASI_EBADF;
+    goto exit;
+  }
+
+  dst_entry = table->fds[dst];
+  src_entry = table->fds[src];
+
+  if (dst_entry == NULL || dst_entry->id != dst ||
+      src_entry == NULL || src_entry->id != src) {
+    err = UVWASI_EBADF;
+    goto exit;
+  }
+
+  uv_mutex_lock(&dst_entry->mutex);
+  uv_mutex_lock(&src_entry->mutex);
+
+  /* Close the existing destination descriptor. */
+  r = uv_fs_close(NULL, &req, dst_entry->fd, NULL);
+  uv_fs_req_cleanup(&req);
+  if (r != 0) {
+    uv_mutex_unlock(&dst_entry->mutex);
+    uv_mutex_unlock(&src_entry->mutex);
+    err = uvwasi__translate_uv_error(r);
+    goto exit;
+  }
+
+  /* Move the source entry to the destination slot in the table. */
+  table->fds[dst] = table->fds[src];
+  table->fds[dst]->id = dst;
+  uv_mutex_unlock(&table->fds[dst]->mutex);
+  table->fds[src] = NULL;
+  table->used--;
+
+  /* Clean up what's left of the old destination entry. */
+  uv_mutex_unlock(&dst_entry->mutex);
+  uv_mutex_destroy(&dst_entry->mutex);
+  uvwasi__free(uvwasi, dst_entry);
+
   err = UVWASI_ESUCCESS;
 exit:
   uv_rwlock_wrunlock(&table->rwlock);
