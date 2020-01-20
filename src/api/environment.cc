@@ -399,6 +399,33 @@ Local<Context> NewContext(Isolate* isolate,
   return context;
 }
 
+Local<Context> NewContext(Environment* env,
+                          Local<ObjectTemplate> object_template,
+                          bool initialize) {
+  v8::EscapableHandleScope scope(env->isolate());
+  auto context = Context::New(env->isolate(), nullptr, object_template);
+  if (context.IsEmpty()) return context;
+
+  if (initialize && !InitializeContext(context)) {
+    return Local<Context>();
+  }
+
+  v8::Local<v8::String> name;
+
+  {
+    // A consstructor name should be invoked in the newly created context
+    // to prevent access check failures.
+    v8::Context::Scope scope(context);
+    name = context->Global()->GetConstructorName();
+  }
+
+  Utf8Value name_val(env->isolate(), name);
+  ContextInfo info(*name_val);
+  env->AssignToContext(context, info);
+
+  return scope.Escape(context);
+}
+
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 void InitializeContextRuntime(Local<Context> context) {
