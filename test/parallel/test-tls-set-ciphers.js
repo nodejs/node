@@ -1,7 +1,10 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto) common.skip('missing crypto');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const fixtures = require('../common/fixtures');
+const { inspect } = require('util');
 
 // Test cipher: option for TLS.
 
@@ -12,7 +15,7 @@ const {
 
 function test(cciphers, sciphers, cipher, cerr, serr) {
   assert(cipher || cerr || serr, 'test missing any expectations');
-  const where = (new Error()).stack.split('\n')[2].replace(/[^(]*/, '');
+  const where = inspect(new Error()).split('\n')[2].replace(/[^(]*/, '');
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },

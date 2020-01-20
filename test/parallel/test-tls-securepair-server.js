@@ -37,7 +37,7 @@ const key = fixtures.readKey('rsa_private.pem');
 const cert = fixtures.readKey('rsa_cert.crt');
 
 function log(a) {
-  console.error(`***server*** ${a}`);
+  console.error('***server***', a);
 }
 
 const server = net.createServer(common.mustCall(function(socket) {
@@ -74,21 +74,18 @@ const server = net.createServer(common.mustCall(function(socket) {
   pair.cleartext.on('error', function(err) {
     log('got error: ');
     log(err);
-    log(err.stack);
     socket.destroy();
   });
 
   pair.encrypted.on('error', function(err) {
     log('encrypted error: ');
     log(err);
-    log(err.stack);
     socket.destroy();
   });
 
   socket.on('error', function(err) {
     log('socket error: ');
     log(err);
-    log(err.stack);
     socket.destroy();
   });
 
@@ -99,7 +96,6 @@ const server = net.createServer(common.mustCall(function(socket) {
   pair.on('error', function(err) {
     log('secure error: ');
     log(err);
-    log(err.stack);
     socket.destroy();
   });
 }));
