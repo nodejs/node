@@ -32,14 +32,18 @@ std::string ToString(const T& value) {
 }
 
 inline std::string SPrintFImpl(const char* format) {
-  return format;
+  const char* p = strchr(format, '%');
+  if (LIKELY(p == nullptr)) return format;
+  CHECK(p[1] == '%');  // Only '%%' allowed when there are no arguments.
+
+  return std::string(format, p + 1) + SPrintFImpl(p + 2);
 }
 
 template <typename Arg, typename... Args>
 std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
     const char* format, Arg&& arg, Args&&... args) {
   const char* p = strchr(format, '%');
-  if (p == nullptr) return format;
+  CHECK_NOT_NULL(p);
   std::string ret(format, p);
   // Ignore long / size_t modifiers
   while (strchr("lz", *++p) != nullptr) {}

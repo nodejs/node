@@ -282,6 +282,8 @@ TEST(UtilTest, SPrintF) {
   EXPECT_EQ(SPrintF("%s %s", foo, "bar"), "foo bar");
   EXPECT_EQ(SPrintF("%s %s", foo, bar), "foo bar");
 
+  EXPECT_EQ(SPrintF("[%% %s %%]", foo), "[% foo %]");
+
   struct HasToString {
     std::string ToString() const {
       return "meow";
