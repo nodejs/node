@@ -274,8 +274,8 @@ TEST(UtilTest, SPrintF) {
 
   void (*fn)() = []() {};
   void* p = reinterpret_cast<void*>(&fn);
-  EXPECT_GE(SPrintF("%p", fn).size(), 8u);
-  EXPECT_GE(SPrintF("%p", p).size(), 8u);
+  EXPECT_GE(SPrintF("%p", fn).size(), 4u);
+  EXPECT_GE(SPrintF("%p", p).size(), 4u);
 
   const std::string foo = "foo";
   const char* bar = "bar";
