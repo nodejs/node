@@ -25,8 +25,6 @@ void AppendExceptionLine(Environment* env,
 [[noreturn]] void FatalError(const char* location, const char* message);
 void OnFatalError(const char* location, const char* message);
 
-void PrintErrorString(const char* format, ...);
-
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.
 // Example: with `V(ERR_INVALID_ARG_TYPE, TypeError)`, there will be

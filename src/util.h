@@ -473,6 +473,8 @@ class ArrayBufferViewContents {
 class Utf8Value : public MaybeStackBuffer<char> {
  public:
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+  inline std::string ToString() const { return std::string(out(), length()); }
 };
 
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
@@ -483,6 +485,8 @@ class TwoByteValue : public MaybeStackBuffer<uint16_t> {
 class BufferValue : public MaybeStackBuffer<char> {
  public:
   explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+  inline std::string ToString() const { return std::string(out(), length()); }
 };
 
 #define SPREAD_BUFFER_ARG(val, name)                                          \

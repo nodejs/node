@@ -79,6 +79,11 @@ std::string COLD_NOINLINE SPrintF(  // NOLINT(runtime/string)
   return SPrintFImpl(format, std::forward<Args>(args)...);
 }
 
+template <typename... Args>
+void COLD_NOINLINE FPrintF(FILE* file, const char* format, Args&&... args) {
+  FWrite(file, SPrintF(format, std::forward<Args>(args)...));
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

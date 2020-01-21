@@ -1,6 +1,7 @@
 #include <cerrno>
 #include <cstdarg>
 
+#include "debug_utils-inl.h"
 #include "node_errors.h"
 #include "node_internals.h"
 #ifdef NODE_REPORT
@@ -9,10 +10,6 @@
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
-
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
 
 namespace node {
 
@@ -53,8 +50,6 @@ bool IsExceptionDecorated(Environment* env, Local<Value> er) {
 namespace per_process {
 static Mutex tty_mutex;
 }  // namespace per_process
-
-static const int kMaxErrorSourceLength = 1024;
 
 static std::string GetErrorSource(Isolate* isolate,
                                   Local<Context> context,
@@ -107,41 +102,35 @@ static std::string GetErrorSource(Isolate* isolate,
     end -= script_start;
   }
 
-  int max_off = kMaxErrorSourceLength - 2;
+  std::string buf = SPrintF("%s:%i\n%s\n",
+                            filename_string,
+                            linenum,
+                            sourceline.c_str());
+  CHECK_GE(buf.size(), 0);
 
-  char buf[kMaxErrorSourceLength];
-  int off = snprintf(buf,
-                     kMaxErrorSourceLength,
-                     "%s:%i\n%s\n",
-                     filename_string,
-                     linenum,
-                     sourceline.c_str());
-  CHECK_GE(off, 0);
-  if (off > max_off) {
-    off = max_off;
-  }
-
+  constexpr int kUnderlineBufsize = 1020;
+  char underline_buf[kUnderlineBufsize + 4];
+  int off = 0;
   // Print wavy underline (GetUnderline is deprecated).
   for (int i = 0; i < start; i++) {
-    if (sourceline[i] == '\0' || off >= max_off) {
+    if (sourceline[i] == '\0' || off >= kUnderlineBufsize) {
       break;
     }
-    CHECK_LT(off, max_off);
-    buf[off++] = (sourceline[i] == '\t') ? '\t' : ' ';
+    CHECK_LT(off, kUnderlineBufsize);
+    underline_buf[off++] = (sourceline[i] == '\t') ? '\t' : ' ';
   }
   for (int i = start; i < end; i++) {
-    if (sourceline[i] == '\0' || off >= max_off) {
+    if (sourceline[i] == '\0' || off >= kUnderlineBufsize) {
       break;
     }
-    CHECK_LT(off, max_off);
-    buf[off++] = '^';
+    CHECK_LT(off, kUnderlineBufsize);
+    underline_buf[off++] = '^';
   }
-  CHECK_LE(off, max_off);
-  buf[off] = '\n';
-  buf[off + 1] = '\0';
+  CHECK_LE(off, kUnderlineBufsize);
+  underline_buf[off++] = '\n';
 
   *added_exception_line = true;
-  return std::string(buf);
+  return buf + std::string(underline_buf, off);
 }
 
 void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
@@ -154,9 +143,9 @@ void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
 
     if (stack_frame->IsEval()) {
       if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
-        fprintf(stderr, "    at [eval]:%i:%i\n", line_number, column);
+        FPrintF(stderr, "    at [eval]:%i:%i\n", line_number, column);
       } else {
-        fprintf(stderr,
+        FPrintF(stderr,
                 "    at [eval] (%s:%i:%i)\n",
                 *script_name,
                 line_number,
@@ -166,12 +155,12 @@ void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
     }
 
     if (fn_name_s.length() == 0) {
-      fprintf(stderr, "    at %s:%i:%i\n", *script_name, line_number, column);
+      FPrintF(stderr, "    at %s:%i:%i\n", script_name, line_number, column);
     } else {
-      fprintf(stderr,
+      FPrintF(stderr,
               "    at %s (%s:%i:%i)\n",
-              *fn_name_s,
-              *script_name,
+              fn_name_s,
+              script_name,
               line_number,
               column);
     }
@@ -189,8 +178,8 @@ void PrintException(Isolate* isolate,
   bool added_exception_line = false;
   std::string source =
       GetErrorSource(isolate, context, message, &added_exception_line);
-  fprintf(stderr, "%s\n", source.c_str());
-  fprintf(stderr, "%s\n", *reason);
+  FPrintF(stderr, "%s\n", source);
+  FPrintF(stderr, "%s\n", reason);
 
   Local<v8::StackTrace> stack = message->GetStackTrace();
   if (!stack.IsEmpty()) PrintStackTrace(isolate, stack);
@@ -235,7 +224,7 @@ void AppendExceptionLine(Environment* env,
     env->set_printed_error(true);
 
     ResetStdio();
-    PrintErrorString("\n%s", source.c_str());
+    FPrintF(stderr, "\n%s", source);
     return;
   }
 
@@ -350,10 +339,10 @@ static void ReportFatalException(Environment* env,
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !stack_trace->IsUndefined()) {
     if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
-      PrintErrorString("%s\n", *trace);
+      FPrintF(stderr, "%s\n", trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
-      PrintErrorString("%s\n%s\n", *arrow_string, *trace);
+      FPrintF(stderr, "%s\n%s\n", arrow_string, trace);
     }
   } else {
     // this really only happens for RangeErrors, since they're the only
@@ -371,74 +360,38 @@ static void ReportFatalException(Environment* env,
     if (message.IsEmpty() || message.ToLocalChecked()->IsUndefined() ||
         name.IsEmpty() || name.ToLocalChecked()->IsUndefined()) {
       // Not an error object. Just print as-is.
-      String::Utf8Value message(env->isolate(), error);
+      node::Utf8Value message(env->isolate(), error);
 
-      PrintErrorString("%s\n",
-                       *message ? *message : "<toString() threw exception>");
+      FPrintF(stderr, "%s\n",
+              *message ? message.ToString() : "<toString() threw exception>");
     } else {
       node::Utf8Value name_string(env->isolate(), name.ToLocalChecked());
       node::Utf8Value message_string(env->isolate(), message.ToLocalChecked());
 
       if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
-        PrintErrorString("%s: %s\n", *name_string, *message_string);
+        FPrintF(stderr, "%s: %s\n", name_string, message_string);
       } else {
         node::Utf8Value arrow_string(env->isolate(), arrow);
-        PrintErrorString(
-            "%s\n%s: %s\n", *arrow_string, *name_string, *message_string);
+        FPrintF(stderr,
+            "%s\n%s: %s\n", arrow_string, name_string, message_string);
       }
     }
 
     if (!env->options()->trace_uncaught) {
-      PrintErrorString("(Use `node --trace-uncaught ...` to show "
-                       "where the exception was thrown)\n");
+      FPrintF(stderr, "(Use `node --trace-uncaught ...` to show "
+                      "where the exception was thrown)\n");
     }
   }
 
   if (env->options()->trace_uncaught) {
     Local<StackTrace> trace = message->GetStackTrace();
     if (!trace.IsEmpty()) {
-      PrintErrorString("Thrown at:\n");
+      FPrintF(stderr, "Thrown at:\n");
       PrintStackTrace(env->isolate(), trace);
     }
   }
 
   fflush(stderr);
-}
-
-void PrintErrorString(const char* format, ...) {
-  va_list ap;
-  va_start(ap, format);
-#ifdef _WIN32
-  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
-
-  // Check if stderr is something other than a tty/console
-  if (stderr_handle == INVALID_HANDLE_VALUE || stderr_handle == nullptr ||
-      uv_guess_handle(_fileno(stderr)) != UV_TTY) {
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-    return;
-  }
-
-  // Fill in any placeholders
-  int n = _vscprintf(format, ap);
-  std::vector<char> out(n + 1);
-  vsprintf(out.data(), format, ap);
-
-  // Get required wide buffer size
-  n = MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, nullptr, 0);
-
-  std::vector<wchar_t> wbuf(n);
-  MultiByteToWideChar(CP_UTF8, 0, out.data(), -1, wbuf.data(), n);
-
-  // Don't include the null character in the output
-  CHECK_GT(n, 0);
-  WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
-#elif defined(__ANDROID__)
-  __android_log_vprint(ANDROID_LOG_ERROR, "nodejs", format, ap);
-#else
-  vfprintf(stderr, format, ap);
-#endif
-  va_end(ap);
 }
 
 [[noreturn]] void FatalError(const char* location, const char* message) {
@@ -449,9 +402,9 @@ void PrintErrorString(const char* format, ...) {
 
 void OnFatalError(const char* location, const char* message) {
   if (location) {
-    PrintErrorString("FATAL ERROR: %s %s\n", location, message);
+    FPrintF(stderr, "FATAL ERROR: %s %s\n", location, message);
   } else {
-    PrintErrorString("FATAL ERROR: %s\n", message);
+    FPrintF(stderr, "FATAL ERROR: %s\n", message);
   }
 #ifdef NODE_REPORT
   Isolate* isolate = Isolate::GetCurrent();

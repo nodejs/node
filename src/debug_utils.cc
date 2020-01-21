@@ -6,6 +6,10 @@
 #include <features.h>
 #endif
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 #if defined(__linux__) && !defined(__GLIBC__) || \
     defined(__UCLIBC__) || \
     defined(_AIX)
@@ -437,6 +441,37 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
   return list;
 }
 
+void FWrite(FILE* file, const std::string& str) {
+  if (file != stderr && file != stdout) goto simple_fwrite;
+#ifdef _WIN32
+  HANDLE handle =
+      GetStdHandle(file == stdout ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
+
+  // Check if stderr is something other than a tty/console
+  if (handle == INVALID_HANDLE_VALUE || handle == nullptr ||
+      uv_guess_handle(_fileno(file)) != UV_TTY) {
+    goto simple_fwrite;
+  }
+
+  // Get required wide buffer size
+  int n = MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), nullptr, 0);
+
+  std::vector<wchar_t> wbuf(n);
+  MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), wbuf.data(), n);
+
+  // Don't include the final null character in the output
+  CHECK_GT(n, 0);
+  WriteConsoleW(handle, wbuf.data(), n - 1, nullptr, nullptr);
+  return;
+#elif defined(__ANDROID__)
+  if (file == stderr) {
+    __android_log_print(ANDROID_LOG_ERROR, "nodejs", "%s", str.data());
+    return;
+  }
+#endif
+simple_fwrite:
+  fwrite(str.data(), str.size(), 1, file);
+}
 
 }  // namespace node
 
