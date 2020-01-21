@@ -2032,7 +2032,7 @@ Found'`.
 added: v0.1.13
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/31448
     description: The `insecureHTTPParser` option is supported now.
   - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30570
@@ -2163,7 +2163,7 @@ This can be overridden for servers and client requests by passing the
 added: v0.3.6
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/31448
     description: The `insecureHTTPParser` option is supported now.
   - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30570
