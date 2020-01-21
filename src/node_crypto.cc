@@ -733,19 +733,14 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   if (!key) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    if (!err) {
-      return env->ThrowError("PEM_read_bio_PrivateKey");
-    }
-    return ThrowCryptoError(env, err);
+    return ThrowCryptoError(env, err, "PEM_read_bio_PrivateKey");
   }
 
   int rv = SSL_CTX_use_PrivateKey(sc->ctx_.get(), key.get());
 
   if (!rv) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    if (!err)
-      return env->ThrowError("SSL_CTX_use_PrivateKey");
-    return ThrowCryptoError(env, err);
+    return ThrowCryptoError(env, err, "SSL_CTX_use_PrivateKey");
   }
 }
 
