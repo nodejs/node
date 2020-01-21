@@ -93,6 +93,14 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   return ctx;
 }
 
+static size_t crypto_md_hashlen(const EVP_MD *md) {
+  return (size_t)EVP_MD_size(md);
+}
+
+size_t ngtcp2_crypto_md_hashlen(const ngtcp2_crypto_md *md) {
+  return crypto_md_hashlen(md->native_handle);
+}
+
 static size_t crypto_aead_keylen(const EVP_CIPHER *aead) {
   return (size_t)EVP_CIPHER_key_length(aead);
 }
@@ -126,13 +134,14 @@ size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
   return crypto_aead_taglen(aead->native_handle);
 }
 
-int ngtcp2_crypto_hkdf_extract(uint8_t *dest, size_t destlen,
-                               const ngtcp2_crypto_md *md,
+int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *secret, size_t secretlen,
                                const uint8_t *salt, size_t saltlen) {
   const EVP_MD *prf = md->native_handle;
   int rv = 0;
   EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+  size_t destlen = (size_t)EVP_MD_size(prf);
+
   if (pctx == NULL) {
     return -1;
   }

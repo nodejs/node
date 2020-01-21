@@ -61,6 +61,13 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
 /**
  * @function
  *
+ * `ngtcp2_crypto_md_hashlen` returns the length of |md| output.
+ */
+NGTCP2_EXTERN size_t ngtcp2_crypto_md_hashlen(const ngtcp2_crypto_md *md);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_aead_keylen` returns the length of key for |aead|.
  */
 NGTCP2_EXTERN size_t ngtcp2_crypto_aead_keylen(const ngtcp2_crypto_aead *aead);
@@ -85,17 +92,16 @@ NGTCP2_EXTERN size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead);
  * @function
  *
  * `ngtcp2_crypto_hkdf_extract` performs HKDF extract operation.  The
- * result is |destlen| bytes long and is stored to the buffer pointed
- * by |dest|.
+ * result is the length of |md| and is stored to the buffer pointed by
+ * |dest|.  The caller is responsible to specify the buffer that can
+ * store the output.
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_hkdf_extract(uint8_t *dest, size_t destlen,
-                                             const ngtcp2_crypto_md *md,
-                                             const uint8_t *secret,
-                                             size_t secretlen,
-                                             const uint8_t *salt,
-                                             size_t saltlen);
+NGTCP2_EXTERN int
+ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
+                           const uint8_t *secret, size_t secretlen,
+                           const uint8_t *salt, size_t saltlen);
 
 /**
  * @function
@@ -485,6 +491,21 @@ ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
 NGTCP2_EXTERN int
 ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
                                           ngtcp2_crypto_side side);
+
+/**
+ * @function
+ *
+ *  `ngtcp2_crypto_generate_stateless_reset_token` generates a
+ *  stateless reset token using HKDF extraction with |md| using the
+ *  given |cid| and static key |secret| as input.  The token will be
+ *  written to the buffer pointed by |token| and it must have a
+ *  capacity of at least NGTCP2_STATELESS_RESET_TOKENLEN bytes.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_generate_stateless_reset_token(
+    uint8_t *token, const ngtcp2_crypto_md *md, const uint8_t *secret,
+    size_t secretlen, const ngtcp2_cid *cid);
 
 #ifdef __cplusplus
 }

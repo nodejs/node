@@ -25,6 +25,7 @@
 #include "shared.h"
 
 #include <string.h>
+#include <assert.h>
 
 #include "ngtcp2_macro.h"
 
@@ -68,9 +69,8 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
 
   ngtcp2_crypto_ctx_initial(&ctx);
 
-  if (ngtcp2_crypto_hkdf_extract(initial_secret,
-                                 NGTCP2_CRYPTO_INITIAL_SECRETLEN, &ctx.md,
-                                 client_dcid->data, client_dcid->datalen,
+  if (ngtcp2_crypto_hkdf_extract(initial_secret, &ctx.md, client_dcid->data,
+                                 client_dcid->datalen,
                                  (const uint8_t *)NGTCP2_INITIAL_SALT,
                                  sizeof(NGTCP2_INITIAL_SALT) - 1) != 0) {
     return -1;
@@ -418,5 +418,27 @@ int ngtcp2_crypto_update_key_cb(ngtcp2_conn *conn, uint8_t *rx_secret,
                                current_tx_secret, secretlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
+  return 0;
+}
+
+int ngtcp2_crypto_generate_stateless_reset_token(uint8_t *token,
+                                                 const ngtcp2_crypto_md *md,
+                                                 const uint8_t *secret,
+                                                 size_t secretlen,
+                                                 const ngtcp2_cid *cid) {
+  uint8_t buf[64];
+  int rv;
+
+  assert(ngtcp2_crypto_md_hashlen(md) <= sizeof(buf));
+  assert(NGTCP2_STATELESS_RESET_TOKENLEN <= sizeof(buf));
+
+  rv = ngtcp2_crypto_hkdf_extract(buf, md, secret, secretlen, cid->data,
+                                  cid->datalen);
+  if (rv != 0) {
+    return -1;
+  }
+
+  memcpy(token, buf, NGTCP2_STATELESS_RESET_TOKENLEN);
+
   return 0;
 }

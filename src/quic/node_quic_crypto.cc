@@ -68,7 +68,6 @@ bool DeriveTokenKey(
   return
       NGTCP2_OK(ngtcp2_crypto_hkdf_extract(
           secret,
-          kCryptoTokenSecretlen,
           &ctx.md,
           token_secret,
           kTokenSecretLen,
@@ -109,14 +108,12 @@ bool GenerateResetToken(
     const QuicCID& cid) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
-  return NGTCP2_OK(ngtcp2_crypto_hkdf_expand(
+  return NGTCP2_OK(ngtcp2_crypto_generate_stateless_reset_token(
       token,
-      NGTCP2_STATELESS_RESET_TOKENLEN,
       &ctx.md,
       secret,
       NGTCP2_STATELESS_RESET_TOKENLEN,
-      cid->data,
-      cid->datalen));
+      cid.cid()));
 }
 
 bool GenerateRetryToken(
