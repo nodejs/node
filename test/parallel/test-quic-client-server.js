@@ -129,17 +129,30 @@ server.on('session', common.mustCall((session) => {
     // assert.strictEqual(session.authenticationError, undefined);
 
     const uni = session.openStream({ halfOpen: true });
-    uni.write(unidata[0]);
-    uni.end(unidata[1]);
-    debug('Unidirectional, Server-initiated stream %d opened', uni.id);
-    uni.on('data', common.mustNotCall());
+    assert(uni.unidirectional);
+    assert(!uni.bidirectional);
+    assert(uni.serverInitiated);
+    assert(!uni.clientInitiated);
+    assert(!uni.pending);
+    uni.write(unidata[0], common.mustCall());
+    uni.end(unidata[1], common.mustCall());
     uni.on('finish', common.mustCall());
     uni.on('close', common.mustCall());
     uni.on('end', common.mustCall());
+    uni.on('data', common.mustNotCall());
+    debug('Unidirectional, Server-initiated stream %d opened', uni.id);
   }));
 
   session.on('stream', common.mustCall((stream) => {
     debug('Bidirectional, Client-initiated stream %d received', stream.id);
+    assert.strictEqual(stream.id, 0);
+    assert.strictEqual(stream.session, session);
+    assert(stream.bidirectional);
+    assert(!stream.unidirectional);
+    assert(stream.clientInitiated);
+    assert(!stream.serverInitiated);
+    assert(!stream.pending);
+
     const file = fs.createReadStream(__filename);
     let data = '';
     file.pipe(stream);
@@ -165,8 +178,13 @@ server.on('session', common.mustCall((session) => {
       assert.strictEqual(data, filedata);
       debug('Server received expected data for stream %d', stream.id);
     }));
-    stream.on('close', common.mustCall());
     stream.on('finish', common.mustCall());
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(typeof stream.duration, 'bigint');
+      assert.strictEqual(typeof stream.bytesReceived, 'bigint');
+      assert.strictEqual(typeof stream.bytesSent, 'bigint');
+      assert.strictEqual(typeof stream.maxExtendedOffset, 'bigint');
+    }));
   }));
 
   session.on('close', common.mustCall(() => {
