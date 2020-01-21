@@ -146,12 +146,14 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
     }
   };
 
-  CHECK_GE(stream->Pull(
-      std::move(next),
-      bob::Options::OPTIONS_SYNC,
-      stream_data->data,
-      arraysize(stream_data->data),
-      kMaxVectorCount), 0);
+  if (LIKELY(!stream->is_eos())) {
+    CHECK_GE(stream->Pull(
+        std::move(next),
+        bob::Options::OPTIONS_SYNC,
+        stream_data->data,
+        arraysize(stream_data->data),
+        kMaxVectorCount), 0);
+  }
 
   return 0;
 }

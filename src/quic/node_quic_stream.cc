@@ -240,7 +240,6 @@ int QuicStream::ReadStop() {
 void QuicStream::IncrementStats(size_t datalen) {
   uint64_t len = static_cast<uint64_t>(datalen);
   IncrementStat(&QuicStreamStats::bytes_received, len);
-
   RecordRate(&QuicStreamStats::received_at);
   RecordSize(len);
 }
@@ -318,6 +317,7 @@ void QuicStream::ReceiveData(
     // on the stream when data transfer rates are likely to be considered too
     // slow.
     IncrementStats(datalen);
+
     while (datalen > 0) {
       uv_buf_t buf = EmitAlloc(datalen);
       size_t avail = std::min(static_cast<size_t>(buf.len), datalen);
