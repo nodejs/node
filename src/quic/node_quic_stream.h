@@ -42,7 +42,6 @@ enum QuicStreamHeadersKind : int {
 
 #define STREAM_STATS(V)                                                        \
   V(CREATED_AT, created_at)                                                    \
-  V(SENT_AT, sent_at)                                                          \
   V(RECEIVED_AT, received_at)                                                  \
   V(ACKED_AT, acked_at)                                                        \
   V(CLOSING_AT, closing_at)                                                    \

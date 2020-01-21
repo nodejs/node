@@ -203,7 +203,6 @@ int QuicStream::DoWrite(
       [req_wrap, strong_ref](int status) {
         req_wrap->Done(status);
       });
-  RecordTimestamp(&QuicStreamStats::sent_at);
 
   session()->ResumeStream(stream_id_);
 
