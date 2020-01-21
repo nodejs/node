@@ -1830,6 +1830,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31448
+    description: The `insecureHTTPParser` option is supported now.
   - version: v9.6.0, v8.12.0
     pr-url: https://github.com/nodejs/node/pull/15752
     description: The `options` argument is supported now.
@@ -1841,6 +1844,10 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
+  * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
+    invalid HTTP headers when `true`. Using the insecure parser should be
+    avoided. See [`--insecure-http-parser`][] for more information.
+    **Default:** `false`
 * `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -1943,6 +1950,9 @@ Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31448
+    description: The `insecureHTTPParser` option is supported now.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: The `url` parameter can now be passed along with a separate
@@ -1962,6 +1972,10 @@ changes:
   * `family` {number} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
+  * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
+    invalid HTTP headers when `true`. Using the insecure parser should be
+    avoided. See [`--insecure-http-parser`][] for more information.
+    **Default:** `false`
   * `port` {number} Port of remote server. **Default:** `80`.
   * `localAddress` {string} Local interface to bind for network connections.
   * `socketPath` {string} Unix Domain Socket (cannot be used if one of `host`
@@ -2123,6 +2137,7 @@ will be emitted in the following order:
 Note that setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
 
+[`--insecure-http-parser`]: cli.html#cli_insecure_http_parser
 [`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
