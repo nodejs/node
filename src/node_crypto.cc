@@ -966,10 +966,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 
   if (!rv) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    if (!err) {
-      return env->ThrowError("SSL_CTX_use_certificate_chain");
-    }
-    return ThrowCryptoError(env, err);
+    return ThrowCryptoError(env, err, "SSL_CTX_use_certificate_chain");
   }
 }
 
@@ -1178,11 +1175,7 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
   if (!SSL_CTX_set_ciphersuites(sc->ctx_.get(), *ciphers)) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    if (!err) {
-      // This would be an OpenSSL bug if it happened.
-      return env->ThrowError("Failed to set ciphers");
-    }
-    return ThrowCryptoError(env, err);
+    return ThrowCryptoError(env, err, "Failed to set ciphers");
   }
 #endif
 }
@@ -1200,10 +1193,6 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
   if (!SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers)) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    if (!err) {
-      // This would be an OpenSSL bug if it happened.
-      return env->ThrowError("Failed to set ciphers");
-    }
 
     if (strlen(*ciphers) == 0 && ERR_GET_REASON(err) == SSL_R_NO_CIPHER_MATCH) {
       // TLS1.2 ciphers were deliberately cleared, so don't consider
@@ -1212,7 +1201,7 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
       // that's actually an error.
       return;
     }
-    return ThrowCryptoError(env, err);
+    return ThrowCryptoError(env, err, "Failed to set ciphers");
   }
 }
 
@@ -3022,9 +3011,7 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
       // Not clear why sometimes we throw error, and sometimes we call
       // onerror(). Both cause .destroy(), but onerror does a bit more.
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-      if (!err)
-        return env->ThrowError("CertCbDone");
-      return ThrowCryptoError(env, err);
+      return ThrowCryptoError(env, err, "CertCbDone");
     }
   } else {
     // Failure: incorrect SNI context object
