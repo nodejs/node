@@ -21,7 +21,7 @@
 
 #include "tls_wrap.h"
 #include "async_wrap-inl.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext

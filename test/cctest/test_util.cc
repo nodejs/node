@@ -1,4 +1,6 @@
 #include "util-inl.h"
+#include "debug_utils-inl.h"
+#include "env-inl.h"
 #include "gtest/gtest.h"
 
 TEST(UtilTest, ListHead) {
@@ -249,4 +251,44 @@ TEST(UtilTest, MaybeStackBuffer) {
     buf.Invalidate();
     EXPECT_TRUE(buf.IsInvalidated());
   }
+}
+
+TEST(UtilTest, SPrintF) {
+  using node::SPrintF;
+
+  // %d, %u and %s all do the same thing. The actual C++ type is used to infer
+  // the right representation.
+  EXPECT_EQ(SPrintF("%s", false), "false");
+  EXPECT_EQ(SPrintF("%s", true), "true");
+  EXPECT_EQ(SPrintF("%d", true), "true");
+  EXPECT_EQ(SPrintF("%u", true), "true");
+  EXPECT_EQ(SPrintF("%d", 10000000000LL), "10000000000");
+  EXPECT_EQ(SPrintF("%d", -10000000000LL), "-10000000000");
+  EXPECT_EQ(SPrintF("%u", 10000000000LL), "10000000000");
+  EXPECT_EQ(SPrintF("%u", -10000000000LL), "-10000000000");
+  EXPECT_EQ(SPrintF("%i", 10), "10");
+  EXPECT_EQ(SPrintF("%d", 10), "10");
+
+  EXPECT_EQ(atof(SPrintF("%s", 0.5).c_str()), 0.5);
+  EXPECT_EQ(atof(SPrintF("%s", -0.5).c_str()), -0.5);
+
+  void (*fn)() = []() {};
+  void* p = reinterpret_cast<void*>(&fn);
+  EXPECT_GE(SPrintF("%p", fn).size(), 8u);
+  EXPECT_GE(SPrintF("%p", p).size(), 8u);
+
+  const std::string foo = "foo";
+  const char* bar = "bar";
+  EXPECT_EQ(SPrintF("%s %s", foo, "bar"), "foo bar");
+  EXPECT_EQ(SPrintF("%s %s", foo, bar), "foo bar");
+
+  struct HasToString {
+    std::string ToString() const {
+      return "meow";
+    }
+  };
+  EXPECT_EQ(SPrintF("%s", HasToString{}), "meow");
+
+  const std::string with_zero = std::string("a") + '\0' + 'b';
+  EXPECT_EQ(SPrintF("%s", with_zero), with_zero);
 }

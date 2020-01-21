@@ -608,6 +608,7 @@
         'src/connect_wrap.h',
         'src/connection_wrap.h',
         'src/debug_utils.h',
+        'src/debug_utils-inl.h',
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',
