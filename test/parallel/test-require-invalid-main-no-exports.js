@@ -13,8 +13,9 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fixtures = require('../common/fixtures');
 
-const { error, status, stderr } =
-  spawnSync(process.execPath, [fixtures.path('bluebird', 'test.js')]);
+const testFile = fixtures.path('package-main-enoent', 'test.js');
+
+const { error, status, stderr } = spawnSync(process.execPath, [testFile]);
 
 assert.ifError(error);
 assert.strictEqual(status, 0, stderr);
