@@ -366,8 +366,8 @@ uvwasi_errno_t uvwasi_fd_table_renumber(struct uvwasi_s* uvwasi,
   r = uv_fs_close(NULL, &req, dst_entry->fd, NULL);
   uv_fs_req_cleanup(&req);
   if (r != 0) {
-    uv_mutex_unlock(&dst_entry->mutex);
     uv_mutex_unlock(&src_entry->mutex);
+    uv_mutex_unlock(&dst_entry->mutex);
     err = uvwasi__translate_uv_error(r);
     goto exit;
   }

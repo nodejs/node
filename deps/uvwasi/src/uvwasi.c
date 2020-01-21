@@ -1821,9 +1821,9 @@ uvwasi_errno_t uvwasi_path_link(uvwasi_t* uvwasi,
 
   err = UVWASI_ESUCCESS;
 exit:
-  uv_mutex_unlock(&old_wrap->mutex);
+  uv_mutex_unlock(&new_wrap->mutex);
   if (old_fd != new_fd)
-    uv_mutex_unlock(&new_wrap->mutex);
+    uv_mutex_unlock(&old_wrap->mutex);
   return err;
 }
 
@@ -2136,9 +2136,9 @@ uvwasi_errno_t uvwasi_path_rename(uvwasi_t* uvwasi,
 
   err = UVWASI_ESUCCESS;
 exit:
-  uv_mutex_unlock(&old_wrap->mutex);
+  uv_mutex_unlock(&new_wrap->mutex);
   if (old_fd != new_fd)
-    uv_mutex_unlock(&new_wrap->mutex);
+    uv_mutex_unlock(&old_wrap->mutex);
 
   return err;
 }
