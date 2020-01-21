@@ -2,7 +2,7 @@
 #include "node_internals.h"
 
 #include "env-inl.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include <algorithm>  // find_if(), find(), move()
 #include <cmath>  // llround()
 #include <memory>  // unique_ptr(), shared_ptr(), make_shared()

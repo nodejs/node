@@ -23,7 +23,7 @@
 
 // ========== local headers ==========
 
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_binding.h"

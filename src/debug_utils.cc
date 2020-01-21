@@ -1,4 +1,4 @@
-#include "debug_utils.h"
+#include "debug_utils-inl.h"  // NOLINT(build/include)
 #include "env-inl.h"
 
 #ifdef __POSIX__
