@@ -34,7 +34,7 @@ std::string ToString(const T& value) {
 inline std::string SPrintFImpl(const char* format) {
   const char* p = strchr(format, '%');
   if (LIKELY(p == nullptr)) return format;
-  CHECK(p[1] == '%');  // Only '%%' allowed when there are no arguments.
+  CHECK_EQ(p[1], '%');  // Only '%%' allowed when there are no arguments.
 
   return std::string(format, p + 1) + SPrintFImpl(p + 2);
 }
