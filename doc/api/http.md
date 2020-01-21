@@ -2031,6 +2031,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/?????
+    description: The `insecureHTTPParser` option is supported now.
   - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30570
     description: The `maxHeaderSize` option is supported now.
@@ -2046,6 +2049,10 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
+  * `insecureHTTPParser` {boolean} Optionally overrides the value of
+    [`--insecure-http-parser`][] for requests received by this server, i.e.
+    whether to accept invalid HTTP headers that must manually be sanitized.
+    **Default:** false.
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
@@ -2155,6 +2162,9 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/?????
+    description: The `insecureHTTPParser` option is supported now.
   - version: v13.3.0
     pr-url: https://github.com/nodejs/node/pull/30570
     description: The `maxHeaderSize` option is supported now.
@@ -2191,6 +2201,9 @@ changes:
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
+  * `insecureHTTPParser` {boolean} Optionally overrides the value of
+    [`--insecure-http-parser`][] for requests received from the server, i.e.
+    whether to accept invalid HTTP headers that must manually be sanitized.
   * `localAddress` {string} Local interface to bind for network connections.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `maxHeaderSize` {number} Optionally overrides the value of
@@ -2364,6 +2377,7 @@ will be emitted in the following order:
 Setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
 
+[`--insecure-http-parser`]: cli.html#cli_insecure_http_parser
 [`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
