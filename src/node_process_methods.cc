@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
@@ -216,7 +217,7 @@ void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   Utf8Value message(args.GetIsolate(), args[0]);
-  PrintErrorString("%s\n", *message);
+  FPrintF(stderr, "%s\n", message);
   fflush(stderr);
 }
 
