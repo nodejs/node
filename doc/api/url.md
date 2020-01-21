@@ -470,6 +470,12 @@ the URL, use the [`url.search`][] setter. See [`URLSearchParams`][]
 documentation for details.
 
 #### `url.username`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31450
+    description: When used with `http.request()`, this field will now be
+                 percent-decoded.
 
 * {string}
 
@@ -488,7 +494,8 @@ console.log(myURL.href);
 Any invalid URL characters appearing in the value assigned the `username`
 property will be [percent-encoded][]. The selection of which
 characters to percent-encode may vary somewhat from what the [`url.parse()`][]
-and [`url.format()`][] methods would produce.
+and [`url.format()`][] methods would produce. When used with
+[`http.request()`][], this field will be percent-decoded.
 
 #### `url.toString()`
 
@@ -1316,6 +1323,7 @@ console.log(myURL.origin);
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URLSearchParams`]: #url_class_urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
+[`http.request()`]: http.html#http_http_request_options_callback
 [`new URL()`]: #url_constructor_new_url_input_base
 [`querystring`]: querystring.html
 [`require('url').format()`]: #url_url_format_url_options
