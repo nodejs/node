@@ -442,7 +442,14 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
 }
 
 void FWrite(FILE* file, const std::string& str) {
-  if (file != stderr && file != stdout) goto simple_fwrite;
+  auto simple_fwrite = [&]() {
+    fwrite(str.data(), str.size(), 1, file);
+  };
+
+  if (file != stderr && file != stdout) {
+    simple_fwrite();
+    return;
+  }
 #ifdef _WIN32
   HANDLE handle =
       GetStdHandle(file == stdout ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
@@ -450,7 +457,8 @@ void FWrite(FILE* file, const std::string& str) {
   // Check if stderr is something other than a tty/console
   if (handle == INVALID_HANDLE_VALUE || handle == nullptr ||
       uv_guess_handle(_fileno(file)) != UV_TTY) {
-    goto simple_fwrite;
+    simple_fwrite();
+    return;
   }
 
   // Get required wide buffer size
@@ -469,8 +477,7 @@ void FWrite(FILE* file, const std::string& str) {
     return;
   }
 #endif
-simple_fwrite:
-  fwrite(str.data(), str.size(), 1, file);
+  simple_fwrite();
 }
 
 }  // namespace node

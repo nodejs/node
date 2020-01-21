@@ -106,7 +106,7 @@ static std::string GetErrorSource(Isolate* isolate,
                             filename_string,
                             linenum,
                             sourceline.c_str());
-  CHECK_GE(buf.size(), 0);
+  CHECK_GT(buf.size(), 0);
 
   constexpr int kUnderlineBufsize = 1020;
   char underline_buf[kUnderlineBufsize + 4];
