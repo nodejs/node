@@ -3,7 +3,7 @@
 #include <string>
 #include "trace_event.h"
 #include "tracing/node_trace_buffer.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 
 namespace node {

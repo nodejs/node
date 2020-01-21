@@ -21,7 +21,7 @@
 
 #include <algorithm>
 
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_internals.h"
