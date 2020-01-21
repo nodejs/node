@@ -1,5 +1,5 @@
 #include "aliased_buffer.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_buffer.h"
@@ -1959,7 +1959,7 @@ std::string Http2Stream::diagnostic_name() const {
 
 // Notify the Http2Stream that a new block of HEADERS is being processed.
 void Http2Stream::StartHeaders(nghttp2_headers_category category) {
-  Debug(this, "starting headers, category: %d", id_, category);
+  Debug(this, "starting headers, category: %d", category);
   CHECK(!this->IsDestroyed());
   session_->DecrementCurrentSessionMemory(current_headers_length_);
   current_headers_length_ = 0;
@@ -2217,7 +2217,7 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
     req_wrap->Done(UV_EOF);
     return 0;
   }
-  Debug(this, "queuing %d buffers to send", id_, nbufs);
+  Debug(this, "queuing %d buffers to send", nbufs);
   for (size_t i = 0; i < nbufs; ++i) {
     // Store the req_wrap on the last write info in the queue, so that it is
     // only marked as finished once all buffers associated with it are finished.
