@@ -5697,10 +5697,7 @@ void DiffieHellman::DiffieHellmanGroup(
   Environment* env = Environment::GetCurrent(args);
   DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
 
-  if (args.Length() != 1) {
-    return THROW_ERR_MISSING_ARGS(env, "Group name argument is mandatory");
-  }
-
+  CHECK_EQ(args.Length(), 1);
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Group name");
 
   bool initialized = false;
@@ -5708,7 +5705,7 @@ void DiffieHellman::DiffieHellmanGroup(
   const node::Utf8Value group_name(env->isolate(), args[0]);
   const modp_group* group = FindDiffieHellmanGroup(*group_name);
   if (group == nullptr)
-    return env->ThrowError("Unknown group");
+    return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env, "Unknown group");
 
   initialized = diffieHellman->Init(group->prime,
                                     group->prime_size,

@@ -389,7 +389,11 @@ assert.throws(
   function() {
     crypto.getDiffieHellman('unknown-group');
   },
-  /^Error: Unknown group$/,
+  {
+    name: 'Error',
+    code: 'ERR_CRYPTO_UNKNOWN_DH_GROUP',
+    message: 'Unknown group'
+  },
   'crypto.getDiffieHellman(\'unknown-group\') ' +
   'failed to throw the expected error.'
 );
