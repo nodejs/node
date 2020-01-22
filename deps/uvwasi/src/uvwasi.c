@@ -878,18 +878,26 @@ uvwasi_errno_t uvwasi_fd_close(uvwasi_t* uvwasi, uvwasi_fd_t fd) {
   if (uvwasi == NULL)
     return UVWASI_EINVAL;
 
-  err = uvwasi_fd_table_get(&uvwasi->fds, fd, &wrap, 0, 0);
+  uvwasi_fd_table_lock(&uvwasi->fds);
+
+  err = uvwasi_fd_table_get_nolock(&uvwasi->fds, fd, &wrap, 0, 0);
   if (err != UVWASI_ESUCCESS)
-    return err;
+    goto exit;
 
   r = uv_fs_close(NULL, &req, wrap->fd, NULL);
   uv_mutex_unlock(&wrap->mutex);
   uv_fs_req_cleanup(&req);
 
-  if (r != 0)
-    return uvwasi__translate_uv_error(r);
+  if (r != 0) {
+    err = uvwasi__translate_uv_error(r);
+    goto exit;
+  }
 
-  return uvwasi_fd_table_remove(uvwasi, &uvwasi->fds, fd);
+  err = uvwasi_fd_table_remove_nolock(uvwasi, &uvwasi->fds, fd);
+
+exit:
+  uvwasi_fd_table_unlock(&uvwasi->fds);
+  return err;
 }
 
 
