@@ -11,6 +11,7 @@ using node::quic::QuicBuffer;
 using node::quic::QuicBufferChunk;
 using node::bob::Status;
 using node::bob::Options;
+using node::bob::Done;
 
 TEST(QuicBuffer, Simple) {
   char data[100];
@@ -20,17 +21,17 @@ TEST(QuicBuffer, Simple) {
   bool done = false;
 
   QuicBuffer buffer;
-  buffer.push(&buf, 1, [&](int status) {
+  buffer.Push(&buf, 1, [&](int status) {
     EXPECT_EQ(0, status);
     done = true;
   });
 
-  buffer.consume(100);
+  buffer.Consume(100);
   CHECK_EQ(0, buffer.length());
 
   // We have to move the read head forward in order to consume
-  buffer.seek(1);
-  buffer.consume(100);
+  buffer.Seek(1);
+  buffer.Consume(100);
   CHECK_EQ(true, done);
   CHECK_EQ(0, buffer.length());
 }
@@ -43,13 +44,13 @@ TEST(QuicBuffer, ConsumeMore) {
   bool done = false;
 
   QuicBuffer buffer;
-  buffer.push(&buf, 1, [&](int status) {
+  buffer.Push(&buf, 1, [&](int status) {
     EXPECT_EQ(0, status);
     done = true;
   });
 
-  buffer.seek(1);
-  buffer.consume(150);  // Consume more than what was buffered
+  buffer.Seek(1);
+  buffer.Consume(150);  // Consume more than what was buffered
   CHECK_EQ(true, done);
   CHECK_EQ(0, buffer.length());
 }
@@ -62,19 +63,19 @@ TEST(QuicBuffer, Multiple) {
 
   QuicBuffer buf;
   bool done = false;
-  buf.push(bufs, 2, [&](int status) { done = true; });
+  buf.Push(bufs, 2, [&](int status) { done = true; });
 
-  buf.seek(2);
+  buf.Seek(2);
   CHECK_EQ(buf.remaining(), 50);
   CHECK_EQ(buf.length(), 52);
 
-  buf.consume(25);
+  buf.Consume(25);
   CHECK_EQ(buf.length(), 27);
 
-  buf.consume(25);
+  buf.Consume(25);
   CHECK_EQ(buf.length(), 2);
 
-  buf.consume(2);
+  buf.Consume(2);
   CHECK_EQ(0, buf.length());
 }
 
@@ -91,22 +92,22 @@ TEST(QuicBuffer, Multiple2) {
   int count = 0;
 
   QuicBuffer buffer;
-  buffer.push(
+  buffer.Push(
       bufs, node::arraysize(bufs),
       [&](int status) {
     count++;
     CHECK_EQ(0, status);
     delete[] ptr;
   });
-  buffer.seek(node::arraysize(bufs));
+  buffer.Seek(node::arraysize(bufs));
 
-  buffer.consume(25);
+  buffer.Consume(25);
   CHECK_EQ(75, buffer.length());
-  buffer.consume(25);
+  buffer.Consume(25);
   CHECK_EQ(50, buffer.length());
-  buffer.consume(25);
+  buffer.Consume(25);
   CHECK_EQ(25, buffer.length());
-  buffer.consume(25);
+  buffer.Consume(25);
   CHECK_EQ(0, buffer.length());
 
   // The callback was only called once tho
@@ -126,7 +127,7 @@ TEST(QuicBuffer, Cancel) {
   int count = 0;
 
   QuicBuffer buffer;
-  buffer.push(
+  buffer.Push(
       bufs, node::arraysize(bufs),
       [&](int status) {
     count++;
@@ -134,10 +135,10 @@ TEST(QuicBuffer, Cancel) {
     delete[] ptr;
   });
 
-  buffer.seek(1);
-  buffer.consume(25);
+  buffer.Seek(1);
+  buffer.Consume(25);
   CHECK_EQ(75, buffer.length());
-  buffer.cancel();
+  buffer.Cancel();
   CHECK_EQ(0, buffer.length());
 
   // The callback was only called once tho
@@ -152,7 +153,7 @@ TEST(QuicBuffer, Move) {
   memset(&data, 0, node::arraysize(data));
   uv_buf_t buf = uv_buf_init(data, node::arraysize(data));
 
-  buffer1.push(&buf, 1);
+  buffer1.Push(&buf, 1);
 
   CHECK_EQ(100, buffer1.length());
 
@@ -167,15 +168,15 @@ TEST(QuicBuffer, QuicBufferChunk) {
   memset(chunk->out(), 1, 100);
 
   QuicBuffer buffer;
-  buffer.push(std::move(chunk));
-  buffer.end();
+  buffer.Push(std::move(chunk));
+  buffer.End();
   CHECK_EQ(100, buffer.length());
 
   auto next = [&](
       int status,
       const ngtcp2_vec* data,
       size_t count,
-      QuicBuffer::Done done) {
+      Done done) {
     CHECK_EQ(status, Status::STATUS_END);
     CHECK_EQ(count, 1);
     CHECK_NOT_NULL(data);
@@ -186,13 +187,13 @@ TEST(QuicBuffer, QuicBufferChunk) {
 
   ngtcp2_vec data[2];
   size_t len = sizeof(data) / sizeof(ngtcp2_vec);
-  buffer.pull(next, Options::OPTIONS_SYNC | Options::OPTIONS_END, data, len);
+  buffer.Pull(next, Options::OPTIONS_SYNC | Options::OPTIONS_END, data, len);
 
   CHECK_EQ(buffer.remaining(), 0);
 
-  buffer.consume(50);
+  buffer.Consume(50);
   CHECK_EQ(50, buffer.length());
 
-  buffer.consume(50);
+  buffer.Consume(50);
   CHECK_EQ(0, buffer.length());
 }
