@@ -1555,17 +1555,30 @@ const cleanup = finished(rs, (err) => {
 });
 ```
 
-### `stream.pipeline(...streams, callback)`
+### `stream.pipeline(source, ...transforms, destination, callback)`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31223
+    description: Add support for async generators.
 -->
 
-* `...streams` {Stream} Two or more streams to pipe between.
+* `source` {Stream|Iterable|AsyncIterable|Function}
+  * Returns: {Iterable|AsyncIterable}
+* `...transforms` {Stream|Function}
+  * `source` {AsyncIterable}
+  * Returns: {AsyncIterable}
+* `destination` {Stream|Function}
+  * `source` {AsyncIterable}
+  * Returns: {AsyncIterable|Promise}
 * `callback` {Function} Called when the pipeline is fully done.
   * `err` {Error}
+  * `val` Resolved value of `Promise` returned by `destination`.
+* Returns: {Stream}
 
-A module method to pipe between streams forwarding errors and properly cleaning
-up and provide a callback when the pipeline is complete.
+A module method to pipe between streams and generators forwarding errors and
+properly cleaning up and provide a callback when the pipeline is complete.
 
 ```js
 const { pipeline } = require('stream');
@@ -1601,6 +1614,28 @@ async function run() {
     fs.createReadStream('archive.tar'),
     zlib.createGzip(),
     fs.createWriteStream('archive.tar.gz')
+  );
+  console.log('Pipeline succeeded.');
+}
+
+run().catch(console.error);
+```
+
+The `pipeline` API also supports async generators:
+
+```js
+const pipeline = util.promisify(stream.pipeline);
+const fs = require('fs').promises;
+
+async function run() {
+  await pipeline(
+    fs.createReadStream('lowercase.txt'),
+    async function* (source) {
+      for await (const chunk of source) {
+        yield String(chunk).toUpperCase();
+      }
+    },
+    fs.createWriteStream('uppercase.txt')
   );
   console.log('Pipeline succeeded.');
 }
@@ -2700,8 +2735,7 @@ const pipeline = util.promisify(stream.pipeline);
 const writable = fs.createWriteStream('./file');
 
 (async function() {
-  const readable = Readable.from(iterable);
-  await pipeline(readable, writable);
+  await pipeline(iterable, writable);
 })();
 ```
 
@@ -2836,7 +2870,7 @@ contain multi-byte characters.
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
-[`stream.pipeline()`]: #stream_stream_pipeline_streams_callback
+[`stream.pipeline()`]: #stream_stream_pipeline_source_transforms_destination_callback
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream

@@ -388,6 +388,8 @@ Environment::Environment(IsolateData* isolate_data,
 }
 
 Environment::~Environment() {
+  if (interrupt_data_ != nullptr) *interrupt_data_ = nullptr;
+
   isolate()->GetHeapProfiler()->RemoveBuildEmbedderGraphCallback(
       BuildEmbedderGraph, this);
 
@@ -460,23 +462,16 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   uv_check_init(event_loop(), &idle_check_handle_);
   uv_async_init(
       event_loop(),
-      &cleanup_finalization_groups_async_,
+      &task_queues_async_,
       [](uv_async_t* async) {
         Environment* env = ContainerOf(
-            &Environment::cleanup_finalization_groups_async_, async);
+            &Environment::task_queues_async_, async);
         env->CleanupFinalizationGroups();
+        env->RunAndClearNativeImmediates();
       });
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
-  uv_unref(reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_));
-
-  thread_stopper()->Install(
-    this, static_cast<void*>(this), [](uv_async_t* handle) {
-      Environment* env = static_cast<Environment*>(handle->data);
-      uv_stop(env->event_loop());
-    });
-  thread_stopper()->set_stopped(false);
-  uv_unref(reinterpret_cast<uv_handle_t*>(thread_stopper()->GetHandle()));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 
   // Register clean-up cb to be called to clean up the handles
   // when the environment is freed, note that they are not cleaned in
@@ -495,8 +490,9 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
 
 void Environment::ExitEnv() {
   set_can_call_into_js(false);
-  thread_stopper()->Stop();
+  set_stopping(true);
   isolate_->TerminateExecution();
+  SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
 }
 
 void Environment::RegisterHandleCleanups() {
@@ -532,7 +528,7 @@ void Environment::RegisterHandleCleanups() {
       close_and_finish,
       nullptr);
   RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&cleanup_finalization_groups_async_),
+      reinterpret_cast<uv_handle_t*>(&task_queues_async_),
       close_and_finish,
       nullptr);
 }
@@ -601,7 +597,6 @@ void Environment::RunCleanup() {
   started_cleanup_ = true;
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
-  thread_stopper()->Uninstall();
   CleanupHandles();
 
   while (!cleanup_hooks_.empty()) {
@@ -658,20 +653,45 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_front(ExitCallback{cb, arg});
 }
 
+void Environment::RunAndClearInterrupts() {
+  while (native_immediates_interrupts_.size() > 0) {
+    NativeImmediateQueue queue;
+    {
+      Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+      queue.ConcatMove(std::move(native_immediates_interrupts_));
+    }
+    DebugSealHandleScope seal_handle_scope(isolate());
+
+    while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift())
+      head->Call(this);
+  }
+}
+
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
   size_t ref_count = 0;
-  size_t count = 0;
-  std::unique_ptr<NativeImmediateCallback> head;
-  head.swap(native_immediate_callbacks_head_);
-  native_immediate_callbacks_tail_ = nullptr;
+
+  // Handle interrupts first. These functions are not allowed to throw
+  // exceptions, so we do not need to handle that.
+  RunAndClearInterrupts();
+
+  // It is safe to check .size() first, because there is a causal relationship
+  // between pushes to the threadsafe and this function being called.
+  // For the common case, it's worth checking the size first before establishing
+  // a mutex lock.
+  if (native_immediates_threadsafe_.size() > 0) {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    native_immediates_.ConcatMove(std::move(native_immediates_threadsafe_));
+  }
+
+  NativeImmediateQueue queue;
+  queue.ConcatMove(std::move(native_immediates_));
 
   auto drain_list = [&]() {
     TryCatchScope try_catch(this);
-    for (; head; head = head->get_next()) {
-      DebugSealHandleScope seal_handle_scope(isolate());
-      count++;
+    DebugSealHandleScope seal_handle_scope(isolate());
+    while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift()) {
       if (head->is_refed())
         ref_count++;
 
@@ -682,21 +702,40 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
         if (!try_catch.HasTerminated() && can_call_into_js())
           errors::TriggerUncaughtException(isolate(), try_catch);
 
-        // We are done with the current callback. Move one iteration along,
-        // as if we had completed successfully.
-        head = head->get_next();
         return true;
       }
     }
     return false;
   };
-  while (head && drain_list()) {}
+  while (queue.size() > 0 && drain_list()) {}
 
-  DCHECK_GE(immediate_info()->count(), count);
-  immediate_info()->count_dec(count);
   immediate_info()->ref_count_dec(ref_count);
+
+  if (immediate_info()->ref_count() == 0)
+    ToggleImmediateRef(false);
 }
 
+void Environment::RequestInterruptFromV8() {
+  if (interrupt_data_ != nullptr) return;  // Already scheduled.
+
+  // The Isolate may outlive the Environment, so some logic to handle the
+  // situation in which the Environment is destroyed before the handler runs
+  // is required.
+  interrupt_data_ = new Environment*(this);
+
+  isolate()->RequestInterrupt([](Isolate* isolate, void* data) {
+    std::unique_ptr<Environment*> env_ptr { static_cast<Environment**>(data) };
+    Environment* env = *env_ptr;
+    if (env == nullptr) {
+      // The Environment has already been destroyed. That should be okay; any
+      // callback added before the Environment shuts down would have been
+      // handled during cleanup.
+      return;
+    }
+    env->interrupt_data_ = nullptr;
+    env->RunAndClearInterrupts();
+  }, interrupt_data_);
+}
 
 void Environment::ScheduleTimer(int64_t duration_ms) {
   if (started_cleanup_) return;
@@ -780,15 +819,12 @@ void Environment::CheckImmediate(uv_check_t* handle) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "CheckImmediate", env);
 
-  if (env->immediate_info()->count() == 0)
-    return;
-
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
   env->RunAndClearNativeImmediates();
 
-  if (!env->can_call_into_js())
+  if (env->immediate_info()->count() == 0 || !env->can_call_into_js())
     return;
 
   do {
@@ -1011,7 +1047,6 @@ inline size_t Environment::SelfSize() const {
   // TODO(joyeecheung): refactor the MemoryTracker interface so
   // this can be done for common types within the Track* calls automatically
   // if a certain scope is entered.
-  size -= sizeof(thread_stopper_);
   size -= sizeof(async_hooks_);
   size -= sizeof(tick_info_);
   size -= sizeof(immediate_info_);
@@ -1033,7 +1068,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fs_stats_field_array", fs_stats_field_array_);
   tracker->TrackField("fs_stats_field_bigint_array",
                       fs_stats_field_bigint_array_);
-  tracker->TrackField("thread_stopper", thread_stopper_);
   tracker->TrackField("cleanup_hooks", cleanup_hooks_);
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
@@ -1091,42 +1125,10 @@ void Environment::CleanupFinalizationGroups() {
       if (try_catch.HasCaught() && !try_catch.HasTerminated())
         errors::TriggerUncaughtException(isolate(), try_catch);
       // Re-schedule the execution of the remainder of the queue.
-      uv_async_send(&cleanup_finalization_groups_async_);
+      uv_async_send(&task_queues_async_);
       return;
     }
   }
-}
-
-void AsyncRequest::Install(Environment* env, void* data, uv_async_cb target) {
-  CHECK_NULL(async_);
-  env_ = env;
-  async_ = new uv_async_t;
-  async_->data = data;
-  CHECK_EQ(uv_async_init(env_->event_loop(), async_, target), 0);
-}
-
-void AsyncRequest::Uninstall() {
-  if (async_ != nullptr) {
-    env_->CloseHandle(async_, [](uv_async_t* async) { delete async; });
-    async_ = nullptr;
-  }
-}
-
-void AsyncRequest::Stop() {
-  set_stopped(true);
-  if (async_ != nullptr) uv_async_send(async_);
-}
-
-uv_async_t* AsyncRequest::GetHandle() {
-  return async_;
-}
-
-void AsyncRequest::MemoryInfo(MemoryTracker* tracker) const {
-  if (async_ != nullptr) tracker->TrackField("async_request", *async_);
-}
-
-AsyncRequest::~AsyncRequest() {
-  CHECK_NULL(async_);
 }
 
 // Not really any better place than env.cc at this moment.

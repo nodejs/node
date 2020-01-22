@@ -62,6 +62,7 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -1178,7 +1179,7 @@ void Initialize(Local<Object> target,
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-              Integer::NewFromUnsigned(env->isolate(), kMaxLength)).Check();
+              Number::New(env->isolate(), kMaxLength)).Check();
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),

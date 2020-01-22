@@ -39,11 +39,10 @@ class Worker : public AsyncWrap {
   // Wait for the worker thread to stop (in a blocking manner).
   void JoinThread();
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("parent_port", parent_port_);
-    tracker->TrackInlineField(&on_thread_finished_, "on_thread_finished_");
-  }
+  template <typename Fn>
+  inline bool RequestInterrupt(Fn&& cb);
 
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
 
@@ -107,13 +106,13 @@ class Worker : public AsyncWrap {
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
 
-  AsyncRequest on_thread_finished_;
-
   // A raw flag that is used by creator and worker threads to
   // sync up on pre-mature termination of worker  - while in the
   // warmup phase.  Once the worker is fully warmed up, use the
   // async handle of the worker's Environment for the same purpose.
   bool stopped_ = true;
+
+  bool has_ref_ = true;
 
   // The real Environment of the worker object. It has a lesser
   // lifespan than the worker object itself - comes to life
@@ -123,6 +122,14 @@ class Worker : public AsyncWrap {
 
   friend class WorkerThreadData;
 };
+
+template <typename Fn>
+bool Worker::RequestInterrupt(Fn&& cb) {
+  Mutex::ScopedLock lock(mutex_);
+  if (env_ == nullptr) return false;
+  env_->RequestInterrupt(std::move(cb));
+  return true;
+}
 
 }  // namespace worker
 }  // namespace node

@@ -983,7 +983,7 @@ added: v0.1.90
 The `'exit'` event is emitted after the child process ends. If the process
 exited, `code` is the final exit code of the process, otherwise `null`. If the
 process terminated due to receipt of a signal, `signal` is the string name of
-the signal, otherwise `null`. One of the two will always be non-null.
+the signal, otherwise `null`. One of the two will always be non-`null`.
 
 When the `'exit'` event is triggered, child process stdio streams might still be
 open.
@@ -1079,8 +1079,8 @@ within the child process to close the IPC channel as well.
 
 * {integer}
 
-The `subprocess.exitcode` property indicates the exit code of the child process.
-If the child process is still running, the field will be null.
+The `subprocess.exitCode` property indicates the exit code of the child process.
+If the child process is still running, the field will be `null`.
 
 ### `subprocess.kill([signal])`
 <!-- YAML
@@ -1380,7 +1380,7 @@ time it takes to send the connection to the child.
 * {integer}
 
 The `subprocess.signalCode` property indicates the signal number received by
-the child process if any, else null.
+the child process if any, else `null`.
 
 ### `subprocess.spawnargs`
 

@@ -3900,6 +3900,8 @@ Local<Value> KeyObject::GetAsymmetricKeyType() const {
     return env()->crypto_rsa_pss_string();
   case EVP_PKEY_DSA:
     return env()->crypto_dsa_string();
+  case EVP_PKEY_DH:
+    return env()->crypto_dh_string();
   case EVP_PKEY_EC:
     return env()->crypto_ec_string();
   case EVP_PKEY_ED25519:
@@ -5682,6 +5684,13 @@ bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   return VerifyContext();
 }
 
+inline const modp_group* FindDiffieHellmanGroup(const char* name) {
+  for (const modp_group& group : modp_groups) {
+    if (StringEqualNoCase(name, group.name))
+      return &group;
+  }
+  return nullptr;
+}
 
 void DiffieHellman::DiffieHellmanGroup(
     const FunctionCallbackInfo<Value>& args) {
@@ -5697,22 +5706,15 @@ void DiffieHellman::DiffieHellmanGroup(
   bool initialized = false;
 
   const node::Utf8Value group_name(env->isolate(), args[0]);
-  for (size_t i = 0; i < arraysize(modp_groups); ++i) {
-    const modp_group* it = modp_groups + i;
+  const modp_group* group = FindDiffieHellmanGroup(*group_name);
+  if (group == nullptr)
+    return env->ThrowError("Unknown group");
 
-    if (!StringEqualNoCase(*group_name, it->name))
-      continue;
-
-    initialized = diffieHellman->Init(it->prime,
-                                      it->prime_size,
-                                      it->gen,
-                                      it->gen_size);
-    if (!initialized)
-      env->ThrowError("Initialization failed");
-    return;
-  }
-
-  env->ThrowError("Unknown group");
+  initialized = diffieHellman->Init(group->prime,
+                                    group->prime_size,
+                                    group->gen);
+  if (!initialized)
+    env->ThrowError("Initialization failed");
 }
 
 
@@ -5825,6 +5827,20 @@ void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   }, "No private key - did you forget to generate one?");
 }
 
+static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
+                                       AllocatedBuffer* ret) {
+  // DH_size returns number of bytes in a prime number.
+  // DH_compute_key returns number of bytes in a remainder of exponent, which
+  // may have less bytes than a prime number. Therefore add 0-padding to the
+  // allocated buffer.
+  const size_t prime_size = ret->size();
+  if (remainder_size != prime_size) {
+    CHECK_LT(remainder_size, prime_size);
+    const size_t padding = prime_size - remainder_size;
+    memmove(ret->data() + padding, ret->data(), remainder_size);
+    memset(ret->data(), 0, padding);
+  }
+}
 
 void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -5875,16 +5891,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   CHECK_GE(size, 0);
-
-  // DH_size returns number of bytes in a prime number
-  // DH_compute_key returns number of bytes in a remainder of exponent, which
-  // may have less bytes than a prime number. Therefore add 0-padding to the
-  // allocated buffer.
-  if (static_cast<size_t>(size) != ret.size()) {
-    CHECK_GT(ret.size(), static_cast<size_t>(size));
-    memmove(ret.data() + ret.size() - size, ret.data(), size);
-    memset(ret.data(), 0, ret.size() - size);
-  }
+  ZeroPadDiffieHellmanSecret(static_cast<size_t>(size), &ret);
 
   args.GetReturnValue().Set(ret.ToBuffer().ToLocalChecked());
 }
@@ -6623,6 +6630,71 @@ class NidKeyPairGenerationConfig : public KeyPairGenerationConfig {
   const int id_;
 };
 
+// TODO(tniessen): Use std::variant instead.
+// Diffie-Hellman can either generate keys using a fixed prime, or by first
+// generating a random prime of a given size (in bits). Only one of both options
+// may be specified.
+struct PrimeInfo {
+  BignumPointer fixed_value_;
+  unsigned int prime_size_;
+};
+
+class DHKeyPairGenerationConfig : public KeyPairGenerationConfig {
+ public:
+  explicit DHKeyPairGenerationConfig(PrimeInfo&& prime_info,
+                                     unsigned int generator)
+      : prime_info_(std::move(prime_info)),
+        generator_(generator) {}
+
+  EVPKeyCtxPointer Setup() override {
+    EVPKeyPointer params;
+    if (prime_info_.fixed_value_) {
+      DHPointer dh(DH_new());
+      if (!dh)
+        return nullptr;
+
+      BIGNUM* prime = prime_info_.fixed_value_.get();
+      BignumPointer bn_g(BN_new());
+      if (!BN_set_word(bn_g.get(), generator_) ||
+          !DH_set0_pqg(dh.get(), prime, nullptr, bn_g.get()))
+        return nullptr;
+
+      prime_info_.fixed_value_.release();
+      bn_g.release();
+
+      params = EVPKeyPointer(EVP_PKEY_new());
+      CHECK(params);
+      EVP_PKEY_assign_DH(params.get(), dh.release());
+    } else {
+      EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, nullptr));
+      if (!param_ctx)
+        return nullptr;
+
+      if (EVP_PKEY_paramgen_init(param_ctx.get()) <= 0)
+        return nullptr;
+
+      if (EVP_PKEY_CTX_set_dh_paramgen_prime_len(param_ctx.get(),
+                                                 prime_info_.prime_size_) <= 0)
+        return nullptr;
+
+      if (EVP_PKEY_CTX_set_dh_paramgen_generator(param_ctx.get(),
+                                                 generator_) <= 0)
+        return nullptr;
+
+      EVP_PKEY* raw_params = nullptr;
+      if (EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0)
+        return nullptr;
+      params = EVPKeyPointer(raw_params);
+    }
+
+    return EVPKeyCtxPointer(EVP_PKEY_CTX_new(params.get(), nullptr));
+  }
+
+ private:
+  PrimeInfo prime_info_;
+  unsigned int generator_;
+};
+
 class GenerateKeyPairJob : public CryptoJob {
  public:
   GenerateKeyPairJob(Environment* env,
@@ -6840,6 +6912,39 @@ void GenerateKeyPairNid(const FunctionCallbackInfo<Value>& args) {
   std::unique_ptr<KeyPairGenerationConfig> config(
       new NidKeyPairGenerationConfig(id));
   GenerateKeyPair(args, 1, std::move(config));
+}
+
+void GenerateKeyPairDH(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  PrimeInfo prime_info = {};
+  unsigned int generator;
+  if (args[0]->IsString()) {
+    String::Utf8Value group_name(args.GetIsolate(), args[0].As<String>());
+    const modp_group* group = FindDiffieHellmanGroup(*group_name);
+    if (group == nullptr)
+      return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
+
+    prime_info.fixed_value_ = BignumPointer(
+        BN_bin2bn(reinterpret_cast<const unsigned char*>(group->prime),
+                  group->prime_size, nullptr));
+    generator = group->gen;
+  } else {
+    if (args[0]->IsInt32()) {
+      prime_info.prime_size_ = args[0].As<Int32>()->Value();
+    } else {
+      ArrayBufferViewContents<unsigned char> input(args[0]);
+      prime_info.fixed_value_ = BignumPointer(
+          BN_bin2bn(input.data(), input.length(), nullptr));
+    }
+
+    CHECK(args[1]->IsInt32());
+    generator = args[1].As<Int32>()->Value();
+  }
+
+  std::unique_ptr<KeyPairGenerationConfig> config(
+      new DHKeyPairGenerationConfig(std::move(prime_info), generator));
+  GenerateKeyPair(args, 2, std::move(config));
 }
 
 
@@ -7097,6 +7202,49 @@ void ConvertKey(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buf);
 }
 
+AllocatedBuffer StatelessDiffieHellman(Environment* env, ManagedEVPPKey our_key,
+                                       ManagedEVPPKey their_key) {
+  size_t out_size;
+
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(our_key.get(), nullptr));
+  if (!ctx ||
+      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
+      EVP_PKEY_derive_set_peer(ctx.get(), their_key.get()) <= 0 ||
+      EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
+    return AllocatedBuffer();
+
+  AllocatedBuffer result = env->AllocateManaged(out_size);
+  CHECK_NOT_NULL(result.data());
+
+  unsigned char* data = reinterpret_cast<unsigned char*>(result.data());
+  if (EVP_PKEY_derive(ctx.get(), data, &out_size) <= 0)
+    return AllocatedBuffer();
+
+  ZeroPadDiffieHellmanSecret(out_size, &result);
+  return result;
+}
+
+void StatelessDiffieHellman(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsObject() && args[1]->IsObject());
+  KeyObject* our_key_object;
+  ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
+  CHECK_EQ(our_key_object->GetKeyType(), kKeyTypePrivate);
+  KeyObject* their_key_object;
+  ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
+  CHECK_NE(their_key_object->GetKeyType(), kKeyTypeSecret);
+
+  ManagedEVPPKey our_key = our_key_object->GetAsymmetricKey();
+  ManagedEVPPKey their_key = their_key_object->GetAsymmetricKey();
+
+  AllocatedBuffer out = StatelessDiffieHellman(env, our_key, their_key);
+  if (out.size() == 0)
+    return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
+
+  args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+}
+
 
 void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> buf1(args[0]);
@@ -7248,6 +7396,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "generateKeyPairDSA", GenerateKeyPairDSA);
   env->SetMethod(target, "generateKeyPairEC", GenerateKeyPairEC);
   env->SetMethod(target, "generateKeyPairNid", GenerateKeyPairNid);
+  env->SetMethod(target, "generateKeyPairDH", GenerateKeyPairDH);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
@@ -7265,6 +7414,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kKeyTypePrivate);
   NODE_DEFINE_CONSTANT(target, kSigEncDER);
   NODE_DEFINE_CONSTANT(target, kSigEncP1363);
+  env->SetMethodNoSideEffect(target, "statelessDH", StatelessDiffieHellman);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "signOneShot", SignOneShot);
   env->SetMethod(target, "verifyOneShot", VerifyOneShot);

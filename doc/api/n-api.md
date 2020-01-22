@@ -1662,7 +1662,7 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 ### Enum types
 #### napi_key_collection_mode
 <!-- YAML
-added: REPLACEME
+added: v13.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -1684,7 +1684,7 @@ of the objects's prototype chain as well.
 
 #### napi_key_filter
 <!-- YAML
-added: REPLACEME
+added: v13.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -1704,7 +1704,7 @@ Property filter bits. They can be or'ed to build a composite filter.
 
 #### napi_key_conversion
 <!-- YAML
-added: REPLACEME
+added: v13.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -3594,7 +3594,7 @@ included.
 
 #### napi_get_all_property_names
 <!-- YAML
-added: REPLACEME
+added: v13.7.0
 -->
 
 > Stability: 1 - Experimental

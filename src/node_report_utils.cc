@@ -263,4 +263,28 @@ std::string EscapeJsonChars(const std::string& str) {
   return ret;
 }
 
+std::string Reindent(const std::string& str, int indent_depth) {
+  std::string indent;
+  for (int i = 0; i < indent_depth; i++) indent += ' ';
+
+  std::string out;
+  std::string::size_type pos = 0;
+  do {
+    std::string::size_type prev_pos = pos;
+    pos = str.find('\n', pos);
+
+    out.append(indent);
+
+    if (pos == std::string::npos) {
+      out.append(str, prev_pos, std::string::npos);
+      break;
+    } else {
+      pos++;
+      out.append(str, prev_pos, pos - prev_pos);
+    }
+  } while (true);
+
+  return out;
+}
+
 }  // namespace report
