@@ -1351,40 +1351,31 @@ QuicSession::QuicSession(
 
 QuicSession::~QuicSession() {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
+  StatsDebug stats_debug(this);
+  Debug(this, "Destroyed. %s", stats_debug.ToString().c_str());
 
-  uint64_t handshake_length = crypto_context_->Cancel();
-
-  Debug(this,
-        "Destroyed.\n"
-        "  Duration: %" PRIu64 "\n"
-        "  Handshake Started: %" PRIu64 "\n"
-        "  Handshake Completed: %" PRIu64 "\n"
-        "  Bytes Received: %" PRIu64 "\n"
-        "  Bytes Sent: %" PRIu64 "\n"
-        "  Bidi Stream Count: %" PRIu64 "\n"
-        "  Uni Stream Count: %" PRIu64 "\n"
-        "  Streams In Count: %" PRIu64 "\n"
-        "  Streams Out Count: %" PRIu64 "\n"
-        "  Remaining handshake_: %" PRIu64 "\n"
-        "  Max In Flight Bytes: %" PRIu64 "\n",
-        uv_hrtime() - GetStat(&QuicSessionStats::created_at),
-        GetStat(&QuicSessionStats::handshake_start_at),
-        GetStat(&QuicSessionStats::handshake_completed_at),
-        GetStat(&QuicSessionStats::bytes_received),
-        GetStat(&QuicSessionStats::bytes_sent),
-        GetStat(&QuicSessionStats::bidi_stream_count),
-        GetStat(&QuicSessionStats::uni_stream_count),
-        GetStat(&QuicSessionStats::streams_in_count),
-        GetStat(&QuicSessionStats::streams_out_count),
-        handshake_length,
-        GetStat(&QuicSessionStats::max_bytes_in_flight));
-
+  crypto_context_->Cancel();
   connection_.reset();
 
   QuicSessionListener* listener_ = listener();
   listener_->OnSessionDestroyed();
   if (listener_ == listener())
     RemoveListener(listener_);
+}
+
+std::string QuicSession::StatsDebug::ToString() {
+#define V(_, name, label)                                                      \
+  "  "## label + ": " +                                                        \
+  std::to_string(session_->GetStat(&QuicSessionStats::name)) + "\n"
+
+  std::string out = "Statistics:\n";
+  out += "  Duration: " +
+         std::to_string(uv_hrtime() -
+             session_->GetStat(&QuicSessionStats::created_at)) + "\n" +
+         SESSION_STATS(V);
+  return out;
+
+#undef V
 }
 
 void QuicSession::PushListener(QuicSessionListener* listener) {
@@ -2387,8 +2378,12 @@ void QuicSession::StreamReset(
         app_error_code,
         final_size);
 
-  if (HasStream(stream_id))
+  BaseObjectPtr<QuicStream> stream = FindStream(stream_id);
+
+  if (stream) {
+    stream->set_final_size(final_size);
     application_->StreamReset(stream_id, final_size, app_error_code);
+  }
 }
 
 void QuicSession::UpdateConnectionID(

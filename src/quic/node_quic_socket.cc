@@ -285,35 +285,27 @@ QuicSocket::QuicSocket(
 
 QuicSocket::~QuicSocket() {
   uint64_t now = uv_hrtime();
-  Debug(this,
-        "QuicSocket destroyed.\n"
-        "  Duration: %" PRIu64 "\n"
-        "  Bound Duration: %" PRIu64 "\n"
-        "  Listen Duration: %" PRIu64 "\n"
-        "  Bytes Received: %" PRIu64 "\n"
-        "  Bytes Sent: %" PRIu64 "\n"
-        "  Packets Received: %" PRIu64 "\n"
-        "  Packets Sent: %" PRIu64 "\n"
-        "  Packets Ignored: %" PRIu64 "\n"
-        "  Server Sessions: %" PRIu64 "\n"
-        "  Client Sessions: %" PRIu64 "\n"
-        "  Stateless Resets: %" PRIu64 "\n",
-        now - GetStat(&QuicSocketStats::created_at),
-        now - GetStat(&QuicSocketStats::bound_at),
-        now - GetStat(&QuicSocketStats::listen_at),
-        GetStat(&QuicSocketStats::bytes_received),
-        GetStat(&QuicSocketStats::bytes_sent),
-        GetStat(&QuicSocketStats::packets_received),
-        GetStat(&QuicSocketStats::packets_sent),
-        GetStat(&QuicSocketStats::packets_ignored),
-        GetStat(&QuicSocketStats::server_sessions),
-        GetStat(&QuicSocketStats::client_sessions),
-        GetStat(&QuicSocketStats::stateless_reset_count));
+  StatsDebug stats_debug(this);
+  Debug(this, "Destroyed. %s", stats_debug.ToString().c_str());
   QuicSocketListener* listener = listener_;
   listener_->OnDestroy();
-  // Remove the listener if it didn't remove itself already.
   if (listener == listener_)
     RemoveListener(listener_);
+}
+
+std::string QuicSocket::StatsDebug::ToString() {
+#define V(_, name, label)                                                      \
+  "  "## label + ": " +                                                        \
+  std::to_string(socket_->GetStat(&QuicSocketStats::name)) + "\n"
+
+  std::string out = "Statistics:\n";
+  out += "  Duration: " +
+         std::to_string(uv_hrtime() -
+             socket_->GetStat(&QuicSocketStats::created_at)) + "\n" +
+         SOCKET_STATS(V);
+  return out;
+
+#undef V
 }
 
 void QuicSocket::MemoryInfo(MemoryTracker* tracker) const {

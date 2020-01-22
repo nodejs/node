@@ -193,17 +193,17 @@ void Initialize(Local<Object> target,
   V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
   V(UV_EBADF)
 
-#define V(name, _)                                                             \
+#define V(name, _, __)                                                         \
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_##name);
   SESSION_STATS(V)
 #undef V
 
-#define V(name, _)                                                             \
+#define V(name, _, __)                                                         \
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SOCKET_STATS_##name);
   SOCKET_STATS(V)
 #undef V
 
-#define V(name, _)                                                             \
+#define V(name, _, __)                                                         \
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_STREAM_STATS_##name);
   STREAM_STATS(V)
 #undef V

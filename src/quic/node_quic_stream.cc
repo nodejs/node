@@ -54,6 +54,26 @@ QuicStream::QuicStream(
   IncrementStat(&QuicStreamStats::max_offset, params.initial_max_data);
 }
 
+QuicStream::~QuicStream() {
+  StatsDebug stats_debug(this);
+  Debug(this, "Destroyed. %s", stats_debug.ToString().c_str());
+}
+
+std::string QuicStream::StatsDebug::ToString() {
+#define V(_, name, label)                                                      \
+  "  "## label + ": " +                                                        \
+  std::to_string(stream_->GetStat(&QuicStreamStats::name)) + "\n"
+
+  std::string out = "Statistics:\n";
+  out += "  Duration: " +
+         std::to_string(uv_hrtime() -
+             stream_->GetStat(&QuicStreamStats::created_at)) + "\n" +
+         STREAM_STATS(V);
+  return out;
+
+#undef V
+}
+
 // Acknowledge is called when ngtcp2 has received an acknowledgement
 // for one or more stream frames for this QuicStream. This will cause
 // data stored in the streambuf_ outbound queue to be consumed and may

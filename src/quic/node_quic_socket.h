@@ -44,27 +44,27 @@ enum QuicSocketOptions : uint32_t {
 };
 
 #define SOCKET_STATS(V)                                                        \
-  V(CREATED_AT, created_at)                                                    \
-  V(BOUND_AT, bound_at)                                                        \
-  V(LISTEN_AT, listen_at)                                                      \
-  V(BYTES_RECEIVED, bytes_received)                                            \
-  V(BYTES_SENT, bytes_sent)                                                    \
-  V(PACKETS_RECEIVED, packets_received)                                        \
-  V(PACKETS_IGNORED, packets_ignored)                                          \
-  V(PACKETS_SENT, packets_sent)                                                \
-  V(SERVER_SESSIONS, server_sessions)                                          \
-  V(CLIENT_SESSIONS, client_sessions)                                          \
-  V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
-  V(SERVER_BUSY_COUNT, server_busy_count)
+  V(CREATED_AT, created_at, "Created At")                                      \
+  V(BOUND_AT, bound_at, "Bound At")                                            \
+  V(LISTEN_AT, listen_at, "Listen At")                                         \
+  V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
+  V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
+  V(PACKETS_RECEIVED, packets_received, "Packets Received")                    \
+  V(PACKETS_IGNORED, packets_ignored, "Packets Ignored")                       \
+  V(PACKETS_SENT, packets_sent, "Packets Sent")                                \
+  V(SERVER_SESSIONS, server_sessions, "Server Sessions")                       \
+  V(CLIENT_SESSIONS, client_sessions, "Client Sessions")                       \
+  V(STATELESS_RESET_COUNT, stateless_reset_count, "Stateless Reset Count")     \
+  V(SERVER_BUSY_COUNT, server_busy_count, "Server Busy Count")
 
-#define V(name, _) IDX_QUIC_SOCKET_STATS_##name,
+#define V(name, _, __) IDX_QUIC_SOCKET_STATS_##name,
 enum QuicSocketStatsIdx : int {
   SOCKET_STATS(V)
   IDX_QUIC_SOCKET_STATS_COUNT
 };
 #undef V
 
-#define V(_, name) uint64_t name;
+#define V(_, name, __) uint64_t name;
 struct QuicSocketStats {
   SOCKET_STATS(V)
 };
@@ -530,6 +530,14 @@ class QuicSocket : public AsyncWrap,
   };
 
   SendWrap* last_created_send_wrap_ = nullptr;
+
+  class StatsDebug {
+   public:
+    StatsDebug(QuicSocket* socket) : socket_(socket) {}
+    std::string ToString();
+   private:
+    QuicSocket* socket_;
+  };
 
   friend class QuicSocketListener;
 };

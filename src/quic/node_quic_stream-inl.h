@@ -23,15 +23,19 @@ QuicStreamOrigin QuicStream::origin() const {
       QUIC_STREAM_CLIENT;
 }
 
-inline bool QuicStream::is_flag_set(int32_t flag) const {
+bool QuicStream::is_flag_set(int32_t flag) const {
   return flags_ & (1 << flag);
 }
 
-inline void QuicStream::set_flag(int32_t flag, bool on) {
+void QuicStream::set_flag(int32_t flag, bool on) {
   if (on)
     flags_ |= (1 << flag);
   else
     flags_ &= ~(1 << flag);
+}
+
+void QuicStream::set_final_size(uint64_t final_size) {
+  SetStat(&QuicStreamStats::final_size, final_size);
 }
 
 bool QuicStream::is_destroyed() const {

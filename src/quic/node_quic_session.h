@@ -188,41 +188,47 @@ enum QuicSessionState : int {
 };
 
 #define SESSION_STATS(V)                                                       \
-  V(CREATED_AT, created_at)                                                    \
-  V(HANDSHAKE_START_AT, handshake_start_at)                                    \
-  V(HANDSHAKE_SEND_AT, handshake_send_at)                                      \
-  V(HANDSHAKE_CONTINUE_AT, handshake_continue_at)                              \
-  V(HANDSHAKE_COMPLETED_AT, handshake_completed_at)                            \
-  V(HANDSHAKE_ACKED_AT, handshake_acked_at)                                    \
-  V(SENT_AT, sent_at)                                                          \
-  V(RECEIVED_AT, received_at)                                                  \
-  V(CLOSING_AT, closing_at)                                                    \
-  V(BYTES_RECEIVED, bytes_received)                                            \
-  V(BYTES_SENT, bytes_sent)                                                    \
-  V(BIDI_STREAM_COUNT, bidi_stream_count)                                      \
-  V(UNI_STREAM_COUNT, uni_stream_count)                                        \
-  V(STREAMS_IN_COUNT, streams_in_count)                                        \
-  V(STREAMS_OUT_COUNT, streams_out_count)                                      \
-  V(KEYUPDATE_COUNT, keyupdate_count)                                          \
-  V(RETRY_COUNT, retry_count)                                                  \
-  V(LOSS_RETRANSMIT_COUNT, loss_retransmit_count)                              \
-  V(ACK_DELAY_RETRANSMIT_COUNT, ack_delay_retransmit_count)                    \
-  V(PATH_VALIDATION_SUCCESS_COUNT, path_validation_success_count)              \
-  V(PATH_VALIDATION_FAILURE_COUNT, path_validation_failure_count)              \
-  V(MAX_BYTES_IN_FLIGHT, max_bytes_in_flight)                                  \
-  V(BLOCK_COUNT, block_count)                                                  \
-  V(MIN_RTT, min_rtt)                                                          \
-  V(LATEST_RTT, latest_rtt)                                                    \
-  V(SMOOTHED_RTT, smoothed_rtt)
+  V(CREATED_AT, created_at, "Created At")                                      \
+  V(HANDSHAKE_START_AT, handshake_start_at, "Handshake Started")               \
+  V(HANDSHAKE_SEND_AT, handshake_send_at, "Handshke Last Sent")                \
+  V(HANDSHAKE_CONTINUE_AT, handshake_continue_at, "Handshke Continued")        \
+  V(HANDSHAKE_COMPLETED_AT, handshake_completed_at, "Handshake Completed")     \
+  V(HANDSHAKE_ACKED_AT, handshake_acked_at, "Handshake Last Acknowledged")     \
+  V(SENT_AT, sent_at, "Last Sent At")                                          \
+  V(RECEIVED_AT, received_at, "Last Received At")                              \
+  V(CLOSING_AT, closing_at, "Closing")                                         \
+  V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
+  V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
+  V(BIDI_STREAM_COUNT, bidi_stream_count, "Bidi Stream Count")                 \
+  V(UNI_STREAM_COUNT, uni_stream_count, "Uni Stream Count")                    \
+  V(STREAMS_IN_COUNT, streams_in_count, "Streams In Count")                    \
+  V(STREAMS_OUT_COUNT, streams_out_count, "Streams Out Count")                 \
+  V(KEYUPDATE_COUNT, keyupdate_count, "Key Update Count")                      \
+  V(RETRY_COUNT, retry_count, "Retry Count")                                   \
+  V(LOSS_RETRANSMIT_COUNT, loss_retransmit_count, "Loss Retransmit Count")     \
+  V(ACK_DELAY_RETRANSMIT_COUNT,                                                \
+    ack_delay_retransmit_count,                                                \
+    "Ack Delay Retransmit Count")                                              \
+  V(PATH_VALIDATION_SUCCESS_COUNT,                                             \
+    path_validation_success_count,                                             \
+    "Path Validation Success Count")                                           \
+  V(PATH_VALIDATION_FAILURE_COUNT,                                             \
+    path_validation_failure_count,                                             \
+    "Path Validation Failure Count")                                           \
+  V(MAX_BYTES_IN_FLIGHT, max_bytes_in_flight, "Max Bytes In Flight")           \
+  V(BLOCK_COUNT, block_count, "Block Count")                                   \
+  V(MIN_RTT, min_rtt, "Minimum RTT")                                           \
+  V(LATEST_RTT, latest_rtt, "Latest RTT")                                      \
+  V(SMOOTHED_RTT, smoothed_rtt, "Smoothed RTT")
 
-#define V(name, _) IDX_QUIC_SESSION_STATS_##name,
+#define V(name, _, __) IDX_QUIC_SESSION_STATS_##name,
 enum QuicSessionStatsIdx : int {
   SESSION_STATS(V)
   IDX_QUIC_SESSION_STATS_COUNT
 };
 #undef V
 
-#define V(_, name) uint64_t name;
+#define V(_, name, __) uint64_t name;
 struct QuicSessionStats {
   SESSION_STATS(V)
 };
@@ -1419,6 +1425,15 @@ class QuicSession : public AsyncWrap,
   AliasedFloat64Array state_;
 
   static const ngtcp2_conn_callbacks callbacks[2];
+
+  class StatsDebug {
+   public:
+    StatsDebug(QuicSession* session) : session_(session) {}
+    std::string ToString();
+   private:
+    QuicSession* session_;
+  };
+
 
   friend class QuicCryptoContext;
   friend class QuicSessionListener;

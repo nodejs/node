@@ -41,22 +41,23 @@ enum QuicStreamHeadersKind : int {
 };
 
 #define STREAM_STATS(V)                                                        \
-  V(CREATED_AT, created_at)                                                    \
-  V(RECEIVED_AT, received_at)                                                  \
-  V(ACKED_AT, acked_at)                                                        \
-  V(CLOSING_AT, closing_at)                                                    \
-  V(BYTES_RECEIVED, bytes_received)                                            \
-  V(BYTES_SENT, bytes_sent)                                                    \
-  V(MAX_OFFSET, max_offset)
+  V(CREATED_AT, created_at, "Created At")                                      \
+  V(RECEIVED_AT, received_at, "Last Received At")                              \
+  V(ACKED_AT, acked_at, "Last Acknowledged At")                                \
+  V(CLOSING_AT, closing_at, "Closing At")                                      \
+  V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
+  V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
+  V(MAX_OFFSET, max_offset, "Max Offset")                                      \
+  V(FINAL_SIZE, final_size, "Final Size")
 
-#define V(name, _) IDX_QUIC_STREAM_STATS_##name,
+#define V(name, _, __) IDX_QUIC_STREAM_STATS_##name,
 enum QuicStreamStatsIdx : int {
   STREAM_STATS(V)
   IDX_QUIC_STREAM_STATS_COUNT
 };
 #undef V
 
-#define V(_, name) uint64_t name;
+#define V(_, name, __) uint64_t name;
 struct QuicStreamStats {
   STREAM_STATS(V)
 };
@@ -211,6 +212,8 @@ class QuicStream : public AsyncWrap,
       int64_t stream_id,
       int64_t push_id = 0);
 
+  ~QuicStream() override;
+
   std::string diagnostic_name() const override;
 
   int64_t id() const { return stream_id_; }
@@ -252,6 +255,13 @@ class QuicStream : public AsyncWrap,
 
   // Specifies the kind of headers currently being processed.
   inline void set_headers_kind(QuicStreamHeadersKind kind);
+
+  // Set the final size for the QuicStream
+  inline void set_final_size(uint64_t final_size);
+
+  uint64_t final_size() const {
+    return GetStat(&QuicStreamStats::final_size);
+  }
 
   // Marks the given data range as having been acknowledged.
   // This means that the data range may be released from
@@ -370,6 +380,14 @@ class QuicStream : public AsyncWrap,
   size_t current_headers_length_ = 0;
 
   ListNode<QuicStream> stream_queue_;
+
+  class StatsDebug {
+   public:
+    StatsDebug(QuicStream* stream) : stream_(stream) {}
+    std::string ToString();
+   private:
+    QuicStream* stream_;
+  };
 
  public:
   // Linked List of QuicStream objects
