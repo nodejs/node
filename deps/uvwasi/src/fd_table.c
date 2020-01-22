@@ -306,37 +306,27 @@ uvwasi_errno_t uvwasi_fd_table_get_nolock(struct uvwasi_fd_table_t* table,
 }
 
 
-uvwasi_errno_t uvwasi_fd_table_remove(uvwasi_t* uvwasi,
-                                      struct uvwasi_fd_table_t* table,
-                                      const uvwasi_fd_t id) {
+uvwasi_errno_t uvwasi_fd_table_remove_nolock(uvwasi_t* uvwasi,
+                                             struct uvwasi_fd_table_t* table,
+                                             const uvwasi_fd_t id) {
   struct uvwasi_fd_wrap_t* entry;
-  uvwasi_errno_t err;
 
   if (table == NULL)
     return UVWASI_EINVAL;
 
-  uv_rwlock_wrlock(&table->rwlock);
-
-  if (id >= table->size) {
-    err = UVWASI_EBADF;
-    goto exit;
-  }
+  if (id >= table->size)
+    return UVWASI_EBADF;
 
   entry = table->fds[id];
 
-  if (entry == NULL || entry->id != id) {
-    err = UVWASI_EBADF;
-    goto exit;
-  }
+  if (entry == NULL || entry->id != id)
+    return UVWASI_EBADF;
 
   uv_mutex_destroy(&entry->mutex);
   uvwasi__free(uvwasi, entry);
   table->fds[id] = NULL;
   table->used--;
-  err = UVWASI_ESUCCESS;
-exit:
-  uv_rwlock_wrunlock(&table->rwlock);
-  return err;
+  return UVWASI_ESUCCESS;
 }
 
 
