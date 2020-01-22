@@ -46,11 +46,16 @@ uvwasi_errno_t uvwasi_fd_table_insert_preopen(struct uvwasi_s* uvwasi,
                                               const uv_file fd,
                                               const char* path,
                                               const char* real_path);
-uvwasi_errno_t uvwasi_fd_table_get(const struct uvwasi_fd_table_t* table,
+uvwasi_errno_t uvwasi_fd_table_get(struct uvwasi_fd_table_t* table,
                                    const uvwasi_fd_t id,
                                    struct uvwasi_fd_wrap_t** wrap,
                                    uvwasi_rights_t rights_base,
                                    uvwasi_rights_t rights_inheriting);
+uvwasi_errno_t uvwasi_fd_table_get_nolock(struct uvwasi_fd_table_t* table,
+                                          const uvwasi_fd_t id,
+                                          struct uvwasi_fd_wrap_t** wrap,
+                                          uvwasi_rights_t rights_base,
+                                          uvwasi_rights_t rights_inheriting);
 uvwasi_errno_t uvwasi_fd_table_remove(struct uvwasi_s* uvwasi,
                                       struct uvwasi_fd_table_t* table,
                                       const uvwasi_fd_t id);
@@ -58,5 +63,7 @@ uvwasi_errno_t uvwasi_fd_table_renumber(struct uvwasi_s* uvwasi,
                                         struct uvwasi_fd_table_t* table,
                                         const uvwasi_fd_t dst,
                                         const uvwasi_fd_t src);
+uvwasi_errno_t uvwasi_fd_table_lock(struct uvwasi_fd_table_t* table);
+uvwasi_errno_t uvwasi_fd_table_unlock(struct uvwasi_fd_table_t* table);
 
 #endif /* __UVWASI_FD_TABLE_H__ */
