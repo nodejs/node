@@ -698,6 +698,8 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
       if (head->is_refed() || !only_refed)
         head->Call(this);
 
+      head.reset();  // Destroy now so that this is also observed by try_catch.
+
       if (UNLIKELY(try_catch.HasCaught())) {
         if (!try_catch.HasTerminated() && can_call_into_js())
           errors::TriggerUncaughtException(isolate(), try_catch);
