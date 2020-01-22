@@ -27,19 +27,27 @@ h4, h4 code { font-size: 1.5rem; }
 h5, h5 code { font-size: 1.25rem; }
 h6, h6 code { font-size: 1rem; }
 
-h1, h1 code,
-h2, h2 code,
-h3, h3 code,
-h4, h4 code,
-h5, h5 code,
-h6, h6 code {
-  color: inherit;
-  font-family: inherit;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 700;
   line-height: inherit;
   position: relative;
   margin: 1.5rem 0 1rem;
   text-rendering: optimizeLegibility;
+}
+
+h1 code,
+h2 code,
+h3 code,
+h4 code,
+h5 code,
+h6 code {
+  color: inherit;
+  font-family: inherit;
 }
 
 pre,
