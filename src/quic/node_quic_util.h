@@ -257,6 +257,9 @@ class QuicCID : public MemoryRetainer {
   SET_MEMORY_INFO_NAME(QuicCID)
   SET_SELF_SIZE(QuicCID)
 
+  template <typename T>
+  using Map = std::unordered_map<QuicCID, T, QuicCID::Hash, QuicCID::Compare>;
+
  private:
   ngtcp2_cid cid_{};
   const ngtcp2_cid* ptr_;
@@ -324,22 +327,18 @@ class StatelessResetToken : public MemoryRetainer {
   SET_MEMORY_INFO_NAME(StatelessResetToken)
   SET_SELF_SIZE(StatelessResetToken)
 
+  template <typename T>
+  using Map =
+      std::unordered_map<
+          StatelessResetToken,
+          BaseObjectPtr<T>,
+          StatelessResetToken::Hash,
+          StatelessResetToken::Compare>;
+
  private:
   uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN];
   const uint8_t* token_;
 };
-
-template <typename T>
-using StatelessResetTokenMap =
-    std::unordered_map<
-        StatelessResetToken,
-        BaseObjectPtr<T>,
-        StatelessResetToken::Hash,
-        StatelessResetToken::Compare>;
-
-template <typename T>
-using QuicCIDMap =
-    std::unordered_map<QuicCID, T, QuicCID::Hash, QuicCID::Compare>;
 
 template <typename T>
 inline size_t get_length(const T*, size_t len);

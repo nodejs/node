@@ -478,8 +478,8 @@ class QuicSocket : public AsyncWrap,
   QlogMode qlog_ = QlogMode::kDisabled;
   BaseObjectPtr<crypto::SecureContext> server_secure_context_;
   std::string server_alpn_;
-  QuicCIDMap<BaseObjectPtr<QuicSession>> sessions_;
-  QuicCIDMap<QuicCID> dcid_to_scid_;
+  QuicCID::Map<BaseObjectPtr<QuicSession>> sessions_;
+  QuicCID::Map<QuicCID> dcid_to_scid_;
 
   uint8_t token_secret_[kTokenSecretLen];
   uint8_t reset_token_secret_[NGTCP2_STATELESS_RESET_TOKENLEN];
@@ -498,7 +498,7 @@ class QuicSocket : public AsyncWrap,
   // remote address.
   SocketAddressMap<size_t> reset_counts_;
 
-  StatelessResetTokenMap<QuicSession> token_map_;
+  StatelessResetToken::Map<QuicSession> token_map_;
 
   // The validated_addrs_ vector is used as an LRU cache for
   // validated addresses only when the VALIDATE_ADDRESS_LRU
