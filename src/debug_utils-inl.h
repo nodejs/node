@@ -43,7 +43,7 @@ template <typename Arg, typename... Args>
 std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
     const char* format, Arg&& arg, Args&&... args) {
   const char* p = strchr(format, '%');
-  CHECK_NOT_NULL(p);
+  CHECK_NOT_NULL(p);  // If you hit this, you passed in too many arguments.
   std::string ret(format, p);
   // Ignore long / size_t modifiers
   while (strchr("lz", *++p) != nullptr) {}
