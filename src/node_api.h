@@ -18,10 +18,12 @@ struct uv_loop_s;  // Forward declaration.
 # define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
-#ifdef __GNUC__
-#define NAPI_NO_RETURN __attribute__((noreturn))
+#if defined(__GNUC__)
+# define NAPI_NO_RETURN __attribute__((noreturn))
+#elif defined(_WIN32)
+# define NAPI_NO_RETURN __declspec(noreturn)
 #else
-#define NAPI_NO_RETURN
+# define NAPI_NO_RETURN
 #endif
 
 typedef napi_value (*napi_addon_register_func)(napi_env env,
