@@ -312,48 +312,32 @@ MaybeLocal<Value> Environment::BootstrapNode() {
     return scope.EscapeMaybe(result);
   }
 
-  if (is_main_thread()) {
-    result = ExecuteBootstrapper(this,
-                                 "internal/bootstrap/switches/is_main_thread",
-                                 &node_params,
-                                 &node_args);
-  } else {
-    result =
-        ExecuteBootstrapper(this,
-                            "internal/bootstrap/switches/is_not_main_thread",
-                            &node_params,
-                            &node_args);
-  }
+  auto thread_switch_id =
+      is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
+                       : "internal/bootstrap/switches/is_not_main_thread";
+  result =
+      ExecuteBootstrapper(this, thread_switch_id, &node_params, &node_args);
 
   if (result.IsEmpty()) {
     return scope.EscapeMaybe(result);
   }
 
-  if (owns_process_state()) {
-    result = ExecuteBootstrapper(
-        this,
-        "internal/bootstrap/switches/does_own_process_state",
-        &node_params,
-        &node_args);
-  } else {
-    result = ExecuteBootstrapper(
-        this,
-        "internal/bootstrap/switches/does_not_own_process_state",
-        &node_params,
-        &node_args);
-  }
+  auto process_state_switch_id =
+      owns_process_state()
+          ? "internal/bootstrap/switches/does_own_process_state"
+          : "internal/bootstrap/switches/does_not_own_process_state";
+  result = ExecuteBootstrapper(
+      this, process_state_switch_id, &node_params, &node_args);
 
   if (result.IsEmpty()) {
     return scope.EscapeMaybe(result);
   }
 
+  Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
   Local<Object> env_var_proxy;
   if (!CreateEnvVarProxy(context(), isolate_, as_callback_data())
            .ToLocal(&env_var_proxy) ||
-      process_object()
-          ->Set(
-              context(), FIXED_ONE_BYTE_STRING(isolate_, "env"), env_var_proxy)
-          .IsNothing()) {
+      process_object()->Set(context(), env_string, env_var_proxy).IsNothing()) {
     return MaybeLocal<Value>();
   }
 
