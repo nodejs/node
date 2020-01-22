@@ -137,9 +137,11 @@ server.on('session', common.mustCall((session) => {
     uni.write(unidata[0], common.mustCall());
     uni.end(unidata[1], common.mustCall());
     uni.on('finish', common.mustCall());
-    uni.on('close', common.mustCall());
     uni.on('end', common.mustCall());
     uni.on('data', common.mustNotCall());
+    uni.on('close', common.mustCall(() => {
+      assert.strictEqual(uni.finalSize, 0n);
+    }));
     debug('Unidirectional, Server-initiated stream %d opened', uni.id);
   }));
 
@@ -184,6 +186,7 @@ server.on('session', common.mustCall((session) => {
       assert.strictEqual(typeof stream.bytesReceived, 'bigint');
       assert.strictEqual(typeof stream.bytesSent, 'bigint');
       assert.strictEqual(typeof stream.maxExtendedOffset, 'bigint');
+      assert.strictEqual(stream.finalSize, BigInt(filedata.length));
     }));
   }));
 
@@ -320,6 +323,7 @@ server.on('ready', common.mustCall(() => {
     }));
     stream.on('close', common.mustCall(() => {
       debug('Bidirectional, Client-initiated stream %d closed', stream.id);
+      assert.strictEqual(stream.finalSize, BigInt(filedata.length));
       countdown.dec();
     }));
     debug('Bidirectional, Client-initiated stream %d opened', stream.id);
@@ -336,6 +340,7 @@ server.on('ready', common.mustCall(() => {
     }));
     stream.on('close', common.mustCall(() => {
       debug('Unidirectional, Server-initiated stream %d closed', stream.id);
+      assert.strictEqual(stream.finalSize, 26n);
       countdown.dec();
     }));
   }));

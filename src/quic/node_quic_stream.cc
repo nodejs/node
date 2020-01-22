@@ -130,16 +130,6 @@ void QuicStream::Destroy() {
   set_flag(QUICSTREAM_FLAG_READ_CLOSED);
   streambuf_.End();
 
-  uint64_t now = uv_hrtime();
-  Debug(this,
-        "Destroying.\n"
-        "  Duration: %" PRIu64 "\n"
-        "  Bytes Received: %" PRIu64 "\n"
-        "  Bytes Sent: %" PRIu64,
-        uv_hrtime() - GetStat(&QuicStreamStats::created_at),
-        GetStat(&QuicStreamStats::bytes_received),
-        GetStat(&QuicStreamStats::bytes_sent));
-
   // If there is data currently buffered in the streambuf_,
   // then cancel will call out to invoke an arbitrary
   // JavaScript callback (the on write callback). Within
@@ -373,6 +363,7 @@ void QuicStream::ReceiveData(
   // stream, indicating that the stream will no longer be readable.
   if (fin) {
     set_flag(QUICSTREAM_FLAG_FIN);
+    set_final_size(offset + datalen);
     EmitRead(UV_EOF);
   }
 }

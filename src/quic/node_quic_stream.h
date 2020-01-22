@@ -259,6 +259,8 @@ class QuicStream : public AsyncWrap,
   // Set the final size for the QuicStream
   inline void set_final_size(uint64_t final_size);
 
+  // The final size is the maximum amount of data that has been
+  // acknowleged to have been received for a QuicStream.
   uint64_t final_size() const {
     return GetStat(&QuicStreamStats::final_size);
   }

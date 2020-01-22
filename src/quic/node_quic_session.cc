@@ -216,10 +216,9 @@ void QuicSessionListener::OnStreamClose(
 
 void QuicSessionListener::OnStreamReset(
     int64_t stream_id,
-    uint64_t final_size,
     uint64_t app_error_code) {
   if (previous_listener_ != nullptr)
-    previous_listener_->OnStreamReset(stream_id, final_size, app_error_code);
+    previous_listener_->OnStreamReset(stream_id, app_error_code);
 }
 
 void QuicSessionListener::OnSessionDestroyed() {
@@ -419,7 +418,6 @@ void JSQuicSessionListener::OnStreamClose(
 
 void JSQuicSessionListener::OnStreamReset(
     int64_t stream_id,
-    uint64_t final_size,
     uint64_t app_error_code) {
   Environment* env = session()->env();
   HandleScope scope(env->isolate());
@@ -427,8 +425,7 @@ void JSQuicSessionListener::OnStreamReset(
 
   Local<Value> argv[] = {
     Number::New(env->isolate(), static_cast<double>(stream_id)),
-    Number::New(env->isolate(), static_cast<double>(app_error_code)),
-    Number::New(env->isolate(), static_cast<double>(final_size))
+    Number::New(env->isolate(), static_cast<double>(app_error_code))
   };
   // Grab a shared pointer to this to prevent the QuicSession
   // from being freed while the MakeCallback is running.
@@ -1214,9 +1211,8 @@ void QuicApplication::StreamClose(
 
 void QuicApplication::StreamReset(
     int64_t stream_id,
-    uint64_t final_size,
     uint64_t app_error_code) {
-  session()->listener()->OnStreamReset(stream_id, final_size, app_error_code);
+  session()->listener()->OnStreamReset(stream_id, app_error_code);
 }
 
 // Determines which QuicApplication variant the QuicSession will be using
@@ -1554,7 +1550,6 @@ BaseObjectPtr<QuicStream> QuicSession::CreateStream(int64_t stream_id) {
 void QuicSession::Destroy() {
   if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
     return;
-  Debug(this, "Destroying");
 
   // If we're not in the closing or draining periods,
   // then we should at least attempt to send a connection
@@ -2382,7 +2377,7 @@ void QuicSession::StreamReset(
 
   if (stream) {
     stream->set_final_size(final_size);
-    application_->StreamReset(stream_id, final_size, app_error_code);
+    application_->StreamReset(stream_id, app_error_code);
   }
 }
 

@@ -140,7 +140,6 @@ class Http3Application final :
 
   void StreamReset(
       int64_t stream_id,
-      uint64_t final_size,
       uint64_t app_error_code) override;
 
   void ResumeStream(int64_t stream_id) override;

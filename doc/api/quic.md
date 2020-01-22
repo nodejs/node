@@ -1766,8 +1766,7 @@ or writable side has closed naturally.
 The callback is invoked with two arguments:
 
 * `code` {number} The QUIC application error code used to terminate the stream.
-* `finalSize` {number} The total number of bytes received by the `QuicStream`
-  as of the moment the stream was closed.
+* `family` {number} Identifier of the error code family.
 
 #### Event: `'close'`
 <!-- YAML
@@ -1954,6 +1953,16 @@ added: REPLACEME
 * Type: {BigInt}
 
 A `BigInt` representing the length of time the `QuicStream` has been active.
+
+### quicstream.finalSize
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {BigInt}
+
+A `BigInt` specifying the total number of bytes successfully received by the
+`QuicStream`.
 
 #### quicstream.id
 <!-- YAML

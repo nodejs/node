@@ -35,6 +35,7 @@ void QuicStream::set_flag(int32_t flag, bool on) {
 }
 
 void QuicStream::set_final_size(uint64_t final_size) {
+  CHECK_EQ(GetStat(&QuicStreamStats::final_size), 0);
   SetStat(&QuicStreamStats::final_size, final_size);
 }
 

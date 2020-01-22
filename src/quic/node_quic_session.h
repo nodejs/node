@@ -254,7 +254,6 @@ class QuicSessionListener {
       uint64_t app_error_code);
   virtual void OnStreamReset(
       int64_t stream_id,
-      uint64_t final_size,
       uint64_t app_error_code);
   virtual void OnSessionDestroyed();
   virtual void OnSessionClose(QuicError error);
@@ -303,7 +302,6 @@ class JSQuicSessionListener : public QuicSessionListener {
       uint64_t app_error_code) override;
   void OnStreamReset(
       int64_t stream_id,
-      uint64_t final_size,
       uint64_t app_error_code) override;
   void OnSessionDestroyed() override;
   void OnSessionClose(QuicError error) override;
@@ -530,7 +528,6 @@ class QuicApplication : public MemoryRetainer {
   virtual void StreamOpen(int64_t stream_id);
   virtual void StreamReset(
       int64_t stream_id,
-      uint64_t final_size,
       uint64_t app_error_code);
   virtual bool SubmitInformation(
       int64_t stream_id,

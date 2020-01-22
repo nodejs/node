@@ -511,10 +511,9 @@ void Http3Application::StreamClose(
 
 void Http3Application::StreamReset(
     int64_t stream_id,
-    uint64_t final_size,
     uint64_t app_error_code) {
   nghttp3_conn_reset_stream(connection(), stream_id);
-  QuicApplication::StreamReset(stream_id, final_size, app_error_code);
+  QuicApplication::StreamReset(stream_id, app_error_code);
 }
 
 // When SendPendingData tries to send data for a given stream and there
