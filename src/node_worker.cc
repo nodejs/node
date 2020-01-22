@@ -454,8 +454,6 @@ void Worker::JoinThread() {
 }
 
 Worker::~Worker() {
-  JoinThread();
-
   Mutex::ScopedLock lock(mutex_);
 
   CHECK(stopped_);
@@ -655,6 +653,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
         [w = std::unique_ptr<Worker>(w)](Environment* env) {
           if (w->has_ref_)
             env->add_refs(-1);
+          w->JoinThread();
           // implicitly delete w
         });
   }, static_cast<void*>(w)), 0);
