@@ -490,7 +490,7 @@ void QuicSocket::OnReceive(
   // allow us to pass the QuicCID directly to Debug and have it
   // converted to hex only if the category is enabled so we can
   // skip committing resources here.
-  std::string dcid_hex = dcid.ToHex();
+  std::string dcid_hex = dcid.ToString();
   Debug(this, "Received a QUIC packet for dcid %s", dcid_hex.c_str());
 
   BaseObjectPtr<QuicSession> session = FindSession(dcid);

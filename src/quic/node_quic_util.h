@@ -224,7 +224,7 @@ class QuicCID : public MemoryRetainer {
     inline bool operator()(const QuicCID& lcid, const QuicCID& rcid) const;
   };
 
-  inline std::string ToHex() const;
+  inline std::string ToString() const;
 
   // Copy assignment
   QuicCID& operator=(const QuicCID& cid) {
@@ -307,7 +307,7 @@ class StatelessResetToken : public MemoryRetainer {
       const uint8_t* token)
       : token_(token) {}
 
-  inline std::string ToHex() const;
+  inline std::string ToString() const;
   const uint8_t* data() const { return token_; }
 
   struct Hash {

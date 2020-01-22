@@ -47,7 +47,7 @@ bool QuicCID::Compare::operator()(
       false : memcmp(lcid->data, rcid->data, lcid->datalen) == 0;
 }
 
-std::string QuicCID::ToHex() const {
+std::string QuicCID::ToString() const {
   std::vector<char> dest(ptr_->datalen * 2 + 1);
   dest[dest.size() - 1] = '\0';
   size_t written = StringBytes::hex_encode(
@@ -288,7 +288,7 @@ StatelessResetToken::StatelessResetToken(
   GenerateResetToken(buf_, secret, cid);
 }
 
-std::string StatelessResetToken::ToHex() const {
+std::string StatelessResetToken::ToString() const {
   std::vector<char> dest(NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1);
   dest[dest.size() - 1] = '\0';
   size_t written = StringBytes::hex_encode(
