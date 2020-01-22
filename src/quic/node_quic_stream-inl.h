@@ -80,14 +80,6 @@ bool QuicStream::is_write_finished() const {
          streambuf_.length() == 0;
 }
 
-void QuicStream::IncrementAvailableOutboundLength(size_t amount) {
-  available_outbound_length_ += amount;
-}
-
-void QuicStream::DecrementAvailableOutboundLength(size_t amount) {
-  available_outbound_length_ -= amount;
-}
-
 bool QuicStream::SubmitInformation(v8::Local<v8::Array> headers) {
   return session_->SubmitInformation(stream_id_, headers);
 }

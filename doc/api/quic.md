@@ -1973,6 +1973,16 @@ added: REPLACEME
 
 The numeric identifier of the `QuicStream`.
 
+#### quicstream.maxAcknowledgedOffset
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {BigInt}
+
+A `BigInt` representing the highest acknowledged data offset received
+for this `QuicStream`.
+
 #### quicstream.maxExtendedOffset
 <!-- YAML
 added: REPLACEME
@@ -1982,6 +1992,15 @@ added: REPLACEME
 
 A `BigInt` representing the maximum extended data offset that has been
 reported to the connected peer.
+
+#### quicstream.maxReceivedOffset
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {BigInt}
+
+A `BigInt` representing the maximum received offset for this `QuicStream`.
 
 #### quicstream.pending
 <!-- YAML

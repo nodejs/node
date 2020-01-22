@@ -48,6 +48,8 @@ enum QuicStreamHeadersKind : int {
   V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
   V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
   V(MAX_OFFSET, max_offset, "Max Offset")                                      \
+  V(MAX_OFFSET_ACK, max_offset_ack, "Max Acknowledged Offset")                 \
+  V(MAX_OFFSET_RECV, max_offset_received, "Max Received Offset")               \
   V(FINAL_SIZE, final_size, "Final Size")
 
 #define V(name, _, __) IDX_QUIC_STREAM_STATS_##name,
@@ -280,9 +282,6 @@ class QuicStream : public AsyncWrap,
       size_t nbufs,
       uv_stream_t* send_handle) override;
 
-  inline void IncrementAvailableOutboundLength(size_t amount);
-  inline void DecrementAvailableOutboundLength(size_t amount);
-
   // Returns false if the header cannot be added. This will
   // typically only happen if a maximimum number of headers
   // has been reached.
@@ -367,14 +366,11 @@ class QuicStream : public AsyncWrap,
   void IncrementStats(size_t datalen);
 
   BaseObjectWeakPtr<QuicSession> session_;
+  QuicBuffer streambuf_;
+
   int64_t stream_id_ = 0;
   int64_t push_id_ = 0;
-  uint64_t max_offset_ = 0;
-  uint64_t max_offset_ack_ = 0;
   uint32_t flags_ = QUICSTREAM_FLAG_INITIAL;
-
-  QuicBuffer streambuf_;
-  size_t available_outbound_length_ = 0;
   size_t inbound_consumed_data_while_paused_ = 0;
 
   std::vector<std::unique_ptr<QuicHeader>> headers_;

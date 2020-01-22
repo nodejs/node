@@ -85,8 +85,8 @@ void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
   // ngtcp2 guarantees that offset must always be greater
   // than the previously received offset, but let's just
   // make sure that holds.
-  CHECK_GE(offset, max_offset_ack_);
-  max_offset_ack_ = offset;
+  CHECK_GE(offset, GetStat(&QuicStreamStats::max_offset_ack));
+  SetStat(&QuicStreamStats::max_offset_ack, offset);
 
   Debug(this, "Acknowledging %d bytes", datalen);
 
@@ -216,7 +216,6 @@ int QuicStream::DoWrite(
 
   session()->ResumeStream(stream_id_);
 
-  // IncrementAvailableOutboundLength(len);
   return 0;
 }
 
@@ -310,8 +309,8 @@ void QuicStream::ReceiveData(
 
   // ngtcp2 guarantees that offset is always greater than the previously
   // received offset. Let's just make sure.
-  CHECK_GE(offset, max_offset_);
-  max_offset_ = offset;
+  CHECK_GE(offset, GetStat(&QuicStreamStats::max_offset_received));
+  SetStat(&QuicStreamStats::max_offset_received, offset);
 
   if (datalen > 0) {
     // IncrementStats will update the data_rx_rate_ and data_rx_size_
