@@ -19,13 +19,13 @@ TEST(QuicCID, Simple) {
   QuicCID qcid1(cid1);
   CHECK(qcid1);
   CHECK_EQ(qcid1.length(), 3);
-  CHECK_EQ(qcid1.ToHex(), "616263");
+  CHECK_EQ(qcid1.ToString(), "616263");
 
   QuicCID qcid2(cid2);
   qcid1 = qcid2;
-  CHECK_EQ(qcid1.ToHex(), qcid2.ToHex());
+  CHECK_EQ(qcid1.ToString(), qcid2.ToString());
 
   qcid1.set_length(5);
   memset(qcid1.data(), 1, 5);
-  CHECK_EQ(qcid1.ToHex(), "0101010101");
+  CHECK_EQ(qcid1.ToString(), "0101010101");
 }

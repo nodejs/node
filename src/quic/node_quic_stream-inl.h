@@ -148,7 +148,7 @@ void QuicStream::Unschedule() {
   stream_queue_.Remove();
 }
 
-std::string QuicHeader::ToString() {
+std::string QuicHeader::ToString() const {
   return name() + " = " + value();
 }
 

@@ -82,7 +82,6 @@ MaybeLocal<String> Http3Header::GetName(QuicApplication* app) const {
 }
 
 MaybeLocal<String> Http3Header::GetValue(QuicApplication* app) const {
-  Environment* env = app->env();
   return Http3RcBufferPointer::External::New(
       static_cast<Http3Application*>(app),
       value_);

@@ -55,23 +55,13 @@ QuicStream::QuicStream(
   IncrementStat(&QuicStreamStats::max_offset, params.initial_max_data);
 }
 
-QuicStream::~QuicStream() {
-  StatsDebug stats_debug(this);
-  Debug(this, "Destroyed. %s", stats_debug.ToString().c_str());
-}
+QuicStream::~QuicStream() {}
 
-std::string QuicStream::StatsDebug::ToString() {
-#define V(_, name, label)                                                      \
-  "  "## label + ": " +                                                        \
-  std::to_string(stream_->GetStat(&QuicStreamStats::name)) + "\n"
-
-  std::string out = "Statistics:\n";
-  out += "  Duration: " +
-         std::to_string(uv_hrtime() -
-             stream_->GetStat(&QuicStreamStats::created_at)) + "\n" +
-         STREAM_STATS(V);
-  return out;
-
+template <typename Fn>
+void QuicStreamStatsTraits::ToString(const QuicStream& ptr, Fn&& add_field) {
+#define V(_n, name, label)                                                     \
+  add_field(label, ptr.GetStat(&QuicStreamStats::name));
+  STREAM_STATS(V)
 #undef V
 }
 

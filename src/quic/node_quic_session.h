@@ -234,6 +234,14 @@ struct QuicSessionStats {
 };
 #undef V
 
+struct QuicSessionStatsTraits {
+  using Stats = QuicSessionStats;
+  using Base = QuicSession;
+
+  template <typename Fn>
+  static void ToString(const QuicSession& ptr, Fn&& add_field);
+};
+
 class QuicSessionListener {
  public:
   virtual ~QuicSessionListener();
@@ -613,7 +621,7 @@ class QuicApplication : public MemoryRetainer {
 // a QuicSession object.
 class QuicSession : public AsyncWrap,
                     public mem::NgLibMemoryManager<QuicSession, ngtcp2_mem>,
-                    public StatsBase<QuicSessionStats> {
+                    public StatsBase<QuicSessionStatsTraits> {
  public:
   // The default preferred address strategy is to ignore it
   static void IgnorePreferredAddressStrategy(
@@ -1422,15 +1430,6 @@ class QuicSession : public AsyncWrap,
   AliasedFloat64Array state_;
 
   static const ngtcp2_conn_callbacks callbacks[2];
-
-  class StatsDebug {
-   public:
-    StatsDebug(QuicSession* session) : session_(session) {}
-    std::string ToString();
-   private:
-    QuicSession* session_;
-  };
-
 
   friend class QuicCryptoContext;
   friend class QuicSessionListener;

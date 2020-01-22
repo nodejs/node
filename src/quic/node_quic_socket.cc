@@ -284,27 +284,17 @@ QuicSocket::QuicSocket(
 }
 
 QuicSocket::~QuicSocket() {
-  uint64_t now = uv_hrtime();
-  StatsDebug stats_debug(this);
-  Debug(this, "Destroyed. %s", stats_debug.ToString().c_str());
   QuicSocketListener* listener = listener_;
   listener_->OnDestroy();
   if (listener == listener_)
     RemoveListener(listener_);
 }
 
-std::string QuicSocket::StatsDebug::ToString() {
-#define V(_, name, label)                                                      \
-  "  "## label + ": " +                                                        \
-  std::to_string(socket_->GetStat(&QuicSocketStats::name)) + "\n"
-
-  std::string out = "Statistics:\n";
-  out += "  Duration: " +
-         std::to_string(uv_hrtime() -
-             socket_->GetStat(&QuicSocketStats::created_at)) + "\n" +
-         SOCKET_STATS(V);
-  return out;
-
+template <typename Fn>
+void QuicSocketStatsTraits::ToString(const QuicSocket& ptr, Fn&& add_field) {
+#define V(_n, name, label)                                                     \
+  add_field(label, ptr.GetStat(&QuicSocketStats::name));
+  SOCKET_STATS(V)
 #undef V
 }
 

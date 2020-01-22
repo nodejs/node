@@ -1347,9 +1347,6 @@ QuicSession::QuicSession(
 
 QuicSession::~QuicSession() {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
-  StatsDebug stats_debug(this);
-  Debug(this, "Destroyed. %s", stats_debug.ToString().c_str());
-
   crypto_context_->Cancel();
   connection_.reset();
 
@@ -1359,18 +1356,11 @@ QuicSession::~QuicSession() {
     RemoveListener(listener_);
 }
 
-std::string QuicSession::StatsDebug::ToString() {
-#define V(_, name, label)                                                      \
-  "  "## label + ": " +                                                        \
-  std::to_string(session_->GetStat(&QuicSessionStats::name)) + "\n"
-
-  std::string out = "Statistics:\n";
-  out += "  Duration: " +
-         std::to_string(uv_hrtime() -
-             session_->GetStat(&QuicSessionStats::created_at)) + "\n" +
-         SESSION_STATS(V);
-  return out;
-
+template <typename Fn>
+void QuicSessionStatsTraits::ToString(const QuicSession& ptr, Fn&& add_field) {
+#define V(_n, name, label)                                                     \
+  add_field(label, ptr.GetStat(&QuicSessionStats::name));
+  SESSION_STATS(V)
 #undef V
 }
 

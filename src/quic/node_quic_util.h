@@ -71,8 +71,23 @@ enum QuicErrorFamily : int32_t {
   QUIC_ERROR_APPLICATION
 };
 
+template <typename T> class StatsBase;
+
+template <typename T, typename Q>
+struct StatsTraits {
+  using Stats = T;
+  using Base = Q;
+
+  template <typename Fn>
+  static void ToString(const Q& ptr, Fn&& add_field);
+};
+
 // StatsBase is a utility help for classes (like QuicSession)
-// that record performance statistics
+// that record performance statistics. The template takes a
+// single Traits argument (see QuicStreamStatsTraits in
+// node_quic_stream.h as an example). When the StatsBase
+// is deconstructed, collected statistics are output to
+// Debug automatically.
 template <typename T>
 class StatsBase {
  public:
@@ -82,28 +97,38 @@ class StatsBase {
     SIZE = 2,
     ACK = 4
   };
+
   inline StatsBase(
       Environment* env,
       v8::Local<v8::Object> wrap,
       int options = HistogramOptions::NONE);
 
- protected:
+  inline ~StatsBase();
+
+  // The StatsDebug utility is used when StatsBase is destroyed
+  // to output statistical information.
+  struct StatsDebug {
+    typename T::Base* ptr;
+    explicit StatsDebug(typename T::Base* ptr_) : ptr(ptr_) {}
+    std::string ToString() const;
+  };
+
   // Increments the given stat field by the given amount
-  inline void IncrementStat(uint64_t T::*member, uint64_t amount = 1);
+  inline void IncrementStat(uint64_t T::Stats::*member, uint64_t amount = 1);
 
   // Sets an entirely new value for the given stat field
-  inline void SetStat(uint64_t T::*member, uint64_t value);
+  inline void SetStat(uint64_t T::Stats::*member, uint64_t value);
 
   // Sets the given stat field to the current uv_hrtime()
-  inline void RecordTimestamp(uint64_t T::*member);
+  inline void RecordTimestamp(uint64_t T::Stats::*member);
 
   // Gets the current value of the given stat field
-  inline uint64_t GetStat(uint64_t T::*member) const;
+  inline uint64_t GetStat(uint64_t T::Stats::*member) const;
 
   // If the rate histogram is used, records the time elapsed
   // between now and the timestamp specified by the member
   // field.
-  inline void RecordRate(uint64_t T::*member);
+  inline void RecordRate(uint64_t T::Stats::*member);
 
   // If the size histogram is used, records the given size.
   inline void RecordSize(uint64_t val);
@@ -111,13 +136,12 @@ class StatsBase {
   // If the ack rate histogram is used, records the time
   // elapsed between now and the timestamp specified by
   // the member field.
-  inline void RecordAck(uint64_t T::*member);
+  inline void RecordAck(uint64_t T::Stats::*member);
 
- protected:
   inline void StatsMemoryInfo(MemoryTracker* tracker) const;
 
  private:
-  T stats_{};
+  typename T::Stats stats_{};
   BaseObjectPtr<HistogramBase> rate_;
   BaseObjectPtr<HistogramBase> size_;
   BaseObjectPtr<HistogramBase> ack_;
@@ -336,7 +360,7 @@ class StatelessResetToken : public MemoryRetainer {
           StatelessResetToken::Compare>;
 
  private:
-  uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN]{};
   const uint8_t* token_;
 };
 

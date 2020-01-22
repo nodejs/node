@@ -1,7 +1,9 @@
 #ifndef SRC_QUIC_NODE_QUIC_UTIL_INL_H_
 #define SRC_QUIC_NODE_QUIC_UTIL_INL_H_
 
+#include "debug_utils.h"
 #include "node_internals.h"
+#include "node_quic_crypto.h"
 #include "node_quic_util.h"
 #include "memory_tracker-inl.h"
 #include "env-inl.h"
@@ -324,7 +326,7 @@ StatsBase<T>::StatsBase(
     int options)
     : stats_buffer_(
           env->isolate(),
-          sizeof(T) / sizeof(uint64_t),
+          sizeof(typename T::Stats) / sizeof(uint64_t),
           reinterpret_cast<uint64_t*>(&stats_)) {
   static constexpr uint64_t kMax = std::numeric_limits<int64_t>::max();
   stats_.created_at = uv_hrtime();
@@ -368,30 +370,29 @@ StatsBase<T>::StatsBase(
 }
 
 template <typename T>
-void StatsBase<T>::IncrementStat(uint64_t T::*member, uint64_t amount) {
+void StatsBase<T>::IncrementStat(uint64_t T::Stats::*member, uint64_t amount) {
   static constexpr uint64_t kMax = std::numeric_limits<uint64_t>::max();
   stats_.*member += std::min(amount, kMax - stats_.*member);
 }
 
 template <typename T>
-void StatsBase<T>::SetStat(uint64_t T::*member, uint64_t value) {
+void StatsBase<T>::SetStat(uint64_t T::Stats::*member, uint64_t value) {
   stats_.*member = value;
 }
 
 template <typename T>
-void StatsBase<T>::RecordTimestamp(uint64_t T::*member) {
+void StatsBase<T>::RecordTimestamp(uint64_t T::Stats::*member) {
   stats_.*member = uv_hrtime();
 }
 
 template <typename T>
-uint64_t StatsBase<T>::GetStat(uint64_t T::*member) const {
+uint64_t StatsBase<T>::GetStat(uint64_t T::Stats::*member) const {
   return stats_.*member;
 }
 
 template <typename T>
-inline void StatsBase<T>::RecordRate(uint64_t T::*member) {
+inline void StatsBase<T>::RecordRate(uint64_t T::Stats::*member) {
   CHECK(rate_);
-
   uint64_t received_at = GetStat(member);
   uint64_t now = uv_hrtime();
   if (received_at > 0)
@@ -406,7 +407,7 @@ inline void StatsBase<T>::RecordSize(uint64_t val) {
 }
 
 template <typename T>
-inline void StatsBase<T>::RecordAck(uint64_t T::*member) {
+inline void StatsBase<T>::RecordAck(uint64_t T::Stats::*member) {
   CHECK(ack_);
   uint64_t acked_at = GetStat(member);
   uint64_t now = uv_hrtime();
@@ -421,6 +422,29 @@ void StatsBase<T>::StatsMemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("rate_histogram", rate_);
   tracker->TrackField("size_histogram", size_);
   tracker->TrackField("ack_histogram", ack_);
+}
+
+template <typename T>
+StatsBase<T>::~StatsBase() {
+  StatsBase<T>::StatsDebug stats_debug(static_cast<typename T::Base*>(this));
+  Debug(static_cast<typename T::Base*>(this),
+        "Destroyed. %s",
+        stats_debug.ToString().c_str());
+}
+
+template <typename T>
+std::string StatsBase<T>::StatsDebug::ToString() const {
+  std::string out = "Statistics:\n";
+  auto add_field = [&out](const char* name, uint64_t val) {
+    out += "  ";
+    out += std::string(name);
+    out += ": ";
+    out += std::to_string(val);
+    out += "\n";
+  };
+  add_field("Duration", uv_hrtime() - ptr->GetStat(&T::Stats::created_at));
+  T::ToString(*ptr, add_field);
+  return out;
 }
 
 template <typename T>

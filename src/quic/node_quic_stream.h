@@ -18,6 +18,7 @@ namespace node {
 namespace quic {
 
 class QuicSession;
+class QuicStream;
 class QuicApplication;
 
 enum QuicStreamHeaderFlags : uint32_t {
@@ -65,6 +66,14 @@ struct QuicStreamStats {
 };
 #undef V
 
+struct QuicStreamStatsTraits {
+  using Stats = QuicStreamStats;
+  using Base = QuicStream;
+
+  template <typename Fn>
+  static void ToString(const QuicStream& ptr, Fn&& add_field);
+};
+
 // QuicHeader is a base class for implementing QUIC application
 // specific headers. Each type of QUIC application may have
 // different internal representations for a header name+value
@@ -72,8 +81,7 @@ struct QuicStreamStats {
 // per stream must create a specialization of the Header class.
 class QuicHeader : public MemoryRetainer {
  public:
-  QuicHeader() {}
-
+  QuicHeader() = default;
   virtual ~QuicHeader() {}
   virtual v8::MaybeLocal<v8::String> GetName(QuicApplication* app) const = 0;
   virtual v8::MaybeLocal<v8::String> GetValue(QuicApplication* app) const = 0;
@@ -84,7 +92,7 @@ class QuicHeader : public MemoryRetainer {
   // (including the name and value)
   virtual size_t length() const = 0;
 
-  inline std::string ToString();
+  inline std::string ToString() const;
 };
 
 enum QuicStreamStates : uint32_t {
@@ -198,7 +206,7 @@ enum QuicStreamOrigin {
 class QuicStream : public AsyncWrap,
                    public bob::SourceImpl<ngtcp2_vec>,
                    public StreamBase,
-                   public StatsBase<QuicStreamStats> {
+                   public StatsBase<QuicStreamStatsTraits> {
  public:
   static void Initialize(
       Environment* env,
@@ -380,15 +388,6 @@ class QuicStream : public AsyncWrap,
   size_t current_headers_length_ = 0;
 
   ListNode<QuicStream> stream_queue_;
-
-  class StatsDebug {
-   public:
-    StatsDebug(QuicStream* stream) : stream_(stream) {}
-    std::string ToString();
-   private:
-    QuicStream* stream_;
-  };
-
  public:
   // Linked List of QuicStream objects
   using Queue = ListHead<QuicStream, &QuicStream::stream_queue_>;

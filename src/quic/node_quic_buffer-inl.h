@@ -54,8 +54,8 @@ void QuicBufferChunk::Done(int status) {
 QuicBuffer::QuicBuffer(QuicBuffer&& src) noexcept
   : head_(src.head_),
     tail_(src.tail_),
-    length_(src.length_),
-    ended_(src.ended_) {
+    ended_(src.ended_),
+    length_(src.length_) {
   root_ = std::move(src.root_);
   src.head_ = nullptr;
   src.tail_ = nullptr;

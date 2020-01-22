@@ -70,6 +70,14 @@ struct QuicSocketStats {
 };
 #undef V
 
+struct QuicSocketStatsTraits {
+  using Stats = QuicSocketStats;
+  using Base = QuicSocket;
+
+  template <typename Fn>
+  static void ToString(const QuicSocket& ptr, Fn&& add_field);
+};
+
 class QuicSocket;
 class QuicEndpoint;
 
@@ -244,7 +252,7 @@ class QuicEndpoint : public BaseObject,
 class QuicSocket : public AsyncWrap,
                    public QuicEndpointListener,
                    public mem::NgLibMemoryManager<QuicSocket, ngtcp2_mem>,
-                   public StatsBase<QuicSocketStats> {
+                   public StatsBase<QuicSocketStatsTraits> {
  public:
   static void Initialize(
       Environment* env,
@@ -530,14 +538,6 @@ class QuicSocket : public AsyncWrap,
   };
 
   SendWrap* last_created_send_wrap_ = nullptr;
-
-  class StatsDebug {
-   public:
-    StatsDebug(QuicSocket* socket) : socket_(socket) {}
-    std::string ToString();
-   private:
-    QuicSocket* socket_;
-  };
 
   friend class QuicSocketListener;
 };
