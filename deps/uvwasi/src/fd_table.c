@@ -252,44 +252,57 @@ uvwasi_errno_t uvwasi_fd_table_insert_preopen(uvwasi_t* uvwasi,
 }
 
 
-uvwasi_errno_t uvwasi_fd_table_get(const struct uvwasi_fd_table_t* table,
+uvwasi_errno_t uvwasi_fd_table_get(struct uvwasi_fd_table_t* table,
                                    const uvwasi_fd_t id,
                                    struct uvwasi_fd_wrap_t** wrap,
                                    uvwasi_rights_t rights_base,
                                    uvwasi_rights_t rights_inheriting) {
-  struct uvwasi_fd_wrap_t* entry;
   uvwasi_errno_t err;
+
+  if (table == NULL)
+    return UVWASI_EINVAL;
+
+  uv_rwlock_wrlock(&table->rwlock);
+  err = uvwasi_fd_table_get_nolock(table,
+                                   id,
+                                   wrap,
+                                   rights_base,
+                                   rights_inheriting);
+  uv_rwlock_wrunlock(&table->rwlock);
+  return err;
+}
+
+
+/* uvwasi_fd_table_get_nolock() retrieves a file descriptor and locks its mutex,
+   but does not lock the file descriptor table like uvwasi_fd_table_get() does.
+*/
+uvwasi_errno_t uvwasi_fd_table_get_nolock(struct uvwasi_fd_table_t* table,
+                                          const uvwasi_fd_t id,
+                                          struct uvwasi_fd_wrap_t** wrap,
+                                          uvwasi_rights_t rights_base,
+                                          uvwasi_rights_t rights_inheriting) {
+  struct uvwasi_fd_wrap_t* entry;
 
   if (table == NULL || wrap == NULL)
     return UVWASI_EINVAL;
 
-  uv_rwlock_rdlock((uv_rwlock_t *)&table->rwlock);
-
-  if (id >= table->size) {
-    err = UVWASI_EBADF;
-    goto exit;
-  }
+  if (id >= table->size)
+    return UVWASI_EBADF;
 
   entry = table->fds[id];
 
-  if (entry == NULL || entry->id != id) {
-    err = UVWASI_EBADF;
-    goto exit;
-  }
+  if (entry == NULL || entry->id != id)
+    return UVWASI_EBADF;
 
   /* Validate that the fd has the necessary rights. */
   if ((~entry->rights_base & rights_base) != 0 ||
       (~entry->rights_inheriting & rights_inheriting) != 0) {
-    err = UVWASI_ENOTCAPABLE;
-    goto exit;
+    return UVWASI_ENOTCAPABLE;
   }
 
   uv_mutex_lock(&entry->mutex);
   *wrap = entry;
-  err = UVWASI_ESUCCESS;
-exit:
-  uv_rwlock_rdunlock((uv_rwlock_t *)&table->rwlock);
-  return err;
+  return UVWASI_ESUCCESS;
 }
 
 
@@ -388,4 +401,22 @@ uvwasi_errno_t uvwasi_fd_table_renumber(struct uvwasi_s* uvwasi,
 exit:
   uv_rwlock_wrunlock(&table->rwlock);
   return err;
+}
+
+
+uvwasi_errno_t uvwasi_fd_table_lock(struct uvwasi_fd_table_t* table) {
+  if (table == NULL)
+    return UVWASI_EINVAL;
+
+  uv_rwlock_wrlock(&table->rwlock);
+  return UVWASI_ESUCCESS;
+}
+
+
+uvwasi_errno_t uvwasi_fd_table_unlock(struct uvwasi_fd_table_t* table) {
+  if (table == NULL)
+    return UVWASI_EINVAL;
+
+  uv_rwlock_wrunlock(&table->rwlock);
+  return UVWASI_ESUCCESS;
 }
