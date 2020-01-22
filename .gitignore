@@ -33,6 +33,7 @@
 /doc/api.xml
 /node
 /node_g
+/gon-config.json
 /*.exe
 /*.swp
 /out
