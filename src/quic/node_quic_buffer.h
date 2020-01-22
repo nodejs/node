@@ -207,7 +207,7 @@ class QuicBuffer : public bob::SourceImpl<ngtcp2_vec>,
 
  protected:
   int DoPull(
-      Next next,
+      bob::Next<ngtcp2_vec> next,
       int options,
       ngtcp2_vec* data,
       size_t count,

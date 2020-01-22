@@ -332,7 +332,7 @@ class QuicStream : public AsyncWrap,
 
  protected:
   int DoPull(
-      Next next,
+      bob::Next<ngtcp2_vec> next,
       int options,
       ngtcp2_vec* data,
       size_t count,

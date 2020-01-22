@@ -611,7 +611,7 @@ ssize_t Http3Application::ReadData(
       int status,
       const ngtcp2_vec* data,
       size_t count,
-      QuicStream::Done done) {
+      bob::Done done) {
     CHECK_LE(count, veccnt);
 
     switch (status) {

@@ -65,25 +65,27 @@ enum Options : int {
 // buffers and push those instead. If it allocates
 // its own, it can send a Done function that the
 // Sink will call when it is done consuming the data.
+using Done = std::function<void(size_t)>;
+template <typename T>
+using Next = std::function<void(int, const T*, size_t count, Done done)>;
+
 template <typename T>
 class Source {
  public:
-  using Done = std::function<void(size_t)>;
-  using Next = std::function<void(int, const T*, size_t count, Done done)>;
-
   virtual int Pull(
-      Next next,
+      Next<T> next,
       int options,
       T* data,
       size_t count,
       size_t max_count_hint = kMaxCountHint) = 0;
 };
 
+
 template <typename T>
 class SourceImpl : public Source<T> {
  public:
   int Pull(
-      Next next,
+      Next<T> next,
       int options,
       T* data,
       size_t count,
@@ -93,7 +95,7 @@ class SourceImpl : public Source<T> {
 
  protected:
   virtual int DoPull(
-      Next next,
+      Next<T> next,
       int options,
       T* data,
       size_t count,

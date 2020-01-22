@@ -10,7 +10,7 @@ namespace bob {
 
 template <typename T>
 int SourceImpl<T>::Pull(
-    Next next,
+    Next<T> next,
     int options,
     T* data,
     size_t count,

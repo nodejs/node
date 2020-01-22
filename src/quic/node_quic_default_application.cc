@@ -125,7 +125,7 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
       int status,
       const ngtcp2_vec* data,
       size_t count,
-      QuicStream::Done done) {
+      bob::Done done) {
     switch (status) {
       case bob::Status::STATUS_BLOCK:
         // Fall through

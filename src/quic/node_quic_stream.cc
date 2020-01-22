@@ -359,7 +359,7 @@ void QuicStream::ReceiveData(
 }
 
 int QuicStream::DoPull(
-    Next next,
+    bob::Next<ngtcp2_vec> next,
     int options,
     ngtcp2_vec* data,
     size_t count,
