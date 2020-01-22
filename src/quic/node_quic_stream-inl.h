@@ -148,6 +148,10 @@ void QuicStream::Unschedule() {
   stream_queue_.Remove();
 }
 
+std::string QuicHeader::ToString() {
+  return name() + " = " + value();
+}
+
 }  // namespace quic
 }  // namespace node
 

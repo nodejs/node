@@ -83,6 +83,8 @@ class QuicHeader : public MemoryRetainer {
   // Returns the total length of the header in bytes
   // (including the name and value)
   virtual size_t length() const = 0;
+
+  inline std::string ToString();
 };
 
 enum QuicStreamStates : uint32_t {

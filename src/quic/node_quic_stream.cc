@@ -16,6 +16,7 @@
 #include <array>
 #include <algorithm>
 #include <limits>
+#include <string>
 
 namespace node {
 
@@ -101,7 +102,6 @@ void QuicStream::Acknowledge(uint64_t offset, size_t datalen) {
 // While not all QUIC applications will support headers, QuicStream
 // includes basic, generic support for storing them.
 bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
-  Debug(this, "Header Added");
   size_t len = header->length();
   QuicApplication* app = session()->application();
   // We cannot add the header if we've either reached
@@ -113,6 +113,7 @@ bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
   }
 
   current_headers_length_ += header->length();
+  Debug(this, "Header - %s", header->ToString().c_str());
   headers_.emplace_back(std::move(header));
   return true;
 }
