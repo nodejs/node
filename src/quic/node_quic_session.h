@@ -46,12 +46,6 @@ typedef void(*ConnectionIDStrategy)(
     ngtcp2_cid* cid,
     size_t cidlen);
 
-typedef void(*StatelessResetTokenStrategy)(
-    QuicSession* session,
-    const QuicCID& cid,
-    uint8_t* token,
-    size_t tokenlen);
-
 typedef void(*PreferredAddressStrategy)(
     QuicSession* session,
     const QuicPreferredAddress& preferred_address);
@@ -91,14 +85,12 @@ class QuicSessionConfig : public ngtcp2_settings {
 
   // Generates the stateless reset token for the settings_
   inline void GenerateStatelessResetToken(
-      StatelessResetTokenStrategy strategy,
       QuicSession* session,
       const QuicCID& cid);
 
   // If the preferred address is set, generates the associated tokens
   inline void GeneratePreferredAddressToken(
       ConnectionIDStrategy connection_id_strategy,
-      StatelessResetTokenStrategy stateless_reset_strategy,
       QuicSession* session,
       QuicCID* pscid);
 
@@ -1015,8 +1007,6 @@ class QuicSession : public AsyncWrap,
 
   inline void set_connection_id_strategy(
       ConnectionIDStrategy strategy);
-  inline void set_stateless_reset_token_strategy(
-      StatelessResetTokenStrategy strategy);
   inline void set_preferred_address_strategy(
       PreferredAddressStrategy strategy);
 
@@ -1077,12 +1067,6 @@ class QuicSession : public AsyncWrap,
         QuicSession* session,
         ngtcp2_cid* cid,
         size_t cidlen);
-
-  static void CryptoStatelessResetTokenStrategy(
-        QuicSession* session,
-        const QuicCID& cid,
-        uint8_t* token,
-        size_t tokenlen);
 
   // Initialize the QuicSession as a server
   void InitServer(
@@ -1415,7 +1399,6 @@ class QuicSession : public AsyncWrap,
   size_t connection_close_limit_ = 1;
 
   ConnectionIDStrategy connection_id_strategy_ = nullptr;
-  StatelessResetTokenStrategy stateless_reset_strategy_ = nullptr;
   PreferredAddressStrategy preferred_address_strategy_ = nullptr;
 
   QuicSessionListener* listener_ = nullptr;

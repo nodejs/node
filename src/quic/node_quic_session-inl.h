@@ -21,30 +21,26 @@ using crypto::SecureContext;
 namespace quic {
 
 void QuicSessionConfig::GenerateStatelessResetToken(
-    StatelessResetTokenStrategy strategy,
     QuicSession* session,
     const QuicCID& cid) {
   transport_params.stateless_reset_token_present = 1;
-  strategy(
-      session,
-      cid,
-      transport_params.stateless_reset_token,
-      NGTCP2_STATELESS_RESET_TOKENLEN);
+  StatelessResetToken(
+    transport_params.stateless_reset_token,
+    session->socket()->session_reset_secret(),
+    cid);
 }
 
 void QuicSessionConfig::GeneratePreferredAddressToken(
     ConnectionIDStrategy connection_id_strategy,
-    StatelessResetTokenStrategy stateless_reset_strategy,
     QuicSession* session,
     QuicCID* pscid) {
-
   connection_id_strategy(session, pscid->cid(), kScidLen);
-  stateless_reset_strategy(
-      session,
-      *pscid,
-      transport_params.preferred_address.stateless_reset_token,
-      NGTCP2_STATELESS_RESET_TOKENLEN);
   transport_params.preferred_address.cid = **pscid;
+
+  StatelessResetToken(
+    transport_params.preferred_address.stateless_reset_token,
+    session->socket()->session_reset_secret(),
+    *pscid);
 }
 
 void QuicSessionConfig::set_original_connection_id(const QuicCID& ocid) {
@@ -374,15 +370,6 @@ void QuicSession::StartGracefulClose() {
 void QuicSession::set_connection_id_strategy(ConnectionIDStrategy strategy) {
   CHECK_NOT_NULL(strategy);
   connection_id_strategy_ = strategy;
-}
-
-// The stateless reset token strategy is a function that generates
-// stateless reset tokens. By default these are cryptographically
-// derived by the CID.
-void QuicSession::set_stateless_reset_token_strategy(
-    StatelessResetTokenStrategy strategy) {
-  CHECK_NOT_NULL(strategy);
-  stateless_reset_strategy_ = strategy;
 }
 
 void QuicSession::set_preferred_address_strategy(

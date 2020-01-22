@@ -636,7 +636,6 @@ bool QuicSocket::SendStatelessReset(
     return false;
   constexpr static size_t kRandlen = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
   constexpr static size_t kMinStatelessResetLen = 41;
-  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t random[kRandlen];
 
   // Per the QUIC spec, we need to protect against sending too
@@ -658,7 +657,7 @@ bool QuicSocket::SendStatelessReset(
   if (pktlen < kMinStatelessResetLen)
     return false;
 
-  GenerateResetToken(token, reset_token_secret_, cid);
+  StatelessResetToken token(reset_token_secret_, cid);
   EntropySource(random, kRandlen);
 
   auto packet = QuicPacket::Create("stateless reset", pktlen);
@@ -666,7 +665,7 @@ bool QuicSocket::SendStatelessReset(
       ngtcp2_pkt_write_stateless_reset(
         reinterpret_cast<uint8_t*>(packet->data()),
         NGTCP2_MAX_PKTLEN_IPV4,
-        token,
+        const_cast<uint8_t*>(token.data()),
         random,
         kRandlen);
     if (nwrite < static_cast<ssize_t>(kMinStatelessResetLen))

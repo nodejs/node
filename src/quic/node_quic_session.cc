@@ -709,26 +709,6 @@ void QuicSession::RandomConnectionIDStrategy(
     EntropySource(cid->data, cidlen);
 }
 
-// Generates a stateless reset token as a function of the reset
-// secret (generated randomly by default or set by config option)
-// and the provided cid. The stateless reset is generated
-// cryptographically and can be recreated later without storing
-// additional state.
-void QuicSession::CryptoStatelessResetTokenStrategy(
-    QuicSession* session,
-    const QuicCID& cid,
-    uint8_t* token,
-    size_t tokenlen) {
-  // For the current time, we limit stateless reset token lengths to
-  // NGTCP2_STATELESS_RESET_TOKENLEN. The tokenlen argument is largely
-  // for future proofing in case that restriction changes.
-  CHECK_EQ(tokenlen, NGTCP2_STATELESS_RESET_TOKENLEN);
-  CHECK(GenerateResetToken(
-      token,
-      session->socket()->session_reset_secret(),
-      cid));
-}
-
 // Check required capabilities were not excluded from the OpenSSL build:
 // - OPENSSL_NO_SSL_TRACE excludes SSL_trace()
 // - OPENSSL_NO_STDIO excludes BIO_new_fp()
@@ -1352,7 +1332,6 @@ QuicSession::QuicSession(
     state_(env()->isolate(), IDX_QUIC_SESSION_STATE_COUNT) {
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
-  set_stateless_reset_token_strategy(CryptoStatelessResetTokenStrategy);
   set_preferred_address_strategy(preferred_address_strategy);
   crypto_context_.reset(new QuicCryptoContext(this, ctx, side, options));
   application_.reset(SelectApplication(this));
@@ -1630,7 +1609,7 @@ int QuicSession::GetNewConnectionID(
   CHECK_NOT_NULL(connection_id_strategy_);
   connection_id_strategy_(this, cid, cidlen);
   QuicCID cid_(cid);
-  stateless_reset_strategy_(this, cid_, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  StatelessResetToken(token, socket()->session_reset_secret(), cid_);
   AssociateCID(cid_);
   return 0;
 }
@@ -2629,16 +2608,8 @@ void QuicSession::InitServer(
 
   connection_id_strategy_(this, scid_.cid(), kScidLen);
 
-  config.GenerateStatelessResetToken(
-      stateless_reset_strategy_,
-      this,
-      scid_);
-
-  config.GeneratePreferredAddressToken(
-      connection_id_strategy_,
-      stateless_reset_strategy_,
-      this,
-      &pscid_);
+  config.GenerateStatelessResetToken(this, scid_);
+  config.GeneratePreferredAddressToken(connection_id_strategy_, this, &pscid_);
 
   QuicPath path(local_addr, remote_address_);
 

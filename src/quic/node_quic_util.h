@@ -294,11 +294,21 @@ class Timer final : public MemoryRetainer {
 
 using TimerPointer = DeleteFnPtr<Timer, Timer::Free>;
 
-class StatelessResetToken : public MemoryRetainer{
+class StatelessResetToken : public MemoryRetainer {
  public:
-  explicit StatelessResetToken(const uint8_t* token) : token_(token) {}
+  inline StatelessResetToken(
+      uint8_t* token,
+      const uint8_t* secret,
+      const QuicCID& cid);
+  inline StatelessResetToken(
+      const uint8_t* secret,
+      const QuicCID& cid);
+  explicit StatelessResetToken(
+      const uint8_t* token)
+      : token_(token) {}
 
   inline std::string ToHex() const;
+  const uint8_t* data() const { return token_; }
 
   struct Hash {
     inline size_t operator()(const StatelessResetToken& token) const;
@@ -315,6 +325,7 @@ class StatelessResetToken : public MemoryRetainer{
   SET_SELF_SIZE(StatelessResetToken)
 
  private:
+  uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN];
   const uint8_t* token_;
 };
 

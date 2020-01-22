@@ -274,6 +274,20 @@ bool QuicPreferredAddress::ResolvePreferredAddress(
       req->addrinfo != nullptr;
 }
 
+StatelessResetToken::StatelessResetToken(
+    uint8_t* token,
+    const uint8_t* secret,
+    const QuicCID& cid) : token_(token) {
+  GenerateResetToken(token, secret, cid);
+}
+
+StatelessResetToken::StatelessResetToken(
+    const uint8_t* secret,
+    const QuicCID& cid)
+    : token_(buf_) {
+  GenerateResetToken(buf_, secret, cid);
+}
+
 std::string StatelessResetToken::ToHex() const {
   std::vector<char> dest(NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1);
   dest[dest.size() - 1] = '\0';
