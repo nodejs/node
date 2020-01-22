@@ -1436,7 +1436,7 @@ napiVersion: 1
 ```C
 NAPI_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
-                                             uint32_t* result););
+                                             uint32_t* result);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
