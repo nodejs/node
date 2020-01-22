@@ -8,4 +8,13 @@ if [ "X$SIGN" == "X" ]; then
   exit 0
 fi
 
-codesign -s "$SIGN" "$PKGDIR"/bin/node
+# All macOS executable binaries in the bundle must be codesigned with the
+# hardened runtime enabled.
+# See https://github.com/nodejs/node/pull/31459
+
+codesign \
+  --sign "$SIGN" \
+  --entitlements tools/osx-entitlements.plist \
+  --options runtime \
+  --timestamp \
+  "$PKGDIR"/bin/node
