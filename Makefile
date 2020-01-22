@@ -1003,6 +1003,7 @@ $(PKG): release-only
 		--resources $(MACOSOUTDIR)/installer/productbuild/Resources \
 		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
+	bash tools/osx-notarize.sh $(FULLVERSION)
 
 .PHONY: pkg
 # Builds the macOS installer for releases.
