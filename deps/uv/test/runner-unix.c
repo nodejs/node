@@ -371,8 +371,8 @@ int process_copy_output(process_info_t* p, FILE* stream) {
   }
 
   /* TODO: what if the line is longer than buf */
-  while (fgets(buf, sizeof(buf), p->stdout_file) != NULL)
-    print_lines(buf, strlen(buf), stream);
+  while ((r = fread(buf, 1, sizeof(buf), p->stdout_file)) != 0)
+    print_lines(buf, r, stream);
 
   if (ferror(p->stdout_file)) {
     perror("read");
@@ -398,7 +398,8 @@ int process_read_last_line(process_info_t *p,
   buffer[0] = '\0';
 
   while (fgets(buffer, buffer_len, p->stdout_file) != NULL) {
-    for (ptr = buffer; *ptr && *ptr != '\r' && *ptr != '\n'; ptr++);
+    for (ptr = buffer; *ptr && *ptr != '\r' && *ptr != '\n'; ptr++)
+      ;
     *ptr = '\0';
   }
 
