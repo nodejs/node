@@ -990,7 +990,7 @@ static uint64_t uv__read_proc_meminfo(const char* what) {
   rc = 0;
   fd = uv__open_cloexec("/proc/meminfo", O_RDONLY);
 
-  if (fd == -1)
+  if (fd < 0)
     return 0;
 
   n = read(fd, buf, sizeof(buf) - 1);
