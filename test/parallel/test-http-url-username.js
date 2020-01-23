@@ -8,14 +8,14 @@ const MakeDuplexPair = require('../common/duplexpair');
 
 {
   const url = new URL('http://localhost');
-  url.username = 'test@test';
-  url.password = '123456';
+  url.username = 'test@test"';
+  url.password = '123456^';
 
   const server = http.createServer(
     common.mustCall((req, res) => {
       assert.strictEqual(
         req.headers.authorization,
-        'Basic ' + Buffer.from('test@test:123456').toString('base64'));
+        'Basic ' + Buffer.from('test@test":123456^').toString('base64'));
       res.statusCode = 200;
       res.end();
     }));
