@@ -138,6 +138,7 @@ void Initialize(Local<Object> target,
 #define QUIC_CONSTANTS(V)                                                      \
   V(DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL)                                        \
   V(DEFAULT_RETRYTOKEN_EXPIRATION)                                             \
+  V(DEFAULT_MAX_CONNECTIONS)                                                   \
   V(DEFAULT_MAX_CONNECTIONS_PER_HOST)                                          \
   V(DEFAULT_MAX_STATELESS_RESETS_PER_HOST)                                     \
   V(IDX_HTTP3_QPACK_MAX_TABLE_CAPACITY)                                        \

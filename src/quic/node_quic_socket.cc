@@ -246,6 +246,7 @@ QuicSocket::QuicSocket(
     Environment* env,
     Local<Object> wrap,
     uint64_t retry_token_expiration,
+    size_t max_connections,
     size_t max_connections_per_host,
     size_t max_stateless_resets_per_host,
     uint32_t options,
@@ -256,6 +257,7 @@ QuicSocket::QuicSocket(
     StatsBase(env, wrap),
     alloc_info_(MakeAllocator()),
     options_(options),
+    max_connections_(max_connections),
     max_connections_per_host_(max_connections_per_host),
     max_stateless_resets_per_host_(max_stateless_resets_per_host),
     retry_token_expiration_(retry_token_expiration),
@@ -777,6 +779,15 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     initial_connection_close = NGTCP2_SERVER_BUSY;
   }
 
+  // Check to see if the number of connections total for this QuicSocket
+  // has been exceeded. If the count has been exceeded, shutdown the connection
+  // immediately after the initial keys are installed.
+  if (sessions_.size() >= max_connections_) {
+    Debug(this, "Connection count exceeded");
+    initial_connection_close = NGTCP2_SERVER_BUSY;
+    IncrementStat(&QuicSocketStats::server_busy_count);
+  }
+
   // Check to see if the number of connections for this peer has been exceeded.
   // If the count has been exceeded, shutdown the connection immediately
   // after the initial keys are installed.
@@ -990,13 +1001,15 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t options;
   uint32_t retry_token_expiration;
+  uint32_t max_connections;
   uint32_t max_connections_per_host;
   uint32_t max_stateless_resets_per_host;
 
   if (!args[0]->Uint32Value(env->context()).To(&options) ||
       !args[1]->Uint32Value(env->context()).To(&retry_token_expiration) ||
-      !args[2]->Uint32Value(env->context()).To(&max_connections_per_host) ||
-      !args[3]->Uint32Value(env->context())
+      !args[2]->Uint32Value(env->context()).To(&max_connections) ||
+      !args[3]->Uint32Value(env->context()).To(&max_connections_per_host) ||
+      !args[4]->Uint32Value(env->context())
           .To(&max_stateless_resets_per_host)) {
     return;
   }
@@ -1004,7 +1017,7 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
   CHECK_LE(retry_token_expiration, MAX_RETRYTOKEN_EXPIRATION);
 
   const uint8_t* session_reset_secret = nullptr;
-  if (args[5]->IsArrayBufferView()) {
+  if (args[6]->IsArrayBufferView()) {
     ArrayBufferViewContents<uint8_t> buf(args[5].As<ArrayBufferView>());
     CHECK_EQ(buf.length(), kTokenSecretLen);
     session_reset_secret = buf.data();
@@ -1014,12 +1027,13 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
       env,
       args.This(),
       retry_token_expiration,
+      max_connections,
       max_connections_per_host,
       max_stateless_resets_per_host,
       options,
-      args[4]->IsTrue() ? QlogMode::kEnabled : QlogMode::kDisabled,
+      args[5]->IsTrue() ? QlogMode::kEnabled : QlogMode::kDisabled,
       session_reset_secret,
-      args[5]->IsTrue());
+      args[7]->IsTrue());
 }
 
 void QuicSocketAddEndpoint(const FunctionCallbackInfo<Value>& args) {

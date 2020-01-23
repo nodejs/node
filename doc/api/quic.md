@@ -257,6 +257,8 @@ added: REPLACEME
       respectively.
     * `ipv6Only` {boolean}
   * `lookup` {Function} A custom DNS lookup function. Default `dns.lookup()`.
+  * `maxConnections` {number} The maximum number of total active inbound
+    connections.
   * `maxConnectionsPerHost` {number} The maximum number of inbound connections
     allowed per remote host. Default: `100`.
   * `maxStatelessResetsPerHost` {number} The maximum number of stateless

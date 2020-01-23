@@ -268,6 +268,7 @@ class QuicSocket : public AsyncWrap,
       uint64_t retry_token_expiration,
       // To prevent malicious clients from opening too many concurrent
       // connections, we limit the maximum number per remote sockaddr.
+      size_t max_connections,
       size_t max_connections_per_host,
       size_t max_stateless_resets_per_host
           = DEFAULT_MAX_STATELESS_RESETS_PER_HOST,
@@ -470,7 +471,8 @@ class QuicSocket : public AsyncWrap,
   uint32_t options_;
   uint32_t server_options_;
 
-  size_t max_connections_per_host_;
+  size_t max_connections_ = DEFAULT_MAX_CONNECTIONS;
+  size_t max_connections_per_host_ = DEFAULT_MAX_CONNECTIONS_PER_HOST;
   size_t current_ngtcp2_memory_ = 0;
   size_t max_stateless_resets_per_host_ = DEFAULT_MAX_STATELESS_RESETS_PER_HOST;
 

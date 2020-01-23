@@ -31,6 +31,7 @@ constexpr size_t kScidLen = NGTCP2_MAX_CIDLEN;
 constexpr size_t kTokenRandLen = 16;
 constexpr size_t kTokenSecretLen = 16;
 
+constexpr uint64_t DEFAULT_MAX_CONNECTIONS = kMaxSafeJsInteger;
 constexpr uint64_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
 constexpr uint64_t NGTCP2_APP_NOERROR = 0xff00;
 constexpr uint64_t MIN_RETRYTOKEN_EXPIRATION = 1;
