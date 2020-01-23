@@ -701,13 +701,13 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   size_t length = 0;
   size_t i;
-  size_t nonzero_i = 0;
-  size_t nonzero_count = 0;
+  size_t nonempty_i = 0;
+  size_t nonempty_count = 0;
   for (i = 0; i < count; i++) {
     length += bufs[i].len;
     if (bufs[i].len > 0) {
-      nonzero_i = i;
-      nonzero_count += 1;
+      nonempty_i = i;
+      nonempty_count += 1;
     }
   }
 
@@ -763,7 +763,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
   // of data supplied to end() there is no sense allocating
   // and copying it when it could just be used.
 
-  if (nonzero_count != 1) {
+  if (nonempty_count != 1) {
     data = env()->AllocateManaged(length);
     size_t offset = 0;
     for (i = 0; i < count; i++) {
@@ -773,10 +773,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
     written = SSL_write(ssl_.get(), data.data(), length);
   } else {
     // Only one buffer: try to write directly, only store if it fails
-    written = SSL_write(ssl_.get(), bufs[nonzero_i].base, bufs[nonzero_i].len);
+    written = SSL_write(ssl_.get(), bufs[nonempty_i].base, bufs[nonempty_i].len);
     if (written == -1) {
       data = env()->AllocateManaged(length);
-      memcpy(data.data(), bufs[nonzero_i].base, bufs[nonzero_i].len);
+      memcpy(data.data(), bufs[nonempty_i].base, bufs[nonempty_i].len);
     }
   }
 
