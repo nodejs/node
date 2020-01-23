@@ -17,15 +17,15 @@ namespace node {
 class SocketAddress : public MemoryRetainer {
  public:
   struct Hash {
-    inline size_t operator()(const sockaddr* addr) const;
-    inline size_t operator()(const SocketAddress& addr) const;
+    size_t operator()(const sockaddr* addr) const;
+    size_t operator()(const SocketAddress& addr) const;
   };
 
   struct Compare {
-    inline bool operator()(
+    bool operator()(
         const sockaddr* laddr,
         const sockaddr* raddr) const;
-    inline bool operator()(
+    bool operator()(
         const SocketAddress& laddr,
         const SocketAddress& raddr) const;
   };
@@ -34,7 +34,7 @@ class SocketAddress : public MemoryRetainer {
 
   inline static bool is_numeric_host(const char* hostname, int family);
 
-  inline static sockaddr_storage* ToSockAddr(
+  static sockaddr_storage* ToSockAddr(
       int32_t family,
       const char* host,
       uint32_t port,
@@ -52,7 +52,7 @@ class SocketAddress : public MemoryRetainer {
 
   inline static size_t GetLength(const sockaddr_storage* addr);
 
-  SocketAddress() {}
+  SocketAddress() = default;
 
   inline explicit SocketAddress(const sockaddr* addr);
 
@@ -69,51 +69,43 @@ class SocketAddress : public MemoryRetainer {
     return reinterpret_cast<const sockaddr*>(&address_);
   }
 
-  size_t GetLength() const {
+  sockaddr* storage() {
+    return reinterpret_cast<sockaddr*>(&address_);
+  };
+
+  size_t length() const {
     return GetLength(&address_);
   }
 
-  inline int GetFamily() const;
+  inline int family() const;
 
-  inline std::string GetAddress() const;
+  inline std::string address() const;
 
-  inline int GetPort() const;
+  inline int port() const;
 
   inline void Update(uint8_t* data, size_t len);
 
-  inline static SocketAddress* FromSockName(
-      const uv_tcp_t* handle,
+  template <typename T>
+  static SocketAddress* FromSockName(
+      const T* handle,
       SocketAddress* addr = nullptr);
 
-  inline static SocketAddress* FromSockName(
-      const uv_tcp_t& handle,
+  template <typename T>
+  static SocketAddress* FromSockName(
+      const T& handle,
       SocketAddress* addr = nullptr);
 
-  inline static SocketAddress* FromSockName(
-      const uv_udp_t* handle,
+  template <typename T>
+  static SocketAddress* FromPeerName(
+      const T* handle,
       SocketAddress* addr = nullptr);
 
-  inline static SocketAddress* FromSockName(
-      const uv_udp_t& handle,
+  template <typename T>
+  static SocketAddress* FromPeerName(
+      const T& handle,
       SocketAddress* addr = nullptr);
 
-  inline static SocketAddress* FromPeerName(
-      const uv_tcp_t* handle,
-      SocketAddress* addr = nullptr);
-
-  inline static SocketAddress* FromPeerName(
-      const uv_tcp_t& handle,
-      SocketAddress* addr = nullptr);
-
-  inline static SocketAddress* FromPeerName(
-      const uv_udp_t* handle,
-      SocketAddress* addr = nullptr);
-
-  inline static SocketAddress* FromPeerName(
-      const uv_udp_t& handle,
-      SocketAddress* addr = nullptr);
-
-  inline static SocketAddress* New(
+  static SocketAddress* New(
       const char* host,
       uint32_t port,
       int32_t family = AF_INET,
@@ -123,32 +115,18 @@ class SocketAddress : public MemoryRetainer {
       Environment* env,
       v8::Local<v8::Object> obj = v8::Local<v8::Object>()) const;
 
+  inline std::string ToString() const;
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(SocketAddress)
   SET_SELF_SIZE(SocketAddress)
 
+  template <typename T>
+  using Map = std::unordered_map<SocketAddress, T, Hash, Compare>;
+
  private:
-  template <typename T, typename F>
-  static SocketAddress* FromUVHandle(
-      F fn,
-      T* handle,
-      SocketAddress* addr = nullptr);
-
-  template <typename T, typename F>
-  static SocketAddress* FromUVHandle(
-      F fn,
-      const T* handle,
-      SocketAddress* addr = nullptr);
-
   sockaddr_storage address_;
 };
-
-template <typename T>
-using SocketAddressMap =
-    std::unordered_map<
-        SocketAddress, T,
-        SocketAddress::Hash,
-        SocketAddress::Compare>;
 
 }  // namespace node
 

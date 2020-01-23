@@ -2059,7 +2059,7 @@ void QuicSession::UsePreferredAddressStrategy(
     const QuicPreferredAddress& preferred_address) {
   static constexpr int idx =
       IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED;
-  int family = session->socket()->local_address().GetFamily();
+  int family = session->socket()->local_address().family();
   if (preferred_address.Use(family)) {
     Debug(session, "Using server preferred address");
     // Emit only if the QuicSession has a usePreferredAddress handler
@@ -2088,12 +2088,10 @@ bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
   RecordTimestamp(&QuicSessionStats::sent_at);
   ScheduleRetransmit();
 
-  Debug(this, "Sending %" PRIu64 " bytes to %s:%d from %s:%d",
+  Debug(this, "Sending %" PRIu64 " bytes to %s from %s",
         packet->length(),
-        remote_address_.GetAddress().c_str(),
-        remote_address_.GetPort(),
-        local_address_.GetAddress().c_str(),
-        local_address_.GetPort());
+        remote_address_.ToString().c_str(),
+        local_address_.ToString().c_str());
 
   int err = socket()->SendPacket(
       local_address_,
@@ -2203,7 +2201,7 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
     ngtcp2_addr_init(
         &addr,
         local_address.data(),
-        local_address.GetLength(),
+        local_address.length(),
         nullptr);
     ngtcp2_conn_set_local_addr(connection(), &addr);
   } else {
@@ -2732,11 +2730,9 @@ bool QuicSession::InitClient(
 
   local_address_ = local_addr;
   remote_address_ = remote_addr;
-  Debug(this, "Initializing connection from %s:%d to %s:%d",
-        local_address_.GetAddress().c_str(),
-        local_address_.GetPort(),
-        remote_address_.GetAddress().c_str(),
-        remote_address_.GetPort());
+  Debug(this, "Initializing connection from %s to %s",
+        local_address_.ToString().c_str(),
+        remote_address_.ToString().c_str());
 
   // The maximum packet length is determined largely
   // by the IP version (IPv4 vs IPv6). Packet sizes

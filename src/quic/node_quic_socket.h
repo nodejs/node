@@ -500,11 +500,11 @@ class QuicSocket : public AsyncWrap,
   // value reaches the value of max_connections_per_host_,
   // attempts to create new connections will be ignored
   // until the value falls back below the limit.
-  SocketAddressMap<size_t> addr_counts_;
+  SocketAddress::Map<size_t> addr_counts_;
 
   // Counts the number of stateless resets sent per
   // remote address.
-  SocketAddressMap<size_t> reset_counts_;
+  SocketAddress::Map<size_t> reset_counts_;
 
   StatelessResetToken::Map<QuicSession> token_map_;
 

@@ -350,9 +350,7 @@ void QuicSocket::OnEndpointDone(QuicEndpoint* endpoint) {
 
 void QuicSocket::OnBind(QuicEndpoint* endpoint) {
   const SocketAddress& local_address = endpoint->local_address();
-  Debug(this, "Endpoint %s:%d bound",
-        local_address.GetAddress().c_str(),
-        local_address.GetPort());
+  Debug(this, "Endpoint %s bound", local_address.ToString().c_str());
   RecordTimestamp(&QuicSocketStats::bound_at);
 }
 
@@ -876,12 +874,10 @@ int QuicSocket::SendPacket(
   if (packet->length() == 0)
     return 0;
 
-  Debug(this, "Sending %" PRIu64 " bytes to %s:%d from %s:%d (label: %s)",
+  Debug(this, "Sending %" PRIu64 " bytes to %s from %s (label: %s)",
         packet->length(),
-        remote_addr.GetAddress().c_str(),
-        remote_addr.GetPort(),
-        local_addr.GetAddress().c_str(),
-        local_addr.GetPort(),
+        remote_addr.ToString().c_str(),
+        local_addr.ToString().c_str(),
         packet->diagnostic_label());
 
   // If DiagnosticPacketLoss returns true, it will call Done() internally

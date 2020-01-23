@@ -636,11 +636,11 @@ int UDPWrap::GetSockName(sockaddr* name, int* namelen) {
 }
 
 SocketAddress* UDPWrap::GetPeerName(SocketAddress* addr) {
-  return SocketAddress::FromPeerName(&handle_, addr);
+  return SocketAddress::FromPeerName(handle_, addr);
 }
 
 SocketAddress* UDPWrap::GetSockName(SocketAddress* addr) {
-  return SocketAddress::FromSockName(&handle_, addr);
+  return SocketAddress::FromSockName(handle_, addr);
 }
 
 void UDPWrapBase::RecvStart(const FunctionCallbackInfo<Value>& args) {

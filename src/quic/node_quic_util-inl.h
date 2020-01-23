@@ -24,12 +24,12 @@ QuicPath::QuicPath(
   ngtcp2_addr_init(
       &this->local,
       local.data(),
-      local.GetLength(),
+      local.length(),
       const_cast<SocketAddress*>(&local));
   ngtcp2_addr_init(
       &this->remote,
       remote.data(),
-      remote.GetLength(),
+      remote.length(),
       const_cast<SocketAddress*>(&remote));
 }
 
