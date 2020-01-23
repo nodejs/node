@@ -26,7 +26,6 @@ const assert = require('assert');
 const net = require('net');
 
 const s = new net.Stream();
-let connections = [];
 const N = 10;
 const SIZE = 2E6;
 const buf = Buffer.alloc(SIZE, 'a');
@@ -34,35 +33,35 @@ const buf = Buffer.alloc(SIZE, 'a');
 s.server = new net.Server().listen(0, function() {
   // Create 10 connections
   for (let i = 1; i <= N; i++) {
-    net.connect(this.address().port)
+    net.connect(this.address().port);
   }
 });
 
 s.server.on('connection', () => {
   s.server.getConnections((err, data) => {
     if (data === 10) {
-      // Test that destroy called on a stream with a server only ever decrements the
-      // server connection count once
       disconnect();
     }
-  })
-})
+  });
+});
 
+// Test that destroy called on a stream with a server only ever decrements the
+// server connection count once
 function disconnect() {
   s.server.getConnections((err, data) => {
     assert.strictEqual(data, 10);
     s.destroy();
-  })
+  });
 
   // This is just for s.destroy takes effect.
-  setTimeout(function () {
+  setTimeout(function() {
     s.server.getConnections((err, data) => {
       assert.strictEqual(data, 9);
       s.destroy();
-    })
+    });
     s.server.getConnections((err, data) => {
       assert.strictEqual(data, 9);
-    })
+    });
   }, 20);
 }
 s._server = s.server;
@@ -94,5 +93,5 @@ const server = net.createServer(function(socket) {
 process.on('beforeExit', function() {
   server.getConnections((err, connections) => {
     assert.strictEqual(connections, 0);
-  })
+  });
 });
