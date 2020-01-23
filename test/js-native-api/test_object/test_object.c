@@ -3,6 +3,7 @@
 #include <js_native_api.h>
 #include "../common.h"
 #include <string.h>
+#include "test_null.h"
 
 static int test_value = 3;
 
@@ -493,6 +494,8 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("TestHasProperty", TestHasProperty),
     DECLARE_NAPI_PROPERTY("TestGetProperty", TestGetProperty),
   };
+
+  init_test_null(env, exports);
 
   NAPI_CALL(env, napi_define_properties(
       env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
