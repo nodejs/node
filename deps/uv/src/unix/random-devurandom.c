@@ -37,8 +37,8 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen) {
 
   fd = uv__open_cloexec(path, O_RDONLY);
 
-  if (fd == -1)
-    return UV__ERR(errno);
+  if (fd < 0)
+    return fd;
 
   if (fstat(fd, &s)) {
     uv__close(fd);

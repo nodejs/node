@@ -747,6 +747,8 @@ static void* uv__cf_loop_runner(void* arg) {
                          state->signal_source,
                          *pkCFRunLoopDefaultMode);
 
+  state->loop = NULL;
+
   return NULL;
 }
 
@@ -799,12 +801,13 @@ int uv__cf_loop_signal(uv_loop_t* loop,
 
   uv_mutex_lock(&loop->cf_mutex);
   QUEUE_INSERT_TAIL(&loop->cf_signals, &item->member);
-  uv_mutex_unlock(&loop->cf_mutex);
 
   state = loop->cf_state;
   assert(state != NULL);
   pCFRunLoopSourceSignal(state->signal_source);
   pCFRunLoopWakeUp(state->loop);
+
+  uv_mutex_unlock(&loop->cf_mutex);
 
   return 0;
 }
