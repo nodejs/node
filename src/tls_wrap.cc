@@ -773,7 +773,9 @@ int TLSWrap::DoWrite(WriteWrap* w,
     written = SSL_write(ssl_.get(), data.data(), length);
   } else {
     // Only one buffer: try to write directly, only store if it fails
-    written = SSL_write(ssl_.get(), bufs[nonempty_i].base, bufs[nonempty_i].len);
+    written = 
+    SSL_write(ssl_.get(), bufs[nonempty_i].base, bufs[nonempty_i].len);
+    
     if (written == -1) {
       data = env()->AllocateManaged(length);
       memcpy(data.data(), bufs[nonempty_i].base, bufs[nonempty_i].len);
