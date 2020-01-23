@@ -387,6 +387,7 @@ QuicSocket* QuicSession::socket() const {
 // the application to perform specific handling.
 void QuicSession::StreamDataBlocked(int64_t stream_id) {
   IncrementStat(&QuicSessionStats::block_count);
+  listener_->OnStreamBlocked(stream_id);
 }
 
 // When a server advertises a preferred address in its initial

@@ -1768,6 +1768,14 @@ The callback is invoked with two arguments:
 * `code` {number} The QUIC application error code used to terminate the stream.
 * `family` {number} Identifier of the error code family.
 
+#### Event: `'blocked'`
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the `QuicStream` has been prevented from sending queued data for
+the `QuicStream` due to congestion control.
+
 #### Event: `'close'`
 <!-- YAML
 added: REPLACEME

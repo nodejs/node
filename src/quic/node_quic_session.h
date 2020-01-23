@@ -278,6 +278,7 @@ class QuicSessionListener {
   virtual void OnSessionSilentClose(
       bool stateless_reset,
       QuicError error);
+  virtual void OnStreamBlocked(int64_t stream_id);
   virtual void OnVersionNegotiation(
       uint32_t supported_version,
       const uint32_t* versions,
@@ -324,6 +325,7 @@ class JSQuicSessionListener : public QuicSessionListener {
   void OnUsePreferredAddress(
       int family,
       const QuicPreferredAddress& preferred_address) override;
+  void OnStreamBlocked(int64_t stream_id) override;
   void OnVersionNegotiation(
       uint32_t supported_version,
       const uint32_t* versions,

@@ -255,6 +255,12 @@ void QuicSessionListener::OnSessionTicket(int size, SSL_SESSION* session) {
   }
 }
 
+void QuicSessionListener::OnStreamBlocked(int64_t stream_id) {
+  if (previous_listener_ != nullptr) {
+    previous_listener_->OnStreamBlocked(stream_id);
+  }
+}
+
 void QuicSessionListener::OnSessionSilentClose(
     bool stateless_reset,
     QuicError error) {
@@ -295,6 +301,15 @@ void JSQuicSessionListener::OnKeylog(const char* line, size_t len) {
   // from being freed while the MakeCallback is running.
   BaseObjectPtr<QuicSession> ptr(session());
   session()->MakeCallback(env->quic_on_session_keylog_function(), 1, &line_bf);
+}
+
+void JSQuicSessionListener::OnStreamBlocked(int64_t stream_id) {
+  Environment* env = session()->env();
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
+  stream->MakeCallback(env->quic_on_stream_blocked_function(), 0, nullptr);
 }
 
 void JSQuicSessionListener::OnClientHello(

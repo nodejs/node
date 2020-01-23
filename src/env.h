@@ -461,7 +461,8 @@ constexpr size_t kFsStatsBufferLength =
   V(quic_on_stream_error_function, v8::Function)                               \
   V(quic_on_stream_ready_function, v8::Function)                               \
   V(quic_on_stream_reset_function, v8::Function)                               \
-  V(quic_on_stream_headers_function, v8::Function)
+  V(quic_on_stream_headers_function, v8::Function)                             \
+  V(quic_on_stream_blocked_function, v8::Function)
 #else
 # define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 #endif

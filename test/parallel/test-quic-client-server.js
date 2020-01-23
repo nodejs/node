@@ -159,6 +159,7 @@ server.on('session', common.mustCall((session) => {
     let data = '';
     file.pipe(stream);
     stream.setEncoding('utf8');
+    stream.on('blocked', common.mustNotCall());
     stream.on('data', (chunk) => {
       data += chunk;
 
@@ -315,6 +316,7 @@ server.on('ready', common.mustCall(() => {
     let data = '';
     stream.resume();
     stream.setEncoding('utf8');
+    stream.on('blocked', common.mustNotCall());
     stream.on('data', (chunk) => data += chunk);
     stream.on('finish', common.mustCall());
     stream.on('end', common.mustCall(() => {
