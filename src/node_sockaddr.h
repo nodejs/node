@@ -83,6 +83,21 @@ class SocketAddress : public MemoryRetainer {
 
   inline int port() const;
 
+  // If the SocketAddress is an IPv6 address, returns the
+  // current value of the IPv6 flow label, if set. Otherwise
+  // returns 0.
+  inline uint32_t flow_label() const;
+
+  // If the SocketAddress is an IPv6 address, sets the
+  // current value of the IPv6 flow label. If not an
+  // IPv6 address, set_flow_label is a non-op. It
+  // is important to note that the flow label,
+  // while represented as an uint32_t, the flow
+  // label is strictly limited to 20 bits, and
+  // this will assert if any value larger than
+  // 20-bits is specified.
+  inline void set_flow_label(uint32_t label = 0);
+
   inline void Update(uint8_t* data, size_t len);
 
   template <typename T>

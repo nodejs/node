@@ -20,6 +20,9 @@ TEST(SocketAddress, SocketAddress) {
   CHECK_EQ(addr.address(), "123.123.123.123");
   CHECK_EQ(addr.port(), 443);
 
+  addr.set_flow_label(12345);
+  CHECK_EQ(addr.flow_label(), 0);
+
   CHECK(!SocketAddress::Compare()(addr, addr2));
   CHECK(SocketAddress::Compare()(addr, addr));
 
@@ -36,4 +39,19 @@ TEST(SocketAddress, SocketAddress) {
   map[addr]++;
   map[addr]++;
   CHECK_EQ(map[addr], 2);
+}
+
+TEST(SocketAddress, SocketAddressIPv6) {
+  sockaddr_storage storage;
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &storage);
+
+  SocketAddress addr(reinterpret_cast<const sockaddr*>(&storage));
+
+  CHECK_EQ(addr.length(), sizeof(sockaddr_in6));
+  CHECK_EQ(addr.family(), AF_INET6);
+  CHECK_EQ(addr.address(), "::1");
+  CHECK_EQ(addr.port(), 443);
+
+  addr.set_flow_label(12345);
+  CHECK_EQ(addr.flow_label(), 12345);
 }

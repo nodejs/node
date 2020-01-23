@@ -107,6 +107,22 @@ int SocketAddress::port() const {
   return GetPort(&address_);
 }
 
+uint32_t SocketAddress::flow_label() const {
+  if (family() != AF_INET6)
+    return 0;
+  const sockaddr_in6* in = reinterpret_cast<const sockaddr_in6*>(data());
+  return in->sin6_flowinfo;
+}
+
+void SocketAddress::set_flow_label(uint32_t label) {
+  static constexpr uint32_t kMaxLabel = 1048575;
+  if (family() != AF_INET6)
+    return;
+  CHECK_LE(label, kMaxLabel);
+  sockaddr_in6* in = reinterpret_cast<sockaddr_in6*>(&address_);
+  in->sin6_flowinfo = label;
+}
+
 std::string SocketAddress::ToString() const {
   return address() + ":" + std::to_string(port());
 }
