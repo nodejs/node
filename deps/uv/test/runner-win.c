@@ -222,28 +222,19 @@ long int process_output_size(process_info_t *p) {
 int process_copy_output(process_info_t* p, FILE* stream) {
   char buf[1024];
   int fd, r;
-  FILE* f;
 
   fd = _open_osfhandle((intptr_t)p->stdio_out, _O_RDONLY | _O_TEXT);
   if (fd == -1)
     return -1;
-  f = _fdopen(fd, "rt");
-  if (f == NULL) {
-    _close(fd);
-    return -1;
-  }
 
-  r = fseek(f, 0, SEEK_SET);
+  r = _lseek(fd, 0, SEEK_SET);
   if (r < 0)
     return -1;
 
-  while (fgets(buf, sizeof(buf), f) != NULL)
-    print_lines(buf, strlen(buf), stream);
+  while ((r = _read(fd, buf, sizeof(buf))) != 0)
+    print_lines(buf, r, stream);
 
-  if (ferror(f))
-    return -1;
-
-  fclose(f);
+  _close(fd);
   return 0;
 }
 
