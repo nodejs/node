@@ -476,6 +476,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/31450
     description: When used with `http.request()`, this field will now be
                  percent-decoded.
+-->
 
 * {string}
 
