@@ -701,8 +701,15 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   size_t length = 0;
   size_t i;
-  for (i = 0; i < count; i++)
+  size_t nonzero_i = 0;
+  size_t nonzero_count = 0;
+  for (i = 0; i < count; i++) {
     length += bufs[i].len;
+    if (bufs[i].len > 0) {
+      nonzero_i = i;
+      nonzero_count += 1;
+    }
+  }
 
   // We want to trigger a Write() on the underlying stream to drive the stream
   // system, but don't want to encrypt empty buffers into a TLS frame, so see
@@ -747,7 +754,16 @@ int TLSWrap::DoWrite(WriteWrap* w,
   crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int written = 0;
-  if (count != 1) {
+
+  // It is common for zero length buffers to be written,
+  // don't copy data if there there is one buffer with data
+  // and one or more zero length buffers.
+  // _http_outgoing.js writes a zero length buffer in
+  // in OutgoingMessage.prototype.end.  If there was a large amount
+  // of data supplied to end() there is no sense allocating
+  // and copying it when it could just be used.
+
+  if (nonzero_count != 1) {
     data = env()->AllocateManaged(length);
     size_t offset = 0;
     for (i = 0; i < count; i++) {
@@ -757,10 +773,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
     written = SSL_write(ssl_.get(), data.data(), length);
   } else {
     // Only one buffer: try to write directly, only store if it fails
-    written = SSL_write(ssl_.get(), bufs[0].base, bufs[0].len);
+    written = SSL_write(ssl_.get(), bufs[nonzero_i].base, bufs[nonzero_i].len);
     if (written == -1) {
       data = env()->AllocateManaged(length);
-      memcpy(data.data(), bufs[0].base, bufs[0].len);
+      memcpy(data.data(), bufs[nonzero_i].base, bufs[nonzero_i].len);
     }
   }
 
