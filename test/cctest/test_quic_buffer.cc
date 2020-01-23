@@ -57,8 +57,8 @@ TEST(QuicBuffer, ConsumeMore) {
 
 TEST(QuicBuffer, Multiple) {
   uv_buf_t bufs[] {
-    uv_buf_init("abcdefghijklmnopqrstuvwxyz", 26),
-    uv_buf_init("zyxwvutsrqponmlkjihgfedcba", 26)
+    uv_buf_init(const_cast<char*>("abcdefghijklmnopqrstuvwxyz"), 26),
+    uv_buf_init(const_cast<char*>("zyxwvutsrqponmlkjihgfedcba"), 26)
   };
 
   QuicBuffer buf;
