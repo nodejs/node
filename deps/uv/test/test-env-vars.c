@@ -102,6 +102,12 @@ TEST_IMPL(env_vars) {
   ASSERT(r == 0);
   r = uv_os_setenv(name2, "");
   ASSERT(r == 0);
+#ifdef _WIN32
+  /* Create a special environment variable on Windows in case there are no
+     naturally occurring ones. */
+  r = uv_os_setenv("=Z:", "\\");
+  ASSERT(r == 0);
+#endif
 
   r = uv_os_environ(&envitems, &envcount);
   ASSERT(r == 0);

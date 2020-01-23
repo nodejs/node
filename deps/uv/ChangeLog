@@ -1,3 +1,26 @@
+2020.01.24, Version 1.34.2 (Stable), f868c9ab0c307525a16fff99fd21e32a6ebc3837
+
+Changes since version 1.34.1:
+
+* misc: adjust stalebot deadlines (Jameson Nash)
+
+* test: fix env-vars flakiness (cjihrig)
+
+* test: avoid truncating output lines (Jameson Nash)
+
+* darwin: stop calling SetApplicationIsDaemon() (Ben Noordhuis)
+
+* ibmi: implement uv_interface_addresses() (Xu Meng)
+
+* osx,fsevent: fix race during uv_loop_close (Jameson Nash)
+
+* osx,fsevent: clear pointer when deleting it [NFCI] (Jameson Nash)
+
+* Revert "aix: replace ECONNRESET with EOF if already closed" (Jameson Nash)
+
+* unix: handle uv__open_cloexec return value correctly (Anna Henningsen)
+
+
 2020.01.13, Version 1.34.1 (Stable), 8aa5636ec72990bb2856f81e14c95813024a5c2b
 
 Changes since version 1.34.0:

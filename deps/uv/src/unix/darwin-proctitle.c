@@ -72,8 +72,6 @@ int uv__set_process_title(const char* title) {
   CFStringRef* display_name_key;
   CFDictionaryRef (*pCFBundleGetInfoDictionary)(CFBundleRef);
   CFBundleRef (*pCFBundleGetMainBundle)(void);
-  CFBundleRef hi_services_bundle;
-  OSStatus (*pSetApplicationIsDaemon)(int);
   CFDictionaryRef (*pLSApplicationCheckIn)(int, CFDictionaryRef);
   void (*pLSSetApplicationLaunchServicesServerConnectionStatus)(uint64_t,
                                                                 void*);
@@ -144,30 +142,19 @@ int uv__set_process_title(const char* title) {
   if (pCFBundleGetInfoDictionary == NULL || pCFBundleGetMainBundle == NULL)
     goto out;
 
-  /* Black 10.9 magic, to remove (Not responding) mark in Activity Monitor */
-  hi_services_bundle =
-      pCFBundleGetBundleWithIdentifier(S("com.apple.HIServices"));
-  err = UV_ENOENT;
-  if (hi_services_bundle == NULL)
-    goto out;
-
-  *(void **)(&pSetApplicationIsDaemon) = pCFBundleGetFunctionPointerForName(
-      hi_services_bundle,
-      S("SetApplicationIsDaemon"));
   *(void **)(&pLSApplicationCheckIn) = pCFBundleGetFunctionPointerForName(
       launch_services_bundle,
       S("_LSApplicationCheckIn"));
+
+  if (pLSApplicationCheckIn == NULL)
+    goto out;
+
   *(void **)(&pLSSetApplicationLaunchServicesServerConnectionStatus) =
       pCFBundleGetFunctionPointerForName(
           launch_services_bundle,
           S("_LSSetApplicationLaunchServicesServerConnectionStatus"));
-  if (pSetApplicationIsDaemon == NULL ||
-      pLSApplicationCheckIn == NULL ||
-      pLSSetApplicationLaunchServicesServerConnectionStatus == NULL) {
-    goto out;
-  }
 
-  if (pSetApplicationIsDaemon(1) != noErr)
+  if (pLSSetApplicationLaunchServicesServerConnectionStatus == NULL)
     goto out;
 
   pLSSetApplicationLaunchServicesServerConnectionStatus(0, NULL);
@@ -177,6 +164,10 @@ int uv__set_process_title(const char* title) {
                         pCFBundleGetInfoDictionary(pCFBundleGetMainBundle()));
 
   asn = pLSGetCurrentApplicationASN();
+
+  err = UV_EBUSY;
+  if (asn == NULL)
+    goto out;
 
   err = UV_EINVAL;
   if (pLSSetApplicationInformationItem(-2,  /* Magic value. */
