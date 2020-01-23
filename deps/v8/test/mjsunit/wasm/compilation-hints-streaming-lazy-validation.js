@@ -10,7 +10,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('id', kSig_i_i)
-         .addBody([kExprGetLocal, 0,
+         .addBody([kExprLocalGet, 0,
                    kExprI64Const, 1,
                    kExprI32Mul])
          .setCompilationHint(kCompilationHintStrategyLazy,

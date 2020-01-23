@@ -26,8 +26,8 @@ function setup () {
   mkdirp.sync(cacheBase)
 }
 
-function cleanup () {
-  rimraf.sync(PKG_DIR)
+function cleanup (cb) {
+  rimraf(PKG_DIR, cb)
 }
 
 test('setup', function (t) {
@@ -88,8 +88,7 @@ test('allPackageMetadata full request', function (t) {
       }
     }, 'cache contents based on what was written')
     server.done()
-    cleanup()
-    t.end()
+    cleanup(t.end)
   })
 })
 
@@ -126,8 +125,7 @@ test('allPackageMetadata cache only', function (t) {
     t.ok(fileData, 'cache contents written to the right file')
     t.deepEquals(fileData, cacheContents, 'cacheContents written directly')
     server.done()
-    cleanup()
-    t.end()
+    cleanup(t.end)
   })
 })
 
@@ -188,8 +186,7 @@ test('createEntryStream merged stream', function (t) {
     t.ok(fileData, 'cache contents written to the right file')
     t.deepEquals(fileData, cacheContents, 'cache updated correctly')
     server.done()
-    cleanup()
-    t.end()
+    cleanup(t.end)
   })
 })
 
@@ -205,14 +202,11 @@ test('allPackageMetadata no sources', function (t) {
     t.ok(err, 'no sources, got an error')
     t.match(err.message, /No search sources available/, 'useful error message')
     server.done()
-    cleanup()
-    t.end()
+    cleanup(t.end)
   })
 })
 
 test('cleanup', function (t) {
-  cleanup()
   server.close()
-  t.pass('all done')
-  t.done()
+  cleanup(t.end)
 })

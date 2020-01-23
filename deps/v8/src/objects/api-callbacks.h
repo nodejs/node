@@ -102,37 +102,20 @@ class AccessorInfo : public Struct {
   OBJECT_CONSTRUCTORS(AccessorInfo, Struct);
 };
 
-class AccessCheckInfo : public Struct {
+class AccessCheckInfo
+    : public TorqueGeneratedAccessCheckInfo<AccessCheckInfo, Struct> {
  public:
-  DECL_ACCESSORS(callback, Object)
-  DECL_ACCESSORS(named_interceptor, Object)
-  DECL_ACCESSORS(indexed_interceptor, Object)
-  DECL_ACCESSORS(data, Object)
-
-  DECL_CAST(AccessCheckInfo)
-
   // Dispatched behavior.
   DECL_PRINTER(AccessCheckInfo)
-  DECL_VERIFIER(AccessCheckInfo)
 
   static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ACCESS_CHECK_INFO_FIELDS)
-
-  OBJECT_CONSTRUCTORS(AccessCheckInfo, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
 };
 
-class InterceptorInfo : public Struct {
+class InterceptorInfo
+    : public TorqueGeneratedInterceptorInfo<InterceptorInfo, Struct> {
  public:
-  DECL_ACCESSORS(getter, Object)
-  DECL_ACCESSORS(setter, Object)
-  DECL_ACCESSORS(query, Object)
-  DECL_ACCESSORS(descriptor, Object)
-  DECL_ACCESSORS(deleter, Object)
-  DECL_ACCESSORS(enumerator, Object)
-  DECL_ACCESSORS(definer, Object)
-  DECL_ACCESSORS(data, Object)
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
   DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(non_masking)
@@ -142,14 +125,8 @@ class InterceptorInfo : public Struct {
   inline int flags() const;
   inline void set_flags(int flags);
 
-  DECL_CAST(InterceptorInfo)
-
   // Dispatched behavior.
   DECL_PRINTER(InterceptorInfo)
-  DECL_VERIFIER(InterceptorInfo)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_INTERCEPTOR_INFO_FIELDS)
 
   static const int kCanInterceptSymbolsBit = 0;
   static const int kAllCanReadBit = 1;
@@ -157,7 +134,7 @@ class InterceptorInfo : public Struct {
   static const int kNamed = 3;
   static const int kHasNoSideEffect = 4;
 
-  OBJECT_CONSTRUCTORS(InterceptorInfo, Struct);
+  TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
 };
 
 class CallHandlerInfo

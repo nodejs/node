@@ -14,7 +14,7 @@ const astUtils = require("./utils/ast-utils.js");
 
 /**
  * Checks whether or not a node is a conditional expression.
- * @param {ASTNode} node - node to test
+ * @param {ASTNode} node node to test
  * @returns {boolean} `true` if the node is a conditional expression.
  */
 function isConditional(node) {
@@ -59,7 +59,7 @@ module.exports = {
 
         /**
          * Reports if an arrow function contains an ambiguous conditional.
-         * @param {ASTNode} node - A node to check and report.
+         * @param {ASTNode} node A node to check and report.
          * @returns {void}
          */
         function checkArrowFunc(node) {

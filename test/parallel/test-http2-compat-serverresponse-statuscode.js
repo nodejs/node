@@ -33,23 +33,23 @@ server.listen(0, common.mustCall(function() {
     response.statusCode = realStatusCodes.badRequest;
     response.statusCode = realStatusCodes.internalServerError;
 
-    common.expectsError(function() {
+    assert.throws(() => {
       response.statusCode = realStatusCodes.continue;
     }, {
       code: 'ERR_HTTP2_INFO_STATUS_NOT_ALLOWED',
-      type: RangeError
+      name: 'RangeError'
     });
-    common.expectsError(function() {
+    assert.throws(() => {
       response.statusCode = fakeStatusCodes.tooLow;
     }, {
       code: 'ERR_HTTP2_STATUS_INVALID',
-      type: RangeError
+      name: 'RangeError'
     });
-    common.expectsError(function() {
+    assert.throws(() => {
       response.statusCode = fakeStatusCodes.tooHigh;
     }, {
       code: 'ERR_HTTP2_STATUS_INVALID',
-      type: RangeError
+      name: 'RangeError'
     });
 
     response.on('finish', common.mustCall(function() {

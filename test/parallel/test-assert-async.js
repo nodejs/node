@@ -66,6 +66,22 @@ const invalidThenableFunc = () => {
       code: 'ERR_INVALID_RETURN_VALUE'
     })
   );
+
+  const err = new Error('foobar');
+  const validate = () => { return 'baz'; };
+  promises.push(assert.rejects(
+    () => assert.rejects(Promise.reject(err), validate),
+    {
+      message: 'The "validate" validation function is expected to ' +
+               "return \"true\". Received 'baz'\n\nCaught error:\n\n" +
+               'Error: foobar',
+      code: 'ERR_ASSERTION',
+      actual: err,
+      expected: validate,
+      name: 'AssertionError',
+      operator: 'rejects',
+    }
+  ));
 }
 
 {
@@ -109,8 +125,8 @@ promises.push(assert.rejects(
   assert.rejects('fail', {}),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "promiseFn" argument must be one of type ' +
-             'Function or Promise. Received type string'
+    message: 'The "promiseFn" argument must be of type function or an ' +
+             "instance of Promise. Received type string ('fail')"
   }
 ));
 
@@ -209,8 +225,8 @@ promises.push(assert.rejects(
     assert.doesNotReject(123),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "promiseFn" argument must be one of type ' +
-               'Function or Promise. Received type number'
+      message: 'The "promiseFn" argument must be of type ' +
+               'function or an instance of Promise. Received type number (123)'
     }
   ));
   /* eslint-enable no-restricted-syntax */

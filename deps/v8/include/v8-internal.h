@@ -63,8 +63,8 @@ struct SmiTagging<4> {
 
   V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Shift down (requires >> to be sign extending).
-    return static_cast<int>(static_cast<intptr_t>(value)) >> shift_bits;
+    // Truncate and shift down (requires >> to be sign extending).
+    return static_cast<int32_t>(static_cast<uint32_t>(value)) >> shift_bits;
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     // Is value in range [kSmiMinValue, kSmiMaxValue].
@@ -112,6 +112,8 @@ using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
 using PlatformSmiTagging = SmiTagging<kApiTaggedSize>;
 #endif
 
+// TODO(ishell): Consinder adding kSmiShiftBits = kSmiShiftSize + kSmiTagSize
+// since it's used much more often than the inividual constants.
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 const int kSmiMinValue = static_cast<int>(PlatformSmiTagging::kSmiMinValue);
@@ -152,6 +154,7 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
 
+  // IsolateData layout guarantees.
   static const int kIsolateEmbedderDataOffset = 0;
   static const int kExternalMemoryOffset =
       kNumIsolateDataSlots * kApiSystemPointerSize;
@@ -159,8 +162,14 @@ class Internals {
       kExternalMemoryOffset + kApiInt64Size;
   static const int kExternalMemoryAtLastMarkCompactOffset =
       kExternalMemoryLimitOffset + kApiInt64Size;
-  static const int kIsolateRootsOffset =
+  static const int kIsolateFastCCallCallerFpOffset =
       kExternalMemoryAtLastMarkCompactOffset + kApiInt64Size;
+  static const int kIsolateFastCCallCallerPcOffset =
+      kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
+  static const int kIsolateStackGuardOffset =
+      kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
+  static const int kIsolateRootsOffset =
+      kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -177,7 +186,7 @@ class Internals {
 
   static const int kFirstNonstringType = 0x40;
   static const int kOddballType = 0x43;
-  static const int kForeignType = 0x47;
+  static const int kForeignType = 0x46;
   static const int kJSSpecialApiObjectType = 0x410;
   static const int kJSApiObjectType = 0x420;
   static const int kJSObjectType = 0x421;
@@ -320,14 +329,11 @@ class Internals {
 #ifdef V8_COMPRESS_POINTERS
   // See v8:7703 or src/ptr-compr.* for details about pointer compression.
   static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
-  static constexpr size_t kPtrComprIsolateRootBias =
-      kPtrComprHeapReservationSize / 2;
   static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
 
   V8_INLINE static internal::Address GetRootFromOnHeapAddress(
       internal::Address addr) {
-    return (addr + kPtrComprIsolateRootBias) &
-           -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
+    return addr & -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
   }
 
   V8_INLINE static internal::Address DecompressTaggedAnyField(
@@ -373,6 +379,10 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
+
+// A base class for backing stores, which is needed due to vagaries of
+// how static casts work with std::shared_ptr.
+class BackingStoreBase {};
 
 }  // namespace internal
 }  // namespace v8

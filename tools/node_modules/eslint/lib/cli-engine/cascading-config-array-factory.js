@@ -27,7 +27,7 @@ const os = require("os");
 const path = require("path");
 const { validateConfigArray } = require("../shared/config-validator");
 const { ConfigArrayFactory } = require("./config-array-factory");
-const { ConfigArray, ConfigDependency } = require("./config-array");
+const { ConfigArray, ConfigDependency, IgnorePattern } = require("./config-array");
 const loadRules = require("./load-rules");
 const debug = require("debug")("eslint:cascading-config-array-factory");
 
@@ -45,8 +45,9 @@ const debug = require("debug")("eslint:cascading-config-array-factory");
  * @typedef {Object} CascadingConfigArrayFactoryOptions
  * @property {Map<string,Plugin>} [additionalPluginPool] The map for additional plugins.
  * @property {ConfigData} [baseConfig] The config by `baseConfig` option.
- * @property {ConfigData} [cliConfig] The config by CLI options (`--env`, `--global`, `--parser`, `--parser-options`, `--plugin`, and `--rule`). CLI options overwrite the setting in config files.
+ * @property {ConfigData} [cliConfig] The config by CLI options (`--env`, `--global`, `--ignore-pattern`, `--parser`, `--parser-options`, `--plugin`, and `--rule`). CLI options overwrite the setting in config files.
  * @property {string} [cwd] The base directory to start lookup.
+ * @property {string} [ignorePath] The path to the alternative file of `.eslintignore`.
  * @property {string[]} [rulePaths] The value of `--rulesdir` option.
  * @property {string} [specificConfigPath] The value of `--config` option.
  * @property {boolean} [useEslintrc] if `false` then it doesn't load config files.
@@ -62,6 +63,7 @@ const debug = require("debug")("eslint:cascading-config-array-factory");
  * @property {Map<string, ConfigArray>} configCache The cache from directory paths to config arrays.
  * @property {string} cwd The base directory to start lookup.
  * @property {WeakMap<ConfigArray, ConfigArray>} finalizeCache The cache from config arrays to finalized config arrays.
+ * @property {string} [ignorePath] The path to the alternative file of `.eslintignore`.
  * @property {string[]|null} rulePaths The value of `--rulesdir` option. This is used to reset `baseConfigArray`.
  * @property {string|null} specificConfigPath The value of `--config` option. This is used to reset `cliConfigArray`.
  * @property {boolean} useEslintrc if `false` then it doesn't load config files.
@@ -86,14 +88,22 @@ function createBaseConfigArray({
         { name: "BaseConfig" }
     );
 
-    if (rulePaths && rulePaths.length > 0) {
+    /*
+     * Create the config array element for the default ignore patterns.
+     * This element has `ignorePattern` property that ignores the default
+     * patterns in the current working directory.
+     */
+    baseConfigArray.unshift(configArrayFactory.create(
+        { ignorePatterns: IgnorePattern.DefaultPatterns },
+        { name: "DefaultIgnorePattern" }
+    )[0]);
 
-        /*
-         * Load rules `--rulesdir` option as a pseudo plugin.
-         * Use a pseudo plugin to define rules of `--rulesdir`, so we can
-         * validate the rule's options with only information in the config
-         * array.
-         */
+    /*
+     * Load rules `--rulesdir` option as a pseudo plugin.
+     * Use a pseudo plugin to define rules of `--rulesdir`, so we can validate
+     * the rule's options with only information in the config array.
+     */
+    if (rulePaths && rulePaths.length > 0) {
         baseConfigArray.push({
             name: "--rulesdir",
             filePath: "",
@@ -128,11 +138,18 @@ function createBaseConfigArray({
 function createCLIConfigArray({
     cliConfigData,
     configArrayFactory,
+    ignorePath,
     specificConfigPath
 }) {
     const cliConfigArray = configArrayFactory.create(
         cliConfigData,
         { name: "CLIOptions" }
+    );
+
+    cliConfigArray.unshift(
+        ...(ignorePath
+            ? configArrayFactory.loadESLintIgnore(ignorePath)
+            : configArrayFactory.loadDefaultESLintIgnore())
     );
 
     if (specificConfigPath) {
@@ -152,8 +169,9 @@ function createCLIConfigArray({
  */
 class ConfigurationNotFoundError extends Error {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {string} directoryPath - The directory path.
+     * @param {string} directoryPath The directory path.
      */
     constructor(directoryPath) {
         super(`No ESLint configuration found in ${directoryPath}.`);
@@ -177,6 +195,7 @@ class CascadingConfigArrayFactory {
         baseConfig: baseConfigData = null,
         cliConfig: cliConfigData = null,
         cwd = process.cwd(),
+        ignorePath,
         resolvePluginsRelativeTo = cwd,
         rulePaths = [],
         specificConfigPath = null,
@@ -199,6 +218,7 @@ class CascadingConfigArrayFactory {
             cliConfigArray: createCLIConfigArray({
                 cliConfigData,
                 configArrayFactory,
+                ignorePath,
                 specificConfigPath
             }),
             cliConfigData,
@@ -206,6 +226,7 @@ class CascadingConfigArrayFactory {
             configCache: new Map(),
             cwd,
             finalizeCache: new WeakMap(),
+            ignorePath,
             rulePaths,
             specificConfigPath,
             useEslintrc
@@ -228,9 +249,11 @@ class CascadingConfigArrayFactory {
      * If `filePath` was not given, it returns the config which contains only
      * `baseConfigData` and `cliConfigData`.
      * @param {string} [filePath] The file path to a file.
+     * @param {Object} [options] The options.
+     * @param {boolean} [options.ignoreNotFoundError] If `true` then it doesn't throw `ConfigurationNotFoundError`.
      * @returns {ConfigArray} The config array of the file.
      */
-    getConfigArrayForFile(filePath) {
+    getConfigArrayForFile(filePath, { ignoreNotFoundError = false } = {}) {
         const {
             baseConfigArray,
             cliConfigArray,
@@ -247,7 +270,8 @@ class CascadingConfigArrayFactory {
 
         return this._finalizeConfigArray(
             this._loadConfigInAncestors(directoryPath),
-            directoryPath
+            directoryPath,
+            ignoreNotFoundError
         );
     }
 
@@ -353,10 +377,11 @@ class CascadingConfigArrayFactory {
      * Concatenate `--config` and other CLI options.
      * @param {ConfigArray} configArray The parent config array.
      * @param {string} directoryPath The path to the leaf directory to find config files.
+     * @param {boolean} ignoreNotFoundError If `true` then it doesn't throw `ConfigurationNotFoundError`.
      * @returns {ConfigArray} The loaded config.
      * @private
      */
-    _finalizeConfigArray(configArray, directoryPath) {
+    _finalizeConfigArray(configArray, directoryPath, ignoreNotFoundError) {
         const {
             cliConfigArray,
             configArrayFactory,
@@ -402,7 +427,8 @@ class CascadingConfigArrayFactory {
             );
         }
 
-        if (useEslintrc && finalConfigArray.length === 0) {
+        // At least one element (the default ignore patterns) exists.
+        if (!ignoreNotFoundError && useEslintrc && finalConfigArray.length <= 1) {
             throw new ConfigurationNotFoundError(directoryPath);
         }
 

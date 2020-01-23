@@ -5,10 +5,10 @@
 
 "use strict";
 
-var processor = require("./processor");
+const processor = require("./processor");
 
 module.exports = {
-    "processors": {
+    processors: {
         ".markdown": processor,
         ".mdown": processor,
         ".mkdn": processor,

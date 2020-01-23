@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/utils/vector.h"
@@ -15,9 +16,13 @@
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
+
+namespace debug {
+struct WasmDisassembly;
+}
+
 namespace internal {
 
-class WasmDebugInfo;
 class WasmModuleObject;
 
 namespace wasm {
@@ -239,6 +244,25 @@ V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
 int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
                           bool is_import);
 
+// Return the byte offset of the function identified by the given index.
+// The offset will be relative to the start of the module bytes.
+// Returns -1 if the function index is invalid.
+int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index);
+
+// Returns the function containing the given byte offset.
+// Returns -1 if the byte offset is not contained in any function of this
+// module.
+int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset);
+
+// Compute the disassembly of a wasm function.
+// Returns the disassembly string and a list of <byte_offset, line, column>
+// entries, mapping wasm byte offsets to line and column in the disassembly.
+// The list is guaranteed to be ordered by the byte_offset.
+// Returns an empty string and empty vector if the function index is invalid.
+V8_EXPORT_PRIVATE debug::WasmDisassembly DisassembleWasmFunction(
+    const WasmModule* module, const ModuleWireBytes& wire_bytes,
+    int func_index);
+
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
@@ -289,25 +313,22 @@ struct WasmFunctionName {
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
-// Get the debug info associated with the given wasm object.
-// If no debug info exists yet, it is created automatically.
-Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
-
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
-    Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
-    ModuleOrigin origin, Handle<Script> asm_js_script,
-    Vector<const byte> asm_offset_table);
-
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
 
-V8_EXPORT_PRIVATE Handle<JSArray> GetImports(Isolate* isolate,
-                                             Handle<WasmModuleObject> module);
-V8_EXPORT_PRIVATE Handle<JSArray> GetExports(Isolate* isolate,
-                                             Handle<WasmModuleObject> module);
-V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
-    Isolate* isolate, Handle<WasmModuleObject> module, Handle<String> name,
-    ErrorThrower* thrower);
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig);
+Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
+                                  ValueType type);
+Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
+                                  base::Optional<uint32_t> max_size);
+Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
+                                 uint32_t min_size,
+                                 base::Optional<uint32_t> max_size);
+Handle<JSArray> GetImports(Isolate* isolate, Handle<WasmModuleObject> module);
+Handle<JSArray> GetExports(Isolate* isolate, Handle<WasmModuleObject> module);
+Handle<JSArray> GetCustomSections(Isolate* isolate,
+                                  Handle<WasmModuleObject> module,
+                                  Handle<String> name, ErrorThrower* thrower);
 
 // Decode local variable names from the names section. Return FixedArray of
 // FixedArray of <undefined|String>. The outer fixed array is indexed by the

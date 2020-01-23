@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -95,58 +95,81 @@ my $proxy = TLSProxy::Proxy->new(
 
 @extensions = (
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_SERVER_NAME,
+        TLSProxy::Message::CLIENT,
         checkhandshake::SERVER_NAME_CLI_EXTENSION],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_STATUS_REQUEST,
+        TLSProxy::Message::CLIENT,
         checkhandshake::STATUS_REQUEST_CLI_EXTENSION],
     (disabled("ec") ? () :
                       [TLSProxy::Message::MT_CLIENT_HELLO,
                        TLSProxy::Message::EXT_SUPPORTED_GROUPS,
+                       TLSProxy::Message::CLIENT,
                        checkhandshake::DEFAULT_EXTENSIONS]),
     (disabled("ec") ? () :
                       [TLSProxy::Message::MT_CLIENT_HELLO,
                        TLSProxy::Message::EXT_EC_POINT_FORMATS,
+                       TLSProxy::Message::CLIENT,
                        checkhandshake::DEFAULT_EXTENSIONS]),
     (disabled("tls1_2") ? () :
      [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_SIG_ALGS,
+        TLSProxy::Message::CLIENT,
          checkhandshake::DEFAULT_EXTENSIONS]),
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_ALPN,
+        TLSProxy::Message::CLIENT,
         checkhandshake::ALPN_CLI_EXTENSION],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_SCT,
+        TLSProxy::Message::CLIENT,
         checkhandshake::SCT_CLI_EXTENSION],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_ENCRYPT_THEN_MAC,
+        TLSProxy::Message::CLIENT,
         checkhandshake::DEFAULT_EXTENSIONS],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_EXTENDED_MASTER_SECRET,
+        TLSProxy::Message::CLIENT,
         checkhandshake::DEFAULT_EXTENSIONS],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_SESSION_TICKET,
+        TLSProxy::Message::CLIENT,
         checkhandshake::DEFAULT_EXTENSIONS],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_RENEGOTIATE,
+        TLSProxy::Message::CLIENT,
         checkhandshake::RENEGOTIATE_CLI_EXTENSION],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_NPN,
+        TLSProxy::Message::CLIENT,
         checkhandshake::NPN_CLI_EXTENSION],
     [TLSProxy::Message::MT_CLIENT_HELLO, TLSProxy::Message::EXT_SRP,
+        TLSProxy::Message::CLIENT,
         checkhandshake::SRP_CLI_EXTENSION],
 
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_RENEGOTIATE,
+        TLSProxy::Message::SERVER,
         checkhandshake::DEFAULT_EXTENSIONS],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_ENCRYPT_THEN_MAC,
+        TLSProxy::Message::SERVER,
         checkhandshake::DEFAULT_EXTENSIONS],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_EXTENDED_MASTER_SECRET,
+        TLSProxy::Message::SERVER,
         checkhandshake::DEFAULT_EXTENSIONS],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_SESSION_TICKET,
+        TLSProxy::Message::SERVER,
         checkhandshake::SESSION_TICKET_SRV_EXTENSION],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_SERVER_NAME,
+        TLSProxy::Message::SERVER,
         checkhandshake::SERVER_NAME_SRV_EXTENSION],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_STATUS_REQUEST,
+        TLSProxy::Message::SERVER,
         checkhandshake::STATUS_REQUEST_SRV_EXTENSION],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_ALPN,
+        TLSProxy::Message::SERVER,
         checkhandshake::ALPN_SRV_EXTENSION],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_SCT,
+        TLSProxy::Message::SERVER,
         checkhandshake::SCT_SRV_EXTENSION],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_NPN,
+        TLSProxy::Message::SERVER,
         checkhandshake::NPN_SRV_EXTENSION],
     [TLSProxy::Message::MT_SERVER_HELLO, TLSProxy::Message::EXT_EC_POINT_FORMATS,
+        TLSProxy::Message::SERVER,
         checkhandshake::EC_POINT_FORMAT_SRV_EXTENSION],
-    [0,0,0]
+    [0,0,0,0]
 );
 
 #Test 1: Check we get all the right messages for a default handshake

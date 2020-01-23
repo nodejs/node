@@ -33,7 +33,6 @@ function explodeArray(xs) {
  *
  * For example:
  * combineArrays([a, [b, c]], [x, y]); // -> [[a, x], [a, y], [b, c, x], [b, c, y]]
- *
  * @param   {Array} arr1 The first array to combine.
  * @param   {Array} arr2 The second array to combine.
  * @returns {Array}      A mixture of the elements of the first and second arrays.
@@ -71,7 +70,6 @@ function combineArrays(arr1, arr2) {
  *     [{before: true}, {before: false}],
  *     [{after: true}, {after: false}]
  * ]
- *
  * @param   {Object[]} objects Array of objects, each with one property/value pair
  * @returns {Array[]}          Array of arrays of objects grouped by property
  */
@@ -98,8 +96,7 @@ function groupByProperty(objects) {
  * element in the array is the severity, and is the only required element.
  * Configs may also have one or more additional elements to specify rule
  * configuration or options.
- *
- * @typedef {array|number} ruleConfig
+ * @typedef {Array|number} ruleConfig
  * @param {number}  0  The rule's severity (0, 1, 2).
  */
 
@@ -134,7 +131,6 @@ function groupByProperty(objects) {
  *     {before: false, after: true},
  *     {before: false, after: false}
  * ]
- *
  * @param   {Object[]} objArr1 Single key/value objects, all with the same key
  * @param   {Object[]} objArr2 Single key/value objects, all with another key
  * @returns {Object[]}         Combined objects for each combination of input properties and values
@@ -178,6 +174,7 @@ function combinePropertyObjects(objArr1, objArr2) {
  */
 class RuleConfigSet {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {ruleConfig[]} configs Valid rule configurations
      */
@@ -185,7 +182,7 @@ class RuleConfigSet {
 
         /**
          * Stored valid rule configurations for this instance
-         * @type {array}
+         * @type {Array}
          */
         this.ruleConfigs = configs || [];
     }
@@ -193,7 +190,6 @@ class RuleConfigSet {
     /**
      * Add a severity level to the front of all configs in the instance.
      * This should only be called after all configs have been added to the instance.
-     *
      * @returns {void}
      */
     addErrorSeverity() {

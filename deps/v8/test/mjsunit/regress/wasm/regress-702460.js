@@ -4,10 +4,6 @@
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-// Non-standard opcodes.
-let kSig_s_v = makeSig([], [kWasmS128]);
-let kExprS128LoadMem = 0xc0;
-
 (function() {
 "use asm";
   var builder = new WasmModuleBuilder();
@@ -20,7 +16,7 @@ let kExprS128LoadMem = 0xc0;
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,
-        kExprSetLocal, 0x00,
+        kExprLocalSet, 0x00,
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,

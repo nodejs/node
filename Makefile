@@ -52,7 +52,7 @@ NPM ?= ./deps/npm/bin/npm-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
-BUILD_INTL_FLAGS ?= --with-intl=small-icu
+BUILD_INTL_FLAGS ?= --with-intl=full-icu
 BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 
 # Default to quiet/pretty builds.
@@ -141,12 +141,14 @@ test-code-cache: with-code-cache
 	echo "'test-code-cache' target is a noop"
 
 out/Makefile: config.gypi common.gypi node.gyp \
-	deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp \
+	deps/uv/uv.gyp deps/llhttp/llhttp.gyp deps/zlib/zlib.gyp \
 	tools/v8_gypfiles/toolchain.gypi tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
-config.gypi: configure configure.py
+# node_version.h is listed because the N-API version is taken from there
+# and included in config.gypi
+config.gypi: configure configure.py src/node_version.h
 	@if [ -x config.status ]; then \
 		./config.status; \
 	else \
@@ -240,17 +242,15 @@ coverage-build-js:
 
 .PHONY: coverage-test
 coverage-test: coverage-build
-	$(RM) out/$(BUILDTYPE)/obj.target/node/gen/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/gen/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/tracing/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node_lib/src/*/*.gcda
 	-NODE_V8_COVERAGE=out/$(BUILDTYPE)/.coverage \
 								TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
-	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
-		--gcov-exclude='.*usr' -v -r Release/obj.target \
+	-(cd out && "../gcovr/scripts/gcovr" \
+		--gcov-exclude='.*\b(deps|usr|out|cctest)\b' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@echo -n "Javascript coverage %: "
@@ -300,7 +300,7 @@ jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addo
 
 .PHONY: tooltest
 tooltest:
-	@$(PYTHON) test/tools/test-js2c.py
+	@$(PYTHON) -m unittest discover -s ./test/tools
 
 .PHONY: coverage-run-js
 coverage-run-js:
@@ -335,7 +335,7 @@ test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
-	# $(MAKE) cctest
+	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
 test-parallel: all
@@ -346,24 +346,6 @@ test-valgrind: all
 
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
-
-benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node: \
-		benchmark/napi/function_call/napi_binding.c \
-		benchmark/napi/function_call/binding.cc \
-		benchmark/napi/function_call/binding.gyp | all
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
-		--directory="$(shell pwd)/benchmark/napi/function_call" \
-		--nodedir="$(shell pwd)"
-
-benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node: \
-		benchmark/napi/function_args/napi_binding.c \
-		benchmark/napi/function_args/binding.cc \
-		benchmark/napi/function_args/binding.gyp | all
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
-		--directory="$(shell pwd)/benchmark/napi/function_args" \
-		--nodedir="$(shell pwd)"
 
 DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
 
@@ -470,6 +452,17 @@ test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
 build-node-api-tests: | $(NODE_EXE) test/node-api/.buildstamp
 
+BENCHMARK_NAPI_BINDING_GYPS := $(wildcard benchmark/napi/*/binding.gyp)
+
+BENCHMARK_NAPI_BINDING_SOURCES := \
+	$(wildcard benchmark/napi/*/*.c) \
+	$(wildcard benchmark/napi/*/*.cc) \
+	$(wildcard benchmark/napi/*/*.h)
+
+benchmark/napi/.buildstamp: $(ADDONS_PREREQS) \
+	$(BENCHMARK_NAPI_BINDING_GYPS) $(BENCHMARK_NAPI_BINDING_SOURCES)
+	@$(call run_build_addons,"$$PWD/benchmark/napi",$@)
+
 .PHONY: clear-stalled
 clear-stalled:
 	@echo "Clean up any leftover processes but don't error if found."
@@ -496,6 +489,7 @@ test-all-valgrind: test-build
 test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run all test suites.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
+# CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
 ifeq ($(node_use_openssl), false)
@@ -599,11 +593,10 @@ test-hash-seed: all
 	$(NODE) test/pummel/test-hash-seed.js
 
 .PHONY: test-doc
-test-doc: doc-only ## Builds, lints, and verifies the docs.
+test-doc: doc-only lint ## Builds, lints, and verifies the docs.
 	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
 		echo "Skipping test-doc (no crypto)"; \
 	else \
-		$(MAKE) lint; \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
 
@@ -753,7 +746,7 @@ $(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js
 	$(call available-node, $(gen-apilink))
 
 out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
-	tools/doc/html.js tools/doc/json.js tools/doc/apilinks.js | $(LINK_DATA)
+	tools/doc/markdown.js tools/doc/html.js tools/doc/json.js tools/doc/apilinks.js | $(LINK_DATA)
 	$(call available-node, $(gen-api))
 
 out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
@@ -849,6 +842,7 @@ endif
 endif
 endif
 endif
+endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
 else
@@ -871,7 +865,6 @@ ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
 ARCH=x86
-endif
 endif
 endif
 endif
@@ -1037,7 +1030,6 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/deps/uv/samples
 	$(RM) -r $(TARNAME)/deps/uv/test
 	$(RM) -r $(TARNAME)/deps/v8/samples
-	$(RM) -r $(TARNAME)/deps/v8/test
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
 	$(RM) -r $(TARNAME)/deps/zlib/contrib # too big, unused
@@ -1049,6 +1041,8 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/tools/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
 	$(RM) -r $(TARNAME)/tools/osx-pkg.pmdoc
+	find $(TARNAME)/deps/v8/test/* -type d ! -regex '.*/test/torque$$' | xargs $(RM) -r
+	find $(TARNAME)/deps/v8/test -type f ! -regex '.*/test/torque/.*' | xargs $(RM)
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
 	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
@@ -1162,13 +1156,12 @@ bench: bench-addons-build
 
 # Build required addons for benchmark before running it.
 .PHONY: bench-addons-build
-bench-addons-build: benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node \
-	benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node
+bench-addons-build: | $(NODE_EXE) benchmark/napi/.buildstamp
 
 .PHONY: bench-addons-clean
 bench-addons-clean:
-	$(RM) -r benchmark/napi/function_call/build
-	$(RM) -r benchmark/napi/function_args/build
+	$(RM) -r benchmark/napi/*/build
+	$(RM) benchmark/napi/.buildstamp
 
 .PHONY: lint-md-rollup
 lint-md-rollup:
@@ -1312,9 +1305,9 @@ else
 endif
 
 ifeq ($(V),1)
-	CPPLINT_QUIET =
+CPPLINT_QUIET =
 else
-	CPPLINT_QUIET = --quiet
+CPPLINT_QUIET = --quiet
 endif
 .PHONY: lint-cpp
 # Lints the C++ code with cpplint.py and check-imports.py.

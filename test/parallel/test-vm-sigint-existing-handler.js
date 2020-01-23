@@ -36,7 +36,7 @@ if (process.argv[2] === 'child') {
     [];
   const options = { breakOnSigint: true };
 
-  common.expectsError(
+  assert.throws(
     () => { vm[method](script, ...args, options); },
     {
       code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED',

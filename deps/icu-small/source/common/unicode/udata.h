@@ -264,25 +264,6 @@ udata_openChoice(const char *path, const char *type, const char *name,
 U_STABLE void U_EXPORT2
 udata_close(UDataMemory *pData);
 
-#if U_SHOW_CPLUSPLUS_API
-
-U_NAMESPACE_BEGIN
-
-/**
- * \class LocalUDataMemoryPointer
- * "Smart pointer" class, closes a UDataMemory via udata_close().
- * For most methods see the LocalPointerBase base class.
- *
- * @see LocalPointerBase
- * @see LocalPointer
- * @stable ICU 4.4
- */
-U_DEFINE_LOCAL_OPEN_POINTER(LocalUDataMemoryPointer, UDataMemory, udata_close);
-
-U_NAMESPACE_END
-
-#endif
-
 /**
  * Get the pointer to the actual data inside the data memory.
  * The data is read-only.
@@ -433,5 +414,24 @@ U_STABLE void U_EXPORT2
 udata_setFileAccess(UDataFileAccess access, UErrorCode *status);
 
 U_CDECL_END
+
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+/**
+ * \class LocalUDataMemoryPointer
+ * "Smart pointer" class, closes a UDataMemory via udata_close().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @stable ICU 4.4
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUDataMemoryPointer, UDataMemory, udata_close);
+
+U_NAMESPACE_END
+
+#endif  // U_SHOW_CPLUSPLUS_API
 
 #endif

@@ -37,7 +37,8 @@ module.exports = {
                     init = node.init && node.init.name,
                     scope = context.getScope(),
                     undefinedVar = astUtils.getVariableByName(scope, "undefined"),
-                    shadowed = undefinedVar && undefinedVar.defs.length > 0;
+                    shadowed = undefinedVar && undefinedVar.defs.length > 0,
+                    lastToken = sourceCode.getLastToken(node);
 
                 if (init === "undefined" && node.parent.kind !== "const" && !shadowed) {
                     context.report({
@@ -54,6 +55,11 @@ module.exports = {
                                 // Don't fix destructuring assignment to `undefined`.
                                 return null;
                             }
+
+                            if (sourceCode.commentsExistBetween(node.id, lastToken)) {
+                                return null;
+                            }
+
                             return fixer.removeRange([node.id.range[1], node.range[1]]);
                         }
                     });

@@ -3,42 +3,12 @@ var path = require('path')
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../')
 
 var common = require('../common-tap.js')
 var pkg = common.pkg
-
-test("shrinkwrap --dev doesn't strip out prod dependencies", function (t) {
-  t.plan(1)
-
-  mr({port: common.port}, function (er, s) {
-    setup({}, function (err) {
-      if (err) return t.fail(err)
-
-      npm.install('.', function (err) {
-        if (err) return t.fail(err)
-
-        npm.config.set('dev', true)
-        npm.commands.shrinkwrap([], true, function (err, results) {
-          if (err) return t.fail(err)
-
-          t.deepEqual(results.dependencies, desired.dependencies)
-          s.close()
-          t.end()
-        })
-      })
-    })
-  })
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
 
 var desired = {
   name: 'npm-test-shrinkwrap-prod-dependency',
@@ -70,8 +40,7 @@ var json = {
   }
 }
 
-function setup (opts, cb) {
-  cleanup()
+test('setup', function (t) {
   mkdirp.sync(pkg)
   fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify(json, null, 2))
   process.chdir(pkg)
@@ -81,14 +50,27 @@ function setup (opts, cb) {
     registry: common.registry
   }
 
-  for (var key in opts) {
-    allOpts[key] = opts[key]
-  }
+  npm.load(allOpts, t.end)
+})
 
-  npm.load(allOpts, cb)
-}
+test('mock registry', t => {
+  mr({port: common.port}, function (er, s) {
+    t.parent.teardown(() => s.close())
+    t.end()
+  })
+})
 
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
+test("shrinkwrap --dev doesn't strip out prod dependencies", t => {
+  t.plan(1)
+  npm.install('.', function (err) {
+    if (err) return t.fail(err)
+
+    npm.config.set('dev', true)
+    npm.commands.shrinkwrap([], true, function (err, results) {
+      if (err) return t.fail(err)
+
+      t.deepEqual(results.dependencies, desired.dependencies)
+      t.end()
+    })
+  })
+})

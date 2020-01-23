@@ -29,9 +29,9 @@ function checkStack(stack, expected_lines) {
   // grow_memory can be called from interpreted or compiled code, and changes
   // should be reflected in either execution.
   var builder = new WasmModuleBuilder();
-  var grow_body = [kExprGetLocal, 0, kExprMemoryGrow, kMemoryZero];
-  var load_body = [kExprGetLocal, 0, kExprI32LoadMem, 0, 0];
-  var store_body = [kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0];
+  var grow_body = [kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero];
+  var load_body = [kExprLocalGet, 0, kExprI32LoadMem, 0, 0];
+  var store_body = [kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0];
   builder.addFunction('grow_memory', kSig_i_i).addBody(grow_body).exportFunc();
   builder.addFunction('load', kSig_i_i).addBody(load_body).exportFunc();
   builder.addFunction('store', kSig_v_ii).addBody(store_body).exportFunc();
@@ -96,7 +96,7 @@ function createTwoInstancesCallingEachOther(inner_throws = false) {
   let id_imp = builder1.addImport('q', 'id', kSig_i_i);
   let plus_one = builder1.addFunction('plus_one', kSig_i_i)
                      .addBody([
-                       kExprGetLocal, 0,  // -
+                       kExprLocalGet, 0,  // -
                        kExprI32Const, 1,  // -
                        kExprI32Add,       // -
                        kExprCallFunction, id_imp
@@ -114,7 +114,7 @@ function createTwoInstancesCallingEachOther(inner_throws = false) {
   let plus_two = builder2.addFunction('plus_two', kSig_i_i)
                      .addBody([
                        // Call import, add one more.
-                       kExprGetLocal, 0,                 // -
+                       kExprLocalGet, 0,                 // -
                        kExprCallFunction, plus_one_imp,  // -
                        kExprI32Const, 1,                 // -
                        kExprI32Add

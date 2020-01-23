@@ -150,7 +150,12 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
   Handle<Object> except_obj(except_obj_raw, isolate);
-  return *WasmExceptionPackage::GetExceptionTag(isolate, except_obj);
+  if (!except_obj->IsWasmExceptionPackage(isolate)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  Handle<WasmExceptionPackage> exception =
+      Handle<WasmExceptionPackage>::cast(except_obj);
+  return *WasmExceptionPackage::GetExceptionTag(isolate, exception);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
@@ -162,7 +167,12 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
   Handle<Object> except_obj(except_obj_raw, isolate);
-  return *WasmExceptionPackage::GetExceptionValues(isolate, except_obj);
+  if (!except_obj->IsWasmExceptionPackage(isolate)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  Handle<WasmExceptionPackage> exception =
+      Handle<WasmExceptionPackage>::cast(except_obj);
+  return *WasmExceptionPackage::GetExceptionValues(isolate, exception);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
@@ -430,8 +440,8 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   isolate->set_context(instance->native_context());
   CONVERT_UINT32_ARG_CHECKED(function_index, 0);
 
-  Handle<WasmExportedFunction> function =
-      WasmInstanceObject::GetOrCreateWasmExportedFunction(isolate, instance,
+  Handle<WasmExternalFunction> function =
+      WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                           function_index);
 
   return *function;
@@ -567,6 +577,25 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
     return ThrowTableOutOfBounds(isolate, instance);
   }
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnFixedArray) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_INT32_ARG_CHECKED(size, 0);
+  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(size);
+  return *fixed_array;
+}
+
+RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DCHECK(!isolate->context().is_null());
+  CONVERT_ARG_CHECKED(FixedArray, fixed_array, 0);
+  Handle<FixedArray> fixed_array_handle(fixed_array, isolate);
+  Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
+      fixed_array_handle, PACKED_ELEMENTS);
+  return *array;
 }
 }  // namespace internal
 }  // namespace v8

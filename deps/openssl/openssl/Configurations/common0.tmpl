@@ -22,7 +22,7 @@
  our @generated =
      sort ( ( grep { defined $unified_info{generate}->{$_} }
               sort keys %generatables ),
-            # Scripts are assumed to be generated, so add thhem too
+            # Scripts are assumed to be generated, so add them too
             ( grep { defined $unified_info{sources}->{$_} }
               @{$unified_info{scripts}} ) );
 

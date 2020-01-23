@@ -49,7 +49,7 @@ class WasmInstructionBufferImpl {
 
       holder_->old_buffer_ = std::move(holder_->buffer_);
       holder_->buffer_ = OwnedVector<uint8_t>::New(new_size);
-      return base::make_unique<View>(holder_->buffer_.as_vector(), holder_);
+      return std::make_unique<View>(holder_->buffer_.as_vector(), holder_);
     }
 
    private:
@@ -59,7 +59,7 @@ class WasmInstructionBufferImpl {
 
   std::unique_ptr<AssemblerBuffer> CreateView() {
     DCHECK_NOT_NULL(buffer_);
-    return base::make_unique<View>(buffer_.as_vector(), this);
+    return std::make_unique<View>(buffer_.as_vector(), this);
   }
 
   std::unique_ptr<uint8_t[]> ReleaseBuffer() {
@@ -170,7 +170,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
-    PrintF("Compiling wasm function %d with %s\n\n", func_index_,
+    PrintF("Compiling wasm function %d with %s\n", func_index_,
            ExecutionTierToString(tier_));
   }
 
@@ -262,21 +262,18 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   }
 }
 
-JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(Isolate* isolate,
-                                                               FunctionSig* sig,
-                                                               bool is_import)
-    : job_(compiler::NewJSToWasmCompilationJob(isolate, sig, is_import)) {}
+JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
+    Isolate* isolate, WasmEngine* wasm_engine, FunctionSig* sig, bool is_import,
+    const WasmFeatures& enabled_features)
+    : is_import_(is_import),
+      sig_(sig),
+      job_(compiler::NewJSToWasmCompilationJob(isolate, wasm_engine, sig,
+                                               is_import, enabled_features)) {}
 
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
-void JSToWasmWrapperCompilationUnit::Prepare(Isolate* isolate) {
-  CompilationJob::Status status = job_->PrepareJob(isolate);
-  CHECK_EQ(status, CompilationJob::SUCCEEDED);
-}
-
 void JSToWasmWrapperCompilationUnit::Execute() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "CompileJSToWasmWrapper");
-  DCHECK_EQ(job_->state(), CompilationJob::State::kReadyToExecute);
   CompilationJob::Status status = job_->ExecuteJob();
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
 }
@@ -296,8 +293,9 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
 Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     Isolate* isolate, FunctionSig* sig, bool is_import) {
   // Run the compilation unit synchronously.
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, is_import);
-  unit.Prepare(isolate);
+  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+  JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
+                                      is_import, enabled_features);
   unit.Execute();
   return unit.Finalize(isolate);
 }

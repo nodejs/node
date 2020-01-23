@@ -1,37 +1,22 @@
-sudo: true
 # need to declare the language as well as the matrix below
 language: node_js
-# having top-level `env:` adds a phantom build
-# https://github.com/travis-ci/travis-ci/issues/4681
-#env: DEPLOY_VERSION=testing
-matrix:
-  include:
-    # LTS is our most important target
-    - node_js: "12"
-      # DEPLOY_VERSION is used to set the couchapp setup mode for test/tap/registry.js
-      # only gather coverage info for LTS
-      env: DEPLOY_VERSION=testing COVERALLS_REPO_TOKEN="$COVERALLS_OPTIONAL_TOKEN"
-      script:
-        # run the sudo tests, with coverage enabled
-        - "sudo PATH=$PATH $(which node) . run tap -- \"test/tap/*.js\" --coverage"
-        - "unset COVERALLS_REPO_TOKEN ; node . run tap -- \"test/broken-under-*/*.js\""
-    # previous LTS is next most important
-    - node_js: "10"
-      env: DEPLOY_VERSION=testing
-      script:
-      - "npx standard"
-      - "node . run licenses"
-      - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
-    - node_js: "8"
-      env: DEPLOY_VERSION=testing
-    - node_js: "6"
-      env: DEPLOY_VERSION=testing
+
+os:
+  - windows
+
+node_js:
+  - 12
+  - 10
+  - 8
+  - 6
+
+env: "DEPLOY_VERSION=testing"
+
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
-cache:
-  directories:
-  - node_modules/.cache
+
 install:
   - "node . install"
+
 script:
-  - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
+  - "node . run tap -- \"test/tap/*.js\" -t600 -Rclassic -c"

@@ -7,10 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_BSS_FILE_C
-# define HEADER_BSS_FILE_C
-
-# if defined(__linux) || defined(__sun) || defined(__hpux)
+#if defined(__linux) || defined(__sun) || defined(__hpux)
 /*
  * Following definition aliases fopen to fopen64 on above mentioned
  * platforms. This makes it possible to open and sequentially access files
@@ -23,17 +20,17 @@
  * of 32-bit platforms which allow for sequential access of large files
  * without extra "magic" comprise *BSD, Darwin, IRIX...
  */
-#  ifndef _FILE_OFFSET_BITS
-#   define _FILE_OFFSET_BITS 64
-#  endif
+# ifndef _FILE_OFFSET_BITS
+#  define _FILE_OFFSET_BITS 64
 # endif
+#endif
 
-# include <stdio.h>
-# include <errno.h>
-# include "bio_lcl.h"
-# include <openssl/err.h>
+#include <stdio.h>
+#include <errno.h>
+#include "bio_lcl.h"
+#include <openssl/err.h>
 
-# if !defined(OPENSSL_NO_STDIO)
+#if !defined(OPENSSL_NO_STDIO)
 
 static int file_write(BIO *h, const char *buf, int num);
 static int file_read(BIO *h, char *buf, int size);
@@ -72,9 +69,9 @@ BIO *BIO_new_file(const char *filename, const char *mode)
         SYSerr(SYS_F_FOPEN, get_last_sys_error());
         ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");
         if (errno == ENOENT
-# ifdef ENXIO
+#ifdef ENXIO
             || errno == ENXIO
-# endif
+#endif
             )
             BIOerr(BIO_F_BIO_NEW_FILE, BIO_R_NO_SUCH_FILE);
         else
@@ -212,33 +209,33 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
         b->shutdown = (int)num & BIO_CLOSE;
         b->ptr = ptr;
         b->init = 1;
-#  if BIO_FLAGS_UPLINK!=0
-#   if defined(__MINGW32__) && defined(__MSVCRT__) && !defined(_IOB_ENTRIES)
-#    define _IOB_ENTRIES 20
-#   endif
+# if BIO_FLAGS_UPLINK!=0
+#  if defined(__MINGW32__) && defined(__MSVCRT__) && !defined(_IOB_ENTRIES)
+#   define _IOB_ENTRIES 20
+#  endif
         /* Safety net to catch purely internal BIO_set_fp calls */
-#   if defined(_MSC_VER) && _MSC_VER>=1900
+#  if defined(_MSC_VER) && _MSC_VER>=1900
         if (ptr == stdin || ptr == stdout || ptr == stderr)
             BIO_clear_flags(b, BIO_FLAGS_UPLINK);
-#   elif defined(_IOB_ENTRIES)
+#  elif defined(_IOB_ENTRIES)
         if ((size_t)ptr >= (size_t)stdin &&
             (size_t)ptr < (size_t)(stdin + _IOB_ENTRIES))
             BIO_clear_flags(b, BIO_FLAGS_UPLINK);
-#   endif
 #  endif
-#  ifdef UP_fsetmod
+# endif
+# ifdef UP_fsetmod
         if (b->flags & BIO_FLAGS_UPLINK)
             UP_fsetmod(b->ptr, (char)((num & BIO_FP_TEXT) ? 't' : 'b'));
         else
-#  endif
+# endif
         {
-#  if defined(OPENSSL_SYS_WINDOWS)
+# if defined(OPENSSL_SYS_WINDOWS)
             int fd = _fileno((FILE *)ptr);
             if (num & BIO_FP_TEXT)
                 _setmode(fd, _O_TEXT);
             else
                 _setmode(fd, _O_BINARY);
-#  elif defined(OPENSSL_SYS_MSDOS)
+# elif defined(OPENSSL_SYS_MSDOS)
             int fd = fileno((FILE *)ptr);
             /* Set correct text/binary mode */
             if (num & BIO_FP_TEXT)
@@ -251,11 +248,11 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
                 } else
                     _setmode(fd, _O_BINARY);
             }
-#  elif defined(OPENSSL_SYS_WIN32_CYGWIN)
+# elif defined(OPENSSL_SYS_WIN32_CYGWIN)
             int fd = fileno((FILE *)ptr);
             if (!(num & BIO_FP_TEXT))
                 setmode(fd, O_BINARY);
-#  endif
+# endif
         }
         break;
     case BIO_C_SET_FILENAME:
@@ -277,15 +274,15 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
             ret = 0;
             break;
         }
-#  if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS)
+# if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS)
         if (!(num & BIO_FP_TEXT))
             OPENSSL_strlcat(p, "b", sizeof(p));
         else
             OPENSSL_strlcat(p, "t", sizeof(p));
-#  elif defined(OPENSSL_SYS_WIN32_CYGWIN)
+# elif defined(OPENSSL_SYS_WIN32_CYGWIN)
         if (!(num & BIO_FP_TEXT))
             OPENSSL_strlcat(p, "b", sizeof(p));
-#  endif
+# endif
         fp = openssl_fopen(ptr, p);
         if (fp == NULL) {
             SYSerr(SYS_F_FOPEN, get_last_sys_error());
@@ -422,6 +419,4 @@ BIO *BIO_new_file(const char *filename, const char *mode)
     return NULL;
 }
 
-# endif                         /* OPENSSL_NO_STDIO */
-
-#endif                          /* HEADER_BSS_FILE_C */
+#endif                         /* OPENSSL_NO_STDIO */

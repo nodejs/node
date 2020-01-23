@@ -1,4 +1,5 @@
 #include "node_binding.h"
+#include "node_errors.h"
 #include <atomic>
 #include "env-inl.h"
 #include "node_native_module_env.h"
@@ -50,11 +51,11 @@
   V(domain)                                                                    \
   V(errors)                                                                    \
   V(fs)                                                                        \
+  V(fs_dir)                                                                    \
   V(fs_event_wrap)                                                             \
   V(heap_utils)                                                                \
   V(http2)                                                                     \
   V(http_parser)                                                               \
-  V(http_parser_llhttp)                                                        \
   V(inspector)                                                                 \
   V(js_stream)                                                                 \
   V(messaging)                                                                 \
@@ -84,6 +85,7 @@
   V(util)                                                                      \
   V(uv)                                                                        \
   V(v8)                                                                        \
+  V(wasi)                                                                      \
   V(worker)                                                                    \
   V(zlib)
 
@@ -151,7 +153,7 @@ void* wrapped_dlopen(const char* filename, int flags) {
   Mutex::ScopedLock lock(dlhandles_mutex);
 
   uv_fs_t req;
-  OnScopeLeave cleanup([&]() { uv_fs_req_cleanup(&req); });
+  auto cleanup = OnScopeLeave([&]() { uv_fs_req_cleanup(&req); });
   int rc = uv_fs_stat(nullptr, &req, filename, nullptr);
 
   if (rc != 0) {
@@ -463,6 +465,13 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
     }
 
     if (mp != nullptr) {
+      if (mp->nm_context_register_func == nullptr) {
+        if (env->options()->force_context_aware) {
+          dlib->Close();
+          THROW_ERR_NON_CONTEXT_AWARE_DISABLED(env);
+          return false;
+        }
+      }
       mp->nm_dso_handle = dlib->handle_;
       dlib->SaveInGlobalHandleMap(mp);
     } else {
@@ -476,7 +485,12 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         mp = dlib->GetSavedModuleFromGlobalHandleMap();
         if (mp == nullptr || mp->nm_context_register_func == nullptr) {
           dlib->Close();
-          env->ThrowError("Module did not self-register.");
+          char errmsg[1024];
+          snprintf(errmsg,
+                   sizeof(errmsg),
+                   "Module did not self-register: '%s'.",
+                   *filename);
+          env->ThrowError(errmsg);
           return false;
         }
       }
@@ -544,13 +558,6 @@ inline struct node_module* FindModule(struct node_module* list,
   return mp;
 }
 
-node_module* get_internal_module(const char* name) {
-  return FindModule(modlist_internal, name, NM_F_INTERNAL);
-}
-node_module* get_linked_module(const char* name) {
-  return FindModule(modlist_linked, name, NM_F_LINKED);
-}
-
 static Local<Object> InitModule(Environment* env,
                                 node_module* mod,
                                 Local<String> module) {
@@ -578,7 +585,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value module_v(env->isolate(), module);
   Local<Object> exports;
 
-  node_module* mod = get_internal_module(*module_v);
+  node_module* mod = FindModule(modlist_internal, *module_v, NM_F_INTERNAL);
   if (mod != nullptr) {
     exports = InitModule(env, mod, module);
   } else if (!strcmp(*module_v, "constants")) {
@@ -611,7 +618,20 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Local<String> module_name = args[0].As<String>();
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
-  node_module* mod = get_linked_module(*module_name_v);
+  const char* name = *module_name_v;
+  node_module* mod = nullptr;
+
+  // Iterate from here to the nearest non-Worker Environment to see if there's
+  // a linked binding defined locally rather than through the global list.
+  Environment* cur_env = env;
+  while (mod == nullptr && cur_env != nullptr) {
+    Mutex::ScopedLock lock(cur_env->extra_linked_bindings_mutex());
+    mod = FindModule(cur_env->extra_linked_bindings_head(), name, NM_F_LINKED);
+    cur_env = cur_env->worker_parent_env();
+  }
+
+  if (mod == nullptr)
+    mod = FindModule(modlist_linked, name, NM_F_LINKED);
 
   if (mod == nullptr) {
     char errmsg[1024];

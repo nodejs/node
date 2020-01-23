@@ -29,7 +29,7 @@ let caughtException = false;
 try {
   // Should throw ENOENT, not EBADF
   // see https://github.com/joyent/node/pull/1228
-  fs.openSync('/path/to/file/that/does/not/exist', 'r');
+  fs.openSync('/8hvftyuncxrt/path/to/file/that/does/not/exist', 'r');
 } catch (e) {
   assert.strictEqual(e.code, 'ENOENT');
   caughtException = true;
@@ -65,37 +65,37 @@ async function promise() {
 
 promise().then(common.mustCall()).catch(common.mustNotCall());
 
-common.expectsError(
+assert.throws(
   () => fs.open(__filename, 'r', 'boom', common.mustNotCall()),
   {
     code: 'ERR_INVALID_ARG_VALUE',
-    type: TypeError
+    name: 'TypeError'
   }
 );
 
 for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
-  common.expectsError(
+  assert.throws(
     () => fs.open(__filename, ...extra),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 }
 
 [false, 1, [], {}, null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.open(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.openSync(i, 'r', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
   assert.rejects(

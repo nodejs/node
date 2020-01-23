@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 /* eslint-disable node-core/require-common-first, node-core/required-modules */
 
 import { createRequire } from 'module';
@@ -10,6 +9,7 @@ const {
   isMainThread,
   isWindows,
   isAIX,
+  isIBMi,
   isLinuxPPCBE,
   isSunOS,
   isFreeBSD,
@@ -39,7 +39,6 @@ const {
   skip,
   ArrayStream,
   nodeProcessAborted,
-  busyLoop,
   isAlive,
   expectWarning,
   expectsError,
@@ -56,6 +55,7 @@ export {
   isMainThread,
   isWindows,
   isAIX,
+  isIBMi,
   isLinuxPPCBE,
   isSunOS,
   isFreeBSD,
@@ -85,7 +85,6 @@ export {
   skip,
   ArrayStream,
   nodeProcessAborted,
-  busyLoop,
   isAlive,
   expectWarning,
   expectsError,

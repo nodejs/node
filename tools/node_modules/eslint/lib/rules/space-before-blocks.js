@@ -79,8 +79,7 @@ module.exports = {
         /**
          * Checks whether or not a given token is an arrow operator (=>) or a keyword
          * in order to avoid to conflict with `arrow-spacing` and `keyword-spacing`.
-         *
-         * @param {Token} token - A token to check.
+         * @param {Token} token A token to check.
          * @returns {boolean} `true` if the token is an arrow operator.
          */
         function isConflicted(token) {

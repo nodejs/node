@@ -2,9 +2,7 @@
 var path = require('path')
 var fs = require('fs')
 var test = require('tap').test
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 
 var base = common.pkg
@@ -41,18 +39,7 @@ test('force install bad os', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(base)
-}
-
 function setup () {
-  cleanup()
   mkdirp.sync(path.resolve(installFrom, 'node_modules'))
   fs.writeFileSync(
     path.join(installFrom, 'package.json'),

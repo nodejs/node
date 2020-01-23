@@ -12,7 +12,8 @@
 using node::contextify::ContextifyContext;
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::ArrayBufferCreationMode;
+using v8::BackingStore;
+using v8::CompiledWasmModule;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -58,7 +59,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       Environment* env,
       const std::vector<MessagePort*>& message_ports,
       const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers,
-      const std::vector<WasmModuleObject::TransferrableModule>& wasm_modules)
+      const std::vector<CompiledWasmModule>& wasm_modules)
       : message_ports_(message_ports),
         shared_array_buffers_(shared_array_buffers),
         wasm_modules_(wasm_modules) {}
@@ -82,7 +83,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
   MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
     CHECK_LE(transfer_id, wasm_modules_.size());
-    return WasmModuleObject::FromTransferrableModule(
+    return WasmModuleObject::FromCompiledModule(
         isolate, wasm_modules_[transfer_id]);
   }
 
@@ -91,7 +92,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
  private:
   const std::vector<MessagePort*>& message_ports_;
   const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
-  const std::vector<WasmModuleObject::TransferrableModule>& wasm_modules_;
+  const std::vector<CompiledWasmModule>& wasm_modules_;
 };
 
 }  // anonymous namespace
@@ -123,10 +124,9 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
   // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
-    Local<SharedArrayBuffer> sab;
-    if (!shared_array_buffers_[i]->GetSharedArrayBuffer(env, context)
-            .ToLocal(&sab))
-      return MaybeLocal<Value>();
+    Local<SharedArrayBuffer> sab =
+        SharedArrayBuffer::New(env->isolate(),
+                               std::move(shared_array_buffers_[i]));
     shared_array_buffers.push_back(sab);
   }
   shared_array_buffers_.clear();
@@ -141,30 +141,12 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   delegate.deserializer = &deserializer;
 
   // Attach all transferred ArrayBuffers to their new Isolate.
-  for (uint32_t i = 0; i < array_buffer_contents_.size(); ++i) {
-    if (!env->isolate_data()->uses_node_allocator()) {
-      // We don't use Node's allocator on the receiving side, so we have
-      // to create the ArrayBuffer from a copy of the memory.
-      AllocatedBuffer buf =
-          env->AllocateManaged(array_buffer_contents_[i].size);
-      memcpy(buf.data(),
-             array_buffer_contents_[i].data,
-             array_buffer_contents_[i].size);
-      deserializer.TransferArrayBuffer(i, buf.ToArrayBuffer());
-      continue;
-    }
-
-    env->isolate_data()->node_allocator()->RegisterPointer(
-        array_buffer_contents_[i].data, array_buffer_contents_[i].size);
-
+  for (uint32_t i = 0; i < array_buffers_.size(); ++i) {
     Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(),
-                         array_buffer_contents_[i].release(),
-                         array_buffer_contents_[i].size,
-                         ArrayBufferCreationMode::kInternalized);
+        ArrayBuffer::New(env->isolate(), std::move(array_buffers_[i]));
     deserializer.TransferArrayBuffer(i, ab);
   }
-  array_buffer_contents_.clear();
+  array_buffers_.clear();
 
   if (deserializer.ReadHeader(context).IsNothing())
     return MaybeLocal<Value>();
@@ -173,15 +155,15 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
 }
 
 void Message::AddSharedArrayBuffer(
-    const SharedArrayBufferMetadataReference& reference) {
-  shared_array_buffers_.push_back(reference);
+    std::shared_ptr<BackingStore> backing_store) {
+  shared_array_buffers_.emplace_back(std::move(backing_store));
 }
 
 void Message::AddMessagePort(std::unique_ptr<MessagePortData>&& data) {
   message_ports_.emplace_back(std::move(data));
 }
 
-uint32_t Message::AddWASMModule(WasmModuleObject::TransferrableModule&& mod) {
+uint32_t Message::AddWASMModule(CompiledWasmModule&& mod) {
   wasm_modules_.emplace_back(std::move(mod));
   return wasm_modules_.size() - 1;
 }
@@ -249,22 +231,15 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       }
     }
 
-    auto reference = SharedArrayBufferMetadata::ForSharedArrayBuffer(
-        env_,
-        context_,
-        shared_array_buffer);
-    if (!reference) {
-      return Nothing<uint32_t>();
-    }
     seen_shared_array_buffers_.emplace_back(
       Global<SharedArrayBuffer> { isolate, shared_array_buffer });
-    msg_->AddSharedArrayBuffer(reference);
+    msg_->AddSharedArrayBuffer(shared_array_buffer->GetBackingStore());
     return Just(i);
   }
 
   Maybe<uint32_t> GetWasmModuleTransferId(
       Isolate* isolate, Local<WasmModuleObject> module) override {
-    return Just(msg_->AddWASMModule(module->GetTransferrableModule()));
+    return Just(msg_->AddWASMModule(module->GetCompiledModule()));
   }
 
   void Finish() {
@@ -323,12 +298,25 @@ Maybe<bool> Message::Serialize(Environment* env,
     // Currently, we support ArrayBuffers and MessagePorts.
     if (entry->IsArrayBuffer()) {
       Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
-      // If we cannot render the ArrayBuffer unusable in this Isolate and
-      // take ownership of its memory, copying the buffer will have to do.
-      if (!ab->IsDetachable() || ab->IsExternal() ||
-          !env->isolate_data()->uses_node_allocator()) {
-        continue;
+      // If we cannot render the ArrayBuffer unusable in this Isolate,
+      // copying the buffer will have to do.
+      // Note that we can currently transfer ArrayBuffers even if they were
+      // not allocated by Node’s ArrayBufferAllocator in the first place,
+      // because we pass the underlying v8::BackingStore around rather than
+      // raw data *and* an Isolate with a non-default ArrayBuffer allocator
+      // is always going to outlive any Workers it creates, and so will its
+      // allocator along with it.
+      if (!ab->IsDetachable()) continue;
+      // See https://github.com/nodejs/node/pull/30339#issuecomment-552225353
+      // for details.
+      bool untransferrable;
+      if (!ab->HasPrivate(
+              context,
+              env->arraybuffer_untransferable_private_symbol())
+              .To(&untransferrable)) {
+        return Nothing<bool>();
       }
+      if (untransferrable) continue;
       if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
           array_buffers.end()) {
         ThrowDataCloneException(
@@ -386,18 +374,14 @@ Maybe<bool> Message::Serialize(Environment* env,
   }
 
   for (Local<ArrayBuffer> ab : array_buffers) {
-    // If serialization succeeded, we want to take ownership of
-    // (a.k.a. externalize) the underlying memory region and render
-    // it inaccessible in this Isolate.
-    ArrayBuffer::Contents contents = ab->Externalize();
+    // If serialization succeeded, we render it inaccessible in this Isolate.
+    std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
+    // TODO(addaleax): This can/should be dropped once we have V8 8.0.
+    if (!ab->IsExternal())
+      ab->Externalize(backing_store);
     ab->Detach();
 
-    CHECK(env->isolate_data()->uses_node_allocator());
-    env->isolate_data()->node_allocator()->UnregisterPointer(
-        contents.Data(), contents.ByteLength());
-
-    array_buffer_contents_.emplace_back(MallocedBuffer<char>{
-        static_cast<char*>(contents.Data()), contents.ByteLength()});
+    array_buffers_.emplace_back(std::move(backing_store));
   }
 
   delegate.Finish();
@@ -411,9 +395,8 @@ Maybe<bool> Message::Serialize(Environment* env,
 }
 
 void Message::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("array_buffer_contents", array_buffer_contents_);
-  tracker->TrackFieldWithSize("shared_array_buffers",
-      shared_array_buffers_.size() * sizeof(shared_array_buffers_[0]));
+  tracker->TrackField("array_buffers_", array_buffers_);
+  tracker->TrackField("shared_array_buffers", shared_array_buffers_);
   tracker->TrackField("message_ports", message_ports_);
 }
 
@@ -604,11 +587,30 @@ void MessagePort::OnMessage() {
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = object(env()->isolate())->CreationContext();
 
+  size_t processing_limit;
+  {
+    Mutex::ScopedLock(data_->mutex_);
+    processing_limit = std::max(data_->incoming_messages_.size(),
+                                static_cast<size_t>(1000));
+  }
+
   // data_ can only ever be modified by the owner thread, so no need to lock.
   // However, the message port may be transferred while it is processing
   // messages, so we need to check that this handle still owns its `data_` field
   // on every iteration.
   while (data_) {
+    if (processing_limit-- == 0) {
+      // Prevent event loop starvation by only processing those messages without
+      // interruption that were already present when the OnMessage() call was
+      // first triggered, but at least 1000 messages because otherwise the
+      // overhead of repeatedly triggering the uv_async_t instance becomes
+      // noticable, at least on Windows.
+      // (That might require more investigation by somebody more familiar with
+      // Windows.)
+      TriggerAsync();
+      return;
+    }
+
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(context);
 
@@ -896,6 +898,10 @@ void MessagePort::Entangle(MessagePort* a, MessagePort* b) {
 
 void MessagePort::Entangle(MessagePort* a, MessagePortData* b) {
   MessagePortData::Entangle(a->data_.get(), b);
+}
+
+void MessagePort::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("data", data_);
 }
 
 Local<FunctionTemplate> GetMessagePortConstructorTemplate(Environment* env) {

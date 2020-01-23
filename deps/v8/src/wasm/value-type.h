@@ -44,7 +44,7 @@ using FunctionSig = Signature<ValueType>;
 
 inline size_t hash_value(ValueType type) { return static_cast<size_t>(type); }
 
-// TODO(clemensh): Compute memtype and size from ValueType once we have c++14
+// TODO(clemensb): Compute memtype and size from ValueType once we have c++14
 // constexpr support.
 #define FOREACH_LOAD_TYPE(V) \
   V(I32, , Int32, 2)         \

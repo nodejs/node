@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/sanitizer/lsan-page-allocator.h"
 #include "src/utils/memcopy.h"
@@ -161,15 +162,17 @@ void* GetRandomMmapAddr() {
   return GetPlatformPageAllocator()->GetRandomMmapAddr();
 }
 
-void* AllocatePages(v8::PageAllocator* page_allocator, void* address,
-                    size_t size, size_t alignment,
-                    PageAllocator::Permission access) {
+void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
+                    size_t alignment, PageAllocator::Permission access) {
   DCHECK_NOT_NULL(page_allocator);
-  DCHECK_EQ(address, AlignedAddress(address, alignment));
+  DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
+  if (FLAG_randomize_all_allocations) {
+    hint = page_allocator->GetRandomMmapAddr();
+  }
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = page_allocator->AllocatePages(address, size, alignment, access);
+    result = page_allocator->AllocatePages(hint, size, alignment, access);
     if (result != nullptr) break;
     size_t request_size = size + alignment - page_allocator->AllocatePageSize();
     if (!OnCriticalMemoryPressure(request_size)) break;
@@ -196,16 +199,6 @@ bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
                     size_t size, PageAllocator::Permission access) {
   DCHECK_NOT_NULL(page_allocator);
   return page_allocator->SetPermissions(address, size, access);
-}
-
-byte* AllocatePage(v8::PageAllocator* page_allocator, void* address,
-                   size_t* allocated) {
-  DCHECK_NOT_NULL(page_allocator);
-  size_t page_size = page_allocator->AllocatePageSize();
-  void* result = AllocatePages(page_allocator, address, page_size, page_size,
-                               PageAllocator::kReadWrite);
-  if (result != nullptr) *allocated = page_size;
-  return static_cast<byte*>(result);
 }
 
 bool OnCriticalMemoryPressure(size_t length) {

@@ -25,7 +25,6 @@ const CJS_IMPORT = /^require\(/u;
 
 /**
  * Creates tester which check if a node starts with specific keyword.
- *
  * @param {string} keyword The keyword to test.
  * @returns {Object} the created tester.
  * @private
@@ -39,7 +38,6 @@ function newKeywordTester(keyword) {
 
 /**
  * Creates tester which check if a node starts with specific keyword and spans a single line.
- *
  * @param {string} keyword The keyword to test.
  * @returns {Object} the created tester.
  * @private
@@ -54,7 +52,6 @@ function newSinglelineKeywordTester(keyword) {
 
 /**
  * Creates tester which check if a node starts with specific keyword and spans multiple lines.
- *
  * @param {string} keyword The keyword to test.
  * @returns {Object} the created tester.
  * @private
@@ -69,7 +66,6 @@ function newMultilineKeywordTester(keyword) {
 
 /**
  * Creates tester which check if a node is specific type.
- *
  * @param {string} type The node type to test.
  * @returns {Object} the created tester.
  * @private
@@ -83,7 +79,6 @@ function newNodeTypeTester(type) {
 
 /**
  * Checks the given node is an expression statement of IIFE.
- *
  * @param {ASTNode} node The node to check.
  * @returns {boolean} `true` if the node is an expression statement of IIFE.
  * @private
@@ -103,7 +98,6 @@ function isIIFEStatement(node) {
 /**
  * Checks whether the given node is a block-like statement.
  * This checks the last token of the node is the closing brace of a block.
- *
  * @param {SourceCode} sourceCode The source code to get tokens.
  * @param {ASTNode} node The node to check.
  * @returns {boolean} `true` if the node is a block-like statement.
@@ -187,7 +181,6 @@ function isDirectivePrologue(node, sourceCode) {
  *
  *     foo()
  *     ;[1, 2, 3].forEach(bar)
- *
  * @param {SourceCode} sourceCode The source code to get tokens.
  * @param {ASTNode} node The node to get.
  * @returns {Token} The actual last token.
@@ -224,7 +217,6 @@ function replacerToRemovePaddingLines(_, trailingSpaces, indentSpaces) {
 /**
  * Check and report statements for `any` configuration.
  * It does nothing.
- *
  * @returns {void}
  * @private
  */
@@ -236,7 +228,6 @@ function verifyForAny() {
  * This autofix removes blank lines between the given 2 statements.
  * However, if comments exist between 2 blank lines, it does not remove those
  * blank lines automatically.
- *
  * @param {RuleContext} context The rule context to report.
  * @param {ASTNode} _ Unused. The previous node to check.
  * @param {ASTNode} nextNode The next node to check.
@@ -276,7 +267,6 @@ function verifyForNever(context, _, nextNode, paddingLines) {
  * This autofix inserts a blank line between the given 2 statements.
  * If the `prevNode` has trailing comments, it inserts a blank line after the
  * trailing comments.
- *
  * @param {RuleContext} context The rule context to report.
  * @param {ASTNode} prevNode The previous node to check.
  * @param {ASTNode} nextNode The next node to check.
@@ -318,7 +308,6 @@ function verifyForAlways(context, prevNode, nextNode, paddingLines) {
                      *
                      *     // comment.
                      *     bar();
-                     *
                      * @param {Token} token The token to check.
                      * @returns {boolean} `true` if the token is not a trailing comment.
                      * @private
@@ -511,7 +500,6 @@ module.exports = {
 
         /**
          * Checks whether the given node matches the given type.
-         *
          * @param {ASTNode} node The statement node to check.
          * @param {string|string[]} type The statement type to check.
          * @returns {boolean} `true` if the statement node matched the type.
@@ -531,7 +519,6 @@ module.exports = {
 
         /**
          * Finds the last matched configure from configureList.
-         *
          * @param {ASTNode} prevNode The previous statement to match.
          * @param {ASTNode} nextNode The current statement to match.
          * @returns {Object} The tester of the last matched configure.
@@ -554,7 +541,6 @@ module.exports = {
         /**
          * Gets padding line sequences between the given 2 statements.
          * Comments are separators of the padding line sequences.
-         *
          * @param {ASTNode} prevNode The previous statement to count.
          * @param {ASTNode} nextNode The current statement to count.
          * @returns {Array<Token[]>} The array of token pairs.
@@ -584,7 +570,6 @@ module.exports = {
 
         /**
          * Verify padding lines between the given node and the previous node.
-         *
          * @param {ASTNode} node The node to verify.
          * @returns {void}
          * @private
@@ -616,7 +601,6 @@ module.exports = {
         /**
          * Verify padding lines between the given node and the previous node.
          * Then process to enter to new scope.
-         *
          * @param {ASTNode} node The node to verify.
          * @returns {void}
          * @private

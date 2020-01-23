@@ -84,8 +84,8 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
     return obj.RawFastDoublePropertyAt(field_index);
   } else {
     Object value = obj.RawFastPropertyAt(field_index);
-    if (value.IsMutableHeapNumber()) {
-      return MutableHeapNumber::cast(value).value();
+    if (value.IsHeapNumber()) {
+      return HeapNumber::cast(value).value();
     } else {
       return value.Number();
     }
@@ -1112,7 +1112,7 @@ TEST(SubclassRegExpBuiltin) {
   v8::HandleScope scope(CcTest::isolate());
 
   const int first_field = 1;
-  TestSubclassBuiltin("A1", JS_REGEXP_TYPE, "RegExp", "'o(..)h', 'g'",
+  TestSubclassBuiltin("A1", JS_REG_EXP_TYPE, "RegExp", "'o(..)h', 'g'",
                       first_field);
 }
 

@@ -48,14 +48,6 @@ size_t JSArrayBuffer::allocation_length() const {
   if (backing_store() == nullptr) {
     return 0;
   }
-  // If this buffer is managed by the WasmMemoryTracker
-  if (is_wasm_memory()) {
-    const auto* data =
-        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
-            backing_store());
-    DCHECK_NOT_NULL(data);
-    return data->allocation_length;
-  }
   return byte_length();
 }
 
@@ -63,23 +55,7 @@ void* JSArrayBuffer::allocation_base() const {
   if (backing_store() == nullptr) {
     return nullptr;
   }
-  // If this buffer is managed by the WasmMemoryTracker
-  if (is_wasm_memory()) {
-    const auto* data =
-        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
-            backing_store());
-    DCHECK_NOT_NULL(data);
-    return data->allocation_base;
-  }
   return backing_store();
-}
-
-bool JSArrayBuffer::is_wasm_memory() const {
-  return IsWasmMemoryBit::decode(bit_field());
-}
-
-void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
-  set_bit_field(IsWasmMemoryBit::update(bit_field(), is_wasm_memory));
 }
 
 void JSArrayBuffer::clear_padding() {
@@ -105,6 +81,8 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
                     JSArrayBuffer::IsDetachableBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
+                    JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 
@@ -136,31 +114,61 @@ void JSTypedArray::set_length(size_t value) {
   WriteField<size_t>(kLengthOffset, value);
 }
 
-void* JSTypedArray::external_pointer() const {
-  return reinterpret_cast<void*>(ReadField<Address>(kExternalPointerOffset));
+Address JSTypedArray::external_pointer() const {
+  return ReadField<Address>(kExternalPointerOffset);
 }
 
-void JSTypedArray::set_external_pointer(void* value) {
-  WriteField<Address>(kExternalPointerOffset, reinterpret_cast<Address>(value));
+void JSTypedArray::set_external_pointer(Address value) {
+  WriteField<Address>(kExternalPointerOffset, value);
+}
+
+Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
+    Isolate* isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  return GetIsolateRoot(isolate);
+#else
+  return 0;
+#endif
+}
+
+void JSTypedArray::RemoveExternalPointerCompensationForSerialization() {
+  DCHECK(is_on_heap());
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  set_external_pointer(external_pointer() -
+                       ExternalPointerCompensationForOnHeapArray(isolate));
 }
 
 ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
 
 void* JSTypedArray::DataPtr() {
-  return reinterpret_cast<void*>(
-      base_pointer().ptr() + reinterpret_cast<intptr_t>(external_pointer()));
+  // Zero-extend Tagged_t to Address according to current compression scheme
+  // so that the addition with |external_pointer| (which already contains
+  // compensated offset value) will decompress the tagged value.
+  // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for details.
+  return reinterpret_cast<void*>(external_pointer() +
+                                 static_cast<Tagged_t>(base_pointer().ptr()));
+}
+
+void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {
+  set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
+  Address address = reinterpret_cast<Address>(base) + offset;
+  set_external_pointer(address);
+  DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
+}
+
+void JSTypedArray::SetOnHeapDataPtr(HeapObject base, Address offset) {
+  set_base_pointer(base);
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  set_external_pointer(offset +
+                       ExternalPointerCompensationForOnHeapArray(isolate));
+  DCHECK_EQ(base.ptr() + offset, reinterpret_cast<Address>(DataPtr()));
 }
 
 bool JSTypedArray::is_on_heap() const {
   DisallowHeapAllocation no_gc;
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
-  return base_pointer().ptr() == elements().ptr();
-}
-
-// static
-void* JSTypedArray::ExternalPointerForOnHeapArray() {
-  return reinterpret_cast<void*>(ByteArray::kHeaderSize - kHeapObjectTag);
+  return base_pointer() == elements();
 }
 
 // static

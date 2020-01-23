@@ -176,7 +176,8 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
     } else {
       // If no serializer is provided and the field was empty, we serialize it
       // by default to nullptr.
-      if (serialize_embedder_fields_.callback == nullptr && object.ptr() == 0) {
+      if (serialize_embedder_fields_.callback == nullptr &&
+          object == Smi::zero()) {
         serialized_data.push_back({nullptr, 0});
       } else {
         DCHECK_NOT_NULL(serialize_embedder_fields_.callback);

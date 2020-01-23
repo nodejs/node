@@ -1,0 +1,13 @@
+
+*:4
+throw {  // eslint-disable-line no-throw-literal
+^
+[object Object]
+Thrown at:
+    at *throw_error_with_getter_throw_traced.js:*:*
+    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at Module._extensions..js (internal/modules/cjs/loader.js:*:*)
+    at Module.load (internal/modules/cjs/loader.js:*:*)
+    at Module._load (internal/modules/cjs/loader.js:*:*)
+    at executeUserEntryPoint (internal/modules/run_main.js:*:*)
+    at internal/main/run_main_module.js:*:*

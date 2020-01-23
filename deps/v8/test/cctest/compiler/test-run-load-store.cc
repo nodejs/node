@@ -37,6 +37,11 @@ enum TestAlignment {
 #define A_GIG (1024ULL * 1024ULL * 1024ULL)
 
 namespace {
+byte* ComputeOffset(void* real_address, int32_t offset) {
+  return reinterpret_cast<byte*>(reinterpret_cast<Address>(real_address) -
+                                 offset);
+}
+
 void RunLoadInt32(const TestAlignment t) {
   RawMachineAssemblerTester<int32_t> m;
 
@@ -65,7 +70,7 @@ void RunLoadInt32Offset(TestAlignment t) {
   for (size_t i = 0; i < arraysize(offsets); i++) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = offsets[i];
-    byte* pointer = reinterpret_cast<byte*>(&p1) - offset;
+    byte* pointer = ComputeOffset(&p1, offset);
 
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
@@ -93,8 +98,8 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
         base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = i;
-    byte* from = reinterpret_cast<byte*>(&p1) - offset;
-    byte* to = reinterpret_cast<byte*>(&p2) - offset;
+    byte* from = ComputeOffset(&p1, offset);
+    byte* to = ComputeOffset(&p2, offset);
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
@@ -131,8 +136,8 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
         base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = i;
-    byte* from = reinterpret_cast<byte*>(&p1) - offset;
-    byte* to = reinterpret_cast<byte*>(&p2) - offset;
+    byte* from = ComputeOffset(&p1, offset);
+    byte* to = ComputeOffset(&p2, offset);
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
@@ -259,7 +264,7 @@ void RunLoadImmIndex(MachineType type, TestAlignment t) {
   for (int offset = -1; offset <= 200000; offset *= -5) {
     for (int i = 0; i < kNumElems; i++) {
       BufferedRawMachineAssemblerTester<CType> m;
-      void* base_pointer = &buffer[0] - offset;
+      void* base_pointer = ComputeOffset(&buffer[0], offset * sizeof(CType));
 #ifdef V8_COMPRESS_POINTERS
       if (type.IsTagged()) {
         // When pointer compression is enabled then we need to access only

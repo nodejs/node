@@ -29,11 +29,11 @@ CodeStubAssemblerTestState::CodeStubAssemblerTestState(
 TARGET_TEST_F(CodeStubAssemblerTest, SmiTag) {
   CodeStubAssemblerTestState state(this);
   CodeStubAssemblerForTest m(&state);
-  Node* value = m.Int32Constant(44);
+  TNode<IntPtrT> value = m.IntPtrConstant(44);
   EXPECT_THAT(m.SmiTag(value),
               IsBitcastWordToTaggedSigned(c::IsIntPtrConstant(
                   static_cast<intptr_t>(44) << (kSmiShiftSize + kSmiTagSize))));
-  EXPECT_THAT(m.SmiUntag(value),
+  EXPECT_THAT(m.SmiUntag(m.ReinterpretCast<Smi>(value)),
               c::IsIntPtrConstant(static_cast<intptr_t>(44) >>
                                   (kSmiShiftSize + kSmiTagSize)));
 }
@@ -42,9 +42,9 @@ TARGET_TEST_F(CodeStubAssemblerTest, IntPtrMax) {
   CodeStubAssemblerTestState state(this);
   CodeStubAssemblerForTest m(&state);
   {
-    Node* a = m.IntPtrConstant(100);
-    Node* b = m.IntPtrConstant(1);
-    Node* z = m.IntPtrMax(a, b);
+    TNode<IntPtrT> a = m.IntPtrConstant(100);
+    TNode<IntPtrT> b = m.IntPtrConstant(1);
+    TNode<IntPtrT> z = m.IntPtrMax(a, b);
     EXPECT_THAT(z, c::IsIntPtrConstant(100));
   }
 }
@@ -53,9 +53,9 @@ TARGET_TEST_F(CodeStubAssemblerTest, IntPtrMin) {
   CodeStubAssemblerTestState state(this);
   CodeStubAssemblerForTest m(&state);
   {
-    Node* a = m.IntPtrConstant(100);
-    Node* b = m.IntPtrConstant(1);
-    Node* z = m.IntPtrMin(a, b);
+    TNode<IntPtrT> a = m.IntPtrConstant(100);
+    TNode<IntPtrT> b = m.IntPtrConstant(1);
+    TNode<IntPtrT> z = m.IntPtrMin(a, b);
     EXPECT_THAT(z, c::IsIntPtrConstant(1));
   }
 }

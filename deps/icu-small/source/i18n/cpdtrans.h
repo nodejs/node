@@ -98,7 +98,7 @@ public:
     /**
      * Transliterator API.
      */
-    virtual Transliterator* clone(void) const;
+    virtual CompoundTransliterator* clone() const;
 
     /**
      * Returns the number of transliterators in this chain.

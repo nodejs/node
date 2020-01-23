@@ -49,6 +49,7 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import io
 import re
 import sys
 
@@ -166,7 +167,7 @@ consts_misc = [
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
     { 'name': 'class_Map__instance_descriptors_offset',
-       'value': 'Map::kInstanceDescriptorsOffset' },
+        'value': 'Map::kInstanceDescriptorsOffset' },
 
     { 'name': 'off_fp_context_or_frame_type',
         'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
@@ -259,6 +260,8 @@ extras_accessors = [
     'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
     'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
+    'JSDate, value, Object, kValueOffset',
+    'JSRegExp, source, Object, kSourceOffset',
     'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
     'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
@@ -273,6 +276,7 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
+    'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
@@ -283,6 +287,7 @@ extras_accessors = [
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
     'String, length, int32_t, kLengthOffset',
+    'DescriptorArray, header_size, uintptr_t, kHeaderSize',
 ];
 
 #
@@ -293,7 +298,8 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSPrimitiveWrapper', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise',
+    'DescriptorArray'
 ];
 
 
@@ -380,10 +386,12 @@ def load_objects():
 
 
 def load_objects_from_file(objfilename, checktypes):
-        objfile = open(objfilename, 'r');
+        objfile = io.open(objfilename, 'r', encoding='utf-8');
         in_insttype = False;
+        in_torque_insttype = False
 
         typestr = '';
+        torque_typestr = ''
         uncommented_file = ''
 
         #
@@ -397,15 +405,27 @@ def load_objects_from_file(objfilename, checktypes):
                         in_insttype = True;
                         continue;
 
+                if (line.startswith('#define TORQUE_ASSIGNED_INSTANCE_TYPE_LIST')):
+                        in_torque_insttype = True
+                        continue
+
                 if (in_insttype and line.startswith('};')):
                         in_insttype = False;
                         continue;
+
+                if (in_torque_insttype and (not line or line.isspace())):
+                          in_torque_insttype = False
+                          continue
 
                 line = re.sub('//.*', '', line.strip());
 
                 if (in_insttype):
                         typestr += line;
                         continue;
+
+                if (in_torque_insttype):
+                        torque_typestr += line
+                        continue
 
                 uncommented_file += '\n' + line
 
@@ -434,6 +454,9 @@ def load_objects_from_file(objfilename, checktypes):
         entries = typestr.split(',');
         for entry in entries:
                 types[re.sub('\s*=.*', '', entry).lstrip()] = True;
+        entries = torque_typestr.split('\\')
+        for entry in entries:
+                types[re.sub(r' *V\(|\) *', '', entry)] = True
 
         #
         # Infer class names for each type based on a systematic transformation.
@@ -443,10 +466,7 @@ def load_objects_from_file(objfilename, checktypes):
         # way around.
         #
         for type in types:
-                #
-                # REGEXP behaves like REG_EXP, as in JS_REGEXP_TYPE => JSRegExp.
-                #
-                usetype = re.sub('_REGEXP_', '_REG_EXP_', type);
+                usetype = type
 
                 #
                 # Remove the "_TYPE" suffix and then convert to camel case,
@@ -575,7 +595,7 @@ def load_fields():
 
 
 def load_fields_from_file(filename):
-        inlfile = open(filename, 'r');
+        inlfile = io.open(filename, 'r', encoding='utf-8');
 
         #
         # Each class's fields and the corresponding offsets are described in the

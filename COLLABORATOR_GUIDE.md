@@ -3,35 +3,35 @@
 ## Contents
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
-  - [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
-  - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
-  - [Author ready pull requests](#author-ready-pull-requests)
-  - [Handling own pull requests](#handling-own-pull-requests)
+  * [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
+  * [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
+  * [Author ready pull requests](#author-ready-pull-requests)
+  * [Handling own pull requests](#handling-own-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
-  - [Code Reviews](#code-reviews)
-  - [Consensus Seeking](#consensus-seeking)
-  - [Waiting for Approvals](#waiting-for-approvals)
-  - [Testing and CI](#testing-and-ci)
-    - [Useful CI Jobs](#useful-ci-jobs)
-  - [Internal vs. Public API](#internal-vs-public-api)
-  - [Breaking Changes](#breaking-changes)
-    - [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
-    - [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-    - [Unintended Breaking Changes](#unintended-breaking-changes)
-      - [Reverting commits](#reverting-commits)
-  - [Introducing New Modules](#introducing-new-modules)
-  - [Additions to N-API](#additions-to-n-api)
-  - [Deprecations](#deprecations)
-  - [Involving the TSC](#involving-the-tsc)
+  * [Code Reviews](#code-reviews)
+  * [Consensus Seeking](#consensus-seeking)
+  * [Waiting for Approvals](#waiting-for-approvals)
+  * [Testing and CI](#testing-and-ci)
+    * [Useful CI Jobs](#useful-ci-jobs)
+  * [Internal vs. Public API](#internal-vs-public-api)
+  * [Breaking Changes](#breaking-changes)
+    * [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
+    * [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
+    * [Unintended Breaking Changes](#unintended-breaking-changes)
+      * [Reverting commits](#reverting-commits)
+  * [Introducing New Modules](#introducing-new-modules)
+  * [Additions to N-API](#additions-to-n-api)
+  * [Deprecations](#deprecations)
+  * [Involving the TSC](#involving-the-tsc)
 * [Landing Pull Requests](#landing-pull-requests)
-  - [Using `git-node`](#using-git-node)
-  - [Technical HOWTO](#technical-howto)
-  - [Troubleshooting](#troubleshooting)
-  - [I Made a Mistake](#i-made-a-mistake)
-  - [Long Term Support](#long-term-support)
-    - [What is LTS?](#what-is-lts)
-    - [How are LTS Branches Managed?](#how-are-lts-branches-managed)
-    - [How can I help?](#how-can-i-help)
+  * [Using `git-node`](#using-git-node)
+  * [Technical HOWTO](#technical-howto)
+  * [Troubleshooting](#troubleshooting)
+  * [I Made a Mistake](#i-made-a-mistake)
+  * [Long Term Support](#long-term-support)
+    * [What is LTS?](#what-is-lts)
+    * [How are LTS Branches Managed?](#how-are-lts-branches-managed)
+    * [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
 This document explains how Collaborators manage the Node.js project.
@@ -172,14 +172,30 @@ the comment anyway to avoid any doubt.
 All fixes must have a test case which demonstrates the defect. The test should
 fail before the change, and pass after the change.
 
-All pull requests must pass continuous integration tests on the
-[project CI server](https://ci.nodejs.org/).
+All pull requests must pass continuous integration tests. Code changes must pass
+on [project CI server](https://ci.nodejs.org/). Pull requests that only change
+documentation and comments can use Travis CI results.
+
+Travis CI jobs have a fixed running time limit that building Node.js sometimes
+exceeds. If the `Compile Node.js` Travis CI job has timed out it will fail after
+around 45 minutes. The exit code will be 143, indicating that a `SIGTERM` signal
+terminated the `make` command. When this happens, restart the timed out job. It
+will reuse built artifacts from the previous timed-out run, and thus take less
+time to complete.
 
 Do not land any pull requests without passing (green or yellow) CI runs. If
 there are CI failures unrelated to the change in the pull request, try "Resume
 Build". It is in the left navigation of the relevant `node-test-pull-request`
 job. It will preserve all the green results from the current job but re-run
-everything else.
+everything else. Start a fresh CI if more than seven days have elapsed since
+the original failing CI as the compiled binaries for the Windows and ARM
+platforms are only kept for seven days.
+
+Some of the CI Jobs may require `GIT_REMOTE_REF` which is the remote portion
+of Git refspec. To specify the branch this way `refs/heads/BRANCH` is used
+(i.e for `master` -> `refs/heads/master`).
+For pull requests it will look like `refs/pull/PR_NUMBER/head`
+(i.e. for PR#42 -> `refs/pull/42/head`).
 
 #### Useful CI Jobs
 
@@ -187,15 +203,10 @@ everything else.
 is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
 targets on all supported platforms.
 
-* [`node-test-pull-request-lite-pipeline`](https://ci.nodejs.org/job/node-test-pull-request-lite-pipeline/)
-runs the linter job. It also runs the tests on a very fast host. This is useful
-for changes that only affect comments or documentation.
-
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
 `npm install && npm test` on a large selection of common modules. This is
-useful to check whether a change will cause breakage in the ecosystem. To test
-Node.js ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
+useful to check whether a change will cause breakage in the ecosystem.
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
 can run a group of tests over and over on a specific platform. Use it to check
@@ -342,6 +353,9 @@ Runtime Deprecations and End-of-Life APIs (internal or public) are breaking
 changes (`semver-major`). The TSC may make exceptions, deciding that one of
 these deprecations is not a breaking change.
 
+Avoid Runtime Deprecations when an alias or a stub/no-op will suffice. An alias
+or stub will have lower maintenance costs for end users and Node.js core.
+
 All deprecations receive a unique and immutable identifier. Documentation,
 warnings, and errors use the identifier when referring to the deprecation. The
 documentation for the deprecation identifier must always remain in the API
@@ -371,10 +385,10 @@ deprecation level of an API.
 Collaborators may opt to elevate pull requests or issues to the [TSC][].
 Do this if a pull request or issue:
 
-- is labeled `semver-major`, or
-- has a significant impact on the codebase, or
-- is controversial, or
-- is at an impasse among Collaborators who are participating in the discussion.
+* is labeled `semver-major`, or
+* has a significant impact on the codebase, or
+* is controversial, or
+* is at an impasse among Collaborators who are participating in the discussion.
 
 @-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to
@@ -542,9 +556,7 @@ Save the file and close the editor. When prompted, enter a new commit message
 for that commit. This is an opportunity to fix commit messages.
 
 * The commit message text must conform to the [commit message guidelines][].
-
-<a name="metadata"></a>
-* Change the original commit message to include metadata. (The
+* <a name="metadata"></a>Change the original commit message to include metadata. (The
   [`git node metadata`][git-node-metadata] command can generate the metadata
   for you.)
 

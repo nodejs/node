@@ -72,6 +72,10 @@ static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa)
         reason = DSA_R_MISSING_PARAMETERS;
         goto err;
     }
+    if (dsa->priv_key == NULL) {
+        reason = DSA_R_MISSING_PRIVATE_KEY;
+        goto err;
+    }
 
     ret = DSA_SIG_new();
     if (ret == NULL)
@@ -195,6 +199,10 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
         DSAerr(DSA_F_DSA_SIGN_SETUP, DSA_R_INVALID_PARAMETERS);
         return 0;
     }
+    if (dsa->priv_key == NULL) {
+        DSAerr(DSA_F_DSA_SIGN_SETUP, DSA_R_MISSING_PRIVATE_KEY);
+        return 0;
+    }
 
     k = BN_new();
     l = BN_new();
@@ -248,7 +256,7 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
      * one bit longer than the modulus.
      *
      * There are some concerns about the efficacy of doing this.  More
-     * specificly refer to the discussion starting with:
+     * specifically refer to the discussion starting with:
      *     https://github.com/openssl/openssl/pull/7486#discussion_r228323705
      * The fix is to rework BN so these gymnastics aren't required.
      */

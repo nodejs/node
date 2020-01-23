@@ -126,7 +126,7 @@
  Float64Array].forEach(view => {
   test(() => {
     assert_throws(new TypeError(), () => new TextEncoder().encodeInto("", new view(new ArrayBuffer(0))));
-  }, "Invalid encodeInto() destination: " + view);
+  }, "Invalid encodeInto() destination: " + view.name);
  });
 
 test(() => {

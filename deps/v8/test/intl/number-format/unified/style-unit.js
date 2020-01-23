@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-numberformat-unified
-
 // Test default.
 
 let nf = new Intl.NumberFormat();
@@ -24,6 +22,7 @@ assertEquals(undefined, nf.resolvedOptions().unit);
 assertThrows(() => new Intl.NumberFormat("en", {style: 'unit'}), TypeError);
 
 const validUnits = [
+  // IsSanctionedSimpleUnitIdentifier
   'acre',
   'bit',
   'byte',
@@ -32,7 +31,9 @@ const validUnits = [
   'day',
   'degree',
   'fahrenheit',
+  'fluid-ounce',
   'foot',
+  'gallon',
   'gigabit',
   'gigabyte',
   'gram',
@@ -43,12 +44,14 @@ const validUnits = [
   'kilobyte',
   'kilogram',
   'kilometer',
+  'liter',
   'megabit',
   'megabyte',
   'meter',
   'mile-scandinavian',
   'mile',
   'millimeter',
+  'milliliter',
   'millisecond',
   'minute',
   'month',
@@ -68,6 +71,9 @@ const validUnits = [
   'meter-per-second',
   'yard-per-second',
   'yard-per-hour',
+  // -per- in IsWellFormedUnitIdentifier
+  'liter-per-kilometer',
+  'mile-per-gallon',
 ];
 
 for (const unit of validUnits) {
@@ -103,12 +109,10 @@ assertThrows(() => c('day-person'), RangeError);
 assertThrows(() => c('deciliter'), RangeError);
 assertThrows(() => c('decimeter'), RangeError);
 assertThrows(() => c('fathom'), RangeError);
-assertThrows(() => c('fluid-ounce'), RangeError);
 assertThrows(() => c('foodcalorie'), RangeError);
 assertThrows(() => c('furlong'), RangeError);
 assertThrows(() => c('g-force'), RangeError);
 assertThrows(() => c('gallon-imperial'), RangeError);
-assertThrows(() => c('gallon'), RangeError);
 assertThrows(() => c('generic'), RangeError);
 assertThrows(() => c('gigahertz'), RangeError);
 assertThrows(() => c('gigawatt'), RangeError);
@@ -128,8 +132,6 @@ assertThrows(() => c('kilowatt'), RangeError);
 assertThrows(() => c('knot'), RangeError);
 assertThrows(() => c('light-year'), RangeError);
 assertThrows(() => c('liter-per-100kilometers'), RangeError);
-assertThrows(() => c('liter-per-kilometer'), RangeError);
-assertThrows(() => c('liter'), RangeError);
 assertThrows(() => c('lux'), RangeError);
 assertThrows(() => c('megahertz'), RangeError);
 assertThrows(() => c('megaliter'), RangeError);
@@ -140,12 +142,10 @@ assertThrows(() => c('microgram'), RangeError);
 assertThrows(() => c('micrometer'), RangeError);
 assertThrows(() => c('microsecond'), RangeError);
 assertThrows(() => c('mile-per-gallon-imperial'), RangeError);
-assertThrows(() => c('mile-per-gallon'), RangeError);
 assertThrows(() => c('milliampere'), RangeError);
 assertThrows(() => c('millibar'), RangeError);
 assertThrows(() => c('milligram-per-deciliter'), RangeError);
 assertThrows(() => c('milligram'), RangeError);
-assertThrows(() => c('milliliter'), RangeError);
 assertThrows(() => c('millimeter-of-mercury'), RangeError);
 assertThrows(() => c('millimole-per-liter'), RangeError);
 assertThrows(() => c('milliwatt'), RangeError);

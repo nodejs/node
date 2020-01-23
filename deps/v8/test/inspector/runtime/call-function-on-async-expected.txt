@@ -166,10 +166,22 @@ Running test: testFunctionReturnRejectedPromise
         exceptionDetails : {
             columnNumber : 0
             exception : {
-                type : object
-                value : {
-                    a : 3
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : a
+                            type : number
+                            value : 3
+                        }
+                    ]
+                    type : object
                 }
+                type : object
             }
             exceptionId : <exceptionId>
             lineNumber : 0
@@ -203,4 +215,76 @@ Running test: testPassingBothObjectIdAndExecutionContextId
         message : ObjectId must not be specified together with executionContextId
     }
     id : <messageId>
+}
+
+Running test: testThrowNumber
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 10
+            exception : {
+                description : 100500
+                type : number
+                value : 100500
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 10
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            description : 100500
+            type : number
+            value : 100500
+        }
+    }
+}
+
+Running test: testAsyncFunctionWithUnknownReferenceReturnByValue
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 30
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: does_not_exist is not defined     at <anonymous>:1:30
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 29
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught (in promise) ReferenceError: does_not_exist is not defined
+        }
+        result : {
+            type : object
+            value : {
+            }
+        }
+    }
 }

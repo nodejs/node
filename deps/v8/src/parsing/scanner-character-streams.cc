@@ -265,7 +265,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     }
 
     size_t length = Min(kBufferSize, range.length());
-    i::CopyCharsUnsigned(buffer_, range.start, length);
+    i::CopyChars(buffer_, range.start, length);
     buffer_end_ = &buffer_[length];
     return true;
   }
@@ -359,7 +359,7 @@ class RelocatingCharacterStream
   void UpdateBufferPointers() {
     DisallowHeapAllocation no_gc;
     Range<uint16_t> range =
-        byte_stream_.GetDataAt(0, runtime_call_stats(), &no_gc);
+        byte_stream_.GetDataAt(buffer_pos_, runtime_call_stats(), &no_gc);
     if (range.start != buffer_start_) {
       buffer_cursor_ = (buffer_cursor_ - buffer_start_) + range.start;
       buffer_start_ = range.start;

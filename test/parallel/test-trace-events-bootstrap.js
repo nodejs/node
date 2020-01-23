@@ -12,15 +12,7 @@ const names = [
   'v8Start',
   'loopStart',
   'loopExit',
-  'bootstrapComplete',
-  'thirdPartyMainStart',
-  'thirdPartyMainEnd',
-  'clusterSetupStart',
-  'clusterSetupEnd',
-  'moduleLoadStart',
-  'moduleLoadEnd',
-  'preloadModulesLoadStart',
-  'preloadModulesLoadEnd'
+  'bootstrapComplete'
 ];
 
 if (process.argv[2] === 'child') {

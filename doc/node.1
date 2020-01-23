@@ -100,16 +100,24 @@ The default is
 File name of the V8 CPU profile generated with
 .Fl -cpu-prof
 .
+.It Fl -disallow-code-generation-from-strings
+Make built-in language features like `eval` and `new Function` that generate
+code from strings throw an exception instead. This does not affect the Node.js
+`vm` module.
+.
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
 .Sy ./configure --openssl-fips .
 .
-.It Fl -es-module-specifier-resolution
-Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
+.It Fl -enable-source-maps
+Enable experimental Source Map V3 support for stack traces.
+.
+.It Fl -experimental-json-modules
+Enable experimental JSON interop support for the ES Module loader.
 .
 .It Fl -experimental-modules
-Enable experimental ES module support and caching modules.
+Enable experimental latest experimental modules features.
 .
 .It Fl -experimental-policy
 Use the specified file as a security policy.
@@ -119,6 +127,9 @@ Enable experimental top-level
 .Sy await
 keyword support in REPL.
 .
+.It Fl -experimental-specifier-resolution
+Select extension resolution algorithm for ES Modules; either 'explicit' (default) or 'node'
+.
 .It Fl -experimental-report
 Enable experimental
 .Sy diagnostic report
@@ -127,8 +138,14 @@ feature.
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
 .
+.It Fl -experimental-wasi-unstable-preview1
+Enable experimental WebAssembly System Interface support.
+.
 .It Fl -experimental-wasm-modules
 Enable experimental WebAssembly module support.
+.
+.It Fl -force-context-aware
+Disable loading native addons that are not context-aware.
 .
 .It Fl -force-fips
 Force FIPS-compliant crypto on startup
@@ -164,12 +181,6 @@ The default is
 File name of the V8 heap profile generated with
 .Fl -heap-prof
 .
-.It Fl -http-parser Ns = Ns Ar library
-Chooses an HTTP parser library. Available values are
-.Sy llhttp
-or
-.Sy legacy .
-.
 .It Fl -icu-data-dir Ns = Ns Ar file
 Specify ICU data load path.
 Overrides
@@ -188,6 +199,15 @@ Set the
 .Ar host:port
 to be used when the inspector is activated.
 .
+.It Fl -inspect-publish-uid=stderr,http
+Specify how the inspector WebSocket URL is exposed.
+Valid values are
+.Sy stderr
+and
+.Sy http .
+Default is
+.Sy stderr,http .
+.
 .It Fl -inspect Ns = Ns Ar [host:]port
 Activate inspector on
 .Ar host:port .
@@ -197,11 +217,16 @@ Default is
 V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js instances for debugging and profiling.
 It uses the Chrome DevTools Protocol.
 .
-.It Fl -loader Ns = Ns Ar file
+.It Fl -experimental-loader Ns = Ns Ar module
 Specify the
-.Ar file
-as a custom loader, to load
-.Fl -experimental-modules .
+.Ar module
+to use as a custom module loader.
+.
+.It Fl -insecure-http-parser
+Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
+interoperability with non-conformant HTTP implementations. It may also allow
+request smuggling and other HTTP attacks that rely on invalid headers being
+accepted. Avoid using this option.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 8KB.
@@ -295,6 +320,11 @@ Specify process.title on startup.
 Specify an alternative default TLS cipher list.
 Requires Node.js to be built with crypto support. (Default)
 .
+.It Fl -tls-keylog Ns = Ns Ar file
+Log TLS key material to a file. The key material is in NSS SSLKEYLOGFILE
+format and can be used by software (such as Wireshark) to decrypt the TLS
+traffic.
+.
 .It Fl -tls-max-v1.2
 Set default  maxVersion to 'TLSv1.2'. Use to disable support for TLSv1.3.
 .
@@ -334,11 +364,27 @@ and
 .It Fl -trace-events-enabled
 Enable the collection of trace event tracing information.
 .
+.It Fl -trace-exit
+Prints a stack trace whenever an environment is exited proactively,
+i.e. invoking `process.exit()`.
+.
 .It Fl -trace-sync-io
 Print a stack trace whenever synchronous I/O is detected after the first turn of the event loop.
 .
 .It Fl -trace-tls
 Prints TLS packet trace information to stderr.
+.
+.It Fl -trace-uncaught
+Print stack traces for uncaught exceptions; usually, the stack trace associated
+with the creation of an
+.Sy Error
+is printed, whereas this makes Node.js also
+print the stack trace associated with throwing the value (which does not need
+to be an
+.Sy Error
+instance).
+.Pp
+Enabling this option may affect garbage collection behavior negatively.
 .
 .It Fl -trace-warnings
 Print stack traces for process warnings (including deprecations).
@@ -364,6 +410,16 @@ See
 .Ev SSL_CERT_DIR
 and
 .Ev SSL_CERT_FILE .
+.
+.It Fl -use-largepages Ns = Ns Ar mode
+Re-map the Node.js static code to large memory pages at startup. If supported on
+the target system, this will cause the Node.js static code to be moved onto 2
+MiB pages instead of 4 KiB pages.
+.Pp
+.Ar mode
+must have one of the following values:
+`off` (the default value, meaning do not map), `on` (map and ignore failure,
+reporting it to stderr), or `silent` (map and silently ignore failure).
 .
 .It Fl -v8-options
 Print V8 command-line options.

@@ -5,8 +5,8 @@ since symlinks are not suitable for this purpose there.
 
 On Unix systems, you should use a symbolic link instead.
 
-[![Build Status](https://img.shields.io/travis/ForbesLindesay/cmd-shim/master.svg)](https://travis-ci.org/ForbesLindesay/cmd-shim)
-[![Dependency Status](https://img.shields.io/david/ForbesLindesay/cmd-shim.svg)](https://david-dm.org/ForbesLindesay/cmd-shim)
+[![Build Status](https://img.shields.io/travis/npm/cmd-shim/master.svg)](https://travis-ci.org/npm/cmd-shim)
+[![Dependency Status](https://img.shields.io/david/npm/cmd-shim.svg)](https://david-dm.org/npm/cmd-shim)
 [![NPM version](https://img.shields.io/npm/v/cmd-shim.svg)](https://www.npmjs.com/package/cmd-shim)
 
 ## Installation

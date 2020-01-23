@@ -6,8 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
-
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
 const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
@@ -50,13 +48,14 @@ assert.strictEqual(dh2.verifyError, 0);
   /abc/,
   {}
 ].forEach((input) => {
-  common.expectsError(
+  assert.throws(
     () => crypto.createDiffieHellman(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "sizeOrKey" argument must be one of type number, string, ' +
-               `Buffer, TypedArray, or DataView. Received type ${typeof input}`
+      name: 'TypeError',
+      message: 'The "sizeOrKey" argument must be one of type number or string' +
+               ' or an instance of Buffer, TypedArray, or DataView.' +
+               common.invalidArgTypeHelper(input)
     }
   );
 });
@@ -126,8 +125,6 @@ bob.generateKeys();
 const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.strictEqual(aSecret, bSecret);
-assert.strictEqual(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
-assert.strictEqual(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 /* Ensure specific generator (buffer) works as expected.
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
@@ -158,8 +155,6 @@ const modp2buf = Buffer.from([
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
 for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
@@ -172,7 +167,6 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
 {
@@ -184,7 +178,6 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
 {
@@ -196,17 +189,20 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
       .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
-
+// Second OAKLEY group, see
+// https://github.com/nodejs/node-v0.x-archive/issues/2338 and
+// https://xml2rfc.tools.ietf.org/public/rfc/html/rfc2412.html#anchor49
 const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
           '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
           '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
           'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
-const bad_dh = crypto.createDiffieHellman(p, 'hex');
-assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
+crypto.createDiffieHellman(p, 'hex');
 
+// Confirm DH_check() results are exposed for optional examination.
+const bad_dh = crypto.createDiffieHellman('02', 'hex');
+assert.notStrictEqual(bad_dh.verifyError, 0);
 
 const availableCurves = new Set(crypto.getCurves());
 const availableHashes = new Set(crypto.getHashes());
@@ -237,11 +233,11 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   assert(firstByte === 6 || firstByte === 7);
   // Format value should be string
 
-  common.expectsError(
+  assert.throws(
     () => ecdh1.getPublicKey('buffer', 10),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Invalid ECDH format: 10'
     });
 
@@ -249,11 +245,11 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const ecdh3 = crypto.createECDH('secp256k1');
   const key3 = ecdh3.generateKeys();
 
-  common.expectsError(
+  assert.throws(
     () => ecdh2.computeSecret(key3, 'latin1', 'buffer'),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
-      type: Error,
+      name: 'Error',
       message: 'Public key is not valid for specified curve'
     });
 
@@ -362,11 +358,11 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   const invalidKey = Buffer.alloc(65);
   invalidKey.fill('\0');
   curve.generateKeys();
-  common.expectsError(
+  assert.throws(
     () => curve.computeSecret(invalidKey),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
-      type: Error,
+      name: 'Error',
       message: 'Public key is not valid for specified curve'
     });
   // Check that signing operations are not impacted by the above error.
@@ -380,13 +376,13 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
 }
 
 // Invalid test: curve argument is undefined
-common.expectsError(
+assert.throws(
   () => crypto.createECDH(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "curve" argument must be of type string. ' +
-             'Received type undefined'
+             'Received undefined'
   });
 
 assert.throws(

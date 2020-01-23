@@ -14,28 +14,38 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-SelectLowering::SelectLowering(Graph* graph, CommonOperatorBuilder* common)
-    : common_(common), graph_(graph) {}
+SelectLowering::SelectLowering(JSGraph* jsgraph, Zone* zone)
+    : graph_assembler_(jsgraph, nullptr, nullptr, zone),
+      start_(jsgraph->graph()->start()) {}
 
 SelectLowering::~SelectLowering() = default;
 
-
 Reduction SelectLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kSelect) return NoChange();
+  return Changed(LowerSelect(node));
+}
+
+#define __ gasm()->
+
+Node* SelectLowering::LowerSelect(Node* node) {
   SelectParameters const p = SelectParametersOf(node->op());
 
-  Node* cond = node->InputAt(0);
-  Node* vthen = node->InputAt(1);
-  Node* velse = node->InputAt(2);
+  Node* condition = node->InputAt(0);
+  Node* vtrue = node->InputAt(1);
+  Node* vfalse = node->InputAt(2);
 
-  // Create a diamond and a phi.
-  Diamond d(graph(), common(), cond, p.hint());
-  node->ReplaceInput(0, vthen);
-  node->ReplaceInput(1, velse);
-  node->ReplaceInput(2, d.merge);
-  NodeProperties::ChangeOp(node, common()->Phi(p.representation(), 2));
-  return Changed(node);
+  gasm()->Reset(start(), start());
+
+  auto done = __ MakeLabel(p.representation());
+
+  __ GotoIf(condition, &done, vtrue);
+  __ Goto(&done, vfalse);
+  __ Bind(&done);
+
+  return done.PhiAt(0);
 }
+
+#undef __
 
 }  // namespace compiler
 }  // namespace internal

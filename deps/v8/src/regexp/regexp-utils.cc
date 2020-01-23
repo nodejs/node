@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-utils.h"
 
 #include "src/execution/isolate.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
@@ -170,16 +171,22 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // Check that the "exec" method is unmodified.
   // Check that the index refers to "exec" method (this has to be consistent
   // with the init order in the bootstrapper).
+  InternalIndex kExecIndex(JSRegExp::kExecFunctionDescriptorIndex);
   DCHECK_EQ(*(isolate->factory()->exec_string()),
-            proto_map.instance_descriptors().GetKey(
-                JSRegExp::kExecFunctionDescriptorIndex));
-  if (proto_map.instance_descriptors()
-          .GetDetails(JSRegExp::kExecFunctionDescriptorIndex)
-          .constness() != PropertyConstness::kConst) {
+            proto_map.instance_descriptors().GetKey(kExecIndex));
+  if (proto_map.instance_descriptors().GetDetails(kExecIndex).constness() !=
+      PropertyConstness::kConst) {
     return false;
   }
 
-  if (!isolate->IsRegExpSpeciesLookupChainIntact(isolate->native_context())) {
+  // Note: Unlike the more involved check in CSA (see BranchIfFastRegExp), this
+  // does not go on to check the actual value of the exec property. This would
+  // not be valid since this method is called from places that access the flags
+  // property. Similar spots in CSA would use BranchIfFastRegExp_Strict in this
+  // case.
+
+  if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+          recv.GetCreationContext())) {
     return false;
   }
 

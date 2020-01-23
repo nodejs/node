@@ -1,4 +1,3 @@
-
 // Copyright 2019 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -15,18 +14,19 @@ enum FunctionKind : uint8_t {
   // BEGIN constructable functions
   kNormalFunction,
   kModule,
+  kAsyncModule,
   // BEGIN class constructors
   // BEGIN base constructors
   kBaseConstructor,
   // BEGIN default constructors
   kDefaultBaseConstructor,
   // END base constructors
-  // BEGIN derived cosntructors
+  // BEGIN derived constructors
   kDefaultDerivedConstructor,
   // END default constructors
   kDerivedConstructor,
-  // END derived costructors
-  // END class cosntructors
+  // END derived constructors
+  // END class constructors
   // END constructable functions.
   // BEGIN accessors
   kGetterFunction,
@@ -62,7 +62,11 @@ inline bool IsArrowFunction(FunctionKind kind) {
 }
 
 inline bool IsModule(FunctionKind kind) {
-  return kind == FunctionKind::kModule;
+  return IsInRange(kind, FunctionKind::kModule, FunctionKind::kAsyncModule);
+}
+
+inline bool IsAsyncModule(FunctionKind kind) {
+  return kind == FunctionKind::kAsyncModule;
 }
 
 inline bool IsAsyncGeneratorFunction(FunctionKind kind) {
@@ -164,6 +168,8 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "AsyncFunction";
     case FunctionKind::kModule:
       return "Module";
+    case FunctionKind::kAsyncModule:
+      return "AsyncModule";
     case FunctionKind::kClassMembersInitializerFunction:
       return "ClassMembersInitializerFunction";
     case FunctionKind::kDefaultBaseConstructor:

@@ -65,9 +65,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
   PoisoningMitigationLevel poisoning_level() const { return poisoning_level_; }
 
-  // Finalizes the schedule and exports it to be used for code generation. Note
-  // that this RawMachineAssembler becomes invalid after export.
-  Schedule* Export();
+  // Only used for tests: Finalizes the schedule and exports it to be used for
+  // code generation. Note that this RawMachineAssembler becomes invalid after
+  // export.
+  Schedule* ExportForTest();
   // Finalizes the schedule and transforms it into a graph that's suitable for
   // it to be used for Turbofan optimization and re-scheduling. Note that this
   // RawMachineAssembler becomes invalid after export.
@@ -130,7 +131,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   std::pair<MachineType, const Operator*> InsertDecompressionIfNeeded(
       MachineType type) {
     const Operator* decompress_op = nullptr;
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       switch (type.representation()) {
         case MachineRepresentation::kTaggedPointer:
           type = MachineType::CompressedPointer();
@@ -187,7 +188,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   std::pair<MachineRepresentation, Node*> InsertCompressionIfNeeded(
       MachineRepresentation rep, Node* value) {
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       switch (rep) {
         case MachineRepresentation::kTaggedPointer:
           rep = MachineRepresentation::kCompressedPointer;
@@ -236,7 +237,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
             object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value) {
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       DCHECK(AccessBuilder::ForMap().machine_type.IsCompressedPointer());
       value =
           AddNode(machine()->ChangeTaggedPointerToCompressedPointer(), value);
@@ -577,6 +578,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Word32PairSar(Node* low_word, Node* high_word, Node* shift) {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
+  Node* StackPointerGreaterThan(Node* value) {
+    return AddNode(machine()->StackPointerGreaterThan(), value);
+  }
 
 #define INTPTR_BINOP(prefix, name)                           \
   Node* IntPtr##name(Node* a, Node* b) {                     \
@@ -732,8 +736,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* BitcastTaggedToWord(Node* a) {
       return AddNode(machine()->BitcastTaggedToWord(), a);
   }
-  Node* BitcastTaggedSignedToWord(Node* a) {
-    return AddNode(machine()->BitcastTaggedSignedToWord(), a);
+  Node* BitcastTaggedToWordForTagAndSmiBits(Node* a) {
+    return AddNode(machine()->BitcastTaggedToWordForTagAndSmiBits(), a);
   }
   Node* BitcastMaybeObjectToWord(Node* a) {
       return AddNode(machine()->BitcastMaybeObjectToWord(), a);
@@ -907,7 +911,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Stack operations.
-  Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
   Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
   Node* LoadParentFramePointer() {
     return AddNode(machine()->LoadParentFramePointer());
@@ -962,8 +965,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Tail call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
-  Node* TailCallN(CallDescriptor* call_descriptor, int input_count,
-                  Node* const* inputs);
+  void TailCallN(CallDescriptor* call_descriptor, int input_count,
+                 Node* const* inputs);
 
   // Type representing C function argument with type info.
   using CFunctionArg = std::pair<MachineType, Node*>;
@@ -979,6 +982,22 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   Node* CallCFunction(Node* function, MachineType return_type,
                       std::initializer_list<CFunctionArg> args);
+
+  // Call to a C function without a function discriptor on AIX.
+  template <class... CArgs>
+  Node* CallCFunctionWithoutFunctionDescriptor(Node* function,
+                                               MachineType return_type,
+                                               CArgs... cargs) {
+    static_assert(v8::internal::conjunction<
+                      std::is_convertible<CArgs, CFunctionArg>...>::value,
+                  "invalid argument types");
+    return CallCFunctionWithoutFunctionDescriptor(function, return_type,
+                                                  {cargs...});
+  }
+
+  Node* CallCFunctionWithoutFunctionDescriptor(
+      Node* function, MachineType return_type,
+      std::initializer_list<CFunctionArg> args);
 
   // Call to a C function, while saving/restoring caller registers.
   template <class... CArgs>
@@ -1090,6 +1109,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   Schedule* schedule() { return schedule_; }
   size_t parameter_count() const { return call_descriptor_->ParameterCount(); }
+
+  static void OptimizeControlFlow(Schedule* schedule, Graph* graph,
+                                  CommonOperatorBuilder* common);
 
   Isolate* isolate_;
   Graph* graph_;

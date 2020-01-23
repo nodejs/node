@@ -44,8 +44,9 @@ testMe._domain.on('error', function(reason) {
 });
 
 const testFile = [
-  'var top = function() {',
-  'var inner = {one:1};'
+  'let inner = (function() {',
+  '  return {one:1};',
+  '})()'
 ];
 const saveFileName = join(tmpdir.path, 'test.save.js');
 

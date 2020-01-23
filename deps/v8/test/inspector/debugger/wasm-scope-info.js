@@ -41,21 +41,21 @@ async function instantiateWasm() {
           ['i32Arg', undefined, 'i64_local', 'unicode☼f64'])
       .addBody([
         // Set param 0 to 11.
-        kExprI32Const, 11, kExprSetLocal, 0,
+        kExprI32Const, 11, kExprLocalSet, 0,
         // Set local 1 to 47.
-        kExprI32Const, 47, kExprSetLocal, 1,
+        kExprI32Const, 47, kExprLocalSet, 1,
         // Set local 2 to 0x7FFFFFFFFFFFFFFF (max i64).
         kExprI64Const, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
-        kExprSetLocal, 2,
+        kExprLocalSet, 2,
         // Set local 2 to 0x8000000000000000 (min i64).
         kExprI64Const, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
-        kExprSetLocal, 2,
+        kExprLocalSet, 2,
         // Set local 3 to 1/7.
         kExprI32Const, 1, kExprF64UConvertI32, kExprI32Const, 7,
-        kExprF64UConvertI32, kExprF64Div, kExprSetLocal, 3,
+        kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
 
         // Set global 0 to 15
-        kExprI32Const, 15, kExprSetGlobal, 0,
+        kExprI32Const, 15, kExprGlobalSet, 0,
       ])
       .exportAs('main');
 

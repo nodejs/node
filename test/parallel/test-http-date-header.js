@@ -48,7 +48,6 @@ server.addListener('listening', () => {
               'Response headers didn\'t contain a Date.');
     res.addListener('end', () => {
       server.close();
-      process.exit();
     });
     res.resume();
   });

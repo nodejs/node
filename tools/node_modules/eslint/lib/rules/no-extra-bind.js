@@ -40,13 +40,13 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
         let scopeInfo = null;
 
         /**
          * Checks if a node is free of side effects.
          *
          * This check is stricter than it needs to be, in order to keep the implementation simple.
-         *
          * @param {ASTNode} node A node to check.
          * @returns {boolean} True if the node is known to be side-effect free, false otherwise.
          */
@@ -56,8 +56,7 @@ module.exports = {
 
         /**
          * Reports a given function node.
-         *
-         * @param {ASTNode} node - A node to report. This is a FunctionExpression or
+         * @param {ASTNode} node A node to report. This is a FunctionExpression or
          *      an ArrowFunctionExpression.
          * @returns {void}
          */
@@ -71,8 +70,13 @@ module.exports = {
                         return null;
                     }
 
-                    const firstTokenToRemove = context.getSourceCode()
+                    const firstTokenToRemove = sourceCode
                         .getFirstTokenBetween(node.parent.object, node.parent.property, astUtils.isNotClosingParenToken);
+                    const lastTokenToRemove = sourceCode.getLastToken(node.parent.parent);
+
+                    if (sourceCode.commentsExistBetween(firstTokenToRemove, lastTokenToRemove)) {
+                        return null;
+                    }
 
                     return fixer.removeRange([firstTokenToRemove.range[0], node.parent.parent.range[1]]);
                 }
@@ -84,8 +88,7 @@ module.exports = {
          * method.
          *
          * e.g. `(function() {}.bind(foo))`
-         *
-         * @param {ASTNode} node - A node to report. This is a FunctionExpression or
+         * @param {ASTNode} node A node to report. This is a FunctionExpression or
          *      an ArrowFunctionExpression.
          * @returns {boolean} `true` if the node is the callee of `.bind()` method.
          */
@@ -107,8 +110,7 @@ module.exports = {
 
         /**
          * Adds a scope information object to the stack.
-         *
-         * @param {ASTNode} node - A node to add. This node is a FunctionExpression
+         * @param {ASTNode} node A node to add. This node is a FunctionExpression
          *      or a FunctionDeclaration node.
          * @returns {void}
          */
@@ -124,8 +126,7 @@ module.exports = {
          * Removes the scope information object from the top of the stack.
          * At the same time, this reports the function node if the function has
          * `.bind()` and the `this` keywords found.
-         *
-         * @param {ASTNode} node - A node to remove. This node is a
+         * @param {ASTNode} node A node to remove. This node is a
          *      FunctionExpression or a FunctionDeclaration node.
          * @returns {void}
          */
@@ -140,8 +141,7 @@ module.exports = {
         /**
          * Reports a given arrow function if the function is callee of `.bind()`
          * method.
-         *
-         * @param {ASTNode} node - A node to report. This node is an
+         * @param {ASTNode} node A node to report. This node is an
          *      ArrowFunctionExpression.
          * @returns {void}
          */
@@ -153,7 +153,6 @@ module.exports = {
 
         /**
          * Set the mark as the `this` keyword was found in this scope.
-         *
          * @returns {void}
          */
         function markAsThisFound() {

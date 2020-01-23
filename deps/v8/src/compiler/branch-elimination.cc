@@ -4,6 +4,7 @@
 
 #include "src/compiler/branch-elimination.h"
 
+#include "src/base/small-vector.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -13,16 +14,16 @@ namespace internal {
 namespace compiler {
 
 BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
-                                     Zone* zone)
+                                     Zone* zone, Phase phase)
     : AdvancedReducer(editor),
       jsgraph_(js_graph),
       node_conditions_(js_graph->graph()->NodeCount(), zone),
       reduced_(js_graph->graph()->NodeCount(), zone),
       zone_(zone),
-      dead_(js_graph->Dead()) {}
+      dead_(js_graph->Dead()),
+      phase_(phase) {}
 
 BranchElimination::~BranchElimination() = default;
-
 
 Reduction BranchElimination::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -52,6 +53,74 @@ Reduction BranchElimination::Reduce(Node* node) {
   return NoChange();
 }
 
+void BranchElimination::SimplifyBranchCondition(Node* branch) {
+  // Try to use a phi as a branch condition if the control flow from the branch
+  // is known from previous branches. For example, in the graph below, the
+  // control flow of the second_branch is predictable because the first_branch
+  // use the same branch condition. In such case, create a new phi with constant
+  // inputs and let the second branch use the phi as its branch condition. From
+  // this transformation, more branch folding opportunities would be exposed to
+  // later passes through branch cloning in effect-control-linearizer.
+  //
+  // condition                             condition
+  //    |   \                                   |
+  //    |  first_branch                        first_branch
+  //    |   /          \                       /          \
+  //    |  /            \                     /            \
+  //    |first_true  first_false           first_true  first_false
+  //    |  \           /                      \           /
+  //    |   \         /                        \         /
+  //    |  first_merge           ==>          first_merge
+  //    |       |                                   |
+  //   second_branch                    1    0      |
+  //    /          \                     \  /       |
+  //   /            \                     phi       |
+  // second_true  second_false              \       |
+  //                                      second_branch
+  //                                      /          \
+  //                                     /            \
+  //                                   second_true  second_false
+  //
+
+  DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
+  Node* merge = NodeProperties::GetControlInput(branch);
+  if (merge->opcode() != IrOpcode::kMerge) return;
+
+  Node* branch_condition = branch->InputAt(0);
+  Node* previous_branch;
+  bool condition_value;
+  Graph* graph = jsgraph()->graph();
+  base::SmallVector<Node*, 2> phi_inputs;
+
+  Node::Inputs inputs = merge->inputs();
+  int input_count = inputs.count();
+  for (int i = 0; i != input_count; ++i) {
+    Node* input = inputs[i];
+    ControlPathConditions from_input = node_conditions_.Get(input);
+    if (!from_input.LookupCondition(branch_condition, &previous_branch,
+                                    &condition_value))
+      return;
+
+    if (phase_ == kEARLY) {
+      phi_inputs.emplace_back(condition_value ? jsgraph()->TrueConstant()
+                                              : jsgraph()->FalseConstant());
+    } else {
+      phi_inputs.emplace_back(
+          condition_value
+              ? graph->NewNode(jsgraph()->common()->Int32Constant(1))
+              : graph->NewNode(jsgraph()->common()->Int32Constant(0)));
+    }
+  }
+  phi_inputs.emplace_back(merge);
+  Node* new_phi = graph->NewNode(
+      common()->Phi(phase_ == kEARLY ? MachineRepresentation::kTagged
+                                     : MachineRepresentation::kWord32,
+                    input_count),
+      input_count + 1, &phi_inputs.at(0));
+
+  // Replace the branch condition with the new phi.
+  NodeProperties::ReplaceValueInput(branch, new_phi, 0);
+}
 
 Reduction BranchElimination::ReduceBranch(Node* node) {
   Node* condition = node->InputAt(0);
@@ -87,6 +156,7 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
     }
     return Replace(dead());
   }
+  SimplifyBranchCondition(node);
   return TakeConditionsFromFirstControl(node);
 }
 
@@ -151,14 +221,12 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
   return UpdateConditions(node, from_branch, condition, branch, is_true_branch);
 }
 
-
 Reduction BranchElimination::ReduceLoop(Node* node) {
   // Here we rely on having only reducible loops:
   // The loop entry edge always dominates the header, so we can just use
   // the information from the loop entry edge.
   return TakeConditionsFromFirstControl(node);
 }
-
 
 Reduction BranchElimination::ReduceMerge(Node* node) {
   // Shortcut for the case when we do not know anything about some
@@ -188,17 +256,14 @@ Reduction BranchElimination::ReduceMerge(Node* node) {
   return UpdateConditions(node, conditions);
 }
 
-
 Reduction BranchElimination::ReduceStart(Node* node) {
   return UpdateConditions(node, {});
 }
-
 
 Reduction BranchElimination::ReduceOtherControl(Node* node) {
   DCHECK_EQ(1, node->op()->ControlInputCount());
   return TakeConditionsFromFirstControl(node);
 }
-
 
 Reduction BranchElimination::TakeConditionsFromFirstControl(Node* node) {
   // We just propagate the information from the control input (ideally,

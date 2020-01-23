@@ -430,4 +430,10 @@ ssize_t nghttp2_hd_huff_decode(nghttp2_hd_huff_decode_context *ctx,
                                nghttp2_buf *buf, const uint8_t *src,
                                size_t srclen, int fin);
 
+/*
+ * nghttp2_hd_huff_decode_failure_state returns nonzero if |ctx|
+ * indicates that huffman decoding context is in failure state.
+ */
+int nghttp2_hd_huff_decode_failure_state(nghttp2_hd_huff_decode_context *ctx);
+
 #endif /* NGHTTP2_HD_H */

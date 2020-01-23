@@ -38,9 +38,9 @@ module.exports = {
 
         /**
          * Reports whitespace before property token
-         * @param {ASTNode} node - the node to report in the event of an error
-         * @param {Token} leftToken - the left token
-         * @param {Token} rightToken - the right token
+         * @param {ASTNode} node the node to report in the event of an error
+         * @param {Token} leftToken the left token
+         * @param {Token} rightToken the right token
          * @returns {void}
          * @private
          */

@@ -26,7 +26,7 @@ class InstructionOperandConverter {
 
   // -- Instruction operand accesses with conversions --------------------------
 
-  Register InputRegister(size_t index) {
+  Register InputRegister(size_t index) const {
     return ToRegister(instr_->InputAt(index));
   }
 
@@ -96,7 +96,7 @@ class InstructionOperandConverter {
     return ToRpoNumber(instr_->InputAt(index));
   }
 
-  Register OutputRegister(size_t index = 0) {
+  Register OutputRegister(size_t index = 0) const {
     return ToRegister(instr_->OutputAt(index));
   }
 
@@ -116,6 +116,10 @@ class InstructionOperandConverter {
     return ToSimd128Register(instr_->Output());
   }
 
+  Simd128Register TempSimd128Register(size_t index) {
+    return ToSimd128Register(instr_->TempAt(index));
+  }
+
   // -- Conversions for operands -----------------------------------------------
 
   Label* ToLabel(InstructionOperand* op) {
@@ -126,7 +130,7 @@ class InstructionOperandConverter {
     return ToConstant(op).ToRpoNumber();
   }
 
-  Register ToRegister(InstructionOperand* op) {
+  Register ToRegister(InstructionOperand* op) const {
     return LocationOperand::cast(op)->GetRegister();
   }
 
@@ -142,7 +146,7 @@ class InstructionOperandConverter {
     return LocationOperand::cast(op)->GetSimd128Register();
   }
 
-  Constant ToConstant(InstructionOperand* op) {
+  Constant ToConstant(InstructionOperand* op) const {
     if (op->IsImmediate()) {
       return gen_->instructions()->GetImmediate(ImmediateOperand::cast(op));
     }
@@ -176,20 +180,55 @@ class InstructionOperandConverter {
   Instruction* instr_;
 };
 
-// Eager deoptimization exit.
+// Deoptimization exit.
 class DeoptimizationExit : public ZoneObject {
  public:
-  explicit DeoptimizationExit(int deoptimization_id, SourcePosition pos)
-      : deoptimization_id_(deoptimization_id), pos_(pos) {}
+  explicit DeoptimizationExit(SourcePosition pos, BailoutId bailout_id,
+                              int translation_id, int pc_offset,
+                              DeoptimizeKind kind, DeoptimizeReason reason)
+      : deoptimization_id_(kNoDeoptIndex),
+        pos_(pos),
+        bailout_id_(bailout_id),
+        translation_id_(translation_id),
+        pc_offset_(pc_offset),
+        kind_(kind),
+        reason_(reason),
+        emitted_(false) {}
 
-  int deoptimization_id() const { return deoptimization_id_; }
-  Label* label() { return &label_; }
+  bool has_deoptimization_id() const {
+    return deoptimization_id_ != kNoDeoptIndex;
+  }
+  int deoptimization_id() const {
+    DCHECK(has_deoptimization_id());
+    return deoptimization_id_;
+  }
+  void set_deoptimization_id(int deoptimization_id) {
+    deoptimization_id_ = deoptimization_id;
+  }
   SourcePosition pos() const { return pos_; }
+  Label* label() { return &label_; }
+  BailoutId bailout_id() const { return bailout_id_; }
+  int translation_id() const { return translation_id_; }
+  int pc_offset() const { return pc_offset_; }
+  DeoptimizeKind kind() const { return kind_; }
+  DeoptimizeReason reason() const { return reason_; }
+  // Returns whether the deopt exit has already been emitted. Most deopt exits
+  // are emitted contiguously at the end of the code, but unconditional deopt
+  // exits (kArchDeoptimize) may be inlined where they are encountered.
+  bool emitted() const { return emitted_; }
+  void set_emitted() { emitted_ = true; }
 
  private:
-  int const deoptimization_id_;
+  static const int kNoDeoptIndex = kMaxInt16 + 1;
+  int deoptimization_id_;
+  const SourcePosition pos_;
   Label label_;
-  SourcePosition const pos_;
+  const BailoutId bailout_id_;
+  const int translation_id_;
+  const int pc_offset_;
+  const DeoptimizeKind kind_;
+  const DeoptimizeReason reason_;
+  bool emitted_;
 };
 
 // Generator for out-of-line code that is emitted after the main code is done.

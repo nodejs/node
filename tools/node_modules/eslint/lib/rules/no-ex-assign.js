@@ -33,7 +33,7 @@ module.exports = {
 
         /**
          * Finds and reports references that are non initializer and writable.
-         * @param {Variable} variable - A variable to check.
+         * @param {Variable} variable A variable to check.
          * @returns {void}
          */
         function checkVariable(variable) {

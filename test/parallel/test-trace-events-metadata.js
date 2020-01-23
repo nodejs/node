@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const CODE =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1);' +
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1);' +
   'process.title = "foo"';
 
 const tmpdir = require('../common/tmpdir');
@@ -64,8 +64,9 @@ proc.once('exit', common.mustCall(() => {
         (!process.release.lts ||
           trace.args.process.release.lts === process.release.lts)));
 
-    if (!common.isSunOS) {
+    if (!common.isSunOS && !common.isIBMi) {
       // Changing process.title is currently unsupported on SunOS/SmartOS
+      // and IBMi
       assert(traces.some((trace) =>
         trace.name === 'process_name' && trace.args.name === 'foo'));
       assert(traces.some((trace) =>

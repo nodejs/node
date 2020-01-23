@@ -49,16 +49,12 @@ class AllocationBuilder final {
   }
 
   // Compound allocation of a context.
-  inline void AllocateContext(int variadic_part_length, Handle<Map> map);
+  inline void AllocateContext(int variadic_part_length, MapRef map);
 
   // Compound allocation of a FixedArray.
-  inline void AllocateArray(int length, Handle<Map> map,
+  inline void AllocateArray(int length, MapRef map,
                             AllocationType allocation = AllocationType::kYoung);
 
-  // Compound store of a constant into a field.
-  void Store(const FieldAccess& access, Handle<Object> value) {
-    Store(access, jsgraph()->Constant(value));
-  }
   // Compound store of a constant into a field.
   void Store(const FieldAccess& access, const ObjectRef& value) {
     Store(access, jsgraph()->Constant(value));

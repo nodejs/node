@@ -4,8 +4,6 @@ var existsSync = fs.existsSync || path.existsSync
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -75,13 +73,11 @@ test('installing a package that depends on the current package', function (t) {
 })
 
 test('cleanup', function (t) {
-  cleanup()
   server.close()
   t.end()
 })
 
 function setup (cb) {
-  cleanup()
   mkdirp.sync(minimist)
   fs.writeFileSync(
     path.join(minimist, 'package.json'),
@@ -94,9 +90,4 @@ function setup (cb) {
     server = s
     cb()
   })
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
 }

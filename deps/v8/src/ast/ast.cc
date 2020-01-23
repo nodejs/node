@@ -122,6 +122,10 @@ bool Expression::IsUndefinedLiteral() const {
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
+bool Expression::IsLiteralButNotNullOrUndefined() const {
+  return IsLiteral() && !IsNullOrUndefinedLiteral();
+}
+
 bool Expression::ToBooleanIsTrue() const {
   return IsLiteral() && AsLiteral()->ToBooleanIsTrue();
 }
@@ -217,13 +221,7 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 bool FunctionLiteral::SafeToSkipArgumentsAdaptor() const {
-  // TODO(bmeurer,verwaest): The --fast_calls_with_arguments_mismatches
-  // is mostly here for checking the real-world impact of the calling
-  // convention. There's not really a point in turning off this flag
-  // otherwise, so we should remove it at some point, when we're done
-  // with the experiments (https://crbug.com/v8/8895).
-  return FLAG_fast_calls_with_arguments_mismatches &&
-         language_mode() == LanguageMode::kStrict &&
+  return language_mode() == LanguageMode::kStrict &&
          scope()->arguments() == nullptr &&
          scope()->rest_parameter() == nullptr;
 }
@@ -293,6 +291,10 @@ bool FunctionLiteral::requires_brand_initialization() const {
   if (!outer->is_class_scope()) return false;
 
   return outer->AsClassScope()->brand() != nullptr;
+}
+
+bool FunctionLiteral::private_name_lookup_skips_outer_class() const {
+  return scope()->private_name_lookup_skips_outer_class();
 }
 
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
@@ -888,7 +890,7 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
-      return isolate->factory()->NewNumber(number_, AllocationType::kOld);
+      return isolate->factory()->NewNumber<AllocationType::kOld>(number_);
     case kString:
       return string_->string();
     case kSymbol:

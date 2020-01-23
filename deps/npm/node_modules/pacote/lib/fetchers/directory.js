@@ -9,6 +9,7 @@ const readJson = require('../util/read-json')
 const path = require('path')
 const pipe = BB.promisify(require('mississippi').pipe)
 const through = require('mississippi').through
+const normalizePackageBin = require('npm-normalize-package-bin')
 
 const readFileAsync = BB.promisify(require('fs').readFile)
 
@@ -63,7 +64,7 @@ Fetcher.impl(fetchDirectory, {
       } else {
         return pkg
       }
-    })
+    }).then(pkg => normalizePackageBin(pkg))
   },
 
   // As of npm@5, the npm installer doesn't pack + install directories: it just

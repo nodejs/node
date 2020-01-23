@@ -10,7 +10,7 @@
 
 /**
  * Checks whether or not a given variable declarator has the initializer.
- * @param {ASTNode} node - A VariableDeclarator node to check.
+ * @param {ASTNode} node A VariableDeclarator node to check.
  * @returns {boolean} `true` if the node has the initializer.
  */
 function isInitialized(node) {
@@ -19,7 +19,7 @@ function isInitialized(node) {
 
 /**
  * Checks whether or not a given code path segment is unreachable.
- * @param {CodePathSegment} segment - A CodePathSegment to check.
+ * @param {CodePathSegment} segment A CodePathSegment to check.
  * @returns {boolean} `true` if the segment is unreachable.
  */
 function isUnreachable(segment) {
@@ -57,7 +57,7 @@ class ConsecutiveRange {
 
     /**
      * Checks whether the given node is inside of this range.
-     * @param {ASTNode|Token} node - The node to check.
+     * @param {ASTNode|Token} node The node to check.
      * @returns {boolean} `true` if the node is inside of this range.
      */
     contains(node) {
@@ -69,7 +69,7 @@ class ConsecutiveRange {
 
     /**
      * Checks whether the given node is consecutive to this range.
-     * @param {ASTNode} node - The node to check.
+     * @param {ASTNode} node The node to check.
      * @returns {boolean} `true` if the node is consecutive to this range.
      */
     isConsecutive(node) {
@@ -78,7 +78,7 @@ class ConsecutiveRange {
 
     /**
      * Merges the given node to this range.
-     * @param {ASTNode} node - The node to merge.
+     * @param {ASTNode} node The node to merge.
      * @returns {void}
      */
     merge(node) {
@@ -87,7 +87,7 @@ class ConsecutiveRange {
 
     /**
      * Resets this range by the given node or null.
-     * @param {ASTNode|null} node - The node to reset, or null.
+     * @param {ASTNode|null} node The node to reset, or null.
      * @returns {void}
      */
     reset(node) {
@@ -120,7 +120,7 @@ module.exports = {
 
         /**
          * Reports a given node if it's unreachable.
-         * @param {ASTNode} node - A statement node to report.
+         * @param {ASTNode} node A statement node to report.
          * @returns {void}
          */
         function reportIfUnreachable(node) {

@@ -17,36 +17,36 @@ const cafebabePubPtUnComp =
     '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
 
 // Invalid test: key argument is undefined.
-common.expectsError(
+assert.throws(
   () => ECDH.convertKey(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
   });
 
 // Invalid test: curve argument is undefined.
-common.expectsError(
+assert.throws(
   () => ECDH.convertKey(cafebabePubPtComp),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
   });
 
 // Invalid test: curve argument is invalid.
-common.expectsError(
+assert.throws(
   () => ECDH.convertKey(cafebabePubPtComp, 'badcurve'),
   {
-    type: TypeError,
+    name: 'TypeError',
     message: 'Invalid ECDH curve name'
   });
 
 if (getCurves().includes('secp256k1')) {
   // Invalid test: format argument is undefined.
-  common.expectsError(
+  assert.throws(
     () => ECDH.convertKey(cafebabePubPtComp, 'secp256k1', 'hex', 'hex', 10),
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
-      type: TypeError,
+      name: 'TypeError',
       message: 'Invalid ECDH format: 10'
     });
 

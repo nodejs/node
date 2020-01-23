@@ -203,6 +203,22 @@
 # endif
 #endif /* __NR_statx */
 
+#ifndef __NR_getrandom
+# if defined(__x86_64__)
+#  define __NR_getrandom 318
+# elif defined(__i386__)
+#  define __NR_getrandom 355
+# elif defined(__aarch64__)
+#  define __NR_getrandom 384
+# elif defined(__arm__)
+#  define __NR_getrandom (UV_SYSCALL_BASE + 384)
+# elif defined(__ppc__)
+#  define __NR_getrandom 359
+# elif defined(__s390__)
+#  define __NR_getrandom 349
+# endif
+#endif /* __NR_getrandom */
+
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 #if defined(__i386__)
   unsigned long args[4];
@@ -363,6 +379,15 @@ int uv__statx(int dirfd,
    */
 #if defined(__NR_statx) && !defined(__ANDROID__)
   return syscall(__NR_statx, dirfd, path, flags, mask, statxbuf);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+ssize_t uv__getrandom(void* buf, size_t buflen, unsigned flags) {
+#if defined(__NR_getrandom)
+  return syscall(__NR_getrandom, buf, buflen, flags);
 #else
   return errno = ENOSYS, -1;
 #endif

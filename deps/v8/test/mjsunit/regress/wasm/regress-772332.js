@@ -19,7 +19,7 @@ function __f_15356(__v_50316, __v_50317) {
 }
   (function __f_15357() {
     let __v_50320 = __f_15356(__v_50350 = false, __v_50351 = kSig_i_i);
-      __v_50320.addFunction('plus_one', kSig_i_i).addBody([kExprGetLocal, 0, kExprCallFunction, __v_50315, kExprI32Const, kExprI32Add, kExprReturn]).exportFunc();
+      __v_50320.addFunction('plus_one', kSig_i_i).addBody([kExprLocalGet, 0, kExprCallFunction, __v_50315, kExprI32Const, kExprI32Add, kExprReturn]).exportFunc();
     let __v_50321 = __f_15356();
     let __v_50324 = __v_50321.instantiate();
     let __v_50325 = __v_50320.instantiate({

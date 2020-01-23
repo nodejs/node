@@ -19,14 +19,14 @@ let kMaxMemory = 2 * k1GiB - kPageSize; // TODO(titzer): raise this to 4GiB
     builder.addImportedMemory("i", "mem");
     builder.addFunction("load", makeSig([kWasmI32], [type]))
       .addBody([           // --
-        kExprGetLocal, 0,  // --
+        kExprLocalGet, 0,  // --
         load_opcode, 0, 0, // --
       ])                   // --
       .exportFunc();
     builder.addFunction("store", makeSig([kWasmI32, type], []))
       .addBody([             // --
-        kExprGetLocal, 0,    // --
-        kExprGetLocal, 1,    // --
+        kExprLocalGet, 0,    // --
+        kExprLocalGet, 1,    // --
         store_opcode, 0, 0,  // --
       ])                     // --
       .exportFunc();

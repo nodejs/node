@@ -1,16 +1,10 @@
 var fs = require('graceful-fs')
 var path = require('path')
-
-var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
-
 var common = require('../common-tap.js')
 var pkg = common.pkg
 
 test('npm shrinkwrap execution order', function (t) {
-  setup()
   fs.writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify({
     author: 'Simen Bekkhus',
     name: 'shrinkwrap-lifecycle',
@@ -22,7 +16,7 @@ test('npm shrinkwrap execution order', function (t) {
       postshrinkwrap: 'echo this happens third'
     }
   }), 'utf8')
-  common.npm(['shrinkwrap', '--loglevel=error'], [], function (err, code, stdout, stderr) {
+  common.npm(['shrinkwrap', '--loglevel=error'], { cwd: pkg }, function (err, code, stdout, stderr) {
     if (err) throw err
 
     t.comment(stdout)
@@ -41,14 +35,3 @@ test('npm shrinkwrap execution order', function (t) {
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
-})
-
-function setup () {
-  mkdirp.sync(pkg)
-  process.chdir(pkg)
-}

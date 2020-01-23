@@ -109,7 +109,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 2);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
+  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
@@ -148,7 +148,7 @@ static void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
-  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
+  uint32_t* fields = static_cast<uint32_t*>(ab->GetBackingStore()->Data());
 
   fields[0] = (t / NANOS_PER_SEC) >> 32;
   fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
@@ -157,7 +157,7 @@ static void Hrtime(const FunctionCallbackInfo<Value>& args) {
 
 static void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> ab = args[0].As<BigUint64Array>()->Buffer();
-  uint64_t* fields = static_cast<uint64_t*>(ab->GetContents().Data());
+  uint64_t* fields = static_cast<uint64_t*>(ab->GetBackingStore()->Data());
   fields[0] = uv_hrtime();
 }
 
@@ -172,11 +172,15 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->Int32Value(context).To(&pid)) return;
   int sig;
   if (!args[1]->Int32Value(context).To(&sig)) return;
-    // TODO(joyeecheung): white list the signals?
 
-#if HAVE_INSPECTOR
-  profiler::EndStartedProfilers(env);
-#endif
+  uv_pid_t own_pid = uv_os_getpid();
+  if (sig > 0 &&
+      (pid == 0 || pid == -1 || pid == own_pid || pid == -own_pid) &&
+      !HasSignalJSHandler(sig)) {
+    // This is most likely going to terminate this process.
+    // It's not an exact method but it might be close enough.
+    RunAtExit(env);
+  }
 
   int err = uv_kill(pid, sig);
   args.GetReturnValue().Set(err);
@@ -200,7 +204,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 4);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
+  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   fields[0] = rss;
   fields[1] = v8_heap_stats.total_heap_size();
@@ -297,7 +301,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 16);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
+  double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
@@ -358,7 +362,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   LPTHREAD_START_ROUTINE* handler = nullptr;
   DWORD pid = 0;
 
-  OnScopeLeave cleanup([&]() {
+  auto cleanup = OnScopeLeave([&]() {
     if (process != nullptr) CloseHandle(process);
     if (thread != nullptr) CloseHandle(thread);
     if (handler != nullptr) UnmapViewOfFile(handler);
@@ -428,7 +432,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 
 static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  WaitForInspectorDisconnect(env);
+  RunAtExit(env);
   int code = args[0]->Int32Value(env->context()).FromMaybe(0);
   env->Exit(code);
 }

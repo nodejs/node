@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_WASM_TRANSLATION_H_
 #define V8_INSPECTOR_WASM_TRANSLATION_H_
 
+#include <memory>
 #include <unordered_map>
 
 #include "include/v8.h"

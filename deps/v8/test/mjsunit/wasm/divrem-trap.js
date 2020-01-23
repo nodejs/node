@@ -16,8 +16,8 @@ function makeBinop(opcode) {
 
   builder.addFunction("main", kSig_i_ii)
     .addBody([
-      kExprGetLocal, 0,           // --
-      kExprGetLocal, 1,           // --
+      kExprLocalGet, 0,           // --
+      kExprLocalGet, 1,           // --
       opcode,                     // --
     ])
     .exportFunc();

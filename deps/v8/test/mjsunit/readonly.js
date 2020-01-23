@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
+// This test manually triggers optimization, no need for stress modes.
+// Flags: --nostress-opt --noalways-opt
 
 // Different ways to create an object.
 

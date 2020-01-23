@@ -20,8 +20,7 @@ const MODE_ALWAYS = "always",
 
 /**
  * Checks whether a given variable is shadowed or not.
- *
- * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
  * @returns {boolean} `true` if the variable is shadowed.
  */
 function isShadowed(variable) {
@@ -30,8 +29,7 @@ function isShadowed(variable) {
 
 /**
  * Checks whether a given node is a MemberExpression of `parseInt` method or not.
- *
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is a MemberExpression of `parseInt`
  *      method.
  */
@@ -51,8 +49,7 @@ function isParseIntMethod(node) {
  *
  * - A literal except numbers.
  * - undefined.
- *
- * @param {ASTNode} radix - A node of radix to check.
+ * @param {ASTNode} radix A node of radix to check.
  * @returns {boolean} `true` if the node is valid.
  */
 function isValidRadix(radix) {
@@ -64,8 +61,7 @@ function isValidRadix(radix) {
 
 /**
  * Checks whether a given node is a default value of radix or not.
- *
- * @param {ASTNode} radix - A node of radix to check.
+ * @param {ASTNode} radix A node of radix to check.
  * @returns {boolean} `true` if the node is the literal node of `10`.
  */
 function isDefaultRadix(radix) {
@@ -100,8 +96,7 @@ module.exports = {
         /**
          * Checks the arguments of a given CallExpression node and reports it if it
          * offends this rule.
-         *
-         * @param {ASTNode} node - A CallExpression node to check.
+         * @param {ASTNode} node A CallExpression node to check.
          * @returns {void}
          */
         function checkArguments(node) {

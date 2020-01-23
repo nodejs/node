@@ -46,7 +46,7 @@ if (common.canCreateSymLink()) {
   fs.appendFile(fileName, 'ABCD', options, common.mustCall(errHandler));
 }
 
-{
+if (!common.isIBMi) { // IBMi does not suppport fs.watch()
   const watch = fs.watch(__filename, options, common.mustNotCall());
   watch.close();
 }

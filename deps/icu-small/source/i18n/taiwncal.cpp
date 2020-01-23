@@ -53,7 +53,7 @@ TaiwanCalendar& TaiwanCalendar::operator= ( const TaiwanCalendar& right)
     return *this;
 }
 
-Calendar* TaiwanCalendar::clone(void) const
+TaiwanCalendar* TaiwanCalendar::clone() const
 {
     return new TaiwanCalendar(*this);
 }

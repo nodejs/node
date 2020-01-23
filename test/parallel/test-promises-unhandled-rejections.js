@@ -718,3 +718,15 @@ asyncTest(
     let timer = setTimeout(common.mustNotCall(), 10000);
   },
 );
+
+// https://github.com/nodejs/node/issues/30953
+asyncTest(
+  'Catching a promise should not take effect on previous promises',
+  function(done) {
+    onUnhandledSucceed(done, function(reason, promise) {
+      assert.strictEqual(reason, '1');
+    });
+    Promise.reject('1');
+    Promise.reject('2').catch(function() {});
+  }
+);

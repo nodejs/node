@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestPostInterpretedModule() {
   let builder = new WasmModuleBuilder();
   let add = builder.addFunction("add", kSig_i_ii)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add])
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
     .exportFunc();
 
   let module = builder.toModule();

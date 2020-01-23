@@ -23,7 +23,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();
   virtual void Bind(Label* label);
-  virtual void CheckAtStart(Label* on_at_start);
+  virtual void CheckAtStart(int cp_offset, Label* on_at_start);
   virtual void CheckCharacter(unsigned c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(unsigned c, unsigned mask,
                                       Label* on_equal);
@@ -59,9 +59,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1);
+  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                        bool check_bounds, int characters,
+                                        int eats_at_least);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -95,26 +95,27 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
       kStoredRegisters + kCalleeRegisterSaveAreaSize;
   // Stack parameters placed by caller.
   static const int kCaptureArraySize = kCallerFrame;
-  static const int kStackAreaBase = kCallerFrame + kPointerSize;
+  static const int kStackAreaBase = kCallerFrame + kSystemPointerSize;
   // kDirectCall again
-  static const int kIsolate = kStackAreaBase + 2 * kPointerSize;
+  static const int kIsolate = kStackAreaBase + 2 * kSystemPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = kFramePointer - kPointerSize;
-  static const int kStackHighEnd = kDirectCall - kPointerSize;
-  static const int kNumOutputRegisters = kStackHighEnd - kPointerSize;
-  static const int kRegisterOutput = kNumOutputRegisters - kPointerSize;
-  static const int kInputEnd = kRegisterOutput - kPointerSize;
-  static const int kInputStart = kInputEnd - kPointerSize;
-  static const int kStartIndex = kInputStart - kPointerSize;
-  static const int kInputString = kStartIndex - kPointerSize;
+  static const int kDirectCall = kFramePointer - kSystemPointerSize;
+  static const int kStackHighEnd = kDirectCall - kSystemPointerSize;
+  static const int kNumOutputRegisters = kStackHighEnd - kSystemPointerSize;
+  static const int kRegisterOutput = kNumOutputRegisters - kSystemPointerSize;
+  static const int kInputEnd = kRegisterOutput - kSystemPointerSize;
+  static const int kInputStart = kInputEnd - kSystemPointerSize;
+  static const int kStartIndex = kInputStart - kSystemPointerSize;
+  static const int kInputString = kStartIndex - kSystemPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kSuccessfulCaptures = kInputString - kPointerSize;
-  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kSuccessfulCaptures = kInputString - kSystemPointerSize;
+  static const int kStringStartMinusOne =
+      kSuccessfulCaptures - kSystemPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
+  static const int kRegisterZero = kStringStartMinusOne - kSystemPointerSize;
 
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;

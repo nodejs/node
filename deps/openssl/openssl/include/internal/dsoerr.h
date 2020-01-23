@@ -11,7 +11,9 @@
 #ifndef HEADER_DSOERR_H
 # define HEADER_DSOERR_H
 
-# include <openssl/opensslconf.h>
+# ifndef HEADER_SYMHACKS_H
+#  include <openssl/symhacks.h>
+# endif
 
 # ifdef  __cplusplus
 extern "C"

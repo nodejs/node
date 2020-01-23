@@ -1,5 +1,6 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
@@ -15,13 +16,13 @@ fs.createWriteStream(example, 'utf8').end();
 fs.createWriteStream(example, { encoding: 'utf8' }).end();
 
 const createWriteStreamErr = (path, opt) => {
-  common.expectsError(
+  assert.throws(
     () => {
       fs.createWriteStream(path, opt);
     },
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
 };
 

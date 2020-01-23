@@ -78,7 +78,7 @@ class JSSegmenter : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSSEGMENTER_FIELDS)
+                                TORQUE_GENERATED_JS_SEGMENTER_FIELDS)
 
  private:
   static Granularity GetGranularity(const char* str);

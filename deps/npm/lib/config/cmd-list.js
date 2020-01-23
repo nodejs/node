@@ -91,6 +91,7 @@ var cmdList = [
   'token',
   'profile',
   'audit',
+  'fund',
   'org',
 
   'help',

@@ -4,16 +4,15 @@ var path = require('path')
 var existsSync = fs.existsSync || path.existsSync
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var escapeExecPath = require('../../lib/utils/escape-exec-path')
 
 var common = require('../common-tap.js')
 
-var pkg = common.pkg
-var work = pkg + '-TEST'
+var resolve = require('path').resolve
+var pkg = resolve(common.pkg, 'package')
+var work = resolve(common.pkg, 'TEST')
 var modules = path.join(work, 'node_modules')
 
 var EXEC_OPTS = { cwd: work }
@@ -29,7 +28,6 @@ var json = {
 }
 
 test('setup', function (t) {
-  cleanup()
   mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
@@ -73,14 +71,3 @@ test('installing package with links', function (t) {
     }
   )
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(work)
-  rimraf.sync(pkg)
-}

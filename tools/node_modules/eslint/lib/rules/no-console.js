@@ -54,8 +54,7 @@ module.exports = {
 
         /**
          * Checks whether the given reference is 'console' or not.
-         *
-         * @param {eslint-scope.Reference} reference - The reference to check.
+         * @param {eslint-scope.Reference} reference The reference to check.
          * @returns {boolean} `true` if the reference is 'console'.
          */
         function isConsole(reference) {
@@ -67,8 +66,7 @@ module.exports = {
         /**
          * Checks whether the property name of the given MemberExpression node
          * is allowed by options or not.
-         *
-         * @param {ASTNode} node - The MemberExpression node to check.
+         * @param {ASTNode} node The MemberExpression node to check.
          * @returns {boolean} `true` if the property name of the node is allowed.
          */
         function isAllowed(node) {
@@ -80,8 +78,7 @@ module.exports = {
         /**
          * Checks whether the given reference is a member access which is not
          * allowed by options or not.
-         *
-         * @param {eslint-scope.Reference} reference - The reference to check.
+         * @param {eslint-scope.Reference} reference The reference to check.
          * @returns {boolean} `true` if the reference is a member access which
          *      is not allowed by options.
          */
@@ -98,8 +95,7 @@ module.exports = {
 
         /**
          * Reports the given reference as a violation.
-         *
-         * @param {eslint-scope.Reference} reference - The reference to report.
+         * @param {eslint-scope.Reference} reference The reference to report.
          * @returns {void}
          */
         function report(reference) {

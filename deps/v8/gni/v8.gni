@@ -35,15 +35,6 @@ declare_args() {
   # on platform and embedder level.
   v8_enable_raw_heap_snapshots = false
 
-  # Enable the snapshot feature, for fast context creation.
-  # https://v8.dev/blog/custom-startup-snapshots
-  # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
-  # https://803591
-  # On Mac hosts, 32-bit builds targeting Windows can't use snapshots, see
-  # https://crbug.com/794838
-  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64") &&
-                    !(is_win && host_os == "mac" && target_cpu == "x86")
-
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
   v8_use_multi_snapshots = false
 
@@ -71,8 +62,8 @@ declare_args() {
 
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
-  # a snapshot is used and if we're not on ios.
-  v8_use_external_startup_data = v8_use_snapshot && !is_ios
+  # we're not on ios.
+  v8_use_external_startup_data = !is_ios
 }
 
 if (v8_use_multi_snapshots) {
@@ -213,9 +204,17 @@ template("v8_executable") {
 
 template("v8_component") {
   component(target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
     configs -= v8_remove_configs
     configs += v8_add_configs
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
     configs += invoker.configs
   }
 }

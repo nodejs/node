@@ -7,7 +7,7 @@
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
-## Class: https.Agent
+## Class: `https.Agent`
 <!-- YAML
 added: v0.4.5
 changes:
@@ -23,7 +23,7 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
-### new Agent([options])
+### `new Agent([options])`
 <!-- YAML
 changes:
   - version: v12.5.0
@@ -31,6 +31,7 @@ changes:
     description: do not automatically set servername if the target host was
                  specified using an IP address.
 -->
+
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the same fields as for [`http.Agent(options)`][], and
   * `maxCachedSessions` {number} maximum number of TLS cached sessions.
@@ -38,13 +39,38 @@ changes:
   * `servername` {string} the value of
     [Server Name Indication extension][sni wiki] to be sent to the server. Use
     empty string `''` to disable sending the extension.
-    **Default:** hostname of the target server, unless the target server
+    **Default:** host name of the target server, unless the target server
     is specified using an IP address, in which case the default is `''` (no
     extension).
 
     See [`Session Resumption`][] for information about TLS session reuse.
 
-## Class: https.Server
+#### Event: `'keylog'`
+<!-- YAML
+added: v13.2.0
+-->
+
+* `line` {Buffer} Line of ASCII text, in NSS `SSLKEYLOGFILE` format.
+* `tlsSocket` {tls.TLSSocket} The `tls.TLSSocket` instance on which it was
+  generated.
+
+The `keylog` event is emitted when key material is generated or received by a
+connection managed by this agent (typically before handshake has completed, but
+not necessarily). This keying material can be stored for debugging, as it
+allows captured TLS traffic to be decrypted. It may be emitted multiple times
+for each socket.
+
+A typical use case is to append received lines to a common text file, which is
+later used by software (such as Wireshark) to decrypt the traffic:
+
+```js
+// ...
+https.globalAgent.on('keylog', (line, tlsSocket) => {
+  fs.appendFileSync('/tmp/ssl-keys.log', line, { mode: 0o600 });
+});
+```
+
+## Class: `https.Server`
 <!-- YAML
 added: v0.3.4
 -->
@@ -53,64 +79,70 @@ added: v0.3.4
 
 See [`http.Server`][] for more information.
 
-### server.close([callback])
+### `server.close([callback])`
 <!-- YAML
 added: v0.1.90
 -->
+
 * `callback` {Function}
 * Returns: {https.Server}
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
-### server.headersTimeout
+### `server.headersTimeout`
 <!-- YAML
 added: v11.3.0
 -->
-- {number} **Default:** `40000`
+
+* {number} **Default:** `60000`
 
 See [`http.Server#headersTimeout`][].
 
-### server.listen()
+### `server.listen()`
 
 Starts the HTTPS server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
-### server.maxHeadersCount
+### `server.maxHeadersCount`
 
-- {number} **Default:** `2000`
+* {number} **Default:** `2000`
 
 See [`http.Server#maxHeadersCount`][].
 
-### server.setTimeout([msecs][, callback])
+### `server.setTimeout([msecs][, callback])`
 <!-- YAML
 added: v0.11.2
 -->
+
 * `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
 * Returns: {https.Server}
 
 See [`http.Server#setTimeout()`][].
 
-### server.timeout
+### `server.timeout`
 <!-- YAML
 added: v0.11.2
 -->
-- {number} **Default:** `120000` (2 minutes)
+
+* {number} **Default:** `120000` (2 minutes)
 
 See [`http.Server#timeout`][].
 
-### server.keepAliveTimeout
+### `server.keepAliveTimeout`
 <!-- YAML
 added: v8.0.0
 -->
-- {number} **Default:** `5000` (5 seconds)
+
+* {number} **Default:** `5000` (5 seconds)
 
 See [`http.Server#keepAliveTimeout`][].
 
-## https.createServer([options][, requestListener])
+## `https.createServer([options][, requestListener])`
 <!-- YAML
 added: v0.3.4
 -->
+
 * `options` {Object} Accepts `options` from [`tls.createServer()`][],
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
 * `requestListener` {Function} A listener to be added to the `'request'` event.
@@ -149,8 +181,8 @@ https.createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
-## https.get(options[, callback])
-## https.get(url[, options][, callback])
+## `https.get(options[, callback])`
+## `https.get(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
@@ -162,6 +194,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
+
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the `method` always set to `GET`.
@@ -189,15 +222,15 @@ https.get('https://encrypted.google.com/', (res) => {
 });
 ```
 
-## https.globalAgent
+## `https.globalAgent`
 <!-- YAML
 added: v0.5.9
 -->
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
-## https.request(options[, callback])
-## https.request(url[, options][, callback])
+## `https.request(options[, callback])`
+## `https.request(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
@@ -212,12 +245,13 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
+
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
-  - `protocol` **Default:** `'https:'`
-  - `port` **Default:** `443`
-  - `agent` **Default:** `https.globalAgent`
+  * `protocol` **Default:** `'https:'`
+  * `port` **Default:** `443`
+  * `agent` **Default:** `https.globalAgent`
 * `callback` {Function}
 
 Makes a request to a secure web server.

@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/fixed-array.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +40,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
       // check if support abs function
       if (IsIntPtrAbsWithOverflowSupported()) {
-        Node* pair = IntPtrAbsWithOverflow(x);
+        TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAbsWithOverflow(x);
         Node* overflow = Projection(1, pair);
         GotoIf(overflow, &if_overflow);
 
@@ -79,9 +80,9 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
       BIND(&if_xisheapnumber);
       {
-        Node* x_value = LoadHeapNumberValue(x);
-        Node* value = Float64Abs(x_value);
-        Node* result = AllocateHeapNumberWithValue(value);
+        TNode<Float64T> x_value = LoadHeapNumberValue(x);
+        TNode<Float64T> value = Float64Abs(x_value);
+        TNode<HeapNumber> result = AllocateHeapNumberWithValue(value);
         Return(result);
       }
 
@@ -125,9 +126,9 @@ void MathBuiltinsAssembler::MathRoundingOperation(
 
       BIND(&if_xisheapnumber);
       {
-        Node* x_value = LoadHeapNumberValue(x);
-        Node* value = (this->*float64op)(x_value);
-        Node* result = ChangeFloat64ToTagged(value);
+        TNode<Float64T> x_value = LoadHeapNumberValue(x);
+        TNode<Float64T> value = (this->*float64op)(x_value);
+        TNode<Number> result = ChangeFloat64ToTagged(value);
         Return(result);
       }
 
@@ -142,20 +143,18 @@ void MathBuiltinsAssembler::MathRoundingOperation(
 }
 
 void MathBuiltinsAssembler::MathMaxMin(
-    Node* context, Node* argc,
+    TNode<Context> context, TNode<Int32T> argc,
     TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>,
                                                     SloppyTNode<Float64T>),
     double default_val) {
-  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
-  argc = arguments.GetLength(INTPTR_PARAMETERS);
+  CodeStubArguments arguments(this, argc);
 
-  VARIABLE(result, MachineRepresentation::kFloat64);
-  result.Bind(Float64Constant(default_val));
+  TVARIABLE(Float64T, result, Float64Constant(default_val));
 
   CodeStubAssembler::VariableList vars({&result}, zone());
-  arguments.ForEach(vars, [=, &result](Node* arg) {
-    Node* float_value = TruncateTaggedToFloat64(context, arg);
-    result.Bind((this->*float64op)(result.value(), float_value));
+  arguments.ForEach(vars, [&](TNode<Object> arg) {
+    TNode<Float64T> float_value = TruncateTaggedToFloat64(context, arg);
+    result = (this->*float64op)(result.value(), float_value);
   });
 
   arguments.PopAndReturn(ChangeFloat64ToTagged(result.value()));
@@ -180,19 +179,19 @@ TF_BUILTIN(MathImul, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* x = Parameter(Descriptor::kX);
   Node* y = Parameter(Descriptor::kY);
-  Node* x_value = TruncateTaggedToWord32(context, x);
-  Node* y_value = TruncateTaggedToWord32(context, y);
-  Node* value = Int32Mul(x_value, y_value);
-  Node* result = ChangeInt32ToTagged(value);
+  TNode<Word32T> x_value = TruncateTaggedToWord32(context, x);
+  TNode<Word32T> y_value = TruncateTaggedToWord32(context, y);
+  TNode<Int32T> value = Signed(Int32Mul(x_value, y_value));
+  TNode<Number> result = ChangeInt32ToTagged(value);
   Return(result);
 }
 
 CodeStubAssembler::Node* MathBuiltinsAssembler::MathPow(Node* context,
                                                         Node* base,
                                                         Node* exponent) {
-  Node* base_value = TruncateTaggedToFloat64(context, base);
-  Node* exponent_value = TruncateTaggedToFloat64(context, exponent);
-  Node* value = Float64Pow(base_value, exponent_value);
+  TNode<Float64T> base_value = TruncateTaggedToFloat64(context, base);
+  TNode<Float64T> exponent_value = TruncateTaggedToFloat64(context, exponent);
+  TNode<Float64T> value = Float64Pow(base_value, exponent_value);
   return ChangeFloat64ToTagged(value);
 }
 
@@ -205,7 +204,7 @@ TF_BUILTIN(MathPow, MathBuiltinsAssembler) {
 // ES6 #sec-math.random
 TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-  Node* native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Load cache index.
   TVARIABLE(Smi, smi_index);
@@ -217,9 +216,9 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   GotoIf(SmiAbove(smi_index.value(), SmiConstant(0)), &if_cached);
 
   // Cache exhausted, populate the cache. Return value is the new index.
-  Node* const refill_math_random =
+  TNode<ExternalReference> const refill_math_random =
       ExternalConstant(ExternalReference::refill_math_random());
-  Node* const isolate_ptr =
+  TNode<ExternalReference> const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   MachineType type_tagged = MachineType::AnyTagged();
   MachineType type_ptr = MachineType::Pointer();
@@ -236,9 +235,9 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
                       new_smi_index);
 
   // Load and return next cached random number.
-  Node* array =
-      LoadContextElement(native_context, Context::MATH_RANDOM_CACHE_INDEX);
-  Node* random = LoadFixedDoubleArrayElement(
+  TNode<FixedDoubleArray> array = CAST(
+      LoadContextElement(native_context, Context::MATH_RANDOM_CACHE_INDEX));
+  TNode<Float64T> random = LoadFixedDoubleArrayElement(
       array, new_smi_index, MachineType::Float64(), 0, SMI_PARAMETERS);
   Return(AllocateHeapNumberWithValue(random));
 }
@@ -259,19 +258,17 @@ TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
 
 // ES6 #sec-math.max
 TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
 }
 
 // ES6 #sec-math.min
 TF_BUILTIN(MathMin, MathBuiltinsAssembler) {
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Min, V8_INFINITY);
 }
 

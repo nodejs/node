@@ -17,6 +17,12 @@
  *     Create a `ConfigArray` instance from a config file which is on a given
  *     directory. This tries to load `.eslintrc.*` or `package.json`. If not
  *     found, returns an empty `ConfigArray`.
+ * - `loadESLintIgnore(filePath)`
+ *     Create a `ConfigArray` instance from a config file that is `.eslintignore`
+ *     format. This is to handle `--ignore-path` option.
+ * - `loadDefaultESLintIgnore()`
+ *     Create a `ConfigArray` instance from `.eslintignore` or `package.json` in
+ *     the current working directory.
  *
  * `ConfigArrayFactory` class has the responsibility that loads configuration
  * files, including loading `extends`, `parser`, and `plugins`. The created
@@ -40,7 +46,12 @@ const stripComments = require("strip-json-comments");
 const { validateConfigSchema } = require("../shared/config-validator");
 const naming = require("../shared/naming");
 const ModuleResolver = require("../shared/relative-module-resolver");
-const { ConfigArray, ConfigDependency, OverrideTester } = require("./config-array");
+const {
+    ConfigArray,
+    ConfigDependency,
+    IgnorePattern,
+    OverrideTester
+} = require("./config-array");
 const debug = require("debug")("eslint:config-array-factory");
 
 //------------------------------------------------------------------------------
@@ -51,6 +62,7 @@ const eslintRecommendedPath = path.resolve(__dirname, "../../conf/eslint-recomme
 const eslintAllPath = path.resolve(__dirname, "../../conf/eslint-all.js");
 const configFilenames = [
     ".eslintrc.js",
+    ".eslintrc.cjs",
     ".eslintrc.yaml",
     ".eslintrc.yml",
     ".eslintrc.json",
@@ -222,6 +234,26 @@ function loadPackageJSONConfigFile(filePath) {
 }
 
 /**
+ * Loads a `.eslintignore` from a file.
+ * @param {string} filePath The filename to load.
+ * @returns {string[]} The ignore patterns from the file.
+ * @private
+ */
+function loadESLintIgnoreFile(filePath) {
+    debug(`Loading .eslintignore file: ${filePath}`);
+
+    try {
+        return readFile(filePath)
+            .split(/\r?\n/gu)
+            .filter(line => line.trim() !== "" && !line.startsWith("#"));
+    } catch (e) {
+        debug(`Error reading .eslintignore file: ${filePath}`);
+        e.message = `Cannot read .eslintignore file: ${filePath}\nError: ${e.message}`;
+        throw e;
+    }
+}
+
+/**
  * Creates an error to notify about a missing config to extend from.
  * @param {string} configName The name of the missing config.
  * @param {string} importerName The name of the config that imported the missing config
@@ -248,6 +280,7 @@ function configMissingError(configName, importerName) {
 function loadConfigFile(filePath) {
     switch (path.extname(filePath)) {
         case ".js":
+        case ".cjs":
             return loadJSConfigFile(filePath);
 
         case ".json":
@@ -404,6 +437,54 @@ class ConfigArrayFactory {
     }
 
     /**
+     * Load `.eslintignore` file.
+     * @param {string} filePath The path to a `.eslintignore` file to load.
+     * @returns {ConfigArray} Loaded config. An empty `ConfigArray` if any config doesn't exist.
+     */
+    loadESLintIgnore(filePath) {
+        const { cwd } = internalSlotsMap.get(this);
+        const absolutePath = path.resolve(cwd, filePath);
+        const name = path.relative(cwd, absolutePath);
+        const ignorePatterns = loadESLintIgnoreFile(absolutePath);
+
+        return createConfigArray(
+            this._normalizeESLintIgnoreData(ignorePatterns, absolutePath, name)
+        );
+    }
+
+    /**
+     * Load `.eslintignore` file in the current working directory.
+     * @returns {ConfigArray} Loaded config. An empty `ConfigArray` if any config doesn't exist.
+     */
+    loadDefaultESLintIgnore() {
+        const { cwd } = internalSlotsMap.get(this);
+        const eslintIgnorePath = path.resolve(cwd, ".eslintignore");
+        const packageJsonPath = path.resolve(cwd, "package.json");
+
+        if (fs.existsSync(eslintIgnorePath)) {
+            return this.loadESLintIgnore(eslintIgnorePath);
+        }
+        if (fs.existsSync(packageJsonPath)) {
+            const data = loadJSONConfigFile(packageJsonPath);
+
+            if (Object.hasOwnProperty.call(data, "eslintIgnore")) {
+                if (!Array.isArray(data.eslintIgnore)) {
+                    throw new Error("Package.json eslintIgnore property requires an array of paths");
+                }
+                return createConfigArray(
+                    this._normalizeESLintIgnoreData(
+                        data.eslintIgnore,
+                        packageJsonPath,
+                        "eslintIgnore in package.json"
+                    )
+                );
+            }
+        }
+
+        return new ConfigArray();
+    }
+
+    /**
      * Load a given config file.
      * @param {string} filePath The path to a config file.
      * @param {string} name The config name.
@@ -452,6 +533,30 @@ class ConfigArrayFactory {
     }
 
     /**
+     * Normalize a given `.eslintignore` data to config array elements.
+     * @param {string[]} ignorePatterns The patterns to ignore files.
+     * @param {string|undefined} filePath The file path of this config.
+     * @param {string|undefined} name The name of this config.
+     * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
+     * @private
+     */
+    *_normalizeESLintIgnoreData(ignorePatterns, filePath, name) {
+        const elements = this._normalizeObjectConfigData(
+            { ignorePatterns },
+            filePath,
+            name
+        );
+
+        // Set `ignorePattern.loose` flag for backward compatibility.
+        for (const element of elements) {
+            if (element.ignorePattern) {
+                element.ignorePattern.loose = true;
+            }
+            yield element;
+        }
+    }
+
+    /**
      * Normalize a given config to an array.
      * @param {ConfigData} configData The config data to normalize.
      * @param {string|undefined} providedFilePath The file path of this config.
@@ -494,6 +599,9 @@ class ConfigArrayFactory {
             if (element.criteria) {
                 element.criteria.basePath = basePath;
             }
+            if (element.ignorePattern) {
+                element.ignorePattern.basePath = basePath;
+            }
 
             /*
              * Merge the criteria; this is for only file extension processors in
@@ -526,6 +634,7 @@ class ConfigArrayFactory {
             env,
             extends: extend,
             globals,
+            ignorePatterns,
             noInlineConfig,
             parser: parserName,
             parserOptions,
@@ -541,6 +650,10 @@ class ConfigArrayFactory {
         name
     ) {
         const extendList = Array.isArray(extend) ? extend : [extend];
+        const ignorePattern = ignorePatterns && new IgnorePattern(
+            Array.isArray(ignorePatterns) ? ignorePatterns : [ignorePatterns],
+            filePath ? path.dirname(filePath) : internalSlotsMap.get(this).cwd
+        );
 
         // Flatten `extends`.
         for (const extendName of extendList.filter(Boolean)) {
@@ -569,6 +682,7 @@ class ConfigArrayFactory {
             criteria: null,
             env,
             globals,
+            ignorePattern,
             noInlineConfig,
             parser,
             parserOptions,
@@ -859,8 +973,14 @@ class ConfigArrayFactory {
         if (filePath) {
             try {
                 writeDebugLogForLoading(request, relativeTo, filePath);
+
+                const startTime = Date.now();
+                const pluginDefinition = require(filePath);
+
+                debug(`Plugin ${filePath} loaded in: ${Date.now() - startTime}ms`);
+
                 return new ConfigDependency({
-                    definition: normalizePlugin(require(filePath)),
+                    definition: normalizePlugin(pluginDefinition),
                     filePath,
                     id,
                     importerName,

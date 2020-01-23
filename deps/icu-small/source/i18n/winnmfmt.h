@@ -44,7 +44,7 @@ public:
 
     virtual ~Win32NumberFormat();
 
-    virtual Format *clone(void) const;
+    virtual Win32NumberFormat *clone() const;
 
     Win32NumberFormat &operator=(const Win32NumberFormat &other);
 

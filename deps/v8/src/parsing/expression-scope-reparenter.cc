@@ -54,7 +54,14 @@ void Reparenter::VisitClassLiteral(ClassLiteral* class_literal) {
 #if DEBUG
   // The same goes for the rest of the class, but we do some
   // sanity checking in debug mode.
-  for (ClassLiteralProperty* prop : *class_literal->properties()) {
+  for (ClassLiteralProperty* prop : *class_literal->private_members()) {
+    // No need to visit the values, since all values are functions with
+    // the class scope on their scope chain.
+    DCHECK(prop->value()->IsFunctionLiteral());
+    DCHECK_EQ(prop->value()->AsFunctionLiteral()->scope()->outer_scope(),
+              class_literal->scope());
+  }
+  for (ClassLiteralProperty* prop : *class_literal->public_members()) {
     // No need to visit the values, since all values are functions with
     // the class scope on their scope chain.
     DCHECK(prop->value()->IsFunctionLiteral());
@@ -105,7 +112,7 @@ void ReparentExpressionScope(uintptr_t stack_limit, Expression* expr,
   // sloppy eval.
   DCHECK(scope->is_block_scope());
   DCHECK(scope->is_declaration_scope());
-  DCHECK(scope->AsDeclarationScope()->calls_sloppy_eval());
+  DCHECK(scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
   DCHECK(scope->outer_scope()->is_function_scope());
 
   Reparenter r(stack_limit, expr, scope);

@@ -72,25 +72,34 @@ TEST(Object, InstanceTypeListOrder) {
                            << " vs. current = " << current_type;           \
   last = current;
 
-  INSTANCE_TYPE_LIST(TEST_INSTANCE_TYPE)
+  // Only test hand-written portion of instance type list. The generated portion
+  // doesn't run the same risk of getting out of order, and it does emit type
+  // names out of numerical order in one case: JS_OBJECT_TYPE is emitted before
+  // its subclass types, because types are emitted in depth-first pre-order
+  // traversal order, and some of its subclass types are numerically earlier.
+  INSTANCE_TYPE_LIST_BASE(TEST_INSTANCE_TYPE)
 #undef TEST_INSTANCE_TYPE
 }
 
 TEST(Object, StructListOrder) {
-  int current = static_cast<int>(InstanceType::ACCESS_CHECK_INFO_TYPE);
+  int current = static_cast<int>(InstanceType::FIRST_STRUCT_TYPE);
   int last = current - 1;
   ASSERT_LT(0, last);
   InstanceType current_type = static_cast<InstanceType>(current);
 #define TEST_STRUCT(TYPE, class, name)                 \
   current_type = InstanceType::TYPE;                   \
   current = static_cast<int>(current_type);            \
-  EXPECT_EQ(last + 1, current)                         \
+  EXPECT_LE(last + 1, current)                         \
       << " STRUCT_LIST is not ordered: "               \
       << " last = " << static_cast<InstanceType>(last) \
       << " vs. current = " << current_type;            \
   last = current;
 
-  STRUCT_LIST(TEST_STRUCT)
+  // Only test the _BASE portion (the hand-coded part). Note that the values are
+  // not necessarily consecutive because some Structs that need special
+  // handling, such as those that have multiple Map instances associated, are
+  // omitted from this list.
+  STRUCT_LIST_GENERATOR_BASE(STRUCT_LIST_ADAPTER, TEST_STRUCT)
 #undef TEST_STRUCT
 }
 

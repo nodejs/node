@@ -16,19 +16,26 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 /**
- * Checks whether the given operator is a relational operator or not.
- *
- * @param {string} op - The operator type to check.
- * @returns {boolean} `true` if the operator is a relational operator.
+ * Checks whether the given operator is `in` or `instanceof`
+ * @param {string} op The operator type to check.
+ * @returns {boolean} `true` if the operator is `in` or `instanceof`
  */
-function isRelationalOperator(op) {
+function isInOrInstanceOfOperator(op) {
     return op === "in" || op === "instanceof";
 }
 
 /**
+ * Checks whether the given operator is an ordering relational operator or not.
+ * @param {string} op The operator type to check.
+ * @returns {boolean} `true` if the operator is an ordering relational operator.
+ */
+function isOrderingRelationalOperator(op) {
+    return op === "<" || op === ">" || op === ">=" || op === "<=";
+}
+
+/**
  * Checks whether the given node is a logical negation expression or not.
- *
- * @param {ASTNode} node - The node to check.
+ * @param {ASTNode} node The node to check.
  * @returns {boolean} `true` if the node is a logical negation expression.
  */
 function isNegation(node) {
@@ -47,22 +54,44 @@ module.exports = {
             description: "disallow negating the left operand of relational operators",
             category: "Possible Errors",
             recommended: true,
-            url: "https://eslint.org/docs/rules/no-unsafe-negation"
+            url: "https://eslint.org/docs/rules/no-unsafe-negation",
+            suggestion: true
         },
 
-        schema: [],
-        fixable: "code",
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    enforceForOrderingRelations: {
+                        type: "boolean",
+                        default: false
+                    }
+                },
+                additionalProperties: false
+            }
+        ],
+
+        fixable: null,
+
         messages: {
-            unexpected: "Unexpected negating the left operand of '{{operator}}' operator."
+            unexpected: "Unexpected negating the left operand of '{{operator}}' operator.",
+            suggestNegatedExpression: "Negate '{{operator}}' expression instead of its left operand. This changes the current behavior.",
+            suggestParenthesisedNegation: "Wrap negation in '()' to make the intention explicit. This preserves the current behavior."
         }
     },
 
     create(context) {
         const sourceCode = context.getSourceCode();
+        const options = context.options[0] || {};
+        const enforceForOrderingRelations = options.enforceForOrderingRelations === true;
 
         return {
             BinaryExpression(node) {
-                if (isRelationalOperator(node.operator) &&
+                const operator = node.operator;
+                const orderingRelationRuleApplies = enforceForOrderingRelations && isOrderingRelationalOperator(operator);
+
+                if (
+                    (isInOrInstanceOfOperator(operator) || orderingRelationRuleApplies) &&
                     isNegation(node.left) &&
                     !astUtils.isParenthesised(sourceCode, node.left)
                 ) {
@@ -70,15 +99,26 @@ module.exports = {
                         node,
                         loc: node.left.loc,
                         messageId: "unexpected",
-                        data: { operator: node.operator },
+                        data: { operator },
+                        suggest: [
+                            {
+                                messageId: "suggestNegatedExpression",
+                                data: { operator },
+                                fix(fixer) {
+                                    const negationToken = sourceCode.getFirstToken(node.left);
+                                    const fixRange = [negationToken.range[1], node.range[1]];
+                                    const text = sourceCode.text.slice(fixRange[0], fixRange[1]);
 
-                        fix(fixer) {
-                            const negationToken = sourceCode.getFirstToken(node.left);
-                            const fixRange = [negationToken.range[1], node.range[1]];
-                            const text = sourceCode.text.slice(fixRange[0], fixRange[1]);
-
-                            return fixer.replaceTextRange(fixRange, `(${text})`);
-                        }
+                                    return fixer.replaceTextRange(fixRange, `(${text})`);
+                                }
+                            },
+                            {
+                                messageId: "suggestParenthesisedNegation",
+                                fix(fixer) {
+                                    return fixer.replaceText(node.left, `(${sourceCode.getText(node.left)})`);
+                                }
+                            }
+                        ]
                     });
                 }
             }

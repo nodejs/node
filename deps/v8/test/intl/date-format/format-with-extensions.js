@@ -20,18 +20,9 @@ function checkFormat(locale, options, expected) {
   assertEquals(expected.formatted, formatted);
 }
 
-// Even though the calendar is Chinese, the best pattern search for formatting
-// should be done in the base locale (i.e. en or en-GB instead of
-// en-u-ca-chinese or en-GB-u-ca-chinese). Otherwise, {year: 'numeric'} would
-// results in '35 (wu-su)' where 'wu-su' is the designation for year 35 in the
-// 60-year cycle. See https://github.com/tc39/ecma402/issues/225 .
 [
     ["en", "gregory", "latn", "2018"],
     ["en-GB", "gregory", "latn", "2018"],
-    ["en-u-ca-chinese", "chinese", "latn", "35"],
-    ["en-GB-u-ca-chinese", "chinese", "latn", "35"],
-    ["en-u-ca-chinese-nu-deva", "chinese", "deva", "३५"],
-    ["en-GB-u-ca-chinese-nu-deva", "chinese", "deva", "३५"],
 ].forEach(function(entry) {
   checkFormat(entry[0], {year: 'numeric'},
       { cal: entry[1],
@@ -48,9 +39,6 @@ const enGBTypes = ["day", "literal", "month", "literal", "year"];
     ["en", "gregory", "latn", "6/21/2018", enUSTypes],
     ["en-GB", "gregory", "latn", "21/06/2018", enGBTypes],
     ["en-u-nu-deva", "gregory", "deva", "६/२१/२०१८", enUSTypes],
-    ["en-u-ca-chinese", "chinese", "latn", "5/8/35", enUSTypes],
-    ["en-GB-u-ca-chinese", "chinese", "latn", "08/05/35", enGBTypes],
-    ["en-u-ca-chinese-nu-deva", "chinese", "deva", "५/८/३५", enUSTypes],
 ].forEach(function(entry) {
   checkFormat(entry[0], {},
       { cal: entry[1],

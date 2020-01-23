@@ -28,7 +28,6 @@
 #include "string_bytes.h"
 #include "string_search.h"
 #include "util-inl.h"
-#include "v8-profiler.h"
 #include "v8.h"
 
 #include <cstring>
@@ -48,12 +47,13 @@ namespace node {
 namespace Buffer {
 
 using v8::ArrayBuffer;
-using v8::ArrayBufferCreationMode;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::Global;
+using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
@@ -62,6 +62,7 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -74,8 +75,10 @@ namespace {
 
 class CallbackInfo {
  public:
+  ~CallbackInfo();
+
   static inline void Free(char* data, void* hint);
-  static inline CallbackInfo* New(Isolate* isolate,
+  static inline CallbackInfo* New(Environment* env,
                                   Local<ArrayBuffer> object,
                                   FreeCallback callback,
                                   char* data,
@@ -85,9 +88,10 @@ class CallbackInfo {
   CallbackInfo& operator=(const CallbackInfo&) = delete;
 
  private:
+  static void CleanupHook(void* data);
   static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
   inline void WeakCallback(Isolate* isolate);
-  inline CallbackInfo(Isolate* isolate,
+  inline CallbackInfo(Environment* env,
                       Local<ArrayBuffer> object,
                       FreeCallback callback,
                       char* data,
@@ -96,6 +100,7 @@ class CallbackInfo {
   FreeCallback const callback_;
   char* const data_;
   void* const hint_;
+  Environment* const env_;
 };
 
 
@@ -104,31 +109,53 @@ void CallbackInfo::Free(char* data, void*) {
 }
 
 
-CallbackInfo* CallbackInfo::New(Isolate* isolate,
+CallbackInfo* CallbackInfo::New(Environment* env,
                                 Local<ArrayBuffer> object,
                                 FreeCallback callback,
                                 char* data,
                                 void* hint) {
-  return new CallbackInfo(isolate, object, callback, data, hint);
+  return new CallbackInfo(env, object, callback, data, hint);
 }
 
 
-CallbackInfo::CallbackInfo(Isolate* isolate,
+CallbackInfo::CallbackInfo(Environment* env,
                            Local<ArrayBuffer> object,
                            FreeCallback callback,
                            char* data,
                            void* hint)
-    : persistent_(isolate, object),
+    : persistent_(env->isolate(), object),
       callback_(callback),
       data_(data),
-      hint_(hint) {
-  ArrayBuffer::Contents obj_c = object->GetContents();
-  CHECK_EQ(data_, static_cast<char*>(obj_c.Data()));
+      hint_(hint),
+      env_(env) {
+  std::shared_ptr<BackingStore> obj_backing = object->GetBackingStore();
+  CHECK_EQ(data_, static_cast<char*>(obj_backing->Data()));
   if (object->ByteLength() != 0)
     CHECK_NOT_NULL(data_);
 
   persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
-  isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+  env->AddCleanupHook(CleanupHook, this);
+  env->isolate()->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+}
+
+
+CallbackInfo::~CallbackInfo() {
+  persistent_.Reset();
+  env_->RemoveCleanupHook(CleanupHook, this);
+}
+
+
+void CallbackInfo::CleanupHook(void* data) {
+  CallbackInfo* self = static_cast<CallbackInfo*>(data);
+
+  {
+    HandleScope handle_scope(self->env_->isolate());
+    Local<ArrayBuffer> ab = self->persistent_.Get(self->env_->isolate());
+    CHECK(!ab.IsEmpty());
+    ab->Detach();
+  }
+
+  self->WeakCallback(self->env_->isolate());
 }
 
 
@@ -192,16 +219,13 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
-  return static_cast<char*>(ab_c.Data()) + ui->ByteOffset();
+  return static_cast<char*>(ui->Buffer()->GetBackingStore()->Data()) +
+      ui->ByteOffset();
 }
 
 
 char* Data(Local<Object> obj) {
-  CHECK(obj->IsArrayBufferView());
-  Local<ArrayBufferView> ui = obj.As<ArrayBufferView>();
-  ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
-  return static_cast<char*>(ab_c.Data()) + ui->ByteOffset();
+  return Data(obj.As<Value>());
 }
 
 
@@ -219,10 +243,10 @@ size_t Length(Local<Object> obj) {
 }
 
 
-inline MaybeLocal<Uint8Array> New(Environment* env,
-                                  Local<ArrayBuffer> ab,
-                                  size_t byte_offset,
-                                  size_t length) {
+MaybeLocal<Uint8Array> New(Environment* env,
+                           Local<ArrayBuffer> ab,
+                           size_t byte_offset,
+                           size_t length) {
   CHECK(!env->buffer_prototype_object().IsEmpty());
   Local<Uint8Array> ui = Uint8Array::New(ab, byte_offset, length);
   Maybe<bool> mb =
@@ -230,6 +254,18 @@ inline MaybeLocal<Uint8Array> New(Environment* env,
   if (mb.IsNothing())
     return MaybeLocal<Uint8Array>();
   return ui;
+}
+
+MaybeLocal<Uint8Array> New(Isolate* isolate,
+                           Local<ArrayBuffer> ab,
+                           size_t byte_offset,
+                           size_t length) {
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env == nullptr) {
+    THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Uint8Array>();
+  }
+  return New(env, ab, byte_offset, length);
 }
 
 
@@ -353,10 +389,8 @@ MaybeLocal<Object> New(Isolate* isolate,
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
     return MaybeLocal<Object>();
   }
-  Local<Object> obj;
-  if (Buffer::New(env, data, length, callback, hint).ToLocal(&obj))
-    return handle_scope.Escape(obj);
-  return Local<Object>();
+  return handle_scope.EscapeMaybe(
+      Buffer::New(env, data, length, callback, hint));
 }
 
 
@@ -373,10 +407,28 @@ MaybeLocal<Object> New(Environment* env,
     return Local<Object>();
   }
 
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
+
+  // The buffer will be released by a CallbackInfo::New() below,
+  // hence this BackingStore callback is empty.
+  std::unique_ptr<BackingStore> backing =
+      ArrayBuffer::NewBackingStore(data,
+                                   length,
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
+                                           std::move(backing));
+  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+  if (!ab->IsExternal())
+    ab->Externalize(ab->GetBackingStore());
+  if (ab->SetPrivate(env->context(),
+                     env->arraybuffer_untransferable_private_symbol(),
+                     True(env->isolate())).IsNothing()) {
+    callback(data, hint);
+    return Local<Object>();
+  }
   MaybeLocal<Uint8Array> ui = Buffer::New(env, ab, 0, length);
 
-  CallbackInfo::New(env->isolate(), ab, callback, data, hint);
+  CallbackInfo::New(env, ab, callback, data, hint);
 
   if (ui.IsEmpty())
     return MaybeLocal<Object>();
@@ -426,11 +478,21 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
-  Local<ArrayBuffer> ab =
-      ArrayBuffer::New(env->isolate(),
-                       data,
-                       length,
-                       ArrayBufferCreationMode::kInternalized);
+  auto callback = [](void* data, size_t length, void* deleter_data){
+    CHECK_NOT_NULL(deleter_data);
+
+    static_cast<v8::ArrayBuffer::Allocator*>(deleter_data)
+        ->Free(data, length);
+  };
+  std::unique_ptr<v8::BackingStore> backing =
+      v8::ArrayBuffer::NewBackingStore(data,
+                                       length,
+                                       callback,
+                                       env->isolate()
+                                          ->GetArrayBufferAllocator());
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
+                                           std::move(backing));
+
   return Buffer::New(env, ab, 0, length).FromMaybe(Local<Object>());
 }
 
@@ -1047,6 +1109,40 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void EncodeInto(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CHECK_GE(args.Length(), 3);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsUint8Array());
+  CHECK(args[2]->IsUint32Array());
+
+  Local<String> source = args[0].As<String>();
+
+  Local<Uint8Array> dest = args[1].As<Uint8Array>();
+  Local<ArrayBuffer> buf = dest->Buffer();
+  char* write_result =
+      static_cast<char*>(buf->GetBackingStore()->Data()) + dest->ByteOffset();
+  size_t dest_length = dest->ByteLength();
+
+  // results = [ read, written ]
+  Local<Uint32Array> result_arr = args[2].As<Uint32Array>();
+  uint32_t* results = reinterpret_cast<uint32_t*>(
+      static_cast<char*>(result_arr->Buffer()->GetBackingStore()->Data()) +
+      result_arr->ByteOffset());
+
+  int nchars;
+  int written = source->WriteUtf8(
+      isolate,
+      write_result,
+      dest_length,
+      &nchars,
+      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+  results[0] = nchars;
+  results[1] = written;
+}
+
+
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1078,11 +1174,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
 
+  env->SetMethod(target, "encodeInto", EncodeInto);
   env->SetMethodNoSideEffect(target, "encodeUtf8String", EncodeUtf8String);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
-              Integer::NewFromUnsigned(env->isolate(), kMaxLength)).Check();
+              Number::New(env->isolate(), kMaxLength)).Check();
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
@@ -1107,8 +1204,20 @@ void Initialize(Local<Object> target,
   if (NodeArrayBufferAllocator* allocator =
           env->isolate_data()->node_allocator()) {
     uint32_t* zero_fill_field = allocator->zero_fill_field();
-    Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
-        env->isolate(), zero_fill_field, sizeof(*zero_fill_field));
+    std::unique_ptr<BackingStore> backing =
+      ArrayBuffer::NewBackingStore(zero_fill_field,
+                                   sizeof(*zero_fill_field),
+                                   [](void*, size_t, void*){},
+                                   nullptr);
+    Local<ArrayBuffer> array_buffer =
+        ArrayBuffer::New(env->isolate(), std::move(backing));
+    // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+    if (!array_buffer->IsExternal())
+      array_buffer->Externalize(array_buffer->GetBackingStore());
+    array_buffer->SetPrivate(
+        env->context(),
+        env->arraybuffer_untransferable_private_symbol(),
+        True(env->isolate())).Check();
     CHECK(target
               ->Set(env->context(),
                     FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),

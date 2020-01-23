@@ -16,24 +16,25 @@
 namespace v8 {
 namespace internal {
 
-// Superclass for all objects with instance type {JS_ARGUMENTS_TYPE}
-class JSArgumentsObject : public JSObject {
+// Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
+class JSArgumentsObject
+    : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {
  public:
   DECL_VERIFIER(JSArgumentsObject)
-  DECL_CAST(JSArgumentsObject)
-  OBJECT_CONSTRUCTORS(JSArgumentsObject, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSArgumentsObject)
 };
 
 // Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
-// Note that the instance type {JS_ARGUMENTS_TYPE} does _not_ guarantee the
-// below layout, the in-object properties might have transitioned to dictionary
-// mode already. Only use the below layout with the specific initial maps.
+// Note that the instance type {JS_ARGUMENTS_OBJECT_TYPE} does _not_ guarantee
+// the below layout, the in-object properties might have transitioned to
+// dictionary mode already. Only use the below layout with the specific initial
+// maps.
 class JSArgumentsObjectWithLength : public JSArgumentsObject {
  public:
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
       JSObject::kHeaderSize,
-      TORQUE_GENERATED_JSARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
+      TORQUE_GENERATED_JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
 
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
@@ -50,7 +51,7 @@ class JSSloppyArgumentsObject : public JSArgumentsObjectWithLength {
  public:
   DEFINE_FIELD_OFFSET_CONSTANTS(
       JSArgumentsObjectWithLength::kSize,
-      TORQUE_GENERATED_JSSLOPPY_ARGUMENTS_OBJECT_FIELDS)
+      TORQUE_GENERATED_JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS)
 
   // Indices of in-object properties.
   static const int kCalleeIndex = kLengthIndex + 1;
@@ -125,21 +126,17 @@ class SloppyArgumentsElements : public FixedArray {
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-class AliasedArgumentsEntry : public Struct {
+class AliasedArgumentsEntry
+    : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
+                                                  Struct> {
  public:
   inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int count);
 
-  DECL_CAST(AliasedArgumentsEntry)
-
   // Dispatched behavior.
   DECL_PRINTER(AliasedArgumentsEntry)
-  DECL_VERIFIER(AliasedArgumentsEntry)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ALIASED_ARGUMENTS_ENTRY_FIELDS)
-
-  OBJECT_CONSTRUCTORS(AliasedArgumentsEntry, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AliasedArgumentsEntry)
 };
 
 }  // namespace internal

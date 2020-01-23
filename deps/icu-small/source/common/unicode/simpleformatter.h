@@ -17,6 +17,9 @@
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/unistr.h"
 
 U_NAMESPACE_BEGIN
@@ -332,5 +335,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __SIMPLEFORMATTER_H__

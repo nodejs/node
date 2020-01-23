@@ -1,10 +1,7 @@
-var fs = require('graceful-fs')
-var path = require('path')
-var osenv = require('osenv')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
+const fs = require('graceful-fs')
+const path = require('path')
 const common = require('../common-tap.js')
-var pkg = common.pkg
+const pkg = common.pkg
 
 var test = require('tap').test
 var npm = require('../../')
@@ -12,7 +9,6 @@ var npm = require('../../')
 delete process.env['npm_config_commit_hooks']
 
 test('npm version <semver> with commit-hooks disabled in .npmrc', function (t) {
-  mkdirp.sync(pkg)
   var npmrc = path.resolve(pkg, '.npmrc')
   fs.writeFileSync(npmrc, 'commit-hooks=false\n', 'ascii')
   process.chdir(pkg)
@@ -37,7 +33,7 @@ test('npm version <semver> with commit-hooks disabled', function (t) {
 
     t.same(args1, [ 'commit', '-n' ])
     t.same(args2, [ 'commit', '-n' ])
-    t.same(args3, [ 'commit', '-m', 'some commit message', '-n' ])
+    t.same(args3, [ 'commit', '-n', '-m', 'some commit message' ])
     t.end()
   })
 })
@@ -56,10 +52,4 @@ test('npm version <semver> with commit-hooks enabled (default)', function (t) {
     t.same(args3, [ 'commit', '-m', 'some commit message' ])
     t.end()
   })
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
 })

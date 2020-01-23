@@ -4,4 +4,9 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('cluster', ['n=1', 'payload=string', 'sendsPerBroadcast=1']);
+runBenchmark('cluster', [
+  'n=1',
+  'payload=string',
+  'sendsPerBroadcast=1',
+  'serialization=json',
+]);

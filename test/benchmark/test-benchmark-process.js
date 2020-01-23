@@ -7,5 +7,6 @@ const runBenchmark = require('../common/benchmark');
 runBenchmark('process',
              [
                'n=1',
-               'type=raw'
+               'type=raw',
+               'operation=enumerate',
              ], { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

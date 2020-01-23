@@ -65,8 +65,8 @@ enum class EscapeKind : uint8_t {
 };
 
 using EscapeKindField = BitField8<EscapeKind, 0, 3>;
-using MayTerminateStringField = BitField8<bool, EscapeKindField::kNext, 1>;
-using NumberPartField = BitField8<bool, MayTerminateStringField::kNext, 1>;
+using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
+using NumberPartField = MayTerminateStringField::Next<bool, 1>;
 
 constexpr bool MayTerminateJsonString(uint8_t flags) {
   return MayTerminateStringField::decode(flags);
@@ -394,7 +394,8 @@ Handle<Map> ParentOfDescriptorOwner(Isolate* isolate, Handle<Map> maybe_root,
     DCHECK_EQ(0, maybe_root->NumberOfOwnDescriptors());
     return maybe_root;
   }
-  return handle(source->FindFieldOwner(isolate, descriptor - 1), isolate);
+  return handle(source->FindFieldOwner(isolate, InternalIndex(descriptor - 1)),
+                isolate);
 }
 }  // namespace
 
@@ -461,10 +462,11 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     if (property.string.is_index()) continue;
     Handle<String> expected;
     Handle<Map> target;
+    InternalIndex descriptor_index(descriptor);
     if (descriptor < feedback_descriptors) {
-      expected = handle(
-          String::cast(feedback->instance_descriptors().GetKey(descriptor)),
-          isolate_);
+      expected = handle(String::cast(feedback->instance_descriptors().GetKey(
+                            descriptor_index)),
+                        isolate_);
     } else {
       DisallowHeapAllocation no_gc;
       TransitionsAccessor transitions(isolate(), *map, &no_gc);
@@ -495,7 +497,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Object> value = property.value;
 
     PropertyDetails details =
-        target->instance_descriptors().GetDetails(descriptor);
+        target->instance_descriptors().GetDetails(descriptor_index);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
@@ -507,23 +509,24 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       }
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), representation);
-      Map::GeneralizeField(isolate(), target, descriptor, details.constness(),
-                           representation, value_type);
+      Map::GeneralizeField(isolate(), target, descriptor_index,
+                           details.constness(), representation, value_type);
     } else if (expected_representation.IsHeapObject() &&
                !target->instance_descriptors()
-                    .GetFieldType(descriptor)
+                    .GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), expected_representation);
-      Map::GeneralizeField(isolate(), target, descriptor, details.constness(),
-                           expected_representation, value_type);
+      Map::GeneralizeField(isolate(), target, descriptor_index,
+                           details.constness(), expected_representation,
+                           value_type);
     } else if (!FLAG_unbox_double_fields &&
                expected_representation.IsDouble() && value->IsSmi()) {
       new_mutable_double++;
     }
 
     DCHECK(target->instance_descriptors()
-               .GetFieldType(descriptor)
+               .GetFieldType(descriptor_index)
                .NowContains(value));
     map = target;
     descriptor++;
@@ -539,7 +542,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   Handle<ByteArray> mutable_double_buffer;
   // Allocate enough space so we can double-align the payload.
   const int kMutableDoubleSize = sizeof(double) * 2;
-  STATIC_ASSERT(MutableHeapNumber::kSize <= kMutableDoubleSize);
+  STATIC_ASSERT(HeapNumber::kSize <= kMutableDoubleSize);
   if (new_mutable_double > 0) {
     mutable_double_buffer =
         factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
@@ -560,18 +563,21 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
             : reinterpret_cast<Address>(
                   mutable_double_buffer->GetDataStartAddress());
     Address filler_address = mutable_double_address;
-    if (IsAligned(mutable_double_address, kDoubleAlignment)) {
-      mutable_double_address += kTaggedSize;
-    } else {
-      filler_address += MutableHeapNumber::kSize;
+    if (kTaggedSize != kDoubleSize) {
+      if (IsAligned(mutable_double_address, kDoubleAlignment)) {
+        mutable_double_address += kTaggedSize;
+      } else {
+        filler_address += HeapNumber::kSize;
+      }
     }
     for (int j = 0; j < i; j++) {
       const JsonProperty& property = property_stack[start + j];
       if (property.string.is_index()) continue;
+      InternalIndex descriptor_index(descriptor);
       PropertyDetails details =
-          map->instance_descriptors().GetDetails(descriptor);
+          map->instance_descriptors().GetDetails(descriptor_index);
       Object value = *property.value;
-      FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor);
+      FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor_index);
       descriptor++;
 
       if (details.representation().IsDouble()) {
@@ -602,26 +608,30 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           // payload, so we can skip notifying object layout change.
 
           HeapObject hn = HeapObject::FromAddress(mutable_double_address);
-          hn.set_map_after_allocation(*factory()->mutable_heap_number_map());
-          MutableHeapNumber::cast(hn).set_value_as_bits(bits);
+          hn.set_map_after_allocation(*factory()->heap_number_map());
+          HeapNumber::cast(hn).set_value_as_bits(bits);
           value = hn;
           mutable_double_address += kMutableDoubleSize;
         } else {
           DCHECK(value.IsHeapNumber());
           HeapObject::cast(value).synchronized_set_map(
-              *factory()->mutable_heap_number_map());
+              *factory()->heap_number_map());
         }
       }
       object->RawFastInobjectPropertyAtPut(index, value, mode);
     }
-    // Make all MutableHeapNumbers alive.
+    // Make all mutable HeapNumbers alive.
     if (!mutable_double_buffer.is_null()) {
 #ifdef DEBUG
       Address end =
           reinterpret_cast<Address>(mutable_double_buffer->GetDataEndAddress());
-      DCHECK_EQ(Min(filler_address, mutable_double_address), end);
-      DCHECK_GE(filler_address, end);
-      DCHECK_GE(mutable_double_address, end);
+      if (kTaggedSize != kDoubleSize) {
+        DCHECK_EQ(Min(filler_address, mutable_double_address), end);
+        DCHECK_GE(filler_address, end);
+        DCHECK_GE(mutable_double_address, end);
+      } else {
+        DCHECK_EQ(mutable_double_address, end);
+      }
 #endif
       mutable_double_buffer->set_length(0);
     }
@@ -825,8 +835,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
               cont_stack.back().index < element_stack.size() &&
               element_stack.back()->IsJSObject()) {
-            feedback =
-                handle(JSObject::cast(*element_stack.back()).map(), isolate_);
+            Map maybe_feedback = JSObject::cast(*element_stack.back()).map();
+            // Don't consume feedback from objects with a map that's detached
+            // from the transition tree.
+            if (!maybe_feedback.GetBackPointer().IsUndefined(isolate_)) {
+              feedback = handle(maybe_feedback, isolate_);
+            }
           }
           value = BuildJsonObject(cont, property_stack, feedback);
           property_stack.resize(cont.index);

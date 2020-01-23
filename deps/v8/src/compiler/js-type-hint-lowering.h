@@ -41,8 +41,8 @@ class JSTypeHintLowering {
   enum Flag { kNoFlags = 0u, kBailoutOnUninitialized = 1u << 1 };
   using Flags = base::Flags<Flag>;
 
-  JSTypeHintLowering(JSGraph* jsgraph, Handle<FeedbackVector> feedback_vector,
-                     Flags flags);
+  JSTypeHintLowering(JSHeapBroker* broker, JSGraph* jsgraph,
+                     FeedbackVectorRef feedback_vector, Flags flags);
 
   // {LoweringResult} describes the result of lowering. The following outcomes
   // are possible:
@@ -134,6 +134,13 @@ class JSTypeHintLowering {
                                           int arg_count, Node* effect,
                                           Node* control,
                                           FeedbackSlot slot) const;
+
+  // Potential reduction of property access and call operations.
+  LoweringResult ReduceGetIteratorOperation(const Operator* op, Node* obj,
+                                            Node* effect, Node* control,
+                                            FeedbackSlot load_slot,
+                                            FeedbackSlot call_slot) const;
+
   // Potential reduction of property access operations.
   LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* obj,
                                           Node* effect, Node* control,
@@ -153,20 +160,22 @@ class JSTypeHintLowering {
 
  private:
   friend class JSSpeculativeBinopBuilder;
-  Node* TryBuildSoftDeopt(FeedbackNexus& nexus,  // NOLINT(runtime/references)
-                          Node* effect, Node* control,
+
+  BinaryOperationHint GetBinaryOperationHint(FeedbackSlot slot) const;
+  CompareOperationHint GetCompareOperationHint(FeedbackSlot slot) const;
+  Node* TryBuildSoftDeopt(FeedbackSlot slot, Node* effect, Node* control,
                           DeoptimizeReason reson) const;
 
+  JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
   Flags flags() const { return flags_; }
-  const Handle<FeedbackVector>& feedback_vector() const {
-    return feedback_vector_;
-  }
+  FeedbackVectorRef const& feedback_vector() const { return feedback_vector_; }
 
-  JSGraph* jsgraph_;
+  JSHeapBroker* const broker_;
+  JSGraph* const jsgraph_;
   Flags const flags_;
-  Handle<FeedbackVector> feedback_vector_;
+  FeedbackVectorRef const feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(JSTypeHintLowering);
 };

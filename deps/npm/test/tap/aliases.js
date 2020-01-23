@@ -116,18 +116,18 @@ test('installs an npm: protocol alias package', t => {
     t.comment(stdout)
     t.comment(stderr)
     const parsed = JSON.parse(stdout)
-    t.deepEqual(parsed, {
+    t.match(parsed, {
       foo: {
         current: '1.2.3',
         wanted: '1.2.4',
         latest: '1.2.4',
-        location: 'node_modules/foo'
+        location: /node_modules[/\\]foo/
       },
       bar: {
         current: 'npm:foo@1.2.3',
         wanted: 'npm:foo@1.2.4',
         latest: 'npm:foo@1.2.4',
-        location: 'node_modules/bar'
+        location: /node_modules[/\\]bar/
       }
     }, 'both regular and aliased dependency reported')
     return common.npm([

@@ -10,8 +10,7 @@
 
 /**
  * Returns the name of the module imported or re-exported.
- *
- * @param {ASTNode} node - A node to get.
+ * @param {ASTNode} node A node to get.
  * @returns {string} the name of the module, or empty string if no name.
  */
 function getValue(node) {
@@ -24,12 +23,11 @@ function getValue(node) {
 
 /**
  * Checks if the name of the import or export exists in the given array, and reports if so.
- *
- * @param {RuleContext} context - The ESLint rule context object.
- * @param {ASTNode} node - A node to get.
- * @param {string} value - The name of the imported or exported module.
- * @param {string[]} array - The array containing other imports or exports in the file.
- * @param {string} messageId - A messageId to be reported after the name of the module
+ * @param {RuleContext} context The ESLint rule context object.
+ * @param {ASTNode} node A node to get.
+ * @param {string} value The name of the imported or exported module.
+ * @param {string[]} array The array containing other imports or exports in the file.
+ * @param {string} messageId A messageId to be reported after the name of the module
  *
  * @returns {void} No return value
  */
@@ -47,16 +45,15 @@ function checkAndReport(context, node, value, array, messageId) {
 
 /**
  * @callback nodeCallback
- * @param {ASTNode} node - A node to handle.
+ * @param {ASTNode} node A node to handle.
  */
 
 /**
  * Returns a function handling the imports of a given file
- *
- * @param {RuleContext} context - The ESLint rule context object.
- * @param {boolean} includeExports - Whether or not to check for exports in addition to imports.
- * @param {string[]} importsInFile - The array containing other imports in the file.
- * @param {string[]} exportsInFile - The array containing other exports in the file.
+ * @param {RuleContext} context The ESLint rule context object.
+ * @param {boolean} includeExports Whether or not to check for exports in addition to imports.
+ * @param {string[]} importsInFile The array containing other imports in the file.
+ * @param {string[]} exportsInFile The array containing other exports in the file.
  *
  * @returns {nodeCallback} A function passed to ESLint to handle the statement.
  */
@@ -78,10 +75,9 @@ function handleImports(context, includeExports, importsInFile, exportsInFile) {
 
 /**
  * Returns a function handling the exports of a given file
- *
- * @param {RuleContext} context - The ESLint rule context object.
- * @param {string[]} importsInFile - The array containing other imports in the file.
- * @param {string[]} exportsInFile - The array containing other exports in the file.
+ * @param {RuleContext} context The ESLint rule context object.
+ * @param {string[]} importsInFile The array containing other imports in the file.
+ * @param {string[]} exportsInFile The array containing other exports in the file.
  *
  * @returns {nodeCallback} A function passed to ESLint to handle the statement.
  */

@@ -22,8 +22,7 @@ const assert = require("assert"),
 
 /**
  * Gets whether or not a given segment is reachable.
- *
- * @param {CodePathSegment} segment - A segment to get.
+ * @param {CodePathSegment} segment A segment to get.
  * @returns {boolean} `true` if the segment is reachable.
  */
 function isReachable(segment) {
@@ -36,11 +35,10 @@ function isReachable(segment) {
  * When `context.segmentsList` is `[[a, b], [c, d], [e, f]]`, `begin` is `0`, and
  * `end` is `-1`, this creates `[g, h]`. This `g` is from `a`, `c`, and `e`.
  * This `h` is from `b`, `d`, and `f`.
- *
- * @param {ForkContext} context - An instance.
- * @param {number} begin - The first index of the previous segments.
- * @param {number} end - The last index of the previous segments.
- * @param {Function} create - A factory function of new segments.
+ * @param {ForkContext} context An instance.
+ * @param {number} begin The first index of the previous segments.
+ * @param {number} end The last index of the previous segments.
+ * @param {Function} create A factory function of new segments.
  * @returns {CodePathSegment[]} New segments.
  */
 function makeSegments(context, begin, end, create) {
@@ -69,9 +67,8 @@ function makeSegments(context, begin, end, create) {
  * control statement (such as `break`, `continue`) from the `finally` block, the
  * destination's segments may be half of the source segments. In that case, this
  * merges segments.
- *
- * @param {ForkContext} context - An instance.
- * @param {CodePathSegment[]} segments - Segments to merge.
+ * @param {ForkContext} context An instance.
+ * @param {CodePathSegment[]} segments Segments to merge.
  * @returns {CodePathSegment[]} The merged segments.
  */
 function mergeExtraSegments(context, segments) {
@@ -100,10 +97,11 @@ function mergeExtraSegments(context, segments) {
  */
 class ForkContext {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {IdGenerator} idGenerator - An identifier generator for segments.
-     * @param {ForkContext|null} upper - An upper fork context.
-     * @param {number} count - A number of parallel segments.
+     * @param {IdGenerator} idGenerator An identifier generator for segments.
+     * @param {ForkContext|null} upper An upper fork context.
+     * @param {number} count A number of parallel segments.
      */
     constructor(idGenerator, upper, count) {
         this.idGenerator = idGenerator;
@@ -142,9 +140,8 @@ class ForkContext {
 
     /**
      * Creates new segments from this context.
-     *
-     * @param {number} begin - The first index of previous segments.
-     * @param {number} end - The last index of previous segments.
+     * @param {number} begin The first index of previous segments.
+     * @param {number} end The last index of previous segments.
      * @returns {CodePathSegment[]} New segments.
      */
     makeNext(begin, end) {
@@ -154,9 +151,8 @@ class ForkContext {
     /**
      * Creates new segments from this context.
      * The new segments is always unreachable.
-     *
-     * @param {number} begin - The first index of previous segments.
-     * @param {number} end - The last index of previous segments.
+     * @param {number} begin The first index of previous segments.
+     * @param {number} end The last index of previous segments.
      * @returns {CodePathSegment[]} New segments.
      */
     makeUnreachable(begin, end) {
@@ -167,9 +163,8 @@ class ForkContext {
      * Creates new segments from this context.
      * The new segments don't have connections for previous segments.
      * But these inherit the reachable flag from this context.
-     *
-     * @param {number} begin - The first index of previous segments.
-     * @param {number} end - The last index of previous segments.
+     * @param {number} begin The first index of previous segments.
+     * @param {number} end The last index of previous segments.
      * @returns {CodePathSegment[]} New segments.
      */
     makeDisconnected(begin, end) {
@@ -179,8 +174,7 @@ class ForkContext {
     /**
      * Adds segments into this context.
      * The added segments become the head.
-     *
-     * @param {CodePathSegment[]} segments - Segments to add.
+     * @param {CodePathSegment[]} segments Segments to add.
      * @returns {void}
      */
     add(segments) {
@@ -192,8 +186,7 @@ class ForkContext {
     /**
      * Replaces the head segments with given segments.
      * The current head segments are removed.
-     *
-     * @param {CodePathSegment[]} segments - Segments to add.
+     * @param {CodePathSegment[]} segments Segments to add.
      * @returns {void}
      */
     replaceHead(segments) {
@@ -204,8 +197,7 @@ class ForkContext {
 
     /**
      * Adds all segments of a given fork context into this context.
-     *
-     * @param {ForkContext} context - A fork context to add.
+     * @param {ForkContext} context A fork context to add.
      * @returns {void}
      */
     addAll(context) {
@@ -220,7 +212,6 @@ class ForkContext {
 
     /**
      * Clears all secments in this context.
-     *
      * @returns {void}
      */
     clear() {
@@ -229,8 +220,7 @@ class ForkContext {
 
     /**
      * Creates the root fork context.
-     *
-     * @param {IdGenerator} idGenerator - An identifier generator for segments.
+     * @param {IdGenerator} idGenerator An identifier generator for segments.
      * @returns {ForkContext} New fork context.
      */
     static newRoot(idGenerator) {
@@ -243,9 +233,8 @@ class ForkContext {
 
     /**
      * Creates an empty fork context preceded by a given context.
-     *
-     * @param {ForkContext} parentContext - The parent fork context.
-     * @param {boolean} forkLeavingPath - A flag which shows inside of `finally` block.
+     * @param {ForkContext} parentContext The parent fork context.
+     * @param {boolean} forkLeavingPath A flag which shows inside of `finally` block.
      * @returns {ForkContext} New fork context.
      */
     static newEmpty(parentContext, forkLeavingPath) {

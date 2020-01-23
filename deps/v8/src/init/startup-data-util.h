@@ -21,6 +21,7 @@ void InitializeExternalStartupData(const char* directory_path);
 
 void InitializeExternalStartupData(const char* natives_blob,
                                    const char* snapshot_blob);
+void InitializeExternalStartupDataFromFile(const char* snapshot_blob);
 
 }  // namespace internal
 }  // namespace v8

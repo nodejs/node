@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -271,4 +271,10 @@ int ossl_tolower(int c)
 int ossl_toupper(int c)
 {
     return ossl_islower(c) ? c ^ case_change : c;
+}
+
+int ascii_isdigit(const char inchar) {
+    if (inchar > 0x2F && inchar < 0x3A)
+        return 1;
+    return 0;
 }

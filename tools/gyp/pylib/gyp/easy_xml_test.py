@@ -8,13 +8,17 @@
 
 import gyp.easy_xml as easy_xml
 import unittest
-import StringIO
+
+try:
+  from StringIO import StringIO  # Python 2
+except ImportError:
+  from io import StringIO  # Python 3
 
 
 class TestSequenceFunctions(unittest.TestCase):
 
   def setUp(self):
-    self.stderr = StringIO.StringIO()
+    self.stderr = StringIO()
 
   def test_EasyXml_simple(self):
     self.assertEqual(

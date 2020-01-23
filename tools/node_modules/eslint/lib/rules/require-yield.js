@@ -28,7 +28,7 @@ module.exports = {
 
         /**
          * If the node is a generator function, start counting `yield` keywords.
-         * @param {Node} node - A function node to check.
+         * @param {Node} node A function node to check.
          * @returns {void}
          */
         function beginChecking(node) {
@@ -40,7 +40,7 @@ module.exports = {
         /**
          * If the node is a generator function, end counting `yield` keywords, then
          * reports result.
-         * @param {Node} node - A function node to check.
+         * @param {Node} node A function node to check.
          * @returns {void}
          */
         function endChecking(node) {

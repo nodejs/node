@@ -2,8 +2,6 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
@@ -43,7 +41,6 @@ if (process.argv.length === 8)
 */ }.toString().split('\n').slice(1, -1).join('\n')
 
 test('setup', function (t) {
-  cleanup()
   mkdirp.sync(tmp)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
@@ -89,13 +86,3 @@ test('test', function (t) {
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

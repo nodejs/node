@@ -6,7 +6,6 @@
 
 #include "src/init/v8.h"
 
-#include "src/base/template-utils.h"
 #include "test/cctest/cctest.h"
 
 #include "src/tracing/trace-event.h"
@@ -55,9 +54,8 @@ class MockTracingController : public v8::TracingController {
       const uint64_t* arg_values,
       std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
       unsigned int flags, int64_t timestamp) override {
-    std::unique_ptr<MockTraceObject> to =
-        v8::base::make_unique<MockTraceObject>(
-            phase, std::string(name), id, bind_id, num_args, flags, timestamp);
+    std::unique_ptr<MockTraceObject> to = std::make_unique<MockTraceObject>(
+        phase, std::string(name), id, bind_id, num_args, flags, timestamp);
     trace_objects_.push_back(std::move(to));
     return 0;
   }

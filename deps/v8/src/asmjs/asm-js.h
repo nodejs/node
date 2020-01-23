@@ -7,6 +7,8 @@
 
 // Clients of this interface shouldn't depend on lots of asmjs internals.
 // Do not include anything from src/asmjs here!
+#include <memory>
+
 #include "src/common/globals.h"
 
 namespace v8 {

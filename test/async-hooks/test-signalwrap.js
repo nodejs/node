@@ -55,8 +55,13 @@ function onsigusr2() {
     process.on('SIGUSR2', common.mustCall(onsigusr2Again));
 
     const as = hooks.activitiesOfTypes('SIGNALWRAP');
-    assert.strictEqual(as.length, 2);
-    signal2 = as[1];
+    // The isTTY checks are needed to allow test to work whether run with
+    // test.py or directly with the node executable. The third signal event
+    // listener is the SIGWINCH handler that node installs when it thinks
+    // process.stdout is a tty.
+    const expectedLen = 2 + (!!process.stdout.isTTY || !!process.stderr.isTTY);
+    assert.strictEqual(as.length, expectedLen);
+    signal2 = as[expectedLen - 1]; // Last item in the array.
     assert.strictEqual(signal2.type, 'SIGNALWRAP');
     assert.strictEqual(typeof signal2.uid, 'number');
     assert.strictEqual(typeof signal2.triggerAsyncId, 'number');

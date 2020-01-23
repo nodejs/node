@@ -6,6 +6,7 @@
 #define V8_TORQUE_SERVER_DATA_H_
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -47,12 +48,12 @@ class LanguageServerData : public ContextualClass<LanguageServerData> {
 
   static void SetGlobalContext(GlobalContext global_context) {
     Get().global_context_ =
-        base::make_unique<GlobalContext>(std::move(global_context));
+        std::make_unique<GlobalContext>(std::move(global_context));
     Get().PrepareAllDeclarableSymbols();
   }
 
   static void SetTypeOracle(TypeOracle type_oracle) {
-    Get().type_oracle_ = base::make_unique<TypeOracle>(std::move(type_oracle));
+    Get().type_oracle_ = std::make_unique<TypeOracle>(std::move(type_oracle));
   }
 
   static const Symbols& SymbolsForSourceId(SourceId id) {

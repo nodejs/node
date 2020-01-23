@@ -5,6 +5,8 @@
 #ifndef V8_WASM_MODULE_DECODER_H_
 #define V8_WASM_MODULE_DECODER_H_
 
+#include <memory>
+
 #include "src/common/globals.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-constants.h"

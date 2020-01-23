@@ -5,6 +5,8 @@
 #ifndef V8_INSPECTOR_V8_HEAP_PROFILER_AGENT_IMPL_H_
 #define V8_INSPECTOR_V8_HEAP_PROFILER_AGENT_IMPL_H_
 
+#include <memory>
+
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/HeapProfiler.h"

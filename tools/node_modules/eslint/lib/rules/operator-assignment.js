@@ -71,6 +71,9 @@ function same(a, b) {
              */
             return same(a.object, b.object) && same(a.property, b.property);
 
+        case "ThisExpression":
+            return true;
+
         default:
             return false;
     }
@@ -83,8 +86,14 @@ function same(a, b) {
  * @returns {boolean} `true` if the node can be fixed
  */
 function canBeFixed(node) {
-    return node.type === "Identifier" ||
-        node.type === "MemberExpression" && node.object.type === "Identifier" && (!node.computed || node.property.type === "Literal");
+    return (
+        node.type === "Identifier" ||
+        (
+            node.type === "MemberExpression" &&
+            (node.object.type === "Identifier" || node.object.type === "ThisExpression") &&
+            (!node.computed || node.property.type === "Literal")
+        )
+    );
 }
 
 module.exports = {
@@ -150,6 +159,11 @@ module.exports = {
                                 const leftText = sourceCode.getText().slice(node.range[0], equalsToken.range[0]);
                                 const rightText = sourceCode.getText().slice(operatorToken.range[1], node.right.range[1]);
 
+                                // Check for comments that would be removed.
+                                if (sourceCode.commentsExistBetween(equalsToken, operatorToken)) {
+                                    return null;
+                                }
+
                                 return fixer.replaceText(node, `${leftText}${expr.operator}=${rightText}`);
                             }
                             return null;
@@ -182,10 +196,16 @@ module.exports = {
                     messageId: "unexpected",
                     fix(fixer) {
                         if (canBeFixed(node.left)) {
+                            const firstToken = sourceCode.getFirstToken(node);
                             const operatorToken = getOperatorToken(node);
                             const leftText = sourceCode.getText().slice(node.range[0], operatorToken.range[0]);
                             const newOperator = node.operator.slice(0, -1);
                             let rightText;
+
+                            // Check for comments that would be duplicated.
+                            if (sourceCode.commentsExistBetween(firstToken, operatorToken)) {
+                                return null;
+                            }
 
                             // If this change would modify precedence (e.g. `foo *= bar + 1` => `foo = foo * (bar + 1)`), parenthesize the right side.
                             if (
@@ -194,7 +214,17 @@ module.exports = {
                             ) {
                                 rightText = `${sourceCode.text.slice(operatorToken.range[1], node.right.range[0])}(${sourceCode.getText(node.right)})`;
                             } else {
-                                rightText = sourceCode.text.slice(operatorToken.range[1], node.range[1]);
+                                const firstRightToken = sourceCode.getFirstToken(node.right);
+                                let rightTextPrefix = "";
+
+                                if (
+                                    operatorToken.range[1] === firstRightToken.range[0] &&
+                                    !astUtils.canTokensBeAdjacent(newOperator, firstRightToken)
+                                ) {
+                                    rightTextPrefix = " "; // foo+=+bar -> foo= foo+ +bar
+                                }
+
+                                rightText = `${rightTextPrefix}${sourceCode.text.slice(operatorToken.range[1], node.range[1])}`;
                             }
 
                             return fixer.replaceText(node, `${leftText}= ${leftText}${newOperator}${rightText}`);

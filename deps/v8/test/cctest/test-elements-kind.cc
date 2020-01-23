@@ -63,6 +63,7 @@ bool ElementsKindIsHoleyElementsKindForRead(ElementsKind kind) {
     case ElementsKind::HOLEY_SMI_ELEMENTS:
     case ElementsKind::HOLEY_ELEMENTS:
     case ElementsKind::HOLEY_DOUBLE_ELEMENTS:
+    case ElementsKind::HOLEY_NONEXTENSIBLE_ELEMENTS:
     case ElementsKind::HOLEY_SEALED_ELEMENTS:
     case ElementsKind::HOLEY_FROZEN_ELEMENTS:
       return true;

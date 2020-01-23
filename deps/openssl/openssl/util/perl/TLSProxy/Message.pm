@@ -129,6 +129,11 @@ use constant {
     CIPHER_TLS13_AES_256_GCM_SHA384 => 0x1302
 };
 
+use constant {
+    CLIENT => 0,
+    SERVER => 1
+};
+
 my $payload = "";
 my $messlen = -1;
 my $mt;
@@ -331,6 +336,15 @@ sub create_message
         $message->parse();
     } elsif ($mt == MT_CERTIFICATE) {
         $message = TLSProxy::Certificate->new(
+            $server,
+            $data,
+            [@message_rec_list],
+            $startoffset,
+            [@message_frag_lens]
+        );
+        $message->parse();
+    } elsif ($mt == MT_CERTIFICATE_REQUEST) {
+        $message = TLSProxy::CertificateRequest->new(
             $server,
             $data,
             [@message_rec_list],

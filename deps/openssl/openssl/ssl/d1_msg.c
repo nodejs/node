@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,8 +52,7 @@ int dtls1_dispatch_alert(SSL *s)
         s->s3->alert_dispatch = 1;
         /* fprintf( stderr, "not done with alert\n" ); */
     } else {
-        if (s->s3->send_alert[0] == SSL3_AL_FATAL)
-            (void)BIO_flush(s->wbio);
+        (void)BIO_flush(s->wbio);
 
         if (s->msg_callback)
             s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3->send_alert,

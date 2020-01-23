@@ -60,6 +60,8 @@ static uv_async_t start_io_thread_async;
 // This is just an additional check to make sure start_io_thread_async
 // is not accidentally re-used or used when uninitialized.
 static std::atomic_bool start_io_thread_async_initialized { false };
+// Protects the Agent* stored in start_io_thread_async.data.
+static Mutex start_io_thread_async_mutex;
 
 class StartIoTask : public Task {
  public:
@@ -97,6 +99,8 @@ static void StartIoThreadWakeup(int signo, siginfo_t* info, void* ucontext) {
 inline void* StartIoThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&start_io_thread_semaphore);
+    Mutex::ScopedLock lock(start_io_thread_async_mutex);
+
     CHECK(start_io_thread_async_initialized);
     Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
     if (agent != nullptr)
@@ -157,6 +161,7 @@ static int StartDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI StartIoThreadProc(void* arg) {
+  Mutex::ScopedLock lock(start_io_thread_async_mutex);
   CHECK(start_io_thread_async_initialized);
   Agent* agent = static_cast<Agent*>(start_io_thread_async.data);
   if (agent != nullptr)
@@ -665,10 +670,10 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
-    if (interface_ == nullptr) {
-      interface_.reset(new MainThreadInterface(
+    if (!interface_) {
+      interface_ = std::make_shared<MainThreadInterface>(
           env_->inspector_agent(), env_->event_loop(), env_->isolate(),
-          env_->isolate_data()->platform()));
+          env_->isolate_data()->platform());
     }
     return interface_->GetHandle();
   }
@@ -739,7 +744,7 @@ class NodeInspectorClient : public V8InspectorClient {
   bool waiting_for_frontend_ = false;
   bool waiting_for_sessions_disconnect_ = false;
   // Allows accessing Inspector from non-main threads
-  std::unique_ptr<MainThreadInterface> interface_;
+  std::shared_ptr<MainThreadInterface> interface_;
   std::shared_ptr<WorkerManager> worker_manager_;
 };
 
@@ -748,14 +753,7 @@ Agent::Agent(Environment* env)
       debug_options_(env->options()->debug_options()),
       host_port_(env->inspector_host_port()) {}
 
-Agent::~Agent() {
-  if (start_io_thread_async.data == this) {
-    CHECK(start_io_thread_async_initialized.exchange(false));
-    start_io_thread_async.data = nullptr;
-    // This is global, will never get freed
-    uv_close(reinterpret_cast<uv_handle_t*>(&start_io_thread_async), nullptr);
-  }
-}
+Agent::~Agent() {}
 
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
@@ -768,6 +766,7 @@ bool Agent::Start(const std::string& path,
 
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
   if (parent_env_->owns_inspector()) {
+    Mutex::ScopedLock lock(start_io_thread_async_mutex);
     CHECK_EQ(start_io_thread_async_initialized.exchange(true), false);
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                               &start_io_thread_async,
@@ -776,7 +775,28 @@ bool Agent::Start(const std::string& path,
     start_io_thread_async.data = this;
     // Ignore failure, SIGUSR1 won't work, but that should not block node start.
     StartDebugSignalHandler();
+
+    parent_env_->AddCleanupHook([](void* data) {
+      Environment* env = static_cast<Environment*>(data);
+
+      {
+        Mutex::ScopedLock lock(start_io_thread_async_mutex);
+        start_io_thread_async.data = nullptr;
+      }
+
+      // This is global, will never get freed
+      env->CloseHandle(&start_io_thread_async, [](uv_async_t*) {
+        CHECK(start_io_thread_async_initialized.exchange(false));
+      });
+    }, parent_env_);
   }
+
+  AtExit(parent_env_, [](void* env) {
+    Agent* agent = static_cast<Environment*>(env)->inspector_agent();
+    if (agent->IsActive()) {
+      agent->WaitForDisconnect();
+    }
+  }, parent_env_);
 
   bool wait_for_connect = options.wait_for_connect();
   if (parent_handle_) {
@@ -826,6 +846,17 @@ std::unique_ptr<InspectorSession> Agent::Connect(
                                             prevent_shutdown);
   return std::unique_ptr<InspectorSession>(
       new SameThreadInspectorSession(session_id, client_));
+}
+
+std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
+    std::unique_ptr<InspectorSessionDelegate> delegate,
+    bool prevent_shutdown) {
+  CHECK_NOT_NULL(parent_handle_);
+  CHECK_NOT_NULL(client_);
+  auto thread_safe_delegate =
+      client_->getThreadHandle()->MakeDelegateThreadSafe(std::move(delegate));
+  return parent_handle_->Connect(std::move(thread_safe_delegate),
+                                 prevent_shutdown);
 }
 
 void Agent::WaitForDisconnect() {

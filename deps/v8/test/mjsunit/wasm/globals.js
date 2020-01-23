@@ -15,12 +15,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let sig_index = builder.addType(kSig_i_v);
   builder.addFunction("get", sig_index)
     .addBody([
-      kExprGetGlobal, g.index])
+      kExprGlobalGet, g.index])
     .exportAs("get");
   builder.addFunction("set", kSig_v_i)
     .addBody([
-      kExprGetLocal, 0,
-      kExprSetGlobal, g.index])
+      kExprLocalGet, 0,
+      kExprGlobalSet, g.index])
     .exportAs("set");
 
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -54,7 +54,7 @@ function TestImported(type, val, expected) {
   var sig = makeSig([], [type]);
   var g = builder.addImportedGlobal("uuu", "foo", type);
   builder.addFunction("main", sig)
-    .addBody([kExprGetGlobal, g])
+    .addBody([kExprGlobalGet, g])
     .exportAs("main");
   builder.addGlobal(kWasmI32);  // pad
 
@@ -76,7 +76,7 @@ TestImported(kWasmF64, 77777.88888, 77777.88888);
   let sig_index = builder.addType(kSig_i_v);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprGetGlobal, g])
+      kExprGlobalGet, g])
     .exportAs("main");
 
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -152,7 +152,7 @@ function TestGlobalIndexSpace(type, val) {
 
   var sig = makeSig([], [type]);
   builder.addFunction("main", sig)
-    .addBody([kExprGetGlobal, def.index])
+    .addBody([kExprGlobalGet, def.index])
     .exportAs("main");
 
   var instance = builder.instantiate({nnn: {foo: val}});
@@ -173,22 +173,22 @@ TestGlobalIndexSpace(kWasmF64, 12345.678);
   let sig_index = builder.addType(kSig_i_i);
   builder.addFunction("get", sig_index)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprIf, kWasmI32,
-      kExprGetGlobal, g.index,
+      kExprGlobalGet, g.index,
       kExprElse,
-      kExprGetGlobal, h.index,
+      kExprGlobalGet, h.index,
       kExprEnd])
     .exportAs("get");
   builder.addFunction("set", kSig_v_ii)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprIf, kWasmStmt,
-      kExprGetLocal, 1,
-      kExprSetGlobal, g.index,
+      kExprLocalGet, 1,
+      kExprGlobalSet, g.index,
       kExprElse,
-      kExprGetLocal, 1,
-      kExprSetGlobal, h.index,
+      kExprLocalGet, 1,
+      kExprGlobalSet, h.index,
       kExprEnd])
     .exportAs("set");
 

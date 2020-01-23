@@ -28,11 +28,11 @@ async function test() {
   for (let i = 0; i < 10000; i++) {
     const { port1, port2 } = new MessageChannel();
     worker.postMessage({ port: port2 }, [ port2 ]);
-    await once(port1, 'message');  // 'complexObject'
+    assert.deepStrictEqual(await once(port1, 'message'), ['firstMessage']);
     assert.deepStrictEqual(await once(port1, 'message'), ['lastMessage']);
   }
 
-  worker.terminate();
+  await worker.terminate();
 }
 
 test().then(common.mustCall());

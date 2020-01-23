@@ -88,7 +88,7 @@
 #define MAX_E_COUNT      5
 #define MAX_M_COUNT      5
 //#define MAX_INTERVAL_INDEX 4
-#define MAX_POSITIVE_INT  56632;
+#define MAX_POSITIVE_INT  56632
 
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

@@ -12,20 +12,21 @@
 namespace v8 {
 namespace internal {
 
-Handle<Object> BuiltinArguments::atOrUndefined(Isolate* isolate, int index) {
+Handle<Object> BuiltinArguments::atOrUndefined(Isolate* isolate,
+                                               int index) const {
   if (index >= length()) {
     return isolate->factory()->undefined_value();
   }
   return at<Object>(index);
 }
 
-Handle<Object> BuiltinArguments::receiver() { return at<Object>(0); }
+Handle<Object> BuiltinArguments::receiver() const { return at<Object>(0); }
 
-Handle<JSFunction> BuiltinArguments::target() {
+Handle<JSFunction> BuiltinArguments::target() const {
   return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);
 }
 
-Handle<HeapObject> BuiltinArguments::new_target() {
+Handle<HeapObject> BuiltinArguments::new_target() const {
   return Arguments::at<HeapObject>(Arguments::length() - 1 - kNewTargetOffset);
 }
 

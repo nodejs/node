@@ -5,11 +5,10 @@ var path = require('path')
 var writeFileSync = require('graceful-fs').writeFileSync
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var http = require('http')
-var rimraf = require('rimraf')
 var ssri = require('ssri')
-var test = require('tap').test
+var t = require('tap')
+var test = t.test
 
 var common = require('../common-tap.js')
 
@@ -23,7 +22,34 @@ var tarball = path.resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
 var tarballIntegrity = ssri.fromData(fs.readFileSync(tarball)).toString()
 
 var _auth = '0xabad1dea'
+
+var contents = '_auth=' + _auth + '\n' +
+               '\'always-auth\'=true\n'
+
+var json = {
+  name: 'test-package-install',
+  version: '1.0.0',
+  dependencies: {
+    '@scoped/underscore': '1.0.0'
+  }
+}
+
+var shrinkwrap = {
+  name: 'test-package-install',
+  version: '1.0.0',
+  lockfileVersion: 1,
+  dependencies: {
+    '@scoped/underscore': {
+      resolved: tarballURL,
+      integrity: tarballIntegrity,
+      version: '1.3.1'
+    }
+  }
+}
+
 var server = http.createServer()
+t.teardown(() => server.close())
+
 const errors = []
 server.on('request', (req, res) => {
   const auth = 'Basic ' + _auth
@@ -44,10 +70,14 @@ server.on('request', (req, res) => {
 })
 
 test('setup', function (t) {
-  server.listen(common.port, () => {
-    setup()
-    t.done()
-  })
+  mkdirp.sync(modules)
+  writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
+  writeFileSync(outfile, contents)
+  writeFileSync(
+    path.resolve(pkg, 'npm-shrinkwrap.json'),
+    JSON.stringify(shrinkwrap, null, 2) + '\n'
+  )
+  server.listen(common.port, t.end)
 })
 
 test('authed npm install with shrinkwrapped global package using _auth', function (t) {
@@ -77,50 +107,3 @@ test('authed npm install with shrinkwrapped global package using _auth', functio
     }
   )
 })
-
-test('cleanup', function (t) {
-  server.close(() => {
-    cleanup()
-    t.end()
-  })
-})
-
-var contents = '_auth=' + _auth + '\n' +
-               '\'always-auth\'=true\n'
-
-var json = {
-  name: 'test-package-install',
-  version: '1.0.0',
-  dependencies: {
-    '@scoped/underscore': '1.0.0'
-  }
-}
-
-var shrinkwrap = {
-  name: 'test-package-install',
-  version: '1.0.0',
-  lockfileVersion: 1,
-  dependencies: {
-    '@scoped/underscore': {
-      resolved: tarballURL,
-      integrity: tarballIntegrity,
-      version: '1.3.1'
-    }
-  }
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(modules)
-  writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
-  writeFileSync(outfile, contents)
-  writeFileSync(
-    path.resolve(pkg, 'npm-shrinkwrap.json'),
-    JSON.stringify(shrinkwrap, null, 2) + '\n'
-  )
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

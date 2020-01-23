@@ -65,6 +65,11 @@ class V8_EXPORT_PRIVATE DecompressionElimination final
   // value of that constant.
   Reduction ReduceWord64Equal(Node* node);
 
+  // This is a workaround for load elimination test.
+  // Replaces Compress -> BitcastWordToTaggedSigned -> ReducibleConstant
+  // to CompressedConstant on both inputs of Word32Equal operation.
+  Reduction ReduceWord32Equal(Node* node);
+
   Graph* graph() const { return graph_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   CommonOperatorBuilder* common() const { return common_; }

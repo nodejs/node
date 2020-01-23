@@ -101,7 +101,6 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
 
   // Unbox handles and relocate.
   Assembler* origin = desc.origin;
-  AllowDeferredHandleDereference embedding_raw_address;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
@@ -193,7 +192,10 @@ namespace {
 template <typename Code>
 void DropStackFrameCacheCommon(Code code) {
   i::Object maybe_table = code.source_position_table();
-  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
+  if (maybe_table.IsUndefined() || maybe_table.IsByteArray() ||
+      maybe_table.IsException()) {
+    return;
+  }
   DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   code.set_source_position_table(
       i::SourcePositionTableWithFrameCache::cast(maybe_table)
@@ -667,8 +669,8 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 
 }  // namespace
 
-void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
-  Isolate* isolate = GetIsolate();
+void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
+                       Address current_pc) {
   os << "kind = " << Kind2String(kind()) << "\n";
   if (name == nullptr) {
     name = GetName(isolate);
@@ -680,7 +682,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
   os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
-  os << "address = " << static_cast<const void*>(this) << "\n\n";
+  os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
   if (is_off_heap_trampoline()) {
     int trampoline_size = raw_instruction_size();
@@ -988,8 +990,7 @@ Handle<DependentCode> DependentCode::EnsureSpace(
   int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
   int grow_by = capacity - entries->length();
   return Handle<DependentCode>::cast(
-      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by,
-                                                    AllocationType::kOld));
+      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by));
 }
 
 bool DependentCode::Compact() {
@@ -1084,16 +1085,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-transition-changed";
   }
   UNREACHABLE();
-}
-
-bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
-  if (length() != other.length()) return false;
-
-  for (int i = 0; i < length(); ++i) {
-    if (get(i) != other.get(i)) return false;
-  }
-
-  return true;
 }
 
 }  // namespace internal

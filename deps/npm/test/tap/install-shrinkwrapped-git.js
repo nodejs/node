@@ -3,7 +3,6 @@
 var fs = require('fs')
 var path = require('path')
 var resolve = path.resolve
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var test = require('tap').test
@@ -32,16 +31,31 @@ var childPackageJSON = JSON.stringify({
 })
 
 test('setup', function (t) {
-  cleanup()
-  setup(function (err, result) {
-    t.ifError(err, 'git started up successfully')
+  mkdirp.sync(parentPath)
+  fs.writeFileSync(resolve(parentPath, 'package.json'), parentPackageJSON)
+  process.chdir(parentPath)
 
-    if (!err) {
-      gitDaemon = result[result.length - 2]
-      gitDaemonPID = result[result.length - 1]
-    }
+  // Setup child
+  mkdirp.sync(childPath)
+  fs.writeFileSync(resolve(childPath, 'package.json'), childPackageJSON)
 
-    t.end()
+  // Setup npm and then git
+  npm.load({
+    registry: common.registry,
+    loglevel: 'silent',
+    save: true // Always install packages with --save
+  }, function () {
+    // It's important to initialize git after npm because it uses config
+    initializeGit(function (err, result) {
+      t.ifError(err, 'git started up successfully')
+
+      if (!err) {
+        gitDaemon = result[result.length - 2]
+        gitDaemonPID = result[result.length - 1]
+      }
+
+      t.end()
+    })
   })
 })
 
@@ -85,38 +99,9 @@ test('shrinkwrapped git dependency got updated', function (t) {
 })
 
 test('clean', function (t) {
-  gitDaemon.on('close', function () {
-    cleanup()
-    t.end()
-  })
+  gitDaemon.on('close', t.end)
   process.kill(gitDaemonPID)
 })
-
-function setup (cb) {
-  // Setup parent package
-  mkdirp.sync(parentPath)
-  fs.writeFileSync(resolve(parentPath, 'package.json'), parentPackageJSON)
-  process.chdir(parentPath)
-
-  // Setup child
-  mkdirp.sync(childPath)
-  fs.writeFileSync(resolve(childPath, 'package.json'), childPackageJSON)
-
-  // Setup npm and then git
-  npm.load({
-    registry: common.registry,
-    loglevel: 'silent',
-    save: true // Always install packages with --save
-  }, function () {
-    // It's important to initialize git after npm because it uses config
-    initializeGit(cb)
-  })
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(mockPath)
-}
 
 function prepareChildAndGetRefs (cb) {
   var opts = { cwd: childPath, env: { PATH: process.env.PATH } }

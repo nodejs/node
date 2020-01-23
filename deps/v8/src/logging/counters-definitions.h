@@ -188,6 +188,8 @@ namespace internal {
      V8.WasmCompileModuleAsyncMicroSeconds, 100000000, MICROSECOND)            \
   HT(wasm_streaming_compile_wasm_module_time,                                  \
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
+  HT(wasm_streaming_deserialize_wasm_module_time,                              \
+     V8.WasmDeserializeModuleStreamingMicroSeconds, 100000000, MICROSECOND)    \
   HT(wasm_tier_up_module_time, V8.WasmTierUpModuleMicroSeconds, 100000000,     \
      MICROSECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
@@ -219,6 +221,8 @@ namespace internal {
      MICROSECOND)                                                              \
   HT(compile_script_no_cache_because_cache_too_cold,                           \
      V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
+  HT(compile_script_streaming_finalization,                                    \
+     V8.CompileScriptMicroSeconds.StreamingFinalization, 1000000, MICROSECOND) \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \

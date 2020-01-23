@@ -2,24 +2,24 @@
 
 // Tests below are not from WPT.
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const URLSearchParams = require('url').URLSearchParams;
 
 {
   const params = new URLSearchParams();
-  common.expectsError(() => {
+  assert.throws(() => {
     params.set.call(undefined);
   }, {
     code: 'ERR_INVALID_THIS',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Value of "this" must be of type URLSearchParams'
   });
-  common.expectsError(() => {
+  assert.throws(() => {
     params.set('a');
   }, {
     code: 'ERR_MISSING_ARGS',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "name" and "value" arguments must be specified'
   });
 

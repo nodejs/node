@@ -100,8 +100,10 @@ class DebugOptions : public Options {
 class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
-  bool experimental_exports = false;
+  bool enable_source_maps = false;
+  bool experimental_json_modules = false;
   bool experimental_modules = false;
+  std::string experimental_specifier_resolution;
   std::string es_module_specifier_resolution;
   bool experimental_wasm_modules = false;
   std::string module_type;
@@ -113,10 +115,11 @@ class EnvironmentOptions : public Options {
   bool expose_internals = false;
   bool frozen_intrinsics = false;
   std::string heap_snapshot_signal;
-  std::string http_parser = "llhttp";
+  uint64_t max_http_header_size = 8 * 1024;
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
   bool no_warnings = false;
+  bool force_context_aware = false;
   bool pending_deprecation = false;
   bool preserve_symlinks = false;
   bool preserve_symlinks_main = false;
@@ -134,10 +137,13 @@ class EnvironmentOptions : public Options {
   bool heap_prof = false;
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
+  bool test_udp_no_try_send = false;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
+  bool trace_exit = false;
   bool trace_sync_io = false;
   bool trace_tls = false;
+  bool trace_uncaught = false;
   bool trace_warnings = false;
   std::string unhandled_rejections;
   std::string userland_loader;
@@ -147,9 +153,12 @@ class EnvironmentOptions : public Options {
 #ifdef NODE_REPORT
   bool experimental_report = false;
 #endif  //  NODE_REPORT
+  bool experimental_wasi = false;
   std::string eval_string;
   bool print_eval = false;
   bool force_repl = false;
+
+  bool insecure_http_parser = false;
 
   bool tls_min_v1_0 = false;
   bool tls_min_v1_1 = false;
@@ -157,13 +166,15 @@ class EnvironmentOptions : public Options {
   bool tls_min_v1_3 = false;
   bool tls_max_v1_2 = false;
   bool tls_max_v1_3 = false;
+  std::string tls_keylog;
 
   std::vector<std::string> preload_modules;
 
   std::vector<std::string> user_argv;
 
-  inline DebugOptions* get_debug_options();
-  inline const DebugOptions& debug_options() const;
+  inline DebugOptions* get_debug_options() { return &debug_options_; }
+  inline const DebugOptions& debug_options() const { return debug_options_; }
+
   void CheckOptions(std::vector<std::string>* errors) override;
 
  private:
@@ -195,7 +206,6 @@ class PerProcessOptions : public Options {
   std::string title;
   std::string trace_event_categories;
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
-  uint64_t max_http_header_size = 8 * 1024;
   int64_t v8_thread_pool_size = 4;
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;
@@ -226,6 +236,7 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
+  std::string use_largepages = "off";
 
 #ifdef NODE_REPORT
   std::vector<std::string> cmdline;
@@ -242,11 +253,7 @@ namespace options_parser {
 HostPort SplitHostPort(const std::string& arg,
     std::vector<std::string>* errors);
 void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-enum OptionEnvvarSettings {
-  kAllowedInEnvironment,
-  kDisallowedInEnvironment
-};
+std::string GetBashCompletion();
 
 enum OptionType {
   kNoOp,
@@ -430,6 +437,7 @@ class OptionsParser {
   friend class OptionsParser;
 
   friend void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend std::string GetBashCompletion();
 };
 
 using StringVector = std::vector<std::string>;

@@ -1,10 +1,11 @@
-// Flags: --experimental-modules
+// Flags: --experimental-json-modules
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 function createURL(mime, body) {
   return `data:${mime},${body}`;
 }
+
 function createBase64URL(mime, body) {
   return `data:${mime};base64,${Buffer.from(body).toString('base64')}`;
 }
@@ -35,6 +36,47 @@ function createBase64URL(mime, body) {
     const ns = await import(plainESMURL);
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.deepStrictEqual(ns.default, plainESMURL);
+  }
+  {
+    const body = 'export default import.meta.url;';
+    const plainESMURL = createURL('text/javascript;charset=UTF-8', body);
+    const ns = await import(plainESMURL);
+    assert.deepStrictEqual(Object.keys(ns), ['default']);
+    assert.deepStrictEqual(ns.default, plainESMURL);
+  }
+  {
+    const body = 'export default import.meta.url;';
+    const plainESMURL = createURL('text/javascript;charset="UTF-8"', body);
+    const ns = await import(plainESMURL);
+    assert.deepStrictEqual(Object.keys(ns), ['default']);
+    assert.deepStrictEqual(ns.default, plainESMURL);
+  }
+  {
+    const body = 'export default import.meta.url;';
+    const plainESMURL = createURL('text/javascript;;a=a;b=b;;', body);
+    const ns = await import(plainESMURL);
+    assert.deepStrictEqual(Object.keys(ns), ['default']);
+    assert.deepStrictEqual(ns.default, plainESMURL);
+  }
+  {
+    const ns = await import('data:application/json;foo="test,"this"');
+    assert.deepStrictEqual(Object.keys(ns), ['default']);
+    assert.deepStrictEqual(ns.default, 'this');
+  }
+  {
+    const ns = await import(`data:application/json;foo=${
+      encodeURIComponent('test,')
+    },0`);
+    assert.deepStrictEqual(Object.keys(ns), ['default']);
+    assert.deepStrictEqual(ns.default, 0);
+  }
+  {
+    await assert.rejects(async () => {
+      return import('data:application/json;foo="test,",0');
+    }, {
+      name: 'SyntaxError',
+      message: /Unexpected end of JSON input/
+    });
   }
   {
     const body = '{"x": 1}';

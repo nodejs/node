@@ -129,10 +129,19 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F64x2ReplaceLane:
     case kX64F64x2Abs:
     case kX64F64x2Neg:
+    case kX64F64x2Sqrt:
+    case kX64F64x2Add:
+    case kX64F64x2Sub:
+    case kX64F64x2Mul:
+    case kX64F64x2Div:
+    case kX64F64x2Min:
+    case kX64F64x2Max:
     case kX64F64x2Eq:
     case kX64F64x2Ne:
     case kX64F64x2Lt:
     case kX64F64x2Le:
+    case kX64F64x2Qfma:
+    case kX64F64x2Qfms:
     case kX64F32x4Splat:
     case kX64F32x4ExtractLane:
     case kX64F32x4ReplaceLane:
@@ -142,16 +151,20 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4RecipSqrtApprox:
     case kX64F32x4Abs:
     case kX64F32x4Neg:
+    case kX64F32x4Sqrt:
     case kX64F32x4Add:
     case kX64F32x4AddHoriz:
     case kX64F32x4Sub:
     case kX64F32x4Mul:
+    case kX64F32x4Div:
     case kX64F32x4Min:
     case kX64F32x4Max:
     case kX64F32x4Eq:
     case kX64F32x4Ne:
     case kX64F32x4Lt:
     case kX64F32x4Le:
+    case kX64F32x4Qfma:
+    case kX64F32x4Qfms:
     case kX64I64x2Splat:
     case kX64I64x2ExtractLane:
     case kX64I64x2ReplaceLane:
@@ -161,11 +174,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I64x2Add:
     case kX64I64x2Sub:
     case kX64I64x2Mul:
+    case kX64I64x2MinS:
+    case kX64I64x2MaxS:
     case kX64I64x2Eq:
     case kX64I64x2Ne:
     case kX64I64x2GtS:
     case kX64I64x2GeS:
     case kX64I64x2ShrU:
+    case kX64I64x2MinU:
+    case kX64I64x2MaxU:
     case kX64I64x2GtU:
     case kX64I64x2GeU:
     case kX64I32x4Splat:
@@ -264,6 +281,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S1x4AllTrue:
     case kX64S1x8AnyTrue:
     case kX64S1x8AllTrue:
+    case kX64S8x16Swizzle:
     case kX64S8x16Shuffle:
     case kX64S32x4Swizzle:
     case kX64S32x4Shuffle:
@@ -295,9 +313,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64DecompressSigned:
     case kX64DecompressPointer:
     case kX64DecompressAny:
-    case kX64CompressSigned:
-    case kX64CompressPointer:
-    case kX64CompressAny:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;
@@ -346,7 +361,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movdqu:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
-    case kX64StackCheck:
     case kX64Peek:
       return kIsLoadOperation;
 

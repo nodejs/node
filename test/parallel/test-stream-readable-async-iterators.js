@@ -484,6 +484,23 @@ async function tests() {
       assert.strictEqual(e, err);
     })()]);
   }
+
+  {
+    const _err = new Error('asd');
+    const r = new Readable({
+      read() {
+      },
+      destroy(err, callback) {
+        setTimeout(() => callback(_err), 1);
+      }
+    });
+
+    r.destroy();
+    const it = r[Symbol.asyncIterator]();
+    it.next().catch(common.mustCall((err) => {
+      assert.strictEqual(err, _err);
+    }));
+  }
 }
 
 {

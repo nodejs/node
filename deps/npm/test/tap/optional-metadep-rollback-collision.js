@@ -4,8 +4,6 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -64,7 +62,7 @@ var opdep_json = {
   }
 }
 
-var blart = function () { /*
+var blart = `
 var rando = require('crypto').randomBytes
 var resolve = require('path').resolve
 
@@ -116,18 +114,15 @@ mkdirp(BASEDIR, function go () {
     keepItGoingLouder = {}
   }, 3 * 1000)
 })
-*/ }.toString().split('\n').slice(1, -1).join('\n')
+`
 
-let badServer
-let mockServer
 test('setup', function (t) {
-  cleanup()
-  badServer = createServer(function (req, res) {
+  const badServer = createServer(function (req, res) {
     setTimeout(function () {
       res.writeHead(404)
       res.end()
     }, 1000)
-  }).listen(serverPort)
+  }).listen(serverPort, () => t.parent.teardown(() => badServer.close()))
 
   mkdirp.sync(pkg)
   fs.writeFileSync(
@@ -154,36 +149,36 @@ test('setup', function (t) {
     JSON.stringify(opdep_json, null, 2)
   )
   mr({ port: common.port }, function (er, server) {
-    mockServer = server
+    t.parent.teardown(() => server.close())
     t.end()
   })
 })
-test('go go test racer', function (t) {
-  return common.npm(
-    [
-      '--prefix', pkg,
-      '--fetch-retries', '0',
-      '--loglevel', 'error',
-      '--no-progress',
-      '--registry', common.registry,
-      '--parseable',
-      '--cache', cache,
-      'install'
-    ],
-    {
-      cwd: pkg,
-      env: {
-        PATH: process.env.PATH,
-        Path: process.env.Path
-      },
-      stdio: 'pipe'
-    }).spread((code, stdout, stderr) => {
-    t.comment(stdout.trim())
-    t.comment(stderr.trim())
-    t.is(code, 0, 'npm install exited with code 0')
-    t.notOk(/not ok/.test(stdout), 'should not contain the string \'not ok\'')
-  })
-})
+
+test('go go test racer', t => common.npm(
+  [
+    '--prefix', pkg,
+    '--fetch-retries', '0',
+    '--loglevel', 'error',
+    '--no-progress',
+    '--registry', common.registry,
+    '--parseable',
+    '--cache', cache,
+    'install'
+  ],
+  {
+    cwd: pkg,
+    env: {
+      PATH: process.env.PATH,
+      Path: process.env.Path
+    },
+    stdio: 'pipe'
+  }
+).spread((code, stdout, stderr) => {
+  t.comment(stdout.trim())
+  t.comment(stderr.trim())
+  t.is(code, 0, 'npm install exited with code 0')
+  t.notOk(/not ok/.test(stdout), 'should not contain the string \'not ok\'')
+}))
 
 test('verify results', function (t) {
   t.throws(function () {
@@ -191,16 +186,3 @@ test('verify results', function (t) {
   })
   t.end()
 })
-
-test('cleanup', function (t) {
-  mockServer.close()
-  badServer.close()
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-
-  rimraf.sync(pkg)
-}

@@ -1,0 +1,14 @@
+reachable
+Error: an exception
+    at branch (*typescript-throw.js:20:15)
+        -> *typescript-throw.ts:18:11
+    at Object.<anonymous> (*typescript-throw.js:26:1)
+        -> *typescript-throw.ts:24:1
+    at Module._compile (internal/modules/cjs/loader.js:*)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*)
+    at Module.load (internal/modules/cjs/loader.js:*)
+    at Function.Module._load (internal/modules/cjs/loader.js:*)
+    at Module.require (internal/modules/cjs/loader.js:*)
+    at require (internal/modules/cjs/helpers.js:*)
+    at Object.<anonymous> (*source_map_throw_catch.js:6:3)
+    at Module._compile (internal/modules/cjs/loader.js:*)

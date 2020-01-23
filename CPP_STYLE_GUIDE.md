@@ -1,5 +1,8 @@
 # C++ Style Guide
 
+See also the [C++ codebase README](src/README.md) for C++ idioms in the Node.js
+codebase not related to stylistic issues.
+
 ## Table of Contents
 
 * [Guides and References](#guides-and-references)
@@ -11,9 +14,9 @@
   * [Align function arguments vertically](#align-function-arguments-vertically)
   * [Initialization lists](#initialization-lists)
   * [CamelCase for methods, functions, and classes](#camelcase-for-methods-functions-and-classes)
-  * [snake\_case for local variables and parameters](#snake_case-for-local-variables-and-parameters)
-  * [snake\_case\_ for private class fields](#snake_case_-for-private-class-fields)
-  * [snake\_case for C-like structs](#snake_case-for-c-like-structs)
+  * [`snake_case` for local variables and parameters](#snake_case-for-local-variables-and-parameters)
+  * [`snake_case_` for private class fields](#snake_case_-for-private-class-fields)
+  * [`snake_case` for C-like structs](#snake_case-for-c-like-structs)
   * [Space after `template`](#space-after-template)
 * [Memory Management](#memory-management)
   * [Memory allocation](#memory-allocation)
@@ -36,6 +39,7 @@ features and idioms, as well as have some specific guidelines for the use of
 runtime features.
 
 Coding guidelines are based on the following guides (highest priority first):
+
 1. This document
 2. The [Google C++ Style Guide][]
 3. The ISO [C++ Core Guidelines][]
@@ -151,7 +155,7 @@ class FooBar {
 };
 ```
 
-### snake\_case for local variables and parameters
+### `snake_case` for local variables and parameters
 
 ```c++
 int FunctionThatDoesSomething(const char* important_string) {
@@ -159,7 +163,7 @@ int FunctionThatDoesSomething(const char* important_string) {
 }
 ```
 
-### snake\_case\_ for private class fields
+### `snake_case_` for private class fields
 
 ```c++
 class Foo {
@@ -168,7 +172,8 @@ class Foo {
 };
 ```
 
-### snake\_case for C-like structs
+### `snake_case` for C-like structs
+
 For plain C-like structs snake_case can be used.
 
 ```c++
@@ -190,8 +195,8 @@ class FancyContainer {
 
 ### Memory allocation
 
-- `Malloc()`, `Calloc()`, etc. from `util.h` abort in Out-of-Memory situations
-- `UncheckedMalloc()`, etc. return `nullptr` in OOM situations
+* `Malloc()`, `Calloc()`, etc. from `util.h` abort in Out-of-Memory situations
+* `UncheckedMalloc()`, etc. return `nullptr` in OOM situations
 
 ### Use `nullptr` instead of `NULL` or `0`
 
@@ -205,8 +210,8 @@ Use explicit comparisons to `nullptr` when testing pointers, i.e.
 
 ### Ownership and Smart Pointers
 
-* [R.20]: Use `std::unique_ptr` or `std::shared_ptr` to represent ownership
-* [R.21]: Prefer `unique_ptr` over `shared_ptr` unless you need to share
+* [R.20][]: Use `std::unique_ptr` or `std::shared_ptr` to represent ownership
+* [R.21][]: Prefer `unique_ptr` over `shared_ptr` unless you need to share
   ownership
 
 Use `std::unique_ptr` to make ownership transfer explicit. For example:
@@ -277,15 +282,16 @@ data[0] = 12345;
 
 ### Type casting
 
-- Use `static_cast<T>` if casting is required, and it is valid
-- Use `reinterpret_cast` only when it is necessary
-- Avoid C-style casts (`(type)value`)
-- `dynamic_cast` does not work because Node.js is built without
+* Use `static_cast<T>` if casting is required, and it is valid
+* Use `reinterpret_cast` only when it is necessary
+* Avoid C-style casts (`(type)value`)
+* `dynamic_cast` does not work because Node.js is built without
   [Run Time Type Information][]
 
 Further reading:
-* [ES.48]: Avoid casts
-* [ES.49]: If you must use a cast, use a named cast
+
+* [ES.48][]: Avoid casts
+* [ES.49][]: If you must use a cast, use a named cast
 
 ### Using `auto`
 

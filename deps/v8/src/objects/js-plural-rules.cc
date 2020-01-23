@@ -241,17 +241,18 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
       JSNumberFormat::MinimumIntegerDigitsFromSkeleton(skeleton),
       "minimumIntegerDigits");
   int32_t min = 0, max = 0;
-  JSNumberFormat::FractionDigitsFromSkeleton(skeleton, &min, &max);
-
-  CreateDataPropertyForOptions(isolate, options, min, "minimumFractionDigits");
-
-  CreateDataPropertyForOptions(isolate, options, max, "maximumFractionDigits");
 
   if (JSNumberFormat::SignificantDigitsFromSkeleton(skeleton, &min, &max)) {
     CreateDataPropertyForOptions(isolate, options, min,
                                  "minimumSignificantDigits");
     CreateDataPropertyForOptions(isolate, options, max,
                                  "maximumSignificantDigits");
+  } else {
+    JSNumberFormat::FractionDigitsFromSkeleton(skeleton, &min, &max);
+    CreateDataPropertyForOptions(isolate, options, min,
+                                 "minimumFractionDigits");
+    CreateDataPropertyForOptions(isolate, options, max,
+                                 "maximumFractionDigits");
   }
 
   // 6. Let pluralCategories be a List of Strings representing the

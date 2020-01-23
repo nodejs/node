@@ -90,7 +90,6 @@ void PrintCaughtException(v8::Isolate* isolate,
                           v8::Local<v8::Context> context,
                           const v8::TryCatch& try_catch);
 
-void WaitForInspectorDisconnect(Environment* env);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
@@ -98,6 +97,8 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 
 std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
+
+void InitializeContextRuntime(v8::Local<v8::Context>);
 
 namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
@@ -156,7 +157,11 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
                                size_t length,
                                bool uses_malloc);
-
+// Creates a Buffer instance over an existing ArrayBuffer.
+v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
+                                   v8::Local<v8::ArrayBuffer> ab,
+                                   size_t byte_offset,
+                                   size_t length);
 // Construct a Buffer from a MaybeStackBuffer (and also its subclasses like
 // Utf8Value and TwoByteValue).
 // If |buf| is invalidated, an empty MaybeLocal is returned, and nothing is
@@ -197,14 +202,24 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
 
 class InternalCallbackScope {
  public:
-  // Tell the constructor whether its `object` parameter may be empty or not.
-  enum ResourceExpectation { kRequireResource, kAllowEmptyResource };
+  enum Flags {
+    kNoFlags = 0,
+    // Tell the constructor whether its `object` parameter may be empty or not.
+    kAllowEmptyResource = 1,
+    // Indicates whether 'before' and 'after' hooks should be skipped.
+    kSkipAsyncHooks = 2,
+    // Indicates whether nextTick and microtask queues should be skipped.
+    // This should only be used when there is no call into JS in this scope.
+    // (The HTTP parser also uses it for some weird backwards
+    // compatibility issues, but it shouldn't.)
+    kSkipTaskQueues = 4
+  };
   InternalCallbackScope(Environment* env,
                         v8::Local<v8::Object> object,
                         const async_context& asyncContext,
-                        ResourceExpectation expect = kRequireResource);
+                        int flags = kNoFlags);
   // Utility that can be used by AsyncWrap classes.
-  explicit InternalCallbackScope(AsyncWrap* async_wrap);
+  explicit InternalCallbackScope(AsyncWrap* async_wrap, int flags = 0);
   ~InternalCallbackScope();
   void Close();
 
@@ -215,7 +230,8 @@ class InternalCallbackScope {
   Environment* env_;
   async_context async_context_;
   v8::Local<v8::Object> object_;
-  AsyncCallbackScope callback_scope_;
+  bool skip_hooks_;
+  bool skip_task_queues_;
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
@@ -294,16 +310,21 @@ struct InitializationResult {
 };
 InitializationResult InitializeOncePerProcess(int argc, char** argv);
 void TearDownOncePerProcess();
-enum class IsolateSettingCategories { kErrorHandlers, kMisc };
-void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat);
+void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
+void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
 
 #if HAVE_INSPECTOR
 namespace profiler {
 void StartProfilers(Environment* env);
-void EndStartedProfilers(Environment* env);
 }
 #endif  // HAVE_INSPECTOR
+
+#ifdef __POSIX__
+static constexpr unsigned kMaxSignal = 32;
+#endif
+
+bool HasSignalJSHandler(int signum);
 
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;

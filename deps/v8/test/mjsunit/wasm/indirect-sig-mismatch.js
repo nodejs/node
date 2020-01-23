@@ -65,14 +65,14 @@ function caller_module() {
 
   builder.addFunction("call1", sig_i_i)
     .addBody([
-      kExprGetLocal, 0, // --
+      kExprLocalGet, 0, // --
       kExprCallIndirect, sig_i_v, kTableZero])  // --
     .exportAs("call1");
 
   builder.addFunction("call2", sig_i_i)
     .addBody([
       kExprI32Const, 11, // --
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallIndirect, sig_i_i, kTableZero])  // --
     .exportAs("call2");
 
@@ -80,7 +80,7 @@ function caller_module() {
     .addBody([
       kExprI32Const, 21,
       kExprI32Const, 22,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallIndirect, sig_i_ii, kTableZero])  // --
     .exportAs("call3");
 

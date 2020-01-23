@@ -14,15 +14,15 @@ namespace v8 {
 namespace internal {
 
 template <class S>
-Handle<S> Arguments::at(int index) {
+Handle<S> Arguments::at(int index) const {
   return Handle<S>::cast(at<Object>(index));
 }
 
-int Arguments::smi_at(int index) {
+int Arguments::smi_at(int index) const {
   return Smi::ToInt(Object(*address_of_arg_at(index)));
 }
 
-double Arguments::number_at(int index) { return (*this)[index].Number(); }
+double Arguments::number_at(int index) const { return (*this)[index].Number(); }
 
 }  // namespace internal
 }  // namespace v8

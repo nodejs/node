@@ -63,18 +63,16 @@ void CpuFeatures::PrintFeatures() {}
 // CPURegList utilities.
 
 CPURegister CPURegList::PopLowestIndex() {
-  DCHECK(IsValid());
   if (IsEmpty()) {
     return NoCPUReg;
   }
-  int index = CountTrailingZeros(list_, kRegListSizeInBits);
+  int index = base::bits::CountTrailingZeros(list_);
   DCHECK((1LL << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
 
 CPURegister CPURegList::PopHighestIndex() {
-  DCHECK(IsValid());
   if (IsEmpty()) {
     return NoCPUReg;
   }
@@ -327,6 +325,12 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   veneer_pool_blocked_nesting_ = 0;
   Reset();
+
+#if defined(V8_OS_WIN)
+  if (options.collect_win64_unwind_info) {
+    xdata_encoder_ = std::make_unique<win64_unwindinfo::XdataEncoder>(*this);
+  }
+#endif
 }
 
 Assembler::~Assembler() {
@@ -349,14 +353,23 @@ void Assembler::Reset() {
   next_veneer_pool_check_ = kMaxInt;
 }
 
+#if defined(V8_OS_WIN)
+win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
+  DCHECK(options().collect_win64_unwind_info);
+  DCHECK_NOT_NULL(xdata_encoder_);
+  return xdata_encoder_->unwinding_info();
+}
+#endif
+
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
-            request.heap_number(), AllocationType::kOld);
+        Handle<HeapObject> object =
+            isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+                request.heap_number());
         EmbeddedObjectIndex index = AddEmbeddedObject(object);
         set_embedded_object_index_referenced_from(pc, index);
         break;
@@ -1166,6 +1179,11 @@ void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
 
+void Assembler::pacia1716() { Emit(PACIA1716); }
+void Assembler::autia1716() { Emit(AUTIA1716); }
+void Assembler::paciasp() { Emit(PACIASP); }
+void Assembler::autiasp() { Emit(AUTIASP); }
+
 void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& src) {
   LoadStorePair(rt, rt2, src, LoadPairOpFor(rt, rt2));
@@ -1174,6 +1192,12 @@ void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
 void Assembler::stp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& dst) {
   LoadStorePair(rt, rt2, dst, StorePairOpFor(rt, rt2));
+
+#if defined(V8_OS_WIN)
+  if (xdata_encoder_ && rt == x29 && rt2 == lr && dst.base().IsSP()) {
+    xdata_encoder_->onSaveFpLr();
+  }
+#endif
 }
 
 void Assembler::ldpsw(const Register& rt, const Register& rt2,
@@ -3942,19 +3966,24 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
 bool Assembler::IsImmLSUnscaled(int64_t offset) { return is_int9(offset); }
 
 bool Assembler::IsImmLSScaled(int64_t offset, unsigned size) {
-  bool offset_is_size_multiple = (((offset >> size) << size) == offset);
+  bool offset_is_size_multiple =
+      (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
+       offset);
   return offset_is_size_multiple && is_uint12(offset >> size);
 }
 
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {
-  bool offset_is_size_multiple = (((offset >> size) << size) == offset);
+  bool offset_is_size_multiple =
+      (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
+       offset);
   return offset_is_size_multiple && is_int7(offset >> size);
 }
 
 bool Assembler::IsImmLLiteral(int64_t offset) {
   int inst_size = static_cast<int>(kInstrSizeLog2);
   bool offset_is_inst_multiple =
-      (((offset >> inst_size) << inst_size) == offset);
+      (static_cast<int64_t>(static_cast<uint64_t>(offset >> inst_size)
+                            << inst_size) == offset);
   DCHECK_GT(offset, 0);
   offset >>= kLoadLiteralScaleLog2;
   return offset_is_inst_multiple && is_intn(offset, ImmLLiteral_width);
@@ -4153,9 +4182,9 @@ bool Assembler::IsImmLogical(uint64_t value, unsigned width, unsigned* n,
   //    1110ss     4    UInt(ss)
   //    11110s     2    UInt(s)
   //
-  // So we 'or' (-d << 1) with our computed s to form imms.
+  // So we 'or' (-d * 2) with our computed s to form imms.
   *n = out_n;
-  *imm_s = ((-d << 1) | (s - 1)) & 0x3F;
+  *imm_s = ((-d * 2) | (s - 1)) & 0x3F;
   *imm_r = r;
 
   return true;

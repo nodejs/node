@@ -104,7 +104,7 @@ test('production: npm prune', function (t) {
   ], EXEC_OPTS, function (err, code, stdout) {
     if (err) throw err
     t.notOk(code, 'exit ok')
-    t.equal(stdout.trim(), 'remove\tmkdirp\t0.3.5\tnode_modules/mkdirp')
+    t.equal(stdout.trim().replace(/\\/g, '/'), 'remove\tmkdirp\t0.3.5\tnode_modules/mkdirp')
     t.end()
   })
 })

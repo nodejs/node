@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 
 // This list must be computed before we require any modules to
@@ -17,6 +16,7 @@ const expectedModules = new Set([
   'Internal Binding contextify',
   'Internal Binding credentials',
   'Internal Binding fs',
+  'Internal Binding fs_dir',
   'Internal Binding inspector',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
@@ -42,19 +42,33 @@ const expectedModules = new Set([
   'NativeModule internal/encoding',
   'NativeModule internal/errors',
   'NativeModule internal/fixed_queue',
+  'NativeModule internal/fs/dir',
   'NativeModule internal/fs/utils',
   'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
+  'NativeModule internal/modules/run_main',
   'NativeModule internal/modules/cjs/helpers',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule internal/modules/esm/create_dynamic_module',
+  'NativeModule internal/modules/esm/get_format',
+  'NativeModule internal/modules/esm/get_source',
+  'NativeModule internal/modules/esm/loader',
+  'NativeModule internal/modules/esm/module_job',
+  'NativeModule internal/modules/esm/module_map',
+  'NativeModule internal/modules/esm/resolve',
+  'NativeModule internal/modules/esm/transform_source',
+  'NativeModule internal/modules/esm/translators',
+  'NativeModule internal/process/esm_loader',
   'NativeModule internal/options',
   'NativeModule internal/priority_queue',
   'NativeModule internal/process/execution',
   'NativeModule internal/process/per_thread',
   'NativeModule internal/process/promises',
+  'NativeModule internal/process/signal',
   'NativeModule internal/process/task_queues',
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
+  'NativeModule internal/source_map/source_map_cache',
   'NativeModule internal/timers',
   'NativeModule internal/url',
   'NativeModule internal/util',
@@ -62,16 +76,14 @@ const expectedModules = new Set([
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/types',
   'NativeModule internal/validators',
+  'NativeModule internal/vm/module',
   'NativeModule path',
   'NativeModule timers',
   'NativeModule url',
   'NativeModule vm',
 ]);
 
-if (common.isMainThread) {
-  expectedModules.add('NativeModule internal/process/main_thread_only');
-  expectedModules.add('NativeModule internal/process/stdio');
-} else {
+if (!common.isMainThread) {
   expectedModules.add('Internal Binding messaging');
   expectedModules.add('Internal Binding symbols');
   expectedModules.add('Internal Binding worker');
@@ -90,7 +102,6 @@ if (common.isMainThread) {
   expectedModules.add('NativeModule internal/streams/state');
   expectedModules.add('NativeModule internal/worker');
   expectedModules.add('NativeModule internal/worker/io');
-  expectedModules.add('NativeModule module');
   expectedModules.add('NativeModule stream');
   expectedModules.add('NativeModule worker_threads');
 }

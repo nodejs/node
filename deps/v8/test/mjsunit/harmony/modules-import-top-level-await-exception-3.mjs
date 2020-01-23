@@ -1,0 +1,16 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Flags: --harmony-dynamic-import --harmony-top-level-await
+
+let ran = false;
+try {
+  await import('modules-skip-4-top-level-await.mjs');
+  assertUnreachable();
+} catch (e) {
+  assertEquals(e.message, '42 is not the answer');
+  ran = true;
+}
+
+assertEquals(ran, true);

@@ -4,6 +4,8 @@
 #include "diagnosticfilename-inl.h"
 #include "node_internals.h"
 #include "node_metadata.h"
+#include "node_mutex.h"
+#include "node_worker.h"
 #include "util.h"
 
 #ifdef _WIN32
@@ -18,20 +20,21 @@
 #include <ctime>
 #include <cwctype>
 #include <fstream>
-#include <iomanip>
 
-constexpr int NODE_REPORT_VERSION = 1;
+constexpr int NODE_REPORT_VERSION = 2;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
 
 namespace report {
 using node::arraysize;
+using node::ConditionVariable;
 using node::DiagnosticFilename;
 using node::Environment;
 using node::Mutex;
 using node::NativeSymbolDebuggingContext;
 using node::PerIsolateOptions;
 using node::TIME_TYPE;
+using node::worker::Worker;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Isolate;
@@ -111,8 +114,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     }
     // Check for errors on the file open
     if (!outfile.is_open()) {
-      std::cerr << std::endl
-                << "Failed to open Node.js report file: " << filename;
+      std::cerr << "\nFailed to open Node.js report file: " << filename;
 
       if (env != nullptr && options->report_directory.length() > 0)
         std::cerr << " directory: " << options->report_directory;
@@ -121,7 +123,7 @@ std::string TriggerNodeReport(Isolate* isolate,
       return "";
     }
     outstream = &outfile;
-    std::cerr << std::endl << "Writing Node.js report to file: " << filename;
+    std::cerr << "\nWriting Node.js report to file: " << filename;
   }
 
   WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
@@ -132,7 +134,7 @@ std::string TriggerNodeReport(Isolate* isolate,
     outfile.close();
   }
 
-  std::cerr << std::endl << "Node.js report completed" << std::endl;
+  std::cerr << "\nNode.js report completed" << std::endl;
   return filename;
 }
 
@@ -212,6 +214,10 @@ static void WriteNodeReport(Isolate* isolate,
 
   // Report native process ID
   writer.json_keyvalue("processId", pid);
+  if (env != nullptr)
+    writer.json_keyvalue("threadId", env->thread_id());
+  else
+    writer.json_keyvalue("threadId", JSONWriter::Null{});
 
   {
     // Report the process cwd.
@@ -259,6 +265,39 @@ static void WriteNodeReport(Isolate* isolate,
     writer.json_end();
   }
 
+  writer.json_arrayend();
+
+  writer.json_arraystart("workers");
+  if (env != nullptr) {
+    Mutex workers_mutex;
+    ConditionVariable notify;
+    std::vector<std::string> worker_infos;
+    size_t expected_results = 0;
+
+    env->ForEachWorker([&](Worker* w) {
+      expected_results += w->RequestInterrupt([&](Environment* env) {
+        std::ostringstream os;
+
+        GetNodeReport(env->isolate(),
+                      env,
+                      "Worker thread subreport",
+                      trigger,
+                      Local<String>(),
+                      os);
+
+        Mutex::ScopedLock lock(workers_mutex);
+        worker_infos.emplace_back(os.str());
+        notify.Signal(lock);
+      });
+    });
+
+    Mutex::ScopedLock lock(workers_mutex);
+    worker_infos.reserve(expected_results);
+    while (worker_infos.size() < expected_results)
+      notify.Wait(lock);
+    for (const std::string& worker_info : worker_infos)
+      writer.json_element(JSONWriter::ForeignJSON { worker_info });
+  }
   writer.json_arrayend();
 
   // Report operating system information

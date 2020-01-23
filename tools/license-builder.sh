@@ -32,7 +32,6 @@ fi
 addlicense "Acorn" "deps/acorn" "$(cat ${rootdir}/deps/acorn/acorn/LICENSE)"
 addlicense "Acorn plugins" "deps/acorn-plugins" "$(cat ${rootdir}/deps/acorn-plugins/acorn-class-fields/LICENSE)"
 addlicense "c-ares" "deps/cares" "$(tail -n +3 ${rootdir}/deps/cares/LICENSE.md)"
-addlicense "HTTP Parser" "deps/http_parser" "$(cat deps/http_parser/LICENSE-MIT)"
 if [ -f "${rootdir}/deps/icu/LICENSE" ]; then
   # ICU 57 and following. Drop the BOM
   addlicense "ICU" "deps/icu" \
@@ -108,5 +107,7 @@ addlicense "node-heapdump" "src/heap_utils.cc" \
 
 addlicense "rimraf" "lib/internal/fs/rimraf.js" \
            "$(curl -sL https://raw.githubusercontent.com/isaacs/rimraf/0e365ac4e4d64a25aa2a3cc026348f13410210e1/LICENSE)"
+
+addlicense "uvwasi" "deps/uvwasi" "$(cat ${rootdir}/deps/uvwasi/LICENSE)"
 
 mv $tmplicense $licensefile

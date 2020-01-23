@@ -355,9 +355,3 @@ void rewind_cursor() {
     fprintf(stderr, "\n");
   }
 }
-
-
-/* Pause the calling thread for a number of milliseconds. */
-void uv_sleep(int msec) {
-  Sleep(msec);
-}

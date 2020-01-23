@@ -25,20 +25,18 @@ constexpr int NumRegs(RegList list) {
   return base::bits::CountPopulation(list);
 }
 
+namespace detail {
 // Combine two RegLists by building the union of the contained registers.
-// Implemented as a Functor to pass it to base::fold even on gcc < 5 (see
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892).
-// TODO(clemensh): Remove this once we require gcc >= 5.0.
-struct CombineRegListsFunctor {
-  constexpr RegList operator()(RegList list1, RegList list2) const {
-    return list1 | list2;
-  }
-};
+// TODO(clemensb): Replace by constexpr lambda once we have C++17.
+constexpr RegList CombineRegListsHelper(RegList list1, RegList list2) {
+  return list1 | list2;
+}
+}  // namespace detail
 
 // Combine several RegLists by building the union of the contained registers.
 template <typename... RegLists>
 constexpr RegList CombineRegLists(RegLists... lists) {
-  return base::fold(CombineRegListsFunctor{}, 0, lists...);
+  return base::fold(detail::CombineRegListsHelper, 0, lists...);
 }
 
 }  // namespace internal

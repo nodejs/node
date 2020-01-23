@@ -16,7 +16,6 @@ const { isCombiningCharacter, isEmojiModifier, isRegionalIndicatorSymbol, isSurr
  *
  * CharacterClassRange syntax can steal a part of character sequence,
  * so this function reverts CharacterClassRange syntax and restore the sequence.
- *
  * @param {regexpp.AST.CharacterClassElement[]} nodes The node list to iterate character sequences.
  * @returns {IterableIterator<number[]>} The list of character sequences.
  */
@@ -131,12 +130,6 @@ module.exports = {
          * @returns {void}
          */
         function verify(node, pattern, flags) {
-            const patternNode = parser.parsePattern(
-                pattern,
-                0,
-                pattern.length,
-                flags.includes("u")
-            );
             const has = {
                 surrogatePairWithoutUFlag: false,
                 combiningClass: false,
@@ -145,6 +138,20 @@ module.exports = {
                 regionalIndicatorSymbol: false,
                 zwj: false
             };
+            let patternNode;
+
+            try {
+                patternNode = parser.parsePattern(
+                    pattern,
+                    0,
+                    pattern.length,
+                    flags.includes("u")
+                );
+            } catch (e) {
+
+                // Ignore regular expressions with syntax errors
+                return;
+            }
 
             visitRegExpAST(patternNode, {
                 onCharacterClassEnter(ccNode) {

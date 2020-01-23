@@ -7,7 +7,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 builder.addFunction('test', kSig_i_i)
     .addBody([
-      kExprGetLocal, 0x00,    // get_local 0
+      kExprLocalGet, 0x00,    // get_local 0
       kExprBlock, kWasmStmt,  // block
       kExprBr, 0x00,          // br depth=0
       kExprEnd,               // end

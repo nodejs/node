@@ -25,7 +25,7 @@ function AEAD_Bench(cipher, message, associate_data, key, iv, n, len) {
   const bits = written * 8;
   const mbits = bits / (1024 * 1024);
 
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     const alice = crypto.createCipheriv(cipher, key, iv);
     alice.setAAD(associate_data);
     const enc = alice.update(message);

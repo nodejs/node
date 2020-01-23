@@ -932,3 +932,110 @@ assertTrue(checkUndefined.apply(this, [...arr]));
   assertEquals(a[0], a[1]);
 
 })();
+
+// Test regression with Object.defineProperty.
+var obj = [];
+obj.propertyA = 42;
+obj[0] = true;
+Object.preventExtensions(obj);
+assertDoesNotThrow(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+});
+assertEquals(obj, obj.propertyA);
+assertDoesNotThrow(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+});
+obj.propertyA = 42;
+assertEquals(obj.propertyA, obj);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
+
+
+// Handle IC store.
+// For packed sealed object.
+function packedStore() {
+  let a = Object.preventExtensions([""]);
+  a[0] = 0;
+  assertEquals(a[0], 0);
+}
+
+packedStore();
+packedStore();
+
+// For holey sealed object.
+function holeyStore() {
+  let a = Object.preventExtensions([, ""]);
+  a[0] = 0;
+  assertEquals(a[0], undefined);
+}
+
+holeyStore();
+holeyStore();
+
+// Make sure IC store for holey is consistent.
+let a = Object.preventExtensions([, ""]);
+function foo() {
+  a[1] = 0;
+}
+
+foo();
+foo();
+function bar() {
+  a[0] = 1;
+}
+assertEquals(a, [, 0]);
+bar();
+assertEquals(a, [, 0]);
+bar();
+assertEquals(a, [, 0]);
+function baz() {
+  a[2] = 2;
+}
+assertEquals(a, [, 0]);
+baz();
+assertEquals(a, [, 0]);
+baz();
+assertEquals(a, [, 0]);
+
+// Reconfigure data field (e.g. change representation).
+function testReconfig() {
+  var o = ['3'];
+  function foo(i) { o.x = i; }
+  foo("string");
+  Object.preventExtensions(o);
+  Object.seal(o);
+  foo(0);
+  %HeapObjectVerify(o);
+  assertEquals(o.x, 0);
+}
+testReconfig();
+
+// Seal proxy from nonextensible object.
+PI = [];
+PI[250] = PI;
+Object.preventExtensions(PI);
+assertFalse(Object.isExtensible(PI));
+assertFalse(Object.isSealed(PI));
+var proxy = new Proxy(PI, PI);
+Object.seal(proxy);
+assertFalse(Object.isFrozen(proxy));
+assertTrue(Object.isSealed(proxy));
+
+// Freeze proxy from nonextensible object.
+PI = [];
+PI[250] = PI;
+Object.preventExtensions(PI);
+assertFalse(Object.isExtensible(PI));
+assertFalse(Object.isSealed(PI));
+var proxy = new Proxy(PI, PI);
+Object.freeze(proxy);
+assertTrue(Object.isSealed(proxy));
+assertTrue(Object.isFrozen(proxy));

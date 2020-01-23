@@ -21,6 +21,7 @@ namespace torque {
 
 class Scope;
 class Namespace;
+class TypeArgumentInference;
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentScope, Scope*);
 
@@ -261,6 +262,7 @@ class Callable : public Scope {
   const std::string& ExternalName() const { return external_name_; }
   const std::string& ReadableName() const { return readable_name_; }
   const Signature& signature() const { return signature_; }
+  bool IsTransitioning() const { return signature().transitioning; }
   const NameVector& parameter_names() const {
     return signature_.parameter_names;
   }
@@ -269,7 +271,6 @@ class Callable : public Scope {
   }
   void IncrementReturns() { ++returns_; }
   bool HasReturns() const { return returns_; }
-  bool IsTransitioning() const { return transitioning_; }
   base::Optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
   virtual bool ShouldBeInlined() const { return false; }
@@ -277,14 +278,13 @@ class Callable : public Scope {
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,
-           std::string readable_name, Signature signature, bool transitioning,
+           std::string readable_name, Signature signature,
            base::Optional<Statement*> body)
       : Scope(kind),
         external_name_(std::move(external_name)),
 
         readable_name_(std::move(readable_name)),
         signature_(std::move(signature)),
-        transitioning_(transitioning),
         returns_(0),
         body_(body) {
     DCHECK(!body || *body);
@@ -294,7 +294,6 @@ class Callable : public Scope {
   std::string external_name_;
   std::string readable_name_;
   Signature signature_;
-  bool transitioning_;
   size_t returns_;
   base::Optional<Statement*> body_;
 };
@@ -320,9 +319,9 @@ class Macro : public Callable {
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
         std::string readable_name, const Signature& signature,
-        bool transitioning, base::Optional<Statement*> body)
+        base::Optional<Statement*> body)
       : Callable(kind, std::move(external_name), std::move(readable_name),
-                 signature, transitioning, body),
+                 signature, body),
         used_(false) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
@@ -344,9 +343,9 @@ class ExternMacro : public Macro {
  private:
   friend class Declarations;
   ExternMacro(const std::string& name, std::string external_assembler_name,
-              Signature signature, bool transitioning)
+              Signature signature)
       : Macro(Declarable::kExternMacro, name, name, std::move(signature),
-              transitioning, base::nullopt),
+              base::nullopt),
         external_assembler_name_(std::move(external_assembler_name)) {}
 
   std::string external_assembler_name_;
@@ -360,10 +359,10 @@ class TorqueMacro : public Macro {
  protected:
   TorqueMacro(Declarable::Kind kind, std::string external_name,
               std::string readable_name, const Signature& signature,
-              bool transitioning, base::Optional<Statement*> body,
-              bool is_user_defined, bool exported_to_csa)
+              base::Optional<Statement*> body, bool is_user_defined,
+              bool exported_to_csa)
       : Macro(kind, std::move(external_name), std::move(readable_name),
-              signature, transitioning, body),
+              signature, body),
         exported_to_csa_(exported_to_csa) {
     SetIsUserDefined(is_user_defined);
   }
@@ -371,12 +370,11 @@ class TorqueMacro : public Macro {
  private:
   friend class Declarations;
   TorqueMacro(std::string external_name, std::string readable_name,
-              const Signature& signature, bool transitioning,
-              base::Optional<Statement*> body, bool is_user_defined,
-              bool exported_to_csa)
+              const Signature& signature, base::Optional<Statement*> body,
+              bool is_user_defined, bool exported_to_csa)
       : TorqueMacro(Declarable::kTorqueMacro, std::move(external_name),
-                    std::move(readable_name), signature, transitioning, body,
-                    is_user_defined, exported_to_csa) {}
+                    std::move(readable_name), signature, body, is_user_defined,
+                    exported_to_csa) {}
 
   bool exported_to_csa_ = false;
 };
@@ -395,11 +393,9 @@ class Method : public TorqueMacro {
  private:
   friend class Declarations;
   Method(AggregateType* aggregate_type, std::string external_name,
-         std::string readable_name, const Signature& signature,
-         bool transitioning, Statement* body)
+         std::string readable_name, const Signature& signature, Statement* body)
       : TorqueMacro(Declarable::kMethod, std::move(external_name),
-                    std::move(readable_name), signature, transitioning, body,
-                    true, false),
+                    std::move(readable_name), signature, body, true, false),
         aggregate_type_(aggregate_type) {}
   AggregateType* aggregate_type_;
 };
@@ -416,10 +412,10 @@ class Builtin : public Callable {
  private:
   friend class Declarations;
   Builtin(std::string external_name, std::string readable_name,
-          Builtin::Kind kind, const Signature& signature, bool transitioning,
+          Builtin::Kind kind, const Signature& signature,
           base::Optional<Statement*> body)
       : Callable(Declarable::kBuiltin, std::move(external_name),
-                 std::move(readable_name), signature, transitioning, body),
+                 std::move(readable_name), signature, body),
         kind_(kind) {}
 
   Kind kind_;
@@ -431,10 +427,9 @@ class RuntimeFunction : public Callable {
 
  private:
   friend class Declarations;
-  RuntimeFunction(const std::string& name, const Signature& signature,
-                  bool transitioning)
+  RuntimeFunction(const std::string& name, const Signature& signature)
       : Callable(Declarable::kRuntimeFunction, name, name, signature,
-                 transitioning, base::nullopt) {}
+                 base::nullopt) {}
 };
 
 class Intrinsic : public Callable {
@@ -444,8 +439,7 @@ class Intrinsic : public Callable {
  private:
   friend class Declarations;
   Intrinsic(std::string name, const Signature& signature)
-      : Callable(Declarable::kIntrinsic, name, name, signature, false,
-                 base::nullopt) {
+      : Callable(Declarable::kIntrinsic, name, name, signature, base::nullopt) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for intrinsics.");
     }
@@ -483,31 +477,30 @@ class Generic : public Declarable {
   DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
 
   const std::string& name() const { return name_; }
-  GenericDeclaration* declaration() const { return declaration_; }
+  CallableDeclaration* declaration() const {
+    return generic_declaration_->declaration;
+  }
   const std::vector<Identifier*> generic_parameters() const {
-    return declaration()->generic_parameters;
+    return generic_declaration_->generic_parameters;
   }
   SpecializationMap<Callable>& specializations() { return specializations_; }
 
-  base::Optional<TypeVector> InferSpecializationTypes(
+  base::Optional<Statement*> CallableBody();
+
+  TypeArgumentInference InferSpecializationTypes(
       const TypeVector& explicit_specialization_types,
       const TypeVector& arguments);
 
  private:
   friend class Declarations;
-  Generic(const std::string& name, GenericDeclaration* declaration)
+  Generic(const std::string& name, GenericDeclaration* generic_declaration)
       : Declarable(Declarable::kGeneric),
         name_(name),
-        declaration_(declaration) {}
+        generic_declaration_(generic_declaration) {}
 
   std::string name_;
-  GenericDeclaration* declaration_;
+  GenericDeclaration* generic_declaration_;
   SpecializationMap<Callable> specializations_;
-};
-
-struct SpecializationKey {
-  Generic* generic;
-  TypeVector specialized_types;
 };
 
 class GenericStructType : public Declarable {

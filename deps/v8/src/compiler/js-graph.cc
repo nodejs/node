@@ -46,26 +46,6 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
                                           argv_mode, builtin_exit_frame));
 }
 
-Node* JSGraph::Constant(Handle<Object> value) {
-  // Dereference the handle to determine if a number constant or other
-  // canonicalized node can be used.
-  if (value->IsNumber()) {
-    return Constant(value->Number());
-  } else if (value->IsUndefined(isolate())) {
-    return UndefinedConstant();
-  } else if (value->IsTrue(isolate())) {
-    return TrueConstant();
-  } else if (value->IsFalse(isolate())) {
-    return FalseConstant();
-  } else if (value->IsNull(isolate())) {
-    return NullConstant();
-  } else if (value->IsTheHole(isolate())) {
-    return TheHoleConstant();
-  } else {
-    return HeapConstant(Handle<HeapObject>::cast(value));
-  }
-}
-
 Node* JSGraph::Constant(const ObjectRef& ref) {
   if (ref.IsSmi()) return Constant(ref.AsSmi());
   OddballType oddball_type =

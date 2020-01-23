@@ -27,14 +27,22 @@ class TypeVisitor {
   static const Type* ComputeType(TypeExpression* type_expression);
   static void VisitClassFieldsAndMethods(
       ClassType* class_type, const ClassDeclaration* class_declaration);
-  static Signature MakeSignature(const CallableNodeSignature* signature);
+  static void VisitStructMethods(StructType* struct_type,
+                                 const StructDeclaration* struct_declaration);
+  static Signature MakeSignature(const CallableDeclaration* declaration);
+  static const StructType* ComputeTypeForStructExpression(
+      TypeExpression* type_expression,
+      const std::vector<const Type*>& term_argument_types);
 
  private:
   friend class TypeAlias;
+  friend class TypeOracle;
   static const Type* ComputeType(TypeDeclaration* decl);
   static const AbstractType* ComputeType(AbstractTypeDeclaration* decl);
   static const Type* ComputeType(TypeAliasDeclaration* decl);
-  static const StructType* ComputeType(StructDeclaration* decl);
+  static const StructType* ComputeType(
+      StructDeclaration* decl,
+      StructType::MaybeSpecializationKey specialized_from = base::nullopt);
   static const ClassType* ComputeType(ClassDeclaration* decl);
 };
 

@@ -31,7 +31,7 @@ module.exports = {
 
         /**
          * Makes a block scope.
-         * @param {ASTNode} node - A node of a scope.
+         * @param {ASTNode} node A node of a scope.
          * @returns {void}
          */
         function enterScope(node) {
@@ -48,7 +48,7 @@ module.exports = {
 
         /**
          * Reports a given reference.
-         * @param {eslint-scope.Reference} reference - A reference to report.
+         * @param {eslint-scope.Reference} reference A reference to report.
          * @returns {void}
          */
         function report(reference) {
@@ -59,7 +59,7 @@ module.exports = {
 
         /**
          * Finds and reports references which are outside of valid scopes.
-         * @param {ASTNode} node - A node to get variables.
+         * @param {ASTNode} node A node to get variables.
          * @returns {void}
          */
         function checkForVariables(node) {

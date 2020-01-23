@@ -1,36 +1,37 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const EventEmitter = require('events');
 const util = require('util');
 
 const EE = new EventEmitter();
 
-common.expectsError(
+assert.throws(
   () => EE.emit('error', 'Accepts a string'),
   {
     code: 'ERR_UNHANDLED_ERROR',
-    type: Error,
+    name: 'Error',
     message: "Unhandled error. ('Accepts a string')"
   }
 );
 
-common.expectsError(
+assert.throws(
   () => EE.emit('error', { message: 'Error!' }),
   {
     code: 'ERR_UNHANDLED_ERROR',
-    type: Error,
+    name: 'Error',
     message: "Unhandled error. ({ message: 'Error!' })"
   }
 );
 
-common.expectsError(
+assert.throws(
   () => EE.emit('error', {
     message: 'Error!',
     [util.inspect.custom]() { throw new Error(); }
   }),
   {
     code: 'ERR_UNHANDLED_ERROR',
-    type: Error,
+    name: 'Error',
     message: 'Unhandled error. ([object Object])'
   }
 );

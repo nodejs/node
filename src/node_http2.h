@@ -8,6 +8,7 @@
 #include "nghttp2/nghttp2.h"
 
 #include "node_http2_state.h"
+#include "node_mem.h"
 #include "node_perf.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
@@ -40,9 +41,11 @@ using performance::PerformanceEntry;
 // These are the standard HTTP/2 defaults as specified by the RFC
 #define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
 #define DEFAULT_SETTINGS_ENABLE_PUSH 1
+#define DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS 0xffffffffu
 #define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
 #define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
 #define DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE 65535
+#define DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL 0
 #define MAX_MAX_FRAME_SIZE 16777215
 #define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
@@ -286,7 +289,7 @@ enum http_known_headers {
   V(UNPROCESSABLE_ENTITY, 422)                                                \
   V(LOCKED, 423)                                                              \
   V(FAILED_DEPENDENCY, 424)                                                   \
-  V(UNORDERED_COLLECTION, 425)                                                \
+  V(TOO_EARLY, 425)                                                           \
   V(UPGRADE_REQUIRED, 426)                                                    \
   V(PRECONDITION_REQUIRED, 428)                                               \
   V(TOO_MANY_REQUESTS, 429)                                                   \
@@ -455,8 +458,8 @@ class Http2Stream : public AsyncWrap,
 
   nghttp2_stream* operator*();
 
-  Http2Session* session() { return session_; }
-  const Http2Session* session() const { return session_; }
+  Http2Session* session() { return session_.get(); }
+  const Http2Session* session() const { return session_.get(); }
 
   void EmitStatistics();
 
@@ -467,6 +470,7 @@ class Http2Stream : public AsyncWrap,
   int ReadStop() override;
 
   // Required for StreamBase
+  ShutdownWrap* CreateShutdownWrap(v8::Local<v8::Object> object) override;
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
   bool HasWantsWrite() const override { return true; }
@@ -608,7 +612,7 @@ class Http2Stream : public AsyncWrap,
               nghttp2_headers_category category,
               int options);
 
-  Http2Session* session_ = nullptr;             // The Parent HTTP/2 Session
+  BaseObjectWeakPtr<Http2Session> session_;     // The Parent HTTP/2 Session
   int32_t id_ = 0;                              // The Stream Identifier
   int32_t code_ = NGHTTP2_NO_ERROR;             // The RST_STREAM code (if any)
   int flags_ = NGHTTP2_STREAM_FLAG_NONE;        // Internal state flags
@@ -672,15 +676,27 @@ class Http2Stream::Provider::Stream : public Http2Stream::Provider {
                         void* user_data);
 };
 
+typedef struct {
+  uint8_t bitfield;
+  uint8_t priority_listener_count;
+  uint8_t frame_error_listener_count;
+  uint32_t max_invalid_frames = 1000;
+  uint32_t max_rejected_streams = 100;
+} SessionJSFields;
+
 // Indices for js_fields_, which serves as a way to communicate data with JS
 // land fast. In particular, we store information about the number/presence
 // of certain event listeners in JS, and skip calls from C++ into JS if they
 // are missing.
 enum SessionUint8Fields {
-  kBitfield,  // See below
-  kSessionPriorityListenerCount,
-  kSessionFrameErrorListenerCount,
-  kSessionUint8FieldCount
+  kBitfield = offsetof(SessionJSFields, bitfield),  // See below
+  kSessionPriorityListenerCount =
+      offsetof(SessionJSFields, priority_listener_count),
+  kSessionFrameErrorListenerCount =
+      offsetof(SessionJSFields, frame_error_listener_count),
+  kSessionMaxInvalidFrames = offsetof(SessionJSFields, max_invalid_frames),
+  kSessionMaxRejectedStreams = offsetof(SessionJSFields, max_rejected_streams),
+  kSessionUint8FieldCount = sizeof(SessionJSFields)
 };
 
 enum SessionBitfieldFlags {
@@ -690,7 +706,9 @@ enum SessionBitfieldFlags {
   kSessionHasAltsvcListeners
 };
 
-class Http2Session : public AsyncWrap, public StreamListener {
+class Http2Session : public AsyncWrap,
+                     public StreamListener,
+                     public mem::NgLibMemoryManager<Http2Session, nghttp2_mem> {
  public:
   Http2Session(Environment* env,
                Local<Object> wrap,
@@ -699,7 +717,6 @@ class Http2Session : public AsyncWrap, public StreamListener {
 
   class Http2Ping;
   class Http2Settings;
-  class MemoryAllocatorInfo;
 
   void EmitStatistics();
 
@@ -777,6 +794,7 @@ class Http2Session : public AsyncWrap, public StreamListener {
     tracker->TrackFieldWithSize("outgoing_storage", outgoing_storage_.size());
     tracker->TrackFieldWithSize("pending_rst_streams",
                                 pending_rst_streams_.size() * sizeof(int32_t));
+    tracker->TrackFieldWithSize("nghttp2_memory", current_nghttp2_memory_);
   }
 
   SET_MEMORY_INFO_NAME(Http2Session)
@@ -800,6 +818,11 @@ class Http2Session : public AsyncWrap, public StreamListener {
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
   void OnStreamAfterWrite(WriteWrap* w, int status) override;
 
+  // Implementation for mem::NgLibMemoryManager
+  void CheckAllocatedSize(size_t previous_size) const;
+  void IncreaseAllocatedSize(size_t size);
+  void DecreaseAllocatedSize(size_t size);
+
   // The JavaScript API
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Consume(const FunctionCallbackInfo<Value>& args);
@@ -821,11 +844,11 @@ class Http2Session : public AsyncWrap, public StreamListener {
     return env()->event_loop();
   }
 
-  std::unique_ptr<Http2Ping> PopPing();
-  Http2Ping* AddPing(std::unique_ptr<Http2Ping> ping);
+  BaseObjectPtr<Http2Ping> PopPing();
+  Http2Ping* AddPing(BaseObjectPtr<Http2Ping> ping);
 
-  std::unique_ptr<Http2Settings> PopSettings();
-  Http2Settings* AddSettings(std::unique_ptr<Http2Settings> settings);
+  BaseObjectPtr<Http2Settings> PopSettings();
+  Http2Settings* AddSettings(BaseObjectPtr<Http2Settings> settings);
 
   void IncrementCurrentSessionMemory(uint64_t amount) {
     current_session_memory_ += amount;
@@ -967,7 +990,8 @@ class Http2Session : public AsyncWrap, public StreamListener {
   nghttp2_session* session_;
 
   // JS-accessible numeric fields, as indexed by SessionUint8Fields.
-  uint8_t js_fields_[kSessionUint8FieldCount] = {};
+  SessionJSFields js_fields_ = {};
+  v8::Global<v8::ArrayBuffer> js_fields_ab_;
 
   // The session type: client or server
   nghttp2_session_type session_type_;
@@ -1000,10 +1024,10 @@ class Http2Session : public AsyncWrap, public StreamListener {
   size_t stream_buf_offset_ = 0;
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
-  std::queue<std::unique_ptr<Http2Ping>> outstanding_pings_;
+  std::queue<BaseObjectPtr<Http2Ping>> outstanding_pings_;
 
   size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
-  std::queue<std::unique_ptr<Http2Settings>> outstanding_settings_;
+  std::queue<BaseObjectPtr<Http2Settings>> outstanding_settings_;
 
   std::vector<nghttp2_stream_write> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
@@ -1013,9 +1037,9 @@ class Http2Session : public AsyncWrap, public StreamListener {
   // limit will result in the session being destroyed, as an indication of a
   // misbehaving peer. This counter is reset once new streams are being
   // accepted again.
-  int32_t rejected_stream_count_ = 0;
+  uint32_t rejected_stream_count_ = 0;
   // Also use the invalid frame count as a measure for rejecting input frames.
-  int32_t invalid_frame_count_ = 0;
+  uint32_t invalid_frame_count_ = 0;
 
   void PushOutgoingBuffer(nghttp2_stream_write&& write);
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);

@@ -67,6 +67,9 @@ struct UResourceBundle {
     char *fVersion;
     UResourceDataEntry *fTopLevelData; /* for getting the valid locale */
     char *fResPath; /* full path to the resource: "zh_TW/CollationElements/Sequence" */
+    // TODO(ICU-20769): Try to change the by-value fResData into a pointer,
+    // with the struct in only one place for each bundle.
+    // Also replace class ResourceDataValue.resData with a pResData pointer again.
     ResourceData fResData;
     char fResBuf[RES_BUFSIZE];
     int32_t fResPathLen;
@@ -280,6 +283,11 @@ ures_getStringByKeyWithFallback(const UResourceBundle *resB,
                           UErrorCode *status);
 
 #ifdef __cplusplus
+
+U_CAPI void U_EXPORT2
+ures_getValueWithFallback(const UResourceBundle *bundle, const char *path,
+                          UResourceBundle *tempFillIn,
+                          icu::ResourceDataValue &value, UErrorCode &errorCode);
 
 U_CAPI void U_EXPORT2
 ures_getAllItemsWithFallback(const UResourceBundle *bundle, const char *path,

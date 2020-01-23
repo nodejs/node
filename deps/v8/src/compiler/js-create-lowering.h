@@ -67,6 +67,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateCatchContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
   Reduction ReduceJSCreateGeneratorObject(Node* node);
+  Reduction ReduceJSGetTemplateObject(Node* node);
   Reduction ReduceNewArray(
       Node* node, Node* length, MapRef initial_map, ElementsKind elements_kind,
       AllocationType allocation,

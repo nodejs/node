@@ -12,6 +12,7 @@ const test = require('tap').test
 
 const Dir = Tacks.Dir
 const File = Tacks.File
+const cacheDir = common.cache
 const testDir = common.pkg
 
 const EXEC_OPTS = { cwd: testDir }
@@ -19,6 +20,9 @@ const EXEC_OPTS = { cwd: testDir }
 const PKG = {
   name: 'top',
   version: '1.2.3',
+  scripts: {
+    install: 'node -p process.env.npm_config_foo'
+  },
   dependencies: {
     optimist: '0.6.0',
     clean: '2.1.6'
@@ -44,7 +48,7 @@ test('setup', () => {
   const fixture = new Tacks(Dir({
     'package.json': File(PKG)
   }))
-  return rimraf(testDir).then(() => {
+  return Promise.all([rimraf(cacheDir), rimraf(testDir)]).then(() => {
     fixture.create(testDir)
     return mr({port: common.port})
   })
@@ -77,6 +81,7 @@ test('basic installation', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -88,7 +93,7 @@ test('basic installation', (t) => {
       t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
         stdout.trim(),
-        /^added 6 packages in \d+(?:\.\d+)?s$/,
+        /\nasdf\nadded 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
       return fs.readdirAsync(path.join(testDir, 'node_modules'))
@@ -144,6 +149,7 @@ test('supports npm-shrinkwrap.json as well', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -155,7 +161,7 @@ test('supports npm-shrinkwrap.json as well', (t) => {
       t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
         stdout.trim(),
-        /^added 6 packages in \d+(?:\.\d+)?s$/,
+        /\nasdf\nadded 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
     })
@@ -194,6 +200,7 @@ test('removes existing node_modules/ before installing', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -232,6 +239,7 @@ test('errors if package-lock.json missing', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -268,6 +276,7 @@ test('errors if package-lock.json invalid', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -298,7 +307,35 @@ test('errors if package-lock.json invalid', (t) => {
     )
 })
 
+test('correct cache location when using cache config', (t) => {
+  const fixture = new Tacks(Dir({
+    'package.json': File(PKG),
+    'package-lock.json': File(RAW_LOCKFILE)
+  }))
+  return Promise.all([rimraf(cacheDir), rimraf(testDir)])
+    .then(() => fixture.create(cacheDir))
+    .then(() => fixture.create(testDir))
+    .then(() => common.npm([
+      'ci',
+      `--cache=${cacheDir}`,
+      '--foo=asdf',
+      '--registry', common.registry,
+      '--loglevel', 'warn'
+    ], EXEC_OPTS))
+    .then((ret) => {
+      const code = ret[0]
+      const stderr = ret[2]
+      t.equal(code, 0, 'command completed without error')
+      t.equal(stderr.trim(), '', 'no output on stderr')
+      return fs.readdirAsync(path.join(cacheDir, '_cacache'))
+    })
+    .then((modules) => {
+      t.ok(modules, 'should create _cacache folder')
+      t.end()
+    })
+})
+
 test('cleanup', () => {
   SERVER.close()
-  return rimraf(testDir)
+  return Promise.all([rimraf(cacheDir), rimraf(testDir)])
 })

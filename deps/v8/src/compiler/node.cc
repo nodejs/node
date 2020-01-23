@@ -22,10 +22,12 @@ Node::OutOfLineInputs* Node::OutOfLineInputs::New(Zone* zone, int capacity) {
 
 void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
                                         int count) {
+  DCHECK_GE(count, 0);
   // Extract the inputs from the old use and input pointers and copy them
   // to this out-of-line-storage.
   Use* new_use_ptr = reinterpret_cast<Use*>(this) - 1;
   Node** new_input_ptr = inputs();
+  CHECK_IMPLIES(count > 0, Use::InputIndexField::is_valid(count - 1));
   for (int current = 0; current < count; current++) {
     new_use_ptr->bit_field_ =
         Use::InputIndexField::encode(current) | Use::InlineField::encode(false);
@@ -51,6 +53,8 @@ void Node::OutOfLineInputs::ExtractFrom(Use* old_use_ptr, Node** old_input_ptr,
 
 Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
                 Node* const* inputs, bool has_extensible_inputs) {
+  DCHECK_GE(input_count, 0);
+
   Node** input_ptr;
   Use* use_ptr;
   Node* node;
@@ -102,6 +106,8 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
   }
 
   // Initialize the input pointers and the uses.
+  CHECK_IMPLIES(input_count > 0,
+                Use::InputIndexField::is_valid(input_count - 1));
   for (int current = 0; current < input_count; ++current) {
     Node* to = *inputs++;
     input_ptr[current] = to;
@@ -137,19 +143,20 @@ void Node::AppendInput(Zone* zone, Node* new_to) {
   DCHECK_NOT_NULL(zone);
   DCHECK_NOT_NULL(new_to);
 
-  int inline_count = InlineCountField::decode(bit_field_);
-  int inline_capacity = InlineCapacityField::decode(bit_field_);
+  int const inline_count = InlineCountField::decode(bit_field_);
+  int const inline_capacity = InlineCapacityField::decode(bit_field_);
   if (inline_count < inline_capacity) {
     // Append inline input.
     bit_field_ = InlineCountField::update(bit_field_, inline_count + 1);
     *GetInputPtr(inline_count) = new_to;
     Use* use = GetUsePtr(inline_count);
+    STATIC_ASSERT(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
     use->bit_field_ = Use::InputIndexField::encode(inline_count) |
                       Use::InlineField::encode(true);
     new_to->AppendUse(use);
   } else {
     // Append out-of-line input.
-    int input_count = InputCount();
+    int const input_count = InputCount();
     OutOfLineInputs* outline = nullptr;
     if (inline_count != kOutlineMarker) {
       // switch to out of line inputs.
@@ -172,6 +179,7 @@ void Node::AppendInput(Zone* zone, Node* new_to) {
     outline->count_++;
     *GetInputPtr(input_count) = new_to;
     Use* use = GetUsePtr(input_count);
+    CHECK(Use::InputIndexField::is_valid(input_count));
     use->bit_field_ = Use::InputIndexField::encode(input_count) |
                       Use::InlineField::encode(false);
     new_to->AppendUse(use);
@@ -336,9 +344,13 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
       bit_field_(IdField::encode(id) | InlineCountField::encode(inline_count) |
                  InlineCapacityField::encode(inline_capacity)),
       first_use_(nullptr) {
+  // Check that the id didn't overflow.
+  STATIC_ASSERT(IdField::kMax < std::numeric_limits<NodeId>::max());
+  CHECK(IdField::is_valid(id));
+
   // Inputs must either be out of line or within the inline capacity.
-  DCHECK_GE(kMaxInlineCapacity, inline_capacity);
   DCHECK(inline_count == kOutlineMarker || inline_count <= inline_capacity);
+  DCHECK_LE(inline_capacity, kMaxInlineCapacity);
 }
 
 

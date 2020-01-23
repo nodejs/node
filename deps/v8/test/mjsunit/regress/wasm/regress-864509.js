@@ -10,7 +10,7 @@ const builder = new WasmModuleBuilder();
 builder.addMemory(1, 1);
 // First function is Liftoff. The first parameter is used as memory offset.
 builder.addFunction(undefined, kSig_v_i).addBody([
-  kExprGetLocal, 0,        // get_local 0
+  kExprLocalGet, 0,        // get_local 0
   kExprI32Const, 0,        // i32.const 0
   kExprI32StoreMem, 0, 0,  // i32.store offset=0
 ]);
@@ -19,7 +19,7 @@ builder.addFunction(undefined, kSig_v_i).addBody([
 // is loaded as 64-bit value on x64.
 builder.addFunction(undefined, makeSig(new Array(6).fill(kWasmI32), []))
     .addBody([
-      kExprGetLocal, 5,     // get_local 5
+      kExprLocalGet, 5,     // get_local 5
       kExprCallFunction, 0  // call 0
     ]);
 // The third function is Liftoff again. A value is spilled on the stack as i32,
@@ -27,8 +27,8 @@ builder.addFunction(undefined, makeSig(new Array(6).fill(kWasmI32), []))
 // copied on the stack, even though just 32-bit were written before. Hence, the
 // stack slot is not zero-extended.
 const gen_i32_code = [
-  kExprTeeLocal, 0,  // tee_local 0
-  kExprGetLocal, 0,  // get_local 0
+  kExprLocalTee, 0,  // tee_local 0
+  kExprLocalGet, 0,  // get_local 0
   kExprI32Const, 1,  // i32.const 1
   kExprI32Add        // i32.add     --> 2nd param
 ];

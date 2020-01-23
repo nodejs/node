@@ -1,0 +1,39 @@
+=pod
+
+=head1 NAME
+
+CRYPTO_memcmp - Constant time memory comparison
+
+=head1 SYNOPSIS
+
+ #include <openssl/crypto.h>
+
+ int CRYPTO_memcmp(const void *a, const void *b, size_t len);
+
+=head1 DESCRIPTION
+
+The CRYPTO_memcmp function compares the B<len> bytes pointed to by B<a> and B<b>
+for equality.
+It takes an amount of time dependent on B<len>, but independent of the
+contents of the memory regions pointed to by B<a> and B<b>.
+
+=head1 RETURN VALUES
+
+CRYPTO_memcmp() returns 0 if the memory regions are equal and non-zero
+otherwise.
+
+=head1 NOTES
+
+Unlike memcmp(2), this function cannot be used to order the two memory regions
+as the return value when they differ is undefined, other than being non-zero.
+
+=head1 COPYRIGHT
+
+Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

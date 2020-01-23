@@ -114,8 +114,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN32",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1c",
-  version_num => "0x1010103fL",
+  version => "1.1.1d",
+  version_num => "0x1010104fL",
 );
 
 our %target = (
@@ -131,7 +131,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x55bca9ad89d8)",
+  RANLIB => "CODE(0x55ddfff979c8)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c",
@@ -3242,6 +3242,7 @@ our %unified_info = (
                             "test/testutil/init.o",
                             "test/testutil/main.o",
                             "test/testutil/output_helpers.o",
+                            "test/testutil/random.o",
                             "test/testutil/stanza.o",
                             "test/testutil/tap_bio.o",
                             "test/testutil/test_cleanup.o",
@@ -7853,10 +7854,6 @@ our %unified_info = (
                 [
                     "crypto",
                 ],
-            "crypto/poly1305/poly1305-s390x.o" =>
-                [
-                    "crypto",
-                ],
             "crypto/poly1305/poly1305-sparcv9.o" =>
                 [
                     "crypto",
@@ -9946,6 +9943,10 @@ our %unified_info = (
                     "include",
                 ],
             "test/testutil/output_helpers.o" =>
+                [
+                    "include",
+                ],
+            "test/testutil/random.o" =>
                 [
                     "include",
                 ],
@@ -15100,6 +15101,7 @@ our %unified_info = (
                     "test/testutil/init.o",
                     "test/testutil/main.o",
                     "test/testutil/output_helpers.o",
+                    "test/testutil/random.o",
                     "test/testutil/stanza.o",
                     "test/testutil/tap_bio.o",
                     "test/testutil/test_cleanup.o",
@@ -15444,6 +15446,10 @@ our %unified_info = (
             "test/testutil/output_helpers.o" =>
                 [
                     "test/testutil/output_helpers.c",
+                ],
+            "test/testutil/random.o" =>
+                [
+                    "test/testutil/random.c",
                 ],
             "test/testutil/stanza.o" =>
                 [

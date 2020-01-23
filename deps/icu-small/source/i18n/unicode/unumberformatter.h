@@ -77,8 +77,6 @@
  * </pre>
  */
 
-
-#ifndef U_HIDE_DRAFT_API
 /**
  * An enum declaring how to render units, including currencies. Example outputs when formatting 123 USD and 123
  * meters in <em>en-CA</em>:
@@ -95,7 +93,7 @@
  * <p>
  * This enum is similar to {@link UMeasureFormatWidth}.
  *
- * @draft ICU 60
+ * @stable ICU 60
  */
 typedef enum UNumberUnitWidth {
     /**
@@ -107,7 +105,7 @@ typedef enum UNumberUnitWidth {
      * In CLDR, this option corresponds to the "Narrow" format for measure units and the "¤¤¤¤¤" placeholder for
      * currencies.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_UNIT_WIDTH_NARROW,
 
@@ -123,7 +121,7 @@ typedef enum UNumberUnitWidth {
      * In CLDR, this option corresponds to the "Short" format for measure units and the "¤" placeholder for
      * currencies.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_UNIT_WIDTH_SHORT,
 
@@ -134,7 +132,7 @@ typedef enum UNumberUnitWidth {
      * In CLDR, this option corresponds to the default format for measure units and the "¤¤¤" placeholder for
      * currencies.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_UNIT_WIDTH_FULL_NAME,
 
@@ -145,7 +143,7 @@ typedef enum UNumberUnitWidth {
      * <p>
      * In CLDR, this option corresponds to the "¤¤" placeholder for currencies.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_UNIT_WIDTH_ISO_CODE,
 
@@ -154,7 +152,7 @@ typedef enum UNumberUnitWidth {
      * monetary symbols and formats as with SHORT, but omit the currency symbol. For measure units, the behavior is
      * equivalent to not specifying the unit at all.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_UNIT_WIDTH_HIDDEN,
 
@@ -165,9 +163,7 @@ typedef enum UNumberUnitWidth {
      */
             UNUM_UNIT_WIDTH_COUNT
 } UNumberUnitWidth;
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * An enum declaring the strategy for when and how to display grouping separators (i.e., the
  * separator, often a comma or period, after every 2-3 powers of ten). The choices are several
@@ -192,13 +188,13 @@ typedef enum UNumberUnitWidth {
  * Note: This enum specifies the strategy for grouping sizes. To set which character to use as the
  * grouping separator, use the "symbols" setter.
  *
- * @draft ICU 63
+ * @stable ICU 63
  */
 typedef enum UNumberGroupingStrategy {
     /**
      * Do not display grouping separators in any locale.
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_GROUPING_OFF,
 
@@ -214,7 +210,7 @@ typedef enum UNumberGroupingStrategy {
      * Locale data is used to determine whether to separate larger numbers into groups of 2
      * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_GROUPING_MIN2,
 
@@ -229,7 +225,7 @@ typedef enum UNumberGroupingStrategy {
      * Locale data is used to determine whether to separate larger numbers into groups of 2
      * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_GROUPING_AUTO,
 
@@ -245,7 +241,7 @@ typedef enum UNumberGroupingStrategy {
      * Locale data is used to determine whether to separate larger numbers into groups of 2
      * (customary in South Asia) or groups of 3 (customary in Europe and the Americas).
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_GROUPING_ON_ALIGNED,
 
@@ -253,7 +249,7 @@ typedef enum UNumberGroupingStrategy {
      * Use the Western defaults: groups of 3 and enabled for all numbers 1000 or greater. Do not use
      * locale data for determining the grouping strategy.
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_GROUPING_THOUSANDS
 
@@ -269,10 +265,6 @@ typedef enum UNumberGroupingStrategy {
 
 } UNumberGroupingStrategy;
 
-
-#endif  /* U_HIDE_DRAFT_API */
-
-#ifndef U_HIDE_DRAFT_API
 /**
  * An enum declaring how to denote positive and negative numbers. Example outputs when formatting
  * 123, 0, and -123 in <em>en-US</em>:
@@ -290,14 +282,14 @@ typedef enum UNumberGroupingStrategy {
  * <p>
  * The exact format, including the position and the code point of the sign, differ by locale.
  *
- * @draft ICU 60
+ * @stable ICU 60
  */
 typedef enum UNumberSignDisplay {
     /**
      * Show the minus sign on negative numbers, and do not show the sign on positive numbers. This is the default
      * behavior.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_SIGN_AUTO,
 
@@ -305,14 +297,14 @@ typedef enum UNumberSignDisplay {
      * Show the minus sign on negative numbers and the plus sign on positive numbers, including zero.
      * To hide the sign on zero, see {@link UNUM_SIGN_EXCEPT_ZERO}.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_SIGN_ALWAYS,
 
     /**
      * Do not show the sign on positive or negative numbers.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_SIGN_NEVER,
 
@@ -328,7 +320,7 @@ typedef enum UNumberSignDisplay {
      * AUTO sign display strategy when formatting without a currency unit. This limitation may be lifted in the
      * future.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_SIGN_ACCOUNTING,
 
@@ -338,24 +330,25 @@ typedef enum UNumberSignDisplay {
      * ACCOUNTING sign display strategy. To hide the sign on zero, see
      * {@link UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO}.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_SIGN_ACCOUNTING_ALWAYS,
 
     /**
      * Show the minus sign on negative numbers and the plus sign on positive numbers. Do not show a
-     * sign on zero.
+     * sign on zero or NaN, unless the sign bit is set (-0.0 gets a sign).
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_SIGN_EXCEPT_ZERO,
 
     /**
      * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
-     * positive numbers. Do not show a sign on zero. For more information on the accounting format,
-     * see the ACCOUNTING sign display strategy.
+     * positive numbers. Do not show a sign on zero or NaN, unless the sign bit is set (-0.0 gets a
+     * sign). For more information on the accounting format, see the ACCOUNTING sign display
+     * strategy.
      *
-     * @draft ICU 61
+     * @stable ICU 61
      */
             UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO,
 
@@ -366,9 +359,7 @@ typedef enum UNumberSignDisplay {
      */
             UNUM_SIGN_COUNT
 } UNumberSignDisplay;
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * An enum declaring how to render the decimal separator.
  *
@@ -378,21 +369,21 @@ typedef enum UNumberSignDisplay {
  * <li>UNUM_DECIMAL_SEPARATOR_ALWAYS: "1.", "1.1"
  * </ul>
  *
- * @draft ICU 60
+ * @stable ICU 60
  */
 typedef enum UNumberDecimalSeparatorDisplay {
     /**
      * Show the decimal separator when there are one or more digits to display after the separator, and do not show
      * it otherwise. This is the default behavior.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_DECIMAL_SEPARATOR_AUTO,
 
     /**
      * Always show the decimal separator, even if there are no digits to display after the separator.
      *
-     * @draft ICU 60
+     * @stable ICU 60
      */
             UNUM_DECIMAL_SEPARATOR_ALWAYS,
 
@@ -403,7 +394,6 @@ typedef enum UNumberDecimalSeparatorDisplay {
      */
             UNUM_DECIMAL_SEPARATOR_COUNT
 } UNumberDecimalSeparatorDisplay;
-#endif  /* U_HIDE_DRAFT_API */
 
 struct UNumberFormatter;
 /**
@@ -647,6 +637,13 @@ unumf_resultNextFieldPosition(const UFormattedNumber* uresult, UFieldPosition* u
 U_STABLE void U_EXPORT2
 unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPositionIterator* ufpositer,
                                  UErrorCode* ec);
+
+
+// TODO(ICU-20775): Propose this as API.
+// NOTE: This is not currently implemented.
+// U_DRAFT int32_t U_EXPORT2
+// unumf_resultToDecimalNumber(const UFormattedNumber* uresult, char* buffer, int32_t bufferCapacity,
+//                             UErrorCode* ec);
 
 
 /**

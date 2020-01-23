@@ -116,7 +116,23 @@ namespace compiler {
   V(IA32PushSimd128)               \
   V(IA32Poke)                      \
   V(IA32Peek)                      \
-  V(IA32StackCheck)                \
+  V(SSEF64x2Splat)                 \
+  V(AVXF64x2Splat)                 \
+  V(SSEF64x2ExtractLane)           \
+  V(AVXF64x2ExtractLane)           \
+  V(SSEF64x2ReplaceLane)           \
+  V(AVXF64x2ReplaceLane)           \
+  V(IA32F64x2Sqrt)                 \
+  V(IA32F64x2Add)                  \
+  V(IA32F64x2Sub)                  \
+  V(IA32F64x2Mul)                  \
+  V(IA32F64x2Div)                  \
+  V(IA32F64x2Min)                  \
+  V(IA32F64x2Max)                  \
+  V(IA32F64x2Eq)                   \
+  V(IA32F64x2Ne)                   \
+  V(IA32F64x2Lt)                   \
+  V(IA32F64x2Le)                   \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \
@@ -130,6 +146,8 @@ namespace compiler {
   V(AVXF32x4Abs)                   \
   V(SSEF32x4Neg)                   \
   V(AVXF32x4Neg)                   \
+  V(SSEF32x4Sqrt)                  \
+  V(AVXF32x4Sqrt)                  \
   V(IA32F32x4RecipApprox)          \
   V(IA32F32x4RecipSqrtApprox)      \
   V(SSEF32x4Add)                   \
@@ -140,6 +158,8 @@ namespace compiler {
   V(AVXF32x4Sub)                   \
   V(SSEF32x4Mul)                   \
   V(AVXF32x4Mul)                   \
+  V(SSEF32x4Div)                   \
+  V(AVXF32x4Div)                   \
   V(SSEF32x4Min)                   \
   V(AVXF32x4Min)                   \
   V(SSEF32x4Max)                   \
@@ -312,6 +332,7 @@ namespace compiler {
   V(AVXS128Xor)                    \
   V(SSES128Select)                 \
   V(AVXS128Select)                 \
+  V(IA32S8x16Swizzle)              \
   V(IA32S8x16Shuffle)              \
   V(IA32S32x4Swizzle)              \
   V(IA32S32x4Shuffle)              \
@@ -394,7 +415,8 @@ namespace compiler {
   V(M2I)  /* [      %r2*2 + K] */      \
   V(M4I)  /* [      %r2*4 + K] */      \
   V(M8I)  /* [      %r2*8 + K] */      \
-  V(MI)   /* [              K] */
+  V(MI)   /* [              K] */      \
+  V(Root) /* [%root       + K] */
 
 }  // namespace compiler
 }  // namespace internal

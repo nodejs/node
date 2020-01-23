@@ -20,8 +20,7 @@ must be used to protect the RSA operation from that attack.
 
 RSA_blinding_on() turns blinding on for key B<rsa> and generates a
 random blinding factor. B<ctx> is B<NULL> or a pre-allocated and
-initialized B<BN_CTX>. The random number generator must be seeded
-prior to calling RSA_blinding_on().
+initialized B<BN_CTX>.
 
 RSA_blinding_off() turns blinding off and frees the memory used for
 the blinding factor.
@@ -34,7 +33,7 @@ RSA_blinding_off() returns no value.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

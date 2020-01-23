@@ -10,6 +10,7 @@
 
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array.h"
 #include "src/objects/map.h"
@@ -56,7 +57,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     allocator()->DecodeReservation(data->Reservations());
     // We start the indices here at 1, so that we can distinguish between an
     // actual index and a nullptr in a deserialized object requiring fix-up.
-    off_heap_backing_stores_.push_back(nullptr);
+    backing_stores_.push_back({});
   }
 
   void Initialize(Isolate* isolate);
@@ -173,7 +174,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   std::vector<CallHandlerInfo> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
-  std::vector<byte*> off_heap_backing_stores_;
+  std::vector<std::shared_ptr<BackingStore>> backing_stores_;
 
   DeserializerAllocator allocator_;
   const bool deserializing_user_code_;

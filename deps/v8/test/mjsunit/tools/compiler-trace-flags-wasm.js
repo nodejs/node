@@ -20,8 +20,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
 
   builder.addFunction("add", kSig_i_ii)
-    .addBody([kExprGetLocal, 0,
-              kExprGetLocal, 1,
+    .addBody([kExprLocalGet, 0,
+              kExprLocalGet, 1,
               kExprI32Add])
     .exportFunc();
 

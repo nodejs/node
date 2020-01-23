@@ -54,24 +54,24 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
     if (task_type == TaskType::kNormal) {
       if (taskrunner->NonNestableTasksEnabled()) {
-        taskrunner->PostNonNestableTask(base::make_unique<Task>(
+        taskrunner->PostNonNestableTask(std::make_unique<Task>(
             heap->isolate(), this,
             EmbedderHeapTracer::EmbedderStackState::kEmpty, task_type));
       } else {
-        taskrunner->PostTask(base::make_unique<Task>(
+        taskrunner->PostTask(std::make_unique<Task>(
             heap->isolate(), this,
             EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type));
       }
     } else {
       if (taskrunner->NonNestableDelayedTasksEnabled()) {
         taskrunner->PostNonNestableDelayedTask(
-            base::make_unique<Task>(
+            std::make_unique<Task>(
                 heap->isolate(), this,
                 EmbedderHeapTracer::EmbedderStackState::kEmpty, task_type),
             kDelayInSeconds);
       } else {
         taskrunner->PostDelayedTask(
-            base::make_unique<Task>(
+            std::make_unique<Task>(
                 heap->isolate(), this,
                 EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type),
             kDelayInSeconds);

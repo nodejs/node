@@ -220,7 +220,7 @@ class XCObject(object):
                           an empty string ("", in the case of property_type
                           str) or list ([], in the case of is_list True) from
                           being set for the property.
-             default: Optional.  If is_requried is True, default may be set
+             default: Optional.  If is_required is True, default may be set
                       to provide a default value for objects that do not supply
                       their own value.  If is_required is True and default
                       is not provided, users of the class must supply their own

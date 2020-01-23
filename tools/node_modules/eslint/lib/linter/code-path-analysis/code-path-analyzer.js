@@ -22,8 +22,7 @@ const assert = require("assert"),
 
 /**
  * Checks whether or not a given node is a `case` node (not `default` node).
- *
- * @param {ASTNode} node - A `SwitchCase` node to check.
+ * @param {ASTNode} node A `SwitchCase` node to check.
  * @returns {boolean} `true` if the node is a `case` node (not `default` node).
  */
 function isCaseNode(node) {
@@ -33,8 +32,7 @@ function isCaseNode(node) {
 /**
  * Checks whether the given logical operator is taken into account for the code
  * path analysis.
- *
- * @param {string} operator - The operator found in the LogicalExpression node
+ * @param {string} operator The operator found in the LogicalExpression node
  * @returns {boolean} `true` if the operator is "&&" or "||"
  */
 function isHandledLogicalOperator(operator) {
@@ -43,8 +41,7 @@ function isHandledLogicalOperator(operator) {
 
 /**
  * Gets the label if the parent node of a given node is a LabeledStatement.
- *
- * @param {ASTNode} node - A node to get.
+ * @param {ASTNode} node A node to get.
  * @returns {string|null} The label or `null`.
  */
 function getLabel(node) {
@@ -57,8 +54,7 @@ function getLabel(node) {
 /**
  * Checks whether or not a given logical expression node goes different path
  * between the `true` case and the `false` case.
- *
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is a test of a choice statement.
  */
 function isForkingByTrueOrFalse(node) {
@@ -86,8 +82,7 @@ function isForkingByTrueOrFalse(node) {
  * This is used to detect infinity loops (e.g. `while (true) {}`).
  * Statements preceded by an infinity loop are unreachable if the loop didn't
  * have any `break` statement.
- *
- * @param {ASTNode} node - A node to get.
+ * @param {ASTNode} node A node to get.
  * @returns {boolean|undefined} a boolean value if the node is a Literal node,
  *   otherwise `undefined`.
  */
@@ -102,8 +97,7 @@ function getBooleanValueIfSimpleConstant(node) {
  * Checks that a given identifier node is a reference or not.
  *
  * This is used to detect the first throwable node in a `try` block.
- *
- * @param {ASTNode} node - An Identifier node to check.
+ * @param {ASTNode} node An Identifier node to check.
  * @returns {boolean} `true` if the node is a reference.
  */
 function isIdentifierReference(node) {
@@ -153,9 +147,8 @@ function isIdentifierReference(node) {
  *
  * In this process, both "onCodePathSegmentStart" and "onCodePathSegmentEnd"
  * events are fired.
- *
- * @param {CodePathAnalyzer} analyzer - The instance.
- * @param {ASTNode} node - The current AST node.
+ * @param {CodePathAnalyzer} analyzer The instance.
+ * @param {ASTNode} node The current AST node.
  * @returns {void}
  */
 function forwardCurrentToHead(analyzer, node) {
@@ -211,9 +204,8 @@ function forwardCurrentToHead(analyzer, node) {
 /**
  * Updates the current segment with empty.
  * This is called at the last of functions or the program.
- *
- * @param {CodePathAnalyzer} analyzer - The instance.
- * @param {ASTNode} node - The current AST node.
+ * @param {CodePathAnalyzer} analyzer The instance.
+ * @param {ASTNode} node The current AST node.
  * @returns {void}
  */
 function leaveFromCurrentSegment(analyzer, node) {
@@ -242,9 +234,8 @@ function leaveFromCurrentSegment(analyzer, node) {
  *
  * For example, if the node is `parent.consequent`, this creates a fork from the
  * current path.
- *
- * @param {CodePathAnalyzer} analyzer - The instance.
- * @param {ASTNode} node - The current AST node.
+ * @param {CodePathAnalyzer} analyzer The instance.
+ * @param {ASTNode} node The current AST node.
  * @returns {void}
  */
 function preprocess(analyzer, node) {
@@ -352,9 +343,8 @@ function preprocess(analyzer, node) {
 
 /**
  * Updates the code path due to the type of a given node in entering.
- *
- * @param {CodePathAnalyzer} analyzer - The instance.
- * @param {ASTNode} node - The current AST node.
+ * @param {CodePathAnalyzer} analyzer The instance.
+ * @param {ASTNode} node The current AST node.
  * @returns {void}
  */
 function processCodePathToEnter(analyzer, node) {
@@ -449,9 +439,8 @@ function processCodePathToEnter(analyzer, node) {
 
 /**
  * Updates the code path due to the type of a given node in leaving.
- *
- * @param {CodePathAnalyzer} analyzer - The instance.
- * @param {ASTNode} node - The current AST node.
+ * @param {CodePathAnalyzer} analyzer The instance.
+ * @param {ASTNode} node The current AST node.
  * @returns {void}
  */
 function processCodePathToExit(analyzer, node) {
@@ -563,9 +552,8 @@ function processCodePathToExit(analyzer, node) {
 
 /**
  * Updates the code path to finalize the current code path.
- *
- * @param {CodePathAnalyzer} analyzer - The instance.
- * @param {ASTNode} node - The current AST node.
+ * @param {CodePathAnalyzer} analyzer The instance.
+ * @param {ASTNode} node The current AST node.
  * @returns {void}
  */
 function postprocess(analyzer, node) {
@@ -609,8 +597,9 @@ function postprocess(analyzer, node) {
  */
 class CodePathAnalyzer {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {EventGenerator} eventGenerator - An event generator to wrap.
+     * @param {EventGenerator} eventGenerator An event generator to wrap.
      */
     constructor(eventGenerator) {
         this.original = eventGenerator;
@@ -624,8 +613,7 @@ class CodePathAnalyzer {
     /**
      * Does the process to enter a given AST node.
      * This updates state of analysis and calls `enterNode` of the wrapped.
-     *
-     * @param {ASTNode} node - A node which is entering.
+     * @param {ASTNode} node A node which is entering.
      * @returns {void}
      */
     enterNode(node) {
@@ -651,8 +639,7 @@ class CodePathAnalyzer {
     /**
      * Does the process to leave a given AST node.
      * This updates state of analysis and calls `leaveNode` of the wrapped.
-     *
-     * @param {ASTNode} node - A node which is leaving.
+     * @param {ASTNode} node A node which is leaving.
      * @returns {void}
      */
     leaveNode(node) {
@@ -676,9 +663,8 @@ class CodePathAnalyzer {
     /**
      * This is called on a code path looped.
      * Then this raises a looped event.
-     *
-     * @param {CodePathSegment} fromSegment - A segment of prev.
-     * @param {CodePathSegment} toSegment - A segment of next.
+     * @param {CodePathSegment} fromSegment A segment of prev.
+     * @param {CodePathSegment} toSegment A segment of next.
      * @returns {void}
      */
     onLooped(fromSegment, toSegment) {

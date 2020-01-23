@@ -4,8 +4,10 @@
 
 #include "src/objects/lookup.h"
 
+#include "include/v8config.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/elements.h"
@@ -235,34 +237,46 @@ void LookupIterator::InternalUpdateProtector() {
   if (!receiver_->IsHeapObject()) return;
   Handle<HeapObject> receiver = Handle<HeapObject>::cast(receiver_);
 
+  // Getting the native_context from the isolate as a fallback. If possible, we
+  // use the receiver's creation context instead.
   Handle<NativeContext> native_context = isolate_->native_context();
 
   ReadOnlyRoots roots(isolate_);
   if (*name_ == roots.constructor_string()) {
-    if (!isolate_->IsArraySpeciesLookupChainIntact() &&
-        !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact(native_context) &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
+    // Fetching the context in here since the operation is rather expensive.
+    if (receiver->IsJSReceiver()) {
+      native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
+    }
+
+    if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_) &&
+        !Protectors::IsPromiseSpeciesLookupChainIntact(isolate_) &&
+        !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+            native_context) &&
+        !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) {
       return;
     }
     // Setting the constructor property could change an instance's @@species
     if (receiver->IsJSArray(isolate_)) {
-      if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+      if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_)) return;
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArrayInstanceConstructorModified);
-      isolate_->InvalidateArraySpeciesProtector();
+      Protectors::InvalidateArraySpeciesLookupChain(isolate_);
       return;
     } else if (receiver->IsJSPromise(isolate_)) {
-      if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
-      isolate_->InvalidatePromiseSpeciesProtector();
+      if (!Protectors::IsPromiseSpeciesLookupChainIntact(isolate_)) return;
+      Protectors::InvalidatePromiseSpeciesLookupChain(isolate_);
       return;
     } else if (receiver->IsJSRegExp(isolate_)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
-      isolate_->InvalidateRegExpSpeciesProtector(native_context);
+      if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+              native_context)) {
+        return;
+      }
+      Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
+                                                              native_context);
       return;
     } else if (receiver->IsJSTypedArray(isolate_)) {
-      if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
-      isolate_->InvalidateTypedArraySpeciesProtector();
+      if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
       return;
     }
     if (receiver->map(isolate_).is_prototype_map()) {
@@ -274,23 +288,27 @@ void LookupIterator::InternalUpdateProtector() {
       // prototype is pointing the same TYPED_ARRAY_PROTOTYPE.
       if (isolate_->IsInAnyContext(*receiver,
                                    Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+        if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_)) return;
         isolate_->CountUsage(
             v8::Isolate::UseCounterFeature::kArrayPrototypeConstructorModified);
-        isolate_->InvalidateArraySpeciesProtector();
+        Protectors::InvalidateArraySpeciesLookupChain(isolate_);
       } else if (isolate_->IsInAnyContext(*receiver,
                                           Context::PROMISE_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
-        isolate_->InvalidatePromiseSpeciesProtector();
+        if (!Protectors::IsPromiseSpeciesLookupChainIntact(isolate_)) return;
+        Protectors::InvalidatePromiseSpeciesLookupChain(isolate_);
       } else if (isolate_->IsInAnyContext(*receiver,
                                           Context::REGEXP_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
-        isolate_->InvalidateRegExpSpeciesProtector(native_context);
+        if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+                native_context)) {
+          return;
+        }
+        Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
+                                                                native_context);
       } else if (isolate_->IsInAnyContext(
                      receiver->map(isolate_).prototype(isolate_),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
-        isolate_->InvalidateTypedArraySpeciesProtector();
+        if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) return;
+        Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
       }
     }
   } else if (*name_ == roots.next_string()) {
@@ -299,81 +317,91 @@ void LookupIterator::InternalUpdateProtector() {
             *receiver, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %ArrayIteratorPrototype% also needs to
       // invalidate the array iterator protector.
-      if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
-      isolate_->InvalidateArrayIteratorProtector();
+      if (!Protectors::IsArrayIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateArrayIteratorLookupChain(isolate_);
     } else if (receiver->IsJSMapIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
-      if (!isolate_->IsMapIteratorLookupChainIntact()) return;
-      isolate_->InvalidateMapIteratorProtector();
+      if (!Protectors::IsMapIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateMapIteratorLookupChain(isolate_);
     } else if (receiver->IsJSSetIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX)) {
-      if (!isolate_->IsSetIteratorLookupChainIntact()) return;
-      isolate_->InvalidateSetIteratorProtector();
+      if (!Protectors::IsSetIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateSetIteratorLookupChain(isolate_);
     } else if (receiver->IsJSStringIterator() ||
                isolate_->IsInAnyContext(
                    *receiver,
                    Context::INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %StringIteratorPrototype% invalidates the
       // string iterator protector.
-      if (!isolate_->IsStringIteratorLookupChainIntact()) return;
-      isolate_->InvalidateStringIteratorProtector();
+      if (!Protectors::IsStringIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateStringIteratorLookupChain(isolate_);
     }
   } else if (*name_ == roots.species_symbol()) {
-    if (!isolate_->IsArraySpeciesLookupChainIntact() &&
-        !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact(native_context) &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
+    // Fetching the context in here since the operation is rather expensive.
+    if (receiver->IsJSReceiver()) {
+      native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
+    }
+
+    if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_) &&
+        !Protectors::IsPromiseSpeciesLookupChainIntact(isolate_) &&
+        !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+            native_context) &&
+        !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) {
       return;
     }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
     if (isolate_->IsInAnyContext(*receiver, Context::ARRAY_FUNCTION_INDEX)) {
-      if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+      if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_)) return;
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArraySpeciesModified);
-      isolate_->InvalidateArraySpeciesProtector();
+      Protectors::InvalidateArraySpeciesLookupChain(isolate_);
     } else if (isolate_->IsInAnyContext(*receiver,
                                         Context::PROMISE_FUNCTION_INDEX)) {
-      if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
-      isolate_->InvalidatePromiseSpeciesProtector();
+      if (!Protectors::IsPromiseSpeciesLookupChainIntact(isolate_)) return;
+      Protectors::InvalidatePromiseSpeciesLookupChain(isolate_);
     } else if (isolate_->IsInAnyContext(*receiver,
                                         Context::REGEXP_FUNCTION_INDEX)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
-      isolate_->InvalidateRegExpSpeciesProtector(native_context);
+      if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+              native_context)) {
+        return;
+      }
+      Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
+                                                              native_context);
     } else if (IsTypedArrayFunctionInAnyContext(isolate_, *receiver)) {
-      if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
-      isolate_->InvalidateTypedArraySpeciesProtector();
+      if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
     }
   } else if (*name_ == roots.is_concat_spreadable_symbol()) {
-    if (!isolate_->IsIsConcatSpreadableLookupChainIntact()) return;
-    isolate_->InvalidateIsConcatSpreadableProtector();
+    if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate_)) return;
+    Protectors::InvalidateIsConcatSpreadableLookupChain(isolate_);
   } else if (*name_ == roots.iterator_symbol()) {
     if (receiver->IsJSArray(isolate_)) {
-      if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
-      isolate_->InvalidateArrayIteratorProtector();
+      if (!Protectors::IsArrayIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateArrayIteratorLookupChain(isolate_);
     } else if (receiver->IsJSSet(isolate_) || receiver->IsJSSetIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX) ||
                isolate_->IsInAnyContext(*receiver,
                                         Context::INITIAL_SET_PROTOTYPE_INDEX)) {
-      if (isolate_->IsSetIteratorLookupChainIntact()) {
-        isolate_->InvalidateSetIteratorProtector();
+      if (Protectors::IsSetIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateSetIteratorLookupChain(isolate_);
       }
     } else if (receiver->IsJSMapIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
-      if (isolate_->IsMapIteratorLookupChainIntact()) {
-        isolate_->InvalidateMapIteratorProtector();
+      if (Protectors::IsMapIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateMapIteratorLookupChain(isolate_);
       }
     } else if (isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX)) {
-      if (isolate_->IsMapIteratorLookupChainIntact()) {
-        isolate_->InvalidateMapIteratorProtector();
+      if (Protectors::IsMapIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateMapIteratorLookupChain(isolate_);
       }
-      if (isolate_->IsSetIteratorLookupChainIntact()) {
-        isolate_->InvalidateSetIteratorProtector();
+      if (Protectors::IsSetIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateSetIteratorLookupChain(isolate_);
       }
     } else if (isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
@@ -381,18 +409,18 @@ void LookupIterator::InternalUpdateProtector() {
       // the string iterator protector. Symbol.iterator can also be set on a
       // String wrapper, but not on a primitive string. We only support
       // protector for primitive strings.
-      if (!isolate_->IsStringIteratorLookupChainIntact()) return;
-      isolate_->InvalidateStringIteratorProtector();
+      if (!Protectors::IsStringIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateStringIteratorLookupChain(isolate_);
     }
   } else if (*name_ == roots.resolve_string()) {
-    if (!isolate_->IsPromiseResolveLookupChainIntact()) return;
+    if (!Protectors::IsPromiseResolveLookupChainIntact(isolate_)) return;
     // Setting the "resolve" property on any %Promise% intrinsic object
     // invalidates the Promise.resolve protector.
     if (isolate_->IsInAnyContext(*receiver, Context::PROMISE_FUNCTION_INDEX)) {
-      isolate_->InvalidatePromiseResolveProtector();
+      Protectors::InvalidatePromiseResolveLookupChain(isolate_);
     }
   } else if (*name_ == roots.then_string()) {
-    if (!isolate_->IsPromiseThenLookupChainIntact()) return;
+    if (!Protectors::IsPromiseThenLookupChainIntact(isolate_)) return;
     // Setting the "then" property on any JSPromise instance or on the
     // initial %PromisePrototype% invalidates the Promise#then protector.
     // Also setting the "then" property on the initial %ObjectPrototype%
@@ -404,7 +432,7 @@ void LookupIterator::InternalUpdateProtector() {
         isolate_->IsInAnyContext(*receiver,
                                  Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
         isolate_->IsInAnyContext(*receiver, Context::PROMISE_PROTOTYPE_INDEX)) {
-      isolate_->InvalidatePromiseThenProtector();
+      Protectors::InvalidatePromiseThenLookupChain(isolate_);
     }
   }
 }
@@ -433,7 +461,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     }
 
     // Copy the backing store if it is copy-on-write.
-    if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to)) {
+    if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to) ||
+        IsNonextensibleElementsKind(to)) {
       JSObject::EnsureWritableFastElements(holder_obj);
     }
     return;
@@ -505,7 +534,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
     Handle<FixedArrayBase> elements(holder_obj->elements(isolate_), isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
-        holder_obj, elements, number_, value, attributes);
+        holder_obj, elements, InternalIndex(number_), value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
     Handle<Map> old_map(holder_obj->map(isolate_), isolate_);
@@ -670,8 +699,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
   }
 
   if (simple_transition) {
-    int number = transition->LastAdded();
-    number_ = static_cast<uint32_t>(number);
+    number_ = transition->LastAdded().as_uint32();
     property_details_ = transition->GetLastDescriptorDetails(isolate_);
     state_ = DATA;
   } else if (receiver->map(isolate_).is_dictionary_map()) {
@@ -702,7 +730,7 @@ void LookupIterator::Delete() {
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Delete(object, number_);
+    accessor->Delete(object, InternalIndex(number_));
   } else {
     DCHECK(!name()->IsPrivateName(isolate_));
     bool is_prototype_map = holder->map(isolate_).is_prototype_map();
@@ -748,8 +776,11 @@ void LookupIterator::TransitionToAccessorProperty(
     } else if (state_ == INTERCEPTOR) {
       LookupInRegularHolder<false>(*old_map, *holder_);
     }
-    int descriptor =
-        IsFound() ? static_cast<int>(number_) : DescriptorArray::kNotFound;
+    // TODO(jkummerow): {IsFound()} should be enough once {number_} has type
+    // {InternalIndex}.
+    InternalIndex descriptor = (IsFound() && number_ != kMaxUInt32)
+                                   ? InternalIndex(number_)
+                                   : InternalIndex::NotFound();
 
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
         isolate_, old_map, name_, descriptor, getter, setter, attributes);
@@ -758,8 +789,7 @@ void LookupIterator::TransitionToAccessorProperty(
     JSObject::MigrateToMap(isolate_, receiver, new_map);
 
     if (simple_transition) {
-      int number = new_map->LastAdded();
-      number_ = static_cast<uint32_t>(number);
+      number_ = new_map->LastAdded().as_uint32();
       property_details_ = new_map->GetLastDescriptorDetails(isolate_);
       state_ = ACCESSOR;
       return;
@@ -865,23 +895,24 @@ Handle<Object> LookupIterator::FetchValue() const {
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-    return accessor->Get(holder, number_);
+    return accessor->Get(holder, InternalIndex(number_));
   } else if (holder_->IsJSGlobalObject(isolate_)) {
     Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
     result = holder->global_dictionary(isolate_).ValueAt(isolate_, number_);
   } else if (!holder_->HasFastProperties(isolate_)) {
-    result = holder_->property_dictionary(isolate_).ValueAt(isolate_, number_);
+    result = holder_->property_dictionary(isolate_).ValueAt(isolate_,
+                                                            dictionary_entry());
   } else if (property_details_.location() == kField) {
     DCHECK_EQ(kData, property_details_.kind());
     Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index =
-        FieldIndex::ForDescriptor(holder->map(isolate_), number_);
+        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
                                     field_index);
   } else {
     result =
         holder_->map(isolate_).instance_descriptors(isolate_).GetStrongValue(
-            isolate_, number_);
+            isolate_, descriptor_number());
   }
   return handle(result, isolate_);
 }
@@ -893,7 +924,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   DCHECK_EQ(PropertyConstness::kConst, property_details_.constness());
   Handle<JSObject> holder = GetHolder<JSObject>();
   FieldIndex field_index =
-      FieldIndex::ForDescriptor(holder->map(isolate_), number_);
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
   if (property_details_.representation().IsDouble()) {
     if (!value.IsNumber(isolate_)) return false;
     uint64_t bits;
@@ -901,8 +932,8 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
       bits = holder->RawFastDoublePropertyAsBitsAt(field_index);
     } else {
       Object current_value = holder->RawFastPropertyAt(isolate_, field_index);
-      DCHECK(current_value.IsMutableHeapNumber(isolate_));
-      bits = MutableHeapNumber::cast(current_value).value_as_bits();
+      DCHECK(current_value.IsHeapNumber(isolate_));
+      bits = HeapNumber::cast(current_value).value_as_bits();
     }
     // Use bit representation of double to to check for hole double, since
     // manipulating the signaling NaN used for the hole in C++, e.g. with
@@ -929,7 +960,8 @@ int LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
   DCHECK_EQ(kData, property_details_.kind());
-  return descriptor_number();
+  // TODO(jkummerow): Propagate InternalIndex further.
+  return descriptor_number().as_int();
 }
 
 int LookupIterator::GetAccessorIndex() const {
@@ -937,7 +969,7 @@ int LookupIterator::GetAccessorIndex() const {
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(kDescriptor, property_details_.location());
   DCHECK_EQ(kAccessor, property_details_.kind());
-  return descriptor_number();
+  return descriptor_number().as_int();
 }
 
 Handle<Map> LookupIterator::GetFieldOwnerMap() const {
@@ -950,7 +982,12 @@ Handle<Map> LookupIterator::GetFieldOwnerMap() const {
                 isolate_);
 }
 
-FieldIndex LookupIterator::GetFieldIndex() const {
+#if defined(__clang__) && defined(V8_OS_WIN)
+// Force function alignment to work around CPU bug: https://crbug.com/968683
+__attribute__((__aligned__(32)))
+#endif
+FieldIndex
+LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(kField, property_details_.location());
@@ -994,7 +1031,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Set(object, number_, *value);
+    accessor->Set(object, InternalIndex(number_), *value);
   } else if (holder->HasFastProperties(isolate_)) {
     if (property_details_.location() == kField) {
       // Check that in case of VariableMode::kConst field the existing value is
@@ -1130,23 +1167,26 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     JSObject js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);
     FixedArrayBase backing_store = js_object.elements(isolate_);
-    number_ =
+    // TODO(jkummerow): {number_} should have type InternalIndex.
+    InternalIndex entry =
         accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
+    number_ = entry.is_found() ? entry.as_uint32() : kMaxUInt32;
     if (number_ == kMaxUInt32) {
       return holder.IsJSTypedArray(isolate_) ? INTEGER_INDEXED_EXOTIC
                                              : NOT_FOUND;
     }
-    property_details_ = accessor->GetDetails(js_object, number_);
-    if (map.has_frozen_or_sealed_elements()) {
-      PropertyAttributes attrs = map.has_sealed_elements() ? SEALED : FROZEN;
-      property_details_ = property_details_.CopyAddAttributes(attrs);
+    property_details_ = accessor->GetDetails(js_object, InternalIndex(number_));
+    if (map.has_frozen_elements()) {
+      property_details_ = property_details_.CopyAddAttributes(FROZEN);
+    } else if (map.has_sealed_elements()) {
+      property_details_ = property_details_.CopyAddAttributes(SEALED);
     }
   } else if (!map.is_dictionary_map()) {
     DescriptorArray descriptors = map.instance_descriptors(isolate_);
-    int number = descriptors.SearchWithCache(isolate_, *name_, map);
-    if (number == DescriptorArray::kNotFound) return NotFound(holder);
-    number_ = static_cast<uint32_t>(number);
-    property_details_ = descriptors.GetDetails(number_);
+    InternalIndex number = descriptors.SearchWithCache(isolate_, *name_, map);
+    if (number.is_not_found()) return NotFound(holder);
+    number_ = number.as_uint32();
+    property_details_ = descriptors.GetDetails(InternalIndex(number_));
   } else {
     DCHECK_IMPLIES(holder.IsJSProxy(isolate_), name()->IsPrivate(isolate_));
     NameDictionary dict = holder.property_dictionary(isolate_);

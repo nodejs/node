@@ -28,13 +28,3 @@ assert.strictEqual(flist1.free({ id: 'test5' }), false);
 assert.strictEqual(flist1.alloc().id, 'test3');
 assert.strictEqual(flist1.alloc().id, 'test2');
 assert.strictEqual(flist1.alloc().id, 'test1');
-
-// Check list has elements
-const flist2 = new FreeList('flist2', 2, Object);
-assert.strictEqual(flist2.hasItems(), false);
-
-flist2.free({ id: 'test1' });
-assert.strictEqual(flist2.hasItems(), true);
-
-flist2.alloc();
-assert.strictEqual(flist2.hasItems(), false);

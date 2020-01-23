@@ -159,10 +159,13 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
         isolate->handle_scope_implementer());
     TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");
-    TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
-    maybe_result = Execution::TryRunMicrotasks(isolate, this, &maybe_exception);
-    processed_microtask_count =
-        static_cast<int>(finished_microtask_count_ - base_count);
+    {
+      TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
+      maybe_result = Execution::TryRunMicrotasks(isolate, this,
+                                                 &maybe_exception);
+      processed_microtask_count =
+          static_cast<int>(finished_microtask_count_ - base_count);
+    }
     TRACE_EVENT_END1("v8.execute", "RunMicrotasks", "microtask_count",
                      processed_microtask_count);
   }
@@ -249,12 +252,6 @@ Microtask MicrotaskQueue::get(intptr_t index) const {
 }
 
 void MicrotaskQueue::OnCompleted(Isolate* isolate) {
-  // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
-  // set is still open (whether to clear it after every microtask or once
-  // during a microtask checkpoint). See also
-  // https://github.com/tc39/proposal-weakrefs/issues/39 .
-  isolate->heap()->ClearKeptObjects();
-
   FireMicrotasksCompletedCallback(isolate);
 }
 

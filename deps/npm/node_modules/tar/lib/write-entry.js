@@ -231,7 +231,7 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       er.path = this.absolute
       er.syscall = 'read'
       er.code = 'EOF'
-      this[CLOSE](fd)
+      this[CLOSE](fd, _ => _)
       return this.emit('error', er)
     }
 
@@ -240,7 +240,7 @@ const WriteEntry = warner(class WriteEntry extends MiniPass {
       er.path = this.absolute
       er.syscall = 'read'
       er.code = 'EOF'
-      this[CLOSE](fd)
+      this[CLOSE](fd, _ => _)
       return this.emit('error', er)
     }
 

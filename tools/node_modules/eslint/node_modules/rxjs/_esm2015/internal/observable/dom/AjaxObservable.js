@@ -315,18 +315,21 @@ export class AjaxResponse {
         this.response = parseXhrResponse(this.responseType, xhr);
     }
 }
-function AjaxErrorImpl(message, xhr, request) {
-    Error.call(this);
-    this.message = message;
-    this.name = 'AjaxError';
-    this.xhr = xhr;
-    this.request = request;
-    this.status = xhr.status;
-    this.responseType = xhr.responseType || request.responseType;
-    this.response = parseXhrResponse(this.responseType, xhr);
-    return this;
-}
-AjaxErrorImpl.prototype = Object.create(Error.prototype);
+const AjaxErrorImpl = (() => {
+    function AjaxErrorImpl(message, xhr, request) {
+        Error.call(this);
+        this.message = message;
+        this.name = 'AjaxError';
+        this.xhr = xhr;
+        this.request = request;
+        this.status = xhr.status;
+        this.responseType = xhr.responseType || request.responseType;
+        this.response = parseXhrResponse(this.responseType, xhr);
+        return this;
+    }
+    AjaxErrorImpl.prototype = Object.create(Error.prototype);
+    return AjaxErrorImpl;
+})();
 export const AjaxError = AjaxErrorImpl;
 function parseJson(xhr) {
     if ('response' in xhr) {

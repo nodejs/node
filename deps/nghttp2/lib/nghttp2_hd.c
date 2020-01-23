@@ -1694,6 +1694,11 @@ static ssize_t hd_inflate_read_huff(nghttp2_hd_inflater *inflater,
     DEBUGF("inflatehd: huffman decoding failed\n");
     return readlen;
   }
+  if (nghttp2_hd_huff_decode_failure_state(&inflater->huff_decode_ctx)) {
+    DEBUGF("inflatehd: huffman decoding failed\n");
+    return NGHTTP2_ERR_HEADER_COMP;
+  }
+
   inflater->left -= (size_t)readlen;
   return readlen;
 }

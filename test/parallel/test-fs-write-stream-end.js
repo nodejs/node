@@ -44,3 +44,17 @@ tmpdir.refresh();
     assert.strictEqual(content, 'a\n');
   }));
 }
+
+{
+  const file = path.join(tmpdir.path, 'write-end-test2.txt');
+  const stream = fs.createWriteStream(file);
+  stream.end();
+
+  let calledOpen = false;
+  stream.on('open', () => {
+    calledOpen = true;
+  });
+  stream.on('finish', common.mustCall(() => {
+    assert.strictEqual(calledOpen, true);
+  }));
+}

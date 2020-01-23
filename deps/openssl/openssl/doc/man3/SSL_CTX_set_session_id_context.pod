@@ -42,7 +42,7 @@ OpenSSL clients will check the session id context returned by the server
 when reusing a session.
 
 The maximum length of the B<sid_ctx> is limited to
-B<SSL_MAX_SSL_SESSION_ID_LENGTH>.
+B<SSL_MAX_SID_CTX_LENGTH>.
 
 =head1 WARNINGS
 
@@ -67,7 +67,7 @@ return the following values:
 =item Z<>0
 
 The length B<sid_ctx_len> of the session id context B<sid_ctx> exceeded
-the maximum allowed length of B<SSL_MAX_SSL_SESSION_ID_LENGTH>. The error
+the maximum allowed length of B<SSL_MAX_SID_CTX_LENGTH>. The error
 is logged to the error stack.
 
 =item Z<>1
@@ -82,7 +82,7 @@ L<ssl(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

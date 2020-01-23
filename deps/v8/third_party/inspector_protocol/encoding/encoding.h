@@ -125,21 +125,32 @@ enum class Error {
   CBOR_INVALID_INT32 = 0x0e,
   CBOR_INVALID_DOUBLE = 0x0f,
   CBOR_INVALID_ENVELOPE = 0x10,
-  CBOR_INVALID_STRING8 = 0x11,
-  CBOR_INVALID_STRING16 = 0x12,
-  CBOR_INVALID_BINARY = 0x13,
-  CBOR_UNSUPPORTED_VALUE = 0x14,
-  CBOR_NO_INPUT = 0x15,
-  CBOR_INVALID_START_BYTE = 0x16,
-  CBOR_UNEXPECTED_EOF_EXPECTED_VALUE = 0x17,
-  CBOR_UNEXPECTED_EOF_IN_ARRAY = 0x18,
-  CBOR_UNEXPECTED_EOF_IN_MAP = 0x19,
-  CBOR_INVALID_MAP_KEY = 0x1a,
-  CBOR_STACK_LIMIT_EXCEEDED = 0x1b,
-  CBOR_TRAILING_JUNK = 0x1c,
-  CBOR_MAP_START_EXPECTED = 0x1d,
-  CBOR_MAP_STOP_EXPECTED = 0x1e,
-  CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED = 0x1f,
+  CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH = 0x11,
+  CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE = 0x12,
+  CBOR_INVALID_STRING8 = 0x13,
+  CBOR_INVALID_STRING16 = 0x14,
+  CBOR_INVALID_BINARY = 0x15,
+  CBOR_UNSUPPORTED_VALUE = 0x16,
+  CBOR_NO_INPUT = 0x17,
+  CBOR_INVALID_START_BYTE = 0x18,
+  CBOR_UNEXPECTED_EOF_EXPECTED_VALUE = 0x19,
+  CBOR_UNEXPECTED_EOF_IN_ARRAY = 0x1a,
+  CBOR_UNEXPECTED_EOF_IN_MAP = 0x1b,
+  CBOR_INVALID_MAP_KEY = 0x1c,
+  CBOR_STACK_LIMIT_EXCEEDED = 0x1d,
+  CBOR_TRAILING_JUNK = 0x1e,
+  CBOR_MAP_START_EXPECTED = 0x1f,
+  CBOR_MAP_STOP_EXPECTED = 0x20,
+  CBOR_ARRAY_START_EXPECTED = 0x21,
+  CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED = 0x22,
+
+  BINDINGS_MANDATORY_FIELD_MISSING = 0x23,
+  BINDINGS_BOOL_VALUE_EXPECTED = 0x24,
+  BINDINGS_INT32_VALUE_EXPECTED = 0x25,
+  BINDINGS_DOUBLE_VALUE_EXPECTED = 0x26,
+  BINDINGS_STRING_VALUE_EXPECTED = 0x27,
+  BINDINGS_STRING8_VALUE_EXPECTED = 0x28,
+  BINDINGS_BINARY_VALUE_EXPECTED = 0x29,
 };
 
 // A status value with position that can be copied. The default status
@@ -417,6 +428,17 @@ class CBORTokenizer {
   span<uint8_t> GetBinary() const;
 
   // To be called only if ::TokenTag() == CBORTokenTag::ENVELOPE.
+  // Returns the envelope including its payload; message which
+  // can be passed to the CBORTokenizer constructor, which will
+  // then see the envelope token first (looking at it a second time,
+  // basically).
+  span<uint8_t> GetEnvelope() const;
+
+  // To be called only if ::TokenTag() == CBORTokenTag::ENVELOPE.
+  // Returns only the payload inside the envelope, e.g., a map
+  // or an array. This is not a complete message by our
+  // IsCBORMessage definition, since it doesn't include the
+  // enclosing envelope (the header, basically).
   span<uint8_t> GetEnvelopeContents() const;
 
  private:

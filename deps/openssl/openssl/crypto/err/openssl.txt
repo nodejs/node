@@ -314,6 +314,7 @@ CMS_F_CMS_SIGNERINFO_VERIFY:152:CMS_SignerInfo_verify
 CMS_F_CMS_SIGNERINFO_VERIFY_CERT:153:cms_signerinfo_verify_cert
 CMS_F_CMS_SIGNERINFO_VERIFY_CONTENT:154:CMS_SignerInfo_verify_content
 CMS_F_CMS_SIGN_RECEIPT:163:CMS_sign_receipt
+CMS_F_CMS_SI_CHECK_ATTRIBUTES:183:CMS_si_check_attributes
 CMS_F_CMS_STREAM:155:CMS_stream
 CMS_F_CMS_UNCOMPRESS:156:CMS_uncompress
 CMS_F_CMS_VERIFY:157:CMS_verify
@@ -713,11 +714,14 @@ ENGINE_F_INT_ENGINE_CONFIGURE:188:int_engine_configure
 ENGINE_F_INT_ENGINE_MODULE_INIT:187:int_engine_module_init
 ENGINE_F_OSSL_HMAC_INIT:200:ossl_hmac_init
 EVP_F_AESNI_INIT_KEY:165:aesni_init_key
+EVP_F_AESNI_XTS_INIT_KEY:207:aesni_xts_init_key
 EVP_F_AES_GCM_CTRL:196:aes_gcm_ctrl
 EVP_F_AES_INIT_KEY:133:aes_init_key
 EVP_F_AES_OCB_CIPHER:169:aes_ocb_cipher
 EVP_F_AES_T4_INIT_KEY:178:aes_t4_init_key
+EVP_F_AES_T4_XTS_INIT_KEY:208:aes_t4_xts_init_key
 EVP_F_AES_WRAP_CIPHER:170:aes_wrap_cipher
+EVP_F_AES_XTS_INIT_KEY:209:aes_xts_init_key
 EVP_F_ALG_MODULE_INIT:177:alg_module_init
 EVP_F_ARIA_CCM_INIT_KEY:175:aria_ccm_init_key
 EVP_F_ARIA_GCM_CTRL:197:aria_gcm_ctrl
@@ -808,6 +812,7 @@ EVP_F_PKCS5_V2_SCRYPT_KEYIVGEN:180:PKCS5_v2_scrypt_keyivgen
 EVP_F_PKEY_SET_TYPE:158:pkey_set_type
 EVP_F_RC2_MAGIC_TO_METH:109:rc2_magic_to_meth
 EVP_F_RC5_CTRL:125:rc5_ctrl
+EVP_F_R_32_12_16_INIT_KEY:242:r_32_12_16_init_key
 EVP_F_S390X_AES_GCM_CTRL:201:s390x_aes_gcm_ctrl
 EVP_F_UPDATE:173:update
 KDF_F_PKEY_HKDF_CTRL_STR:103:pkey_hkdf_ctrl_str
@@ -1020,6 +1025,7 @@ RAND_F_RAND_POOL_ADD_BEGIN:113:rand_pool_add_begin
 RAND_F_RAND_POOL_ADD_END:114:rand_pool_add_end
 RAND_F_RAND_POOL_ATTACH:124:rand_pool_attach
 RAND_F_RAND_POOL_BYTES_NEEDED:115:rand_pool_bytes_needed
+RAND_F_RAND_POOL_GROW:125:rand_pool_grow
 RAND_F_RAND_POOL_NEW:116:rand_pool_new
 RAND_F_RAND_WRITE_FILE:112:RAND_write_file
 RSA_F_CHECK_PADDING_MD:140:check_padding_md
@@ -1930,6 +1936,7 @@ BN_R_P_IS_NOT_PRIME:112:p is not prime
 BN_R_TOO_MANY_ITERATIONS:113:too many iterations
 BN_R_TOO_MANY_TEMPORARY_VARIABLES:109:too many temporary variables
 CMS_R_ADD_SIGNER_ERROR:99:add signer error
+CMS_R_ATTRIBUTE_ERROR:161:attribute error
 CMS_R_CERTIFICATE_ALREADY_PRESENT:175:certificate already present
 CMS_R_CERTIFICATE_HAS_NO_KEYID:160:certificate has no keyid
 CMS_R_CERTIFICATE_VERIFY_ERROR:100:certificate verify error
@@ -2094,6 +2101,7 @@ DSA_R_DECODE_ERROR:104:decode error
 DSA_R_INVALID_DIGEST_TYPE:106:invalid digest type
 DSA_R_INVALID_PARAMETERS:112:invalid parameters
 DSA_R_MISSING_PARAMETERS:101:missing parameters
+DSA_R_MISSING_PRIVATE_KEY:111:missing private key
 DSA_R_MODULUS_TOO_LARGE:103:modulus too large
 DSA_R_NO_PARAMETERS_SET:107:no parameters set
 DSA_R_PARAMETER_ENCODING_ERROR:105:parameter encoding error
@@ -2218,6 +2226,7 @@ ENGINE_R_VERSION_INCOMPATIBILITY:145:version incompatibility
 EVP_R_AES_KEY_SETUP_FAILED:143:aes key setup failed
 EVP_R_ARIA_KEY_SETUP_FAILED:176:aria key setup failed
 EVP_R_BAD_DECRYPT:100:bad decrypt
+EVP_R_BAD_KEY_LENGTH:195:bad key length
 EVP_R_BUFFER_TOO_SMALL:155:buffer too small
 EVP_R_CAMELLIA_KEY_SETUP_FAILED:157:camellia key setup failed
 EVP_R_CIPHER_PARAMETER_ERROR:122:cipher parameter error
@@ -2287,6 +2296,7 @@ EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM:118:unsupported private key algorithm
 EVP_R_UNSUPPORTED_SALT_TYPE:126:unsupported salt type
 EVP_R_WRAP_MODE_NOT_ALLOWED:170:wrap mode not allowed
 EVP_R_WRONG_FINAL_BLOCK_LENGTH:109:wrong final block length
+EVP_R_XTS_DUPLICATED_KEYS:183:xts duplicated keys
 KDF_R_INVALID_DIGEST:100:invalid digest
 KDF_R_MISSING_ITERATION_COUNT:109:missing iteration count
 KDF_R_MISSING_KEY:104:missing key
@@ -2527,6 +2537,7 @@ RSA_R_KEY_PRIME_NUM_INVALID:165:key prime num invalid
 RSA_R_KEY_SIZE_TOO_SMALL:120:key size too small
 RSA_R_LAST_OCTET_INVALID:134:last octet invalid
 RSA_R_MGF1_DIGEST_NOT_ALLOWED:152:mgf1 digest not allowed
+RSA_R_MISSING_PRIVATE_KEY:179:missing private key
 RSA_R_MODULUS_TOO_LARGE:105:modulus too large
 RSA_R_MP_COEFFICIENT_NOT_INVERSE_OF_R:168:mp coefficient not inverse of r
 RSA_R_MP_EXPONENT_NOT_CONGRUENT_TO_D:169:mp exponent not congruent to d
@@ -3003,6 +3014,7 @@ X509_R_CERT_ALREADY_IN_HASH_TABLE:101:cert already in hash table
 X509_R_CRL_ALREADY_DELTA:127:crl already delta
 X509_R_CRL_VERIFY_FAILURE:131:crl verify failure
 X509_R_IDP_MISMATCH:128:idp mismatch
+X509_R_INVALID_ATTRIBUTES:138:invalid attributes
 X509_R_INVALID_DIRECTORY:113:invalid directory
 X509_R_INVALID_FIELD_NAME:119:invalid field name
 X509_R_INVALID_TRUST:123:invalid trust

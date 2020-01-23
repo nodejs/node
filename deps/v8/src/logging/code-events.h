@@ -89,6 +89,7 @@ class CodeEventListener {
   virtual void RegExpCodeCreateEvent(AbstractCode code, String source) = 0;
   virtual void CodeMoveEvent(AbstractCode from, AbstractCode to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
+  virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(AbstractCode code,
                                    SharedFunctionInfo shared) = 0;
@@ -163,6 +164,9 @@ class CodeEventDispatcher {
   }
   void SharedFunctionInfoMoveEvent(Address from, Address to) {
     CODE_EVENT_DISPATCH(SharedFunctionInfoMoveEvent(from, to));
+  }
+  void NativeContextMoveEvent(Address from, Address to) {
+    CODE_EVENT_DISPATCH(NativeContextMoveEvent(from, to));
   }
   void CodeMovingGCEvent() { CODE_EVENT_DISPATCH(CodeMovingGCEvent()); }
   void CodeDisableOptEvent(AbstractCode code, SharedFunctionInfo shared) {

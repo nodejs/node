@@ -3,8 +3,6 @@ var path = require('path')
 var existsSync = fs.existsSync || path.existsSync
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
@@ -37,7 +35,6 @@ var scopedDependency = {
 }
 
 test('setup', function (t) {
-  rimraf.sync(root)
   mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
@@ -56,7 +53,6 @@ test('setup', function (t) {
     JSON.stringify(scopedDependency, null, 2)
   )
 
-  process.chdir(pkg)
   t.end()
 })
 
@@ -116,12 +112,6 @@ test('installing already installed local scoped package', function (t) {
       )
     }
   )
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(root)
-  t.end()
 })
 
 function contains (list, element) {

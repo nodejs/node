@@ -111,11 +111,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
           copy->map(isolate).instance_descriptors(isolate), isolate);
-      int limit = copy->map(isolate).NumberOfOwnDescriptors();
-      for (int i = 0; i < limit; i++) {
-        DCHECK_EQ(kField, descriptors->GetDetails(i).location());
-        DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
-        FieldIndex index = FieldIndex::ForDescriptor(copy->map(isolate), i);
+      for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
+        PropertyDetails details = descriptors->GetDetails(i);
+        DCHECK_EQ(kField, details.location());
+        DCHECK_EQ(kData, details.kind());
+        FieldIndex index = FieldIndex::ForPropertyIndex(
+            copy->map(isolate), details.field_index(),
+            details.representation());
         if (copy->IsUnboxedDoubleField(isolate, index)) continue;
         Object raw = copy->RawFastPropertyAt(isolate, index);
         if (raw.IsJSObject(isolate)) {
@@ -123,11 +125,9 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
           if (copying) copy->FastPropertyAtPut(index, *value);
-        } else if (copying && raw.IsMutableHeapNumber(isolate)) {
-          DCHECK(descriptors->GetDetails(i).representation().IsDouble());
-          uint64_t double_value = MutableHeapNumber::cast(raw).value_as_bits();
-          auto value =
-              isolate->factory()->NewMutableHeapNumberFromBits(double_value);
+        } else if (copying && details.representation().IsDouble()) {
+          uint64_t double_value = HeapNumber::cast(raw).value_as_bits();
+          auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
         }
       }
@@ -154,8 +154,10 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements(isolate)),
                                   isolate);
@@ -592,10 +594,11 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
-    DCHECK(maybe_vector->IsFeedbackVector());
+  Handle<FeedbackVector> vector;
+  if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+  } else {
+    DCHECK(maybe_vector->IsUndefined());
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
@@ -629,10 +632,11 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
-    DCHECK(maybe_vector->IsFeedbackVector());
+  Handle<FeedbackVector> vector;
+  if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+  } else {
+    DCHECK(maybe_vector->IsUndefined());
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ArrayLiteralHelper>(
@@ -646,34 +650,37 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
-  if (!maybe_vector->IsUndefined()) {
-    DCHECK(maybe_vector->IsFeedbackVector());
+
+  Handle<FeedbackVector> vector;
+  if (maybe_vector->IsFeedbackVector()) {
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+  } else {
+    DCHECK(maybe_vector->IsUndefined());
   }
-  Handle<Object> boilerplate;
   if (vector.is_null()) {
+    Handle<JSRegExp> new_regexp;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, boilerplate,
+        isolate, new_regexp,
         JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
-    return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+    return *new_regexp;
   }
 
-  // Check if boilerplate exists. If not, create it first.
+  // This function assumes that the boilerplate does not yet exist.
+  FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
   Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
                               isolate);
-  if (!HasBoilerplate(literal_site)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, boilerplate,
-        JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
-    if (IsUninitializedLiteralSite(*literal_site)) {
-      PreInitializeLiteralSite(vector, literal_slot);
-      return *boilerplate;
-    }
-    vector->Set(literal_slot, *boilerplate);
+  CHECK(!HasBoilerplate(literal_site));
+
+  Handle<JSRegExp> boilerplate;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, boilerplate,
+      JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
+  if (IsUninitializedLiteralSite(*literal_site)) {
+    PreInitializeLiteralSite(vector, literal_slot);
+    return *boilerplate;
   }
-  return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+  vector->Set(literal_slot, *boilerplate);
+  return *JSRegExp::Copy(boilerplate);
 }
 
 }  // namespace internal

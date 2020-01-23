@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-numberformat-unified
-//
 // Test the handling of "percent" w/ "unit"
 
 let nf1 = new Intl.NumberFormat("en-US", {

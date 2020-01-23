@@ -342,7 +342,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
   serializer_->SerializeObject(map);
 }
 
-int32_t Serializer::ObjectSerializer::SerializeBackingStore(
+uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
     void* backing_store, int32_t byte_length) {
   SerializerReference reference =
       serializer_->reference_map()->LookupReference(backing_store);
@@ -358,13 +358,15 @@ int32_t Serializer::ObjectSerializer::SerializeBackingStore(
     serializer_->reference_map()->Add(backing_store, reference);
   }
 
-  return static_cast<int32_t>(reference.off_heap_backing_store_index());
+  return reference.off_heap_backing_store_index();
 }
 
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   JSTypedArray typed_array = JSTypedArray::cast(object_);
-  if (!typed_array.WasDetached()) {
-    if (!typed_array.is_on_heap()) {
+  if (typed_array.is_on_heap()) {
+    typed_array.RemoveExternalPointerCompensationForSerialization();
+  } else {
+    if (!typed_array.WasDetached()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array.buffer());
       CHECK_LE(buffer.byte_length(), Smi::kMaxValue);
@@ -372,21 +374,20 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
       int32_t byte_offset = static_cast<int32_t>(typed_array.byte_offset());
 
-      // We need to calculate the backing store from the external pointer
+      // We need to calculate the backing store from the data pointer
       // because the ArrayBuffer may already have been serialized.
       void* backing_store = reinterpret_cast<void*>(
-          reinterpret_cast<intptr_t>(typed_array.external_pointer()) -
-          byte_offset);
-      int32_t ref = SerializeBackingStore(backing_store, byte_length);
+          reinterpret_cast<Address>(typed_array.DataPtr()) - byte_offset);
 
-      // The external_pointer is the backing_store + typed_array->byte_offset.
-      // To properly share the buffer, we set the backing store ref here. On
-      // deserialization we re-add the byte_offset to external_pointer.
-      typed_array.set_external_pointer(
-          reinterpret_cast<void*>(Smi::FromInt(ref).ptr()));
+      uint32_t ref = SerializeBackingStore(backing_store, byte_length);
+      // To properly share the buffer, we set the backing store ref as an
+      // off-heap offset from nullptr. On deserialization we re-set data
+      // pointer to proper value.
+      typed_array.SetOffHeapDataPtr(nullptr, ref);
+      DCHECK_EQ(ref, reinterpret_cast<Address>(typed_array.DataPtr()));
+    } else {
+      typed_array.SetOffHeapDataPtr(nullptr, 0);
     }
-  } else {
-    typed_array.set_external_pointer(nullptr);
   }
   SerializeObject();
 }
@@ -400,8 +401,11 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {
-    int32_t ref = SerializeBackingStore(backing_store, byte_length);
-    buffer.set_backing_store(reinterpret_cast<void*>(Smi::FromInt(ref).ptr()));
+    uint32_t ref = SerializeBackingStore(backing_store, byte_length);
+    // To properly share the buffer, we set the backing store ref as an
+    // a backing store address. On deserialization we re-set data pointer
+    // to proper value.
+    buffer.set_backing_store(reinterpret_cast<void*>(static_cast<size_t>(ref)));
   }
   SerializeObject();
   buffer.set_backing_store(backing_store);

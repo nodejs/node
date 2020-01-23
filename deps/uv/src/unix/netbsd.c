@@ -55,7 +55,7 @@ void uv_loadavg(double avg[3]) {
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_LOADAVG};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0) == -1) return;
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) == -1) return;
 
   avg[0] = (double) info.ldavg[0] / info.fscale;
   avg[1] = (double) info.ldavg[1] / info.fscale;
@@ -102,7 +102,7 @@ uint64_t uv_get_free_memory(void) {
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_UVMEXP};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0))
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return UV__ERR(errno);
 
   return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
@@ -119,7 +119,7 @@ uint64_t uv_get_total_memory(void) {
 #endif
   size_t size = sizeof(info);
 
-  if (sysctl(which, 2, &info, &size, NULL, 0))
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return UV__ERR(errno);
 
   return (uint64_t) info;
@@ -167,7 +167,7 @@ int uv_uptime(double* uptime) {
   size_t size = sizeof(info);
   static int which[] = {CTL_KERN, KERN_BOOTTIME};
 
-  if (sysctl(which, 2, &info, &size, NULL, 0))
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return UV__ERR(errno);
 
   now = time(NULL);
@@ -235,13 +235,25 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   return 0;
 }
 
+int uv__random_sysctl(void* buf, size_t len) {
+  static int name[] = {CTL_KERN, KERN_ARND};
+  size_t count, req;
+  unsigned char* p;
 
-void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
-  int i;
+  p = buf;
+  while (len) {
+    req = len < 32 ? len : 32;
+    count = req;
 
-  for (i = 0; i < count; i++) {
-    uv__free(cpu_infos[i].model);
+    if (sysctl(name, ARRAY_SIZE(name), p, &count, NULL, 0) == -1)
+      return UV__ERR(errno);
+
+    if (count != req)
+      return UV_EIO;  /* Can't happen. */
+
+    p += count;
+    len -= count;
   }
 
-  uv__free(cpu_infos);
+  return 0;
 }

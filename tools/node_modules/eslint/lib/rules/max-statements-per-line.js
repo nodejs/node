@@ -61,7 +61,6 @@ module.exports = {
 
         /**
          * Reports with the first extra statement, and clears it.
-         *
          * @returns {void}
          */
         function reportFirstExtraStatementAndClear() {
@@ -81,8 +80,7 @@ module.exports = {
 
         /**
          * Gets the actual last token of a given node.
-         *
-         * @param {ASTNode} node - A node to get. This is a node except EmptyStatement.
+         * @param {ASTNode} node A node to get. This is a node except EmptyStatement.
          * @returns {Token} The actual last token.
          */
         function getActualLastToken(node) {
@@ -92,8 +90,7 @@ module.exports = {
         /**
          * Addresses a given node.
          * It updates the state of this rule, then reports the node if the node violated this rule.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {void}
          */
         function enterStatement(node) {
@@ -127,8 +124,7 @@ module.exports = {
 
         /**
          * Updates the state of this rule with the end line of leaving node to check with the next statement.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {void}
          */
         function leaveStatement(node) {

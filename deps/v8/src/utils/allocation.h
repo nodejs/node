@@ -89,7 +89,7 @@ V8_EXPORT_PRIVATE v8::PageAllocator* SetPlatformPageAllocatorForTesting(
     v8::PageAllocator* page_allocator);
 
 // Gets the page granularity for AllocatePages and FreePages. Addresses returned
-// by AllocatePages and AllocatePage are aligned to this size.
+// by AllocatePages are aligned to this size.
 V8_EXPORT_PRIVATE size_t AllocatePageSize();
 
 // Gets the granularity at which the permissions and release calls can be made.
@@ -141,13 +141,6 @@ inline bool SetPermissions(v8::PageAllocator* page_allocator, Address address,
   return SetPermissions(page_allocator, reinterpret_cast<void*>(address), size,
                         access);
 }
-
-// Convenience function that allocates a single system page with read and write
-// permissions. |address| is a hint. Returns the base address of the memory and
-// the page size via |allocated| on success. Returns nullptr on failure.
-V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT byte* AllocatePage(v8::PageAllocator* page_allocator,
-                                         void* address, size_t* allocated);
 
 // Function that may release reserved memory regions to allow failed allocations
 // to succeed. |length| is the amount of memory needed. Returns |true| if memory

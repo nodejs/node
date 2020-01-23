@@ -798,13 +798,13 @@ uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
 }  // namespace
 
 // static
-void* OS::Allocate(void* address, size_t size, size_t alignment,
+void* OS::Allocate(void* hint, size_t size, size_t alignment,
                    MemoryPermission access) {
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
   DCHECK_LE(page_size, alignment);
-  address = AlignedAddress(address, alignment);
+  hint = AlignedAddress(hint, alignment);
 
   DWORD flags = (access == OS::MemoryPermission::kNoAccess)
                     ? MEM_RESERVE
@@ -812,7 +812,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   DWORD protect = GetProtectionFromMemoryPermission(access);
 
   // First, try an exact size aligned allocation.
-  uint8_t* base = RandomizedVirtualAlloc(size, flags, protect, address);
+  uint8_t* base = RandomizedVirtualAlloc(size, flags, protect, hint);
   if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
   // If address is suitably aligned, we're done.
@@ -824,7 +824,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   CHECK(Free(base, size));
 
   // Clear the hint. It's unlikely we can allocate at this address.
-  address = nullptr;
+  hint = nullptr;
 
   // Add the maximum misalignment so we are guaranteed an aligned base address
   // in the allocated region.
@@ -832,7 +832,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   const int kMaxAttempts = 3;
   aligned_base = nullptr;
   for (int i = 0; i < kMaxAttempts; ++i) {
-    base = RandomizedVirtualAlloc(padded_size, flags, protect, address);
+    base = RandomizedVirtualAlloc(padded_size, flags, protect, hint);
     if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
     // Try to trim the allocation by freeing the padded allocation and then
@@ -1352,12 +1352,12 @@ Thread::~Thread() {
 // Create a new thread. It is important to use _beginthreadex() instead of
 // the Win32 function CreateThread(), because the CreateThread() does not
 // initialize thread specific structures in the C runtime library.
-void Thread::Start() {
-  data_->thread_ = reinterpret_cast<HANDLE>(
-      _beginthreadex(nullptr, static_cast<unsigned>(stack_size_), ThreadEntry,
-                     this, 0, &data_->thread_id_));
+bool Thread::Start() {
+  uintptr_t result = _beginthreadex(nullptr, static_cast<unsigned>(stack_size_),
+                                    ThreadEntry, this, 0, &data_->thread_id_);
+  data_->thread_ = reinterpret_cast<HANDLE>(result);
+  return result != 0;
 }
-
 
 // Wait for thread to terminate.
 void Thread::Join() {

@@ -101,6 +101,14 @@ constexpr int kStackSpaceRequiredForCompilation = 40;
 #define V8_OS_WIN_X64 true
 #endif
 
+#if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_ARM64)
+#define V8_OS_WIN_ARM64 true
+#endif
+
+#if defined(V8_OS_WIN_X64) || defined(V8_OS_WIN_ARM64)
+#define V8_OS_WIN64 true
+#endif
+
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {
@@ -158,13 +166,14 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
+constexpr size_t kMaxWasmCodeMB = 1024;
+constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 #if V8_TARGET_ARCH_ARM64
 // ARM64 only supports direct calls within a 128 MB range.
-constexpr size_t kMaxWasmCodeMB = 128;
+constexpr size_t kMaxWasmCodeSpaceSize = 128 * MB;
 #else
-constexpr size_t kMaxWasmCodeMB = 1024;
+constexpr size_t kMaxWasmCodeSpaceSize = kMaxWasmCodeMemory;
 #endif
-constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
@@ -222,7 +231,7 @@ constexpr int kTaggedSizeLog2 = 2;
 
 // These types define raw and atomic storage types for tagged values stored
 // on V8 heap.
-using Tagged_t = int32_t;
+using Tagged_t = uint32_t;
 using AtomicTagged_t = base::Atomic32;
 
 #else
@@ -236,11 +245,6 @@ using Tagged_t = Address;
 using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
-
-// Defines whether the branchless or branchful implementation of pointer
-// decompression should be used.
-constexpr bool kUseBranchlessPtrDecompressionInRuntime = false;
-constexpr bool kUseBranchlessPtrDecompressionInGeneratedCode = false;
 
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
 STATIC_ASSERT((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
@@ -396,6 +400,7 @@ enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 // Enums used by CEntry.
 enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
 enum ArgvMode { kArgvOnStack, kArgvInRegister };
+enum FunctionDescriptorMode { kNoFunctionDescriptor, kHasFunctionDescriptor };
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
@@ -787,8 +792,6 @@ enum InlineCacheState {
   NO_FEEDBACK,
   // Has never been executed.
   UNINITIALIZED,
-  // Has been executed but monomorphic state has been delayed.
-  PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
   MONOMORPHIC,
   // Check failed due to prototype (or map deprecation).
@@ -808,8 +811,6 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "NOFEEDBACK";
     case UNINITIALIZED:
       return "UNINITIALIZED";
-    case PREMONOMORPHIC:
-      return "PREMONOMORPHIC";
     case MONOMORPHIC:
       return "MONOMORPHIC";
     case RECOMPUTE_HANDLER:
@@ -882,14 +883,14 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((static_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+  ((static_cast<i::Tagged_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
 
-#define HAS_STRONG_HEAP_OBJECT_TAG(value)                       \
-  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_STRONG_HEAP_OBJECT_TAG(value)                          \
+  (((static_cast<i::Tagged_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kHeapObjectTag))
 
-#define HAS_WEAK_HEAP_OBJECT_TAG(value)                         \
-  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_WEAK_HEAP_OBJECT_TAG(value)                            \
+  (((static_cast<i::Tagged_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kWeakHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
@@ -1060,6 +1061,25 @@ enum class VariableMode : uint8_t {
                   // has been shadowed by an eval-introduced
                   // variable
 
+  // Variables for private methods or accessors whose access require
+  // brand check. Declared only in class scopes by the compiler
+  // and allocated only in class contexts:
+  kPrivateMethod,  // Does not coexist with any other variable with the same
+                   // name in the same scope.
+
+  kPrivateSetterOnly,  // Incompatible with variables with the same name but
+                       // any mode other than kPrivateGetterOnly. Transition to
+                       // kPrivateGetterAndSetter if a later declaration for the
+                       // same name with kPrivateGetterOnly is made.
+
+  kPrivateGetterOnly,  // Incompatible with variables with the same name but
+                       // any mode other than kPrivateSetterOnly. Transition to
+                       // kPrivateGetterAndSetter if a later declaration for the
+                       // same name with kPrivateSetterOnly is made.
+
+  kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
+                            // same name in the same scope.
+
   kLastLexicalVariableMode = kConst,
 };
 
@@ -1071,6 +1091,14 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "VAR";
     case VariableMode::kLet:
       return "LET";
+    case VariableMode::kPrivateGetterOnly:
+      return "PRIVATE_GETTER_ONLY";
+    case VariableMode::kPrivateSetterOnly:
+      return "PRIVATE_SETTER_ONLY";
+    case VariableMode::kPrivateMethod:
+      return "PRIVATE_METHOD";
+    case VariableMode::kPrivateGetterAndSetter:
+      return "PRIVATE_GETTER_AND_SETTER";
     case VariableMode::kConst:
       return "CONST";
     case VariableMode::kDynamic:
@@ -1102,6 +1130,21 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
   return mode <= VariableMode::kVar;
+}
+
+inline bool IsPrivateMethodOrAccessorVariableMode(VariableMode mode) {
+  return mode >= VariableMode::kPrivateMethod &&
+         mode <= VariableMode::kPrivateGetterAndSetter;
+}
+
+inline bool IsSerializableVariableMode(VariableMode mode) {
+  return IsDeclaredVariableMode(mode) ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
+}
+
+inline bool IsConstVariableMode(VariableMode mode) {
+  return mode == VariableMode::kConst ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
 }
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
@@ -1166,9 +1209,11 @@ enum VariableLocation : uint8_t {
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
-enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
+// Static variables can only be used with the class in the closest
+// class scope as receivers.
+enum class IsStaticFlag : uint8_t { kNotStatic, kStatic };
 
-enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
+enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 enum class InterpreterPushArgsMode : unsigned {
   kArrayFunction,
@@ -1498,12 +1543,12 @@ enum KeyedAccessStoreMode {
 
 enum MutableMode { MUTABLE, IMMUTABLE };
 
-static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
+inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_HANDLE_COW ||
          store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
-static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
+inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
@@ -1534,6 +1579,11 @@ constexpr int kSmallOrderedHashMapMinCapacity = 4;
 // ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
 // has correct value range (see Issue 830 for more details).
 enum StackFrameId { ID_MIN_VALUE = kMinInt, ID_MAX_VALUE = kMaxInt, NO_ID = 0 };
+
+enum class ExceptionStatus : bool { kException = false, kSuccess = true };
+V8_INLINE bool operator!(ExceptionStatus status) {
+  return !static_cast<bool>(status);
+}
 
 }  // namespace internal
 }  // namespace v8

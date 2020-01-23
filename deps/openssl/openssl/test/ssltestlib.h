@@ -30,6 +30,9 @@ void bio_f_tls_dump_filter_free(void);
 const BIO_METHOD *bio_s_mempacket_test(void);
 void bio_s_mempacket_test_free(void);
 
+const BIO_METHOD *bio_s_always_retry(void);
+void bio_s_always_retry_free(void);
+
 /* Packet types - value 0 is reserved */
 #define INJECT_PACKET                   1
 #define INJECT_PACKET_IGNORE_REC_SEQ    2

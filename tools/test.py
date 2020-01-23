@@ -29,7 +29,6 @@
 
 
 from __future__ import print_function
-import imp
 import logging
 import optparse
 import os
@@ -45,6 +44,28 @@ import multiprocessing
 import errno
 import copy
 
+
+if sys.version_info >= (3, 5):
+  from importlib import machinery, util
+  def get_module(name, path):
+    loader_details = (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES)
+    spec = machinery.FileFinder(path, loader_details).find_spec(name)
+    module = util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+else:
+  import imp
+  def get_module(name, path):
+    file = None
+    try:
+      (file, pathname, description) = imp.find_module(name, [path])
+      return imp.load_module(name, file, pathname, description)
+    finally:
+      if file:
+        file.close()
+
+
+from io import open
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
 try:
@@ -705,6 +726,10 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False, std
   if "NODE_PATH" in env_copy:
     del env_copy["NODE_PATH"]
 
+  # Remove NODE_REPL_EXTERNAL_MODULE
+  if "NODE_REPL_EXTERNAL_MODULE" in env_copy:
+    del env_copy["NODE_REPL_EXTERNAL_MODULE"]
+
   # Extend environment
   for key, value in env.items():
     env_copy[key] = value
@@ -729,8 +754,8 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False, std
   )
   os.close(fd_out)
   os.close(fd_err)
-  output = open(outname).read()
-  errors = open(errname).read()
+  output = open(outname, encoding='utf8').read()
+  errors = open(errname, encoding='utf8').read()
   CheckedUnlink(outname)
   CheckedUnlink(errname)
 
@@ -786,18 +811,13 @@ class TestRepository(TestSuite):
     if self.is_loaded:
       return self.config
     self.is_loaded = True
-    file = None
-    try:
-      (file, pathname, description) = imp.find_module('testcfg', [ self.path ])
-      module = imp.load_module('testcfg', file, pathname, description)
-      self.config = module.GetConfiguration(context, self.path)
-      if hasattr(self.config, 'additional_flags'):
-        self.config.additional_flags += context.node_args
-      else:
-        self.config.additional_flags = context.node_args
-    finally:
-      if file:
-        file.close()
+
+    module = get_module('testcfg', self.path)
+    self.config = module.GetConfiguration(context, self.path)
+    if hasattr(self.config, 'additional_flags'):
+      self.config.additional_flags += context.node_args
+    else:
+      self.config.additional_flags = context.node_args
     return self.config
 
   def GetBuildRequirements(self, path, context):
@@ -1514,7 +1534,7 @@ def Main():
   logger.addHandler(ch)
   logger.setLevel(logging.INFO)
   if options.logfile:
-    fh = logging.FileHandler(options.logfile, mode='wb')
+    fh = logging.FileHandler(options.logfile, encoding='utf-8', mode='w')
     logger.addHandler(fh)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))

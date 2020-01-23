@@ -41,7 +41,7 @@ module.exports = {
         /**
          * Determine if provided keyword is a variant of for specifiers
          * @private
-         * @param {string} keyword - keyword to test
+         * @param {string} keyword keyword to test
          * @returns {boolean} True if `keyword` is a variant of for specifier
          */
         function isForTypeSpecifier(keyword) {
@@ -51,7 +51,7 @@ module.exports = {
         /**
          * Checks newlines around variable declarations.
          * @private
-         * @param {ASTNode} node - `VariableDeclaration` node to test
+         * @param {ASTNode} node `VariableDeclaration` node to test
          * @returns {void}
          */
         function checkForNewLine(node) {

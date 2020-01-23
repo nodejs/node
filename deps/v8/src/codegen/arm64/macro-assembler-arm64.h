@@ -83,6 +83,12 @@ inline MemOperand FieldMemOperand(Register object, int offset);
 // ----------------------------------------------------------------------------
 // MacroAssembler
 
+#if defined(V8_OS_WIN)
+// This offset is originated from PushCalleeSavedRegisters.
+static constexpr int kFramePointerOffsetInPushCalleeSavedRegisters =
+    10 * kSystemPointerSize;
+#endif  // V8_OS_WIN
+
 enum BranchType {
   // Copies of architectural conditions.
   // The associated conditions can be used in place of those, the code will
@@ -515,6 +521,46 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Cbnz(const Register& rt, Label* label);
   void Cbz(const Register& rt, Label* label);
 
+  void Paciasp() {
+    DCHECK(allow_macro_instructions_);
+    paciasp();
+  }
+  void Autiasp() {
+    DCHECK(allow_macro_instructions_);
+    autiasp();
+  }
+
+  // The 1716 pac and aut instructions encourage people to use x16 and x17
+  // directly, perhaps without realising that this is forbidden. For example:
+  //
+  //     UseScratchRegisterScope temps(&masm);
+  //     Register temp = temps.AcquireX();  // temp will be x16
+  //     __ Mov(x17, ptr);
+  //     __ Mov(x16, modifier);  // Will override temp!
+  //     __ Pacia1716();
+  //
+  // To work around this issue, you must exclude x16 and x17 from the scratch
+  // register list. You may need to replace them with other registers:
+  //
+  //     UseScratchRegisterScope temps(&masm);
+  //     temps.Exclude(x16, x17);
+  //     temps.Include(x10, x11);
+  //     __ Mov(x17, ptr);
+  //     __ Mov(x16, modifier);
+  //     __ Pacia1716();
+  void Pacia1716() {
+    DCHECK(allow_macro_instructions_);
+    DCHECK(!TmpList()->IncludesAliasOf(x16));
+    DCHECK(!TmpList()->IncludesAliasOf(x17));
+    pacia1716();
+  }
+  void Autia1716() {
+    DCHECK(allow_macro_instructions_);
+    DCHECK(!TmpList()->IncludesAliasOf(x16));
+    DCHECK(!TmpList()->IncludesAliasOf(x17));
+    autia1716();
+  }
+
   inline void Dmb(BarrierDomain domain, BarrierType type);
   inline void Dsb(BarrierDomain domain, BarrierType type);
   inline void Isb();
@@ -606,6 +652,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                   const Operand& operand);
   inline void Blr(const Register& xn);
   inline void Cmp(const Register& rn, const Operand& operand);
+  inline void CmpTagged(const Register& rn, const Operand& operand);
   inline void Subs(const Register& rd, const Register& rn,
                    const Operand& operand);
   void Csel(const Register& rd, const Register& rn, const Operand& operand,
@@ -797,6 +844,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckPageFlag(const Register& object, int mask, Condition cc,
                      Label* condition_met);
 
+  // Compare a register with an operand, and branch to label depending on the
+  // condition. May corrupt the status flags.
+  inline void CompareAndBranch(const Register& lhs, const Operand& rhs,
+                               Condition cond, Label* label);
+  inline void CompareTaggedAndBranch(const Register& lhs, const Operand& rhs,
+                                     Condition cond, Label* label);
+
   // Test the bits of register defined by bit_pattern, and branch if ANY of
   // those bits are set. May corrupt the status flags.
   inline void TestAndBranchIfAnySet(const Register& reg,
@@ -843,6 +897,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(const ExternalReference& reference) override;
 
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode);
@@ -856,6 +911,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
+  void CallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
@@ -958,6 +1014,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Conditional macros.
   inline void Ccmp(const Register& rn, const Operand& operand, StatusFlags nzcv,
                    Condition cond);
+  inline void CcmpTagged(const Register& rn, const Operand& operand,
+                         StatusFlags nzcv, Condition cond);
 
   inline void Clz(const Register& rd, const Register& rn);
 
@@ -1549,8 +1607,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     tbx(vd, vn, vn2, vn3, vn4, vm);
   }
 
-  void LoadObject(Register result, Handle<Object> object);
-
   inline void PushSizeRegList(
       RegList registers, unsigned reg_size,
       CPURegister::RegisterType type = CPURegister::kRegister) {
@@ -1594,11 +1650,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // higher address than 'dst1'. The offset is in bytes. The stack pointer must
   // be aligned to 16 bytes.
   void PeekPair(const CPURegister& dst1, const CPURegister& dst2, int offset);
-
-  // Compare a register with an operand, and branch to label depending on the
-  // condition. May corrupt the status flags.
-  inline void CompareAndBranch(const Register& lhs, const Operand& rhs,
-                               Condition cond, Label* label);
 
   // Insert one or more instructions into the instruction stream that encode
   // some caller-defined data. The instructions used will be executable with no
@@ -1719,10 +1770,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, Label* done,
                       InvokeFlag flag, bool* definitely_mismatches);
 
-  // On function call, call into the debugger if necessary.
-  void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+  // On function call, call into the debugger.
+  void CallDebugOnFunctionCall(Register fun, Register new_target,
+                               const ParameterCount& expected,
+                               const ParameterCount& actual);
   void InvokeFunctionCode(Register function, Register new_target,
                           const ParameterCount& expected,
                           const ParameterCount& actual, InvokeFlag flag);
@@ -1996,6 +2047,26 @@ class UseScratchRegisterScope {
 
   Register AcquireSameSizeAs(const Register& reg);
   V8_EXPORT_PRIVATE VRegister AcquireSameSizeAs(const VRegister& reg);
+
+  void Include(const CPURegList& list) { available_->Combine(list); }
+  void Exclude(const CPURegList& list) {
+#if DEBUG
+    CPURegList copy(list);
+    while (!copy.IsEmpty()) {
+      const CPURegister& reg = copy.PopHighestIndex();
+      DCHECK(available_->IncludesAliasOf(reg));
+    }
+#endif
+    available_->Remove(list);
+  }
+  void Include(const Register& reg1, const Register& reg2) {
+    CPURegList list(reg1, reg2);
+    Include(list);
+  }
+  void Exclude(const Register& reg1, const Register& reg2) {
+    CPURegList list(reg1, reg2);
+    Exclude(list);
+  }
 
  private:
   V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(

@@ -16,11 +16,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Cell, HeapObject)
-
-CAST_ACCESSOR(Cell)
-
-ACCESSORS(Cell, value, Object, kValueOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Cell)
 
 Cell Cell::FromValueAddress(Address value) {
   return Cell::cast(HeapObject::FromAddress(value - kValueOffset));

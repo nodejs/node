@@ -95,7 +95,7 @@ namespace array_splice {
       const typedNewElements: FixedArrayType =
           UnsafeCast<FixedArrayType>(a.elements);
       for (let i: intptr = 2; i < args.length; ++i) {
-        const e: Object = args[i];
+        const e: JSAny = args[i];
         // The argument elements were already validated to be an appropriate
         // {ElementType} to store in {FixedArrayType}.
         typedNewElements[k++] = UnsafeCast<ElementType>(e);
@@ -109,7 +109,7 @@ namespace array_splice {
   transitioning macro FastArraySplice(
       context: Context, args: Arguments, o: JSReceiver,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
-      actualDeleteCountNumber: Number): Object
+      actualDeleteCountNumber: Number): JSAny
       labels Bailout {
     const originalLength: Smi =
         Cast<Smi>(originalLengthNumber) otherwise Bailout;
@@ -132,7 +132,7 @@ namespace array_splice {
 
     const oldElementsKind: ElementsKind = elementsKind;
     for (let i: intptr = 2; i < args.length; ++i) {
-      const e: Object = args[i];
+      const e: JSAny = args[i];
       if (IsFastSmiElementsKind(elementsKind)) {
         if (TaggedIsNotSmi(e)) {
           const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
@@ -166,7 +166,7 @@ namespace array_splice {
     }
 
     if (IsFastSmiOrTaggedElementsKind(elementsKind)) {
-      FastSplice<FixedArray, Object>(
+      FastSplice<FixedArray, JSAny>(
           args, a, length, newLength, actualStart, insertCount,
           actualDeleteCount);
     } else {
@@ -180,7 +180,7 @@ namespace array_splice {
 
   transitioning macro FillDeletedElementsArray(
       context: Context, o: JSReceiver, actualStart: Number,
-      actualDeleteCount: Number, a: JSReceiver): Object {
+      actualDeleteCount: Number, a: JSReceiver): JSAny {
     // 10. Let k be 0.
     let k: Number = 0;
 
@@ -195,7 +195,7 @@ namespace array_splice {
       // c. If fromPresent is true, then
       if (fromPresent == True) {
         // i. Let fromValue be ? Get(O, from).
-        const fromValue: Object = GetProperty(o, from);
+        const fromValue: JSAny = GetProperty(o, from);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
         FastCreateDataProperty(a, k, fromValue);
@@ -231,7 +231,7 @@ namespace array_splice {
       // iv. If fromPresent is true, then
       if (fromPresent == True) {
         // 1. Let fromValue be ? Get(O, from).
-        const fromValue: Object = GetProperty(o, from);
+        const fromValue: JSAny = GetProperty(o, from);
 
         // 2. Perform ? Set(O, to, fromValue, true).
         SetProperty(o, to, fromValue);
@@ -280,7 +280,7 @@ namespace array_splice {
       // iv. If fromPresent is true, then
       if (fromPresent == True) {
         // 1. Let fromValue be ? Get(O, from).
-        const fromValue: Object = GetProperty(o, from);
+        const fromValue: JSAny = GetProperty(o, from);
 
         // 2. Perform ? Set(O, to, fromValue, true).
         SetProperty(o, to, fromValue);
@@ -298,8 +298,7 @@ namespace array_splice {
 
   transitioning macro SlowSplice(
       context: Context, arguments: Arguments, o: JSReceiver, len: Number,
-      actualStart: Number, insertCount: Smi,
-      actualDeleteCount: Number): Object {
+      actualStart: Number, insertCount: Smi, actualDeleteCount: Number): JSAny {
     // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
     const a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
     const itemCount: Number = insertCount;
@@ -332,7 +331,7 @@ namespace array_splice {
     //   element.
     if (arguments.length > 2) {
       for (let i: intptr = 2; i < arguments.length; ++i) {
-        const e: Object = arguments[i];
+        const e: JSAny = arguments[i];
         // b. Perform ? Set(O, ! ToString(k), E, true).
         SetProperty(o, k, e);
 
@@ -350,8 +349,8 @@ namespace array_splice {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
   transitioning javascript builtin
-  ArrayPrototypeSplice(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  ArrayPrototypeSplice(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 
@@ -359,7 +358,7 @@ namespace array_splice {
     const len: Number = GetLengthProperty(o);
 
     // 3. Let relativeStart be ? ToInteger(start).
-    const start: Object = arguments[0];
+    const start: JSAny = arguments[0];
     const relativeStart: Number = ToInteger_Inline(context, start);
 
     // 4. If relativeStart < 0, let actualStart be max((len + relativeStart),
@@ -388,7 +387,7 @@ namespace array_splice {
       // a. Let insertCount be the Number of actual arguments minus 2.
       insertCount = Convert<Smi>(arguments.length) - 2;
       // b. Let dc be ? ToInteger(deleteCount).
-      const deleteCount: Object = arguments[1];
+      const deleteCount: JSAny = arguments[1];
       const dc: Number = ToInteger_Inline(context, deleteCount);
       // c. Let actualDeleteCount be min(max(dc, 0), len - actualStart).
       actualDeleteCount = Min(Max(dc, 0), len - actualStart);

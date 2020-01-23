@@ -11,7 +11,7 @@
 
 /**
  * Gets the variable object of `arguments` which is defined implicitly.
- * @param {eslint-scope.Scope} scope - A scope to get.
+ * @param {eslint-scope.Scope} scope A scope to get.
  * @returns {eslint-scope.Variable} The found variable object.
  */
 function getVariableOfArguments(scope) {
@@ -41,8 +41,7 @@ function getVariableOfArguments(scope) {
  * - arguments[i]      .... true    // computed member access
  * - arguments[0]      .... true    // computed member access
  * - arguments.length  .... false   // normal member access
- *
- * @param {eslint-scope.Reference} reference - The reference to check.
+ * @param {eslint-scope.Reference} reference The reference to check.
  * @returns {boolean} `true` if the reference is not normal member access.
  */
 function isNotNormalMemberAccess(reference) {
@@ -78,8 +77,7 @@ module.exports = {
 
         /**
          * Reports a given reference.
-         *
-         * @param {eslint-scope.Reference} reference - A reference to report.
+         * @param {eslint-scope.Reference} reference A reference to report.
          * @returns {void}
          */
         function report(reference) {
@@ -92,7 +90,6 @@ module.exports = {
 
         /**
          * Reports references of the implicit `arguments` variable if exist.
-         *
          * @returns {void}
          */
         function checkForArguments() {

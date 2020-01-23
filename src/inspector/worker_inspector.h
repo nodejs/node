@@ -12,6 +12,8 @@
 
 namespace node {
 namespace inspector {
+class InspectorSession;
+class InspectorSessionDelegate;
 class MainThreadHandle;
 class WorkerManager;
 
@@ -68,6 +70,9 @@ class ParentInspectorHandle {
     return wait_;
   }
   const std::string& url() const { return url_; }
+  std::unique_ptr<inspector::InspectorSession> Connect(
+      std::unique_ptr<inspector::InspectorSessionDelegate> delegate,
+      bool prevent_shutdown);
 
  private:
   int id_;

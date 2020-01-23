@@ -11,7 +11,7 @@
 
 /**
  * Checks whether or not a given variable is a function name.
- * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable A variable to check.
  * @returns {boolean} `true` if the variable is a function name.
  */
 function isFunctionName(variable) {
@@ -20,9 +20,9 @@ function isFunctionName(variable) {
 
 /**
  * Checks whether or not a given MetaProperty node equals to a given value.
- * @param {ASTNode} node - A MetaProperty node to check.
- * @param {string} metaName - The name of `MetaProperty.meta`.
- * @param {string} propertyName - The name of `MetaProperty.property`.
+ * @param {ASTNode} node A MetaProperty node to check.
+ * @param {string} metaName The name of `MetaProperty.meta`.
+ * @param {string} propertyName The name of `MetaProperty.property`.
  * @returns {boolean} `true` if the node is the specific value.
  */
 function checkMetaProperty(node, metaName, propertyName) {
@@ -31,7 +31,7 @@ function checkMetaProperty(node, metaName, propertyName) {
 
 /**
  * Gets the variable object of `arguments` which is defined implicitly.
- * @param {eslint-scope.Scope} scope - A scope to get.
+ * @param {eslint-scope.Scope} scope A scope to get.
  * @returns {eslint-scope.Variable} The found variable object.
  */
 function getVariableOfArguments(scope) {
@@ -57,7 +57,7 @@ function getVariableOfArguments(scope) {
 
 /**
  * Checkes whether or not a given node is a callback.
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {Object}
  *   {boolean} retv.isCallback - `true` if the node is a callback.
  *   {boolean} retv.isLexicalThis - `true` if the node is with `.bind(this)`.

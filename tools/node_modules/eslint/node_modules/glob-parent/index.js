@@ -10,9 +10,16 @@ var enclosure = /[\{\[].*[\/]*.*[\}\]]$/;
 var globby = /(^|[^\\])([\{\[]|\([^\)]+$)/;
 var escaped = /\\([\*\?\|\[\]\(\)\{\}])/g;
 
-module.exports = function globParent(str) {
+/**
+ * @param {string} str
+ * @param {Object} opts
+ * @param {boolean} [opts.flipBackslashes=true]
+ */
+module.exports = function globParent(str, opts) {
+  var options = Object.assign({ flipBackslashes: true }, opts);
+
   // flip windows path separators
-  if (isWin32 && str.indexOf(slash) < 0) {
+  if (options.flipBackslashes && isWin32 && str.indexOf(slash) < 0) {
     str = str.replace(backslash, slash);
   }
 

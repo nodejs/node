@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -45,7 +46,11 @@ class TestMemoryAllocatorScope;
 }  // namespace heap
 
 class IncrementalMarking;
+class BackingStore;
 class JSArrayBuffer;
+class JSPromise;
+class NativeContext;
+
 using v8::MemoryPressureLevel;
 
 class AllocationObserver;
@@ -62,6 +67,7 @@ class Isolate;
 class JSFinalizationGroup;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
+class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkCompactCollector;
 class ObjectIterator;
@@ -74,7 +80,6 @@ class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
 class Space;
-class StoreBuffer;
 class StressScavengeObserver;
 class TimedHistogram;
 class WeakObjectRetainer;
@@ -86,6 +91,8 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
+enum class InvalidateRecordedSlots { kYes, kNo };
+
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
 enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
@@ -95,6 +102,15 @@ enum class FixedArrayVisitationMode { kRegular, kIncremental };
 enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
+
+enum class AllocationOrigin {
+  kGeneratedCode = 0,
+  kRuntime = 1,
+  kGC = 2,
+  kFirstAllocationOrigin = kGeneratedCode,
+  kLastAllocationOrigin = kGC,
+  kNumberOfAllocationOrigins = kLastAllocationOrigin + 1
+};
 
 enum class GarbageCollectionReason {
   kUnknown = 0,
@@ -551,6 +567,9 @@ class Heap {
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
+  Handle<JSPromise> MeasureMemory(Handle<NativeContext> context,
+                                  v8::MeasureMemoryMode mode);
+
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
 
@@ -576,7 +595,7 @@ class Heap {
 
   V8_INLINE int64_t external_memory();
   V8_INLINE void update_external_memory(int64_t delta);
-  V8_INLINE void update_external_memory_concurrently_freed(intptr_t freed);
+  V8_INLINE void update_external_memory_concurrently_freed(uintptr_t freed);
   V8_INLINE void account_external_memory_concurrently_freed();
 
   size_t backing_store_bytes() const { return backing_store_bytes_; }
@@ -713,15 +732,6 @@ class Heap {
   V8_INLINE void SetMessageListeners(TemplateList value);
   V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
 
-  // Set the stack limit in the roots table.  Some architectures generate
-  // code that looks here, because it is faster than loading from the static
-  // jslimit_/real_jslimit_ variable in the StackGuard.
-  void SetStackLimits();
-
-  // The stack limit is thread-dependent. To be able to reproduce the same
-  // snapshot blob, we need to reset it before serializing.
-  void ClearStackLimits();
-
   void RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end);
   void UnregisterStrongRoots(FullObjectSlot start);
 
@@ -839,12 +849,13 @@ class Heap {
 
   void SetIsMarkingFlag(uint8_t flag) { is_marking_flag_ = flag; }
 
-  Address* store_buffer_top_address();
+  V8_EXPORT_PRIVATE Address* store_buffer_top_address();
   static intptr_t store_buffer_mask_constant();
   static Address store_buffer_overflow_function_address();
 
   void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
+  static int InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot);
 
 #ifdef DEBUG
   void VerifyClearedSlot(HeapObject object, ObjectSlot slot);
@@ -896,8 +907,13 @@ class Heap {
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
   // The old size is the size of the object before layout change.
-  void NotifyObjectLayoutChange(HeapObject object, int old_size,
-                                const DisallowHeapAllocation&);
+  // By default recorded slots in the object are invalidated. Pass
+  // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
+  // manually.
+  void NotifyObjectLayoutChange(
+      HeapObject object, const DisallowHeapAllocation&,
+      InvalidateRecordedSlots invalidate_recorded_slots =
+          InvalidateRecordedSlots::kYes);
 
 #ifdef VERIFY_HEAP
   // This function checks that either
@@ -1214,16 +1230,24 @@ class Heap {
   AlignWithFiller(HeapObject object, int object_size, int allocation_size,
                   AllocationAlignment alignment);
 
+  // Allocate an external backing store with the given allocation callback.
+  // If the callback fails (indicated by a nullptr result) then this function
+  // will re-try the allocation after performing GCs. This is useful for
+  // external backing stores that may be retained by (unreachable) V8 objects
+  // such as ArrayBuffers, ExternalStrings, etc.
+  //
+  // The function may also proactively trigger GCs even if the allocation
+  // callback does not fail to keep the memory usage low.
+  V8_EXPORT_PRIVATE void* AllocateExternalBackingStore(
+      const std::function<void*(size_t)>& allocate, size_t byte_length);
+
   // ===========================================================================
   // ArrayBuffer tracking. =====================================================
   // ===========================================================================
-
-  // TODO(gc): API usability: encapsulate mutation of JSArrayBuffer::is_external
-  // in the registration/unregistration APIs. Consider dropping the "New" from
-  // "RegisterNewArrayBuffer" because one can re-register a previously
-  // unregistered buffer, too, and the name is confusing.
-  void RegisterNewArrayBuffer(JSArrayBuffer buffer);
-  void UnregisterArrayBuffer(JSArrayBuffer buffer);
+  void RegisterBackingStore(JSArrayBuffer buffer,
+                            std::shared_ptr<BackingStore> backing_store);
+  std::shared_ptr<BackingStore> UnregisterBackingStore(JSArrayBuffer buffer);
+  std::shared_ptr<BackingStore> LookupBackingStore(JSArrayBuffer buffer);
 
   // ===========================================================================
   // Allocation site tracking. =================================================
@@ -1332,9 +1356,7 @@ class Heap {
     // per call to mmap(). The page is only reclaimed when the process is
     // killed. Confine the hint to a 32-bit section of the virtual address
     // space. See crbug.com/700928.
-    uintptr_t offset =
-        reinterpret_cast<uintptr_t>(v8::internal::GetRandomMmapAddr()) &
-        kMmapRegionMask;
+    uintptr_t offset = reinterpret_cast<uintptr_t>(result) & kMmapRegionMask;
     result = reinterpret_cast<void*>(mmap_region_base_ + offset);
 #endif  // V8_OS_MACOSX
 #endif  // V8_TARGET_ARCH_X64
@@ -1348,8 +1370,6 @@ class Heap {
   inline int MaxNumberToStringCacheSize() const;
 
  private:
-  class SkipStoreBufferScope;
-
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
                                                         FullObjectSlot pointer);
 
@@ -1462,11 +1482,7 @@ class Heap {
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  StoreBuffer* store_buffer() { return store_buffer_.get(); }
-
-  void set_current_gc_flags(int flags) {
-    current_gc_flags_ = flags;
-  }
+  void set_current_gc_flags(int flags) { current_gc_flags_ = flags; }
 
   inline bool ShouldReduceMemory() const {
     return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
@@ -1729,15 +1745,25 @@ class Heap {
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
-      AllocationAlignment aligment = kWordAligned);
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
+
+  // This method will try to allocate objects quickly (AllocationType::kYoung)
+  // otherwise it falls back to a slower path indicated by the mode.
+  enum AllocationRetryMode { kLightRetry, kRetryOrFail };
+  template <AllocationRetryMode mode>
+  V8_WARN_UNUSED_RESULT inline HeapObject AllocateRawWith(
+      int size, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
 
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
   // is triggered and the allocation is retried. This is performed multiple
   // times. If after that retry procedure the allocation still fails nullptr is
   // returned.
-  HeapObject AllocateRawWithLightRetry(
-      int size, AllocationType allocation,
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawWithLightRetrySlowPath(
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
 
   // This method will try to perform an allocation of a given size of a given
@@ -1746,10 +1772,11 @@ class Heap {
   // times. If after that retry procedure the allocation still fails a "hammer"
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
-  HeapObject AllocateRawWithRetryOrFail(
-      int size, AllocationType allocation,
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawWithRetryOrFailSlowPath(
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
-  HeapObject AllocateRawCodeInLargeObjectSpace(int size);
+
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.
   V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map map,
@@ -1765,10 +1792,6 @@ class Heap {
   AllocatePartialMap(InstanceType instance_type, int instance_size);
 
   void FinalizePartialMap(Map map);
-
-  // Allocate empty fixed typed array of given type.
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 
@@ -1789,7 +1812,7 @@ class Heap {
 #endif  // DEBUG
 
   // The amount of memory that has been freed concurrently.
-  std::atomic<intptr_t> external_memory_concurrently_freed_{0};
+  std::atomic<uintptr_t> external_memory_concurrently_freed_{0};
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -1966,10 +1989,10 @@ class Heap {
   std::unique_ptr<ScavengerCollector> scavenger_collector_;
   std::unique_ptr<ArrayBufferCollector> array_buffer_collector_;
   std::unique_ptr<MemoryAllocator> memory_allocator_;
-  std::unique_ptr<StoreBuffer> store_buffer_;
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<GCIdleTimeHandler> gc_idle_time_handler_;
+  std::unique_ptr<MemoryMeasurement> memory_measurement_;
   std::unique_ptr<MemoryReducer> memory_reducer_;
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
@@ -2087,7 +2110,6 @@ class Heap {
   friend class Scavenger;
   friend class ScavengerCollector;
   friend class Space;
-  friend class StoreBuffer;
   friend class Sweeper;
   friend class heap::TestMemoryAllocatorScope;
 
@@ -2137,7 +2159,6 @@ class HeapStats {
   char* js_stacktrace;                     // 26
   intptr_t* end_marker;                    // 27
 };
-
 
 class AlwaysAllocateScope {
  public:
@@ -2218,7 +2239,6 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
   Heap* heap_;
 };
 
-
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public RootVisitor {
  public:
@@ -2249,7 +2269,7 @@ class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
 
  private:
   Heap* heap_;
-  int current_space_;         // from enum AllocationSpace.
+  int current_space_;  // from enum AllocationSpace.
 };
 
 // A HeapObjectIterator provides iteration over the entire non-read-only heap.

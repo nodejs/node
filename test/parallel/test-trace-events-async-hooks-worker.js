@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 const code =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 const worker =
 `const { Worker } = require('worker_threads');
 const worker = new Worker('${code}',
@@ -36,10 +36,10 @@ const proc = cp.spawnSync(
   [ '--trace-event-categories', 'node.async_hooks', '-e', worker ],
   {
     cwd: tmpdir.path,
-    env: Object.assign({}, process.env, {
-      'NODE_DEBUG_NATIVE': 'tracing',
-      'NODE_DEBUG': 'tracing'
-    })
+    env: { ...process.env,
+           'NODE_DEBUG_NATIVE': 'tracing',
+           'NODE_DEBUG': 'tracing'
+    }
   });
 
 console.log('process exit with signal:', proc.signal);

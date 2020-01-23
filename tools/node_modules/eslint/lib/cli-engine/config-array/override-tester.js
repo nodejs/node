@@ -125,10 +125,10 @@ class OverrideTester {
      */
     static and(a, b) {
         if (!b) {
-            return a;
+            return a && new OverrideTester(a.patterns, a.basePath);
         }
         if (!a) {
-            return b;
+            return new OverrideTester(b.patterns, b.basePath);
         }
 
         assert.strictEqual(a.basePath, b.basePath);
@@ -166,6 +166,7 @@ class OverrideTester {
         ));
     }
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @returns {Object} a JSON compatible object.
      */
@@ -182,6 +183,7 @@ class OverrideTester {
         };
     }
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @returns {Object} an object to display by `console.log()`.
      */

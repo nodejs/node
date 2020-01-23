@@ -838,7 +838,7 @@ static int alg_print(const X509_ALGOR *alg)
                 goto done;
             }
             BIO_printf(bio_err, ", Salt length: %d, Cost(N): %ld, "
-                       "Block size(r): %ld, Paralelizm(p): %ld",
+                       "Block size(r): %ld, Parallelism(p): %ld",
                        ASN1_STRING_length(kdf->salt),
                        ASN1_INTEGER_get(kdf->costParameter),
                        ASN1_INTEGER_get(kdf->blockSize),

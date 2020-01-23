@@ -1,0 +1,49 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+  extern transitioning macro RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(
+      implicit context: Context)(Object, String, constexpr bool): JSAny;
+
+  transitioning macro FastRegExpPrototypeMatchBody(implicit context: Context)(
+      receiver: FastJSRegExp, string: String): JSAny {
+    return RegExpPrototypeMatchBody(receiver, string, true);
+  }
+
+  transitioning macro SlowRegExpPrototypeMatchBody(implicit context: Context)(
+      receiver: Object, string: String): JSAny {
+    return RegExpPrototypeMatchBody(receiver, string, false);
+  }
+
+  // Helper that skips a few initial checks. and assumes...
+  // 1) receiver is a "fast" RegExp
+  // 2) pattern is a string
+  transitioning builtin RegExpMatchFast(implicit context: Context)(
+      receiver: FastJSRegExp, string: String): JSAny {
+    return FastRegExpPrototypeMatchBody(receiver, string);
+  }
+
+  // ES#sec-regexp.prototype-@@match
+  // RegExp.prototype [ @@match ] ( string )
+  transitioning javascript builtin RegExpPrototypeMatch(
+      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
+    ThrowIfNotJSReceiver(
+        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@match');
+    const receiver = UnsafeCast<JSReceiver>(receiver);
+    const string: String = ToString_Inline(context, string);
+
+    // Strict: Reads global and unicode properties.
+    // TODO(jgruber): Handle slow flag accesses on the fast path and make this
+    // permissive.
+    const fastRegExp = Cast<FastJSRegExp>(receiver)
+        otherwise return SlowRegExpPrototypeMatchBody(receiver, string);
+
+    // TODO(pwong): Could be optimized to remove the overhead of calling the
+    //              builtin (at the cost of a larger builtin).
+    return RegExpMatchFast(fastRegExp, string);
+  }
+}

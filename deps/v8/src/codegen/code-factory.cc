@@ -267,9 +267,9 @@ Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
     case STRING_ADD_CHECK_NONE:
       return Builtins::CallableFor(isolate, Builtins::kStringAdd_CheckNone);
     case STRING_ADD_CONVERT_LEFT:
-      return Builtins::CallableFor(isolate, Builtins::kStringAdd_ConvertLeft);
+      return Builtins::CallableFor(isolate, Builtins::kStringAddConvertLeft);
     case STRING_ADD_CONVERT_RIGHT:
-      return Builtins::CallableFor(isolate, Builtins::kStringAdd_ConvertRight);
+      return Builtins::CallableFor(isolate, Builtins::kStringAddConvertRight);
   }
   UNREACHABLE();
 }

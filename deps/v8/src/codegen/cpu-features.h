@@ -13,7 +13,7 @@ namespace internal {
 
 // CPU feature flags.
 enum CpuFeature {
-  // x86
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
   SSE4_2,
   SSE4_1,
   SSSE3,
@@ -26,39 +26,46 @@ enum CpuFeature {
   LZCNT,
   POPCNT,
   ATOM,
-  // ARM
+
+#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   // - Standard configurations. The baseline is ARMv6+VFPv2.
   ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
   ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
   ARMv8,        // ARMv8-A (+ all of the above)
-  // MIPS, MIPS64
+
+  // ARM feature aliases (based on the standard configurations above).
+  VFPv3 = ARMv7,
+  NEON = ARMv7,
+  VFP32DREGS = ARMv7,
+  SUDIV = ARMv7_SUDIV,
+
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   FPU,
   FP64FPU,
   MIPSr1,
   MIPSr2,
   MIPSr6,
   MIPS_SIMD,  // MSA instructions
-  // PPC
+
+#elif V8_TARGET_ARCH_PPC
+  FPU,
   FPR_GPR_MOV,
   LWSYNC,
   ISELECT,
   VSX,
   MODULO,
-  // S390
+
+#elif V8_TARGET_ARCH_S390X
+  FPU,
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
   VECTOR_FACILITY,
   VECTOR_ENHANCE_FACILITY_1,
   MISC_INSTR_EXT2,
+#endif
 
-  NUMBER_OF_CPU_FEATURES,
-
-  // ARM feature aliases (based on the standard configurations above).
-  VFPv3 = ARMv7,
-  NEON = ARMv7,
-  VFP32DREGS = ARMv7,
-  SUDIV = ARMv7_SUDIV
+  NUMBER_OF_CPU_FEATURES
 };
 
 // CpuFeatures keeps track of which features are supported by the target CPU.

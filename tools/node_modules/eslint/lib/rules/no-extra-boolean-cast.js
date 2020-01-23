@@ -49,7 +49,6 @@ module.exports = {
 
         /**
          * Check if a node is in a context where its value would be coerced to a boolean at runtime.
-         *
          * @param {ASTNode} node The node
          * @param {ASTNode} parent Its parent
          * @returns {boolean} If it is in a boolean context
@@ -67,7 +66,6 @@ module.exports = {
 
         /**
          * Check if a node has comments inside.
-         *
          * @param {ASTNode} node The node to check.
          * @returns {boolean} `true` if it has comments inside.
          */
@@ -96,7 +94,7 @@ module.exports = {
                         grandparent.callee.name === "Boolean")
                 ) {
                     context.report({
-                        node,
+                        node: parent,
                         messageId: "unexpectedNegation",
                         fix: fixer => {
                             if (hasCommentsInside(parent)) {

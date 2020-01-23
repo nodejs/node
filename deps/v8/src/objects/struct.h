@@ -16,12 +16,13 @@ namespace v8 {
 namespace internal {
 
 // An abstract superclass, a marker class really, for simple structure classes.
-// It doesn't carry much functionality but allows struct classes to be
+// It doesn't carry any functionality but allows struct classes to be
 // identified in the type system.
 class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
  public:
   inline void InitializeBody(int object_size);
   void BriefPrintDetails(std::ostream& os);
+  STATIC_ASSERT(kHeaderSize == HeapObject::kHeaderSize);
 
   TQ_OBJECT_CONSTRUCTORS(Struct)
 };
@@ -46,13 +47,8 @@ class Tuple3 : public TorqueGeneratedTuple3<Tuple3, Tuple2> {
 //   * a FunctionTemplateInfo: a real (lazy) accessor
 //   * undefined: considered an accessor by the spec, too, strangely enough
 //   * null: an accessor which has not been set
-class AccessorPair : public Struct {
+class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
  public:
-  DECL_ACCESSORS(getter, Object)
-  DECL_ACCESSORS(setter, Object)
-
-  DECL_CAST(AccessorPair)
-
   static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
 
   inline Object get(AccessorComponent component);
@@ -60,6 +56,7 @@ class AccessorPair : public Struct {
 
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,
+                                     Handle<NativeContext> native_context,
                                      Handle<AccessorPair> accessor_pair,
                                      AccessorComponent component);
 
@@ -70,31 +67,21 @@ class AccessorPair : public Struct {
 
   // Dispatched behavior.
   DECL_PRINTER(AccessorPair)
-  DECL_VERIFIER(AccessorPair)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ACCESSOR_PAIR_FIELDS)
-
-  OBJECT_CONSTRUCTORS(AccessorPair, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AccessorPair)
 };
 
-class ClassPositions : public Struct {
+class ClassPositions
+    : public TorqueGeneratedClassPositions<ClassPositions, Struct> {
  public:
   DECL_INT_ACCESSORS(start)
   DECL_INT_ACCESSORS(end)
 
-  DECL_CAST(ClassPositions)
-
   // Dispatched behavior.
   DECL_PRINTER(ClassPositions)
-  DECL_VERIFIER(ClassPositions)
   void BriefPrintDetails(std::ostream& os);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_CLASS_POSITIONS_FIELDS)
-
-  OBJECT_CONSTRUCTORS(ClassPositions, Struct);
+  TQ_OBJECT_CONSTRUCTORS(ClassPositions)
 };
 
 }  // namespace internal

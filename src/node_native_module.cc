@@ -98,6 +98,7 @@ void NativeModuleLoader::InitializeModuleCategories() {
 #endif  // !HAVE_OPENSSL
 
       "sys",  // Deprecated.
+      "wasi",  // Experimental.
       "internal/test/binding",
       "internal/v8_prof_polyfill",
       "internal/v8_prof_processor",

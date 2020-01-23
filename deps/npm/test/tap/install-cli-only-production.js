@@ -3,8 +3,6 @@ var path = require('path')
 var existsSync = fs.existsSync || path.existsSync
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -59,7 +57,6 @@ test('setup', function (t) {
     JSON.stringify(json, null, 2)
   )
 
-  process.chdir(pkg)
   t.end()
 })
 
@@ -81,10 +78,4 @@ test('\'npm install --only=production\' should only install dependencies', funct
     )
     t.end()
   })
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
 })

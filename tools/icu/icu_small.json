@@ -29,7 +29,7 @@
     "brkfiles": "none",
     "brkdict": "none",
     "confusables": "none",
-    "unit": "none"
+    "unit": "locales"
   },
   "remove": [
     "cnvalias.icu",

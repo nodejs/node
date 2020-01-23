@@ -4,6 +4,8 @@
 
 X509_get0_subject_key_id,
 X509_get0_authority_key_id,
+X509_get0_authority_issuer,
+X509_get0_authority_serial,
 X509_get_pathlen,
 X509_get_extension_flags,
 X509_get_key_usage,
@@ -22,6 +24,8 @@ X509_get_proxy_pathlen - retrieve certificate extension data
  uint32_t X509_get_extended_key_usage(X509 *x);
  const ASN1_OCTET_STRING *X509_get0_subject_key_id(X509 *x);
  const ASN1_OCTET_STRING *X509_get0_authority_key_id(X509 *x);
+ const GENERAL_NAMES *X509_get0_authority_issuer(X509 *x);
+ const ASN1_INTEGER *X509_get0_authority_serial(X509 *x);
  void X509_set_proxy_flag(X509 *x);
  void X509_set_proxy_pathlen(int l);
  long X509_get_proxy_pathlen(X509 *x);
@@ -115,6 +119,14 @@ X509_get0_authority_key_id() returns an internal pointer to the authority key
 identifier of B<x> as an B<ASN1_OCTET_STRING> or B<NULL> if the extension
 is not present or cannot be parsed.
 
+X509_get0_authority_issuer() returns an internal pointer to the authority
+certificate issuer of B<x> as a stack of B<GENERAL_NAME> structures or
+B<NULL> if the extension is not present or cannot be parsed.
+
+X509_get0_authority_serial() returns an internal pointer to the authority
+certificate serial number of B<x> as an B<ASN1_INTEGER> or B<NULL> if the
+extension is not present or cannot be parsed.
+
 X509_set_proxy_flag() marks the certificate with the B<EXFLAG_PROXY> flag.
 This is for the users who need to mark non-RFC3820 proxy certificates as
 such, as OpenSSL only detects RFC3820 compliant ones.
@@ -171,7 +183,7 @@ X509_get_proxy_pathlen() were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

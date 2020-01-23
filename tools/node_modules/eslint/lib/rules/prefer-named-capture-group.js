@@ -49,17 +49,16 @@ module.exports = {
 
         /**
          * Function to check regular expression.
-         *
-         * @param {string} regex The regular expression to be check.
+         * @param {string} pattern The regular expression pattern to be check.
          * @param {ASTNode} node AST node which contains regular expression.
          * @param {boolean} uFlag Flag indicates whether unicode mode is enabled or not.
          * @returns {void}
          */
-        function checkRegex(regex, node, uFlag) {
+        function checkRegex(pattern, node, uFlag) {
             let ast;
 
             try {
-                ast = parser.parsePattern(regex, 0, regex.length, uFlag);
+                ast = parser.parsePattern(pattern, 0, pattern.length, uFlag);
             } catch (_) {
 
                 // ignore regex syntax errors
@@ -69,21 +68,9 @@ module.exports = {
             regexpp.visitRegExpAST(ast, {
                 onCapturingGroupEnter(group) {
                     if (!group.name) {
-                        const locNode = node.type === "Literal" ? node : node.arguments[0];
-
                         context.report({
                             node,
                             messageId: "required",
-                            loc: {
-                                start: {
-                                    line: locNode.loc.start.line,
-                                    column: locNode.loc.start.column + group.start + 1
-                                },
-                                end: {
-                                    line: locNode.loc.start.line,
-                                    column: locNode.loc.start.column + group.end + 1
-                                }
-                            },
                             data: {
                                 group: group.raw
                             }

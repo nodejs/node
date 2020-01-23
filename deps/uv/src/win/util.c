@@ -721,17 +721,6 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
 }
 
 
-void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    uv__free(cpu_infos[i].model);
-  }
-
-  uv__free(cpu_infos);
-}
-
-
 static int is_windows_version_or_greater(DWORD os_major,
                                          DWORD os_minor,
                                          WORD service_pack_major,
@@ -1325,7 +1314,7 @@ int uv__convert_utf8_to_utf16(const char* utf8, int utf8len, WCHAR** utf16) {
     return uv_translate_sys_error(GetLastError());
   }
 
-  (*utf16)[bufsize] = '\0';
+  (*utf16)[bufsize] = L'\0';
   return 0;
 }
 
@@ -1428,7 +1417,9 @@ int uv_os_environ(uv_env_item_t** envitems, int* count) {
     if (uv__convert_utf16_to_utf8(penv, -1, &buf) != 0)
       goto fail;
 
-    ptr = strchr(buf, '=');
+    /* Using buf + 1 here because we know that `buf` has length at least 1,
+     * and some special environment variables on Windows start with a = sign. */
+    ptr = strchr(buf + 1, '=');
     if (ptr == NULL) {
       uv__free(buf);
       goto do_continue;
@@ -1481,17 +1472,15 @@ int uv_os_getenv(const char* name, char* buffer, size_t* size) {
   if (r != 0)
     return r;
 
+  SetLastError(ERROR_SUCCESS);
   len = GetEnvironmentVariableW(name_w, var, MAX_ENV_VAR_LENGTH);
   uv__free(name_w);
   assert(len < MAX_ENV_VAR_LENGTH); /* len does not include the null */
 
   if (len == 0) {
     r = GetLastError();
-
-    if (r == ERROR_ENVVAR_NOT_FOUND)
-      return UV_ENOENT;
-
-    return uv_translate_sys_error(r);
+    if (r != ERROR_SUCCESS)
+      return uv_translate_sys_error(r);
   }
 
   /* Check how much space we need */
@@ -1870,4 +1859,21 @@ int uv_gettimeofday(uv_timeval64_t* tv) {
   tv->tv_sec = (int64_t) ((ularge.QuadPart - epoch) / 10000000L);
   tv->tv_usec = (int32_t) (((ularge.QuadPart - epoch) % 10000000L) / 10);
   return 0;
+}
+
+int uv__random_rtlgenrandom(void* buf, size_t buflen) {
+  if (pRtlGenRandom == NULL)
+    return UV_ENOSYS;
+
+  if (buflen == 0)
+    return 0;
+
+  if (pRtlGenRandom(buf, buflen) == FALSE)
+    return UV_EIO;
+
+  return 0;
+}
+
+void uv_sleep(unsigned int msec) {
+  Sleep(msec);
 }

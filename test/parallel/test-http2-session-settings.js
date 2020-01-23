@@ -38,6 +38,12 @@ server.on(
   })
 );
 
+server.on('session', (session) => {
+  session.settings({
+    maxConcurrentStreams: 2
+  });
+});
+
 server.listen(
   0,
   common.mustCall(() => {
@@ -57,11 +63,18 @@ server.listen(
         assert.strictEqual(settings.maxFrameSize, 16384);
       }, 2)
     );
+
+    let calledOnce = false;
     client.on(
       'remoteSettings',
       common.mustCall((settings) => {
         assert(settings);
-      })
+        assert.strictEqual(
+          settings.maxConcurrentStreams,
+          calledOnce ? 2 : (2 ** 32) - 1
+        );
+        calledOnce = true;
+      }, 2)
     );
 
     const headers = { ':path': '/' };
@@ -91,10 +104,10 @@ server.listen(
       ].forEach((i) => {
         const settings = {};
         settings[i[0]] = i[1];
-        common.expectsError(
+        assert.throws(
           () => client.settings(settings),
           {
-            type: RangeError,
+            name: 'RangeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
             message: `Invalid value for setting "${i[0]}": ${i[1]}`
           }
@@ -103,10 +116,10 @@ server.listen(
 
       // Error checks for enablePush
       [1, {}, 'test', [], null, Infinity, NaN].forEach((i) => {
-        common.expectsError(
+        assert.throws(
           () => client.settings({ enablePush: i }),
           {
-            type: TypeError,
+            name: 'TypeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
             message: `Invalid value for setting "enablePush": ${i}`
           }

@@ -41,7 +41,7 @@ class DataHandler : public Struct {
   static const int kSizeWithData0 = kData1Offset;
   static const int kSizeWithData1 = kData2Offset;
   static const int kSizeWithData2 = kData3Offset;
-  static const int kSizeWithData3 = kSize;
+  static const int kSizeWithData3 = kHeaderSize;
 
   DECL_CAST(DataHandler)
 

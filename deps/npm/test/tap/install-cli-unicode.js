@@ -1,14 +1,10 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var server
 
 var pkg = common.pkg
 
@@ -28,15 +24,13 @@ var json = {
 }
 
 test('setup', function (t) {
-  rimraf.sync(pkg)
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
   )
 
   mr({ port: common.port }, function (er, s) {
-    server = s
+    t.parent.teardown(() => s.close())
     t.end()
   })
 })
@@ -60,12 +54,4 @@ test('does not use unicode with --unicode false', function (t) {
       t.end()
     }
   )
-})
-
-test('cleanup', function (t) {
-  server.close()
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-
-  t.end()
 })

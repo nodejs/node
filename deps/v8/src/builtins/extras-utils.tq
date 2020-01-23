@@ -3,23 +3,22 @@
 // found in the LICENSE file.
 
 namespace extras_utils {
-  extern runtime CreatePrivateSymbol(Context, Object): HeapObject;
-  extern runtime PromiseMarkAsHandled(Context, Object): Undefined;
-  extern runtime PromiseStatus(Context, Object): Smi;
+  extern runtime CreatePrivateSymbol(Context, JSAny): PrivateSymbol;
+  extern runtime PromiseMarkAsHandled(Context, JSAny): Undefined;
+  extern runtime PromiseStatus(Context, JSAny): Smi;
 
   javascript builtin ExtrasUtilsCreatePrivateSymbol(
-      js-implicit context: Context,
-      receiver: Object)(...arguments): HeapObject {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     return CreatePrivateSymbol(context, arguments[0]);
   }
 
   javascript builtin ExtrasUtilsMarkPromiseAsHandled(
-      js-implicit context: Context, receiver: Object)(...arguments): Undefined {
+      js-implicit context: Context, receiver: JSAny)(...arguments): Undefined {
     return PromiseMarkAsHandled(context, arguments[0]);
   }
 
   javascript builtin ExtrasUtilsPromiseState(
-      js-implicit context: Context, receiver: Object)(...arguments): Smi {
+      js-implicit context: Context, receiver: JSAny)(...arguments): Smi {
     return PromiseStatus(context, arguments[0]);
   }
 }

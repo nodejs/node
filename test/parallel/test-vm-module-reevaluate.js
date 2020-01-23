@@ -14,7 +14,6 @@ const finished = common.mustCall();
   {
     const m = new SourceTextModule('1');
     await m.link(common.mustNotCall());
-    m.instantiate();
     assert.strictEqual((await m.evaluate()).result, 1);
     assert.strictEqual((await m.evaluate()).result, undefined);
     assert.strictEqual((await m.evaluate()).result, undefined);
@@ -23,7 +22,6 @@ const finished = common.mustCall();
   {
     const m = new SourceTextModule('throw new Error()');
     await m.link(common.mustNotCall());
-    m.instantiate();
 
     let threw = false;
     try {

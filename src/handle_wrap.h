@@ -82,6 +82,7 @@ class HandleWrap : public AsyncWrap {
              uv_handle_t* handle,
              AsyncWrap::ProviderType provider);
   virtual void OnClose() {}
+  void OnGCCollect() final;
 
   void MarkAsInitialized();
   void MarkAsUninitialized();

@@ -71,7 +71,7 @@ public:
      * @return    A copy of the object.
      * @internal ICU 3.8
      */
-    virtual Format* clone(void) const;
+    virtual RelativeDateFormat* clone() const;
 
     /**
      * Return true if the given Format objects are semantically equal. Objects

@@ -28,8 +28,8 @@ function testGrowInternalAnyRefTable(table_index) {
     builder.addTable(kWasmAnyRef, initial_size).index;
   }
   builder.addFunction('grow', kSig_i_ri)
-    .addBody([kExprGetLocal, 0,
-      kExprGetLocal, 1,
+    .addBody([kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kNumericPrefix, kExprTableGrow, table_index])
     .exportFunc();
 
@@ -38,7 +38,7 @@ function testGrowInternalAnyRefTable(table_index) {
     .exportFunc();
 
   builder.addFunction('get', kSig_r_i)
-    .addBody([kExprGetLocal, 0, kExprTableGet, table_index])
+    .addBody([kExprLocalGet, 0, kExprTableGet, table_index])
     .exportFunc();
 
   const instance = builder.instantiate();
@@ -75,8 +75,8 @@ function testGrowInternalAnyFuncTable(table_index) {
     builder.addTable(kWasmAnyFunc, size).index;
   }
   builder.addFunction('grow', kSig_i_ai)
-    .addBody([kExprGetLocal, 0,
-      kExprGetLocal, 1,
+    .addBody([kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kNumericPrefix, kExprTableGrow, table_index])
     .exportFunc();
 
@@ -86,7 +86,7 @@ function testGrowInternalAnyFuncTable(table_index) {
 
   const sig_index = builder.addType(kSig_i_v);
   builder.addFunction('call', kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprCallIndirect, sig_index, table_index])
+    .addBody([kExprLocalGet, 0, kExprCallIndirect, sig_index, table_index])
     .exportFunc();
 
   const instance = builder.instantiate();
@@ -118,8 +118,8 @@ testGrowInternalAnyFuncTable(9);
   const builder = new WasmModuleBuilder();
   const table_index = builder.addImportedTable("imp", "table", size, undefined, kWasmAnyRef);
   builder.addFunction('grow', kSig_i_ri)
-    .addBody([kExprGetLocal, 0,
-      kExprGetLocal, 1,
+    .addBody([kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kNumericPrefix, kExprTableGrow, table_index])
     .exportFunc();
 
@@ -164,26 +164,26 @@ testGrowInternalAnyFuncTable(9);
   const internal_func = builder.addTable(kWasmAnyFunc, initial, maximum).index;
 
   builder.addFunction('grow_imported_ref', kSig_i_ri)
-  .addBody([kExprGetLocal, 0,
-    kExprGetLocal, 1,
+  .addBody([kExprLocalGet, 0,
+    kExprLocalGet, 1,
     kNumericPrefix, kExprTableGrow, import_ref])
   .exportFunc();
 
   builder.addFunction('grow_imported_func', kSig_i_ai)
-  .addBody([kExprGetLocal, 0,
-    kExprGetLocal, 1,
+  .addBody([kExprLocalGet, 0,
+    kExprLocalGet, 1,
     kNumericPrefix, kExprTableGrow, import_func])
   .exportFunc();
 
   builder.addFunction('grow_internal_ref', kSig_i_ri)
-  .addBody([kExprGetLocal, 0,
-    kExprGetLocal, 1,
+  .addBody([kExprLocalGet, 0,
+    kExprLocalGet, 1,
     kNumericPrefix, kExprTableGrow, internal_ref])
   .exportFunc();
 
   builder.addFunction('grow_internal_func', kSig_i_ai)
-  .addBody([kExprGetLocal, 0,
-    kExprGetLocal, 1,
+  .addBody([kExprLocalGet, 0,
+    kExprLocalGet, 1,
     kNumericPrefix, kExprTableGrow, internal_func])
   .exportFunc();
 

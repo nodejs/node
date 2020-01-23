@@ -36,9 +36,18 @@ globParent('path/foo'); // 'path' (see issue #3 for details)
 
 ## API
 
-### `globParent(maybeGlobString)`
+### `globParent(maybeGlobString, [options])`
 
 Takes a string and returns the part of the path before the glob begins. Be aware of Escaping rules and Limitations below.
+
+#### options
+
+```js
+{
+  // Disables the automatic conversion of slashes for Windows
+  flipBackslashes: true
+}
+```
 
 ## Escaping
 

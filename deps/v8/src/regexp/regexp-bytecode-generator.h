@@ -46,16 +46,16 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1);
+  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                        bool check_bounds, int characters,
+                                        int eats_at_least);
   virtual void CheckCharacter(unsigned c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(unsigned c, unsigned mask,
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckAtStart(Label* on_at_start);
+  virtual void CheckAtStart(int cp_offset, Label* on_at_start);
   virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
@@ -99,6 +99,12 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   int advance_current_start_;
   int advance_current_offset_;
   int advance_current_end_;
+
+  // Stores jump edges emitted for the bytecode (used by
+  // RegExpBytecodePeepholeOptimization).
+  // Key: jump source (offset in buffer_ where jump destination is stored).
+  // Value: jump destination (offset in buffer_ to jump to).
+  ZoneUnorderedMap<int, int> jump_edges_;
 
   Isolate* isolate_;
 

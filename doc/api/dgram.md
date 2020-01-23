@@ -30,7 +30,7 @@ server.bind(41234);
 // Prints: server listening 0.0.0.0:41234
 ```
 
-## Class: dgram.Socket
+## Class: `dgram.Socket`
 <!-- YAML
 added: v0.1.99
 -->
@@ -42,7 +42,7 @@ Encapsulates the datagram functionality.
 New instances of `dgram.Socket` are created using [`dgram.createSocket()`][].
 The `new` keyword is not to be used to create `dgram.Socket` instances.
 
-### Event: 'close'
+### Event: `'close'`
 <!-- YAML
 added: v0.1.99
 -->
@@ -50,7 +50,7 @@ added: v0.1.99
 The `'close'` event is emitted after a socket is closed with [`close()`][].
 Once triggered, no new `'message'` events will be emitted on this socket.
 
-### Event: 'connect'
+### Event: `'connect'`
 <!-- YAML
 added: v12.0.0
 -->
@@ -58,7 +58,7 @@ added: v12.0.0
 The `'connect'` event is emitted after a socket is associated to a remote
 address as a result of a successful [`connect()`][] call.
 
-### Event: 'error'
+### Event: `'error'`
 <!-- YAML
 added: v0.1.99
 -->
@@ -68,7 +68,7 @@ added: v0.1.99
 The `'error'` event is emitted whenever any error occurs. The event handler
 function is passed a single `Error` object.
 
-### Event: 'listening'
+### Event: `'listening'`
 <!-- YAML
 added: v0.1.99
 -->
@@ -76,13 +76,14 @@ added: v0.1.99
 The `'listening'` event is emitted whenever a socket begins listening for
 datagram messages. This occurs as soon as UDP sockets are created.
 
-### Event: 'message'
+### Event: `'message'`
 <!-- YAML
 added: v0.1.99
 -->
 
 The `'message'` event is emitted when a new datagram is available on a socket.
 The event handler function is passed two arguments: `msg` and `rinfo`.
+
 * `msg` {Buffer} The message.
 * `rinfo` {Object} Remote address information.
   * `address` {string} The sender address.
@@ -90,7 +91,7 @@ The event handler function is passed two arguments: `msg` and `rinfo`.
   * `port` {number} The sender port.
   * `size` {number} The message size.
 
-### socket.addMembership(multicastAddress[, multicastInterface])
+### `socket.addMembership(multicastAddress[, multicastInterface])`
 <!-- YAML
 added: v0.6.9
 -->
@@ -122,7 +123,22 @@ if (cluster.isMaster) {
 }
 ```
 
-### socket.address()
+### `socket.addSourceSpecificMembership(sourceAddress, groupAddress[, multicastInterface])`
+<!-- YAML
+added: v13.1.0
+-->
+* `sourceAddress` {string}
+* `groupAddress` {string}
+* `multicastInterface` {string}
+
+Tells the kernel to join a source-specific multicast channel at the given
+`sourceAddress` and `groupAddress`, using the `multicastInterface` with the
+`IP_ADD_SOURCE_MEMBERSHIP` socket option. If the `multicastInterface` argument
+is not specified, the operating system will choose one interface and will add
+membership to it. To add membership to every available interface, call
+`socket.addSourceSpecificMembership()` multiple times, once per interface.
+
+### `socket.address()`
 <!-- YAML
 added: v0.1.99
 -->
@@ -133,9 +149,14 @@ Returns an object containing the address information for a socket.
 For UDP sockets, this object will contain `address`, `family` and `port`
 properties.
 
-### socket.bind([port][, address][, callback])
+### `socket.bind([port][, address][, callback])`
 <!-- YAML
 added: v0.1.99
+changes:
+  - version: v0.10
+    description: The method was changed to an asynchronous execution model.
+                 Legacy code would need to be changed to pass a callback
+                 function to the method call.
 -->
 
 * `port` {integer}
@@ -184,7 +205,7 @@ server.bind(41234);
 // Prints: server listening 0.0.0.0:41234
 ```
 
-### socket.bind(options[, callback])
+### `socket.bind(options[, callback])`
 <!-- YAML
 added: v0.11.14
 -->
@@ -215,7 +236,7 @@ Specifying both a `'listening'` event listener and passing a
 useful.
 
 The `options` object may contain an additional `exclusive` property that is
-used when using `dgram.Socket` objects with the [`cluster`] module. When
+used when using `dgram.Socket` objects with the [`cluster`][] module. When
 `exclusive` is set to `false` (the default), cluster workers will use the same
 underlying socket handle allowing connection handling duties to be shared.
 When `exclusive` is `true`, however, the handle is not shared and attempted
@@ -237,16 +258,17 @@ socket.bind({
 });
 ```
 
-### socket.close([callback])
+### `socket.close([callback])`
 <!-- YAML
 added: v0.1.99
 -->
+
 * `callback` {Function} Called when the socket has been closed.
 
 Close the underlying socket and stop listening for data on it. If a callback is
 provided, it is added as a listener for the [`'close'`][] event.
 
-### socket.connect(port[, address][, callback])
+### `socket.connect(port[, address][, callback])`
 <!-- YAML
 added: v12.0.0
 -->
@@ -265,7 +287,7 @@ will be used by default. Once the connection is complete, a `'connect'` event
 is emitted and the optional `callback` function is called. In case of failure,
 the `callback` is called or, failing this, an `'error'` event is emitted.
 
-### socket.disconnect()
+### `socket.disconnect()`
 <!-- YAML
 added: v12.0.0
 -->
@@ -274,7 +296,7 @@ A synchronous function that disassociates a connected `dgram.Socket` from
 its remote address. Trying to call `disconnect()` on an already disconnected
 socket will result in an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception.
 
-### socket.dropMembership(multicastAddress[, multicastInterface])
+### `socket.dropMembership(multicastAddress[, multicastInterface])`
 <!-- YAML
 added: v0.6.9
 -->
@@ -290,24 +312,44 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.getRecvBufferSize()
+### `socket.dropSourceSpecificMembership(sourceAddress, groupAddress[, multicastInterface])`
+<!-- YAML
+added: v13.1.0
+-->
+
+* `sourceAddress` {string}
+* `groupAddress` {string}
+* `multicastInterface` {string}
+
+Instructs the kernel to leave a source-specific multicast channel at the given
+`sourceAddress` and `groupAddress` using the `IP_DROP_SOURCE_MEMBERSHIP`
+socket option. This method is automatically called by the kernel when the
+socket is closed or the process terminates, so most apps will never have
+reason to call this.
+
+If `multicastInterface` is not specified, the operating system will attempt to
+drop membership on all valid interfaces.
+
+### `socket.getRecvBufferSize()`
 <!-- YAML
 added: v8.7.0
 -->
 
 * Returns: {number} the `SO_RCVBUF` socket receive buffer size in bytes.
 
-### socket.getSendBufferSize()
+### `socket.getSendBufferSize()`
 <!-- YAML
 added: v8.7.0
 -->
 
 * Returns: {number} the `SO_SNDBUF` socket send buffer size in bytes.
 
-### socket.ref()
+### `socket.ref()`
 <!-- YAML
 added: v0.9.1
 -->
+
+* Returns: {dgram.Socket}
 
 By default, binding a socket will cause it to block the Node.js process from
 exiting as long as the socket is open. The `socket.unref()` method can be used
@@ -320,7 +362,7 @@ Calling `socket.ref()` multiples times will have no additional effect.
 The `socket.ref()` method returns a reference to the socket so calls can be
 chained.
 
-### socket.remoteAddress()
+### `socket.remoteAddress()`
 <!-- YAML
 added: v12.0.0
 -->
@@ -331,7 +373,7 @@ Returns an object containing the `address`, `family`, and `port` of the remote
 endpoint. It throws an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception if the
 socket is not connected.
 
-### socket.send(msg[, offset, length][, port][, address][, callback])
+### `socket.send(msg[, offset, length][, port][, address][, callback])`
 <!-- YAML
 added: v0.1.99
 changes:
@@ -358,7 +400,7 @@ changes:
 * `offset` {integer} Offset in the buffer where the message starts.
 * `length` {integer} Number of bytes in the message.
 * `port` {integer} Destination port.
-* `address` {string} Destination hostname or IP address.
+* `address` {string} Destination host name or IP address.
 * `callback` {Function} Called when the message has been sent.
 
 Broadcasts a datagram on the socket.
@@ -424,7 +466,7 @@ client.send([buf1, buf2], 41234, (err) => {
 ```
 
 Sending multiple buffers might be faster or slower depending on the
-application and operating system. It is important to run benchmarks to
+application and operating system. Run benchmarks to
 determine the optimal strategy on a case-by-case basis. Generally speaking,
 however, sending multiple buffers is faster.
 
@@ -442,18 +484,18 @@ client.connect(41234, 'localhost', (err) => {
 });
 ```
 
-**A Note about UDP datagram size**
+#### Note about UDP datagram size
 
 The maximum size of an `IPv4/v6` datagram depends on the `MTU`
 (_Maximum Transmission Unit_) and on the `Payload Length` field size.
 
-- The `Payload Length` field is `16 bits` wide, which means that a normal
+* The `Payload Length` field is `16 bits` wide, which means that a normal
   payload exceed 64K octets _including_ the internet header and data
   (65,507 bytes = 65,535 − 8 bytes UDP header − 20 bytes IP header);
   this is generally true for loopback interfaces, but such long datagram
   messages are impractical for most hosts and networks.
 
-- The `MTU` is the largest size a given link layer technology can support for
+* The `MTU` is the largest size a given link layer technology can support for
   datagram messages. For any link, `IPv4` mandates a minimum `MTU` of `68`
   octets, while the recommended `MTU` for IPv4 is `576` (typically recommended
   as the `MTU` for dial-up type applications), whether they arrive whole or in
@@ -469,7 +511,7 @@ a packet might travel. Sending a datagram greater than the receiver `MTU` will
 not work because the packet will get silently dropped without informing the
 source that the data did not reach its intended recipient.
 
-### socket.setBroadcast(flag)
+### `socket.setBroadcast(flag)`
 <!-- YAML
 added: v0.6.9
 -->
@@ -479,7 +521,7 @@ added: v0.6.9
 Sets or clears the `SO_BROADCAST` socket option. When set to `true`, UDP
 packets may be sent to a local interface's broadcast address.
 
-### socket.setMulticastInterface(multicastInterface)
+### `socket.setMulticastInterface(multicastInterface)`
 <!-- YAML
 added: v8.6.0
 -->
@@ -557,7 +599,7 @@ A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`) can be
 used to return control of the sockets default outgoing interface to the system
 for future multicast packets.
 
-### socket.setMulticastLoopback(flag)
+### `socket.setMulticastLoopback(flag)`
 <!-- YAML
 added: v0.3.8
 -->
@@ -567,7 +609,7 @@ added: v0.3.8
 Sets or clears the `IP_MULTICAST_LOOP` socket option. When set to `true`,
 multicast packets will also be received on the local interface.
 
-### socket.setMulticastTTL(ttl)
+### `socket.setMulticastTTL(ttl)`
 <!-- YAML
 added: v0.3.8
 -->
@@ -580,10 +622,9 @@ packet is allowed to travel through, specifically for multicast traffic. Each
 router or gateway that forwards a packet decrements the TTL. If the TTL is
 decremented to 0 by a router, it will not be forwarded.
 
-The argument passed to `socket.setMulticastTTL()` is a number of hops
-between 0 and 255. The default on most systems is `1` but can vary.
+The `ttl` argument may be between 0 and 255. The default on most systems is `1`.
 
-### socket.setRecvBufferSize(size)
+### `socket.setRecvBufferSize(size)`
 <!-- YAML
 added: v8.7.0
 -->
@@ -593,7 +634,7 @@ added: v8.7.0
 Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
 in bytes.
 
-### socket.setSendBufferSize(size)
+### `socket.setSendBufferSize(size)`
 <!-- YAML
 added: v8.7.0
 -->
@@ -603,7 +644,7 @@ added: v8.7.0
 Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
 in bytes.
 
-### socket.setTTL(ttl)
+### `socket.setTTL(ttl)`
 <!-- YAML
 added: v0.1.101
 -->
@@ -616,13 +657,15 @@ travel through. Each router or gateway that forwards a packet decrements the
 TTL. If the TTL is decremented to 0 by a router, it will not be forwarded.
 Changing TTL values is typically done for network probes or when multicasting.
 
-The argument to `socket.setTTL()` is a number of hops between 1 and 255.
-The default on most systems is 64 but can vary.
+The `ttl` argument may be between between 1 and 255. The default on most systems
+is 64.
 
-### socket.unref()
+### `socket.unref()`
 <!-- YAML
 added: v0.9.1
 -->
+
+* Returns: {dgram.Socket}
 
 By default, binding a socket will cause it to block the Node.js process from
 exiting as long as the socket is open. The `socket.unref()` method can be used
@@ -635,30 +678,9 @@ Calling `socket.unref()` multiple times will have no addition effect.
 The `socket.unref()` method returns a reference to the socket so calls can be
 chained.
 
-### Change to asynchronous `socket.bind()` behavior
-
-As of Node.js v0.10, [`dgram.Socket#bind()`][] changed to an asynchronous
-execution model. Legacy code would use synchronous behavior:
-
-```js
-const s = dgram.createSocket('udp4');
-s.bind(1234);
-s.addMembership('224.0.0.114');
-```
-
-Such legacy code would need to be changed to pass a callback function to the
-[`dgram.Socket#bind()`][] function:
-
-```js
-const s = dgram.createSocket('udp4');
-s.bind(1234, () => {
-  s.addMembership('224.0.0.114');
-});
-```
-
 ## `dgram` module functions
 
-### dgram.createSocket(options[, callback])
+### `dgram.createSocket(options[, callback])`
 <!-- YAML
 added: v0.11.13
 changes:
@@ -683,8 +705,8 @@ changes:
   * `ipv6Only` {boolean} Setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to address `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
-  * `recvBufferSize` {number} - Sets the `SO_RCVBUF` socket value.
-  * `sendBufferSize` {number} - Sets the `SO_SNDBUF` socket value.
+  * `recvBufferSize` {number} Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {number} Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
@@ -697,18 +719,16 @@ method will bind the socket to the "all interfaces" address on a random port
 and port can be retrieved using [`socket.address().address`][] and
 [`socket.address().port`][].
 
-### dgram.createSocket(type[, callback])
+### `dgram.createSocket(type[, callback])`
 <!-- YAML
 added: v0.1.99
 -->
 
-* `type` {string} - Either `'udp4'` or `'udp6'`.
-* `callback` {Function} - Attached as a listener to `'message'` events.
+* `type` {string} Either `'udp4'` or `'udp6'`.
+* `callback` {Function} Attached as a listener to `'message'` events.
 * Returns: {dgram.Socket}
 
-Creates a `dgram.Socket` object of the specified `type`. The `type` argument
-can be either `'udp4'` or `'udp6'`. An optional `callback` function can be
-passed which is added as a listener for `'message'` events.
+Creates a `dgram.Socket` object of the specified `type`.
 
 Once the socket is created, calling [`socket.bind()`][] will instruct the
 socket to begin listening for datagram messages. When `address` and `port` are
@@ -718,14 +738,13 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
 [`'close'`]: #dgram_event_close
-[`Error`]: errors.html#errors_class_error
 [`ERR_SOCKET_DGRAM_IS_CONNECTED`]: errors.html#errors_err_socket_dgram_is_connected
 [`ERR_SOCKET_DGRAM_NOT_CONNECTED`]: errors.html#errors_err_socket_dgram_not_connected
+[`Error`]: errors.html#errors_class_error
 [`System Error`]: errors.html#errors_class_systemerror
 [`close()`]: #dgram_socket_close_callback
 [`cluster`]: cluster.html
 [`connect()`]: #dgram_socket_connect_port_address_callback
-[`dgram.Socket#bind()`]: #dgram_socket_bind_options_callback
 [`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`socket.address().address`]: #dgram_socket_address

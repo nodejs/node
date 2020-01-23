@@ -34,13 +34,13 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
     common.mustCall((req, res) => {
       res.end();
     }, 3));
-  server.setTimeout(500, common.mustCall((socket) => {
+  server.setTimeout(common.platformTimeout(500), common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
     server.close();
     cb();
   }));
-  server.keepAliveTimeout = 50;
+  server.keepAliveTimeout = common.platformTimeout(50);
   server.listen(0, common.mustCall(() => {
     const options = {
       port: server.address().port,
@@ -57,13 +57,13 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
 
 test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
   const server = https.createServer(serverOptions, common.mustCall(3));
-  server.setTimeout(500, common.mustCall((socket) => {
+  server.setTimeout(common.platformTimeout(500), common.mustCall((socket) => {
     // End this test and call `run()` for the next test (if any).
     socket.destroy();
     server.close();
     cb();
   }));
-  server.keepAliveTimeout = 50;
+  server.keepAliveTimeout = common.platformTimeout(50);
   server.listen(0, common.mustCall(() => {
     const options = {
       port: server.address().port,

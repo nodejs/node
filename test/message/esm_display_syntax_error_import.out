@@ -1,5 +1,5 @@
 (node:*) ExperimentalWarning: The ESM module loader is experimental.
-file:///*/test/message/esm_display_syntax_error_import.mjs:6
+file:///*/test/message/esm_display_syntax_error_import.mjs:5
   notfound
   ^^^^^^^^
 SyntaxError: The requested module '../fixtures/es-module-loaders/module-named-exports.mjs' does not provide an export named 'notfound'

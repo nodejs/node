@@ -458,6 +458,9 @@ static int rsa_sig_print(BIO *bp, const X509_ALGOR *sigalg,
 static int rsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 {
     X509_ALGOR *alg = NULL;
+    const EVP_MD *md;
+    const EVP_MD *mgf1md;
+    int min_saltlen;
 
     switch (op) {
 
@@ -497,6 +500,16 @@ static int rsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 #endif
 
     case ASN1_PKEY_CTRL_DEFAULT_MD_NID:
+        if (pkey->pkey.rsa->pss != NULL) {
+            if (!rsa_pss_get_param(pkey->pkey.rsa->pss, &md, &mgf1md,
+                                   &min_saltlen)) {
+                RSAerr(0, ERR_R_INTERNAL_ERROR);
+                return 0;
+            }
+            *(int *)arg2 = EVP_MD_type(md);
+            /* Return of 2 indicates this MD is mandatory */
+            return 2;
+        }
         *(int *)arg2 = NID_sha256;
         return 1;
 

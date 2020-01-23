@@ -206,6 +206,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
+  void Jump(const ExternalReference& reference) override;
   void Call(Register target, int16_t offset = 0, COND_ARGS);
   void Call(Register target, Register base, int16_t offset = 0, COND_ARGS);
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
@@ -257,6 +258,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DropAndRet(int drop);
 
   void DropAndRet(int drop, Condition cond, Register reg, const Operand& op);
+
+  void Lw(Register rd, const MemOperand& rs);
+  void Sw(Register rd, const MemOperand& rs);
 
   void push(Register src) {
     Addu(sp, sp, Operand(-kPointerSize));
@@ -845,12 +849,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);
 
-  bool CalculateOffset(Label* L, int32_t& offset,  // NOLINT(runtime/references)
-                       OffsetSize bits);
-  bool CalculateOffset(Label* L, int32_t& offset,  // NOLINT(runtime/references)
-                       OffsetSize bits,
-                       Register& scratch,  // NOLINT(runtime/references)
-                       const Operand& rt);
+  // TODO(mips) Reorder parameters so out parameters come last.
+  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits);
+  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
+                       Register* scratch, const Operand& rt);
 
   void BranchShortHelperR6(int32_t offset, Label* L);
   void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);

@@ -147,7 +147,7 @@ module.exports = {
 
         /**
          * Checks whether a node is a string literal.
-         * @param   {ASTNode} node - Any AST node.
+         * @param   {ASTNode} node Any AST node.
          * @returns {boolean} `true` if it is a string literal.
          */
         function isStringLiteral(node) {
@@ -244,6 +244,7 @@ module.exports = {
             const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
             let keyPrefix = "";
 
+            // key: /* */ () => {}
             if (sourceCode.commentsExistBetween(lastKeyToken, node.value)) {
                 return null;
             }
@@ -255,24 +256,49 @@ module.exports = {
                 keyPrefix += "*";
             }
 
+            const fixRange = [firstKeyToken.range[0], node.range[1]];
+            const methodPrefix = keyPrefix + keyText;
+
             if (node.value.type === "FunctionExpression") {
                 const functionToken = sourceCode.getTokens(node.value).find(token => token.type === "Keyword" && token.value === "function");
                 const tokenBeforeParams = node.value.generator ? sourceCode.getTokenAfter(functionToken) : functionToken;
 
                 return fixer.replaceTextRange(
-                    [firstKeyToken.range[0], node.range[1]],
-                    keyPrefix + keyText + sourceCode.text.slice(tokenBeforeParams.range[1], node.value.range[1])
+                    fixRange,
+                    methodPrefix + sourceCode.text.slice(tokenBeforeParams.range[1], node.value.range[1])
                 );
             }
-            const arrowToken = sourceCode.getTokenBefore(node.value.body, { filter: token => token.value === "=>" });
-            const tokenBeforeArrow = sourceCode.getTokenBefore(arrowToken);
-            const hasParensAroundParameters = tokenBeforeArrow.type === "Punctuator" && tokenBeforeArrow.value === ")";
-            const oldParamText = sourceCode.text.slice(sourceCode.getFirstToken(node.value, node.value.async ? 1 : 0).range[0], tokenBeforeArrow.range[1]);
-            const newParamText = hasParensAroundParameters ? oldParamText : `(${oldParamText})`;
+
+            const arrowToken = sourceCode.getTokenBefore(node.value.body, astUtils.isArrowToken);
+            const fnBody = sourceCode.text.slice(arrowToken.range[1], node.value.range[1]);
+
+            let shouldAddParensAroundParameters = false;
+            let tokenBeforeParams;
+
+            if (node.value.params.length === 0) {
+                tokenBeforeParams = sourceCode.getFirstToken(node.value, astUtils.isOpeningParenToken);
+            } else {
+                tokenBeforeParams = sourceCode.getTokenBefore(node.value.params[0]);
+            }
+
+            if (node.value.params.length === 1) {
+                const hasParen = astUtils.isOpeningParenToken(tokenBeforeParams);
+                const isTokenOutsideNode = tokenBeforeParams.range[0] < node.range[0];
+
+                shouldAddParensAroundParameters = !hasParen || isTokenOutsideNode;
+            }
+
+            const sliceStart = shouldAddParensAroundParameters
+                ? node.value.params[0].range[0]
+                : tokenBeforeParams.range[0];
+            const sliceEnd = sourceCode.getTokenBefore(arrowToken).range[1];
+
+            const oldParamText = sourceCode.text.slice(sliceStart, sliceEnd);
+            const newParamText = shouldAddParensAroundParameters ? `(${oldParamText})` : oldParamText;
 
             return fixer.replaceTextRange(
-                [firstKeyToken.range[0], node.range[1]],
-                keyPrefix + keyText + newParamText + sourceCode.text.slice(arrowToken.range[1], node.value.range[1])
+                fixRange,
+                methodPrefix + newParamText + fnBody
             );
 
         }

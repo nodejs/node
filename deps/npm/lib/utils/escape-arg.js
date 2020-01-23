@@ -1,6 +1,6 @@
 'use strict'
 var path = require('path')
-var isWindowsShell = require('./is-windows-shell.js')
+var isWindows = require('./is-windows.js')
 
 /*
 Escape the name of an executable suitable for passing to the system shell.
@@ -15,7 +15,7 @@ any single quotes in the filename.
 module.exports = escapify
 
 function escapify (str) {
-  if (isWindowsShell) {
+  if (isWindows) {
     return '"' + path.normalize(str) + '"'
   } else {
     if (/[^-_.~/\w]/.test(str)) {

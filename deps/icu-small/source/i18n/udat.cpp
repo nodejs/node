@@ -167,9 +167,13 @@ udat_open(UDateFormatStyle  timeStyle,
         }
     }
 
-    if(fmt == 0) {
+    if(fmt == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        return 0;
+        return nullptr;
+    }
+    if (U_FAILURE(*status)) {
+        delete fmt;
+        return nullptr;
     }
 
     if(tzID != 0) {

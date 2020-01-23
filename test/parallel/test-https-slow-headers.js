@@ -27,8 +27,8 @@ const server = createServer({
 
 let sendCharEvery = 1000;
 
-// 40 seconds is the default
-assert.strictEqual(server.headersTimeout, 40 * 1000);
+// 60 seconds is the default
+assert.strictEqual(server.headersTimeout, 60 * 1000);
 
 // Pass a REAL env variable to shortening up the default
 // value which is 40s otherwise

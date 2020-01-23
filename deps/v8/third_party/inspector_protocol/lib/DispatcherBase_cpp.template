@@ -302,15 +302,21 @@ void UberDispatcher::dispatch(int callId, const String& in_method, std::unique_p
 UberDispatcher::~UberDispatcher() = default;
 
 // static
-std::unique_ptr<InternalResponse> InternalResponse::createResponse(int callId, std::unique_ptr<Serializable> params)
+std::unique_ptr<Serializable> InternalResponse::createResponse(int callId, std::unique_ptr<Serializable> params)
 {
-    return std::unique_ptr<InternalResponse>(new InternalResponse(callId, String(), std::move(params)));
+    return std::unique_ptr<Serializable>(new InternalResponse(callId, String(), std::move(params)));
 }
 
 // static
-std::unique_ptr<InternalResponse> InternalResponse::createNotification(const String& notification, std::unique_ptr<Serializable> params)
+std::unique_ptr<Serializable> InternalResponse::createNotification(const String& notification, std::unique_ptr<Serializable> params)
 {
-    return std::unique_ptr<InternalResponse>(new InternalResponse(0, notification, std::move(params)));
+    return std::unique_ptr<Serializable>(new InternalResponse(0, notification, std::move(params)));
+}
+
+// static
+std::unique_ptr<Serializable> InternalResponse::createErrorResponse(int callId, DispatchResponse::ErrorCode code, const String& message)
+{
+    return ProtocolError::createErrorResponse(callId, code, message, nullptr);
 }
 
 String InternalResponse::serializeToJSON()

@@ -6,6 +6,7 @@
 #define V8_BASE_MACROS_H_
 
 #include <limits>
+#include <type_traits>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
@@ -232,35 +233,16 @@ struct is_trivially_copyable {
       // the standard does not, so let's skip this check.)
       // Trivial non-deleted destructor.
       std::is_trivially_destructible<T>::value;
-
-#elif defined(__GNUC__) && __GNUC__ < 5
-  // WARNING:
-  // On older libstdc++ versions, there is no way to correctly implement
-  // is_trivially_copyable. The workaround below is an approximation (neither
-  // over- nor underapproximation). E.g. it wrongly returns true if the move
-  // constructor is non-trivial, and it wrongly returns false if the copy
-  // constructor is deleted, but copy assignment is trivial.
-  // TODO(rongjie) Remove this workaround once we require gcc >= 5.0
-  static constexpr bool value =
-      __has_trivial_copy(T) && __has_trivial_destructor(T);
-
 #else
   static constexpr bool value = std::is_trivially_copyable<T>::value;
 #endif
 };
-#if defined(__GNUC__) && __GNUC__ < 5
-// On older libstdc++ versions, base::is_trivially_copyable<T>::value is only an
-// approximation (see above), so make ASSERT_{NOT_,}TRIVIALLY_COPYABLE a noop.
-#define ASSERT_TRIVIALLY_COPYABLE(T) static_assert(true, "check disabled")
-#define ASSERT_NOT_TRIVIALLY_COPYABLE(T) static_assert(true, "check disabled")
-#else
 #define ASSERT_TRIVIALLY_COPYABLE(T)                         \
   static_assert(::v8::base::is_trivially_copyable<T>::value, \
                 #T " should be trivially copyable")
 #define ASSERT_NOT_TRIVIALLY_COPYABLE(T)                      \
   static_assert(!::v8::base::is_trivially_copyable<T>::value, \
                 #T " should not be trivially copyable")
-#endif
 
 // The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
@@ -407,6 +389,9 @@ bool is_inbounds(float_t v) {
   constexpr bool kUpperBoundIsMax =
       static_cast<biggest_int_t>(kUpperBound) ==
       static_cast<biggest_int_t>(std::numeric_limits<int_t>::max());
+  // Using USE(var) is only a workaround for a GCC 8.1 bug.
+  USE(kLowerBoundIsMin);
+  USE(kUpperBoundIsMax);
   return (kLowerBoundIsMin ? (kLowerBound <= v) : (kLowerBound < v)) &&
          (kUpperBoundIsMax ? (v <= kUpperBound) : (v < kUpperBound));
 }

@@ -200,8 +200,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   AllocationType::kOld);
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
         break;
       }
       case HeapObjectRequest::kStringConstant: {
@@ -1120,20 +1120,6 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
 }
 #endif
-
-// Function descriptor for AIX.
-// Code address skips the function descriptor "header".
-// TOC and static chain are ignored and set to 0.
-void Assembler::function_descriptor() {
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
-    Label instructions;
-    DCHECK_EQ(pc_offset(), 0);
-    emit_label_addr(&instructions);
-    dp(0);
-    dp(0);
-    bind(&instructions);
-  }
-}
 
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {

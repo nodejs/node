@@ -10,6 +10,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const util = require('util');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -51,6 +52,7 @@ ActionStream.prototype.readable = true;
 
 // Mock keys
 const UP = { name: 'up' };
+const DOWN = { name: 'down' };
 const ENTER = { name: 'enter' };
 const CLEAR = { ctrl: true, name: 'u' };
 
@@ -90,20 +92,42 @@ const tests = [
   },
   {
     env: {},
-    test: [UP, '\'42\'', ENTER],
-    expected: [prompt, '\'', '4', '2', '\'', '\'42\'\n', prompt, prompt],
+    test: [UP, '21', ENTER, "'42'", ENTER],
+    expected: [
+      prompt,
+      '2', '1', '21\n', prompt, prompt,
+      "'", '4', '2', "'", "'42'\n", prompt, prompt
+    ],
     clean: false
   },
   { // Requires the above test case
     env: {},
-    test: [UP, UP, ENTER],
-    expected: [prompt, `${prompt}'42'`, '\'42\'\n', prompt]
+    test: [UP, UP, CLEAR, ENTER, DOWN, CLEAR, ENTER, UP, ENTER],
+    expected: [
+      prompt,
+      `${prompt}'42'`,
+      `${prompt}21`,
+      prompt,
+      prompt,
+      `${prompt}'42'`,
+      prompt,
+      prompt,
+      `${prompt}21`,
+      '21\n',
+      prompt,
+    ]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_SIZE: 1 },
-    test: [UP, UP, CLEAR],
-    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
+    test: [UP, UP, DOWN, CLEAR],
+    expected: [
+      prompt,
+      `${prompt}'you look fabulous today'`,
+      prompt,
+      `${prompt}'you look fabulous today'`,
+      prompt
+    ]
   },
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
@@ -169,6 +193,8 @@ function runTest(assertCleaned) {
   const opts = tests.shift();
   if (!opts) return; // All done
 
+  console.log('NEW');
+
   if (assertCleaned) {
     try {
       assert.strictEqual(fs.readFileSync(defaultHistoryPath, 'utf8'), '');
@@ -193,6 +219,7 @@ function runTest(assertCleaned) {
     output: new stream.Writable({
       write(chunk, _, next) {
         const output = chunk.toString();
+        console.log('INPUT', util.inspect(output));
 
         // Ignore escapes and blank lines
         if (output.charCodeAt(0) === 27 || /^[\r\n]+$/.test(output))
@@ -207,7 +234,7 @@ function runTest(assertCleaned) {
         next();
       }
     }),
-    prompt: prompt,
+    prompt,
     useColors: false,
     terminal: true
   }, function(err, repl) {

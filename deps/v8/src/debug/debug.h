@@ -5,6 +5,7 @@
 #ifndef V8_DEBUG_DEBUG_H_
 #define V8_DEBUG_DEBUG_H_
 
+#include <memory>
 #include <vector>
 
 #include "src/codegen/source-position-table.h"
@@ -375,6 +376,8 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.break_on_next_function_call_;
   }
 
+  inline bool break_disabled() const { return break_disabled_; }
+
   DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
 
   // For functions in which we cannot set a break point, use a canonical
@@ -399,7 +402,6 @@ class V8_EXPORT_PRIVATE Debug {
     return is_suppressed_ || !is_active_ ||
            isolate_->debug_execution_mode() == DebugInfo::kSideEffects;
   }
-  inline bool break_disabled() const { return break_disabled_; }
 
   void clear_suspended_generator() {
     thread_local_.suspended_generator_ = Smi::kZero;

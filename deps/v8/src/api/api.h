@@ -5,6 +5,8 @@
 #ifndef V8_API_API_H_
 #define V8_API_API_H_
 
+#include <memory>
+
 #include "include/v8-testing.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -90,6 +92,7 @@ class RegisteredExtension {
   V(Data, Object)                              \
   V(RegExp, JSRegExp)                          \
   V(Object, JSReceiver)                        \
+  V(FinalizationGroup, JSFinalizationGroup)    \
   V(Array, JSArray)                            \
   V(Map, JSMap)                                \
   V(Set, JSSet)                                \
@@ -198,6 +201,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<BigUint64Array> ToLocalBigUint64Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<FinalizationGroup> ToLocal(
+      v8::internal::Handle<v8::internal::JSFinalizationGroup> obj);
 
   static inline Local<SharedArrayBuffer> ToLocalShared(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
@@ -248,9 +253,9 @@ class Utils {
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
-  template <class T>
+  template <class T, class M>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
-      const v8::Persistent<T>& persistent) {
+      const v8::Persistent<T, M>& persistent) {
     return v8::internal::Handle<v8::internal::Object>(
         reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
@@ -269,6 +274,11 @@ class Utils {
   static inline CompiledWasmModule Convert(
       std::shared_ptr<i::wasm::NativeModule> native_module) {
     return CompiledWasmModule{std::move(native_module)};
+  }
+
+  static inline const std::shared_ptr<i::wasm::NativeModule>& Open(
+      const CompiledWasmModule& compiled_module) {
+    return compiled_module.native_module_;
   }
 
  private:
@@ -354,7 +364,6 @@ class HandleScopeImplementer {
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
         spare_(nullptr),
-        call_depth_(0),
         last_handle_before_deferred_block_(nullptr) {}
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
@@ -372,11 +381,6 @@ class HandleScopeImplementer {
 
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
-
-  // Call depth represents nested v8 api calls.
-  inline void IncrementCallDepth() { call_depth_++; }
-  inline void DecrementCallDepth() { call_depth_--; }
-  inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Context context);
   inline void LeaveContext();
@@ -414,7 +418,6 @@ class HandleScopeImplementer {
     saved_contexts_.detach();
     spare_ = nullptr;
     last_handle_before_deferred_block_ = nullptr;
-    call_depth_ = 0;
   }
 
   void Free() {
@@ -431,11 +434,11 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = nullptr;
     }
-    DCHECK_EQ(call_depth_, 0);
+    DCHECK(isolate_->thread_local_top()->CallDepthIsZero());
   }
 
   void BeginDeferredScope();
-  DeferredHandles* Detach(Address* prev_limit);
+  std::unique_ptr<DeferredHandles> Detach(Address* prev_limit);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;
@@ -451,8 +454,6 @@ class HandleScopeImplementer {
   // Used as a stack to keep track of saved contexts.
   DetachableVector<Context> saved_contexts_;
   Address* spare_;
-  int call_depth_;
-
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;

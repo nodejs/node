@@ -105,7 +105,7 @@ static __inline int CRYPTO_DOWN_REF(volatile int *val, int *ret, void *lock)
 #    if _WIN32_WCE >= 0x600
       extern long __cdecl _InterlockedExchangeAdd(long volatile*, long);
 #    else
-      // under Windows CE we still have old-style Interlocked* functions
+      /* under Windows CE we still have old-style Interlocked* functions */
       extern long __cdecl InterlockedExchangeAdd(long volatile*, long);
 #     define _InterlockedExchangeAdd InterlockedExchangeAdd
 #    endif

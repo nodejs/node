@@ -58,7 +58,7 @@ def main(argv=None):
     os.chdir(args.chdir)
 
   if args.path:
-    extra_path = [os.path.abspath(p) for p in opts.path]
+    extra_path = [os.path.abspath(p) for p in args.path]
     extra_path = os.pathsep.join(extra_path)
     os.environ['PATH'] = extra_path + os.pathsep + os.environ['PATH']
 

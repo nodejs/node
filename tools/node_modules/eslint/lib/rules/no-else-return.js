@@ -58,7 +58,6 @@ module.exports = {
          *
          * This is not a generic function. In particular, it is assumed that the scope is a function scope or
          * a function's inner scope, and that the names can be valid identifiers in the given scope.
-         *
          * @param {string[]} names Array of variable names.
          * @param {eslint-scope.Scope} scope Function scope or a function's inner scope.
          * @returns {boolean} True if all names can be safely declared, false otherwise.
@@ -134,7 +133,6 @@ module.exports = {
 
         /**
          * Checks whether the removal of `else` and its braces is safe from variable name collisions.
-         *
          * @param {Node} node The 'else' node.
          * @param {eslint-scope.Scope} scope The scope in which the node and the whole 'if' statement is.
          * @returns {boolean} True if it is safe, false otherwise.
@@ -171,7 +169,6 @@ module.exports = {
 
         /**
          * Display the context report if rule is violated
-         *
          * @param {Node} node The 'else' node
          * @returns {void}
          */
@@ -255,7 +252,6 @@ module.exports = {
 
         /**
          * Check to see if the node is a ReturnStatement
-         *
          * @param {Node} node The node being evaluated
          * @returns {boolean} True if node is a return
          */
@@ -267,7 +263,6 @@ module.exports = {
          * Naive return checking, does not iterate through the whole
          * BlockStatement because we make the assumption that the ReturnStatement
          * will be the last node in the body of the BlockStatement.
-         *
          * @param {Node} node The consequent/alternate node
          * @returns {boolean} True if it has a return
          */
@@ -284,7 +279,6 @@ module.exports = {
         /**
          * Check to see if the node is valid for evaluation,
          * meaning it has an else.
-         *
          * @param {Node} node The node being evaluated
          * @returns {boolean} True if the node is valid
          */
@@ -296,7 +290,6 @@ module.exports = {
          * If the consequent is an IfStatement, check to see if it has an else
          * and both its consequent and alternate path return, meaning this is
          * a nested case of rule violation.  If-Else not considered currently.
-         *
          * @param {Node} node The consequent node
          * @returns {boolean} True if this is a nested rule violation
          */
@@ -309,7 +302,6 @@ module.exports = {
          * Check the consequent/body node to make sure it is not
          * a ReturnStatement or an IfStatement that returns on both
          * code paths.
-         *
          * @param {Node} node The consequent or body node
          * @returns {boolean} `true` if it is a Return/If node that always returns.
          */

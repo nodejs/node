@@ -81,6 +81,9 @@ const KNOWN_NODES = new Set([
     "WhileStatement",
     "WithStatement",
     "YieldExpression",
+    "JSXFragment",
+    "JSXOpeningFragment",
+    "JSXClosingFragment",
     "JSXIdentifier",
     "JSXNamespacedName",
     "JSXMemberExpression",
@@ -184,6 +187,7 @@ class BinarySearchTree {
  */
 class TokenInfo {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {SourceCode} sourceCode A SourceCode object
      */
@@ -233,6 +237,7 @@ class TokenInfo {
  */
 class OffsetStorage {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {TokenInfo} tokenInfo a TokenInfo instance
      * @param {number} indentSize The desired size of each indentation level
@@ -326,7 +331,6 @@ class OffsetStorage {
      * Instead, the correct way would be to offset `baz` by 1 level from `bar`, offset `bar` by 1 level from the `)`, and
      * offset the `)` by 0 levels from `foo`. This ensures that the offset between `bar` and the `)` are correctly collapsed
      * in the second case.
-     *
      * @param {Token} token The token
      * @param {Token} fromToken The token that `token` should be offset from
      * @param {number} offset The desired indent level
@@ -355,7 +359,6 @@ class OffsetStorage {
      *
      * The `setDesiredOffsets` methods inserts ranges like the ones above. The third line above would be inserted by using:
      * `setDesiredOffsets([30, 43], fooToken, 1);`
-     *
      * @param {[number, number]} range A [start, end] pair. All tokens with range[0] <= token.start < range[1] will have the offset applied.
      * @param {Token} fromToken The token that this is offset from
      * @param {number} offset The desired indent level
@@ -1453,7 +1456,43 @@ module.exports = {
                 offsets.setDesiredOffsets(node.name.range, firstToken, 1);
             },
 
+            JSXFragment(node) {
+                const firstOpeningToken = sourceCode.getFirstToken(node.openingFragment);
+                const firstClosingToken = sourceCode.getFirstToken(node.closingFragment);
+
+                addElementListIndent(node.children, firstOpeningToken, firstClosingToken, 1);
+            },
+
+            JSXOpeningFragment(node) {
+                const firstToken = sourceCode.getFirstToken(node);
+                const closingToken = sourceCode.getLastToken(node);
+
+                offsets.setDesiredOffsets(node.range, firstToken, 1);
+                offsets.matchOffsetOf(firstToken, closingToken);
+            },
+
+            JSXClosingFragment(node) {
+                const firstToken = sourceCode.getFirstToken(node);
+                const slashToken = sourceCode.getLastToken(node, { skip: 1 });
+                const closingToken = sourceCode.getLastToken(node);
+                const tokenToMatch = astUtils.isTokenOnSameLine(slashToken, closingToken) ? slashToken : closingToken;
+
+                offsets.setDesiredOffsets(node.range, firstToken, 1);
+                offsets.matchOffsetOf(firstToken, tokenToMatch);
+            },
+
             JSXExpressionContainer(node) {
+                const openingCurly = sourceCode.getFirstToken(node);
+                const closingCurly = sourceCode.getLastToken(node);
+
+                offsets.setDesiredOffsets(
+                    [openingCurly.range[1], closingCurly.range[0]],
+                    openingCurly,
+                    1
+                );
+            },
+
+            JSXSpreadAttribute(node) {
                 const openingCurly = sourceCode.getFirstToken(node);
                 const closingCurly = sourceCode.getLastToken(node);
 
@@ -1588,17 +1627,22 @@ module.exports = {
                             return;
                         }
 
-                        // If the token matches the expected expected indentation, don't report it.
-                        if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
-                            return;
-                        }
-
                         if (astUtils.isCommentToken(firstTokenOfLine)) {
                             const tokenBefore = precedingTokens.get(firstTokenOfLine);
                             const tokenAfter = tokenBefore ? sourceCode.getTokenAfter(tokenBefore) : sourceCode.ast.tokens[0];
-
                             const mayAlignWithBefore = tokenBefore && !hasBlankLinesBetween(tokenBefore, firstTokenOfLine);
                             const mayAlignWithAfter = tokenAfter && !hasBlankLinesBetween(firstTokenOfLine, tokenAfter);
+
+                            /*
+                             * If a comment precedes a line that begins with a semicolon token, align to that token, i.e.
+                             *
+                             * let foo
+                             * // comment
+                             * ;(async () => {})()
+                             */
+                            if (tokenAfter && astUtils.isSemicolonToken(tokenAfter) && !astUtils.isTokenOnSameLine(firstTokenOfLine, tokenAfter)) {
+                                offsets.setDesiredOffset(firstTokenOfLine, tokenAfter, 0);
+                            }
 
                             // If a comment matches the expected indentation of the token immediately before or after, don't report it.
                             if (
@@ -1607,6 +1651,11 @@ module.exports = {
                             ) {
                                 return;
                             }
+                        }
+
+                        // If the token matches the expected indentation, don't report it.
+                        if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
+                            return;
                         }
 
                         // Otherwise, report the token/comment.

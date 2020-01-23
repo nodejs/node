@@ -11,7 +11,7 @@ function run(f) {
   builder.addImport("m", "f", kSig_i_i);
   builder.addFunction("main", kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprCallFunction, 0])
     .exportAs("main");
 

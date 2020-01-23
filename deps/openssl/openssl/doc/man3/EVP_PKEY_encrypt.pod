@@ -41,7 +41,7 @@ EVP_PKEY_encrypt_init() and EVP_PKEY_encrypt() return 1 for success and 0
 or a negative value for failure. In particular a return value of -2
 indicates the operation is not supported by the public key algorithm.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 Encrypt data using OAEP (for RSA keys). See also L<PEM_read_PUBKEY(3)> or
 L<d2i_X509(3)> for means to load a public key. You may also simply
@@ -100,7 +100,7 @@ These functions were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

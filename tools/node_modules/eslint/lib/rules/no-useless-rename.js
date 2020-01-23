@@ -36,7 +36,8 @@ module.exports = {
     },
 
     create(context) {
-        const options = context.options[0] || {},
+        const sourceCode = context.getSourceCode(),
+            options = context.options[0] || {},
             ignoreDestructuring = options.ignoreDestructuring === true,
             ignoreImport = options.ignoreImport === true,
             ignoreExport = options.ignoreExport === true;
@@ -47,10 +48,10 @@ module.exports = {
 
         /**
          * Reports error for unnecessarily renamed assignments
-         * @param {ASTNode} node - node to report
-         * @param {ASTNode} initial - node with initial name value
-         * @param {ASTNode} result - node with new name value
-         * @param {string} type - the type of the offending node
+         * @param {ASTNode} node node to report
+         * @param {ASTNode} initial node with initial name value
+         * @param {ASTNode} result node with new name value
+         * @param {string} type the type of the offending node
          * @returns {void}
          */
         function reportError(node, initial, result, type) {
@@ -64,17 +65,25 @@ module.exports = {
                     type
                 },
                 fix(fixer) {
+                    if (sourceCode.commentsExistBetween(initial, result)) {
+                        return null;
+                    }
+
+                    const replacementText = result.type === "AssignmentPattern"
+                        ? sourceCode.getText(result)
+                        : name;
+
                     return fixer.replaceTextRange([
                         initial.range[0],
                         result.range[1]
-                    ], name);
+                    ], replacementText);
                 }
             });
         }
 
         /**
          * Checks whether a destructured assignment is unnecessarily renamed
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkDestructured(node) {
@@ -82,33 +91,36 @@ module.exports = {
                 return;
             }
 
-            const properties = node.properties;
+            for (const property of node.properties) {
 
-            for (let i = 0; i < properties.length; i++) {
-                if (properties[i].shorthand) {
+                /*
+                 * TODO: Remove after babel-eslint removes ExperimentalRestProperty
+                 * https://github.com/eslint/eslint/issues/12335
+                 */
+                if (property.type === "ExperimentalRestProperty") {
                     continue;
                 }
 
                 /**
-                 * If an ObjectPattern property is computed, we have no idea
-                 * if a rename is useless or not. If an ObjectPattern property
-                 * lacks a key, it is likely an ExperimentalRestProperty and
-                 * so there is no "renaming" occurring here.
+                 * Properties using shorthand syntax and rest elements can not be renamed.
+                 * If the property is computed, we have no idea if a rename is useless or not.
                  */
-                if (properties[i].computed || !properties[i].key) {
+                if (property.shorthand || property.type === "RestElement" || property.computed) {
                     continue;
                 }
 
-                if (properties[i].key.type === "Identifier" && properties[i].key.name === properties[i].value.name ||
-                        properties[i].key.type === "Literal" && properties[i].key.value === properties[i].value.name) {
-                    reportError(properties[i], properties[i].key, properties[i].value, "Destructuring assignment");
+                const key = (property.key.type === "Identifier" && property.key.name) || (property.key.type === "Literal" && property.key.value);
+                const renamedKey = property.value.type === "AssignmentPattern" ? property.value.left.name : property.value.name;
+
+                if (key === renamedKey) {
+                    reportError(property, property.key, property.value, "Destructuring assignment");
                 }
             }
         }
 
         /**
          * Checks whether an import is unnecessarily renamed
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkImport(node) {
@@ -124,7 +136,7 @@ module.exports = {
 
         /**
          * Checks whether an export is unnecessarily renamed
-         * @param {ASTNode} node - node to check
+         * @param {ASTNode} node node to check
          * @returns {void}
          */
         function checkExport(node) {

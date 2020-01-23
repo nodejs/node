@@ -68,7 +68,7 @@ class JSPluralRules : public JSObject {
 
 // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSPLURAL_RULES_FIELDS)
+                                TORQUE_GENERATED_JS_PLURAL_RULES_FIELDS)
 
   DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)

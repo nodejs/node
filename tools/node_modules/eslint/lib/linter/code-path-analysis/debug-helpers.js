@@ -17,11 +17,11 @@ const debug = require("debug")("eslint:code-path");
 
 /**
  * Gets id of a given segment.
- * @param {CodePathSegment} segment - A segment to get.
+ * @param {CodePathSegment} segment A segment to get.
  * @returns {string} Id of the segment.
  */
 /* istanbul ignore next */
-function getId(segment) { // eslint-disable-line require-jsdoc
+function getId(segment) { // eslint-disable-line jsdoc/require-jsdoc
     return segment.id + (segment.reachable ? "" : "!");
 }
 
@@ -39,18 +39,16 @@ module.exports = {
 
     /**
      * Dumps given objects.
-     *
-     * @param {...any} args - objects to dump.
+     * @param {...any} args objects to dump.
      * @returns {void}
      */
     dump: debug,
 
     /**
      * Dumps the current analyzing state.
-     *
-     * @param {ASTNode} node - A node to dump.
-     * @param {CodePathState} state - A state to dump.
-     * @param {boolean} leaving - A flag whether or not it's leaving
+     * @param {ASTNode} node A node to dump.
+     * @param {CodePathState} state A state to dump.
+     * @param {boolean} leaving A flag whether or not it's leaving
      * @returns {void}
      */
     dumpState: !debug.enabled ? debug : /* istanbul ignore next */ function(node, state, leaving) {
@@ -73,8 +71,7 @@ module.exports = {
     /**
      * Dumps a DOT code of a given code path.
      * The DOT code can be visialized with Graphvis.
-     *
-     * @param {CodePath} codePath - A code path to dump.
+     * @param {CodePath} codePath A code path to dump.
      * @returns {void}
      * @see http://www.graphviz.org
      * @see http://www.webgraphviz.com
@@ -139,9 +136,8 @@ module.exports = {
     /**
      * Makes a DOT code of a given code path.
      * The DOT code can be visialized with Graphvis.
-     *
-     * @param {CodePath} codePath - A code path to make DOT.
-     * @param {Object} traceMap - Optional. A map to check whether or not segments had been done.
+     * @param {CodePath} codePath A code path to make DOT.
+     * @param {Object} traceMap Optional. A map to check whether or not segments had been done.
      * @returns {string} A DOT code of the code path.
      */
     makeDotArrows(codePath, traceMap) {

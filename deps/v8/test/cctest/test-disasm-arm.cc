@@ -1166,6 +1166,12 @@ TEST(Neon) {
               "f2dae550       vshl.i16 q15, q0, #10");
       COMPARE(vshl(NeonS32, q15, q0, 17),
               "f2f1e550       vshl.i32 q15, q0, #17");
+      COMPARE(vshl(NeonS8, q15, q0, q1),
+              "f242e440       vshl.s8 q15, q0, q1");
+      COMPARE(vshl(NeonU16, q15, q2, q3),
+              "f356e444       vshl.u16 q15, q2, q3");
+      COMPARE(vshl(NeonS32, q15, q4, q5),
+              "f26ae448       vshl.s32 q15, q4, q5");
       COMPARE(vshr(NeonS8, q15, q0, 6),
               "f2cae050       vshr.s8 q15, q0, #6");
       COMPARE(vshr(NeonU16, q15, q0, 10),

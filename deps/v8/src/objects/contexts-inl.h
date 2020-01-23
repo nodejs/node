@@ -13,6 +13,7 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/osr-optimized-code-cache-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
@@ -47,9 +48,28 @@ Context ScriptContextTable::get_context(int i) const {
 OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Context)
 CAST_ACCESSOR(Context)
-SMI_ACCESSORS(Context, length, kLengthOffset)
+
+SMI_ACCESSORS(Context, length_and_extension_flag, kLengthOffset)
+SYNCHRONIZED_SMI_ACCESSORS(Context, length_and_extension_flag, kLengthOffset)
 
 CAST_ACCESSOR(NativeContext)
+
+int Context::length() const {
+  return LengthField::decode(length_and_extension_flag());
+}
+
+int Context::synchronized_length() const {
+  return LengthField::decode(synchronized_length_and_extension_flag());
+}
+
+void Context::initialize_length_and_extension_bit(int len,
+                                                  Context::HasExtension flag) {
+  DCHECK(LengthField::is_valid(len));
+  int value = 0;
+  value = LengthField::update(value, len);
+  value = HasExtensionField::update(value, flag == Context::HasExtension::kYes);
+  set_length_and_extension_flag(value);
+}
 
 Object Context::get(int index) const {
   Isolate* isolate = GetIsolateForPtrCompr(*this);
@@ -94,11 +114,20 @@ void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 
 Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
-bool Context::has_extension() { return !extension().IsTheHole(); }
+bool Context::has_extension() {
+  return static_cast<bool>(
+             HasExtensionField::decode(length_and_extension_flag())) &&
+         !extension().IsTheHole();
+}
+
 HeapObject Context::extension() {
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
-void Context::set_extension(HeapObject object) { set(EXTENSION_INDEX, object); }
+void Context::set_extension(HeapObject object) {
+  set(EXTENSION_INDEX, object);
+  synchronized_set_length_and_extension_flag(
+      HasExtensionField::update(length_and_extension_flag(), true));
+}
 
 NativeContext Context::native_context() const {
   Object result = get(NATIVE_CONTEXT_INDEX);
@@ -197,7 +226,7 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
     base = IsAsyncFunction(kind) ? ASYNC_GENERATOR_FUNCTION_MAP_INDEX
                                  : GENERATOR_FUNCTION_MAP_INDEX;
 
-  } else if (IsAsyncFunction(kind)) {
+  } else if (IsAsyncFunction(kind) || IsAsyncModule(kind)) {
     CHECK_FOLLOWS4(ASYNC_FUNCTION_MAP_INDEX, ASYNC_FUNCTION_WITH_NAME_MAP_INDEX,
                    ASYNC_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
                    ASYNC_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);
@@ -250,6 +279,10 @@ MicrotaskQueue* NativeContext::microtask_queue() const {
 void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
   WriteField<Address>(kMicrotaskQueueOffset,
                       reinterpret_cast<Address>(microtask_queue));
+}
+
+OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {
+  return OSROptimizedCodeCache::cast(osr_code_cache());
 }
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)

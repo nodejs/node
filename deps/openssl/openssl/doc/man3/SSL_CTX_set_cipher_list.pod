@@ -31,7 +31,7 @@ B<ssl>.
 
 SSL_CTX_set_ciphersuites() is used to configure the available TLSv1.3
 ciphersuites for B<ctx>. This is a simple colon (":") separated list of TLSv1.3
-ciphersuite names in order of perference. Valid TLSv1.3 ciphersuite names are:
+ciphersuite names in order of preference. Valid TLSv1.3 ciphersuite names are:
 
 =over 4
 
@@ -102,7 +102,7 @@ L<ciphers(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

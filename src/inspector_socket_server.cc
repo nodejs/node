@@ -343,7 +343,8 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
     response.push_back(std::map<std::string, std::string>());
     std::map<std::string, std::string>& target_map = response.back();
     target_map["description"] = "node.js instance";
-    target_map["faviconUrl"] = "https://nodejs.org/static/favicon.ico";
+    target_map["faviconUrl"] =
+                        "https://nodejs.org/static/images/favicons/favicon.ico";
     target_map["id"] = id;
     target_map["title"] = delegate_->GetTargetTitle(id);
     Escape(&target_map["title"]);

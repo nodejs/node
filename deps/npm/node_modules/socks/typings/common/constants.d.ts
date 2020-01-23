@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { Duplex } from 'stream';
-import { Socket } from 'net';
+import { Socket, SocketConnectOpts } from 'net';
 import { RequireOnlyOne } from './util';
 declare const DEFAULT_TIMEOUT = 30000;
 declare type SocksProxyType = 4 | 5;
@@ -44,18 +44,18 @@ declare type SocksCommandOption = 'connect' | 'bind' | 'associate';
 declare enum SocksCommand {
     connect = 1,
     bind = 2,
-    associate = 3,
+    associate = 3
 }
 declare enum Socks4Response {
     Granted = 90,
     Failed = 91,
     Rejected = 92,
-    RejectedIdent = 93,
+    RejectedIdent = 93
 }
 declare enum Socks5Auth {
     NoAuth = 0,
     GSSApi = 1,
-    UserPass = 2,
+    UserPass = 2
 }
 declare enum Socks5Response {
     Granted = 0,
@@ -66,12 +66,12 @@ declare enum Socks5Response {
     ConnectionRefused = 5,
     TTLExpired = 6,
     CommandNotSupported = 7,
-    AddressNotSupported = 8,
+    AddressNotSupported = 8
 }
 declare enum Socks5HostType {
     IPv4 = 1,
     Hostname = 3,
-    IPv6 = 4,
+    IPv6 = 4
 }
 declare enum SocksClientState {
     Created = 0,
@@ -86,7 +86,7 @@ declare enum SocksClientState {
     BoundWaitingForConnection = 9,
     Established = 10,
     Disconnected = 11,
-    Error = 99,
+    Error = 99
 }
 /**
  * Represents a SocksProxy
@@ -116,6 +116,7 @@ interface SocksClientOptions {
     timeout?: number;
     existing_socket?: Duplex;
     set_tcp_nodelay?: boolean;
+    socket_options?: SocketConnectOpts;
 }
 /**
  * SocksClient chain connection options.

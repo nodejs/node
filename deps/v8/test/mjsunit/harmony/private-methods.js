@@ -281,3 +281,26 @@
   new D;
   new E;
 }
+
+// Super access within private methods.
+{
+  class A {
+    foo() { return 1; }
+  }
+
+  class C extends A {
+    #m() { return super.foo; }
+    fn() { return this.#m()(); }
+  }
+
+  assertEquals(1, new C().fn());
+}
+
+{
+  assertThrows(() => {
+    class A {
+      [this.#a] = 1;
+      #a() { }
+    }
+  }, TypeError);
+}

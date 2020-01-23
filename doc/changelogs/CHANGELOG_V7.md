@@ -31,6 +31,7 @@
 </table>
 
 * Other Versions
+  * [13.x](CHANGELOG_V13.md)
   * [12.x](CHANGELOG_V12.md)
   * [11.x](CHANGELOG_V11.md)
   * [10.x](CHANGELOG_V10.md)
@@ -55,19 +56,19 @@ for details on patched vulnerabilities.
 ### Notable changes
 
 * **build**:
-  - Disable V8 snapshots - The hashseed embedded in the snapshot is
+  * Disable V8 snapshots - The hashseed embedded in the snapshot is
     currently the same for all runs of the binary. This opens node up to
-collision attacks which could result in a Denial of Service. We have
-temporarily disabled snapshots until a more robust solution is found
-(Ali Ijaz Sheikh)
+    collision attacks which could result in a Denial of Service. We have
+    temporarily disabled snapshots until a more robust solution is found
+    (Ali Ijaz Sheikh)
 * **deps**:
-  - CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(),
+  * CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(),
     which is used for parsing NAPTR responses, could be triggered to
-read memory outside of the given input buffer if the passed in DNS
-response packet was crafted in a particular way. This patch checks that
-there is enough data for the required elements of an NAPTR record (2
-int16, 3 bytes for string lengths) before processing a record. (David
-Drysdale)
+    read memory outside of the given input buffer if the passed in DNS
+    response packet was crafted in a particular way. This patch checks that
+    there is enough data for the required elements of an NAPTR record (2
+    int16, 3 bytes for string lengths) before processing a record. (David
+    Drysdale)
 
 ### Commits
 
@@ -344,14 +345,14 @@ Drysdale)
 ### Notable Changes
 
 * **buffer**:
-  - do not segfault on out-of-range index (Timothy Gu) [#11927](https://github.com/nodejs/node/pull/11927)
+  * do not segfault on out-of-range index (Timothy Gu) [#11927](https://github.com/nodejs/node/pull/11927)
 * **crypto**:
-  - Fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+  * Fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
 * **deps**:
   * upgrade npm to 4.2.0 (Kat Marchán) [#11389](https://github.com/nodejs/node/pull/11389)
   * fix async await desugaring in V8 (Michaël Zasso) [#12004](https://github.com/nodejs/node/pull/12004)
 * **readline**:
-  - add option to stop duplicates in history (Danny Nemer) [#2982](https://github.com/nodejs/node/pull/2982)
+  * add option to stop duplicates in history (Danny Nemer) [#2982](https://github.com/nodejs/node/pull/2982)
 
 ### Commits
 
@@ -1240,8 +1241,8 @@ users is "low". Details on this determination can be found
 ### Notable changes
 
 * **buffer**:
-  - Improve performance of Buffer allocation by ~11%. (Brian White) [#10443](https://github.com/nodejs/node/pull/10443)
-  - Improve performance of Buffer.from() by ~50%. (Brian White) [#10443](https://github.com/nodejs/node/pull/10443)
+  * Improve performance of Buffer allocation by ~11%. (Brian White) [#10443](https://github.com/nodejs/node/pull/10443)
+  * Improve performance of Buffer.from() by ~50%. (Brian White) [#10443](https://github.com/nodejs/node/pull/10443)
 * **events**: Improve performance of `EventEmitter.once()` by ~27%. (Brian White) [#10445](https://github.com/nodejs/node/pull/10445)
 * **fs**: Allow passing Uint8Array to fs methods where Buffers are supported. (Anna Henningsen) [#10382](https://github.com/nodejs/node/pull/10382)
 * **http**: Improve performance of http server by ~7%. (Brian White) [#6533](https://github.com/nodejs/node/pull/6533)
@@ -1400,18 +1401,18 @@ Thank you to @italoacasas for preparing the majority of this release.
 ### Notable changes
 
 * **buffer**:
-  - buffer.fill() now works properly for the UCS2 encoding on Big-Endian machines. (Anna Henningsen) [#9837](https://github.com/nodejs/node/pull/9837)
+  * buffer.fill() now works properly for the UCS2 encoding on Big-Endian machines. (Anna Henningsen) [#9837](https://github.com/nodejs/node/pull/9837)
 * **cluster**:
-  - disconnect() now returns a reference to the disconnected worker. (Sean Villars) [#10019](https://github.com/nodejs/node/pull/10019)
+  * disconnect() now returns a reference to the disconnected worker. (Sean Villars) [#10019](https://github.com/nodejs/node/pull/10019)
 * **crypto**:
-  - The built-in list of Well-Known CAs (Certificate Authorities) can now be extended via a NODE_EXTRA_CA_CERTS environment variable. (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
+  * The built-in list of Well-Known CAs (Certificate Authorities) can now be extended via a NODE_EXTRA_CA_CERTS environment variable. (Sam Roberts) [#9139](https://github.com/nodejs/node/pull/9139)
 * **http**:
-  - Remove stale timeout listeners in order to prevent a memory leak when using keep alive. (Karl Böhlmark) [#9440](https://github.com/nodejs/node/pull/9440)
+  * Remove stale timeout listeners in order to prevent a memory leak when using keep alive. (Karl Böhlmark) [#9440](https://github.com/nodejs/node/pull/9440)
 * **tls**:
-  - Allow obvious key/passphrase combinations. (Sam Roberts) [#10294](https://github.com/nodejs/node/pull/10294)
+  * Allow obvious key/passphrase combinations. (Sam Roberts) [#10294](https://github.com/nodejs/node/pull/10294)
 * **url**:
-  - Including base argument in URL.originFor() to meet specification compliance. (joyeecheung) [#10021](https://github.com/nodejs/node/pull/10021)
-  - Improve URLSearchParams to meet specification compliance. (Timothy Gu) [#9484](https://github.com/nodejs/node/pull/9484)
+  * Including base argument in URL.originFor() to meet specification compliance. (joyeecheung) [#10021](https://github.com/nodejs/node/pull/10021)
+  * Improve URLSearchParams to meet specification compliance. (Timothy Gu) [#9484](https://github.com/nodejs/node/pull/9484)
 
 ### Commits
 
@@ -1550,9 +1551,9 @@ Thank you to @italoacasas for preparing the majority of this release.
 ### Notable changes
 
 * **buffer**:
-  - Reverted the runtime deprecation of calling `Buffer()` without `new`. (Anna Henningsen) [#9529](https://github.com/nodejs/node/pull/9529)
-  - Fixed `buffer.transcode()` for single-byte character
-encodings to `UCS2`. (Anna Henningsen) [#9838](https://github.com/nodejs/node/pull/9838)
+  * Reverted the runtime deprecation of calling `Buffer()` without `new`. (Anna Henningsen) [#9529](https://github.com/nodejs/node/pull/9529)
+  * Fixed `buffer.transcode()` for single-byte character
+    encodings to `UCS2`. (Anna Henningsen) [#9838](https://github.com/nodejs/node/pull/9838)
 * **promise**: `--trace-warnings` now produces useful stacktraces for Promise warnings. (Anna Henningsen) [#9525](https://github.com/nodejs/node/pull/9525)
 * **repl**: Fixed a bug preventing correct parsing of generator functions. (Teddy Katz) [#9852](https://github.com/nodejs/node/pull/9852)
 * **V8**: Fixed a significant `instanceof` performance regression. (Franziska Hinkelmann) [#9730](https://github.com/nodejs/node/pull/9730)
@@ -1763,7 +1764,7 @@ _This is a security release impacting Windows 10 users._
 * **crypto**: The `Decipher` methods `setAuthTag()` and `setAAD` now return `this`. (Kirill Fomichev) [#9398](https://github.com/nodejs/node/pull/9398)
 * **dns**: Implemented `{ttl: true}` for `resolve4()` and `resolve6()`. (Ben Noordhuis) [#9296](https://github.com/nodejs/node/pull/9296)
 * **libuv**: Upgrade to v1.10.1 (cjihrig) [#9647](https://github.com/nodejs/node/pull/9647)
-  - Fixed a potential buffer overflow when writing data to console on Windows 10. (CVE-2016-9551)
+  * Fixed a potential buffer overflow when writing data to console on Windows 10. (CVE-2016-9551)
 * **process**: Added a new `external` property to the data returned by `memoryUsage()`. (Fedor Indutny) [#9587](https://github.com/nodejs/node/pull/9587)
 * **tls**: Fixed a memory leak when writes were queued on TLS connection that was destroyed during handshake. (Fedor Indutny) [#9626](https://github.com/nodejs/node/pull/9626)
 * **V8 (dep)**: Upgrade to v5.4.500.43 (Michaël Zasso) [#9697](https://github.com/nodejs/node/pull/9697)
@@ -1885,7 +1886,7 @@ _This is a security release impacting Windows 10 users._
 * **icu**:
   * Upgraded to ICU 58 - small icu (Steven R. Loomis) [#9234](https://github.com/nodejs/node/pull/9234)
   * Add `cldr`, `tz`, and `unicode` to `process.versions` (Steven R. Loomis) [#9266](https://github.com/nodejs/node/pull/9266)
-* **lib**: make `String(global) === '\[object global\]'` (Anna Henningsen) [#9279](https://github.com/nodejs/node/pull/9279)
+* **lib**: make `String(global) === '[object global]'` (Anna Henningsen) [#9279](https://github.com/nodejs/node/pull/9279)
 * **libuv**: Upgraded to 1.10.0 (cjihrig) [#9267](https://github.com/nodejs/node/pull/9267)
 * **readline**: use icu based string width calculation (James M Snell) [#9040](https://github.com/nodejs/node/pull/9040)
 * **src**:
@@ -1948,7 +1949,7 @@ _This is a security release impacting Windows 10 users._
 * [[`2e7b078e7b`](https://github.com/nodejs/node/commit/2e7b078e7b)] - **inspector**: fix request path nullptr dereference (Ben Noordhuis) [#9184](https://github.com/nodejs/node/pull/9184)
 * [[`9940666c1b`](https://github.com/nodejs/node/commit/9940666c1b)] - **(SEMVER-MINOR)** **intl**: Add more versions from ICU (Steven R. Loomis) [#9266](https://github.com/nodejs/node/pull/9266)
 * [[`5bfefa6063`](https://github.com/nodejs/node/commit/5bfefa6063)] - **lib**: change == to === in linkedlist (jedireza) [#9362](https://github.com/nodejs/node/pull/9362)
-* [[`d24bd20d2b`](https://github.com/nodejs/node/commit/d24bd20d2b)] - **lib**: make `String(global) === '\[object global\]'` (Anna Henningsen) [#9279](https://github.com/nodejs/node/pull/9279)
+* [[`d24bd20d2b`](https://github.com/nodejs/node/commit/d24bd20d2b)] - **lib**: make `String(global) === '[object global]'` (Anna Henningsen) [#9279](https://github.com/nodejs/node/pull/9279)
 * [[`9372aee4a3`](https://github.com/nodejs/node/commit/9372aee4a3)] - **lib**: fix beforeExit not working with -e (Ben Noordhuis) [#8821](https://github.com/nodejs/node/pull/8821)
 * [[`c231130e06`](https://github.com/nodejs/node/commit/c231130e06)] - **module**: skip directories known not to exist (Ben Noordhuis) [#9196](https://github.com/nodejs/node/pull/9196)
 * [[`d09eb9c6b2`](https://github.com/nodejs/node/commit/d09eb9c6b2)] - **net**: name anonymous functions (Pedro Victor) [#9357](https://github.com/nodejs/node/pull/9357)

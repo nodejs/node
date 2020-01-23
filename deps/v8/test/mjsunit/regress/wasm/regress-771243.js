@@ -25,7 +25,7 @@ function __f_1() {
  __v_21 = __f_1(__v_18 = false, __v_25 = kSig_i_i);
  __v_21.addFunction('plus_one', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                   // -
+        kExprLocalGet, 0,                   // -
         kExprCallFunction, __v_29      ])
       .exportFunc();
  __v_32 =

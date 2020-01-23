@@ -27,21 +27,14 @@ v8::Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
                                           const char* code = nullptr);
 
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
+v8::Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
+                                              const char* warning);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
 v8::MaybeLocal<v8::Object> CreateProcessObject(Environment* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-namespace task_queue {
-// Handle any nextTicks added in the first tick of the program.
-// We use the native version here for once so that any microtasks
-// created by the main module is then handled from C++, and
-// the call stack of the main script does not show up in the async error
-// stack trace.
-bool RunNextTicksNative(Environment* env);
-}  // namespace task_queue
 
 }  // namespace node
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

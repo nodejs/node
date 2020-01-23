@@ -171,7 +171,7 @@ static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> array = args[0].As<Float64Array>();
   CHECK_EQ(array->Length(), 3);
   Local<ArrayBuffer> ab = array->Buffer();
-  double* loadavg = static_cast<double*>(ab->GetContents().Data());
+  double* loadavg = static_cast<double*>(ab->GetBackingStore()->Data());
   uv_loadavg(loadavg);
 }
 
@@ -302,7 +302,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  OnScopeLeave free_passwd([&]() { uv_os_free_passwd(&pwd); });
+  auto free_passwd = OnScopeLeave([&]() { uv_os_free_passwd(&pwd); });
 
   Local<Value> error;
 

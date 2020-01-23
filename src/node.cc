@@ -90,6 +90,7 @@
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
+#include <unicode/utypes.h>
 #endif
 
 
@@ -123,10 +124,7 @@
 namespace node {
 
 using native_module::NativeModuleEnv;
-using options_parser::kAllowedInEnvironment;
-using options_parser::kDisallowedInEnvironment;
 
-using v8::Boolean;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -161,32 +159,6 @@ bool v8_is_profiling = false;
 // node_v8_platform-inl.h
 struct V8Platform v8_platform;
 }  // namespace per_process
-
-#ifdef __POSIX__
-static const unsigned kMaxSignal = 32;
-#endif
-
-void WaitForInspectorDisconnect(Environment* env) {
-#if HAVE_INSPECTOR
-  profiler::EndStartedProfilers(env);
-
-  if (env->inspector_agent()->IsActive()) {
-    // Restore signal dispositions, the app is done and is no longer
-    // capable of handling signals.
-#if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-      if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
-        continue;
-      act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
-      CHECK_EQ(0, sigaction(nr, &act, nullptr));
-    }
-#endif
-    env->inspector_agent()->WaitForDisconnect();
-  }
-#endif
-}
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
@@ -226,15 +198,14 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
   return scope.EscapeMaybe(result);
 }
 
-#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
+#if HAVE_INSPECTOR
 int Environment::InitializeInspector(
-    inspector::ParentInspectorHandle* parent_handle) {
+    std::unique_ptr<inspector::ParentInspectorHandle> parent_handle) {
   std::string inspector_path;
-  if (parent_handle != nullptr) {
+  if (parent_handle) {
     DCHECK(!is_main_thread());
     inspector_path = parent_handle->url();
-    inspector_agent_->SetParentHandle(
-        std::unique_ptr<inspector::ParentInspectorHandle>(parent_handle));
+    inspector_agent_->SetParentHandle(std::move(parent_handle));
   } else {
     inspector_path = argv_.size() > 1 ? argv_[1].c_str() : "";
   }
@@ -265,6 +236,8 @@ int Environment::InitializeInspector(
 void Environment::InitializeDiagnostics() {
   isolate_->GetHeapProfiler()->AddBuildEmbedderGraphCallback(
       Environment::BuildEmbedderGraph, this);
+  if (options_->trace_uncaught)
+    isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(this);
@@ -320,25 +293,59 @@ MaybeLocal<Value> Environment::BootstrapNode() {
   global->Set(context(), FIXED_ONE_BYTE_STRING(isolate_, "global"), global)
       .Check();
 
-  // process, require, internalBinding, isMainThread,
-  // ownsProcessState, primordials
+  // process, require, internalBinding, primordials
   std::vector<Local<String>> node_params = {
       process_string(),
       require_string(),
       internal_binding_string(),
-      FIXED_ONE_BYTE_STRING(isolate_, "isMainThread"),
-      FIXED_ONE_BYTE_STRING(isolate_, "ownsProcessState"),
       primordials_string()};
   std::vector<Local<Value>> node_args = {
       process_object(),
       native_module_require(),
       internal_binding_loader(),
-      Boolean::New(isolate_, is_main_thread()),
-      Boolean::New(isolate_, owns_process_state()),
       primordials()};
 
   MaybeLocal<Value> result = ExecuteBootstrapper(
       this, "internal/bootstrap/node", &node_params, &node_args);
+
+  if (result.IsEmpty()) {
+    return scope.EscapeMaybe(result);
+  }
+
+  if (is_main_thread()) {
+    result = ExecuteBootstrapper(this,
+                                 "internal/bootstrap/switches/is_main_thread",
+                                 &node_params,
+                                 &node_args);
+  } else {
+    result =
+        ExecuteBootstrapper(this,
+                            "internal/bootstrap/switches/is_not_main_thread",
+                            &node_params,
+                            &node_args);
+  }
+
+  if (result.IsEmpty()) {
+    return scope.EscapeMaybe(result);
+  }
+
+  if (owns_process_state()) {
+    result = ExecuteBootstrapper(
+        this,
+        "internal/bootstrap/switches/does_own_process_state",
+        &node_params,
+        &node_args);
+  } else {
+    result = ExecuteBootstrapper(
+        this,
+        "internal/bootstrap/switches/does_not_own_process_state",
+        &node_params,
+        &node_args);
+  }
+
+  if (result.IsEmpty()) {
+    return scope.EscapeMaybe(result);
+  }
 
   Local<Object> env_var_proxy;
   if (!CreateEnvVarProxy(context(), isolate_, as_callback_data())
@@ -369,7 +376,8 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
 
   // Make sure that no request or handle is created during bootstrap -
   // if necessary those should be done in pre-execution.
-  // TODO(joyeecheung): print handles/requests before aborting
+  // Usually, doing so would trigger the checks present in the ReqWrap and
+  // HandleWrap classes, so this is only a consistency check.
   CHECK(req_wrap_queue()->IsEmpty());
   CHECK(handle_wrap_queue()->IsEmpty());
 
@@ -404,13 +412,8 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
           ->GetFunction(env->context())
           .ToLocalChecked()};
 
-  Local<Value> result;
-  if (!ExecuteBootstrapper(env, main_script_id, &parameters, &arguments)
-           .ToLocal(&result) ||
-      !task_queue::RunNextTicksNative(env)) {
-    return MaybeLocal<Value>();
-  }
-  return scope.Escape(result);
+  return scope.EscapeMaybe(
+      ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));
 }
 
 MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
@@ -434,9 +437,6 @@ MaybeLocal<Value> StartMainThreadExecution(Environment* env) {
     return StartExecution(env, "internal/main/print_help");
   }
 
-  if (per_process::cli_options->print_bash_completion) {
-    return StartExecution(env, "internal/main/print_bash_completion");
-  }
 
   if (env->options()->prof_process) {
     return StartExecution(env, "internal/main/prof_process");
@@ -557,6 +557,7 @@ inline void PlatformInit() {
   CHECK_EQ(err, 0);
 #endif  // HAVE_INSPECTOR
 
+  // TODO(addaleax): NODE_SHARED_MODE does not really make sense here.
 #ifndef NODE_SHARED_MODE
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
@@ -585,7 +586,7 @@ inline void PlatformInit() {
     while (s.flags == -1 && errno == EINTR);  // NOLINT
     CHECK_NE(s.flags, -1);
 
-    if (!isatty(fd)) continue;
+    if (uv_guess_handle(fd) != UV_TTY) continue;
     s.isatty = true;
 
     do
@@ -707,7 +708,7 @@ void ResetStdio() {
 int ProcessGlobalArgs(std::vector<std::string>* args,
                       std::vector<std::string>* exec_args,
                       std::vector<std::string>* errors,
-                      bool is_env) {
+                      OptionEnvvarSettings settings) {
   // Parse a few arguments which are specific to Node.
   std::vector<std::string> v8_args;
 
@@ -717,7 +718,7 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
       exec_args,
       &v8_args,
       per_process::cli_options.get(),
-      is_env ? kAllowedInEnvironment : kDisallowedInEnvironment,
+      settings,
       errors);
 
   if (!errors->empty()) return 9;
@@ -833,13 +834,6 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
                             &default_env_options->redirect_warnings);
   }
 
-#if HAVE_OPENSSL
-  std::string* openssl_config = &per_process::cli_options->openssl_config;
-  if (openssl_config->empty()) {
-    credentials::SafeGetenv("OPENSSL_CONF", openssl_config);
-  }
-#endif
-
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
 
@@ -873,7 +867,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       }
 
       if (will_start_new_arg) {
-        env_argv.push_back(std::string(1, c));
+        env_argv.emplace_back(std::string(1, c));
         will_start_new_arg = false;
       } else {
         env_argv.back() += c;
@@ -886,12 +880,18 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       return 9;
     }
 
-    const int exit_code = ProcessGlobalArgs(&env_argv, nullptr, errors, true);
+    const int exit_code = ProcessGlobalArgs(&env_argv,
+                                            nullptr,
+                                            errors,
+                                            kAllowedInEnvironment);
     if (exit_code != 0) return exit_code;
   }
 #endif
 
-  const int exit_code = ProcessGlobalArgs(argv, exec_argv, errors, false);
+  const int exit_code = ProcessGlobalArgs(argv,
+                                          exec_argv,
+                                          errors,
+                                          kDisallowedInEnvironment);
   if (exit_code != 0) return exit_code;
 
   // Set the process.title immediately after processing argv if --title is set.
@@ -903,6 +903,25 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   if (per_process::cli_options->icu_data_dir.empty())
     credentials::SafeGetenv("NODE_ICU_DATA",
                             &per_process::cli_options->icu_data_dir);
+
+#ifdef NODE_ICU_DEFAULT_DATA_DIR
+  // If neither the CLI option nor the environment variable was specified,
+  // fall back to the configured default
+  if (per_process::cli_options->icu_data_dir.empty()) {
+    // Check whether the NODE_ICU_DEFAULT_DATA_DIR contains the right data
+    // file and can be read.
+    static const char full_path[] =
+        NODE_ICU_DEFAULT_DATA_DIR "/" U_ICUDATA_NAME ".dat";
+
+    FILE* f = fopen(full_path, "rb");
+
+    if (f != nullptr) {
+      fclose(f);
+      per_process::cli_options->icu_data_dir = NODE_ICU_DEFAULT_DATA_DIR;
+    }
+  }
+#endif  // NODE_ICU_DEFAULT_DATA_DIR
+
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
@@ -944,6 +963,12 @@ void Init(int* argc,
     exit(0);
   }
 
+  if (per_process::cli_options->print_bash_completion) {
+    std::string completion = options_parser::GetBashCompletion();
+    printf("%s\n", completion.c_str());
+    exit(0);
+  }
+
   if (per_process::cli_options->print_v8_help) {
     // Doesn't return.
     V8::SetFlagsFromString("--help", static_cast<size_t>(6));
@@ -968,14 +993,6 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
 
   CHECK_GT(argc, 0);
 
-#ifdef NODE_ENABLE_LARGE_CODE_PAGES
-  if (node::IsLargePagesEnabled()) {
-    if (node::MapStaticCodeToLargePages() != 0) {
-      fprintf(stderr, "Reverting to default page size\n");
-    }
-  }
-#endif
-
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
@@ -995,11 +1012,37 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
     }
   }
 
+#if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
+  if (per_process::cli_options->use_largepages == "on" ||
+      per_process::cli_options->use_largepages == "silent") {
+    if (node::IsLargePagesEnabled()) {
+      if (node::MapStaticCodeToLargePages() != 0 &&
+          per_process::cli_options->use_largepages != "silent") {
+        fprintf(stderr,
+                "Mapping code to large pages failed. Reverting to default page "
+                "size.\n");
+      }
+    } else if (per_process::cli_options->use_largepages != "silent") {
+      fprintf(stderr, "Large pages are not enabled.\n");
+    }
+  }
+#else
+  if (per_process::cli_options->use_largepages == "on") {
+    fprintf(stderr, "Mapping to large pages is not supported.\n");
+  }
+#endif  // NODE_ENABLE_LARGE_CODE_PAGES
+
   if (per_process::cli_options->print_version) {
     printf("%s\n", NODE_VERSION);
     result.exit_code = 0;
     result.early_return = true;
     return result;
+  }
+
+  if (per_process::cli_options->print_bash_completion) {
+    std::string completion = options_parser::GetBashCompletion();
+    printf("%s\n", completion.c_str());
+    exit(0);
   }
 
   if (per_process::cli_options->print_v8_help) {
@@ -1024,7 +1067,8 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
-  InitializeV8Platform(per_process::cli_options->v8_thread_pool_size);
+  per_process::v8_platform.Initialize(
+      per_process::cli_options->v8_thread_pool_size);
   V8::Initialize();
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;

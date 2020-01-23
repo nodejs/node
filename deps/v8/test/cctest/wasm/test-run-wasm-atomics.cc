@@ -317,6 +317,54 @@ WASM_EXEC_TEST(AtomicFence) {
   CHECK_EQ(0, r.Call());
 }
 
+WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_I32V_1(20),
+                              MachineRepresentation::kWord32),
+        kExprI64Eqz);
+  CHECK_EQ(1, r.Call());
+}
+
+void RunNoEffectTest(ExecutionTier execution_tier, WasmOpcode wasm_op) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+        WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_I32V_1(20),
+                           MachineRepresentation::kWord32),
+        WASM_DROP, kExprI64Eqz);
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_EXEC_TEST(AtomicAddNoConsideredEffectful) {
+  RunNoEffectTest(execution_tier, kExprI32AtomicAdd);
+}
+
+WASM_EXEC_TEST(AtomicExchangeNoConsideredEffectful) {
+  RunNoEffectTest(execution_tier, kExprI32AtomicExchange);
+}
+
+WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO),
+        WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange, WASM_ZERO,
+                                WASM_ZERO, WASM_I32V_1(30),
+                                MachineRepresentation::kWord32),
+        WASM_DROP, kExprI32Eqz);
+  CHECK_EQ(1, r.Call());
+}
+
 }  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal

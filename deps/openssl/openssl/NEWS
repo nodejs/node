@@ -5,6 +5,23 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1c and OpenSSL 1.1.1d [10 Sep 2019]
+
+      o Fixed a fork protection issue (CVE-2019-1549)
+      o Fixed a padding oracle in PKCS7_dataDecode and CMS_decrypt_set1_pkey
+        (CVE-2019-1563)
+      o For built-in EC curves, ensure an EC_GROUP built from the curve name is
+        used even when parsing explicit parameters
+      o Compute ECC cofactors if not provided during EC_GROUP construction
+        (CVE-2019-1547)
+      o Early start up entropy quality from the DEVRANDOM seed source has been
+        improved for older Linux systems
+      o Correct the extended master secret constant on EBCDIC systems
+      o Use Windows installation paths in the mingw builds (CVE-2019-1552)
+      o Changed DH_check to accept parameters with order q and 2q subgroups
+      o Significantly reduce secure memory usage by the randomness pools
+      o Revert the DEVRANDOM_WAIT feature for Linux systems
+
   Major changes between OpenSSL 1.1.1b and OpenSSL 1.1.1c [28 May 2019]
 
       o Prevent over long nonces in ChaCha20-Poly1305 (CVE-2019-1543)
@@ -601,7 +618,7 @@
 
   Major changes between OpenSSL 0.9.7h and OpenSSL 0.9.7i [14 Oct 2005]:
 
-      o Give EVP_MAX_MD_SIZE it's old value, except for a FIPS build.
+      o Give EVP_MAX_MD_SIZE its old value, except for a FIPS build.
 
   Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.7h [11 Oct 2005]:
 

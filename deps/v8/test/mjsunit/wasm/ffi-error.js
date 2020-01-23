@@ -13,8 +13,8 @@ function CreateDefaultBuilder() {
   builder.addImport('mod', 'fun', sig_index);
   builder.addFunction('main', sig_index)
       .addBody([
-        kExprGetLocal, 0,      // --
-        kExprGetLocal, 1,      // --
+        kExprLocalGet, 0,      // --
+        kExprLocalGet, 1,      // --
         kExprCallFunction, 0,  // --
       ])                       // --
       .exportFunc();
@@ -76,7 +76,7 @@ function checkFailingInstantiation(
   let sig_index = kSig_i_dd;
   builder.addFunction('exp', kSig_i_i)
       .addBody([
-        kExprGetLocal,
+        kExprLocalGet,
         0,
       ])  // --
       .exportFunc();
@@ -126,8 +126,8 @@ function checkFailingInstantiation(
   builder.addMemory(1, 1, true);
   builder.addFunction('function_with_invalid_signature', kSig_l_ll)
     .addBody([           // --
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
+      kExprLocalGet, 0,  // --
+      kExprLocalGet, 1,  // --
       kExprI64Sub])      // --
     .exportFunc()
 
@@ -144,7 +144,7 @@ function checkFailingInstantiation(
 
   builder.addMemory(1, 1, true);
   builder.addFunction('function_with_invalid_signature', kSig_i_l)
-      .addBody([kExprGetLocal, 0, kExprI32ConvertI64])
+      .addBody([kExprLocalGet, 0, kExprI32ConvertI64])
       .exportFunc();
 
   checkSuccessfulInstantiation(
@@ -163,7 +163,7 @@ function checkFailingInstantiation(
   let index = builder.addImport('', 'func', sig_i64_index);
   builder.addFunction('main', sig_index)
       .addBody([
-        kExprGetLocal, 0, kExprI64SConvertI32, kExprCallFunction, index  // --
+        kExprLocalGet, 0, kExprI64SConvertI32, kExprCallFunction, index  // --
       ])                                                                 // --
       .exportFunc();
 

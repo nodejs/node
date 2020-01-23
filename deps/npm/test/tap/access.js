@@ -73,8 +73,7 @@ test('npm access public when no package passed and no package.json', function (t
   function (er, code, stdout, stderr) {
     t.ifError(er, 'npm access')
     t.match(stderr, /no package name passed to command and no package.json found/)
-    rimraf.sync(missing)
-    t.end()
+    rimraf(missing, t.end)
   })
 })
 
@@ -95,8 +94,7 @@ test('npm access public when no package passed and invalid package.json', functi
   function (er, code, stdout, stderr) {
     t.ifError(er, 'npm access')
     t.match(stderr, /Failed to parse json/)
-    rimraf.sync(invalid)
-    t.end()
+    rimraf(invalid, t.end)
   })
 })
 
@@ -405,8 +403,7 @@ test('npm access ls-packages with no package specified or package.json', functio
     function (er, code, stdout, stderr) {
       t.ifError(er, 'npm access ls-packages')
       t.same(JSON.parse(stdout), clientPackages)
-      rimraf.sync(missing)
-      t.end()
+      rimraf(missing, t.end)
     }
   )
 })
@@ -557,7 +554,6 @@ test('npm access blerg', function (t) {
 
 test('cleanup', function (t) {
   t.pass('cleaned up')
-  rimraf.sync(pkg)
   server.done()
   server.close()
   t.end()

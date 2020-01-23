@@ -1627,8 +1627,8 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   bool needs_counter = has_min || has_max;
   int reg_ctr = needs_counter ? compiler->AllocateRegister()
                               : RegExpCompiler::kNoRegister;
-  LoopChoiceNode* center = new (zone)
-      LoopChoiceNode(body->min_match() == 0, compiler->read_backward(), zone);
+  LoopChoiceNode* center = new (zone) LoopChoiceNode(
+      body->min_match() == 0, compiler->read_backward(), min, zone);
   if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
   RegExpNode* loop_return =
       needs_counter ? static_cast<RegExpNode*>(
@@ -1668,7 +1668,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
     center->AddLoopAlternative(body_alt);
   }
   if (needs_counter) {
-    return ActionNode::SetRegister(reg_ctr, 0, center);
+    return ActionNode::SetRegisterForLoop(reg_ctr, 0, center);
   } else {
     return center;
   }

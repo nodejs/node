@@ -691,7 +691,7 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
 
   v8::Local<v8::ArrayBuffer> data =
       v8::ArrayBuffer::New(isolate, sizeof(CommandLineAPIData));
-  *static_cast<CommandLineAPIData*>(data->GetContents().Data()) =
+  *static_cast<CommandLineAPIData*>(data->GetBackingStore()->Data()) =
       CommandLineAPIData(this, sessionId);
   createBoundFunctionProperty(context, commandLineAPI, data, "dir",
                               &V8Console::call<&V8Console::Dir>,

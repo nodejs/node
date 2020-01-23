@@ -10,11 +10,11 @@ function AllocMemory(pages, max = pages) {
 }
 
 function RunSomeAllocs(total, retained, pages, max = pages) {
-  print(`-------iterations = ${total}, retained = $ { retained } -------`);
+  print(`-------iterations = ${total}, retained = ${retained} -------`);
   var array = new Array(retained);
   for (var i = 0; i < total; i++) {
     if ((i % 25) == 0)
-      print(`iteration $ { i }`);
+      print(`iteration ${i}`);
     let pair = AllocMemory(pages, max);
     // For some iterations, retain the memory, view, or both.
     switch (i % 3) {

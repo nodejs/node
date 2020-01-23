@@ -26,6 +26,7 @@ const interpolate = require("./interpolate");
  * @property {Object} [data] Optional data to use to fill in placeholders in the
  *      message.
  * @property {Function} [fix] The function to call that creates a fix command.
+ * @property {Array<{desc?: string, messageId?: string, fix: Function}>} suggest Suggestion descriptions and functions to create a the associated fixes.
  */
 
 /**
@@ -34,14 +35,15 @@ const interpolate = require("./interpolate");
  * @property {string} ruleId
  * @property {(0|1|2)} severity
  * @property {(string|undefined)} message
- * @property {(string|undefined)} messageId
+ * @property {(string|undefined)} [messageId]
  * @property {number} line
  * @property {number} column
- * @property {(number|undefined)} endLine
- * @property {(number|undefined)} endColumn
+ * @property {(number|undefined)} [endLine]
+ * @property {(number|undefined)} [endColumn]
  * @property {(string|null)} nodeType
  * @property {string} source
- * @property {({text: string, range: (number[]|null)}|null)} fix
+ * @property {({text: string, range: (number[]|null)}|null)} [fix]
+ * @property {Array<{text: string, range: (number[]|null)}|null>} [suggestions]
  */
 
 //------------------------------------------------------------------------------
@@ -183,6 +185,29 @@ function normalizeFixes(descriptor, sourceCode) {
 }
 
 /**
+ * Gets an array of suggestion objects from the given descriptor.
+ * @param {MessageDescriptor} descriptor The report descriptor.
+ * @param {SourceCode} sourceCode The source code object to get text between fixes.
+ * @param {Object} messages Object of meta messages for the rule.
+ * @returns {Array<SuggestionResult>} The suggestions for the descriptor
+ */
+function mapSuggestions(descriptor, sourceCode, messages) {
+    if (!descriptor.suggest || !Array.isArray(descriptor.suggest)) {
+        return [];
+    }
+
+    return descriptor.suggest.map(suggestInfo => {
+        const computedDesc = suggestInfo.desc || messages[suggestInfo.messageId];
+
+        return {
+            ...suggestInfo,
+            desc: interpolate(computedDesc, suggestInfo.data),
+            fix: normalizeFixes(suggestInfo, sourceCode)
+        };
+    });
+}
+
+/**
  * Creates information about the report from a descriptor
  * @param {Object} options Information about the problem
  * @param {string} options.ruleId Rule ID
@@ -192,6 +217,7 @@ function normalizeFixes(descriptor, sourceCode) {
  * @param {string} [options.messageId] The error message ID.
  * @param {{start: SourceLocation, end: (SourceLocation|null)}} options.loc Start and end location
  * @param {{text: string, range: (number[]|null)}} options.fix The fix object
+ * @param {Array<{text: string, range: (number[]|null)}>} options.suggestions The array of suggestions objects
  * @returns {function(...args): ReportInfo} Function that returns information about the report
  */
 function createProblem(options) {
@@ -221,7 +247,45 @@ function createProblem(options) {
         problem.fix = options.fix;
     }
 
+    if (options.suggestions && options.suggestions.length > 0) {
+        problem.suggestions = options.suggestions;
+    }
+
     return problem;
+}
+
+/**
+ * Validates that suggestions are properly defined. Throws if an error is detected.
+ * @param {Array<{ desc?: string, messageId?: string }>} suggest The incoming suggest data.
+ * @param {Object} messages Object of meta messages for the rule.
+ * @returns {void}
+ */
+function validateSuggestions(suggest, messages) {
+    if (suggest && Array.isArray(suggest)) {
+        suggest.forEach(suggestion => {
+            if (suggestion.messageId) {
+                const { messageId } = suggestion;
+
+                if (!messages) {
+                    throw new TypeError(`context.report() called with a suggest option with a messageId '${messageId}', but no messages were present in the rule metadata.`);
+                }
+
+                if (!messages[messageId]) {
+                    throw new TypeError(`context.report() called with a suggest option with a messageId '${messageId}' which is not present in the 'messages' config: ${JSON.stringify(messages, null, 2)}`);
+                }
+
+                if (suggestion.desc) {
+                    throw new TypeError("context.report() called with a suggest option that defines both a 'messageId' and an 'desc'. Please only pass one.");
+                }
+            } else if (!suggestion.desc) {
+                throw new TypeError("context.report() called with a suggest option that doesn't have either a `desc` or `messageId`");
+            }
+
+            if (typeof suggestion.fix !== "function") {
+                throw new TypeError(`context.report() called with a suggest option without a fix function. See: ${suggestion}`);
+            }
+        });
+    }
 }
 
 /**
@@ -242,17 +306,17 @@ module.exports = function createReportTranslator(metadata) {
      */
     return (...args) => {
         const descriptor = normalizeMultiArgReportCall(...args);
+        const messages = metadata.messageIds;
 
         assertValidNodeInfo(descriptor);
 
         let computedMessage;
 
         if (descriptor.messageId) {
-            if (!metadata.messageIds) {
+            if (!messages) {
                 throw new TypeError("context.report() called with a messageId, but no messages were present in the rule metadata.");
             }
             const id = descriptor.messageId;
-            const messages = metadata.messageIds;
 
             if (descriptor.message) {
                 throw new TypeError("context.report() called with a message and a messageId. Please only pass one.");
@@ -267,6 +331,7 @@ module.exports = function createReportTranslator(metadata) {
             throw new TypeError("Missing `message` property in report() call; add a message that describes the linting problem.");
         }
 
+        validateSuggestions(descriptor.suggest, messages);
 
         return createProblem({
             ruleId: metadata.ruleId,
@@ -275,7 +340,8 @@ module.exports = function createReportTranslator(metadata) {
             message: interpolate(computedMessage, descriptor.data),
             messageId: descriptor.messageId,
             loc: normalizeReportLoc(descriptor),
-            fix: metadata.disableFixes ? null : normalizeFixes(descriptor, metadata.sourceCode)
+            fix: metadata.disableFixes ? null : normalizeFixes(descriptor, metadata.sourceCode),
+            suggestions: metadata.disableFixes ? [] : mapSuggestions(descriptor, metadata.sourceCode, messages)
         });
     };
 };

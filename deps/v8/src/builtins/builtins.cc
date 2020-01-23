@@ -88,14 +88,16 @@ const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
 }  // namespace
 
 BailoutId Builtins::GetContinuationBailoutId(Name name) {
-  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC);
+  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC ||
+         Builtins::KindOf(name) == TFS);
   return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
 }
 
 Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
   int builtin_index = id.ToInt() - BailoutId::kFirstBuiltinContinuationId;
   DCHECK(Builtins::KindOf(builtin_index) == TFJ ||
-         Builtins::KindOf(builtin_index) == TFC);
+         Builtins::KindOf(builtin_index) == TFC ||
+         Builtins::KindOf(builtin_index) == TFS);
   return static_cast<Name>(builtin_index);
 }
 
@@ -158,8 +160,7 @@ int Builtins::GetStackParameterCount(Name name) {
 }
 
 // static
-Callable Builtins::CallableFor(Isolate* isolate, Name name) {
-  Handle<Code> code = isolate->builtins()->builtin_handle(name);
+CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Name name) {
   CallDescriptors::Key key;
   switch (name) {
 // This macro is deliberately crafted so as to emit very little code,
@@ -176,12 +177,17 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
       Builtins::Kind kind = Builtins::KindOf(name);
       DCHECK_NE(BCH, kind);
       if (kind == TFJ || kind == CPP) {
-        return Callable(code, JSTrampolineDescriptor{});
+        return JSTrampolineDescriptor{};
       }
       UNREACHABLE();
   }
-  CallInterfaceDescriptor descriptor(key);
-  return Callable(code, descriptor);
+  return CallInterfaceDescriptor{key};
+}
+
+// static
+Callable Builtins::CallableFor(Isolate* isolate, Name name) {
+  Handle<Code> code = isolate->builtins()->builtin_handle(name);
+  return Callable{code, CallInterfaceDescriptorFor(name)};
 }
 
 // static
@@ -200,7 +206,7 @@ void Builtins::PrintBuiltinCode() {
                      CStrVector(FLAG_print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      code->Disassemble(builtin_name, os);
+      code->Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
   }

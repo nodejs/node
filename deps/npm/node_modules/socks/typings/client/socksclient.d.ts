@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import { SocksClientOptions, SocksClientChainOptions, SocksRemoteHost, SocksProxy, SocksClientBoundEvent, SocksClientEstablishedEvent, SocksUDPFrameDetails } from '../common/constants';
 import { SocksClientError } from '../common/util';
 import { Duplex } from 'stream';
-interface SocksClient {
+declare interface SocksClient {
     on(event: 'error', listener: (err: SocksClientError) => void): this;
     on(event: 'bound', listener: (info: SocksClientBoundEvent) => void): this;
     on(event: 'established', listener: (info: SocksClientEstablishedEvent) => void): this;
@@ -59,99 +59,101 @@ declare class SocksClient extends EventEmitter implements SocksClient {
     /**
      * Gets the SocksClient internal state.
      */
+    private get state();
     /**
      * Internal state setter. If the SocksClient is in an error state, it cannot be changed to a non error state.
      */
-    private state;
+    private set state(value);
     /**
      * Starts the connection establishment to the proxy and destination.
      * @param existing_socket Connected socket to use instead of creating a new one (internal use).
      */
     connect(existing_socket?: Duplex): void;
+    private getSocketOptions;
     /**
      * Handles internal Socks timeout callback.
      * Note: If the Socks client is not BoundWaitingForConnection or Established, the connection will be closed.
      */
-    private onEstablishedTimeout();
+    private onEstablishedTimeout;
     /**
      * Handles Socket connect event.
      */
-    private onConnect();
+    private onConnect;
     /**
      * Handles Socket data event.
      * @param data
      */
-    private onDataReceived(data);
+    private onDataReceived;
     /**
      * Handles processing of the data we have received.
      */
-    private processData();
+    private processData;
     /**
      * Handles Socket close event.
      * @param had_error
      */
-    private onClose();
+    private onClose;
     /**
      * Handles Socket error event.
      * @param err
      */
-    private onError(err);
+    private onError;
     /**
      * Removes internal event listeners on the underlying Socket.
      */
-    private removeInternalSocketHandlers();
+    private removeInternalSocketHandlers;
     /**
      * Closes and destroys the underlying Socket. Emits an error event.
      * @param err { String } An error string to include in error event.
      */
-    private _closeSocket(err);
+    private _closeSocket;
     /**
      * Sends initial Socks v4 handshake request.
      */
-    private sendSocks4InitialHandshake();
+    private sendSocks4InitialHandshake;
     /**
      * Handles Socks v4 handshake response.
      * @param data
      */
-    private handleSocks4FinalHandshakeResponse();
+    private handleSocks4FinalHandshakeResponse;
     /**
      * Handles Socks v4 incoming connection request (BIND)
      * @param data
      */
-    private handleSocks4IncomingConnectionResponse();
+    private handleSocks4IncomingConnectionResponse;
     /**
      * Sends initial Socks v5 handshake request.
      */
-    private sendSocks5InitialHandshake();
+    private sendSocks5InitialHandshake;
     /**
      * Handles initial Socks v5 handshake response.
      * @param data
      */
-    private handleInitialSocks5HandshakeResponse();
+    private handleInitialSocks5HandshakeResponse;
     /**
      * Sends Socks v5 user & password auth handshake.
      *
      * Note: No auth and user/pass are currently supported.
      */
-    private sendSocks5UserPassAuthentication();
+    private sendSocks5UserPassAuthentication;
     /**
      * Handles Socks v5 auth handshake response.
      * @param data
      */
-    private handleInitialSocks5AuthenticationHandshakeResponse();
+    private handleInitialSocks5AuthenticationHandshakeResponse;
     /**
      * Sends Socks v5 final handshake request.
      */
-    private sendSocks5CommandRequest();
+    private sendSocks5CommandRequest;
     /**
      * Handles Socks v5 final handshake response.
      * @param data
      */
-    private handleSocks5FinalHandshakeResponse();
+    private handleSocks5FinalHandshakeResponse;
     /**
      * Handles Socks v5 incoming connection request (BIND).
      */
-    private handleSocks5IncomingConnectionResponse();
-    readonly socksClientOptions: SocksClientOptions;
+    private handleSocks5IncomingConnectionResponse;
+    get socksClientOptions(): SocksClientOptions;
 }
 export { SocksClient, SocksClientOptions, SocksClientChainOptions, SocksRemoteHost, SocksProxy, SocksUDPFrameDetails };

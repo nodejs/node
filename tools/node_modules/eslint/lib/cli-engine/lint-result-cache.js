@@ -20,6 +20,7 @@ const hash = require("./hash");
 //-----------------------------------------------------------------------------
 
 const configHashCache = new WeakMap();
+const nodeVersion = process && process.version;
 
 /**
  * Calculates the hash of the config
@@ -28,7 +29,7 @@ const configHashCache = new WeakMap();
  */
 function hashOfConfigFor(config) {
     if (!configHashCache.has(config)) {
-        configHashCache.set(config, hash(`${pkg.version}_${stringify(config)}`));
+        configHashCache.set(config, hash(`${pkg.version}_${nodeVersion}_${stringify(config)}`));
     }
 
     return configHashCache.get(config);
@@ -47,7 +48,6 @@ class LintResultCache {
 
     /**
      * Creates a new LintResultCache instance.
-     * @constructor
      * @param {string} cacheFileLocation The cache file location.
      *   configuration lookup by file path).
      */

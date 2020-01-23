@@ -119,7 +119,7 @@ inline void MemsetTagged(ObjectSlot start, Object value, size_t counter) {
 #ifdef V8_COMPRESS_POINTERS
   Tagged_t raw_value = CompressTagged(value.ptr());
   STATIC_ASSERT(kTaggedSize == kInt32Size);
-  MemsetInt32(start.location(), raw_value, counter);
+  MemsetInt32(reinterpret_cast<int32_t*>(start.location()), raw_value, counter);
 #else
   Address raw_value = value.ptr();
   MemsetPointer(start.location(), raw_value, counter);

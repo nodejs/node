@@ -1,10 +1,7 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -21,6 +18,17 @@ var json = {
   dependencies: {
     'npm-test-peer-deps': '*'
   }
+}
+
+function setup (cb) {
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  process.chdir(pkg)
+
+  var opts = { cache: common.cache, registry: common.registry }
+  npm.load(opts, cb)
 }
 
 test('installs the peer dependency directory structure', function (t) {
@@ -42,26 +50,3 @@ test('installs the peer dependency directory structure', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function setup (cb) {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  process.chdir(pkg)
-
-  var opts = { cache: common.cache, registry: common.registry }
-  npm.load(opts, cb)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

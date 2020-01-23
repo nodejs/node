@@ -100,7 +100,7 @@ NameUnicodeTransliterator::NameUnicodeTransliterator(const NameUnicodeTransliter
 /**
  * Transliterator API.
  */
-Transliterator* NameUnicodeTransliterator::clone(void) const {
+NameUnicodeTransliterator* NameUnicodeTransliterator::clone() const {
     return new NameUnicodeTransliterator(*this);
 }
 

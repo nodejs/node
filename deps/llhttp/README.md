@@ -14,6 +14,8 @@ This project aims to:
 * Verifiable
 * Improving benchmarks where possible
 
+More details in [Fedor Indutny's talk at JSConf EU 2019](https://youtu.be/x3k_5Mi66sY)
+
 ## How?
 
 Over time, different approaches for improving [http_parser][0]'s code base
@@ -30,11 +32,10 @@ So far llhttp outperforms http_parser:
 
 |                 | input size |  bandwidth   |  reqs/sec  |   time  |
 |:----------------|-----------:|-------------:|-----------:|--------:|
-| **llhttp** _(C)_ | 8192.00 mb | 1497.88 mb/s | 3020458.87 ops/sec | 5.47 s |
-| **llhttp** _(bitcode)_ | 8192.00 mb | 1131.75 mb/s | 2282171.24 ops/sec | 7.24 s |
+| **llhttp** _(C)_ | 8192.00 mb | 1777.24 mb/s | 3583799.39 ops/sec | 4.61 s |
 | **http_parser** | 8192.00 mb | 694.66 mb/s | 1406180.33 req/sec | 11.79 s |
 
-llhttp is faster by approximately **116%**.
+llhttp is faster by approximately **156%**.
 
 ## Maintenance
 
@@ -76,8 +77,6 @@ settings.on_message_complete = handle_on_message_complete;
  * input.
  */
 llhttp_init(&parser, HTTP_BOTH, &settings);
-
-/* Use `llhttp_set_type(&parser, HTTP_REQUEST);` to override the mode */
 
 /* Parse request! */
 const char* request = "GET / HTTP/1.1\r\n\r\n";

@@ -43,7 +43,7 @@ TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
       process_queue_semaphore_(0),
       nested_loop_count_(0),
       is_terminated_(0) {
-  Start();
+  CHECK(Start());
 }
 
 TaskRunner::~TaskRunner() { Join(); }

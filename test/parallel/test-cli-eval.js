@@ -234,7 +234,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
 
 // Assert that "42\n" is written to stdout on module eval.
-const execOptions = '--experimental-modules --input-type module';
+const execOptions = '--input-type module';
 child.exec(
   `${nodejs} ${execOptions} --eval "console.log(42)"`,
   common.mustCall((err, stdout) => {
@@ -279,6 +279,26 @@ child.exec(
 child.exec(
   `${nodejs} ${execOptions} ` +
   '--eval "import \'./test/fixtures/es-modules/mjs-file.mjs\'"',
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '.mjs file\n');
+  }));
+
+
+// Assert that packages can be dynamic imported initial cwd-relative with --eval
+child.exec(
+  `${nodejs} ${execOptions} ` +
+  '--eval "process.chdir(\'..\');' +
+          'import(\'./test/fixtures/es-modules/mjs-file.mjs\')"',
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '.mjs file\n');
+  }));
+
+child.exec(
+  `${nodejs} ` +
+  '--eval "process.chdir(\'..\');' +
+          'import(\'./test/fixtures/es-modules/mjs-file.mjs\')"',
   common.mustCall((err, stdout) => {
     assert.ifError(err);
     assert.strictEqual(stdout, '.mjs file\n');

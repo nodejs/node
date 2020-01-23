@@ -590,7 +590,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 't': {  // 'target: target of branch instructions
       DCHECK(STRING_STARTS_WITH(format, "target"));
-      int off = (instr->SImmed24Value() << 2) + 8;
+      int off = (static_cast<uint32_t>(instr->SImmed24Value()) << 2) + 8u;
       out_buffer_pos_ += SNPrintF(
           out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
           converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
@@ -1890,6 +1890,17 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
                        op, size, Vd, Vn, Vm);
           break;
         }
+        case 0x4: {
+          if (instr->Bit(4) == 0) {
+            // vshl.s<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vshl.s%d q%d, q%d, q%d", size, Vd, Vm, Vn);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
         case 0x6: {
           // vmin/vmax.s<size> Qd, Qm, Qn.
           const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
@@ -2081,6 +2092,17 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           out_buffer_pos_ +=
               SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d",
                        op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0x4: {
+          if (instr->Bit(4) == 0) {
+            // vshl.u<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vshl.u%d q%d, q%d, q%d", size, Vd, Vm, Vn);
+          } else {
+            Unknown(instr);
+          }
           break;
         }
         case 0x6: {

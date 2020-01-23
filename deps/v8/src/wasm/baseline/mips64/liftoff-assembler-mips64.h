@@ -13,15 +13,44 @@ namespace wasm {
 
 namespace liftoff {
 
+// Liftoff Frames.
+//
+//  slot      Frame
+//       +--------------------+---------------------------
+//  n+4  | optional padding slot to keep the stack 16 byte aligned.
+//  n+3  |   parameter n      |
+//  ...  |       ...          |
+//   4   |   parameter 1      | or parameter 2
+//   3   |   parameter 0      | or parameter 1
+//   2   |  (result address)  | or parameter 0
+//  -----+--------------------+---------------------------
+//   1   | return addr (ra)   |
+//   0   | previous frame (fp)|
+//  -----+--------------------+  <-- frame ptr (fp)
+//  -1   | 0xa: WASM_COMPILED |
+//  -2   |     instance       |
+//  -----+--------------------+---------------------------
+//  -3   |     slot 0         |   ^
+//  -4   |     slot 1         |   |
+//       |                    | Frame slots
+//       |                    |   |
+//       |                    |   v
+//       | optional padding slot to keep the stack 16 byte aligned.
+//  -----+--------------------+  <-- stack ptr (sp)
+//
+
 // fp-8 holds the stack marker, fp-16 is the instance parameter, first stack
 // slot is located at fp-24.
 constexpr int32_t kConstantStackSpace = 16;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
+inline int GetStackSlotOffset(uint32_t index) {
+  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+}
+
 inline MemOperand GetStackSlot(uint32_t index) {
-  int32_t offset = index * LiftoffAssembler::kStackSlotSize;
-  return MemOperand(fp, -kFirstStackSlotOffset - offset);
+  return MemOperand(fp, -GetStackSlotOffset(index));
 }
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -16); }
@@ -496,6 +525,35 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
 
 void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
+}
+
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
+  DCHECK_LT(0, count);
+  uint32_t last_stack_slot = index + count - 1;
+  RecordUsedSpillSlot(last_stack_slot);
+
+  if (count <= 12) {
+    // Special straight-line code for up to 12 slots. Generates one
+    // instruction per slot (<= 12 instructions total).
+    for (uint32_t offset = 0; offset < count; ++offset) {
+      Sd(zero_reg, liftoff::GetStackSlot(index + offset));
+    }
+  } else {
+    // General case for bigger counts (12 instructions).
+    // Use a0 for start address (inclusive), a1 for end address (exclusive).
+    Push(a1, a0);
+    Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(last_stack_slot)));
+    Daddu(a1, fp,
+          Operand(-liftoff::GetStackSlotOffset(index) + kStackSlotSize));
+
+    Label loop;
+    bind(&loop);
+    Sd(zero_reg, MemOperand(a0, kSystemPointerSize));
+    daddiu(a0, a0, kSystemPointerSize);
+    BranchShort(&loop, ne, a0, Operand(a1));
+
+    Pop(a1, a0);
+  }
 }
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {

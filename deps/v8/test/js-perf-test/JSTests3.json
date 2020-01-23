@@ -371,6 +371,17 @@
             {"name": "Object-Lookup-Index-Number"},
             {"name": "Object-Lookup-Index-String"}
           ]
+        },
+        {
+          "name": "LdaGlobal",
+          "main": "run.js",
+          "resources": [ "LdaGlobal.js" ],
+          "test_flags": [ "LdaGlobal" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "LoadGlobal"},
+            {"name": "LoadGlobalInsideTypeof"}
+          ]
         }
       ]
     },

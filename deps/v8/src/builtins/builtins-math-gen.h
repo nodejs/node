@@ -21,7 +21,7 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
   void MathRoundingOperation(
       Node* context, Node* x,
       TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
-  void MathMaxMin(Node* context, Node* argc,
+  void MathMaxMin(TNode<Context> context, TNode<Int32T> argc,
                   TNode<Float64T> (CodeStubAssembler::*float64op)(
                       SloppyTNode<Float64T>, SloppyTNode<Float64T>),
                   double default_val);

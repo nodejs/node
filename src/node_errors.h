@@ -3,8 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-#include "util.h"
 #include "env.h"
 #include "v8.h"
 
@@ -41,6 +39,7 @@ void PrintErrorString(const char* format, ...);
   V(ERR_BUFFER_TOO_LARGE, Error)                                             \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                  \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                   \
+  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                      \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                      \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
@@ -52,6 +51,7 @@ void PrintErrorString(const char* format, ...);
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                       \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
+  V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                   \
   V(ERR_MODULE_NOT_FOUND, Error)                                             \
   V(ERR_OUT_OF_RANGE, RangeError)                                            \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
@@ -59,6 +59,8 @@ void PrintErrorString(const char* format, ...);
   V(ERR_STRING_TOO_LONG, Error)                                              \
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                              \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                              \
+  V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                               \
 
 #define V(code, type)                                                         \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
@@ -88,6 +90,7 @@ void PrintErrorString(const char* format, ...);
     "Buffer is not available for the current Context")                       \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")              \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
+  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                         \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                      \
@@ -96,10 +99,13 @@ void PrintErrorString(const char* format, ...);
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                         \
     "The V8 platform used by this instance of Node does not support "        \
     "creating Workers")                                                      \
+  V(ERR_NON_CONTEXT_AWARE_DISABLED,                                          \
+    "Loading non context-aware native modules has been disabled")            \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                        \
     "Script execution was interrupted by `SIGINT`")                          \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                         \
     "Cannot serialize externalized SharedArrayBuffer")                       \
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")  \
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \

@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-octal-escape"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            octalEscapeSequence: "Don't use octal: '\\{{sequence}}'. Use '\\u....' instead."
+        }
     },
 
     create(context) {
@@ -32,15 +36,17 @@ module.exports = {
                     return;
                 }
 
-                const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/u);
+                // \0 represents a valid NULL character if it isn't followed by a digit.
+                const match = node.raw.match(
+                    /^(?:[^\\]|\\.)*?\\([0-3][0-7]{1,2}|[4-7][0-7]|0(?=[89])|[1-7])/su
+                );
 
                 if (match) {
-                    const octalDigit = match[2];
-
-                    // \0 is actually not considered an octal
-                    if (match[2] !== "0" || typeof match[3] !== "undefined") {
-                        context.report({ node, message: "Don't use octal: '\\{{octalDigit}}'. Use '\\u....' instead.", data: { octalDigit } });
-                    }
+                    context.report({
+                        node,
+                        messageId: "octalEscapeSequence",
+                        data: { sequence: match[1] }
+                    });
                 }
             }
 

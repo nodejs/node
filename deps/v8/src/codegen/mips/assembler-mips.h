@@ -36,6 +36,7 @@
 #define V8_CODEGEN_MIPS_ASSEMBLER_MIPS_H_
 
 #include <stdio.h>
+#include <memory>
 
 #include <set>
 
@@ -122,7 +123,7 @@ class Operand {
 
 // On MIPS we have only one addressing mode with base_reg + offset.
 // Class MemOperand represents a memory operand in load and store instructions.
-class MemOperand : public Operand {
+class V8_EXPORT_PRIVATE MemOperand : public Operand {
  public:
   // Immediate value attached to offset.
   enum OffsetAddend { offset_minus_one = -1, offset_zero = 0 };
@@ -1478,13 +1479,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsAddImmediate(Instr instr);
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
   static uint32_t CreateTargetAddress(Instr instr_lui, Instr instr_jic);
-  static void UnpackTargetAddress(
-      uint32_t address, int16_t& lui_offset,  // NOLINT(runtime/references)
-      int16_t& jic_offset);                   // NOLINT(runtime/references)
-  static void UnpackTargetAddressUnsigned(
-      uint32_t address,
-      uint32_t& lui_offset,   // NOLINT(runtime/references)
-      uint32_t& jic_offset);  // NOLINT(runtime/references)
+  static void UnpackTargetAddress(uint32_t address, int16_t* lui_offset,
+                                  int16_t* jic_offset);
+  static void UnpackTargetAddressUnsigned(uint32_t address,
+                                          uint32_t* lui_offset,
+                                          uint32_t* jic_offset);
 
   static bool IsAndImmediate(Instr instr);
   static bool IsEmittedConstant(Instr instr);
@@ -1515,7 +1514,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Helper function for memory load/store using base register and offset.
   void AdjustBaseAndOffset(
-      MemOperand& src,  // NOLINT(runtime/references)
+      MemOperand* src,
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 
@@ -1872,7 +1871,7 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
-class UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

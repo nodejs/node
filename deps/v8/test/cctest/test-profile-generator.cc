@@ -200,7 +200,9 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
-  ProfileStackTrace path = {{&c, 5}, {&b, 3}, {&a, 1}};
+  ProfileStackTrace path = {{{&c, 5}, kNullAddress, false},
+                            {{&b, 3}, kNullAddress, false},
+                            {{&a, 1}, kNullAddress, false}};
   tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
                       v8::CpuProfilingMode::kCallerLineNumbers);
 
@@ -381,7 +383,8 @@ TEST(RecordTickSample) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  ProfileGenerator generator(&profiles);
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -449,7 +452,8 @@ TEST(SampleIds) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
-  ProfileGenerator generator(&profiles);
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -503,7 +507,8 @@ TEST(NoSamples) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  ProfileGenerator generator(&profiles);
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
@@ -669,13 +674,12 @@ static const char* line_number_test_source_profile_time_functions =
 "bar_at_the_second_line();\n"
 "function lazy_func_at_6th_line() {}";
 
-int GetFunctionLineNumber(CpuProfiler& profiler,  // NOLINT(runtime/references)
-                          LocalContext& env,      // NOLINT(runtime/references)
+int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
                           const char* name) {
-  CodeMap* code_map = profiler.generator()->code_map();
+  CodeMap* code_map = profiler->generator()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
+          (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
       code_map->FindEntry(func->abstract_code().InstructionStart());
   if (!func_entry) FATAL("%s", name);
@@ -700,12 +704,12 @@ TEST(LineNumber) {
   profiler.processor()->StopSynchronously();
 
   bool is_lazy = i::FLAG_lazy;
-  CHECK_EQ(1, GetFunctionLineNumber(profiler, env, "foo_at_the_first_line"));
+  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4,
-           GetFunctionLineNumber(profiler, env, "lazy_func_at_forth_line"));
-  CHECK_EQ(2, GetFunctionLineNumber(profiler, env, "bar_at_the_second_line"));
+           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, "bar_at_the_second_line"));
   CHECK_EQ(is_lazy ? 0 : 6,
-           GetFunctionLineNumber(profiler, env, "lazy_func_at_6th_line"));
+           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_6th_line"));
 
   profiler.StopProfiling("LineNumber");
 }

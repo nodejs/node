@@ -48,7 +48,8 @@ const missing = getExpectedSymbols().filter((symbol) => {
   return !symbols.includes(symbol);
 });
 
-assert.strictEqual(missing.length, 0, `Missing constants: ${missing}`);
+assert.strictEqual(missing.length, 0,
+                   `Missing constants: \n${missing.join('\n')}`);
 
 // This is only a function so that the long list of expected symbols can be
 // pushed to the bottom of the file for improved readability.
@@ -58,6 +59,7 @@ function getExpectedSymbols() {
     // should only consist of postmortem constants, and some of them can be
     // relatively long.
     /* eslint-disable max-len */
+    'v8dbg_class_DescriptorArray__header_size__uintptr_t',
     'v8dbg_bit_field3_is_dictionary_map_shift',
     'v8dbg_bit_field3_number_of_own_descriptors_shift',
     'v8dbg_class_Code__instruction_size__int',
@@ -102,7 +104,7 @@ function getExpectedSymbols() {
     'v8dbg_class_UncompiledData__inferred_name__String',
     'v8dbg_class_SharedFunctionInfo__internal_formal_parameter_count__uint16_t',
     'v8dbg_class_SharedFunctionInfo__name_or_scope_info__Object',
-    'v8dbg_class_SharedFunctionInfo__script_or_debug_info__Object',
+    'v8dbg_class_SharedFunctionInfo__script_or_debug_info__HeapObject',
     'v8dbg_class_UncompiledData__start_position__int32_t',
     'v8dbg_class_SlicedString__offset_offset__int',
     'v8dbg_class_SlicedString__parent__String',
@@ -161,8 +163,10 @@ function getExpectedSymbols() {
     'v8dbg_type_JSFunction__JS_FUNCTION_TYPE',
     'v8dbg_type_JSGlobalObject__JS_GLOBAL_OBJECT_TYPE',
     'v8dbg_type_JSGlobalProxy__JS_GLOBAL_PROXY_TYPE',
+    'v8dbg_type_JSMessageObject__JS_MESSAGE_OBJECT_TYPE',
     'v8dbg_type_JSObject__JS_OBJECT_TYPE',
-    'v8dbg_type_JSRegExp__JS_REGEXP_TYPE',
+    'v8dbg_type_JSPromise__JS_PROMISE_TYPE',
+    'v8dbg_type_JSRegExp__JS_REG_EXP_TYPE',
     'v8dbg_type_JSTypedArray__JS_TYPED_ARRAY_TYPE',
     'v8dbg_type_Map__MAP_TYPE',
     'v8dbg_type_Oddball__ODDBALL_TYPE',

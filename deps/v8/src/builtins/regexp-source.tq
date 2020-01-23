@@ -1,0 +1,27 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+  // ES6 21.2.5.10.
+  // ES #sec-get-regexp.prototype.source
+  transitioning javascript builtin RegExpPrototypeSourceGetter(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    typeswitch (receiver) {
+      case (receiver: JSRegExp): {
+        return receiver.source;
+      }
+      case (Object): {
+      }
+    }
+    if (!IsReceiverInitialRegExpPrototype(receiver)) {
+      const methodName: constexpr string = 'RegExp.prototype.source';
+      ThrowTypeError(kRegExpNonRegExp, methodName);
+    }
+    IncrementUseCounter(context, SmiConstant(kRegExpPrototypeSourceGetter));
+    return '(?:)';
+  }
+}

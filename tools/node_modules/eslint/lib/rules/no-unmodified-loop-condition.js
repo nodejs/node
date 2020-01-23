@@ -35,8 +35,7 @@ const DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/u;
 
 /**
  * Checks whether or not a given reference is a write reference.
- *
- * @param {eslint-scope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Reference} reference A reference to check.
  * @returns {boolean} `true` if the reference is a write reference.
  */
 function isWriteReference(reference) {
@@ -53,8 +52,7 @@ function isWriteReference(reference) {
 /**
  * Checks whether or not a given loop condition info does not have the modified
  * flag.
- *
- * @param {LoopConditionInfo} condition - A loop condition info to check.
+ * @param {LoopConditionInfo} condition A loop condition info to check.
  * @returns {boolean} `true` if the loop condition info is "unmodified".
  */
 function isUnmodified(condition) {
@@ -64,8 +62,7 @@ function isUnmodified(condition) {
 /**
  * Checks whether or not a given loop condition info does not have the modified
  * flag and does not have the group this condition belongs to.
- *
- * @param {LoopConditionInfo} condition - A loop condition info to check.
+ * @param {LoopConditionInfo} condition A loop condition info to check.
  * @returns {boolean} `true` if the loop condition info is "unmodified".
  */
 function isUnmodifiedAndNotBelongToGroup(condition) {
@@ -74,9 +71,8 @@ function isUnmodifiedAndNotBelongToGroup(condition) {
 
 /**
  * Checks whether or not a given reference is inside of a given node.
- *
- * @param {ASTNode} node - A node to check.
- * @param {eslint-scope.Reference} reference - A reference to check.
+ * @param {ASTNode} node A node to check.
+ * @param {eslint-scope.Reference} reference A reference to check.
  * @returns {boolean} `true` if the reference is inside of the node.
  */
 function isInRange(node, reference) {
@@ -88,9 +84,8 @@ function isInRange(node, reference) {
 
 /**
  * Checks whether or not a given reference is inside of a loop node's condition.
- *
- * @param {ASTNode} node - A node to check.
- * @param {eslint-scope.Reference} reference - A reference to check.
+ * @param {ASTNode} node A node to check.
+ * @param {eslint-scope.Reference} reference A reference to check.
  * @returns {boolean} `true` if the reference is inside of the loop node's
  *      condition.
  */
@@ -108,8 +103,7 @@ const isInLoop = {
 /**
  * Gets the function which encloses a given reference.
  * This supports only FunctionDeclaration.
- *
- * @param {eslint-scope.Reference} reference - A reference to get.
+ * @param {eslint-scope.Reference} reference A reference to get.
  * @returns {ASTNode|null} The function node or null.
  */
 function getEncloseFunctionDeclaration(reference) {
@@ -128,9 +122,8 @@ function getEncloseFunctionDeclaration(reference) {
 
 /**
  * Updates the "modified" flags of given loop conditions with given modifiers.
- *
- * @param {LoopConditionInfo[]} conditions - The loop conditions to be updated.
- * @param {eslint-scope.Reference[]} modifiers - The references to update.
+ * @param {LoopConditionInfo[]} conditions The loop conditions to be updated.
+ * @param {eslint-scope.Reference[]} modifiers The references to update.
  * @returns {void}
  */
 function updateModifiedFlag(conditions, modifiers) {
@@ -183,8 +176,7 @@ module.exports = {
 
         /**
          * Reports a given condition info.
-         *
-         * @param {LoopConditionInfo} condition - A loop condition info to report.
+         * @param {LoopConditionInfo} condition A loop condition info to report.
          * @returns {void}
          */
         function report(condition) {
@@ -199,8 +191,7 @@ module.exports = {
 
         /**
          * Registers given conditions to the group the condition belongs to.
-         *
-         * @param {LoopConditionInfo[]} conditions - A loop condition info to
+         * @param {LoopConditionInfo[]} conditions A loop condition info to
          *      register.
          * @returns {void}
          */
@@ -222,8 +213,7 @@ module.exports = {
 
         /**
          * Reports references which are inside of unmodified groups.
-         *
-         * @param {LoopConditionInfo[]} conditions - A loop condition info to report.
+         * @param {LoopConditionInfo[]} conditions A loop condition info to report.
          * @returns {void}
          */
         function checkConditionsInGroup(conditions) {
@@ -234,8 +224,7 @@ module.exports = {
 
         /**
          * Checks whether or not a given group node has any dynamic elements.
-         *
-         * @param {ASTNode} root - A node to check.
+         * @param {ASTNode} root A node to check.
          *      This node is one of BinaryExpression or ConditionalExpression.
          * @returns {boolean} `true` if the node is dynamic.
          */
@@ -259,8 +248,7 @@ module.exports = {
 
         /**
          * Creates the loop condition information from a given reference.
-         *
-         * @param {eslint-scope.Reference} reference - A reference to create.
+         * @param {eslint-scope.Reference} reference A reference to create.
          * @returns {LoopConditionInfo|null} Created loop condition info, or null.
          */
         function toLoopCondition(reference) {
@@ -313,8 +301,7 @@ module.exports = {
         /**
          * Finds unmodified references which are inside of a loop condition.
          * Then reports the references which are outside of groups.
-         *
-         * @param {eslint-scope.Variable} variable - A variable to report.
+         * @param {eslint-scope.Variable} variable A variable to report.
          * @returns {void}
          */
         function checkReferences(variable) {

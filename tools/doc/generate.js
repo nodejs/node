@@ -21,7 +21,7 @@
 
 'use strict';
 
-const fs = require('fs');
+const { promises: fs } = require('fs');
 const path = require('path');
 const unified = require('unified');
 const markdown = require('remark-parse');
@@ -29,6 +29,8 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 
+const { replaceLinks } = require('./markdown');
+const linksMapper = require('./links-mapper');
 const html = require('./html');
 const json = require('./json');
 
@@ -41,36 +43,36 @@ let nodeVersion = null;
 let outputDir = null;
 let apilinks = {};
 
-args.forEach((arg) => {
-  if (!arg.startsWith('--')) {
-    filename = arg;
-  } else if (arg.startsWith('--node-version=')) {
-    nodeVersion = arg.replace(/^--node-version=/, '');
-  } else if (arg.startsWith('--output-directory=')) {
-    outputDir = arg.replace(/^--output-directory=/, '');
-  } else if (arg.startsWith('--apilinks=')) {
-    const linkFile = arg.replace(/^--apilinks=/, '');
-    const data = fs.readFileSync(linkFile, 'utf8');
-    if (!data.trim()) {
-      throw new Error(`${linkFile} is empty`);
+async function main() {
+  for (const arg of args) {
+    if (!arg.startsWith('--')) {
+      filename = arg;
+    } else if (arg.startsWith('--node-version=')) {
+      nodeVersion = arg.replace(/^--node-version=/, '');
+    } else if (arg.startsWith('--output-directory=')) {
+      outputDir = arg.replace(/^--output-directory=/, '');
+    } else if (arg.startsWith('--apilinks=')) {
+      const linkFile = arg.replace(/^--apilinks=/, '');
+      const data = await fs.readFile(linkFile, 'utf8');
+      if (!data.trim()) {
+        throw new Error(`${linkFile} is empty`);
+      }
+      apilinks = JSON.parse(data);
     }
-    apilinks = JSON.parse(data);
   }
-});
 
-nodeVersion = nodeVersion || process.version;
+  nodeVersion = nodeVersion || process.version;
 
-if (!filename) {
-  throw new Error('No input file specified');
-} else if (!outputDir) {
-  throw new Error('No output directory specified');
-}
+  if (!filename) {
+    throw new Error('No input file specified');
+  } else if (!outputDir) {
+    throw new Error('No output directory specified');
+  }
 
+  const input = await fs.readFile(filename, 'utf8');
 
-fs.readFile(filename, 'utf8', (er, input) => {
-  if (er) throw er;
-
-  const content = unified()
+  const content = await unified()
+    .use(replaceLinks, { filename, linksMapper })
     .use(markdown)
     .use(html.preprocessText)
     .use(json.jsonAPI, { filename })
@@ -80,19 +82,40 @@ fs.readFile(filename, 'utf8', (er, input) => {
     .use(remark2rehype, { allowDangerousHTML: true })
     .use(raw)
     .use(htmlStringify)
-    .processSync(input);
+    .process(input);
 
+  const myHtml = await html.toHTML({ input, content, filename, nodeVersion });
   const basename = path.basename(filename, '.md');
+  const htmlTarget = path.join(outputDir, `${basename}.html`);
+  const jsonTarget = path.join(outputDir, `${basename}.json`);
 
-  html.toHTML(
-    { input, content, filename, nodeVersion },
-    (err, html) => {
-      const target = path.join(outputDir, `${basename}.html`);
-      if (err) throw err;
-      fs.writeFileSync(target, html);
+  return Promise.allSettled([
+    fs.writeFile(htmlTarget, myHtml),
+    fs.writeFile(jsonTarget, JSON.stringify(content.json, null, 2)),
+  ]);
+}
+
+main()
+  .then((tasks) => {
+    // Filter rejected tasks
+    const errors = tasks.filter(({ status }) => status === 'rejected')
+      .map(({ reason }) => reason);
+
+    // Log errors
+    for (const error of errors) {
+      console.error(error);
     }
-  );
 
-  const target = path.join(outputDir, `${basename}.json`);
-  fs.writeFileSync(target, JSON.stringify(content.json, null, 2));
-});
+    // Exit process with code 1 if some errors
+    if (errors.length > 0) {
+      return process.exit(1);
+    }
+
+    // Else with code 0
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error(error);
+
+    process.exit(1);
+  });

@@ -12,6 +12,7 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::FinalizationGroup;
 using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
@@ -74,6 +75,15 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
     try_catch.ReThrow();
   }
   return result;
+}
+
+static void HostCleanupFinalizationGroupCallback(
+    Local<Context> context, Local<FinalizationGroup> group) {
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    return;
+  }
+  env->RegisterFinalizationGroupForCleanup(group);
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
@@ -186,34 +196,56 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   }
 }
 
-void SetIsolateUpForNode(v8::Isolate* isolate, IsolateSettingCategories cat) {
-  switch (cat) {
-    case IsolateSettingCategories::kErrorHandlers:
-      isolate->AddMessageListenerWithErrorLevel(
-          errors::PerIsolateMessageListener,
-          Isolate::MessageErrorLevel::kMessageError |
-              Isolate::MessageErrorLevel::kMessageWarning);
-      isolate->SetAbortOnUncaughtExceptionCallback(
-          ShouldAbortOnUncaughtException);
-      isolate->SetFatalErrorHandler(OnFatalError);
-      isolate->SetPrepareStackTraceCallback(PrepareStackTraceCallback);
-      break;
-    case IsolateSettingCategories::kMisc:
-      isolate->SetMicrotasksPolicy(MicrotasksPolicy::kExplicit);
-      isolate->SetAllowWasmCodeGenerationCallback(
-          AllowWasmCodeGenerationCallback);
-      isolate->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
-      v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+  if (s.flags & MESSAGE_LISTENER_WITH_ERROR_LEVEL)
+    isolate->AddMessageListenerWithErrorLevel(
+            errors::PerIsolateMessageListener,
+            Isolate::MessageErrorLevel::kMessageError |
+                Isolate::MessageErrorLevel::kMessageWarning);
+
+  auto* abort_callback = s.should_abort_on_uncaught_exception_callback ?
+      s.should_abort_on_uncaught_exception_callback :
+      ShouldAbortOnUncaughtException;
+  isolate->SetAbortOnUncaughtExceptionCallback(abort_callback);
+
+  auto* fatal_error_cb = s.fatal_error_callback ?
+      s.fatal_error_callback : OnFatalError;
+  isolate->SetFatalErrorHandler(fatal_error_cb);
+
+  auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
+      s.prepare_stack_trace_callback : PrepareStackTraceCallback;
+  isolate->SetPrepareStackTraceCallback(prepare_stack_trace_cb);
+}
+
+void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
+  isolate->SetMicrotasksPolicy(s.policy);
+
+  auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
+    s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
+  isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+
+  auto* promise_reject_cb = s.promise_reject_callback ?
+    s.promise_reject_callback : task_queue::PromiseRejectCallback;
+  isolate->SetPromiseRejectCallback(promise_reject_cb);
+
+  auto* host_cleanup_cb = s.host_cleanup_finalization_group_callback ?
+    s.host_cleanup_finalization_group_callback :
+    HostCleanupFinalizationGroupCallback;
+  isolate->SetHostCleanupFinalizationGroupCallback(host_cleanup_cb);
+
+  if (s.flags & DETAILED_SOURCE_POSITIONS_FOR_PROFILING)
+    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+}
+
+void SetIsolateUpForNode(v8::Isolate* isolate,
+                         const IsolateSettings& settings) {
+  SetIsolateErrorHandlers(isolate, settings);
+  SetIsolateMiscHandlers(isolate, settings);
 }
 
 void SetIsolateUpForNode(v8::Isolate* isolate) {
-  SetIsolateUpForNode(isolate, IsolateSettingCategories::kErrorHandlers);
-  SetIsolateUpForNode(isolate, IsolateSettingCategories::kMisc);
+  IsolateSettings settings;
+  SetIsolateUpForNode(isolate, settings);
 }
 
 Isolate* NewIsolate(ArrayBufferAllocator* allocator, uv_loop_t* event_loop) {
@@ -244,6 +276,14 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                     MultiIsolatePlatform* platform) {
   Isolate::CreateParams params;
   if (allocator != nullptr) params.array_buffer_allocator = allocator;
+  return NewIsolate(&params, event_loop, platform);
+}
+
+Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform) {
+  Isolate::CreateParams params;
+  if (allocator) params.array_buffer_allocator_shared = allocator;
   return NewIsolate(&params, event_loop, platform);
 }
 
@@ -320,11 +360,6 @@ MultiIsolatePlatform* CreatePlatform(
   return new NodePlatform(thread_pool_size, tracing_controller);
 }
 
-MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size) {
-  per_process::v8_platform.Initialize(thread_pool_size);
-  return per_process::v8_platform.Platform();
-}
-
 void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
 }
@@ -349,6 +384,9 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
   return handle_scope.Escape(exports);
 }
 
+// Any initialization logic should be performed in
+// InitializeContext, because embedders don't necessarily
+// call NewContext and so they will experience breakages.
 Local<Context> NewContext(Isolate* isolate,
                           Local<ObjectTemplate> object_template) {
   auto context = Context::New(isolate, nullptr, object_template);
@@ -357,10 +395,41 @@ Local<Context> NewContext(Isolate* isolate,
   if (!InitializeContext(context)) {
     return Local<Context>();
   }
+
   return context;
 }
 
-bool InitializeContext(Local<Context> context) {
+// This runs at runtime, regardless of whether the context
+// is created from a snapshot.
+void InitializeContextRuntime(Local<Context> context) {
+  Isolate* isolate = context->GetIsolate();
+  HandleScope handle_scope(isolate);
+
+  // Delete `Intl.v8BreakIterator`
+  // https://github.com/nodejs/node/issues/14909
+  Local<String> intl_string = FIXED_ONE_BYTE_STRING(isolate, "Intl");
+  Local<String> break_iter_string =
+    FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
+  Local<Value> intl_v;
+  if (context->Global()->Get(context, intl_string).ToLocal(&intl_v) &&
+      intl_v->IsObject()) {
+    Local<Object> intl = intl_v.As<Object>();
+    intl->Delete(context, break_iter_string).FromJust();
+  }
+
+  // Delete `Atomics.wake`
+  // https://github.com/nodejs/node/issues/21219
+  Local<String> atomics_string = FIXED_ONE_BYTE_STRING(isolate, "Atomics");
+  Local<String> wake_string = FIXED_ONE_BYTE_STRING(isolate, "wake");
+  Local<Value> atomics_v;
+  if (context->Global()->Get(context, atomics_string).ToLocal(&atomics_v) &&
+      atomics_v->IsObject()) {
+    Local<Object> atomics = atomics_v.As<Object>();
+    atomics->Delete(context, wake_string).FromJust();
+  }
+}
+
+bool InitializeContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -386,7 +455,6 @@ bool InitializeContext(Local<Context> context) {
     }
 
     static const char* context_files[] = {"internal/per_context/primordials",
-                                          "internal/per_context/setup",
                                           "internal/per_context/domexception",
                                           nullptr};
 
@@ -415,6 +483,15 @@ bool InitializeContext(Local<Context> context) {
   return true;
 }
 
+bool InitializeContext(Local<Context> context) {
+  if (!InitializeContextForSnapshot(context)) {
+    return false;
+  }
+
+  InitializeContextRuntime(context);
+  return true;
+}
+
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
@@ -422,6 +499,34 @@ uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return nullptr;
   return env->event_loop();
+}
+
+void AddLinkedBinding(Environment* env, const node_module& mod) {
+  CHECK_NOT_NULL(env);
+  Mutex::ScopedLock lock(env->extra_linked_bindings_mutex());
+
+  node_module* prev_head = env->extra_linked_bindings_head();
+  env->extra_linked_bindings()->push_back(mod);
+  if (prev_head != nullptr)
+    prev_head->nm_link = &env->extra_linked_bindings()->back();
+}
+
+void AddLinkedBinding(Environment* env,
+                      const char* name,
+                      addon_context_register_func fn,
+                      void* priv) {
+  node_module mod = {
+    NODE_MODULE_VERSION,
+    NM_F_LINKED,
+    nullptr,  // nm_dso_handle
+    nullptr,  // nm_filename
+    nullptr,  // nm_register_func
+    fn,
+    name,
+    priv,
+    nullptr   // nm_link
+  };
+  AddLinkedBinding(env, mod);
 }
 
 }  // namespace node

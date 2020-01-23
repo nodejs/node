@@ -18,8 +18,7 @@ child.on('exit', common.mustCall(() => {
     [
       'Type ".help" for more information.',
       // x\n
-      '> Thrown:',
-      'ReferenceError: x is not defined',
+      '> Uncaught ReferenceError: x is not defined',
       // Added `uncaughtException` listener.
       '> short',
       'undefined',

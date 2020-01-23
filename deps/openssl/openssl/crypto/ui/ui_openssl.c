@@ -79,7 +79,7 @@
  * systems that require something different.
  *
  * Note: we do not use SGTTY unless it's defined by the configuration.  We
- * may eventually opt to remove it's use entirely.
+ * may eventually opt to remove its use entirely.
  */
 
 # if !defined(TERMIOS) && !defined(TERMIO) && !defined(SGTTY)

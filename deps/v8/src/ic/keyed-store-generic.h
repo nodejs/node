@@ -13,9 +13,6 @@ namespace internal {
 
 class KeyedStoreGenericGenerator {
  public:
-  template <class T>
-  using TNode = compiler::TNode<T>;
-
   static void Generate(compiler::CodeAssemblerState* state);
 
   // Building block for fast path of Object.assign implementation.
@@ -37,7 +34,7 @@ class KeyedStoreGenericGenerator {
                                    TNode<Object> value);
 };
 
-class StoreICUninitializedGenerator {
+class StoreICNoFeedbackGenerator {
  public:
   static void Generate(compiler::CodeAssemblerState* state);
 };

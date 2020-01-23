@@ -58,10 +58,9 @@ class ValueMaybe {
     return is_just_ ? value_ : default_value;
   }
   bool isJust() const { return is_just_; }
-  // TODO(johannes): |is_just_| isn't reset by this operation -
-  // introduce && to ensure avoiding continued usage of |this|?
   T takeJust() {
     assert(is_just_);
+    is_just_ = false;
     return std::move(value_);
   }
 

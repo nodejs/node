@@ -67,7 +67,7 @@ void Heap::update_external_memory(int64_t delta) {
   isolate()->isolate_data()->external_memory_ += delta;
 }
 
-void Heap::update_external_memory_concurrently_freed(intptr_t freed) {
+void Heap::update_external_memory_concurrently_freed(uintptr_t freed) {
   external_memory_concurrently_freed_ += freed;
 }
 
@@ -109,10 +109,6 @@ void Heap::SetRootScriptList(Object value) {
 
 void Heap::SetRootStringTable(StringTable value) {
   roots_table()[RootIndex::kStringTable] = value.ptr();
-}
-
-void Heap::SetRootNoScriptSharedFunctionInfos(Object value) {
-  roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value.ptr();
 }
 
 void Heap::SetMessageListeners(TemplateList value) {
@@ -159,10 +155,11 @@ size_t Heap::NewSpaceAllocationCounter() {
 }
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
+                                   AllocationOrigin origin,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(gc_state_ == NOT_IN_GC);
+  DCHECK_EQ(gc_state_, NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
@@ -179,6 +176,10 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   HeapObject object;
   AllocationResult allocation;
 
+  if (FLAG_single_generation && type == AllocationType::kYoung) {
+    type = AllocationType::kOld;
+  }
+
   if (AllocationType::kYoung == type) {
     if (large_object) {
       if (FLAG_young_generation_large_objects) {
@@ -191,13 +192,13 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
         allocation = lo_space_->AllocateRaw(size_in_bytes);
       }
     } else {
-      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
     }
   } else if (AllocationType::kOld == type) {
     if (large_object) {
       allocation = lo_space_->AllocateRaw(size_in_bytes);
     } else {
-      allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
+      allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
     }
   } else if (AllocationType::kCode == type) {
     if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
@@ -208,12 +209,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   } else if (AllocationType::kMap == type) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else if (AllocationType::kReadOnly == type) {
-#ifdef V8_USE_SNAPSHOT
     DCHECK(isolate_->serializer_enabled());
-#endif
     DCHECK(!large_object);
     DCHECK(CanAllocateInReadOnlySpace());
-    allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
+    DCHECK_EQ(AllocationOrigin::kRuntime, origin);
+    allocation =
+        read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
   } else {
     UNREACHABLE();
   }
@@ -234,6 +235,40 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   }
 
   return allocation;
+}
+
+template <Heap::AllocationRetryMode mode>
+HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
+                                 AllocationOrigin origin,
+                                 AllocationAlignment alignment) {
+  DCHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK_EQ(gc_state_, NOT_IN_GC);
+  Heap* heap = isolate()->heap();
+  Address* top = heap->NewSpaceAllocationTopAddress();
+  Address* limit = heap->NewSpaceAllocationLimitAddress();
+  if (allocation == AllocationType::kYoung &&
+      alignment == AllocationAlignment::kWordAligned &&
+      size <= kMaxRegularHeapObjectSize &&
+      (*limit - *top >= static_cast<unsigned>(size)) &&
+      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
+                FLAG_gc_interval == 0)) {
+    DCHECK(IsAligned(size, kTaggedSize));
+    HeapObject obj = HeapObject::FromAddress(*top);
+    *top += size;
+    heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size);
+    return obj;
+  }
+  switch (mode) {
+    case kLightRetry:
+      return AllocateRawWithLightRetrySlowPath(size, allocation, origin,
+                                               alignment);
+    case kRetryOrFail:
+      return AllocateRawWithRetryOrFailSlowPath(size, allocation, origin,
+                                                alignment);
+  }
+  UNREACHABLE();
 }
 
 void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {

@@ -18,8 +18,8 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-#include "node_file.h"
+#include "node_file.h"  // NOLINT(build/include_inline)
+#include "node_file-inl.h"
 #include "aliased_buffer.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -52,11 +52,8 @@ namespace node {
 namespace fs {
 
 using v8::Array;
-using v8::BigUint64Array;
 using v8::Context;
-using v8::DontDelete;
 using v8::EscapableHandleScope;
-using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -70,8 +67,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::PropertyAttribute;
-using v8::ReadOnly;
 using v8::String;
 using v8::Symbol;
 using v8::Uint32;
@@ -110,6 +105,19 @@ inline int64_t GetOffset(Local<Value> value) {
 // functions, and thus does not wrap them properly.
 typedef void(*uv_fs_callback_t)(uv_fs_t*);
 
+
+void FSContinuationData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("paths", paths_);
+}
+
+FileHandleReadWrap::~FileHandleReadWrap() {}
+
+FSReqBase::~FSReqBase() {}
+
+void FSReqBase::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("continuation_data", continuation_data_);
+}
+
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
 // emitted (or a fatal exception will occur if the fd cannot be closed.)
@@ -125,15 +133,6 @@ FileHandle* FileHandle::New(Environment* env, int fd, Local<Object> obj) {
   if (obj.IsEmpty() && !env->fd_constructor_template()
                             ->NewInstance(env->context())
                             .ToLocal(&obj)) {
-    return nullptr;
-  }
-  PropertyAttribute attr =
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  if (obj->DefineOwnProperty(env->context(),
-                             env->fd_string(),
-                             Integer::New(env->isolate(), fd),
-                             attr)
-          .IsNothing()) {
     return nullptr;
   }
   return new FileHandle(env, obj, fd);
@@ -159,6 +158,16 @@ FileHandle::~FileHandle() {
   CHECK(closed_);    // We have to be closed at the point
 }
 
+int FileHandle::DoWrite(WriteWrap* w,
+                        uv_buf_t* bufs,
+                        size_t count,
+                        uv_stream_t* send_handle) {
+  return UV_ENOSYS;  // Not implemented (yet).
+}
+
+void FileHandle::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("current_read", current_read_);
+}
 
 // Close the file descriptor if it hasn't already been closed. A process
 // warning will be emitted using a SetImmediate to avoid calling back to
@@ -169,11 +178,12 @@ inline void FileHandle::Close() {
   uv_fs_t req;
   int ret = uv_fs_close(env()->event_loop(), &req, fd_, nullptr);
   uv_fs_req_cleanup(&req);
-  AfterClose();
 
   struct err_detail { int ret; int fd; };
 
   err_detail detail { ret, fd_ };
+
+  AfterClose();
 
   if (ret < 0) {
     // Do not unref this
@@ -228,12 +238,34 @@ FileHandle* FileHandle::CloseReq::file_handle() {
   return Unwrap<FileHandle>(obj);
 }
 
+FileHandle::CloseReq::CloseReq(Environment* env,
+                               Local<Object> obj,
+                               Local<Promise> promise,
+                               Local<Value> ref)
+  : ReqWrap(env, obj, AsyncWrap::PROVIDER_FILEHANDLECLOSEREQ) {
+  promise_.Reset(env->isolate(), promise);
+  ref_.Reset(env->isolate(), ref);
+}
+
+FileHandle::CloseReq::~CloseReq() {
+  uv_fs_req_cleanup(req());
+  promise_.Reset();
+  ref_.Reset();
+}
+
+void FileHandle::CloseReq::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("promise", promise_);
+  tracker->TrackField("ref", ref_);
+}
+
+
+
 // Closes this FileHandle asynchronously and returns a Promise that will be
 // resolved when the callback is invoked, or rejects with a UVException if
 // there was a problem closing the fd. This is the preferred mechanism for
 // closing the FD object even tho the object will attempt to close
 // automatically on gc.
-inline MaybeLocal<Promise> FileHandle::ClosePromise() {
+MaybeLocal<Promise> FileHandle::ClosePromise() {
   Isolate* isolate = env()->isolate();
   EscapableHandleScope scope(isolate);
   Local<Context> context = env()->context();
@@ -258,6 +290,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
       close->file_handle()->AfterClose();
       Isolate* isolate = close->env()->isolate();
       if (req->result < 0) {
+        HandleScope handle_scope(isolate);
         close->Reject(UVException(isolate, req->result, "close"));
       } else {
         close->Resolve();
@@ -296,6 +329,7 @@ void FileHandle::ReleaseFD(const FunctionCallbackInfo<Value>& args) {
 void FileHandle::AfterClose() {
   closing_ = false;
   closed_ = true;
+  fd_ = -1;
   if (reading_ && !persistent().IsEmpty())
     EmitRead(UV_EOF);
 }
@@ -678,94 +712,6 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   req_wrap->Resolve(result);
 }
 
-
-// This class is only used on sync fs calls.
-// For async calls FSReqCallback is used.
-class FSReqWrapSync {
- public:
-  FSReqWrapSync() = default;
-  ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
-  uv_fs_t req;
-
-  FSReqWrapSync(const FSReqWrapSync&) = delete;
-  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
-};
-
-// Returns nullptr if the operation fails from the start.
-template <typename Func, typename... Args>
-inline FSReqBase* AsyncDestCall(Environment* env,
-    FSReqBase* req_wrap,
-    const FunctionCallbackInfo<Value>& args,
-    const char* syscall, const char* dest, size_t len,
-    enum encoding enc, uv_fs_cb after, Func fn, Args... fn_args) {
-  CHECK_NOT_NULL(req_wrap);
-  req_wrap->Init(syscall, dest, len, enc);
-  int err = req_wrap->Dispatch(fn, fn_args..., after);
-  if (err < 0) {
-    uv_fs_t* uv_req = req_wrap->req();
-    uv_req->result = err;
-    uv_req->path = nullptr;
-    after(uv_req);  // after may delete req_wrap if there is an error
-    req_wrap = nullptr;
-  } else {
-    req_wrap->SetReturnValue(args);
-  }
-
-  return req_wrap;
-}
-
-// Returns nullptr if the operation fails from the start.
-template <typename Func, typename... Args>
-inline FSReqBase* AsyncCall(Environment* env,
-    FSReqBase* req_wrap,
-    const FunctionCallbackInfo<Value>& args,
-    const char* syscall, enum encoding enc,
-    uv_fs_cb after, Func fn, Args... fn_args) {
-  return AsyncDestCall(env, req_wrap, args,
-                       syscall, nullptr, 0, enc,
-                       after, fn, fn_args...);
-}
-
-// Template counterpart of SYNC_CALL, except that it only puts
-// the error number and the syscall in the context instead of
-// creating an error in the C++ land.
-// ctx must be checked using value->IsObject() before being passed.
-template <typename Func, typename... Args>
-inline int SyncCall(Environment* env, Local<Value> ctx, FSReqWrapSync* req_wrap,
-    const char* syscall, Func fn, Args... args) {
-  env->PrintSyncTrace();
-  int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
-  if (err < 0) {
-    Local<Context> context = env->context();
-    Local<Object> ctx_obj = ctx.As<Object>();
-    Isolate* isolate = env->isolate();
-    ctx_obj->Set(context,
-             env->errno_string(),
-             Integer::New(isolate, err)).Check();
-    ctx_obj->Set(context,
-             env->syscall_string(),
-             OneByteString(isolate, syscall)).Check();
-  }
-  return err;
-}
-
-// TODO(addaleax): Currently, callers check the return value and assume
-// that nullptr indicates a synchronous call, rather than a failure.
-// Failure conditions should be disambiguated and handled appropriately.
-inline FSReqBase* GetReqWrap(Environment* env, Local<Value> value,
-                             bool use_bigint = false) {
-  if (value->IsObject()) {
-    return Unwrap<FSReqBase>(value.As<Object>());
-  } else if (value->StrictEquals(env->fs_use_promises_symbol())) {
-    if (use_bigint) {
-      return FSReqPromise<AliasedBigUint64Array>::New(env, use_bigint);
-    } else {
-      return FSReqPromise<AliasedFloat64Array>::New(env, use_bigint);
-    }
-  }
-  return nullptr;
-}
-
 void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -873,18 +819,46 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   }
 
   const size_t size = offset - start;
-  if (size == 0 || (
-    size == SearchString(&chars[start], size, "\"main\"") &&
-    size == SearchString(&chars[start], size, "\"exports\""))) {
-    return;
-  } else {
-    Local<String> chars_string =
+  char* p = &chars[start];
+  char* pe = &chars[size];
+  char* pos[2];
+  char** ppos = &pos[0];
+
+  while (p < pe) {
+    char c = *p++;
+    if (c == '"') goto quote;  // Keeps code flat and inner loop small.
+    if (c == '\\' && p < pe && *p == '"') p++;
+    continue;
+quote:
+    *ppos++ = p;
+    if (ppos < &pos[2]) continue;
+    ppos = &pos[0];
+
+    char* s = &pos[0][0];
+    char* se = &pos[1][-1];  // Exclude quote.
+    size_t n = se - s;
+
+    if (n == 4) {
+      if (0 == memcmp(s, "main", 4)) break;
+      if (0 == memcmp(s, "name", 4)) break;
+      if (0 == memcmp(s, "type", 4)) break;
+    } else if (n == 7) {
+      if (0 == memcmp(s, "exports", 7)) break;
+    }
+  }
+
+  Local<String> return_value;
+  if (p < pe) {
+    return_value =
         String::NewFromUtf8(isolate,
                             &chars[start],
                             v8::NewStringType::kNormal,
                             size).ToLocalChecked();
-    args.GetReturnValue().Set(chars_string);
+  } else {
+    return_value = env->empty_object_string();
   }
+
+  args.GetReturnValue().Set(return_value);
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
@@ -1247,13 +1221,13 @@ int MKDirpSync(uv_loop_t* loop,
   FSContinuationData continuation_data(req, mode, cb);
   continuation_data.PushPath(std::move(path));
 
-  while (continuation_data.paths.size() > 0) {
+  while (continuation_data.paths().size() > 0) {
     std::string next_path = continuation_data.PopPath();
     int err = uv_fs_mkdir(loop, req, next_path.c_str(), mode, nullptr);
     while (true) {
       switch (err) {
         case 0:
-          if (continuation_data.paths.size() == 0) {
+          if (continuation_data.paths().size() == 0) {
             return 0;
           }
           break;
@@ -1263,7 +1237,7 @@ int MKDirpSync(uv_loop_t* loop,
           if (dirname != next_path) {
             continuation_data.PushPath(std::move(next_path));
             continuation_data.PushPath(std::move(dirname));
-          } else if (continuation_data.paths.size() == 0) {
+          } else if (continuation_data.paths().size() == 0) {
             err = UV_EEXIST;
             continue;
           }
@@ -1278,7 +1252,7 @@ int MKDirpSync(uv_loop_t* loop,
           err = uv_fs_stat(loop, req, next_path.c_str(), nullptr);
           if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) {
             uv_fs_req_cleanup(req);
-            if (orig_err == UV_EEXIST && continuation_data.paths.size() > 0) {
+            if (orig_err == UV_EEXIST && continuation_data.paths().size() > 0) {
               return UV_ENOTDIR;
             }
             return UV_EEXIST;
@@ -1301,14 +1275,14 @@ int MKDirpAsync(uv_loop_t* loop,
                 uv_fs_cb cb) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   // on the first iteration of algorithm, stash state information.
-  if (req_wrap->continuation_data == nullptr) {
-    req_wrap->continuation_data =
-        std::make_unique<FSContinuationData>(req, mode, cb);
-    req_wrap->continuation_data->PushPath(std::move(path));
+  if (req_wrap->continuation_data() == nullptr) {
+    req_wrap->set_continuation_data(
+        std::make_unique<FSContinuationData>(req, mode, cb));
+    req_wrap->continuation_data()->PushPath(std::move(path));
   }
 
   // on each iteration of algorithm, mkdir directory on top of stack.
-  std::string next_path = req_wrap->continuation_data->PopPath();
+  std::string next_path = req_wrap->continuation_data()->PopPath();
   int err = uv_fs_mkdir(loop, req, next_path.c_str(), mode,
                         uv_fs_callback_t{[](uv_fs_t* req) {
     FSReqBase* req_wrap = FSReqBase::from_req(req);
@@ -1320,12 +1294,12 @@ int MKDirpAsync(uv_loop_t* loop,
     while (true) {
       switch (err) {
         case 0: {
-          if (req_wrap->continuation_data->paths.size() == 0) {
-            req_wrap->continuation_data->Done(0);
+          if (req_wrap->continuation_data()->paths().size() == 0) {
+            req_wrap->continuation_data()->Done(0);
           } else {
             uv_fs_req_cleanup(req);
             MKDirpAsync(loop, req, path.c_str(),
-                        req_wrap->continuation_data->mode, nullptr);
+                        req_wrap->continuation_data()->mode(), nullptr);
           }
           break;
         }
@@ -1333,19 +1307,19 @@ int MKDirpAsync(uv_loop_t* loop,
           std::string dirname = path.substr(0,
                                             path.find_last_of(kPathSeparator));
           if (dirname != path) {
-            req_wrap->continuation_data->PushPath(std::move(path));
-            req_wrap->continuation_data->PushPath(std::move(dirname));
-          } else if (req_wrap->continuation_data->paths.size() == 0) {
+            req_wrap->continuation_data()->PushPath(std::move(path));
+            req_wrap->continuation_data()->PushPath(std::move(dirname));
+          } else if (req_wrap->continuation_data()->paths().size() == 0) {
             err = UV_EEXIST;
             continue;
           }
           uv_fs_req_cleanup(req);
           MKDirpAsync(loop, req, path.c_str(),
-                      req_wrap->continuation_data->mode, nullptr);
+                      req_wrap->continuation_data()->mode(), nullptr);
           break;
         }
         case UV_EPERM: {
-          req_wrap->continuation_data->Done(err);
+          req_wrap->continuation_data()->Done(err);
           break;
         }
         default:
@@ -1357,14 +1331,14 @@ int MKDirpAsync(uv_loop_t* loop,
             FSReqBase* req_wrap = FSReqBase::from_req(req);
             int err = req->result;
             if (reinterpret_cast<intptr_t>(req->data) == UV_EEXIST &&
-                  req_wrap->continuation_data->paths.size() > 0) {
+                  req_wrap->continuation_data()->paths().size() > 0) {
               if (err == 0 && S_ISDIR(req->statbuf.st_mode)) {
                 Environment* env = req_wrap->env();
                 uv_loop_t* loop = env->event_loop();
                 std::string path = req->path;
                 uv_fs_req_cleanup(req);
                 MKDirpAsync(loop, req, path.c_str(),
-                            req_wrap->continuation_data->mode, nullptr);
+                            req_wrap->continuation_data()->mode(), nullptr);
                 return;
               }
               err = UV_ENOTDIR;
@@ -1372,9 +1346,9 @@ int MKDirpAsync(uv_loop_t* loop,
             // verify that the path pointed to is actually a directory.
             if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) err = UV_EEXIST;
             uv_fs_req_cleanup(req);
-            req_wrap->continuation_data->Done(err);
+            req_wrap->continuation_data()->Done(err);
           }});
-          if (err < 0) req_wrap->continuation_data->Done(err);
+          if (err < 0) req_wrap->continuation_data()->Done(err);
           break;
       }
       break;

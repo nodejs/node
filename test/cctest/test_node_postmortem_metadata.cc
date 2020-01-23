@@ -19,8 +19,10 @@ extern uintptr_t
 extern uintptr_t
     nodedbg_offset_Environment__req_wrap_queue___Environment_ReqWrapQueue;
 extern uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
+extern uintptr_t nodedbg_offset_ListNode_ReqWrap__prev___uintptr_t;
 extern uintptr_t nodedbg_offset_ListNode_ReqWrap__next___uintptr_t;
 extern uintptr_t nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
+extern uintptr_t nodedbg_offset_ListNode_HandleWrap__prev___uintptr_t;
 extern uintptr_t nodedbg_offset_ListNode_HandleWrap__next___uintptr_t;
 extern uintptr_t
     nodedbg_offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue;
@@ -91,14 +93,13 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
 
   v8::Local<v8::Object> object =
       obj_templ->NewInstance(env.context()).ToLocalChecked();
-  DummyBaseObject obj(*env, object);
+  node::BaseObjectPtr<DummyBaseObject> obj =
+      node::MakeDetachedBaseObject<DummyBaseObject>(*env, object);
 
-  auto expected = reinterpret_cast<uintptr_t>(&obj.persistent());
-  auto calculated = reinterpret_cast<uintptr_t>(&obj) +
+  auto expected = reinterpret_cast<uintptr_t>(&obj->persistent());
+  auto calculated = reinterpret_cast<uintptr_t>(obj.get()) +
       nodedbg_offset_BaseObject__persistent_handle___v8_Persistent_v8_Object;
   EXPECT_EQ(expected, calculated);
-
-  obj.persistent().Reset();  // ~BaseObject() expects an empty handle.
 }
 
 
@@ -129,6 +130,12 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
   const Argv argv;
   Env env{handle_scope, argv};
 
+  auto queue = reinterpret_cast<uintptr_t>((*env)->handle_wrap_queue());
+  auto head = queue +
+      nodedbg_offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap;
+  auto tail = head + nodedbg_offset_ListNode_HandleWrap__prev___uintptr_t;
+  tail = *reinterpret_cast<uintptr_t*>(tail);
+
   uv_tcp_t handle;
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
@@ -140,16 +147,12 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
                                      .ToLocalChecked();
   TestHandleWrap obj(*env, object, &handle);
 
-  auto queue = reinterpret_cast<uintptr_t>((*env)->handle_wrap_queue());
-  auto head = queue +
-      nodedbg_offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap;
-  auto next =
-      head + nodedbg_offset_ListNode_HandleWrap__next___uintptr_t;
-  next = *reinterpret_cast<uintptr_t*>(next);
+  auto last = tail + nodedbg_offset_ListNode_HandleWrap__next___uintptr_t;
+  last = *reinterpret_cast<uintptr_t*>(last);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj);
-  auto calculated = next -
-      nodedbg_offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap;
+  auto calculated =
+      last - nodedbg_offset_HandleWrap__handle_wrap_queue___ListNode_HandleWrap;
   EXPECT_EQ(expected, calculated);
 
   obj.persistent().Reset();  // ~HandleWrap() expects an empty handle.
@@ -159,6 +162,13 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env{handle_scope, argv};
+
+  auto queue = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
+  auto head =
+      queue +
+      nodedbg_offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue;
+  auto tail = head + nodedbg_offset_ListNode_ReqWrap__prev___uintptr_t;
+  tail = *reinterpret_cast<uintptr_t*>(tail);
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
   obj_template->InstanceTemplate()->SetInternalFieldCount(1);
@@ -174,16 +184,12 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   // ARM64 CI machinies.
   for (auto it : *(*env)->req_wrap_queue()) (void) &it;
 
-  auto queue = reinterpret_cast<uintptr_t>((*env)->req_wrap_queue());
-  auto head = queue +
-      nodedbg_offset_Environment_ReqWrapQueue__head___ListNode_ReqWrapQueue;
-  auto next =
-      head + nodedbg_offset_ListNode_ReqWrap__next___uintptr_t;
-  next = *reinterpret_cast<uintptr_t*>(next);
+  auto last = tail + nodedbg_offset_ListNode_ReqWrap__next___uintptr_t;
+  last = *reinterpret_cast<uintptr_t*>(last);
 
   auto expected = reinterpret_cast<uintptr_t>(&obj);
   auto calculated =
-      next - nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
+      last - nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
   EXPECT_EQ(expected, calculated);
 
   obj.Dispatched();

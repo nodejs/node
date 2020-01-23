@@ -32,15 +32,18 @@ static inline constexpr bool needs_reg_pair(ValueType type) {
   return kNeedI64RegPair && type == kWasmI64;
 }
 
-// TODO(clemensh): Use a switch once we require C++14 support.
 static inline constexpr RegClass reg_class_for(ValueType type) {
-  return needs_reg_pair(type)  // i64 on 32 bit
-             ? kGpRegPair
-             : type == kWasmI32 || type == kWasmI64  // int types
-                   ? kGpReg
-                   : type == kWasmF32 || type == kWasmF64  // float types
-                         ? kFpReg
-                         : kNoReg;  // other (unsupported) types
+  switch (type) {
+    case kWasmF32:
+    case kWasmF64:
+      return kFpReg;
+    case kWasmI32:
+      return kGpReg;
+    case kWasmI64:
+      return kNeedI64RegPair ? kGpRegPair : kGpReg;
+    default:
+      return kNoReg;  // unsupported type
+  }
 }
 
 // Maximum code of a gp cache register.

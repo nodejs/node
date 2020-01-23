@@ -330,18 +330,21 @@ var AjaxResponse = /*@__PURE__*/ (function () {
     return AjaxResponse;
 }());
 export { AjaxResponse };
-function AjaxErrorImpl(message, xhr, request) {
-    Error.call(this);
-    this.message = message;
-    this.name = 'AjaxError';
-    this.xhr = xhr;
-    this.request = request;
-    this.status = xhr.status;
-    this.responseType = xhr.responseType || request.responseType;
-    this.response = parseXhrResponse(this.responseType, xhr);
-    return this;
-}
-AjaxErrorImpl.prototype = /*@__PURE__*/ Object.create(Error.prototype);
+var AjaxErrorImpl = /*@__PURE__*/ (function () {
+    function AjaxErrorImpl(message, xhr, request) {
+        Error.call(this);
+        this.message = message;
+        this.name = 'AjaxError';
+        this.xhr = xhr;
+        this.request = request;
+        this.status = xhr.status;
+        this.responseType = xhr.responseType || request.responseType;
+        this.response = parseXhrResponse(this.responseType, xhr);
+        return this;
+    }
+    AjaxErrorImpl.prototype = /*@__PURE__*/ Object.create(Error.prototype);
+    return AjaxErrorImpl;
+})();
 export var AjaxError = AjaxErrorImpl;
 function parseJson(xhr) {
     if ('response' in xhr) {

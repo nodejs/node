@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.0.2"></a>
+## [4.0.2](https://github.com/npm/registry-fetch/compare/v4.0.0...v4.0.2) (2019-10-04)
+
+
+### Bug Fixes
+
+* Add null check on body on 401 errors ([e3a0186](https://github.com/npm/registry-fetch/commit/e3a0186)), closes [#9](https://github.com/npm/registry-fetch/issues/9)
+* **deps:** Add explicit dependency on safe-buffer ([8eae5f0](https://github.com/npm/registry-fetch/commit/8eae5f0)), closes [npm/libnpmaccess#2](https://github.com/npm/libnpmaccess/issues/2) [#3](https://github.com/npm/registry-fetch/issues/3)
+
+
+
 <a name="4.0.0"></a>
 # [4.0.0](https://github.com/npm/registry-fetch/compare/v3.9.1...v4.0.0) (2019-07-15)
 

@@ -24,11 +24,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // ===========================================================================
   // Access to external values (based on external references).
 
-  // Provides access to a tagged field identified by an external reference.
-  static FieldAccess ForExternalTaggedValue();
-
-  // Provides access to an uint8 field identified by an external reference.
-  static FieldAccess ForExternalUint8Value();
+  // Provides access to an IntPtr field identified by an external reference.
+  static FieldAccess ForExternalIntPtr();
 
   // ===========================================================================
   // Access to heap object fields and elements (based on tagged pointer).
@@ -53,6 +50,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectPropertiesOrHash();
+
+  // Provides access to JSObject::properties() field for known pointers.
+  static FieldAccess ForJSObjectPropertiesOrHashKnownPointer();
 
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
@@ -127,9 +127,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
-
-  // Provides access to JSArrayBuffer::backing_store() field.
-  static FieldAccess ForJSArrayBufferBackingStore();
 
   // Provides access to JSArrayBuffer::bit_field() field.
   static FieldAccess ForJSArrayBufferBitField();
@@ -236,23 +233,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to ExternalString::resource_data() field.
   static FieldAccess ForExternalStringResourceData();
 
-  // Provides access to ExternalOneByteString characters.
-  static ElementAccess ForExternalOneByteStringCharacter();
-
-  // Provides access to ExternalTwoByteString characters.
-  static ElementAccess ForExternalTwoByteStringCharacter();
-
   // Provides access to SeqOneByteString characters.
   static ElementAccess ForSeqOneByteStringCharacter();
 
   // Provides access to SeqTwoByteString characters.
   static ElementAccess ForSeqTwoByteStringCharacter();
-
-  // Provides access to JSGlobalObject::global_proxy() field.
-  static FieldAccess ForJSGlobalObjectGlobalProxy();
-
-  // Provides access to JSGlobalObject::native_context() field.
-  static FieldAccess ForJSGlobalObjectNativeContext();
 
   // Provides access to JSGlobalProxy::native_context() field.
   static FieldAccess ForJSGlobalProxyNativeContext();
@@ -272,9 +257,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSStringIterator::index() field.
   static FieldAccess ForJSStringIteratorIndex();
 
-  // Provides access to JSPrimitiveWrapper::value() field.
-  static FieldAccess ForValue();
-
   // Provides access to Cell::value() field.
   static FieldAccess ForCellValue();
 
@@ -288,6 +270,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
+
+  // Provides access to Context slots that are known to be pointers.
+  static FieldAccess ForContextSlotKnownPointer(size_t index);
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
@@ -327,7 +312,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static ElementAccess ForOrderedHashMapEntryValue();
 
   // Provides access to Dictionary fields.
-  static FieldAccess ForDictionaryMaxNumberKey();
   static FieldAccess ForDictionaryNextEnumerationIndex();
   static FieldAccess ForDictionaryObjectHashIndex();
 

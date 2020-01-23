@@ -10,6 +10,10 @@
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 namespace node {
 
 using errors::TryCatchScope;
@@ -141,7 +145,7 @@ static std::string GetErrorSource(Isolate* isolate,
 }
 
 void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
-  for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
+  for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
     node::Utf8Value fn_name_s(isolate, stack_frame->GetFunctionName());
     node::Utf8Value script_name(isolate, stack_frame->GetScriptName());
@@ -278,6 +282,9 @@ static void ReportFatalException(Environment* env,
                                  Local<Value> error,
                                  Local<Message> message,
                                  EnhanceFatalException enhance_stack) {
+  if (!env->can_call_into_js())
+    enhance_stack = EnhanceFatalException::kDontEnhance;
+
   Isolate* isolate = env->isolate();
   CHECK(!error.IsEmpty());
   CHECK(!message.IsEmpty());
@@ -324,6 +331,8 @@ static void ReportFatalException(Environment* env,
         break;
       }
       case EnhanceFatalException::kDontEnhance: {
+        USE(err_obj->Get(env->context(), env->stack_string())
+                .ToLocal(&stack_trace));
         report_to_inspector();
         break;
       }
@@ -378,6 +387,19 @@ static void ReportFatalException(Environment* env,
             "%s\n%s: %s\n", *arrow_string, *name_string, *message_string);
       }
     }
+
+    if (!env->options()->trace_uncaught) {
+      PrintErrorString("(Use `node --trace-uncaught ...` to show "
+                       "where the exception was thrown)\n");
+    }
+  }
+
+  if (env->options()->trace_uncaught) {
+    Local<StackTrace> trace = message->GetStackTrace();
+    if (!trace.IsEmpty()) {
+      PrintErrorString("Thrown at:\n");
+      PrintStackTrace(env->isolate(), trace);
+    }
   }
 
   fflush(stderr);
@@ -411,6 +433,8 @@ void PrintErrorString(const char* format, ...) {
   // Don't include the null character in the output
   CHECK_GT(n, 0);
   WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
+#elif defined(__ANDROID__)
+  __android_log_vprint(ANDROID_LOG_ERROR, "nodejs", format, ap);
 #else
   vfprintf(stderr, format, ap);
 #endif
@@ -941,7 +965,7 @@ void TriggerUncaughtException(Isolate* isolate,
   }
 
   MaybeLocal<Value> handled;
-  {
+  if (env->can_call_into_js()) {
     // We do not expect the global uncaught exception itself to throw any more
     // exceptions. If it does, exit the current Node.js instance.
     errors::TryCatchScope try_catch(env,
@@ -978,6 +1002,7 @@ void TriggerUncaughtException(Isolate* isolate,
 
   // Now we are certain that the exception is fatal.
   ReportFatalException(env, error, message, EnhanceFatalException::kEnhance);
+  RunAtExit(env);
 
   // If the global uncaught exception handler sets process.exitCode,
   // exit with that code. Otherwise, exit with 1.

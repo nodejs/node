@@ -9,7 +9,7 @@ namespace typed_array_reduce {
 
   transitioning macro ReduceAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
-      initialValue: Object): Object {
+      initialValue: JSAny | TheHole): JSAny {
     let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
     // TODO(v8:4153): Support huge TypedArrays here.
     const length =
@@ -18,25 +18,32 @@ namespace typed_array_reduce {
     for (let k: Smi = 0; k < length; k++) {
       // BUG(4895): We should throw on detached buffers rather than simply exit.
       witness.Recheck() otherwise break;
-      const value: Object = witness.Load(k);
-      if (accumulator == TheHole) {
-        accumulator = value;
-      } else {
-        accumulator = Call(
-            context, callbackfn, Undefined, accumulator, value, k,
-            witness.GetStable());
+      const value: JSAny = witness.Load(k);
+      typeswitch (accumulator) {
+        case (TheHole): {
+          accumulator = value;
+        }
+        case (accumulatorNotHole: JSAny): {
+          accumulator = Call(
+              context, callbackfn, Undefined, accumulatorNotHole, value, k,
+              witness.GetStable());
+        }
       }
     }
-    if (accumulator == TheHole) {
-      ThrowTypeError(kReduceNoInitial, kBuiltinName);
+    typeswitch (accumulator) {
+      case (TheHole): {
+        ThrowTypeError(kReduceNoInitial, kBuiltinName);
+      }
+      case (accumulator: JSAny): {
+        return accumulator;
+      }
     }
-    return accumulator;
   }
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
   transitioning javascript builtin
-  TypedArrayPrototypeReduce(js-implicit context: Context, receiver: Object)(
-      ...arguments): Object {
+  TypedArrayPrototypeReduce(js-implicit context: Context, receiver: JSAny)(
+      ...arguments): JSAny {
     // arguments[0] = callback
     // arguments[1] = initialValue.
     try {

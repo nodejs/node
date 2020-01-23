@@ -55,20 +55,35 @@ Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
 void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
                                                        uint8_t** data,
                                                        uint32_t* size) {
+  // Create the embedded blob from scratch using the current Isolate's heap.
   EmbeddedData d = EmbeddedData::FromIsolate(isolate);
 
+  // Allocate the backing store that will contain the embedded blob in this
+  // Isolate. The backing store is on the native heap, *not* on V8's garbage-
+  // collected heap.
   v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
-  const uint32_t page_size =
+  const uint32_t alignment =
       static_cast<uint32_t>(page_allocator->AllocatePageSize());
-  const uint32_t allocated_size = RoundUp(d.size(), page_size);
+
+  void* const requested_allocation_address =
+      AlignedAddress(isolate->heap()->GetRandomMmapAddr(), alignment);
+  const uint32_t allocation_size = RoundUp(d.size(), alignment);
 
   uint8_t* allocated_bytes = static_cast<uint8_t*>(
-      AllocatePages(page_allocator, isolate->heap()->GetRandomMmapAddr(),
-                    allocated_size, page_size, PageAllocator::kReadWrite));
+      AllocatePages(page_allocator, requested_allocation_address,
+                    allocation_size, alignment, PageAllocator::kReadWrite));
   CHECK_NOT_NULL(allocated_bytes);
 
+  // Copy the embedded blob into the newly allocated backing store. Switch
+  // permissions to read-execute since builtin code is immutable from now on
+  // and must be executable in case any JS execution is triggered.
+  //
+  // Once this backing store is set as the current_embedded_blob, V8 cannot tell
+  // the difference between a 'real' embedded build (where the blob is embedded
+  // in the binary) and what we are currently setting up here (where the blob is
+  // on the native heap).
   std::memcpy(allocated_bytes, d.data(), d.size());
-  CHECK(SetPermissions(page_allocator, allocated_bytes, allocated_size,
+  CHECK(SetPermissions(page_allocator, allocated_bytes, allocation_size,
                        PageAllocator::kReadExecute));
 
   *data = allocated_bytes;

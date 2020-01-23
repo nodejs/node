@@ -13,7 +13,7 @@ function instantiateModuleWithThreads() {
   builder.addMemory(2, 10, false, shared);
   builder.addFunction('main', kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0, kExprGetLocal, 1, kAtomicPrefix, kExprI32AtomicAdd, 2,
+        kExprLocalGet, 0, kExprLocalGet, 1, kAtomicPrefix, kExprI32AtomicAdd, 2,
         0
       ])
       .exportFunc();

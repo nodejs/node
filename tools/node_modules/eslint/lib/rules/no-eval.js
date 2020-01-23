@@ -22,9 +22,8 @@ const candidatesOfGlobalObject = Object.freeze([
 
 /**
  * Checks a given node is a Identifier node of the specified name.
- *
- * @param {ASTNode} node - A node to check.
- * @param {string} name - A name to check.
+ * @param {ASTNode} node A node to check.
+ * @param {string} name A name to check.
  * @returns {boolean} `true` if the node is a Identifier node of the name.
  */
 function isIdentifier(node, name) {
@@ -33,9 +32,8 @@ function isIdentifier(node, name) {
 
 /**
  * Checks a given node is a Literal node of the specified string value.
- *
- * @param {ASTNode} node - A node to check.
- * @param {string} name - A name to check.
+ * @param {ASTNode} node A node to check.
+ * @param {string} name A name to check.
  * @returns {boolean} `true` if the node is a Literal node of the name.
  */
 function isConstant(node, name) {
@@ -57,9 +55,8 @@ function isConstant(node, name) {
 /**
  * Checks a given node is a MemberExpression node which has the specified name's
  * property.
- *
- * @param {ASTNode} node - A node to check.
- * @param {string} name - A name to check.
+ * @param {ASTNode} node A node to check.
+ * @param {string} name A name to check.
  * @returns {boolean} `true` if the node is a MemberExpression node which has
  *      the specified name's property
  */
@@ -113,8 +110,7 @@ module.exports = {
          *
          * This is used in order to check whether or not `this` binding is a
          * reference to the global object.
-         *
-         * @param {ASTNode} node - A node of the scope. This is one of Program,
+         * @param {ASTNode} node A node of the scope. This is one of Program,
          *      FunctionDeclaration, FunctionExpression, and ArrowFunctionExpression.
          * @returns {void}
          */
@@ -132,7 +128,6 @@ module.exports = {
 
         /**
          * Pops a variable scope from the stack.
-         *
          * @returns {void}
          */
         function exitVarScope() {
@@ -148,8 +143,7 @@ module.exports = {
          * The location of the report is always `eval` `Identifier` (or possibly
          * `Literal`). The type of the report is `CallExpression` if the parent is
          * `CallExpression`. Otherwise, it's the given node type.
-         *
-         * @param {ASTNode} node - A node to report.
+         * @param {ASTNode} node A node to report.
          * @returns {void}
          */
         function report(node) {
@@ -171,8 +165,7 @@ module.exports = {
 
         /**
          * Reports accesses of `eval` via the global object.
-         *
-         * @param {eslint-scope.Scope} globalScope - The global scope.
+         * @param {eslint-scope.Scope} globalScope The global scope.
          * @returns {void}
          */
         function reportAccessingEvalViaGlobalObject(globalScope) {
@@ -205,8 +198,7 @@ module.exports = {
 
         /**
          * Reports all accesses of `eval` (excludes direct calls to eval).
-         *
-         * @param {eslint-scope.Scope} globalScope - The global scope.
+         * @param {eslint-scope.Scope} globalScope The global scope.
          * @returns {void}
          */
         function reportAccessingEval(globalScope) {

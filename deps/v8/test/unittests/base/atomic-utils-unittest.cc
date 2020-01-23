@@ -105,7 +105,7 @@ TEST(AsAtomic8, CompareAndSwap_Concurrent) {
     }
   }
   for (int i = 0; i < kThreadCount; i++) {
-    threads[i].Start();
+    CHECK(threads[i].Start());
   }
 
   for (int i = 0; i < kThreadCount; i++) {
@@ -179,7 +179,7 @@ TEST(AsAtomicWord, SetBits_Concurrent) {
     threads[i].Initialize(&word, i * 2);
   }
   for (int i = 0; i < kThreadCount; i++) {
-    threads[i].Start();
+    CHECK(threads[i].Start());
   }
   for (int i = 0; i < kThreadCount; i++) {
     threads[i].Join();

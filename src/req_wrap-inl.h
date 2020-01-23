@@ -10,6 +10,7 @@
 namespace node {
 
 ReqWrapBase::ReqWrapBase(Environment* env) {
+  CHECK(env->has_run_bootstrapping_code());
   env->req_wrap_queue()->PushBack(this);
 }
 
@@ -119,7 +120,7 @@ struct MakeLibuvRequestCallback<ReqT, void(*)(ReqT*, Args...)> {
   using F = void(*)(ReqT* req, Args... args);
 
   static void Wrapper(ReqT* req, Args... args) {
-    ReqWrap<ReqT>* req_wrap = ContainerOf(&ReqWrap<ReqT>::req_, req);
+    ReqWrap<ReqT>* req_wrap = ReqWrap<ReqT>::from_req(req);
     req_wrap->env()->DecreaseWaitingRequestCounter();
     F original_callback = reinterpret_cast<F>(req_wrap->original_callback_);
     original_callback(req, args...);

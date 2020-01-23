@@ -7,6 +7,7 @@
 
 #include "src/objects/js-regexp.h"
 
+#include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
@@ -17,14 +18,18 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSRegExp, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
+OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult, JSArray)
+OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices, JSArray)
 
-CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSRegExpResult)
+CAST_ACCESSOR(JSRegExpResultIndices)
 
-ACCESSORS(JSRegExp, data, Object, kDataOffset)
-ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
-ACCESSORS(JSRegExp, source, Object, kSourceOffset)
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
+
+ACCESSORS(JSRegExpResult, cached_indices_or_match_info, Object,
+          kCachedIndicesOrMatchInfoOffset)
+ACCESSORS(JSRegExpResult, names, Object, kNamesOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() const {
   Object data = this->data();
@@ -80,23 +85,28 @@ void JSRegExp::SetDataAt(int index, Object value) {
 
 bool JSRegExp::HasCompiledCode() const {
   if (TypeTag() != IRREGEXP) return false;
+  Smi uninitialized = Smi::FromInt(kUninitializedValue);
 #ifdef DEBUG
   DCHECK(DataAt(kIrregexpLatin1CodeIndex).IsCode() ||
-         DataAt(kIrregexpLatin1CodeIndex).IsByteArray() ||
-         DataAt(kIrregexpLatin1CodeIndex) == Smi::FromInt(kUninitializedValue));
+         DataAt(kIrregexpLatin1CodeIndex) == uninitialized);
   DCHECK(DataAt(kIrregexpUC16CodeIndex).IsCode() ||
-         DataAt(kIrregexpUC16CodeIndex).IsByteArray() ||
-         DataAt(kIrregexpUC16CodeIndex) == Smi::FromInt(kUninitializedValue));
+         DataAt(kIrregexpUC16CodeIndex) == uninitialized);
+  DCHECK(DataAt(kIrregexpLatin1BytecodeIndex).IsByteArray() ||
+         DataAt(kIrregexpLatin1BytecodeIndex) == uninitialized);
+  DCHECK(DataAt(kIrregexpUC16BytecodeIndex).IsByteArray() ||
+         DataAt(kIrregexpUC16BytecodeIndex) == uninitialized);
 #endif  // DEBUG
-  Smi uninitialized = Smi::FromInt(kUninitializedValue);
   return (DataAt(kIrregexpLatin1CodeIndex) != uninitialized ||
           DataAt(kIrregexpUC16CodeIndex) != uninitialized);
 }
 
 void JSRegExp::DiscardCompiledCodeForSerialization() {
   DCHECK(HasCompiledCode());
-  SetDataAt(kIrregexpLatin1CodeIndex, Smi::FromInt(kUninitializedValue));
-  SetDataAt(kIrregexpUC16CodeIndex, Smi::FromInt(kUninitializedValue));
+  Smi uninitialized = Smi::FromInt(kUninitializedValue);
+  SetDataAt(kIrregexpLatin1CodeIndex, uninitialized);
+  SetDataAt(kIrregexpUC16CodeIndex, uninitialized);
+  SetDataAt(kIrregexpLatin1BytecodeIndex, uninitialized);
+  SetDataAt(kIrregexpUC16BytecodeIndex, uninitialized);
 }
 
 }  // namespace internal

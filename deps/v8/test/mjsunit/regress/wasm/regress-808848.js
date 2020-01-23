@@ -27,11 +27,11 @@ function varuint32(val) {
 let body = [];
 
 for (let i = 0; i < kNumLocals; ++i) {
-  body.push(kExprCallFunction, 0, kExprSetLocal, ...varuint32(i));
+  body.push(kExprCallFunction, 0, kExprLocalSet, ...varuint32(i));
 }
 
 for (let i = 0; i < kNumLocals; ++i) {
-  body.push(kExprGetLocal, ...varuint32(i), kExprCallFunction, 1);
+  body.push(kExprLocalGet, ...varuint32(i), kExprCallFunction, 1);
 }
 
 let builder = new WasmModuleBuilder();

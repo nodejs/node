@@ -53,7 +53,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
                                 JSHeapBroker* broker, Flags flags,
-                                Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone, Zone* shared_zone);
 
@@ -84,6 +83,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
+  Reduction ReduceJSGetIterator(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSHasProperty(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
@@ -101,10 +101,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                  base::Optional<NameRef> static_name,
                                  Node* value, FeedbackSource const& source,
                                  AccessMode access_mode);
-  Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
-                                       FeedbackSource const& source,
-                                       NameRef const& name,
-                                       AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& processed,
                               AccessMode access_mode, Node* key = nullptr);
@@ -114,9 +110,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                NameRef const& name, AccessMode access_mode,
                                Node* key, PropertyCellRef const& property_cell);
-  Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* key,
-                                            AccessMode access_mode,
-                                            KeyedAccessLoadMode load_mode);
+  Reduction ReduceElementLoadFromHeapConstant(Node* node, Node* key,
+                                              AccessMode access_mode,
+                                              KeyedAccessLoadMode load_mode);
   Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
                                         KeyedAccessMode const& keyed_mode);
 
@@ -207,23 +203,31 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
                              Node* control);
 
+  // Attach a pair of success and exception paths on a given control path.
+  // The exception is joined to the Merge+Phi+EffectPhi nodes while the success
+  // path is returned.
+  Node* AppendExceptionHandling(Node* effect, Node* control, Node* merge,
+                                Node* phi, Node* effect_phi);
+
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
   bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
 
-  // Extract receiver maps from {nexus} and filter based on {receiver} if
-  // possible.
-  bool ExtractReceiverMaps(Node* receiver, Node* effect,
-                           FeedbackNexus const& nexus,
-                           MapHandles* receiver_maps);
+  void RemoveImpossibleReceiverMaps(
+      Node* receiver, ZoneVector<Handle<Map>>* receiver_maps) const;
+
+  ElementAccessFeedback const& TryRefineElementAccessFeedback(
+      ElementAccessFeedback const& feedback, Node* receiver,
+      Node* effect) const;
 
   // Try to infer maps for the given {receiver} at the current {effect}.
   bool InferReceiverMaps(Node* receiver, Node* effect,
-                         MapHandles* receiver_maps);
+                         ZoneVector<Handle<Map>>* receiver_maps) const;
+
   // Try to infer a root map for the {receiver} independent of the current
   // program location.
-  MaybeHandle<Map> InferReceiverRootMap(Node* receiver);
+  base::Optional<MapRef> InferReceiverRootMap(Node* receiver) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely
@@ -234,7 +238,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     kMayBeInPrototypeChain
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
-      Node* receiver, Node* effect, Handle<HeapObject> prototype);
+      Node* receiver, Node* effect, HeapObjectRef const& prototype);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -248,7 +252,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
-  NativeContextRef native_context() const { return broker()->native_context(); }
+  NativeContextRef native_context() const {
+    return broker()->target_native_context();
+  }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }

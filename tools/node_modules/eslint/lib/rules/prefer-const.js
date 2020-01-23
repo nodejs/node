@@ -17,8 +17,7 @@ const DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/u
 
 /**
  * Checks whether a given node is located at `ForStatement.init` or not.
- *
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is located at `ForStatement.init`.
  */
 function isInitOfForStatement(node) {
@@ -27,8 +26,7 @@ function isInitOfForStatement(node) {
 
 /**
  * Checks whether a given Identifier node becomes a VariableDeclaration or not.
- *
- * @param {ASTNode} identifier - An Identifier node to check.
+ * @param {ASTNode} identifier An Identifier node to check.
  * @returns {boolean} `true` if the node can become a VariableDeclaration.
  */
 function canBecomeVariableDeclaration(identifier) {
@@ -51,9 +49,8 @@ function canBecomeVariableDeclaration(identifier) {
 /**
  * Checks if an property or element is from outer scope or function parameters
  * in destructing pattern.
- *
- * @param {string} name - A variable name to be checked.
- * @param {eslint-scope.Scope} initScope - A scope to start find.
+ * @param {string} name A variable name to be checked.
+ * @param {eslint-scope.Scope} initScope A scope to start find.
  * @returns {boolean} Indicates if the variable is from outer scope or function parameters.
  */
 function isOuterVariableInDestructing(name, initScope) {
@@ -76,8 +73,7 @@ function isOuterVariableInDestructing(name, initScope) {
  * belongs to.
  * This is used to detect a mix of reassigned and never reassigned in a
  * destructuring.
- *
- * @param {eslint-scope.Reference} reference - A reference to get.
+ * @param {eslint-scope.Reference} reference A reference to get.
  * @returns {ASTNode|null} A VariableDeclarator/AssignmentExpression node or
  *      null.
  */
@@ -162,9 +158,8 @@ function hasMemberExpressionAssignment(node) {
  *   `/*exported foo` directive comment makes such variables. This rule does not
  *   warn such variables because this rule cannot distinguish whether the
  *   exported variables are reassigned or not.
- *
- * @param {eslint-scope.Variable} variable - A variable to get.
- * @param {boolean} ignoreReadBeforeAssign -
+ * @param {eslint-scope.Variable} variable A variable to get.
+ * @param {boolean} ignoreReadBeforeAssign
  *      The value of `ignoreReadBeforeAssign` option.
  * @returns {ASTNode|null}
  *      An Identifier node if the variable should change to const.
@@ -262,9 +257,8 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
  * reference of given variables belongs to.
  * This is used to detect a mix of reassigned and never reassigned in a
  * destructuring.
- *
- * @param {eslint-scope.Variable[]} variables - Variables to group by destructuring.
- * @param {boolean} ignoreReadBeforeAssign -
+ * @param {eslint-scope.Variable[]} variables Variables to group by destructuring.
+ * @param {boolean} ignoreReadBeforeAssign
  *      The value of `ignoreReadBeforeAssign` option.
  * @returns {Map<ASTNode, ASTNode[]>} Grouped identifier nodes.
  */
@@ -308,10 +302,9 @@ function groupByDestructuring(variables, ignoreReadBeforeAssign) {
 
 /**
  * Finds the nearest parent of node with a given type.
- *
- * @param {ASTNode} node – The node to search from.
- * @param {string} type – The type field of the parent node.
- * @param {Function} shouldStop – a predicate that returns true if the traversal should stop, and false otherwise.
+ * @param {ASTNode} node The node to search from.
+ * @param {string} type The type field of the parent node.
+ * @param {Function} shouldStop A predicate that returns true if the traversal should stop, and false otherwise.
  * @returns {ASTNode} The closest ancestor with the specified type; null if no such ancestor exists.
  */
 function findUp(node, type, shouldStop) {
@@ -363,7 +356,9 @@ module.exports = {
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         const variables = [];
         let reportCount = 0;
-        let name = "";
+        let checkedId = null;
+        let checkedName = "";
+
 
         /**
          * Reports given identifier nodes if all of the nodes should be declared
@@ -374,8 +369,7 @@ module.exports = {
          * nullable. In simple declaration or assignment cases, the length of
          * the array is 1. In destructuring cases, the length of the array can
          * be 2 or more.
-         *
-         * @param {(eslint-scope.Reference|null)[]} nodes -
+         * @param {(eslint-scope.Reference|null)[]} nodes
          *      References which are grouped by destructuring to report.
          * @returns {void}
          */
@@ -395,24 +389,29 @@ module.exports = {
                         /*
                          * First we check the declaration type and then depending on
                          * if the type is a "VariableDeclarator" or its an "ObjectPattern"
-                         * we compare the name from the first identifier, if the names are different
-                         * we assign the new name and reset the count of reportCount and nodeCount in
+                         * we compare the name and id from the first identifier, if the names are different
+                         * we assign the new name, id and reset the count of reportCount and nodeCount in
                          * order to check each block for the number of reported errors and base our fix
                          * based on comparing nodes.length and nodesToReport.length.
                          */
 
                         if (firstDecParent.type === "VariableDeclarator") {
 
-                            if (firstDecParent.id.name !== name) {
-                                name = firstDecParent.id.name;
+                            if (firstDecParent.id.name !== checkedName) {
+                                checkedName = firstDecParent.id.name;
                                 reportCount = 0;
                             }
 
                             if (firstDecParent.id.type === "ObjectPattern") {
-                                if (firstDecParent.init.name !== name) {
-                                    name = firstDecParent.init.name;
+                                if (firstDecParent.init.name !== checkedName) {
+                                    checkedName = firstDecParent.init.name;
                                     reportCount = 0;
                                 }
+                            }
+
+                            if (firstDecParent.id !== checkedId) {
+                                checkedId = firstDecParent.id;
+                                reportCount = 0;
                             }
                         }
                     }

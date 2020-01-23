@@ -16,29 +16,15 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject, JSGeneratorObject)
-OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject, JSGeneratorObject)
-OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest)
 
-CAST_ACCESSOR(JSAsyncFunctionObject)
-CAST_ACCESSOR(JSAsyncGeneratorObject)
-CAST_ACCESSOR(JSGeneratorObject)
-CAST_ACCESSOR(AsyncGeneratorRequest)
+TQ_SMI_ACCESSORS(JSGeneratorObject, resume_mode)
+TQ_SMI_ACCESSORS(JSGeneratorObject, continuation)
 
-ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
-ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
-ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
-ACCESSORS(JSGeneratorObject, input_or_debug_pos, Object, kInputOrDebugPosOffset)
-SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
-SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
-ACCESSORS(JSGeneratorObject, parameters_and_registers, FixedArray,
-          kParametersAndRegistersOffset)
-
-ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
-SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
-ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
-ACCESSORS(AsyncGeneratorRequest, promise, Object, kPromiseOffset)
+TQ_SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode)
 
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);
@@ -54,10 +40,7 @@ bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 
-ACCESSORS(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
-
-ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
-SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
+TQ_SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting)
 
 }  // namespace internal
 }  // namespace v8

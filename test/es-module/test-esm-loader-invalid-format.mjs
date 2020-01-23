@@ -1,11 +1,10 @@
-// Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/loader-invalid-format.mjs
+// Flags: --experimental-loader ./test/fixtures/es-module-loaders/loader-invalid-format.mjs
 import { expectsError, mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
 import('../fixtures/es-modules/test-esm-ok.mjs')
 .then(assert.fail, expectsError({
-  code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
-  message: 'Expected string to be returned for the "format" from the ' +
-           '"loader resolve" function but got type undefined.'
+  code: 'ERR_UNKNOWN_MODULE_FORMAT',
+  message: /Unknown module format: esm/
 }))
 .then(mustCall());

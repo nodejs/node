@@ -31,3 +31,16 @@ const assert = require('assert');
     assert.strictEqual(readable.readableEnded, false);
   }));
 }
+
+// Verifies no `error` triggered on multiple .push(null) invocations
+{
+  const readable = new Readable();
+
+  readable.on('readable', () => { readable.read(); });
+  readable.on('error', common.mustNotCall());
+  readable.on('end', common.mustCall());
+
+  readable.push('a');
+  readable.push(null);
+  readable.push(null);
+}

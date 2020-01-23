@@ -61,9 +61,10 @@ class NativesStore {
     // We expect the libraries in the following format:
     //   int: # of sources.
     //   2N blobs: N pairs of source name + actual source.
-    int library_count = source->GetInt();
-    for (int i = 0; i < library_count; ++i)
+    int library_count = source->GetIntSlow();
+    for (int i = 0; i < library_count; ++i) {
       store->ReadNameAndContentPair(source);
+    }
 
     return store;
   }

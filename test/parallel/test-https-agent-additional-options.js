@@ -63,7 +63,7 @@ function variations(iter, port, cb) {
         // Save `value` for check the next time.
         value = next.value.val;
         const [key, val] = next.value;
-        https.get(Object.assign({}, getBaseOptions(port), { [key]: val }),
+        https.get({ ...getBaseOptions(port), [key]: val },
                   variations(iter, port, cb));
       }
     }));

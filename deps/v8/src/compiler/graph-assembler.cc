@@ -94,6 +94,18 @@ PURE_ASSEMBLER_MACH_BINOP_LIST(PURE_BINOP_DEF)
 CHECKED_ASSEMBLER_MACH_BINOP_LIST(CHECKED_BINOP_DEF)
 #undef CHECKED_BINOP_DEF
 
+Node* GraphAssembler::IntPtrEqual(Node* left, Node* right) {
+  return WordEqual(left, right);
+}
+
+Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return Word32Equal(ChangeTaggedToCompressed(left),
+                       ChangeTaggedToCompressed(right));
+  }
+  return WordEqual(left, right);
+}
+
 Node* GraphAssembler::Float64RoundDown(Node* value) {
   CHECK(machine()->Float64RoundDown().IsSupported());
   return graph()->NewNode(machine()->Float64RoundDown().op(), value);
@@ -224,10 +236,10 @@ Node* GraphAssembler::BitcastTaggedToWord(Node* value) {
                               current_effect_, current_control_);
 }
 
-Node* GraphAssembler::BitcastTaggedSignedToWord(Node* value) {
+Node* GraphAssembler::BitcastTaggedToWordForTagAndSmiBits(Node* value) {
   return current_effect_ =
-             graph()->NewNode(machine()->BitcastTaggedSignedToWord(), value,
-                              current_effect_, current_control_);
+             graph()->NewNode(machine()->BitcastTaggedToWordForTagAndSmiBits(),
+                              value, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
@@ -237,7 +249,7 @@ Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
 }
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
-                                   VectorSlotPair const& feedback,
+                                   FeedbackSource const& feedback,
                                    Node* condition, Node* frame_state,
                                    IsSafetyCheck is_safety_check) {
   return current_control_ = current_effect_ = graph()->NewNode(
@@ -247,7 +259,7 @@ Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
-                                      VectorSlotPair const& feedback,
+                                      FeedbackSource const& feedback,
                                       Node* condition, Node* frame_state,
                                       IsSafetyCheck is_safety_check) {
   return current_control_ = current_effect_ = graph()->NewNode(

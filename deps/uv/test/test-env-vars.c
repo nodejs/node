@@ -30,7 +30,7 @@ TEST_IMPL(env_vars) {
   const char* name2 = "UV_TEST_FOO2";
   char buf[BUF_SIZE];
   size_t size;
-  int i, r, envcount, found;
+  int i, r, envcount, found, found_win_special;
   uv_env_item_t* envitems;
 
   /* Reject invalid inputs when setting an environment variable */
@@ -88,6 +88,15 @@ TEST_IMPL(env_vars) {
   r = uv_os_unsetenv(name);
   ASSERT(r == 0);
 
+  /* Setting an environment variable to the empty string does not delete it. */
+  r = uv_os_setenv(name, "");
+  ASSERT(r == 0);
+  size = BUF_SIZE;
+  r = uv_os_getenv(name, buf, &size);
+  ASSERT(r == 0);
+  ASSERT(size == 0);
+  ASSERT(strlen(buf) == 0);
+
   /* Check getting all env variables. */
   r = uv_os_setenv(name, "123456789");
   ASSERT(r == 0);
@@ -99,6 +108,7 @@ TEST_IMPL(env_vars) {
   ASSERT(envcount > 0);
 
   found = 0;
+  found_win_special = 0;
 
   for (i = 0; i < envcount; i++) {
     /* printf("Env: %s = %s\n", envitems[i].name, envitems[i].value); */
@@ -108,10 +118,15 @@ TEST_IMPL(env_vars) {
     } else if (strcmp(envitems[i].name, name2) == 0) {
       found++;
       ASSERT(strlen(envitems[i].value) == 0);
+    } else if (envitems[i].name[0] == '=') {
+      found_win_special++;
     }
   }
 
   ASSERT(found == 2);
+#ifdef _WIN32
+  ASSERT(found_win_special > 0);
+#endif
 
   uv_os_free_environ(envitems, envcount);
 

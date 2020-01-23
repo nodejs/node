@@ -5,9 +5,9 @@
 #include "src/compiler/map-inference.h"
 
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/vector-slot-pair.h"
 #include "src/objects/map-inl.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -91,9 +91,16 @@ MapHandles const& MapInference::GetMaps() {
   return maps_;
 }
 
+bool MapInference::Is(Handle<Map> expected_map) {
+  if (!HaveMaps()) return false;
+  const MapHandles& maps = GetMaps();
+  if (maps.size() != 1) return false;
+  return maps[0].equals(expected_map);
+}
+
 void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
                                    Node* control,
-                                   const VectorSlotPair& feedback) {
+                                   const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   CHECK(feedback.IsValid());
   ZoneHandleSet<Map> maps;
@@ -112,7 +119,7 @@ bool MapInference::RelyOnMapsViaStability(
 
 bool MapInference::RelyOnMapsPreferStability(
     CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
-    Node* control, const VectorSlotPair& feedback) {
+    Node* control, const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   if (Safe()) return false;
   if (RelyOnMapsViaStability(dependencies)) return true;
@@ -123,7 +130,7 @@ bool MapInference::RelyOnMapsPreferStability(
 bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
                                     JSGraph* jsgraph, Node** effect,
                                     Node* control,
-                                    const VectorSlotPair& feedback) {
+                                    const FeedbackSource& feedback) {
   if (Safe()) return true;
 
   auto is_stable = [this](Handle<Map> map) {

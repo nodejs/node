@@ -38,6 +38,9 @@ class RegExpUtils : public AllStatic {
   // Checks whether the given object is an unmodified JSRegExp instance.
   // Neither the object's map, nor its prototype's map, nor any relevant
   // method on the prototype may be modified.
+  //
+  // Note: This check is limited may only be used in situations where the only
+  // relevant property is 'exec'.
   static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj);
 
   // ES#sec-advancestringindex

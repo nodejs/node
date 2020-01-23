@@ -35,22 +35,36 @@ module.exports = {
          */
         function testCodeAroundComment(node) {
 
-            // Get the whole line and cut it off at the start of the comment
-            const startLine = String(sourceCode.lines[node.loc.start.line - 1]);
-            const endLine = String(sourceCode.lines[node.loc.end.line - 1]);
+            const startLine = String(sourceCode.lines[node.loc.start.line - 1]),
+                endLine = String(sourceCode.lines[node.loc.end.line - 1]),
+                preamble = startLine.slice(0, node.loc.start.column).trim(),
+                postamble = endLine.slice(node.loc.end.column).trim(),
+                isPreambleEmpty = !preamble,
+                isPostambleEmpty = !postamble;
 
-            const preamble = startLine.slice(0, node.loc.start.column).trim();
-
-            // Also check after the comment
-            const postamble = endLine.slice(node.loc.end.column).trim();
-
-            // Check that this comment isn't an ESLint directive
-            const isDirective = astUtils.isDirectiveComment(node);
-
-            // Should be empty if there was only whitespace around the comment
-            if (!isDirective && (preamble || postamble)) {
-                context.report({ node, message: "Unexpected comment inline with code." });
+            // Nothing on both sides
+            if (isPreambleEmpty && isPostambleEmpty) {
+                return;
             }
+
+            // JSX Exception
+            if (
+                (isPreambleEmpty || preamble === "{") &&
+                (isPostambleEmpty || postamble === "}")
+            ) {
+                const enclosingNode = sourceCode.getNodeByRangeIndex(node.range[0]);
+
+                if (enclosingNode && enclosingNode.type === "JSXEmptyExpression") {
+                    return;
+                }
+            }
+
+            // Don't report ESLint directive comments
+            if (astUtils.isDirectiveComment(node)) {
+                return;
+            }
+
+            context.report({ node, message: "Unexpected comment inline with code." });
         }
 
         //--------------------------------------------------------------------------

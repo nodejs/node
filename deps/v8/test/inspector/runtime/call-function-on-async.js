@@ -146,6 +146,28 @@ let testSuite = [
       awaitPromise: false
     }));
   },
+
+  async function testThrowNumber() {
+    InspectorTest.logMessage(await callFunctionOn({
+      executionContextId,
+      functionDeclaration: '(() => { throw 100500; } )',
+      arguments: prepareArguments([]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: true
+    }));
+  },
+
+  async function testAsyncFunctionWithUnknownReferenceReturnByValue() {
+    InspectorTest.logMessage(await callFunctionOn({
+      executionContextId,
+      functionDeclaration: '(async () => does_not_exist.click())',
+      arguments: prepareArguments([]),
+      returnByValue: true,
+      generatePreview: false,
+      awaitPromise: true
+    }));
+  },
 ];
 
 function prepareArguments(args) {

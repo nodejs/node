@@ -24,7 +24,6 @@ AsyncResource::AsyncResource(Isolate* isolate,
 
 AsyncResource::~AsyncResource() {
   EmitAsyncDestroy(env_, async_context_);
-  resource_.Reset();
 }
 
 MaybeLocal<Value> AsyncResource::MakeCallback(Local<Function> callback,

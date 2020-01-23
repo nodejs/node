@@ -375,7 +375,7 @@ class MsvsSettings(object):
     return pdbname
 
   def GetMapFileName(self, config, expand_special):
-    """Gets the explicitly overriden map file name for a target or returns None
+    """Gets the explicitly overridden map file name for a target or returns None
     if it's not set."""
     config = self._TargetConfig(config)
     map_file = self._Setting(('VCLinkerTool', 'MapFileName'), config)

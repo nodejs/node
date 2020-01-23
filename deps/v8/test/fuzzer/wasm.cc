@@ -11,6 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -20,6 +21,16 @@
 namespace i = v8::internal;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  i::FlagScope<bool> enable_##feat(&i::FLAG_experimental_wasm_##feat, true);
+  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
+
+  // We reduce the maximum memory size and table size of WebAssembly instances
+  // to avoid OOMs in the fuzzer.
   i::FlagScope<uint32_t> max_mem_flag_scope(&i::FLAG_wasm_max_mem_pages, 32);
   i::FlagScope<uint32_t> max_table_size_scope(&i::FLAG_wasm_max_table_size,
                                               100);

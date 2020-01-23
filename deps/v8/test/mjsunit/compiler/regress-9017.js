@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --noturbo-inlining --noturbo-verify-allocation
+// This test invokes optimization manually, no need for stress modes:
+// Flags: --nostress-opt --noalways-opt
 
 // Ensure that very large stack frames can be used successfully.
 // The flag --noturbo-verify-allocation is to make this run a little faster; it

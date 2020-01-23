@@ -453,4 +453,4 @@
 #   define UCONFIG_NO_FILTERED_BREAK_ITERATION 0
 #endif
 
-#endif
+#endif  // __UCONFIG_H__

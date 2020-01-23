@@ -15,6 +15,6 @@ builder.addFunction(undefined, kSig_v_v).addLocals({i64_count: 1}).addBody([
   kExprI32Const, 0,                           // i32.const
   kExprEnd,                                   // end
   kExprBrIf,     0,                           // br_if depth=0
-  kExprSetLocal, 0,                           // set_local 0
+  kExprLocalSet, 0,                           // set_local 0
 ]);
 builder.instantiate();

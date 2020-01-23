@@ -24,4 +24,4 @@ function list (gyp, args, callback) {
 }
 
 module.exports = list
-exports.usage = 'Prints a listing of the currently installed node development files'
+module.exports.usage = 'Prints a listing of the currently installed node development files'

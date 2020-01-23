@@ -11,6 +11,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "src/base/once.h"
@@ -110,70 +111,20 @@ class SourceGroup {
   int end_offset_;
 };
 
-// The backing store of an ArrayBuffer or SharedArrayBuffer, after
-// Externalize() has been called on it.
-class ExternalizedContents {
- public:
-  explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
-      : data_(contents.Data()),
-        length_(contents.ByteLength()),
-        deleter_(contents.Deleter()),
-        deleter_data_(contents.DeleterData()) {}
-  explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
-      : data_(contents.Data()),
-        length_(contents.ByteLength()),
-        deleter_(contents.Deleter()),
-        deleter_data_(contents.DeleterData()) {}
-  ExternalizedContents(ExternalizedContents&& other) V8_NOEXCEPT
-      : data_(other.data_),
-        length_(other.length_),
-        deleter_(other.deleter_),
-        deleter_data_(other.deleter_data_) {
-    other.data_ = nullptr;
-    other.length_ = 0;
-    other.deleter_ = nullptr;
-    other.deleter_data_ = nullptr;
-  }
-  ExternalizedContents& operator=(ExternalizedContents&& other) V8_NOEXCEPT {
-    if (this != &other) {
-      data_ = other.data_;
-      length_ = other.length_;
-      deleter_ = other.deleter_;
-      deleter_data_ = other.deleter_data_;
-      other.data_ = nullptr;
-      other.length_ = 0;
-      other.deleter_ = nullptr;
-      other.deleter_data_ = nullptr;
-    }
-    return *this;
-  }
-  ~ExternalizedContents();
-
- private:
-  void* data_;
-  size_t length_;
-  ArrayBuffer::Contents::DeleterCallback deleter_;
-  void* deleter_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
-};
-
 class SerializationData {
  public:
   SerializationData() : size_(0) {}
 
   uint8_t* data() { return data_.get(); }
   size_t size() { return size_; }
-  const std::vector<ArrayBuffer::Contents>& array_buffer_contents() {
-    return array_buffer_contents_;
+  const std::vector<std::shared_ptr<v8::BackingStore>>& backing_stores() {
+    return backing_stores_;
   }
-  const std::vector<SharedArrayBuffer::Contents>&
-  shared_array_buffer_contents() {
-    return shared_array_buffer_contents_;
+  const std::vector<std::shared_ptr<v8::BackingStore>>& sab_backing_stores() {
+    return sab_backing_stores_;
   }
-  const std::vector<WasmModuleObject::TransferrableModule>&
-  transferrable_modules() {
-    return transferrable_modules_;
+  const std::vector<CompiledWasmModule>& compiled_wasm_modules() {
+    return compiled_wasm_modules_;
   }
 
  private:
@@ -183,9 +134,9 @@ class SerializationData {
 
   std::unique_ptr<uint8_t, DataDeleter> data_;
   size_t size_;
-  std::vector<ArrayBuffer::Contents> array_buffer_contents_;
-  std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
-  std::vector<WasmModuleObject::TransferrableModule> transferrable_modules_;
+  std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
+  std::vector<std::shared_ptr<v8::BackingStore>> sab_backing_stores_;
+  std::vector<CompiledWasmModule> compiled_wasm_modules_;
 
  private:
   friend class Serializer;
@@ -207,12 +158,9 @@ class SerializationDataQueue {
 
 class Worker {
  public:
-  Worker();
+  explicit Worker(const char* script);
   ~Worker();
 
-  // Run the given script on this Worker. This function should only be called
-  // once, and should only be called by the thread that created the Worker.
-  void StartExecuteInThread(const char* script);
   // Post a message to the worker's incoming message queue. The worker will
   // take ownership of the SerializationData.
   // This function should only be called by the thread that created the Worker.
@@ -231,17 +179,20 @@ class Worker {
   // This function can be called by any thread.
   void WaitForThread();
 
+  // Start running the given worker in another thread.
+  static bool StartWorkerThread(std::shared_ptr<Worker> worker);
+
  private:
   class WorkerThread : public base::Thread {
    public:
-    explicit WorkerThread(Worker* worker)
+    explicit WorkerThread(std::shared_ptr<Worker> worker)
         : base::Thread(base::Thread::Options("WorkerThread")),
-          worker_(worker) {}
+          worker_(std::move(worker)) {}
 
-    void Run() override { worker_->ExecuteInThread(); }
+    void Run() override;
 
    private:
-    Worker* worker_;
+    std::shared_ptr<Worker> worker_;
   };
 
   void ExecuteInThread();
@@ -275,6 +226,8 @@ class PerIsolateData {
     PerIsolateData* data_;
   };
 
+  inline void HostCleanupFinalizationGroup(Local<FinalizationGroup> fg);
+  inline MaybeLocal<FinalizationGroup> GetCleanupFinalizationGroup();
   inline void SetTimeout(Local<Function> callback, Local<Context> context);
   inline MaybeLocal<Function> GetTimeoutCallback();
   inline MaybeLocal<Context> GetTimeoutContext();
@@ -292,6 +245,7 @@ class PerIsolateData {
   Global<Value> realm_shared_;
   std::queue<Global<Function>> set_timeout_callbacks_;
   std::queue<Global<Context>> set_timeout_contexts_;
+  std::queue<Global<FinalizationGroup>> cleanup_finalization_groups_;
   AsyncHooks* async_hooks_wrapper_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -330,7 +284,6 @@ class ShellOptions {
   SourceGroup* isolate_sources = nullptr;
   const char* icu_data_file = nullptr;
   const char* icu_locale = nullptr;
-  const char* natives_blob = nullptr;
   const char* snapshot_blob = nullptr;
   bool trace_enabled = false;
   const char* trace_path = nullptr;
@@ -378,7 +331,6 @@ class Shell : public i::AllStatic {
       Isolate* isolate, Local<Value> value, Local<Value> transfer);
   static MaybeLocal<Value> DeserializeValue(
       Isolate* isolate, std::unique_ptr<SerializationData> data);
-  static void CleanupWorkers();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name, int min, int max,
                                size_t buckets);
@@ -386,6 +338,8 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PerformanceMeasureMemory(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -465,9 +419,15 @@ class Shell : public i::AllStatic {
   static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HostCleanupFinalizationGroup(Local<Context> context,
+                                           Local<FinalizationGroup> fg);
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
       Local<String> specifier);
+  static void ModuleResolutionSuccessCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void ModuleResolutionFailureCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void HostInitializeImportMetaObject(Local<Context> context,
                                              Local<Module> module,
                                              Local<Object> meta);
@@ -493,6 +453,10 @@ class Shell : public i::AllStatic {
            !options.test_shell;
   }
 
+  static void WaitForRunningWorkers();
+  static void AddRunningWorker(std::shared_ptr<Worker> worker);
+  static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
+
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
@@ -509,8 +473,7 @@ class Shell : public i::AllStatic {
 
   static base::LazyMutex workers_mutex_;  // Guards the following members.
   static bool allow_new_workers_;
-  static std::vector<Worker*> workers_;
-  static std::vector<ExternalizedContents> externalized_contents_;
+  static std::unordered_set<std::shared_ptr<Worker>> running_workers_;
 
   // Multiple isolates may update this flag concurrently.
   static std::atomic<bool> script_executed_;

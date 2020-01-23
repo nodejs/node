@@ -16,6 +16,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/timezone.h"
@@ -40,6 +42,14 @@ public:
      * @stable ICU 3.8
      */
     virtual ~BasicTimeZone();
+
+    /**
+     * Clones this object polymorphically.
+     * The caller owns the result and should delete it when done.
+     * @return clone, or nullptr if an error occurred
+     * @stable ICU 3.8
+     */
+    virtual BasicTimeZone* clone() const = 0;
 
     /**
      * Gets the first time zone transition after the base time.
@@ -210,6 +220,8 @@ protected:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // BASICTZ_H
 

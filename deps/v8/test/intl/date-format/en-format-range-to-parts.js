@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-date-format-range
-
 const date1 = new Date("2019-01-03T03:20");
 const date2 = new Date("2019-01-05T19:33");
 const date3 = new Date("2019-01-05T22:57");

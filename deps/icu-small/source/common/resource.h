@@ -28,6 +28,7 @@
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
 #include "unicode/ures.h"
+#include "restrace.h"
 
 struct ResourceData;
 
@@ -47,8 +48,10 @@ public:
     ResourceArray() : items16(NULL), items32(NULL), length(0) {}
 
     /** Only for implementation use. @internal */
-    ResourceArray(const uint16_t *i16, const uint32_t *i32, int32_t len) :
-            items16(i16), items32(i32), length(len) {}
+    ResourceArray(const uint16_t *i16, const uint32_t *i32, int32_t len,
+                  const ResourceTracer& traceInfo) :
+            items16(i16), items32(i32), length(len),
+            fTraceInfo(traceInfo) {}
 
     /**
      * @return The number of items in the array resource.
@@ -68,6 +71,7 @@ private:
     const uint16_t *items16;
     const uint32_t *items32;
     int32_t length;
+    ResourceTracer fTraceInfo;
 };
 
 /**
@@ -80,20 +84,29 @@ public:
 
     /** Only for implementation use. @internal */
     ResourceTable(const uint16_t *k16, const int32_t *k32,
-                  const uint16_t *i16, const uint32_t *i32, int32_t len) :
-            keys16(k16), keys32(k32), items16(i16), items32(i32), length(len) {}
+                  const uint16_t *i16, const uint32_t *i32, int32_t len,
+                  const ResourceTracer& traceInfo) :
+            keys16(k16), keys32(k32), items16(i16), items32(i32), length(len),
+            fTraceInfo(traceInfo) {}
 
     /**
      * @return The number of items in the array resource.
      */
     int32_t getSize() const { return length; }
     /**
-     * @param i Array item index.
+     * @param i Table item index.
      * @param key Output-only, receives the key of the i'th item.
      * @param value Output-only, receives the value of the i'th item.
      * @return TRUE if i is non-negative and less than getSize().
      */
     UBool getKeyAndValue(int32_t i, const char *&key, ResourceValue &value) const;
+
+    /**
+     * @param key Key string to find in the table.
+     * @param value Output-only, receives the value of the item with that key.
+     * @return TRUE if the table contains the key.
+     */
+    UBool findValue(const char *key, ResourceValue &value) const;
 
 private:
     const uint16_t *keys16;
@@ -101,6 +114,7 @@ private:
     const uint16_t *items16;
     const uint32_t *items32;
     int32_t length;
+    ResourceTracer fTraceInfo;
 };
 
 /**

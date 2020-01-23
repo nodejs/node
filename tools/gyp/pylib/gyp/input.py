@@ -19,6 +19,7 @@ import sys
 import threading
 import time
 import traceback
+from distutils.version import StrictVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
 
@@ -942,8 +943,12 @@ def ExpandVariables(input, phase, variables, build_file):
       else:
         replacement = variables[contents]
 
+    if isinstance(replacement, bytes) and not isinstance(replacement, str):
+      replacement = replacement.decode("utf-8")  # done on Python 3 only
     if type(replacement) is list:
       for item in replacement:
+        if isinstance(item, bytes) and not isinstance(item, str):
+          item = item.decode("utf-8")  # done on Python 3 only
         if not contents[-1] == '/' and type(item) not in (str, int):
           raise GypError('Variable ' + contents +
                          ' must expand to a string or list of strings; ' +
@@ -1084,7 +1089,8 @@ def EvalSingleCondition(
     else:
       ast_code = compile(cond_expr_expanded, '<string>', 'eval')
       cached_conditions_asts[cond_expr_expanded] = ast_code
-    if eval(ast_code, {'__builtins__': None}, variables):
+    env = {'__builtins__': None, 'v': StrictVersion}
+    if eval(ast_code, env, variables):
       return true_dict
     return false_dict
   except SyntaxError as e:

@@ -17,6 +17,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/opcodes.h"
 #include "src/numbers/double.h"
@@ -42,9 +43,8 @@ class V8_EXPORT_PRIVATE InstructionOperand {
     CONSTANT,
     IMMEDIATE,
     // Location operand kinds.
-    EXPLICIT,
     ALLOCATED,
-    FIRST_LOCATION_OPERAND_KIND = EXPLICIT
+    FIRST_LOCATION_OPERAND_KIND = ALLOCATED
     // Location operand kinds must be last.
   };
 
@@ -67,11 +67,6 @@ class V8_EXPORT_PRIVATE InstructionOperand {
   // embedded directly in instructions, e.g. small integers and on some
   // platforms Objects.
   INSTRUCTION_OPERAND_PREDICATE(Immediate, IMMEDIATE)
-  // ExplicitOperands do not participate in register allocation. They are
-  // created by the instruction selector for direct access to registers and
-  // stack slots, completely bypassing the register allocator. They are never
-  // associated with a virtual register
-  INSTRUCTION_OPERAND_PREDICATE(Explicit, EXPLICIT)
   // AllocatedOperands are registers or stack slots that are assigned by the
   // register allocator and are always associated with a virtual register.
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
@@ -130,7 +125,7 @@ class V8_EXPORT_PRIVATE InstructionOperand {
 
   inline uint64_t GetCanonicalizedValue() const;
 
-  class KindField : public BitField64<Kind, 0, 3> {};
+  using KindField = BitField64<Kind, 0, 3>;
 
   uint64_t value_;
 };
@@ -331,20 +326,20 @@ class UnallocatedOperand final : public InstructionOperand {
 
   STATIC_ASSERT(KindField::kSize == 3);
 
-  class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
+  using VirtualRegisterField = BitField64<uint32_t, 3, 32>;
 
   // BitFields for all unallocated operands.
-  class BasicPolicyField : public BitField64<BasicPolicy, 35, 1> {};
+  using BasicPolicyField = BitField64<BasicPolicy, 35, 1>;
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  class FixedSlotIndexField : public BitField64<int, 36, 28> {};
+  using FixedSlotIndexField = BitField64<int, 36, 28>;
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 36, 3> {};
-  class LifetimeField : public BitField64<Lifetime, 39, 1> {};
-  class HasSecondaryStorageField : public BitField64<bool, 40, 1> {};
-  class FixedRegisterField : public BitField64<int, 41, 6> {};
-  class SecondaryStorageField : public BitField64<int, 47, 3> {};
+  using ExtendedPolicyField = BitField64<ExtendedPolicy, 36, 3>;
+  using LifetimeField = BitField64<Lifetime, 39, 1>;
+  using HasSecondaryStorageField = BitField64<bool, 40, 1>;
+  using FixedRegisterField = BitField64<int, 41, 6>;
+  using SecondaryStorageField = BitField64<int, 47, 3>;
 
  private:
   explicit UnallocatedOperand(int virtual_register)
@@ -373,7 +368,7 @@ class ConstantOperand : public InstructionOperand {
   INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT)
 
   STATIC_ASSERT(KindField::kSize == 3);
-  class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
+  using VirtualRegisterField = BitField64<uint32_t, 3, 32>;
 };
 
 class ImmediateOperand : public InstructionOperand {
@@ -406,8 +401,8 @@ class ImmediateOperand : public InstructionOperand {
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
   STATIC_ASSERT(KindField::kSize == 3);
-  class TypeField : public BitField64<ImmediateType, 3, 1> {};
-  class ValueField : public BitField64<int32_t, 32, 32> {};
+  using TypeField = BitField64<ImmediateType, 3, 1>;
+  using ValueField = BitField64<int32_t, 32, 32>;
 };
 
 class LocationOperand : public InstructionOperand {
@@ -509,22 +504,9 @@ class LocationOperand : public InstructionOperand {
   }
 
   STATIC_ASSERT(KindField::kSize == 3);
-  class LocationKindField : public BitField64<LocationKind, 3, 2> {};
-  class RepresentationField : public BitField64<MachineRepresentation, 5, 8> {};
-  class IndexField : public BitField64<int32_t, 35, 29> {};
-};
-
-class V8_EXPORT_PRIVATE ExplicitOperand
-    : public NON_EXPORTED_BASE(LocationOperand) {
- public:
-  ExplicitOperand(LocationKind kind, MachineRepresentation rep, int index);
-
-  static ExplicitOperand* New(Zone* zone, LocationKind kind,
-                              MachineRepresentation rep, int index) {
-    return InstructionOperand::New(zone, ExplicitOperand(kind, rep, index));
-  }
-
-  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT)
+  using LocationKindField = BitField64<LocationKind, 3, 2>;
+  using RepresentationField = BitField64<MachineRepresentation, 5, 8>;
+  using IndexField = BitField64<int32_t, 35, 29>;
 };
 
 class AllocatedOperand : public LocationOperand {
@@ -642,7 +624,7 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
     }
     return InstructionOperand::KindField::update(
         LocationOperand::RepresentationField::update(this->value_, canonical),
-        LocationOperand::EXPLICIT);
+        LocationOperand::ALLOCATED);
   }
   return this->value_;
 }
@@ -775,11 +757,11 @@ class V8_EXPORT_PRIVATE Instruction final {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
   const InstructionOperand* OutputAt(size_t i) const {
-    DCHECK(i < OutputCount());
+    DCHECK_LT(i, OutputCount());
     return &operands_[i];
   }
   InstructionOperand* OutputAt(size_t i) {
-    DCHECK(i < OutputCount());
+    DCHECK_LT(i, OutputCount());
     return &operands_[i];
   }
 
@@ -789,21 +771,21 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   size_t InputCount() const { return InputCountField::decode(bit_field_); }
   const InstructionOperand* InputAt(size_t i) const {
-    DCHECK(i < InputCount());
+    DCHECK_LT(i, InputCount());
     return &operands_[OutputCount() + i];
   }
   InstructionOperand* InputAt(size_t i) {
-    DCHECK(i < InputCount());
+    DCHECK_LT(i, InputCount());
     return &operands_[OutputCount() + i];
   }
 
   size_t TempCount() const { return TempCountField::decode(bit_field_); }
   const InstructionOperand* TempAt(size_t i) const {
-    DCHECK(i < TempCount());
+    DCHECK_LT(i, TempCount());
     return &operands_[OutputCount() + InputCount() + i];
   }
   InstructionOperand* TempAt(size_t i) {
-    DCHECK(i < TempCount());
+    DCHECK_LT(i, TempCount());
     return &operands_[OutputCount() + InputCount() + i];
   }
 
@@ -825,7 +807,8 @@ class V8_EXPORT_PRIVATE Instruction final {
                           size_t output_count, InstructionOperand* outputs,
                           size_t input_count, InstructionOperand* inputs,
                           size_t temp_count, InstructionOperand* temps) {
-    DCHECK_LE(0, opcode);
+    // TODO(9872)
+    // DCHECK_LE(0, opcode);
     DCHECK(output_count == 0 || outputs != nullptr);
     DCHECK(input_count == 0 || inputs != nullptr);
     DCHECK(temp_count == 0 || temps != nullptr);
@@ -1270,6 +1253,20 @@ class FrameStateDescriptor : public ZoneObject {
            type_ == FrameStateType::kConstructStub;
   }
 
+  // The frame height on the stack, in number of slots, as serialized into a
+  // Translation and later used by the deoptimizer. Does *not* include
+  // information from the chain of outer states. Unlike |GetSize| this does not
+  // always include parameters, locals, and stack slots; instead, the returned
+  // slot kinds depend on the frame type.
+  size_t GetHeight() const;
+
+  // Returns an overapproximation of the unoptimized stack frame size in bytes,
+  // as later produced by the deoptimizer. Considers both this and the chain of
+  // outer states.
+  size_t total_conservative_frame_size_in_bytes() const {
+    return total_conservative_frame_size_in_bytes_;
+  }
+
   size_t GetSize() const;
   size_t GetTotalSize() const;
   size_t GetFrameCount() const;
@@ -1283,12 +1280,13 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateType type_;
   BailoutId bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
-  size_t parameters_count_;
-  size_t locals_count_;
-  size_t stack_count_;
+  const size_t parameters_count_;
+  const size_t locals_count_;
+  const size_t stack_count_;
+  const size_t total_conservative_frame_size_in_bytes_;
   StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
-  FrameStateDescriptor* outer_state_;
+  FrameStateDescriptor* const outer_state_;
 };
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the
@@ -1297,7 +1295,7 @@ class DeoptimizationEntry final {
  public:
   DeoptimizationEntry() = default;
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-                      DeoptimizeReason reason, VectorSlotPair const& feedback)
+                      DeoptimizeReason reason, FeedbackSource const& feedback)
       : descriptor_(descriptor),
         kind_(kind),
         reason_(reason),
@@ -1306,13 +1304,13 @@ class DeoptimizationEntry final {
   FrameStateDescriptor* descriptor() const { return descriptor_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
   DeoptimizeKind kind_ = DeoptimizeKind::kEager;
   DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
-  VectorSlotPair feedback_ = VectorSlotPair();
+  FeedbackSource feedback_ = FeedbackSource();
 };
 
 using DeoptimizationVector = ZoneVector<DeoptimizationEntry>;
@@ -1577,7 +1575,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
                              DeoptimizeKind kind, DeoptimizeReason reason,
-                             VectorSlotPair const& feedback);
+                             FeedbackSource const& feedback);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

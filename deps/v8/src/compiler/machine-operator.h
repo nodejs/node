@@ -239,6 +239,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Word64ReverseBits();
   const Operator* Word32ReverseBytes();
   const Operator* Word64ReverseBytes();
+  const Operator* Simd128ReverseBytes();
   const OptionalOperator Int32AbsWithOverflow();
   const OptionalOperator Int64AbsWithOverflow();
 
@@ -301,8 +302,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a tagged pointer as a word.
   const Operator* BitcastTaggedToWord();
 
-  // This operator reinterprets the bits of a Smi as a word.
-  const Operator* BitcastTaggedSignedToWord();
+  // This operator reinterprets the bits of a tagged value as a word preserving
+  // non-pointer bits (all the bits that are not modified by GC):
+  // 1) smi tag
+  // 2) weak tag
+  // 3) smi payload if the tagged value is a smi.
+  // Note, that it's illegal to "look" at the pointer bits of non-smi values.
+  const Operator* BitcastTaggedToWordForTagAndSmiBits();
 
   // This operator reinterprets the bits of a tagged MaybeObject pointer as
   // word.
@@ -313,6 +319,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // This operator reinterprets the bits of a word as a Smi.
   const Operator* BitcastWordToTaggedSigned();
+
+  // This operator reinterprets the bits of a word32 as a Compressed Smi.
+  const Operator* BitcastWord32ToCompressedSigned();
+
+  // This operator reinterprets the bits of a Compressed Smi as a word32.
+  const Operator* BitcastCompressedSignedToWord32();
 
   // JavaScript float64 to int32/uint32 truncation.
   const Operator* TruncateFloat64ToWord32();
@@ -471,12 +483,21 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F64x2Splat();
   const Operator* F64x2Abs();
   const Operator* F64x2Neg();
+  const Operator* F64x2Sqrt();
+  const Operator* F64x2Add();
+  const Operator* F64x2Sub();
+  const Operator* F64x2Mul();
+  const Operator* F64x2Div();
   const Operator* F64x2ExtractLane(int32_t);
+  const Operator* F64x2Min();
+  const Operator* F64x2Max();
   const Operator* F64x2ReplaceLane(int32_t);
   const Operator* F64x2Eq();
   const Operator* F64x2Ne();
   const Operator* F64x2Lt();
   const Operator* F64x2Le();
+  const Operator* F64x2Qfma();
+  const Operator* F64x2Qfms();
 
   const Operator* F32x4Splat();
   const Operator* F32x4ExtractLane(int32_t);
@@ -485,6 +506,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4UConvertI32x4();
   const Operator* F32x4Abs();
   const Operator* F32x4Neg();
+  const Operator* F32x4Sqrt();
   const Operator* F32x4RecipApprox();
   const Operator* F32x4RecipSqrtApprox();
   const Operator* F32x4Add();
@@ -498,21 +520,27 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Ne();
   const Operator* F32x4Lt();
   const Operator* F32x4Le();
+  const Operator* F32x4Qfma();
+  const Operator* F32x4Qfms();
 
   const Operator* I64x2Splat();
   const Operator* I64x2ExtractLane(int32_t);
   const Operator* I64x2ReplaceLane(int32_t);
   const Operator* I64x2Neg();
-  const Operator* I64x2Shl(int32_t);
-  const Operator* I64x2ShrS(int32_t);
+  const Operator* I64x2Shl();
+  const Operator* I64x2ShrS();
   const Operator* I64x2Add();
   const Operator* I64x2Sub();
   const Operator* I64x2Mul();
+  const Operator* I64x2MinS();
+  const Operator* I64x2MaxS();
   const Operator* I64x2Eq();
   const Operator* I64x2Ne();
   const Operator* I64x2GtS();
   const Operator* I64x2GeS();
-  const Operator* I64x2ShrU(int32_t);
+  const Operator* I64x2ShrU();
+  const Operator* I64x2MinU();
+  const Operator* I64x2MaxU();
   const Operator* I64x2GtU();
   const Operator* I64x2GeU();
 
@@ -523,8 +551,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4SConvertI16x8Low();
   const Operator* I32x4SConvertI16x8High();
   const Operator* I32x4Neg();
-  const Operator* I32x4Shl(int32_t);
-  const Operator* I32x4ShrS(int32_t);
+  const Operator* I32x4Shl();
+  const Operator* I32x4ShrS();
   const Operator* I32x4Add();
   const Operator* I32x4AddHoriz();
   const Operator* I32x4Sub();
@@ -539,7 +567,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4UConvertF32x4();
   const Operator* I32x4UConvertI16x8Low();
   const Operator* I32x4UConvertI16x8High();
-  const Operator* I32x4ShrU(int32_t);
+  const Operator* I32x4ShrU();
   const Operator* I32x4MinU();
   const Operator* I32x4MaxU();
   const Operator* I32x4GtU();
@@ -551,8 +579,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8SConvertI8x16Low();
   const Operator* I16x8SConvertI8x16High();
   const Operator* I16x8Neg();
-  const Operator* I16x8Shl(int32_t);
-  const Operator* I16x8ShrS(int32_t);
+  const Operator* I16x8Shl();
+  const Operator* I16x8ShrS();
   const Operator* I16x8SConvertI32x4();
   const Operator* I16x8Add();
   const Operator* I16x8AddSaturateS();
@@ -569,7 +597,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* I16x8UConvertI8x16Low();
   const Operator* I16x8UConvertI8x16High();
-  const Operator* I16x8ShrU(int32_t);
+  const Operator* I16x8ShrU();
   const Operator* I16x8UConvertI32x4();
   const Operator* I16x8AddSaturateU();
   const Operator* I16x8SubSaturateU();
@@ -582,8 +610,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16ExtractLane(int32_t);
   const Operator* I8x16ReplaceLane(int32_t);
   const Operator* I8x16Neg();
-  const Operator* I8x16Shl(int32_t);
-  const Operator* I8x16ShrS(int32_t);
+  const Operator* I8x16Shl();
+  const Operator* I8x16ShrS();
   const Operator* I8x16SConvertI16x8();
   const Operator* I8x16Add();
   const Operator* I8x16AddSaturateS();
@@ -597,7 +625,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16GtS();
   const Operator* I8x16GeS();
 
-  const Operator* I8x16ShrU(int32_t);
+  const Operator* I8x16ShrU();
   const Operator* I8x16UConvertI16x8();
   const Operator* I8x16AddSaturateU();
   const Operator* I8x16SubSaturateU();
@@ -616,6 +644,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128Not();
   const Operator* S128Select();
 
+  const Operator* S8x16Swizzle();
   const Operator* S8x16Shuffle(const uint8_t shuffle[16]);
 
   const Operator* S1x2AnyTrue();
@@ -651,9 +680,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64PoisonOnSpeculation();
 
   // Access to the machine stack.
-  const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
+
+  // Compares: stack_pointer > value.
+  const Operator* StackPointerGreaterThan();
 
   // Memory barrier.
   const Operator* MemBarrier();

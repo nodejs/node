@@ -1417,14 +1417,33 @@ void DisassemblingDecoder::VisitFPFixedPointConvert(Instruction* instr) {
   Format(instr, mnemonic, form);
 }
 
+// clang-format off
+#define PAUTH_SYSTEM_MNEMONICS(V) \
+  V(PACIA1716, "pacia1716")       \
+  V(AUTIA1716, "autia1716")       \
+  V(PACIASP,   "paciasp")         \
+  V(AUTIASP,   "autiasp")
+// clang-format on
+
 void DisassemblingDecoder::VisitSystem(Instruction* instr) {
   // Some system instructions hijack their Op and Cp fields to represent a
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
   const char* mnemonic = "unimplemented";
   const char* form = "(System)";
+  if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
+    switch (instr->Mask(SystemPAuthMask)) {
+#define PAUTH_CASE(NAME, MN) \
+  case NAME:                 \
+    mnemonic = MN;           \
+    form = NULL;             \
+    break;
 
-  if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
+      PAUTH_SYSTEM_MNEMONICS(PAUTH_CASE)
+#undef PAUTH_CASE
+#undef PAUTH_SYSTEM_MNEMONICS
+    }
+  } else if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
     switch (instr->Mask(SystemSysRegMask)) {
       case MRS: {
         mnemonic = "mrs";
@@ -3821,8 +3840,8 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
     case 'L': {
       switch (format[2]) {
         case 'L': {  // ILLiteral - Immediate Load Literal.
-          AppendToOutput("pc%+" PRId32, instr->ImmLLiteral()
-                                            << kLoadLiteralScaleLog2);
+          AppendToOutput("pc%+" PRId32,
+                         instr->ImmLLiteral() * kLoadLiteralScale);
           return 9;
         }
         case 'S': {  // ILS - Immediate Load/Store.
@@ -3941,7 +3960,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             unsigned rd_index, rn_index;
             unsigned imm5 = instr->ImmNEON5();
             unsigned imm4 = instr->ImmNEON4();
-            int tz = CountTrailingZeros(imm5, 32);
+            int tz = base::bits::CountTrailingZeros(imm5);
             if (tz <= 3) {  // Defined for 0 <= tz <= 3 only.
               rd_index = imm5 >> (tz + 1);
               rn_index = imm4 >> tz;
@@ -4160,7 +4179,7 @@ int DisassemblingDecoder::SubstituteBranchTargetField(Instruction* instr,
     default:
       UNREACHABLE();
   }
-  offset <<= kInstrSizeLog2;
+  offset *= kInstrSize;
   char sign = '+';
   if (offset < 0) {
     sign = '-';

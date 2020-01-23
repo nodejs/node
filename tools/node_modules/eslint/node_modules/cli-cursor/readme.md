@@ -8,7 +8,7 @@ The cursor is [gracefully restored](https://github.com/sindresorhus/restore-curs
 ## Install
 
 ```
-$ npm install --save cli-cursor
+$ npm install cli-cursor
 ```
 
 
@@ -26,20 +26,30 @@ cliCursor.toggle(unicornsAreAwesome);
 
 ## API
 
-### .show([stream])
+### .show(stream?)
 
-### .hide([stream])
+### .hide(stream?)
 
-### .toggle(force, [stream])
+### .toggle(force?, stream?)
 
-`force` is useful to show or hide the cursor based on a boolean.
+#### force
+
+Useful for showing or hiding the cursor based on a boolean.
 
 #### stream
 
-Type: `Stream`<br>
+Type: `stream.Writable`<br>
 Default: `process.stderr`
 
 
-## License
+---
 
-MIT © [Sindre Sorhus](https://sindresorhus.com)
+<div align="center">
+	<b>
+		<a href="https://tidelift.com/subscription/pkg/npm-cli-cursor?utm_source=npm-cli-cursor&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
+	</b>
+	<br>
+	<sub>
+		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
+	</sub>
+</div>

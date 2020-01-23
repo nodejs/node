@@ -41,9 +41,9 @@ module.exports = {
 
         /**
          * Returns the first token which violates the rule
-         * @param {ASTNode} left - The left node of the main node
-         * @param {ASTNode} right - The right node of the main node
-         * @param {string} op - The operator of the main node
+         * @param {ASTNode} left The left node of the main node
+         * @param {ASTNode} right The right node of the main node
+         * @param {string} op The operator of the main node
          * @returns {Object} The violator token or null
          * @private
          */
@@ -61,15 +61,15 @@ module.exports = {
 
         /**
          * Reports an AST node as a rule violation
-         * @param {ASTNode} mainNode - The node to report
-         * @param {Object} culpritToken - The token which has a problem
+         * @param {ASTNode} mainNode The node to report
+         * @param {Object} culpritToken The token which has a problem
          * @returns {void}
          * @private
          */
         function report(mainNode, culpritToken) {
             context.report({
                 node: mainNode,
-                loc: culpritToken.loc.start,
+                loc: culpritToken.loc,
                 message: "Operator '{{operator}}' must be spaced.",
                 data: {
                     operator: culpritToken.value

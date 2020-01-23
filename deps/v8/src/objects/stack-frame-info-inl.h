@@ -28,6 +28,8 @@ SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberOffset)
 SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberOffset)
 SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdOffset)
 SMI_ACCESSORS(StackFrameInfo, promise_all_index, kPromiseAllIndexOffset)
+SMI_ACCESSORS_CHECKED(StackFrameInfo, function_offset, kPromiseAllIndexOffset,
+                      is_wasm())
 ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameOffset)
 ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
           kScriptNameOrSourceUrlOffset)
@@ -36,6 +38,7 @@ ACCESSORS(StackFrameInfo, method_name, Object, kMethodNameOffset)
 ACCESSORS(StackFrameInfo, type_name, Object, kTypeNameOffset)
 ACCESSORS(StackFrameInfo, eval_origin, Object, kEvalOriginOffset)
 ACCESSORS(StackFrameInfo, wasm_module_name, Object, kWasmModuleNameOffset)
+ACCESSORS(StackFrameInfo, wasm_instance, Object, kWasmInstanceOffset)
 SMI_ACCESSORS(StackFrameInfo, flag, kFlagOffset)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
@@ -46,14 +49,11 @@ BOOL_ACCESSORS(StackFrameInfo, flag, is_toplevel, kIsToplevelBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_async, kIsAsyncBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, kIsPromiseAllBit)
 
-OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
 NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
-CAST_ACCESSOR(StackTraceFrame)
 
-ACCESSORS(StackTraceFrame, frame_array, Object, kFrameArrayOffset)
-SMI_ACCESSORS(StackTraceFrame, frame_index, kFrameIndexOffset)
-ACCESSORS(StackTraceFrame, frame_info, Object, kFrameInfoOffset)
-SMI_ACCESSORS(StackTraceFrame, id, kIdOffset)
+TQ_SMI_ACCESSORS(StackTraceFrame, frame_index)
+TQ_SMI_ACCESSORS(StackTraceFrame, id)
 
 }  // namespace internal
 }  // namespace v8

@@ -13,7 +13,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Checks whether or not a node is a `.call()`/`.apply()`.
- * @param {ASTNode} node - A CallExpression node to check.
+ * @param {ASTNode} node A CallExpression node to check.
  * @returns {boolean} Whether or not the node is a `.call()`/`.apply()`.
  */
 function isCallOrNonVariadicApply(node) {
@@ -31,9 +31,9 @@ function isCallOrNonVariadicApply(node) {
 
 /**
  * Checks whether or not `thisArg` is not changed by `.call()`/`.apply()`.
- * @param {ASTNode|null} expectedThis - The node that is the owner of the applied function.
- * @param {ASTNode} thisArg - The node that is given to the first argument of the `.call()`/`.apply()`.
- * @param {SourceCode} sourceCode - The ESLint source code object.
+ * @param {ASTNode|null} expectedThis The node that is the owner of the applied function.
+ * @param {ASTNode} thisArg The node that is given to the first argument of the `.call()`/`.apply()`.
+ * @param {SourceCode} sourceCode The ESLint source code object.
  * @returns {boolean} Whether or not `thisArg` is not changed by `.call()`/`.apply()`.
  */
 function isValidThisArg(expectedThis, thisArg, sourceCode) {

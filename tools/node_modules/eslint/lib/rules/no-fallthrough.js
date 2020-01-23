@@ -18,9 +18,9 @@ const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/iu;
 
 /**
  * Checks whether or not a given node has a fallthrough comment.
- * @param {ASTNode} node - A SwitchCase node to get comments.
- * @param {RuleContext} context - A rule context which stores comments.
- * @param {RegExp} fallthroughCommentPattern - A pattern to match comment to.
+ * @param {ASTNode} node A SwitchCase node to get comments.
+ * @param {RuleContext} context A rule context which stores comments.
+ * @param {RegExp} fallthroughCommentPattern A pattern to match comment to.
  * @returns {boolean} `true` if the node has a valid fallthrough comment.
  */
 function hasFallthroughComment(node, context, fallthroughCommentPattern) {
@@ -32,7 +32,7 @@ function hasFallthroughComment(node, context, fallthroughCommentPattern) {
 
 /**
  * Checks whether or not a given code path segment is reachable.
- * @param {CodePathSegment} segment - A CodePathSegment to check.
+ * @param {CodePathSegment} segment A CodePathSegment to check.
  * @returns {boolean} `true` if the segment is reachable.
  */
 function isReachable(segment) {
@@ -41,8 +41,8 @@ function isReachable(segment) {
 
 /**
  * Checks whether a node and a token are separated by blank lines
- * @param {ASTNode} node - The node to check
- * @param {Token} token - The token to compare against
+ * @param {ASTNode} node The node to check
+ * @param {Token} token The token to compare against
  * @returns {boolean} `true` if there are blank lines between node and token
  */
 function hasBlankLinesBetween(node, token) {

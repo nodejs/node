@@ -22,7 +22,7 @@ BN_new, BN_secure_new, BN_clear, BN_free, BN_clear_free - allocate and free BIGN
 
 BN_new() allocates and initializes a B<BIGNUM> structure.
 BN_secure_new() does the same except that the secure heap
-OPENSSL_secure_malloc(3) is used to store the value.
+L<OPENSSL_secure_malloc(3)> is used to store the value.
 
 BN_clear() is used to destroy sensitive data such as keys when they
 are no longer needed. It erases the memory used by B<a> and sets it
@@ -46,7 +46,7 @@ BN_clear(), BN_free() and BN_clear_free() have no return values.
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)>
+L<ERR_get_error(3)>, L<OPENSSL_secure_malloc(3)>
 
 =head1 HISTORY
 

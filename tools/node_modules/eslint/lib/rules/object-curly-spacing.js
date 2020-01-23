@@ -50,7 +50,7 @@ module.exports = {
          * Determines whether an option is set, relative to the spacing option.
          * If spaced is "always", then check whether option is set to false.
          * If spaced is "never", then check whether option is set to true.
-         * @param {Object} option - The option to exclude.
+         * @param {Object} option The option to exclude.
          * @returns {boolean} Whether or not the property is excluded.
          */
         function isOptionSet(option) {
@@ -69,21 +69,21 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a space after the first token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportNoBeginningSpace(node, token) {
+            const nextToken = context.getSourceCode().getTokenAfter(token, { includeComments: true });
+
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: token.loc.end, end: nextToken.loc.start },
                 message: "There should be no space after '{{token}}'.",
                 data: {
                     token: token.value
                 },
                 fix(fixer) {
-                    const nextToken = context.getSourceCode().getTokenAfter(token, { includeComments: true });
-
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
             });
@@ -91,21 +91,21 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a space before the last token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportNoEndingSpace(node, token) {
+            const previousToken = context.getSourceCode().getTokenBefore(token, { includeComments: true });
+
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: previousToken.loc.end, end: token.loc.start },
                 message: "There should be no space before '{{token}}'.",
                 data: {
                     token: token.value
                 },
                 fix(fixer) {
-                    const previousToken = context.getSourceCode().getTokenBefore(token, { includeComments: true });
-
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
             });
@@ -113,14 +113,14 @@ module.exports = {
 
         /**
          * Reports that there should be a space after the first token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredBeginningSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 message: "A space is required after '{{token}}'.",
                 data: {
                     token: token.value
@@ -133,14 +133,14 @@ module.exports = {
 
         /**
          * Reports that there should be a space before the last token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredEndingSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 message: "A space is required before '{{token}}'.",
                 data: {
                     token: token.value
@@ -167,7 +167,7 @@ module.exports = {
                 if (options.spaced && !firstSpaced) {
                     reportRequiredBeginningSpace(node, first);
                 }
-                if (!options.spaced && firstSpaced) {
+                if (!options.spaced && firstSpaced && second.type !== "Line") {
                     reportNoBeginningSpace(node, first);
                 }
             }
@@ -201,8 +201,7 @@ module.exports = {
          * Because the last token of object patterns might be a type annotation,
          * this traverses tokens preceded by the last property, then returns the
          * first '}' token.
-         *
-         * @param {ASTNode} node - The node to get. This node is an
+         * @param {ASTNode} node The node to get. This node is an
          *      ObjectExpression or an ObjectPattern. And this node has one or
          *      more properties.
          * @returns {Token} '}' token.
@@ -215,7 +214,7 @@ module.exports = {
 
         /**
          * Reports a given object node if spacing in curly braces is invalid.
-         * @param {ASTNode} node - An ObjectExpression or ObjectPattern node to check.
+         * @param {ASTNode} node An ObjectExpression or ObjectPattern node to check.
          * @returns {void}
          */
         function checkForObject(node) {
@@ -233,7 +232,7 @@ module.exports = {
 
         /**
          * Reports a given import node if spacing in curly braces is invalid.
-         * @param {ASTNode} node - An ImportDeclaration node to check.
+         * @param {ASTNode} node An ImportDeclaration node to check.
          * @returns {void}
          */
         function checkForImport(node) {
@@ -261,7 +260,7 @@ module.exports = {
 
         /**
          * Reports a given export node if spacing in curly braces is invalid.
-         * @param {ASTNode} node - An ExportNamedDeclaration node to check.
+         * @param {ASTNode} node An ExportNamedDeclaration node to check.
          * @returns {void}
          */
         function checkForExport(node) {

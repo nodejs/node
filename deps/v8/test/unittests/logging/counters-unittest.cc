@@ -149,16 +149,11 @@ class SnapshotNativeCounterTest : public TestWithNativeContextAndCounters {
   SnapshotNativeCounterTest() {}
 
   bool SupportsNativeCounters() const {
-#ifdef V8_USE_SNAPSHOT
 #ifdef V8_SNAPSHOT_NATIVE_CODE_COUNTERS
     return true;
 #else
     return false;
 #endif  // V8_SNAPSHOT_NATIVE_CODE_COUNTERS
-#else
-    // If we do not have a snapshot then we rely on the runtime option.
-    return internal::FLAG_native_code_counters;
-#endif  // V8_USE_SNAPSHOT
   }
 
 #define SC(name, caption)                                        \

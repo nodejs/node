@@ -1,7 +1,7 @@
 # ignore-walk
 
 [![Build
-Status](https://travis-ci.org/isaacs/ignore-walk.svg?branch=master)](https://travis-ci.org/isaacs/ignore-walk)
+Status](https://travis-ci.org/npm/ignore-walk.svg?branch=master)](https://travis-ci.org/npm/ignore-walk)
 
 Nested/recursive `.gitignore`/`.npmignore` parsing and filtering.
 

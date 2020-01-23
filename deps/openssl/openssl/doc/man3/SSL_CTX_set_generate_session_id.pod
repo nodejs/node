@@ -10,7 +10,7 @@ SSL_has_matching_session_id, GEN_SESSION_CB
 
  #include <openssl/ssl.h>
 
- typedef int (*GEN_SESSION_CB)(const SSL *ssl, unsigned char *id,
+ typedef int (*GEN_SESSION_CB)(SSL *ssl, unsigned char *id,
                                unsigned int *id_len);
 
  int SSL_CTX_set_generate_session_id(SSL_CTX *ctx, GEN_SESSION_CB cb);
@@ -98,7 +98,7 @@ server id given, and will fill the rest with pseudo random bytes:
  const char session_id_prefix = "www-18";
 
  #define MAX_SESSION_ID_ATTEMPTS 10
- static int generate_session_id(const SSL *ssl, unsigned char *id,
+ static int generate_session_id(SSL *ssl, unsigned char *id,
                                 unsigned int *id_len)
  {
      unsigned int count = 0;

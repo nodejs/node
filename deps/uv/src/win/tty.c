@@ -120,6 +120,8 @@ static int uv_tty_virtual_width = -1;
 static HANDLE uv__tty_console_handle = INVALID_HANDLE_VALUE;
 static int uv__tty_console_height = -1;
 static int uv__tty_console_width = -1;
+static HANDLE uv__tty_console_resized = INVALID_HANDLE_VALUE;
+static uv_mutex_t uv__tty_console_resize_mutex;
 
 static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param);
 static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
@@ -129,6 +131,8 @@ static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
                                                   LONG idChild,
                                                   DWORD dwEventThread,
                                                   DWORD dwmsEventTime);
+static DWORD WINAPI uv__tty_console_resize_watcher_thread(void* param);
+static void uv__tty_console_signal_resize(void);
 
 /* We use a semaphore rather than a mutex or critical section because in some
    cases (uv__cancel_read_console) we need take the lock in the main thread and
@@ -145,13 +149,9 @@ static char uv_tty_default_fg_bright = 0;
 static char uv_tty_default_bg_bright = 0;
 static char uv_tty_default_inverse = 0;
 
-typedef enum {
-  UV_SUPPORTED,
-  UV_UNCHECKED,
-  UV_UNSUPPORTED
-} uv_vtermstate_t;
 /* Determine whether or not ANSI support is enabled. */
-static uv_vtermstate_t uv__vterm_state = UV_UNCHECKED;
+static BOOL uv__need_check_vterm_state = TRUE;
+static uv_tty_vtermstate_t uv__vterm_state = UV_TTY_UNSUPPORTED;
 static void uv__determine_vterm_state(HANDLE handle);
 
 void uv_console_init(void) {
@@ -165,9 +165,15 @@ void uv_console_init(void) {
                                        0,
                                        0);
   if (uv__tty_console_handle != INVALID_HANDLE_VALUE) {
+    CONSOLE_SCREEN_BUFFER_INFO sb_info;
     QueueUserWorkItem(uv__tty_console_resize_message_loop_thread,
                       NULL,
                       WT_EXECUTELONGFUNCTION);
+    uv_mutex_init(&uv__tty_console_resize_mutex);
+    if (GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info)) {
+      uv__tty_console_width = sb_info.dwSize.X;
+      uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
+    }
   }
 }
 
@@ -213,7 +219,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int unused) {
      * between all uv_tty_t handles. */
     uv_sem_wait(&uv_tty_output_lock);
 
-    if (uv__vterm_state == UV_UNCHECKED)
+    if (uv__need_check_vterm_state)
       uv__determine_vterm_state(handle);
 
     /* Remember the original console text attributes. */
@@ -727,6 +733,12 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         goto out;
       }
       records_left--;
+
+      /* We might be not subscribed to EVENT_CONSOLE_LAYOUT or we might be
+       * running under some TTY emulator that does not send those events. */
+      if (handle->tty.rd.last_input_record.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+        uv__tty_console_signal_resize();
+      }
 
       /* Ignore other events that are not key events. */
       if (handle->tty.rd.last_input_record.EventType != KEY_EVENT) {
@@ -1613,28 +1625,16 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
   /* We can only write 8k characters at a time. Windows can't handle much more
    * characters in a single console write anyway. */
   WCHAR utf16_buf[MAX_CONSOLE_CHAR];
-  WCHAR* utf16_buffer;
   DWORD utf16_buf_used = 0;
-  unsigned int i, len, max_len, pos;
-  int allocate = 0;
+  unsigned int i;
 
-#define FLUSH_TEXT()                                                 \
-  do {                                                               \
-    pos = 0;                                                         \
-    do {                                                             \
-      len = utf16_buf_used - pos;                                    \
-      if (len > MAX_CONSOLE_CHAR)                                    \
-        len = MAX_CONSOLE_CHAR;                                      \
-      uv_tty_emit_text(handle, &utf16_buffer[pos], len, error);      \
-      pos += len;                                                    \
-    } while (pos < utf16_buf_used);                                  \
-    if (allocate) {                                                  \
-      uv__free(utf16_buffer);                                        \
-      allocate = 0;                                                  \
-      utf16_buffer = utf16_buf;                                      \
-    }                                                                \
-    utf16_buf_used = 0;                                              \
- } while (0)
+#define FLUSH_TEXT()                                                \
+  do {                                                              \
+    if (utf16_buf_used > 0) {                                       \
+      uv_tty_emit_text(handle, utf16_buf, utf16_buf_used, error);   \
+      utf16_buf_used = 0;                                           \
+    }                                                               \
+  } while (0)
 
 #define ENSURE_BUFFER_SPACE(wchars_needed)                          \
   if (wchars_needed > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {     \
@@ -1651,47 +1651,11 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
    * keep parsing the buffer so we leave the parser in a consistent state. */
   *error = ERROR_SUCCESS;
 
-  utf16_buffer = utf16_buf;
-
   uv_sem_wait(&uv_tty_output_lock);
 
   for (i = 0; i < nbufs; i++) {
     uv_buf_t buf = bufs[i];
     unsigned int j;
-
-    if (uv__vterm_state == UV_SUPPORTED && buf.len > 0) {
-      utf16_buf_used = MultiByteToWideChar(CP_UTF8,
-                                           0,
-                                           buf.base,
-                                           buf.len,
-                                           NULL,
-                                           0);
-
-      if (utf16_buf_used == 0) {
-        *error = GetLastError();
-        break;
-      }
-
-      max_len = (utf16_buf_used + 1) * sizeof(WCHAR);
-      allocate = max_len > MAX_CONSOLE_CHAR;
-      if (allocate)
-        utf16_buffer = uv__malloc(max_len);
-      if (!MultiByteToWideChar(CP_UTF8,
-                               0,
-                               buf.base,
-                               buf.len,
-                               utf16_buffer,
-                               utf16_buf_used)) {
-        if (allocate)
-          uv__free(utf16_buffer);
-        *error = GetLastError();
-        break;
-      }
-
-      FLUSH_TEXT();
-
-      continue;
-    }
 
     for (j = 0; j < buf.len; j++) {
       unsigned char c = buf.base[j];
@@ -1749,7 +1713,9 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
       }
 
       /* Parse vt100/ansi escape codes */
-      if (ansi_parser_state == ANSI_NORMAL) {
+      if (uv__vterm_state == UV_TTY_SUPPORTED) {
+        /* Pass through escape codes if conhost supports them. */
+      } else if (ansi_parser_state == ANSI_NORMAL) {
         switch (utf8_codepoint) {
           case '\033':
             ansi_parser_state = ANSI_ESCAPE_SEEN;
@@ -2264,31 +2230,23 @@ int uv_tty_reset_mode(void) {
 static void uv__determine_vterm_state(HANDLE handle) {
   DWORD dwMode = 0;
 
+  uv__need_check_vterm_state = FALSE;
   if (!GetConsoleMode(handle, &dwMode)) {
-    uv__vterm_state = UV_UNSUPPORTED;
     return;
   }
 
   dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
   if (!SetConsoleMode(handle, dwMode)) {
-    uv__vterm_state = UV_UNSUPPORTED;
     return;
   }
 
-  uv__vterm_state = UV_SUPPORTED;
+  uv__vterm_state = UV_TTY_SUPPORTED;
 }
 
 static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
-  CONSOLE_SCREEN_BUFFER_INFO sb_info;
   NTSTATUS status;
   ULONG_PTR conhost_pid;
   MSG msg;
-
-  if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
-    return 0;
-
-  uv__tty_console_width = sb_info.dwSize.X;
-  uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
   if (pSetWinEventHook == NULL || pNtQueryInformationProcess == NULL)
     return 0;
@@ -2299,14 +2257,23 @@ static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
                                       sizeof(conhost_pid),
                                       NULL);
 
-  if (!NT_SUCCESS(status))
+  if (!NT_SUCCESS(status)) {
     /* We couldn't retrieve our console host process, probably because this
      * is a 32-bit process running on 64-bit Windows. Fall back to receiving
-     * console events from all processes. */
-    conhost_pid = 0;
+     * console events from the input stream only. */
+    return 0;
+  }
 
   /* Ensure the PID is a multiple of 4, which is required by SetWinEventHook */
   conhost_pid &= ~(ULONG_PTR)0x3;
+
+  uv__tty_console_resized = CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (uv__tty_console_resized == NULL)
+    return 0;
+  if (QueueUserWorkItem(uv__tty_console_resize_watcher_thread,
+                        NULL,
+                        WT_EXECUTELONGFUNCTION) == 0)
+    return 0;
 
   if (!pSetWinEventHook(EVENT_CONSOLE_LAYOUT,
                         EVENT_CONSOLE_LAYOUT,
@@ -2331,6 +2298,20 @@ static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
                                                   LONG idChild,
                                                   DWORD dwEventThread,
                                                   DWORD dwmsEventTime) {
+  SetEvent(uv__tty_console_resized);
+}
+
+static DWORD WINAPI uv__tty_console_resize_watcher_thread(void* param) {
+  for (;;) {
+    /* Make sure to not overwhelm the system with resize events */
+    Sleep(33);
+    WaitForSingleObject(uv__tty_console_resized, INFINITE);
+    uv__tty_console_signal_resize();
+    ResetEvent(uv__tty_console_resized);
+  }
+}
+
+static void uv__tty_console_signal_resize(void) {
   CONSOLE_SCREEN_BUFFER_INFO sb_info;
   int width, height;
 
@@ -2340,9 +2321,28 @@ static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
   width = sb_info.dwSize.X;
   height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
 
+  uv_mutex_lock(&uv__tty_console_resize_mutex);
+  assert(uv__tty_console_width != -1 && uv__tty_console_height != -1);
   if (width != uv__tty_console_width || height != uv__tty_console_height) {
     uv__tty_console_width = width;
     uv__tty_console_height = height;
+    uv_mutex_unlock(&uv__tty_console_resize_mutex);
     uv__signal_dispatch(SIGWINCH);
+  } else {
+    uv_mutex_unlock(&uv__tty_console_resize_mutex);
   }
+}
+
+void uv_tty_set_vterm_state(uv_tty_vtermstate_t state) {
+  uv_sem_wait(&uv_tty_output_lock);
+  uv__need_check_vterm_state = FALSE;
+  uv__vterm_state = state;
+  uv_sem_post(&uv_tty_output_lock);
+}
+
+int uv_tty_get_vterm_state(uv_tty_vtermstate_t* state) {
+  uv_sem_wait(&uv_tty_output_lock);
+  *state = uv__vterm_state;
+  uv_sem_post(&uv_tty_output_lock);
+  return 0;
 }

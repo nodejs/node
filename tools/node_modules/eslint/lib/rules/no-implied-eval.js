@@ -64,7 +64,6 @@ module.exports = {
          * Determines if a node represents a call to a potentially implied eval.
          *
          * This checks the callee name and that there's an argument, but not the type of the argument.
-         *
          * @param {ASTNode} node The CallExpression to check.
          * @returns {boolean} True if the node matches, false if not.
          * @private

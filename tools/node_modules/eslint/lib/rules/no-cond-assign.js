@@ -2,9 +2,20 @@
  * @fileoverview Rule to flag assignment in a conditional statement's test expression
  * @author Stephen Murray <spmurrayzzz>
  */
+
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
 const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const TEST_CONDITION_PARENT_TYPES = new Set(["IfStatement", "WhileStatement", "DoWhileStatement", "ForStatement", "ConditionalExpression"]);
 
 const NODE_DESCRIPTIONS = {
     DoWhileStatement: "a 'do...while' statement",
@@ -55,7 +66,7 @@ module.exports = {
          */
         function isConditionalTestExpression(node) {
             return node.parent &&
-                node.parent.test &&
+                TEST_CONDITION_PARENT_TYPES.has(node.parent.type) &&
                 node === node.parent.test;
         }
 
@@ -105,8 +116,7 @@ module.exports = {
             ) {
 
                 context.report({
-                    node,
-                    loc: node.test.loc.start,
+                    node: node.test,
                     messageId: "missing"
                 });
             }
@@ -122,7 +132,7 @@ module.exports = {
 
             if (ancestor) {
                 context.report({
-                    node: ancestor,
+                    node,
                     messageId: "unexpected",
                     data: {
                         type: NODE_DESCRIPTIONS[ancestor.type] || ancestor.type

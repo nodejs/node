@@ -18,15 +18,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // f_aux(N,X) => f_aux(N-1,X*N)
   let fact_aux = builder.addFunction("fact_aux",kSig_i_ii);
   fact_aux.addBody([
-    kExprGetLocal, 0, kExprI32Const, 1, kExprI32LeS,
+    kExprLocalGet, 0, kExprI32Const, 1, kExprI32LeS,
     kExprIf, kWasmI32,
-      kExprGetLocal, 1,
+      kExprLocalGet, 1,
     kExprElse,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprI32Const, 1,
       kExprI32Sub,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprI32Mul,
       kExprReturnCall, fact_aux.index,
     kExprEnd
@@ -35,7 +35,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   //main(N)=>fact_aux(N,1)
   let main = builder.addFunction("main", kSig_i_i)
         .addBody([
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprI32Const, 1,
           kExprReturnCall,0
     ]).exportFunc();
@@ -63,18 +63,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let f_ind = builder.addFunction("f_ind",kSig_i_iii).
       addBody([
-    kExprGetLocal, 0, kExprI32Const, 1, kExprI32LeS,
+    kExprLocalGet, 0, kExprI32Const, 1, kExprI32LeS,
     kExprIf, kWasmI32,
-      kExprGetLocal, 1,
+      kExprLocalGet, 1,
     kExprElse,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprI32Const, 1,
       kExprI32Sub,
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
       kExprI32Mul,
-      kExprGetLocal, 2,
-      kExprGetLocal, 2,
+      kExprLocalGet, 2,
+      kExprLocalGet, 2,
       kExprReturnCallIndirect, sig_i_iii, kTableZero,
     kExprEnd
       ]);
@@ -82,7 +82,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   //main(N)=>fact_aux(N,1)
   let main = builder.addFunction("main", kSig_i_i)
         .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprI32Const, 1,
       kExprI32Const, f_ind.index,
       kExprReturnCall, f_ind.index
@@ -109,9 +109,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let main = builder.addFunction("main", kSig_i_iii)
         .addBody([
-          kExprGetLocal, 1,
-          kExprGetLocal, 2,
-          kExprGetLocal, 0,
+          kExprLocalGet, 1,
+          kExprLocalGet, 2,
+          kExprLocalGet, 0,
           kExprReturnCall, pick
         ])
         .exportFunc();
@@ -141,9 +141,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let main = builder.addFunction("main", kSig_i_iii)
         .addBody([
-          kExprGetLocal, 1,
-          kExprGetLocal, 2,
-          kExprGetLocal, 0,
+          kExprLocalGet, 1,
+          kExprLocalGet, 2,
+          kExprLocalGet, 0,
           kExprI32Const, tableIndex,
           kExprReturnCallIndirect, sig_i_iii, kTableZero
         ])

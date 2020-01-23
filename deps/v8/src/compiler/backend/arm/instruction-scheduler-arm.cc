@@ -115,12 +115,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmF32x4UConvertI32x4:
     case kArmF32x4Abs:
     case kArmF32x4Neg:
+    case kArmF32x4Sqrt:
     case kArmF32x4RecipApprox:
     case kArmF32x4RecipSqrtApprox:
     case kArmF32x4Add:
     case kArmF32x4AddHoriz:
     case kArmF32x4Sub:
     case kArmF32x4Mul:
+    case kArmF32x4Div:
     case kArmF32x4Min:
     case kArmF32x4Max:
     case kArmF32x4Eq:

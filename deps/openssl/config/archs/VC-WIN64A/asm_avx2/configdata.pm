@@ -54,7 +54,7 @@ our %config = (
   export_var_as_fn => "1",
   includes => [  ],
   lflags => [  ],
-  lib_defines => [ "OPENSSL_PIC", "OPENSSL_CPUID_OBJ", "OPENSSL_IA32_SSE2", "OPENSSL_BN_ASM_MONT", "OPENSSL_BN_ASM_MONT5", "OPENSSL_BN_ASM_GF2m", "SHA1_ASM", "SHA256_ASM", "SHA512_ASM", "KECCAK1600_ASM", "RC4_ASM", "MD5_ASM", "AES_ASM", "VPAES_ASM", "BSAES_ASM", "GHASH_ASM", "ECP_NISTZ256_ASM", "X25519_ASM", "POLY1305_ASM" ],
+  lib_defines => [ "OPENSSL_PIC", "OPENSSL_CPUID_OBJ", "OPENSSL_IA32_SSE2", "OPENSSL_BN_ASM_MONT", "OPENSSL_BN_ASM_MONT5", "OPENSSL_BN_ASM_GF2m", "SHA1_ASM", "SHA256_ASM", "SHA512_ASM", "KECCAK1600_ASM", "RC4_ASM", "MD5_ASM", "VPAES_ASM", "GHASH_ASM", "ECP_NISTZ256_ASM", "X25519_ASM", "POLY1305_ASM" ],
   libdir => "",
   major => "1",
   minor => "1.1",
@@ -116,8 +116,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN64A",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1c",
-  version_num => "0x1010103fL",
+  version => "1.1.1d",
+  version_num => "0x1010104fL",
 );
 
 our %target = (
@@ -133,11 +133,11 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x555ae63ae078)",
+  RANLIB => "CODE(0x562305dbe5d8)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
-  aes_asm_src => "aes-x86_64.s vpaes-x86_64.s bsaes-x86_64.s aesni-x86_64.s aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s",
-  aes_obj => "aes-x86_64.o vpaes-x86_64.o bsaes-x86_64.o aesni-x86_64.o aesni-sha1-x86_64.o aesni-sha256-x86_64.o aesni-mb-x86_64.o",
+  aes_asm_src => "aes_core.c aes_cbc.c vpaes-x86_64.s aesni-x86_64.s aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s",
+  aes_obj => "aes_core.o aes_cbc.o vpaes-x86_64.o aesni-x86_64.o aesni-sha1-x86_64.o aesni-sha256-x86_64.o aesni-mb-x86_64.o",
   apps_aux_src => "win32_init.c",
   apps_init_src => "",
   apps_obj => "win32_init.o",
@@ -1716,8 +1716,9 @@ our %unified_info = (
                 {
                     "deps" =>
                         [
-                            "crypto/aes/aes-x86_64.o",
+                            "crypto/aes/aes_cbc.o",
                             "crypto/aes/aes_cfb.o",
+                            "crypto/aes/aes_core.o",
                             "crypto/aes/aes_ecb.o",
                             "crypto/aes/aes_ige.o",
                             "crypto/aes/aes_misc.o",
@@ -1727,7 +1728,6 @@ our %unified_info = (
                             "crypto/aes/aesni-sha1-x86_64.o",
                             "crypto/aes/aesni-sha256-x86_64.o",
                             "crypto/aes/aesni-x86_64.o",
-                            "crypto/aes/bsaes-x86_64.o",
                             "crypto/aes/vpaes-x86_64.o",
                         ],
                     "products" =>
@@ -3269,6 +3269,7 @@ our %unified_info = (
                             "test/testutil/init.o",
                             "test/testutil/main.o",
                             "test/testutil/output_helpers.o",
+                            "test/testutil/random.o",
                             "test/testutil/stanza.o",
                             "test/testutil/tap_bio.o",
                             "test/testutil/test_cleanup.o",
@@ -4920,13 +4921,19 @@ our %unified_info = (
                 [
                     "crypto",
                 ],
-            "crypto/aes/aes-x86_64.o" =>
+            "crypto/aes/aes_cbc.o" =>
                 [
                     ".",
                     "crypto/include",
                     "include",
                 ],
             "crypto/aes/aes_cfb.o" =>
+                [
+                    ".",
+                    "crypto/include",
+                    "include",
+                ],
+            "crypto/aes/aes_core.o" =>
                 [
                     ".",
                     "crypto/include",
@@ -5001,12 +5008,6 @@ our %unified_info = (
             "crypto/aes/bsaes-armv7.o" =>
                 [
                     "crypto",
-                ],
-            "crypto/aes/bsaes-x86_64.o" =>
-                [
-                    ".",
-                    "crypto/include",
-                    "include",
                 ],
             "crypto/aes/vpaes-x86_64.o" =>
                 [
@@ -7970,10 +7971,6 @@ our %unified_info = (
                 [
                     "crypto",
                 ],
-            "crypto/poly1305/poly1305-s390x.o" =>
-                [
-                    "crypto",
-                ],
             "crypto/poly1305/poly1305-sparcv9.o" =>
                 [
                     "crypto",
@@ -10114,6 +10111,10 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/testutil/random.o" =>
+                [
+                    "include",
+                ],
             "test/testutil/stanza.o" =>
                 [
                     "include",
@@ -10725,13 +10726,17 @@ our %unified_info = (
                 [
                     "apps/x509.c",
                 ],
-            "crypto/aes/aes-x86_64.o" =>
+            "crypto/aes/aes_cbc.o" =>
                 [
-                    "crypto/aes/aes-x86_64.s",
+                    "crypto/aes/aes_cbc.c",
                 ],
             "crypto/aes/aes_cfb.o" =>
                 [
                     "crypto/aes/aes_cfb.c",
+                ],
+            "crypto/aes/aes_core.o" =>
+                [
+                    "crypto/aes/aes_core.c",
                 ],
             "crypto/aes/aes_ecb.o" =>
                 [
@@ -10768,10 +10773,6 @@ our %unified_info = (
             "crypto/aes/aesni-x86_64.o" =>
                 [
                     "crypto/aes/aesni-x86_64.s",
-                ],
-            "crypto/aes/bsaes-x86_64.o" =>
-                [
-                    "crypto/aes/bsaes-x86_64.s",
                 ],
             "crypto/aes/vpaes-x86_64.o" =>
                 [
@@ -13466,8 +13467,9 @@ our %unified_info = (
                 ],
             "libcrypto" =>
                 [
-                    "crypto/aes/aes-x86_64.o",
+                    "crypto/aes/aes_cbc.o",
                     "crypto/aes/aes_cfb.o",
+                    "crypto/aes/aes_core.o",
                     "crypto/aes/aes_ecb.o",
                     "crypto/aes/aes_ige.o",
                     "crypto/aes/aes_misc.o",
@@ -13477,7 +13479,6 @@ our %unified_info = (
                     "crypto/aes/aesni-sha1-x86_64.o",
                     "crypto/aes/aesni-sha256-x86_64.o",
                     "crypto/aes/aesni-x86_64.o",
-                    "crypto/aes/bsaes-x86_64.o",
                     "crypto/aes/vpaes-x86_64.o",
                     "crypto/aria/aria.o",
                     "crypto/asn1/a_bitstr.o",
@@ -15380,6 +15381,7 @@ our %unified_info = (
                     "test/testutil/init.o",
                     "test/testutil/main.o",
                     "test/testutil/output_helpers.o",
+                    "test/testutil/random.o",
                     "test/testutil/stanza.o",
                     "test/testutil/tap_bio.o",
                     "test/testutil/test_cleanup.o",
@@ -15724,6 +15726,10 @@ our %unified_info = (
             "test/testutil/output_helpers.o" =>
                 [
                     "test/testutil/output_helpers.c",
+                ],
+            "test/testutil/random.o" =>
+                [
+                    "test/testutil/random.c",
                 ],
             "test/testutil/stanza.o" =>
                 [

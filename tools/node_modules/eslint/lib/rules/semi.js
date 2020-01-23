@@ -93,17 +93,20 @@ module.exports = {
             const lastToken = sourceCode.getLastToken(node);
             let message,
                 fix,
-                loc = lastToken.loc;
+                loc;
 
             if (!missing) {
                 message = "Missing semicolon.";
-                loc = loc.end;
+                loc = {
+                    start: lastToken.loc.end,
+                    end: astUtils.getNextLocation(sourceCode, lastToken.loc.end)
+                };
                 fix = function(fixer) {
                     return fixer.insertTextAfter(lastToken, ";");
                 };
             } else {
                 message = "Extra semicolon.";
-                loc = loc.start;
+                loc = lastToken.loc;
                 fix = function(fixer) {
 
                     /*

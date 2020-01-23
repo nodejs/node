@@ -4,6 +4,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 const { internalBinding } = require('internal/test/binding');
 const { Http2Stream } = internalBinding('http2');
@@ -17,10 +18,10 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond({ 'content-type': 'text/plain' });
 
   // Should throw if headers already sent
-  common.expectsError(
+  assert.throws(
     () => stream.respond(),
     {
-      type: Error,
+      name: 'Error',
       code: 'ERR_HTTP2_HEADERS_SENT',
       message: 'Response has already been initiated.'
     }
@@ -28,10 +29,10 @@ server.on('stream', common.mustCall((stream) => {
 
   // Should throw if stream already destroyed
   stream.destroy();
-  common.expectsError(
+  assert.throws(
     () => stream.respond(),
     {
-      type: Error,
+      name: 'Error',
       code: 'ERR_HTTP2_INVALID_STREAM',
       message: 'The stream has been destroyed'
     }

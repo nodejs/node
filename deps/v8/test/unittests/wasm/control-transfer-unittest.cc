@@ -87,8 +87,7 @@ class ControlTransferTest : public TestWithZone {
   }
 
   void CheckNoOtherTargets(
-      const byte* start, const byte* end,
-      ControlTransferMap& map,  // NOLINT(runtime/references)
+      const byte* start, const byte* end, const ControlTransferMap& map,
       std::initializer_list<ExpectedControlTransfer> targets) {
     // Check there are no other control targets.
     for (pc_t pc = 0; start + pc < end; pc++) {

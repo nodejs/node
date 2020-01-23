@@ -6,7 +6,6 @@
 
 #include "include/v8.h"
 #include "src/api/api.h"
-#include "src/base/template-utils.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -59,7 +58,7 @@ std::unique_ptr<ParseInfo> OuterParseInfoForShared(
   Handle<Script> script =
       Handle<Script>::cast(handle(shared->script(), isolate));
   std::unique_ptr<ParseInfo> result =
-      base::make_unique<ParseInfo>(isolate, script);
+      std::make_unique<ParseInfo>(isolate, script);
 
   // Create a character stream to simulate the parser having done so for the
   // to-level ParseProgram.

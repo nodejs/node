@@ -88,6 +88,29 @@ test('team destroy', function (t) {
   })
 })
 
+test('team destroy is not allowed for the default developers team', (t) => {
+  const teamData = {
+    name: 'developers',
+    scope_id: 1234,
+    created: '2015-07-23T18:07:49.959Z',
+    updated: '2015-07-23T18:07:49.959Z',
+    deleted: '2015-07-23T18:27:27.178Z'
+  }
+  server.delete('/-/team/myorg/' + teamData.name).reply(405, teamData)
+  common.npm([
+    'team', 'destroy', 'myorg:' + teamData.name,
+    '--registry', common.registry,
+    '--loglevel', 'silent',
+    '--json'
+  ], {}, function (err, code, stdout, stderr) {
+    t.ifError(err, 'npm team')
+    t.equal(code, 1, 'exited with code 1')
+    t.equal(stderr, '', 'no error output')
+    t.match(JSON.parse(stdout), {error: {code: 'E405'}})
+    t.end()
+  })
+})
+
 test('team add', function (t) {
   var user = 'zkat'
   server.put('/-/team/myorg/myteam/user', JSON.stringify({

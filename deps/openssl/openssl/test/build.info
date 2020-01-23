@@ -12,7 +12,8 @@ IF[{- !$disabled{tests} -}]
   SOURCE[libtestutil.a]=testutil/basic_output.c testutil/output_helpers.c \
           testutil/driver.c testutil/tests.c testutil/cb.c testutil/stanza.c \
           testutil/format_output.c testutil/tap_bio.c \
-          testutil/test_cleanup.c testutil/main.c testutil/init.c
+          testutil/test_cleanup.c testutil/main.c testutil/init.c \
+          testutil/random.c
   INCLUDE[libtestutil.a]=../include
   DEPEND[libtestutil.a]=../libcrypto
 

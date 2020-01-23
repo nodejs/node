@@ -14,7 +14,7 @@
 * [Async Hooks](async_hooks.html)
 * [Buffer](buffer.html)
 * [C++ Addons](addons.html)
-* [C/C++ Addons - N-API](n-api.html)
+* [C/C++ Addons with N-API](n-api.html)
 * [Child Processes](child_process.html)
 * [Cluster](cluster.html)
 * [Command Line Options](cli.html)
@@ -57,6 +57,7 @@
 * [Utilities](util.html)
 * [V8](v8.html)
 * [VM](vm.html)
+* [WASI](wasi.html)
 * [Worker Threads](worker_threads.html)
 * [Zlib](zlib.html)
 

@@ -152,7 +152,7 @@ assert.strictEqual(url.searchParams, oldParams);
   // contains the Symbols that Node uses for brand checking, but not the data
   // properties, which are getters. Verify that urlToOptions() can handle such
   // a case.
-  const copiedUrlObj = Object.assign({}, urlObj);
+  const copiedUrlObj = { ...urlObj };
   const copiedOpts = urlToOptions(copiedUrlObj);
   assert.strictEqual(copiedOpts instanceof URL, false);
   assert.strictEqual(copiedOpts.protocol, undefined);

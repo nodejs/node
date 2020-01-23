@@ -1778,8 +1778,8 @@ def _CollapseSingles(parent, node):
   # such projects up one level.
   if (type(node) == dict and
       len(node) == 1 and
-      node.keys()[0] == parent + '.vcproj'):
-    return node[node.keys()[0]]
+      list(node)[0] == parent + '.vcproj'):
+    return node[list(node)[0]]
   if type(node) != dict:
     return node
   for child in node:
@@ -1798,8 +1798,8 @@ def _GatherSolutionFolders(sln_projects, project_objects, flat):
   # Walk down from the top until we hit a folder that has more than one entry.
   # In practice, this strips the top-level "src/" dir from the hierarchy in
   # the solution.
-  while len(root) == 1 and type(root[root.keys()[0]]) == dict:
-    root = root[root.keys()[0]]
+  while len(root) == 1 and type(root[list(root)[0]]) == dict:
+    root = root[list(root)[0]]
   # Collapse singles.
   root = _CollapseSingles('', root)
   # Merge buckets until everything is a root entry.
@@ -2728,7 +2728,7 @@ def _GetMSBuildGlobalProperties(spec, version, guid, gyp_file_name):
 
   platform_name = None
   msvs_windows_sdk_version = None
-  for configuration in spec['configurations'].itervalues():
+  for configuration in spec['configurations'].values():
     platform_name = platform_name or _ConfigPlatform(configuration)
     msvs_windows_sdk_version = (msvs_windows_sdk_version or
                   _ConfigWindowsTargetPlatformVersion(configuration, version))
@@ -3299,7 +3299,7 @@ def _GetMSBuildProjectReferences(project):
           ['Project', guid],
           ['ReferenceOutputAssembly', 'false']
           ]
-      for config in dependency.spec.get('configurations', {}).itervalues():
+      for config in dependency.spec.get('configurations', {}).values():
         if config.get('msvs_use_library_dependency_inputs', 0):
           project_ref.append(['UseLibraryDependencyInputs', 'true'])
           break
@@ -3368,7 +3368,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
                               extension_to_rule_name, _GetUniquePlatforms(spec))
   missing_sources = _VerifySourcesExist(sources, project_dir)
 
-  for configuration in configurations.itervalues():
+  for configuration in configurations.values():
     _FinalizeMSBuildSettings(spec, configuration)
 
   # Add attributes to root element

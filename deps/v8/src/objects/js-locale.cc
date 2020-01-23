@@ -168,10 +168,20 @@ bool IsUnicodeVariantSubtag(const std::string& value) {
 bool IsExtensionSingleton(const std::string& value) {
   return IsAlphanum(value, 1, 1);
 }
+}  // namespace
+
+bool JSLocale::Is38AlphaNumList(const std::string& value) {
+  std::size_t found = value.find("-");
+  if (found == std::string::npos) {
+    return IsAlphanum(value, 3, 8);
+  }
+  return IsAlphanum(value.substr(0, found), 3, 8) &&
+         JSLocale::Is38AlphaNumList(value.substr(found + 1));
+}
 
 // TODO(ftang) Replace the following check w/ icu::LocaleBuilder
 // once ICU64 land in March 2019.
-bool StartsWithUnicodeLanguageId(const std::string& value) {
+bool JSLocale::StartsWithUnicodeLanguageId(const std::string& value) {
   // unicode_language_id =
   // unicode_language_subtag (sep unicode_script_subtag)?
   //   (sep unicode_region_subtag)? (sep unicode_variant_subtag)* ;
@@ -207,6 +217,7 @@ bool StartsWithUnicodeLanguageId(const std::string& value) {
   return true;
 }
 
+namespace {
 Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
                               Handle<JSReceiver> options,
                               icu::LocaleBuilder* builder) {
@@ -223,7 +234,7 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   CHECK_NOT_NULL(*bcp47_tag);
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
   // exception.
-  if (!StartsWithUnicodeLanguageId(*bcp47_tag)) {
+  if (!JSLocale::StartsWithUnicodeLanguageId(*bcp47_tag)) {
     return Just(false);
   }
   UErrorCode status = U_ZERO_ERROR;

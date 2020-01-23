@@ -47,11 +47,12 @@ class ProgramOptions final {
         oneshot_opt_(false),
         async_iteration_(false),
         private_methods_(false),
+        top_level_await_(false),
         verbose_(false) {}
 
   bool Validate() const;
-  void UpdateFromHeader(std::istream& stream);   // NOLINT
-  void PrintHeader(std::ostream& stream) const;  // NOLINT
+  void UpdateFromHeader(std::istream* stream);
+  void PrintHeader(std::ostream* stream) const;
 
   bool parsing_failed() const { return parsing_failed_; }
   bool print_help() const { return print_help_; }
@@ -70,6 +71,7 @@ class ProgramOptions final {
   bool oneshot_opt() const { return oneshot_opt_; }
   bool async_iteration() const { return async_iteration_; }
   bool private_methods() const { return private_methods_; }
+  bool top_level_await() const { return top_level_await_; }
   bool verbose() const { return verbose_; }
   bool suppress_runtime_errors() const { return baseline() && !verbose_; }
   std::vector<std::string> input_filenames() const { return input_filenames_; }
@@ -90,6 +92,7 @@ class ProgramOptions final {
   bool oneshot_opt_;
   bool async_iteration_;
   bool private_methods_;
+  bool top_level_await_;
   bool verbose_;
   std::vector<std::string> input_filenames_;
   std::string output_filename_;
@@ -196,6 +199,8 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.async_iteration_ = true;
     } else if (strcmp(argv[i], "--private-methods") == 0) {
       options.private_methods_ = true;
+    } else if (strcmp(argv[i], "--harmony-top-level-await") == 0) {
+      options.top_level_await_ = true;
     } else if (strcmp(argv[i], "--verbose") == 0) {
       options.verbose_ = true;
     } else if (strncmp(argv[i], "--output=", 9) == 0) {
@@ -291,17 +296,17 @@ bool ProgramOptions::Validate() const {
   return true;
 }
 
-void ProgramOptions::UpdateFromHeader(std::istream& stream) {
+void ProgramOptions::UpdateFromHeader(std::istream* stream) {
   std::string line;
   const char* kPrintCallee = "print callee: ";
   const char* kOneshotOpt = "oneshot opt: ";
 
   // Skip to the beginning of the options header
-  while (std::getline(stream, line)) {
+  while (std::getline(*stream, line)) {
     if (line == "---") break;
   }
 
-  while (std::getline(stream, line)) {
+  while (std::getline(*stream, line)) {
     if (line.compare(0, 8, "module: ") == 0) {
       module_ = ParseBoolean(line.c_str() + 8);
     } else if (line.compare(0, 6, "wrap: ") == 0) {
@@ -318,6 +323,8 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
       async_iteration_ = ParseBoolean(line.c_str() + 17);
     } else if (line.compare(0, 17, "private methods: ") == 0) {
       private_methods_ = ParseBoolean(line.c_str() + 17);
+    } else if (line.compare(0, 17, "top level await: ") == 0) {
+      top_level_await_ = ParseBoolean(line.c_str() + 17);
     } else if (line == "---") {
       break;
     } else if (line.empty()) {
@@ -328,22 +335,23 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
   }
 }
 
-void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
-  stream << "---"
-         << "\nwrap: " << BooleanToString(wrap_);
+void ProgramOptions::PrintHeader(std::ostream* stream) const {
+  *stream << "---"
+          << "\nwrap: " << BooleanToString(wrap_);
 
   if (!test_function_name_.empty()) {
-    stream << "\ntest function name: " << test_function_name_;
+    *stream << "\ntest function name: " << test_function_name_;
   }
 
-  if (module_) stream << "\nmodule: yes";
-  if (top_level_) stream << "\ntop level: yes";
-  if (print_callee_) stream << "\nprint callee: yes";
-  if (oneshot_opt_) stream << "\noneshot opt: yes";
-  if (async_iteration_) stream << "\nasync iteration: yes";
-  if (private_methods_) stream << "\nprivate methods: yes";
+  if (module_) *stream << "\nmodule: yes";
+  if (top_level_) *stream << "\ntop level: yes";
+  if (print_callee_) *stream << "\nprint callee: yes";
+  if (oneshot_opt_) *stream << "\noneshot opt: yes";
+  if (async_iteration_) *stream << "\nasync iteration: yes";
+  if (private_methods_) *stream << "\nprivate methods: yes";
+  if (top_level_await_) *stream << "\ntop level await: yes";
 
-  stream << "\n\n";
+  *stream << "\n\n";
 }
 
 V8InitializationScope::V8InitializationScope(const char* exec_path)
@@ -370,17 +378,17 @@ V8InitializationScope::~V8InitializationScope() {
   v8::V8::ShutdownPlatform();
 }
 
-std::string ReadRawJSSnippet(std::istream& stream) {  // NOLINT
+std::string ReadRawJSSnippet(std::istream* stream) {
   std::stringstream body_buffer;
-  CHECK(body_buffer << stream.rdbuf());
+  CHECK(body_buffer << stream->rdbuf());
   return body_buffer.str();
 }
 
-bool ReadNextSnippet(std::istream& stream, std::string* string_out) {  // NOLINT
+bool ReadNextSnippet(std::istream* stream, std::string* string_out) {
   std::string line;
   bool found_begin_snippet = false;
   string_out->clear();
-  while (std::getline(stream, line)) {
+  while (std::getline(*stream, line)) {
     if (line == "snippet: \"") {
       found_begin_snippet = true;
       continue;
@@ -420,8 +428,7 @@ std::string UnescapeString(const std::string& escaped_string) {
 }
 
 void ExtractSnippets(std::vector<std::string>* snippet_list,
-                     std::istream& body_stream,  // NOLINT
-                     bool read_raw_js_snippet) {
+                     std::istream* body_stream, bool read_raw_js_snippet) {
   if (read_raw_js_snippet) {
     snippet_list->push_back(ReadRawJSSnippet(body_stream));
   } else {
@@ -432,7 +439,7 @@ void ExtractSnippets(std::vector<std::string>* snippet_list,
   }
 }
 
-void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
+void GenerateExpectationsFile(std::ostream* stream,
                               const std::vector<std::string>& snippet_list,
                               const V8InitializationScope& platform,
                               const ProgramOptions& options) {
@@ -452,14 +459,16 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
   }
 
   if (options.private_methods()) i::FLAG_harmony_private_methods = true;
+  if (options.top_level_await()) i::FLAG_harmony_top_level_await = true;
 
-  stream << "#\n# Autogenerated by generate-bytecode-expectations.\n#\n\n";
+  *stream << "#\n# Autogenerated by generate-bytecode-expectations.\n#\n\n";
   options.PrintHeader(stream);
   for (const std::string& snippet : snippet_list) {
     printer.PrintExpectation(stream, snippet);
   }
 
   i::FLAG_harmony_private_methods = false;
+  i::FLAG_harmony_top_level_await = false;
 }
 
 bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
@@ -477,7 +486,7 @@ bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
   std::ostream& output_stream =
       options.write_to_stdout() ? std::cout : output_file_handle;
 
-  GenerateExpectationsFile(output_stream, snippet_list, platform, options);
+  GenerateExpectationsFile(&output_stream, snippet_list, platform, options);
 
   return true;
 }
@@ -487,7 +496,7 @@ std::string WriteExpectationsToString(
     const V8InitializationScope& platform, const ProgramOptions& options) {
   std::stringstream output_string;
 
-  GenerateExpectationsFile(output_string, snippet_list, platform, options);
+  GenerateExpectationsFile(&output_string, snippet_list, platform, options);
 
   return output_string.str();
 }
@@ -520,6 +529,7 @@ void PrintUsage(const char* exec_path) {
          "Specify the name of the test function.\n"
          "  --top-level   Process top level code, not the top-level function.\n"
          "  --private-methods  Enable harmony_private_methods flag.\n"
+         "  --top-level-await  Enable await at the module level.\n"
          "  --output=file.name\n"
          "      Specify the output file. If not specified, output goes to "
          "stdout.\n"
@@ -612,7 +622,7 @@ int main(int argc, char** argv) {
     // Rebaseline will never get here, so we will always take the
     // GenerateExpectationsFile at the end of this function.
     DCHECK(!options.rebaseline() && !options.check_baseline());
-    ExtractSnippets(&snippet_list, std::cin, options.read_raw_js_snippet());
+    ExtractSnippets(&snippet_list, &std::cin, options.read_raw_js_snippet());
   } else {
     bool check_failed = false;
     for (const std::string& input_filename : options.input_filenames()) {
@@ -628,11 +638,11 @@ int main(int argc, char** argv) {
 
       ProgramOptions updated_options = options;
       if (options.baseline()) {
-        updated_options.UpdateFromHeader(input_stream);
+        updated_options.UpdateFromHeader(&input_stream);
         CHECK(updated_options.Validate());
       }
 
-      ExtractSnippets(&snippet_list, input_stream,
+      ExtractSnippets(&snippet_list, &input_stream,
                       options.read_raw_js_snippet());
       input_stream.close();
 

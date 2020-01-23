@@ -35,7 +35,7 @@ const handleEISDirSync =
       fs.chownSync(path, uid, gid)
     }
   }
-  : fs[LCHOWNSYNC]
+  : (path, uid, gid) => fs[LCHOWNSYNC](path, uid, gid)
 
 // fs.readdir could only accept an options object as of node v6
 const nodeVersion = process.version

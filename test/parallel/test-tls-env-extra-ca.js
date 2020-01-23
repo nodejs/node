@@ -32,11 +32,12 @@ const server = tls.createServer(options, common.mustCall(function(s) {
   s.end('bye');
   server.close();
 })).listen(0, common.mustCall(function() {
-  const env = Object.assign({}, process.env, {
+  const env = {
+    ...process.env,
     CHILD: 'yes',
     PORT: this.address().port,
     NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'ca1-cert.pem')
-  });
+  };
 
   fork(__filename, { env }).on('exit', common.mustCall(function(status) {
     // Client did not succeed in connecting

@@ -42,7 +42,7 @@ StreamPipe::StreamPipe(StreamBase* source,
 }
 
 StreamPipe::~StreamPipe() {
-  Unpipe();
+  Unpipe(true);
 }
 
 StreamBase* StreamPipe::source() {
@@ -53,7 +53,7 @@ StreamBase* StreamPipe::sink() {
   return static_cast<StreamBase*>(writable_listener_.stream());
 }
 
-void StreamPipe::Unpipe() {
+void StreamPipe::Unpipe(bool is_in_deletion) {
   if (is_closed_)
     return;
 
@@ -68,10 +68,13 @@ void StreamPipe::Unpipe() {
   source()->RemoveStreamListener(&readable_listener_);
   sink()->RemoveStreamListener(&writable_listener_);
 
+  if (is_in_deletion) return;
+
   // Delay the JS-facing part with SetImmediate, because this might be from
   // inside the garbage collector, so we can’t run JS here.
   HandleScope handle_scope(env()->isolate());
-  env()->SetImmediate([this](Environment* env) {
+  BaseObjectPtr<StreamPipe> strong_ref{this};
+  env()->SetImmediate([this, strong_ref](Environment* env) {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
     Local<Object> object = this->object();
@@ -105,7 +108,7 @@ void StreamPipe::Unpipe() {
             .IsNothing()) {
       return;
     }
-  }, object());
+  });
 }
 
 uv_buf_t StreamPipe::ReadableListener::OnStreamAlloc(size_t suggested_size) {
@@ -119,7 +122,6 @@ void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,
                                                 const uv_buf_t& buf_) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   AllocatedBuffer buf(pipe->env(), buf_);
-  AsyncScope async_scope(pipe);
   if (nread < 0) {
     // EOF or error; stop reading and pass the error to the previous listener
     // (which might end up in JS).
@@ -162,7 +164,9 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->is_writing_ = false;
   if (pipe->is_eof_) {
-    AsyncScope async_scope(pipe);
+    HandleScope handle_scope(pipe->env()->isolate());
+    InternalCallbackScope callback_scope(pipe,
+        InternalCallbackScope::kSkipTaskQueues);
     pipe->ShutdownWritable();
     pipe->Unpipe();
     return;
@@ -206,7 +210,9 @@ void StreamPipe::WritableListener::OnStreamWantsWrite(size_t suggested_size) {
   pipe->wanted_data_ = suggested_size;
   if (pipe->is_reading_ || pipe->is_closed_)
     return;
-  AsyncScope async_scope(pipe);
+  HandleScope handle_scope(pipe->env()->isolate());
+  InternalCallbackScope callback_scope(pipe,
+      InternalCallbackScope::kSkipTaskQueues);
   pipe->is_reading_ = true;
   pipe->source()->ReadStart();
 }

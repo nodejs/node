@@ -5,6 +5,8 @@
 #ifndef V8_LIBPLATFORM_LIBPLATFORM_H_
 #define V8_LIBPLATFORM_LIBPLATFORM_H_
 
+#include <memory>
+
 #include "libplatform/libplatform-export.h"
 #include "libplatform/v8-tracing.h"
 #include "v8-platform.h"  // NOLINT(build/include)
@@ -70,11 +72,10 @@ V8_PLATFORM_EXPORT void RunIdleTasks(v8::Platform* platform,
  * The |platform| has to be created using |NewDefaultPlatform|.
  *
  */
-V8_PLATFORM_EXPORT V8_DEPRECATE_SOON(
-    "Access the DefaultPlatform directly",
-    void SetTracingController(
-        v8::Platform* platform,
-        v8::platform::tracing::TracingController* tracing_controller));
+V8_DEPRECATE_SOON("Access the DefaultPlatform directly")
+V8_PLATFORM_EXPORT void SetTracingController(
+    v8::Platform* platform,
+    v8::platform::tracing::TracingController* tracing_controller);
 
 }  // namespace platform
 }  // namespace v8

@@ -53,6 +53,7 @@ d2i_DSA_PUBKEY_bio,
 d2i_DSA_PUBKEY_fp,
 d2i_DSA_SIG,
 d2i_DSAparams,
+d2i_ECDSA_SIG,
 d2i_ECPKParameters,
 d2i_ECParameters,
 d2i_ECPrivateKey,
@@ -229,6 +230,7 @@ i2d_DSA_PUBKEY_bio,
 i2d_DSA_PUBKEY_fp,
 i2d_DSA_SIG,
 i2d_DSAparams,
+i2d_ECDSA_SIG,
 i2d_ECPKParameters,
 i2d_ECParameters,
 i2d_ECPrivateKey,
@@ -472,6 +474,10 @@ Represents a DSA public key using a B<SubjectPublicKeyInfo> structure.
 Use a non-standard OpenSSL format and should be avoided; use B<DSA_PUBKEY>,
 B<PEM_write_PrivateKey(3)>, or similar instead.
 
+=item B<ECDSA_SIG>
+
+Represents an ECDSA signature.
+
 =item B<RSAPublicKey>
 
 Represents a PKCS#1 RSA public key structure.
@@ -500,8 +506,8 @@ Represents the B<DigestInfo> structure defined in PKCS#1 and PKCS#7.
 
 d2i_TYPE(), d2i_TYPE_bio() and d2i_TYPE_fp() return a valid B<TYPE> structure
 or B<NULL> if an error occurs.  If the "reuse" capability has been used with
-a valid structure being passed in via B<a>, then the object is not freed in
-the event of error but may be in a potentially invalid or inconsistent state.
+a valid structure being passed in via B<a>, then the object is freed in
+the event of error and B<*a> is set to NULL.
 
 i2d_TYPE() returns the number of bytes successfully encoded or a negative
 value if an error occurs.
@@ -582,9 +588,13 @@ happen.
 =head1 BUGS
 
 In some versions of OpenSSL the "reuse" behaviour of d2i_TYPE() when
-B<*px> is valid is broken and some parts of the reused structure may
-persist if they are not present in the new one. As a result the use
-of this "reuse" behaviour is strongly discouraged.
+B<*a> is valid is broken and some parts of the reused structure may
+persist if they are not present in the new one. Additionally, in versions of
+OpenSSL prior to 1.1.0, when the "reuse" behaviour is used and an error occurs
+the behaviour is inconsistent. Some functions behaved as described here, while
+some did not free B<*a> on error and did not set B<*a> to NULL.
+
+As a result of the above issues the "reuse" behaviour is strongly discouraged.
 
 i2d_TYPE() will not return an error in many versions of OpenSSL,
 if mandatory fields are not initialized due to a programming error

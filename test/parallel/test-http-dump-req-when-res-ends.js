@@ -48,8 +48,12 @@ server.listen(0, mustCall(function() {
 
     res.resume();
 
-    // Wait for the response.
-    res.on('end', function() {
+    // On some platforms the `'end'` event might not be emitted because the
+    // socket could be destroyed by the other peer while data is still being
+    // sent. In this case the 'aborted'` event is emitted instead of `'end'`.
+    // `'close'` is used here because it is always emitted and does not
+    // invalidate the test.
+    res.on('close', function() {
       server.close();
     });
   }));

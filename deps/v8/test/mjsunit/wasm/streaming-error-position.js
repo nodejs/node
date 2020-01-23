@@ -303,11 +303,11 @@ function testErrorPosition(bytes, pos, test_name) {
       1,                 // functions count
       4,                 // body size
       0,                 // locals count
-      kExprGetLocal, 0,  // Access a non-existing local
+      kExprLocalGet, 0,  // Access a non-existing local
       kExprEnd           // --
   ]);
 
-  // Find error at the index of kExprGetLocal.
+  // Find error at the index of kExprLocalGet.
   let pos = bytes.length - 1 - 1;
   testErrorPosition(bytes, pos, 'testInvalidCode');
 })();
@@ -334,7 +334,7 @@ function testErrorPosition(bytes, pos, test_name) {
       0,                 // section length (too big)
   ]);
 
-  // Find error at the index of kExprGetLocal.
+  // Find error at the index of kExprLocalGet.
   let pos = bytes.length - 1;
   testErrorPosition(bytes, pos, 'testCodeSectionSizeZero');
 })();

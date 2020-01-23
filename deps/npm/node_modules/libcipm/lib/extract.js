@@ -12,7 +12,8 @@ let workerFarm
 const ENABLE_WORKERS = false
 
 const ExtractOpts = figgyPudding({
-  log: {}
+  log: {},
+  dirPacker: {}
 })
 
 module.exports = {

@@ -97,7 +97,6 @@ class Symbol;
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, module_info_map, ModuleInfoMap)                                       \
-  V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
@@ -199,42 +198,45 @@ class Symbol;
     TrampolineTrivialCodeDataContainer)                                        \
   V(CodeDataContainer, trampoline_promise_rejection_code_data_container,       \
     TrampolinePromiseRejectionCodeDataContainer)                               \
+  /* Canonical scope infos */                                                  \
+  V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
+  V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)
 
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
-#define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                \
-  ACCESSOR_INFO_ROOT_LIST(V)                                                 \
-  /* Maps */                                                                 \
-  V(Map, external_map, ExternalMap)                                          \
-  V(Map, message_object_map, JSMessageObjectMap)                             \
-  /* Canonical empty values */                                               \
-  V(Script, empty_script, EmptyScript)                                       \
-  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                      \
-  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
-  /* Protectors */                                                           \
-  V(Cell, array_constructor_protector, ArrayConstructorProtector)            \
-  V(PropertyCell, no_elements_protector, NoElementsProtector)                \
-  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)       \
-  V(PropertyCell, array_species_protector, ArraySpeciesProtector)            \
-  V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector) \
-  V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)        \
-  V(Cell, string_length_protector, StringLengthProtector)                    \
-  V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)          \
-  V(PropertyCell, array_buffer_detaching_protector,                          \
-    ArrayBufferDetachingProtector)                                           \
-  V(PropertyCell, promise_hook_protector, PromiseHookProtector)              \
-  V(Cell, promise_resolve_protector, PromiseResolveProtector)                \
-  V(PropertyCell, map_iterator_protector, MapIteratorProtector)              \
-  V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
-  V(PropertyCell, set_iterator_protector, SetIteratorProtector)              \
-  V(PropertyCell, string_iterator_protector, StringIteratorProtector)        \
-  /* Caches */                                                               \
-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)   \
-  V(FixedArray, string_split_cache, StringSplitCache)                        \
-  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                  \
-  /* Indirection lists for isolate-independent builtins */                   \
+#define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                  \
+  ACCESSOR_INFO_ROOT_LIST(V)                                                   \
+  /* Maps */                                                                   \
+  V(Map, external_map, ExternalMap)                                            \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
+  /* Canonical empty values */                                                 \
+  V(Script, empty_script, EmptyScript)                                         \
+  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
+  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
+  /* Protectors */                                                             \
+  V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)      \
+  V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
+  V(PropertyCell, is_concat_spreadable_protector, IsConcatSpreadableProtector) \
+  V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
+  V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
+  V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)          \
+  V(PropertyCell, string_length_protector, StringLengthProtector)              \
+  V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
+  V(PropertyCell, array_buffer_detaching_protector,                            \
+    ArrayBufferDetachingProtector)                                             \
+  V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
+  V(PropertyCell, promise_resolve_protector, PromiseResolveProtector)          \
+  V(PropertyCell, map_iterator_protector, MapIteratorProtector)                \
+  V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
+  V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
+  V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
+  /* Caches */                                                                 \
+  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+  V(FixedArray, string_split_cache, StringSplitCache)                          \
+  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
+  /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
 
 // These root references can be updated by the mutator.
@@ -253,8 +255,6 @@ class Symbol;
   /* Feedback vectors that we need for code coverage or type profile */    \
   V(Object, feedback_vectors_for_profiling_tools,                          \
     FeedbackVectorsForProfilingTools)                                      \
-  V(WeakArrayList, noscript_shared_function_infos,                         \
-    NoScriptSharedFunctionInfos)                                           \
   V(FixedArray, serialized_objects, SerializedObjects)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
   V(TemplateList, message_listeners, MessageListeners)                     \
@@ -266,12 +266,12 @@ class Symbol;
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
   V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
     InterpreterEntryTrampolineForProfiling)                                \
-  V(Object, pending_optimize_for_test_bytecode, PendingOptimizeForTestBytecode)
+  V(Object, pending_optimize_for_test_bytecode,                            \
+    PendingOptimizeForTestBytecode)                                        \
+  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
-  V(Smi, stack_limit, StackLimit)                                              \
-  V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(Smi, last_script_id, LastScriptId)                                         \
   V(Smi, last_debugging_id, LastDebuggingId)                                   \
   /* To distinguish the function templates, so that we can find them in the */ \

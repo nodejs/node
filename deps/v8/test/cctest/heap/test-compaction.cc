@@ -6,6 +6,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -31,9 +32,8 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   CHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 }
 
-void CheckAllObjectsOnPage(
-    std::vector<Handle<FixedArray>>& handles,  // NOLINT(runtime/references)
-    Page* page) {
+void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
+                           Page* page) {
   for (Handle<FixedArray> fixed_array : handles) {
     CHECK(Page::FromHeapObject(*fixed_array) == page);
   }
@@ -85,6 +85,18 @@ HEAP_TEST(CompactionFullAbortedPage) {
   }
 }
 
+namespace {
+
+int GetObjectSize(int objects_per_page) {
+  int allocatable =
+      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage());
+  // Make sure that object_size is a multiple of kTaggedSize.
+  int object_size =
+      ((allocatable / kTaggedSize) / objects_per_page) * kTaggedSize;
+  return Min(kMaxRegularHeapObjectSize, object_size);
+}
+
+}  // namespace
 
 HEAP_TEST(CompactionPartiallyAbortedPage) {
   if (FLAG_never_compact) return;
@@ -97,10 +109,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size =
-      Min(kMaxRegularHeapObjectSize,
-          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-              objects_per_page);
+  const int object_size = GetObjectSize(objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -163,6 +172,81 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
   }
 }
 
+HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
+  if (FLAG_never_compact) return;
+  // Test evacuating a page partially when it contains recorded
+  // slots and invalidated objects.
+
+  // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
+  // we can reach the state of a half aborted page.
+  ManualGCScope manual_gc_scope;
+  FLAG_manual_evacuation_candidates_selection = true;
+
+  const int objects_per_page = 10;
+  const int object_size = GetObjectSize(objects_per_page);
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  {
+    HandleScope scope1(isolate);
+
+    heap::SealCurrentObjects(heap);
+
+    {
+      HandleScope scope2(isolate);
+      // Fill another page with objects of size {object_size} (last one is
+      // properly adjusted).
+      CHECK(heap->old_space()->Expand());
+      auto compaction_page_handles = heap::CreatePadding(
+          heap,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+          AllocationType::kOld, object_size);
+      Page* to_be_aborted_page =
+          Page::FromHeapObject(*compaction_page_handles.front());
+      for (Handle<FixedArray> object : compaction_page_handles) {
+        CHECK_EQ(Page::FromHeapObject(*object), to_be_aborted_page);
+
+        for (int i = 0; i < object->length(); i++) {
+          RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(
+              to_be_aborted_page, object->RawFieldOfElementAt(i).address());
+        }
+      }
+      // First object is going to be evacuated.
+      to_be_aborted_page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(
+          *compaction_page_handles.front());
+      // Last object is NOT going to be evacuated.
+      // This happens since not all objects fit on the only other page in the
+      // old space, the GC isn't allowed to allocate another page.
+      to_be_aborted_page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(
+          *compaction_page_handles.back());
+      to_be_aborted_page->SetFlag(
+          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+
+      {
+        // Add another page that is filled with {num_objects} objects of size
+        // {object_size}.
+        HandleScope scope3(isolate);
+        CHECK(heap->old_space()->Expand());
+        const int num_objects = 3;
+        std::vector<Handle<FixedArray>> page_to_fill_handles =
+            heap::CreatePadding(heap, object_size * num_objects,
+                                AllocationType::kOld, object_size);
+        Page* page_to_fill =
+            Page::FromAddress(page_to_fill_handles.front()->address());
+
+        heap->set_force_oom(true);
+        CcTest::CollectAllGarbage();
+        heap->mark_compact_collector()->EnsureSweepingCompleted();
+
+        CHECK_EQ(Page::FromHeapObject(*compaction_page_handles.front()),
+                 page_to_fill);
+        CHECK_EQ(Page::FromHeapObject(*compaction_page_handles.back()),
+                 to_be_aborted_page);
+      }
+    }
+  }
+}
 
 HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   if (FLAG_never_compact) return;
@@ -177,10 +261,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size =
-      Min(kMaxRegularHeapObjectSize,
-          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-              objects_per_page);
+  const int object_size = GetObjectSize(objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -271,10 +352,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size =
-      Min(kMaxRegularHeapObjectSize,
-          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-              objects_per_page);
+  const int object_size = GetObjectSize(objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

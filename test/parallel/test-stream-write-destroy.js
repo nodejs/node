@@ -24,7 +24,16 @@ for (const withPendingData of [ false, true ]) {
     w.on('drain', () => drains++);
     w.on('finish', () => finished = true);
 
-    w.write('abc', () => chunksWritten++);
+    function onWrite(err) {
+      if (err) {
+        assert.strictEqual(w.destroyed, true);
+        assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+      } else {
+        chunksWritten++;
+      }
+    }
+
+    w.write('abc', onWrite);
     assert.strictEqual(chunksWritten, 0);
     assert.strictEqual(drains, 0);
     callbacks.shift()();
@@ -34,14 +43,14 @@ for (const withPendingData of [ false, true ]) {
     if (withPendingData) {
       // Test 2 cases: There either is or is not data still in the write queue.
       // (The second write will never actually get executed either way.)
-      w.write('def', () => chunksWritten++);
+      w.write('def', onWrite);
     }
     if (useEnd) {
       // Again, test 2 cases: Either we indicate that we want to end the
       // writable or not.
-      w.end('ghi', () => chunksWritten++);
+      w.end('ghi', onWrite);
     } else {
-      w.write('ghi', () => chunksWritten++);
+      w.write('ghi', onWrite);
     }
 
     assert.strictEqual(chunksWritten, 1);

@@ -12,6 +12,49 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace liftoff {
+
+//  half
+//  slot        Frame
+//  -----+--------------------+---------------------------
+//  n+3  |   parameter n      |
+//  ...  |       ...          |
+//   4   |   parameter 1      | or parameter 2
+//   3   |   parameter 0      | or parameter 1
+//   2   |  (result address)  | or parameter 0
+//  -----+--------------------+---------------------------
+//   1   | return addr (lr)   |
+//   0   | previous frame (fp)|
+//  -----+--------------------+  <-- frame ptr (fp)
+//  -1   | 0xa: WASM_COMPILED |
+//  -2   |     instance       |
+//  -----+--------------------+---------------------------
+//  -3   |    slot 0 (high)   |   ^
+//  -4   |    slot 0 (low)    |   |
+//  -5   |    slot 1 (high)   | Frame slots
+//  -6   |    slot 1 (low)    |   |
+//       |                    |   v
+//  -----+--------------------+  <-- stack ptr (sp)
+//
+
+constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int32_t kFirstStackSlotOffset =
+    kInstanceOffset + 2 * kSystemPointerSize;
+
+inline int GetStackSlotOffset(uint32_t index) {
+  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+}
+
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+  int32_t half_offset =
+      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
+  int32_t offset = kFirstStackSlotOffset +
+                   index * LiftoffAssembler::kStackSlotSize - half_offset;
+  return MemOperand(fp, -offset);
+}
+
+}  // namespace liftoff
+
 int LiftoffAssembler::PrepareStackFrame() {
   bailout(kUnsupportedArchitecture, "PrepareStackFrame");
   return 0;
@@ -106,6 +149,45 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
 
 void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   bailout(kUnsupportedArchitecture, "FillI64Half");
+}
+
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
+  DCHECK_LT(0, count);
+  uint32_t last_stack_slot = index + count - 1;
+  RecordUsedSpillSlot(last_stack_slot);
+
+  // We need a zero reg. Always use r0 for that, and push it before to restore
+  // its value afterwards.
+  push(r0);
+  mov(r0, Operand(0));
+
+  if (count <= 5) {
+    // Special straight-line code for up to five slots. Generates two
+    // instructions per slot.
+    for (uint32_t offset = 0; offset < count; ++offset) {
+      StoreP(r0, liftoff::GetHalfStackSlot(index + offset, kLowWord));
+      StoreP(r0, liftoff::GetHalfStackSlot(index + offset, kHighWord));
+    }
+  } else {
+    // General case for bigger counts (9 instructions).
+    // Use r4 for start address (inclusive), r5 for end address (exclusive).
+    push(r4);
+    push(r5);
+    subi(r4, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
+    subi(r5, fp, Operand(liftoff::GetStackSlotOffset(index) + kStackSlotSize));
+
+    Label loop;
+    bind(&loop);
+    StoreP(r0, MemOperand(r0));
+    addi(r0, r0, Operand(kSystemPointerSize));
+    cmp(r4, r5);
+    bne(&loop);
+
+    pop(r4);
+    pop(r5);
+  }
+
+  pop(r0);
 }
 
 #define UNIMPLEMENTED_I32_BINOP(name)                            \

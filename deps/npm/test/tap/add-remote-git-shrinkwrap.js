@@ -1,16 +1,14 @@
 var fs = require('fs')
 var resolve = require('path').resolve
 
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = common.pkg
-var repo = pkg + '-repo'
+var pkg = resolve(common.pkg, 'package')
+var repo = resolve(common.pkg, 'repo')
 
 var daemon
 var daemonPID
@@ -30,7 +28,8 @@ var pjChild = JSON.stringify({
 }, null, 2) + '\n'
 
 test('setup', function (t) {
-  bootstrap()
+  mkdirp.sync(pkg)
+  fs.writeFileSync(resolve(pkg, 'package.json'), pjParent)
   setup(function (er, r) {
     t.ifError(er, 'git started up successfully')
 
@@ -85,18 +84,9 @@ test('shrinkwrap gets correct _from and _resolved (#7121)', function (t) {
 })
 
 test('clean', function (t) {
-  daemon.on('close', function () {
-    cleanup()
-    t.end()
-  })
+  daemon.on('close', t.end)
   process.kill(daemonPID)
 })
-
-function bootstrap () {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(resolve(pkg, 'package.json'), pjParent)
-}
 
 function setup (cb) {
   mkdirp.sync(repo)
@@ -144,10 +134,4 @@ function setup (cb) {
       ]
     }, cb)
   })
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(repo)
-  rimraf.sync(pkg)
 }

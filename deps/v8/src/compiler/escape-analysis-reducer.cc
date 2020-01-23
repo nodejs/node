@@ -326,9 +326,8 @@ void EscapeAnalysisReducer::Finalize() {
                                     TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
-            NodeProperties::ChangeOp(load,
-                                     jsgraph()->simplified()->LoadElement(
-                                         AccessBuilder::ForStackArgument()));
+            NodeProperties::ChangeOp(
+                load, jsgraph()->simplified()->LoadStackArgument());
             break;
           }
           case IrOpcode::kLoadField: {

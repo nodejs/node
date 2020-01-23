@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+const bool Deoptimizer::kSupportsFixedDeoptExitSize = true;
+const int Deoptimizer::kDeoptExitSize = kInstrSize;
+
 #define __ masm->
 
 namespace {
@@ -111,12 +114,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   DCHECK_EQ(saved_double_registers.Count() % 2, 0);
   __ PushCPURegList(saved_double_registers);
 
-  CPURegList saved_float_registers(
-      CPURegister::kVRegister, kSRegSizeInBits,
-      RegisterConfiguration::Default()->allocatable_float_codes_mask());
-  DCHECK_EQ(saved_float_registers.Count() % 4, 0);
-  __ PushCPURegList(saved_float_registers);
-
   // We save all the registers except sp, lr, platform register (x18) and the
   // masm scratches.
   CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 28);
@@ -134,17 +131,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   const int kSavedRegistersAreaSize =
       (saved_registers.Count() * kXRegSize) +
-      (saved_double_registers.Count() * kDRegSize) +
-      (saved_float_registers.Count() * kSRegSize);
+      (saved_double_registers.Count() * kDRegSize);
 
   // Floating point registers are saved on the stack above core registers.
-  const int kFloatRegistersOffset = saved_registers.Count() * kXRegSize;
-  const int kDoubleRegistersOffset =
-      kFloatRegistersOffset + saved_float_registers.Count() * kSRegSize;
+  const int kDoubleRegistersOffset = saved_registers.Count() * kXRegSize;
 
-  // The bailout id was passed by the caller in x26.
+  // We don't use a bailout id for arm64, because we can compute the id from the
+  // address. Pass kMaxUInt32 instead to signify this.
   Register bailout_id = x2;
-  __ Mov(bailout_id, x26);
+  __ Mov(bailout_id, kMaxUInt32);
 
   Register code_object = x3;
   Register fp_to_sp = x4;
@@ -194,11 +189,14 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   CopyRegListToFrame(masm, x1, FrameDescription::double_registers_offset(),
                      saved_double_registers, x2, x3, kDoubleRegistersOffset);
 
-  // Copy float registers to the input frame.
-  // TODO(arm): these are the lower 32-bits of the double registers stored
-  // above, so we shouldn't need to store them again.
-  CopyRegListToFrame(masm, x1, FrameDescription::float_registers_offset(),
-                     saved_float_registers, w2, w3, kFloatRegistersOffset);
+  // Mark the stack as not iterable for the CPU profiler which won't be able to
+  // walk the stack without the return address.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register is_iterable = temps.AcquireX();
+    __ Mov(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ strb(xzr, MemOperand(is_iterable));
+  }
 
   // Remove the saved registers from the stack.
   DCHECK_EQ(kSavedRegistersAreaSize % kXRegSize, 0);
@@ -262,6 +260,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   RestoreRegList(masm, saved_double_registers, x1,
                  FrameDescription::double_registers_offset());
 
+  {
+    UseScratchRegisterScope temps(masm);
+    Register is_iterable = temps.AcquireX();
+    Register one = x4;
+    __ Mov(is_iterable, ExternalReference::stack_is_iterable_address(isolate));
+    __ Mov(one, Operand(1));
+    __ strb(one, MemOperand(is_iterable));
+  }
+
   // TODO(all): ARM copies a lot (if not all) of the last output frame onto the
   // stack, then pops it all into registers. Here, we try to load it directly
   // into the relevant registers. Is this correct? If so, we should improve the
@@ -285,7 +292,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ Br(continuation);
 }
 
-bool Deoptimizer::PadTopOfStackRegister() { return true; }
+Float32 RegisterValues::GetFloatRegister(unsigned n) const {
+  return Float32::FromBits(
+      static_cast<uint32_t>(double_registers_[n].get_bits()));
+}
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

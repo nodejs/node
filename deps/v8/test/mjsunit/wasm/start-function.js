@@ -29,9 +29,9 @@ function assertVerifies(sig, body) {
 assertVerifies(kSig_v_v, [kExprNop]);
 
 // Arguments aren't allowed to start functions.
-assertThrows(() => {instantiate(kSig_i_i, [kExprGetLocal, 0]);});
-assertThrows(() => {instantiate(kSig_i_ii, [kExprGetLocal, 0]);});
-assertThrows(() => {instantiate(kSig_i_dd, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_i, [kExprLocalGet, 0]);});
+assertThrows(() => {instantiate(kSig_i_ii, [kExprLocalGet, 0]);});
+assertThrows(() => {instantiate(kSig_i_dd, [kExprLocalGet, 0]);});
 assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
 (function testInvalidIndex() {

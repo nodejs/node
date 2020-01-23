@@ -66,7 +66,6 @@
   V(ObjectId)                     \
   V(TypedObjectState)             \
   V(Call)                         \
-  V(CallWithCallerSavedRegisters) \
   V(Parameter)                    \
   V(OsrValue)                     \
   V(LoopExit)                     \
@@ -157,7 +156,8 @@
   V(JSCreateObject)              \
   V(JSCreatePromise)             \
   V(JSCreateStringIterator)      \
-  V(JSCreateTypedArray)
+  V(JSCreateTypedArray)          \
+  V(JSGetTemplateObject)
 
 #define JS_OBJECT_OP_LIST(V)      \
   JS_CREATE_OP_LIST(V)            \
@@ -204,6 +204,7 @@
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
+  V(JSGetIterator)                     \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
@@ -425,11 +426,14 @@
   V(LoadFieldByIndex)                   \
   V(LoadField)                          \
   V(LoadElement)                        \
+  V(LoadMessage)                        \
   V(LoadTypedElement)                   \
   V(LoadFromObject)                     \
   V(LoadDataViewElement)                \
+  V(LoadStackArgument)                  \
   V(StoreField)                         \
   V(StoreElement)                       \
+  V(StoreMessage)                       \
   V(StoreTypedElement)                  \
   V(StoreToObject)                      \
   V(StoreDataViewElement)               \
@@ -617,15 +621,33 @@
   V(Float64Mod)                       \
   V(Float64Pow)
 
-#define MACHINE_WORD64_ATOMIC_OP_LIST(V) \
-  V(Word64AtomicLoad)                    \
-  V(Word64AtomicStore)                   \
-  V(Word64AtomicAdd)                     \
-  V(Word64AtomicSub)                     \
-  V(Word64AtomicAnd)                     \
-  V(Word64AtomicOr)                      \
-  V(Word64AtomicXor)                     \
-  V(Word64AtomicExchange)                \
+#define MACHINE_ATOMIC_OP_LIST(V)    \
+  V(Word32AtomicLoad)                \
+  V(Word32AtomicStore)               \
+  V(Word32AtomicExchange)            \
+  V(Word32AtomicCompareExchange)     \
+  V(Word32AtomicAdd)                 \
+  V(Word32AtomicSub)                 \
+  V(Word32AtomicAnd)                 \
+  V(Word32AtomicOr)                  \
+  V(Word32AtomicXor)                 \
+  V(Word32AtomicPairLoad)            \
+  V(Word32AtomicPairStore)           \
+  V(Word32AtomicPairAdd)             \
+  V(Word32AtomicPairSub)             \
+  V(Word32AtomicPairAnd)             \
+  V(Word32AtomicPairOr)              \
+  V(Word32AtomicPairXor)             \
+  V(Word32AtomicPairExchange)        \
+  V(Word32AtomicPairCompareExchange) \
+  V(Word64AtomicLoad)                \
+  V(Word64AtomicStore)               \
+  V(Word64AtomicAdd)                 \
+  V(Word64AtomicSub)                 \
+  V(Word64AtomicAnd)                 \
+  V(Word64AtomicOr)                  \
+  V(Word64AtomicXor)                 \
+  V(Word64AtomicExchange)            \
   V(Word64AtomicCompareExchange)
 
 #define MACHINE_OP_LIST(V)                  \
@@ -637,7 +659,7 @@
   MACHINE_FLOAT32_UNOP_LIST(V)              \
   MACHINE_FLOAT64_BINOP_LIST(V)             \
   MACHINE_FLOAT64_UNOP_LIST(V)              \
-  MACHINE_WORD64_ATOMIC_OP_LIST(V)          \
+  MACHINE_ATOMIC_OP_LIST(V)                 \
   V(AbortCSAAssert)                         \
   V(DebugBreak)                             \
   V(Comment)                                \
@@ -651,11 +673,14 @@
   V(Word64Ctz)                              \
   V(Word64ReverseBits)                      \
   V(Word64ReverseBytes)                     \
+  V(Simd128ReverseBytes)                    \
   V(Int64AbsWithOverflow)                   \
   V(BitcastTaggedToWord)                    \
-  V(BitcastTaggedSignedToWord)              \
+  V(BitcastTaggedToWordForTagAndSmiBits)    \
   V(BitcastWordToTagged)                    \
   V(BitcastWordToTaggedSigned)              \
+  V(BitcastWord32ToCompressedSigned)        \
+  V(BitcastCompressedSignedToWord32)        \
   V(TruncateFloat64ToWord32)                \
   V(ChangeFloat32ToFloat64)                 \
   V(ChangeFloat64ToInt32)                   \
@@ -702,7 +727,6 @@
   V(TaggedPoisonOnSpeculation)              \
   V(Word32PoisonOnSpeculation)              \
   V(Word64PoisonOnSpeculation)              \
-  V(LoadStackPointer)                       \
   V(LoadFramePointer)                       \
   V(LoadParentFramePointer)                 \
   V(UnalignedLoad)                          \
@@ -716,30 +740,13 @@
   V(ProtectedLoad)                          \
   V(ProtectedStore)                         \
   V(MemoryBarrier)                          \
-  V(Word32AtomicLoad)                       \
-  V(Word32AtomicStore)                      \
-  V(Word32AtomicExchange)                   \
-  V(Word32AtomicCompareExchange)            \
-  V(Word32AtomicAdd)                        \
-  V(Word32AtomicSub)                        \
-  V(Word32AtomicAnd)                        \
-  V(Word32AtomicOr)                         \
-  V(Word32AtomicXor)                        \
-  V(Word32AtomicPairLoad)                   \
-  V(Word32AtomicPairStore)                  \
-  V(Word32AtomicPairAdd)                    \
-  V(Word32AtomicPairSub)                    \
-  V(Word32AtomicPairAnd)                    \
-  V(Word32AtomicPairOr)                     \
-  V(Word32AtomicPairXor)                    \
-  V(Word32AtomicPairExchange)               \
-  V(Word32AtomicPairCompareExchange)        \
   V(SignExtendWord8ToInt32)                 \
   V(SignExtendWord16ToInt32)                \
   V(SignExtendWord8ToInt64)                 \
   V(SignExtendWord16ToInt64)                \
   V(SignExtendWord32ToInt64)                \
-  V(UnsafePointerAdd)
+  V(UnsafePointerAdd)                       \
+  V(StackPointerGreaterThan)
 
 #define MACHINE_SIMD_OP_LIST(V) \
   V(F64x2Splat)                 \
@@ -747,10 +754,19 @@
   V(F64x2ReplaceLane)           \
   V(F64x2Abs)                   \
   V(F64x2Neg)                   \
+  V(F64x2Sqrt)                  \
+  V(F64x2Add)                   \
+  V(F64x2Sub)                   \
+  V(F64x2Mul)                   \
+  V(F64x2Div)                   \
+  V(F64x2Min)                   \
+  V(F64x2Max)                   \
   V(F64x2Eq)                    \
   V(F64x2Ne)                    \
   V(F64x2Lt)                    \
   V(F64x2Le)                    \
+  V(F64x2Qfma)                  \
+  V(F64x2Qfms)                  \
   V(F32x4Splat)                 \
   V(F32x4ExtractLane)           \
   V(F32x4ReplaceLane)           \
@@ -758,12 +774,14 @@
   V(F32x4UConvertI32x4)         \
   V(F32x4Abs)                   \
   V(F32x4Neg)                   \
+  V(F32x4Sqrt)                  \
   V(F32x4RecipApprox)           \
   V(F32x4RecipSqrtApprox)       \
   V(F32x4Add)                   \
   V(F32x4AddHoriz)              \
   V(F32x4Sub)                   \
   V(F32x4Mul)                   \
+  V(F32x4Div)                   \
   V(F32x4Min)                   \
   V(F32x4Max)                   \
   V(F32x4Eq)                    \
@@ -772,6 +790,8 @@
   V(F32x4Le)                    \
   V(F32x4Gt)                    \
   V(F32x4Ge)                    \
+  V(F32x4Qfma)                  \
+  V(F32x4Qfms)                  \
   V(I64x2Splat)                 \
   V(I64x2ExtractLane)           \
   V(I64x2ReplaceLane)           \
@@ -781,11 +801,15 @@
   V(I64x2Add)                   \
   V(I64x2Sub)                   \
   V(I64x2Mul)                   \
+  V(I64x2MinS)                  \
+  V(I64x2MaxS)                  \
   V(I64x2Eq)                    \
   V(I64x2Ne)                    \
   V(I64x2GtS)                   \
   V(I64x2GeS)                   \
   V(I64x2ShrU)                  \
+  V(I64x2MinU)                  \
+  V(I64x2MaxU)                  \
   V(I64x2GtU)                   \
   V(I64x2GeU)                   \
   V(I32x4Splat)                 \
@@ -892,6 +916,7 @@
   V(S128Or)                     \
   V(S128Xor)                    \
   V(S128Select)                 \
+  V(S8x16Swizzle)               \
   V(S8x16Shuffle)               \
   V(S1x2AnyTrue)                \
   V(S1x2AllTrue)                \

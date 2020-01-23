@@ -11,14 +11,14 @@ utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 var builder = new WasmModuleBuilder();
 builder.addFunction('fib', kSig_i_i)
     .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
       kExprI32Const, 2,
       kExprI32LeS,  // i < 2 ?
       kExprBrIf, 0, // --> return i
       kExprI32Const, 1, kExprI32Sub,  // i - 1
       kExprCallFunction, 0, // fib(i - 1)
-      kExprGetLocal, 0, kExprI32Const, 2, kExprI32Sub,  // i - 2
+      kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub,  // i - 2
       kExprCallFunction, 0, // fib(i - 2)
       kExprI32Add
     ])

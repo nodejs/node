@@ -72,6 +72,20 @@ function errorMessage (er) {
       }
       break
 
+    case 'EUIDLOOKUP':
+      short.push(['lifecycle', er.message])
+      detail.push([
+        '',
+        [
+          '',
+          'Failed to look up the user/group for running scripts.',
+          '',
+          'Try again with a different --user or --group settings, or',
+          'run with --unsafe-perm to execute scripts as root.'
+        ].join('\n')
+      ])
+      break
+
     case 'ELIFECYCLE':
       short.push(['', er.message])
       detail.push([
@@ -266,8 +280,9 @@ function errorMessage (er) {
 
     case 'EEXIST':
       short.push(['', er.message])
-      short.push(['', 'File exists: ' + er.path])
-      detail.push(['', 'Move it away, and try again.'])
+      short.push(['', 'File exists: ' + (er.dest || er.path)])
+      detail.push(['', 'Remove the existing file and try again, or run npm'])
+      detail.push(['', 'with --force to overwrite files recklessly.'])
       break
 
     case 'ENEEDAUTH':
@@ -311,6 +326,18 @@ function errorMessage (er) {
         msg.push("\nIt was specified as a dependency of '" + er.parent + "'\n")
       }
       detail.push(['notarget', msg.join('\n')])
+      break
+
+    case 'E403':
+      short.push(['403', er.message])
+      msg = [
+        'In most cases, you or one of your dependencies are requesting',
+        'a package version that is forbidden by your security policy.'
+      ]
+      if (er.parent) {
+        msg.push("\nIt was specified as a dependency of '" + er.parent + "'\n")
+      }
+      detail.push(['403', msg.join('\n')])
       break
 
     case 'ENOTSUP':

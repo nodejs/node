@@ -88,7 +88,7 @@ constexpr int kNumJSCallerSaved = 5;
 // Number of registers for which space is reserved in safepoints.
 constexpr int kNumSafepointRegisters = 16;
 
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
 // Windows calling convention
 constexpr Register arg_reg_1 = rcx;
 constexpr Register arg_reg_2 = rdx;
@@ -100,7 +100,7 @@ constexpr Register arg_reg_1 = rdi;
 constexpr Register arg_reg_2 = rsi;
 constexpr Register arg_reg_3 = rdx;
 constexpr Register arg_reg_4 = rcx;
-#endif  // _WIN64
+#endif  // V8_TARGET_OS_WIN
 
 #define DOUBLE_REGISTERS(V) \
   V(xmm0)                   \

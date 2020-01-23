@@ -130,7 +130,7 @@ ADMISSION_SYNTAX_set0_contentsOfAdmissions()
 functions free any existing value and set the pointer to the specified value.
 
 The B<ADMISSION> type has an authority name, authority object, and a
-stack of B<PROFSSION_INFO> items.
+stack of B<PROFESSION_INFO> items.
 The ADMISSIONS_get0_admissionAuthority(), ADMISSIONS_get0_namingAuthority(),
 and ADMISSIONS_get0_professionInfos()
 functions return pointers to those values within the object.
@@ -169,7 +169,7 @@ L<d2i_X509(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

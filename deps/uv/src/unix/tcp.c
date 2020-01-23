@@ -308,6 +308,23 @@ int uv_tcp_getpeername(const uv_tcp_t* handle,
 }
 
 
+int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
+  int fd;
+  struct linger l = { 1, 0 };
+
+  /* Disallow setting SO_LINGER to zero due to some platform inconsistencies */
+  if (handle->flags & UV_HANDLE_SHUTTING)
+    return UV_EINVAL;
+
+  fd = uv__stream_fd(handle);
+  if (0 != setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)))
+    return UV__ERR(errno);
+
+  uv_close((uv_handle_t*) handle, close_cb);
+  return 0;
+}
+
+
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   static int single_accept = -1;
   unsigned long flags;

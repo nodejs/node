@@ -24,7 +24,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function testAnyRefIsNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-      .addBody([kExprGetLocal, 0, kExprRefIsNull])
+      .addBody([kExprLocalGet, 0, kExprRefIsNull])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();

@@ -74,8 +74,10 @@ int llhttp__after_message_complete(llhttp_t* parser, const char* p,
   int should_keep_alive;
 
   should_keep_alive = llhttp_should_keep_alive(parser);
-  parser->flags = 0;
   parser->finish = HTTP_FINISH_SAFE;
+
+  /* Keep `F_LENIENT` flag between messages, but reset every other flag */
+  parser->flags &= F_LENIENT;
 
   /* NOTE: this is ignored in loose parsing mode */
   return should_keep_alive;

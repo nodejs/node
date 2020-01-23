@@ -25,6 +25,13 @@ const writeFileAtomic = require('write-file-atomic')
 const unixFormatPath = require('./utils/unix-format-path.js')
 const isRegistry = require('./utils/is-registry.js')
 
+const { chown } = require('fs')
+const inferOwner = require('infer-owner')
+const selfOwner = {
+  uid: process.getuid && process.getuid(),
+  gid: process.getgid && process.getgid()
+}
+
 const PKGLOCK = 'package-lock.json'
 const SHRINKWRAP = 'npm-shrinkwrap.json'
 const PKGLOCK_VERSION = npm.lockfileVersion
@@ -217,13 +224,19 @@ function save (dir, pkginfo, opts, cb) {
         log.verbose('shrinkwrap', `skipping write for ${path.basename(info.path)} because there were no changes.`)
         cb(null, pkginfo)
       } else {
-        writeFileAtomic(info.path, swdata, (err) => {
-          if (err) return cb(err)
-          if (opts.silent) return cb(null, pkginfo)
-          if (!shrinkwrap && !lockfile) {
-            log.notice('', `created a lockfile as ${path.basename(info.path)}. You should commit this file.`)
-          }
-          cb(null, pkginfo)
+        inferOwner(info.path).then(owner => {
+          writeFileAtomic(info.path, swdata, (err) => {
+            if (err) return cb(err)
+            if (opts.silent) return cb(null, pkginfo)
+            if (!shrinkwrap && !lockfile) {
+              log.notice('', `created a lockfile as ${path.basename(info.path)}. You should commit this file.`)
+            }
+            if (selfOwner.uid === 0 && (selfOwner.uid !== owner.uid || selfOwner.gid !== owner.gid)) {
+              chown(info.path, owner.uid, owner.gid, er => cb(er, pkginfo))
+            } else {
+              cb(null, pkginfo)
+            }
+          })
         })
       }
     }
@@ -269,11 +282,15 @@ function checkPackageFile (dir, name) {
   return readFile(
     file, 'utf8'
   ).then((data) => {
+    const format = npm.config.get('format-package-lock') !== false
+    const indent = format ? detectIndent(data).indent : 0
+    const newline = format ? detectNewline(data) : 0
+
     return {
       path: file,
       raw: data,
-      indent: detectIndent(data).indent,
-      newline: detectNewline(data)
+      indent,
+      newline
     }
   }).catch({code: 'ENOENT'}, () => {})
 }

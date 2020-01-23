@@ -21,6 +21,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
+  DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
   bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
@@ -110,15 +111,9 @@ OptimizedCompilationInfo::~OptimizedCompilationInfo() {
 }
 
 void OptimizedCompilationInfo::set_deferred_handles(
-    std::shared_ptr<DeferredHandles> deferred_handles) {
+    std::unique_ptr<DeferredHandles> deferred_handles) {
   DCHECK_NULL(deferred_handles_);
-  deferred_handles_.swap(deferred_handles);
-}
-
-void OptimizedCompilationInfo::set_deferred_handles(
-    DeferredHandles* deferred_handles) {
-  DCHECK_NULL(deferred_handles_);
-  deferred_handles_.reset(deferred_handles);
+  deferred_handles_ = std::move(deferred_handles);
 }
 
 void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
@@ -131,6 +126,7 @@ void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
   if (!closure_.is_null()) {
     closure_ = Handle<JSFunction>(*closure_, isolate);
   }
+  DCHECK(code_.is_null());
 }
 
 void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {

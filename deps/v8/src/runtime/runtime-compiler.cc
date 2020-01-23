@@ -157,6 +157,9 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Handle<JSFunction> function = deoptimizer->function();
+  // For OSR the optimized code isn't installed on the function, so get the
+  // code object from deoptimizer.
+  Handle<Code> optimized_code = deoptimizer->compiled_code();
   DeoptimizeKind type = deoptimizer->deopt_kind();
 
   // TODO(turbofan): We currently need the native context to materialize
@@ -174,7 +177,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Invalidate the underlying optimized code on non-lazy deopts.
   if (type != DeoptimizeKind::kLazy) {
-    Deoptimizer::DeoptimizeFunction(*function);
+    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -224,8 +227,7 @@ BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
 
 RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  DCHECK_EQ(0, args.length());
 
   // Only reachable when OST is enabled.
   CHECK(FLAG_use_osr);
@@ -233,7 +235,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // Determine frame triggering OSR request.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  DCHECK_EQ(frame->function(), *function);
   DCHECK(frame->is_interpreted());
 
   // Determine the entry point for which this OSR request has been fired and
@@ -242,6 +243,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   DCHECK(!ast_id.IsNone());
 
   MaybeHandle<Code> maybe_result;
+  Handle<JSFunction> function(frame->function(), isolate);
   if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
@@ -266,7 +268,26 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       }
 
       DCHECK(result->is_turbofanned());
-      if (!function->HasOptimizedCode()) {
+      if (function->feedback_vector().invocation_count() <= 1 &&
+          function->HasOptimizationMarker()) {
+        // With lazy feedback allocation we may not have feedback for the
+        // initial part of the function that was executed before we allocated a
+        // feedback vector. Reset any optimization markers for such functions.
+        //
+        // TODO(mythria): Instead of resetting the optimization marker here we
+        // should only mark a function for optimization if it has sufficient
+        // feedback. We cannot do this currently since we OSR only after we mark
+        // a function for optimization. We should instead change it to be based
+        // based on number of ticks.
+        DCHECK(!function->IsInOptimizationQueue());
+        function->ClearOptimizationMarker();
+      }
+      // TODO(mythria): Once we have OSR code cache we may not need to mark
+      // the function for non-concurrent compilation. We could arm the loops
+      // early so the second execution uses the already compiled OSR code and
+      // the optimization occurs concurrently off main thread.
+      if (!function->HasOptimizedCode() &&
+          function->feedback_vector().invocation_count() > 1) {
         // If we're not already optimized, set to optimize non-concurrently on
         // the next call, otherwise we'd run unoptimized once more and
         // potentially compile for OSR again.

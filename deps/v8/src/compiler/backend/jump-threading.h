@@ -17,17 +17,14 @@ class V8_EXPORT_PRIVATE JumpThreading {
  public:
   // Compute the forwarding map of basic blocks to their ultimate destination.
   // Returns {true} if there is at least one block that is forwarded.
-  static bool ComputeForwarding(
-      Zone* local_zone,
-      ZoneVector<RpoNumber>& result,  // NOLINT(runtime/references)
-      InstructionSequence* code, bool frame_at_start);
+  static bool ComputeForwarding(Zone* local_zone, ZoneVector<RpoNumber>* result,
+                                InstructionSequence* code, bool frame_at_start);
 
   // Rewrite the instructions to forward jumps and branches.
   // May also negate some branches.
-  static void ApplyForwarding(
-      Zone* local_zone,
-      ZoneVector<RpoNumber>& forwarding,  // NOLINT(runtime/references)
-      InstructionSequence* code);
+  static void ApplyForwarding(Zone* local_zone,
+                              ZoneVector<RpoNumber> const& forwarding,
+                              InstructionSequence* code);
 };
 
 }  // namespace compiler

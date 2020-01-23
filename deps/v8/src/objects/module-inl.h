@@ -20,55 +20,43 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(Module, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(SourceTextModule, Module)
-OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry, Struct)
-OBJECT_CONSTRUCTORS_IMPL(SyntheticModule, Module)
-OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SourceTextModule)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SyntheticModule)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)
 NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
 NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 
 CAST_ACCESSOR(Module)
-CAST_ACCESSOR(SourceTextModule)
-CAST_ACCESSOR(SyntheticModule)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
-ACCESSORS(SourceTextModule, code, Object, kCodeOffset)
-ACCESSORS(SourceTextModule, regular_exports, FixedArray, kRegularExportsOffset)
-ACCESSORS(SourceTextModule, regular_imports, FixedArray, kRegularImportsOffset)
-ACCESSORS(SourceTextModule, requested_modules, FixedArray,
-          kRequestedModulesOffset)
-ACCESSORS(SourceTextModule, script, Script, kScriptOffset)
-ACCESSORS(SourceTextModule, import_meta, Object, kImportMetaOffset)
-SMI_ACCESSORS(SourceTextModule, dfs_index, kDfsIndexOffset)
-SMI_ACCESSORS(SourceTextModule, dfs_ancestor_index, kDfsAncestorIndexOffset)
-
-ACCESSORS(SyntheticModule, name, String, kNameOffset)
-ACCESSORS(SyntheticModule, export_names, FixedArray, kExportNamesOffset)
-ACCESSORS(SyntheticModule, evaluation_steps, Foreign, kEvaluationStepsOffset)
+TQ_SMI_ACCESSORS(SourceTextModule, dfs_index)
+TQ_SMI_ACCESSORS(SourceTextModule, dfs_ancestor_index)
+TQ_SMI_ACCESSORS(SourceTextModule, flags)
+BOOL_ACCESSORS(SourceTextModule, flags, async, kAsyncBit)
+BOOL_ACCESSORS(SourceTextModule, flags, async_evaluating, kAsyncEvaluatingBit)
+TQ_SMI_ACCESSORS(SourceTextModule, pending_async_dependencies)
+ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
+          kAsyncParentModulesOffset)
+ACCESSORS(SourceTextModule, top_level_capability, HeapObject,
+          kTopLevelCapabilityOffset)
 
 SourceTextModuleInfo SourceTextModule::info() const {
-  return (status() >= kEvaluating)
+  return status() == kErrored
              ? SourceTextModuleInfo::cast(code())
              : GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
 }
 
-CAST_ACCESSOR(JSModuleNamespace)
-ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
-
-CAST_ACCESSOR(SourceTextModuleInfoEntry)
-ACCESSORS(SourceTextModuleInfoEntry, export_name, Object, kExportNameOffset)
-ACCESSORS(SourceTextModuleInfoEntry, local_name, Object, kLocalNameOffset)
-ACCESSORS(SourceTextModuleInfoEntry, import_name, Object, kImportNameOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, module_request, kModuleRequestOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, cell_index, kCellIndexOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, beg_pos, kBegPosOffset)
-SMI_ACCESSORS(SourceTextModuleInfoEntry, end_pos, kEndPosOffset)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, module_request)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, cell_index)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, beg_pos)
+TQ_SMI_ACCESSORS(SourceTextModuleInfoEntry, end_pos)
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
 CAST_ACCESSOR(SourceTextModuleInfo)
@@ -131,6 +119,37 @@ class UnorderedModuleSet
             2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
             ZoneAllocator<Handle<Module>>(zone)) {}
 };
+
+void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
+                                            Handle<SourceTextModule> module) {
+  Handle<ArrayList> new_array_list =
+      ArrayList::Add(isolate, handle(async_parent_modules(), isolate), module);
+  set_async_parent_modules(*new_array_list);
+}
+
+Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(
+    Isolate* isolate, int index) {
+  Handle<SourceTextModule> module(
+      SourceTextModule::cast(async_parent_modules().Get(index)), isolate);
+  return module;
+}
+
+int SourceTextModule::AsyncParentModuleCount() {
+  return async_parent_modules().Length();
+}
+
+bool SourceTextModule::HasPendingAsyncDependencies() {
+  DCHECK_GE(pending_async_dependencies(), 0);
+  return pending_async_dependencies() > 0;
+}
+
+void SourceTextModule::IncrementPendingAsyncDependencies() {
+  set_pending_async_dependencies(pending_async_dependencies() + 1);
+}
+
+void SourceTextModule::DecrementPendingAsyncDependencies() {
+  set_pending_async_dependencies(pending_async_dependencies() - 1);
+}
 
 }  // namespace internal
 }  // namespace v8

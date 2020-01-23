@@ -12,6 +12,7 @@
 #include <type_traits>
 
 #include "src/base/lazy-instance.h"
+#include "src/base/overflowing-math.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -154,6 +155,22 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
   set_sp(original_stack);
 }
 
+#ifdef DEBUG
+namespace {
+int PopLowestIndexAsCode(CPURegList* list) {
+  if (list->IsEmpty()) {
+    return -1;
+  }
+  RegList reg_list = list->list();
+  int index = base::bits::CountTrailingZeros(reg_list);
+  DCHECK((1LL << index) & reg_list);
+  list->Remove(index);
+
+  return index;
+}
+}  // namespace
+#endif
+
 void Simulator::CheckPCSComplianceAndRun() {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
@@ -171,10 +188,10 @@ void Simulator::CheckPCSComplianceAndRun() {
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
     // x31 is not a caller saved register, so no need to specify if we want
     // the stack or zero.
-    saved_registers[i] = xreg(register_list.PopLowestIndex().code());
+    saved_registers[i] = xreg(PopLowestIndexAsCode(&register_list));
   }
   for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
-    saved_fpregisters[i] = dreg_bits(fpregister_list.PopLowestIndex().code());
+    saved_fpregisters[i] = dreg_bits(PopLowestIndexAsCode(&fpregister_list));
   }
   int64_t original_stack = sp();
 #endif
@@ -186,11 +203,11 @@ void Simulator::CheckPCSComplianceAndRun() {
   register_list = kCalleeSaved;
   fpregister_list = kCalleeSavedV;
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
-    DCHECK_EQ(saved_registers[i], xreg(register_list.PopLowestIndex().code()));
+    DCHECK_EQ(saved_registers[i], xreg(PopLowestIndexAsCode(&register_list)));
   }
   for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
     DCHECK(saved_fpregisters[i] ==
-           dreg_bits(fpregister_list.PopLowestIndex().code()));
+           dreg_bits(PopLowestIndexAsCode(&fpregister_list)));
   }
 
   // Corrupt caller saved register minus the return regiters.
@@ -217,13 +234,13 @@ void Simulator::CheckPCSComplianceAndRun() {
 void Simulator::CorruptRegisters(CPURegList* list, uint64_t value) {
   if (list->type() == CPURegister::kRegister) {
     while (!list->IsEmpty()) {
-      unsigned code = list->PopLowestIndex().code();
+      unsigned code = PopLowestIndexAsCode(list);
       set_xreg(code, value | code);
     }
   } else {
     DCHECK_EQ(list->type(), CPURegister::kVRegister);
     while (!list->IsEmpty()) {
-      unsigned code = list->PopLowestIndex().code();
+      unsigned code = PopLowestIndexAsCode(list);
       set_dreg_bits(code, value | code);
     }
   }
@@ -390,14 +407,14 @@ using SimulatorRuntimeCall_ReturnPtr = int64_t (*)(int64_t arg0, int64_t arg1,
                                                    int64_t arg2, int64_t arg3,
                                                    int64_t arg4, int64_t arg5,
                                                    int64_t arg6, int64_t arg7,
-                                                   int64_t arg8);
+                                                   int64_t arg8, int64_t arg9);
 #endif
 
 using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
                                             int64_t arg2, int64_t arg3,
                                             int64_t arg4, int64_t arg5,
                                             int64_t arg6, int64_t arg7,
-                                            int64_t arg8);
+                                            int64_t arg8, int64_t arg9);
 
 using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
 using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
@@ -413,6 +430,34 @@ using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
                                                      void* arg2);
+
+// Separate for fine-grained UBSan blacklisting. Casting any given C++
+// function to {SimulatorRuntimeCall} is undefined behavior; but since
+// the target function can indeed be any function that's exposed via
+// the "fast C call" mechanism, we can't reconstruct its signature here.
+ObjectPair UnsafeGenericFunctionCall(int64_t function, int64_t arg0,
+                                     int64_t arg1, int64_t arg2, int64_t arg3,
+                                     int64_t arg4, int64_t arg5, int64_t arg6,
+                                     int64_t arg7, int64_t arg8, int64_t arg9) {
+  SimulatorRuntimeCall target =
+      reinterpret_cast<SimulatorRuntimeCall>(function);
+  return target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+}
+void UnsafeDirectApiCall(int64_t function, int64_t arg0) {
+  SimulatorRuntimeDirectApiCall target =
+      reinterpret_cast<SimulatorRuntimeDirectApiCall>(function);
+  target(arg0);
+}
+void UnsafeProfilingApiCall(int64_t function, int64_t arg0, void* arg1) {
+  SimulatorRuntimeProfilingApiCall target =
+      reinterpret_cast<SimulatorRuntimeProfilingApiCall>(function);
+  target(arg0, arg1);
+}
+void UnsafeDirectGetterCall(int64_t function, int64_t arg0, int64_t arg1) {
+  SimulatorRuntimeDirectGetterCall target =
+      reinterpret_cast<SimulatorRuntimeDirectGetterCall>(function);
+  target(arg0, arg1);
+}
 
 void Simulator::DoRuntimeCall(Instruction* instr) {
   Redirection* redirection = Redirection::FromInstruction(instr);
@@ -445,7 +490,8 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   const int64_t arg6 = xreg(6);
   const int64_t arg7 = xreg(7);
   const int64_t arg8 = stack_pointer[0];
-  STATIC_ASSERT(kMaxCParameters == 9);
+  const int64_t arg9 = stack_pointer[1];
+  STATIC_ASSERT(kMaxCParameters == 10);
 
   switch (redirection->type()) {
     default:
@@ -477,14 +523,14 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64
           ", "
-          "0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 
       SimulatorRuntimeCall_ReturnPtr target =
           reinterpret_cast<SimulatorRuntimeCall_ReturnPtr>(external);
 
       int64_t result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       TraceSim("Returned: 0x%16\n", result);
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -512,12 +558,10 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
           ", "
           "0x%016" PRIx64 ", 0x%016" PRIx64
           ", "
-          "0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-      SimulatorRuntimeCall target =
-          reinterpret_cast<SimulatorRuntimeCall>(external);
-      ObjectPair result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+      ObjectPair result = UnsafeGenericFunctionCall(
+          external, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
                reinterpret_cast<void*>(result.y));
 #ifdef DEBUG
@@ -531,10 +575,8 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     case ExternalReference::DIRECT_API_CALL: {
       // void f(v8::FunctionCallbackInfo&)
       TraceSim("Type: DIRECT_API_CALL\n");
-      SimulatorRuntimeDirectApiCall target =
-          reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       TraceSim("Arguments: 0x%016" PRIx64 "\n", xreg(0));
-      target(xreg(0));
+      UnsafeDirectApiCall(external, xreg(0));
       TraceSim("No return value.");
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -605,11 +647,9 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     case ExternalReference::DIRECT_GETTER_CALL: {
       // void f(Local<String> property, PropertyCallbackInfo& info)
       TraceSim("Type: DIRECT_GETTER_CALL\n");
-      SimulatorRuntimeDirectGetterCall target =
-          reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
       TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 "\n", xreg(0),
                xreg(1));
-      target(xreg(0), xreg(1));
+      UnsafeDirectGetterCall(external, xreg(0), xreg(1));
       TraceSim("No return value.");
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -620,11 +660,9 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     case ExternalReference::PROFILING_API_CALL: {
       // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
       TraceSim("Type: PROFILING_API_CALL\n");
-      SimulatorRuntimeProfilingApiCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
       void* arg1 = Redirection::ReverseRedirection(xreg(1));
       TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
-      target(xreg(0), arg1);
+      UnsafeProfilingApiCall(external, xreg(0), arg1);
       TraceSim("No return value.");
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
@@ -848,10 +886,12 @@ T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
   if (amount == 0) {
     return value;
   }
+  // Larger shift {amount}s would be undefined behavior in C++.
+  DCHECK(amount < sizeof(value) * kBitsPerByte);
 
   switch (shift_type) {
     case LSL:
-      return value << amount;
+      return static_cast<unsignedT>(value) << amount;
     case LSR:
       return static_cast<unsignedT>(value) >> amount;
     case ASR:
@@ -872,6 +912,7 @@ T Simulator::ExtendValue(T value, Extend extend_type, unsigned left_shift) {
   const unsigned kSignExtendBShift = (sizeof(T) - 1) * 8;
   const unsigned kSignExtendHShift = (sizeof(T) - 2) * 8;
   const unsigned kSignExtendWShift = (sizeof(T) - 4) * 8;
+  using unsignedT = typename std::make_unsigned<T>::type;
 
   switch (extend_type) {
     case UXTB:
@@ -884,13 +925,19 @@ T Simulator::ExtendValue(T value, Extend extend_type, unsigned left_shift) {
       value &= kWordMask;
       break;
     case SXTB:
-      value = (value << kSignExtendBShift) >> kSignExtendBShift;
+      value =
+          static_cast<T>(static_cast<unsignedT>(value) << kSignExtendBShift) >>
+          kSignExtendBShift;
       break;
     case SXTH:
-      value = (value << kSignExtendHShift) >> kSignExtendHShift;
+      value =
+          static_cast<T>(static_cast<unsignedT>(value) << kSignExtendHShift) >>
+          kSignExtendHShift;
       break;
     case SXTW:
-      value = (value << kSignExtendWShift) >> kSignExtendWShift;
+      value =
+          static_cast<T>(static_cast<unsignedT>(value) << kSignExtendWShift) >>
+          kSignExtendWShift;
       break;
     case UXTX:
     case SXTX:
@@ -898,7 +945,7 @@ T Simulator::ExtendValue(T value, Extend extend_type, unsigned left_shift) {
     default:
       UNREACHABLE();
   }
-  return value << left_shift;
+  return static_cast<T>(static_cast<unsignedT>(value) << left_shift);
 }
 
 template <typename T>
@@ -2282,7 +2329,9 @@ void Simulator::VisitConditionalSelect(Instruction* instr) {
         break;
       case CSNEG_w:
       case CSNEG_x:
-        new_val = (uint64_t)(-(int64_t)new_val);
+        // Simulate two's complement (instead of casting to signed and negating)
+        // to avoid undefined behavior on signed overflow.
+        new_val = (~new_val) + 1;
         break;
       default:
         UNIMPLEMENTED();
@@ -2445,23 +2494,27 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
   switch (instr->Mask(DataProcessing3SourceMask)) {
     case MADD_w:
     case MADD_x:
-      result = xreg(instr->Ra()) + (xreg(instr->Rn()) * xreg(instr->Rm()));
+      result = base::AddWithWraparound(
+          xreg(instr->Ra()),
+          base::MulWithWraparound(xreg(instr->Rn()), xreg(instr->Rm())));
       break;
     case MSUB_w:
     case MSUB_x:
-      result = xreg(instr->Ra()) - (xreg(instr->Rn()) * xreg(instr->Rm()));
+      result = base::SubWithWraparound(
+          xreg(instr->Ra()),
+          base::MulWithWraparound(xreg(instr->Rn()), xreg(instr->Rm())));
       break;
     case SMADDL_x:
-      result = xreg(instr->Ra()) + (rn_s32 * rm_s32);
+      result = base::AddWithWraparound(xreg(instr->Ra()), (rn_s32 * rm_s32));
       break;
     case SMSUBL_x:
-      result = xreg(instr->Ra()) - (rn_s32 * rm_s32);
+      result = base::SubWithWraparound(xreg(instr->Ra()), (rn_s32 * rm_s32));
       break;
     case UMADDL_x:
-      result = xreg(instr->Ra()) + (rn_u32 * rm_u32);
+      result = static_cast<uint64_t>(xreg(instr->Ra())) + (rn_u32 * rm_u32);
       break;
     case UMSUBL_x:
-      result = xreg(instr->Ra()) - (rn_u32 * rm_u32);
+      result = static_cast<uint64_t>(xreg(instr->Ra())) - (rn_u32 * rm_u32);
       break;
     case SMULH_x:
       DCHECK_EQ(instr->Ra(), kZeroRegCode);
@@ -2487,10 +2540,10 @@ void Simulator::BitfieldHelper(Instruction* instr) {
   T diff = S - R;
   T mask;
   if (diff >= 0) {
-    mask = diff < reg_size - 1 ? (static_cast<T>(1) << (diff + 1)) - 1
+    mask = diff < reg_size - 1 ? (static_cast<unsignedT>(1) << (diff + 1)) - 1
                                : static_cast<T>(-1);
   } else {
-    uint64_t umask = ((1LL << (S + 1)) - 1);
+    uint64_t umask = ((1ULL << (S + 1)) - 1);
     umask = (umask >> R) | (umask << (reg_size - R));
     mask = static_cast<T>(umask);
     diff += reg_size;
@@ -2521,11 +2574,15 @@ void Simulator::BitfieldHelper(Instruction* instr) {
   T dst = inzero ? 0 : reg<T>(instr->Rd());
   T src = reg<T>(instr->Rn());
   // Rotate source bitfield into place.
-  T result = (static_cast<unsignedT>(src) >> R) | (src << (reg_size - R));
+  T result = R == 0 ? src
+                    : (static_cast<unsignedT>(src) >> R) |
+                          (static_cast<unsignedT>(src) << (reg_size - R));
   // Determine the sign extension.
-  T topbits_preshift = (static_cast<T>(1) << (reg_size - diff - 1)) - 1;
-  T signbits = (extend && ((src >> S) & 1) ? topbits_preshift : 0)
-               << (diff + 1);
+  T topbits_preshift = (static_cast<unsignedT>(1) << (reg_size - diff - 1)) - 1;
+  T signbits =
+      diff >= reg_size - 1
+          ? 0
+          : ((extend && ((src >> S) & 1) ? topbits_preshift : 0) << (diff + 1));
 
   // Merge sign extension, dest/zero and bitfield.
   result = signbits | (result & mask) | (dst & ~mask);
@@ -3037,11 +3094,31 @@ bool Simulator::FPProcessNaNs(Instruction* instr) {
   return done;
 }
 
+// clang-format off
+#define PAUTH_SYSTEM_MODES(V)                            \
+  V(A1716, 17, xreg(16),                      kPACKeyIA) \
+  V(ASP,   30, xreg(31, Reg31IsStackPointer), kPACKeyIA)
+// clang-format on
+
 void Simulator::VisitSystem(Instruction* instr) {
   // Some system instructions hijack their Op and Cp fields to represent a
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
-  if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
+  if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
+    switch (instr->Mask(SystemPAuthMask)) {
+#define DEFINE_PAUTH_FUNCS(SUFFIX, DST, MOD, KEY)                     \
+  case PACI##SUFFIX:                                                  \
+    set_xreg(DST, AddPAC(xreg(DST), MOD, KEY, kInstructionPointer));  \
+    break;                                                            \
+  case AUTI##SUFFIX:                                                  \
+    set_xreg(DST, AuthPAC(xreg(DST), MOD, KEY, kInstructionPointer)); \
+    break;
+
+      PAUTH_SYSTEM_MODES(DEFINE_PAUTH_FUNCS)
+#undef DEFINE_PAUTH_FUNCS
+#undef PAUTH_SYSTEM_MODES
+    }
+  } else if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
     switch (instr->Mask(SystemSysRegMask)) {
       case MRS: {
         switch (instr->ImmSystemRegister()) {

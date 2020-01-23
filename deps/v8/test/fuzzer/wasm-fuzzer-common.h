@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <memory>
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-interpreter.h"

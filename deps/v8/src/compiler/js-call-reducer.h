@@ -17,7 +17,6 @@ namespace internal {
 // Forward declarations.
 class Factory;
 class JSGlobalProxy;
-class VectorSlotPair;
 
 namespace compiler {
 
@@ -25,6 +24,7 @@ namespace compiler {
 class CallFrequency;
 class CommonOperatorBuilder;
 class CompilationDependencies;
+struct FeedbackSource;
 struct FieldAccess;
 class JSGraph;
 class JSHeapBroker;
@@ -106,7 +106,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
-      VectorSlotPair const& feedback);
+      FeedbackSource const& feedback);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
@@ -156,7 +156,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathMinMax(Node* node, const Operator* op, Node* empty_value);
-  Reduction ReduceMathHypot(Node* node);
 
   Reduction ReduceNumberIsFinite(Node* node);
   Reduction ReduceNumberIsInteger(Node* node);
@@ -234,7 +233,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   // k is thusly changed, and the effect is changed as well.
   Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
                         Node** effect, Node** k,
-                        const VectorSlotPair& feedback);
+                        const FeedbackSource& feedback);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count, BailoutId bailout_id,

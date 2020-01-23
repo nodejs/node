@@ -101,41 +101,70 @@ fs.copyFile(src, dest, common.mustCall((err) => {
 }));
 
 // Throws if callback is not a function.
-common.expectsError(() => {
+assert.throws(() => {
   fs.copyFile(src, dest, 0, 0);
 }, {
   code: 'ERR_INVALID_CALLBACK',
-  type: TypeError
+  name: 'TypeError'
 });
 
 // Throws if the source path is not a string.
 [false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.copyFile(i, dest, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError',
+      message: /src/
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.copyFile(src, i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError',
+      message: /dest/
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.copyFileSync(i, dest),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError',
+      message: /src/
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.copyFileSync(src, i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError',
+      message: /dest/
     }
   );
+});
+
+assert.throws(() => {
+  fs.copyFileSync(src, dest, 'r');
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message: /mode/
+});
+
+assert.throws(() => {
+  fs.copyFileSync(src, dest, 8);
+}, {
+  code: 'ERR_OUT_OF_RANGE',
+  name: 'RangeError',
+  message: 'The value of "mode" is out of range. It must be an integer ' +
+           '>= 0 && <= 7. Received 8'
+});
+
+assert.throws(() => {
+  fs.copyFile(src, dest, 'r', common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message: /mode/
 });

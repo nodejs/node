@@ -118,7 +118,6 @@ function config () {
     })
   } else {
     conf = conf.concat({ auth: {} })
-    conf.auth = {}
   }
   if (conf.otp) conf.auth.otp = conf.otp
   return conf

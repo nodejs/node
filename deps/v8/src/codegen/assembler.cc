@@ -92,7 +92,7 @@ class DefaultAssemblerBuffer : public AssemblerBuffer {
 
   std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
     DCHECK_LT(size(), new_size);
-    return base::make_unique<DefaultAssemblerBuffer>(new_size);
+    return std::make_unique<DefaultAssemblerBuffer>(new_size);
   }
 
  private:
@@ -121,12 +121,12 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
 
 std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* start,
                                                          int size) {
-  return base::make_unique<ExternalAssemblerBufferImpl>(
+  return std::make_unique<ExternalAssemblerBufferImpl>(
       reinterpret_cast<byte*>(start), size);
 }
 
 std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {
-  return base::make_unique<DefaultAssemblerBuffer>(size);
+  return std::make_unique<DefaultAssemblerBuffer>(size);
 }
 
 // -----------------------------------------------------------------------------

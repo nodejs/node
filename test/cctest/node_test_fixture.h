@@ -60,14 +60,13 @@ using ArrayBufferUniquePtr = std::unique_ptr<node::ArrayBufferAllocator,
 using TracingAgentUniquePtr = std::unique_ptr<node::tracing::Agent>;
 using NodePlatformUniquePtr = std::unique_ptr<node::NodePlatform>;
 
-class NodeTestFixture : public ::testing::Test {
+class NodeZeroIsolateTestFixture : public ::testing::Test {
  protected:
   static ArrayBufferUniquePtr allocator;
   static TracingAgentUniquePtr tracing_agent;
   static NodePlatformUniquePtr platform;
   static uv_loop_t current_loop;
   static bool node_initialized;
-  v8::Isolate* isolate_;
 
   static void SetUpTestCase() {
     if (!node_initialized) {
@@ -81,9 +80,13 @@ class NodeTestFixture : public ::testing::Test {
 
     tracing_agent = std::make_unique<node::tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
+    node::tracing::TracingController* tracing_controller =
+        tracing_agent->GetTracingController();
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    platform.reset(static_cast<node::NodePlatform*>(
-          node::InitializeV8Platform(4)));
+    static constexpr int kV8ThreadPoolSize = 4;
+    platform.reset(
+        new node::NodePlatform(kV8ThreadPoolSize, tracing_controller));
+    v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
   }
 
@@ -99,17 +102,28 @@ class NodeTestFixture : public ::testing::Test {
   void SetUp() override {
     allocator = ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
                                      &node::FreeArrayBufferAllocator);
-    isolate_ = NewIsolate(allocator.get(), &current_loop);
-    CHECK_NE(isolate_, nullptr);
+  }
+};
+
+
+class NodeTestFixture : public NodeZeroIsolateTestFixture {
+ protected:
+  v8::Isolate* isolate_;
+
+  void SetUp() override {
+    NodeZeroIsolateTestFixture::SetUp();
+    isolate_ = NewIsolate(allocator.get(), &current_loop, platform.get());
+    CHECK_NOT_NULL(isolate_);
     isolate_->Enter();
   }
 
   void TearDown() override {
-    isolate_->Exit();
-    isolate_->Dispose();
     platform->DrainTasks(isolate_);
+    isolate_->Exit();
     platform->UnregisterIsolate(isolate_);
+    isolate_->Dispose();
     isolate_ = nullptr;
+    NodeZeroIsolateTestFixture::TearDown();
   }
 };
 

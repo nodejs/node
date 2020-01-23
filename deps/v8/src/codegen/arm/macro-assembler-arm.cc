@@ -217,6 +217,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(code.address()), rmode, cond);
 }
 
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Move(scratch, reference);
+  Jump(scratch);
+}
+
 void TurboAssembler::Call(Register target, Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
@@ -289,13 +296,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   } else if (target_is_isolate_independent_builtin &&
              options().inline_offheap_trampolines) {
     // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin_index);
-    EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
-    // Use ip directly instead of using UseScratchRegisterScope, as we do not
-    // preserve scratch registers across calls.
-    mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-    Call(ip, cond);
+    CallBuiltin(builtin_index);
     return;
   }
 
@@ -321,6 +322,18 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   LoadEntryFromBuiltinIndex(builtin_index);
   Call(builtin_index);
+}
+
+void TurboAssembler::CallBuiltin(int builtin_index, Condition cond) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  DCHECK(FLAG_embedded_builtins);
+  RecordCommentForOffHeapTrampoline(builtin_index);
+  EmbeddedData d = EmbeddedData::FromBlob();
+  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  // Use ip directly instead of using UseScratchRegisterScope, as we do not
+  // preserve scratch registers across calls.
+  mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  Call(ip, cond);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
@@ -560,7 +573,7 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   DCHECK_LT(lsb, 32);
   if (!CpuFeatures::IsSupported(ARMv7) || predictable_code_size()) {
-    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+    int mask = (1u << (width + lsb)) - 1u - ((1u << lsb) - 1u);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     if (lsb != 0) {
       mov(dst, Operand(dst, LSR, lsb), LeaveCC, cond);
@@ -795,8 +808,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
-  if (remembered_set_action == OMIT_REMEMBERED_SET &&
-      !FLAG_incremental_marking) {
+  if ((remembered_set_action == OMIT_REMEMBERED_SET &&
+       !FLAG_incremental_marking) ||
+      FLAG_disable_write_barriers) {
     return;
   }
 
@@ -1588,57 +1602,43 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 }
 
-void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual) {
-  Label skip_hook;
-
-  ExternalReference debug_hook_active =
-      ExternalReference::debug_hook_on_function_call_address(isolate());
-  Move(r4, debug_hook_active);
-  ldrsb(r4, MemOperand(r4));
-  cmp(r4, Operand(0));
-  b(eq, &skip_hook);
-
-  {
-    // Load receiver to pass it later to DebugOnFunctionCall hook.
-    if (actual.is_reg()) {
-      mov(r4, actual.reg());
-    } else {
-      mov(r4, Operand(actual.immediate()));
-    }
-    ldr(r4, MemOperand(sp, r4, LSL, kPointerSizeLog2));
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-    if (expected.is_reg()) {
-      SmiTag(expected.reg());
-      Push(expected.reg());
-    }
-    if (actual.is_reg()) {
-      SmiTag(actual.reg());
-      Push(actual.reg());
-    }
-    if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun);
-    Push(fun);
-    Push(r4);
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
-    }
-    if (actual.is_reg()) {
-      Pop(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (expected.is_reg()) {
-      Pop(expected.reg());
-      SmiUntag(expected.reg());
-    }
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             const ParameterCount& expected,
+                                             const ParameterCount& actual) {
+  // Load receiver to pass it later to DebugOnFunctionCall hook.
+  if (actual.is_reg()) {
+    ldr(r4, MemOperand(sp, actual.reg(), LSL, kPointerSizeLog2));
+  } else {
+    ldr(r4, MemOperand(sp, actual.immediate() << kPointerSizeLog2));
   }
-  bind(&skip_hook);
+  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+  if (expected.is_reg()) {
+    SmiTag(expected.reg());
+    Push(expected.reg());
+  }
+  if (actual.is_reg()) {
+    SmiTag(actual.reg());
+    Push(actual.reg());
+  }
+  if (new_target.is_valid()) {
+    Push(new_target);
+  }
+  Push(fun);
+  Push(fun);
+  Push(r4);
+  CallRuntime(Runtime::kDebugOnFunctionCall);
+  Pop(fun);
+  if (new_target.is_valid()) {
+    Pop(new_target);
+  }
+  if (actual.is_reg()) {
+    Pop(actual.reg());
+    SmiUntag(actual.reg());
+  }
+  if (expected.is_reg()) {
+    Pop(expected.reg());
+    SmiUntag(expected.reg());
+  }
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
@@ -1651,7 +1651,16 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK_IMPLIES(new_target.is_valid(), new_target == r3);
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected, actual);
+  Label debug_hook, continue_after_hook;
+  {
+    ExternalReference debug_hook_active =
+        ExternalReference::debug_hook_on_function_call_address(isolate());
+    Move(r4, debug_hook_active);
+    ldrsb(r4, MemOperand(r4));
+    cmp(r4, Operand(0));
+    b(ne, &debug_hook);
+  }
+  bind(&continue_after_hook);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
@@ -1673,11 +1682,17 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       DCHECK(flag == JUMP_FUNCTION);
       JumpCodeObject(code);
     }
-
-    // Continue here if InvokePrologue does handle the invocation due to
-    // mismatched parameter counts.
-    bind(&done);
   }
+  b(&done);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, expected, actual);
+  b(&continue_after_hook);
+
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
 }
 
 void MacroAssembler::InvokeFunction(Register fun, Register new_target,
@@ -1832,6 +1847,8 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+  } else if (options().inline_offheap_trampolines) {
+    CallBuiltin(Builtins::kDoubleToI);
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }

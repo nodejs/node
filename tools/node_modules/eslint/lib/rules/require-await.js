@@ -17,8 +17,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Capitalize the 1st letter of the given text.
- *
- * @param {string} text - The text to capitalize.
+ * @param {string} text The text to capitalize.
  * @returns {string} The text that the 1st letter was capitalized.
  */
 function capitalizeFirstLetter(text) {
@@ -49,7 +48,6 @@ module.exports = {
 
         /**
          * Push the scope info object to the stack.
-         *
          * @returns {void}
          */
         function enterFunction() {
@@ -62,8 +60,7 @@ module.exports = {
         /**
          * Pop the top scope info object from the stack.
          * Also, it reports the function if needed.
-         *
-         * @param {ASTNode} node - The node to report.
+         * @param {ASTNode} node The node to report.
          * @returns {void}
          */
         function exitFunction(node) {
@@ -92,9 +89,17 @@ module.exports = {
             "ArrowFunctionExpression:exit": exitFunction,
 
             AwaitExpression() {
+                if (!scopeInfo) {
+                    return;
+                }
+
                 scopeInfo.hasAwait = true;
             },
             ForOfStatement(node) {
+                if (!scopeInfo) {
+                    return;
+                }
+
                 if (node.await) {
                     scopeInfo.hasAwait = true;
                 }

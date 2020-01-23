@@ -6,10 +6,10 @@ const gyp = require('../lib/node-gyp')
 const requireInject = require('require-inject')
 const configure = requireInject('../lib/configure', {
   'graceful-fs': {
-    'openSync': function () { return 0 },
-    'closeSync': function () { },
-    'writeFile': function (file, data, cb) { cb() },
-    'stat': function (file, cb) { cb(null, {}) }
+    openSync: function () { return 0 },
+    closeSync: function () { },
+    writeFile: function (file, data, cb) { cb() },
+    stat: function (file, cb) { cb(null, {}) }
   }
 })
 
@@ -42,10 +42,10 @@ test('configure PYTHONPATH with existing env of one dir', function (t) {
   var prog = gyp()
   prog.parseArgv([])
   prog.spawn = function () {
-    t.equal(process.env.PYTHONPATH, [ EXPECTED_PYPATH, existingPath ].join(SEPARATOR))
+    t.equal(process.env.PYTHONPATH, [EXPECTED_PYPATH, existingPath].join(SEPARATOR))
 
     var dirs = process.env.PYTHONPATH.split(SEPARATOR)
-    t.deepEqual(dirs, [ EXPECTED_PYPATH, existingPath ])
+    t.deepEqual(dirs, [EXPECTED_PYPATH, existingPath])
 
     return SPAWN_RESULT
   }
@@ -57,16 +57,16 @@ test('configure PYTHONPATH with existing env of multiple dirs', function (t) {
 
   var pythonDir1 = path.join('a', 'b')
   var pythonDir2 = path.join('b', 'c')
-  var existingPath = [ pythonDir1, pythonDir2 ].join(SEPARATOR)
+  var existingPath = [pythonDir1, pythonDir2].join(SEPARATOR)
   process.env.PYTHONPATH = existingPath
 
   var prog = gyp()
   prog.parseArgv([])
   prog.spawn = function () {
-    t.equal(process.env.PYTHONPATH, [ EXPECTED_PYPATH, existingPath ].join(SEPARATOR))
+    t.equal(process.env.PYTHONPATH, [EXPECTED_PYPATH, existingPath].join(SEPARATOR))
 
     var dirs = process.env.PYTHONPATH.split(SEPARATOR)
-    t.deepEqual(dirs, [ EXPECTED_PYPATH, pythonDir1, pythonDir2 ])
+    t.deepEqual(dirs, [EXPECTED_PYPATH, pythonDir1, pythonDir2])
 
     return SPAWN_RESULT
   }

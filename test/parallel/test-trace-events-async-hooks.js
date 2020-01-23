@@ -7,7 +7,7 @@ const path = require('path');
 const util = require('util');
 
 const CODE =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();

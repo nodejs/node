@@ -19,9 +19,11 @@ function main({ n }) {
   function cb() {
     process.nextTick(counter);
   }
+
   function cb2() {
     process.nextTick(counter);
   }
+
   function counter() {
     count++;
     if (count === n)

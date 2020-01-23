@@ -36,6 +36,7 @@
 #define V8_CODEGEN_ASSEMBLER_H_
 
 #include <forward_list>
+#include <memory>
 #include <unordered_map>
 
 #include "src/base/memory.h"

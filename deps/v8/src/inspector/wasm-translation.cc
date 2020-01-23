@@ -67,15 +67,20 @@ class WasmTranslation::TranslatorImpl {
           column(column) {}
   };
 
-  TranslatorImpl(v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> script)
+  TranslatorImpl(v8::Isolate* isolate, WasmTranslation* translation,
+                 v8::Local<v8::debug::WasmScript> script)
       : script_(isolate, script) {
     script_.AnnotateStrongRetainer(kGlobalScriptHandleLabel);
+
+    ForEachFunction(script, [this, translation](String16& script_id,
+                                                int func_idx) {
+      translation->AddFakeScript(GetFakeScriptId(script_id, func_idx), this);
+    });
   }
 
-  void Init(v8::Isolate* isolate, WasmTranslation* translation,
-            V8DebuggerAgentImpl* agent) {
-    // Register fake scripts for each function in this wasm module/script.
-    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+  template <typename Callback>
+  void ForEachFunction(v8::Local<v8::debug::WasmScript> script,
+                       Callback callback) {
     int num_functions = script->NumFunctions();
     int num_imported_functions = script->NumImportedFunctions();
     DCHECK_LE(0, num_imported_functions);
@@ -84,8 +89,16 @@ class WasmTranslation::TranslatorImpl {
     String16 script_id = String16::fromInteger(script->Id());
     for (int func_idx = num_imported_functions; func_idx < num_functions;
          ++func_idx) {
-      AddFakeScript(isolate, script_id, func_idx, translation, agent);
+      callback(script_id, func_idx);
     }
+  }
+
+  void ReportFakeScripts(v8::Isolate* isolate, WasmTranslation* translation,
+                         V8DebuggerAgentImpl* agent) {
+    ForEachFunction(
+        script_.Get(isolate), [=](String16& script_id, int func_idx) {
+          ReportFakeScript(isolate, script_id, func_idx, translation, agent);
+        });
   }
 
   void Translate(TransLocation* loc) {
@@ -212,9 +225,10 @@ class WasmTranslation::TranslatorImpl {
     return GetFakeScriptId(loc->script_id, loc->line);
   }
 
-  void AddFakeScript(v8::Isolate* isolate, const String16& underlyingScriptId,
-                     int func_idx, WasmTranslation* translation,
-                     V8DebuggerAgentImpl* agent) {
+  void ReportFakeScript(v8::Isolate* isolate,
+                        const String16& underlyingScriptId, int func_idx,
+                        WasmTranslation* translation,
+                        V8DebuggerAgentImpl* agent) {
     String16 fake_script_id = GetFakeScriptId(underlyingScriptId, func_idx);
     String16 fake_script_url = GetFakeScriptUrl(isolate, func_idx);
 
@@ -223,7 +237,6 @@ class WasmTranslation::TranslatorImpl {
                                      fake_script_id, std::move(fake_script_url),
                                      func_idx);
 
-    translation->AddFakeScript(fake_script->scriptId(), this);
     agent->didParseSource(std::move(fake_script), true);
   }
 
@@ -254,6 +267,9 @@ class WasmTranslation::TranslatorImpl {
   // We assume to only disassemble a subset of the functions, so store them in a
   // map instead of an array.
   std::unordered_map<int, WasmSourceInformation> source_informations_;
+
+  // Disallow copies, because our pointer is registered in translation.
+  DISALLOW_COPY_AND_ASSIGN(TranslatorImpl);
 };
 
 constexpr char WasmTranslation::TranslatorImpl::kGlobalScriptHandleLabel[];
@@ -264,15 +280,11 @@ WasmTranslation::~WasmTranslation() { Clear(); }
 
 void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
                                 V8DebuggerAgentImpl* agent) {
-  std::unique_ptr<TranslatorImpl> impl;
-  impl.reset(new TranslatorImpl(isolate_, script));
-  DCHECK(impl);
-  auto inserted =
-      wasm_translators_.insert(std::make_pair(script->Id(), std::move(impl)));
-  // Check that no mapping for this script id existed before.
-  DCHECK(inserted.second);
-  // impl has been moved, use the returned iterator to call Init.
-  inserted.first->second->Init(isolate_, this, agent);
+  auto& impl = wasm_translators_[script->Id()];
+  if (impl == nullptr) {
+    impl = std::make_unique<TranslatorImpl>(isolate_, this, script);
+  }
+  impl->ReportFakeScripts(isolate_, this, agent);
 }
 
 void WasmTranslation::Clear() {

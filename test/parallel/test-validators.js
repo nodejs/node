@@ -1,22 +1,23 @@
 // Flags: --expose-internals
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 const {
   validateInteger
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError
+  name: 'RangeError'
 };
 
 // validateInteger() defaults to validating safe integers.
 validateInteger(MAX_SAFE_INTEGER, 'foo');
 validateInteger(MIN_SAFE_INTEGER, 'foo');
-common.expectsError(() => {
+assert.throws(() => {
   validateInteger(MAX_SAFE_INTEGER + 1, 'foo');
 }, outOfRangeError);
-common.expectsError(() => {
+assert.throws(() => {
   validateInteger(MIN_SAFE_INTEGER - 1, 'foo');
 }, outOfRangeError);
 

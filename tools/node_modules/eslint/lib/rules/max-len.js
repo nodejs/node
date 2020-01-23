@@ -198,7 +198,6 @@ module.exports = {
 
         /**
          * Ensure that an array exists at [key] on `object`, and add `value` to it.
-         *
          * @param {Object} object the object to mutate
          * @param {string} key the object's key
          * @param {*} value the value to add
@@ -214,7 +213,6 @@ module.exports = {
 
         /**
          * Retrieves an array containing all strings (" or ') in the source code.
-         *
          * @returns {ASTNode[]} An array of string nodes.
          */
         function getAllStrings() {
@@ -224,7 +222,6 @@ module.exports = {
 
         /**
          * Retrieves an array containing all template literals in the source code.
-         *
          * @returns {ASTNode[]} An array of template literal nodes.
          */
         function getAllTemplateLiterals() {
@@ -234,7 +231,6 @@ module.exports = {
 
         /**
          * Retrieves an array containing all RegExp literals in the source code.
-         *
          * @returns {ASTNode[]} An array of RegExp literal nodes.
          */
         function getAllRegExpLiterals() {
@@ -244,7 +240,6 @@ module.exports = {
 
         /**
          * A reducer to group an AST node by line number, both start and end.
-         *
          * @param {Object} acc the accumulator
          * @param {ASTNode} node the AST node in question
          * @returns {Object} the modified accumulator

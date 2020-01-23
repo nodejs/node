@@ -31,7 +31,7 @@ module.exports = {
 
         /**
          * Reports a node as invalid.
-         * @param {ASTNode} node - The node to be reported.
+         * @param {ASTNode} node The node to be reported.
          * @returns {void}
          */
         function report(node) {
@@ -79,7 +79,7 @@ module.exports = {
             }
         };
 
-        // ES6: report blocks without block-level bindings
+        // ES6: report blocks without block-level bindings, or that's only child of another block
         if (context.parserOptions.ecmaVersion >= 6) {
             ruleDef = {
                 BlockStatement(node) {
@@ -90,6 +90,11 @@ module.exports = {
                 "BlockStatement:exit"(node) {
                     if (loneBlocks.length > 0 && loneBlocks[loneBlocks.length - 1] === node) {
                         loneBlocks.pop();
+                        report(node);
+                    } else if (
+                        node.parent.type === "BlockStatement" &&
+                        node.parent.body.length === 1
+                    ) {
                         report(node);
                     }
                 }

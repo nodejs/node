@@ -32,8 +32,9 @@ module.exports = {
         // Helpers
         //--------------------------------------------------------------------------
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
-         * @param {ASTNode} node - any node
+         * @param {ASTNode} node any node
          * @returns {boolean} whether the given node structurally represents a directive
          */
         function looksLikeDirective(node) {
@@ -43,7 +44,7 @@ module.exports = {
 
         /**
          * Check to see if its a ES6 import declaration
-         * @param {ASTNode} node - any node
+         * @param {ASTNode} node any node
          * @returns {boolean} whether the given node represents a import declaration
          */
         function looksLikeImport(node) {
@@ -53,8 +54,7 @@ module.exports = {
 
         /**
          * Checks whether a given node is a variable declaration or not.
-         *
-         * @param {ASTNode} node - any node
+         * @param {ASTNode} node any node
          * @returns {boolean} `true` if the node is a variable declaration.
          */
         function isVariableDeclaration(node) {
@@ -70,8 +70,8 @@ module.exports = {
 
         /**
          * Checks whether this variable is on top of the block body
-         * @param {ASTNode} node - The node to check
-         * @param {ASTNode[]} statements - collection of ASTNodes for the parent node block
+         * @param {ASTNode} node The node to check
+         * @param {ASTNode[]} statements collection of ASTNodes for the parent node block
          * @returns {boolean} True if var is on top otherwise false
          */
         function isVarOnTop(node, statements) {
@@ -99,8 +99,8 @@ module.exports = {
 
         /**
          * Checks whether variable is on top at the global level
-         * @param {ASTNode} node - The node to check
-         * @param {ASTNode} parent - Parent of the node
+         * @param {ASTNode} node The node to check
+         * @param {ASTNode} parent Parent of the node
          * @returns {void}
          */
         function globalVarCheck(node, parent) {
@@ -111,9 +111,9 @@ module.exports = {
 
         /**
          * Checks whether variable is on top at functional block scope level
-         * @param {ASTNode} node - The node to check
-         * @param {ASTNode} parent - Parent of the node
-         * @param {ASTNode} grandParent - Parent of the node's parent
+         * @param {ASTNode} node The node to check
+         * @param {ASTNode} parent Parent of the node
+         * @param {ASTNode} grandParent Parent of the node's parent
          * @returns {void}
          */
         function blockScopeVarCheck(node, parent, grandParent) {

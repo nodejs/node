@@ -51,7 +51,7 @@ assert.strictEqual(fs.existsSync(copyPath), false);
 fs.copyFileSync(nodePath, copyPath, fs.constants.COPYFILE_FICLONE);
 fs.chmodSync(copyPath, '0755');
 
-const envCopy = Object.assign({}, process.env, { 'FORK': 'true' });
+const envCopy = { ...process.env, FORK: 'true' };
 const child = fork(__filename, { execPath: copyPath, env: envCopy });
 child.on('message', common.mustCall(function(recv) {
   assert.deepStrictEqual(recv, msg);

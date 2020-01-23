@@ -14,8 +14,7 @@
  *
  * We don't need to check nested functions, so this ignores those.
  * `Scope.through` contains references of nested functions.
- *
- * @param {ASTNode} node - An AST node to get.
+ * @param {ASTNode} node An AST node to get.
  * @returns {ASTNode|null} The containing loop node of the specified node, or
  *      `null`.
  */
@@ -63,9 +62,8 @@ function getContainingLoopNode(node) {
 /**
  * Gets the containing loop node of a given node.
  * If the loop was nested, this returns the most outer loop.
- *
- * @param {ASTNode} node - A node to get. This is a loop node.
- * @param {ASTNode|null} excludedNode - A node that the result node should not
+ * @param {ASTNode} node A node to get. This is a loop node.
+ * @param {ASTNode|null} excludedNode A node that the result node should not
  *      include.
  * @returns {ASTNode} The most outer loop node.
  */
@@ -85,9 +83,8 @@ function getTopLoopNode(node, excludedNode) {
 /**
  * Checks whether a given reference which refers to an upper scope's variable is
  * safe or not.
- *
- * @param {ASTNode} loopNode - A containing loop node.
- * @param {eslint-scope.Reference} reference - A reference to check.
+ * @param {ASTNode} loopNode A containing loop node.
+ * @param {eslint-scope.Reference} reference A reference to check.
  * @returns {boolean} `true` if the reference is safe or not.
  */
 function isSafe(loopNode, reference) {
@@ -131,8 +128,7 @@ function isSafe(loopNode, reference) {
      * It's safeafe if the reference matches one of the following condition.
      * - is readonly.
      * - doesn't exist inside a local function and after the border.
-     *
-     * @param {eslint-scope.Reference} upperRef - A reference to check.
+     * @param {eslint-scope.Reference} upperRef A reference to check.
      * @returns {boolean} `true` if the reference is safe.
      */
     function isSafeReference(upperRef) {
@@ -177,7 +173,6 @@ module.exports = {
          *
          * - has a loop node in ancestors.
          * - has any references which refers to an unsafe variable.
-         *
          * @param {ASTNode} node The AST node to check.
          * @returns {boolean} Whether or not the node is within a loop.
          */

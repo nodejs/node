@@ -28,7 +28,7 @@ ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
 ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 
 #ifdef DEBUG
-bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
+bool HandleBase::IsDereferenceAllowed() const {
   DCHECK_NOT_NULL(location_);
   Object object(*location_);
   if (object.IsSmi()) return true;
@@ -40,16 +40,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
       RootsTable::IsImmortalImmovable(root_index)) {
     return true;
   }
-  if (!AllowHandleDereference::IsAllowed()) return false;
-  if (mode == INCLUDE_DEFERRED_CHECK &&
-      !AllowDeferredHandleDereference::IsAllowed()) {
-    // Accessing cells, maps and internalized strings is safe.
-    if (heap_object.IsCell()) return true;
-    if (heap_object.IsMap()) return true;
-    if (heap_object.IsInternalizedString()) return true;
-    return !isolate->IsDeferredHandle(location_);
-  }
-  return true;
+  return AllowHandleDereference::IsAllowed();
 }
 #endif
 
@@ -188,13 +179,13 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
 }
 
 DeferredHandleScope::~DeferredHandleScope() {
-  impl_->isolate()->handle_scope_data()->level--;
   DCHECK(handles_detached_);
-  DCHECK(impl_->isolate()->handle_scope_data()->level == prev_level_);
+  impl_->isolate()->handle_scope_data()->level--;
+  DCHECK_EQ(impl_->isolate()->handle_scope_data()->level, prev_level_);
 }
 
-DeferredHandles* DeferredHandleScope::Detach() {
-  DeferredHandles* deferred = impl_->Detach(prev_limit_);
+std::unique_ptr<DeferredHandles> DeferredHandleScope::Detach() {
+  std::unique_ptr<DeferredHandles> deferred = impl_->Detach(prev_limit_);
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   data->next = prev_next_;
   data->limit = prev_limit_;

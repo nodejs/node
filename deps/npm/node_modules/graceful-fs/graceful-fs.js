@@ -3,9 +3,21 @@ var polyfills = require('./polyfills.js')
 var legacy = require('./legacy-streams.js')
 var clone = require('./clone.js')
 
-var queue = []
-
 var util = require('util')
+
+/* istanbul ignore next - node 0.x polyfill */
+var gracefulQueue
+var previousSymbol
+
+/* istanbul ignore else - node 0.x polyfill */
+if (typeof Symbol === 'function' && typeof Symbol.for === 'function') {
+  gracefulQueue = Symbol.for('graceful-fs.queue')
+  // This is used in testing by future versions
+  previousSymbol = Symbol.for('graceful-fs.previous')
+} else {
+  gracefulQueue = '___graceful-fs.queue'
+  previousSymbol = '___graceful-fs.previous'
+}
 
 function noop () {}
 
@@ -19,11 +31,58 @@ else if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || ''))
     console.error(m)
   }
 
-if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || '')) {
-  process.on('exit', function() {
-    debug(queue)
-    require('assert').equal(queue.length, 0)
+// Once time initialization
+if (!global[gracefulQueue]) {
+  // This queue can be shared by multiple loaded instances
+  var queue = []
+  Object.defineProperty(global, gracefulQueue, {
+    get: function() {
+      return queue
+    }
   })
+
+  // Patch fs.close/closeSync to shared queue version, because we need
+  // to retry() whenever a close happens *anywhere* in the program.
+  // This is essential when multiple graceful-fs instances are
+  // in play at the same time.
+  fs.close = (function (fs$close) {
+    function close (fd, cb) {
+      return fs$close.call(fs, fd, function (err) {
+        // This function uses the graceful-fs shared queue
+        if (!err) {
+          retry()
+        }
+
+        if (typeof cb === 'function')
+          cb.apply(this, arguments)
+      })
+    }
+
+    Object.defineProperty(close, previousSymbol, {
+      value: fs$close
+    })
+    return close
+  })(fs.close)
+
+  fs.closeSync = (function (fs$closeSync) {
+    function closeSync (fd) {
+      // This function uses the graceful-fs shared queue
+      fs$closeSync.apply(fs, arguments)
+      retry()
+    }
+
+    Object.defineProperty(closeSync, previousSymbol, {
+      value: fs$closeSync
+    })
+    return closeSync
+  })(fs.closeSync)
+
+  if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || '')) {
+    process.on('exit', function() {
+      debug(global[gracefulQueue])
+      require('assert').equal(global[gracefulQueue].length, 0)
+    })
+  }
 }
 
 module.exports = patch(clone(fs))
@@ -32,45 +91,11 @@ if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs.__patched) {
     fs.__patched = true;
 }
 
-// Always patch fs.close/closeSync, because we want to
-// retry() whenever a close happens *anywhere* in the program.
-// This is essential when multiple graceful-fs instances are
-// in play at the same time.
-module.exports.close = (function (fs$close) { return function (fd, cb) {
-  return fs$close.call(fs, fd, function (err) {
-    if (!err)
-      retry()
-
-    if (typeof cb === 'function')
-      cb.apply(this, arguments)
-  })
-}})(fs.close)
-
-module.exports.closeSync = (function (fs$closeSync) { return function (fd) {
-  // Note that graceful-fs also retries when fs.closeSync() fails.
-  // Looks like a bug to me, although it's probably a harmless one.
-  var rval = fs$closeSync.apply(fs, arguments)
-  retry()
-  return rval
-}})(fs.closeSync)
-
-// Only patch fs once, otherwise we'll run into a memory leak if
-// graceful-fs is loaded multiple times, such as in test environments that
-// reset the loaded modules between tests.
-// We look for the string `graceful-fs` from the comment above. This
-// way we are not adding any extra properties and it will detect if older
-// versions of graceful-fs are installed.
-if (!/\bgraceful-fs\b/.test(fs.closeSync.toString())) {
-  fs.closeSync = module.exports.closeSync;
-  fs.close = module.exports.close;
-}
-
 function patch (fs) {
   // Everything that references the open() function needs to be in here
   polyfills(fs)
   fs.gracefulify = patch
-  fs.FileReadStream = ReadStream;  // Legacy name.
-  fs.FileWriteStream = WriteStream;  // Legacy name.
+
   fs.createReadStream = createReadStream
   fs.createWriteStream = createWriteStream
   var fs$readFile = fs.readFile
@@ -187,8 +212,50 @@ function patch (fs) {
     WriteStream.prototype.open = WriteStream$open
   }
 
-  fs.ReadStream = ReadStream
-  fs.WriteStream = WriteStream
+  Object.defineProperty(fs, 'ReadStream', {
+    get: function () {
+      return ReadStream
+    },
+    set: function (val) {
+      ReadStream = val
+    },
+    enumerable: true,
+    configurable: true
+  })
+  Object.defineProperty(fs, 'WriteStream', {
+    get: function () {
+      return WriteStream
+    },
+    set: function (val) {
+      WriteStream = val
+    },
+    enumerable: true,
+    configurable: true
+  })
+
+  // legacy names
+  var FileReadStream = ReadStream
+  Object.defineProperty(fs, 'FileReadStream', {
+    get: function () {
+      return FileReadStream
+    },
+    set: function (val) {
+      FileReadStream = val
+    },
+    enumerable: true,
+    configurable: true
+  })
+  var FileWriteStream = WriteStream
+  Object.defineProperty(fs, 'FileWriteStream', {
+    get: function () {
+      return FileWriteStream
+    },
+    set: function (val) {
+      FileWriteStream = val
+    },
+    enumerable: true,
+    configurable: true
+  })
 
   function ReadStream (path, options) {
     if (this instanceof ReadStream)
@@ -234,11 +301,11 @@ function patch (fs) {
   }
 
   function createReadStream (path, options) {
-    return new ReadStream(path, options)
+    return new fs.ReadStream(path, options)
   }
 
   function createWriteStream (path, options) {
-    return new WriteStream(path, options)
+    return new fs.WriteStream(path, options)
   }
 
   var fs$open = fs.open
@@ -267,11 +334,11 @@ function patch (fs) {
 
 function enqueue (elem) {
   debug('ENQUEUE', elem[0].name, elem[1])
-  queue.push(elem)
+  global[gracefulQueue].push(elem)
 }
 
 function retry () {
-  var elem = queue.shift()
+  var elem = global[gracefulQueue].shift()
   if (elem) {
     debug('RETRY', elem[0].name, elem[1])
     elem[0].apply(null, elem[1])

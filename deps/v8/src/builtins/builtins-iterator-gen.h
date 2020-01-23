@@ -36,15 +36,14 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // result.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
   // object, loaded from the native context.
-  TNode<JSReceiver> IteratorStep(Node* context, const IteratorRecord& iterator,
-                                 Label* if_done,
-                                 Node* fast_iterator_result_map = nullptr,
-                                 Label* if_exception = nullptr,
-                                 Variable* exception = nullptr);
+  TNode<JSReceiver> IteratorStep(
+      TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
+      base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt,
+      Label* if_exception = nullptr, Variable* exception = nullptr);
 
-  TNode<JSReceiver> IteratorStep(Node* context, const IteratorRecord& iterator,
-                                 Node* fast_iterator_result_map,
-                                 Label* if_done) {
+  TNode<JSReceiver> IteratorStep(
+      TNode<Context> context, const IteratorRecord& iterator,
+      base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_done) {
     return IteratorStep(context, iterator, if_done, fast_iterator_result_map);
   }
 
@@ -68,6 +67,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // following the ECMAscript operation with the same name.
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
+
+  // Currently at https://tc39.github.io/proposal-intl-list-format/
+  // #sec-createstringlistfromiterable
+  TNode<JSArray> StringListFromIterable(TNode<Context> context,
+                                        TNode<Object> iterable);
 
   void FastIterableToList(TNode<Context> context, TNode<Object> iterable,
                           TVariable<Object>* var_result, Label* slow);

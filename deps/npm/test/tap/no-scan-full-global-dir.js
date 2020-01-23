@@ -3,7 +3,6 @@ var fs = require('fs')
 var path = require('path')
 var test = require('tap').test
 var requireInject = require('require-inject')
-var osenv = require('osenv')
 var npm = require('../../lib/npm.js')
 
 // XXX update this when rpt's realpath.js is extracted out
@@ -24,8 +23,6 @@ Object.keys(packages).forEach(function (name) {
   dirs[path.join(packages[name].path, 'node_modules')] = packages[name].children || []
   files[path.join(packages[name].path, 'package.json')] = packages[name].package
 })
-
-process.chdir(osenv.tmpdir())
 
 var mockReaddir = function (name, cb) {
   if (dirs[name]) return cb(null, dirs[name])

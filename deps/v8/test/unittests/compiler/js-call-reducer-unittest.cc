@@ -6,10 +6,12 @@
 
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors.h"
 #include "src/heap/factory.h"
 #include "src/objects/feedback-vector.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -23,7 +25,6 @@ class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
       : TypedGraphTest(3), javascript_(zone()), deps_(broker(), zone()) {
-    broker()->SerializeStandardObjects();
   }
   ~JSCallReducerTest() override = default;
 
@@ -113,7 +114,7 @@ class JSCallReducerTest : public TypedGraphTest {
         ClosureFeedbackCellArray::New(isolate(), shared);
     Handle<FeedbackVector> vector =
         FeedbackVector::New(isolate(), shared, closure_feedback_cell_array);
-    VectorSlotPair feedback(vector, FeedbackSlot(0), UNINITIALIZED);
+    FeedbackSource feedback(vector, FeedbackSlot(0));
     return javascript()->Call(arity, CallFrequency(), feedback,
                               ConvertReceiverMode::kAny,
                               SpeculationMode::kAllowSpeculation);
@@ -175,12 +176,7 @@ TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
                        context, frame_state, effect, control);
 
   Reduction r = Reduce(construct);
-
-  if (FLAG_experimental_inline_promise_constructor) {
-    ASSERT_TRUE(r.Changed());
-  } else {
-    ASSERT_FALSE(r.Changed());
-  }
+  ASSERT_TRUE(r.Changed());
 }
 
 // Exactly the same as PromiseConstructorBasic which expects a reduction,
@@ -198,7 +194,7 @@ TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
       graph()->NewNode(javascript()->Construct(3), promise, executor, promise,
                        context, frame_state, effect, control);
 
-  isolate()->InvalidatePromiseHookProtector();
+  Protectors::InvalidatePromiseHook(isolate());
 
   Reduction r = Reduce(construct);
 

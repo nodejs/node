@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import '../common/index.mjs';
 import four from '../fixtures/async-error.js';
 

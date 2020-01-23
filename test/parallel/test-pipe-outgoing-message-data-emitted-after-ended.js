@@ -18,7 +18,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
     myStream.emit('data', 'some data');
     res.on('error', common.expectsError({
       code: 'ERR_STREAM_WRITE_AFTER_END',
-      type: Error
+      name: 'Error'
     }));
 
     process.nextTick(common.mustCall(() => server.close()));

@@ -968,8 +968,8 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         data->StoreCurrentStackTrace(description_view);
     v8::Local<v8::ArrayBuffer> buffer =
         v8::ArrayBuffer::New(isolate, sizeof(id));
-    *static_cast<v8_inspector::V8StackTraceId*>(buffer->GetContents().Data()) =
-        id;
+    *static_cast<v8_inspector::V8StackTraceId*>(
+        buffer->GetBackingStore()->Data()) = id;
     args.GetReturnValue().Set(buffer);
   }
 
@@ -983,7 +983,7 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     IsolateData* data = IsolateData::FromContext(context);
     v8_inspector::V8StackTraceId* id =
         static_cast<v8_inspector::V8StackTraceId*>(
-            args[0].As<v8::ArrayBuffer>()->GetContents().Data());
+            args[0].As<v8::ArrayBuffer>()->GetBackingStore()->Data());
     data->ExternalAsyncTaskStarted(*id);
   }
 
@@ -997,7 +997,7 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     IsolateData* data = IsolateData::FromContext(context);
     v8_inspector::V8StackTraceId* id =
         static_cast<v8_inspector::V8StackTraceId*>(
-            args[0].As<v8::ArrayBuffer>()->GetContents().Data());
+            args[0].As<v8::ArrayBuffer>()->GetBackingStore()->Data());
     data->ExternalAsyncTaskFinished(*id);
   }
 

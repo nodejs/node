@@ -51,6 +51,13 @@ RandomNumberGenerator::RandomNumberGenerator() {
   result = rand_s(&second_half);
   DCHECK_EQ(0, result);
   SetSeed((static_cast<int64_t>(first_half) << 32) + second_half);
+#elif V8_OS_MACOSX
+  // Despite its prefix suggests it is not RC4 algorithm anymore.
+  // It always succeeds while having decent performance and
+  // no file descriptor involved.
+  int64_t seed;
+  arc4random_buf(&seed, sizeof(seed));
+  SetSeed(seed);
 #else
   // Gather entropy from /dev/urandom if available.
   FILE* fp = fopen("/dev/urandom", "rb");

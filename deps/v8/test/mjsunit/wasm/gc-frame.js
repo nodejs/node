@@ -16,28 +16,28 @@ function makeFFI(func, t) {
   // the different parts of the stack.
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprGetLocal, 0,         // --
-      kExprGetLocal, 1,         // --
-      kExprGetLocal, 2,         // --
-      kExprGetLocal, 3,         // --
-      kExprGetLocal, 4,         // --
-      kExprGetLocal, 5,         // --
-      kExprGetLocal, 6,         // --
-      kExprGetLocal, 7,         // --
-      kExprGetLocal, 8,         // --
-      kExprGetLocal, 9,         // --
+      kExprLocalGet, 0,         // --
+      kExprLocalGet, 1,         // --
+      kExprLocalGet, 2,         // --
+      kExprLocalGet, 3,         // --
+      kExprLocalGet, 4,         // --
+      kExprLocalGet, 5,         // --
+      kExprLocalGet, 6,         // --
+      kExprLocalGet, 7,         // --
+      kExprLocalGet, 8,         // --
+      kExprLocalGet, 9,         // --
       kExprCallFunction, 0,     // --
       kExprDrop,                // --
-      kExprGetLocal, 0,         // --
-      kExprGetLocal, 1,         // --
-      kExprGetLocal, 2,         // --
-      kExprGetLocal, 3,         // --
-      kExprGetLocal, 4,         // --
-      kExprGetLocal, 5,         // --
-      kExprGetLocal, 6,         // --
-      kExprGetLocal, 7,         // --
-      kExprGetLocal, 8,         // --
-      kExprGetLocal, 9,         // --
+      kExprLocalGet, 0,         // --
+      kExprLocalGet, 1,         // --
+      kExprLocalGet, 2,         // --
+      kExprLocalGet, 3,         // --
+      kExprLocalGet, 4,         // --
+      kExprLocalGet, 5,         // --
+      kExprLocalGet, 6,         // --
+      kExprLocalGet, 7,         // --
+      kExprLocalGet, 8,         // --
+      kExprLocalGet, 9,         // --
       kExprCallFunction, 0,    // --
     ])                          // --
     .exportFunc();
@@ -79,7 +79,7 @@ function print10(a, b, c, d, e, f, g, h, i) {
   var sig_index = builder.addType(kSig_i_i);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprGetLocal, 0,         // --
+      kExprLocalGet, 0,         // --
     ])                          // --
     .exportFunc();
 

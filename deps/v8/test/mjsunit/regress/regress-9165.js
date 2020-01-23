@@ -14,12 +14,12 @@ let kSig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
   builder.addFunction("merge", kSig_r_i)
       .addLocals({anyref_count: 1, anyfunc_count: 1})
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprI32Eqz,
         kExprIf, kWasmAnyRef,
-          kExprGetLocal, 1,
+          kExprLocalGet, 1,
         kExprElse,
-          kExprGetLocal, 2,
+          kExprLocalGet, 2,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -33,12 +33,12 @@ let kSig_r_i = makeSig([kWasmI32], [kWasmAnyRef]);
   builder.addFunction("merge", kSig_r_i)
       .addLocals({anyfunc_count: 1})
       .addBody([
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprI32Eqz,
         kExprIf, kWasmAnyRef,
           kExprRefNull,
         kExprElse,
-          kExprGetLocal, 1,
+          kExprLocalGet, 1,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();

@@ -7,6 +7,13 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 
+class CaseIndifferentMap {
+  _map = new Map();
+
+  get(key) { return this._map.get(key.toLowerCase()); }
+  set(key, value) { return this._map.set(key.toLowerCase(), value); }
+}
+
 const log = spawn(
   'git',
   // Inspect author name/email and body.
@@ -23,7 +30,7 @@ else
 
 output.write('# Authors ordered by first contribution.\n\n');
 
-const mailmap = new Map();
+const mailmap = new CaseIndifferentMap();
 {
   const lines = fs.readFileSync(path.resolve(__dirname, '../', '.mailmap'),
                                 { encoding: 'utf8' }).split('\n');

@@ -3,12 +3,10 @@ var path = require('path')
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var server
 
 var pkg = common.pkg
 
@@ -20,10 +18,14 @@ var json = {
 }
 
 test('setup', function (t) {
-  setup()
+  mkdirp.sync(path.resolve(pkg, 'node_modules'))
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
   mr({ port: common.port }, function (er, s) {
     t.ifError(er, 'started mock registry')
-    server = s
+    t.parent.teardown(() => s.close())
     t.end()
   })
 })
@@ -68,25 +70,3 @@ test('uninstall --save removes rm-ed package from package.json', function (t) {
     )
   })
 })
-
-test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(path.resolve(pkg, 'node_modules'))
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-
-  process.chdir(pkg)
-}

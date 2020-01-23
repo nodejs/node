@@ -35,5 +35,16 @@ tsan_suppressions_file = "//build/sanitizers/tsan_suppressions.cc"
 # Skip assertions about 4GiB file size limit.
 ignore_elf32_limitations = true
 
-# Use the system install of Xcode for tools like ibtool, libtool, etc.
-use_system_xcode = true
+if (host_os == "mac") {
+  _result = exec_script("//build/mac/should_use_hermetic_xcode.py",
+                        [ target_os ],
+                        "value")
+  assert(_result != 2,
+         "Do not allow building targets with the default" +
+             "hermetic toolchain if the minimum OS version is not met.")
+  assert(_result != 3,
+         "iOS does not support building with a hermetic toolchain. " +
+             "Please install Xcode.")
+
+  use_system_xcode = _result == 0
+}

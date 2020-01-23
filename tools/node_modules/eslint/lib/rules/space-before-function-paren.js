@@ -124,7 +124,18 @@ module.exports = {
                     node,
                     loc: leftToken.loc.end,
                     message: "Unexpected space before function parentheses.",
-                    fix: fixer => fixer.removeRange([leftToken.range[1], rightToken.range[0]])
+                    fix(fixer) {
+                        const comments = sourceCode.getCommentsBefore(rightToken);
+
+                        // Don't fix anything if there's a single line comment between the left and the right token
+                        if (comments.some(comment => comment.type === "Line")) {
+                            return null;
+                        }
+                        return fixer.replaceTextRange(
+                            [leftToken.range[1], rightToken.range[0]],
+                            comments.reduce((text, comment) => text + sourceCode.getText(comment), "")
+                        );
+                    }
                 });
             } else if (!hasSpacing && functionConfig === "always") {
                 context.report({

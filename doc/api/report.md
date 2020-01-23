@@ -53,7 +53,6 @@ is provided below for reference.
       "nghttp2": "1.34.0",
       "napi": "3",
       "llhttp": "1.0.1",
-      "http_parser": "2.8.0",
       "openssl": "1.1.0j"
     },
     "release": {
@@ -297,6 +296,7 @@ is provided below for reference.
       "address": "0x000055fc7b2cb180"
     }
   ],
+  "workers": [],
   "environmentVariables": {
     "REMOTEHOST": "REMOVED",
     "MANPATH": "/opt/rh/devtoolset-3/root/usr/share/man:",
@@ -446,11 +446,11 @@ the name of a file into which the report is written.
 process.report.writeReport('./foo.json');
 ```
 
-This function takes an optional additional argument `err` - an `Error` object
-that will be used as the context for the JavaScript stack printed in the report.
-When using report to handle errors in a callback or an exception handler, this
-allows the report to include the location of the original error as well
-as where it was handled.
+This function takes an optional additional argument `err` which is an `Error`
+object that will be used as the context for the JavaScript stack printed in the
+report. When using report to handle errors in a callback or an exception
+handler, this allows the report to include the location of the original error as
+well as where it was handled.
 
 ```js
 try {
@@ -484,8 +484,9 @@ console.log(typeof report === 'object'); // true
 console.log(JSON.stringify(report, null, 2));
 ```
 
-This function takes an optional additional argument `err` - an `Error` object
-that will be used as the context for the JavaScript stack printed in the report.
+This function takes an optional additional argument `err`, which is an `Error`
+object that will be used as the context for the JavaScript stack printed in the
+report.
 
 ```js
 const report = process.report.getReport(new Error('custom error'));
@@ -577,4 +578,24 @@ NODE_OPTIONS="--experimental-report --report-uncaught-exception \
 Specific API documentation can be found under
 [`process API documentation`][] section.
 
+## Interaction with Workers
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31386
+    description: Workers are now included in the report.
+-->
+
+[`Worker`][] threads can create reports in the same way that the main thread
+does.
+
+Reports will include information on any Workers that are children of the current
+thread as part of the `workers` section, with each Worker generating a report
+in the standard report format.
+
+The thread which is generating the report will wait for the reports from Worker
+threads to finish. However, the latency for this will usually be low, as both
+running JavaScript and the event loop are interrupted to generate the report.
+
 [`process API documentation`]: process.html
+[`Worker`]: worker_threads.html

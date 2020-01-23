@@ -13,12 +13,12 @@ function generateBuilder() {
   let builder = new WasmModuleBuilder();
   builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
   builder.addFunction('load', kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
+      .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();
   builder.addFunction('store', kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0, kExprGetLocal, 1,
-        kExprI32StoreMem, 0, 0, kExprGetLocal, 1
+        kExprLocalGet, 0, kExprLocalGet, 1,
+        kExprI32StoreMem, 0, 0, kExprLocalGet, 1
       ])
       .exportFunc();
   return builder;
@@ -32,7 +32,7 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
@@ -59,7 +59,7 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
@@ -94,7 +94,7 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, index,                 // put index on stack
           kExprI32Const, newValue,              // put the value on stack
@@ -127,7 +127,7 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPagesIf,          // put deltaPagesIf on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
@@ -159,16 +159,16 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprEnd,
-        kExprGetLocal, 1,                       // get index parameter
+        kExprLocalGet, 1,                       // get index parameter
         kExprI32LoadMem, 0, 0                   // load from grown memory
       ])
       .exportFunc();
@@ -191,20 +191,20 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprElse,
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprEnd,
-        kExprGetLocal, 1,                       // get index parameter
+        kExprLocalGet, 1,                       // get index parameter
         kExprI32LoadMem, 0, 0                   // load from grown memory
       ])
       .exportFunc();
@@ -226,20 +226,20 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprElse,
           kExprI32Const, deltaPages,            // put deltaPages on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, value,                 // put the value on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprEnd,
-        kExprGetLocal, 1,                       // get index parameter
+        kExprLocalGet, 1,                       // get index parameter
         kExprI32LoadMem, 0, 0                   // load from grown memory
       ])
       .exportFunc();
@@ -263,23 +263,23 @@ function generateBuilder() {
   let builder = generateBuilder();
   builder.addFunction('main', kSig_i_ii)
       .addBody([
-        kExprGetLocal, 0,                       // get condition parameter
+        kExprLocalGet, 0,                       // get condition parameter
         kExprIf, kWasmStmt,                     // if it's 1 then enter if
           kExprI32Const, deltaPagesIf,          // put deltaPagesIf on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, valueIf,               // put valueIf on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprElse,
           kExprI32Const, deltaPagesElse,        // put deltaPagesElse on stack
           kExprMemoryGrow, kMemoryZero,         // grow memory
           kExprDrop,                            // drop the result of grow
-          kExprGetLocal, 1,                     // get index parameter
+          kExprLocalGet, 1,                     // get index parameter
           kExprI32Const, valueElse,             // put valueElse on stack
           kExprI32StoreMem, 0, 0,               // store
         kExprEnd,
-        kExprGetLocal, 1,                       // get index parameter
+        kExprLocalGet, 1,                       // get index parameter
         kExprI32LoadMem, 0, 0                   // load from grown memory
       ])
       .exportFunc();

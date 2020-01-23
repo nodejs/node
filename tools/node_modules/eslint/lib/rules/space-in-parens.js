@@ -40,23 +40,28 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            missingOpeningSpace: "There must be a space after this paren.",
+            missingClosingSpace: "There must be a space before this paren.",
+            rejectedOpeningSpace: "There should be no space after this paren.",
+            rejectedClosingSpace: "There should be no space before this paren."
+        }
     },
 
     create(context) {
-
-        const MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
-            REJECTED_SPACE_MESSAGE = "There should be no spaces inside this paren.",
-            ALWAYS = context.options[0] === "always",
+        const ALWAYS = context.options[0] === "always",
             exceptionsArrayOptions = (context.options[1] && context.options[1].exceptions) || [],
             options = {};
+
         let exceptions;
 
         if (exceptionsArrayOptions.length) {
-            options.braceException = exceptionsArrayOptions.indexOf("{}") !== -1;
-            options.bracketException = exceptionsArrayOptions.indexOf("[]") !== -1;
-            options.parenException = exceptionsArrayOptions.indexOf("()") !== -1;
-            options.empty = exceptionsArrayOptions.indexOf("empty") !== -1;
+            options.braceException = exceptionsArrayOptions.includes("{}");
+            options.bracketException = exceptionsArrayOptions.includes("[]");
+            options.parenException = exceptionsArrayOptions.includes("()");
+            options.empty = exceptionsArrayOptions.includes("empty");
         }
 
         /**
@@ -105,7 +110,7 @@ module.exports = {
          * @returns {boolean} True if the token is one of the exceptions for the opener paren
          */
         function isOpenerException(token) {
-            return token.type === "Punctuator" && exceptions.openers.indexOf(token.value) >= 0;
+            return exceptions.openers.includes(token.value);
         }
 
         /**
@@ -114,102 +119,95 @@ module.exports = {
          * @returns {boolean} True if the token is one of the exceptions for the closer paren
          */
         function isCloserException(token) {
-            return token.type === "Punctuator" && exceptions.closers.indexOf(token.value) >= 0;
+            return exceptions.closers.includes(token.value);
         }
 
         /**
-         * Determines if an opener paren should have a missing space after it
-         * @param {Object} left The paren token
-         * @param {Object} right The token after it
-         * @returns {boolean} True if the paren should have a space
+         * Determines if an opening paren is immediately followed by a required space
+         * @param {Object} openingParenToken The paren token
+         * @param {Object} tokenAfterOpeningParen The token after it
+         * @returns {boolean} True if the opening paren is missing a required space
          */
-        function shouldOpenerHaveSpace(left, right) {
-            if (sourceCode.isSpaceBetweenTokens(left, right)) {
+        function openerMissingSpace(openingParenToken, tokenAfterOpeningParen) {
+            if (sourceCode.isSpaceBetweenTokens(openingParenToken, tokenAfterOpeningParen)) {
+                return false;
+            }
+
+            if (!options.empty && astUtils.isClosingParenToken(tokenAfterOpeningParen)) {
                 return false;
             }
 
             if (ALWAYS) {
-                if (astUtils.isClosingParenToken(right)) {
-                    return false;
-                }
-                return !isOpenerException(right);
+                return !isOpenerException(tokenAfterOpeningParen);
             }
-            return isOpenerException(right);
-
+            return isOpenerException(tokenAfterOpeningParen);
         }
 
         /**
-         * Determines if an closer paren should have a missing space after it
-         * @param {Object} left The token before the paren
-         * @param {Object} right The paren token
-         * @returns {boolean} True if the paren should have a space
+         * Determines if an opening paren is immediately followed by a disallowed space
+         * @param {Object} openingParenToken The paren token
+         * @param {Object} tokenAfterOpeningParen The token after it
+         * @returns {boolean} True if the opening paren has a disallowed space
          */
-        function shouldCloserHaveSpace(left, right) {
-            if (astUtils.isOpeningParenToken(left)) {
+        function openerRejectsSpace(openingParenToken, tokenAfterOpeningParen) {
+            if (!astUtils.isTokenOnSameLine(openingParenToken, tokenAfterOpeningParen)) {
                 return false;
             }
 
-            if (sourceCode.isSpaceBetweenTokens(left, right)) {
+            if (tokenAfterOpeningParen.type === "Line") {
+                return false;
+            }
+
+            if (!sourceCode.isSpaceBetweenTokens(openingParenToken, tokenAfterOpeningParen)) {
                 return false;
             }
 
             if (ALWAYS) {
-                return !isCloserException(left);
+                return isOpenerException(tokenAfterOpeningParen);
             }
-            return isCloserException(left);
-
+            return !isOpenerException(tokenAfterOpeningParen);
         }
 
         /**
-         * Determines if an opener paren should not have an existing space after it
-         * @param {Object} left The paren token
-         * @param {Object} right The token after it
-         * @returns {boolean} True if the paren should reject the space
+         * Determines if a closing paren is immediately preceeded by a required space
+         * @param {Object} tokenBeforeClosingParen The token before the paren
+         * @param {Object} closingParenToken The paren token
+         * @returns {boolean} True if the closing paren is missing a required space
          */
-        function shouldOpenerRejectSpace(left, right) {
-            if (right.type === "Line") {
+        function closerMissingSpace(tokenBeforeClosingParen, closingParenToken) {
+            if (sourceCode.isSpaceBetweenTokens(tokenBeforeClosingParen, closingParenToken)) {
                 return false;
             }
 
-            if (!astUtils.isTokenOnSameLine(left, right)) {
-                return false;
-            }
-
-            if (!sourceCode.isSpaceBetweenTokens(left, right)) {
+            if (!options.empty && astUtils.isOpeningParenToken(tokenBeforeClosingParen)) {
                 return false;
             }
 
             if (ALWAYS) {
-                return isOpenerException(right);
+                return !isCloserException(tokenBeforeClosingParen);
             }
-            return !isOpenerException(right);
-
+            return isCloserException(tokenBeforeClosingParen);
         }
 
         /**
-         * Determines if an closer paren should not have an existing space after it
-         * @param {Object} left The token before the paren
-         * @param {Object} right The paren token
-         * @returns {boolean} True if the paren should reject the space
+         * Determines if a closer paren is immediately preceeded by a disallowed space
+         * @param {Object} tokenBeforeClosingParen The token before the paren
+         * @param {Object} closingParenToken The paren token
+         * @returns {boolean} True if the closing paren has a disallowed space
          */
-        function shouldCloserRejectSpace(left, right) {
-            if (astUtils.isOpeningParenToken(left)) {
+        function closerRejectsSpace(tokenBeforeClosingParen, closingParenToken) {
+            if (!astUtils.isTokenOnSameLine(tokenBeforeClosingParen, closingParenToken)) {
                 return false;
             }
 
-            if (!astUtils.isTokenOnSameLine(left, right)) {
-                return false;
-            }
-
-            if (!sourceCode.isSpaceBetweenTokens(left, right)) {
+            if (!sourceCode.isSpaceBetweenTokens(tokenBeforeClosingParen, closingParenToken)) {
                 return false;
             }
 
             if (ALWAYS) {
-                return isCloserException(left);
+                return isCloserException(tokenBeforeClosingParen);
             }
-            return !isCloserException(left);
-
+            return !isCloserException(tokenBeforeClosingParen);
         }
 
         //--------------------------------------------------------------------------
@@ -225,44 +223,53 @@ module.exports = {
                     const prevToken = tokens[i - 1];
                     const nextToken = tokens[i + 1];
 
+                    // if token is not an opening or closing paren token, do nothing
                     if (!astUtils.isOpeningParenToken(token) && !astUtils.isClosingParenToken(token)) {
                         return;
                     }
 
-                    if (token.value === "(" && shouldOpenerHaveSpace(token, nextToken)) {
+                    // if token is an opening paren and is not followed by a required space
+                    if (token.value === "(" && openerMissingSpace(token, nextToken)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
-                            message: MISSING_SPACE_MESSAGE,
+                            loc: token.loc,
+                            messageId: "missingOpeningSpace",
                             fix(fixer) {
                                 return fixer.insertTextAfter(token, " ");
                             }
                         });
-                    } else if (token.value === "(" && shouldOpenerRejectSpace(token, nextToken)) {
+                    }
+
+                    // if token is an opening paren and is followed by a disallowed space
+                    if (token.value === "(" && openerRejectsSpace(token, nextToken)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
-                            message: REJECTED_SPACE_MESSAGE,
+                            loc: { start: token.loc.end, end: nextToken.loc.start },
+                            messageId: "rejectedOpeningSpace",
                             fix(fixer) {
                                 return fixer.removeRange([token.range[1], nextToken.range[0]]);
                             }
                         });
-                    } else if (token.value === ")" && shouldCloserHaveSpace(prevToken, token)) {
+                    }
 
-                        // context.report(node, token.loc.start, MISSING_SPACE_MESSAGE);
+                    // if token is a closing paren and is not preceded by a required space
+                    if (token.value === ")" && closerMissingSpace(prevToken, token)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
-                            message: MISSING_SPACE_MESSAGE,
+                            loc: token.loc,
+                            messageId: "missingClosingSpace",
                             fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
                             }
                         });
-                    } else if (token.value === ")" && shouldCloserRejectSpace(prevToken, token)) {
+                    }
+
+                    // if token is a closing paren and is preceded by a disallowed space
+                    if (token.value === ")" && closerRejectsSpace(prevToken, token)) {
                         context.report({
                             node,
-                            loc: token.loc.start,
-                            message: REJECTED_SPACE_MESSAGE,
+                            loc: { start: prevToken.loc.end, end: token.loc.start },
+                            messageId: "rejectedClosingSpace",
                             fix(fixer) {
                                 return fixer.removeRange([prevToken.range[1], token.range[0]]);
                             }
@@ -271,6 +278,5 @@ module.exports = {
                 });
             }
         };
-
     }
 };

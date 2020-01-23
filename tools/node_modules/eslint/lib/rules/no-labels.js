@@ -51,8 +51,7 @@ module.exports = {
 
         /**
          * Gets the kind of a given node.
-         *
-         * @param {ASTNode} node - A node to get.
+         * @param {ASTNode} node A node to get.
          * @returns {string} The kind of the node.
          */
         function getBodyKind(node) {
@@ -67,8 +66,7 @@ module.exports = {
 
         /**
          * Checks whether the label of a given kind is allowed or not.
-         *
-         * @param {string} kind - A kind to check.
+         * @param {string} kind A kind to check.
          * @returns {boolean} `true` if the kind is allowed.
          */
         function isAllowed(kind) {
@@ -81,8 +79,7 @@ module.exports = {
 
         /**
          * Checks whether a given name is a label of a loop or not.
-         *
-         * @param {string} label - A name of a label to check.
+         * @param {string} label A name of a label to check.
          * @returns {boolean} `true` if the name is a label of a loop.
          */
         function getKind(label) {

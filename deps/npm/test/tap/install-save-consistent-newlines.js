@@ -5,7 +5,6 @@ const path = require('path')
 
 const mkdirp = require('mkdirp')
 const mr = require('npm-registry-mock')
-const osenv = require('osenv')
 const rimraf = require('rimraf')
 const test = require('tap').test
 
@@ -21,102 +20,79 @@ const json = {
   description: 'fixture'
 }
 
-var server
-
-test('setup', function (t) {
-  setup('\n')
+test('mock registry', function (t) {
   mr({ port: common.port }, function (er, s) {
-    server = s
+    t.parent.teardown(() => s.close())
     t.end()
   })
 })
 
-test('\'npm install --save\' should keep the original package.json line endings (LF)', function (t) {
-  common.npm(
-    [
-      '--loglevel', 'silent',
-      '--registry', common.registry,
-      '--save',
-      'install', 'underscore@1.3.1'
-    ],
-    EXEC_OPTS,
-    function (err, code) {
-      t.ifError(err, 'npm ran without issue')
-      t.notOk(code, 'npm install exited without raising an error code')
+const runTest = (t, opts) => {
+  t.test('setup', setup(opts.ending))
+  t.test('check', check(opts))
+  t.end()
+}
 
-      const pkgPath = path.resolve(pkg, 'package.json')
-      const pkgStr = fs.readFileSync(pkgPath, 'utf8')
-
-      t.match(pkgStr, '\n')
-      t.notMatch(pkgStr, '\r')
-
-      const pkgLockPath = path.resolve(pkg, 'package-lock.json')
-      const pkgLockStr = fs.readFileSync(pkgLockPath, 'utf8')
-
-      t.match(pkgLockStr, '\n')
-      t.notMatch(pkgLockStr, '\r')
-
-      t.end()
+const setup = lineEnding => t => {
+  rimraf(pkg, er => {
+    if (er) {
+      throw er
     }
-  )
-})
+    mkdirp.sync(path.resolve(pkg, 'node_modules'))
 
-test('\'npm install --save\' should keep the original package.json line endings (CRLF)', function (t) {
-  setup('\r\n')
+    var jsonStr = JSON.stringify(json, null, 2)
 
-  common.npm(
-    [
-      '--loglevel', 'silent',
-      '--registry', common.registry,
-      '--save',
-      'install', 'underscore@1.3.1'
-    ],
-    EXEC_OPTS,
-    function (err, code) {
-      t.ifError(err, 'npm ran without issue')
-      t.notOk(code, 'npm install exited without raising an error code')
-
-      const pkgPath = path.resolve(pkg, 'package.json')
-      const pkgStr = fs.readFileSync(pkgPath, 'utf8')
-
-      t.match(pkgStr, '\r\n')
-      t.notMatch(pkgStr, /[^\r]\n/)
-
-      const pkgLockPath = path.resolve(pkg, 'package-lock.json')
-      const pkgLockStr = fs.readFileSync(pkgLockPath, 'utf8')
-
-      t.match(pkgLockStr, '\r\n')
-      t.notMatch(pkgLockStr, /[^\r]\n/)
-
-      t.end()
+    if (lineEnding === '\r\n') {
+      jsonStr = jsonStr.replace(/\n/g, '\r\n')
     }
-  )
-})
 
-test('cleanup', function (t) {
-  server.close()
-  cleanup()
+    fs.writeFileSync(
+      path.join(pkg, 'package.json'),
+      jsonStr
+    )
+
+    t.end()
+  })
+}
+
+const check = opts => t => common.npm(
+  [
+    '--loglevel', 'silent',
+    '--registry', common.registry,
+    '--save',
+    'install', 'underscore@1.3.1'
+  ],
+  EXEC_OPTS
+).then(([code, err, out]) => {
+  t.notOk(code, 'npm install exited without raising an error code')
+
+  const pkgPath = path.resolve(pkg, 'package.json')
+  const pkgStr = fs.readFileSync(pkgPath, 'utf8')
+
+  t.match(pkgStr, opts.match)
+  t.notMatch(pkgStr, opts.notMatch)
+
+  const pkgLockPath = path.resolve(pkg, 'package-lock.json')
+  const pkgLockStr = fs.readFileSync(pkgLockPath, 'utf8')
+
+  t.match(pkgLockStr, opts.match)
+  t.notMatch(pkgLockStr, opts.notMatch)
+
   t.end()
 })
 
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
+test('keep LF line endings', t => {
+  runTest(t, {
+    ending: '\n',
+    match: '\n',
+    notMatch: '\r'
+  })
+})
 
-function setup (lineEnding) {
-  cleanup()
-  mkdirp.sync(path.resolve(pkg, 'node_modules'))
-
-  var jsonStr = JSON.stringify(json, null, 2)
-
-  if (lineEnding === '\r\n') {
-    jsonStr = jsonStr.replace(/\n/g, '\r\n')
-  }
-
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    jsonStr
-  )
-  process.chdir(pkg)
-}
+test('keep CRLF line endings', t => {
+  runTest(t, {
+    ending: '\r\n',
+    match: '\r\n',
+    notMatch: /[^\r]\n/
+  })
+})

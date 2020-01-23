@@ -35,8 +35,7 @@ module.exports = {
 
         /**
          * Checks a given node is -0
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {boolean} `true` if the node is -0.
          */
         function isNegZero(node) {

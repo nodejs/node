@@ -1036,7 +1036,9 @@
     #
     'conditions': [
       ['(OS=="win" and MSVS_VERSION>="2012") or '
-       'llvm_version>="3.3" or xcode_version>="5.0" or gas_version>="2.23"', {
+       'llvm_version and v(llvm_version) >= v("3.3") or '
+        'gas_version and v(gas_version) >= v("2.23") or '
+        'xcode_version and v(xcode_version) >= v("5.0")', {
         'openssl_sources_x64_win_masm': [
           '<@(openssl_sources_asm_latest_x64_win_masm)',
           '<@(openssl_sources_common_x64_win_masm)',

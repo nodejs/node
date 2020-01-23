@@ -92,7 +92,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
 void RegisterAllocatorVerifier::VerifyInput(
     const OperandConstraint& constraint) {
   CHECK_NE(kSameAsFirst, constraint.type_);
-  if (constraint.type_ != kImmediate && constraint.type_ != kExplicit) {
+  if (constraint.type_ != kImmediate) {
     CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
              constraint.virtual_register_);
   }
@@ -102,14 +102,12 @@ void RegisterAllocatorVerifier::VerifyTemp(
     const OperandConstraint& constraint) {
   CHECK_NE(kSameAsFirst, constraint.type_);
   CHECK_NE(kImmediate, constraint.type_);
-  CHECK_NE(kExplicit, constraint.type_);
   CHECK_NE(kConstant, constraint.type_);
 }
 
 void RegisterAllocatorVerifier::VerifyOutput(
     const OperandConstraint& constraint) {
   CHECK_NE(kImmediate, constraint.type_);
-  CHECK_NE(kExplicit, constraint.type_);
   CHECK_NE(InstructionOperand::kInvalidVirtualRegister,
            constraint.virtual_register_);
 }
@@ -149,8 +147,6 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
     constraint->type_ = kConstant;
     constraint->value_ = ConstantOperand::cast(op)->virtual_register();
     constraint->virtual_register_ = constraint->value_;
-  } else if (op->IsExplicit()) {
-    constraint->type_ = kExplicit;
   } else if (op->IsImmediate()) {
     const ImmediateOperand* imm = ImmediateOperand::cast(op);
     int value = imm->type() == ImmediateOperand::INLINE ? imm->inline_value()
@@ -234,9 +230,6 @@ void RegisterAllocatorVerifier::CheckConstraint(
       return;
     case kFPRegister:
       CHECK_WITH_MSG(op->IsFPRegister(), caller_info_);
-      return;
-    case kExplicit:
-      CHECK_WITH_MSG(op->IsExplicit(), caller_info_);
       return;
     case kFixedRegister:
     case kRegisterAndSlot:
@@ -503,8 +496,7 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
           instr_constraint.operand_constraints_;
       size_t count = 0;
       for (size_t i = 0; i < instr->InputCount(); ++i, ++count) {
-        if (op_constraints[count].type_ == kImmediate ||
-            op_constraints[count].type_ == kExplicit) {
+        if (op_constraints[count].type_ == kImmediate) {
           continue;
         }
         int virtual_register = op_constraints[count].virtual_register_;

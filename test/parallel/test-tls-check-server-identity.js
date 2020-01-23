@@ -143,6 +143,20 @@ const tests = [
     error: 'Cert is empty'
   },
 
+  // Empty Subject w/DNS name
+  {
+    host: 'a.com', cert: {
+      subjectaltname: 'DNS:a.com',
+    }
+  },
+
+  // Empty Subject w/URI name
+  {
+    host: 'a.b.a.com', cert: {
+      subjectaltname: 'URI:http://a.b.a.com/',
+    }
+  },
+
   // Multiple CN fields
   {
     host: 'foo.com', cert: {

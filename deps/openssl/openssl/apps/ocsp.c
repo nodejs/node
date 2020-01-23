@@ -1416,9 +1416,11 @@ static int do_responder(OCSP_REQUEST **preq, BIO **pcbio, BIO *acbio,
         *q = '\0';
 
         /*
-         * Skip "GET / HTTP..." requests often used by load-balancers
+         * Skip "GET / HTTP..." requests often used by load-balancers.  Note:
+         * 'p' was incremented above to point to the first byte *after* the
+         * leading slash, so with 'GET / ' it is now an empty string.
          */
-        if (p[1] == '\0')
+        if (p[0] == '\0')
             goto out;
 
         len = urldecode(p);

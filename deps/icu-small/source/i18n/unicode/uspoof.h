@@ -353,6 +353,8 @@
  * @stable ICU 4.6
  */
 
+U_CDECL_BEGIN
+
 struct USpoofChecker;
 /**
  * @stable ICU 4.2
@@ -471,7 +473,6 @@ typedef enum USpoofChecks {
      */
     USPOOF_MIXED_NUMBERS            = 128,
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Check that an identifier does not have a combining character following a character in which that
      * combining character would be hidden; for example 'i' followed by a U+0307 combining dot.
@@ -489,10 +490,9 @@ typedef enum USpoofChecks {
      *
      * This list and the number of combing characters considered by this check may grow over time.
      *
-     * @draft ICU 62
+     * @stable ICU 62
      */
     USPOOF_HIDDEN_OVERLAY            = 256,
-#endif  /* U_HIDE_DRAFT_API */
 
    /**
      * Enable all spoof checks.
@@ -673,25 +673,6 @@ uspoof_openFromSource(const char *confusables,  int32_t confusablesLen,
   */
 U_STABLE void U_EXPORT2
 uspoof_close(USpoofChecker *sc);
-
-#if U_SHOW_CPLUSPLUS_API
-
-U_NAMESPACE_BEGIN
-
-/**
- * \class LocalUSpoofCheckerPointer
- * "Smart pointer" class, closes a USpoofChecker via uspoof_close().
- * For most methods see the LocalPointerBase base class.
- *
- * @see LocalPointerBase
- * @see LocalPointer
- * @stable ICU 4.4
- */
-U_DEFINE_LOCAL_OPEN_POINTER(LocalUSpoofCheckerPointer, USpoofChecker, uspoof_close);
-
-U_NAMESPACE_END
-
-#endif
 
 /**
  * Clone a Spoof Checker.  The clone will be set to perform the same checks
@@ -901,54 +882,6 @@ U_STABLE const USet * U_EXPORT2
 uspoof_getAllowedChars(const USpoofChecker *sc, UErrorCode *status);
 
 
-#if U_SHOW_CPLUSPLUS_API
-/**
- * Limit the acceptable characters to those specified by a Unicode Set.
- *   Any previously specified character limit is
- *   is replaced by the new settings.    This includes limits on
- *   characters that were set with the uspoof_setAllowedLocales() function.
- *
- * The USPOOF_CHAR_LIMIT test is automatically enabled for this
- * USoofChecker by this function.
- *
- * @param sc       The USpoofChecker
- * @param chars    A Unicode Set containing the list of
- *                 characters that are permitted.  Ownership of the set
- *                 remains with the caller.  The incoming set is cloned by
- *                 this function, so there are no restrictions on modifying
- *                 or deleting the UnicodeSet after calling this function.
- * @param status   The error code, set if this function encounters a problem.
- * @stable ICU 4.2
- */
-U_STABLE void U_EXPORT2
-uspoof_setAllowedUnicodeSet(USpoofChecker *sc, const icu::UnicodeSet *chars, UErrorCode *status);
-
-
-/**
- * Get a UnicodeSet for the characters permitted in an identifier.
- * This corresponds to the limits imposed by the Set Allowed Characters /
- * UnicodeSet functions. Limitations imposed by other checks will not be
- * reflected in the set returned by this function.
- *
- * The returned set will be frozen, meaning that it cannot be modified
- * by the caller.
- *
- * Ownership of the returned set remains with the Spoof Detector.  The
- * returned set will become invalid if the spoof detector is closed,
- * or if a new set of allowed characters is specified.
- *
- *
- * @param sc       The USpoofChecker
- * @param status   The error code, set if this function encounters a problem.
- * @return         A UnicodeSet containing the characters that are permitted by
- *                 the USPOOF_CHAR_LIMIT test.
- * @stable ICU 4.2
- */
-U_STABLE const icu::UnicodeSet * U_EXPORT2
-uspoof_getAllowedUnicodeSet(const USpoofChecker *sc, UErrorCode *status);
-#endif
-
-
 /**
  * Check the specified string for possible security issues.
  * The text to be checked will typically be an identifier of some sort.
@@ -1027,43 +960,6 @@ uspoof_checkUTF8(const USpoofChecker *sc,
                  UErrorCode *status);
 
 
-#if U_SHOW_CPLUSPLUS_API
-/**
- * Check the specified string for possible security issues.
- * The text to be checked will typically be an identifier of some sort.
- * The set of checks to be performed is specified with uspoof_setChecks().
- *
- * \note
- *   Consider using the newer API, {@link uspoof_check2UnicodeString}, instead.
- *   The newer API exposes additional information from the check procedure
- *   and is otherwise identical to this method.
- *
- * @param sc      The USpoofChecker
- * @param id      A identifier to be checked for possible security issues.
- * @param position  Deprecated in ICU 51.  Always returns zero.
- *                Originally, an out parameter for the index of the first
- *                string position that failed a check.
- *                This parameter may be NULL.
- * @param status  The error code, set if an error occurred while attempting to
- *                perform the check.
- *                Spoofing or security issues detected with the input string are
- *                not reported here, but through the function's return value.
- * @return        An integer value with bits set for any potential security
- *                or spoofing issues detected.  The bits are defined by
- *                enum USpoofChecks.  (returned_value & USPOOF_ALL_CHECKS)
- *                will be zero if the input string passes all of the
- *                enabled checks.
- * @see uspoof_check2UnicodeString
- * @stable ICU 4.2
- */
-U_STABLE int32_t U_EXPORT2
-uspoof_checkUnicodeString(const USpoofChecker *sc,
-                          const icu::UnicodeString &id,
-                          int32_t *position,
-                          UErrorCode *status);
-#endif
-
-
 /**
  * Check the specified string for possible security issues.
  * The text to be checked will typically be an identifier of some sort.
@@ -1135,39 +1031,6 @@ uspoof_check2UTF8(const USpoofChecker *sc,
     USpoofCheckResult* checkResult,
     UErrorCode *status);
 
-#if U_SHOW_CPLUSPLUS_API
-/**
- * Check the specified string for possible security issues.
- * The text to be checked will typically be an identifier of some sort.
- * The set of checks to be performed is specified with uspoof_setChecks().
- *
- * @param sc      The USpoofChecker
- * @param id      A identifier to be checked for possible security issues.
- * @param checkResult  An instance of USpoofCheckResult to be filled with
- *                details about the identifier.  Can be NULL.
- * @param status  The error code, set if an error occurred while attempting to
- *                perform the check.
- *                Spoofing or security issues detected with the input string are
- *                not reported here, but through the function's return value.
- * @return        An integer value with bits set for any potential security
- *                or spoofing issues detected.  The bits are defined by
- *                enum USpoofChecks.  (returned_value & USPOOF_ALL_CHECKS)
- *                will be zero if the input string passes all of the
- *                enabled checks.  Any information in this bitmask will be
- *                consistent with the information saved in the optional
- *                checkResult parameter.
- * @see uspoof_openCheckResult
- * @see uspoof_check2
- * @see uspoof_check2UTF8
- * @stable ICU 58
- */
-U_STABLE int32_t U_EXPORT2
-uspoof_check2UnicodeString(const USpoofChecker *sc,
-    const icu::UnicodeString &id,
-    USpoofCheckResult* checkResult,
-    UErrorCode *status);
-#endif
-
 /**
  * Create a USpoofCheckResult, used by the {@link uspoof_check2} class of functions to return
  * information about the identifier.  Information includes:
@@ -1198,32 +1061,6 @@ uspoof_openCheckResult(UErrorCode *status);
  */
 U_STABLE void U_EXPORT2
 uspoof_closeCheckResult(USpoofCheckResult *checkResult);
-
-#if U_SHOW_CPLUSPLUS_API
-
-U_NAMESPACE_BEGIN
-
-/**
- * \class LocalUSpoofCheckResultPointer
- * "Smart pointer" class, closes a USpoofCheckResult via `uspoof_closeCheckResult()`.
- * For most methods see the LocalPointerBase base class.
- *
- * @see LocalPointerBase
- * @see LocalPointer
- * @stable ICU 58
- */
-
-/**
- * \cond
- * Note: Doxygen is giving a bogus warning on this U_DEFINE_LOCAL_OPEN_POINTER.
- *       For now, suppress with a Doxygen cond
- */
-U_DEFINE_LOCAL_OPEN_POINTER(LocalUSpoofCheckResultPointer, USpoofCheckResult, uspoof_closeCheckResult);
-/** \endcond */
-
-U_NAMESPACE_END
-
-#endif
 
 /**
  * Indicates which of the spoof check(s) have failed. The value is a bitwise OR of the constants for the tests
@@ -1355,36 +1192,6 @@ uspoof_areConfusableUTF8(const USpoofChecker *sc,
 
 
 
-#if U_SHOW_CPLUSPLUS_API
-/**
- * A version of {@link uspoof_areConfusable} accepting UnicodeStrings.
- *
- * @param sc      The USpoofChecker
- * @param s1     The first of the two identifiers to be compared for
- *                confusability.  The strings are in UTF-8 format.
- * @param s2     The second of the two identifiers to be compared for
- *                confusability.  The strings are in UTF-8 format.
- * @param status  The error code, set if an error occurred while attempting to
- *                perform the check.
- *                Confusability of the identifiers is not reported here,
- *                but through this function's return value.
- * @return        An integer value with bit(s) set corresponding to
- *                the type of confusability found, as defined by
- *                enum USpoofChecks.  Zero is returned if the identifiers
- *                are not confusable.
- *
- * @stable ICU 4.2
- *
- * @see uspoof_areConfusable
- */
-U_STABLE int32_t U_EXPORT2
-uspoof_areConfusableUnicodeString(const USpoofChecker *sc,
-                                  const icu::UnicodeString &s1,
-                                  const icu::UnicodeString &s2,
-                                  UErrorCode *status);
-#endif
-
-
 /**
  *  Get the "skeleton" for an identifier.
  *  Skeletons are a transformation of the input identifier;
@@ -1463,38 +1270,6 @@ uspoof_getSkeletonUTF8(const USpoofChecker *sc,
                        char *dest, int32_t destCapacity,
                        UErrorCode *status);
 
-#if U_SHOW_CPLUSPLUS_API
-/**
- *  Get the "skeleton" for an identifier.
- *  Skeletons are a transformation of the input identifier;
- *  Two identifiers are confusable if their skeletons are identical.
- *  See Unicode UAX #39 for additional information.
- *
- *  Using skeletons directly makes it possible to quickly check
- *  whether an identifier is confusable with any of some large
- *  set of existing identifiers, by creating an efficiently
- *  searchable collection of the skeletons.
- *
- * @param sc      The USpoofChecker.
- * @param type    Deprecated in ICU 58.  You may pass any number.
- *                Originally, controlled which of the Unicode confusable data
- *                tables to use.
- * @param id      The input identifier whose skeleton will be computed.
- * @param dest    The output identifier, to receive the skeleton string.
- * @param status  The error code, set if an error occurred while attempting to
- *                perform the check.
- * @return        A reference to the destination (skeleton) string.
- *
- * @stable ICU 4.2
- */
-U_I18N_API icu::UnicodeString & U_EXPORT2
-uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
-                                uint32_t type,
-                                const icu::UnicodeString &id,
-                                icu::UnicodeString &dest,
-                                UErrorCode *status);
-#endif   /* U_SHOW_CPLUSPLUS_API */
-
 /**
   * Get the set of Candidate Characters for Inclusion in Identifiers, as defined
   * in http://unicode.org/Public/security/latest/xidmodifications.txt
@@ -1525,7 +1300,242 @@ uspoof_getInclusionSet(UErrorCode *status);
 U_STABLE const USet * U_EXPORT2
 uspoof_getRecommendedSet(UErrorCode *status);
 
+/**
+ * Serialize the data for a spoof detector into a chunk of memory.
+ * The flattened spoof detection tables can later be used to efficiently
+ * instantiate a new Spoof Detector.
+ *
+ * The serialized spoof checker includes only the data compiled from the
+ * Unicode data tables by uspoof_openFromSource(); it does not include
+ * include any other state or configuration that may have been set.
+ *
+ * @param sc   the Spoof Detector whose data is to be serialized.
+ * @param data a pointer to 32-bit-aligned memory to be filled with the data,
+ *             can be NULL if capacity==0
+ * @param capacity the number of bytes available at data,
+ *                 or 0 for preflighting
+ * @param status an in/out ICU UErrorCode; possible errors include:
+ * - U_BUFFER_OVERFLOW_ERROR if the data storage block is too small for serialization
+ * - U_ILLEGAL_ARGUMENT_ERROR  the data or capacity parameters are bad
+ * @return the number of bytes written or needed for the spoof data
+ *
+ * @see utrie2_openFromSerialized()
+ * @stable ICU 4.2
+ */
+U_STABLE int32_t U_EXPORT2
+uspoof_serialize(USpoofChecker *sc,
+                 void *data, int32_t capacity,
+                 UErrorCode *status);
+
+U_CDECL_END
+
 #if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+/**
+ * \class LocalUSpoofCheckerPointer
+ * "Smart pointer" class, closes a USpoofChecker via uspoof_close().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @stable ICU 4.4
+ */
+/**
+ * \cond
+ * Note: Doxygen is giving a bogus warning on this U_DEFINE_LOCAL_OPEN_POINTER.
+ *       For now, suppress with a Doxygen cond
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUSpoofCheckerPointer, USpoofChecker, uspoof_close);
+/** \endcond */
+
+/**
+ * \class LocalUSpoofCheckResultPointer
+ * "Smart pointer" class, closes a USpoofCheckResult via `uspoof_closeCheckResult()`.
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @stable ICU 58
+ */
+
+/**
+ * \cond
+ * Note: Doxygen is giving a bogus warning on this U_DEFINE_LOCAL_OPEN_POINTER.
+ *       For now, suppress with a Doxygen cond
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUSpoofCheckResultPointer, USpoofCheckResult, uspoof_closeCheckResult);
+/** \endcond */
+
+U_NAMESPACE_END
+
+/**
+ * Limit the acceptable characters to those specified by a Unicode Set.
+ *   Any previously specified character limit is
+ *   is replaced by the new settings.    This includes limits on
+ *   characters that were set with the uspoof_setAllowedLocales() function.
+ *
+ * The USPOOF_CHAR_LIMIT test is automatically enabled for this
+ * USoofChecker by this function.
+ *
+ * @param sc       The USpoofChecker
+ * @param chars    A Unicode Set containing the list of
+ *                 characters that are permitted.  Ownership of the set
+ *                 remains with the caller.  The incoming set is cloned by
+ *                 this function, so there are no restrictions on modifying
+ *                 or deleting the UnicodeSet after calling this function.
+ * @param status   The error code, set if this function encounters a problem.
+ * @stable ICU 4.2
+ */
+U_STABLE void U_EXPORT2
+uspoof_setAllowedUnicodeSet(USpoofChecker *sc, const icu::UnicodeSet *chars, UErrorCode *status);
+
+
+/**
+ * Get a UnicodeSet for the characters permitted in an identifier.
+ * This corresponds to the limits imposed by the Set Allowed Characters /
+ * UnicodeSet functions. Limitations imposed by other checks will not be
+ * reflected in the set returned by this function.
+ *
+ * The returned set will be frozen, meaning that it cannot be modified
+ * by the caller.
+ *
+ * Ownership of the returned set remains with the Spoof Detector.  The
+ * returned set will become invalid if the spoof detector is closed,
+ * or if a new set of allowed characters is specified.
+ *
+ *
+ * @param sc       The USpoofChecker
+ * @param status   The error code, set if this function encounters a problem.
+ * @return         A UnicodeSet containing the characters that are permitted by
+ *                 the USPOOF_CHAR_LIMIT test.
+ * @stable ICU 4.2
+ */
+U_STABLE const icu::UnicodeSet * U_EXPORT2
+uspoof_getAllowedUnicodeSet(const USpoofChecker *sc, UErrorCode *status);
+
+/**
+ * Check the specified string for possible security issues.
+ * The text to be checked will typically be an identifier of some sort.
+ * The set of checks to be performed is specified with uspoof_setChecks().
+ *
+ * \note
+ *   Consider using the newer API, {@link uspoof_check2UnicodeString}, instead.
+ *   The newer API exposes additional information from the check procedure
+ *   and is otherwise identical to this method.
+ *
+ * @param sc      The USpoofChecker
+ * @param id      A identifier to be checked for possible security issues.
+ * @param position  Deprecated in ICU 51.  Always returns zero.
+ *                Originally, an out parameter for the index of the first
+ *                string position that failed a check.
+ *                This parameter may be NULL.
+ * @param status  The error code, set if an error occurred while attempting to
+ *                perform the check.
+ *                Spoofing or security issues detected with the input string are
+ *                not reported here, but through the function's return value.
+ * @return        An integer value with bits set for any potential security
+ *                or spoofing issues detected.  The bits are defined by
+ *                enum USpoofChecks.  (returned_value & USPOOF_ALL_CHECKS)
+ *                will be zero if the input string passes all of the
+ *                enabled checks.
+ * @see uspoof_check2UnicodeString
+ * @stable ICU 4.2
+ */
+U_STABLE int32_t U_EXPORT2
+uspoof_checkUnicodeString(const USpoofChecker *sc,
+                          const icu::UnicodeString &id,
+                          int32_t *position,
+                          UErrorCode *status);
+
+/**
+ * Check the specified string for possible security issues.
+ * The text to be checked will typically be an identifier of some sort.
+ * The set of checks to be performed is specified with uspoof_setChecks().
+ *
+ * @param sc      The USpoofChecker
+ * @param id      A identifier to be checked for possible security issues.
+ * @param checkResult  An instance of USpoofCheckResult to be filled with
+ *                details about the identifier.  Can be NULL.
+ * @param status  The error code, set if an error occurred while attempting to
+ *                perform the check.
+ *                Spoofing or security issues detected with the input string are
+ *                not reported here, but through the function's return value.
+ * @return        An integer value with bits set for any potential security
+ *                or spoofing issues detected.  The bits are defined by
+ *                enum USpoofChecks.  (returned_value & USPOOF_ALL_CHECKS)
+ *                will be zero if the input string passes all of the
+ *                enabled checks.  Any information in this bitmask will be
+ *                consistent with the information saved in the optional
+ *                checkResult parameter.
+ * @see uspoof_openCheckResult
+ * @see uspoof_check2
+ * @see uspoof_check2UTF8
+ * @stable ICU 58
+ */
+U_STABLE int32_t U_EXPORT2
+uspoof_check2UnicodeString(const USpoofChecker *sc,
+    const icu::UnicodeString &id,
+    USpoofCheckResult* checkResult,
+    UErrorCode *status);
+
+/**
+ * A version of {@link uspoof_areConfusable} accepting UnicodeStrings.
+ *
+ * @param sc      The USpoofChecker
+ * @param s1     The first of the two identifiers to be compared for
+ *                confusability.  The strings are in UTF-8 format.
+ * @param s2     The second of the two identifiers to be compared for
+ *                confusability.  The strings are in UTF-8 format.
+ * @param status  The error code, set if an error occurred while attempting to
+ *                perform the check.
+ *                Confusability of the identifiers is not reported here,
+ *                but through this function's return value.
+ * @return        An integer value with bit(s) set corresponding to
+ *                the type of confusability found, as defined by
+ *                enum USpoofChecks.  Zero is returned if the identifiers
+ *                are not confusable.
+ *
+ * @stable ICU 4.2
+ *
+ * @see uspoof_areConfusable
+ */
+U_STABLE int32_t U_EXPORT2
+uspoof_areConfusableUnicodeString(const USpoofChecker *sc,
+                                  const icu::UnicodeString &s1,
+                                  const icu::UnicodeString &s2,
+                                  UErrorCode *status);
+
+/**
+ *  Get the "skeleton" for an identifier.
+ *  Skeletons are a transformation of the input identifier;
+ *  Two identifiers are confusable if their skeletons are identical.
+ *  See Unicode UAX #39 for additional information.
+ *
+ *  Using skeletons directly makes it possible to quickly check
+ *  whether an identifier is confusable with any of some large
+ *  set of existing identifiers, by creating an efficiently
+ *  searchable collection of the skeletons.
+ *
+ * @param sc      The USpoofChecker.
+ * @param type    Deprecated in ICU 58.  You may pass any number.
+ *                Originally, controlled which of the Unicode confusable data
+ *                tables to use.
+ * @param id      The input identifier whose skeleton will be computed.
+ * @param dest    The output identifier, to receive the skeleton string.
+ * @param status  The error code, set if an error occurred while attempting to
+ *                perform the check.
+ * @return        A reference to the destination (skeleton) string.
+ *
+ * @stable ICU 4.2
+ */
+U_I18N_API icu::UnicodeString & U_EXPORT2
+uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
+                                uint32_t type,
+                                const icu::UnicodeString &id,
+                                icu::UnicodeString &dest,
+                                UErrorCode *status);
 
 /**
   * Get the set of Candidate Characters for Inclusion in Identifiers, as defined
@@ -1559,34 +1569,6 @@ uspoof_getRecommendedUnicodeSet(UErrorCode *status);
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 
-/**
- * Serialize the data for a spoof detector into a chunk of memory.
- * The flattened spoof detection tables can later be used to efficiently
- * instantiate a new Spoof Detector.
- *
- * The serialized spoof checker includes only the data compiled from the
- * Unicode data tables by uspoof_openFromSource(); it does not include
- * include any other state or configuration that may have been set.
- *
- * @param sc   the Spoof Detector whose data is to be serialized.
- * @param data a pointer to 32-bit-aligned memory to be filled with the data,
- *             can be NULL if capacity==0
- * @param capacity the number of bytes available at data,
- *                 or 0 for preflighting
- * @param status an in/out ICU UErrorCode; possible errors include:
- * - U_BUFFER_OVERFLOW_ERROR if the data storage block is too small for serialization
- * - U_ILLEGAL_ARGUMENT_ERROR  the data or capacity parameters are bad
- * @return the number of bytes written or needed for the spoof data
- *
- * @see utrie2_openFromSerialized()
- * @stable ICU 4.2
- */
-U_STABLE int32_t U_EXPORT2
-uspoof_serialize(USpoofChecker *sc,
-                 void *data, int32_t capacity,
-                 UErrorCode *status);
-
-
-#endif
+#endif /* UCONFIG_NO_NORMALIZATION */
 
 #endif   /* USPOOF_H */

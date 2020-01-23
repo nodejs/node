@@ -5,6 +5,7 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import datetime
 import json
 import os
 import platform
@@ -57,8 +58,15 @@ class ResultsTracker(base.TestProcObserver):
 
 
 class ProgressIndicator(base.TestProcObserver):
+  def __init__(self):
+    super(base.TestProcObserver, self).__init__()
+    self.options = None
+
   def finished(self):
     pass
+
+  def configure(self, options):
+    self.options = options
 
 
 class SimpleProgressIndicator(ProgressIndicator):
@@ -114,8 +122,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     sys.stdout.flush()
     self._last_printed_time = time.time()
 
-  def _on_result_for(self, test, result):
-    super(VerboseProgressIndicator, self)._on_result_for(test, result)
+  def _message(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
       if result.output.HasCrashed():
@@ -124,9 +131,12 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
+    return 'Done running %s %s: %s' % (
+      test, test.variant or 'default', outcome)
 
-    self._print('Done running %s %s: %s' % (
-      test, test.variant or 'default', outcome))
+  def _on_result_for(self, test, result):
+    super(VerboseProgressIndicator, self)._on_result_for(test, result)
+    self._print(self._message(test, result))
 
   # TODO(machenbach): Remove this platform specific hack and implement a proper
   # feedback channel from the workers, providing which tests are currently run.
@@ -143,12 +153,37 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
       except:
         pass
 
+  def _ensure_delay(self, delay):
+    return time.time() - self._last_printed_time > delay
+
   def _on_heartbeat(self):
-    if time.time() - self._last_printed_time > 30:
+    if self._ensure_delay(30):
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
       self._print_processes_linux()
+
+  def _on_event(self, event):
+    self._print(event)
+    self._print_processes_linux()
+
+
+class CIProgressIndicator(VerboseProgressIndicator):
+  def _on_result_for(self, test, result):
+    super(VerboseProgressIndicator, self)._on_result_for(test, result)
+    if self.options.ci_test_completion:
+      with open(self.options.ci_test_completion, "a") as f:
+        f.write(self._message(test, result) + "\n")
+    self._output_feedback()
+
+  def _output_feedback(self):
+    """Reduced the verbosity leads to getting killed by an ouput timeout.
+    We ensure output every minute.
+    """
+    if self._ensure_delay(60):
+      dt = time.time()
+      st = datetime.datetime.fromtimestamp(dt).strftime('%Y-%m-%d %H:%M:%S')
+      self._print(st)
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -379,7 +414,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     complete_results = []
     if os.path.exists(self.json_test_results):
       with open(self.json_test_results, "r") as f:
-        # Buildbot might start out with an empty file.
+        # On bots we might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
     duration_mean = None

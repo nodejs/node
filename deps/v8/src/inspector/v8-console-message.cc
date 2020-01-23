@@ -258,7 +258,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   v8::Local<v8::Context> context = inspectedContext->context();
 
   auto args =
-      v8::base::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
+      std::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
 
   v8::Local<v8::Value> value = m_arguments[0]->Get(isolate);
   if (value->IsObject() && m_type == ConsoleAPIType::kTable &&
@@ -341,8 +341,8 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
         arguments = wrapArguments(session, generatePreview);
     if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;
     if (!arguments) {
-      arguments = v8::base::make_unique<
-          protocol::Array<protocol::Runtime::RemoteObject>>();
+      arguments =
+          std::make_unique<protocol::Array<protocol::Runtime::RemoteObject>>();
       if (!m_message.isEmpty()) {
         std::unique_ptr<protocol::Runtime::RemoteObject> messageArg =
             protocol::Runtime::RemoteObject::create()

@@ -78,6 +78,68 @@ function sortedMerge(tokens, comments) {
     return result;
 }
 
+/**
+ * Determines if two nodes or tokens overlap.
+ * @param {ASTNode|Token} first The first node or token to check.
+ * @param {ASTNode|Token} second The second node or token to check.
+ * @returns {boolean} True if the two nodes or tokens overlap.
+ * @private
+ */
+function nodesOrTokensOverlap(first, second) {
+    return (first.range[0] <= second.range[0] && first.range[1] >= second.range[0]) ||
+        (second.range[0] <= first.range[0] && second.range[1] >= first.range[0]);
+}
+
+/**
+ * Determines if two nodes or tokens have at least one whitespace character
+ * between them. Order does not matter. Returns false if the given nodes or
+ * tokens overlap.
+ * @param {SourceCode} sourceCode The source code object.
+ * @param {ASTNode|Token} first The first node or token to check between.
+ * @param {ASTNode|Token} second The second node or token to check between.
+ * @param {boolean} checkInsideOfJSXText If `true` is present, check inside of JSXText tokens for backward compatibility.
+ * @returns {boolean} True if there is a whitespace character between
+ * any of the tokens found between the two given nodes or tokens.
+ * @public
+ */
+function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
+    if (nodesOrTokensOverlap(first, second)) {
+        return false;
+    }
+
+    const [startingNodeOrToken, endingNodeOrToken] = first.range[1] <= second.range[0]
+        ? [first, second]
+        : [second, first];
+    const firstToken = sourceCode.getLastToken(startingNodeOrToken) || startingNodeOrToken;
+    const finalToken = sourceCode.getFirstToken(endingNodeOrToken) || endingNodeOrToken;
+    let currentToken = firstToken;
+
+    while (currentToken !== finalToken) {
+        const nextToken = sourceCode.getTokenAfter(currentToken, { includeComments: true });
+
+        if (
+            currentToken.range[1] !== nextToken.range[0] ||
+
+                /*
+                 * For backward compatibility, check speces in JSXText.
+                 * https://github.com/eslint/eslint/issues/12614
+                 */
+                (
+                    checkInsideOfJSXText &&
+                    nextToken !== finalToken &&
+                    nextToken.type === "JSXText" &&
+                    /\s/u.test(nextToken.value)
+                )
+        ) {
+            return true;
+        }
+
+        currentToken = nextToken;
+    }
+
+    return false;
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -86,14 +148,13 @@ class SourceCode extends TokenStore {
 
     /**
      * Represents parsed source code.
-     * @param {string|Object} textOrConfig - The source code text or config object.
-     * @param {string} textOrConfig.text - The source code text.
-     * @param {ASTNode} textOrConfig.ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
-     * @param {Object|null} textOrConfig.parserServices - The parser services.
-     * @param {ScopeManager|null} textOrConfig.scopeManager - The scope of this source code.
-     * @param {Object|null} textOrConfig.visitorKeys - The visitor keys to traverse AST.
-     * @param {ASTNode} [astIfNoConfig] - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
-     * @constructor
+     * @param {string|Object} textOrConfig The source code text or config object.
+     * @param {string} textOrConfig.text The source code text.
+     * @param {ASTNode} textOrConfig.ast The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
+     * @param {Object|null} textOrConfig.parserServices The parser services.
+     * @param {ScopeManager|null} textOrConfig.scopeManager The scope of this source code.
+     * @param {Object|null} textOrConfig.visitorKeys The visitor keys to traverse AST.
+     * @param {ASTNode} [astIfNoConfig] The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
      */
     constructor(textOrConfig, astIfNoConfig) {
         let text, ast, parserServices, scopeManager, visitorKeys;
@@ -206,9 +267,9 @@ class SourceCode extends TokenStore {
 
     /**
      * Gets the source code for the given node.
-     * @param {ASTNode=} node The AST node to get the text for.
-     * @param {int=} beforeCount The number of characters before the node to retrieve.
-     * @param {int=} afterCount The number of characters after the node to retrieve.
+     * @param {ASTNode} [node] The AST node to get the text for.
+     * @param {int} [beforeCount] The number of characters before the node to retrieve.
+     * @param {int} [afterCount] The number of characters after the node to retrieve.
      * @returns {string} The text representing the AST node.
      * @public
      */
@@ -412,19 +473,34 @@ class SourceCode extends TokenStore {
     }
 
     /**
-     * Determines if two tokens have at least one whitespace character
-     * between them. This completely disregards comments in making the
-     * determination, so comments count as zero-length substrings.
-     * @param {Token} first The token to check after.
-     * @param {Token} second The token to check before.
-     * @returns {boolean} True if there is only space between tokens, false
-     *  if there is anything other than whitespace between tokens.
+     * Determines if two nodes or tokens have at least one whitespace character
+     * between them. Order does not matter. Returns false if the given nodes or
+     * tokens overlap.
+     * @param {ASTNode|Token} first The first node or token to check between.
+     * @param {ASTNode|Token} second The second node or token to check between.
+     * @returns {boolean} True if there is a whitespace character between
+     * any of the tokens found between the two given nodes or tokens.
+     * @public
+     */
+    isSpaceBetween(first, second) {
+        return isSpaceBetween(this, first, second, false);
+    }
+
+    /**
+     * Determines if two nodes or tokens have at least one whitespace character
+     * between them. Order does not matter. Returns false if the given nodes or
+     * tokens overlap.
+     * For backward compatibility, this method returns true if there are
+     * `JSXText` tokens that contain whitespaces between the two.
+     * @param {ASTNode|Token} first The first node or token to check between.
+     * @param {ASTNode|Token} second The second node or token to check between.
+     * @returns {boolean} True if there is a whitespace character between
+     * any of the tokens found between the two given nodes or tokens.
+     * @deprecated in favor of isSpaceBetween().
      * @public
      */
     isSpaceBetweenTokens(first, second) {
-        const text = this.text.slice(first.range[1], second.range[0]);
-
-        return /\s/u.test(text.replace(/\/\*.*?\*\//gu, ""));
+        return isSpaceBetween(this, first, second, true);
     }
 
     /**

@@ -696,3 +696,61 @@ text {
   padding-left: .5ex;
   outline: 1px dotted grey;
 }
+
+ul.disassembly-list .block-id {
+  width: 4ex;
+  display: block;
+  padding-top: 2px;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="gap"]+span+span {
+  background-color: #FAEEEE;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="arch"]+span+span {
+  background-color: #EEFFEE;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="condition"]+span+span {
+  background-color: #FFFFEE;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="gap"] {
+  background-color: #FAEEEE;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="arch"] {
+  background-color: #EEFFEE;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="condition"] {
+  background-color: #FFFFEE;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="deopt-check"] {
+  background-color: #FAEEFA;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="init-poison"] {
+  background-color: #EEFFAA;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="pools"] {
+  background-color: #6AA84F;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="code-start-register"] {
+  background-color: #FFCCCC;
+}
+
+div.highlight-gap-instructions [data-instruction-kind="deoptimization-exits"] {
+  background-color: #CCCCFF;
+}
+
+[data-instruction-kind].selected {
+  background-color: yellow;
+}
+
+div.highlight-gap-instructions [data-instruction-kind].selected {
+  background-color: yellow;
+}

@@ -6,7 +6,7 @@ const net = require('net');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
-  len: [64, 102400, 1024 * 1024 * 16],
+  len: [2, 64, 102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5],
 });
@@ -49,7 +49,7 @@ function main({ dur, len, type }) {
 
       setTimeout(() => {
         // Multiply by 2 since we're sending it first one way
-        // then then back again.
+        // then back again.
         const bytes = writer.received * 2;
         const gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);

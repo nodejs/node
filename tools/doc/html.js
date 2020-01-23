@@ -63,7 +63,7 @@ const gtocHTML = unified()
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
-async function toHTML({ input, content, filename, nodeVersion }, cb) {
+async function toHTML({ input, content, filename, nodeVersion }) {
   filename = path.basename(filename, '.md');
 
   const id = filename.replace(/\W+/g, '-');
@@ -87,7 +87,7 @@ async function toHTML({ input, content, filename, nodeVersion }, cb) {
     HTML = HTML.replace('__ALTDOCS__', '');
   }
 
-  cb(null, HTML);
+  return HTML;
 }
 
 // Set the section name based on the first header.  Default to 'Index'.

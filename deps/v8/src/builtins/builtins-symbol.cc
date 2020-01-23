@@ -54,7 +54,7 @@ BUILTIN(SymbolKeyFor) {
   Handle<Symbol> symbol = Handle<Symbol>::cast(obj);
   DisallowHeapAllocation no_gc;
   Object result;
-  if (symbol->is_public()) {
+  if (symbol->is_in_public_symbol_table()) {
     result = symbol->name();
     DCHECK(result.IsString());
   } else {

@@ -49,7 +49,7 @@ In case of doubt, open an issue in the
 Node.js has two IRC channels:
 [#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
-[#Node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
+[#node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically.
 
 ## Setting up your local environment
@@ -73,7 +73,7 @@ $ git remote add upstream https://github.com/nodejs/node.git
 $ git fetch upstream
 ```
 
-It is recommended to configure `git` so that it knows who you are:
+Configure `git` so that it knows who you are:
 
 ```text
 $ git config user.name "J. Random User"
@@ -105,10 +105,11 @@ $ git checkout -b my-branch -t upstream/master
 
 The vast majority of Pull Requests opened against the `nodejs/node`
 repository includes changes to one or more of the following:
-- the C/C++ code contained in the `src` directory
-- the JavaScript code contained in the `lib` directory
-- the documentation in `doc/api`
-- tests within the `test` directory.
+
+* the C/C++ code contained in the `src` directory
+* the JavaScript code contained in the `lib` directory
+* the documentation in `doc/api`
+* tests within the `test` directory.
 
 If you are modifying code, please be sure to run `make lint` from time to
 time to ensure that the changes follow the Node.js code style guide.
@@ -120,11 +121,13 @@ in the API docs will also be checked when running `make lint` (or
 use `REPLACEME` for the version number in the documentation YAML.
 
 For contributing C++ code, you may want to look at the
-[C++ Style Guide](../../../CPP_STYLE_GUIDE.md).
+[C++ Style Guide](../../../CPP_STYLE_GUIDE.md), as well as the
+[README of `src/`](../../../src/README.md) for an overview over Node.js
+C++ internals.
 
 ### Step 4: Commit
 
-It is a recommended best practice to keep your changes as logically grouped
+It is a best practice to keep your changes as logically grouped
 as possible within individual commits. There is no limit to the number of
 commits any single Pull Request may have, and many contributors find it easier
 to review changes that are split across multiple commits.
@@ -142,29 +145,29 @@ notes about [commit squashing](#commit-squashing).
 A good commit message should describe what changed and why.
 
 1. The first line should:
-   - contain a short description of the change (preferably 50 characters or
+   * contain a short description of the change (preferably 50 characters or
      less, and no more than 72 characters)
-   - be entirely in lowercase with the exception of proper nouns, acronyms, and
+   * be entirely in lowercase with the exception of proper nouns, acronyms, and
    the words that refer to code, like function/variable names
-   - be prefixed with the name of the changed subsystem and start with an
+   * be prefixed with the name of the changed subsystem and start with an
    imperative verb. Check the output of `git log --oneline files/you/changed` to
    find out what subsystems your changes touch.
 
    Examples:
-   - `net: add localAddress and localPort to Socket`
-   - `src: fix typos in async_wrap.h`
+   * `net: add localAddress and localPort to Socket`
+   * `src: fix typos in async_wrap.h`
 
 2. Keep the second line blank.
 3. Wrap all other lines at 72 columns (except for long URLs).
 
 4. If your patch fixes an open issue, you can add a reference to it at the end
-of the log. Use the `Fixes:` prefix and the full issue URL. For other references
-use `Refs:`.
+   of the log. Use the `Fixes:` prefix and the full issue URL. For other
+   references use `Refs:`.
 
    Examples:
-   - `Fixes: https://github.com/nodejs/node/issues/1337`
-   - `Refs: https://eslint.org/docs/rules/space-in-parens.html`
-   - `Refs: https://github.com/nodejs/node/pull/3615`
+   * `Fixes: https://github.com/nodejs/node/issues/1337`
+   * `Refs: https://eslint.org/docs/rules/space-in-parens.html`
+   * `Refs: https://github.com/nodejs/node/pull/3615`
 
 5. If your commit introduces a breaking change (`semver-major`), it should
 contain an explanation about the reason of the breaking change, which
@@ -188,9 +191,6 @@ conforming to these guidelines, but do not worry if you get something wrong.
 One of the existing contributors will help get things situated and the
 contributor landing the Pull Request will ensure that everything follows
 the project guidelines.
-
-See [core-validate-commit](https://github.com/nodejs/core-validate-commit) -
-A utility that ensures commits follow the commit formatting guidelines.
 
 ### Step 5: Rebase
 
@@ -439,7 +439,7 @@ check with the contributor to see if they intend to continue the work before
 checking if they would mind if you took it over (especially if it just has
 nits left). When doing so, it is courteous to give the original contributor
 credit for the work they started (either by preserving their name and email
-address in the commit log, or by using an `Author: ` meta-data tag in the
+address in the commit log, or by using an `Author:` meta-data tag in the
 commit.
 
 ### Approving a change
@@ -582,7 +582,7 @@ If you want to know more about the code review and the landing process, see the
 [Collaborator Guide][].
 
 [approved]: #getting-approvals-for-your-pull-request
-[benchmark results]: ../writing-and-running-benchmarks.md
+[benchmark results]: ../../../benchmark/writing-and-running-benchmarks.md
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md

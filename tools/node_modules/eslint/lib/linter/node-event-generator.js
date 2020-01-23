@@ -202,6 +202,7 @@ const parseSelector = lodash.memoize(rawSelector => {
  */
 class NodeEventGenerator {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
      * @param {SafeEmitter} emitter
      * An SafeEmitter which is the destination of events. This emitter must already
@@ -286,7 +287,7 @@ class NodeEventGenerator {
 
     /**
      * Emits an event of entering AST node.
-     * @param {ASTNode} node - A node which was entered.
+     * @param {ASTNode} node A node which was entered.
      * @returns {void}
      */
     enterNode(node) {
@@ -298,7 +299,7 @@ class NodeEventGenerator {
 
     /**
      * Emits an event of leaving AST node.
-     * @param {ASTNode} node - A node which was left.
+     * @param {ASTNode} node A node which was left.
      * @returns {void}
      */
     leaveNode(node) {

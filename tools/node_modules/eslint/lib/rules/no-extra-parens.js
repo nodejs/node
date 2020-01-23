@@ -50,7 +50,8 @@ module.exports = {
                                 returnAssign: { type: "boolean" },
                                 ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
                                 enforceForArrowConditionals: { type: "boolean" },
-                                enforceForSequenceExpressions: { type: "boolean" }
+                                enforceForSequenceExpressions: { type: "boolean" },
+                                enforceForNewInMemberExpressions: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -80,6 +81,8 @@ module.exports = {
             context.options[1].enforceForArrowConditionals === false;
         const IGNORE_SEQUENCE_EXPRESSIONS = ALL_NODES && context.options[1] &&
             context.options[1].enforceForSequenceExpressions === false;
+        const IGNORE_NEW_IN_MEMBER_EXPR = ALL_NODES && context.options[1] &&
+            context.options[1].enforceForNewInMemberExpressions === false;
 
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
@@ -88,7 +91,7 @@ module.exports = {
 
         /**
          * Determines if this rule should be enforced for a node given the current configuration.
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the rule should be enforced for this node.
          * @private
          */
@@ -127,7 +130,7 @@ module.exports = {
 
         /**
          * Determines if a node is surrounded by parentheses.
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is parenthesised.
          * @private
          */
@@ -137,7 +140,7 @@ module.exports = {
 
         /**
          * Determines if a node is surrounded by parentheses twice.
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is doubly parenthesised.
          * @private
          */
@@ -147,7 +150,7 @@ module.exports = {
 
         /**
          * Determines if a node is surrounded by (potentially) invalid parentheses.
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is incorrectly parenthesised.
          * @private
          */
@@ -158,7 +161,7 @@ module.exports = {
         /**
          * Determines if a node that is expected to be parenthesised is surrounded by
          * (potentially) invalid extra parentheses.
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is has an unexpected extra pair of parentheses.
          * @private
          */
@@ -168,7 +171,7 @@ module.exports = {
 
         /**
          * Determines if a node test expression is allowed to have a parenthesised assignment
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the assignment can be parenthesised.
          * @private
          */
@@ -178,7 +181,7 @@ module.exports = {
 
         /**
          * Determines if a node is in a return statement
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is in a return statement.
          * @private
          */
@@ -197,7 +200,7 @@ module.exports = {
 
         /**
          * Determines if a constructor function is newed-up with parens
-         * @param {ASTNode} newExpression - The NewExpression node to be checked.
+         * @param {ASTNode} newExpression The NewExpression node to be checked.
          * @returns {boolean} True if the constructor is called with parens.
          * @private
          */
@@ -205,12 +208,19 @@ module.exports = {
             const lastToken = sourceCode.getLastToken(newExpression);
             const penultimateToken = sourceCode.getTokenBefore(lastToken);
 
-            return newExpression.arguments.length > 0 || astUtils.isOpeningParenToken(penultimateToken) && astUtils.isClosingParenToken(lastToken);
+            return newExpression.arguments.length > 0 ||
+                (
+
+                    // The expression should end with its own parens, e.g., new new foo() is not a new expression with parens
+                    astUtils.isOpeningParenToken(penultimateToken) &&
+                    astUtils.isClosingParenToken(lastToken) &&
+                    newExpression.callee.range[1] < newExpression.range[1]
+                );
         }
 
         /**
          * Determines if a node is or contains an assignment expression
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is or contains an assignment expression.
          * @private
          */
@@ -232,7 +242,7 @@ module.exports = {
 
         /**
          * Determines if a node is contained by or is itself a return statement and is allowed to have a parenthesised assignment
-         * @param {ASTNode} node - The node to be checked.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the assignment can be parenthesised.
          * @private
          */
@@ -254,8 +264,8 @@ module.exports = {
         /**
          * Determines if a node following a [no LineTerminator here] restriction is
          * surrounded by (potentially) invalid extra parentheses.
-         * @param {Token} token - The token preceding the [no LineTerminator here] restriction.
-         * @param {ASTNode} node - The node to be checked.
+         * @param {Token} token The token preceding the [no LineTerminator here] restriction.
+         * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the node is incorrectly parenthesised.
          * @private
          */
@@ -338,7 +348,7 @@ module.exports = {
             function finishReport() {
                 context.report({
                     node,
-                    loc: leftParenToken.loc.start,
+                    loc: leftParenToken.loc,
                     messageId: "unexpected",
                     fix(fixer) {
                         const parenthesizedSource = sourceCode.text.slice(leftParenToken.range[1], rightParenToken.range[0]);
@@ -560,7 +570,6 @@ module.exports = {
         /**
          * Checks whether the syntax of the given ancestor of an 'in' expression inside a for-loop initializer
          * is preventing the 'in' keyword from being interpreted as a part of an ill-formed for-in loop.
-         *
          * @param {ASTNode} node Ancestor of an 'in' expression.
          * @param {ASTNode} child Child of the node, ancestor of the same 'in' expression or the 'in' expression itself.
          * @returns {boolean} True if the keyword 'in' would be interpreted as the 'in' operator, without any parenthesis.
@@ -592,7 +601,6 @@ module.exports = {
         /**
          * Starts a new reports buffering. Warnings will be stored in a buffer instead of being reported immediately.
          * An additional logic that requires multiple nodes (e.g. a whole subtree) may dismiss some of the stored warnings.
-         *
          * @returns {void}
          */
         function startNewReportsBuffering() {
@@ -884,6 +892,13 @@ module.exports = {
                 if (nodeObjHasExcessParens &&
                   node.object.type === "CallExpression" &&
                   node.parent.type !== "NewExpression") {
+                    report(node.object);
+                }
+
+                if (nodeObjHasExcessParens &&
+                  !IGNORE_NEW_IN_MEMBER_EXPR &&
+                  node.object.type === "NewExpression" &&
+                  isNewExpressionWithParens(node.object)) {
                     report(node.object);
                 }
 

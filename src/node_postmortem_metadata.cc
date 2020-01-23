@@ -27,9 +27,11 @@
     HandleWrap::handle_wrap_queue_)                                           \
   V(Environment_HandleWrapQueue, head_, ListNode_HandleWrap,                  \
     Environment::HandleWrapQueue::head_)                                      \
+  V(ListNode_HandleWrap, prev_, uintptr_t, ListNode<HandleWrap>::prev_)       \
   V(ListNode_HandleWrap, next_, uintptr_t, ListNode<HandleWrap>::next_)       \
   V(Environment_ReqWrapQueue, head_, ListNode_ReqWrapQueue,                   \
     Environment::ReqWrapQueue::head_)                                         \
+  V(ListNode_ReqWrap, prev_, uintptr_t, ListNode<ReqWrapBase>::prev_)         \
   V(ListNode_ReqWrap, next_, uintptr_t, ListNode<ReqWrapBase>::next_)
 
 extern "C" {

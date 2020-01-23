@@ -74,7 +74,7 @@ MaybeLocal<Object> CreateProcessObject(Environment* env) {
   Local<Context> context = env->context();
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
-  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
+  process_template->SetClassName(env->process_string());
   Local<Function> process_ctor;
   Local<Object> process;
   if (!process_template->GetFunction(context).ToLocal(&process_ctor) ||

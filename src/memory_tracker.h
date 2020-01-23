@@ -30,6 +30,8 @@ namespace node {
 
 class MemoryTracker;
 class MemoryRetainerNode;
+template <typename T, bool kIsWeak>
+class BaseObjectPtrImpl;
 
 namespace crypto {
 class NodeBIO;
@@ -139,6 +141,16 @@ class MemoryTracker {
                          const std::unique_ptr<T>& value,
                          const char* node_name = nullptr);
 
+  template <typename T>
+  inline void TrackField(const char* edge_name,
+                         const std::shared_ptr<T>& value,
+                         const char* node_name = nullptr);
+
+  template <typename T, bool kIsWeak>
+  void TrackField(const char* edge_name,
+                  const BaseObjectPtrImpl<T, kIsWeak>& value,
+                  const char* node_name = nullptr);
+
   // For containers, the elements will be graphed as grandchildren nodes
   // if the container is not empty.
   // By default, we assume the parent count the stack size of the container
@@ -196,6 +208,9 @@ class MemoryTracker {
   template <typename T>
   inline void TrackField(const char* edge_name,
                          const MallocedBuffer<T>& value,
+                         const char* node_name = nullptr);
+  inline void TrackField(const char* edge_name,
+                         const v8::BackingStore* value,
                          const char* node_name = nullptr);
   // We do not implement CleanupHookCallback as MemoryRetainer
   // but instead specialize the method here to avoid the cost of

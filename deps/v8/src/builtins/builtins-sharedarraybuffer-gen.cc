@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <typename T>
-using TNode = compiler::TNode<T>;
 
 class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -26,7 +24,7 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
                                                      Node* value,
                                                      Node* value_high);
   void ValidateSharedTypedArray(Node* tagged, Node* context,
-                                Node** out_elements_kind,
+                                TNode<Int32T>* out_elements_kind,
                                 Node** out_backing_store);
   Node* ConvertTaggedAtomicIndexToWord32(Node* tagged, Node* context,
                                          Node** number_index);
@@ -46,7 +44,7 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
 };
 
 void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
-    Node* tagged, Node* context, Node** out_elements_kind,
+    Node* tagged, Node* context, TNode<Int32T>* out_elements_kind,
     Node** out_backing_store) {
   Label not_float_or_clamped(this), invalid(this);
 
@@ -54,7 +52,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   GotoIf(TaggedIsSmi(tagged), &invalid);
 
   // Fail if the array's instance type is not JSTypedArray.
-  Node* tagged_map = LoadMap(tagged);
+  TNode<Map> tagged_map = LoadMap(tagged);
   GotoIfNot(IsJSTypedArrayMap(tagged_map), &invalid);
 
   // Fail if the array's JSArrayBuffer is not shared.
@@ -69,7 +67,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   STATIC_ASSERT(UINT8_ELEMENTS < FLOAT32_ELEMENTS);
   STATIC_ASSERT(UINT16_ELEMENTS < FLOAT32_ELEMENTS);
   STATIC_ASSERT(UINT32_ELEMENTS < FLOAT32_ELEMENTS);
-  Node* elements_kind = LoadMapElementsKind(tagged_map);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(tagged_map);
   GotoIf(Int32LessThan(elements_kind, Int32Constant(FLOAT32_ELEMENTS)),
          &not_float_or_clamped);
   STATIC_ASSERT(BIGINT64_ELEMENTS > UINT8_CLAMPED_ELEMENTS);
@@ -167,7 +165,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   Node* index = Parameter(Descriptor::kIndex);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -175,7 +173,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   Node* index_word32 =
       ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
   ValidateAtomicIndex(array, index_word32, context);
-  Node* index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
 
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), other(this);
@@ -239,7 +237,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -247,15 +245,15 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Node* index_word32 =
       ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
   ValidateAtomicIndex(array, index_word32, context);
-  Node* index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
 
   Label u8(this), u16(this), u32(this), u64(this), other(this);
   STATIC_ASSERT(BIGINT64_ELEMENTS > INT32_ELEMENTS);
   STATIC_ASSERT(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &u64);
 
-  Node* value_integer = ToInteger_Inline(CAST(context), CAST(value));
-  Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
+  TNode<Number> value_integer = ToInteger_Inline(CAST(context), CAST(value));
+  TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
@@ -313,7 +311,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -326,7 +324,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_integer,
                      value));
 #else
-  Node* index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
 
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
@@ -334,11 +332,11 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   STATIC_ASSERT(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &big);
 
-  Node* value_integer = ToInteger_Inline(CAST(context), CAST(value));
+  TNode<Number> value_integer = ToInteger_Inline(CAST(context), CAST(value));
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
 #endif
-  Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
+  TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,
@@ -415,7 +413,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   Node* new_value = Parameter(Descriptor::kNewValue);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -429,7 +427,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   Return(CallRuntime(Runtime::kAtomicsCompareExchange, context, array,
                      index_integer, old_value, new_value));
 #else
-  Node* index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
 
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
@@ -437,13 +435,17 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   STATIC_ASSERT(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &big);
 
-  Node* old_value_integer = ToInteger_Inline(CAST(context), CAST(old_value));
-  Node* new_value_integer = ToInteger_Inline(CAST(context), CAST(new_value));
+  TNode<Number> old_value_integer =
+      ToInteger_Inline(CAST(context), CAST(old_value));
+  TNode<Number> new_value_integer =
+      ToInteger_Inline(CAST(context), CAST(new_value));
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
 #endif
-  Node* old_value_word32 = TruncateTaggedToWord32(context, old_value_integer);
-  Node* new_value_word32 = TruncateTaggedToWord32(context, new_value_integer);
+  TNode<Word32T> old_value_word32 =
+      TruncateTaggedToWord32(context, old_value_integer);
+  TNode<Word32T> new_value_word32 =
+      TruncateTaggedToWord32(context, new_value_integer);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,
@@ -543,7 +545,7 @@ BINOP_BUILTIN(Xor)
 void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
     Node* array, Node* index, Node* value, Node* context,
     AssemblerFunction function, Runtime::FunctionId runtime_function) {
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -556,7 +558,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
   Return(CallRuntime(runtime_function, context, array, index_integer, value));
 #else
-  Node* index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
 
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
@@ -565,11 +567,11 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   STATIC_ASSERT(BIGUINT64_ELEMENTS > INT32_ELEMENTS);
   GotoIf(Int32GreaterThan(elements_kind, Int32Constant(INT32_ELEMENTS)), &big);
 
-  Node* value_integer = ToInteger_Inline(CAST(context), CAST(value));
+  TNode<Number> value_integer = ToInteger_Inline(CAST(context), CAST(value));
 #if DEBUG
   DebugSanityCheckAtomicIndex(array, index_word32, context);
 #endif
-  Node* value_word32 = TruncateTaggedToWord32(context, value_integer);
+  TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,

@@ -36,7 +36,7 @@
 #define V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_H_
 
 #include <stdio.h>
-
+#include <memory>
 #include <set>
 
 #include "src/codegen/assembler.h"
@@ -121,7 +121,7 @@ class Operand {
 
 // On MIPS we have only one addressing mode with base_reg + offset.
 // Class MemOperand represents a memory operand in load and store instructions.
-class MemOperand : public Operand {
+class V8_EXPORT_PRIVATE  MemOperand : public Operand {
  public:
   // Immediate value attached to offset.
   enum OffsetAddend { offset_minus_one = -1, offset_zero = 0 };
@@ -1560,7 +1560,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Helper function for memory load/store using base register and offset.
   void AdjustBaseAndOffset(
-      MemOperand& src,  // NOLINT(runtime/references)
+      MemOperand* src,
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 
@@ -1899,7 +1899,7 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
-class UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

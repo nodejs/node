@@ -31,6 +31,7 @@
 //------------------------------------------------------------------------------
 
 const { ExtractedConfig } = require("./extracted-config");
+const { IgnorePattern } = require("./ignore-pattern");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,6 +55,7 @@ const { ExtractedConfig } = require("./extracted-config");
  * @property {InstanceType<OverrideTester>|null} criteria The tester for the `files` and `excludedFiles` of this config element.
  * @property {Record<string, boolean>|undefined} env The environment settings.
  * @property {Record<string, GlobalConf>|undefined} globals The global variable settings.
+ * @property {IgnorePattern|undefined} ignorePattern The ignore patterns.
  * @property {boolean|undefined} noInlineConfig The flag that disables directive comments.
  * @property {DependentParser|undefined} parser The parser loader.
  * @property {Object|undefined} parserOptions The parser options.
@@ -126,7 +128,6 @@ function isNonNullObject(x) {
  *
  * Assign every property values of `y` to `x` if `x` doesn't have the property.
  * If `x`'s property value is an object, it does recursive.
- *
  * @param {Object} target The destination to merge
  * @param {Object|undefined} source The source to merge.
  * @returns {void}
@@ -157,7 +158,6 @@ function mergeWithoutOverwrite(target, source) {
 /**
  * Merge plugins.
  * `target`'s definition is prior to `source`'s.
- *
  * @param {Record<string, DependentPlugin>} target The destination to merge
  * @param {Record<string, DependentPlugin>|undefined} source The source to merge.
  * @returns {void}
@@ -187,7 +187,6 @@ function mergePlugins(target, source) {
 /**
  * Merge rule configs.
  * `target`'s definition is prior to `source`'s.
- *
  * @param {Record<string, Array>} target The destination to merge
  * @param {Record<string, RuleConf>|undefined} source The source to merge.
  * @returns {void}
@@ -234,6 +233,7 @@ function mergeRuleConfigs(target, source) {
  */
 function createConfig(instance, indices) {
     const config = new ExtractedConfig();
+    const ignorePatterns = [];
 
     // Merge elements.
     for (const index of indices) {
@@ -263,6 +263,11 @@ function createConfig(instance, indices) {
             config.reportUnusedDisableDirectives = element.reportUnusedDisableDirectives;
         }
 
+        // Collect ignorePatterns
+        if (element.ignorePattern) {
+            ignorePatterns.push(element.ignorePattern);
+        }
+
         // Merge others.
         mergeWithoutOverwrite(config.env, element.env);
         mergeWithoutOverwrite(config.globals, element.globals);
@@ -270,6 +275,11 @@ function createConfig(instance, indices) {
         mergeWithoutOverwrite(config.settings, element.settings);
         mergePlugins(config.plugins, element.plugins);
         mergeRuleConfigs(config.rules, element.rules);
+    }
+
+    // Create the predicate function for ignore patterns.
+    if (ignorePatterns.length > 0) {
+        config.ignores = IgnorePattern.createIgnore(ignorePatterns.reverse());
     }
 
     return config;
@@ -382,7 +392,6 @@ function ensurePluginMemberMaps(instance) {
  * You need to call `ConfigArray#extractConfig(filePath)` method in order to
  * extract, merge and get only the config data which is related to an arbitrary
  * file.
- *
  * @extends {Array<ConfigArrayElement>}
  */
 class ConfigArray extends Array {

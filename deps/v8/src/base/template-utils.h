@@ -6,32 +6,20 @@
 #define V8_BASE_TEMPLATE_UTILS_H_
 
 #include <array>
-#include <memory>
+#include <type_traits>
+#include <utility>
 
 namespace v8 {
 namespace base {
 
 namespace detail {
 
-// make_array_helper statically iteratively creates the index list 0 .. Size-1.
-// A specialization for the base case (first index is 0) finally constructs the
-// array.
-// TODO(clemensh): Use std::index_sequence once we have C++14 support.
-template <class Function, std::size_t... Indexes>
-struct make_array_helper;
-
-template <class Function, std::size_t... Indexes>
-struct make_array_helper<Function, 0, Indexes...> {
-  constexpr static std::array<typename std::result_of<Function(size_t)>::type,
-                              sizeof...(Indexes) + 1>
-  make_array(Function f) {
-    return {{f(0), f(Indexes)...}};
-  }
-};
-
-template <class Function, std::size_t FirstIndex, std::size_t... Indexes>
-struct make_array_helper<Function, FirstIndex, Indexes...>
-    : make_array_helper<Function, FirstIndex - 1, FirstIndex, Indexes...> {};
+template <typename Function, std::size_t... Indexes>
+constexpr inline auto make_array_helper(Function f,
+                                        std::index_sequence<Indexes...>)
+    -> std::array<decltype(f(0)), sizeof...(Indexes)> {
+  return {{f(Indexes)...}};
+}
 
 }  // namespace detail
 
@@ -42,18 +30,8 @@ struct make_array_helper<Function, FirstIndex, Indexes...>
 //       [](std::size_t i) { return static_cast<int>(2 * i); });
 // The resulting array will be constexpr if the passed function is constexpr.
 template <std::size_t Size, class Function>
-constexpr std::array<typename std::result_of<Function(size_t)>::type, Size>
-make_array(Function f) {
-  static_assert(Size > 0, "Can only create non-empty arrays");
-  return detail::make_array_helper<Function, Size - 1>::make_array(f);
-}
-
-// base::make_unique<T>: Construct an object of type T and wrap it in a
-// std::unique_ptr.
-// Replacement for C++14's std::make_unique.
-template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
-  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+constexpr auto make_array(Function f) {
+  return detail::make_array_helper(f, std::make_index_sequence<Size>{});
 }
 
 // Helper to determine how to pass values: Pass scalars and arrays by value,
@@ -80,38 +58,17 @@ struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
                                             << std::declval<T>()))>
     : std::true_type {};
 
-namespace detail {
-
-template <typename Func, typename T, typename... Ts>
-struct fold_helper {
-  static_assert(sizeof...(Ts) == 0, "this is the base case");
-  using result_t = typename std::remove_reference<T>::type;
-  static constexpr T&& fold(Func func, T&& first) {
-    return std::forward<T>(first);
-  }
-};
+// Fold all arguments from left to right with a given function.
+template <typename Func, typename T>
+constexpr auto fold(Func func, T&& t) {
+  return std::forward<T>(t);
+}
 
 template <typename Func, typename T1, typename T2, typename... Ts>
-struct fold_helper<Func, T1, T2, Ts...> {
-  using folded_t = typename std::result_of<Func(T1, T2)>::type;
-  using next_fold_helper = fold_helper<Func, folded_t&&, Ts...>;
-  using result_t = typename next_fold_helper::result_t;
-  static constexpr result_t fold(Func func, T1&& first, T2&& second,
-                                 Ts&&... more) {
-    return next_fold_helper::fold(
-        func, func(std::forward<T1>(first), std::forward<T2>(second)),
-        std::forward<Ts>(more)...);
-  }
-};
-
-}  // namespace detail
-
-// Fold all arguments from left to right with a given function.
-template <typename Func, typename... Ts>
-constexpr auto fold(Func func, Ts&&... more) ->
-    typename detail::fold_helper<Func, Ts...>::result_t {
-  return detail::fold_helper<Func, Ts...>::fold(func,
-                                                std::forward<Ts>(more)...);
+constexpr auto fold(Func func, T1&& first, T2&& second, Ts&&... more) {
+  auto&& folded = func(std::forward<T1>(first), std::forward<T2>(second));
+  return fold(std::move(func), std::forward<decltype(folded)>(folded),
+              std::forward<Ts>(more)...);
 }
 
 // {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.

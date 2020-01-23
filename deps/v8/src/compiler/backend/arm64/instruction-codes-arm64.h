@@ -70,6 +70,7 @@ namespace compiler {
   V(Arm64Sxtb)                              \
   V(Arm64Sxth)                              \
   V(Arm64Sxtw)                              \
+  V(Arm64Sbfx)                              \
   V(Arm64Sbfx32)                            \
   V(Arm64Ubfx)                              \
   V(Arm64Ubfx32)                            \
@@ -168,11 +169,26 @@ namespace compiler {
   V(Arm64DecompressSigned)                  \
   V(Arm64DecompressPointer)                 \
   V(Arm64DecompressAny)                     \
-  V(Arm64CompressSigned)                    \
-  V(Arm64CompressPointer)                   \
-  V(Arm64CompressAny)                       \
   V(Arm64DmbIsh)                            \
   V(Arm64DsbIsb)                            \
+  V(Arm64F64x2Splat)                        \
+  V(Arm64F64x2ExtractLane)                  \
+  V(Arm64F64x2ReplaceLane)                  \
+  V(Arm64F64x2Abs)                          \
+  V(Arm64F64x2Neg)                          \
+  V(Arm64F64x2Sqrt)                         \
+  V(Arm64F64x2Add)                          \
+  V(Arm64F64x2Sub)                          \
+  V(Arm64F64x2Mul)                          \
+  V(Arm64F64x2Div)                          \
+  V(Arm64F64x2Min)                          \
+  V(Arm64F64x2Max)                          \
+  V(Arm64F64x2Eq)                           \
+  V(Arm64F64x2Ne)                           \
+  V(Arm64F64x2Lt)                           \
+  V(Arm64F64x2Le)                           \
+  V(Arm64F64x2Qfma)                         \
+  V(Arm64F64x2Qfms)                         \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \
@@ -180,18 +196,38 @@ namespace compiler {
   V(Arm64F32x4UConvertI32x4)                \
   V(Arm64F32x4Abs)                          \
   V(Arm64F32x4Neg)                          \
+  V(Arm64F32x4Sqrt)                         \
   V(Arm64F32x4RecipApprox)                  \
   V(Arm64F32x4RecipSqrtApprox)              \
   V(Arm64F32x4Add)                          \
   V(Arm64F32x4AddHoriz)                     \
   V(Arm64F32x4Sub)                          \
   V(Arm64F32x4Mul)                          \
+  V(Arm64F32x4Div)                          \
   V(Arm64F32x4Min)                          \
   V(Arm64F32x4Max)                          \
   V(Arm64F32x4Eq)                           \
   V(Arm64F32x4Ne)                           \
   V(Arm64F32x4Lt)                           \
   V(Arm64F32x4Le)                           \
+  V(Arm64F32x4Qfma)                         \
+  V(Arm64F32x4Qfms)                         \
+  V(Arm64I64x2Splat)                        \
+  V(Arm64I64x2ExtractLane)                  \
+  V(Arm64I64x2ReplaceLane)                  \
+  V(Arm64I64x2Neg)                          \
+  V(Arm64I64x2Shl)                          \
+  V(Arm64I64x2ShrS)                         \
+  V(Arm64I64x2Add)                          \
+  V(Arm64I64x2Sub)                          \
+  V(Arm64I64x2Mul)                          \
+  V(Arm64I64x2Eq)                           \
+  V(Arm64I64x2Ne)                           \
+  V(Arm64I64x2GtS)                          \
+  V(Arm64I64x2GeS)                          \
+  V(Arm64I64x2ShrU)                         \
+  V(Arm64I64x2GtU)                          \
+  V(Arm64I64x2GeU)                          \
   V(Arm64I32x4Splat)                        \
   V(Arm64I32x4ExtractLane)                  \
   V(Arm64I32x4ReplaceLane)                  \
@@ -303,6 +339,7 @@ namespace compiler {
   V(Arm64S8x16TransposeLeft)                \
   V(Arm64S8x16TransposeRight)               \
   V(Arm64S8x16Concat)                       \
+  V(Arm64S8x16Swizzle)                      \
   V(Arm64S8x16Shuffle)                      \
   V(Arm64S32x2Reverse)                      \
   V(Arm64S16x4Reverse)                      \
@@ -310,6 +347,8 @@ namespace compiler {
   V(Arm64S8x8Reverse)                       \
   V(Arm64S8x4Reverse)                       \
   V(Arm64S8x2Reverse)                       \
+  V(Arm64S1x2AnyTrue)                       \
+  V(Arm64S1x2AllTrue)                       \
   V(Arm64S1x4AnyTrue)                       \
   V(Arm64S1x4AllTrue)                       \
   V(Arm64S1x8AnyTrue)                       \

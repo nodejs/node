@@ -14,6 +14,7 @@ readCmdShim('/path/to/shim.cmd', function (er, destination) {
 })
 
 var destination = readCmdShim.sync('/path/to/shim.cmd')
+```
 
 ### readCmdShim(path, callback)
 

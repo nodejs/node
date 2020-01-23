@@ -79,6 +79,7 @@ test('it should not throw', function (t) {
             t.is(process.exitCode, 1, 'exit code set to 1')
             process.exitCode = 0
             console.log = originalLog
+            output[0] = output[0].replace(/\\/g, '/')
             t.same(output, expOut)
             t.same(d, expData)
 

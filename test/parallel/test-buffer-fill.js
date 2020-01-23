@@ -112,22 +112,22 @@ testBufs('c8a26161', 8, 1, 'hex');
 testBufs('61c8b462c8b563c8b6', 4, 1, 'hex');
 testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 
-common.expectsError(() => {
+assert.throws(() => {
   const buf = Buffer.allocUnsafe(SIZE);
 
   buf.fill('yKJh', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  name: 'TypeError'
 });
 
-common.expectsError(() => {
+assert.throws(() => {
   const buf = Buffer.allocUnsafe(SIZE);
 
   buf.fill('\u0222', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  name: 'TypeError'
 });
 
 // BASE64
@@ -172,17 +172,17 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
   ['', 0, buf1.length + 1],
   ['', 1, -1],
 ].forEach((args) => {
-  common.expectsError(
+  assert.throws(
     () => buf1.fill(...args),
     { code: 'ERR_OUT_OF_RANGE' }
   );
 });
 
-common.expectsError(
+assert.throws(
   () => buf1.fill('a', 0, buf1.length, 'node rocks!'),
   {
     code: 'ERR_UNKNOWN_ENCODING',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Unknown encoding: node rocks!'
   }
 );
@@ -191,21 +191,21 @@ common.expectsError(
   ['a', 0, 0, NaN],
   ['a', 0, 0, false]
 ].forEach((args) => {
-  common.expectsError(
+  assert.throws(
     () => buf1.fill(...args),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "encoding" argument must be of type ' +
-      `string. Received type ${args[3] === null ? 'null' : typeof args[3]}`
+      `string.${common.invalidArgTypeHelper(args[3])}`
     }
   );
 });
 
-common.expectsError(
+assert.throws(
   () => buf1.fill('a', 0, 0, 'foo'),
   {
     code: 'ERR_UNKNOWN_ENCODING',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Unknown encoding: foo'
   }
 );
@@ -275,10 +275,10 @@ function testBufs(string, offset, length, encoding) {
 }
 
 // Make sure these throw.
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(8).fill('a', -1),
   { code: 'ERR_OUT_OF_RANGE' });
-common.expectsError(
+assert.throws(
   () => Buffer.allocUnsafe(8).fill('a', 0, 9),
   { code: 'ERR_OUT_OF_RANGE' });
 
@@ -333,7 +333,7 @@ assert.strictEqual(
 // Make sure "end" is properly checked, even if it's magically mangled using
 // Symbol.toPrimitive.
 {
-  common.expectsError(() => {
+  assert.throws(() => {
     const end = {
       [Symbol.toPrimitive]() {
         return 1;
@@ -342,7 +342,8 @@ assert.strictEqual(
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "end" argument must be of type number. Received type object'
+    message: 'The "end" argument must be of type number. Received an ' +
+             'instance of Object'
   });
 }
 
@@ -352,7 +353,7 @@ assert.strictEqual(
   internalBinding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1), -2);
 
 // Test that bypassing 'length' won't cause an abort.
-common.expectsError(() => {
+assert.throws(() => {
   const buf = Buffer.from('w00t');
   Object.defineProperty(buf, 'length', {
     value: 1337,
@@ -361,7 +362,7 @@ common.expectsError(() => {
   buf.fill('');
 }, {
   code: 'ERR_BUFFER_OUT_OF_BOUNDS',
-  type: RangeError,
+  name: 'RangeError',
   message: 'Attempt to access memory outside buffer bounds'
 });
 
@@ -400,11 +401,11 @@ assert.strictEqual(
   Buffer.allocUnsafeSlow(16).fill('Љ', 'utf8').toString('utf8'),
   'Љ'.repeat(8));
 
-common.expectsError(() => {
+assert.throws(() => {
   const buf = Buffer.from('a'.repeat(1000));
 
   buf.fill('This is not correctly encoded', 'hex');
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  type: TypeError
+  name: 'TypeError'
 });

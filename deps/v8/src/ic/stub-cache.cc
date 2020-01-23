@@ -26,11 +26,10 @@ void StubCache::Initialize() {
   Clear();
 }
 
-// Hash algorithm for the primary table.  This algorithm is replicated in
-// assembler for every architecture.  Returns an index into the table that
+// Hash algorithm for the primary table. This algorithm is replicated in
+// the AccessorAssembler.  Returns an index into the table that
 // is scaled by 1 << kCacheIndexShift.
 int StubCache::PrimaryOffset(Name name, Map map) {
-  STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
   // Compute the hash of the name (use entire hash field).
   DCHECK(name.HasHashCode());
   uint32_t field = name.hash_field();

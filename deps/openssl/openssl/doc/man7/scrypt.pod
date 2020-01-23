@@ -38,7 +38,7 @@ A context for scrypt can be obtained by calling:
 The output length of an scrypt key derivation is specified via the
 length parameter to the L<EVP_PKEY_derive(3)> function.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 This example derives a 64-byte long test vector using scrypt using the password
 "password", salt "NaCl" and N = 1024, r = 8, p = 16.
@@ -105,7 +105,7 @@ L<EVP_PKEY_derive(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

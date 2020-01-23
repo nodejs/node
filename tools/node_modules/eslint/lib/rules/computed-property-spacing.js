@@ -26,6 +26,16 @@ module.exports = {
         schema: [
             {
                 enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    enforceForClassMembers: {
+                        type: "boolean",
+                        default: false
+                    }
+                },
+                additionalProperties: false
             }
         ],
 
@@ -41,6 +51,7 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
         const propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
+        const enforceForClassMembers = context.options[1] && context.options[1].enforceForClassMembers;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -48,9 +59,9 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a space after the first token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
-         * @param {Token} tokenAfter - The token after `token`.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
+         * @param {Token} tokenAfter The token after `token`.
          * @returns {void}
          */
         function reportNoBeginningSpace(node, token, tokenAfter) {
@@ -69,9 +80,9 @@ module.exports = {
 
         /**
          * Reports that there shouldn't be a space before the last token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
-         * @param {Token} tokenBefore - The token before `token`.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
+         * @param {Token} tokenBefore The token before `token`.
          * @returns {void}
          */
         function reportNoEndingSpace(node, token, tokenBefore) {
@@ -90,8 +101,8 @@ module.exports = {
 
         /**
          * Reports that there should be a space after the first token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredBeginningSpace(node, token) {
@@ -110,8 +121,8 @@ module.exports = {
 
         /**
          * Reports that there should be a space before the last token
-         * @param {ASTNode} node - The node to report in the event of an error.
-         * @param {Token} token - The token to use for the report.
+         * @param {ASTNode} node The node to report in the event of an error.
+         * @param {Token} token The token to use for the report.
          * @returns {void}
          */
         function reportRequiredEndingSpace(node, token) {
@@ -142,10 +153,10 @@ module.exports = {
 
                 const property = node[propertyName];
 
-                const before = sourceCode.getTokenBefore(property),
-                    first = sourceCode.getFirstToken(property),
-                    last = sourceCode.getLastToken(property),
-                    after = sourceCode.getTokenAfter(property);
+                const before = sourceCode.getTokenBefore(property, astUtils.isOpeningBracketToken),
+                    first = sourceCode.getTokenAfter(before, { includeComments: true }),
+                    after = sourceCode.getTokenAfter(property, astUtils.isClosingBracketToken),
+                    last = sourceCode.getTokenBefore(after, { includeComments: true });
 
                 if (astUtils.isTokenOnSameLine(before, first)) {
                     if (propertyNameMustBeSpaced) {
@@ -178,10 +189,16 @@ module.exports = {
         // Public
         //--------------------------------------------------------------------------
 
-        return {
+        const listeners = {
             Property: checkSpacing("key"),
             MemberExpression: checkSpacing("property")
         };
+
+        if (enforceForClassMembers) {
+            listeners.MethodDefinition = checkSpacing("key");
+        }
+
+        return listeners;
 
     }
 };

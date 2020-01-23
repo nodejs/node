@@ -24,6 +24,7 @@
 
 #include "unicode/utypes.h"
 #include "uassert.h"
+#include "ucln_cmn.h"
 #include "cmemory.h"
 
 U_NAMESPACE_BEGIN
@@ -35,24 +36,84 @@ U_NAMESPACE_BEGIN
 #error U_USER_MUTEX_CPP not supported
 #endif
 
+
 /*************************************************************************************************
  *
  *  ICU Mutex wrappers.
  *
  *************************************************************************************************/
 
-// The ICU global mutex. Used when ICU implementation code passes NULL for the mutex pointer.
-static UMutex *globalMutex() {
-    static UMutex m = U_MUTEX_INITIALIZER;
-    return &m;
+namespace {
+std::mutex *initMutex;
+std::condition_variable *initCondition;
+
+// The ICU global mutex.
+// Used when ICU implementation code passes nullptr for the mutex pointer.
+UMutex globalMutex;
+
+std::once_flag initFlag;
+std::once_flag *pInitFlag = &initFlag;
+
+}  // Anonymous namespace
+
+U_CDECL_BEGIN
+static UBool U_CALLCONV umtx_cleanup() {
+    initMutex->~mutex();
+    initCondition->~condition_variable();
+    UMutex::cleanup();
+
+    // Reset the once_flag, by destructing it and creating a fresh one in its place.
+    // Do not use this trick anywhere else in ICU; use umtx_initOnce, not std::call_once().
+    pInitFlag->~once_flag();
+    pInitFlag = new(&initFlag) std::once_flag();
+    return true;
 }
+
+static void U_CALLCONV umtx_init() {
+    initMutex = STATIC_NEW(std::mutex);
+    initCondition = STATIC_NEW(std::condition_variable);
+    ucln_common_registerCleanup(UCLN_COMMON_MUTEX, umtx_cleanup);
+}
+U_CDECL_END
+
+
+std::mutex *UMutex::getMutex() {
+    std::mutex *retPtr = fMutex.load(std::memory_order_acquire);
+    if (retPtr == nullptr) {
+        std::call_once(*pInitFlag, umtx_init);
+        std::lock_guard<std::mutex> guard(*initMutex);
+        retPtr = fMutex.load(std::memory_order_acquire);
+        if (retPtr == nullptr) {
+            fMutex = new(fStorage) std::mutex();
+            retPtr = fMutex;
+            fListLink = gListHead;
+            gListHead = this;
+        }
+    }
+    U_ASSERT(retPtr != nullptr);
+    return retPtr;
+}
+
+UMutex *UMutex::gListHead = nullptr;
+
+void UMutex::cleanup() {
+    UMutex *next = nullptr;
+    for (UMutex *m = gListHead; m != nullptr; m = next) {
+        (*m->fMutex).~mutex();
+        m->fMutex = nullptr;
+        next = m->fListLink;
+        m->fListLink = nullptr;
+    }
+    gListHead = nullptr;
+}
+
 
 U_CAPI void  U_EXPORT2
 umtx_lock(UMutex *mutex) {
     if (mutex == nullptr) {
-        mutex = globalMutex();
+        mutex = &globalMutex;
     }
-    mutex->fMutex.lock();
+    mutex->lock();
 }
 
 
@@ -60,35 +121,9 @@ U_CAPI void  U_EXPORT2
 umtx_unlock(UMutex* mutex)
 {
     if (mutex == nullptr) {
-        mutex = globalMutex();
+        mutex = &globalMutex;
     }
-    mutex->fMutex.unlock();
-}
-
-UConditionVar::UConditionVar() : fCV() {
-}
-
-UConditionVar::~UConditionVar() {
-}
-
-U_CAPI void U_EXPORT2
-umtx_condWait(UConditionVar *cond, UMutex *mutex) {
-    if (mutex == nullptr) {
-        mutex = globalMutex();
-    }
-    cond->fCV.wait(mutex->fMutex);
-}
-
-
-U_CAPI void U_EXPORT2
-umtx_condBroadcast(UConditionVar *cond) {
-    cond->fCV.notify_all();
-}
-
-
-U_CAPI void U_EXPORT2
-umtx_condSignal(UConditionVar *cond) {
-    cond->fCV.notify_one();
+    mutex->unlock();
 }
 
 
@@ -97,17 +132,6 @@ umtx_condSignal(UConditionVar *cond) {
  *  UInitOnce Implementation
  *
  *************************************************************************************************/
-
-static std::mutex &initMutex() {
-    static std::mutex m;
-    return m;
-}
-
-static std::condition_variable &initCondition() {
-    static std::condition_variable cv;
-    return cv;
-}
-
 
 // This function is called when a test of a UInitOnce::fState reveals that
 //   initialization has not completed, that we either need to call the init
@@ -119,8 +143,8 @@ static std::condition_variable &initCondition() {
 //
 U_COMMON_API UBool U_EXPORT2
 umtx_initImplPreInit(UInitOnce &uio) {
-    std::unique_lock<std::mutex> lock(initMutex());
-
+    std::call_once(*pInitFlag, umtx_init);
+    std::unique_lock<std::mutex> lock(*initMutex);
     if (umtx_loadAcquire(uio.fState) == 0) {
         umtx_storeRelease(uio.fState, 1);
         return true;      // Caller will next call the init function.
@@ -128,7 +152,7 @@ umtx_initImplPreInit(UInitOnce &uio) {
         while (umtx_loadAcquire(uio.fState) == 1) {
             // Another thread is currently running the initialization.
             // Wait until it completes.
-            initCondition().wait(lock);
+            initCondition->wait(lock);
         }
         U_ASSERT(uio.fState == 2);
         return false;
@@ -145,10 +169,10 @@ umtx_initImplPreInit(UInitOnce &uio) {
 U_COMMON_API void U_EXPORT2
 umtx_initImplPostInit(UInitOnce &uio) {
     {
-        std::unique_lock<std::mutex> lock(initMutex());
+        std::unique_lock<std::mutex> lock(*initMutex);
         umtx_storeRelease(uio.fState, 2);
     }
-    initCondition().notify_all();
+    initCondition->notify_all();
 }
 
 U_NAMESPACE_END

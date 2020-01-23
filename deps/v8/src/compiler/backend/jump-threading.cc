@@ -69,11 +69,11 @@ bool IsBlockWithBranchPoisoning(InstructionSequence* code,
 }  // namespace
 
 bool JumpThreading::ComputeForwarding(Zone* local_zone,
-                                      ZoneVector<RpoNumber>& result,
+                                      ZoneVector<RpoNumber>* result,
                                       InstructionSequence* code,
                                       bool frame_at_start) {
   ZoneStack<RpoNumber> stack(local_zone);
-  JumpThreadingState state = {false, result, stack};
+  JumpThreadingState state = {false, *result, stack};
   state.Clear(code->InstructionBlockCount());
 
   // Iterate over the blocks forward, pushing the blocks onto the stack.
@@ -135,15 +135,15 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
   }
 
 #ifdef DEBUG
-  for (RpoNumber num : result) {
+  for (RpoNumber num : *result) {
     DCHECK(num.IsValid());
   }
 #endif
 
   if (FLAG_trace_turbo_jt) {
-    for (int i = 0; i < static_cast<int>(result.size()); i++) {
+    for (int i = 0; i < static_cast<int>(result->size()); i++) {
       TRACE("B%d ", i);
-      int to = result[i].ToInt();
+      int to = (*result)[i].ToInt();
       if (i != to) {
         TRACE("-> B%d\n", to);
       } else {
@@ -156,7 +156,7 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 }
 
 void JumpThreading::ApplyForwarding(Zone* local_zone,
-                                    ZoneVector<RpoNumber>& result,
+                                    ZoneVector<RpoNumber> const& result,
                                     InstructionSequence* code) {
   if (!FLAG_turbo_jt) return;
 

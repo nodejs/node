@@ -26,10 +26,23 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-invalid-this"
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    capIsConstructor: {
+                        type: "boolean",
+                        default: true
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
     },
 
     create(context) {
+        const options = context.options[0] || {};
+        const capIsConstructor = options.capIsConstructor !== false;
         const stack = [],
             sourceCode = context.getSourceCode();
 
@@ -38,7 +51,6 @@ module.exports = {
          *
          * The return value has a flag that whether or not `this` keyword is valid.
          * The flag is initialized when got at the first time.
-         *
          * @returns {{valid: boolean}}
          *   an object which has a flag that whether or not `this` keyword is valid.
          */
@@ -49,7 +61,8 @@ module.exports = {
                 current.init = true;
                 current.valid = !astUtils.isDefaultThisBinding(
                     current.node,
-                    sourceCode
+                    sourceCode,
+                    { capIsConstructor }
                 );
             }
             return current;
@@ -61,8 +74,7 @@ module.exports = {
          * The checking context is not initialized yet.
          * Because most functions don't have `this` keyword.
          * When `this` keyword was found, the checking context is initialized.
-         *
-         * @param {ASTNode} node - A function node that was entered.
+         * @param {ASTNode} node A function node that was entered.
          * @returns {void}
          */
         function enterFunction(node) {

@@ -37,6 +37,7 @@ class String16 {
 
   static String16 fromInteger(int);
   static String16 fromInteger(size_t);
+  static String16 fromInteger64(int64_t);
   static String16 fromDouble(double);
   static String16 fromDouble(double, int precision);
 

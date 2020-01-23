@@ -9,6 +9,7 @@
 #endif
 #if V8_OS_LINUX
 #include <linux/auxvec.h>  // AT_HWCAP
+extern "C" char** environ;
 #endif
 #if V8_GLIBC_PREREQ(2, 16)
 #include <sys/auxv.h>  // getauxval()
@@ -16,7 +17,7 @@
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
 #endif
-#if V8_OS_LINUX && V8_HOST_ARCH_PPC
+#if (V8_OS_LINUX && V8_HOST_ARCH_PPC) || V8_OS_ANDROID
 #include <elf.h>
 #endif
 #if V8_OS_AIX
@@ -109,28 +110,25 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #define HWCAP_LPAE  (1 << 20)
 
 static uint32_t ReadELFHWCaps() {
-  uint32_t result = 0;
 #if V8_GLIBC_PREREQ(2, 16)
-  result = static_cast<uint32_t>(getauxval(AT_HWCAP));
+  return static_cast<uint32_t>(getauxval(AT_HWCAP));
 #else
-  // Read the ELF HWCAP flags by parsing /proc/self/auxv.
-  FILE* fp = fopen("/proc/self/auxv", "r");
-  if (fp != nullptr) {
-    struct { uint32_t tag; uint32_t value; } entry;
-    for (;;) {
-      size_t n = fread(&entry, sizeof(entry), 1, fp);
-      if (n == 0 || (entry.tag == 0 && entry.value == 0)) {
-        break;
-      }
-      if (entry.tag == AT_HWCAP) {
-        result = entry.value;
-        break;
-      }
-    }
-    fclose(fp);
+  char** head = environ;
+  while (*head++ != nullptr) {
   }
+#ifdef __LP64__
+  using elf_auxv_t = Elf64_auxv_t;
+#else
+  using elf_auxv_t = Elf32_auxv_t;
 #endif
-  return result;
+  for (elf_auxv_t* entry = reinterpret_cast<elf_auxv_t*>(head);
+       entry->a_type != AT_NULL; ++entry) {
+    if (entry->a_type == AT_HWCAP) {
+      return entry->a_un.a_val;
+    }
+  }
+  return 0u;
+#endif
 }
 
 #endif  // V8_HOST_ARCH_ARM
@@ -608,33 +606,28 @@ CPU::CPU()
 
 #ifndef USE_SIMULATOR
 #if V8_OS_LINUX
-  // Read processor info from /proc/self/auxv.
   char* auxv_cpu_type = nullptr;
-  FILE* fp = fopen("/proc/self/auxv", "r");
-  if (fp != nullptr) {
+  char** head = environ;
+  while (*head++ != nullptr) {
+  }
 #if V8_TARGET_ARCH_PPC64
-    Elf64_auxv_t entry;
+  using elf_auxv_t = Elf64_auxv_t;
 #else
-    Elf32_auxv_t entry;
+  using elf_auxv_t = Elf32_auxv_t;
 #endif
-    for (;;) {
-      size_t n = fread(&entry, sizeof(entry), 1, fp);
-      if (n == 0 || entry.a_type == AT_NULL) {
+  for (elf_auxv_t* entry = reinterpret_cast<elf_auxv_t*>(head);
+       entry->a_type != AT_NULL; ++entry) {
+    switch (entry->a_type) {
+      case AT_PLATFORM:
+        auxv_cpu_type = reinterpret_cast<char*>(entry->a_un.a_val);
         break;
-      }
-      switch (entry.a_type) {
-        case AT_PLATFORM:
-          auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
-          break;
-        case AT_ICACHEBSIZE:
-          icache_line_size_ = entry.a_un.a_val;
-          break;
-        case AT_DCACHEBSIZE:
-          dcache_line_size_ = entry.a_un.a_val;
-          break;
-      }
+      case AT_ICACHEBSIZE:
+        icache_line_size_ = entry->a_un.a_val;
+        break;
+      case AT_DCACHEBSIZE:
+        dcache_line_size_ = entry->a_un.a_val;
+        break;
     }
-    fclose(fp);
   }
 
   part_ = -1;

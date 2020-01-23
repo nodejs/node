@@ -159,12 +159,14 @@ namespace compiler {
   V(MipsI32x4MinU)                 \
   V(MipsF32x4Abs)                  \
   V(MipsF32x4Neg)                  \
+  V(MipsF32x4Sqrt)                 \
   V(MipsF32x4RecipApprox)          \
   V(MipsF32x4RecipSqrtApprox)      \
   V(MipsF32x4Add)                  \
   V(MipsF32x4AddHoriz)             \
   V(MipsF32x4Sub)                  \
   V(MipsF32x4Mul)                  \
+  V(MipsF32x4Div)                  \
   V(MipsF32x4Max)                  \
   V(MipsF32x4Min)                  \
   V(MipsF32x4Eq)                   \

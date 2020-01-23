@@ -165,11 +165,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
               SourcePosition(pos_info.shared->StartPosition()),
               pos_info.shared);
 
-          std::unique_ptr<CodeEntry> inline_entry =
-              base::make_unique<CodeEntry>(
-                  tag, GetFunctionName(*pos_info.shared), resource_name,
-                  start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
-                  code.InstructionStart(), inline_is_shared_cross_origin);
+          std::unique_ptr<CodeEntry> inline_entry = std::make_unique<CodeEntry>(
+              tag, GetFunctionName(*pos_info.shared), resource_name,
+              start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
+              code.InstructionStart(), inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
 
           // Create a canonical CodeEntry for each inlined frame and then re-use
@@ -177,8 +176,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
               &cached_inline_entries, std::move(inline_entry));
 
-          inline_stack.push_back(
-              CodeEntryAndLineNumber{cached_entry, line_number});
+          inline_stack.push_back({cached_entry, line_number});
         }
         DCHECK(!inline_stack.empty());
         inline_stacks.emplace(inlining_id, std::move(inline_stack));
@@ -277,6 +275,13 @@ void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
   rec->entry =
       new CodeEntry(CodeEventListener::CALLBACK_TAG, GetConsName("set ", name));
   rec->instruction_size = 1;
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
+  CodeEventsContainer evt_rec(CodeEventRecord::NATIVE_CONTEXT_MOVE);
+  evt_rec.NativeContextMoveEventRecord_.from_address = from;
+  evt_rec.NativeContextMoveEventRecord_.to_address = to;
   DispatchCodeEvent(evt_rec);
 }
 

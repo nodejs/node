@@ -53,9 +53,9 @@ Handle<String> MakeName(const char* str, int suffix) {
   return MakeString(buffer.begin());
 }
 
-int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
-         int a8) {
-  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+int sum10(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
+          int a8, int a9) {
+  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9;
 }
 
 static int sum3(int a0, int a1, int a2) { return a0 + a1 + a2; }
@@ -70,8 +70,8 @@ TEST(CallCFunction) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    Node* const fun_constant = m.ExternalConstant(
-        ExternalReference::Create(reinterpret_cast<Address>(sum9)));
+    TNode<ExternalReference> const fun_constant = m.ExternalConstant(
+        ExternalReference::Create(reinterpret_cast<Address>(sum10)));
 
     MachineType type_intptr = MachineType::IntPtr();
 
@@ -85,14 +85,15 @@ TEST(CallCFunction) {
                         std::make_pair(type_intptr, m.IntPtrConstant(5)),
                         std::make_pair(type_intptr, m.IntPtrConstant(6)),
                         std::make_pair(type_intptr, m.IntPtrConstant(7)),
-                        std::make_pair(type_intptr, m.IntPtrConstant(8)));
+                        std::make_pair(type_intptr, m.IntPtrConstant(8)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(9)));
     m.Return(m.SmiTag(result));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(36, Handle<Smi>::cast(result)->value());
+  CHECK_EQ(45, Handle<Smi>::cast(result)->value());
 }
 
 TEST(CallCFunctionWithCallerSavedRegisters) {
@@ -103,7 +104,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    Node* const fun_constant = m.ExternalConstant(
+    TNode<ExternalReference> const fun_constant = m.ExternalConstant(
         ExternalReference::Create(reinterpret_cast<Address>(sum3)));
 
     MachineType type_intptr = MachineType::IntPtr();
@@ -120,6 +121,62 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
   Handle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(3, Handle<Smi>::cast(result)->value());
+}
+
+TEST(NumberToString) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  {
+    TNode<Number> input = m.CAST(m.Parameter(0));
+
+    Label bailout(&m);
+    m.Return(m.NumberToString(input, &bailout));
+
+    m.BIND(&bailout);
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  // clang-format off
+  double inputs[] = {
+     1, 2, 42, 153, -1, -100, 0, 51095154, -1241950,
+     std::nan("-1"), std::nan("1"), std::nan("2"),
+    -std::numeric_limits<double>::infinity(),
+     std::numeric_limits<double>::infinity(),
+    -0.0, -0.001, -0.5, -0.999, -1.0,
+     0.0,  0.001,  0.5,  0.999,  1.0,
+    -2147483647.9, -2147483648.0, -2147483648.5, -2147483648.9,  // SmiMin.
+     2147483646.9,  2147483647.0,  2147483647.5,  2147483647.9,  // SmiMax.
+    -4294967295.9, -4294967296.0, -4294967296.5, -4294967297.0,  // - 2^32.
+     4294967295.9,  4294967296.0,  4294967296.5,  4294967297.0,  //   2^32.
+  };
+  // clang-format on
+
+  const int kFullCacheSize = isolate->heap()->MaxNumberToStringCacheSize();
+  const int test_count = arraysize(inputs);
+  for (int i = 0; i < test_count; i++) {
+    int cache_length_before_addition = factory->number_string_cache()->length();
+    Handle<Object> input = factory->NewNumber(inputs[i]);
+    Handle<String> expected = factory->NumberToString(input);
+
+    Handle<Object> result = ft.Call(input).ToHandleChecked();
+    if (result->IsUndefined(isolate)) {
+      // Query may fail if cache was resized, in which case the entry is not
+      // added to the cache.
+      CHECK_LT(cache_length_before_addition, kFullCacheSize);
+      CHECK_EQ(factory->number_string_cache()->length(), kFullCacheSize);
+      expected = factory->NumberToString(input);
+      result = ft.Call(input).ToHandleChecked();
+    }
+    CHECK(!result->IsUndefined(isolate));
+    CHECK_EQ(*expected, *result);
+  }
 }
 
 namespace {
@@ -311,7 +368,7 @@ TEST(DecodeWordFromWord32) {
   CodeAssemblerTester asm_tester(isolate);
   CodeStubAssembler m(asm_tester.state());
 
-  class TestBitField : public BitField<unsigned, 3, 3> {};
+  using TestBitField = BitField<unsigned, 3, 3>;
   m.Return(m.SmiTag(
       m.Signed(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2F)))));
   FunctionTester ft(asm_tester.GenerateCode());
@@ -430,35 +487,38 @@ TEST(TryToName) {
   enum Result { kKeyIsIndex, kKeyIsUnique, kBailout };
   {
     Node* key = m.Parameter(0);
-    Node* expected_result = m.Parameter(1);
-    Node* expected_arg = m.Parameter(2);
+    TNode<MaybeObject> expected_result =
+        m.UncheckedCast<MaybeObject>(m.Parameter(1));
+    TNode<Object> expected_arg = m.CAST(m.Parameter(2));
 
     Label passed(&m), failed(&m);
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
     {
-      Variable var_index(&m, MachineType::PointerRepresentation());
-      Variable var_unique(&m, MachineRepresentation::kTagged);
+      TYPED_VARIABLE_DEF(IntPtrT, var_index, &m);
+      TYPED_VARIABLE_DEF(Name, var_unique, &m);
 
       m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
                   &if_bailout);
 
       m.BIND(&if_keyisindex);
-      m.GotoIfNot(m.WordEqual(expected_result,
-                              m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
+      m.GotoIfNot(m.TaggedEqual(expected_result,
+                                m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
                   &failed);
-      m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
-               &passed, &failed);
+      m.Branch(
+          m.IntPtrEqual(m.SmiUntag(m.CAST(expected_arg)), var_index.value()),
+          &passed, &failed);
 
       m.BIND(&if_keyisunique);
-      m.GotoIfNot(m.WordEqual(expected_result,
-                              m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
+      m.GotoIfNot(m.TaggedEqual(expected_result,
+                                m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
                   &failed);
-      m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
+      m.Branch(m.TaggedEqual(expected_arg, var_unique.value()), &passed,
+               &failed);
     }
 
     m.BIND(&if_bailout);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -653,7 +713,7 @@ void TestNameDictionaryLookup() {
                                        &var_name_index, &if_not_found);
     m.BIND(&if_found);
     m.GotoIfNot(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(
         m.WordEqual(m.SmiUntag(m.CAST(expected_arg)), var_name_index.value()),
@@ -661,7 +721,7 @@ void TestNameDictionaryLookup() {
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -756,14 +816,14 @@ TEST(NumberDictionaryLookup) {
                              &if_not_found);
     m.BIND(&if_found);
     m.GotoIfNot(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(m.CAST(expected_arg)), var_entry.value()),
              &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -847,12 +907,12 @@ TEST(TransitionLookup) {
                        &if_not_found);
 
       BIND(&if_found);
-      GotoIfNot(WordEqual(expected_result, SmiConstant(kFound)), &failed);
-      Branch(WordEqual(expected_arg, SmiTag(var_transition_index.value())),
+      GotoIfNot(TaggedEqual(expected_result, SmiConstant(kFound)), &failed);
+      Branch(TaggedEqual(expected_arg, SmiTag(var_transition_index.value())),
              &passed, &failed);
 
       BIND(&if_not_found);
-      Branch(WordEqual(expected_result, SmiConstant(kNotFound)), &passed,
+      Branch(TaggedEqual(expected_result, SmiConstant(kNotFound)), &passed,
              &failed);
 
       BIND(&passed);
@@ -1010,29 +1070,31 @@ TEST(TryHasOwnProperty) {
   {
     Node* object = m.Parameter(0);
     Node* unique_name = m.Parameter(1);
-    Node* expected_result = m.Parameter(2);
+    TNode<MaybeObject> expected_result =
+        m.UncheckedCast<MaybeObject>(m.Parameter(2));
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m);
 
-    Node* map = m.LoadMap(object);
-    Node* instance_type = m.LoadMapInstanceType(map);
+    TNode<Map> map = m.LoadMap(object);
+    TNode<Uint16T> instance_type = m.LoadMapInstanceType(map);
 
     m.TryHasOwnProperty(object, map, instance_type, unique_name, &if_found,
                         &if_not_found, &if_bailout);
 
     m.BIND(&if_found);
-    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
-             &passed, &failed);
+    m.Branch(
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&if_bailout);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -1207,8 +1269,8 @@ TEST(TryGetOwnProperty) {
     Variable var_value(&m, MachineRepresentation::kTagged);
     Label if_found(&m), if_not_found(&m), if_bailout(&m);
 
-    Node* map = m.LoadMap(object);
-    Node* instance_type = m.LoadMapInstanceType(map);
+    TNode<Map> map = m.LoadMap(object);
+    TNode<Uint16T> instance_type = m.LoadMapInstanceType(map);
 
     m.TryGetOwnProperty(context, object, object, map, instance_type,
                         unique_name, &if_found, &var_value, &if_not_found,
@@ -1421,34 +1483,37 @@ TEST(TryLookupElement) {
   enum Result { kFound, kAbsent, kNotFound, kBailout };
   {
     Node* object = m.Parameter(0);
-    Node* index = m.SmiUntag(m.Parameter(1));
-    Node* expected_result = m.Parameter(2);
+    TNode<IntPtrT> index = m.SmiUntag(m.Parameter(1));
+    TNode<MaybeObject> expected_result =
+        m.UncheckedCast<MaybeObject>(m.Parameter(2));
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m), if_absent(&m);
 
-    Node* map = m.LoadMap(object);
-    Node* instance_type = m.LoadMapInstanceType(map);
+    TNode<Map> map = m.LoadMap(object);
+    TNode<Uint16T> instance_type = m.LoadMapInstanceType(map);
 
     m.TryLookupElement(object, map, instance_type, index, &if_found, &if_absent,
                        &if_not_found, &if_bailout);
 
     m.BIND(&if_found);
-    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
-             &passed, &failed);
+    m.Branch(
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        &passed, &failed);
 
     m.BIND(&if_absent);
-    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
-             &passed, &failed);
+    m.Branch(
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
+        &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&if_bailout);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -1559,8 +1624,8 @@ TEST(TryLookupElement) {
 
     v8::ArrayBuffer::Contents contents = buffer->Externalize();
     buffer->Detach();
-    isolate->array_buffer_allocator()->Free(contents.Data(),
-                                            contents.ByteLength());
+    contents.Deleter()(contents.Data(), contents.ByteLength(),
+                       contents.DeleterData());
 
     CHECK_ABSENT(object, 0);
     CHECK_ABSENT(object, 1);
@@ -1600,19 +1665,19 @@ TEST(TryLookupElement) {
     CHECK_NOT_FOUND(object, 42);
   }
 
-// TODO(ishell): uncomment once NO_ELEMENTS kind is supported.
-//  {
-//    Handle<Map> map = Map::Create(isolate, 0);
-//    map->set_elements_kind(NO_ELEMENTS);
-//    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-//    CHECK_EQ(NO_ELEMENTS, object->map()->elements_kind());
-//
-//    CHECK_NOT_FOUND(object, 0);
-//    CHECK_NOT_FOUND(object, 1);
-//    CHECK_NOT_FOUND(object, 7);
-//    CHECK_NOT_FOUND(object, 13);
-//    CHECK_NOT_FOUND(object, 42);
-//  }
+  // TODO(ishell): uncomment once NO_ELEMENTS kind is supported.
+  //  {
+  //    Handle<Map> map = Map::Create(isolate, 0);
+  //    map->set_elements_kind(NO_ELEMENTS);
+  //    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+  //    CHECK_EQ(NO_ELEMENTS, object->map()->elements_kind());
+  //
+  //    CHECK_NOT_FOUND(object, 0);
+  //    CHECK_NOT_FOUND(object, 1);
+  //    CHECK_NOT_FOUND(object, 7);
+  //    CHECK_NOT_FOUND(object, 13);
+  //    CHECK_NOT_FOUND(object, 42);
+  //  }
 
 #undef CHECK_FOUND
 #undef CHECK_NOT_FOUND
@@ -1652,7 +1717,8 @@ TEST(AllocateJSObjectFromMap) {
     Node* properties = m.Parameter(1);
     Node* elements = m.Parameter(2);
 
-    Node* result = m.AllocateJSObjectFromMap(map, properties, elements);
+    TNode<JSObject> result =
+        m.AllocateJSObjectFromMap(map, properties, elements);
 
     CodeStubAssembler::Label done(&m);
     m.GotoIfNot(m.IsJSArrayMap(map), &done);
@@ -1722,7 +1788,8 @@ TEST(AllocateNameDictionary) {
 
   {
     Node* capacity = m.Parameter(0);
-    Node* result = m.AllocateNameDictionary(m.SmiUntag(capacity));
+    TNode<NameDictionary> result =
+        m.AllocateNameDictionary(m.SmiUntag(capacity));
     m.Return(result);
   }
 
@@ -1798,7 +1865,7 @@ TEST(OneToTwoByteStringCopy) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(0), m.IntPtrConstant(5),
@@ -1830,7 +1897,7 @@ TEST(OneToOneByteStringCopy) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(0), m.IntPtrConstant(5),
@@ -1862,7 +1929,7 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(3), m.IntPtrConstant(2),
@@ -1891,7 +1958,7 @@ TEST(TwoToTwoByteStringCopy) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(0), m.IntPtrConstant(5),
@@ -1930,12 +1997,9 @@ TEST(Arguments) {
 
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
-  CSA_ASSERT(
-      &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
-  CSA_ASSERT(
-      &m, m.WordEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
-  CSA_ASSERT(
-      &m, m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(12)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(13)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -1955,21 +2019,14 @@ TEST(ArgumentsWithSmiConstantIndices) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  CodeStubArguments arguments(&m, m.SmiConstant(3), nullptr,
-                              CodeStubAssembler::SMI_PARAMETERS);
+  CodeStubArguments arguments(&m, m.SmiConstant(3));
 
-  CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(m.SmiConstant(0),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(12))));
-  CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(m.SmiConstant(1),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(13))));
-  CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(m.SmiConstant(2),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(0)),
+                               m.SmiConstant(12)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(1)),
+                               m.SmiConstant(13)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(2)),
+                               m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -2008,21 +2065,14 @@ TEST(ArgumentsWithSmiIndices) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  CodeStubArguments arguments(&m, m.SmiConstant(3), nullptr,
-                              CodeStubAssembler::SMI_PARAMETERS);
+  CodeStubArguments arguments(&m, m.SmiConstant(3));
 
-  CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 0),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(12))));
-  CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 1),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(13))));
-  CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 2),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 0)),
+                               m.SmiConstant(12)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 1)),
+                               m.SmiConstant(13)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 2)),
+                               m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -2049,7 +2099,7 @@ TEST(ArgumentsForEach) {
 
   sum = m.SmiConstant(0);
 
-  arguments.ForEach(list, [&m, &sum](Node* arg) {
+  arguments.ForEach(list, [&](TNode<Object> arg) {
     sum = m.SmiAdd(sum.value(), m.CAST(arg));
   });
 
@@ -2119,8 +2169,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     TVariable<IntPtrT> arg_index(this);
     Label bailout(this);
     arg_index = IntPtrConstant(0);
-    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), &args,
-                                      &arg_index, &bailout);
+    TNode<Smi> length = BuildAppendJSArray(kind_, HeapConstant(array), &args,
+                                           &arg_index, &bailout);
     Return(length);
 
     BIND(&bailout);
@@ -2270,7 +2320,7 @@ TEST(AllocateAndInitJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateAndInitJSPromise(context);
+  TNode<JSPromise> const promise = m.AllocateAndInitJSPromise(m.CAST(context));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2287,8 +2337,8 @@ TEST(AllocateAndSetJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateAndSetJSPromise(
-      context, v8::Promise::kRejected, m.SmiConstant(1));
+  TNode<JSPromise> const promise = m.AllocateAndSetJSPromise(
+      m.CAST(context), v8::Promise::kRejected, m.SmiConstant(1));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2350,8 +2400,8 @@ TEST(PromiseHasHandler) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise =
-      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
+  TNode<JSPromise> const promise =
+      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2368,11 +2418,12 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise =
-      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
-  Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
-      promise, m.BooleanConstant(false), native_context);
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<JSPromise> promise =
+      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
+  TNode<Context> const promise_context =
+      m.CreatePromiseResolvingFunctionsContext(
+          promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2396,13 +2447,13 @@ TEST(CreatePromiseResolvingFunctions) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise =
-      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<JSPromise> promise =
+      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   Node *resolve, *reject;
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
-  Node* const kSize = m.IntPtrConstant(2);
+  TNode<IntPtrT> const kSize = m.IntPtrConstant(2);
   TNode<FixedArray> const arr =
       m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
   m.StoreFixedArrayElement(arr, 0, resolve);
@@ -2486,18 +2537,18 @@ TEST(AllocateFunctionWithMapAndContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise =
-      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
-  Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<JSPromise> promise =
+      m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
+  TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
-  Node* resolve_info = m.LoadContextElement(
+  TNode<Object> resolve_info = m.LoadContextElement(
       native_context,
       Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
-  Node* const map = m.LoadContextElement(
+  TNode<Object> const map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  Node* const resolve =
-      m.AllocateFunctionWithMapAndContext(map, resolve_info, promise_context);
+  TNode<JSFunction> const resolve = m.AllocateFunctionWithMapAndContext(
+      m.CAST(map), m.CAST(resolve_info), promise_context);
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2524,9 +2575,9 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
 
-  Node* const map = m.LoadRoot(RootIndex::kPromiseCapabilityMap);
+  TNode<Map> const map = m.PromiseCapabilityMapConstant();
   Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
       capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
@@ -2560,12 +2611,12 @@ TEST(NewPromiseCapability) {
     PromiseBuiltinsAssembler m(asm_tester.state());
 
     Node* const context = m.Parameter(kNumParams + 2);
-    Node* const native_context = m.LoadNativeContext(context);
-    Node* const promise_constructor =
+    TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+    TNode<Object> const promise_constructor =
         m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
-    Node* const debug_event = m.TrueConstant();
-    Node* const capability =
+    TNode<Oddball> const debug_event = m.TrueConstant();
+    TNode<Object> const capability =
         m.CallBuiltin(Builtins::kNewPromiseCapability, context,
                       promise_constructor, debug_event);
     m.Return(capability);
@@ -2608,9 +2659,9 @@ TEST(NewPromiseCapability) {
     Node* const context = m.Parameter(kNumParams + 2);
 
     Node* const constructor = m.Parameter(1);
-    Node* const debug_event = m.TrueConstant();
-    Node* const capability = m.CallBuiltin(Builtins::kNewPromiseCapability,
-                                           context, constructor, debug_event);
+    TNode<Oddball> const debug_event = m.TrueConstant();
+    TNode<Object> const capability = m.CallBuiltin(
+        Builtins::kNewPromiseCapability, context, constructor, debug_event);
     m.Return(capability);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2674,12 +2725,13 @@ TEST(DirectMemoryTest8BitWord32Immediate) {
   const int element_count = 8;
   Label bad(&m);
 
-  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
                                         MachineType::Uint8());
-      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      TNode<Word32T> masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2706,13 +2758,14 @@ TEST(DirectMemoryTest16BitWord32Immediate) {
   const int element_count = 8;
   Label bad(&m);
 
-  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded =
           m.LoadBufferObject(buffer_node, static_cast<int>(i * sizeof(int16_t)),
                              MachineType::Uint16());
-      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      TNode<Word32T> masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2740,7 +2793,8 @@ TEST(DirectMemoryTest8BitWord32) {
   Label bad(&m);
   Node* constants[element_count];
 
-  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     constants[i] = m.LoadBufferObject(buffer_node, static_cast<int>(i),
                                       MachineType::Uint8());
@@ -2750,7 +2804,7 @@ TEST(DirectMemoryTest8BitWord32) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
                                         MachineType::Uint8());
-      Node* masked = m.Word32And(loaded, constants[j]);
+      TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2785,20 +2839,22 @@ TEST(DirectMemoryTest16BitWord32) {
   Label bad(&m);
   Node* constants[element_count];
 
-  Node* buffer_node1 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node1 =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     constants[i] =
         m.LoadBufferObject(buffer_node1, static_cast<int>(i * sizeof(int16_t)),
                            MachineType::Uint16());
   }
-  Node* buffer_node2 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node2 =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
 
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded = m.LoadBufferObject(buffer_node1,
                                         static_cast<int>(i * sizeof(int16_t)),
                                         MachineType::Uint16());
-      Node* masked = m.Word32And(loaded, constants[j]);
+      TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2841,8 +2897,8 @@ TEST(LoadJSArrayElementsMap) {
   {
     CodeStubAssembler m(asm_tester.state());
     Node* context = m.Parameter(kNumParams + 2);
-    Node* native_context = m.LoadNativeContext(context);
-    Node* kind = m.SmiToInt32(m.Parameter(0));
+    TNode<NativeContext> native_context = m.LoadNativeContext(context);
+    TNode<Int32T> kind = m.SmiToInt32(m.Parameter(0));
     m.Return(m.LoadJSArrayElementsMap(kind, native_context));
   }
 
@@ -3106,7 +3162,7 @@ TEST(CloneEmptyFixedArray) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.CloneFixedArray(m.Parameter(0)));
+    m.Return(m.CloneFixedArray(m.CAST(m.Parameter(0))));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3123,7 +3179,7 @@ TEST(CloneFixedArray) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.CloneFixedArray(m.Parameter(0)));
+    m.Return(m.CloneFixedArray(m.CAST(m.Parameter(0))));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3145,7 +3201,7 @@ TEST(CloneFixedArrayCOW) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.CloneFixedArray(m.Parameter(0)));
+    m.Return(m.CloneFixedArray(m.CAST(m.Parameter(0))));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3288,8 +3344,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    Node* p1_untagged = m.SmiUntag(m.Parameter(1));
-    Node* p2_untagged = m.SmiUntag(m.Parameter(2));
+    TNode<IntPtrT> p1_untagged = m.SmiUntag(m.Parameter(1));
+    TNode<IntPtrT> p2_untagged = m.SmiUntag(m.Parameter(2));
     m.Return(m.ExtractFixedArray(m.Parameter(0), p1_untagged, p2_untagged));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3334,8 +3390,9 @@ TEST(SingleInputPhiElimination) {
     Label end_label(&m, {&temp1, &temp2});
     temp1.Bind(m.Parameter(1));
     temp2.Bind(m.Parameter(1));
-    m.Branch(m.WordEqual(m.Parameter(0), m.Parameter(1)), &end_label,
-             &temp_label);
+    m.Branch(m.TaggedEqual(m.UncheckedCast<Object>(m.Parameter(0)),
+                           m.UncheckedCast<Object>(m.Parameter(1))),
+             &end_label, &temp_label);
     temp1.Bind(m.Parameter(2));
     temp2.Bind(m.Parameter(2));
     m.BIND(&temp_label);
@@ -3486,7 +3543,7 @@ TEST(TestCallBuiltinInlineTrampoline) {
   Node* str = m.Parameter(0);
   Node* context = m.Parameter(kNumParams + kContextOffset);
 
-  Node* index = m.SmiConstant(2);
+  TNode<Smi> index = m.SmiConstant(2);
 
   m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
                       context, str, index));
@@ -3511,7 +3568,7 @@ TEST(TestCallBuiltinIndirectLoad) {
   Node* str = m.Parameter(0);
   Node* context = m.Parameter(kNumParams + kContextOffset);
 
-  Node* index = m.SmiConstant(2);
+  TNode<Smi> index = m.SmiConstant(2);
 
   m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
                       context, str, index));
@@ -3523,37 +3580,6 @@ TEST(TestCallBuiltinIndirectLoad) {
   MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
   CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
                        Handle<String>::cast(result.ToHandleChecked())));
-}
-
-TEST(TestGotoIfDebugExecutionModeChecksSideEffects) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester asm_tester(isolate, 0);
-  {
-    CodeStubAssembler m(asm_tester.state());
-    Label is_true(&m), is_false(&m);
-    m.GotoIfDebugExecutionModeChecksSideEffects(&is_true);
-    m.Goto(&is_false);
-    m.BIND(&is_false);
-    m.Return(m.BooleanConstant(false));
-
-    m.BIND(&is_true);
-    m.Return(m.BooleanConstant(true));
-  }
-
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-
-  CHECK(isolate->debug_execution_mode() != DebugInfo::kSideEffects);
-
-  Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK(result->IsBoolean());
-  CHECK_EQ(false, result->BooleanValue(isolate));
-
-  isolate->debug()->StartSideEffectCheckMode();
-  CHECK(isolate->debug_execution_mode() == DebugInfo::kSideEffects);
-
-  result = ft.Call().ToHandleChecked();
-  CHECK(result->IsBoolean());
-  CHECK_EQ(true, result->BooleanValue(isolate));
 }
 
 }  // namespace compiler

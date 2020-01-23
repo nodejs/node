@@ -43,8 +43,7 @@ function getUseStrictDirectives(statements) {
 
 /**
  * Checks whether a given parameter is a simple parameter.
- *
- * @param {ASTNode} node - A pattern node to check.
+ * @param {ASTNode} node A pattern node to check.
  * @returns {boolean} `true` if the node is an Identifier node.
  */
 function isSimpleParameter(node) {
@@ -53,8 +52,7 @@ function isSimpleParameter(node) {
 
 /**
  * Checks whether a given parameter list is a simple parameter list.
- *
- * @param {ASTNode[]} params - A parameter list to check.
+ * @param {ASTNode[]} params A parameter list to check.
  * @returns {boolean} `true` if the every parameter is an Identifier node.
  */
 function isSimpleParameterList(params) {

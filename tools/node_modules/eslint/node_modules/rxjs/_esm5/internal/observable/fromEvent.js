@@ -3,7 +3,7 @@ import { Observable } from '../Observable';
 import { isArray } from '../util/isArray';
 import { isFunction } from '../util/isFunction';
 import { map } from '../operators/map';
-var toString = Object.prototype.toString;
+var toString = /*@__PURE__*/ (function () { return Object.prototype.toString; })();
 export function fromEvent(target, eventName, options, resultSelector) {
     if (isFunction(options)) {
         resultSelector = options;

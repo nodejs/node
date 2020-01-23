@@ -22,8 +22,7 @@ const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|map|reduce(?:Right)?|som
 
 /**
  * Checks a given code path segment is reachable.
- *
- * @param {CodePathSegment} segment - A segment to check.
+ * @param {CodePathSegment} segment A segment to check.
  * @returns {boolean} `true` if the segment is reachable.
  */
 function isReachable(segment) {
@@ -35,9 +34,8 @@ function isReachable(segment) {
  *
  * - FunctionExpression -> the function name or `function` keyword.
  * - ArrowFunctionExpression -> `=>` token.
- *
- * @param {ASTNode} node - A function node to get.
- * @param {SourceCode} sourceCode - A source code to get tokens.
+ * @param {ASTNode} node A function node to get.
+ * @param {SourceCode} sourceCode A source code to get tokens.
  * @returns {ASTNode|Token} The node or the token of a location.
  */
 function getLocation(node, sourceCode) {
@@ -50,8 +48,7 @@ function getLocation(node, sourceCode) {
 /**
  * Checks a given node is a MemberExpression node which has the specified name's
  * property.
- *
- * @param {ASTNode} node - A node to check.
+ * @param {ASTNode} node A node to check.
  * @returns {boolean} `true` if the node is a MemberExpression node which has
  *      the specified name's property
  */
@@ -65,8 +62,7 @@ function isTargetMethod(node) {
 /**
  * Checks whether or not a given node is a function expression which is the
  * callback of an array method.
- *
- * @param {ASTNode} node - A node to check. This is one of
+ * @param {ASTNode} node A node to check. This is one of
  *      FunctionExpression or ArrowFunctionExpression.
  * @returns {boolean} `true` if the node is the callback of an array method.
  */
@@ -188,8 +184,7 @@ module.exports = {
          *
          * If the last code path segment is reachable, there are paths which are not
          * returned or thrown.
-         *
-         * @param {ASTNode} node - A node to check.
+         * @param {ASTNode} node A node to check.
          * @returns {void}
          */
         function checkLastSegment(node) {

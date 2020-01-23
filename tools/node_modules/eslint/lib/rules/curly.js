@@ -97,10 +97,15 @@ module.exports = {
          * @private
          */
         function isOneLiner(node) {
-            const first = sourceCode.getFirstToken(node),
-                last = sourceCode.getLastToken(node);
+            if (node.type === "EmptyStatement") {
+                return true;
+            }
 
-            return first.loc.start.line === last.loc.end.line;
+            const first = sourceCode.getFirstToken(node);
+            const last = sourceCode.getLastToken(node);
+            const lastExcludingSemicolon = astUtils.isSemicolonToken(last) ? sourceCode.getTokenBefore(last) : last;
+
+            return first.loc.start.line === lastExcludingSemicolon.loc.end.line;
         }
 
         /**
@@ -119,8 +124,7 @@ module.exports = {
 
         /**
          * Checks if the given token is an `else` token or not.
-         *
-         * @param {Token} token - The token to check.
+         * @param {Token} token The token to check.
          * @returns {boolean} `true` if the token is an `else` token.
          */
         function isElseKeywordToken(token) {
@@ -129,7 +133,7 @@ module.exports = {
 
         /**
          * Gets the `else` keyword token of a given `IfStatement` node.
-         * @param {ASTNode} node - A `IfStatement` node to get.
+         * @param {ASTNode} node A `IfStatement` node to get.
          * @returns {Token} The `else` keyword token.
          */
         function getElseKeyword(node) {
@@ -143,8 +147,7 @@ module.exports = {
          * 1. The given node has the `alternate` node.
          * 2. There is a `IfStatement` which doesn't have `alternate` node in the
          *    trailing statement chain of the `consequent` node.
-         *
-         * @param {ASTNode} node - A IfStatement node to check.
+         * @param {ASTNode} node A IfStatement node to check.
          * @returns {boolean} `true` if the node requires braces of the consequent chunk.
          */
         function requiresBraceOfConsequent(node) {
@@ -242,7 +245,7 @@ module.exports = {
             if (node.type === "IfStatement" && node.consequent === body && requiresBraceOfConsequent(node)) {
                 expected = true;
             } else if (multiOnly) {
-                if (hasBlock && body.body.length === 1) {
+                if (hasBlock && body.body.length === 1 && !isLexicalDeclaration(body.body[0])) {
                     expected = false;
                 }
             } else if (multiLine) {

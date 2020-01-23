@@ -51,8 +51,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF32x4Max:
     case kMipsF32x4Min:
     case kMipsF32x4Mul:
+    case kMipsF32x4Div:
     case kMipsF32x4Ne:
     case kMipsF32x4Neg:
+    case kMipsF32x4Sqrt:
     case kMipsF32x4RecipApprox:
     case kMipsF32x4RecipSqrtApprox:
     case kMipsF32x4ReplaceLane:
@@ -1673,7 +1675,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kMipsCmp:
       return 0;
     case kArchDebugBreak:
-    case kArchStackPointer:
     case kArchFramePointer:
     case kArchParentFramePointer:
     case kMipsShl:

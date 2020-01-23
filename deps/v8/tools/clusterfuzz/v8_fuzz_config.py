@@ -11,16 +11,18 @@ FOOZZIE_EXPERIMENTS = [
   [10, 'ignition', 'jitless', 'd8'],
   [10, 'ignition', 'slow_path', 'd8'],
   [5, 'ignition', 'slow_path_opt', 'd8'],
-  [26, 'ignition', 'ignition_turbo', 'd8'],
+  [25, 'ignition', 'ignition_turbo', 'd8'],
   [2, 'ignition_no_ic', 'ignition_turbo', 'd8'],
   [2, 'ignition', 'ignition_turbo_no_ic', 'd8'],
-  [18, 'ignition', 'ignition_turbo_opt', 'd8'],
+  [15, 'ignition', 'ignition_turbo_opt', 'd8'],
   [2, 'ignition_no_ic', 'ignition_turbo_opt', 'd8'],
-  [5, 'ignition_turbo_opt', 'ignition_turbo_opt', 'clang_x86/d8'],
-  [5, 'ignition_turbo', 'ignition_turbo', 'clang_x86/d8'],
-  [5, 'ignition', 'ignition', 'clang_x86/d8'],
-  [5, 'ignition', 'ignition', 'clang_x64_v8_arm64/d8'],
-  [5, 'ignition', 'ignition', 'clang_x86_v8_arm/d8'],
+  [4, 'ignition_turbo_opt', 'ignition_turbo_opt', 'clang_x64_pointer_compression/d8'],
+  [5, 'ignition_turbo', 'ignition_turbo', 'clang_x64_pointer_compression/d8'],
+  [4, 'ignition_turbo_opt', 'ignition_turbo_opt', 'clang_x86/d8'],
+  [4, 'ignition_turbo', 'ignition_turbo', 'clang_x86/d8'],
+  [4, 'ignition', 'ignition', 'clang_x86/d8'],
+  [4, 'ignition', 'ignition', 'clang_x64_v8_arm64/d8'],
+  [4, 'ignition', 'ignition', 'clang_x86_v8_arm/d8'],
 ]
 
 # Additional flag experiments. List of tuples like
@@ -37,6 +39,11 @@ ADDITIONAL_FLAGS = [
   (0.01, '--thread-pool-size=4'),
   (0.01, '--thread-pool-size=8'),
   (0.1, '--interrupt-budget=1000'),
+  (0.25, '--future'),
+  (0.2, '--no-regexp-tier-up'),
+  (0.1, '--regexp-interpret-all'),
+  (0.1, '--regexp-tier-up-ticks=10'),
+  (0.1, '--regexp-tier-up-ticks=100'),
 ]
 
 class Config(object):

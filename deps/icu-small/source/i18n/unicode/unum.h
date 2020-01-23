@@ -338,11 +338,13 @@ enum UCurrencySpacing {
 
     /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
      * it is needed for layout of DecimalFormatSymbols object. */
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UCurrencySpacing value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UNUM_CURRENCY_SPACING_COUNT
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 };
 typedef enum UCurrencySpacing UCurrencySpacing; /**< @stable ICU 4.8 */
 
@@ -409,7 +411,7 @@ typedef enum UNumberFormatFields {
  * respectively.
  *
  * <p><strong>NOTE::</strong> New users with are strongly encouraged to
- * use unumf_openWithSkeletonAndLocale instead of unum_open.
+ * use unumf_openForSkeletonAndLocale instead of unum_open.
  *
  * @param pattern A pattern specifying the format to use.
  * This parameter is ignored unless the style is

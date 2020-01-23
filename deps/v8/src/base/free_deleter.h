@@ -9,6 +9,7 @@
 #define V8_BASE_FREE_DELETER_H_
 
 #include <stdlib.h>
+#include <memory>
 
 namespace v8 {
 namespace base {

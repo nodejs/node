@@ -9,6 +9,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/utils/allocation.h"
 
@@ -31,8 +32,12 @@ class ArrayBufferTracker : public AllStatic {
 
   // Register/unregister a new JSArrayBuffer |buffer| for tracking. Guards all
   // access to the tracker by taking the page lock for the corresponding page.
-  inline static void RegisterNew(Heap* heap, JSArrayBuffer buffer);
-  inline static void Unregister(Heap* heap, JSArrayBuffer buffer);
+  inline static void RegisterNew(Heap* heap, JSArrayBuffer buffer,
+                                 std::shared_ptr<BackingStore>);
+  inline static std::shared_ptr<BackingStore> Unregister(Heap* heap,
+                                                         JSArrayBuffer buffer);
+  inline static std::shared_ptr<BackingStore> Lookup(Heap* heap,
+                                                     JSArrayBuffer buffer);
 
   // Identifies all backing store pointers for dead JSArrayBuffers in new space.
   // Does not take any locks and can only be called during Scavenge.
@@ -70,8 +75,10 @@ class LocalArrayBufferTracker {
   explicit LocalArrayBufferTracker(Page* page) : page_(page) {}
   ~LocalArrayBufferTracker();
 
-  inline void Add(JSArrayBuffer buffer, size_t length);
-  inline void Remove(JSArrayBuffer buffer, size_t length);
+  inline void Add(JSArrayBuffer buffer,
+                  std::shared_ptr<BackingStore> backing_store);
+  inline std::shared_ptr<BackingStore> Remove(JSArrayBuffer buffer);
+  inline std::shared_ptr<BackingStore> Lookup(JSArrayBuffer buffer);
 
   // Frees up array buffers.
   //
@@ -105,17 +112,13 @@ class LocalArrayBufferTracker {
     }
   };
 
-  // Keep track of the backing store and the corresponding length at time of
-  // registering. The length is accessed from JavaScript and can be a
-  // HeapNumber. The reason for tracking the length is that in the case of
-  // length being a HeapNumber, the buffer and its length may be stored on
-  // different memory pages, making it impossible to guarantee order of freeing.
   using TrackingData =
-      std::unordered_map<JSArrayBuffer, JSArrayBuffer::Allocation, Hasher>;
+      std::unordered_map<JSArrayBuffer, std::shared_ptr<BackingStore>, Hasher>;
 
   // Internal version of add that does not update counters. Requires separate
   // logic for updating external memory counters.
-  inline void AddInternal(JSArrayBuffer buffer, size_t length);
+  inline void AddInternal(JSArrayBuffer buffer,
+                          std::shared_ptr<BackingStore> backing_store);
 
   Page* page_;
   // The set contains raw heap pointers which are removed by the GC upon

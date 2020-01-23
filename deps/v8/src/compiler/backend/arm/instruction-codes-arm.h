@@ -135,12 +135,14 @@ namespace compiler {
   V(ArmF32x4UConvertI32x4)         \
   V(ArmF32x4Abs)                   \
   V(ArmF32x4Neg)                   \
+  V(ArmF32x4Sqrt)                  \
   V(ArmF32x4RecipApprox)           \
   V(ArmF32x4RecipSqrtApprox)       \
   V(ArmF32x4Add)                   \
   V(ArmF32x4AddHoriz)              \
   V(ArmF32x4Sub)                   \
   V(ArmF32x4Mul)                   \
+  V(ArmF32x4Div)                   \
   V(ArmF32x4Min)                   \
   V(ArmF32x4Max)                   \
   V(ArmF32x4Eq)                    \

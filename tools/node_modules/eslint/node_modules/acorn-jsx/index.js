@@ -5,40 +5,53 @@ const XHTMLEntities = require('./xhtml');
 const hexNumber = /^[\da-fA-F]+$/;
 const decimalNumber = /^\d+$/;
 
-const acorn = require("acorn");
-const tt = acorn.tokTypes;
-const TokContext = acorn.TokContext;
-const tokContexts = acorn.tokContexts;
-const TokenType = acorn.TokenType;
-const isNewLine = acorn.isNewLine;
-const isIdentifierStart = acorn.isIdentifierStart;
-const isIdentifierChar = acorn.isIdentifierChar;
+// The map to `acorn-jsx` tokens from `acorn` namespace objects.
+const acornJsxMap = new WeakMap();
 
-const tc_oTag = new TokContext('<tag', false);
-const tc_cTag = new TokContext('</tag', false);
-const tc_expr = new TokContext('<tag>...</tag>', true, true);
+// Get the original tokens for the given `acorn` namespace object.
+function getJsxTokens(acorn) {
+  acorn = acorn.Parser.acorn || acorn;
+  let acornJsx = acornJsxMap.get(acorn);
+  if (!acornJsx) {
+    const tt = acorn.tokTypes;
+    const TokContext = acorn.TokContext;
+    const TokenType = acorn.TokenType;
+    const tc_oTag = new TokContext('<tag', false);
+    const tc_cTag = new TokContext('</tag', false);
+    const tc_expr = new TokContext('<tag>...</tag>', true, true);
+    const tokContexts = {
+      tc_oTag: tc_oTag,
+      tc_cTag: tc_cTag,
+      tc_expr: tc_expr
+    };
+    const tokTypes = {
+      jsxName: new TokenType('jsxName'),
+      jsxText: new TokenType('jsxText', {beforeExpr: true}),
+      jsxTagStart: new TokenType('jsxTagStart'),
+      jsxTagEnd: new TokenType('jsxTagEnd')
+    };
 
-const tok = {
-  jsxName: new TokenType('jsxName'),
-  jsxText: new TokenType('jsxText', {beforeExpr: true}),
-  jsxTagStart: new TokenType('jsxTagStart'),
-  jsxTagEnd: new TokenType('jsxTagEnd')
-}
+    tokTypes.jsxTagStart.updateContext = function() {
+      this.context.push(tc_expr); // treat as beginning of JSX expression
+      this.context.push(tc_oTag); // start opening tag context
+      this.exprAllowed = false;
+    };
+    tokTypes.jsxTagEnd.updateContext = function(prevType) {
+      let out = this.context.pop();
+      if (out === tc_oTag && prevType === tt.slash || out === tc_cTag) {
+        this.context.pop();
+        this.exprAllowed = this.curContext() === tc_expr;
+      } else {
+        this.exprAllowed = true;
+      }
+    };
 
-tok.jsxTagStart.updateContext = function() {
-  this.context.push(tc_expr); // treat as beginning of JSX expression
-  this.context.push(tc_oTag); // start opening tag context
-  this.exprAllowed = false;
-};
-tok.jsxTagEnd.updateContext = function(prevType) {
-  let out = this.context.pop();
-  if (out === tc_oTag && prevType === tt.slash || out === tc_cTag) {
-    this.context.pop();
-    this.exprAllowed = this.curContext() === tc_expr;
-  } else {
-    this.exprAllowed = true;
+    acornJsx = { tokContexts: tokContexts, tokTypes: tokTypes };
+    acornJsxMap.set(acorn, acornJsx);
   }
-};
+
+  return acornJsx;
+}
 
 // Transforms JSX element name to string.
 
@@ -64,12 +77,38 @@ module.exports = function(options) {
       allowNamespaces: options.allowNamespaces !== false,
       allowNamespacedObjects: !!options.allowNamespacedObjects
     }, Parser);
-  }
+  };
 };
-module.exports.tokTypes = tok;
+
+// This is `tokTypes` of the peer dep.
+// This can be different instances from the actual `tokTypes` this plugin uses.
+Object.defineProperty(module.exports, "tokTypes", {
+  get: function get_tokTypes() {
+    return getJsxTokens(require("acorn")).tokTypes;
+  },
+  configurable: true,
+  enumerable: true
+});
 
 function plugin(options, Parser) {
+  const acorn = Parser.acorn || require("acorn");
+  const acornJsx = getJsxTokens(acorn);
+  const tt = acorn.tokTypes;
+  const tok = acornJsx.tokTypes;
+  const tokContexts = acorn.tokContexts;
+  const tc_oTag = acornJsx.tokContexts.tc_oTag;
+  const tc_cTag = acornJsx.tokContexts.tc_cTag;
+  const tc_expr = acornJsx.tokContexts.tc_expr;
+  const isNewLine = acorn.isNewLine;
+  const isIdentifierStart = acorn.isIdentifierStart;
+  const isIdentifierChar = acorn.isIdentifierChar;
+
   return class extends Parser {
+    // Expose actual `tokTypes` and `tokContexts` to other plugins.
+    static get acornJsx() {
+      return acornJsx;
+    }
+
     // Reads inline JSX contents token.
     jsx_readToken() {
       let out = '', chunkStart = this.pos;
@@ -419,7 +458,7 @@ function plugin(options, Parser) {
         ++this.pos;
         return this.finishToken(tok.jsxTagStart);
       }
-      return super.readToken(code)
+      return super.readToken(code);
     }
 
     updateContext(prevType) {
@@ -427,7 +466,7 @@ function plugin(options, Parser) {
         var curContext = this.curContext();
         if (curContext == tc_oTag) this.context.push(tokContexts.b_expr);
         else if (curContext == tc_expr) this.context.push(tokContexts.b_tmpl);
-        else super.updateContext(prevType)
+        else super.updateContext(prevType);
         this.exprAllowed = true;
       } else if (this.type === tt.slash && prevType === tok.jsxTagStart) {
         this.context.length -= 2; // do not consider JSX expr -> JSX open tag -> ... anymore

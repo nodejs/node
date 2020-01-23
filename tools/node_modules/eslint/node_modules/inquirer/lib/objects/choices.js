@@ -110,7 +110,9 @@ module.exports = class Choices {
   push() {
     var objs = _.map(arguments, val => new Choice(val));
     this.choices.push.apply(this.choices, objs);
-    this.realChoices = this.choices.filter(Separator.exclude);
+    this.realChoices = this.choices
+      .filter(Separator.exclude)
+      .filter(item => !item.disabled);
     return this.choices;
   }
 };

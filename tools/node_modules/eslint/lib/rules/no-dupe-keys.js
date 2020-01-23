@@ -23,9 +23,10 @@ const SET_KIND = /^(?:init|set)$/u;
  */
 class ObjectInfo {
 
+    // eslint-disable-next-line jsdoc/require-description
     /**
-     * @param {ObjectInfo|null} upper - The information of the outer object.
-     * @param {ASTNode} node - The ObjectExpression node of this information.
+     * @param {ObjectInfo|null} upper The information of the outer object.
+     * @param {ASTNode} node The ObjectExpression node of this information.
      */
     constructor(upper, node) {
         this.upper = upper;
@@ -35,7 +36,7 @@ class ObjectInfo {
 
     /**
      * Gets the information of the given Property node.
-     * @param {ASTNode} node - The Property node to get.
+     * @param {ASTNode} node The Property node to get.
      * @returns {{get: boolean, set: boolean}} The information of the property.
      */
     getPropertyInfo(node) {
@@ -49,7 +50,7 @@ class ObjectInfo {
 
     /**
      * Checks whether the given property has been defined already or not.
-     * @param {ASTNode} node - The Property node to check.
+     * @param {ASTNode} node The Property node to check.
      * @returns {boolean} `true` if the property has been defined.
      */
     isPropertyDefined(node) {
@@ -63,7 +64,7 @@ class ObjectInfo {
 
     /**
      * Defines the given property.
-     * @param {ASTNode} node - The Property node to define.
+     * @param {ASTNode} node The Property node to define.
      * @returns {void}
      */
     defineProperty(node) {

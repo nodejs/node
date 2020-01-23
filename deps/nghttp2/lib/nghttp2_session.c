@@ -3735,7 +3735,6 @@ static int session_end_stream_headers_received(nghttp2_session *session,
 
 static int session_after_header_block_received(nghttp2_session *session) {
   int rv = 0;
-  int call_cb = 1;
   nghttp2_frame *frame = &session->iframe.frame;
   nghttp2_stream *stream;
 
@@ -3789,21 +3788,25 @@ static int session_after_header_block_received(nghttp2_session *session) {
         stream_id = frame->hd.stream_id;
       }
 
-      call_cb = 0;
-
       rv = session_handle_invalid_stream2(session, stream_id, frame,
                                           NGHTTP2_ERR_HTTP_MESSAGING);
       if (nghttp2_is_fatal(rv)) {
         return rv;
       }
+
+      if (frame->hd.type == NGHTTP2_HEADERS &&
+          (frame->hd.flags & NGHTTP2_FLAG_END_STREAM)) {
+        nghttp2_stream_shutdown(stream, NGHTTP2_SHUT_RD);
+        /* Don't call nghttp2_session_close_stream_if_shut_rdwr
+           because RST_STREAM has been submitted. */
+      }
+      return 0;
     }
   }
 
-  if (call_cb) {
-    rv = session_call_on_frame_received(session, frame);
-    if (nghttp2_is_fatal(rv)) {
-      return rv;
-    }
+  rv = session_call_on_frame_received(session, frame);
+  if (nghttp2_is_fatal(rv)) {
+    return rv;
   }
 
   if (frame->hd.type != NGHTTP2_HEADERS) {
@@ -4942,7 +4945,6 @@ static int session_process_extension_frame(nghttp2_session *session) {
 int nghttp2_session_on_data_received(nghttp2_session *session,
                                      nghttp2_frame *frame) {
   int rv = 0;
-  int call_cb = 1;
   nghttp2_stream *stream;
 
   /* We don't call on_frame_recv_callback if stream has been closed
@@ -4958,20 +4960,22 @@ int nghttp2_session_on_data_received(nghttp2_session *session,
   if (session_enforce_http_messaging(session) &&
       (frame->hd.flags & NGHTTP2_FLAG_END_STREAM)) {
     if (nghttp2_http_on_remote_end_stream(stream) != 0) {
-      call_cb = 0;
       rv = nghttp2_session_add_rst_stream(session, stream->stream_id,
                                           NGHTTP2_PROTOCOL_ERROR);
       if (nghttp2_is_fatal(rv)) {
         return rv;
       }
+
+      nghttp2_stream_shutdown(stream, NGHTTP2_SHUT_RD);
+      /* Don't call nghttp2_session_close_stream_if_shut_rdwr because
+         RST_STREAM has been submitted. */
+      return 0;
     }
   }
 
-  if (call_cb) {
-    rv = session_call_on_frame_received(session, frame);
-    if (nghttp2_is_fatal(rv)) {
-      return rv;
-    }
+  rv = session_call_on_frame_received(session, frame);
+  if (nghttp2_is_fatal(rv)) {
+    return rv;
   }
 
   if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
@@ -5409,8 +5413,8 @@ ssize_t nghttp2_session_mem_recv(nghttp2_session *session, const uint8_t *in,
     case NGHTTP2_IB_READ_CLIENT_MAGIC:
       readlen = nghttp2_min(inlen, iframe->payloadleft);
 
-      if (memcmp(NGHTTP2_CLIENT_MAGIC + NGHTTP2_CLIENT_MAGIC_LEN -
-                     iframe->payloadleft,
+      if (memcmp(&NGHTTP2_CLIENT_MAGIC[NGHTTP2_CLIENT_MAGIC_LEN -
+                                       iframe->payloadleft],
                  in, readlen) != 0) {
         return NGHTTP2_ERR_BAD_CLIENT_MAGIC;
       }

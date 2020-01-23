@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/adapters.h"
 #include "src/base/bits.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
@@ -352,7 +351,8 @@ void InstructionSelector::VisitStore(Node* node) {
   MachineRepresentation rep = store_rep.representation();
 
   // TODO(mips): I guess this could be done in a better way.
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -778,6 +778,10 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsByteSwap32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitWord32Ctz(Node* node) {
@@ -1529,6 +1533,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 }  // namespace
 
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  MipsOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
+}
+
 // Shared routine for word comparisons against zero.
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                                                FlagsContinuation* cont) {
@@ -1607,6 +1620,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         break;
       case IrOpcode::kWord32And:
         return VisitWordCompare(this, value, kMipsTst, cont, true);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -2002,6 +2018,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4UConvertI32x4, kMipsF32x4UConvertI32x4)         \
   V(F32x4Abs, kMipsF32x4Abs)                             \
   V(F32x4Neg, kMipsF32x4Neg)                             \
+  V(F32x4Sqrt, kMipsF32x4Sqrt)                           \
   V(F32x4RecipApprox, kMipsF32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kMipsF32x4RecipSqrtApprox)     \
   V(I32x4SConvertF32x4, kMipsI32x4SConvertF32x4)         \
@@ -2041,6 +2058,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4AddHoriz, kMipsF32x4AddHoriz)           \
   V(F32x4Sub, kMipsF32x4Sub)                     \
   V(F32x4Mul, kMipsF32x4Mul)                     \
+  V(F32x4Div, kMipsF32x4Div)                     \
   V(F32x4Max, kMipsF32x4Max)                     \
   V(F32x4Min, kMipsF32x4Min)                     \
   V(F32x4Eq, kMipsF32x4Eq)                       \

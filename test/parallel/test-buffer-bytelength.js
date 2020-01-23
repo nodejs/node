@@ -11,13 +11,14 @@ const vm = require('vm');
   [{}, 'latin1'],
   []
 ].forEach((args) => {
-  common.expectsError(
+  assert.throws(
     () => Buffer.byteLength(...args),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "string" argument must be one of type string, ' +
-               `Buffer, or ArrayBuffer. Received type ${typeof args[0]}`
+      name: 'TypeError',
+      message: 'The "string" argument must be of type string or an instance ' +
+               'of Buffer or ArrayBuffer.' +
+               common.invalidArgTypeHelper(args[0])
     }
   );
 });

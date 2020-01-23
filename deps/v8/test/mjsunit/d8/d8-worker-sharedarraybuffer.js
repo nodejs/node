@@ -55,7 +55,7 @@ if (this.Worker) {
 
     // Clone SharedArrayBuffer
     w.postMessage(sab);
-    assertEquals(16, sab.byteLength);  // ArrayBuffer should not be neutered.
+    assertEquals(16, sab.byteLength);  // ArrayBuffer should not be detached.
 
     // Spinwait for the worker to update ta[0]
     var ta0;
@@ -65,7 +65,7 @@ if (this.Worker) {
 
     w.terminate();
 
-    assertEquals(16, sab.byteLength);  // Still not neutered.
+    assertEquals(16, sab.byteLength);  // Still not detached.
   })();
 
   (function TestCloneMulti() {

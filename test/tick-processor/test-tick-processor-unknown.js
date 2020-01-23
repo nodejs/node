@@ -19,7 +19,7 @@ const base = require('./tick-processor-base.js');
 base.runTest({
   pattern: /LazyCompile.*\[eval]:1|.*%  UNKNOWN/,
   code: `function f() {
-           for (var i = 0; i < 1000000; i++) {
+           for (let i = 0; i < 1000000; i++) {
              i++;
            }
            setImmediate(function() { f(); });

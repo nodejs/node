@@ -1,0 +1,10 @@
+*uglify-throw.js:1
+setImmediate(function(){!function(){throw Error("goodbye")}()});
+                                    ^
+
+Error: goodbye
+    at *uglify-throw.js:1:43
+        -> *uglify-throw-original.js:5:9
+    at Immediate.<anonymous> (*uglify-throw.js:1:60)
+        -> *uglify-throw-original.js:9:3
+    at processImmediate (internal/timers.js:*)

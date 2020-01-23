@@ -498,12 +498,12 @@ case "$GUESSOS" in
 	    OUT="darwin64-x86_64-cc"
 	fi ;;
   armv6+7-*-iphoneos)
-	__CNF_CFLAGS="$__CNF_CFLAGS -arch%20armv6 -arch%20armv7"
-	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch%20armv6 -arch%20armv7"
+	__CNF_CFLAGS="$__CNF_CFLAGS -arch armv6 -arch armv7"
+	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch armv6 -arch armv7"
 	OUT="iphoneos-cross" ;;
   *-*-iphoneos)
-	__CNF_CFLAGS="$__CNF_CFLAGS -arch%20${MACHINE}"
-	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch%20${MACHINE}"
+	__CNF_CFLAGS="$__CNF_CFLAGS -arch ${MACHINE}"
+	__CNF_CXXFLAGS="$__CNF_CXXFLAGS -arch ${MACHINE}"
 	OUT="iphoneos-cross" ;;
   arm64-*-iphoneos|*-*-ios64)
 	OUT="ios64-cross" ;;

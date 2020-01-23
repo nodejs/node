@@ -4,7 +4,7 @@ const test = require('tap').test
 const path = require('path')
 const findNodeDirectory = require('../lib/find-node-directory')
 
-const platforms = [ 'darwin', 'freebsd', 'linux', 'sunos', 'win32', 'aix' ]
+const platforms = ['darwin', 'freebsd', 'linux', 'sunos', 'win32', 'aix']
 
 // we should find the directory based on the directory
 // the script is running in and it should match the layout
@@ -62,8 +62,10 @@ test('test find-node-directory - node in build release dir', function (t) {
     if (platforms[next] === 'win32') {
       processObj = { execPath: '/x/y/Release/node', platform: platforms[next] }
     } else {
-      processObj = { execPath: '/x/y/out/Release/node',
-        platform: platforms[next] }
+      processObj = {
+        execPath: '/x/y/out/Release/node',
+        platform: platforms[next]
+      }
     }
 
     t.equal(

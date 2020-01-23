@@ -29,7 +29,7 @@ module.exports = {
 
         /**
          * Reports a reference if is non initializer and writable.
-         * @param {References} references - Collection of reference to check.
+         * @param {References} references Collection of reference to check.
          * @returns {void}
          */
         function checkReference(references) {
@@ -40,7 +40,7 @@ module.exports = {
 
         /**
          * Finds and reports references that are non initializer and writable.
-         * @param {Variable} variable - A variable to check.
+         * @param {Variable} variable A variable to check.
          * @returns {void}
          */
         function checkVariable(variable) {
@@ -51,7 +51,7 @@ module.exports = {
 
         /**
          * Checks parameters of a given function node.
-         * @param {ASTNode} node - A function node to check.
+         * @param {ASTNode} node A function node to check.
          * @returns {void}
          */
         function checkForFunction(node) {

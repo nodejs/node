@@ -17,7 +17,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Checks whether or not a given node is a constructor.
- * @param {ASTNode} node - A node to check. This node type is one of
+ * @param {ASTNode} node A node to check. This node type is one of
  *   `Program`, `FunctionDeclaration`, `FunctionExpression`, and
  *   `ArrowFunctionExpression`.
  * @returns {boolean} `true` if the node is a constructor.
@@ -71,7 +71,7 @@ module.exports = {
 
         /**
          * Gets whether or not `super()` is called in a given code path segment.
-         * @param {CodePathSegment} segment - A code path segment to get.
+         * @param {CodePathSegment} segment A code path segment to get.
          * @returns {boolean} `true` if `super()` is called.
          */
         function isCalled(segment) {
@@ -99,7 +99,7 @@ module.exports = {
 
         /**
          * Sets a given node as invalid.
-         * @param {ASTNode} node - A node to set as invalid. This is one of
+         * @param {ASTNode} node A node to set as invalid. This is one of
          *      a ThisExpression and a Super.
          * @returns {void}
          */
@@ -135,8 +135,8 @@ module.exports = {
 
             /**
              * Adds information of a constructor into the stack.
-             * @param {CodePath} codePath - A code path which was started.
-             * @param {ASTNode} node - The current node.
+             * @param {CodePath} codePath A code path which was started.
+             * @param {ASTNode} node The current node.
              * @returns {void}
              */
             onCodePathStart(codePath, node) {
@@ -169,8 +169,7 @@ module.exports = {
              *
              * And this treverses all segments of this code path then reports every
              * invalid node.
-             *
-             * @param {CodePath} codePath - A code path which was ended.
+             * @param {CodePath} codePath A code path which was ended.
              * @returns {void}
              */
             onCodePathEnd(codePath) {
@@ -204,7 +203,7 @@ module.exports = {
 
             /**
              * Initialize information of a given code path segment.
-             * @param {CodePathSegment} segment - A code path segment to initialize.
+             * @param {CodePathSegment} segment A code path segment to initialize.
              * @returns {void}
              */
             onCodePathSegmentStart(segment) {
@@ -225,9 +224,9 @@ module.exports = {
             /**
              * Update information of the code path segment when a code path was
              * looped.
-             * @param {CodePathSegment} fromSegment - The code path segment of the
+             * @param {CodePathSegment} fromSegment The code path segment of the
              *      end of a loop.
-             * @param {CodePathSegment} toSegment - A code path segment of the head
+             * @param {CodePathSegment} toSegment A code path segment of the head
              *      of a loop.
              * @returns {void}
              */
@@ -258,7 +257,7 @@ module.exports = {
 
             /**
              * Reports if this is before `super()`.
-             * @param {ASTNode} node - A target node.
+             * @param {ASTNode} node A target node.
              * @returns {void}
              */
             ThisExpression(node) {
@@ -269,7 +268,7 @@ module.exports = {
 
             /**
              * Reports if this is before `super()`.
-             * @param {ASTNode} node - A target node.
+             * @param {ASTNode} node A target node.
              * @returns {void}
              */
             Super(node) {
@@ -280,7 +279,7 @@ module.exports = {
 
             /**
              * Marks `super()` called.
-             * @param {ASTNode} node - A target node.
+             * @param {ASTNode} node A target node.
              * @returns {void}
              */
             "CallExpression:exit"(node) {

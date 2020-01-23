@@ -17,39 +17,25 @@ namespace internal {
 class OrderedHashSet;
 class OrderedHashMap;
 
-class JSCollection : public JSObject {
+class JSCollection
+    : public TorqueGeneratedJSCollection<JSCollection, JSObject> {
  public:
-  DECL_CAST(JSCollection)
-
-  // [table]: the backing hash table
-  DECL_ACCESSORS(table, Object)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSCOLLECTION_FIELDS)
-
   static const int kAddFunctionDescriptorIndex = 3;
 
-  DECL_VERIFIER(JSCollection)
-
-  OBJECT_CONSTRUCTORS(JSCollection, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSCollection)
 };
 
 // The JSSet describes EcmaScript Harmony sets
-class JSSet : public JSCollection {
+class JSSet : public TorqueGeneratedJSSet<JSSet, JSCollection> {
  public:
-  DECL_CAST(JSSet)
-
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSSet> set);
 
   // Dispatched behavior.
   DECL_PRINTER(JSSet)
   DECL_VERIFIER(JSSet)
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSCollection::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_SET_FIELDS)
 
-  OBJECT_CONSTRUCTORS(JSSet, JSCollection);
+  TQ_OBJECT_CONSTRUCTORS(JSSet)
 };
 
 class JSSetIterator
@@ -66,20 +52,16 @@ class JSSetIterator
 };
 
 // The JSMap describes EcmaScript Harmony maps
-class JSMap : public JSCollection {
+class JSMap : public TorqueGeneratedJSMap<JSMap, JSCollection> {
  public:
-  DECL_CAST(JSMap)
-
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSMap> map);
 
   // Dispatched behavior.
   DECL_PRINTER(JSMap)
   DECL_VERIFIER(JSMap)
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSCollection::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_MAP_FIELDS)
 
-  OBJECT_CONSTRUCTORS(JSMap, JSCollection);
+  TQ_OBJECT_CONSTRUCTORS(JSMap)
 };
 
 class JSMapIterator
@@ -100,13 +82,9 @@ class JSMapIterator
 };
 
 // Base class for both JSWeakMap and JSWeakSet
-class JSWeakCollection : public JSObject {
+class JSWeakCollection
+    : public TorqueGeneratedJSWeakCollection<JSWeakCollection, JSObject> {
  public:
-  DECL_CAST(JSWeakCollection)
-
-  // [table]: the backing hash table mapping keys to values.
-  DECL_ACCESSORS(table, Object)
-
   static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
   V8_EXPORT_PRIVATE static void Set(Handle<JSWeakCollection> collection,
                                     Handle<Object> key, Handle<Object> value,
@@ -115,11 +93,6 @@ class JSWeakCollection : public JSObject {
                      int32_t hash);
   static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
                                     int max_entries);
-
-  DECL_VERIFIER(JSWeakCollection)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_COLLECTION_FIELDS)
 
   static const int kAddFunctionDescriptorIndex = 3;
 
@@ -131,37 +104,29 @@ class JSWeakCollection : public JSObject {
 
   static const int kSizeOfAllWeakCollections = kHeaderSize;
 
-  OBJECT_CONSTRUCTORS(JSWeakCollection, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSWeakCollection)
 };
 
 // The JSWeakMap describes EcmaScript Harmony weak maps
-class JSWeakMap : public JSWeakCollection {
+class JSWeakMap : public TorqueGeneratedJSWeakMap<JSWeakMap, JSWeakCollection> {
  public:
-  DECL_CAST(JSWeakMap)
-
   // Dispatched behavior.
   DECL_PRINTER(JSWeakMap)
   DECL_VERIFIER(JSWeakMap)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSWeakCollection::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_MAP_FIELDS)
   STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
-  OBJECT_CONSTRUCTORS(JSWeakMap, JSWeakCollection);
+  TQ_OBJECT_CONSTRUCTORS(JSWeakMap)
 };
 
 // The JSWeakSet describes EcmaScript Harmony weak sets
-class JSWeakSet : public JSWeakCollection {
+class JSWeakSet : public TorqueGeneratedJSWeakSet<JSWeakSet, JSWeakCollection> {
  public:
-  DECL_CAST(JSWeakSet)
-
   // Dispatched behavior.
   DECL_PRINTER(JSWeakSet)
   DECL_VERIFIER(JSWeakSet)
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSWeakCollection::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_SET_FIELDS)
-  STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
 
-  OBJECT_CONSTRUCTORS(JSWeakSet, JSWeakCollection);
+  STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
+  TQ_OBJECT_CONSTRUCTORS(JSWeakSet)
 };
 
 }  // namespace internal

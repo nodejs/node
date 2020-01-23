@@ -61,7 +61,6 @@ server.listen(0, '127.0.0.1', function() {
   const req = https.request(options, function(res) {
     res.on('end', function() {
       server.close();
-      process.exit();
     });
     res.resume();
   });

@@ -404,6 +404,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                   \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                   \
   V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)        \
+  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)         \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, nullptr)                                    \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)              \
@@ -902,7 +903,7 @@ class Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(logger_);
     return logger_;
   }
-  StackGuard* stack_guard() { return &stack_guard_; }
+  StackGuard* stack_guard() { return isolate_data()->stack_guard(); }
   Heap* heap() { return &heap_; }
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
   static Isolate* FromHeap(Heap* heap) {
@@ -959,6 +960,7 @@ class Isolate final : private HiddenFactory {
   void set_deoptimizer_lazy_throw(bool value) {
     deoptimizer_lazy_throw_ = value;
   }
+  void InitializeThreadLocal();
   ThreadLocalTop* thread_local_top() {
     return &isolate_data_.thread_local_top_;
   }
@@ -1161,89 +1163,7 @@ class Isolate final : private HiddenFactory {
 
 #endif  // V8_INTL_SUPPORT
 
-  static const int kProtectorValid = 1;
-  static const int kProtectorInvalid = 0;
-
-  inline bool IsArrayConstructorIntact();
-
-  // The version with an explicit context parameter can be used when
-  // Isolate::context is not set up, e.g. when calling directly into C++ from
-  // CSA.
-  bool IsNoElementsProtectorIntact(Context context);
-  V8_EXPORT_PRIVATE bool IsNoElementsProtectorIntact();
-
   bool IsArrayOrObjectOrStringPrototype(Object object);
-
-  inline bool IsArraySpeciesLookupChainIntact();
-  inline bool IsTypedArraySpeciesLookupChainIntact();
-  inline bool IsRegExpSpeciesLookupChainIntact(
-      Handle<NativeContext> native_context);
-
-  // Check that the @@species protector is intact, which guards the lookup of
-  // "constructor" on JSPromise instances, whose [[Prototype]] is the initial
-  // %PromisePrototype%, and the Symbol.species lookup on the
-  // %PromisePrototype%.
-  inline bool IsPromiseSpeciesLookupChainIntact();
-
-  bool IsIsConcatSpreadableLookupChainIntact();
-  bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
-  inline bool IsStringLengthOverflowIntact();
-  inline bool IsArrayIteratorLookupChainIntact();
-
-  // The MapIterator protector protects the original iteration behaviors of
-  // Map.prototype.keys(), Map.prototype.values(), and Set.prototype.entries().
-  // It does not protect the original iteration behavior of
-  // Map.prototype[Symbol.iterator](). The protector is invalidated when:
-  // * The 'next' property is set on an object where the property holder is the
-  //   %MapIteratorPrototype% (e.g. because the object is that very prototype).
-  // * The 'Symbol.iterator' property is set on an object where the property
-  //   holder is the %IteratorPrototype%. Note that this also invalidates the
-  //   SetIterator protector (see below).
-  inline bool IsMapIteratorLookupChainIntact();
-
-  // The SetIterator protector protects the original iteration behavior of
-  // Set.prototype.keys(), Set.prototype.values(), Set.prototype.entries(),
-  // and Set.prototype[Symbol.iterator](). The protector is invalidated when:
-  // * The 'next' property is set on an object where the property holder is the
-  //   %SetIteratorPrototype% (e.g. because the object is that very prototype).
-  // * The 'Symbol.iterator' property is set on an object where the property
-  //   holder is the %SetPrototype% OR %IteratorPrototype%. This means that
-  //   setting Symbol.iterator on a MapIterator object can also invalidate the
-  //   SetIterator protector, and vice versa, setting Symbol.iterator on a
-  //   SetIterator object can also invalidate the MapIterator. This is an over-
-  //   approximation for the sake of simplicity.
-  inline bool IsSetIteratorLookupChainIntact();
-
-  // The StringIteratorProtector protects the original string iteration behavior
-  // for primitive strings. As long as the StringIteratorProtector is valid,
-  // iterating over a primitive string is guaranteed to be unobservable from
-  // user code and can thus be cut short. More specifically, the protector gets
-  // invalidated as soon as either String.prototype[Symbol.iterator] or
-  // String.prototype[Symbol.iterator]().next is modified. This guarantee does
-  // not apply to string objects (as opposed to primitives), since they could
-  // define their own Symbol.iterator.
-  // String.prototype itself does not need to be protected, since it is
-  // non-configurable and non-writable.
-  inline bool IsStringIteratorLookupChainIntact();
-
-  // Make sure we do check for detached array buffers.
-  inline bool IsArrayBufferDetachingIntact();
-
-  // Disable promise optimizations if promise (debug) hooks have ever been
-  // active, because those can observe promises.
-  bool IsPromiseHookProtectorIntact();
-
-  // Make sure a lookup of "resolve" on the %Promise% intrinsic object
-  // yeidls the initial Promise.resolve method.
-  bool IsPromiseResolveLookupChainIntact();
-
-  // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
-  // initial %PromisePrototype% yields the initial method. In addition this
-  // protector also guards the negative lookup of "then" on the intrinsic
-  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
-  // undefined without triggering any side-effects.
-  bool IsPromiseThenLookupChainIntact();
-  bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1259,25 +1179,6 @@ class Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
-
-  // The `protector_name` C string must be statically allocated.
-  void TraceProtectorInvalidation(const char* protector_name);
-
-  void InvalidateArrayConstructorProtector();
-  void InvalidateArraySpeciesProtector();
-  void InvalidateTypedArraySpeciesProtector();
-  void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
-  void InvalidatePromiseSpeciesProtector();
-  void InvalidateIsConcatSpreadableProtector();
-  void InvalidateStringLengthOverflowProtector();
-  void InvalidateArrayIteratorProtector();
-  void InvalidateMapIteratorProtector();
-  void InvalidateSetIteratorProtector();
-  void InvalidateStringIteratorProtector();
-  void InvalidateArrayBufferDetachingProtector();
-  V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
-  void InvalidatePromiseResolveProtector();
-  void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1408,6 +1309,8 @@ class Isolate final : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
+  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
+
   std::vector<Object>* partial_snapshot_cache() {
     return &partial_snapshot_cache_;
   }
@@ -1444,6 +1347,15 @@ class Isolate final : private HiddenFactory {
     return array_buffer_allocator_;
   }
 
+  void set_array_buffer_allocator_shared(
+      std::shared_ptr<v8::ArrayBuffer::Allocator> allocator) {
+    array_buffer_allocator_shared_ = std::move(allocator);
+  }
+  std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared()
+      const {
+    return array_buffer_allocator_shared_;
+  }
+
   FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
 
   CancelableTaskManager* cancelable_task_manager() {
@@ -1473,6 +1385,11 @@ class Isolate final : private HiddenFactory {
 
   bool IsInAnyContext(Object object, uint32_t index);
 
+  void ClearKeptObjects();
+  void SetHostCleanupFinalizationGroupCallback(
+      HostCleanupFinalizationGroupCallback callback);
+  void RunHostCleanupFinalizationGroupCallback(Handle<JSFinalizationGroup> fg);
+
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
   V8_EXPORT_PRIVATE MaybeHandle<JSPromise>
@@ -1497,17 +1414,24 @@ class Isolate final : private HiddenFactory {
   // annotate the builtin blob with debugging information.
   void PrepareBuiltinSourcePositionMap();
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
       int builtin_index,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info);
-#endif
+#endif  // V8_OS_WIN64
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
   MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,
                                                    Handle<JSObject> Error,
                                                    Handle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
+
+  void SetAddCrashKeyCallback(AddCrashKeyCallback callback);
+  void AddCrashKey(CrashKeyId id, const std::string& value) {
+    if (add_crash_key_callback_) {
+      add_crash_key_callback_(id, value);
+    }
+  }
 
   void SetRAILMode(RAILMode rail_mode);
 
@@ -1557,6 +1481,11 @@ class Isolate final : private HiddenFactory {
   }
 
   V8_EXPORT_PRIVATE void SetIdle(bool is_idle);
+
+  // Changing various modes can cause differences in generated bytecode which
+  // interferes with lazy source positions, so this should be called immediately
+  // before such a mode change to ensure that this cannot happen.
+  V8_EXPORT_PRIVATE void CollectSourcePositionsForAllBytecodeArrays();
 
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
@@ -1622,8 +1551,6 @@ class Isolate final : private HiddenFactory {
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
 
-  void InitializeThreadLocal();
-
   void MarkCompactPrologue(bool is_compacting,
                            ThreadLocalTop* archived_thread_data);
   void MarkCompactEpilogue(bool is_compacting,
@@ -1653,6 +1580,8 @@ class Isolate final : private HiddenFactory {
     return "";
   }
 
+  void AddCrashKeysForIsolateAndHeapPointers();
+
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
   // handlers and optimized code).
@@ -1673,7 +1602,6 @@ class Isolate final : private HiddenFactory {
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
   Logger* logger_ = nullptr;
-  StackGuard stack_guard_;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
   DeoptimizerData* deoptimizer_data_ = nullptr;
@@ -1710,6 +1638,8 @@ class Isolate final : private HiddenFactory {
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
+  HostCleanupFinalizationGroupCallback
+      host_cleanup_finalization_group_callback_ = nullptr;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
       nullptr;
   HostInitializeImportMetaObjectCallback
@@ -1770,6 +1700,8 @@ class Isolate final : private HiddenFactory {
   interpreter::Interpreter* interpreter_ = nullptr;
 
   compiler::PerIsolateCompilerCache* compiler_cache_ = nullptr;
+  // The following zone is for compiler-related objects that should live
+  // through all compilations (and thus all JSHeapBroker instances).
   Zone* compiler_zone_ = nullptr;
 
   CompilerDispatcher* compiler_dispatcher_ = nullptr;
@@ -1835,6 +1767,7 @@ class Isolate final : private HiddenFactory {
   uint32_t embedded_blob_size_ = 0;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
+  std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared_;
 
   FutexWaitListNode futex_wait_list_node_;
 
@@ -1876,6 +1809,11 @@ class Isolate final : private HiddenFactory {
   // know if this is the case, so I'm preserving it for now.
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
+
+  // Enables the host application to provide a mechanism for recording a
+  // predefined set of data as crash keys to be used in postmortem debugging
+  // in case of a crash.
+  AddCrashKeyCallback add_crash_key_callback_ = nullptr;
 
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
@@ -1928,6 +1866,14 @@ class V8_EXPORT_PRIVATE SaveContext {
 class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
  public:
   SaveAndSwitchContext(Isolate* isolate, Context new_context);
+};
+
+// A scope which sets the given isolate's context to null for its lifetime to
+// ensure that code does not make assumptions on a context being available.
+class NullContextScope : public SaveAndSwitchContext {
+ public:
+  explicit NullContextScope(Isolate* isolate)
+      : SaveAndSwitchContext(isolate, Context()) {}
 };
 
 class AssertNoContextChange {

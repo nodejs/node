@@ -10,8 +10,8 @@ const { ModuleWrap } = internalBinding('module_wrap');
 const { getPromiseDetails, isPromise } = internalBinding('util');
 const setTimeoutAsync = require('util').promisify(setTimeout);
 
-const foo = new ModuleWrap('export * from "bar"; 6;', 'foo');
-const bar = new ModuleWrap('export const five = 5', 'bar');
+const foo = new ModuleWrap('foo', undefined, 'export * from "bar"; 6;', 0, 0);
+const bar = new ModuleWrap('bar', undefined, 'export const five = 5', 0, 0);
 
 (async () => {
   const promises = foo.link(() => setTimeoutAsync(1000).then(() => bar));
@@ -25,5 +25,5 @@ const bar = new ModuleWrap('export const five = 5', 'bar');
   foo.instantiate();
 
   assert.strictEqual(await foo.evaluate(-1, false), 6);
-  assert.strictEqual(foo.namespace().five, 5);
+  assert.strictEqual(foo.getNamespace().five, 5);
 })();

@@ -5,6 +5,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
@@ -136,8 +137,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
       // just flip the bit on the global protector cell instead.
       // TODO(bmeurer): Find a better way to mark this. Global protectors
       // tend to back-fire over time...
-      if (isolate->IsArrayConstructorIntact()) {
-        isolate->InvalidateArrayConstructorProtector();
+      if (Protectors::IsArrayConstructorIntact(isolate)) {
+        Protectors::InvalidateArrayConstructor(isolate);
       }
     }
   }
@@ -272,7 +273,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 
   // If the receiver is not a special receiver type, and the length is a valid
   // element index, perform fast operation tailored to specific ElementsKinds.
-  if (!object->map().IsSpecialReceiverMap() && len < kMaxUInt32 &&
+  if (!object->map().IsSpecialReceiverMap() &&
+      len <= JSObject::kMaxElementCount &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
@@ -283,8 +285,10 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     return *isolate->factory()->ToBoolean(result.FromJust());
   }
 
-  // Otherwise, perform slow lookups for special receiver types
+  // Otherwise, perform slow lookups for special receiver types.
   for (; index < len; ++index) {
+    HandleScope iteration_hs(isolate);
+
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {

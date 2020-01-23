@@ -8,7 +8,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const missing = path.join(tmpdir.path, 'does-not-exist.js');
 
-const worker = new Worker(missing, { execArgv: ['--experimental-modules'] });
+const worker = new Worker(missing);
 
 worker.on('error', common.mustCall((err) => {
   // eslint-disable-next-line node-core/no-unescaped-regexp-dot

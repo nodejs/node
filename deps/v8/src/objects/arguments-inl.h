@@ -19,15 +19,12 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry)
 
-CAST_ACCESSOR(AliasedArgumentsEntry)
 CAST_ACCESSOR(SloppyArgumentsElements)
-CAST_ACCESSOR(JSArgumentsObject)
 
-SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot,
-              kAliasedContextSlotOffset)
+TQ_SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot)
 
 DEF_GETTER(SloppyArgumentsElements, context, Context) {
   return TaggedField<Context>::load(isolate, *this,

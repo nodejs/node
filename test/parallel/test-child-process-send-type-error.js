@@ -5,9 +5,9 @@ const assert = require('assert');
 const cp = require('child_process');
 
 function fail(proc, args) {
-  common.expectsError(() => {
+  assert.throws(() => {
     proc.send.apply(proc, args);
-  }, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
+  }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 }
 
 let target = process;

@@ -22,18 +22,17 @@ function endAfterGC(n) {
 }
 
 function main({ n, method }) {
-  var i;
   switch (method) {
     case 'trackingEnabled':
       bench.start();
-      for (i = 0; i < n; i++) {
+      for (let i = 0; i < n; i++) {
         new AsyncResource('foobar');
       }
       endAfterGC(n);
       break;
     case 'trackingDisabled':
       bench.start();
-      for (i = 0; i < n; i++) {
+      for (let i = 0; i < n; i++) {
         new AsyncResource('foobar', { requireManualDestroy: true });
       }
       endAfterGC(n);

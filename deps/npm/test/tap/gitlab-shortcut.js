@@ -2,10 +2,7 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var requireInject = require('require-inject')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -17,12 +14,12 @@ var json = {
   version: '0.0.0'
 }
 
-test('setup', function (t) {
-  setup()
-  t.end()
-})
-
 test('gitlab-shortcut', function (t) {
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  process.chdir(pkg)
   var cloneUrls = [
     ['https://gitlab.com/foo/private.git', 'GitLab shortcuts try HTTPS URLs second'],
     ['ssh://git@gitlab.com/foo/private.git', 'GitLab shortcuts try SSH first']
@@ -58,23 +55,3 @@ test('gitlab-shortcut', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

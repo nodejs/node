@@ -1,8 +1,17 @@
+#include <memory>
+
 #include "node_main_instance.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
+#if HAVE_INSPECTOR
+#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+#endif
 
 namespace node {
 
@@ -11,6 +20,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::Object;
 using v8::SealHandleScope;
 
 NodeMainInstance::NodeMainInstance(Isolate* isolate,
@@ -26,8 +36,11 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       isolate_data_(nullptr),
       owns_isolate_(false),
       deserialize_mode_(false) {
-  isolate_data_.reset(new IsolateData(isolate_, event_loop, platform, nullptr));
-  SetIsolateUpForNode(isolate_, IsolateSettingCategories::kMisc);
+  isolate_data_ =
+      std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
+
+  IsolateSettings misc;
+  SetIsolateMiscHandlers(isolate_, misc);
 }
 
 std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
@@ -66,16 +79,17 @@ NodeMainInstance::NodeMainInstance(
   deserialize_mode_ = per_isolate_data_indexes != nullptr;
   // If the indexes are not nullptr, we are not deserializing
   CHECK_IMPLIES(deserialize_mode_, params->external_references != nullptr);
-  isolate_data_.reset(new IsolateData(isolate_,
-                                      event_loop,
-                                      platform,
-                                      array_buffer_allocator_.get(),
-                                      per_isolate_data_indexes));
-  SetIsolateUpForNode(isolate_, IsolateSettingCategories::kMisc);
+  isolate_data_ = std::make_unique<IsolateData>(isolate_,
+                                                event_loop,
+                                                platform,
+                                                array_buffer_allocator_.get(),
+                                                per_isolate_data_indexes);
+  IsolateSettings s;
+  SetIsolateMiscHandlers(isolate_, s);
   if (!deserialize_mode_) {
     // If in deserialize mode, delay until after the deserialization is
     // complete.
-    SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+    SetIsolateErrorHandlers(isolate_, s);
   }
 }
 
@@ -88,8 +102,8 @@ NodeMainInstance::~NodeMainInstance() {
   if (!owns_isolate_) {
     return;
   }
-  isolate_->Dispose();
   platform_->UnregisterIsolate(isolate_);
+  isolate_->Dispose();
 }
 
 int NodeMainInstance::Run() {
@@ -105,10 +119,13 @@ int NodeMainInstance::Run() {
 
   if (exit_code == 0) {
     {
-      AsyncCallbackScope callback_scope(env.get());
-      env->async_hooks()->push_async_ids(1, 0);
+      InternalCallbackScope callback_scope(
+          env.get(),
+          Local<Object>(),
+          { 1, 0 },
+          InternalCallbackScope::kAllowEmptyResource |
+              InternalCallbackScope::kSkipAsyncHooks);
       LoadEnvironment(env.get());
-      env->async_hooks()->pop_async_id(1);
     }
 
     env->set_trace_sync_io(env->options()->trace_sync_io);
@@ -126,8 +143,6 @@ int NodeMainInstance::Run() {
         more = uv_loop_alive(env->event_loop());
         if (more && !env->is_stopping()) continue;
 
-        env->RunBeforeExitCallbacks();
-
         if (!uv_loop_alive(env->event_loop())) {
           EmitBeforeExit(env.get());
         }
@@ -142,17 +157,29 @@ int NodeMainInstance::Run() {
 
     env->set_trace_sync_io(false);
     exit_code = EmitExit(env.get());
-    WaitForInspectorDisconnect(env.get());
   }
 
   env->set_can_call_into_js(false);
   env->stop_sub_worker_contexts();
   ResetStdio();
   env->RunCleanup();
+
+  // TODO(addaleax): Neither NODE_SHARED_MODE nor HAVE_INSPECTOR really
+  // make sense here.
+#if HAVE_INSPECTOR && defined(__POSIX__) && !defined(NODE_SHARED_MODE)
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
+    if (nr == SIGKILL || nr == SIGSTOP || nr == SIGPROF)
+      continue;
+    act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
+    CHECK_EQ(0, sigaction(nr, &act, nullptr));
+  }
+#endif
+
   RunAtExit(env.get());
 
   per_process::v8_platform.DrainVMTasks(isolate_);
-  per_process::v8_platform.CancelVMTasks(isolate_);
 
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
@@ -179,7 +206,9 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
   if (deserialize_mode_) {
     context =
         Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocalChecked();
-    SetIsolateUpForNode(isolate_, IsolateSettingCategories::kErrorHandlers);
+    InitializeContextRuntime(context);
+    IsolateSettings s;
+    SetIsolateErrorHandlers(isolate_, s);
   } else {
     context = NewContext(isolate_);
   }
@@ -200,8 +229,8 @@ std::unique_ptr<Environment> NodeMainInstance::CreateMainEnvironment(
 
   // TODO(joyeecheung): when we snapshot the bootstrapped context,
   // the inspector and diagnostics setup should after after deserialization.
-#if HAVE_INSPECTOR && NODE_USE_V8_PLATFORM
-  *exit_code = env->InitializeInspector(nullptr);
+#if HAVE_INSPECTOR
+  *exit_code = env->InitializeInspector({});
 #endif
   if (*exit_code != 0) {
     return env;

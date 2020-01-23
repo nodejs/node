@@ -32,13 +32,13 @@ const internal_func = builder.addTable(kWasmAnyFunc, size, maximum).index;
 for (index of [import_ref, internal_ref]) {
   builder.addFunction(`fill${index}`, kSig_v_iri)
       .addBody([
-        kExprGetLocal, 0, kExprGetLocal, 1, kExprGetLocal, 2, kNumericPrefix,
+        kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2, kNumericPrefix,
         kExprTableFill, index
       ])
       .exportFunc();
 
   builder.addFunction(`get${index}`, kSig_r_i)
-      .addBody([kExprGetLocal, 0, kExprTableGet, index])
+      .addBody([kExprLocalGet, 0, kExprTableGet, index])
       .exportFunc();
 }
 
@@ -47,13 +47,13 @@ const sig_index = builder.addType(kSig_i_v);
 for (index of [import_func, internal_func]) {
   builder.addFunction(`fill${index}`, kSig_v_iai)
       .addBody([
-        kExprGetLocal, 0, kExprGetLocal, 1, kExprGetLocal, 2, kNumericPrefix,
+        kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2, kNumericPrefix,
         kExprTableFill, index
       ])
       .exportFunc();
 
   builder.addFunction(`call${index}`, kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprCallIndirect, sig_index, index])
+      .addBody([kExprLocalGet, 0, kExprCallIndirect, sig_index, index])
       .exportFunc();
 }
 

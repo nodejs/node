@@ -108,7 +108,7 @@ class JSArray : public JSObject {
   static const int kPreallocatedArrayElements = 4;
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSARRAY_FIELDS)
+                                TORQUE_GENERATED_JS_ARRAY_FIELDS)
 
   static const int kLengthDescriptorIndex = 0;
 
@@ -178,7 +178,7 @@ class JSArrayIterator : public JSObject {
   inline void set_kind(IterationKind kind);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSARRAY_ITERATOR_FIELDS)
+                                TORQUE_GENERATED_JS_ARRAY_ITERATOR_FIELDS)
 
  private:
   DECL_INT_ACCESSORS(raw_kind)

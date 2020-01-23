@@ -37,9 +37,15 @@ function fixOwner (cache, filepath) {
     // This platform doesn't need ownership fixing
     return BB.resolve()
   }
+
+  getSelf()
+  if (self.uid !== 0) {
+    // almost certainly can't chown anyway
+    return BB.resolve()
+  }
+
   return BB.resolve(inferOwner(cache)).then(owner => {
     const { uid, gid } = owner
-    getSelf()
 
     // No need to override if it's already what we used.
     if (self.uid === uid && self.gid === gid) {

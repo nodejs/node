@@ -109,6 +109,19 @@ class TestProc(object):
 
   ### Communication
 
+  def notify_previous(self, event):
+    self._on_event(event)
+    if self._prev_proc:
+      self._prev_proc.notify_previous(event)
+
+  def _on_event(self, event):
+    """Called when processors to the right signal events, e.g. termination.
+
+    Args:
+      event: A text describing the signalled event.
+    """
+    pass
+
   def _send_test(self, test):
     """Helper method for sending test to the next processor."""
     return self._next_proc.next_test(test)
@@ -118,7 +131,6 @@ class TestProc(object):
     if not test.keep_output:
       result = self._reduce_result(result)
     self._prev_proc.result_for(test, result)
-
 
 
 class TestProcObserver(TestProc):

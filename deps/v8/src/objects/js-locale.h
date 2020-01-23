@@ -49,6 +49,13 @@ class JSLocale : public JSObject {
   static Handle<String> ToString(Isolate* isolate, Handle<JSLocale> locale);
   static std::string ToString(Handle<JSLocale> locale);
 
+  // Help function to validate locale by other Intl objects.
+  static bool StartsWithUnicodeLanguageId(const std::string& value);
+
+  // Help function to check well-formed
+  // "(3*8alphanum) *("-" (3*8alphanum)) sequence" sequence
+  static bool Is38AlphaNumList(const std::string& value);
+
   DECL_CAST(JSLocale)
 
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
@@ -58,7 +65,7 @@ class JSLocale : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSLOCALE_FIELDS)
+                                TORQUE_GENERATED_JS_LOCALE_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSLocale, JSObject);
 };

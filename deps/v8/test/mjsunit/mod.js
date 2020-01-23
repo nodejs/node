@@ -31,7 +31,6 @@ function foo() {
     for (var j = 1; j < 100; j++) {
       if (answer == i) answer = 0;
       // Positive case.
-      print(j + " % " + i + " = " + answer);
       m = j % i;
       assertEquals(answer, m, j + " % " + i);
       m = j % (-i);

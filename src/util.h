@@ -42,6 +42,12 @@
 #include <unordered_map>
 #include <utility>
 
+#ifdef __GNUC__
+#define MUST_USE_RESULT __attribute__((warn_unused_result))
+#else
+#define MUST_USE_RESULT
+#endif
+
 namespace node {
 
 // Maybe remove kPathSeparator when cpp17 is ready
@@ -482,11 +488,12 @@ class BufferValue : public MaybeStackBuffer<char> {
 #define SPREAD_BUFFER_ARG(val, name)                                          \
   CHECK((val)->IsArrayBufferView());                                          \
   v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
-  v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
+  std::shared_ptr<v8::BackingStore> name##_bs =                               \
+      name->Buffer()->GetBackingStore();                                      \
   const size_t name##_offset = name->ByteOffset();                            \
   const size_t name##_length = name->ByteLength();                            \
   char* const name##_data =                                                   \
-      static_cast<char*>(name##_c.Data()) + name##_offset;                    \
+      static_cast<char*>(name##_bs->Data()) + name##_offset;                  \
   if (name##_length > 0)                                                      \
     CHECK_NE(name##_data, nullptr);
 
@@ -494,13 +501,36 @@ class BufferValue : public MaybeStackBuffer<char> {
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
 
-// Run a function when exiting the current scope.
-struct OnScopeLeave {
-  std::function<void()> fn_;
+template <typename Fn>
+struct OnScopeLeaveImpl {
+  Fn fn_;
+  bool active_;
 
-  explicit OnScopeLeave(std::function<void()> fn) : fn_(std::move(fn)) {}
-  ~OnScopeLeave() { fn_(); }
+  explicit OnScopeLeaveImpl(Fn&& fn) : fn_(std::move(fn)), active_(true) {}
+  ~OnScopeLeaveImpl() { if (active_) fn_(); }
+
+  OnScopeLeaveImpl(const OnScopeLeaveImpl& other) = delete;
+  OnScopeLeaveImpl& operator=(const OnScopeLeaveImpl& other) = delete;
+  OnScopeLeaveImpl(OnScopeLeaveImpl&& other)
+    : fn_(std::move(other.fn_)), active_(other.active_) {
+    other.active_ = false;
+  }
+  OnScopeLeaveImpl& operator=(OnScopeLeaveImpl&& other) {
+    if (this == &other) return *this;
+    this->~OnScopeLeave();
+    new (this)OnScopeLeaveImpl(std::move(other));
+    return *this;
+  }
 };
+
+// Run a function when exiting the current scope. Used like this:
+// auto on_scope_leave = OnScopeLeave([&] {
+//   // ... run some code ...
+// });
+template <typename Fn>
+inline MUST_USE_RESULT OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
+  return OnScopeLeaveImpl<Fn>{std::move(fn)};
+}
 
 // Simple RAII wrapper for contiguous data that uses malloc()/free().
 template <typename T>
@@ -678,12 +708,6 @@ template <typename T>
 constexpr T RoundUp(T a, T b) {
   return a % b != 0 ? a + b - (a % b) : a;
 }
-
-#ifdef __GNUC__
-#define MUST_USE_RESULT __attribute__((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
 
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:

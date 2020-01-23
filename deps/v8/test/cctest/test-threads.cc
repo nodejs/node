@@ -54,7 +54,7 @@ class ThreadIdValidationThread : public base::Thread {
     }
     refs_[thread_no_].store(thread_id, std::memory_order_relaxed);
     if (thread_to_start_ != nullptr) {
-      thread_to_start_->Start();
+      CHECK(thread_to_start_->Start());
     }
     semaphore_->Signal();
   }
@@ -75,9 +75,9 @@ TEST(ThreadIdValidation) {
     ThreadIdValidationThread* prev =
         i == kNThreads - 1 ? nullptr : threads[i + 1].get();
     threads[i] =
-        base::make_unique<ThreadIdValidationThread>(prev, refs, i, &semaphore);
+        std::make_unique<ThreadIdValidationThread>(prev, refs, i, &semaphore);
   }
-  threads[0]->Start();
+  CHECK(threads[0]->Start());
   for (int i = 0; i < kNThreads; i++) {
     semaphore.Wait();
   }

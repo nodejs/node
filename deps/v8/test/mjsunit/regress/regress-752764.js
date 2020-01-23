@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --nostress-incremental-marking
+// Stress-testing this test is very slow and provides no useful coverage.
+// Flags: --nostress-opt --noalways-opt
 
 // This test uses a lot of memory and fails with flaky OOM when run
 // with --stress-incremental-marking on TSAN.

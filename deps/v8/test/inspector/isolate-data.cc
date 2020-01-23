@@ -61,8 +61,9 @@ IsolateData::IsolateData(TaskRunner* task_runner,
     : task_runner_(task_runner),
       setup_global_tasks_(std::move(setup_global_tasks)) {
   v8::Isolate::CreateParams params;
-  params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  array_buffer_allocator_.reset(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  params.array_buffer_allocator = array_buffer_allocator_.get();
   params.snapshot_blob = startup_data;
   params.only_terminate_in_safe_scope = true;
   isolate_.reset(v8::Isolate::New(params));

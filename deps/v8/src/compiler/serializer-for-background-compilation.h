@@ -17,6 +17,7 @@ namespace compiler {
 
 class CompilationDependencies;
 class JSHeapBroker;
+class ZoneStats;
 
 enum class SerializerForBackgroundCompilationFlag : uint8_t {
   kBailoutOnUninitialized = 1 << 0,
@@ -27,9 +28,9 @@ using SerializerForBackgroundCompilationFlags =
     base::Flags<SerializerForBackgroundCompilationFlag>;
 
 void RunSerializerForBackgroundCompilation(
-    JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-    Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags,
-    BailoutId osr_offset);
+    ZoneStats* zone_stats, JSHeapBroker* broker,
+    CompilationDependencies* dependencies, Handle<JSFunction> closure,
+    SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset);
 
 }  // namespace compiler
 }  // namespace internal

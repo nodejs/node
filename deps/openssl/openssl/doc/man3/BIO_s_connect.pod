@@ -163,7 +163,7 @@ BIO_set_nbio() always returns 1.
 BIO_do_connect() returns 1 if the connection was successfully
 established and 0 or -1 if the connection failed.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 This is example connects to a webserver on the local host and attempts
 to retrieve a page and copy the result to standard output.
@@ -203,7 +203,7 @@ Use BIO_set_conn_address() and BIO_get_conn_address() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

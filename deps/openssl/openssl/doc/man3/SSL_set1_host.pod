@@ -71,7 +71,7 @@ applicable (as with RFC7671 DANE-EE(3)), or no trusted peername was
 matched.  Otherwise, it returns the matched peername.  To determine
 whether verification succeeded call L<SSL_get_verify_result(3)>.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 Suppose "smtp.example.com" is the MX host of the domain "example.com".
 The calls below will arrange to match either the MX hostname or the
@@ -108,7 +108,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

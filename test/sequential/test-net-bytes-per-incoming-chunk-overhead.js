@@ -37,5 +37,5 @@ process.on('exit', () => {
   const bytesPerChunk =
     (process.memoryUsage().rss - baseRSS) / receivedChunks.length;
   // We should always have less than one page (usually ~ 4 kB) per chunk.
-  assert(bytesPerChunk < 600, `measured ${bytesPerChunk} bytes per chunk`);
+  assert(bytesPerChunk < 650, `measured ${bytesPerChunk} bytes per chunk`);
 });

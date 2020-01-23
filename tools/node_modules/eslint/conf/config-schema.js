@@ -6,6 +6,7 @@
 "use strict";
 
 const baseConfigProperties = {
+    $schema: { type: "string" },
     env: { type: "object" },
     extends: { $ref: "#/definitions/stringOrStrings" },
     globals: { type: "object" },
@@ -55,6 +56,7 @@ const configSchema = {
             type: "object",
             properties: {
                 root: { type: "boolean" },
+                ignorePatterns: { $ref: "#/definitions/stringOrStrings" },
                 ...baseConfigProperties
             },
             additionalProperties: false

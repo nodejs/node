@@ -99,7 +99,7 @@ class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
   static inline Smi empty_slot_index(WeakArrayList array);
   static inline void set_empty_slot_index(WeakArrayList array, int index);
 
-  static void IsSlotEmpty(WeakArrayList array, int index);
+  static void ScanForEmptySlots(WeakArrayList array);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeUsers);
 };

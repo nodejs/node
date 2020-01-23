@@ -3,7 +3,6 @@
 'use strict';
 const common = require('../common');
 const { internalBinding } = require('internal/test/binding');
-const { getOptionValue } = require('internal/options');
 
 // Monkey patch before requiring anything
 class DummyParser {
@@ -16,9 +15,7 @@ class DummyParser {
 }
 DummyParser.REQUEST = Symbol();
 
-const binding =
-  getOptionValue('--http-parser') === 'legacy' ?
-    internalBinding('http_parser') : internalBinding('http_parser_llhttp');
+const binding = internalBinding('http_parser');
 binding.HTTPParser = DummyParser;
 
 const assert = require('assert');

@@ -618,7 +618,9 @@ WASM_EXEC_TEST(F32UConvertI64) {
                 {0x8000008000000000, 0x5F000000},
                 {0x8000008000000001, 0x5F000001},
                 {0x8000000000000400, 0x5F000000},
-                {0x8000000000000401, 0x5F000000}};
+                {0x8000000000000401, 0x5F000000},
+                {0x20000020000001, 0x5a000001},
+                {0xFFFFFe8000000001, 0x5f7FFFFF}};
   WasmRunner<float, uint64_t> r(execution_tier);
   BUILD(r, WASM_F32_UCONVERT_I64(WASM_GET_LOCAL(0)));
   for (size_t i = 0; i < arraysize(values); i++) {
@@ -1500,7 +1502,7 @@ static void CompileCallIndirectMany(ExecutionTier tier, ValueType param) {
 
     std::vector<byte> code;
     for (byte p = 0; p < num_params; p++) {
-      ADD_CODE(code, kExprGetLocal, p);
+      ADD_CODE(code, kExprLocalGet, p);
     }
     ADD_CODE(code, kExprI32Const, 0);
     ADD_CODE(code, kExprCallIndirect, 1, TABLE_ZERO);
@@ -1561,7 +1563,7 @@ static void Run_WasmMixedCall_N(ExecutionTier execution_tier, int start) {
 
     // Store the result in a local.
     byte local_index = r.AllocateLocal(ValueTypes::ValueTypeFor(result));
-    ADD_CODE(code, kExprSetLocal, local_index);
+    ADD_CODE(code, kExprLocalSet, local_index);
 
     // Store the result in memory.
     ADD_CODE(code,

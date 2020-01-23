@@ -247,7 +247,7 @@ bool TransitionsAccessor::CanHaveMoreTransitions() {
 bool TransitionsAccessor::IsMatchingMap(Map target, Name name,
                                         PropertyKind kind,
                                         PropertyAttributes attributes) {
-  int descriptor = target.LastAdded();
+  InternalIndex descriptor = target.LastAdded();
   DescriptorArray descriptors = target.instance_descriptors();
   Name key = descriptors.GetKey(descriptor);
   if (key != name) return false;
@@ -296,8 +296,7 @@ Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
   new_capacity = Min(kMaxCachedPrototypeTransitions, new_capacity);
   DCHECK_GT(new_capacity, capacity);
   int grow_by = new_capacity - capacity;
-  array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by,
-                                                        AllocationType::kOld);
+  array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
   if (capacity < 0) {
     // There was no prototype transitions array before, so the size
     // couldn't be copied. Initialize it explicitly.

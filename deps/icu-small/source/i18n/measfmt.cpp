@@ -55,28 +55,23 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(MeasureFormat)
 class NumericDateFormatters : public UMemory {
 public:
     // Formats like H:mm
-    SimpleDateFormat hourMinute;
+    UnicodeString hourMinute;
 
     // formats like M:ss
-    SimpleDateFormat minuteSecond;
+    UnicodeString minuteSecond;
 
     // formats like H:mm:ss
-    SimpleDateFormat hourMinuteSecond;
+    UnicodeString hourMinuteSecond;
 
     // Constructor that takes the actual patterns for hour-minute,
     // minute-second, and hour-minute-second respectively.
     NumericDateFormatters(
             const UnicodeString &hm,
             const UnicodeString &ms,
-            const UnicodeString &hms,
-            UErrorCode &status) :
-            hourMinute(hm, status),
-            minuteSecond(ms, status),
-            hourMinuteSecond(hms, status) {
-        const TimeZone *gmt = TimeZone::getGMT();
-        hourMinute.setTimeZone(*gmt);
-        minuteSecond.setTimeZone(*gmt);
-        hourMinuteSecond.setTimeZone(*gmt);
+            const UnicodeString &hms) :
+            hourMinute(hm),
+            minuteSecond(ms),
+            hourMinuteSecond(hms) {
     }
 private:
     NumericDateFormatters(const NumericDateFormatters &other);
@@ -233,8 +228,7 @@ static NumericDateFormatters *loadNumericDateFormatters(
     NumericDateFormatters *result = new NumericDateFormatters(
         loadNumericDateFormatterPattern(resource, "hm", status),
         loadNumericDateFormatterPattern(resource, "ms", status),
-        loadNumericDateFormatterPattern(resource, "hms", status),
-        status);
+        loadNumericDateFormatterPattern(resource, "hms", status));
     if (U_FAILURE(status)) {
         delete result;
         return NULL;
@@ -466,7 +460,7 @@ UBool MeasureFormat::operator==(const Format &other) const {
             **numberFormat == **rhs.numberFormat);
 }
 
-Format *MeasureFormat::clone() const {
+MeasureFormat *MeasureFormat::clone() const {
     return new MeasureFormat(*this);
 }
 
@@ -691,9 +685,19 @@ UnicodeString &MeasureFormat::formatMeasure(
     }
     auto* df = dynamic_cast<const DecimalFormat*>(&nf);
     if (df == nullptr) {
-        // Don't know how to handle other types of NumberFormat
-        status = U_UNSUPPORTED_ERROR;
-        return appendTo;
+        // Handle other types of NumberFormat using the ICU 63 code, modified to
+        // get the unitPattern from LongNameHandler and handle fallback to OTHER.
+        UnicodeString formattedNumber;
+        StandardPlural::Form pluralForm = QuantityFormatter::selectPlural(
+                amtNumber, nf, **pluralRules, formattedNumber, pos, status);
+        UnicodeString pattern = number::impl::LongNameHandler::getUnitPattern(getLocale(status),
+                amtUnit, getUnitWidth(fWidth), pluralForm, status);
+        // The above  handles fallback from other widths to short, and from other plural forms to OTHER
+        if (U_FAILURE(status)) {
+            return appendTo;
+        }
+        SimpleFormatter formatter(pattern, 0, 1, status);
+        return QuantityFormatter::format(formatter, formattedNumber, appendTo, pos, status);
     }
     number::FormattedNumber result;
     if (auto* lnf = df->toNumberFormatter(status)) {
@@ -706,135 +710,112 @@ UnicodeString &MeasureFormat::formatMeasure(
     return appendTo;
 }
 
-// Formats hours-minutes-seconds as 5:37:23 or similar.
+
+// Formats numeric time duration as 5:00:47 or 3:54.
 UnicodeString &MeasureFormat::formatNumeric(
         const Formattable *hms,  // always length 3
-        int32_t bitMap,   // 1=hourset, 2=minuteset, 4=secondset
+        int32_t bitMap,   // 1=hour set, 2=minute set, 4=second set
         UnicodeString &appendTo,
         UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    UDate millis =
-        (UDate) (((uprv_trunc(hms[0].getDouble(status)) * 60.0
-             + uprv_trunc(hms[1].getDouble(status))) * 60.0
-                  + uprv_trunc(hms[2].getDouble(status))) * 1000.0);
-    switch (bitMap) {
-    case 5: // hs
-    case 7: // hms
-        return formatNumeric(
-                millis,
-                cache->getNumericDateFormatters()->hourMinuteSecond,
-                UDAT_SECOND_FIELD,
-                hms[2],
-                appendTo,
-                status);
-        break;
-    case 6: // ms
-        return formatNumeric(
-                millis,
-                cache->getNumericDateFormatters()->minuteSecond,
-                UDAT_SECOND_FIELD,
-                hms[2],
-                appendTo,
-                status);
-        break;
-    case 3: // hm
-        return formatNumeric(
-                millis,
-                cache->getNumericDateFormatters()->hourMinute,
-                UDAT_MINUTE_FIELD,
-                hms[1],
-                appendTo,
-                status);
-        break;
-    default:
-        status = U_INTERNAL_PROGRAM_ERROR;
-        return appendTo;
-        break;
-    }
-}
 
-static void appendRange(
-        const UnicodeString &src,
-        int32_t start,
-        int32_t end,
-        UnicodeString &dest) {
-    dest.append(src, start, end - start);
-}
+    UnicodeString pattern;
 
-static void appendRange(
-        const UnicodeString &src,
-        int32_t end,
-        UnicodeString &dest) {
-    dest.append(src, end, src.length() - end);
-}
-
-// Formats time like 5:37:23
-UnicodeString &MeasureFormat::formatNumeric(
-        UDate date, // Time since epoch 1:30:00 would be 5400000
-        const DateFormat &dateFmt, // h:mm, m:ss, or h:mm:ss
-        UDateFormatField smallestField, // seconds in 5:37:23.5
-        const Formattable &smallestAmount, // 23.5 for 5:37:23.5
-        UnicodeString &appendTo,
-        UErrorCode &status) const {
+    double hours = hms[0].getDouble(status);
+    double minutes = hms[1].getDouble(status);
+    double seconds = hms[2].getDouble(status);
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    // Format the smallest amount with this object's NumberFormat
-    UnicodeString smallestAmountFormatted;
 
-    // We keep track of the integer part of smallest amount so that
-    // we can replace it later so that we get '0:00:09.3' instead of
-    // '0:00:9.3'
-    FieldPosition intFieldPosition(UNUM_INTEGER_FIELD);
-    (*numberFormat)->format(
-            smallestAmount, smallestAmountFormatted, intFieldPosition, status);
-    if (
-            intFieldPosition.getBeginIndex() == 0 &&
-            intFieldPosition.getEndIndex() == 0) {
+    // All possible combinations: "h", "m", "s", "hm", "hs", "ms", "hms"
+    if (bitMap == 5 || bitMap == 7) { // "hms" & "hs" (we add minutes if "hs")
+        pattern = cache->getNumericDateFormatters()->hourMinuteSecond;
+        hours = uprv_trunc(hours);
+        minutes = uprv_trunc(minutes);
+    } else if (bitMap == 3) { // "hm"
+        pattern = cache->getNumericDateFormatters()->hourMinute;
+        hours = uprv_trunc(hours);
+    } else if (bitMap == 6) { // "ms"
+        pattern = cache->getNumericDateFormatters()->minuteSecond;
+        minutes = uprv_trunc(minutes);
+    } else { // h m s, handled outside formatNumeric. No value is also an error.
         status = U_INTERNAL_PROGRAM_ERROR;
         return appendTo;
     }
 
-    // Format time. draft becomes something like '5:30:45'
-    // #13606: DateFormat is not thread-safe, but MeasureFormat advertises itself as thread-safe.
-    FieldPosition smallestFieldPosition(smallestField);
-    UnicodeString draft;
-    static UMutex dateFmtMutex = U_MUTEX_INITIALIZER;
-    umtx_lock(&dateFmtMutex);
-    dateFmt.format(date, draft, smallestFieldPosition, status);
-    umtx_unlock(&dateFmtMutex);
-
-    // If we find field for smallest amount replace it with the formatted
-    // smallest amount from above taking care to replace the integer part
-    // with what is in original time. For example, If smallest amount
-    // is 9.35s and the formatted time is 0:00:09 then 9.35 becomes 09.35
-    // and replacing yields 0:00:09.35
-    if (smallestFieldPosition.getBeginIndex() != 0 ||
-            smallestFieldPosition.getEndIndex() != 0) {
-        appendRange(draft, 0, smallestFieldPosition.getBeginIndex(), appendTo);
-        appendRange(
-                smallestAmountFormatted,
-                0,
-                intFieldPosition.getBeginIndex(),
-                appendTo);
-        appendRange(
-                draft,
-                smallestFieldPosition.getBeginIndex(),
-                smallestFieldPosition.getEndIndex(),
-                appendTo);
-        appendRange(
-                smallestAmountFormatted,
-                intFieldPosition.getEndIndex(),
-                appendTo);
-        appendRange(
-                draft,
-                smallestFieldPosition.getEndIndex(),
-                appendTo);
+    const DecimalFormat *numberFormatter = dynamic_cast<const DecimalFormat*>(numberFormat->get());
+    if (!numberFormatter) {
+        status = U_INTERNAL_PROGRAM_ERROR;
+        return appendTo;
+    }
+    number::LocalizedNumberFormatter numberFormatter2;
+    if (auto* lnf = numberFormatter->toNumberFormatter(status)) {
+        numberFormatter2 = lnf->integerWidth(number::IntegerWidth::zeroFillTo(2));
     } else {
-        appendTo.append(draft);
+        return appendTo;
     }
+
+    FormattedStringBuilder fsb;
+
+    UBool protect = FALSE;
+    const int32_t patternLength = pattern.length();
+    for (int32_t i = 0; i < patternLength; i++) {
+        char16_t c = pattern[i];
+
+        // Also set the proper field in this switch
+        // We don't use DateFormat.Field because this is not a date / time, is a duration.
+        double value = 0;
+        switch (c) {
+            case u'H': value = hours; break;
+            case u'm': value = minutes; break;
+            case u's': value = seconds; break;
+        }
+
+        // For undefined field we use UNUM_FIELD_COUNT, for historical reasons.
+        // See cleanup bug: https://unicode-org.atlassian.net/browse/ICU-20665
+        // But we give it a clear name, to keep "the ugly part" in one place.
+        constexpr UNumberFormatFields undefinedField = UNUM_FIELD_COUNT;
+
+        // There is not enough info to add Field(s) for the unit because all we have are plain
+        // text patterns. For example in "21:51" there is no text for something like "hour",
+        // while in something like "21h51" there is ("h"). But we can't really tell...
+        switch (c) {
+            case u'H':
+            case u'm':
+            case u's':
+                if (protect) {
+                    fsb.appendChar16(c, undefinedField, status);
+                } else {
+                    UnicodeString tmp;
+                    if ((i + 1 < patternLength) && pattern[i + 1] == c) { // doubled
+                        tmp = numberFormatter2.formatDouble(value, status).toString(status);
+                        i++;
+                    } else {
+                        numberFormatter->format(value, tmp, status);
+                    }
+                    // TODO: Use proper Field
+                    fsb.append(tmp, undefinedField, status);
+                }
+                break;
+            case u'\'':
+                // '' is escaped apostrophe
+                if ((i + 1 < patternLength) && pattern[i + 1] == c) {
+                    fsb.appendChar16(c, undefinedField, status);
+                    i++;
+                } else {
+                    protect = !protect;
+                }
+                break;
+            default:
+                fsb.appendChar16(c, undefinedField, status);
+        }
+    }
+
+    appendTo.append(fsb.toTempUnicodeString());
+
     return appendTo;
 }
 

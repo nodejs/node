@@ -1107,11 +1107,13 @@ GetUniFromLMBCSUni(char const ** ppLMBCSin)  /* Called with LMBCS-style Unicode 
    all input as required by ICU converter semantics.
 */
 
-#define CHECK_SOURCE_LIMIT(index) \
-     if (args->source+index > args->sourceLimit){\
-         *err = U_TRUNCATED_CHAR_FOUND;\
-         args->source = args->sourceLimit;\
-         return 0xffff;}
+#define CHECK_SOURCE_LIMIT(index) UPRV_BLOCK_MACRO_BEGIN { \
+    if (args->source+index > args->sourceLimit) { \
+        *err = U_TRUNCATED_CHAR_FOUND; \
+        args->source = args->sourceLimit; \
+        return 0xffff; \
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /* Return the Unicode representation for the current LMBCS character */
 

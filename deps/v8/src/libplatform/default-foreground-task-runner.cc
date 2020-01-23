@@ -60,6 +60,16 @@ bool DefaultForegroundTaskRunner::IdleTasksEnabled() {
   return idle_task_support_ == IdleTaskSupport::kEnabled;
 }
 
+void DefaultForegroundTaskRunner::PostNonNestableTask(
+    std::unique_ptr<Task> task) {
+  // Default platform does not nest tasks.
+  PostTask(std::move(task));
+}
+
+bool DefaultForegroundTaskRunner::NonNestableTasksEnabled() const {
+  return true;
+}
+
 std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue(
     MessageLoopBehavior wait_for_work) {
   base::MutexGuard guard(&lock_);

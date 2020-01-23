@@ -11,7 +11,11 @@ import re
 import shlex
 import subprocess
 import shutil
+import bz2
+import io
+
 from distutils.spawn import find_executable as which
+from distutils.version import StrictVersion
 
 # If not run from node/, cd to node/.
 os.chdir(os.path.dirname(__file__) or '.')
@@ -294,23 +298,23 @@ shared_optgroup.add_option('--shared-zlib-libpath',
 
 shared_optgroup.add_option('--shared-cares',
     action='store_true',
-    dest='shared_libcares',
+    dest='shared_cares',
     help='link to a shared cares DLL instead of static linking')
 
 shared_optgroup.add_option('--shared-cares-includes',
     action='store',
-    dest='shared_libcares_includes',
+    dest='shared_cares_includes',
     help='directory containing cares header files')
 
 shared_optgroup.add_option('--shared-cares-libname',
     action='store',
-    dest='shared_libcares_libname',
+    dest='shared_cares_libname',
     default='cares',
     help='alternative lib name to link to [default: %default]')
 
 shared_optgroup.add_option('--shared-cares-libpath',
     action='store',
-    dest='shared_libcares_libpath',
+    dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
 parser.add_option_group(shared_optgroup)
@@ -341,6 +345,11 @@ parser.add_option('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
     help='Enable the --trace-maps flag in V8 (use at your own risk)')
+
+parser.add_option('--experimental-enable-pointer-compression',
+    action='store_true',
+    dest='enable_pointer_compression',
+    help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
 
 parser.add_option('--v8-options',
     action='store',
@@ -398,18 +407,17 @@ parser.add_option('--with-etw',
 parser.add_option('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
-    help='build with Large Pages support. This feature is supported only on Linux kernel' +
-         '>= 2.6.38 with Transparent Huge pages enabled and FreeBSD')
+    help='This option has no effect. --use-largepages is now a runtime option.')
 
 parser.add_option('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
-    help='link against the LLVM ld linker script. Implies -fuse-ld=lld in the linker flags')
+    help='This option has no effect. --use-largepages is now a runtime option.')
 
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
-    default='small-icu',
+    default='full-icu',
     choices=valid_intl_modes,
     help='Intl mode (valid choices: {0}) [default: %default]'.format(
         ', '.join(valid_intl_modes)))
@@ -441,6 +449,14 @@ intl_optgroup.add_option('--with-icu-source',
         'the icu4c source archive. '
         'v%d.x or later recommended.' % icu_versions['minimum_icu'])
 
+intl_optgroup.add_option('--with-icu-default-data-dir',
+    action='store',
+    dest='with_icu_default_data_dir',
+    help='Path to the icuXXdt{lb}.dat file. If unspecified, ICU data will '
+         'only be read if the NODE_ICU_DATA environment variable or the '
+         '--icu-data-dir runtime argument is used. This option has effect '
+         'only when Node.js is built with --with-intl=small-icu.')
+
 parser.add_option('--with-ltcg',
     action='store_true',
     dest='with_ltcg',
@@ -450,6 +466,11 @@ parser.add_option('--without-node-snapshot',
     action='store_true',
     dest='without_node_snapshot',
     help='Turn off V8 snapshot integration. Currently experimental.')
+
+parser.add_option('--without-node-code-cache',
+    action='store_true',
+    dest='without_node_code_cache',
+    help='Turn off V8 Code cache integration.')
 
 intl_optgroup.add_option('--download',
     action='store',
@@ -504,7 +525,7 @@ parser.add_option('--with-snapshot',
 
 parser.add_option('--without-snapshot',
     action='store_true',
-    dest='without_snapshot',
+    dest='unused_without_snapshot',
     help=optparse.SUPPRESS_HELP)
 
 parser.add_option('--without-siphash',
@@ -701,7 +722,7 @@ def get_version_helper(cc, regexp):
   if match:
     return match.group(2)
   else:
-    return '0'
+    return '0.0'
 
 def get_nasm_version(asm):
   try:
@@ -712,7 +733,7 @@ def get_nasm_version(asm):
     warn('''No acceptable ASM compiler found!
          Please make sure you have installed NASM from https://www.nasm.us
          and refer BUILDING.md.''')
-    return '0'
+    return '0.0'
 
   match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
                    to_utf8(proc.communicate()[0]))
@@ -720,11 +741,11 @@ def get_nasm_version(asm):
   if match:
     return match.group(1)
   else:
-    return '0'
+    return '0.0'
 
 def get_llvm_version(cc):
   return get_version_helper(
-    cc, r"(^(?:FreeBSD )?clang version|based on LLVM) ([3-9]\.[0-9]+)")
+    cc, r"(^(?:FreeBSD )?clang version|based on LLVM) ([0-9]+\.[0-9]+)")
 
 def get_xcode_version(cc):
   return get_version_helper(
@@ -753,7 +774,7 @@ def get_gas_version(cc):
     return match.group(1)
   else:
     warn('Could not recognize `gas`: ' + gas_ret)
-    return '0'
+    return '0.0'
 
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
@@ -764,7 +785,7 @@ def check_compiler(o):
     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
       nasm_version = get_nasm_version('nasm')
       o['variables']['nasm_version'] = nasm_version
-      if nasm_version == 0:
+      if nasm_version == '0.0':
         o['variables']['openssl_no_asm'] = 1
     return
 
@@ -772,7 +793,8 @@ def check_compiler(o):
   if not ok:
     warn('failed to autodetect C++ compiler version (CXX=%s)' % CXX)
   elif clang_version < (8, 0, 0) if is_clang else gcc_version < (6, 3, 0):
-    warn('C++ compiler too old, need g++ 6.3.0 or clang++ 8.0.0 (CXX=%s)' % CXX)
+    warn('C++ compiler (CXX=%s, %s) too old, need g++ 6.3.0 or clang++ 8.0.0' %
+      (CXX, ".".join(map(str, clang_version if is_clang else gcc_version))))
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
   if not ok:
@@ -781,9 +803,10 @@ def check_compiler(o):
     # clang 3.2 is a little white lie because any clang version will probably
     # do for the C bits.  However, we might as well encourage people to upgrade
     # to a version that is not completely ancient.
-    warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
+    warn('C compiler (CC=%s, %s) too old, need gcc 4.2 or clang 3.2' %
+      (CC, ".".join(map(str, gcc_version))))
 
-  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else 0
+  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
@@ -964,15 +987,23 @@ def configure_node(o):
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None
                      else target_arch != host_arch)
-  want_snapshots = not options.without_snapshot
-  o['variables']['want_separate_host_toolset'] = int(
-      cross_compiling and want_snapshots)
+  if options.unused_without_snapshot:
+    warn('building --without-snapshot is no longer possible')
+
+  o['variables']['want_separate_host_toolset'] = int(cross_compiling)
 
   if not options.without_node_snapshot:
     o['variables']['node_use_node_snapshot'] = b(
-        not cross_compiling and want_snapshots)
+      not cross_compiling and not options.shared)
   else:
     o['variables']['node_use_node_snapshot'] = 'false'
+
+  if not options.without_node_code_cache:
+    # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
+    o['variables']['node_use_node_code_cache'] = b(
+      not cross_compiling and not options.shared)
+  else:
+    o['variables']['node_use_node_code_cache'] = 'false'
 
   if target_arch == 'arm':
     configure_arm(o)
@@ -1036,27 +1067,12 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
-  if options.node_use_large_pages and not flavor in ('linux', 'freebsd', 'mac'):
-    raise Exception(
-      'Large pages are supported only on Linux, FreeBSD and MacOS Systems.')
-  if options.node_use_large_pages and flavor in ('linux', 'freebsd', 'mac'):
-    if options.shared or options.enable_static:
-      raise Exception(
-        'Large pages are supported only while creating node executable.')
-    if target_arch!="x64":
-      raise Exception(
-        'Large pages are supported only x64 platform.')
-    if flavor == 'mac':
-      info('macOS server with 32GB or more is recommended')
-    if flavor == 'linux':
-      # Example full version string: 2.6.32-696.28.1.el6.x86_64
-      FULL_KERNEL_VERSION=os.uname()[2]
-      KERNEL_VERSION=FULL_KERNEL_VERSION.split('-')[0]
-      if KERNEL_VERSION < "2.6.38" and flavor == 'linux':
-        raise Exception(
-          'Large pages need Linux kernel version >= 2.6.38')
-  o['variables']['node_use_large_pages'] = b(options.node_use_large_pages)
-  o['variables']['node_use_large_pages_script_lld'] = b(options.node_use_large_pages_script_lld)
+  if options.node_use_large_pages or options.node_use_large_pages_script_lld:
+    warn('''The `--use-largepages` and `--use-largepages-script-lld` options
+         have no effect during build time. Support for mapping to large pages is
+         now a runtime option of Node.js. Run `node --use-largepages` or add
+         `--use-largepages` to the `NODE_OPTIONS` environment variable once
+         Node.js is built to enable mapping to large pages.''')
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
@@ -1094,20 +1110,21 @@ def configure_node(o):
     o['variables']['debug_nghttp2'] = 'false'
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
-  # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-  if o['variables']['want_separate_host_toolset'] == 0:
-    o['variables']['node_code_cache'] = 'yes' # For testing
+
   o['variables']['node_shared'] = b(options.shared)
   node_module_version = getmoduleversion.get_version()
 
-  if sys.platform == 'darwin':
+  if options.dest_os == 'android':
+    shlib_suffix = 'so'
+  elif sys.platform == 'darwin':
     shlib_suffix = '%s.dylib'
   elif sys.platform.startswith('aix'):
     shlib_suffix = '%s.a'
   else:
     shlib_suffix = 'so.%s'
+  if '%s' in shlib_suffix:
+    shlib_suffix %= node_module_version
 
-  shlib_suffix %= node_module_version
   o['variables']['node_module_version'] = int(node_module_version)
   o['variables']['shlib_suffix'] = shlib_suffix
 
@@ -1132,12 +1149,13 @@ def configure_napi(output):
   version = getnapibuildversion.get_napi_version()
   output['variables']['napi_build_version'] = version
 
-def configure_library(lib, output):
+def configure_library(lib, output, pkgname=None):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
 
   if getattr(options, shared_lib):
-    (pkg_libs, pkg_cflags, pkg_libpath, pkg_modversion) = pkg_config(lib)
+    (pkg_libs, pkg_cflags, pkg_libpath, pkg_modversion) = (
+        pkg_config(pkgname or lib))
 
     if options.__dict__[shared_lib + '_includes']:
       output['include_dirs'] += [options.__dict__[shared_lib + '_includes']]
@@ -1174,7 +1192,8 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
-  o['variables']['v8_use_snapshot'] = 0 if options.without_snapshot else 1
+  o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
+  o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -1229,10 +1248,10 @@ def configure_openssl(o):
     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
     # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
     openssl110_asm_supported = \
-      ('gas_version' in variables and float(variables['gas_version']) >= 2.23) or \
-      ('xcode_version' in variables and float(variables['xcode_version']) >= 5.0) or \
-      ('llvm_version' in variables and float(variables['llvm_version']) >= 3.3) or \
-      ('nasm_version' in variables and float(variables['nasm_version']) >= 2.10)
+      ('gas_version' in variables and StrictVersion(variables['gas_version']) >= StrictVersion('2.23')) or \
+      ('xcode_version' in variables and StrictVersion(variables['xcode_version']) >= StrictVersion('5.0')) or \
+      ('llvm_version' in variables and StrictVersion(variables['llvm_version']) >= StrictVersion('3.3')) or \
+      ('nasm_version' in variables and StrictVersion(variables['nasm_version']) >= StrictVersion('2.10'))
 
     if is_x86 and not openssl110_asm_supported:
       error('''Did not find a new enough assembler, install one or build with
@@ -1367,6 +1386,7 @@ def configure_intl(o):
     locs.add('root')  # must have root
     o['variables']['icu_locales'] = ','.join(str(loc) for loc in locs)
     # We will check a bit later if we can use the canned deps/icu-small
+    o['variables']['icu_default_data'] = options.with_icu_default_data_dir or ''
   elif with_intl == 'full-icu':
     # full ICU
     o['variables']['v8_enable_i18n_support'] = 1
@@ -1399,7 +1419,8 @@ def configure_intl(o):
   icu_parent_path = 'deps'
 
   # The full path to the ICU source directory. Should not include './'.
-  icu_full_path = 'deps/icu'
+  icu_deps_path = 'deps/icu'
+  icu_full_path = icu_deps_path
 
   # icu-tmp is used to download and unpack the ICU tarball.
   icu_tmp_path = os.path.join(icu_parent_path, 'icu-tmp')
@@ -1407,30 +1428,26 @@ def configure_intl(o):
   # canned ICU. see tools/icu/README.md to update.
   canned_icu_dir = 'deps/icu-small'
 
+  # use the README to verify what the canned ICU is
+  canned_is_full = os.path.isfile(os.path.join(canned_icu_dir, 'README-FULL-ICU.txt'))
+  canned_is_small = os.path.isfile(os.path.join(canned_icu_dir, 'README-SMALL-ICU.txt'))
+  if canned_is_small:
+    warn('Ignoring %s - in-repo small icu is no longer supported.' % canned_icu_dir)
+
   # We can use 'deps/icu-small' - pre-canned ICU *iff*
-  # - with_intl == small-icu (the default!)
-  # - with_icu_locales == 'root,en' (the default!)
-  # - deps/icu-small exists!
+  # - canned_is_full AND
   # - with_icu_source is unset (i.e. no other ICU was specified)
-  # (Note that this is the *DEFAULT CASE*.)
   #
   # This is *roughly* equivalent to
-  # $ configure --with-intl=small-icu --with-icu-source=deps/icu-small
+  # $ configure --with-intl=full-icu --with-icu-source=deps/icu-small
   # .. Except that we avoid copying icu-small over to deps/icu.
   # In this default case, deps/icu is ignored, although make clean will
   # still harmlessly remove deps/icu.
 
-  # are we using default locales?
-  using_default_locales = ( options.with_icu_locales == icu_default_locales )
-
-  # make sure the canned ICU really exists
-  canned_icu_available = os.path.isdir(canned_icu_dir)
-
-  if (o['variables']['icu_small'] == b(True)) and using_default_locales and (not with_icu_source) and canned_icu_available:
+  if (not with_icu_source) and canned_is_full:
     # OK- we can use the canned ICU.
-    icu_config['variables']['icu_small_canned'] = 1
     icu_full_path = canned_icu_dir
-
+    icu_config['variables']['icu_full_canned'] = 1
   # --with-icu-source processing
   # now, check that they didn't pass --with-icu-source=deps/icu
   elif with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
@@ -1496,10 +1513,11 @@ def configure_intl(o):
   icu_ver_major = None
   matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
   match_version = re.compile(matchVerExp)
-  for line in open(uvernum_h).readlines():
-    m = match_version.match(line)
-    if m:
-      icu_ver_major = m.group(1)
+  with io.open(uvernum_h, encoding='utf8') as in_file:
+    for line in in_file:
+      m = match_version.match(line)
+      if m:
+        icu_ver_major = str(m.group(1))
   if not icu_ver_major:
     error('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
   elif int(icu_ver_major) < icu_versions['minimum_icu']:
@@ -1508,29 +1526,43 @@ def configure_intl(o):
   icu_endianness = sys.byteorder[0]
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
-  icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
+  icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l') # LE filename
   icu_data_file = 'icudt%s%s.dat' % (icu_ver_major, icu_endianness)
   # relative to configure
   icu_data_path = os.path.join(icu_full_path,
                                'source/data/in',
-                               icu_data_file_l)
+                               icu_data_file_l) # LE
+  compressed_data = '%s.bz2' % (icu_data_path)
+  if not os.path.isfile(icu_data_path) and os.path.isfile(compressed_data):
+    # unpack. deps/icu is a temporary path
+    if os.path.isdir(icu_tmp_path):
+      shutil.rmtree(icu_tmp_path)
+    os.mkdir(icu_tmp_path)
+    icu_data_path = os.path.join(icu_tmp_path, icu_data_file_l)
+    with open(icu_data_path, 'wb') as outf:
+        inf = bz2.BZ2File(compressed_data, 'rb')
+        try:
+          shutil.copyfileobj(inf, outf)
+        finally:
+          inf.close()
+    # Now, proceed..
+
   # relative to dep..
-  icu_data_in = os.path.join('..','..', icu_full_path, 'source/data/in', icu_data_file_l)
+  icu_data_in = os.path.join('..','..', icu_data_path)
   if not os.path.isfile(icu_data_path) and icu_endianness != 'l':
     # use host endianness
     icu_data_path = os.path.join(icu_full_path,
                                  'source/data/in',
-                                 icu_data_file)
-    # relative to dep..
-    icu_data_in = os.path.join('..', icu_full_path, 'source/data/in',
-                               icu_data_file)
-  # this is the input '.dat' file to use .. icudt*.dat
-  # may be little-endian if from a icu-project.org tarball
-  o['variables']['icu_data_in'] = icu_data_in
+                                 icu_data_file) # will be generated
   if not os.path.isfile(icu_data_path):
     # .. and we're not about to build it from .gyp!
     error('''ICU prebuilt data file %s does not exist.
        See the README.md.''' % icu_data_path)
+
+  # this is the input '.dat' file to use .. icudt*.dat
+  # may be little-endian if from a icu-project.org tarball
+  o['variables']['icu_data_in'] = icu_data_in
+
   # map from variable name to subdirs
   icu_src = {
     'stubdata': 'stubdata',
@@ -1547,6 +1579,31 @@ def configure_intl(o):
     var  = 'icu_src_%s' % i
     path = '../../%s/source/%s' % (icu_full_path, icu_src[i])
     icu_config['variables'][var] = glob_to_var('tools/icu', path, 'patches/%s/source/%s' % (icu_ver_major, icu_src[i]) )
+  # calculate platform-specific genccode args
+  # print("platform %s, flavor %s" % (sys.platform, flavor))
+  # if sys.platform == 'darwin':
+  #   shlib_suffix = '%s.dylib'
+  # elif sys.platform.startswith('aix'):
+  #   shlib_suffix = '%s.a'
+  # else:
+  #   shlib_suffix = 'so.%s'
+  if flavor == 'win':
+    icu_config['variables']['icu_asm_ext'] = 'obj'
+    icu_config['variables']['icu_asm_opts'] = [ '-o ' ]
+  elif with_intl == 'small-icu' or options.cross_compiling:
+    icu_config['variables']['icu_asm_ext'] = 'c'
+    icu_config['variables']['icu_asm_opts'] = []
+  elif flavor == 'mac':
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'gcc-darwin' ]
+  elif sys.platform.startswith('aix'):
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'xlc' ]
+  else:
+    # assume GCC-compatible asm is OK
+    icu_config['variables']['icu_asm_ext'] = 'S'
+    icu_config['variables']['icu_asm_opts'] = [ '-a', 'gcc' ]
+
   # write updated icu_config.gypi with a bunch of paths
   write(icu_config_name, do_not_edit +
         pprint.pformat(icu_config, indent=2) + '\n')
@@ -1615,11 +1672,8 @@ configure_napi(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
-configure_library('libcares', output)
-configure_library('nghttp2', output)
-# stay backwards compatible with shared cares builds
-output['variables']['node_shared_cares'] = \
-    output['variables'].pop('node_shared_libcares')
+configure_library('cares', output, pkgname='libcares')
+configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)

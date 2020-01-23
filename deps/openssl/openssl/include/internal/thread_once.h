@@ -72,7 +72,7 @@
  * function defined via DEFINE_ONCE_STATIC where both functions use the same
  * CRYPTO_ONCE object to synchronise. Where an alternative initialiser function
  * is used only one of the primary or the alternative initialiser function will
- * ever be called - and that function will be called exactly once. Definitition
+ * ever be called - and that function will be called exactly once. Definition
  * of an alternative initialiser function MUST occur AFTER the definition of the
  * primary initialiser function.
  *

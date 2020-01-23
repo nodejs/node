@@ -36,9 +36,8 @@ class StatsCounter;
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
-  V(address_of_stack_limit, "StackGuard::address_of_jslimit()")                \
-  V(address_of_real_stack_limit, "StackGuard::address_of_real_jslimit()")      \
-  V(store_buffer_top, "store_buffer_top")                                      \
+  V(address_of_jslimit, "StackGuard::address_of_jslimit()")                    \
+  V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
   V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
   V(new_space_allocation_limit_address,                                        \
@@ -73,15 +72,20 @@ class StatsCounter;
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
   V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
-  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")             \
-  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")   \
-  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")         \
+  V(address_of_regexp_stack_limit_address,                                     \
+    "RegExpStack::limit_address_address()")                                    \
+  V(address_of_regexp_stack_memory_address,                                    \
+    "RegExpStack::memory_address_address()")                                   \
+  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size_address()") \
+  V(address_of_regexp_stack_memory_top_address,                                \
+    "RegExpStack::memory_top_address_address()")                               \
   V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
   V(re_case_insensitive_compare_uc16,                                          \
     "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")                \
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
+  V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \
@@ -138,6 +142,7 @@ class StatsCounter;
   V(ieee754_tanh_function, "base::ieee754::tanh")                             \
   V(incremental_marking_record_write_function,                                \
     "IncrementalMarking::RecordWrite")                                        \
+  V(insert_remembered_set_function, "Heap::InsertIntoRememberedSetFromCode")  \
   V(invalidate_prototype_chains_function,                                     \
     "JSObject::InvalidatePrototypeChains()")                                  \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")          \
@@ -165,7 +170,6 @@ class StatsCounter;
   V(search_string_raw_two_one, "search_string_raw_two_one")                   \
   V(search_string_raw_two_two, "search_string_raw_two_two")                   \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function") \
-  V(store_buffer_overflow_function, "StoreBuffer::StoreBufferOverflow")       \
   V(try_internalize_string_function, "try_internalize_string_function")       \
   V(wasm_call_trap_callback_for_testing,                                      \
     "wasm::call_trap_callback_for_testing")                                   \

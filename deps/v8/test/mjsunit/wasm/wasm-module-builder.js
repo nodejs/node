@@ -84,6 +84,7 @@ let kSharedHasMaximumFlag = 3;
 let kActiveNoIndex = 0;
 let kPassive = 1;
 let kActiveWithIndex = 2;
+let kPassiveWithElements = 5;
 
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
@@ -209,11 +210,11 @@ let kExprReturnCall = 0x12;
 let kExprReturnCallIndirect = 0x13;
 let kExprDrop = 0x1a;
 let kExprSelect = 0x1b;
-let kExprGetLocal = 0x20;
-let kExprSetLocal = 0x21;
-let kExprTeeLocal = 0x22;
-let kExprGetGlobal = 0x23;
-let kExprSetGlobal = 0x24;
+let kExprLocalGet = 0x20;
+let kExprLocalSet = 0x21;
+let kExprLocalTee = 0x22;
+let kExprGlobalGet = 0x23;
+let kExprGlobalSet = 0x24;
 let kExprTableGet = 0x25;
 let kExprTableSet = 0x26;
 let kExprI32LoadMem = 0x28;
@@ -464,6 +465,9 @@ let kExprI64AtomicCompareExchange16U = 0x4d;
 let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Simd opcodes.
+let kExprS128LoadMem = 0x00;
+let kExprS128StoreMem = 0x01;
+let kExprI32x4Splat = 0x0c;
 let kExprF32x4Min = 0x9e;
 
 // Compilation hint constants.
@@ -552,7 +556,7 @@ class Binary {
     this.buffer[this.length++] = val >> 24;
   }
 
-  emit_leb(val, max_len) {
+  emit_leb_u(val, max_len) {
     this.ensure_space(max_len);
     for (let i = 0; i < max_len; ++i) {
       let v = val & 0xff;
@@ -567,11 +571,11 @@ class Binary {
   }
 
   emit_u32v(val) {
-    this.emit_leb(val, kMaxVarInt32Size);
+    this.emit_leb_u(val, kMaxVarInt32Size);
   }
 
   emit_u64v(val) {
-    this.emit_leb(val, kMaxVarInt64Size);
+    this.emit_leb_u(val, kMaxVarInt64Size);
   }
 
   emit_bytes(data) {
@@ -1093,7 +1097,7 @@ class WasmModuleBuilder {
             }
           } else {
             // Emit a global-index initializer.
-            section.emit_u8(kExprGetGlobal);
+            section.emit_u8(kExprGlobalGet);
             section.emit_u32v(global.init_index);
           }
           section.emit_u8(kExprEnd);  // end of init expression
@@ -1158,19 +1162,22 @@ class WasmModuleBuilder {
               section.emit_u32v(init.table);
             }
             if (init.is_global) {
-              section.emit_u8(kExprGetGlobal);
+              section.emit_u8(kExprGlobalGet);
             } else {
               section.emit_u8(kExprI32Const);
             }
             section.emit_u32v(init.base);
             section.emit_u8(kExprEnd);
+            if (init.table != 0) {
+              section.emit_u8(kExternalFunction);
+            }
             section.emit_u32v(init.array.length);
             for (let index of init.array) {
               section.emit_u32v(index);
             }
           } else {
             // Passive segment.
-            section.emit_u8(kPassive);  // flags
+            section.emit_u8(kPassiveWithElements);  // flags
             section.emit_u8(kWasmAnyFunc);
             section.emit_u32v(init.array.length);
             for (let index of init.array) {
@@ -1290,7 +1297,7 @@ class WasmModuleBuilder {
             section.emit_u8(0);  // linear memory index 0 / flags
             if (seg.is_global) {
               // initializer is a global variable
-              section.emit_u8(kExprGetGlobal);
+              section.emit_u8(kExprGlobalGet);
               section.emit_u32v(seg.addr);
             } else {
               // initializer is a constant
@@ -1384,13 +1391,24 @@ class WasmModuleBuilder {
   }
 }
 
-function wasmI32Const(val) {
-  let bytes = [kExprI32Const];
-  for (let i = 0; i < 4; ++i) {
-    bytes.push(0x80 | ((val >> (7 * i)) & 0x7f));
+function wasmSignedLeb(val, max_len = 5) {
+  let res = [];
+  for (let i = 0; i < max_len; ++i) {
+    let v = val & 0x7f;
+    // If {v} sign-extended from 7 to 32 bits is equal to val, we are done.
+    if (((v << 25) >> 25) == val) {
+      res.push(v);
+      return res;
+    }
+    res.push(v | 0x80);
+    val = val >> 7;
   }
-  bytes.push((val >> (7 * 4)) & 0x7f);
-  return bytes;
+  throw new Error(
+      'Leb value <' + val + '> exceeds maximum length of ' + max_len);
+}
+
+function wasmI32Const(val) {
+  return [kExprI32Const, ...wasmSignedLeb(val, 5)];
 }
 
 function wasmF32Const(f) {

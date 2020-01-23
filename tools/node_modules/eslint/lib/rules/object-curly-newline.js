@@ -44,8 +44,7 @@ const OPTION_VALUE = {
 
 /**
  * Normalizes a given option value.
- *
- * @param {string|Object|undefined} value - An option value to parse.
+ * @param {string|Object|undefined} value An option value to parse.
  * @returns {{multiline: boolean, minProperties: number, consistent: boolean}} Normalized option object.
  */
 function normalizeOptionValue(value) {
@@ -72,8 +71,7 @@ function normalizeOptionValue(value) {
 
 /**
  * Normalizes a given option value.
- *
- * @param {string|Object|undefined} options - An option value to parse.
+ * @param {string|Object|undefined} options An option value to parse.
  * @returns {{
  *   ObjectExpression: {multiline: boolean, minProperties: number, consistent: boolean},
  *   ObjectPattern: {multiline: boolean, minProperties: number, consistent: boolean},
@@ -101,11 +99,10 @@ function normalizeOptions(options) {
 /**
  * Determines if ObjectExpression, ObjectPattern, ImportDeclaration or ExportNamedDeclaration
  * node needs to be checked for missing line breaks
- *
- * @param {ASTNode} node - Node under inspection
- * @param {Object} options - option specific to node type
- * @param {Token} first - First object property
- * @param {Token} last - Last object property
+ * @param {ASTNode} node Node under inspection
+ * @param {Object} options option specific to node type
+ * @param {Token} first First object property
+ * @param {Token} last Last object property
  * @returns {boolean} `true` if node needs to be checked for missing line breaks
  */
 function areLineBreaksRequired(node, options, first, last) {
@@ -171,7 +168,7 @@ module.exports = {
 
         /**
          * Reports a given node if it violated this rule.
-         * @param {ASTNode} node - A node to check. This is an ObjectExpression, ObjectPattern, ImportDeclaration or ExportNamedDeclaration node.
+         * @param {ASTNode} node A node to check. This is an ObjectExpression, ObjectPattern, ImportDeclaration or ExportNamedDeclaration node.
          * @returns {void}
          */
         function check(node) {

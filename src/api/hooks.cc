@@ -30,6 +30,8 @@ void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
 }
 
 void EmitBeforeExit(Environment* env) {
+  env->RunBeforeExitCallbacks();
+
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> exit_code = env->process_object()

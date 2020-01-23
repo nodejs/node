@@ -110,26 +110,6 @@ Running test: testScopesPaused
             }
             [1] : {
                 endLocation : {
-                    columnNumber : 3
-                    lineNumber : 15
-                    scriptId : <scriptId>
-                }
-                name : run
-                object : {
-                    className : Object
-                    description : Object
-                    objectId : <objectId>
-                    type : object
-                }
-                startLocation : {
-                    columnNumber : 9
-                    lineNumber : 11
-                    scriptId : <scriptId>
-                }
-                type : block
-            }
-            [2] : {
-                endLocation : {
                     columnNumber : 1
                     lineNumber : 19
                     scriptId : <scriptId>
@@ -148,7 +128,7 @@ Running test: testScopesPaused
                 }
                 type : local
             }
-            [3] : {
+            [2] : {
                 object : {
                     className : global
                     description : global

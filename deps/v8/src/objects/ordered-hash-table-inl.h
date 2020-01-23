@@ -164,8 +164,16 @@ inline bool OrderedHashMap::Is(Handle<HeapObject> table) {
   return table->IsOrderedHashMap();
 }
 
+inline bool OrderedNameDictionary::Is(Handle<HeapObject> table) {
+  return table->IsOrderedNameDictionary();
+}
+
 inline bool SmallOrderedHashSet::Is(Handle<HeapObject> table) {
   return table->IsSmallOrderedHashSet();
+}
+
+inline bool SmallOrderedNameDictionary::Is(Handle<HeapObject> table) {
+  return table->IsSmallOrderedNameDictionary();
 }
 
 inline bool SmallOrderedHashMap::Is(Handle<HeapObject> table) {

@@ -246,7 +246,6 @@ function assertBinop(name, math_func, asm_func) {
   ];
 
   for (name of f64_intrinsics) {
-    if (name == 'pow') continue;  // TODO(8505): asm.js correctness
     let math_func = Math[name];
     let f32 = false;
     print('Testing (f64) Math.' + name);

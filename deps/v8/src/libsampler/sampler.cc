@@ -526,7 +526,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #endif  // USE_SIGNALS
 
 Sampler::Sampler(Isolate* isolate)
-    : isolate_(isolate), data_(base::make_unique<PlatformData>()) {}
+    : isolate_(isolate), data_(std::make_unique<PlatformData>()) {}
 
 Sampler::~Sampler() {
   DCHECK(!IsActive());

@@ -30,7 +30,8 @@ USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
+BUILD_TARGETS_TEST = ["d8", "cctest", "inspector-test", "unittests",
+                      "wasm_api_tests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.

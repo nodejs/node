@@ -22,57 +22,58 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
  protected:
   template <typename Descriptor>
   void EmitBitwiseOp(Operation op) {
-    Node* left = Parameter(Descriptor::kLeft);
-    Node* right = Parameter(Descriptor::kRight);
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Object> left = CAST(Parameter(Descriptor::kLeft));
+    TNode<Object> right = CAST(Parameter(Descriptor::kRight));
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-    VARIABLE(var_left_word32, MachineRepresentation::kWord32);
-    VARIABLE(var_right_word32, MachineRepresentation::kWord32);
-    VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
-    VARIABLE(var_right_bigint, MachineRepresentation::kTagged);
+    TVARIABLE(Word32T, var_left_word32);
+    TVARIABLE(Word32T, var_right_word32);
+    TVARIABLE(Object, var_left_maybe_bigint, left);
+    TVARIABLE(Object, var_right_maybe_bigint);
     Label if_left_number(this), do_number_op(this);
     Label if_left_bigint(this), do_bigint_op(this);
 
     TaggedToWord32OrBigInt(context, left, &if_left_number, &var_left_word32,
-                           &if_left_bigint, &var_left_bigint);
+                           &if_left_bigint, &var_left_maybe_bigint);
     BIND(&if_left_number);
     TaggedToWord32OrBigInt(context, right, &do_number_op, &var_right_word32,
-                           &do_bigint_op, &var_right_bigint);
+                           &do_bigint_op, &var_right_maybe_bigint);
     BIND(&do_number_op);
     Return(BitwiseOp(var_left_word32.value(), var_right_word32.value(), op));
 
     // BigInt cases.
     BIND(&if_left_bigint);
-    TaggedToNumeric(context, right, &do_bigint_op, &var_right_bigint);
+    TaggedToNumeric(context, right, &do_bigint_op, &var_right_maybe_bigint);
 
     BIND(&do_bigint_op);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context,
-                       var_left_bigint.value(), var_right_bigint.value(),
-                       SmiConstant(op)));
+                       var_left_maybe_bigint.value(),
+                       var_right_maybe_bigint.value(), SmiConstant(op)));
   }
 
   template <typename Descriptor>
   void RelationalComparisonBuiltin(Operation op) {
-    Node* lhs = Parameter(Descriptor::kLeft);
-    Node* rhs = Parameter(Descriptor::kRight);
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Object> lhs = CAST(Parameter(Descriptor::kLeft));
+    TNode<Object> rhs = CAST(Parameter(Descriptor::kRight));
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
     Return(RelationalComparison(op, lhs, rhs, context));
   }
 
   template <typename Descriptor>
-  void UnaryOp(Variable* var_input, Label* do_smi, Label* do_double,
-               Variable* var_input_double, Label* do_bigint);
+  void UnaryOp(TVariable<Object>* var_input, Label* do_smi, Label* do_double,
+               TVariable<Float64T>* var_input_double, Label* do_bigint);
 
   template <typename Descriptor>
-  void BinaryOp(Label* smis, Variable* var_left, Variable* var_right,
-                Label* doubles, Variable* var_left_double,
-                Variable* var_right_double, Label* bigints);
+  void BinaryOp(Label* smis, TVariable<Object>* var_left,
+                TVariable<Object>* var_right, Label* doubles,
+                TVariable<Float64T>* var_left_double,
+                TVariable<Float64T>* var_right_double, Label* bigints);
 };
 
 // ES6 #sec-number.isfinite
 TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
 
   Label return_true(this), return_false(this);
 
@@ -80,10 +81,11 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
+  TNode<HeapObject> number_heap_object = CAST(number);
+  GotoIfNot(IsHeapNumber(number_heap_object), &return_false);
 
   // Check if {number} contains a finite, non-NaN value.
-  Node* number_value = LoadHeapNumberValue(number);
+  TNode<Float64T> number_value = LoadHeapNumberValue(number_heap_object);
   BranchIfFloat64IsNaN(Float64Sub(number_value, number_value), &return_false,
                        &return_true);
 
@@ -95,7 +97,7 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
 }
 
 TF_BUILTIN(AllocateHeapNumber, CodeStubAssembler) {
-  Node* result = AllocateHeapNumber();
+  TNode<HeapNumber> result = AllocateHeapNumber();
   Return(result);
 }
 
@@ -107,7 +109,7 @@ TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
 
 // ES6 #sec-number.isnan
 TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
-  Node* number = Parameter(Descriptor::kNumber);
+  TNode<Object> number = CAST(Parameter(Descriptor::kNumber));
 
   Label return_true(this), return_false(this);
 
@@ -115,10 +117,11 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_false);
 
   // Check if {number} is a HeapNumber.
-  GotoIfNot(IsHeapNumber(number), &return_false);
+  TNode<HeapObject> number_heap_object = CAST(number);
+  GotoIfNot(IsHeapNumber(number_heap_object), &return_false);
 
   // Check if {number} contains a NaN value.
-  Node* number_value = LoadHeapNumberValue(number);
+  TNode<Float64T> number_value = LoadHeapNumberValue(number_heap_object);
   BranchIfFloat64IsNaN(number_value, &return_true, &return_false);
 
   BIND(&return_true);
@@ -136,17 +139,16 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
 
 // ES6 #sec-number.parsefloat
 TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   // We might need to loop once for ToString conversion.
-  VARIABLE(var_input, MachineRepresentation::kTagged,
-           Parameter(Descriptor::kString));
+  TVARIABLE(Object, var_input, CAST(Parameter(Descriptor::kString)));
   Label loop(this, &var_input);
   Goto(&loop);
   BIND(&loop);
   {
     // Load the current {input} value.
-    Node* input = var_input.value();
+    TNode<Object> input = var_input.value();
 
     // Check if the {input} is a HeapObject or a Smi.
     Label if_inputissmi(this), if_inputisnotsmi(this);
@@ -161,9 +163,10 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
     BIND(&if_inputisnotsmi);
     {
       // The {input} is a HeapObject, check if it's already a String.
+      TNode<HeapObject> input_heap_object = CAST(input);
       Label if_inputisstring(this), if_inputisnotstring(this);
-      Node* input_map = LoadMap(input);
-      Node* input_instance_type = LoadMapInstanceType(input_map);
+      TNode<Map> input_map = LoadMap(input_heap_object);
+      TNode<Uint16T> input_instance_type = LoadMapInstanceType(input_map);
       Branch(IsStringInstanceType(input_instance_type), &if_inputisstring,
              &if_inputisnotstring);
 
@@ -172,7 +175,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         // The {input} is already a String, check if {input} contains
         // a cached array index.
         Label if_inputcached(this), if_inputnotcached(this);
-        Node* input_hash = LoadNameHashField(input);
+        TNode<Uint32T> input_hash = LoadNameHashField(CAST(input));
         Branch(IsClearWord32(input_hash,
                              Name::kDoesNotContainCachedArrayIndexMask),
                &if_inputcached, &if_inputnotcached);
@@ -180,9 +183,9 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         BIND(&if_inputcached);
         {
           // Just return the {input}s cached array index.
-          Node* input_array_index =
+          TNode<UintPtrT> input_array_index =
               DecodeWordFromWord32<String::ArrayIndexValueBits>(input_hash);
-          Return(SmiTag(input_array_index));
+          Return(SmiTag(Signed(input_array_index)));
         }
 
         BIND(&if_inputnotcached);
@@ -204,7 +207,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         {
           // The {input} is already a Number, take care of -0.
           Label if_inputiszero(this), if_inputisnotzero(this);
-          Node* input_value = LoadHeapNumberValue(input);
+          TNode<Float64T> input_value = LoadHeapNumberValue(input_heap_object);
           Branch(Float64Equal(input_value, Float64Constant(0.0)),
                  &if_inputiszero, &if_inputisnotzero);
 
@@ -219,7 +222,7 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
         {
           // Need to convert the {input} to String first.
           // TODO(bmeurer): This could be more efficient if necessary.
-          var_input.Bind(CallBuiltin(Builtins::kToString, context, input));
+          var_input = CallBuiltin(Builtins::kToString, context, input);
           Goto(&loop);
         }
       }
@@ -229,15 +232,15 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
 
 // ES6 #sec-number.parseint
 TF_BUILTIN(ParseInt, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* input = Parameter(Descriptor::kString);
-  Node* radix = Parameter(Descriptor::kRadix);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> input = CAST(Parameter(Descriptor::kString));
+  TNode<Object> radix = CAST(Parameter(Descriptor::kRadix));
 
   // Check if {radix} is treated as 10 (i.e. undefined, 0 or 10).
   Label if_radix10(this), if_generic(this, Label::kDeferred);
   GotoIf(IsUndefined(radix), &if_radix10);
-  GotoIf(WordEqual(radix, SmiConstant(10)), &if_radix10);
-  GotoIf(WordEqual(radix, SmiConstant(0)), &if_radix10);
+  GotoIf(TaggedEqual(radix, SmiConstant(10)), &if_radix10);
+  GotoIf(TaggedEqual(radix, SmiConstant(0)), &if_radix10);
   Goto(&if_generic);
 
   BIND(&if_radix10);
@@ -246,9 +249,9 @@ TF_BUILTIN(ParseInt, CodeStubAssembler) {
     Label if_inputissmi(this), if_inputisheapnumber(this),
         if_inputisstring(this);
     GotoIf(TaggedIsSmi(input), &if_inputissmi);
-    Node* input_map = LoadMap(input);
+    TNode<Map> input_map = LoadMap(CAST(input));
     GotoIf(IsHeapNumberMap(input_map), &if_inputisheapnumber);
-    Node* input_instance_type = LoadMapInstanceType(input_map);
+    TNode<Uint16T> input_instance_type = LoadMapInstanceType(input_map);
     Branch(IsStringInstanceType(input_instance_type), &if_inputisstring,
            &if_generic);
 
@@ -262,15 +265,16 @@ TF_BUILTIN(ParseInt, CodeStubAssembler) {
     {
       // Check if the {input} value is in Signed32 range.
       Label if_inputissigned32(this);
-      Node* input_value = LoadHeapNumberValue(input);
-      Node* input_value32 = TruncateFloat64ToWord32(input_value);
+      TNode<Float64T> input_value = LoadHeapNumberValue(CAST(input));
+      TNode<Int32T> input_value32 =
+          Signed(TruncateFloat64ToWord32(input_value));
       GotoIf(Float64Equal(input_value, ChangeInt32ToFloat64(input_value32)),
              &if_inputissigned32);
 
       // Check if the absolute {input} value is in the [1,1<<31[ range.
       // Take the generic path for the range [0,1[ because the result
       // could be -0.
-      Node* input_value_abs = Float64Abs(input_value);
+      TNode<Float64T> input_value_abs = Float64Abs(input_value);
 
       GotoIfNot(Float64LessThan(input_value_abs, Float64Constant(1u << 31)),
                 &if_generic);
@@ -279,37 +283,38 @@ TF_BUILTIN(ParseInt, CodeStubAssembler) {
 
       // Return the truncated int32 value, and return the tagged result.
       BIND(&if_inputissigned32);
-      Node* result = ChangeInt32ToTagged(input_value32);
+      TNode<Number> result = ChangeInt32ToTagged(input_value32);
       Return(result);
     }
 
     BIND(&if_inputisstring);
     {
       // Check if the String {input} has a cached array index.
-      Node* input_hash = LoadNameHashField(input);
+      TNode<Uint32T> input_hash = LoadNameHashField(CAST(input));
       GotoIf(IsSetWord32(input_hash, Name::kDoesNotContainCachedArrayIndexMask),
              &if_generic);
 
       // Return the cached array index as result.
-      Node* input_index =
+      TNode<UintPtrT> input_index =
           DecodeWordFromWord32<String::ArrayIndexValueBits>(input_hash);
-      Node* result = SmiTag(input_index);
+      TNode<Smi> result = SmiTag(Signed(input_index));
       Return(result);
     }
   }
 
   BIND(&if_generic);
   {
-    Node* result = CallRuntime(Runtime::kStringParseInt, context, input, radix);
+    TNode<Object> result =
+        CallRuntime(Runtime::kStringParseInt, context, input, radix);
     Return(result);
   }
 }
 
 // ES6 #sec-number.parseint
 TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* input = Parameter(Descriptor::kString);
-  Node* radix = Parameter(Descriptor::kRadix);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> input = CAST(Parameter(Descriptor::kString));
+  TNode<Object> radix = CAST(Parameter(Descriptor::kRadix));
   Return(CallBuiltin(Builtins::kParseInt, context, input, radix));
 }
 
@@ -318,8 +323,8 @@ TF_BUILTIN(NumberPrototypeValueOf, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
-  Node* result = ToThisValue(context, receiver, PrimitiveType::kNumber,
-                             "Number.prototype.valueOf");
+  TNode<Object> result = ToThisValue(context, receiver, PrimitiveType::kNumber,
+                                     "Number.prototype.valueOf");
   Return(result);
 }
 
@@ -329,27 +334,29 @@ class AddStubAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void ConvertReceiverAndLoop(Variable* var_value, Label* loop, Node* context) {
+  TNode<Object> ConvertReceiver(TNode<JSReceiver> js_receiver,
+                                TNode<Context> context) {
     // Call ToPrimitive explicitly without hint (whereas ToNumber
     // would pass a "number" hint).
     Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
-    var_value->Bind(CallStub(callable, context, var_value->value()));
+    return CallStub(callable, context, js_receiver);
+  }
+
+  void ConvertNonReceiverAndLoop(TVariable<Object>* var_value, Label* loop,
+                                 TNode<Context> context) {
+    *var_value =
+        CallBuiltin(Builtins::kNonNumberToNumeric, context, var_value->value());
     Goto(loop);
   }
 
-  void ConvertNonReceiverAndLoop(Variable* var_value, Label* loop,
-                                 Node* context) {
-    var_value->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context,
-                                var_value->value()));
-    Goto(loop);
-  }
-
-  void ConvertAndLoop(Variable* var_value, Node* instance_type, Label* loop,
-                      Node* context) {
+  void ConvertAndLoop(TVariable<Object>* var_value,
+                      TNode<Uint16T> instance_type, Label* loop,
+                      TNode<Context> context) {
     Label is_not_receiver(this, Label::kDeferred);
     GotoIfNot(IsJSReceiverInstanceType(instance_type), &is_not_receiver);
 
-    ConvertReceiverAndLoop(var_value, loop, context);
+    *var_value = ConvertReceiver(CAST(var_value->value()), context);
+    Goto(loop);
 
     BIND(&is_not_receiver);
     ConvertNonReceiverAndLoop(var_value, loop, context);
@@ -357,30 +364,26 @@ class AddStubAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(Add, AddStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  VARIABLE(var_left, MachineRepresentation::kTagged,
-           Parameter(Descriptor::kLeft));
-  VARIABLE(var_right, MachineRepresentation::kTagged,
-           Parameter(Descriptor::kRight));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TVARIABLE(Object, var_left, CAST(Parameter(Descriptor::kLeft)));
+  TVARIABLE(Object, var_right, CAST(Parameter(Descriptor::kRight)));
 
   // Shared entry for floating point addition.
   Label do_double_add(this);
-  VARIABLE(var_left_double, MachineRepresentation::kFloat64);
-  VARIABLE(var_right_double, MachineRepresentation::kFloat64);
+  TVARIABLE(Float64T, var_left_double);
+  TVARIABLE(Float64T, var_right_double);
 
   // We might need to loop several times due to ToPrimitive, ToString and/or
   // ToNumeric conversions.
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  Variable* loop_vars[2] = {&var_left, &var_right};
-  Label loop(this, 2, loop_vars),
+  Label loop(this, {&var_left, &var_right}),
       string_add_convert_left(this, Label::kDeferred),
       string_add_convert_right(this, Label::kDeferred),
       do_bigint_add(this, Label::kDeferred);
   Goto(&loop);
   BIND(&loop);
   {
-    Node* left = var_left.value();
-    Node* right = var_right.value();
+    TNode<Object> left = var_left.value();
+    TNode<Object> right = var_right.value();
 
     Label if_left_smi(this), if_left_heapobject(this);
     Branch(TaggedIsSmi(left), &if_left_smi, &if_left_heapobject);
@@ -393,32 +396,35 @@ TF_BUILTIN(Add, AddStubAssembler) {
       BIND(&if_right_smi);
       {
         Label if_overflow(this);
-        TNode<Smi> result = TrySmiAdd(CAST(left), CAST(right), &if_overflow);
+        TNode<Smi> left_smi = CAST(left);
+        TNode<Smi> right_smi = CAST(right);
+        TNode<Smi> result = TrySmiAdd(left_smi, right_smi, &if_overflow);
         Return(result);
 
         BIND(&if_overflow);
         {
-          var_left_double.Bind(SmiToFloat64(left));
-          var_right_double.Bind(SmiToFloat64(right));
+          var_left_double = SmiToFloat64(left_smi);
+          var_right_double = SmiToFloat64(right_smi);
           Goto(&do_double_add);
         }
       }  // if_right_smi
 
       BIND(&if_right_heapobject);
       {
-        Node* right_map = LoadMap(right);
+        TNode<HeapObject> right_heap_object = CAST(right);
+        TNode<Map> right_map = LoadMap(right_heap_object);
 
         Label if_right_not_number(this, Label::kDeferred);
         GotoIfNot(IsHeapNumberMap(right_map), &if_right_not_number);
 
         // {right} is a HeapNumber.
-        var_left_double.Bind(SmiToFloat64(left));
-        var_right_double.Bind(LoadHeapNumberValue(right));
+        var_left_double = SmiToFloat64(CAST(left));
+        var_right_double = LoadHeapNumberValue(right_heap_object);
         Goto(&do_double_add);
 
         BIND(&if_right_not_number);
         {
-          Node* right_instance_type = LoadMapInstanceType(right_map);
+          TNode<Uint16T> right_instance_type = LoadMapInstanceType(right_map);
           GotoIf(IsStringInstanceType(right_instance_type),
                  &string_add_convert_left);
           GotoIf(IsBigIntInstanceType(right_instance_type), &do_bigint_add);
@@ -429,7 +435,8 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
     BIND(&if_left_heapobject);
     {
-      Node* left_map = LoadMap(left);
+      TNode<HeapObject> left_heap_object = CAST(left);
+      TNode<Map> left_map = LoadMap(left_heap_object);
       Label if_right_smi(this), if_right_heapobject(this);
       Branch(TaggedIsSmi(right), &if_right_smi, &if_right_heapobject);
 
@@ -439,13 +446,13 @@ TF_BUILTIN(Add, AddStubAssembler) {
         GotoIfNot(IsHeapNumberMap(left_map), &if_left_not_number);
 
         // {left} is a HeapNumber, {right} is a Smi.
-        var_left_double.Bind(LoadHeapNumberValue(left));
-        var_right_double.Bind(SmiToFloat64(right));
+        var_left_double = LoadHeapNumberValue(left_heap_object);
+        var_right_double = SmiToFloat64(CAST(right));
         Goto(&do_double_add);
 
         BIND(&if_left_not_number);
         {
-          Node* left_instance_type = LoadMapInstanceType(left_map);
+          TNode<Uint16T> left_instance_type = LoadMapInstanceType(left_map);
           GotoIf(IsStringInstanceType(left_instance_type),
                  &string_add_convert_right);
           GotoIf(IsBigIntInstanceType(left_instance_type), &do_bigint_add);
@@ -456,7 +463,8 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
       BIND(&if_right_heapobject);
       {
-        Node* right_map = LoadMap(right);
+        TNode<HeapObject> right_heap_object = CAST(right);
+        TNode<Map> right_map = LoadMap(right_heap_object);
 
         Label if_left_number(this), if_left_not_number(this, Label::kDeferred);
         Branch(IsHeapNumberMap(left_map), &if_left_number, &if_left_not_number);
@@ -467,13 +475,13 @@ TF_BUILTIN(Add, AddStubAssembler) {
           GotoIfNot(IsHeapNumberMap(right_map), &if_right_not_number);
 
           // Both {left} and {right} are HeapNumbers.
-          var_left_double.Bind(LoadHeapNumberValue(left));
-          var_right_double.Bind(LoadHeapNumberValue(right));
+          var_left_double = LoadHeapNumberValue(CAST(left));
+          var_right_double = LoadHeapNumberValue(right_heap_object);
           Goto(&do_double_add);
 
           BIND(&if_right_not_number);
           {
-            Node* right_instance_type = LoadMapInstanceType(right_map);
+            TNode<Uint16T> right_instance_type = LoadMapInstanceType(right_map);
             GotoIf(IsStringInstanceType(right_instance_type),
                    &string_add_convert_left);
             GotoIf(IsBigIntInstanceType(right_instance_type), &do_bigint_add);
@@ -485,10 +493,10 @@ TF_BUILTIN(Add, AddStubAssembler) {
         BIND(&if_left_not_number);
         {
           Label if_left_bigint(this);
-          Node* left_instance_type = LoadMapInstanceType(left_map);
+          TNode<Uint16T> left_instance_type = LoadMapInstanceType(left_map);
           GotoIf(IsStringInstanceType(left_instance_type),
                  &string_add_convert_right);
-          Node* right_instance_type = LoadMapInstanceType(right_map);
+          TNode<Uint16T> right_instance_type = LoadMapInstanceType(right_map);
           GotoIf(IsStringInstanceType(right_instance_type),
                  &string_add_convert_left);
           GotoIf(IsBigIntInstanceType(left_instance_type), &if_left_bigint);
@@ -497,7 +505,8 @@ TF_BUILTIN(Add, AddStubAssembler) {
           GotoIfNot(IsJSReceiverInstanceType(left_instance_type),
                     &if_left_not_receiver);
           // {left} is a JSReceiver, convert it first.
-          ConvertReceiverAndLoop(&var_left, &loop, context);
+          var_left = ConvertReceiver(CAST(var_left.value()), context);
+          Goto(&loop);
 
           BIND(&if_left_bigint);
           {
@@ -513,7 +522,8 @@ TF_BUILTIN(Add, AddStubAssembler) {
                     &if_right_not_receiver);
           // {left} is a Primitive, but {right} is a JSReceiver, so convert
           // {right} with priority.
-          ConvertReceiverAndLoop(&var_right, &loop, context);
+          var_right = ConvertReceiver(CAST(var_right.value()), context);
+          Goto(&loop);
 
           BIND(&if_right_not_receiver);
           // Neither {left} nor {right} are JSReceivers.
@@ -525,15 +535,15 @@ TF_BUILTIN(Add, AddStubAssembler) {
   BIND(&string_add_convert_left);
   {
     // Convert {left} to a String and concatenate it with the String {right}.
-    TailCallBuiltin(Builtins::kStringAdd_ConvertLeft, context, var_left.value(),
+    TailCallBuiltin(Builtins::kStringAddConvertLeft, context, var_left.value(),
                     var_right.value());
   }
 
   BIND(&string_add_convert_right);
   {
     // Convert {right} to a String and concatenate it with the String {left}.
-    TailCallBuiltin(Builtins::kStringAdd_ConvertRight, context,
-                    var_left.value(), var_right.value());
+    TailCallBuiltin(Builtins::kStringAddConvertRight, context, var_left.value(),
+                    var_right.value());
   }
 
   BIND(&do_bigint_add);
@@ -544,60 +554,53 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
   BIND(&do_double_add);
   {
-    Node* value = Float64Add(var_left_double.value(), var_right_double.value());
+    TNode<Float64T> value =
+        Float64Add(var_left_double.value(), var_right_double.value());
     Return(AllocateHeapNumberWithValue(value));
   }
 }
 
 template <typename Descriptor>
-void NumberBuiltinsAssembler::UnaryOp(Variable* var_input, Label* do_smi,
-                                      Label* do_double,
-                                      Variable* var_input_double,
+void NumberBuiltinsAssembler::UnaryOp(TVariable<Object>* var_input,
+                                      Label* do_smi, Label* do_double,
+                                      TVariable<Float64T>* var_input_double,
                                       Label* do_bigint) {
-  DCHECK_EQ(var_input->rep(), MachineRepresentation::kTagged);
-  DCHECK_IMPLIES(var_input_double != nullptr,
-                 var_input_double->rep() == MachineRepresentation::kFloat64);
-
-  Node* context = Parameter(Descriptor::kContext);
-  var_input->Bind(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  *var_input = CAST(Parameter(Descriptor::kValue));
 
   // We might need to loop for ToNumeric conversion.
   Label loop(this, {var_input});
   Goto(&loop);
   BIND(&loop);
-  Node* input = var_input->value();
+  TNode<Object> input = var_input->value();
 
   Label not_number(this);
   GotoIf(TaggedIsSmi(input), do_smi);
-  GotoIfNot(IsHeapNumber(input), &not_number);
+  TNode<HeapObject> input_heap_object = CAST(input);
+  GotoIfNot(IsHeapNumber(input_heap_object), &not_number);
   if (var_input_double != nullptr) {
-    var_input_double->Bind(LoadHeapNumberValue(input));
+    *var_input_double = LoadHeapNumberValue(input_heap_object);
   }
   Goto(do_double);
 
   BIND(&not_number);
-  GotoIf(IsBigInt(input), do_bigint);
-  var_input->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context, input));
+  GotoIf(IsBigInt(input_heap_object), do_bigint);
+  *var_input = CallBuiltin(Builtins::kNonNumberToNumeric, context, input);
   Goto(&loop);
 }
 
 template <typename Descriptor>
-void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
-                                       Variable* var_right, Label* doubles,
-                                       Variable* var_left_double,
-                                       Variable* var_right_double,
+void NumberBuiltinsAssembler::BinaryOp(Label* smis, TVariable<Object>* var_left,
+                                       TVariable<Object>* var_right,
+                                       Label* doubles,
+                                       TVariable<Float64T>* var_left_double,
+                                       TVariable<Float64T>* var_right_double,
                                        Label* bigints) {
-  DCHECK_EQ(var_left->rep(), MachineRepresentation::kTagged);
-  DCHECK_EQ(var_right->rep(), MachineRepresentation::kTagged);
-  DCHECK_IMPLIES(var_left_double != nullptr,
-                 var_left_double->rep() == MachineRepresentation::kFloat64);
-  DCHECK_IMPLIES(var_right_double != nullptr,
-                 var_right_double->rep() == MachineRepresentation::kFloat64);
   DCHECK_EQ(var_left_double == nullptr, var_right_double == nullptr);
 
-  Node* context = Parameter(Descriptor::kContext);
-  var_left->Bind(Parameter(Descriptor::kLeft));
-  var_right->Bind(Parameter(Descriptor::kRight));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  *var_left = CAST(Parameter(Descriptor::kLeft));
+  *var_right = CAST(Parameter(Descriptor::kRight));
 
   // We might need to loop for ToNumeric conversions.
   Label loop(this, {var_left, var_right});
@@ -610,32 +613,36 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
   GotoIf(TaggedIsSmi(var_right->value()), smis);
 
   // At this point, var_left is a Smi but var_right is not.
-  GotoIfNot(IsHeapNumber(var_right->value()), &right_not_number);
+  TNode<Smi> var_left_smi = CAST(var_left->value());
+  TNode<HeapObject> var_right_heap_object = CAST(var_right->value());
+  GotoIfNot(IsHeapNumber(var_right_heap_object), &right_not_number);
   if (var_left_double != nullptr) {
-    var_left_double->Bind(SmiToFloat64(var_left->value()));
-    var_right_double->Bind(LoadHeapNumberValue(var_right->value()));
+    *var_left_double = SmiToFloat64(var_left_smi);
+    *var_right_double = LoadHeapNumberValue(var_right_heap_object);
   }
   Goto(doubles);
 
   BIND(&left_not_smi);
   {
-    GotoIfNot(IsHeapNumber(var_left->value()), &left_not_number);
+    TNode<HeapObject> var_left_heap_object = CAST(var_left->value());
+    GotoIfNot(IsHeapNumber(var_left_heap_object), &left_not_number);
     GotoIfNot(TaggedIsSmi(var_right->value()), &right_not_smi);
 
     // At this point, var_left is a HeapNumber and var_right is a Smi.
     if (var_left_double != nullptr) {
-      var_left_double->Bind(LoadHeapNumberValue(var_left->value()));
-      var_right_double->Bind(SmiToFloat64(var_right->value()));
+      *var_left_double = LoadHeapNumberValue(var_left_heap_object);
+      *var_right_double = SmiToFloat64(CAST(var_right->value()));
     }
     Goto(doubles);
   }
 
   BIND(&right_not_smi);
   {
-    GotoIfNot(IsHeapNumber(var_right->value()), &right_not_number);
+    TNode<HeapObject> var_right_heap_object = CAST(var_right->value());
+    GotoIfNot(IsHeapNumber(var_right_heap_object), &right_not_number);
     if (var_left_double != nullptr) {
-      var_left_double->Bind(LoadHeapNumberValue(var_left->value()));
-      var_right_double->Bind(LoadHeapNumberValue(var_right->value()));
+      *var_left_double = LoadHeapNumberValue(CAST(var_left->value()));
+      *var_right_double = LoadHeapNumberValue(var_right_heap_object);
     }
     Goto(doubles);
   }
@@ -643,37 +650,38 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
   BIND(&left_not_number);
   {
     Label left_bigint(this);
-    GotoIf(IsBigInt(var_left->value()), &left_bigint);
-    var_left->Bind(
-        CallBuiltin(Builtins::kNonNumberToNumeric, context, var_left->value()));
+    GotoIf(IsBigInt(CAST(var_left->value())), &left_bigint);
+    *var_left =
+        CallBuiltin(Builtins::kNonNumberToNumeric, context, var_left->value());
     Goto(&loop);
 
     BIND(&left_bigint);
     {
       // Jump to {bigints} if {var_right} is already a Numeric.
       GotoIf(TaggedIsSmi(var_right->value()), bigints);
-      GotoIf(IsBigInt(var_right->value()), bigints);
-      GotoIf(IsHeapNumber(var_right->value()), bigints);
-      var_right->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context,
-                                  var_right->value()));
+      TNode<HeapObject> var_right_heap_object = CAST(var_right->value());
+      GotoIf(IsBigInt(var_right_heap_object), bigints);
+      GotoIf(IsHeapNumber(var_right_heap_object), bigints);
+      *var_right = CallBuiltin(Builtins::kNonNumberToNumeric, context,
+                               var_right->value());
       Goto(&loop);
     }
   }
 
   BIND(&right_not_number);
   {
-    GotoIf(IsBigInt(var_right->value()), bigints);
-    var_right->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context,
-                                var_right->value()));
+    GotoIf(IsBigInt(CAST(var_right->value())), bigints);
+    *var_right =
+        CallBuiltin(Builtins::kNonNumberToNumeric, context, var_right->value());
     Goto(&loop);
   }
 }
 
 TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
-  VARIABLE(var_left, MachineRepresentation::kTagged);
-  VARIABLE(var_right, MachineRepresentation::kTagged);
-  VARIABLE(var_left_double, MachineRepresentation::kFloat64);
-  VARIABLE(var_right_double, MachineRepresentation::kFloat64);
+  TVARIABLE(Object, var_left);
+  TVARIABLE(Object, var_right);
+  TVARIABLE(Float64T, var_left_double);
+  TVARIABLE(Float64T, var_right_double);
   Label do_smi_sub(this), do_double_sub(this), do_bigint_sub(this);
 
   BinaryOp<Descriptor>(&do_smi_sub, &var_left, &var_right, &do_double_sub,
@@ -682,35 +690,37 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
   BIND(&do_smi_sub);
   {
     Label if_overflow(this);
-    TNode<Smi> result = TrySmiSub(CAST(var_left.value()),
-                                  CAST(var_right.value()), &if_overflow);
+    TNode<Smi> var_left_smi = CAST(var_left.value());
+    TNode<Smi> var_right_smi = CAST(var_right.value());
+    TNode<Smi> result = TrySmiSub(var_left_smi, var_right_smi, &if_overflow);
     Return(result);
 
     BIND(&if_overflow);
     {
-      var_left_double.Bind(SmiToFloat64(var_left.value()));
-      var_right_double.Bind(SmiToFloat64(var_right.value()));
+      var_left_double = SmiToFloat64(var_left_smi);
+      var_right_double = SmiToFloat64(var_right_smi);
       Goto(&do_double_sub);
     }
   }
 
   BIND(&do_double_sub);
   {
-    Node* value = Float64Sub(var_left_double.value(), var_right_double.value());
+    TNode<Float64T> value =
+        Float64Sub(var_left_double.value(), var_right_double.value());
     Return(AllocateHeapNumberWithValue(value));
   }
 
   BIND(&do_bigint_sub);
   {
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kSubtract)));
   }
 }
 
 TF_BUILTIN(BitwiseNot, NumberBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  VARIABLE(var_input, MachineRepresentation::kTagged);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TVARIABLE(Object, var_input);
   Label do_number(this), do_bigint(this);
 
   UnaryOp<Descriptor>(&var_input, &do_number, &do_number, nullptr, &do_bigint);
@@ -729,8 +739,8 @@ TF_BUILTIN(BitwiseNot, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(Decrement, NumberBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  VARIABLE(var_input, MachineRepresentation::kTagged);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TVARIABLE(Object, var_input);
   Label do_number(this), do_bigint(this);
 
   UnaryOp<Descriptor>(&var_input, &do_number, &do_number, nullptr, &do_bigint);
@@ -749,8 +759,8 @@ TF_BUILTIN(Decrement, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(Increment, NumberBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  VARIABLE(var_input, MachineRepresentation::kTagged);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TVARIABLE(Object, var_input);
   Label do_number(this), do_bigint(this);
 
   UnaryOp<Descriptor>(&var_input, &do_number, &do_number, nullptr, &do_bigint);
@@ -768,8 +778,8 @@ TF_BUILTIN(Increment, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
-  VARIABLE(var_input, MachineRepresentation::kTagged);
-  VARIABLE(var_input_double, MachineRepresentation::kFloat64);
+  TVARIABLE(Object, var_input);
+  TVARIABLE(Float64T, var_input_double);
   Label do_smi(this), do_double(this), do_bigint(this);
 
   UnaryOp<Descriptor>(&var_input, &do_smi, &do_double, &var_input_double,
@@ -780,23 +790,24 @@ TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
 
   BIND(&do_double);
   {
-    Node* value = Float64Mul(var_input_double.value(), Float64Constant(-1));
+    TNode<Float64T> value =
+        Float64Mul(var_input_double.value(), Float64Constant(-1));
     Return(AllocateHeapNumberWithValue(value));
   }
 
   BIND(&do_bigint);
   {
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
     Return(CallRuntime(Runtime::kBigIntUnaryOp, context, var_input.value(),
                        SmiConstant(Operation::kNegate)));
   }
 }
 
 TF_BUILTIN(Multiply, NumberBuiltinsAssembler) {
-  VARIABLE(var_left, MachineRepresentation::kTagged);
-  VARIABLE(var_right, MachineRepresentation::kTagged);
-  VARIABLE(var_left_double, MachineRepresentation::kFloat64);
-  VARIABLE(var_right_double, MachineRepresentation::kFloat64);
+  TVARIABLE(Object, var_left);
+  TVARIABLE(Object, var_right);
+  TVARIABLE(Float64T, var_left_double);
+  TVARIABLE(Float64T, var_right_double);
   Label do_smi_mul(this), do_double_mul(this), do_bigint_mul(this);
 
   BinaryOp<Descriptor>(&do_smi_mul, &var_left, &var_right, &do_double_mul,
@@ -807,22 +818,23 @@ TF_BUILTIN(Multiply, NumberBuiltinsAssembler) {
   Return(SmiMul(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mul);
-  Node* value = Float64Mul(var_left_double.value(), var_right_double.value());
+  TNode<Float64T> value =
+      Float64Mul(var_left_double.value(), var_right_double.value());
   Return(AllocateHeapNumberWithValue(value));
 
   BIND(&do_bigint_mul);
   {
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kMultiply)));
   }
 }
 
 TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
-  VARIABLE(var_left, MachineRepresentation::kTagged);
-  VARIABLE(var_right, MachineRepresentation::kTagged);
-  VARIABLE(var_left_double, MachineRepresentation::kFloat64);
-  VARIABLE(var_right_double, MachineRepresentation::kFloat64);
+  TVARIABLE(Object, var_left);
+  TVARIABLE(Object, var_right);
+  TVARIABLE(Float64T, var_left_double);
+  TVARIABLE(Float64T, var_right_double);
   Label do_smi_div(this), do_double_div(this), do_bigint_div(this);
 
   BinaryOp<Descriptor>(&do_smi_div, &var_left, &var_right, &do_double_div,
@@ -851,8 +863,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     }
     BIND(&dividend_is_not_zero);
 
-    Node* untagged_divisor = SmiToInt32(divisor);
-    Node* untagged_dividend = SmiToInt32(dividend);
+    TNode<Int32T> untagged_divisor = SmiToInt32(divisor);
+    TNode<Int32T> untagged_dividend = SmiToInt32(dividend);
 
     // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
     // if the Smi size is 31) and {divisor} is -1.
@@ -872,8 +884,9 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
 
     // TODO(epertoso): consider adding a machine instruction that returns
     // both the result and the remainder.
-    Node* untagged_result = Int32Div(untagged_dividend, untagged_divisor);
-    Node* truncated = Int32Mul(untagged_result, untagged_divisor);
+    TNode<Int32T> untagged_result =
+        Int32Div(untagged_dividend, untagged_divisor);
+    TNode<Int32T> truncated = Int32Mul(untagged_result, untagged_divisor);
     // Do floating point division if the remainder is not 0.
     GotoIf(Word32NotEqual(untagged_dividend, truncated), &bailout);
     Return(SmiFromInt32(untagged_result));
@@ -882,31 +895,32 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     // division.
     BIND(&bailout);
     {
-      var_left_double.Bind(SmiToFloat64(dividend));
-      var_right_double.Bind(SmiToFloat64(divisor));
+      var_left_double = SmiToFloat64(dividend);
+      var_right_double = SmiToFloat64(divisor);
       Goto(&do_double_div);
     }
   }
 
   BIND(&do_double_div);
   {
-    Node* value = Float64Div(var_left_double.value(), var_right_double.value());
+    TNode<Float64T> value =
+        Float64Div(var_left_double.value(), var_right_double.value());
     Return(AllocateHeapNumberWithValue(value));
   }
 
   BIND(&do_bigint_div);
   {
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kDivide)));
   }
 }
 
 TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
-  VARIABLE(var_left, MachineRepresentation::kTagged);
-  VARIABLE(var_right, MachineRepresentation::kTagged);
-  VARIABLE(var_left_double, MachineRepresentation::kFloat64);
-  VARIABLE(var_right_double, MachineRepresentation::kFloat64);
+  TVARIABLE(Object, var_left);
+  TVARIABLE(Object, var_right);
+  TVARIABLE(Float64T, var_left_double);
+  TVARIABLE(Float64T, var_right_double);
   Label do_smi_mod(this), do_double_mod(this), do_bigint_mod(this);
 
   BinaryOp<Descriptor>(&do_smi_mod, &var_left, &var_right, &do_double_mod,
@@ -916,22 +930,23 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
   Return(SmiMod(CAST(var_left.value()), CAST(var_right.value())));
 
   BIND(&do_double_mod);
-  Node* value = Float64Mod(var_left_double.value(), var_right_double.value());
+  TNode<Float64T> value =
+      Float64Mod(var_left_double.value(), var_right_double.value());
   Return(AllocateHeapNumberWithValue(value));
 
   BIND(&do_bigint_mod);
   {
-    Node* context = Parameter(Descriptor::kContext);
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kModulus)));
   }
 }
 
 TF_BUILTIN(Exponentiate, NumberBuiltinsAssembler) {
-  VARIABLE(var_left, MachineRepresentation::kTagged);
-  VARIABLE(var_right, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_left);
+  TVARIABLE(Object, var_right);
   Label do_number_exp(this), do_bigint_exp(this);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   BinaryOp<Descriptor>(&do_number_exp, &var_left, &var_right, &do_number_exp,
                        nullptr, nullptr, &do_bigint_exp);
@@ -988,9 +1003,9 @@ TF_BUILTIN(GreaterThanOrEqual, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(Equal, CodeStubAssembler) {
-  Node* lhs = Parameter(Descriptor::kLeft);
-  Node* rhs = Parameter(Descriptor::kRight);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> lhs = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> rhs = CAST(Parameter(Descriptor::kRight));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Return(Equal(lhs, rhs, context));
 }

@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <fcntl.h>  /* O_CLOEXEC */
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -49,33 +49,36 @@
 # include <sys/wait.h>
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
+# include <sys/filio.h>
+# endif /* defined(__APPLE__) */
+
+
+#if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <crt_externs.h>
 # include <mach-o/dyld.h> /* _NSGetExecutablePath */
-# include <sys/filio.h>
-# if defined(O_CLOEXEC)
-#  define UV__O_CLOEXEC O_CLOEXEC
-# endif
 # define environ (*_NSGetEnviron())
-#else
+#else /* defined(__APPLE__) && !TARGET_OS_IPHONE */
 extern char** environ;
-#endif
+#endif /* !(defined(__APPLE__) && !TARGET_OS_IPHONE) */
+
 
 #if defined(__DragonFly__)      || \
     defined(__FreeBSD__)        || \
     defined(__FreeBSD_kernel__) || \
-    defined(__NetBSD__)
+    defined(__NetBSD__)         || \
+    defined(__OpenBSD__)
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/wait.h>
-# define UV__O_CLOEXEC O_CLOEXEC
 # if defined(__FreeBSD__) && __FreeBSD__ >= 10
 #  define uv__accept4 accept4
 # endif
 # if defined(__NetBSD__)
 #  define uv__accept4(a, b, c, d) paccept((a), (b), (c), NULL, (d))
 # endif
-# if (defined(__FreeBSD__) && __FreeBSD__ >= 10) || defined(__NetBSD__)
+# if (defined(__FreeBSD__) && __FreeBSD__ >= 10) || \
+      defined(__NetBSD__) || defined(__OpenBSD__)
 #  define UV__SOCK_NONBLOCK SOCK_NONBLOCK
 #  define UV__SOCK_CLOEXEC  SOCK_CLOEXEC
 # endif
@@ -1000,24 +1003,17 @@ int uv_getrusage(uv_rusage_t* rusage) {
 
 
 int uv__open_cloexec(const char* path, int flags) {
-  int err;
+#if defined(O_CLOEXEC)
   int fd;
 
-#if defined(UV__O_CLOEXEC)
-  static int no_cloexec;
+  fd = open(path, flags | O_CLOEXEC);
+  if (fd == -1)
+    return UV__ERR(errno);
 
-  if (!no_cloexec) {
-    fd = open(path, flags | UV__O_CLOEXEC);
-    if (fd != -1)
-      return fd;
-
-    if (errno != EINVAL)
-      return UV__ERR(errno);
-
-    /* O_CLOEXEC not supported. */
-    no_cloexec = 1;
-  }
-#endif
+  return fd;
+#else  /* O_CLOEXEC */
+  int err;
+  int fd;
 
   fd = open(path, flags);
   if (fd == -1)
@@ -1030,6 +1026,7 @@ int uv__open_cloexec(const char* path, int flags) {
   }
 
   return fd;
+#endif  /* O_CLOEXEC */
 }
 
 
@@ -1051,7 +1048,7 @@ int uv__dup2_cloexec(int oldfd, int newfd) {
   static int no_dup3;
   if (!no_dup3) {
     do
-      r = uv__dup3(oldfd, newfd, UV__O_CLOEXEC);
+      r = uv__dup3(oldfd, newfd, O_CLOEXEC);
     while (r == -1 && errno == EBUSY);
     if (r != -1)
       return r;
@@ -1557,4 +1554,18 @@ int uv_gettimeofday(uv_timeval64_t* tv) {
   tv->tv_sec = (int64_t) time.tv_sec;
   tv->tv_usec = (int32_t) time.tv_usec;
   return 0;
+}
+
+void uv_sleep(unsigned int msec) {
+  struct timespec timeout;
+  int rc;
+
+  timeout.tv_sec = msec / 1000;
+  timeout.tv_nsec = (msec % 1000) * 1000 * 1000;
+
+  do
+    rc = nanosleep(&timeout, &timeout);
+  while (rc == -1 && errno == EINTR);
+
+  assert(rc == 0);
 }

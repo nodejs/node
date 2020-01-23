@@ -5,7 +5,6 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
@@ -244,14 +243,14 @@ void OptimizingCompileDispatcher::QueueForOptimization(
     blocked_jobs_++;
   } else {
     V8::GetCurrentPlatform()->CallOnWorkerThread(
-        base::make_unique<CompileTask>(isolate_, this));
+        std::make_unique<CompileTask>(isolate_, this));
   }
 }
 
 void OptimizingCompileDispatcher::Unblock() {
   while (blocked_jobs_ > 0) {
     V8::GetCurrentPlatform()->CallOnWorkerThread(
-        base::make_unique<CompileTask>(isolate_, this));
+        std::make_unique<CompileTask>(isolate_, this));
     blocked_jobs_--;
   }
 }

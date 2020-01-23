@@ -14,7 +14,6 @@ async function testBasic() {
     })
   });
   await m.link(common.mustNotCall());
-  m.instantiate();
   const { result } = await m.evaluate();
   assert.strictEqual(typeof result, 'object');
   assert.strictEqual(Object.getPrototypeOf(result), null);
@@ -26,13 +25,13 @@ async function testInvalid() {
   for (const invalidValue of [
     null, {}, 0, Symbol.iterator, [], 'string', false
   ]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       new SourceTextModule('', {
         initializeImportMeta: invalidValue
       });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   }
 }

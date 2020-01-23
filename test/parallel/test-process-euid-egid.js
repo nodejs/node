@@ -19,7 +19,7 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   message: 'The "id" argument must be one of type number or string. ' +
-    'Received type object'
+    'Received an instance of Object'
 });
 
 assert.throws(() => {
@@ -28,6 +28,10 @@ assert.throws(() => {
   code: 'ERR_UNKNOWN_CREDENTIAL',
   message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
+
+// IBMi does not support below operations.
+if (common.isIBMi)
+  return;
 
 // If we're not running as super user...
 if (process.getuid() !== 0) {

@@ -66,7 +66,7 @@ BytecodeArrayAccessor::BytecodeArrayAccessor(
 BytecodeArrayAccessor::BytecodeArrayAccessor(
     Handle<BytecodeArray> bytecode_array, int initial_offset)
     : BytecodeArrayAccessor(
-          base::make_unique<OnHeapBytecodeArray>(bytecode_array),
+          std::make_unique<OnHeapBytecodeArray>(bytecode_array),
           initial_offset) {}
 
 void BytecodeArrayAccessor::SetOffset(int offset) {

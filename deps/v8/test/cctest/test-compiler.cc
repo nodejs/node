@@ -907,7 +907,7 @@ TEST(DeepEagerCompilationPeakMemory) {
       "  }"
       "}");
   v8::ScriptCompiler::Source script_source(source);
-  CcTest::i_isolate()->compilation_cache()->Disable();
+  CcTest::i_isolate()->compilation_cache()->DisableScriptAndEval();
 
   v8::HeapStatistics heap_statistics;
   CcTest::isolate()->GetHeapStatistics(&heap_statistics);

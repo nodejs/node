@@ -40,6 +40,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -452,8 +453,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   AllocationType::kOld);
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
         break;
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
@@ -4258,6 +4259,24 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
 
 enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
 
+static Instr EncodeNeonShiftRegisterOp(NeonShiftOp op, NeonDataType dt,
+                                       NeonRegType reg_type, int dst_code,
+                                       int src_code, int shift_code) {
+  DCHECK_EQ(op, VSHL);
+  int op_encoding = 0;
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+  int vn, n;
+  NeonSplitCode(reg_type, shift_code, &vn, &n, &op_encoding);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+
+  return 0x1E4U * B23 | u * B24 | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         0x4 * B8 | n * B7 | m * B5 | vm | op_encoding;
+}
+
 static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
                                NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
@@ -4313,6 +4332,15 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   // Instruction details available in ARM DDI 0406C.b, A8-1046.
   emit(EncodeNeonShiftOp(VSHL, NeonDataTypeToSize(dt), false, NEON_Q,
                          dst.code(), src.code(), shift));
+}
+
+void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
+                     QwNeonRegister shift) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vshl(Qm, Qn) SIMD shift left Register.
+  // Instruction details available in ARM DDI 0487A.a, F8-3340..
+  emit(EncodeNeonShiftRegisterOp(VSHL, dt, NEON_Q, dst.code(), src.code(),
+                                 shift.code()));
 }
 
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4775,15 +4803,17 @@ void Assembler::GrowBuffer() {
   int rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
   size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
   MemMove(new_start, buffer_start_, pc_offset());
-  MemMove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
-          reloc_size);
+  byte* new_reloc_start = reinterpret_cast<byte*>(
+      reinterpret_cast<Address>(reloc_info_writer.pos()) + rc_delta);
+  MemMove(new_reloc_start, reloc_info_writer.pos(), reloc_size);
 
   // Switch buffers.
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
-  pc_ += pc_delta;
-  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
-                               reloc_info_writer.last_pc() + pc_delta);
+  pc_ = reinterpret_cast<byte*>(reinterpret_cast<Address>(pc_) + pc_delta);
+  byte* new_last_pc = reinterpret_cast<byte*>(
+      reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
+  reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
   // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
@@ -4804,7 +4834,7 @@ void Assembler::dd(uint32_t data) {
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) = data;
+  base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
   pc_ += sizeof(uint32_t);
 }
 
@@ -4813,7 +4843,7 @@ void Assembler::dq(uint64_t value) {
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  *reinterpret_cast<uint64_t*>(pc_) = value;
+  base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint64_t);
 }
 

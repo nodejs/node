@@ -170,7 +170,7 @@ is included, commonly as one of the first included headers. Therefore
 it is defined as an application developer's responsibility to include
 windows.h prior to async.h.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
 
 The following example demonstrates how to use most of the core async APIs:
 
@@ -321,7 +321,7 @@ added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

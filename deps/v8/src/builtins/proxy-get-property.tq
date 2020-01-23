@@ -7,14 +7,14 @@
 namespace proxy {
 
   extern transitioning builtin GetPropertyWithReceiver(
-      implicit context: Context)(Object, Name, Object, Smi): Object;
+      implicit context: Context)(JSAny, Name, JSAny, Smi): JSAny;
 
   // ES #sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
   transitioning builtin
   ProxyGetProperty(implicit context: Context)(
-      proxy: JSProxy, name: Name, receiverValue: Object,
-      onNonExistent: Smi): Object {
+      proxy: JSProxy, name: PropertyKey, receiverValue: JSAny,
+      onNonExistent: Smi): JSAny {
     PerformStackCheck();
     // 1. Assert: IsPropertyKey(P) is true.
     assert(TaggedIsNotSmi(name));

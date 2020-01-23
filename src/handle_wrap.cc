@@ -23,7 +23,6 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
-#include "node.h"
 
 namespace node {
 
@@ -72,15 +71,20 @@ void HandleWrap::Close(Local<Value> close_callback) {
   if (state_ != kInitialized)
     return;
 
-  CHECK_EQ(false, persistent().IsEmpty());
   uv_close(handle_, OnClose);
   state_ = kClosing;
 
-  if (!close_callback.IsEmpty() && close_callback->IsFunction()) {
+  if (!close_callback.IsEmpty() && close_callback->IsFunction() &&
+      !persistent().IsEmpty()) {
     object()->Set(env()->context(),
                   env()->handle_onclose_symbol(),
                   close_callback).Check();
   }
+}
+
+
+void HandleWrap::OnGCCollect() {
+  Close();
 }
 
 
@@ -105,25 +109,28 @@ HandleWrap::HandleWrap(Environment* env,
       handle_(handle) {
   handle_->data = this;
   HandleScope scope(env->isolate());
+  CHECK(env->has_run_bootstrapping_code());
   env->handle_wrap_queue()->PushBack(this);
 }
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
-  std::unique_ptr<HandleWrap> wrap { static_cast<HandleWrap*>(handle->data) };
+  BaseObjectPtr<HandleWrap> wrap { static_cast<HandleWrap*>(handle->data) };
+  wrap->Detach();
+
   Environment* env = wrap->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  // The wrap object should still be there.
-  CHECK_EQ(wrap->persistent().IsEmpty(), false);
   CHECK_EQ(wrap->state_, kClosing);
 
   wrap->state_ = kClosed;
 
   wrap->OnClose();
+  wrap->handle_wrap_queue_.Remove();
 
-  if (wrap->object()->Has(env->context(), env->handle_onclose_symbol())
+  if (!wrap->persistent().IsEmpty() &&
+      wrap->object()->Has(env->context(), env->handle_onclose_symbol())
       .FromMaybe(false)) {
     wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }

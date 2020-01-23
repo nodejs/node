@@ -20,7 +20,7 @@ let func1_sig = makeSig(new Array(8).fill(kWasmI32), [kWasmI32]);
 let imp = builder1.addImport('q', 'gc', kSig_v_v);
 let func1 = builder1.addFunction('func1', func1_sig)
                 .addBody([
-                  kExprGetLocal, 0,  // -
+                  kExprLocalGet, 0,  // -
                   kExprCallFunction, imp
                 ])
                 .exportFunc();
@@ -31,14 +31,14 @@ let builder2 = new WasmModuleBuilder();
 let func1_imp = builder2.addImport('q', 'func1', func1_sig);
 let func2 = builder2.addFunction('func2', kSig_i_i)
                 .addBody([
-                  kExprGetLocal, 0,  // 1
-                  kExprGetLocal, 0,  // 2
-                  kExprGetLocal, 0,  // 3
-                  kExprGetLocal, 0,  // 4
-                  kExprGetLocal, 0,  // 5
-                  kExprGetLocal, 0,  // 6
-                  kExprGetLocal, 0,  // 7
-                  kExprGetLocal, 0,  // 8
+                  kExprLocalGet, 0,  // 1
+                  kExprLocalGet, 0,  // 2
+                  kExprLocalGet, 0,  // 3
+                  kExprLocalGet, 0,  // 4
+                  kExprLocalGet, 0,  // 5
+                  kExprLocalGet, 0,  // 6
+                  kExprLocalGet, 0,  // 7
+                  kExprLocalGet, 0,  // 8
                   kExprCallFunction, func1_imp
                 ])
                 .exportFunc();

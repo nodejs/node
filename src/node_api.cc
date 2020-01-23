@@ -24,6 +24,14 @@ struct node_napi_env__ : public napi_env__ {
   bool can_call_into_js() const override {
     return node_env()->can_call_into_js();
   }
+
+  v8::Maybe<bool> mark_arraybuffer_as_untransferable(
+      v8::Local<v8::ArrayBuffer> ab) const override {
+    return ab->SetPrivate(
+        context(),
+        node_env()->arraybuffer_untransferable_private_symbol(),
+        v8::True(isolate));
+  }
 };
 
 typedef node_napi_env__* node_napi_env;
@@ -463,8 +471,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
     return;
   }
 
-  // Create a new napi_env for this module or reference one if a pre-existing
-  // one is found.
+  // Create a new napi_env for this specific module.
   napi_env env = v8impl::NewEnv(context);
 
   napi_value _exports;
@@ -724,7 +731,8 @@ napi_status napi_create_external_buffer(napi_env env,
 
   // The finalizer object will delete itself after invoking the callback.
   v8impl::Finalizer* finalizer = v8impl::Finalizer::New(
-    env, finalize_cb, nullptr, finalize_hint);
+      env, finalize_cb, nullptr, finalize_hint,
+      v8impl::Finalizer::kKeepEnvReference);
 
   auto maybe = node::Buffer::New(isolate,
                                 static_cast<char*>(data),

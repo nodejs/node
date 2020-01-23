@@ -37,75 +37,69 @@ class LoadHandler final : public DataHandler {
     kNormal,
     kGlobal,
     kField,
-    kConstant,
+    kConstantFromPrototype,
     kAccessor,
     kNativeDataProperty,
     kApiGetter,
     kApiGetterHolderIsPrototype,
     kInterceptor,
+    kSlow,
     kProxy,
     kNonExistent,
     kModuleExport
   };
-  class KindBits : public BitField<Kind, 0, 4> {};
+  using KindBits = BitField<Kind, 0, 4>;
 
   // Defines whether access rights check should be done on receiver object.
   // Applicable to named property kinds only when loading value from prototype
   // chain. Ignored when loading from holder.
-  class DoAccessCheckOnReceiverBits
-      : public BitField<bool, KindBits::kNext, 1> {};
+  using DoAccessCheckOnReceiverBits = KindBits::Next<bool, 1>;
 
   // Defines whether a lookup should be done on receiver object before
   // proceeding to the prototype chain. Applicable to named property kinds only
   // when loading value from prototype chain. Ignored when loading from holder.
-  class LookupOnReceiverBits
-      : public BitField<bool, DoAccessCheckOnReceiverBits::kNext, 1> {};
+  using LookupOnReceiverBits = DoAccessCheckOnReceiverBits::Next<bool, 1>;
 
   //
   // Encoding when KindBits contains kForConstants.
   //
 
   // Index of a value entry in the descriptor array.
-  class DescriptorBits : public BitField<unsigned, LookupOnReceiverBits::kNext,
-                                         kDescriptorIndexBitCount> {};
+  using DescriptorBits =
+      LookupOnReceiverBits::Next<unsigned, kDescriptorIndexBitCount>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(DescriptorBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(DescriptorBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kField.
   //
-  class IsInobjectBits : public BitField<bool, LookupOnReceiverBits::kNext, 1> {
-  };
-  class IsDoubleBits : public BitField<bool, IsInobjectBits::kNext, 1> {};
+  using IsInobjectBits = LookupOnReceiverBits::Next<bool, 1>;
+  using IsDoubleBits = IsInobjectBits::Next<bool, 1>;
   // +1 here is to cover all possible JSObject header sizes.
-  class FieldIndexBits : public BitField<unsigned, IsDoubleBits::kNext,
-                                         kDescriptorIndexBitCount + 1> {};
+  using FieldIndexBits =
+      IsDoubleBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(FieldIndexBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kElement or kIndexedString.
   //
-  class AllowOutOfBoundsBits
-      : public BitField<bool, LookupOnReceiverBits::kNext, 1> {};
+  using AllowOutOfBoundsBits = LookupOnReceiverBits::Next<bool, 1>;
 
   //
   // Encoding when KindBits contains kElement.
   //
-  class IsJsArrayBits : public BitField<bool, AllowOutOfBoundsBits::kNext, 1> {
-  };
-  class ConvertHoleBits : public BitField<bool, IsJsArrayBits::kNext, 1> {};
-  class ElementsKindBits
-      : public BitField<ElementsKind, ConvertHoleBits::kNext, 8> {};
+  using IsJsArrayBits = AllowOutOfBoundsBits::Next<bool, 1>;
+  using ConvertHoleBits = IsJsArrayBits::Next<bool, 1>;
+  using ElementsKindBits = ConvertHoleBits::Next<ElementsKind, 8>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(ElementsKindBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(ElementsKindBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kModuleExport.
   //
-  class ExportsIndexBits
-      : public BitField<unsigned, LookupOnReceiverBits::kNext,
-                        kSmiValueSize - LookupOnReceiverBits::kNext> {};
+  using ExportsIndexBits = LookupOnReceiverBits::Next<
+      unsigned, kSmiValueSize - LookupOnReceiverBits::kLastUsedBit - 1>;
 
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Smi smi_handler);
@@ -120,11 +114,15 @@ class LoadHandler final : public DataHandler {
   // interceptor.
   static inline Handle<Smi> LoadInterceptor(Isolate* isolate);
 
+  // Creates a Smi-handler for loading a property from a object.
+  static inline Handle<Smi> LoadSlow(Isolate* isolate);
+
   // Creates a Smi-handler for loading a field from fast object.
   static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index);
 
-  // Creates a Smi-handler for loading a constant from fast object.
-  static inline Handle<Smi> LoadConstant(Isolate* isolate, int descriptor);
+  // Creates a Smi-handler for loading a cached constant from fast
+  // prototype object.
+  static inline Handle<Smi> LoadConstantFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a getter on a fast object.
   static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
@@ -203,50 +201,46 @@ class StoreHandler final : public DataHandler {
     kApiSetterHolderIsPrototype,
     kGlobalProxy,
     kNormal,
+    kInterceptor,
+    kSlow,
     kProxy,
     kKindsNumber  // Keep last
   };
-  class KindBits : public BitField<Kind, 0, 4> {};
-
-  enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
+  using KindBits = BitField<Kind, 0, 4>;
 
   // Applicable to kGlobalProxy, kProxy kinds.
 
   // Defines whether access rights check should be done on receiver object.
-  class DoAccessCheckOnReceiverBits
-      : public BitField<bool, KindBits::kNext, 1> {};
+  using DoAccessCheckOnReceiverBits = KindBits::Next<bool, 1>;
 
   // Defines whether a lookup should be done on receiver object before
   // proceeding to the prototype chain. Applicable to named property kinds only
   // when storing through prototype chain. Ignored when storing to holder.
-  class LookupOnReceiverBits
-      : public BitField<bool, DoAccessCheckOnReceiverBits::kNext, 1> {};
+  using LookupOnReceiverBits = DoAccessCheckOnReceiverBits::Next<bool, 1>;
 
   // Applicable to kField, kTransitionToField and kTransitionToConstant
   // kinds.
 
   // Index of a value entry in the descriptor array.
-  class DescriptorBits : public BitField<unsigned, LookupOnReceiverBits::kNext,
-                                         kDescriptorIndexBitCount> {};
+  using DescriptorBits =
+      LookupOnReceiverBits::Next<unsigned, kDescriptorIndexBitCount>;
   //
   // Encoding when KindBits contains kTransitionToConstant.
   //
 
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(DescriptorBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(DescriptorBits::kLastUsedBit < kSmiValueSize);
 
   //
   // Encoding when KindBits contains kField or kTransitionToField.
   //
-  class IsInobjectBits : public BitField<bool, DescriptorBits::kNext, 1> {};
-  class FieldRepresentationBits
-      : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
+  using IsInobjectBits = DescriptorBits::Next<bool, 1>;
+  using RepresentationBits = IsInobjectBits::Next<Representation::Kind, 3>;
   // +1 here is to cover all possible JSObject header sizes.
-  class FieldIndexBits
-      : public BitField<unsigned, FieldRepresentationBits::kNext,
-                        kDescriptorIndexBitCount + 1> {};
+  using FieldIndexBits =
+      RepresentationBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(FieldIndexBits::kLastUsedBit < kSmiValueSize);
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,
@@ -292,6 +286,12 @@ class StoreHandler final : public DataHandler {
 
   // Creates a Smi-handler for storing a property to a slow object.
   static inline Handle<Smi> StoreNormal(Isolate* isolate);
+
+  // Creates a Smi-handler for storing a property to an interceptor.
+  static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
+
+  // Creates a Smi-handler for storing a property.
+  static inline Handle<Smi> StoreSlow(Isolate* isolate);
 
   // Creates a Smi-handler for storing a property on a proxy.
   static inline Handle<Smi> StoreProxy(Isolate* isolate);

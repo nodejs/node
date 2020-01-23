@@ -35,11 +35,16 @@ class FieldStatsCollector : public ObjectVisitor {
  public:
   FieldStatsCollector(size_t* tagged_fields_count,
                       size_t* embedder_fields_count,
+                      size_t* inobject_smi_fields_count,
                       size_t* unboxed_double_fields_count,
-                      size_t* raw_fields_count)
+                      size_t* boxed_double_fields_count,
+                      size_t* string_data_count, size_t* raw_fields_count)
       : tagged_fields_count_(tagged_fields_count),
         embedder_fields_count_(embedder_fields_count),
+        inobject_smi_fields_count_(inobject_smi_fields_count),
         unboxed_double_fields_count_(unboxed_double_fields_count),
+        boxed_double_fields_count_(boxed_double_fields_count),
+        string_data_count_(string_data_count),
         raw_fields_count_(raw_fields_count) {}
 
   void RecordStats(HeapObject host) {
@@ -62,11 +67,32 @@ class FieldStatsCollector : public ObjectVisitor {
       *tagged_fields_count_ -= field_stats.embedded_fields_count_;
       *embedder_fields_count_ += field_stats.embedded_fields_count_;
 
+      // Smi fields are also included into pointer words.
+      DCHECK_LE(
+          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize,
+          raw_fields_count_in_object);
+      tagged_fields_count_in_object -= field_stats.smi_fields_count_;
+      *tagged_fields_count_ -= field_stats.smi_fields_count_;
+      *inobject_smi_fields_count_ += field_stats.smi_fields_count_;
+
       // The rest are data words.
-      DCHECK_LE(field_stats.unboxed_double_fields_count_,
-                raw_fields_count_in_object);
-      raw_fields_count_in_object -= field_stats.unboxed_double_fields_count_;
+      DCHECK_LE(
+          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize,
+          raw_fields_count_in_object);
+      raw_fields_count_in_object -=
+          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize;
       *unboxed_double_fields_count_ += field_stats.unboxed_double_fields_count_;
+    } else if (host.IsHeapNumber()) {
+      DCHECK_LE(kDoubleSize / kTaggedSize, raw_fields_count_in_object);
+      raw_fields_count_in_object -= kDoubleSize / kTaggedSize;
+      *boxed_double_fields_count_ += 1;
+    } else if (host.IsSeqString()) {
+      int string_data = SeqString::cast(host).synchronized_length() *
+                        (String::cast(host).IsOneByteRepresentation() ? 1 : 2) /
+                        kTaggedSize;
+      DCHECK_LE(string_data, raw_fields_count_in_object);
+      raw_fields_count_in_object -= string_data;
+      *string_data_count_ += string_data;
     }
     *raw_fields_count_ += raw_fields_count_in_object;
   }
@@ -92,9 +118,12 @@ class FieldStatsCollector : public ObjectVisitor {
  private:
   struct JSObjectFieldStats {
     JSObjectFieldStats()
-        : embedded_fields_count_(0), unboxed_double_fields_count_(0) {}
+        : embedded_fields_count_(0),
+          smi_fields_count_(0),
+          unboxed_double_fields_count_(0) {}
 
     unsigned embedded_fields_count_ : kDescriptorIndexBitCount;
+    unsigned smi_fields_count_ : kDescriptorIndexBitCount;
     unsigned unboxed_double_fields_count_ : kDescriptorIndexBitCount;
   };
   std::unordered_map<Map, JSObjectFieldStats, Object::Hasher>
@@ -104,7 +133,10 @@ class FieldStatsCollector : public ObjectVisitor {
 
   size_t* const tagged_fields_count_;
   size_t* const embedder_fields_count_;
+  size_t* const inobject_smi_fields_count_;
   size_t* const unboxed_double_fields_count_;
+  size_t* const boxed_double_fields_count_;
+  size_t* const string_data_count_;
   size_t* const raw_fields_count_;
 };
 
@@ -118,9 +150,8 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map.is_dictionary_map()) {
-    int nof = map.NumberOfOwnDescriptors();
     DescriptorArray descriptors = map.instance_descriptors();
-    for (int descriptor = 0; descriptor < nof; descriptor++) {
+    for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
@@ -129,6 +160,9 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
         if (details.representation().IsDouble() &&
             map.IsUnboxedDoubleField(index)) {
           ++stats.unboxed_double_fields_count_;
+        }
+        if (details.representation().IsSmi()) {
+          ++stats.smi_fields_count_;
         }
       }
     }
@@ -149,7 +183,10 @@ void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
   }
   tagged_fields_count_ = 0;
   embedder_fields_count_ = 0;
+  inobject_smi_fields_count_ = 0;
   unboxed_double_fields_count_ = 0;
+  boxed_double_fields_count_ = 0;
+  string_data_count_ = 0;
   raw_fields_count_ = 0;
 }
 
@@ -208,8 +245,13 @@ void ObjectStats::PrintJSON(const char* key) {
   PrintF(", \"tagged_fields\": %zu", tagged_fields_count_ * kTaggedSize);
   PrintF(", \"embedder_fields\": %zu",
          embedder_fields_count_ * kEmbedderDataSlotSize);
+  PrintF(", \"inobject_smi_fields\": %zu",
+         inobject_smi_fields_count_ * kTaggedSize);
   PrintF(", \"unboxed_double_fields\": %zu",
          unboxed_double_fields_count_ * kDoubleSize);
+  PrintF(", \"boxed_double_fields\": %zu",
+         boxed_double_fields_count_ * kDoubleSize);
+  PrintF(", \"string_data\": %zu", string_data_count_ * kTaggedSize);
   PrintF(", \"other_raw_fields\": %zu", raw_fields_count_ * kSystemPointerSize);
   PrintF(" }\n");
   // bucket_sizes
@@ -263,8 +305,13 @@ void ObjectStats::Dump(std::stringstream& stream) {
   stream << "\"tagged_fields\":" << (tagged_fields_count_ * kTaggedSize);
   stream << ",\"embedder_fields\":"
          << (embedder_fields_count_ * kEmbedderDataSlotSize);
+  stream << ",\"inobject_smi_fields\": "
+         << (inobject_smi_fields_count_ * kTaggedSize);
   stream << ",\"unboxed_double_fields\": "
          << (unboxed_double_fields_count_ * kDoubleSize);
+  stream << ",\"boxed_double_fields\": "
+         << (boxed_double_fields_count_ * kDoubleSize);
+  stream << ",\"string_data\": " << (string_data_count_ * kTaggedSize);
   stream << ",\"other_raw_fields\":"
          << (raw_fields_count_ * kSystemPointerSize);
   stream << "}, ";
@@ -427,7 +474,10 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
           heap->mark_compact_collector()->non_atomic_marking_state()),
       field_stats_collector_(
           &stats->tagged_fields_count_, &stats->embedder_fields_count_,
-          &stats->unboxed_double_fields_count_, &stats->raw_fields_count_) {}
+          &stats->inobject_smi_fields_count_,
+          &stats->unboxed_double_fields_count_,
+          &stats->boxed_double_fields_count_, &stats->string_data_count_,
+          &stats->raw_fields_count_) {}
 
 bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
                                                   CowMode check_cow_array) {
@@ -607,8 +657,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
   Object obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
     case FeedbackSlotKind::kCall:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_TYPE;
@@ -618,8 +667,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_TYPE;
@@ -631,8 +679,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_TYPE;
@@ -778,10 +825,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
   // WeakArrayList.
-  RecordSimpleVirtualObjectStats(
-      HeapObject(),
-      WeakArrayList::cast(heap_->noscript_shared_function_infos()),
-      ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(),
                                  WeakArrayList::cast(heap_->script_list()),
                                  ObjectStats::SCRIPT_LIST_TYPE);

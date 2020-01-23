@@ -39,6 +39,7 @@
 
 #include "src/codegen/ia32/assembler-ia32.h"
 
+#include "src/base/memory.h"
 #include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
@@ -58,12 +59,12 @@ void RelocInfo::apply(intptr_t delta) {
                          RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
   if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_) ||
       IsOffHeapTarget(rmode_)) {
-    int32_t* p = reinterpret_cast<int32_t*>(pc_);
-    *p -= delta;  // Relocate entry.
+    base::WriteUnalignedValue(pc_,
+                              base::ReadUnalignedValue<int32_t>(pc_) - delta);
   } else if (IsInternalReference(rmode_)) {
-    // absolute code pointer inside code object moves with the code object.
-    int32_t* p = reinterpret_cast<int32_t*>(pc_);
-    *p += delta;  // Relocate entry.
+    // Absolute code pointer inside code object moves with the code object.
+    base::WriteUnalignedValue(pc_,
+                              base::ReadUnalignedValue<int32_t>(pc_) + delta);
   }
 }
 
@@ -103,7 +104,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
+      !FLAG_disable_write_barriers) {
     WriteBarrierForCode(host(), this, target);
   }
 }

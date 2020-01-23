@@ -28,8 +28,7 @@ const ALLOW_OPTIONS = Object.freeze([
 
 /**
  * Gets the kind of a given function node.
- *
- * @param {ASTNode} node - A function node to get. This is one of
+ * @param {ASTNode} node A function node to get. This is one of
  *      an ArrowFunctionExpression, a FunctionDeclaration, or a
  *      FunctionExpression.
  * @returns {string} The kind of the function. This is one of "functions",
@@ -130,8 +129,7 @@ module.exports = {
          * - Not allowed by options.
          * - The body is empty.
          * - The body doesn't have any comments.
-         *
-         * @param {ASTNode} node - A function node to report. This is one of
+         * @param {ASTNode} node A function node to report. This is one of
          *      an ArrowFunctionExpression, a FunctionDeclaration, or a
          *      FunctionExpression.
          * @returns {void}

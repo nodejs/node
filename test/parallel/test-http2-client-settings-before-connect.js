@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const h2 = require('http2');
 const { inspect } = require('util');
 
@@ -28,7 +29,7 @@ server.listen(0, common.mustCall(() => {
     ['maxFrameSize', 1, RangeError],
     ['maxFrameSize', 2 ** 24, RangeError],
     ['maxConcurrentStreams', -1, RangeError],
-    ['maxConcurrentStreams', 2 ** 31, RangeError],
+    ['maxConcurrentStreams', 2 ** 32, RangeError],
     ['maxHeaderListSize', -1, RangeError],
     ['maxHeaderListSize', 2 ** 32, RangeError],
     ['enablePush', 'a', TypeError],
@@ -37,20 +38,20 @@ server.listen(0, common.mustCall(() => {
     ['enablePush', null, TypeError],
     ['enablePush', {}, TypeError]
   ].forEach(([name, value, errorType]) =>
-    common.expectsError(
+    assert.throws(
       () => client.settings({ [name]: value }),
       {
         code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-        type: errorType
+        name: errorType.name
       }
     )
   );
 
   [1, true, {}, []].forEach((invalidCallback) =>
-    common.expectsError(
+    assert.throws(
       () => client.settings({}, invalidCallback),
       {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_CALLBACK',
         message:
           `Callback must be a function. Received ${inspect(invalidCallback)}`

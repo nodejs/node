@@ -67,5 +67,3 @@ const watcher =
 // 'stop' should only be emitted once - stopping a stopped watcher should
 // not trigger a 'stop' event.
 watcher.on('stop', common.mustCall(function onStop() {}));
-
-watcher.start();  // Starting a started watcher should be a noop

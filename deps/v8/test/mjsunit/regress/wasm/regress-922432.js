@@ -12,7 +12,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addLocals({except_count: 1})
       .addBody([
         kExprLoop, kWasmStmt,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprBrOnExn  // Bytecode truncated here.
       ]).exportFunc();
   fun.body.pop();  // Pop implicitly added kExprEnd from body.

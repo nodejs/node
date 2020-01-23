@@ -24,8 +24,8 @@ Cast<FrameType>(o: Object): FrameType
     labels CastError {
   if (TaggedIsNotSmi(o)) goto CastError;
   assert(
-      (Convert<uintptr>(BitcastTaggedToWord(o)) >>> kSmiTagSize) <
-      kFrameTypeCount);
+      Convert<int32>(BitcastTaggedToWordForTagAndSmiBits(o)) <
+      Convert<int32>(kFrameTypeCount << kSmiTagSize));
   return %RawDownCast<FrameType>(o);
 }
 
@@ -102,7 +102,7 @@ macro LoadLengthFromAdapterFrame(implicit context: Context)(
 }
 
 operator '==' macro FrameTypeEquals(f1: FrameType, f2: FrameType): bool {
-  return WordEqual(f1, f2);
+  return TaggedEqual(f1, f2);
 }
 
 macro Cast<A: type>(implicit context: Context)(o: Frame): A labels CastError;

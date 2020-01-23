@@ -359,7 +359,7 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
   TestData test_data(1);
 
   MemoryAccessThread thread;
-  thread.Start();
+  CHECK(thread.Start());
 
   MemoryAccess ldaxr_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));
   MemoryAccess stlxr_w(Kind::StoreExcl, Size::Word, offsetof(TestData, w), 7);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -64,17 +64,6 @@ class PPCOperandGenerator final : public OperandGenerator {
         return false;
     }
     return false;
-  }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
   }
 };
 
@@ -267,7 +256,8 @@ void InstructionSelector::VisitStore(Node* node) {
     rep = store_rep.representation();
   }
 
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -556,6 +546,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   } else {
     VisitBinop<Int32BinopMatcher>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
   }
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  PPCOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 #if V8_TARGET_ARCH_PPC64
@@ -925,6 +924,12 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   PPCOperandGenerator g(this);
   Emit(kPPC_ByteRev32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  // TODO(miladfar): Implement the ppc selector for reversing SIMD bytes.
+  // Check if the input node is a Load and do a Load Reverse at once.
+  UNIMPLEMENTED();
 }
 
 void InstructionSelector::VisitInt32Add(Node* node) {
@@ -1456,15 +1461,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
-                 g.UseImmediate(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
+                 cont);
   } else if (g.CanBeImmediate(left, immediate_mode)) {
     if (!commutative) cont->Commute();
-    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(right),
-                 g.UseImmediate(left), cont);
+    VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
+                 cont);
   } else {
-    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
-                 g.UseRegisterOrStackPointer(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
+                 cont);
   }
 }
 
@@ -1639,6 +1644,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
 // case IrOpcode::kWord64Shr:
 // case IrOpcode::kWord64Ror:
 #endif
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -2280,6 +2288,10 @@ void InstructionSelector::VisitF32x4Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Sub(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Mul(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Sqrt(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
 

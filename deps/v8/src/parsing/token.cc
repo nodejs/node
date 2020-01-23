@@ -34,7 +34,8 @@ const int8_t Token::precedence_[2][NUM_TOKENS] = {{TOKEN_LIST(T1, T1)},
 #undef T2
 #undef T1
 
-#define KT(a, b, c) IsPropertyNameBits::encode(Token::IsAnyIdentifier(a)),
+#define KT(a, b, c) \
+  IsPropertyNameBits::encode(Token::IsAnyIdentifier(a) || a == ESCAPED_KEYWORD),
 #define KK(a, b, c) \
   IsKeywordBits::encode(true) | IsPropertyNameBits::encode(true),
 const uint8_t Token::token_flags[] = {TOKEN_LIST(KT, KK)};

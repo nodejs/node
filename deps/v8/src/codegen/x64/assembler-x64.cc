@@ -109,15 +109,16 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf(
-      "SSE3=%d SSSE3=%d SSE4_1=%d SAHF=%d AVX=%d FMA3=%d BMI1=%d BMI2=%d "
+      "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d FMA3=%d BMI1=%d "
+      "BMI2=%d "
       "LZCNT=%d "
       "POPCNT=%d ATOM=%d\n",
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
-      CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SAHF),
-      CpuFeatures::IsSupported(AVX), CpuFeatures::IsSupported(FMA3),
-      CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
-      CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
-      CpuFeatures::IsSupported(ATOM));
+      CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
+      CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
+      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(BMI1),
+      CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
+      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(ATOM));
 }
 
 // -----------------------------------------------------------------------------
@@ -326,8 +327,9 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
-            request.heap_number(), AllocationType::kOld);
+        Handle<HeapNumber> object =
+            isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+                request.heap_number());
         WriteUnalignedValue(pc, object);
         break;
       }
@@ -428,6 +430,9 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)), constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
+  if (CpuFeatures::IsSupported(SSE4_2)) {
+    EnableCpuFeature(SSE4_1);
+  }
   if (CpuFeatures::IsSupported(SSE4_1)) {
     EnableCpuFeature(SSSE3);
   }
@@ -1773,6 +1778,13 @@ void Assembler::emit_mov(Register dst, Immediate64 value, int size) {
   }
 }
 
+void Assembler::movq_imm64(Register dst, int64_t value) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, kInt64Size);
+  emit(0xB8 | dst.low_bits());
+  emitq(static_cast<uint64_t>(value));
+}
+
 void Assembler::movq_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, kInt64Size);
@@ -1957,6 +1969,13 @@ void Assembler::emit_repmovs(int size) {
   emit(0xF3);
   emit_rex(size);
   emit(0xA5);
+}
+
+void Assembler::repstosq() {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64();
+  emit(0xAB);
 }
 
 void Assembler::mull(Register src) {
@@ -3524,8 +3543,8 @@ void Assembler::cmpps(XMMRegister dst, Operand src, int8_t cmp) {
 
 void Assembler::cmppd(XMMRegister dst, XMMRegister src, int8_t cmp) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
   emit(0x66);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xC2);
   emit_sse_operand(dst, src);
@@ -3534,8 +3553,8 @@ void Assembler::cmppd(XMMRegister dst, XMMRegister src, int8_t cmp) {
 
 void Assembler::cmppd(XMMRegister dst, Operand src, int8_t cmp) {
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
   emit(0x66);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xC2);
   emit_sse_operand(dst, src);
@@ -4091,6 +4110,42 @@ void Assembler::vfmass(byte op, XMMRegister dst, XMMRegister src1,
   DCHECK(IsEnabled(FMA3));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, k66, k0F38, kW0);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmaps(byte op, XMMRegister dst, XMMRegister src1,
+                       XMMRegister src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW0);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmaps(byte op, XMMRegister dst, XMMRegister src1,
+                       Operand src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW0);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmapd(byte op, XMMRegister dst, XMMRegister src1,
+                       XMMRegister src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW1);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmapd(byte op, XMMRegister dst, XMMRegister src1,
+                       Operand src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW1);
   emit(op);
   emit_sse_operand(dst, src2);
 }
@@ -4713,6 +4768,26 @@ void Assembler::lddqu(XMMRegister dst, Operand src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xF0);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movddup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x12);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movddup(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x12);
   emit_sse_operand(dst, src);
 }
 

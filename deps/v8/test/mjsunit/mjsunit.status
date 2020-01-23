@@ -54,9 +54,6 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
-  # Issue 8505: Math.pow is incorrect for asm.js
-  'regress/wasm/regress-8505': [SKIP],
-
   # Issue 9380: Memory leaks of shared WebAssembly.Memory objects
   'wasm/shared-memory-worker-gc': [SKIP],
 
@@ -83,6 +80,9 @@
   # Too slow in debug mode BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, ['mode == debug', SKIP], ['tsan', SKIP]],
   'wasm/shared-memory-worker-gc-stress': [PASS, ['mode == debug', SKIP]],
+
+  # Slow in simulator runs.
+  'random-bit-correlations': [PASS, ['simulator_run == True', SLOW]],
 
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
@@ -182,6 +182,7 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
+  'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP], ['tsan', SKIP]],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
@@ -193,6 +194,9 @@
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
+
+  # worker creation/shutdown is very slow in debug mode
+  'd8/d8-worker-shutdown*': [PASS, ['mode == debug', SLOW], ['no_snap', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -291,7 +295,6 @@
   'compare-known-objects-slow': [SKIP],
   'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
-  'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
@@ -376,6 +379,7 @@
   'regress/regress-6838-2': [SKIP],
   'regress/regress-6838-3': [SKIP],
   'regress/regress-9022': [SKIP],
+  'regress/regress-9832': [SKIP],
   'regress/regress-crbug-934138': [SKIP],
   'regress/regress-crbug-976934': [SKIP],
 
@@ -391,10 +395,16 @@
   'regress/regress-crbug-721835': [SKIP],
   'regress/regress-crbug-759327': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
+  'regexp-tier-up': [SKIP],
+  'regexp-tier-up-multiple': [SKIP],
+  'regress/regress-996234': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
   'tools/compiler-trace-flags-wasm': [SKIP],
+
+  # Too slow on arm64 simulator and debug: https://crbug.com/v8/7783
+  'md5': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],
 
   # Slow with pointer compression.
   'regress/regress-crbug-319860': [PASS, ['pointer_compression', SLOW]],
@@ -405,6 +415,7 @@
   # Tests too slow in non-optimized debug mode.
   'compiler/regress-9017': [SKIP],
   'regress/regress-2790': [SKIP],
+  'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
 }],  # 'is_full_debug'
 
@@ -463,15 +474,15 @@
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
   'array-splice': [PASS, SLOW],
-  'bit-not': [PASS, SLOW],
+  'array-store-and-grow': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
+  'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
-  'packed-elements': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-331444': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
@@ -479,6 +490,7 @@
   'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
+  'unbox-double-arrays': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
@@ -487,16 +499,28 @@
 
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
-
-  # BUG(v8:9256). Slow with pointer compression.
-  'regress/regress-708247': [PASS, ['pointer_compression', SLOW]],
 }],  # 'arch == arm64'
 
+##############################################################################
+['arch == arm64 and simulator_run', {
+  # Slow in simulator builds
+  'compiler/osr-follow': [PASS, SLOW],
+  'es6/array-concat': [PASS, SLOW],
+  'non-extensible-array-reduce': [PASS, SLOW],
+  'regress/regress-454725': [PASS, SLOW],
+  'regress/regress-708247': [PASS, SLOW],
+  'compiler/osr-big': [PASS, SLOW],
+  'frozen-array-reduce': [PASS, SLOW],
+  'json': [PASS, SLOW],
+  'sealed-array-reduce': [PASS, SLOW],
+  'try': [PASS, SLOW],
+}],  # 'arch == arm64 and simulator_run'
+
+##############################################################################
 ['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'array-sort': [PASS, SLOW],
-  'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'math-floor-of-div': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
@@ -631,7 +655,6 @@
   # Slow tests.
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
-  'packed-elements': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
@@ -861,6 +884,7 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'compiler/native-context-specialization-hole-check': [SKIP],
+  'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
@@ -890,6 +914,8 @@
   # Skip tests that are known to be non-deterministic.
   'd8/d8-worker-sharedarraybuffer': [SKIP],
   'd8/d8-os': [SKIP],
+  'd8/d8-worker-shutdown': [SKIP],
+  'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
 
   # BUG(v8:7166).
@@ -900,6 +926,13 @@
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
+
+  # Deadlocks on predictable platform (https://crbug.com/v8/9760).
+  'wasm/async-compile': [SKIP],
+  'wasm/streaming-compile': [SKIP],
+
+  # Race between postMessage and wasm memory.grow. (https://crbug.com/1010272).
+  'regress/wasm/regress-1010272': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -912,7 +945,6 @@
   'regress/regress-crbug-482998': [PASS, SLOW],
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-779407': [PASS, SLOW],
-  'packed-elements': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
@@ -949,6 +981,10 @@
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 
+  # The RegExp code cache means running this test multiple times is invalid.
+  'regexp-tier-up': [SKIP],
+  'regexp-tier-up-multiple': [SKIP],
+
   # Flaky crash on Odroid devices: https://crbug.com/v8/7678
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
@@ -981,10 +1017,8 @@
 }],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
-['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+['variant in (nooptimization, jitless) and arch in (arm, arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'md5': [SKIP],
-  'packed-elements': [SKIP],
   'regress/regress-crbug-319860': [SKIP],
   'wasm/asm-wasm-f32': [SKIP],
   'wasm/asm-wasm-f64': [SKIP],
@@ -1041,7 +1075,7 @@
 ##############################################################################
 # Liftoff is currently only sufficiently implemented on x64, ia32, arm64 and
 # arm.
-# TODO(clemensh): Implement on all other platforms (crbug.com/v8/6600).
+# TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm/liftoff': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
@@ -1052,9 +1086,6 @@
   # Slow tests.
   'regress/regress-crbug-493779': [SKIP],
   'string-replace-gc': [SKIP],
-
-  # https://crbug.com/v8/9221
-  'wasm/grow-shared-memory': [SKIP],
 }],  # variant == slow_path
 
 ##############################################################################
@@ -1063,14 +1094,6 @@
   'wasm/asm-wasm-i32': [SKIP],
   'wasm/asm-wasm-f64': [SKIP],
 }], # arch == x64
-
-##############################################################################
-['arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]', {
-  # TODO(ssauleau): implement BigInt<>Wasm conversion for other arch -
-  # crbug.com/v8/7741
-  'wasm/bigint': [SKIP],
-  'wasm/bigint-i64-to-imported-js-func': [SKIP],
-}], # arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]
 
 ##############################################################################
 ['arch not in [x64, arm, arm64] or system != linux', {
@@ -1082,5 +1105,40 @@
 ['variant == jitless and not embedded_builtins', {
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
+
+['not embedded_builtins', {
+  # Explicitly sets jitless flag.
+  'regress/regress-992389': [SKIP],
+}], # not embedded_builtins
+
+##############################################################################
+['variant == turboprop', {
+  # Deopts differently than TurboFan.
+  'parallel-optimize-disabled': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/number-comparison-truncations': [SKIP],
+  'compiler/redundancy-elimination': [SKIP],
+
+  # Static asserts for optimizations don't hold due to removed optimization
+  # phases.
+  'compiler/concurrent-inlining-1': [SKIP],
+  'compiler/concurrent-inlining-2': [SKIP],
+  'compiler/diamond-followedby-branch': [SKIP],
+  'compiler/load-elimination-const-field': [SKIP],
+  'compiler/constant-fold-add-static': [SKIP],
+}],  # variant == turboprop
+
+##############################################################################
+['variant == top_level_await', {
+  # specifically expects to fail on top level await.
+  'harmony/modules-import-15': [SKIP],
+}], # variant == top_level_await
+
+##############################################################################
+['variant == stress_js_bg_compile_wasm_code_gc', {
+  # Runs significantly slower with --stress-wasm-code-gc, problematic
+  # especially in combination with tsan or other slow configurations.
+  'wasm/many-modules': [SKIP],
+}],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ]

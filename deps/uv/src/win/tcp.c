@@ -549,6 +549,21 @@ static void uv_tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
 }
 
 
+int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
+  struct linger l = { 1, 0 };
+
+  /* Disallow setting SO_LINGER to zero due to some platform inconsistencies */
+  if (handle->flags & UV_HANDLE_SHUTTING)
+    return UV_EINVAL;
+
+  if (0 != setsockopt(handle->socket, SOL_SOCKET, SO_LINGER, (const char*)&l, sizeof(l)))
+    return uv_translate_sys_error(WSAGetLastError());
+
+  uv_close((uv_handle_t*) handle, close_cb);
+  return 0;
+}
+
+
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   unsigned int i, simultaneous_accepts;
   uv_tcp_accept_t* req;

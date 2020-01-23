@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/frame-elider.h"
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 
 namespace v8 {
 namespace internal {
@@ -24,7 +24,7 @@ void FrameElider::MarkBlocks() {
     for (int i = block->code_start(); i < block->code_end(); ++i) {
       const Instruction* instr = InstructionAt(i);
       if (instr->IsCall() || instr->IsDeoptimizeCall() ||
-          instr->arch_opcode() == ArchOpcode::kArchStackPointer ||
+          instr->arch_opcode() == ArchOpcode::kArchStackPointerGreaterThan ||
           instr->arch_opcode() == ArchOpcode::kArchFramePointer) {
         block->mark_needs_frame();
         break;

@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_FIELD_INDEX_H_
 #define V8_OBJECTS_FIELD_INDEX_H_
 
+// TODO(jkummerow): Consider forward-declaring instead.
+#include "src/objects/internal-index.h"
 #include "src/objects/property-details.h"
 #include "src/utils/utils.h"
 
@@ -27,9 +29,10 @@ class FieldIndex final {
       Map map, int index,
       Representation representation = Representation::Tagged());
   static inline FieldIndex ForInObjectOffset(int offset, Encoding encoding);
-  static inline FieldIndex ForDescriptor(Map map, int descriptor_index);
+  static inline FieldIndex ForDescriptor(Map map,
+                                         InternalIndex descriptor_index);
   static inline FieldIndex ForDescriptor(Isolate* isolate, Map map,
-                                         int descriptor_index);
+                                         InternalIndex descriptor_index);
 
   inline int GetLoadByFieldIndex() const;
 
@@ -107,18 +110,16 @@ class FieldIndex final {
       (kDescriptorIndexBitCount + 1 + kTaggedSizeLog2);
 
   // Index from beginning of object.
-  class OffsetBits : public BitField64<int, 0, kOffsetBitsSize> {};
-  class IsInObjectBits : public BitField64<bool, OffsetBits::kNext, 1> {};
-  class EncodingBits : public BitField64<Encoding, IsInObjectBits::kNext, 2> {};
+  using OffsetBits = BitField64<int, 0, kOffsetBitsSize>;
+  using IsInObjectBits = OffsetBits::Next<bool, 1>;
+  using EncodingBits = IsInObjectBits::Next<Encoding, 2>;
   // Number of inobject properties.
-  class InObjectPropertyBits
-      : public BitField64<int, EncodingBits::kNext, kDescriptorIndexBitCount> {
-  };
+  using InObjectPropertyBits =
+      EncodingBits::Next<int, kDescriptorIndexBitCount>;
   // Offset of first inobject property from beginning of object.
-  class FirstInobjectPropertyOffsetBits
-      : public BitField64<int, InObjectPropertyBits::kNext,
-                          kFirstInobjectPropertyOffsetBitCount> {};
-  STATIC_ASSERT(FirstInobjectPropertyOffsetBits::kNext <= 64);
+  using FirstInobjectPropertyOffsetBits =
+      InObjectPropertyBits::Next<int, kFirstInobjectPropertyOffsetBitCount>;
+  STATIC_ASSERT(FirstInobjectPropertyOffsetBits::kLastUsedBit < 64);
 
   uint64_t bit_field_;
 };

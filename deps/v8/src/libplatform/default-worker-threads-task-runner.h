@@ -5,6 +5,7 @@
 #ifndef V8_LIBPLATFORM_DEFAULT_WORKER_THREADS_TASK_RUNNER_H_
 #define V8_LIBPLATFORM_DEFAULT_WORKER_THREADS_TASK_RUNNER_H_
 
+#include <memory>
 #include <vector>
 
 #include "include/libplatform/libplatform-export.h"

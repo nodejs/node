@@ -18,7 +18,7 @@ const path = require('path');
 const enable = `require("trace_events").createTracing(
 { categories: ["node.async_hooks"] }).enable();`;
 const code =
-  'setTimeout(() => { for (var i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
 
 const tmpdir = require('../common/tmpdir');
 const filename = path.join(tmpdir.path, 'node_trace.1.log');
@@ -29,10 +29,10 @@ const proc = cp.spawnSync(
   ['-e', enable + code ],
   {
     cwd: tmpdir.path,
-    env: Object.assign({}, process.env, {
-      'NODE_DEBUG_NATIVE': 'tracing',
-      'NODE_DEBUG': 'tracing'
-    })
+    env: { ...process.env,
+           'NODE_DEBUG_NATIVE': 'tracing',
+           'NODE_DEBUG': 'tracing'
+    }
   });
 
 console.log('process exit with signal:', proc.signal);

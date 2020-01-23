@@ -6,28 +6,26 @@
 Node.js has many features that make it easier to write internationalized
 programs. Some of them are:
 
-- Locale-sensitive or Unicode-aware functions in the [ECMAScript Language
+* Locale-sensitive or Unicode-aware functions in the [ECMAScript Language
   Specification][ECMA-262]:
-  - [`String.prototype.normalize()`][]
-  - [`String.prototype.toLowerCase()`][]
-  - [`String.prototype.toUpperCase()`][]
-- All functionality described in the [ECMAScript Internationalization API
+  * [`String.prototype.normalize()`][]
+  * [`String.prototype.toLowerCase()`][]
+  * [`String.prototype.toUpperCase()`][]
+* All functionality described in the [ECMAScript Internationalization API
   Specification][ECMA-402] (aka ECMA-402):
-  - [`Intl`][] object
-  - Locale-sensitive methods like [`String.prototype.localeCompare()`][] and
+  * [`Intl`][] object
+  * Locale-sensitive methods like [`String.prototype.localeCompare()`][] and
     [`Date.prototype.toLocaleString()`][]
-- The [WHATWG URL parser][]'s [internationalized domain names][] (IDNs) support
-- [`require('buffer').transcode()`][]
-- More accurate [REPL][] line editing
-- [`require('util').TextDecoder`][]
-- [`RegExp` Unicode Property Escapes][]
+* The [WHATWG URL parser][]'s [internationalized domain names][] (IDNs) support
+* [`require('buffer').transcode()`][]
+* More accurate [REPL][] line editing
+* [`require('util').TextDecoder`][]
+* [`RegExp` Unicode Property Escapes][]
 
 Node.js (and its underlying V8 engine) uses [ICU][] to implement these features
-in native C/C++ code. However, some of them require a very large ICU data file
-in order to support all locales of the world. Because it is expected that most
-Node.js users will make use of only a small portion of ICU functionality, only
-a subset of the full ICU data set is provided by Node.js by default. Several
-options are provided for customizing and expanding the ICU data set either when
+in native C/C++ code. The full ICU data set is provided by Node.js by default.
+However, due to the size of the ICU data file, several
+options are provided for customizing the ICU data set either when
 building or running Node.js.
 
 ## Options for building Node.js
@@ -36,10 +34,10 @@ To control how ICU is used in Node.js, four `configure` options are available
 during compilation. Additional details on how to compile Node.js are documented
 in [BUILDING.md][].
 
-- `--with-intl=none`/`--without-intl`
-- `--with-intl=system-icu`
-- `--with-intl=small-icu` (default)
-- `--with-intl=full-icu`
+* `--with-intl=none`/`--without-intl`
+* `--with-intl=system-icu`
+* `--with-intl=small-icu`
+* `--with-intl=full-icu` (default)
 
 An overview of available Node.js and JavaScript features for each `configure`
 option:
@@ -66,8 +64,8 @@ operation is identical to that of `Date.prototype.toString()`.
 
 ### Disable all internationalization features (`none`)
 
-If this option is chosen, most internationalization features mentioned above
-will be **unavailable** in the resulting `node` binary.
+If this option is chosen, ICU is disabled and most internationalization
+features mentioned above will be **unavailable** in the resulting `node` binary.
 
 ### Build with a pre-installed ICU (`system-icu`)
 
@@ -106,9 +104,7 @@ console.log(spanish.format(january));
 // Should print "enero"
 ```
 
-This mode provides a good balance between features and binary size, and it is
-the default behavior if no `--with-intl` flag is passed. The official binaries
-are also built in this mode.
+This mode provides a balance between features and binary size.
 
 #### Providing ICU data at runtime
 
@@ -149,8 +145,9 @@ enable full `Intl` support.
 
 This option makes the resulting binary link against ICU statically and include
 a full set of ICU data. A binary created this way has no further external
-dependencies and supports all locales, but might be rather large. See
-[BUILDING.md][BUILDING.md#full-icu] on how to compile a binary using this mode.
+dependencies and supports all locales, but might be rather large. This is
+the default behavior if no `--with-intl` flag is passed. The official binaries
+are also built in this mode.
 
 ## Detecting internationalization support
 
@@ -186,9 +183,9 @@ const hasFullICU = (() => {
 For more verbose tests for `Intl` support, the following resources may be found
 to be helpful:
 
-- [btest402][]: Generally used to check whether Node.js with `Intl` support is
+* [btest402][]: Generally used to check whether Node.js with `Intl` support is
   built correctly.
-- [Test262][]: ECMAScript's official conformance test suite includes a section
+* [Test262][]: ECMAScript's official conformance test suite includes a section
   dedicated to ECMA-402.
 
 ["ICU Data"]: http://userguide.icu-project.org/icudata
@@ -205,7 +202,6 @@ to be helpful:
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
 [`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
 [`require('util').TextDecoder`]: util.html#util_class_util_textdecoder
-[BUILDING.md#full-icu]: https://github.com/nodejs/node/blob/master/BUILDING.md#build-with-full-icu-support-all-locales-supported-by-icu
 [BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/

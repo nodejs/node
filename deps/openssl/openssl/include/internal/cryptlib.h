@@ -80,6 +80,7 @@ extern unsigned int OPENSSL_ia32cap_P[];
 void OPENSSL_showfatal(const char *fmta, ...);
 void crypto_cleanup_all_ex_data_int(void);
 int openssl_init_fork_handlers(void);
+int openssl_get_fork_id(void);
 
 char *ossl_safe_getenv(const char *name);
 

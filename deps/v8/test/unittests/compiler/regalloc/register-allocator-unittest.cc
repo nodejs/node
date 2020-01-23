@@ -73,7 +73,6 @@ bool IsParallelMovePresent(int instr_index, Instruction::GapPosition gap_pos,
   return found_match;
 }
 
-}  // namespace
 
 class RegisterAllocatorTest : public InstructionSequenceTest {
  public:
@@ -824,6 +823,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::ValuesIn(kParameterTypes),
                        ::testing::Range(0, SlotConstraintTest::kMaxVariant)));
 
+}  // namespace
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

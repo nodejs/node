@@ -397,7 +397,7 @@ void NumberRangeFormatterImpl::formatRange(UFormattedNumberRangeData& data,
             break;
     }
 
-    NumberStringBuilder& string = data.getStringRef();
+    FormattedStringBuilder& string = data.getStringRef();
     int32_t lengthPrefix = 0;
     int32_t length1 = 0;
     int32_t lengthInfix = 0;

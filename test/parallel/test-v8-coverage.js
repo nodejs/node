@@ -35,6 +35,24 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
 }
 
+// Outputs coverage when error is thrown in first tick.
+{
+  const coverageDirectory = path.join(tmpdir.path, nextdir());
+  const output = spawnSync(process.execPath, [
+    require.resolve('../fixtures/v8-coverage/throw')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 1) {
+    console.log(output.stderr.toString());
+  }
+  assert.strictEqual(output.status, 1);
+  const fixtureCoverage = getFixtureCoverage('throw.js', coverageDirectory);
+  assert.ok(fixtureCoverage, 'coverage not found for file');
+  // First branch executed.
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[0].count, 1);
+  // Second branch did not execute.
+  assert.strictEqual(fixtureCoverage.functions[0].ranges[1].count, 0);
+}
+
 // Outputs coverage when process.exit(1) exits process.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());

@@ -9,6 +9,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -22,7 +23,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
                     Symbol::IsWellKnownSymbolBit)
-BIT_FIELD_ACCESSORS(Symbol, flags, is_public, Symbol::IsPublicBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
+                    Symbol::IsInPublicSymbolTableBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
                     Symbol::IsInterestingSymbolBit)
 
@@ -97,6 +99,10 @@ DEF_GETTER(Name, IsPrivateName, bool) {
 
 bool Name::AsArrayIndex(uint32_t* index) {
   return IsString() && String::cast(*this).AsArrayIndex(index);
+}
+
+bool Name::AsIntegerIndex(size_t* index) {
+  return IsString() && String::cast(*this).AsIntegerIndex(index);
 }
 
 // static

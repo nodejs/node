@@ -3206,7 +3206,7 @@ TEST(jump_tables3) {
   Handle<Object> values[kNumCases];
   for (int i = 0; i < kNumCases; ++i) {
     double value = isolate->random_number_generator()->NextDouble();
-    values[i] = isolate->factory()->NewHeapNumber(value, AllocationType::kOld);
+    values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases];
   Object obj;
@@ -4825,9 +4825,10 @@ TEST(r6_beqzc) {
   }
 }
 
-void load_elements_of_vector(
-    MacroAssembler& assm,  // NOLINT(runtime/references)
-    const uint64_t elements[], MSARegister w, Register t0, Register t1) {
+void load_elements_of_vector(MacroAssembler* assm_ptr,
+                             const uint64_t elements[], MSARegister w,
+                             Register t0, Register t1) {
+  MacroAssembler& assm = *assm_ptr;
   __ li(t0, static_cast<uint32_t>(elements[0] & 0xFFFFFFFF));
   __ li(t1, static_cast<uint32_t>((elements[0] >> 32) & 0xFFFFFFFF));
   __ insert_w(w, 0, t0);
@@ -4838,9 +4839,9 @@ void load_elements_of_vector(
   __ insert_w(w, 3, t1);
 }
 
-inline void store_elements_of_vector(
-    MacroAssembler& assm,  // NOLINT(runtime/references)
-    MSARegister w, Register a) {
+inline void store_elements_of_vector(MacroAssembler* assm_ptr, MSARegister w,
+                                     Register a) {
+  MacroAssembler& assm = *assm_ptr;
   __ st_d(w, MemOperand(a, 0));
 }
 
@@ -4876,15 +4877,15 @@ void run_bz_bnz(TestCaseMsaBranch* input, Branch GenerateBranch,
   msa_reg_t res;
   Label do_not_move_w0_to_w2;
 
-  load_elements_of_vector(assm, &t.ws_lo, w0, t0, t1);
-  load_elements_of_vector(assm, &t.wd_lo, w2, t0, t1);
-  load_elements_of_vector(assm, &input->wt_lo, w1, t0, t1);
+  load_elements_of_vector(&assm, &t.ws_lo, w0, t0, t1);
+  load_elements_of_vector(&assm, &t.wd_lo, w2, t0, t1);
+  load_elements_of_vector(&assm, &input->wt_lo, w1, t0, t1);
   GenerateBranch(assm, do_not_move_w0_to_w2);
   __ nop();
   __ move_v(w2, w0);
 
   __ bind(&do_not_move_w0_to_w2);
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
   __ jr(ra);
   __ nop();
 
@@ -5841,7 +5842,7 @@ void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
     UNREACHABLE();
   }
 
-  store_elements_of_vector(assm, w0, a0);
+  store_elements_of_vector(&assm, w0, a0);
 
   __ jr(ra);
   __ nop();
@@ -5937,10 +5938,10 @@ TEST(MSA_move_v) {
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
     CpuFeatureScope fscope(&assm, MIPS_SIMD);
 
-    load_elements_of_vector(assm, &t[i].ws_lo, w0, t0, t1);
-    load_elements_of_vector(assm, &t[i].wd_lo, w2, t0, t1);
+    load_elements_of_vector(&assm, &t[i].ws_lo, w0, t0, t1);
+    load_elements_of_vector(&assm, &t[i].wd_lo, w2, t0, t1);
     __ move_v(w2, w0);
-    store_elements_of_vector(assm, w2, a0);
+    store_elements_of_vector(&assm, w2, a0);
 
     __ jr(ra);
     __ nop();
@@ -5981,10 +5982,10 @@ void run_msa_sldi(OperFunc GenerateOperation,
   for (unsigned i = 0; i < arraysize(t); ++i) {
     MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
     CpuFeatureScope fscope(&assm, MIPS_SIMD);
-    load_elements_of_vector(assm, &t[i].ws_lo, w0, t0, t1);
-    load_elements_of_vector(assm, &t[i].wd_lo, w2, t0, t1);
+    load_elements_of_vector(&assm, &t[i].ws_lo, w0, t0, t1);
+    load_elements_of_vector(&assm, &t[i].wd_lo, w2, t0, t1);
     GenerateOperation(assm);
-    store_elements_of_vector(assm, w2, a0);
+    store_elements_of_vector(&assm, w2, a0);
 
     __ jr(ra);
     __ nop();
@@ -6175,7 +6176,7 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
       UNREACHABLE();
   }
 
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
 
   __ jr(ra);
   __ nop();
@@ -6460,11 +6461,11 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
   int32_t i5 =
       i5_sign_ext ? static_cast<int32_t>(input->i5 << 27) >> 27 : input->i5;
 
-  load_elements_of_vector(assm, &(input->ws_lo), w0, t0, t1);
+  load_elements_of_vector(&assm, &(input->ws_lo), w0, t0, t1);
 
   GenerateI5InstructionFunc(assm, i5);
 
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
 
   __ jr(ra);
   __ nop();
@@ -6880,10 +6881,10 @@ void run_msa_2r(const struct TestCaseMsa2R* input,
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-  load_elements_of_vector(assm, reinterpret_cast<const uint64_t*>(input), w0,
+  load_elements_of_vector(&assm, reinterpret_cast<const uint64_t*>(input), w0,
                           t0, t1);
   Generate2RInstructionFunc(assm);
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
 
   __ jr(ra);
   __ nop();
@@ -7926,13 +7927,13 @@ void run_msa_vector(struct TestCaseMsaVector* input,
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-  load_elements_of_vector(assm, &(input->ws_lo), w0, t0, t1);
-  load_elements_of_vector(assm, &(input->wt_lo), w2, t0, t1);
-  load_elements_of_vector(assm, &(input->wd_lo), w4, t0, t1);
+  load_elements_of_vector(&assm, &(input->ws_lo), w0, t0, t1);
+  load_elements_of_vector(&assm, &(input->wt_lo), w2, t0, t1);
+  load_elements_of_vector(&assm, &(input->wd_lo), w4, t0, t1);
 
   GenerateVectorInstructionFunc(assm);
 
-  store_elements_of_vector(assm, w4, a0);
+  store_elements_of_vector(&assm, w4, a0);
 
   __ jr(ra);
   __ nop();
@@ -8014,12 +8015,12 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-  load_elements_of_vector(assm, &(input->ws_lo), w0, t0, t1);
-  load_elements_of_vector(assm, &(input->wd_lo), w2, t0, t1);
+  load_elements_of_vector(&assm, &(input->ws_lo), w0, t0, t1);
+  load_elements_of_vector(&assm, &(input->wd_lo), w2, t0, t1);
 
   GenerateInstructionFunc(assm, input->m);
 
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
 
   __ jr(ra);
   __ nop();
@@ -8491,7 +8492,7 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
 
   GenerateVectorInstructionFunc(assm, input);
 
-  store_elements_of_vector(assm, w0, a0);
+  store_elements_of_vector(&assm, w0, a0);
 
   __ jr(ra);
   __ nop();
@@ -8640,13 +8641,13 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-  load_elements_of_vector(assm, &(input->wt_lo), w0, t0, t1);
-  load_elements_of_vector(assm, &(input->ws_lo), w1, t0, t1);
-  load_elements_of_vector(assm, &(input->wd_lo), w2, t0, t1);
+  load_elements_of_vector(&assm, &(input->wt_lo), w0, t0, t1);
+  load_elements_of_vector(&assm, &(input->ws_lo), w1, t0, t1);
+  load_elements_of_vector(&assm, &(input->wd_lo), w2, t0, t1);
 
   GenerateI5InstructionFunc(assm);
 
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
 
   __ jr(ra);
   __ nop();
@@ -9645,13 +9646,13 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
   msa_reg_t res;
 
   load_elements_of_vector(
-      assm, reinterpret_cast<const uint64_t*>(&input->ws_lo), w0, t0, t1);
+      &assm, reinterpret_cast<const uint64_t*>(&input->ws_lo), w0, t0, t1);
   load_elements_of_vector(
-      assm, reinterpret_cast<const uint64_t*>(&input->wt_lo), w1, t0, t1);
+      &assm, reinterpret_cast<const uint64_t*>(&input->wt_lo), w1, t0, t1);
   load_elements_of_vector(
-      assm, reinterpret_cast<const uint64_t*>(&input->wd_lo), w2, t0, t1);
+      &assm, reinterpret_cast<const uint64_t*>(&input->wd_lo), w2, t0, t1);
   Generate2RInstructionFunc(assm);
-  store_elements_of_vector(assm, w2, a0);
+  store_elements_of_vector(&assm, w2, a0);
 
   __ jr(ra);
   __ nop();

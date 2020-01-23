@@ -2,12 +2,9 @@
 
 const common = require('../common-tap.js')
 const fs = require('fs')
-const mkdirp = require('mkdirp')
 const mr = require('npm-registry-mock')
 const npm = require('../../lib/npm.js')
-const osenv = require('osenv')
 const path = require('path')
-const rimraf = require('rimraf')
 const test = require('tap').test
 
 const pkg = common.pkg
@@ -19,8 +16,6 @@ const json = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -32,6 +27,7 @@ test('setup', function (t) {
 
 test('adds additional metadata fields from the pkglock spec', function (t) {
   mr({ port: common.port }, function (er, s) {
+    t.teardown(() => s.close())
     common.npm(
       [
         '--registry', common.registry,
@@ -56,21 +52,9 @@ test('adds additional metadata fields from the pkglock spec', function (t) {
             'shrinkwrap wrote the expected metadata fields'
           )
 
-          s.close()
           t.end()
         })
       }
     )
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

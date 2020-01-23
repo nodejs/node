@@ -40,7 +40,7 @@
 /* constants and macros for access to the data ------------------------------ */
 
 /* getting a uint32_t properties word from the data */
-#define GET_PROPS(c, result) ((result)=UTRIE2_GET16(&propsTrie, c));
+#define GET_PROPS(c, result) ((result)=UTRIE2_GET16(&propsTrie, c))
 
 /* API functions ------------------------------------------------------------ */
 

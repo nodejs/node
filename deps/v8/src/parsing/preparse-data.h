@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_PREPARSE_DATA_H_
 #define V8_PARSING_PREPARSE_DATA_H_
 
+#include <memory>
+
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
@@ -22,6 +24,7 @@ class Parser;
 class PreParser;
 class PreparseData;
 class ZonePreparseData;
+class AstValueFactory;
 
 /*
 
@@ -286,7 +289,8 @@ class ConsumedPreparseData {
 
   // Restores the information needed for allocating the Scope's (and its
   // subscopes') variables.
-  virtual void RestoreScopeAllocationData(DeclarationScope* scope) = 0;
+  virtual void RestoreScopeAllocationData(
+      DeclarationScope* scope, AstValueFactory* ast_value_factory) = 0;
 
  protected:
   ConsumedPreparseData() = default;

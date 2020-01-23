@@ -11,14 +11,14 @@ function addTableWithAccessors(builder, type, size, name) {
   const table = builder.addTable(type, size);
   const set_sig = makeSig([kWasmI32, type], []);
   builder.addFunction('set_' + name, set_sig)
-      .addBody([kExprGetLocal, 0,
-          kExprGetLocal, 1,
+      .addBody([kExprLocalGet, 0,
+          kExprLocalGet, 1,
           kExprTableSet, table.index])
       .exportFunc();
 
   const get_sig = makeSig([kWasmI32], [type]);
   builder.addFunction('get_' + name, get_sig)
-      .addBody([kExprGetLocal, 0, kExprTableGet, table.index])
+      .addBody([kExprLocalGet, 0, kExprTableGet, table.index])
       .exportFunc();
 }
 
@@ -109,10 +109,10 @@ const dummy_func = exports.set_table_func1;
   const f2 = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, value2]);
   const f3 = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, value3]);
   builder.addFunction('get_t1', kSig_a_i)
-      .addBody([kExprGetLocal, 0, kExprTableGet, t1])
+      .addBody([kExprLocalGet, 0, kExprTableGet, t1])
       .exportFunc();
   builder.addFunction('get_t2', kSig_a_i)
-      .addBody([kExprGetLocal, 0, kExprTableGet, t2])
+      .addBody([kExprLocalGet, 0, kExprTableGet, t2])
       .exportFunc();
 
   const offset1 = 3;

@@ -18,7 +18,7 @@ const ANY_SPACE = /\s/u;
 
 /**
  * Helper that checks if the Object.assign call has array spread
- * @param {ASTNode} node - The node that the rule warns on
+ * @param {ASTNode} node The node that the rule warns on
  * @returns {boolean} - Returns true if the Object.assign call has array spread
  */
 function hasArraySpread(node) {
@@ -28,8 +28,8 @@ function hasArraySpread(node) {
 /**
  * Helper that checks if the node needs parentheses to be valid JS.
  * The default is to wrap the node in parentheses to avoid parsing errors.
- * @param {ASTNode} node - The node that the rule warns on
- * @param {Object} sourceCode - in context sourcecode object
+ * @param {ASTNode} node The node that the rule warns on
+ * @param {Object} sourceCode in context sourcecode object
  * @returns {boolean} - Returns true if the node needs parentheses
  */
 function needsParens(node, sourceCode) {
@@ -51,8 +51,8 @@ function needsParens(node, sourceCode) {
 
 /**
  * Determines if an argument needs parentheses. The default is to not add parens.
- * @param {ASTNode} node - The node to be checked.
- * @param {Object} sourceCode - in context sourcecode object
+ * @param {ASTNode} node The node to be checked.
+ * @param {Object} sourceCode in context sourcecode object
  * @returns {boolean} True if the node needs parentheses
  */
 function argNeedsParens(node, sourceCode) {
@@ -142,8 +142,8 @@ function getEndWithSpaces(token, sourceCode) {
 
 /**
  * Autofixes the Object.assign call to use an object spread instead.
- * @param {ASTNode|null} node - The node that the rule warns on, i.e. the Object.assign call
- * @param {string} sourceCode - sourceCode of the Object.assign call
+ * @param {ASTNode|null} node The node that the rule warns on, i.e. the Object.assign call
+ * @param {string} sourceCode sourceCode of the Object.assign call
  * @returns {Function} autofixer - replaces the Object.assign with a spread object.
  */
 function defineFixer(node, sourceCode) {

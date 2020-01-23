@@ -122,7 +122,7 @@ class CheckboxPrompt extends Base {
 
   onEnd(state) {
     this.status = 'answered';
-
+    this.spaceKeyPressed = true;
     // Rerender prompt (and clean subline error)
     this.render();
 

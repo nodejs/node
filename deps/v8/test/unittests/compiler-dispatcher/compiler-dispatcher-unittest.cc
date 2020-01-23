@@ -12,7 +12,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
@@ -92,7 +91,7 @@ class CompilerDispatcherTest : public TestWithNativeContext {
         ast_node_factory.NewFunctionLiteral(
             function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
-            FunctionLiteral::kAnonymousExpression,
+            FunctionSyntaxKind::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
             shared->function_literal_id(), nullptr);
 
@@ -205,7 +204,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), true));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), true));
     sem_.Wait();
   }
 
@@ -216,7 +215,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), false));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), false));
   }
 
   void RunForegroundTasks() {

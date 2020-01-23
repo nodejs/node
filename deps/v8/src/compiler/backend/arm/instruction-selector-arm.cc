@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/adapters.h"
 #include "src/base/bits.h"
 #include "src/base/enum-set.h"
+#include "src/base/iterator.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -74,17 +74,6 @@ class ArmOperandGenerator : public OperandGenerator {
     }
     return false;
   }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
-  }
 };
 
 namespace {
@@ -100,6 +89,15 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
+}
+
+void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
+                       Node* node) {
+  ArmOperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
@@ -354,6 +352,26 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode div_opcode,
   }
 }
 
+// Adds the base and offset into a register, then change the addressing
+// mode of opcode_return to use this register. Certain instructions, e.g.
+// vld1 and vst1, when given two registers, will post-increment the offset, i.e.
+// perform the operation at base, then add offset to base. What we intend is to
+// access at (base+offset).
+void EmitAddBeforeS128LoadStore(InstructionSelector* selector,
+                                InstructionCode* opcode_return,
+                                size_t* input_count_return,
+                                InstructionOperand* inputs) {
+  DCHECK(*opcode_return == kArmVld1S128 || *opcode_return == kArmVst1S128);
+  ArmOperandGenerator g(selector);
+  InstructionOperand addr = g.TempRegister();
+  InstructionCode op = kArmAdd;
+  op |= AddressingModeField::encode(kMode_Operand2_R);
+  selector->Emit(op, 1, &addr, 2, inputs);
+  *opcode_return |= AddressingModeField::encode(kMode_Operand2_R);
+  *input_count_return -= 1;
+  inputs[0] = addr;
+}
+
 void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
               InstructionOperand* output, Node* base, Node* index) {
   ArmOperandGenerator g(selector);
@@ -370,7 +388,11 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
     input_count = 3;
   } else {
     inputs[1] = g.UseRegister(index);
-    opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    if (opcode == kArmVld1S128) {
+      EmitAddBeforeS128LoadStore(selector, &opcode, &input_count, &inputs[0]);
+    } else {
+      opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    }
   }
   selector->Emit(opcode, 1, output, input_count, inputs);
 }
@@ -388,7 +410,12 @@ void EmitStore(InstructionSelector* selector, InstructionCode opcode,
     input_count = 4;
   } else {
     inputs[input_count++] = g.UseRegister(index);
-    opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    if (opcode == kArmVst1S128) {
+      // Inputs are value, base, index, only care about base and index.
+      EmitAddBeforeS128LoadStore(selector, &opcode, &input_count, &inputs[1]);
+    } else {
+      opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    }
   }
   selector->Emit(opcode, 0, nullptr, input_count, inputs);
 }
@@ -509,7 +536,8 @@ void InstructionSelector::VisitStore(Node* node) {
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -597,8 +625,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       Emit(kArmVmovF32U32, g.DefineAsRegister(node), temp);
       return;
     }
-    case MachineRepresentation::kFloat64:
-    case MachineRepresentation::kSimd128: {
+    case MachineRepresentation::kFloat64: {
       // Compute the address of the least-significant byte of the FP value.
       // We assume that the base node is unlikely to be an encodable immediate
       // or the result of a shift operation, so only consider the addressing
@@ -624,13 +651,10 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
 
       if (CpuFeatures::IsSupported(NEON)) {
         // With NEON we can load directly from the calculated address.
-        InstructionCode op = load_rep == MachineRepresentation::kFloat64
-                                 ? kArmVld1F64
-                                 : kArmVld1S128;
+        InstructionCode op = kArmVld1F64;
         op |= AddressingModeField::encode(kMode_Operand2_R);
         Emit(op, g.DefineAsRegister(node), addr);
       } else {
-        DCHECK_NE(MachineRepresentation::kSimd128, load_rep);
         // Load both halves and move to an FP register.
         InstructionOperand fp_lo = g.TempRegister();
         InstructionOperand fp_hi = g.TempRegister();
@@ -671,8 +695,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
       EmitStore(this, kArmStr, input_count, inputs, index);
       return;
     }
-    case MachineRepresentation::kFloat64:
-    case MachineRepresentation::kSimd128: {
+    case MachineRepresentation::kFloat64: {
       if (CpuFeatures::IsSupported(NEON)) {
         InstructionOperand address = g.TempRegister();
         {
@@ -698,13 +721,10 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
 
         inputs[input_count++] = g.UseRegister(value);
         inputs[input_count++] = address;
-        InstructionCode op = store_rep == MachineRepresentation::kFloat64
-                                 ? kArmVst1F64
-                                 : kArmVst1S128;
+        InstructionCode op = kArmVst1F64;
         op |= AddressingModeField::encode(kMode_Operand2_R);
         Emit(op, 0, nullptr, input_count, inputs);
       } else {
-        DCHECK_NE(MachineRepresentation::kSimd128, store_rep);
         // Store a 64-bit floating point value using two 32-bit integer stores.
         // Computing the store address here would require three live temporary
         // registers (fp<63:32>, fp<31:0>, address), so compute base + 4 after
@@ -887,6 +907,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   VisitBinop(this, node, kArmEor, kArmEor);
 }
 
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  ArmOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
+}
+
 namespace {
 
 template <typename TryMatchShift>
@@ -934,7 +963,8 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
     uint32_t lsb = m.right().Value();
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
-      uint32_t value = (mleft.right().Value() >> lsb) << lsb;
+      uint32_t value = static_cast<uint32_t>(mleft.right().Value() >> lsb)
+                       << lsb;
       uint32_t width = base::bits::CountPopulation(value);
       uint32_t msb = base::bits::CountLeadingZeros32(value);
       if ((width != 0) && (msb + width + lsb == 32)) {
@@ -1109,6 +1139,10 @@ void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   VisitRR(this, kArmRev, node);
+}
+
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
@@ -1686,17 +1720,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegisterOrStackPointer(m.left().node());
+    inputs[0] = g.UseRegister(m.left().node());
     input_count++;
   } else if (TryMatchImmediateOrShift(selector, &opcode, m.left().node(),
                                       &input_count, &inputs[1])) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    inputs[0] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[0] = g.UseRegister(m.right().node());
     input_count++;
   } else {
     opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.left().node());
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
   }
 
   if (has_result) {
@@ -1848,6 +1882,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         return VisitShift(this, value, TryMatchLSR, cont);
       case IrOpcode::kWord32Ror:
         return VisitShift(this, value, TryMatchROR, cont);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -2488,7 +2525,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRI(this, kArm##Name, node);                 \
+    VisitSimdShiftRRR(this, kArm##Name, node);        \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -2501,6 +2538,22 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+void InstructionSelector::VisitF32x4Sqrt(Node* node) {
+  ArmOperandGenerator g(this);
+  // Use fixed registers in the lower 8 Q-registers so we can directly access
+  // mapped registers S0-S31.
+  Emit(kArmF32x4Sqrt, g.DefineAsFixed(node, q0),
+       g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitF32x4Div(Node* node) {
+  ArmOperandGenerator g(this);
+  // Use fixed registers in the lower 8 Q-registers so we can directly access
+  // mapped registers S0-S31.
+  Emit(kArmF32x4Div, g.DefineAsFixed(node, q0),
+       g.UseFixed(node->InputAt(0), q0), g.UseFixed(node->InputAt(1), q1));
+}
 
 void InstructionSelector::VisitS128Select(Node* node) {
   ArmOperandGenerator g(this);

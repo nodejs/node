@@ -169,15 +169,6 @@ StringBufferImpl::StringBufferImpl(String16& string) {
   m_string = toStringView(m_owner);
 }
 
-String16 debuggerIdToString(const std::pair<int64_t, int64_t>& debuggerId) {
-  const size_t kBufferSize = 35;
-
-  char buffer[kBufferSize];
-  v8::base::OS::SNPrintF(buffer, kBufferSize, "(%08" PRIX64 "%08" PRIX64 ")",
-                         debuggerId.first, debuggerId.second);
-  return String16(buffer);
-}
-
 String16 stackTraceIdToString(uintptr_t id) {
   String16Builder builder;
   builder.appendNumber(static_cast<size_t>(id));

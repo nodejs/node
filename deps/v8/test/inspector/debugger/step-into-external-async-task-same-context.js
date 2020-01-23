@@ -42,13 +42,6 @@ session.setupScriptMap();
 
   InspectorTest.log('Run stepInto with breakOnAsyncCall flag');
   Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-  let {params: {asyncCallStackTraceId}} = await Protocol.Debugger.oncePaused();
-
-  InspectorTest.log('Call pauseOnAsyncCall');
-  Protocol.Debugger.pauseOnAsyncCall({
-    parentStackTraceId: asyncCallStackTraceId,
-  });
-  Protocol.Debugger.resume();
 
   InspectorTest.log('Trigger external async task on another context group');
   let stackTraceId = (await evaluatePromise).result.result.value;

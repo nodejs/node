@@ -37,24 +37,26 @@ class Arguments {
     DCHECK_GE(length_, 0);
   }
 
-  Object operator[](int index) { return Object(*address_of_arg_at(index)); }
+  Object operator[](int index) const {
+    return Object(*address_of_arg_at(index));
+  }
 
   template <class S = Object>
-  inline Handle<S> at(int index);
+  inline Handle<S> at(int index) const;
 
-  inline int smi_at(int index);
+  inline int smi_at(int index) const;
 
-  inline double number_at(int index);
+  inline double number_at(int index) const;
 
   inline void set_at(int index, Object value) {
     *address_of_arg_at(index) = value.ptr();
   }
 
-  inline FullObjectSlot slot_at(int index) {
+  inline FullObjectSlot slot_at(int index) const {
     return FullObjectSlot(address_of_arg_at(index));
   }
 
-  inline Address* address_of_arg_at(int index) {
+  inline Address* address_of_arg_at(int index) const {
     DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     return reinterpret_cast<Address*>(reinterpret_cast<Address>(arguments_) -
                                       index * kSystemPointerSize);
@@ -64,8 +66,8 @@ class Arguments {
   int length() const { return static_cast<int>(length_); }
 
   // Arguments on the stack are in reverse order (compared to an array).
-  FullObjectSlot first_slot() { return slot_at(length() - 1); }
-  FullObjectSlot last_slot() { return slot_at(0); }
+  FullObjectSlot first_slot() const { return slot_at(length() - 1); }
+  FullObjectSlot last_slot() const { return slot_at(0); }
 
  private:
   intptr_t length_;
@@ -73,7 +75,7 @@ class Arguments {
 };
 
 template <>
-inline Handle<Object> Arguments::at(int index) {
+inline Handle<Object> Arguments::at(int index) const {
   return Handle<Object>(address_of_arg_at(index));
 }
 

@@ -64,7 +64,7 @@ function assertConversionError(bytes, imports, msg) {
           .end().toBuffer(),
       f_error('expected 1 elements on the stack for return, found 0 @+24'));
   assertCompileError(builder().addFunction('f', kSig_v_v).addBody([
-    kExprGetLocal, 0
+    kExprLocalGet, 0
   ]).end().toBuffer(), f_error('invalid local index: 0 @+24'));
   assertCompileError(
       builder().addStart(0).toBuffer(),
@@ -182,7 +182,7 @@ function import_error(index, module, func, msg) {
   var sig = builder.addType(kSig_i_dd);
   builder.addImport("mod", "func", sig);
   builder.addFunction("main", sig)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0])
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallFunction, 0])
     .exportAs("main");
   var main = builder.instantiate({
     mod: {

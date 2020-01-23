@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_PIPELINE_H_
 #define V8_COMPILER_PIPELINE_H_
 
+#include <memory>
+
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/common/globals.h"
@@ -61,9 +63,10 @@ class Pipeline : public AllStatic {
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<OptimizedCompilationJob> NewWasmHeapStubCompilationJob(
-      Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, Graph* graph, Code::Kind kind,
-      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
+      Isolate* isolate, wasm::WasmEngine* wasm_engine,
+      CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
+      Code::Kind kind, std::unique_ptr<char[]> debug_name,
+      const AssemblerOptions& options,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.

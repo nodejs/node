@@ -78,10 +78,15 @@ class V8_EXPORT_PRIVATE StubCache {
 
   Isolate* isolate() { return isolate_; }
 
-  // Setting the entry size such that the index is shifted by Name::kHashShift
-  // is convenient; shifting down the length field (to extract the hash code)
-  // automatically discards the hash bit field.
-  static const int kCacheIndexShift = Name::kHashShift;
+  // Ideally we would set kCacheIndexShift to Name::kHashShift, such that
+  // the bit field inside the hash field gets shifted out implicitly. However,
+  // sizeof(Entry) needs to be a multiple of 1 << kCacheIndexShift, and it
+  // isn't clear whether letting one bit of the bit field leak into the index
+  // computation is bad enough to warrant an additional shift to get rid of it.
+  static const int kCacheIndexShift = 2;
+  // The purpose of the static assert is to make us reconsider this choice
+  // if the bit field ever grows even more.
+  STATIC_ASSERT(kCacheIndexShift == Name::kHashShift - 1);
 
   static const int kPrimaryTableBits = 11;
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
@@ -125,7 +130,10 @@ class V8_EXPORT_PRIVATE StubCache {
   // of sizeof(Entry).  This makes it easier to avoid making mistakes
   // in the hashed offset computations.
   static Entry* entry(Entry* table, int offset) {
-    const int multiplier = sizeof(*table) >> Name::kHashShift;
+    // The size of {Entry} must be a multiple of 1 << kCacheIndexShift.
+    STATIC_ASSERT((sizeof(*table) >> kCacheIndexShift) << kCacheIndexShift ==
+                  sizeof(*table));
+    const int multiplier = sizeof(*table) >> kCacheIndexShift;
     return reinterpret_cast<Entry*>(reinterpret_cast<Address>(table) +
                                     offset * multiplier);
   }

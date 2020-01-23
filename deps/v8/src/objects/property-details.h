@@ -112,7 +112,19 @@ class Representation {
     // smi and tagged values. Doubles, however, would require a box allocation.
     if (IsNone()) return !other.IsDouble();
     if (!FLAG_modify_field_representation_inplace) return false;
-    return (IsSmi() || IsHeapObject()) && other.IsTagged();
+    return (IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
+            IsHeapObject()) &&
+           other.IsTagged();
+  }
+
+  // Return the most generic representation that this representation can be
+  // changed to in-place. If in-place representation changes are disabled, then
+  // this will return the current representation.
+  Representation MostGenericInPlaceChange() const {
+    if (!FLAG_modify_field_representation_inplace) return *this;
+    // Everything but unboxed doubles can be in-place changed to Tagged.
+    if (FLAG_unbox_double_fields && IsDouble()) return Representation::Double();
+    return Representation::Tagged();
   }
 
   bool is_more_general_than(const Representation& other) const {
@@ -310,13 +322,10 @@ class PropertyDetails {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class KindField : public BitField<PropertyKind, 0, 1> {};
-  class LocationField : public BitField<PropertyLocation, KindField::kNext, 1> {
-  };
-  class ConstnessField
-      : public BitField<PropertyConstness, LocationField::kNext, 1> {};
-  class AttributesField
-      : public BitField<PropertyAttributes, ConstnessField::kNext, 3> {};
+  using KindField = BitField<PropertyKind, 0, 1>;
+  using LocationField = KindField::Next<PropertyLocation, 1>;
+  using ConstnessField = LocationField::Next<PropertyConstness, 1>;
+  using AttributesField = ConstnessField::Next<PropertyAttributes, 3>;
   static const int kAttributesReadOnlyMask =
       (READ_ONLY << AttributesField::kShift);
   static const int kAttributesDontDeleteMask =
@@ -325,24 +334,19 @@ class PropertyDetails {
       (DONT_ENUM << AttributesField::kShift);
 
   // Bit fields for normalized objects.
-  class PropertyCellTypeField
-      : public BitField<PropertyCellType, AttributesField::kNext, 2> {};
-  class DictionaryStorageField
-      : public BitField<uint32_t, PropertyCellTypeField::kNext, 23> {};
+  using PropertyCellTypeField = AttributesField::Next<PropertyCellType, 2>;
+  using DictionaryStorageField = PropertyCellTypeField::Next<uint32_t, 23>;
 
   // Bit fields for fast objects.
-  class RepresentationField
-      : public BitField<uint32_t, AttributesField::kNext, 3> {};
-  class DescriptorPointer
-      : public BitField<uint32_t, RepresentationField::kNext,
-                        kDescriptorIndexBitCount> {};  // NOLINT
-  class FieldIndexField : public BitField<uint32_t, DescriptorPointer::kNext,
-                                          kDescriptorIndexBitCount> {
-  };  // NOLINT
+  using RepresentationField = AttributesField::Next<uint32_t, 3>;
+  using DescriptorPointer =
+      RepresentationField::Next<uint32_t, kDescriptorIndexBitCount>;
+  using FieldIndexField =
+      DescriptorPointer::Next<uint32_t, kDescriptorIndexBitCount>;
 
   // All bits for both fast and slow objects must fit in a smi.
-  STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
-  STATIC_ASSERT(FieldIndexField::kNext <= 31);
+  STATIC_ASSERT(DictionaryStorageField::kLastUsedBit < 31);
+  STATIC_ASSERT(FieldIndexField::kLastUsedBit < 31);
 
   static const int kInitialIndex = 1;
 

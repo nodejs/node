@@ -831,7 +831,7 @@ static const uint16_t nuktaSpecialCases[][2]={
 };
 
 
-#define WRITE_TO_TARGET_FROM_U(args,offsets,source,target,targetLimit,targetByteUnit,err){      \
+#define WRITE_TO_TARGET_FROM_U(args,offsets,source,target,targetLimit,targetByteUnit,err) UPRV_BLOCK_MACRO_BEGIN { \
     int32_t offset = (int32_t)(source - args->source-1);                                        \
       /* write the targetUniChar  to target */                                                  \
     if(target < targetLimit){                                                                   \
@@ -884,7 +884,7 @@ static const uint16_t nuktaSpecialCases[][2]={
                         (uint8_t) (targetByteUnit);                                             \
         *err = U_BUFFER_OVERFLOW_ERROR;                                                         \
     }                                                                                           \
-}
+} UPRV_BLOCK_MACRO_END
 
 /* Rules:
  *    Explicit Halant :
@@ -1119,7 +1119,7 @@ static const uint16_t lookupTable[][2]={
     { GURMUKHI,   PNJ_MASK }
 };
 
-#define WRITE_TO_TARGET_TO_U(args,source,target,offsets,offset,targetUniChar,delta, err){\
+#define WRITE_TO_TARGET_TO_U(args,source,target,offsets,offset,targetUniChar,delta, err) UPRV_BLOCK_MACRO_BEGIN { \
     /* add offset to current Indic Block */                                              \
     if(targetUniChar>ASCII_END &&                                                        \
            targetUniChar != ZWJ &&                                                       \
@@ -1140,9 +1140,9 @@ static const uint16_t lookupTable[][2]={
             (UChar)targetUniChar;                                                        \
         *err = U_BUFFER_OVERFLOW_ERROR;                                                  \
     }                                                                                    \
-}
+} UPRV_BLOCK_MACRO_END
 
-#define GET_MAPPING(sourceChar,targetUniChar,data){                                      \
+#define GET_MAPPING(sourceChar,targetUniChar,data) UPRV_BLOCK_MACRO_BEGIN {              \
     targetUniChar = toUnicodeTable[(sourceChar)] ;                                       \
     /* is the code point valid in current script? */                                     \
     if(sourceChar> ASCII_END &&                                                          \
@@ -1153,7 +1153,7 @@ static const uint16_t lookupTable[][2]={
             targetUniChar=missingCharMarker;                                             \
         }                                                                                \
     }                                                                                    \
-}
+} UPRV_BLOCK_MACRO_END
 
 /***********
  *  Rules for ISCII to Unicode converter

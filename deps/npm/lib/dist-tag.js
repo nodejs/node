@@ -119,7 +119,8 @@ function remove (spec, tag, opts) {
     delete tags[tag]
     const url = `/-/package/${spec.escapedName}/dist-tags/${encodeURIComponent(tag)}`
     const reqOpts = opts.concat({
-      method: 'DELETE'
+      method: 'DELETE',
+      spec
     })
     return otplease(reqOpts, reqOpts => regFetch(url, reqOpts)).then(() => {
       output(`-${tag}: ${spec.name}@${version}`)

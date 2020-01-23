@@ -59,10 +59,10 @@ function checkStack(stack, expected_lines) {
   builder.addFunction('main', makeSig([kWasmI32, kWasmF64], [kWasmF32]))
       .addBody([
         // call #0 with arg 0 and arg 0 + 1
-        kExprGetLocal, 0, kExprGetLocal, 0, kExprI32Const, 1, kExprI32Add,
+        kExprLocalGet, 0, kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
         kExprCallFunction, 0,
         // call #1 with arg 1
-        kExprGetLocal, 1, kExprCallFunction, 1,
+        kExprLocalGet, 1, kExprCallFunction, 1,
         // convert returned value to f32
         kExprF32UConvertI32,
         // add the two values
@@ -151,28 +151,28 @@ function checkStack(stack, expected_lines) {
   builder.addGlobal(kWasmF32, true);  // 2
   builder.addGlobal(kWasmF64, true);  // 3
   builder.addFunction('get_i32', kSig_i_v)
-      .addBody([kExprGetGlobal, 0])
+      .addBody([kExprGlobalGet, 0])
       .exportFunc();
   builder.addFunction('get_i64', kSig_d_v)
-      .addBody([kExprGetGlobal, 1, kExprF64SConvertI64])
+      .addBody([kExprGlobalGet, 1, kExprF64SConvertI64])
       .exportFunc();
   builder.addFunction('get_f32', kSig_d_v)
-      .addBody([kExprGetGlobal, 2, kExprF64ConvertF32])
+      .addBody([kExprGlobalGet, 2, kExprF64ConvertF32])
       .exportFunc();
   builder.addFunction('get_f64', kSig_d_v)
-      .addBody([kExprGetGlobal, 3])
+      .addBody([kExprGlobalGet, 3])
       .exportFunc();
   builder.addFunction('set_i32', kSig_v_i)
-      .addBody([kExprGetLocal, 0, kExprSetGlobal, 0])
+      .addBody([kExprLocalGet, 0, kExprGlobalSet, 0])
       .exportFunc();
   builder.addFunction('set_i64', kSig_v_d)
-      .addBody([kExprGetLocal, 0, kExprI64SConvertF64, kExprSetGlobal, 1])
+      .addBody([kExprLocalGet, 0, kExprI64SConvertF64, kExprGlobalSet, 1])
       .exportFunc();
   builder.addFunction('set_f32', kSig_v_d)
-      .addBody([kExprGetLocal, 0, kExprF32ConvertF64, kExprSetGlobal, 2])
+      .addBody([kExprLocalGet, 0, kExprF32ConvertF64, kExprGlobalSet, 2])
       .exportFunc();
   builder.addFunction('set_f64', kSig_v_d)
-      .addBody([kExprGetLocal, 0, kExprSetGlobal, 3])
+      .addBody([kExprLocalGet, 0, kExprGlobalSet, 3])
       .exportFunc();
   var instance = builder.instantiate();
   // Initially, all should be zero.
@@ -205,7 +205,7 @@ function checkStack(stack, expected_lines) {
   var builder = new WasmModuleBuilder();
   builder.addImport('mod', 'func', kSig_v_i);
   builder.addFunction('main', kSig_v_i)
-      .addBody([kExprGetLocal, 0, kExprCallFunction, 0])
+      .addBody([kExprLocalGet, 0, kExprCallFunction, 0])
       .exportFunc();
   instance = builder.instantiate({mod: {func: func}});
   // Test that this does not mess up internal state by executing it three times.
@@ -239,14 +239,14 @@ function checkStack(stack, expected_lines) {
   var sig_i_i = builder.addType(kSig_i_i);
   var mul = builder.addImport('q', 'mul', sig_i_ii);
   var add = builder.addFunction('add', sig_i_ii).addBody([
-    kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add
+    kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add
   ]);
   var mismatch =
-      builder.addFunction('sig_mismatch', sig_i_i).addBody([kExprGetLocal, 0]);
+      builder.addFunction('sig_mismatch', sig_i_i).addBody([kExprLocalGet, 0]);
   var main = builder.addFunction('main', kSig_i_iii)
                  .addBody([
                    // Call indirect #0 with args <#1, #2>.
-                   kExprGetLocal, 1, kExprGetLocal, 2, kExprGetLocal, 0,
+                   kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 0,
                    kExprCallIndirect, sig_i_ii, kTableZero
                  ])
                  .exportFunc();
@@ -281,7 +281,7 @@ function checkStack(stack, expected_lines) {
       builder.addFunction('main', kSig_v_i)
           .addBody([
             // Call indirect #0 with arg #0, drop result.
-            kExprGetLocal, 0, kExprCallIndirect, sig_l_v, kTableZero, kExprDrop
+            kExprLocalGet, 0, kExprCallIndirect, sig_l_v, kTableZero, kExprDrop
           ])
           .exportFunc();
   builder.appendToTable([imp, direct.index, indirect.index]);
@@ -409,7 +409,7 @@ function checkStack(stack, expected_lines) {
       var builder = new WasmModuleBuilder();
       var imp = builder.addImport('mod', 'the_name_of_my_import', kSig_i_i);
       builder.addFunction('main', kSig_i_i)
-          .addBody([kExprGetLocal, 0, kExprCallFunction, imp])
+          .addBody([kExprLocalGet, 0, kExprCallFunction, imp])
           .exportAs('main');
       print('module');
       return new WebAssembly.Module(builder.toBuffer());
@@ -525,7 +525,7 @@ function checkStack(stack, expected_lines) {
   const sig_index = builder0.addType(kSig_i_v);
   builder0.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0,  // --
+        kExprLocalGet, 0,  // --
         kExprCallIndirect, sig_index, kTableZero
       ])  // --
       .exportAs('main');
@@ -549,7 +549,7 @@ function checkStack(stack, expected_lines) {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_i)
-      .addBody([kExprGetLocal, 0, kExprI32Const, 7, kExprI32Add])
+      .addBody([kExprLocalGet, 0, kExprI32Const, 7, kExprI32Add])
       .exportFunc();
 
   const wire_bytes = builder.toBuffer();

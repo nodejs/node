@@ -40,12 +40,19 @@
 #endif
 #include <openssl/bn.h>
 #include <openssl/ssl.h>
-#include "s_apps.h"
 #include "apps.h"
 
 #ifdef _WIN32
 static int WIN32_rename(const char *from, const char *to);
 # define rename(from,to) WIN32_rename((from),(to))
+#endif
+
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
+# include <conio.h>
+#endif
+
+#if defined(OPENSSL_SYS_MSDOS) && !defined(_WIN32)
+# define _kbhit kbhit
 #endif
 
 typedef struct {

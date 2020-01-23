@@ -60,8 +60,6 @@ Fetcher.impl(fetchFile, {
           : (pipe(
             fs.createReadStream(src),
             cacache.put.stream(opts.cache, `pacote:tarball:${src}`, {
-              uid: opts.uid,
-              gid: opts.gid,
               integrity: opts.integrity
             }).on('integrity', d => { integrity = d })
           ))

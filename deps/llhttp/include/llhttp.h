@@ -1,9 +1,9 @@
 #ifndef INCLUDE_LLHTTP_H_
 #define INCLUDE_LLHTTP_H_
 
-#define LLHTTP_VERSION_MAJOR 1
-#define LLHTTP_VERSION_MINOR 1
-#define LLHTTP_VERSION_PATCH 4
+#define LLHTTP_VERSION_MAJOR 2
+#define LLHTTP_VERSION_MINOR 0
+#define LLHTTP_VERSION_PATCH 1
 
 #ifndef INCLUDE_LLHTTP_ITSELF_H_
 #define INCLUDE_LLHTTP_ITSELF_H_
@@ -29,7 +29,7 @@ struct llhttp__internal_s {
   uint8_t http_major;
   uint8_t http_minor;
   uint8_t header_state;
-  uint8_t flags;
+  uint16_t flags;
   uint8_t upgrade;
   uint16_t status_code;
   uint8_t finish;
@@ -85,7 +85,8 @@ enum llhttp_flags {
   F_UPGRADE = 0x10,
   F_CONTENT_LENGTH = 0x20,
   F_SKIPBODY = 0x40,
-  F_TRAILING = 0x80
+  F_TRAILING = 0x80,
+  F_LENIENT = 0x100
 };
 typedef enum llhttp_flags llhttp_flags_t;
 
@@ -297,7 +298,7 @@ llhttp_errno_t llhttp_finish(llhttp_t* parser);
 int llhttp_message_needs_eof(const llhttp_t* parser);
 
 /* Returns `1` if there might be any other messages following the last that was
- * successfuly parsed.
+ * successfully parsed.
  */
 int llhttp_should_keep_alive(const llhttp_t* parser);
 
@@ -352,6 +353,18 @@ const char* llhttp_errno_name(llhttp_errno_t err);
 
 /* Returns textual name of HTTP method */
 const char* llhttp_method_name(llhttp_method_t method);
+
+
+/* Enables/disables lenient header value parsing (disabled by default).
+ *
+ * Lenient parsing disables header value token checks, extending llhttp's
+ * protocol support to highly non-compliant clients/server. No
+ * `HPE_INVALID_HEADER_TOKEN` will be raised for incorrect header values when
+ * lenient parsing is "on".
+ *
+ * **(USE AT YOUR OWN RISK)**
+ */
+void llhttp_set_lenient(llhttp_t* parser, int enabled);
 
 #ifdef __cplusplus
 }  /* extern "C" */

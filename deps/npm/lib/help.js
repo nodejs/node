@@ -63,7 +63,7 @@ function help (args, cb) {
 
   // legacy
   if (section === 'global') section = 'folders'
-  else if (section === 'json') section = 'package.json'
+  else if (section.match(/.*json/)) section = section.replace('.json', '-json')
 
   // find either /section.n or /npm-section.n
   // The glob is used in the glob.  The regexp is used much
@@ -140,24 +140,21 @@ function viewMan (man, cb) {
 
 function htmlMan (man) {
   var sect = +man.match(/([0-9]+)$/)[1]
-  var f = path.basename(man).replace(/([0-9]+)$/, 'html')
+  var f = path.basename(man).replace(/[.]([0-9]+)$/, '')
   switch (sect) {
     case 1:
-      sect = 'cli'
-      break
-    case 3:
-      sect = 'api'
+      sect = 'cli-commands'
       break
     case 5:
-      sect = 'files'
+      sect = 'configuring-npm'
       break
     case 7:
-      sect = 'misc'
+      sect = 'using-npm'
       break
     default:
       throw new Error('invalid man section: ' + sect)
   }
-  return path.resolve(__dirname, '..', 'html', 'doc', sect, f)
+  return path.resolve(__dirname, '..', 'docs', 'public', sect, f, 'index.html')
 }
 
 function npmUsage (valid, cb) {

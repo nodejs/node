@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -55,17 +56,8 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
   memmove(dest, src, size);
 }
 
-using MemCopyUint16Uint8Function = void (*)(uint16_t* dest, const uint8_t* src,
-                                            size_t size);
-extern MemCopyUint16Uint8Function memcopy_uint16_uint8_function;
-void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
-                               size_t chars);
 // For values < 12, the assembler function is slower than the inlined C code.
 const int kMinComplexConvertMemCopy = 12;
-V8_INLINE void MemCopyUint16Uint8(uint16_t* dest, const uint8_t* src,
-                                  size_t size) {
-  (*memcopy_uint16_uint8_function)(dest, src, size);
-}
 #elif defined(V8_HOST_ARCH_MIPS)
 using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
                                       size_t size);
@@ -109,6 +101,7 @@ inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
   DCHECK(((src <= dst) && ((src + count * kTWordSize) <= dst)) ||
          ((dst <= src) && ((dst + count * kTWordSize) <= src)));
 #endif
+  if (count == 0) return;
 
   // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
@@ -204,308 +197,32 @@ inline void MemsetPointer(T** dest, U* value, size_t counter) {
                 reinterpret_cast<Address>(value), counter);
 }
 
-template <typename sourcechar, typename sinkchar>
-V8_INLINE static void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src,
-                                        size_t chars);
-#if defined(V8_HOST_ARCH_ARM)
-V8_INLINE void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src,
-                                 size_t chars);
-V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src,
-                                 size_t chars);
-V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
-                                 size_t chars);
-#elif defined(V8_HOST_ARCH_MIPS)
-V8_INLINE void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src,
-                                 size_t chars);
-V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
-                                 size_t chars);
-#elif defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_S390)
-V8_INLINE void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src,
-                                 size_t chars);
-V8_INLINE void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
-                                 size_t chars);
+// Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
+// needed. Ranges are not allowed to overlap.
+// The separate declaration is needed for the V8_NONNULL, which is not allowed
+// on a definition.
+template <typename SrcType, typename DstType>
+void CopyChars(DstType* dst, const SrcType* src, size_t count) V8_NONNULL(1, 2);
+
+template <typename SrcType, typename DstType>
+void CopyChars(DstType* dst, const SrcType* src, size_t count) {
+  STATIC_ASSERT(std::is_integral<SrcType>::value);
+  STATIC_ASSERT(std::is_integral<DstType>::value);
+
+#ifdef DEBUG
+  // Check for no overlap, otherwise {std::copy_n} cannot be used.
+  Address src_start = reinterpret_cast<Address>(src);
+  Address src_end = src_start + count * sizeof(SrcType);
+  Address dst_start = reinterpret_cast<Address>(dst);
+  Address dst_end = dst_start + count * sizeof(DstType);
+  DCHECK(src_end <= dst_start || dst_end <= src_start);
 #endif
 
-// Copy from 8bit/16bit chars to 8bit/16bit chars.
-template <typename sourcechar, typename sinkchar>
-V8_INLINE void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars);
-
-template <typename sourcechar, typename sinkchar>
-void CopyChars(sinkchar* dest, const sourcechar* src, size_t chars) {
-  DCHECK_LE(sizeof(sourcechar), 2);
-  DCHECK_LE(sizeof(sinkchar), 2);
-  if (sizeof(sinkchar) == 1) {
-    if (sizeof(sourcechar) == 1) {
-      CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
-                        reinterpret_cast<const uint8_t*>(src), chars);
-    } else {
-      CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
-                        reinterpret_cast<const uint16_t*>(src), chars);
-    }
-  } else {
-    if (sizeof(sourcechar) == 1) {
-      CopyCharsUnsigned(reinterpret_cast<uint16_t*>(dest),
-                        reinterpret_cast<const uint8_t*>(src), chars);
-    } else {
-      CopyCharsUnsigned(reinterpret_cast<uint16_t*>(dest),
-                        reinterpret_cast<const uint16_t*>(src), chars);
-    }
-  }
+  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
+  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
+  std::copy_n(reinterpret_cast<const SrcTypeUnsigned*>(src), count,
+              reinterpret_cast<DstTypeUnsigned*>(dst));
 }
-
-template <typename sourcechar, typename sinkchar>
-void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, size_t chars) {
-  sinkchar* limit = dest + chars;
-  if ((sizeof(*dest) == sizeof(*src)) &&
-      (chars >= kMinComplexMemCopy / sizeof(*dest))) {
-    MemCopy(dest, src, chars * sizeof(*dest));
-  } else {
-    while (dest < limit) *dest++ = static_cast<sinkchar>(*src++);
-  }
-}
-
-#if defined(V8_HOST_ARCH_ARM)
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
-  switch (static_cast<unsigned>(chars)) {
-    case 0:
-      break;
-    case 1:
-      *dest = *src;
-      break;
-    case 2:
-      memcpy(dest, src, 2);
-      break;
-    case 3:
-      memcpy(dest, src, 3);
-      break;
-    case 4:
-      memcpy(dest, src, 4);
-      break;
-    case 5:
-      memcpy(dest, src, 5);
-      break;
-    case 6:
-      memcpy(dest, src, 6);
-      break;
-    case 7:
-      memcpy(dest, src, 7);
-      break;
-    case 8:
-      memcpy(dest, src, 8);
-      break;
-    case 9:
-      memcpy(dest, src, 9);
-      break;
-    case 10:
-      memcpy(dest, src, 10);
-      break;
-    case 11:
-      memcpy(dest, src, 11);
-      break;
-    case 12:
-      memcpy(dest, src, 12);
-      break;
-    case 13:
-      memcpy(dest, src, 13);
-      break;
-    case 14:
-      memcpy(dest, src, 14);
-      break;
-    case 15:
-      memcpy(dest, src, 15);
-      break;
-    default:
-      MemCopy(dest, src, chars);
-      break;
-  }
-}
-
-void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, size_t chars) {
-  if (chars >= static_cast<size_t>(kMinComplexConvertMemCopy)) {
-    MemCopyUint16Uint8(dest, src, chars);
-  } else {
-    MemCopyUint16Uint8Wrapper(dest, src, chars);
-  }
-}
-
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
-  switch (static_cast<unsigned>(chars)) {
-    case 0:
-      break;
-    case 1:
-      *dest = *src;
-      break;
-    case 2:
-      memcpy(dest, src, 4);
-      break;
-    case 3:
-      memcpy(dest, src, 6);
-      break;
-    case 4:
-      memcpy(dest, src, 8);
-      break;
-    case 5:
-      memcpy(dest, src, 10);
-      break;
-    case 6:
-      memcpy(dest, src, 12);
-      break;
-    case 7:
-      memcpy(dest, src, 14);
-      break;
-    default:
-      MemCopy(dest, src, chars * sizeof(*dest));
-      break;
-  }
-}
-
-#elif defined(V8_HOST_ARCH_MIPS)
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
-  if (chars < kMinComplexMemCopy) {
-    memcpy(dest, src, chars);
-  } else {
-    MemCopy(dest, src, chars);
-  }
-}
-
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
-  if (chars < kMinComplexMemCopy) {
-    memcpy(dest, src, chars * sizeof(*dest));
-  } else {
-    MemCopy(dest, src, chars * sizeof(*dest));
-  }
-}
-#elif defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_S390)
-#define CASE(n)           \
-  case n:                 \
-    memcpy(dest, src, n); \
-    break
-void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars) {
-  switch (static_cast<unsigned>(chars)) {
-    case 0:
-      break;
-    case 1:
-      *dest = *src;
-      break;
-      CASE(2);
-      CASE(3);
-      CASE(4);
-      CASE(5);
-      CASE(6);
-      CASE(7);
-      CASE(8);
-      CASE(9);
-      CASE(10);
-      CASE(11);
-      CASE(12);
-      CASE(13);
-      CASE(14);
-      CASE(15);
-      CASE(16);
-      CASE(17);
-      CASE(18);
-      CASE(19);
-      CASE(20);
-      CASE(21);
-      CASE(22);
-      CASE(23);
-      CASE(24);
-      CASE(25);
-      CASE(26);
-      CASE(27);
-      CASE(28);
-      CASE(29);
-      CASE(30);
-      CASE(31);
-      CASE(32);
-      CASE(33);
-      CASE(34);
-      CASE(35);
-      CASE(36);
-      CASE(37);
-      CASE(38);
-      CASE(39);
-      CASE(40);
-      CASE(41);
-      CASE(42);
-      CASE(43);
-      CASE(44);
-      CASE(45);
-      CASE(46);
-      CASE(47);
-      CASE(48);
-      CASE(49);
-      CASE(50);
-      CASE(51);
-      CASE(52);
-      CASE(53);
-      CASE(54);
-      CASE(55);
-      CASE(56);
-      CASE(57);
-      CASE(58);
-      CASE(59);
-      CASE(60);
-      CASE(61);
-      CASE(62);
-      CASE(63);
-      CASE(64);
-    default:
-      memcpy(dest, src, chars);
-      break;
-  }
-}
-#undef CASE
-
-#define CASE(n)               \
-  case n:                     \
-    memcpy(dest, src, n * 2); \
-    break
-void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
-  switch (static_cast<unsigned>(chars)) {
-    case 0:
-      break;
-    case 1:
-      *dest = *src;
-      break;
-      CASE(2);
-      CASE(3);
-      CASE(4);
-      CASE(5);
-      CASE(6);
-      CASE(7);
-      CASE(8);
-      CASE(9);
-      CASE(10);
-      CASE(11);
-      CASE(12);
-      CASE(13);
-      CASE(14);
-      CASE(15);
-      CASE(16);
-      CASE(17);
-      CASE(18);
-      CASE(19);
-      CASE(20);
-      CASE(21);
-      CASE(22);
-      CASE(23);
-      CASE(24);
-      CASE(25);
-      CASE(26);
-      CASE(27);
-      CASE(28);
-      CASE(29);
-      CASE(30);
-      CASE(31);
-      CASE(32);
-    default:
-      memcpy(dest, src, chars * 2);
-      break;
-  }
-}
-#undef CASE
-#endif
 
 }  // namespace internal
 }  // namespace v8

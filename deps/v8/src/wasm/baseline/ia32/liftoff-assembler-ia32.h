@@ -41,7 +41,7 @@ inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
   return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
-// TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
+// TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
 static constexpr LiftoffRegList kByteRegs =
@@ -509,6 +509,37 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
 void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
                                    RegPairHalf half) {
   mov(reg, liftoff::GetHalfStackSlot(index, half));
+}
+
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
+  DCHECK_LT(0, count);
+  uint32_t last_stack_slot = index + count - 1;
+  RecordUsedSpillSlot(last_stack_slot);
+
+  if (count <= 2) {
+    // Special straight-line code for up to two slots (6-9 bytes per word:
+    // C7 <1-4 bytes operand> <4 bytes imm>, makes 12-18 bytes per slot).
+    for (uint32_t offset = 0; offset < count; ++offset) {
+      mov(liftoff::GetHalfStackSlot(index + offset, kLowWord), Immediate(0));
+      mov(liftoff::GetHalfStackSlot(index + offset, kHighWord), Immediate(0));
+    }
+  } else {
+    // General case for bigger counts.
+    // This sequence takes 19-22 bytes (3 for pushes, 3-6 for lea, 2 for xor, 5
+    // for mov, 3 for repstosq, 3 for pops).
+    // Note: rep_stos fills ECX doublewords at [EDI] with EAX.
+    push(eax);
+    push(ecx);
+    push(edi);
+    lea(edi, liftoff::GetStackSlot(last_stack_slot));
+    xor_(eax, eax);
+    // Number of words is number of slots times two.
+    mov(ecx, Immediate(count * 2));
+    rep_stos();
+    pop(edi);
+    pop(ecx);
+    pop(eax);
+  }
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {

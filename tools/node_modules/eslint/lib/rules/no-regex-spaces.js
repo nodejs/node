@@ -5,7 +5,29 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
 const astUtils = require("./utils/ast-utils");
+const regexpp = require("regexpp");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const regExpParser = new regexpp.RegExpParser();
+const DOUBLE_SPACE = / {2}/u;
+
+/**
+ * Check if node is a string
+ * @param {ASTNode} node node to evaluate
+ * @returns {boolean} True if its a string
+ * @private
+ */
+function isString(node) {
+    return node && node.type === "Literal" && typeof node.value === "string";
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -27,40 +49,69 @@ module.exports = {
     },
 
     create(context) {
-        const sourceCode = context.getSourceCode();
 
         /**
-         * Validate regular expressions
-         * @param {ASTNode} node node to validate
-         * @param {string} value regular expression to validate
-         * @param {number} valueStart The start location of the regex/string literal. It will always be the case that
-         * `sourceCode.getText().slice(valueStart, valueStart + value.length) === value`
+         * Validate regular expression
+         * @param {ASTNode} nodeToReport Node to report.
+         * @param {string} pattern Regular expression pattern to validate.
+         * @param {string} rawPattern Raw representation of the pattern in the source code.
+         * @param {number} rawPatternStartRange Start range of the pattern in the source code.
+         * @param {string} flags Regular expression flags.
          * @returns {void}
          * @private
          */
-        function checkRegex(node, value, valueStart) {
-            const multipleSpacesRegex = /( {2,})( [+*{?]|[^+*{?]|$)/u,
-                regexResults = multipleSpacesRegex.exec(value);
+        function checkRegex(nodeToReport, pattern, rawPattern, rawPatternStartRange, flags) {
 
-            if (regexResults !== null) {
-                const count = regexResults[1].length;
+            // Skip if there are no consecutive spaces in the source code, to avoid reporting e.g., RegExp(' \ ').
+            if (!DOUBLE_SPACE.test(rawPattern)) {
+                return;
+            }
 
-                context.report({
-                    node,
-                    message: "Spaces are hard to count. Use {{{count}}}.",
-                    data: { count },
-                    fix(fixer) {
-                        return fixer.replaceTextRange(
-                            [valueStart + regexResults.index, valueStart + regexResults.index + count],
-                            ` {${count}}`
-                        );
-                    }
-                });
+            const characterClassNodes = [];
+            let regExpAST;
 
-                /*
-                 * TODO: (platinumazure) Fix message to use rule message
-                 * substitution when api.report is fixed in lib/eslint.js.
-                 */
+            try {
+                regExpAST = regExpParser.parsePattern(pattern, 0, pattern.length, flags.includes("u"));
+            } catch (e) {
+
+                // Ignore regular expressions with syntax errors
+                return;
+            }
+
+            regexpp.visitRegExpAST(regExpAST, {
+                onCharacterClassEnter(ccNode) {
+                    characterClassNodes.push(ccNode);
+                }
+            });
+
+            const spacesPattern = /( {2,})(?: [+*{?]|[^+*{?]|$)/gu;
+            let match;
+
+            while ((match = spacesPattern.exec(pattern))) {
+                const { 1: { length }, index } = match;
+
+                // Report only consecutive spaces that are not in character classes.
+                if (
+                    characterClassNodes.every(({ start, end }) => index < start || end <= index)
+                ) {
+                    context.report({
+                        node: nodeToReport,
+                        message: "Spaces are hard to count. Use {{{length}}}.",
+                        data: { length },
+                        fix(fixer) {
+                            if (pattern !== rawPattern) {
+                                return null;
+                            }
+                            return fixer.replaceTextRange(
+                                [rawPatternStartRange + index, rawPatternStartRange + index + length],
+                                ` {${length}}`
+                            );
+                        }
+                    });
+
+                    // Report only the first occurence of consecutive spaces
+                    return;
+                }
             }
         }
 
@@ -71,23 +122,20 @@ module.exports = {
          * @private
          */
         function checkLiteral(node) {
-            const token = sourceCode.getFirstToken(node),
-                nodeType = token.type,
-                nodeValue = token.value;
+            if (node.regex) {
+                const pattern = node.regex.pattern;
+                const rawPattern = node.raw.slice(1, node.raw.lastIndexOf("/"));
+                const rawPatternStartRange = node.range[0] + 1;
+                const flags = node.regex.flags;
 
-            if (nodeType === "RegularExpression") {
-                checkRegex(node, nodeValue, token.range[0]);
+                checkRegex(
+                    node,
+                    pattern,
+                    rawPattern,
+                    rawPatternStartRange,
+                    flags
+                );
             }
-        }
-
-        /**
-         * Check if node is a string
-         * @param {ASTNode} node node to evaluate
-         * @returns {boolean} True if its a string
-         * @private
-         */
-        function isString(node) {
-            return node && node.type === "Literal" && typeof node.value === "string";
         }
 
         /**
@@ -100,9 +148,22 @@ module.exports = {
             const scope = context.getScope();
             const regExpVar = astUtils.getVariableByName(scope, "RegExp");
             const shadowed = regExpVar && regExpVar.defs.length > 0;
+            const patternNode = node.arguments[0];
+            const flagsNode = node.arguments[1];
 
-            if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0]) && !shadowed) {
-                checkRegex(node, node.arguments[0].value, node.arguments[0].range[0] + 1);
+            if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(patternNode) && !shadowed) {
+                const pattern = patternNode.value;
+                const rawPattern = patternNode.raw.slice(1, -1);
+                const rawPatternStartRange = patternNode.range[0] + 1;
+                const flags = isString(flagsNode) ? flagsNode.value : "";
+
+                checkRegex(
+                    node,
+                    pattern,
+                    rawPattern,
+                    rawPatternStartRange,
+                    flags
+                );
             }
         }
 
@@ -111,6 +172,5 @@ module.exports = {
             CallExpression: checkFunction,
             NewExpression: checkFunction
         };
-
     }
 };

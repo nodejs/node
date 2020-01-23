@@ -6,7 +6,6 @@
 
 #include "src/ast/ast.h"
 #include "src/base/platform/time.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
@@ -66,7 +65,7 @@ base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
 
   if (!IsEnabled()) return base::nullopt;
 
-  std::unique_ptr<Job> job = base::make_unique<Job>(new BackgroundCompileTask(
+  std::unique_ptr<Job> job = std::make_unique<Job>(new BackgroundCompileTask(
       allocator_, outer_parse_info, function_name, function_literal,
       worker_thread_runtime_call_stats_, background_compile_timer_,
       static_cast<int>(max_stack_size_)));

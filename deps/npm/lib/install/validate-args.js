@@ -16,7 +16,7 @@ module.exports = function (idealTree, args, next) {
     chain([
       [hasMinimumFields, pkg],
       [checkSelf, idealTree, pkg, force],
-      [isInstallable, pkg]
+      [isInstallable, idealTree, pkg]
     ], done)
   }, next)
 }
@@ -31,13 +31,24 @@ function hasMinimumFields (pkg, cb) {
   }
 }
 
-function getWarnings (pkg) {
-  while (pkg.parent) pkg = pkg.parent
-  if (!pkg.warnings) pkg.warnings = []
-  return pkg.warnings
+function setWarnings (idealTree, warn) {
+  function top (tree) {
+    if (tree.parent) return top(tree.parent)
+    return tree
+  }
+
+  var topTree = top(idealTree)
+  if (!topTree.warnings) topTree.warnings = []
+
+  if (topTree.warnings.every(i => (
+    i.code !== warn.code ||
+    i.required !== warn.required ||
+    i.pkgid !== warn.pkgid))) {
+    topTree.warnings.push(warn)
+  }
 }
 
-var isInstallable = module.exports.isInstallable = function (pkg, next) {
+var isInstallable = module.exports.isInstallable = function (idealTree, pkg, next) {
   var force = npm.config.get('force')
   var nodeVersion = npm.config.get('node-version')
   if (/-/.test(nodeVersion)) {
@@ -48,7 +59,7 @@ var isInstallable = module.exports.isInstallable = function (pkg, next) {
   var strict = npm.config.get('engine-strict')
   checkEngine(pkg, npm.version, nodeVersion, force, strict, iferr(next, thenWarnEngineIssues))
   function thenWarnEngineIssues (warn) {
-    if (warn) getWarnings(pkg).push(warn)
+    if (idealTree && warn) setWarnings(idealTree, warn)
     checkPlatform(pkg, force, next)
   }
 }

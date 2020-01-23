@@ -93,13 +93,22 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
-  Local<Value> ret[] = {
-    proxy->GetTarget(),
-    proxy->GetHandler()
-  };
+  // TODO(BridgeAR): Remove the length check as soon as we prohibit access to
+  // the util binding layer. It's accessed in the wild and `esm` would break in
+  // case the check is removed.
+  if (args.Length() == 1 || args[1]->IsTrue()) {
+    Local<Value> ret[] = {
+      proxy->GetTarget(),
+      proxy->GetHandler()
+    };
 
-  args.GetReturnValue().Set(
-      Array::New(args.GetIsolate(), ret, arraysize(ret)));
+    args.GetReturnValue().Set(
+        Array::New(args.GetIsolate(), ret, arraysize(ret)));
+  } else {
+    Local<Value> ret = proxy->GetTarget();
+
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
@@ -159,6 +168,12 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   auto maybe_value = obj->SetPrivate(env->context(), private_symbol, args[2]);
 
   args.GetReturnValue().Set(maybe_value.FromJust());
+}
+
+static void Sleep(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  uint32_t msec = args[0].As<Uint32>()->Value();
+  uv_sleep(msec);
 }
 
 void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -282,6 +297,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
+  env->SetMethod(target, "sleep", Sleep);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
   Local<Object> constants = Object::New(env->isolate());

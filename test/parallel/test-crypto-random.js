@@ -46,8 +46,8 @@ common.expectWarning('DeprecationWarning',
       const errObj = {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "size" argument must be of type number. ' +
-                `Received type ${typeof value}`
+        message: 'The "size" argument must be of type number.' +
+                 common.invalidArgTypeHelper(value)
       };
       assert.throws(() => f(value), errObj);
       assert.throws(() => f(value, common.mustNotCall()), errObj);
@@ -202,7 +202,7 @@ common.expectWarning('DeprecationWarning',
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "offset" argument must be of type number. ' +
-               'Received type string'
+               "Received type string ('test')"
     };
 
     assert.throws(() => crypto.randomFillSync(buf, 'test'), typeErrObj);
@@ -211,8 +211,7 @@ common.expectWarning('DeprecationWarning',
       () => crypto.randomFill(buf, 'test', common.mustNotCall()),
       typeErrObj);
 
-    typeErrObj.message = 'The "size" argument must be of type number. ' +
-                     'Received type string';
+    typeErrObj.message = typeErrObj.message.replace('offset', 'size');
     assert.throws(() => crypto.randomFillSync(buf, 0, 'test'), typeErrObj);
 
     assert.throws(
@@ -274,35 +273,35 @@ assert.throws(
 
 [1, true, NaN, null, undefined, {}, []].forEach((i) => {
   const buf = Buffer.alloc(10);
-  common.expectsError(
+  assert.throws(
     () => crypto.randomFillSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => crypto.randomFill(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => crypto.randomFill(buf, 0, 10, i),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
       message: `Callback must be a function. Received ${inspect(i)}`
     });
 });
 
 [1, true, NaN, null, {}, []].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => crypto.randomBytes(1, i),
     {
       code: 'ERR_INVALID_CALLBACK',
-      type: TypeError,
+      name: 'TypeError',
       message: `Callback must be a function. Received ${inspect(i)}`
     }
   );

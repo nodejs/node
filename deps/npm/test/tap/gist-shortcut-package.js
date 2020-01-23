@@ -2,10 +2,7 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var requireInject = require('require-inject')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -20,12 +17,8 @@ var json = {
   }
 }
 
-test('setup', function (t) {
-  setup()
-  t.end()
-})
-
 test('gist-shortcut-package', function (t) {
+  setup()
   var cloneUrls = [
     ['git://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try git URLs first'],
     ['https://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try HTTPS URLs second'],
@@ -63,22 +56,10 @@ test('gist-shortcut-package', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
 function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
   )
   process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
 }

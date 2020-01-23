@@ -21,9 +21,8 @@ void FreeBufferExtension::FreeBuffer(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::ArrayBuffer> arrayBuffer = args[0].As<v8::ArrayBuffer>();
   v8::ArrayBuffer::Contents contents = arrayBuffer->Externalize();
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
-  isolate->array_buffer_allocator()->Free(contents.Data(),
-                                          contents.ByteLength());
+  contents.Deleter()(contents.Data(), contents.ByteLength(),
+                     contents.DeleterData());
 }
 
 }  // namespace internal

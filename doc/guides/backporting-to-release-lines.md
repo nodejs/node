@@ -26,8 +26,8 @@ commits be cherry-picked or backported.
 
 ## How to submit a backport pull request
 
-For the following steps, let's assume that a backport is needed for the v8.x
-release line. All commands will use the `v8.x-staging` branch as the target
+For the following steps, let's assume that a backport is needed for the v10.x
+release line. All commands will use the `v10.x-staging` branch as the target
 branch. In order to submit a backport pull request to another branch, simply
 replace that with the staging branch for the targeted release line.
 
@@ -40,10 +40,10 @@ replace that with the staging branch for the targeted release line.
     # the origin remote points to your fork, and the upstream remote points
     # to git://github.com/nodejs/node
     cd $NODE_DIR
-    # If v8.x-staging is checked out `pull` should be used instead of `fetch`
-    git fetch upstream v8.x-staging:v8.x-staging -f
+    # If v10.x-staging is checked out `pull` should be used instead of `fetch`
+    git fetch upstream v10.x-staging:v10.x-staging -f
     # Assume we want to backport PR #10157
-    git checkout -b backport-10157-to-v8.x v8.x-staging
+    git checkout -b backport-10157-to-v10.x v10.x-staging
     # Ensure there are no test artifacts from previous builds
     # Note that this command deletes all files and directories
     # not under revision control below the ./test directory.
@@ -73,10 +73,10 @@ replace that with the staging branch for the targeted release line.
 7. Make sure `make -j4 test` passes.
 8. Push the changes to your fork
 9. Open a pull request:
-   1. Be sure to target the `v8.x-staging` branch in the pull request.
+   1. Be sure to target the `v10.x-staging` branch in the pull request.
    1. Include the backport target in the pull request title in the following
-      format — `[v8.x backport] <commit title>`.
-      Example: `[v8.x backport] process: improve performance of nextTick`
+      format — `[v10.x backport] <commit title>`.
+      Example: `[v10.x backport] process: improve performance of nextTick`
    1. Check the checkbox labeled "Allow edits from maintainers".
    1. In the description add a reference to the original PR.
    1. Amend the commit message and include a `Backport-PR-URL:` metadata and
@@ -84,10 +84,10 @@ replace that with the staging branch for the targeted release line.
    1. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)
 10. If during the review process conflicts arise, use the following to rebase:
-    `git pull --rebase upstream v8.x-staging`
+    `git pull --rebase upstream v10.x-staging`
 
-After the PR lands replace the `backport-requested-v8.x` label on the original
-PR with `backported-to-v8.x`.
+After the PR lands replace the `backport-requested-v10.x` label on the original
+PR with `backported-to-v10.x`.
 
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule1
 [Release Plan]: https://github.com/nodejs/Release#release-plan

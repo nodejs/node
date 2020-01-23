@@ -13,7 +13,7 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Escapes the control characters of a given string.
- * @param {string} s - A string to escape.
+ * @param {string} s A string to escape.
  * @returns {string} An escaped string.
  */
 function escape(s) {
@@ -23,7 +23,7 @@ function escape(s) {
 /**
  * Escapes the control characters of a given string.
  * And adds a repeat flag.
- * @param {string} s - A string to escape.
+ * @param {string} s A string to escape.
  * @returns {string} An escaped string.
  */
 function escapeAndRepeat(s) {
@@ -33,7 +33,7 @@ function escapeAndRepeat(s) {
 /**
  * Parses `markers` option.
  * If markers don't include `"*"`, this adds `"*"` to allow JSDoc comments.
- * @param {string[]} [markers] - A marker list.
+ * @param {string[]} [markers] A marker list.
  * @returns {string[]} A marker list.
  */
 function parseMarkersOption(markers) {
@@ -51,8 +51,7 @@ function parseMarkersOption(markers) {
  * Generated pattern:
  *
  * 1. A space or an exception pattern sequence.
- *
- * @param {string[]} exceptions - An exception pattern list.
+ * @param {string[]} exceptions An exception pattern list.
  * @returns {string} A regular expression string for exceptions.
  */
 function createExceptionsPattern(exceptions) {
@@ -97,9 +96,8 @@ function createExceptionsPattern(exceptions) {
  *
  * 1. First, a marker or nothing.
  * 2. Next, a space or an exception pattern sequence.
- *
- * @param {string[]} markers - A marker list.
- * @param {string[]} exceptions - An exception pattern list.
+ * @param {string[]} markers A marker list.
+ * @param {string[]} exceptions An exception pattern list.
  * @returns {RegExp} A RegExp object for the beginning of a comment in `always` mode.
  */
 function createAlwaysStylePattern(markers, exceptions) {
@@ -135,8 +133,7 @@ function createAlwaysStylePattern(markers, exceptions) {
  *
  * 1. First, a marker or nothing (captured).
  * 2. Next, a space or a tab.
- *
- * @param {string[]} markers - A marker list.
+ * @param {string[]} markers A marker list.
  * @returns {RegExp} A RegExp object for `never` mode.
  */
 function createNeverStylePattern(markers) {
@@ -252,7 +249,8 @@ module.exports = {
                 beginRegex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
                 endRegex: balanced && requireSpace ? new RegExp(`${createExceptionsPattern(exceptions)}$`, "u") : new RegExp(endNeverPattern, "u"),
                 hasExceptions: exceptions.length > 0,
-                markers: new RegExp(`^(${markers.map(escape).join("|")})`, "u")
+                captureMarker: new RegExp(`^(${markers.map(escape).join("|")})`, "u"),
+                markers: new Set(markers)
             };
 
             return rule;
@@ -260,10 +258,10 @@ module.exports = {
 
         /**
          * Reports a beginning spacing error with an appropriate message.
-         * @param {ASTNode} node - A comment node to check.
-         * @param {string} message - An error message to report.
-         * @param {Array} match - An array of match results for markers.
-         * @param {string} refChar - Character used for reference in the error message.
+         * @param {ASTNode} node A comment node to check.
+         * @param {string} message An error message to report.
+         * @param {Array} match An array of match results for markers.
+         * @param {string} refChar Character used for reference in the error message.
          * @returns {void}
          */
         function reportBegin(node, message, match, refChar) {
@@ -293,9 +291,9 @@ module.exports = {
 
         /**
          * Reports an ending spacing error with an appropriate message.
-         * @param {ASTNode} node - A comment node to check.
-         * @param {string} message - An error message to report.
-         * @param {string} match - An array of the matched whitespace characters.
+         * @param {ASTNode} node A comment node to check.
+         * @param {string} message An error message to report.
+         * @param {string} match An array of the matched whitespace characters.
          * @returns {void}
          */
         function reportEnd(node, message, match) {
@@ -317,7 +315,7 @@ module.exports = {
 
         /**
          * Reports a given comment if it's invalid.
-         * @param {ASTNode} node - a comment node to check.
+         * @param {ASTNode} node a comment node to check.
          * @returns {void}
          */
         function checkCommentForSpace(node) {
@@ -325,8 +323,8 @@ module.exports = {
                 rule = styleRules[type],
                 commentIdentifier = type === "block" ? "/*" : "//";
 
-            // Ignores empty comments.
-            if (node.value.length === 0) {
+            // Ignores empty comments and comments that consist only of a marker.
+            if (node.value.length === 0 || rule.markers.has(node.value)) {
                 return;
             }
 
@@ -336,7 +334,7 @@ module.exports = {
             // Checks.
             if (requireSpace) {
                 if (!beginMatch) {
-                    const hasMarker = rule.markers.exec(node.value);
+                    const hasMarker = rule.captureMarker.exec(node.value);
                     const marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
 
                     if (rule.hasExceptions) {

@@ -1,18 +1,13 @@
-x-ccache-setup-steps: &ccache-setup-steps
-  - export CCACHE_NOSTATS=1
-  - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
-  - export CC='ccache gcc-6'
-  - export CXX='ccache g++-6'
-
 os: linux
 language: cpp
 env:
   global:
-    - PYTHON_VERSION="2.7.15"
+    - PYTHON_VERSION="3.7.1"
+    - PYTHON=python3
 jobs:
   include:
     - stage: "Compile"
-      name: "Compile V8"
+      name: "Compile Node.js"
       cache: ccache
       addons:
         apt:
@@ -20,25 +15,16 @@ jobs:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-      install: *ccache-setup-steps
+      install:
+        - export CCACHE_NOSTATS=1
+        - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
+        - export CC='ccache gcc-6'
+        - export CXX='ccache g++-6'
       script:
         - pyenv global ${PYTHON_VERSION}
         - ./configure
-        - make -j2 -C out V=1 v8
-
-    - name: "Compile Node.js"
-      cache: ccache
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      install: *ccache-setup-steps
-      script:
-        - pyenv global ${PYTHON_VERSION}
-        - ./configure
-        - make -j2 V=1
+        - timeout --preserve-status 45m make -j2 V=1
+      before_cache:
         - cp out/Release/node /home/travis/.ccache
         - cp out/Release/cctest /home/travis/.ccache
 
@@ -70,14 +56,14 @@ jobs:
         - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
         - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
 
-    - name: "Linter"
+    - name: "Run Linter and Build Docs"
       language: node_js
       node_js: "node"
       install:
         - pyenv global ${PYTHON_VERSION}
         - make lint-py-build || true
       script:
-        - NODE=$(which node) make lint lint-py
+        - NODE=$(which node) make lint-py doc-only lint
 
     - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
       if: type = pull_request
@@ -87,3 +73,16 @@ jobs:
         - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
             bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
           fi
+
+    - name: "Find syntax errors in our Python dependencies"
+      language: python
+      python: 3.8
+      install:
+        - mv .flake8 disabled.flake8  # take the blinders off of flake8
+        - python3.8 -m pip install --upgrade pip
+        - python3.8 -m pip install flake8
+      script:
+        - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+  allow_failures:  # TODO (cclauss): remove this when dependencies are clean
+    - name: "Find syntax errors in our Python dependencies"
+    - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"

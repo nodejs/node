@@ -105,7 +105,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   enum RegisterType { kRegister, kVRegister, kNoRegister };
 
   static constexpr CPURegister no_reg() {
-    return CPURegister{0, 0, kNoRegister};
+    return CPURegister{kCode_no_reg, 0, kNoRegister};
   }
 
   template <int code, int size, RegisterType type>
@@ -151,11 +151,19 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
   bool IsValid() const { return reg_type_ != kNoRegister; }
   bool IsNone() const { return reg_type_ == kNoRegister; }
-  bool Is(const CPURegister& other) const {
+  constexpr bool Is(const CPURegister& other) const {
     return Aliases(other) && (reg_size_ == other.reg_size_);
   }
-  bool Aliases(const CPURegister& other) const {
+  constexpr bool Aliases(const CPURegister& other) const {
     return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
+  }
+
+  constexpr bool operator==(const CPURegister& other) const {
+    return Is(other);
+  }
+
+  constexpr bool operator!=(const CPURegister& other) const {
+    return !(*this == other);
   }
 
   bool IsZero() const;
@@ -589,18 +597,16 @@ class V8_EXPORT_PRIVATE CPURegList {
   }
 
   CPURegister::RegisterType type() const {
-    DCHECK(IsValid());
     return type_;
   }
 
   RegList list() const {
-    DCHECK(IsValid());
     return list_;
   }
 
   inline void set_list(RegList new_list) {
-    DCHECK(IsValid());
     list_ = new_list;
+    DCHECK(IsValid());
   }
 
   // Combine another CPURegList into this one. Registers that already exist in
@@ -648,7 +654,6 @@ class V8_EXPORT_PRIVATE CPURegList {
   static CPURegList GetSafepointSavedRegisters();
 
   bool IsEmpty() const {
-    DCHECK(IsValid());
     return list_ == 0;
   }
 
@@ -656,7 +661,6 @@ class V8_EXPORT_PRIVATE CPURegList {
                        const CPURegister& other2 = NoCPUReg,
                        const CPURegister& other3 = NoCPUReg,
                        const CPURegister& other4 = NoCPUReg) const {
-    DCHECK(IsValid());
     RegList list = 0;
     if (!other1.IsNone() && (other1.type() == type_)) list |= other1.bit();
     if (!other2.IsNone() && (other2.type() == type_)) list |= other2.bit();
@@ -666,12 +670,10 @@ class V8_EXPORT_PRIVATE CPURegList {
   }
 
   int Count() const {
-    DCHECK(IsValid());
     return CountSetBits(list_, kRegListSizeInBits);
   }
 
   int RegisterSizeInBits() const {
-    DCHECK(IsValid());
     return size_;
   }
 
@@ -682,7 +684,6 @@ class V8_EXPORT_PRIVATE CPURegList {
   }
 
   int TotalSizeInBytes() const {
-    DCHECK(IsValid());
     return RegisterSizeInBytes() * Count();
   }
 

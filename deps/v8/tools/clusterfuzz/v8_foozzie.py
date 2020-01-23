@@ -105,7 +105,7 @@ SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
 
 FLAGS = ['--correctness-fuzzer-suppressions', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
-         '--es-staging', '--no-wasm-async-compilation',
+         '--es-staging', '--wasm-staging', '--no-wasm-async-compilation',
          '--suppress-asm-messages']
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
@@ -213,14 +213,15 @@ def parse_args():
   assert os.path.exists(options.first_d8)
   assert os.path.exists(options.second_d8)
 
+  # Ensure we make a sane comparison.
+  if (options.first_d8 == options.second_d8 and
+      options.first_config == options.second_config):
+    parser.error('Need either executable or config difference.')
+
   # Infer architecture from build artifacts.
   options.first_arch = infer_arch(options.first_d8)
   options.second_arch = infer_arch(options.second_d8)
 
-  # Ensure we make a sane comparison.
-  if (options.first_arch == options.second_arch and
-      options.first_config == options.second_config):
-    parser.error('Need either arch or config difference.')
   assert options.first_arch in SUPPORTED_ARCHS
   assert options.second_arch in SUPPORTED_ARCHS
   assert options.first_config in CONFIGS

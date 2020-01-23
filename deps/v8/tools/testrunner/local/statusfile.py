@@ -300,6 +300,8 @@ JS_TEST_PATHS = {
   'webkit': [[]],
 }
 
+FILE_EXTENSIONS = [".js", ".mjs"]
+
 def PresubmitCheck(path):
   with open(path) as f:
     contents = ReadContent(f.read())
@@ -326,8 +328,11 @@ def PresubmitCheck(path):
         _assert('*' not in rule or (rule.count('*') == 1 and rule[-1] == '*'),
                 "Only the last character of a rule key can be a wildcard")
         if basename in JS_TEST_PATHS  and '*' not in rule:
-          _assert(any(os.path.exists(os.path.join(os.path.dirname(path),
-                                                  *(paths + [rule + ".js"])))
+          def _any_exist(paths):
+            return any(os.path.exists(os.path.join(os.path.dirname(path),
+                                      *(paths + [rule + ext])))
+                       for ext in FILE_EXTENSIONS)
+          _assert(any(_any_exist(paths)
                       for paths in JS_TEST_PATHS[basename]),
                   "missing file for %s test %s" % (basename, rule))
     return status["success"]

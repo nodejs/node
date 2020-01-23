@@ -7,7 +7,8 @@
 // TODO(nicohartmann): Discuss whether types used by multiple builtins should be
 // in global namespace
 @noVerifier
-extern class BigIntBase extends HeapObject generates 'TNode<BigInt>' {
+extern class BigIntBase extends PrimitiveHeapObject
+    generates 'TNode<BigInt>' {
 }
 
 type BigInt extends BigIntBase;
@@ -44,9 +45,6 @@ namespace bigint {
       MutableBigInt, intptr, uintptr): void;
   extern macro CodeStubAssembler::LoadBigIntDigit(BigIntBase, intptr): uintptr;
 
-  @export  // Silence unused warning.
-           // TODO(szuend): Remove @export once macros that are only used in
-           //               asserts are no longer detected as unused.
   macro IsCanonicalized(bigint: BigIntBase): bool {
     const length = ReadBigIntLength(bigint);
 

@@ -4,7 +4,7 @@ const assert = require('assert');
 const { execFileSync } = require('child_process');
 
 const entryPoints = ['iDoNotExist', 'iDoNotExist.js', 'iDoNotExist.mjs'];
-const flags = [[], ['--experimental-modules', '--preserve-symlinks']];
+const flags = [[], ['--preserve-symlinks']];
 const node = process.argv[0];
 
 for (const args of flags) {

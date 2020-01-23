@@ -91,7 +91,7 @@ class JSSegmentIterator : public JSObject {
 
 // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSSEGMENT_ITERATOR_FIELDS)
+                                TORQUE_GENERATED_JS_SEGMENT_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSSegmentIterator, JSObject);
 };

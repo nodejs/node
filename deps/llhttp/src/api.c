@@ -127,6 +127,15 @@ const char* llhttp_method_name(llhttp_method_t method) {
 }
 
 
+void llhttp_set_lenient(llhttp_t* parser, int enabled) {
+  if (enabled) {
+    parser->flags |= F_LENIENT;
+  } else {
+    parser->flags &= ~F_LENIENT;
+  }
+}
+
+
 /* Callbacks */
 
 

@@ -9,7 +9,7 @@ const npm = require('../npm.js')
 const pack = require('../pack.js')
 const path = require('path')
 
-const npmSession = crypto.randomBytes(8).toString('hex')
+const npmSession = npm.session = crypto.randomBytes(8).toString('hex')
 log.verbose('npm-session', npmSession)
 
 const SCOPE_REGISTRY_REGEX = /@.*:registry$/gi

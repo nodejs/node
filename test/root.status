@@ -1,11 +1,7 @@
 [$mode==debug]
 async-hooks/test-callback-error: SLOW
-async-hooks/test-callback-error: SLOW
-async-hooks/test-emit-init: SLOW
 async-hooks/test-emit-init: SLOW
 async-hooks/test-querywrap: SLOW
-async-hooks/test-querywrap: SLOW
-async-hooks/test-tlswrap: SLOW
 async-hooks/test-tlswrap: SLOW
 message/eval_messages: SLOW
 message/stdin_messages: SLOW
@@ -38,10 +34,8 @@ parallel/test-eslint-eslint-check: SLOW
 parallel/test-eslint-inspector-check: SLOW
 parallel/test-eslint-lowercase-name-for-primitive: SLOW
 parallel/test-eslint-no-unescaped-regexp-dot: SLOW
-parallel/test-eslint-number-isnan: SLOW
 parallel/test-eslint-prefer-assert-iferror: SLOW
 parallel/test-eslint-prefer-assert-methods: SLOW
-parallel/test-eslint-prefer-common-expectserror: SLOW
 parallel/test-eslint-prefer-common-mustnotcall: SLOW
 parallel/test-eslint-prefer-util-format-errors: SLOW
 parallel/test-eslint-require-buffer: SLOW
@@ -70,6 +64,7 @@ parallel/test-next-tick-fixed-queue-regression: SLOW
 parallel/test-npm-install: SLOW
 parallel/test-preload: SLOW
 parallel/test-repl: SLOW
+parallel/test-repl-history-navigation.js: SLOW
 parallel/test-repl-tab-complete: SLOW
 parallel/test-repl-top-level-await: SLOW
 parallel/test-stdio-pipe-access: SLOW

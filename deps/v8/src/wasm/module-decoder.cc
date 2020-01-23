@@ -6,7 +6,6 @@
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
-#include "src/base/template-utils.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
@@ -31,6 +30,7 @@ namespace {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
+constexpr char kDebugInfoString[] = ".debug_info";
 
 template <size_t N>
 constexpr size_t num_chars(const char (&)[N]) {
@@ -89,6 +89,8 @@ const char* SectionName(SectionCode code) {
       return kNameString;
     case kSourceMappingURLSectionCode:
       return kSourceMappingURLString;
+    case kDebugInfoSectionCode:
+      return kDebugInfoString;
     case kCompilationHintsSectionCode:
       return kCompilationHintsString;
     default:
@@ -304,7 +306,7 @@ class ModuleDecoderImpl : public Decoder {
     CHECK_NULL(module_);
     SetCounters(counters);
     module_.reset(
-        new WasmModule(base::make_unique<Zone>(allocator, "signatures")));
+        new WasmModule(std::make_unique<Zone>(allocator, "signatures")));
     module_->initial_pages = 0;
     module_->maximum_pages = 0;
     module_->mem_export = false;
@@ -399,6 +401,10 @@ class ModuleDecoderImpl : public Decoder {
         // sourceMappingURL is a custom section and currently can occur anywhere
         // in the module. In case of multiple sourceMappingURL sections, all
         // except the first occurrence are ignored.
+      case kDebugInfoSectionCode:
+        // .debug_info is a custom section containing core DWARF information
+        // if produced by compiler. Its presence likely means that Wasm was
+        // built in a debug mode.
       case kCompilationHintsSectionCode:
         // TODO(frgossen): report out of place compilation hints section as a
         // warning.
@@ -452,6 +458,13 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kSourceMappingURLSectionCode:
         DecodeSourceMappingURLSection();
+        break;
+      case kDebugInfoSectionCode:
+        // If there is an explicit source map, prefer it over DWARF info.
+        if (!has_seen_unordered_section(kSourceMappingURLSectionCode)) {
+          module_->source_map_url.assign("wasm://dwarf");
+        }
+        consume_bytes(static_cast<uint32_t>(end_ - start_), ".debug_info");
         break;
       case kCompilationHintsSectionCode:
         if (enabled_features_.compilation_hints) {
@@ -798,9 +811,11 @@ class ModuleDecoderImpl : public Decoder {
       const byte* pos = pc();
 
       bool is_active;
+      bool functions_as_elements;
       uint32_t table_index;
       WasmInitExpr offset;
-      consume_segment_header("table index", &is_active, &table_index, &offset);
+      consume_element_segment_header(&is_active, &functions_as_elements,
+                                     &table_index, &offset);
       if (failed()) return;
 
       if (is_active) {
@@ -815,12 +830,6 @@ class ModuleDecoderImpl : public Decoder {
                  table_index);
           break;
         }
-      } else {
-        ValueType type = consume_reference_type();
-        if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
-          error(pc_ - 1, "invalid element segment type");
-          break;
-        }
       }
 
       uint32_t num_elem =
@@ -833,8 +842,8 @@ class ModuleDecoderImpl : public Decoder {
 
       WasmElemSegment* init = &module_->elem_segments.back();
       for (uint32_t j = 0; j < num_elem; j++) {
-        uint32_t index = is_active ? consume_element_func_index()
-                                   : consume_passive_element();
+        uint32_t index = functions_as_elements ? consume_element_expr()
+                                               : consume_element_func_index();
         if (failed()) break;
         init->entries.push_back(index);
       }
@@ -911,8 +920,7 @@ class ModuleDecoderImpl : public Decoder {
       bool is_active;
       uint32_t memory_index;
       WasmInitExpr dest_addr;
-      consume_segment_header("memory index", &is_active, &memory_index,
-                             &dest_addr);
+      consume_data_segment_header(&is_active, &memory_index, &dest_addr);
       if (failed()) break;
 
       if (is_active && memory_index != 0) {
@@ -1483,7 +1491,7 @@ class ModuleDecoderImpl : public Decoder {
     WasmInitExpr expr;
     uint32_t len = 0;
     switch (opcode) {
-      case kExprGetGlobal: {
+      case kExprGlobalGet: {
         GlobalIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
         if (module->globals.size() <= imm.index) {
           error("global index is out of bounds");
@@ -1544,6 +1552,10 @@ class ModuleDecoderImpl : public Decoder {
       case kExprRefFunc: {
         if (enabled_features_.anyref) {
           FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
+          if (module->functions.size() <= imm.index) {
+            errorf(pc() - 1, "invalid function index: %u", imm.index);
+            break;
+          }
           expr.kind = WasmInitExpr::kRefFuncConst;
           expr.val.function_index = imm.index;
           len = imm.length;
@@ -1678,8 +1690,103 @@ class ModuleDecoderImpl : public Decoder {
     return attribute;
   }
 
-  void consume_segment_header(const char* name, bool* is_active,
-                              uint32_t* index, WasmInitExpr* offset) {
+  void consume_element_segment_header(bool* is_active,
+                                      bool* functions_as_elements,
+                                      uint32_t* table_index,
+                                      WasmInitExpr* offset) {
+    const byte* pos = pc();
+    uint8_t flag;
+    if (enabled_features_.bulk_memory || enabled_features_.anyref) {
+      flag = consume_u8("flag");
+    } else {
+      uint32_t table_index = consume_u32v("table index");
+      // The only valid flag value without bulk_memory or anyref is '0'.
+      if (table_index != 0) {
+        error(
+            "Element segments with table indices require "
+            "--experimental-wasm-bulk-memory or --experimental-wasm-anyref");
+        return;
+      }
+      flag = 0;
+    }
+
+    // The mask for the bit in the flag which indicates if the segment is
+    // active or not.
+    constexpr uint8_t kIsPassiveMask = 0x01;
+    // The mask for the bit in the flag which indicates if the segment has an
+    // explicit table index field.
+    constexpr uint8_t kHasTableIndexMask = 0x02;
+    // The mask for the bit in the flag which indicates if the functions of this
+    // segment are defined as function indices (=0) or elements(=1).
+    constexpr uint8_t kFunctionsAsElementsMask = 0x04;
+    constexpr uint8_t kFullMask =
+        kIsPassiveMask | kHasTableIndexMask | kFunctionsAsElementsMask;
+
+    bool is_passive = flag & kIsPassiveMask;
+    *is_active = !is_passive;
+    *functions_as_elements = flag & kFunctionsAsElementsMask;
+    bool has_table_index = flag & kHasTableIndexMask;
+
+    if (is_passive && !enabled_features_.bulk_memory) {
+      error("Passive element segments require --experimental-wasm-bulk-memory");
+      return;
+    }
+    if (*functions_as_elements && !enabled_features_.bulk_memory) {
+      error(
+          "Illegal segment flag. Did you forget "
+          "--experimental-wasm-bulk-memory?");
+      return;
+    }
+    if (flag != 0 && !enabled_features_.bulk_memory &&
+        !enabled_features_.anyref) {
+      error(
+          "Invalid segment flag. Did you forget "
+          "--experimental-wasm-bulk-memory or --experimental-wasm-anyref?");
+      return;
+    }
+    if ((flag & kFullMask) != flag || (!(*is_active) && has_table_index)) {
+      errorf(pos, "illegal flag value %u. Must be 0, 1, 2, 4, 5 or 6", flag);
+    }
+
+    if (has_table_index) {
+      *table_index = consume_u32v("table index");
+    } else {
+      *table_index = 0;
+    }
+
+    if (*is_active) {
+      *offset = consume_init_expr(module_.get(), kWasmI32);
+    }
+
+    if (*is_active && !has_table_index) {
+      // Active segments without table indices are a special case for backwards
+      // compatibility. These cases have an implicit element kind or element
+      // type, so we are done already with the segment header.
+      return;
+    }
+
+    if (*functions_as_elements) {
+      // We have to check that there is an element type of type FuncRef. All
+      // other element types are not valid yet.
+      ValueType type = consume_reference_type();
+      if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
+        error(pc_ - 1, "invalid element segment type");
+        return;
+      }
+    } else {
+      // We have to check that there is an element kind of type Function. All
+      // other element kinds are not valid yet.
+      uint8_t val = consume_u8("element kind");
+      ImportExportKindCode kind = static_cast<ImportExportKindCode>(val);
+      if (kind != kExternalFunction) {
+        errorf(pos, "illegal element kind %x. Must be 0x00", val);
+        return;
+      }
+    }
+  }
+
+  void consume_data_segment_header(bool* is_active, uint32_t* index,
+                                   WasmInitExpr* offset) {
     const byte* pos = pc();
     uint32_t flag = consume_u32v("flag");
 
@@ -1715,7 +1822,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (flag == SegmentFlags::kActiveWithIndex) {
       *is_active = true;
-      *index = consume_u32v(name);
+      *index = consume_u32v("memory index");
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
   }
@@ -1731,7 +1838,7 @@ class ModuleDecoderImpl : public Decoder {
     return index;
   }
 
-  uint32_t consume_passive_element() {
+  uint32_t consume_element_expr() {
     uint32_t index = WasmElemSegment::kNullIndex;
     uint8_t opcode = consume_u8("element opcode");
     if (failed()) return index;
@@ -1857,6 +1964,10 @@ SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder* decoder,
                      kCompilationHintsString,
                      num_chars(kCompilationHintsString)) == 0) {
     return kCompilationHintsSectionCode;
+  } else if (string.length() == num_chars(kDebugInfoString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
+    return kDebugInfoSectionCode;
   }
   return kUnknownSectionCode;
 }
@@ -1895,7 +2006,7 @@ FunctionResult DecodeWasmFunctionForTesting(
   ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
   return decoder.DecodeSingleFunction(zone, wire_bytes, module,
-                                      base::make_unique<WasmFunction>());
+                                      std::make_unique<WasmFunction>());
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,

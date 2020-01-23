@@ -2169,17 +2169,49 @@ static int test_expmodone(void)
     return ret;
 }
 
-static int test_smallprime(void)
+static int test_smallprime(int kBits)
 {
-    static const int kBits = 10;
     BIGNUM *r;
     int st = 0;
 
-    if (!TEST_ptr(r = BN_new())
-            || !TEST_true(BN_generate_prime_ex(r, (int)kBits, 0,
-                                               NULL, NULL, NULL))
-            || !TEST_int_eq(BN_num_bits(r), kBits))
+    if (!TEST_ptr(r = BN_new()))
         goto err;
+
+    if (kBits <= 1) {
+        if (!TEST_false(BN_generate_prime_ex(r, kBits, 0,
+                                             NULL, NULL, NULL)))
+            goto err;
+    } else {
+        if (!TEST_true(BN_generate_prime_ex(r, kBits, 0,
+                                            NULL, NULL, NULL))
+                || !TEST_int_eq(BN_num_bits(r), kBits))
+            goto err;
+    }
+
+    st = 1;
+ err:
+    BN_free(r);
+    return st;
+}
+
+static int test_smallsafeprime(int kBits)
+{
+    BIGNUM *r;
+    int st = 0;
+
+    if (!TEST_ptr(r = BN_new()))
+        goto err;
+
+    if (kBits <= 5 && kBits != 3) {
+        if (!TEST_false(BN_generate_prime_ex(r, kBits, 1,
+                                             NULL, NULL, NULL)))
+            goto err;
+    } else {
+        if (!TEST_true(BN_generate_prime_ex(r, kBits, 1,
+                                            NULL, NULL, NULL))
+                || !TEST_int_eq(BN_num_bits(r), kBits))
+            goto err;
+    }
 
     st = 1;
  err:
@@ -2405,7 +2437,8 @@ int setup_tests(void)
         ADD_TEST(test_badmod);
         ADD_TEST(test_expmodzero);
         ADD_TEST(test_expmodone);
-        ADD_TEST(test_smallprime);
+        ADD_ALL_TESTS(test_smallprime, 16);
+        ADD_ALL_TESTS(test_smallsafeprime, 16);
         ADD_TEST(test_swap);
         ADD_TEST(test_ctx_consttime_flag);
 #ifndef OPENSSL_NO_EC2M

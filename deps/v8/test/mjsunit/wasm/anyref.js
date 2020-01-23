@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_r)
-      .addBody([kExprGetLocal, 0])
+      .addBody([kExprLocalGet, 0])
       .exportFunc();
 
 
@@ -31,7 +31,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const sig_index = builder.addType(kSig_v_r);
   const imp_index = builder.addImport("q", "func", sig_index);
   builder.addFunction('main', sig_index)
-      .addBody([kExprGetLocal, 0,
+      .addBody([kExprLocalGet, 0,
       kExprCallFunction, imp_index])
       .exportFunc();
 
@@ -55,18 +55,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('main', ref_sig)
       .addLocals({anyref_count: 10})
       .addBody([
-        kExprGetLocal, 0, kExprSetLocal, 1,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 2,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 3,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 4,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 5,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 6,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 7,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 8,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 9,             // Set local
-        kExprGetLocal, 0, kExprSetLocal, 10,            // Set local
+        kExprLocalGet, 0, kExprLocalSet, 1,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 2,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 3,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 4,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 5,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 6,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 7,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 8,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 9,             // Set local
+        kExprLocalGet, 0, kExprLocalSet, 10,            // Set local
         kExprCallFunction, gc_index,                    // call gc
-        kExprGetLocal, 9, kExprCallFunction, imp_index  // call import
+        kExprLocalGet, 9, kExprCallFunction, imp_index  // call import
       ])
       .exportFunc();
 
@@ -90,7 +90,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('main', ref_sig)
       .addBody([
         kExprCallFunction, gc_index,                    // call gc
-        kExprGetLocal, 0, kExprCallFunction, imp_index  // call import
+        kExprLocalGet, 0, kExprCallFunction, imp_index  // call import
       ])
       .exportFunc();
 
@@ -119,7 +119,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     builder.addFunction('main', main_sig)
         .addBody([
           kExprCallFunction, gc_index,                        // call gc
-          kExprGetLocal, index, kExprCallFunction, imp_index  // call import
+          kExprLocalGet, index, kExprCallFunction, imp_index  // call import
         ])
         .exportFunc();
 
@@ -145,7 +145,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const kSig_r_iri = makeSig([kWasmI32, kWasmAnyRef, kWasmI32], [kWasmAnyRef]);
   const sig_index = builder.addType(kSig_r_iri);
   builder.addFunction('main', sig_index)
-      .addBody([kExprGetLocal, 1])
+      .addBody([kExprLocalGet, 1])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -177,7 +177,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_i_r)
-      .addBody([kExprGetLocal, 0, kExprRefIsNull])
+      .addBody([kExprLocalGet, 0, kExprRefIsNull])
       .exportFunc();
 
   const instance = builder.instantiate();
@@ -208,7 +208,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprGetLocal, 0])
+      .addBody([kExprLocalGet, 0])
       .addLocals({anyref_count: 1})
       .exportFunc();
 

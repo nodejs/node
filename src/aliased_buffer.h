@@ -42,7 +42,7 @@ class AliasedBufferBase {
     // allocate v8 ArrayBuffer
     v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
         isolate_, size_in_bytes);
-    buffer_ = static_cast<NativeT*>(ab->GetContents().Data());
+    buffer_ = static_cast<NativeT*>(ab->GetBackingStore()->Data());
 
     // allocate v8 TypedArray
     v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, count);
@@ -228,7 +228,7 @@ class AliasedBufferBase {
         isolate_, new_size_in_bytes);
 
     // allocate new native buffer
-    NativeT* new_buffer = static_cast<NativeT*>(ab->GetContents().Data());
+    NativeT* new_buffer = static_cast<NativeT*>(ab->GetBackingStore()->Data());
     // copy old content
     memcpy(new_buffer, buffer_, old_size_in_bytes);
 

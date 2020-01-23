@@ -1,7 +1,7 @@
 var fs = require('fs')
 var resolve = require('path').resolve
 
-var osenv = require('osenv')
+var cwd = process.cwd()
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var test = require('tap').test
@@ -9,8 +9,8 @@ var test = require('tap').test
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = common.pkg
-var repos = pkg + '-repos'
+var pkg = resolve(common.pkg, 'package')
+var repos = resolve(common.pkg, 'repos')
 var subwt = resolve(repos, 'subwt')
 var topwt = resolve(repos, 'topwt')
 var suburl = 'git://localhost:' + common.gitPort + '/sub.git'
@@ -62,14 +62,13 @@ test('has file in submodule', function (t) {
 
 test('clean', function (t) {
   daemon.on('close', function () {
-    cleanup()
     t.end()
   })
   process.kill(daemonPID)
 })
 
 function bootstrap (t) {
-  process.chdir(osenv.tmpdir())
+  process.chdir(cwd)
   rimraf.sync(pkg)
   mkdirp.sync(pkg)
   process.chdir(pkg)
@@ -140,10 +139,4 @@ function setup (cb) {
       ]
     }, cb)
   })
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(repos)
-  rimraf.sync(pkg)
 }

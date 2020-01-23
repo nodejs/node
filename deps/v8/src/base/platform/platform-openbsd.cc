@@ -107,7 +107,7 @@ void OS::SignalCodeMovingGC() {
   // it. This injects a GC marker into the stream of events generated
   // by the kernel and allows us to synchronize V8 code log and the
   // kernel log.
-  int size = sysconf(_SC_PAGESIZE);
+  long size = sysconf(_SC_PAGESIZE);  // NOLINT: type more fit than uint64_t
   FILE* f = fopen(OS::GetGCFakeMMapFile(), "w+");
   if (f == nullptr) {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
@@ -116,7 +116,7 @@ void OS::SignalCodeMovingGC() {
   void* addr =
       mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
   DCHECK(addr != MAP_FAILED);
-  OS::Free(addr, size);
+  CHECK(OS::Free(addr, size));
   fclose(f);
 }
 

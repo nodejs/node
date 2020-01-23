@@ -35,8 +35,10 @@
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/init/v8.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
+#include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
@@ -535,6 +537,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Isolate* isolate = CcTest::i_isolate();
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
+  compile_data.compilation_target = RegExpCompilationTarget::kNative;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (multiline) flags = JSRegExp::kMultiline;
   if (unicode) flags = JSRegExp::kUnicode;
@@ -629,16 +632,35 @@ class ContextInitializer {
   v8::Local<v8::Context> env_;
 };
 
-static ArchRegExpMacroAssembler::Result Execute(Code code, String input,
+// Create new JSRegExp object with only necessary fields (for this tests)
+// initialized.
+static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
+                                       bool is_unicode = false) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Handle<JSFunction> constructor = isolate->regexp_function();
+  Handle<JSRegExp> regexp =
+      Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
+
+  factory->SetRegExpIrregexpData(regexp, JSRegExp::IRREGEXP, source,
+                                 JSRegExp::kNone, 0);
+  regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
+                               : JSRegExp::kIrregexpLatin1CodeIndex,
+                    *code);
+
+  return regexp;
+}
+
+static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
                                                 int start_offset,
                                                 Address input_start,
                                                 Address input_end,
                                                 int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
-      NativeRegExpMacroAssembler::Execute(code, input, start_offset,
-                                          reinterpret_cast<byte*>(input_start),
-                                          reinterpret_cast<byte*>(input_end),
-                                          captures, 0, CcTest::i_isolate()));
+      NativeRegExpMacroAssembler::Execute(
+          input, start_offset, reinterpret_cast<byte*>(input_start),
+          reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate(),
+          regexp));
 }
 
 TEST(MacroAssemblerNativeSuccess) {
@@ -656,19 +678,15 @@ TEST(MacroAssemblerNativeSuccess) {
   Handle<String> source = factory->NewStringFromStaticChars("");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + seq_input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + seq_input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(-1, captures[0]);
@@ -710,19 +728,15 @@ TEST(MacroAssemblerNativeSimple) {
   Handle<String> source = factory->NewStringFromStaticChars("^foo");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -734,11 +748,7 @@ TEST(MacroAssemblerNativeSimple) {
   seq_input = Handle<SeqOneByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
-  result = Execute(*code,
-                   *input,
-                   0,
-                   start_adr,
-                   start_adr + input->length(),
+  result = Execute(*regexp, *input, 0, start_adr, start_adr + input->length(),
                    captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
@@ -777,6 +787,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Handle<String> source = factory->NewStringFromStaticChars("^foo");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
   int captures[4] = {42, 37, 87, 117};
   const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o',
@@ -786,13 +797,8 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -807,12 +813,8 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
-  result = Execute(*code,
-                   *input,
-                   0,
-                   start_adr,
-                   start_adr + input->length() * 2,
-                   captures);
+  result = Execute(*regexp, *input, 0, start_adr,
+                   start_adr + input->length() * 2, captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -842,13 +844,14 @@ TEST(MacroAssemblerNativeBacktrack) {
   Handle<String> source = factory->NewStringFromStaticChars("..........");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("foofoo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
-      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
+      *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -882,19 +885,15 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   Handle<String> source = factory->NewStringFromStaticChars("^(..)..\1");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("fooofo");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -932,6 +931,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Handle<String> source = factory->NewStringFromStaticChars("^(..)..\1");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code, true);
 
   const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
   Handle<String> input = factory->NewStringFromTwoByte(
@@ -940,13 +940,8 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length() * 2,
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length() * 2, output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -991,18 +986,19 @@ TEST(MacroAssemblernativeAtStart) {
   Handle<String> source = factory->NewStringFromStaticChars("(^f|ob)");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("foobar");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
-      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
+      *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 
-  result = Execute(*code, *input, 3, start_adr + 3, start_adr + input->length(),
-                   nullptr);
+  result = Execute(*regexp, *input, 3, start_adr + 3,
+                   start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 }
@@ -1044,19 +1040,15 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
       factory->NewStringFromStaticChars("^(abc)\1\1(?!\1)...(?!\1)");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   Handle<String> input = factory->NewStringFromStaticChars("aBcAbCABCxYzab");
   Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1144,6 +1136,7 @@ TEST(MacroAssemblerNativeRegisters) {
   Handle<String> source = factory->NewStringFromStaticChars("<loop test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input = factory->NewStringFromStaticChars("foofoofoofoofoo");
@@ -1151,13 +1144,8 @@ TEST(MacroAssemblerNativeRegisters) {
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[6];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              output);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1188,6 +1176,7 @@ TEST(MacroAssemblerStackOverflow) {
       factory->NewStringFromStaticChars("<stack overflow test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input = factory->NewStringFromStaticChars("dummy");
@@ -1195,7 +1184,7 @@ TEST(MacroAssemblerStackOverflow) {
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result = Execute(
-      *code, *input, 0, start_adr, start_adr + input->length(), nullptr);
+      *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
   CHECK(isolate->has_pending_exception());
@@ -1230,6 +1219,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
       factory->NewStringFromStaticChars("<huge register space test>");
   Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
+  Handle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   // String long enough for test (content doesn't matter).
   Handle<String> input = factory->NewStringFromStaticChars("sample text");
@@ -1237,13 +1227,8 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   Address start_adr = seq_input->GetCharsAddress();
 
   int captures[2];
-  NativeRegExpMacroAssembler::Result result =
-      Execute(*code,
-              *input,
-              0,
-              start_adr,
-              start_adr + input->length(),
-              captures);
+  NativeRegExpMacroAssembler::Result result = Execute(
+      *regexp, *input, 0, start_adr, start_adr + input->length(), captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -1298,7 +1283,9 @@ TEST(MacroAssembler) {
   Handle<String> f1_16 = factory->NewStringFromTwoByte(
       Vector<const uc16>(str1, 6)).ToHandleChecked();
 
-  CHECK(IrregexpInterpreter::Match(isolate, array, f1_16, captures, 0));
+  CHECK(IrregexpInterpreter::MatchInternal(isolate, *array, *f1_16, captures, 5,
+                                           0,
+                                           RegExp::CallOrigin::kFromRuntime));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
@@ -1309,7 +1296,9 @@ TEST(MacroAssembler) {
   Handle<String> f2_16 = factory->NewStringFromTwoByte(
       Vector<const uc16>(str2, 6)).ToHandleChecked();
 
-  CHECK(!IrregexpInterpreter::Match(isolate, array, f2_16, captures, 0));
+  CHECK(!IrregexpInterpreter::MatchInternal(isolate, *array, *f2_16, captures,
+                                            5, 0,
+                                            RegExp::CallOrigin::kFromRuntime));
   CHECK_EQ(42, captures[0]);
 }
 
@@ -1692,8 +1681,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 }
 }
 
-
-// Test that ES2015 RegExp compatibility fixes are in place, that they
+// Test that ES2015+ RegExp compatibility fixes are in place, that they
 // are not overly broad, and the appropriate UseCounters are incremented
 TEST(UseCountRegExp) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -1715,7 +1703,7 @@ TEST(UseCountRegExp) {
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultReSticky->IsFalse());
 
-  // When the getter is caleld on another object, throw an exception
+  // When the getter is called on another object, throw an exception
   // and don't increment the UseCounter
   v8::Local<v8::Value> resultStickyError = CompileRun(
       "var exception;"
@@ -1781,6 +1769,567 @@ TEST(UncachedExternalString) {
   global->Set(env.local(), v8_str("external"), external).FromJust();
   CompileRun("var re = /y(.)/; re.test('ab');");
   ExpectString("external.substring(1).match(re)[1]", "z");
+}
+
+// Test bytecode peephole optimization
+
+void CreatePeepholeNoChangeBytecode(RegExpMacroAssembler* m) {
+  Label fail, backtrack;
+  m->PushBacktrack(&fail);
+  m->CheckNotAtStart(0, nullptr);
+  m->LoadCurrentCharacter(2, nullptr);
+  m->CheckNotCharacter('o', nullptr);
+  m->LoadCurrentCharacter(1, nullptr, false);
+  m->CheckNotCharacter('o', nullptr);
+  m->LoadCurrentCharacter(0, nullptr, false);
+  m->CheckNotCharacter('f', nullptr);
+  m->WriteCurrentPositionToRegister(0, 0);
+  m->WriteCurrentPositionToRegister(1, 3);
+  m->AdvanceCurrentPosition(3);
+  m->PushBacktrack(&backtrack);
+  m->Succeed();
+  m->Bind(&backtrack);
+  m->Backtrack();
+  m->Bind(&fail);
+  m->Fail();
+}
+
+TEST(PeepholeNoChange) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeNoChangeBytecode(&orig);
+  CreatePeepholeNoChangeBytecode(&opt);
+
+  Handle<String> source = factory->NewStringFromStaticChars("^foo");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+  byte* byte_array = array->GetDataStartAddress();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  byte* byte_array_optimized = array_optimized->GetDataStartAddress();
+
+  CHECK_EQ(0, memcmp(byte_array, byte_array_optimized, length));
+}
+
+void CreatePeepholeSkipUntilCharBytecode(RegExpMacroAssembler* m) {
+  Label start;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckCharacter('x', nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+}
+
+TEST(PeepholeSkipUntilChar) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeSkipUntilCharBytecode(&orig);
+  CreatePeepholeSkipUntilCharBytecode(&opt);
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  int length_optimized = array_optimized->length();
+
+  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
+                        RegExpBytecodeLength(BC_CHECK_CHAR) +
+                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
+                        RegExpBytecodeLength(BC_POP_BT);
+  int length_optimized_expected = RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR) +
+                                  RegExpBytecodeLength(BC_POP_BT);
+
+  CHECK_EQ(length, length_expected);
+  CHECK_EQ(length_optimized, length_optimized_expected);
+
+  CHECK_EQ(BC_SKIP_UNTIL_CHAR, array_optimized->get(0));
+  CHECK_EQ(BC_POP_BT,
+           array_optimized->get(RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR)));
+}
+
+void CreatePeepholeSkipUntilBitInTableBytecode(RegExpMacroAssembler* m,
+                                               Factory* factory) {
+  Handle<ByteArray> bit_table = factory->NewByteArray(
+      RegExpMacroAssembler::kTableSize, AllocationType::kOld);
+  for (uint32_t i = 0; i < RegExpMacroAssembler::kTableSize; i++) {
+    bit_table->set(i, 0);
+  }
+
+  Label start;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckBitInTable(bit_table, nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+}
+
+TEST(PeepholeSkipUntilBitInTable) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeSkipUntilBitInTableBytecode(&orig, factory);
+  CreatePeepholeSkipUntilBitInTableBytecode(&opt, factory);
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  int length_optimized = array_optimized->length();
+
+  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
+                        RegExpBytecodeLength(BC_CHECK_BIT_IN_TABLE) +
+                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
+                        RegExpBytecodeLength(BC_POP_BT);
+  int length_optimized_expected =
+      RegExpBytecodeLength(BC_SKIP_UNTIL_BIT_IN_TABLE) +
+      RegExpBytecodeLength(BC_POP_BT);
+
+  CHECK_EQ(length, length_expected);
+  CHECK_EQ(length_optimized, length_optimized_expected);
+
+  CHECK_EQ(BC_SKIP_UNTIL_BIT_IN_TABLE, array_optimized->get(0));
+  CHECK_EQ(BC_POP_BT, array_optimized->get(
+                          RegExpBytecodeLength(BC_SKIP_UNTIL_BIT_IN_TABLE)));
+}
+
+void CreatePeepholeSkipUntilCharPosCheckedBytecode(RegExpMacroAssembler* m) {
+  Label start;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, nullptr, true, 1, 2);
+  m->CheckCharacter('x', nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+}
+
+TEST(PeepholeSkipUntilCharPosChecked) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeSkipUntilCharPosCheckedBytecode(&orig);
+  CreatePeepholeSkipUntilCharPosCheckedBytecode(&opt);
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  int length_optimized = array_optimized->length();
+
+  int length_expected = RegExpBytecodeLength(BC_CHECK_CURRENT_POSITION) +
+                        RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR_UNCHECKED) +
+                        RegExpBytecodeLength(BC_CHECK_CHAR) +
+                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
+                        RegExpBytecodeLength(BC_POP_BT);
+  int length_optimized_expected =
+      RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_POS_CHECKED) +
+      RegExpBytecodeLength(BC_POP_BT);
+
+  CHECK_EQ(length, length_expected);
+  CHECK_EQ(length_optimized, length_optimized_expected);
+
+  CHECK_EQ(BC_SKIP_UNTIL_CHAR_POS_CHECKED, array_optimized->get(0));
+  CHECK_EQ(BC_POP_BT, array_optimized->get(RegExpBytecodeLength(
+                          BC_SKIP_UNTIL_CHAR_POS_CHECKED)));
+}
+
+void CreatePeepholeSkipUntilCharAndBytecode(RegExpMacroAssembler* m) {
+  Label start;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, nullptr, true, 1, 2);
+  m->CheckCharacterAfterAnd('x', 0xFF, nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+}
+
+TEST(PeepholeSkipUntilCharAnd) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeSkipUntilCharAndBytecode(&orig);
+  CreatePeepholeSkipUntilCharAndBytecode(&opt);
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  int length_optimized = array_optimized->length();
+
+  int length_expected = RegExpBytecodeLength(BC_CHECK_CURRENT_POSITION) +
+                        RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR_UNCHECKED) +
+                        RegExpBytecodeLength(BC_AND_CHECK_CHAR) +
+                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
+                        RegExpBytecodeLength(BC_POP_BT);
+  int length_optimized_expected = RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_AND) +
+                                  RegExpBytecodeLength(BC_POP_BT);
+
+  CHECK_EQ(length, length_expected);
+  CHECK_EQ(length_optimized, length_optimized_expected);
+
+  CHECK_EQ(BC_SKIP_UNTIL_CHAR_AND, array_optimized->get(0));
+  CHECK_EQ(BC_POP_BT,
+           array_optimized->get(RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_AND)));
+}
+
+void CreatePeepholeSkipUntilCharOrCharBytecode(RegExpMacroAssembler* m) {
+  Label start;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckCharacter('x', nullptr);
+  m->CheckCharacter('y', nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+}
+
+TEST(PeepholeSkipUntilCharOrChar) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeSkipUntilCharOrCharBytecode(&orig);
+  CreatePeepholeSkipUntilCharOrCharBytecode(&opt);
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  int length_optimized = array_optimized->length();
+
+  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
+                        RegExpBytecodeLength(BC_CHECK_CHAR) +
+                        RegExpBytecodeLength(BC_CHECK_CHAR) +
+                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
+                        RegExpBytecodeLength(BC_POP_BT);
+  int length_optimized_expected =
+      RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_OR_CHAR) +
+      RegExpBytecodeLength(BC_POP_BT);
+
+  CHECK_EQ(length, length_expected);
+  CHECK_EQ(length_optimized, length_optimized_expected);
+
+  CHECK_EQ(BC_SKIP_UNTIL_CHAR_OR_CHAR, array_optimized->get(0));
+  CHECK_EQ(BC_POP_BT, array_optimized->get(
+                          RegExpBytecodeLength(BC_SKIP_UNTIL_CHAR_OR_CHAR)));
+}
+
+void CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(RegExpMacroAssembler* m,
+                                                      Factory* factory) {
+  Handle<ByteArray> bit_table = factory->NewByteArray(
+      RegExpMacroAssembler::kTableSize, AllocationType::kOld);
+  for (uint32_t i = 0; i < RegExpMacroAssembler::kTableSize; i++) {
+    bit_table->set(i, 0);
+  }
+
+  Label start, end, advance;
+  m->Bind(&start);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckCharacterGT('x', nullptr);
+  m->CheckBitInTable(bit_table, &advance);
+  m->GoTo(&end);
+  m->Bind(&advance);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&start);
+  m->Bind(&end);
+}
+
+TEST(PeepholeSkipUntilGtOrNotBitInTable) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(&orig, factory);
+  CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(&opt, factory);
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+  int length = array->length();
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+  int length_optimized = array_optimized->length();
+
+  int length_expected = RegExpBytecodeLength(BC_LOAD_CURRENT_CHAR) +
+                        RegExpBytecodeLength(BC_CHECK_GT) +
+                        RegExpBytecodeLength(BC_CHECK_BIT_IN_TABLE) +
+                        RegExpBytecodeLength(BC_GOTO) +
+                        RegExpBytecodeLength(BC_ADVANCE_CP_AND_GOTO) +
+                        RegExpBytecodeLength(BC_POP_BT);
+  int length_optimized_expected =
+      RegExpBytecodeLength(BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) +
+      RegExpBytecodeLength(BC_POP_BT);
+
+  CHECK_EQ(length, length_expected);
+  CHECK_EQ(length_optimized, length_optimized_expected);
+
+  CHECK_EQ(BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE, array_optimized->get(0));
+  CHECK_EQ(BC_POP_BT, array_optimized->get(RegExpBytecodeLength(
+                          BC_SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE)));
+}
+
+void CreatePeepholeLabelFixupsInsideBytecode(RegExpMacroAssembler* m,
+                                             Label* dummy_before,
+                                             Label* dummy_after,
+                                             Label* dummy_inside) {
+  Label loop;
+  m->Bind(dummy_before);
+  m->LoadCurrentCharacter(0, dummy_before);
+  m->CheckCharacter('a', dummy_after);
+  m->CheckCharacter('b', dummy_inside);
+  m->Bind(&loop);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckCharacter('x', nullptr);
+  m->Bind(dummy_inside);
+  m->CheckCharacter('y', nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&loop);
+  m->Bind(dummy_after);
+  m->LoadCurrentCharacter(0, dummy_before);
+  m->CheckCharacter('a', dummy_after);
+  m->CheckCharacter('b', dummy_inside);
+}
+
+TEST(PeepholeLabelFixupsInside) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  {
+    Label dummy_before, dummy_after, dummy_inside;
+    CreatePeepholeLabelFixupsInsideBytecode(&opt, &dummy_before, &dummy_after,
+                                            &dummy_inside);
+  }
+  Label dummy_before, dummy_after, dummy_inside;
+  CreatePeepholeLabelFixupsInsideBytecode(&orig, &dummy_before, &dummy_after,
+                                          &dummy_inside);
+
+  CHECK_EQ(0x00, dummy_before.pos());
+  CHECK_EQ(0x28, dummy_inside.pos());
+  CHECK_EQ(0x38, dummy_after.pos());
+
+  const Label* labels[] = {&dummy_before, &dummy_after, &dummy_inside};
+  const int label_positions[4][3] = {
+      {0x04, 0x3C},  // dummy_before
+      {0x0C, 0x44},  // dummy after
+      {0x14, 0x4C}   // dummy inside
+  };
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+
+  for (int label_idx = 0; label_idx < 3; label_idx++) {
+    for (int pos_idx = 0; pos_idx < 2; pos_idx++) {
+      CHECK_EQ(labels[label_idx]->pos(),
+               array->get(label_positions[label_idx][pos_idx]));
+    }
+  }
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+
+  const int pos_fixups[] = {
+      0,  // Position before optimization should be unchanged.
+      4,  // Position after first replacement should be 4 (optimized size (20) -
+          // original size (32) + preserve length (16)).
+  };
+  const int target_fixups[] = {
+      0,  // dummy_before should be unchanged
+      4,  // dummy_inside should be 4
+      4   // dummy_after should be 4
+  };
+
+  for (int label_idx = 0; label_idx < 3; label_idx++) {
+    for (int pos_idx = 0; pos_idx < 2; pos_idx++) {
+      int label_pos = label_positions[label_idx][pos_idx] + pos_fixups[pos_idx];
+      int jump_address = *reinterpret_cast<uint32_t*>(
+          array_optimized->GetDataStartAddress() + label_pos);
+      int expected_jump_address =
+          labels[label_idx]->pos() + target_fixups[label_idx];
+      CHECK_EQ(expected_jump_address, jump_address);
+    }
+  }
+}
+
+void CreatePeepholeLabelFixupsComplexBytecode(RegExpMacroAssembler* m,
+                                              Label* dummy_before,
+                                              Label* dummy_between,
+                                              Label* dummy_after,
+                                              Label* dummy_inside) {
+  Label loop1, loop2;
+  m->Bind(dummy_before);
+  m->LoadCurrentCharacter(0, dummy_before);
+  m->CheckCharacter('a', dummy_between);
+  m->CheckCharacter('b', dummy_after);
+  m->CheckCharacter('c', dummy_inside);
+  m->Bind(&loop1);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckCharacter('x', nullptr);
+  m->CheckCharacter('y', nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&loop1);
+  m->Bind(dummy_between);
+  m->LoadCurrentCharacter(0, dummy_before);
+  m->CheckCharacter('a', dummy_between);
+  m->CheckCharacter('b', dummy_after);
+  m->CheckCharacter('c', dummy_inside);
+  m->Bind(&loop2);
+  m->LoadCurrentCharacter(0, nullptr, true);
+  m->CheckCharacter('x', nullptr);
+  m->Bind(dummy_inside);
+  m->CheckCharacter('y', nullptr);
+  m->AdvanceCurrentPosition(1);
+  m->GoTo(&loop2);
+  m->Bind(dummy_after);
+  m->LoadCurrentCharacter(0, dummy_before);
+  m->CheckCharacter('a', dummy_between);
+  m->CheckCharacter('b', dummy_after);
+  m->CheckCharacter('c', dummy_inside);
+}
+
+TEST(PeepholeLabelFixupsComplex) {
+  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
+  RegExpBytecodeGenerator orig(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator opt(CcTest::i_isolate(), &zone);
+
+  {
+    Label dummy_before, dummy_between, dummy_after, dummy_inside;
+    CreatePeepholeLabelFixupsComplexBytecode(
+        &opt, &dummy_before, &dummy_between, &dummy_after, &dummy_inside);
+  }
+  Label dummy_before, dummy_between, dummy_after, dummy_inside;
+  CreatePeepholeLabelFixupsComplexBytecode(&orig, &dummy_before, &dummy_between,
+                                           &dummy_after, &dummy_inside);
+
+  CHECK_EQ(0x00, dummy_before.pos());
+  CHECK_EQ(0x40, dummy_between.pos());
+  CHECK_EQ(0x70, dummy_inside.pos());
+  CHECK_EQ(0x80, dummy_after.pos());
+
+  const Label* labels[] = {&dummy_before, &dummy_between, &dummy_after,
+                           &dummy_inside};
+  const int label_positions[4][3] = {
+      {0x04, 0x44, 0x84},  // dummy_before
+      {0x0C, 0x4C, 0x8C},  // dummy between
+      {0x14, 0x54, 0x94},  // dummy after
+      {0x1C, 0x5C, 0x9C}   // dummy inside
+  };
+
+  Handle<String> source = factory->NewStringFromStaticChars("dummy");
+
+  i::FLAG_regexp_peephole_optimization = false;
+  Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
+
+  for (int label_idx = 0; label_idx < 4; label_idx++) {
+    for (int pos_idx = 0; pos_idx < 3; pos_idx++) {
+      CHECK_EQ(labels[label_idx]->pos(),
+               array->get(label_positions[label_idx][pos_idx]));
+    }
+  }
+
+  i::FLAG_regexp_peephole_optimization = true;
+  Handle<ByteArray> array_optimized =
+      Handle<ByteArray>::cast(opt.GetCode(source));
+
+  const int pos_fixups[] = {
+      0,    // Position before optimization should be unchanged.
+      -12,  // Position after first replacement should be -12 (optimized size =
+            // 20 - 32 = original size).
+      -8    // Position after second replacement should be -8 (-12 from first
+            // optimization -12 from second optimization + 16 preserved
+            // bytecodes).
+  };
+  const int target_fixups[] = {
+      0,    // dummy_before should be unchanged
+      -12,  // dummy_between should be -12
+      -8,   // dummy_inside should be -8
+      -8    // dummy_after should be -8
+  };
+
+  for (int label_idx = 0; label_idx < 4; label_idx++) {
+    for (int pos_idx = 0; pos_idx < 3; pos_idx++) {
+      int label_pos = label_positions[label_idx][pos_idx] + pos_fixups[pos_idx];
+      int jump_address = *reinterpret_cast<uint32_t*>(
+          array_optimized->GetDataStartAddress() + label_pos);
+      int expected_jump_address =
+          labels[label_idx]->pos() + target_fixups[label_idx];
+      CHECK_EQ(expected_jump_address, jump_address);
+    }
+  }
 }
 
 #undef CHECK_PARSE_ERROR

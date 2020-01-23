@@ -47,8 +47,9 @@ module.exports = {
             allowTernary = config.allowTernary || false,
             allowTaggedTemplates = config.allowTaggedTemplates || false;
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
-         * @param {ASTNode} node - any node
+         * @param {ASTNode} node any node
          * @returns {boolean} whether the given node structurally represents a directive
          */
         function looksLikeDirective(node) {
@@ -56,9 +57,10 @@ module.exports = {
                 node.expression.type === "Literal" && typeof node.expression.value === "string";
         }
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
-         * @param {Function} predicate - ([a] -> Boolean) the function used to make the determination
-         * @param {a[]} list - the input list
+         * @param {Function} predicate ([a] -> Boolean) the function used to make the determination
+         * @param {a[]} list the input list
          * @returns {a[]} the leading sequence of members in the given list that pass the given predicate
          */
         function takeWhile(predicate, list) {
@@ -70,17 +72,19 @@ module.exports = {
             return list.slice();
         }
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
-         * @param {ASTNode} node - a Program or BlockStatement node
+         * @param {ASTNode} node a Program or BlockStatement node
          * @returns {ASTNode[]} the leading sequence of directive nodes in the given node's body
          */
         function directives(node) {
             return takeWhile(looksLikeDirective, node.body);
         }
 
+        // eslint-disable-next-line jsdoc/require-description
         /**
-         * @param {ASTNode} node - any node
-         * @param {ASTNode[]} ancestors - the given node's ancestors
+         * @param {ASTNode} node any node
+         * @param {ASTNode[]} ancestors the given node's ancestors
          * @returns {boolean} whether the given node is considered a directive in its current position
          */
         function isDirective(node, ancestors) {
@@ -94,7 +98,7 @@ module.exports = {
 
         /**
          * Determines whether or not a given node is a valid expression. Recurses on short circuit eval and ternary nodes if enabled by flags.
-         * @param {ASTNode} node - any node
+         * @param {ASTNode} node any node
          * @returns {boolean} whether the given node is a valid expression
          */
         function isValidExpression(node) {

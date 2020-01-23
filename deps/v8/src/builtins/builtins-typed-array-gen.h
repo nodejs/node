@@ -111,6 +111,18 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 
   TNode<BoolT> IsSharedArrayBuffer(TNode<JSArrayBuffer> buffer);
+
+  void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
+                                    TNode<ByteArray> base,
+                                    TNode<UintPtrT> offset);
+  void SetJSTypedArrayOffHeapDataPtr(TNode<JSTypedArray> holder,
+                                     TNode<RawPtrT> base,
+                                     TNode<UintPtrT> offset);
+  void StoreJSTypedArrayElementFromTagged(TNode<Context> context,
+                                          TNode<JSTypedArray> typed_array,
+                                          TNode<Smi> index_node,
+                                          TNode<Object> value,
+                                          ElementsKind elements_kind);
 };
 
 }  // namespace internal

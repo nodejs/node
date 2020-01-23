@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 /*
@@ -25,6 +26,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { sleep } = require('internal/util');
 
 const TIMEOUT = 100;
 
@@ -65,7 +67,7 @@ function blockingCallback(retry, callback) {
       return callback();
   } else {
     // Block by busy-looping to trigger the issue
-    common.busyLoop(TIMEOUT);
+    sleep(TIMEOUT);
 
     timeCallbackScheduled = Date.now();
     setTimeout(blockingCallback.bind(null, retry, callback), TIMEOUT);

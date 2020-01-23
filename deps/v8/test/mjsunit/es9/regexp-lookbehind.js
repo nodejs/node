@@ -27,6 +27,7 @@ assertEquals(["def"], "abcdef".match(/(?<=\w*)[^a|b|c]{3}/));
 // Start of line matches.
 assertEquals(["def"], "abcdef".match(/(?<=^abc)def/));
 assertEquals(["def"], "abcdef".match(/(?<=^[a-c]{3})def/));
+assertEquals(["def"], "abcabcdef".match(/(?<=^[a-c]{6})def/));
 assertEquals(["def"], "xyz\nabcdef".match(/(?<=^[a-c]{3})def/m));
 assertEquals(["ab", "cd", "efg"], "ab\ncd\nefg".match(/(?<=^)\w+/gm));
 assertEquals(["ab", "cd", "efg"], "ab\ncd\nefg".match(/\w+(?<=$)/gm));

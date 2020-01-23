@@ -1,6 +1,9 @@
 'use strict';
 const common = require('../common');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 // Tests if `filename` is provided to watcher on supported platforms
 
 const fs = require('fs');
@@ -57,8 +60,6 @@ for (const testCase of cases) {
   });
   watcher.on('close', common.mustCall(() => {
     watcher.close(); // Closing a closed watcher should be a noop
-    // Starting a closed watcher should be a noop
-    watcher.start();
   }));
   watcher.on('change', common.mustCall(function(eventType, argFilename) {
     if (interval) {
@@ -71,16 +72,11 @@ for (const testCase of cases) {
       assert.strictEqual(eventType, 'change');
     assert.strictEqual(argFilename, testCase.fileName);
 
-    // Starting a started watcher should be a noop
-    watcher.start();
-    watcher.start(pathToWatch);
-
     watcher.close();
 
     // We document that watchers cannot be used anymore when it's closed,
     // here we turn the methods into noops instead of throwing
     watcher.close(); // Closing a closed watcher should be a noop
-    watcher.start();  // Starting a closed watcher should be a noop
   }));
 
   // Long content so it's actually flushed. toUpperCase so there's real change.
@@ -92,13 +88,11 @@ for (const testCase of cases) {
 }
 
 [false, 1, {}, [], null, undefined].forEach((input) => {
-  common.expectsError(
+  assert.throws(
     () => fs.watch(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "filename" argument must be one of type string, Buffer, ' +
-               `or URL. Received type ${typeof input}`
+      name: 'TypeError'
     }
   );
 });

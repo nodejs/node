@@ -18,8 +18,8 @@ const astUtils = require("./utils/ast-utils");
 
 /**
  * Checks whether or not a given node is an `Identifier` node which was named a given name.
- * @param {ASTNode} node - A node to check.
- * @param {string} name - An expected name of the node.
+ * @param {ASTNode} node A node to check.
+ * @param {string} name An expected name of the node.
  * @returns {boolean} `true` if the node is an `Identifier` node which was named as expected.
  */
 function isIdentifier(node, name) {
@@ -28,7 +28,7 @@ function isIdentifier(node, name) {
 
 /**
  * Checks whether or not a given code path segment is unreachable.
- * @param {CodePathSegment} segment - A CodePathSegment to check.
+ * @param {CodePathSegment} segment A CodePathSegment to check.
  * @returns {boolean} `true` if the segment is unreachable.
  */
 function isUnreachable(segment) {
@@ -88,8 +88,7 @@ module.exports = {
         /**
          * Checks whether of not the implicit returning is consistent if the last
          * code path segment is reachable.
-         *
-         * @param {ASTNode} node - A program/function node to check.
+         * @param {ASTNode} node A program/function node to check.
          * @returns {void}
          */
         function checkLastSegment(node) {
