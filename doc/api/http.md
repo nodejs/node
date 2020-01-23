@@ -2051,7 +2051,7 @@ changes:
     `ServerResponse`.
   * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
     invalid HTTP headers when `true`. Using the insecure parser should be
-    avoided, see [`--insecure-http-parser`][] for more information.
+    avoided. See [`--insecure-http-parser`][] for more information.
     **Default:** `false`
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
@@ -2203,7 +2203,7 @@ changes:
     `hostname` will be used if both `host` and `hostname` are specified.
   * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
     invalid HTTP headers when `true`. Using the insecure parser should be
-    avoided, see [`--insecure-http-parser`][] for more information.
+    avoided. See [`--insecure-http-parser`][] for more information.
     **Default:** `false`
   * `localAddress` {string} Local interface to bind for network connections.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
