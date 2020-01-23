@@ -31,19 +31,17 @@ the information described.
 
 ## Announcement (one week in advance of the planned release)
 
-* Send pre-release announcement to
+* [ ] Send pre-release announcement to
   https://groups.google.com/forum/#!forum/nodejs-sec.
   One of the existing managers can give access (Ben
   Noordhuis, Rod Vagg, Michael Dawson). ***LINK TO EMAIL***
 
-* Post pre-release announcement in vulnerabilities section of Nodejs.org blog
-  (https://github.com/nodejs/nodejs.org/tree/master/locale/en/blog/vulnerability).
+* [ ] Post pre-release announcement in vulnerabilities section of Nodejs.org
+  blog (https://github.com/nodejs/nodejs.org/tree/master/locale/en/blog/vulnerability).
   Use last pre-release announcement as a template (it includes blog metadata
   such as updates to the banner on the Node.js website to indicate security
-  releases are coming).  Submit PR and leave 1 hour for review. After one hour
-  even if no reviews, land anyway so that we don't have too big a gap between
-  post to nodejs-sec and blog. Text was already reviewed in security repo so is
-  unlikely to attract much additional comment. ***LINK TO BLOG PR AND POST***
+  releases are coming).  Submit PR and land immediately. Text was already
+  reviewed in security repo.  ***LINK TO BLOG PR AND POST***
 
 * [ ] Open an issue in the build working repository with a notification of the
   date for the security release.  Use this issue to co-ordinate with the build
