@@ -154,6 +154,7 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_LOCAL)                               \
   V(IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_REMOTE)                              \
   V(IDX_QUIC_SESSION_MAX_STREAM_DATA_UNI)                                      \
+  V(IDX_QUIC_SESSION_MAX_ACTIVE_CONNECTION_ID_LIMIT)                           \
   V(IDX_QUIC_SESSION_MAX_STREAMS_BIDI)                                         \
   V(IDX_QUIC_SESSION_MAX_STREAMS_UNI)                                          \
   V(IDX_QUIC_SESSION_MAX_PACKET_SIZE)                                          \

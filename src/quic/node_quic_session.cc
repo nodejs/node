@@ -95,21 +95,25 @@ void QuicSessionConfig::ResetToDefaults(Environment* env) {
     log_printf = Ngtcp2DebugLog;
   }
   transport_params.active_connection_id_limit =
-    DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+      DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   transport_params.initial_max_stream_data_bidi_local =
-    DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL;
+      DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL;
   transport_params.initial_max_stream_data_bidi_remote =
-    DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE;
+      DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE;
   transport_params.initial_max_stream_data_uni =
-    DEFAULT_MAX_STREAM_DATA_UNI;
+      DEFAULT_MAX_STREAM_DATA_UNI;
   transport_params.initial_max_streams_bidi =
-    DEFAULT_MAX_STREAMS_BIDI;
+      DEFAULT_MAX_STREAMS_BIDI;
   transport_params.initial_max_streams_uni =
-    DEFAULT_MAX_STREAMS_UNI;
+      DEFAULT_MAX_STREAMS_UNI;
   transport_params.initial_max_data = DEFAULT_MAX_DATA;
   transport_params.idle_timeout = DEFAULT_IDLE_TIMEOUT;
-  transport_params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
-  transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  transport_params.active_connection_id_limit =
+      DEFAULT_MAX_ACTIVE_CONNECTION_ID_LIMIT;
+  transport_params.max_packet_size =
+      NGTCP2_MAX_PKT_SIZE;
+  transport_params.max_ack_delay =
+      NGTCP2_DEFAULT_MAX_ACK_DELAY;
   transport_params.disable_active_migration = 0;
   transport_params.preferred_address_present = 0;
   transport_params.stateless_reset_token_present = 0;
@@ -140,6 +144,8 @@ void QuicSessionConfig::Set(
             &transport_params.max_packet_size);
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACK_DELAY,
             &transport_params.max_ack_delay);
+  SetConfig(env, IDX_QUIC_SESSION_MAX_ACTIVE_CONNECTION_ID_LIMIT,
+            &transport_params.active_connection_id_limit);
 
   transport_params.idle_timeout = transport_params.idle_timeout * 1000000000;
 
