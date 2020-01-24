@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 
 
 function main({ len, n }) {
-  var todo = [];
+  let todo = [];
   const headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
   // An odd number could result in a better length dispersion.
@@ -48,19 +48,19 @@ function main({ len, n }) {
   }
 
   const min = 10;
-  var size = 0;
+  let size = 0;
   const mod = 317;
   const mult = 17;
   const add = 11;
-  var count = 0;
+  let count = 0;
   const PIPE = process.env.PIPE_NAME;
   const socket = net.connect(PIPE, () => {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);
     socket.setEncoding('utf8');
     socket.on('data', (d) => {
-      var did = false;
-      var pattern = 'HTTP/1.1 200 OK\r\n';
+      let did = false;
+      let pattern = 'HTTP/1.1 200 OK\r\n';
       if ((d.length === pattern.length && d === pattern) ||
           (d.length > pattern.length &&
            d.slice(0, pattern.length) === pattern)) {

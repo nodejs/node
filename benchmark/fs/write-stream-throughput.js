@@ -14,9 +14,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ dur, encodingType, size }) {
-  var encoding;
+  let encoding;
 
-  var chunk;
+  let chunk;
   switch (encodingType) {
     case 'buf':
       chunk = Buffer.alloc(size, 'b');
@@ -35,8 +35,8 @@ function main({ dur, encodingType, size }) {
 
   try { fs.unlinkSync(filename); } catch {}
 
-  var started = false;
-  var ended = false;
+  let started = false;
+  let ended = false;
 
   const f = fs.createWriteStream(filename);
   f.on('drain', write);
