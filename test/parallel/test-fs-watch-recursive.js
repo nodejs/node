@@ -19,8 +19,8 @@ const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 
 if (!common.isOSX && !common.isWindows) {
-  common.expectsError(() => fs.watch(testDir, { recursive: true }),
-                      { code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM' });
+  assert.throws(() => { fs.watch(testDir, { recursive: true }); },
+                { code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM' });
   return;
 }
 const watcher = fs.watch(testDir, { recursive: true });
