@@ -96,6 +96,21 @@ class NodeBIO : public MemoryRetainer {
     return length_;
   }
 
+  // Provide a hint about the size of the next pending set of writes. TLS
+  // writes records of a maximum length of 16k of data plus a 5-byte header,
+  // a MAC (up to 20 bytes for SSLv3, TLS 1.0, TLS 1.1, and up to 32 bytes
+  // for TLS 1.2), and padding if a block cipher is used.  If there is a
+  // large write this will result in potentially many buffers being
+  // allocated and gc'ed which can cause long pauses. By providing a
+  // guess about the amount of buffer space that will be needed in the
+  // next allocation this overhead is removed.
+  inline void set_allocate_tls_hint(size_t size) {
+    constexpr size_t kThreshold = 16 * 1024;
+    if (size >= kThreshold) {
+      allocate_hint_ = (size / kThreshold + 1) * (kThreshold + 5 + 32);
+    }
+  }
+
   inline void set_eof_return(int num) {
     eof_return_ = num;
   }
@@ -164,6 +179,7 @@ class NodeBIO : public MemoryRetainer {
   Environment* env_ = nullptr;
   size_t initial_ = kInitialBufferLength;
   size_t length_ = 0;
+  size_t allocate_hint_ = 0;
   int eof_return_ = -1;
   Buffer* read_head_ = nullptr;
   Buffer* write_head_ = nullptr;
