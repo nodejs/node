@@ -82,3 +82,45 @@ const { readFileSync } = require('fs');
   assert.strictEqual(payload.sources[0], sourceMap.payload.sources[0]);
   assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
 }
+
+// Test various known decodings to ensure decodeVLQ works correctly.
+{
+  function makeMinimalMap(column) {
+    return {
+      sources: ['test.js'],
+      // Mapping from the 0th line, 0th column of the output file to the 0th
+      // source file, 0th line, ${column}th column.
+      mappings: `AAA${column}`,
+    };
+  }
+  const knownDecodings = {
+    'A': 0,
+    'B': -2147483648,
+    'C': 1,
+    'D': -1,
+    'E': 2,
+    'F': -2,
+
+    // 2^31 - 1, maximum values
+    '+/////D': 2147483647,
+    '8/////D': 2147483646,
+    '6/////D': 2147483645,
+    '4/////D': 2147483644,
+    '2/////D': 2147483643,
+    '0/////D': 2147483642,
+
+    // -2^31 + 1, minimum values
+    '//////D': -2147483647,
+    '9/////D': -2147483646,
+    '7/////D': -2147483645,
+    '5/////D': -2147483644,
+    '3/////D': -2147483643,
+    '1/////D': -2147483642,
+  };
+
+  for (const column in knownDecodings) {
+    const sourceMap = new SourceMap(makeMinimalMap(column));
+    const { originalColumn } = sourceMap.findEntry(0, 0);
+    assert.strictEqual(originalColumn, knownDecodings[column]);
+  }
+}
