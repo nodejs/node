@@ -22,14 +22,14 @@ function defaultParams(x = 1, y = 2) {
 
 function runOldStyleDefaults(n) {
   bench.start();
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     oldStyleDefaults();
   bench.end(n);
 }
 
 function runDefaultParams(n) {
   bench.start();
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     defaultParams();
   bench.end(n);
 }

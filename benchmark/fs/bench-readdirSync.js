@@ -15,7 +15,7 @@ function main({ n, dir, withFileTypes }) {
   withFileTypes = withFileTypes === 'true';
   const fullPath = path.resolve(__dirname, '../../', dir);
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     fs.readdirSync(fullPath, { withFileTypes });
   }
   bench.end(n);

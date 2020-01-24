@@ -16,26 +16,25 @@ function main({ n, context, count, rest, method }) {
     src[`p${n}`] = n;
 
   let obj;  // eslint-disable-line no-unused-vars
-  let i;
 
   switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
     case '_extend':
       bench.start();
-      for (i = 0; i < n; i++)
+      for (let i = 0; i < n; i++)
         obj = util._extend({}, src);
       bench.end(n);
       break;
     case 'assign':
       bench.start();
-      for (i = 0; i < n; i++)
+      for (let i = 0; i < n; i++)
         obj = Object.assign({}, src);
       bench.end(n);
       break;
     case 'spread':
       bench.start();
-      for (i = 0; i < n; i++)
+      for (let i = 0; i < n; i++)
         obj = { ...src };
       bench.end(n);
       break;
