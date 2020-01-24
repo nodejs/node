@@ -2413,7 +2413,7 @@ Used when an [ES Module][] loader hook specifies `format: 'dynamic'` but does
 not provide a `dynamicInstantiate` hook.
 
 <a id="ERR_FEATURE_UNAVAILABLE_ON_PLATFORM"></a>
-#### ERR_FEATURE_UNAVAILABLE_ON_PLATFORM
+#### `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
 
 Used when a feature that is not available
 to the current platform which is running Node.js is used.
