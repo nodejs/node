@@ -10,8 +10,8 @@ const bench = common.createBenchmark(main, {
 
 function useFor(n, items, count) {
   bench.start();
-  for (var i = 0; i < n; i++) {
-    for (var j = 0; j < count; j++) {
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < count; j++) {
       // eslint-disable-next-line no-unused-vars
       const item = items[j];
     }
@@ -21,7 +21,7 @@ function useFor(n, items, count) {
 
 function useForOf(n, items) {
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     // eslint-disable-next-line no-unused-vars
     for (const item of items) {}
   }
@@ -30,8 +30,8 @@ function useForOf(n, items) {
 
 function useForIn(n, items) {
   bench.start();
-  for (var i = 0; i < n; i++) {
-    for (var j in items) {
+  for (let i = 0; i < n; i++) {
+    for (const j in items) {
       // eslint-disable-next-line no-unused-vars
       const item = items[j];
     }
@@ -41,7 +41,7 @@ function useForIn(n, items) {
 
 function useForEach(n, items) {
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     items.forEach((item) => {});
   }
   bench.end(n);
@@ -49,8 +49,8 @@ function useForEach(n, items) {
 
 function main({ n, count, method }) {
   const items = new Array(count);
-  var fn;
-  for (var i = 0; i < count; i++)
+  let fn;
+  for (let i = 0; i < count; i++)
     items[i] = i;
 
   switch (method) {

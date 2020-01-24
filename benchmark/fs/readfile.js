@@ -21,12 +21,12 @@ const bench = common.createBenchmark(main, {
 
 function main({ len, dur, concurrent }) {
   try { fs.unlinkSync(filename); } catch {}
-  var data = Buffer.alloc(len, 'x');
+  let data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
 
-  var reads = 0;
-  var benchEnded = false;
+  let reads = 0;
+  let benchEnded = false;
   bench.start();
   setTimeout(() => {
     benchEnded = true;

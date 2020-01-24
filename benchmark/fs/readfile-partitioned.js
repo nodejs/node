@@ -25,15 +25,15 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const len = +conf.len;
   try { fs.unlinkSync(filename); } catch {}
-  var data = Buffer.alloc(len, 'x');
+  let data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
 
   const zipData = Buffer.alloc(1024, 'a');
 
-  var reads = 0;
-  var zips = 0;
-  var benchEnded = false;
+  let reads = 0;
+  let zips = 0;
+  let benchEnded = false;
   bench.start();
   setTimeout(() => {
     const totalOps = reads + zips;
@@ -78,7 +78,7 @@ function main(conf) {
   }
 
   // Start reads
-  var cur = +conf.concurrent;
+  let cur = +conf.concurrent;
   while (cur--) read();
 
   // Start a competing zip
