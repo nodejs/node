@@ -3,6 +3,16 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: NODE=$(which node) make doc-only
+      - uses: actions/upload-artifact@v1
+        with:
+          name: docs
+          path: out/doc
   build-linux:
     runs-on: ubuntu-latest
     steps:
