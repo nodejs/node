@@ -14,7 +14,7 @@ function main({ n }) {
     FreeList = FreeList.FreeList;
   const poolSize = 1000;
   const list = new FreeList('test', poolSize, Object);
-  var j;
+  let j;
   const used = [];
 
   // First, alloc `poolSize` items
@@ -24,7 +24,7 @@ function main({ n }) {
 
   bench.start();
 
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     // Return all the items to the pool
     for (j = 0; j < poolSize; j++) {
       list.free(used[j]);

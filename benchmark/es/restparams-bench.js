@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
 function copyArguments() {
   const len = arguments.length;
   const args = new Array(len);
-  for (var i = 0; i < len; i++)
+  for (let i = 0; i < len; i++)
     args[i] = arguments[i];
   assert.strictEqual(args[0], 1);
   assert.strictEqual(args[1], 2);
@@ -34,22 +34,22 @@ function useArguments() {
 }
 
 function runCopyArguments(n) {
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     copyArguments(1, 2, 'a', 'b');
 }
 
 function runRestArguments(n) {
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     restArguments(1, 2, 'a', 'b');
 }
 
 function runUseArguments(n) {
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     useArguments(1, 2, 'a', 'b');
 }
 
 function main({ n, method }) {
-  var fn;
+  let fn;
   switch (method) {
     case '':
       // Empty string falls through to next line as default, mostly for tests.
