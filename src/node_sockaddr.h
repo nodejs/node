@@ -71,7 +71,7 @@ class SocketAddress : public MemoryRetainer {
 
   sockaddr* storage() {
     return reinterpret_cast<sockaddr*>(&address_);
-  };
+  }
 
   size_t length() const {
     return GetLength(&address_);

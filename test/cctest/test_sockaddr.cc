@@ -4,7 +4,6 @@
 using node::SocketAddress;
 
 TEST(SocketAddress, SocketAddress) {
-
   CHECK(SocketAddress::is_numeric_host("123.123.123.123"));
   CHECK(!SocketAddress::is_numeric_host("localhost"));
 

@@ -1,4 +1,4 @@
-#include "node_sockaddr-inl.h"
+#include "node_sockaddr-inl.h"  // NOLINT(build/include)
 #include "uv.h"
 
 namespace node {
