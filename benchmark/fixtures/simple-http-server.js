@@ -31,14 +31,14 @@ module.exports = http.createServer((req, res) => {
   // URL format: /<type>/<length>/<chunks>/<responseBehavior>/chunkedEnc
   const params = req.url.split('/');
   const command = params[1];
-  var body = '';
+  let body = '';
   const arg = params[2];
   const n_chunks = parseInt(params[3], 10);
   const resHow = params.length >= 5 ? params[4] : 'normal';
   const chunkedEnc = params.length >= 6 && params[5] === '0' ? false : true;
-  var status = 200;
+  let status = 200;
 
-  var n, i;
+  let n, i;
   if (command === 'bytes') {
     n = ~~arg;
     if (n <= 0)
