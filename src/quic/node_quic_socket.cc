@@ -1018,7 +1018,7 @@ void NewQuicSocket(const FunctionCallbackInfo<Value>& args) {
 
   const uint8_t* session_reset_secret = nullptr;
   if (args[6]->IsArrayBufferView()) {
-    ArrayBufferViewContents<uint8_t> buf(args[5].As<ArrayBufferView>());
+    ArrayBufferViewContents<uint8_t> buf(args[6].As<ArrayBufferView>());
     CHECK_EQ(buf.length(), kTokenSecretLen);
     session_reset_secret = buf.data();
   }
