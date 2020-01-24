@@ -12,6 +12,8 @@
 
 namespace node {
 
+static constexpr uint32_t kLabelMask = 0xFFFFF;
+
 // Fun hash combine trick based on a variadic template that
 // I came across a while back but can't remember where. Will add an attribution
 // if I can find the source.
@@ -115,10 +117,9 @@ uint32_t SocketAddress::flow_label() const {
 }
 
 void SocketAddress::set_flow_label(uint32_t label) {
-  static constexpr uint32_t kMaxLabel = 1048575;
   if (family() != AF_INET6)
     return;
-  CHECK_LE(label, kMaxLabel);
+  CHECK_LE(label, kLabelMask);
   sockaddr_in6* in = reinterpret_cast<sockaddr_in6*>(&address_);
   in->sin6_flowinfo = label;
 }

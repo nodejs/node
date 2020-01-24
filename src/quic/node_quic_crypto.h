@@ -85,6 +85,13 @@ bool GenerateRetryToken(
     const QuicCID& ocid,
     const uint8_t* token_secret);
 
+uint32_t GenerateFlowLabel(
+    const SocketAddress& local,
+    const SocketAddress& remote,
+    const QuicCID& cid,
+    const uint8_t* secret,
+    size_t secretlen);
+
 // Verifies the validity of a retry token. Returns true if the
 // token is not valid, false otherwise.
 bool InvalidRetryToken(

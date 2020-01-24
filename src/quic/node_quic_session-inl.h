@@ -453,6 +453,21 @@ void QuicSession::VersionNegotiation(const uint32_t* sv, size_t nsv) {
 void QuicSession::UpdateEndpoint(const ngtcp2_path& path) {
   remote_address_.Update(path.remote.addr, path.remote.addrlen);
   local_address_.Update(path.local.addr, path.local.addrlen);
+
+  // If the updated remote address is IPv6, set the flow label
+  if (remote_address_.family() == AF_INET6) {
+    // TODO(@jasnell): Currently, this reuses the session reset secret.
+    // That may or may not be a good idea, we need to verify and may
+    // need to have a distinct secret for flow labels.
+    uint32_t flow_label =
+        GenerateFlowLabel(
+            local_address_,
+            remote_address_,
+            scid_,
+            socket()->session_reset_secret(),
+            NGTCP2_STATELESS_RESET_TOKENLEN);
+    remote_address_.set_flow_label(flow_label);
+  }
 }
 
 // Submits information headers only if the selected application

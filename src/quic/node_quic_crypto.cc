@@ -841,5 +841,49 @@ const char* crypto_level_name(ngtcp2_crypto_level level) {
   }
 }
 
+// When using IPv6, QUIC recommends the use of IPv6 Flow Labels
+// as specified in https://tools.ietf.org/html/rfc6437. These
+// are used as a means of reliably associating packets exchanged
+// as part of a single flow and protecting against certain kinds
+// of attacks.
+uint32_t GenerateFlowLabel(
+    const SocketAddress& local,
+    const SocketAddress& remote,
+    const QuicCID& cid,
+    const uint8_t* secret,
+    size_t secretlen) {
+  static constexpr size_t kInfoLen =
+      (sizeof(sockaddr_in6) * 2) + NGTCP2_MAX_CIDLEN;
+
+  uint32_t label = 0;
+
+  std::array<uint8_t, kInfoLen> plaintext;
+  size_t infolen = local.length() + remote.length() + cid.length();
+  CHECK_LE(infolen, kInfoLen);
+
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_crypto_ctx_initial(&ctx);
+
+  auto p = std::begin(plaintext);
+  p = std::copy_n(reinterpret_cast<const uint8_t*>(local.data()),
+                  local.length(), p);
+  p = std::copy_n(reinterpret_cast<const uint8_t*>(remote.data()),
+                  remote.length(), p);
+  p = std::copy_n(cid->data, cid->datalen, p);
+
+  ngtcp2_crypto_hkdf_expand(
+      reinterpret_cast<uint8_t*>(&label),
+      sizeof(label),
+      &ctx.md,
+      secret,
+      secretlen,
+      plaintext.data(),
+      infolen);
+
+  label &= kLabelMask;
+  DCHECK_LE(label, kLabelMask);
+  return label;
+}
+
 }  // namespace quic
 }  // namespace node
