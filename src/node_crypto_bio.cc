@@ -438,6 +438,13 @@ void NodeBIO::TryAllocateForWrite(size_t hint) {
                              kThroughputBufferLength;
     if (len < hint)
       len = hint;
+
+    // If there is a one time allocation size hint, use it.
+    if (allocate_hint_ > len) {
+      len = allocate_hint_;
+      allocate_hint_ = 0;
+    }
+
     Buffer* next = new Buffer(env_, len);
 
     if (w == nullptr) {
