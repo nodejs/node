@@ -30,7 +30,7 @@ For example, at the time of this writing:
 
 All older branches are abandoned and are not maintained by the V8 team.
 
-### V8 merge process overview
+### V8 Merge Process Overview
 
 The process for backporting bug fixes to active branches is officially
 documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
@@ -278,7 +278,7 @@ PR-URL: https://github.com/nodejs/node/pull/7833
   normal and [V8 CI][] using the Node.js CI system. We only needed to backport
   to `v6.x` as the other LTS branches weren't affected by this bug.
 
-### Backports Identified by the V8 team
+### Backports Identified by the V8 Team
 
 For bugs found through the browser or other channels, the V8 team marks bugs
 that might be applicable to the abandoned branches in use by Node.js. This is
@@ -313,7 +313,7 @@ Node.js keeps a vendored copy of V8 inside of the deps/ directory. In addition,
 Node.js may need to float patches that do not exist upstream. This means that
 some care may need to be taken to update the vendored copy of V8.
 
-### Minor updates (patch level)
+### Minor Updates (Patch Level)
 
 Because there may be floating patches on the version of V8 in Node.js, it is
 safest to apply the patch level updates as a patch. For example, imagine that
@@ -378,7 +378,7 @@ git node v8 major --branch=5.1-lkgr
 
 This should be followed up with manual refloating of all relevant patches.
 
-## Proposal: Using a fork repo to track upstream V8
+## Proposal: Using a Fork Repo to Track Upstream V8
 
 The fact that Node.js keeps a vendored, potentially edited copy of V8 in deps/
 makes the above processes a bit complicated. An alternative proposal would be to
