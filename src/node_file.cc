@@ -1226,11 +1226,17 @@ int MKDirpSync(uv_loop_t* loop,
     int err = uv_fs_mkdir(loop, req, next_path.c_str(), mode, nullptr);
     while (true) {
       switch (err) {
+        // Note: uv_fs_req_cleanup in terminal paths will be called by
+        // ~FSReqWrapSync():
         case 0:
           if (continuation_data.paths().size() == 0) {
             return 0;
           }
           break;
+        case UV_EACCES:
+        case UV_EPERM: {
+          return err;
+        }
         case UV_ENOENT: {
           std::string dirname = next_path.substr(0,
                                         next_path.find_last_of(kPathSeparator));
@@ -1242,9 +1248,6 @@ int MKDirpSync(uv_loop_t* loop,
             continue;
           }
           break;
-        }
-        case UV_EPERM: {
-          return err;
         }
         default:
           uv_fs_req_cleanup(req);
@@ -1293,6 +1296,8 @@ int MKDirpAsync(uv_loop_t* loop,
 
     while (true) {
       switch (err) {
+        // Note: uv_fs_req_cleanup in terminal paths will be called by
+        // FSReqAfterScope::~FSReqAfterScope()
         case 0: {
           if (req_wrap->continuation_data()->paths().size() == 0) {
             req_wrap->continuation_data()->Done(0);
@@ -1301,6 +1306,11 @@ int MKDirpAsync(uv_loop_t* loop,
             MKDirpAsync(loop, req, path.c_str(),
                         req_wrap->continuation_data()->mode(), nullptr);
           }
+          break;
+        }
+        case UV_EACCES:
+        case UV_EPERM: {
+          req_wrap->continuation_data()->Done(err);
           break;
         }
         case UV_ENOENT: {
@@ -1316,10 +1326,6 @@ int MKDirpAsync(uv_loop_t* loop,
           uv_fs_req_cleanup(req);
           MKDirpAsync(loop, req, path.c_str(),
                       req_wrap->continuation_data()->mode(), nullptr);
-          break;
-        }
-        case UV_EPERM: {
-          req_wrap->continuation_data()->Done(err);
           break;
         }
         default:
