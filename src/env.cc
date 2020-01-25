@@ -685,13 +685,11 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
     native_immediates_.ConcatMove(std::move(native_immediates_threadsafe_));
   }
 
-  NativeImmediateQueue queue;
-  queue.ConcatMove(std::move(native_immediates_));
-
   auto drain_list = [&]() {
     TryCatchScope try_catch(this);
     DebugSealHandleScope seal_handle_scope(isolate());
-    while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift()) {
+    while (std::unique_ptr<NativeImmediateCallback> head =
+               native_immediates_.Shift()) {
       if (head->is_refed())
         ref_count++;
 
@@ -709,7 +707,7 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
     }
     return false;
   };
-  while (queue.size() > 0 && drain_list()) {}
+  while (drain_list()) {}
 
   immediate_info()->ref_count_dec(ref_count);
 
