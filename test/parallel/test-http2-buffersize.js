@@ -15,29 +15,32 @@ const Countdown = require('../common/countdown');
   const BUFFER_SIZE = 30;
   const server = createServer();
 
+  let client;
+  const countdown = new Countdown(SOCKETS, () => {
+    client.close();
+    server.close();
+  });
+
   // Other `bufferSize` tests for net module and tls module
   // don't assert `bufferSize` of server-side sockets.
   server.on('stream', mustCall((stream) => {
     stream.on('data', mustCall());
     stream.on('end', mustCall());
+
+    stream.on('close', mustCall(() => {
+      countdown.dec();
+    }));
   }, SOCKETS));
 
   server.listen(0, mustCall(() => {
     const authority = `http://localhost:${server.address().port}`;
-    const client = connect(authority);
-    const countdown = new Countdown(SOCKETS, () => {
-      client.close();
-      server.close();
-    });
+    client = connect(authority);
 
     client.once('connect', mustCall());
 
     for (let j = 0; j < SOCKETS; j += 1) {
       const stream = client.request({ ':method': 'POST' });
       stream.on('data', () => {});
-      stream.on('close', mustCall(() => {
-        countdown.dec();
-      }));
 
       for (let i = 0; i < TIMES; i += 1) {
         stream.write(Buffer.allocUnsafe(BUFFER_SIZE), mustCall());
