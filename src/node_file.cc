@@ -1247,6 +1247,7 @@ int MKDirpSync(uv_loop_t* loop,
         case UV_EPERM: {
           uv_fs_req_cleanup(req);
           return err;
+          break;
         }
         default:
           uv_fs_req_cleanup(req);
@@ -1323,6 +1324,7 @@ int MKDirpAsync(uv_loop_t* loop,
         case UV_EACCES:
         case UV_EPERM: {
           req_wrap->continuation_data()->Done(err);
+          uv_fs_req_cleanup(req);
           break;
         }
         default:
