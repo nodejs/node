@@ -399,31 +399,38 @@ Local<Context> NewContext(Isolate* isolate,
   return context;
 }
 
+NewContextOptions::NewContextOptions() {
+  initialize = false;
+  microtask_queue = nullptr;
+}
+
 Local<Context> NewContext(Environment* env,
                           Local<ObjectTemplate> object_template,
-                          bool initialize) {
-  v8::EscapableHandleScope scope(env->isolate());
-  auto context = Context::New(env->isolate(), nullptr, object_template);
+                          const NewContextOptions& options) {
+  auto context = Context::New(
+    env->isolate(),
+    nullptr,
+    object_template,
+    v8::MaybeLocal<v8::Value>(),
+    v8::DeserializeInternalFieldsCallback(),
+    options.microtask_queue);
   if (context.IsEmpty()) return context;
 
-  if (initialize && !InitializeContext(context)) {
+  // Call InitializeContext only if initialize options is true
+  if (options.initialize && !InitializeContext(context)) {
     return Local<Context>();
   }
 
-  v8::Local<v8::String> name;
+  ContextInfo info(options.debug_name);
+  info.origin = options.debug_origin;
 
-  {
-    // A constructor name should be invoked in the newly created context
-    // to prevent access check failures.
-    v8::Context::Scope scope(context);
-    name = context->Global()->GetConstructorName();
-  }
-
-  Utf8Value name_val(env->isolate(), name);
-  ContextInfo info(*name_val);
+  // Inspector agent is an (optional) member of node::Environment.
+  // This notifies the environment's inspector agent for the new context.
+  // Also assigns methods required for Environment::GetCurrent(context) to work.
+  // The latter is require for properly processing stack traces in node.
   env->AssignToContext(context, info);
 
-  return scope.Escape(context);
+  return context;
 }
 
 // This runs at runtime, regardless of whether the context

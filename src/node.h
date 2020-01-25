@@ -362,12 +362,31 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
     v8::Local<v8::ObjectTemplate> object_template =
         v8::Local<v8::ObjectTemplate>());
 
+// Preferred way to add additional options to node::NewContext below
+// We can add more fields (as needed) later, without changing the
+// interface of node::NewContext.
+struct NewContextOptions {
+  NewContextOptions();
+  // If false creates "pure" context as created by V8
+  // If true, setup node specific initialization,
+  // required for running node code (like loading modules, etc)
+  bool initialize;
+  // This parameters is passed to v8::Context::New.
+  // The default is nullptr (use the default queue from the isolate).
+  v8::MicrotaskQueue* microtask_queue;
+  // The following two parameters are passed to the inspector agent.
+  // Use them to control how the new context will appear during debugging.
+  std::string debug_name;
+  std::string debug_origin;
+};
+
 // Create a new context for an existing environment.
 // This add several fields to make inspector work properly.
 NODE_EXTERN v8::Local<v8::Context> NewContext(
     Environment* env,
-    v8::Local<v8::ObjectTemplate> object_template,
-    bool initialize = false);
+    v8::Local<v8::ObjectTemplate> object_template =
+    v8::Local<v8::ObjectTemplate>(),
+    const NewContextOptions& options = NewContextOptions());
 
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
