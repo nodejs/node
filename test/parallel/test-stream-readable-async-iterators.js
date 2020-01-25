@@ -610,5 +610,24 @@ async function tests() {
   p.then(common.mustCall()).catch(common.mustNotCall());
 }
 
+{
+  // AsyncIterator should finish correctly if destroyed.
+
+  const r = new Readable({
+    objectMode: true,
+    read() {
+    }
+  });
+
+  r.destroy();
+  r.on('close', () => {
+    const it = r[Symbol.asyncIterator]();
+    const next = it.next();
+    next
+      .then(common.mustCall(({ done }) => assert.strictEqual(done, true)))
+      .catch(common.mustNotCall());
+  });
+}
+
 // To avoid missing some tests if a promise does not resolve
 tests().then(common.mustCall());
