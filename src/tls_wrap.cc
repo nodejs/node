@@ -89,7 +89,7 @@ TLSWrap::~TLSWrap() {
 
 
 bool TLSWrap::InvokeQueued(int status, const char* error_str) {
-  Debug(this, "InvokeQueued(%d, %s)", status, error_str);
+  Debug(this, "InvokeQueued(%d, %s)", status, error_str ? error_str : "");
   if (!write_callback_scheduled_)
     return false;
 
