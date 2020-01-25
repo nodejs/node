@@ -30,7 +30,7 @@ For example, at the time of this writing:
 
 All older branches are abandoned and are not maintained by the V8 team.
 
-### V8 merge process overview
+### V8 Merge Process Overview
 
 The process for backporting bug fixes to active branches is officially
 documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
