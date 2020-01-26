@@ -22,7 +22,7 @@ struct ToStringHelper {
             typename dummy = bool>
   static std::string Convert(const T& value) { return std::to_string(value); }
   static std::string Convert(const char* value) {
-    return value ? value : "(null)";
+    return value != nullptr ? value : "(null)";
   }
   static std::string Convert(const std::string& value) { return value; }
   static std::string Convert(bool value) { return value ? "true" : "false"; }
