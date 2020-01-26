@@ -193,3 +193,12 @@ const { promisify } = require('util');
     assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
   }));
 }
+
+{
+  const readable = new Readable();
+  readable.readable = false;
+  readable.destroy();
+  finished(readable, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+}
