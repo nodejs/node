@@ -28,10 +28,8 @@ let n = 0;
   fs.chmodSync(dir, '444');
   let err = null;
   try {
-    console.log('31: mkdirsync');
     fs.mkdirSync(path.join(dir, '/foo'), { recursive: true });
   } catch (_err) {
-    console.log('34: mkdirsync', err);
     err = _err;
   }
   assert(err);
@@ -44,9 +42,7 @@ let n = 0;
   const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
   fs.mkdirSync(dir);
   fs.chmodSync(dir, '444');
-  console.log('47: mkdir');
   fs.mkdir(path.join(dir, '/bar'), { recursive: true }, (err) => {
-    console.log('49: mkdir', err);
     assert(err);
     assert.strictEqual(err.code, 'EACCES');
     assert(err.path);
