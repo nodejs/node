@@ -281,6 +281,7 @@ TEST(UtilTest, SPrintF) {
   const char* bar = "bar";
   EXPECT_EQ(SPrintF("%s %s", foo, "bar"), "foo bar");
   EXPECT_EQ(SPrintF("%s %s", foo, bar), "foo bar");
+  EXPECT_EQ(SPrintF("%s", nullptr), "(null)");
 
   EXPECT_EQ(SPrintF("[%% %s %%]", foo), "[% foo %]");
 
