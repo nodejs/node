@@ -184,3 +184,21 @@ const { promisify } = require('util');
   finished(streamLike, common.mustCall);
   streamLike.emit('close');
 }
+
+{
+  const writable = new Writable({ write() {} });
+  writable.writable = false;
+  writable.destroy();
+  finished(writable, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+}
+
+{
+  const readable = new Readable();
+  readable.readable = false;
+  readable.destroy();
+  finished(readable, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+}
