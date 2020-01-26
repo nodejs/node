@@ -16,6 +16,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const assert = require('assert');
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -25,7 +26,14 @@ let n = 0;
 {
   const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
   fs.mkdirSync(dir);
-  fs.chmodSync(dir, '444');
+  let codeExpected = 'EACCES';
+  if (common.isWindows) {
+    codeExpected = 'EPERM';
+    execSync(`icacls ${dir} /inheritance:r`);
+    execSync(`icacls ${dir} /deny "everyone":W`);
+  } else {
+    fs.chmodSync(dir, '444');
+  }
   let err = null;
   try {
     fs.mkdirSync(path.join(dir, '/foo'), { recursive: true });
@@ -33,7 +41,7 @@ let n = 0;
     err = _err;
   }
   assert(err);
-  assert.strictEqual(err.code, 'EACCES');
+  assert.strictEqual(err.code, codeExpected);
   assert(err.path);
 }
 
@@ -41,10 +49,17 @@ let n = 0;
 {
   const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
   fs.mkdirSync(dir);
-  fs.chmodSync(dir, '444');
+  let codeExpected = 'EACCES';
+  if (common.isWindows) {
+    codeExpected = 'EPERM';
+    execSync(`icacls ${dir} /inheritance:r`);
+    execSync(`icacls ${dir} /deny "everyone":W`);
+  } else {
+    fs.chmodSync(dir, '444');
+  }
   fs.mkdir(path.join(dir, '/bar'), { recursive: true }, (err) => {
     assert(err);
-    assert.strictEqual(err.code, 'EACCES');
+    assert.strictEqual(err.code, codeExpected);
     assert(err.path);
   });
 }
