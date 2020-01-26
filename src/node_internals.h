@@ -112,7 +112,7 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   void* AllocateUninitialized(size_t size) override
     { return node::UncheckedMalloc(size); }
   void Free(void* data, size_t) override { free(data); }
-  virtual void* Reallocate(void* data, size_t old_size, size_t size) {
+  virtual void* TryReallocate(void* data, size_t old_size, size_t size) {
     return static_cast<void*>(
         UncheckedRealloc<char>(static_cast<char*>(data), size));
   }
@@ -131,7 +131,7 @@ class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
   void* Allocate(size_t size) override;
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
+  void* TryReallocate(void* data, size_t old_size, size_t size) override;
   void RegisterPointer(void* data, size_t size) override;
   void UnregisterPointer(void* data, size_t size) override;
 
