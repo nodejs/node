@@ -952,41 +952,31 @@
         }],
         ['is_android', {
           'sources': [
-            '<(V8_ROOT)/src/base/debug/stack_trace_android.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix.h',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.h',
           ],
-          'conditions': [
-            ['_toolset=="host"', {
-              'link_settings': {
+          'link_settings': {
+            'target_conditions': [
+              ['_toolset=="host" and host_os=="linux"', {
                 'libraries': [
                   '-ldl',
                   '-lrt'
-                ]
-              },
-              'conditions': [
-                ['_toolset=="host"', {
-                  'conditions': [
-                    ['host_os == "mac"', {
-                      'sources': [
-                        '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc'
-                        '<(V8_ROOT)/src/base/platform/platform-macos.cc'
-                      ]
-                    }, {
-                       'sources': [
-                         '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc'
-                         '<(V8_ROOT)/src/base/platform/platform-linux.cc'
-                       ]
-                     }],
-                  ],
-                }, {
-                   'sources': [
-                     '<(V8_ROOT)/src/base/debug/stack_trace_android.cc'
-                     '<(V8_ROOT)/src/base/platform/platform-linux.cc'
-                   ]
-                 }],
+                ],
+              }],
+            ],
+          },
+          'target_conditions': [
+            ['_toolset=="host"', {
+              'sources': [
+                '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
+                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
+              ],
+            }, {
+              'sources': [
+                '<(V8_ROOT)/src/base/debug/stack_trace_android.cc',
+                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
               ],
             }],
           ],
