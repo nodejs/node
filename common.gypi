@@ -442,6 +442,10 @@
             'defines': [ '_GLIBCXX_USE_C99_MATH' ],
             'libraries': [ '-llog' ],
           }],
+          ['_toolset=="host"', {
+            'cflags': [ '-pthread' ],
+            'ldflags': [ '-pthread' ],
+          }],
         ],
       }],
       ['OS=="mac"', {
