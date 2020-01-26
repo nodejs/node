@@ -36,7 +36,7 @@ function makeDirectoryReadOnly(dir) {
 
 function makeDirectoryWritable(dir) {
   if (common.isWindows) {
-    execSync(`icacls ${dir} /inheritance:e`);
+    execSync(`icacls ${dir} /grant "everyone":W`);
   }
 }
 
