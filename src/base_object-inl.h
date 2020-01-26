@@ -28,12 +28,12 @@
 #include "env-inl.h"
 #include "util.h"
 
-#if defined(__GNUC__) && !defined(__clang__)
+#if (__GNUC__ >= 8) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
 #include "v8.h"
-#if defined(__GNUC__) && !defined(__clang__)
+#if (__GNUC__ >= 8) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
 
