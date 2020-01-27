@@ -122,7 +122,7 @@ napi_value Method(napi_env env, napi_callback_info info) {
 When trying to create a memory leak you need to ensure that
 the compiler has not optimized out the code that creates
 the leak. For example, assigning the result of `malloc()` to either a
-global variable or a variable that is read the compiler will `optimize`
+global variable or a variable that is read the compiler will optimize
 out the loop with the malloc and valgrind does not report
 a problem (since once does not exist in the code being run).
 
