@@ -21,7 +21,7 @@ To use valgrind:
 * Be patient, running under valgrind slows execution significantly due
   to the checks being performed.
 * Reduce your test case to the smallest reproduce. Due to the slowdown it is
-  important to run the minimum testcase in order to be able to do it in
+  important to run the minimum test case in order to be able to do it in
   a reasonable time.
 
 ## Installation
