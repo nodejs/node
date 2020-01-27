@@ -126,7 +126,7 @@ global variable or a variable that is read the compiler will optimize
 out the loop with the malloc and valgrind does not report
 a problem (since one no longer exists in the code being run).
 
-Running valgrind on the example program with this addition shows the following:
+Running valgrind on this code shows the following:
 
 ```bash
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node hello.js
