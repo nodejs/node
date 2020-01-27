@@ -434,7 +434,6 @@ Running valgrind using the debug build of Node.js shows:
 ==44112==    by 0xEE8831: node::NodeMainInstance::Run() (node_main_instance.cc:108)
 ==44112==    by 0xE3CDEC: node::Start(int, char**) (node.cc:996)
 ==44112==    by 0x22D8BBF: main (node_main.cc:126)
-
 ```
 
 Now we can see the specific file name and line in the Node.js code which
