@@ -416,7 +416,7 @@ make  -j4
   You must use the one which is in `out/Debug`. Add that version of the
   binary to your path. For example:
 
-```bash
+```console
 export PATH=/home/user1/node/out/Debug/:$PATH
 ```
 
