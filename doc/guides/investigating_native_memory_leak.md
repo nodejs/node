@@ -392,7 +392,7 @@ reported by valgrind, with a release binary we see:
 ```
 
 This gives us some information of where to look (`node::inspector::Agent::Start`)
-but not where in that function. We get more information that you might expect
+but not where in that function. We get more information than you might expect
 (or see by default with addons) because the Node.js binary exports many of
 its symbols using -rdynamic so that they can be used by addons. If the stack
 gives you enough information to track down where the leak is great,
