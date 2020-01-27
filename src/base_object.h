@@ -165,7 +165,7 @@ inline T* Unwrap(v8::Local<v8::Object> obj) {
 
 // Implementation of a generic strong or weak pointer to a BaseObject.
 // If strong, this will keep the target BaseObject alive regardless of other
-// circumstances such das GC or Environment cleanup.
+// circumstances such as the GC or Environment cleanup.
 // If weak, destruction behaviour is not affected, but the pointer will be
 // reset to nullptr once the BaseObject is destroyed.
 // The API matches std::shared_ptr closely.
