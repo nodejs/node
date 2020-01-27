@@ -406,7 +406,7 @@ To get additional information with valgrind:
 git clone https://github.com/nodejs/node.git
 git checkout -b v12.14.1
 ```
-* compile with debug enabled (for addional info see [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)
+* Compile with debug enabled (for additional info see [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)). For example, on *nix:
 ```bash
 ./configure --debug
 make  -j4
