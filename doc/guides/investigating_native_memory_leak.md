@@ -410,12 +410,7 @@ make  -j4
 ```
 * Make sure to run with your compiled debug version of Node.js. Having used
  `./configure --debug`, two binaries will have been built when `make` was run.
-  You must use the one which is in `out/Debug`. Add that version of the
-  binary to your path. For example:
-
-```console
-export PATH=/home/user1/node/out/Debug/:$PATH
-```
+  You must use the one which is in `out/Debug`.
 
 Running valgrind using the debug build of Node.js shows:
 
