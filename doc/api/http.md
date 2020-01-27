@@ -2213,6 +2213,9 @@ changes:
     **Default:** 8192 (8KB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
+  * `noDelay` {boolean} A boolean with which to call [`socket.setNoDelay()`][]
+    when a socket connection is established. This only applies when the
+    underlying connection is a TCP socket.
   * `path` {string} Request path. Should include query string if any.
     E.G. `'/index.html?page=12'`. An exception is thrown when the request path
     contains illegal characters. Currently, only spaces are rejected but that
