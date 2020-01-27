@@ -338,7 +338,7 @@ The next step is to run valgrind after the rebuild. This time the information
 for the leaking location includes the name of the source file and the
 line number:
 
-```bash
+```console
 ==18481== 997,000 bytes in 997 blocks are definitely lost in loss record 35 of 35
 ==18481==    at 0x4C2FB0F: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
 >>>>> ==18481==    by 0x9794989: Method(napi_env__*, napi_callback_info__*) (hello.cc:13)  <<<<<
