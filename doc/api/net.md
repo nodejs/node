@@ -879,9 +879,16 @@ added: v0.1.90
 * `noDelay` {boolean} **Default:** `true`
 * Returns: {net.Socket} The socket itself.
 
-Disables the Nagle algorithm. By default TCP connections use the Nagle
-algorithm, they buffer data before sending it off. Setting `true` for
-`noDelay` will immediately fire off data each time `socket.write()` is called.
+Enable/disable the Nagle algorithm.
+
+TCP connections when they are created have the Nagle algorithm enabled.
+
+The Nagle algorithm delays data before it is sent via the network. It attempts
+to optimize throughput at the expense of latency.
+
+Setting `true` for `noDelay` or not passing an argument will disable the Nagle
+algorithm for the socket. Setting `false` for `noDelay` will enable the Nagle
+algorithm.
 
 ### `socket.setTimeout(timeout[, callback])`
 <!-- YAML
