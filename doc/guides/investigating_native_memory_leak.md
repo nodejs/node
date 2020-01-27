@@ -27,7 +27,7 @@ To use valgrind:
 ## Installation
 
 It is an optional package in most cases and must be installed. For example on
-ubuntu:
+Debian/Ubuntu:
 
 ```bash
 apt-get install valgrind
