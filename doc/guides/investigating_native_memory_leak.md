@@ -176,7 +176,7 @@ world
 ```
 
 Valgrind is reporting a problem as it shows 996,604 bytes as
-definitely lost and the question is how to find where that memory is
+definitely lost and the question is how to find where that memory was
 allocated. The next step is to rerun as suggested in the
 output with `--leak-check=full`
 
