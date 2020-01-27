@@ -119,7 +119,7 @@ napi_value Method(napi_env env, napi_callback_info info) {
 }
 ```
 
-When trying to introduce a memory leak you need to ensure that
+When trying to create a memory leak you need to ensure that
 the compiler has not optimized out the code you've introduced to generate
 the leak. For example, with assigning the result of malloc to either a
 global variable or a variable that is read the compiler will `optimize`
