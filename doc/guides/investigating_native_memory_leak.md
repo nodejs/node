@@ -124,7 +124,7 @@ the compiler has not optimized out the code that creates
 the leak. For example, assigning the result of `malloc()` to either a
 global variable or a variable that is read the compiler will optimize
 out the loop with the malloc and valgrind does not report
-a problem (since once does not exist in the code being run).
+a problem (since one no longer exists in the code being run).
 
 Running valgrind on the example program with this addition shows the following:
 
