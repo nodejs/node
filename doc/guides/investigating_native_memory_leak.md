@@ -36,7 +36,7 @@ apt-get install valgrind
 ## Invocation
 The simplest invocation of valgrind is:
 
-```bash
+```console
 valgrind node test.js
 ```
 
