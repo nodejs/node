@@ -5,7 +5,7 @@ A Node.js process may run out of memory due to excessive consumption of
 V8 Garbage collector and is allocated either by the Node.js runtime, it's
 dependencies or native [addons](://nodejs.org/docs/latest/api/n-api.html).
 
-This guide provides informaiton on how to use valgrind to investigate these
+This guide provides information on how to use valgrind to investigate these
 issues.
 
 ## valgrind
