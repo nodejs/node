@@ -43,8 +43,6 @@ valgrind node test.js
 with the output being:
 
 ```console
-user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind test.js
-valgrind: test.js: command not found
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node test.js
 ==28993== Memcheck, a memory error detector
 ==28993== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
@@ -282,7 +280,6 @@ world
 ==4174== For counts of detected and suppressed errors, rerun with: -v
 ==4174== Use --track-origins=yes to see where uninitialised values come from
 ==4174== ERROR SUMMARY: 5 errors from 5 contexts (suppressed: 0 from 0)
-user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$
 ```
 
 This is the most interesting report:
@@ -364,7 +361,7 @@ This new output shows us exactly where the leak is occurring in the file `hello.
  10   status = napi_create_string_utf8(env, "world", 5, &world);
  11   assert(status == napi_ok);
  12   for (int i=0; i< 1000; i++) {
- 13     malloc_holder = malloc(1000);  // <<<<<< Yup this is where we are allocating the memory that is not freed
+ 13     malloc_holder = malloc(1000);  // <<<<<< This is where we are allocating the memory that is not freed
  14   }
  15   return world;
  16 }
