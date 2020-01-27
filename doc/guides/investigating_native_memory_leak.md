@@ -18,16 +18,16 @@ like double freeing memory.
 
 To use valgrind:
 
-* Be patient, running under valgrind slows execution significantly due
-  to the checks being performed.
+* Be patient, running under valgrind slows execution significantly
+  due to the checks being performed.
 * Reduce your test case to the smallest reproduce. Due to the slowdown it is
   important to run the minimum test case in order to be able to do it in
   a reasonable time.
 
 ## Installation
 
-It is an optional package in most cases and must be installed explicitly. For example on
-Debian/Ubuntu:
+It is an optional package in most cases and must be installed explicitly.
+For example on Debian/Ubuntu:
 
 ```console
 apt-get install valgrind
@@ -369,9 +369,9 @@ This new output shows us exactly where the leak is occurring in the file `hello.
 
 ### Node.js binary
 
-If the leak is not in an addon and is instead in the Node.js binary itself, you may need
-to compile node yourself and turn on debug symbols. Looking at this entry
-reported by valgrind, with a release binary we see:
+If the leak is not in an addon and is instead in the Node.js binary itself,
+you may need to compile node yourself and turn on debug symbols. Looking at
+this entry reported by valgrind, with a release binary we see:
 
 ```console
  ==4174== 304 bytes in 1 blocks are possibly lost in loss record 27 of 35
@@ -403,7 +403,9 @@ To get additional information with valgrind:
 git clone https://github.com/nodejs/node.git
 git checkout v12.14.1
 ```
-* Compile with debug enabled (for additional info see [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)). For example, on *nix:
+* Compile with debug enabled (for additional info see
+[building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)).
+For example, on *nix:
 ```console
 ./configure --debug
 make  -j4
