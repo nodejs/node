@@ -305,7 +305,7 @@ This is the most interesting report:
 
 From the stack trace we can tell that the leak came from a native addon:
 
-```bash
+```console
 ==4174==    by 0x9794979: Method(napi_env__*, napi_callback_info__*) (in /home/user1/valgrind/node-addon-examples/1_hello_world/napi/build/Release/hello.node)
 ```
 
