@@ -287,7 +287,7 @@ user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$
 
 This is the most interesting report:
 
-```bash
+```console
 ==4174== 997,000 bytes in 997 blocks are definitely lost in loss record 35 of 35
 ==4174==    at 0x4C2FB0F: malloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
 ==4174==    by 0x9794979: Method(napi_env__*, napi_callback_info__*) (in /home/user1/valgrind/node-addon-examples/1_hello_world/napi/build/Release/hello.node)
