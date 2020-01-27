@@ -99,7 +99,7 @@ Leaks can be introduced in native addons and the following is a simple
 example leak based on the "Hello world" addon from
 [node-addon-examples](https://github.com/nodejs/node-addon-examples).
 
-In that example a loop which allocates ~1MB of memory and never frees it
+In this example, a loop which allocates ~1MB of memory and never frees it
 has been added:
 
 ```C++
