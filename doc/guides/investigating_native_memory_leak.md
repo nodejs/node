@@ -400,7 +400,7 @@ otherwise the next step is to compile a Node.js binary with debugging enabled.
 
 To get additional information with valgrind:
 
-* check out the Node.js source corresponding to the release that you
+* Check out the Node.js source corresponding to the release that you
   want to debug. For example
 ```bash
 git clone https://github.com/nodejs/node.git
