@@ -377,7 +377,7 @@ to compile node yourself and turn on debug symbols. Looking at this entry
 reported by valgrind, with a release binary we see:
 
 ```bash
-74== 304 bytes in 1 blocks are possibly lost in loss record 27 of 35
+ ==4174== 304 bytes in 1 blocks are possibly lost in loss record 27 of 35
 ==4174==    at 0x4C31B25: calloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
 ==4174==    by 0x40134A6: allocate_dtv (dl-tls.c:286)
 ==4174==    by 0x40134A6: _dl_allocate_tls (dl-tls.c:530)
