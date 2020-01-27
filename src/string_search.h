@@ -91,7 +91,7 @@ class StringSearch : private StringSearchBase {
   typedef stringsearch::Vector<const Char> Vector;
 
   explicit StringSearch(Vector pattern)
-      : pattern_(pattern), start_(0) {
+      : StringSearchBase(), pattern_(pattern), start_(0) {
     if (pattern.length() >= kBMMaxShift) {
       start_ = pattern.length() - kBMMaxShift;
     }
