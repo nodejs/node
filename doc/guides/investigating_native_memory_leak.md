@@ -411,7 +411,7 @@ git checkout -b v12.14.1
 ./configure --debug
 make  -j4
 ```
-* make sure to run with your compiled debug version of Node.js. Having used
+* Make sure to run with your compiled debug version of Node.js. Having used
  `./configure --debug`, two binaries will have been built when make was run.
   You must use the one which is in .../out/Debug. Add that version of the
   binary to your path. For example:
