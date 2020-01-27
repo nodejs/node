@@ -111,7 +111,7 @@ napi_value Method(napi_env env, napi_callback_info info) {
   assert(status == napi_ok);
 
   // NEW LEAK HERE
-  for (int i=0; i< 1024; i++) {
+  for (int i=0; i < 1024; i++) {
     malloc_holder = malloc(1024);
   }
 
