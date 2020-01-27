@@ -364,7 +364,7 @@ This new output shows us exactly where the leak is occurring in the file `hello.
  10   status = napi_create_string_utf8(env, "world", 5, &world);
  11   assert(status == napi_ok);
  12   for (int i=0; i< 1000; i++) {
- 13     malloc_holder = malloc(1000);  <<<<<< Yup this is where we are allocating the memory that is not freed
+ 13     malloc_holder = malloc(1000);  // <<<<<< Yup this is where we are allocating the memory that is not freed
  14   }
  15   return world;
  16 }
