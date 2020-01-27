@@ -87,7 +87,7 @@ user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node
 ==28993== Use --track-origins=yes to see where uninitialised values come
 ```
 
-This reports that Node.js is not `completely` clean as there is some memory
+This reports that Node.js is not _completely_ clean as there is some memory
 that was allocated but not freed when the process shut down. It is often
 impractical/not worth being completely clean in this respect and Node.js
 does a pretty good job only leaving in the order or 6k bytes that are
