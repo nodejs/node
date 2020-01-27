@@ -178,7 +178,7 @@ world
 Valgrind is reporting a problem as it shows 996,604 bytes as
 definitely lost and the question is how to find where that memory was
 allocated. The next step is to rerun as suggested in the
-output with `--leak-check=full`
+output with `--leak-check=full`:
 
 ``` bash
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind --leak-check=full node hello.js
