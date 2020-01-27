@@ -42,7 +42,7 @@ valgrind node test.js
 
 with the output being:
 
-```bash
+```console
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind test.js
 valgrind: test.js: command not found
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node test.js
