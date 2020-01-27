@@ -336,7 +336,7 @@ a rebuild.
 
 The next step is to run valgrind after the rebuild. This time the information
 for the leaking location includes the name of the source file and the
-line number!
+line number:
 
 ```bash
 ==18481== 997,000 bytes in 997 blocks are definitely lost in loss record 35 of 35
