@@ -1,7 +1,7 @@
 # Investigating Memory Leaks with valgrind
 
 A Node.js process may run out of memory due to excessive consumption of
-`Native memory`. `Native Memory` is memory which is not managed by the the
+native memory. Native Memory is memory which is not managed by the
 V8 Garbage collector and is allocated either by the Node.js runtime, it's
 dependencies or native [addons](://nodejs.org/docs/latest/api/n-api.html).
 
