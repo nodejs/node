@@ -9,6 +9,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, method, inputLen }) {
+  // Default method value for testing.
+  method = method || 'deflate';
   const chunk = Buffer.alloc(inputLen, 'a');
 
   var i = 0;
