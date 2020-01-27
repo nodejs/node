@@ -401,7 +401,7 @@ To get additional information with valgrind:
   want to debug. For example:
 ```console
 git clone https://github.com/nodejs/node.git
-git checkout -b v12.14.1
+git checkout v12.14.1
 ```
 * Compile with debug enabled (for additional info see [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)). For example, on *nix:
 ```console
