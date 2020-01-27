@@ -128,7 +128,7 @@ a problem (since one no longer exists in the code being run).
 
 Running valgrind on this code shows the following:
 
-```bash
+```console
 user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node hello.js
 ==1504== Memcheck, a memory error detector
 ==1504== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
