@@ -396,7 +396,7 @@ but not where in that function. We get more information than you might expect
 (or see by default with addons) because the Node.js binary exports many of
 its symbols using `-rdynamic` so that they can be used by addons. If the stack
 gives you enough information to track down where the leak is, that's great,
-otherwise the next step is to compile a Node.js binary with debugging enabled.
+otherwise the next step is to compile a debug build of Node.js.
 
 To get additional information with valgrind:
 
