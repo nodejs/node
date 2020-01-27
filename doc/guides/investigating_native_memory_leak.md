@@ -29,7 +29,7 @@ To use valgrind:
 It is an optional package in most cases and must be installed explicitly. For example on
 Debian/Ubuntu:
 
-```bash
+```console
 apt-get install valgrind
 ```
 
