@@ -402,7 +402,7 @@ To get additional information with valgrind:
 
 * Check out the Node.js source corresponding to the release that you
   want to debug. For example:
-```bash
+```console
 git clone https://github.com/nodejs/node.git
 git checkout -b v12.14.1
 ```
