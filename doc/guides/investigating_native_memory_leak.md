@@ -401,7 +401,7 @@ otherwise the next step is to compile a debug build of Node.js.
 To get additional information with valgrind:
 
 * Check out the Node.js source corresponding to the release that you
-  want to debug. For example
+  want to debug. For example:
 ```bash
 git clone https://github.com/nodejs/node.git
 git checkout -b v12.14.1
