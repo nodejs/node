@@ -110,7 +110,14 @@ class StringSearch : private StringSearchBase {
   }
 
   size_t Search(Vector subject, size_t index) {
+#if (__GNUC__ >= 8) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     return (this->*strategy_)(subject, index);
+#if (__GNUC__ >= 8) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
   }
 
   static inline int AlphabetSize() {
