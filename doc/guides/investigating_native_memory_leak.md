@@ -420,7 +420,7 @@ make  -j4
 export PATH=/home/user1/node/out/Debug/:$PATH
 ```
 
-Running valgrind using the Node.js binary with debug symbols enabled shows:
+Running valgrind using the debug build of Node.js shows:
 
 ```bash
 ==44112== 592 bytes in 1 blocks are possibly lost in loss record 26 of 27
