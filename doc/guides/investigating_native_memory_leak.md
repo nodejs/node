@@ -322,7 +322,7 @@ follow cover the steps needed to enable debug symbols to get more info.
 ### Native addons
 
 To enable debug symbols for all of your addons that are compiled on
-install simply use:
+install use:
 
 ```console
 npm install --debug
