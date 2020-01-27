@@ -374,7 +374,7 @@ This new output shows us exactly where the leak is occurring in the file `hello.
 
 If the leak is not in an addon and is instead in the Node.js binary itself, you may need
 to compile node yourself and turn on debug symbols. Looking at this entry
-reported by valgrind, with the release binary we see:
+reported by valgrind, with a release binary we see:
 
 ```bash
 74== 304 bytes in 1 blocks are possibly lost in loss record 27 of 35
