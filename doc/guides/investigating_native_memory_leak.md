@@ -391,7 +391,7 @@ reported by valgrind, with the release binary we see:
 ==4174==    by 0x5BBFB96: (below main) (libc-start.c:310)
 ```
 
-This gives us some information of where to look (node::inspector::Agent::Start)
+This gives us some information of where to look (`node::inspector::Agent::Start`)
 but not where in that function. We get more information that you might expect
 (or see by default with addons) because the Node.js binary exports many of
 its symbols using -rdynamic so that they can be used by addons. If the stack
