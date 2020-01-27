@@ -422,7 +422,7 @@ export PATH=/home/user1/node/out/Debug/:$PATH
 
 Running valgrind using the debug build of Node.js shows:
 
-```bash
+```console
 ==44112== 592 bytes in 1 blocks are possibly lost in loss record 26 of 27
 ==44112==    at 0x4C2BF79: calloc (vg_replace_malloc.c:762)
 ==44112==    by 0x4012754: _dl_allocate_tls (in /usr/lib64/ld-2.17.so)
