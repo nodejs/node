@@ -886,8 +886,8 @@ TCP connections when they are created have the Nagle algorithm enabled.
 The Nagle algorithm delays data before it is sent via the network. It attempts
 to optimize throughput at the expense of latency.
 
-Setting `true` for `noDelay` or not passing an argument will disable the Nagle
-algorithm for the socket. Setting `false` for `noDelay` will enable the Nagle
+Passing `true` for `noDelay` or not passing an argument will disable the Nagle
+algorithm for the socket. Passing `false` for `noDelay` will enable the Nagle
 algorithm.
 
 ### `socket.setTimeout(timeout[, callback])`
