@@ -202,3 +202,16 @@ const { promisify } = require('util');
     assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
   }));
 }
+
+{
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      setImmediate(callback);
+    }
+  });
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+  w.end('asd');
+  w.destroy();
+}
