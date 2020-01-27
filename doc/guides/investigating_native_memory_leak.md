@@ -26,7 +26,7 @@ To use valgrind:
 
 ## Installation
 
-It is an optional package in most cases and must be installed. For example on
+It is an optional package in most cases and must be installed explicitly. For example on
 Debian/Ubuntu:
 
 ```bash
