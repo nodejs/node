@@ -407,7 +407,7 @@ git clone https://github.com/nodejs/node.git
 git checkout -b v12.14.1
 ```
 * Compile with debug enabled (for additional info see [building a debug build](https://github.com/nodejs/node/blob/v12.14.1/BUILDING.md#building-a-debug-build)). For example, on *nix:
-```bash
+```console
 ./configure --debug
 make  -j4
 ```
