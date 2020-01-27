@@ -754,7 +754,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #endif
 #endif
   AddOption("--use-largepages",
-            "Map the Node.js static code to large pages",
+            "Map the Node.js static code to large pages. Options are "
+            "'off' (the default value, meaning do not map), "
+            "'on' (map and ignore failure, reporting it to stderr), "
+            "or 'silent' (map and silently ignore failure)",
             &PerProcessOptions::use_largepages,
             kAllowedInEnvironment);
 
