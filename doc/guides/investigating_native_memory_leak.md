@@ -437,5 +437,5 @@ Running valgrind using the debug build of Node.js shows:
 
 ```
 
-where we can see the specific file name and line in the Node.js code which
+Now we can see the specific file name and line in the Node.js code which
 caused the allocation (inspector_agent.cc:140).
