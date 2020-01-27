@@ -354,7 +354,7 @@ line number:
 ==18481==    by 0x12F68A3: ??? (in /home/user1/valgrind/node-v12.14.1-linux-x64/bin/node)
 ```
 
-which shows us exactly where the leak is occuring in the file hello.cc:
+This new output shows us exactly where the leak is occurring in the file `hello.cc`:
 
 ```C++
 6 void* malloc_holder = nullptr;
