@@ -845,7 +845,8 @@
           ],
         }],
         [ 'OS in "linux freebsd mac" and '
-          'target_arch=="x64"', {
+          'target_arch=="x64" and '
+          'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
           'sources': [
             'src/large_pages/node_large_page.cc',

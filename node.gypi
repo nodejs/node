@@ -306,22 +306,6 @@
       'ldflags': [ '-Wl,-z,relro',
                    '-Wl,-z,now' ]
     }],
-    [ 'OS=="linux" and '
-      'target_arch=="x64" and '
-      'llvm_version=="0.0"', {
-      'ldflags': [
-        '-Wl,-T',
-        '<!(echo "$(pwd)/src/large_pages/ld.implicit.script")',
-      ]
-    }],
-    [ 'OS=="linux" and '
-      'target_arch=="x64" and '
-      'llvm_version!="0.0"', {
-      'ldflags': [
-        '-Wl,-T',
-        '<!(echo "$(pwd)/src/large_pages/ld.implicit.script.lld")',
-      ]
-    }],
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'conditions': [
