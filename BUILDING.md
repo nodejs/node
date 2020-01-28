@@ -10,49 +10,53 @@ file a new issue.
 
 ## Table of Contents
 
-* [Supported platforms](#supported-platforms)
-  * [Input](#input)
-  * [Strategy](#strategy)
-  * [Platform list](#platform-list)
-  * [Supported toolchains](#supported-toolchains)
-  * [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
-    * [OpenSSL asm support](#openssl-asm-support)
-  * [Previous versions of this document](#previous-versions-of-this-document)
-* [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Note about Python 2 and Python 3](#note-about-python-2-and-python-3)
-  * [Unix and macOS](#unix-and-macos)
-    * [Unix prerequisites](#unix-prerequisites)
-    * [macOS prerequisites](#macos-prerequisites)
-    * [Building Node.js](#building-nodejs-1)
-    * [Running Tests](#running-tests)
-    * [Running Coverage](#running-coverage)
-    * [Building the documentation](#building-the-documentation)
-    * [Building a debug build](#building-a-debug-build)
-  * [Windows](#windows)
-    * [Prerequisites](#prerequisites)
-      * [Option 1: Manual install](#option-1-manual-install)
-      * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
-    * [Building Node.js](#building-nodejs-1)
-  * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
-* [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-  * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
-    * [Unix/macOS](#unixmacos)
-    * [Windows](#windows-1)
-  * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
-    * [Unix/macOS](#unixmacos-1)
-    * [Windows](#windows-2)
-  * [Building without Intl support](#building-without-intl-support)
-    * [Unix/macOS](#unixmacos-2)
-    * [Windows](#windows-3)
-  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacOS-only)
-  * [Build with a specific ICU](#build-with-a-specific-icu)
-    * [Unix/macOS](#unixmacos-3)
-    * [Windows](#windows-4)
-* [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
-* [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-  * [Unix/macOS](#unixmacos-4)
-  * [Windows](#windows-5)
-* [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
+* [Building Node.js](#building-nodejs)
+  * [Table of Contents](#table-of-contents)
+  * [Supported platforms](#supported-platforms)
+    * [Input](#input)
+    * [Strategy](#strategy)
+    * [Platform list](#platform-list)
+    * [Supported toolchains](#supported-toolchains)
+    * [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
+      * [OpenSSL asm support](#openssl-asm-support)
+    * [Previous versions of this document](#previous-versions-of-this-document)
+  * [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
+    * [Note about Python 2 and Python 3](#note-about-python-2-and-python-3)
+    * [Unix and macOS](#unix-and-macos)
+      * [Unix prerequisites](#unix-prerequisites)
+      * [macOS prerequisites](#macos-prerequisites)
+      * [Building Node.js](#building-nodejs-1)
+      * [Running Tests](#running-tests)
+      * [Running Coverage](#running-coverage)
+      * [Building the documentation](#building-the-documentation)
+      * [Building a debug build](#building-a-debug-build)
+      * [Cleaning up the build](#cleaning-up-the-build)
+    * [Windows](#windows)
+      * [Prerequisites](#prerequisites)
+        * [Option 1: Manual install](#option-1-manual-install)
+        * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
+      * [Building Node.js](#building-nodejs-2)
+    * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
+    * [Troubleshooting Build failures](#troubleshooting-build-failures)
+  * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
+    * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
+      * [Unix/macOS](#unixmacos)
+      * [Windows](#windows-1)
+    * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
+      * [Unix/macOS](#unixmacos-1)
+      * [Windows](#windows-2)
+    * [Building without Intl support](#building-without-intl-support)
+      * [Unix/macOS](#unixmacos-2)
+      * [Windows](#windows-3)
+    * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
+    * [Build with a specific ICU](#build-with-a-specific-icu)
+      * [Unix/macOS](#unixmacos-3)
+      * [Windows](#windows-4)
+  * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
+  * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
+    * [Unix/macOS](#unixmacos-4)
+    * [Windows](#windows-5)
+  * [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
 
 ## Supported platforms
 
@@ -488,6 +492,27 @@ $ gdb /opt/node-debug/node core.node.8.1535359906
 $ backtrace
 ```
 
+#### Cleaning up the build
+
+Always try
+
+``` console
+$ make clean
+$ make -j4
+```
+
+first, to clean the current build and build again.
+
+For a more thorough clean up, try
+
+``` console
+$ make distclean
+$ ./configure
+$ make -j4
+```
+```distclean``` should be followed by ```./configure```, and therefore takes
+significantly longer to rebuild than using ```make clean```.
+
 ### Windows
 
 #### Prerequisites
@@ -595,6 +620,12 @@ a folder. Then run:
 $ ./android-configure /path/to/your/android-ndk
 $ make
 ```
+
+### Troubleshooting Build failures
+Error: ``` fatal error: 'src/snapshot/macros.h' file not found```
+
+This is probably due to a stale build, and should be fixed with a full clean.
+Refer to [Cleaning up the build](#cleaning-up-the-build)
 
 ## `Intl` (ECMA-402) support
 
