@@ -200,10 +200,13 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   HeapStatistics v8_heap_stats;
   isolate->GetHeapStatistics(&v8_heap_stats);
 
+  NodeArrayBufferAllocator* array_buffer_allocator =
+      env->isolate_data()->node_allocator();
+
   // Get the double array pointer from the Float64Array argument.
   CHECK(args[0]->IsFloat64Array());
   Local<Float64Array> array = args[0].As<Float64Array>();
-  CHECK_EQ(array->Length(), 4);
+  CHECK_EQ(array->Length(), 5);
   Local<ArrayBuffer> ab = array->Buffer();
   double* fields = static_cast<double*>(ab->GetBackingStore()->Data());
 
@@ -211,6 +214,8 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   fields[1] = v8_heap_stats.total_heap_size();
   fields[2] = v8_heap_stats.used_heap_size();
   fields[3] = v8_heap_stats.external_memory();
+  fields[4] = array_buffer_allocator == nullptr ?
+      0 : array_buffer_allocator->total_mem_usage();
 }
 
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
