@@ -23,6 +23,7 @@ async function basic() {
   helper.validateContent(report);
   assert.strictEqual(report.workers.length, 1);
   helper.validateContent(report.workers[0]);
+  assert.strictEqual(report.workers[0].header.threadId, w.threadId);
 
   w.postMessage({});
 
