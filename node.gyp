@@ -51,6 +51,7 @@
       'lib/domain.js',
       'lib/events.js',
       'lib/fs.js',
+      'lib/fs/promises.js',
       'lib/http.js',
       'lib/http2.js',
       'lib/_http_agent.js',
