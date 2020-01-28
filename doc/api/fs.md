@@ -4972,6 +4972,18 @@ will be passed as `Buffer` objects.
 If `options.withFileTypes` is set to `true`, the resolved array will contain
 [`fs.Dirent`][] objects.
 
+```js
+const fs = require('fs');
+
+async function print(path) {
+  const files = await fs.promises.readdir(path);
+  for (const file of files) {
+    console.log(file);
+  }
+}
+print('./').catch(console.error);
+```
+
 ### `fsPromises.readFile(path[, options])`
 <!-- YAML
 added: v10.0.0
