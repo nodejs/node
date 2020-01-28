@@ -191,12 +191,6 @@ everything else. Start a fresh CI if more than seven days have elapsed since
 the original failing CI as the compiled binaries for the Windows and ARM
 platforms are only kept for seven days.
 
-Some of the CI Jobs may require `GIT_REMOTE_REF` which is the remote portion
-of Git refspec. To specify the branch this way `refs/heads/BRANCH` is used
-(i.e for `master` -> `refs/heads/master`).
-For pull requests it will look like `refs/pull/PR_NUMBER/head`
-(i.e. for PR#42 -> `refs/pull/42/head`).
-
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
@@ -222,12 +216,18 @@ not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
 
+#### Starting a CI Job
+
 From the CI Job page, click "Build with Parameters" on the left side.
 
-You generally need to enter only one or both of the following in the form:
+You generally need to enter only one or both of the following options
+in the form:
 
-* `GIT_REMOTE_REF`: Change this to refs/pull/NNNNN/head where NNNNN is the pull
-request ID.
+* `GIT_REMOTE_REF`: Change to the remote portion of Git refspec.
+To specify the branch this way `refs/heads/BRANCH` is used
+(i.e for `master` -> `refs/heads/master`).
+For pull requests it will look like `refs/pull/PR_NUMBER/head`
+(i.e. for PR#42 -> `refs/pull/42/head`).
 * `REBASE_ONTO`: Change that to origin/master so the pull request gets rebased
 onto master. This can especially be important for pull requests that have been
 open a while.
