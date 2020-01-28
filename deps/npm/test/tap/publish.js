@@ -52,7 +52,10 @@ test('basic npm publish', (t) => {
       `--//localhost:${server.port}/:username=username`,
       `--//localhost:${server.port}/:_password=` + Buffer.from('password').toString('base64'),
       `--//localhost:${server.port}/:email=` + 'ogd@aoaioxxysz.net'
-    ], {'cwd': testDir})
+    ], {
+      'cwd': testDir,
+      nodeExecPath: process.execPath
+    })
       .spread((code, stdout, stderr) => {
         t.comment(stdout)
         t.comment(stderr)

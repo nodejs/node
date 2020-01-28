@@ -7,7 +7,7 @@ test('npm version in a prefix with no package.json', function (t) {
   process.chdir(pkg)
   common.npm(
     ['version', '--json', '--prefix', pkg],
-    { cwd: pkg },
+    { cwd: pkg, nodeExecPath: process.execPath },
     function (er, code, stdout, stderr) {
       t.ifError(er, "npm version doesn't care that there's no package.json")
       t.notOk(code, 'npm version ran without barfing')

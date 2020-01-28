@@ -46,7 +46,7 @@ test('npm publish should honor scoping', function (t) {
 
   fs.writeFileSync(configFile, configuration.join('\n') + '\n')
 
-  common.npm(['publish'], {'cwd': pkg}, function (err, code, stdout, stderr) {
+  common.npm(['publish'], {'cwd': pkg, nodeExecPath: process.execPath}, function (err, code, stdout, stderr) {
     if (err) throw err
     t.is(code, 0, 'published without error')
     server.done()

@@ -3,33 +3,51 @@ const execa = require('execa');
 const lcid = require('lcid');
 const mem = require('mem');
 
-const defaultOpts = {spawn: true};
+const defaultOptions = {spawn: true};
 const defaultLocale = 'en_US';
 
-function getEnvLocale(env) {
-	env = env || process.env;
+function getEnvLocale(env = process.env) {
 	return env.LC_ALL || env.LC_MESSAGES || env.LANG || env.LANGUAGE;
 }
 
-function parseLocale(x) {
-	const env = x.split('\n').reduce((env, def) => {
-		def = def.split('=');
-		env[def[0]] = def[1].replace(/^"|"$/g, '');
+function parseLocale(string) {
+	const env = string.split('\n').reduce((env, def) => {
+		const [key, value] = def.split('=');
+		env[key] = value.replace(/^"|"$/g, '');
 		return env;
 	}, {});
+
 	return getEnvLocale(env);
 }
 
-function getLocale(str) {
-	return (str && str.replace(/[.:].*/, ''));
+function getLocale(string) {
+	return (string && string.replace(/[.:].*/, ''));
+}
+
+function getLocales() {
+	return execa.stdout('locale', ['-a']);
+}
+
+function getLocalesSync() {
+	return execa.sync('locale', ['-a']).stdout;
+}
+
+function getSupportedLocale(locale, locales = '') {
+	return locales.includes(locale) ? locale : defaultLocale;
 }
 
 function getAppleLocale() {
-	return execa.stdout('defaults', ['read', '-g', 'AppleLocale']);
+	return Promise.all([
+		execa.stdout('defaults', ['read', '-globalDomain', 'AppleLocale']),
+		getLocales()
+	]).then(results => getSupportedLocale(results[0], results[1]));
 }
 
 function getAppleLocaleSync() {
-	return execa.sync('defaults', ['read', '-g', 'AppleLocale']).stdout;
+	return getSupportedLocale(
+		execa.sync('defaults', ['read', '-globalDomain', 'AppleLocale']).stdout,
+		getLocalesSync()
+	);
 }
 
 function getUnixLocale() {
@@ -58,17 +76,16 @@ function getWinLocale() {
 }
 
 function getWinLocaleSync() {
-	const stdout = execa.sync('wmic', ['os', 'get', 'locale']).stdout;
+	const {stdout} = execa.sync('wmic', ['os', 'get', 'locale']);
 	const lcidCode = parseInt(stdout.replace('Locale', ''), 16);
 	return lcid.from(lcidCode);
 }
 
-module.exports = mem(opts => {
-	opts = opts || defaultOpts;
+module.exports = mem((options = defaultOptions) => {
 	const envLocale = getEnvLocale();
-	let thenable;
 
-	if (envLocale || opts.spawn === false) {
+	let thenable;
+	if (envLocale || options.spawn === false) {
 		thenable = Promise.resolve(getLocale(envLocale));
 	} else if (process.platform === 'win32') {
 		thenable = getWinLocale();
@@ -76,25 +93,21 @@ module.exports = mem(opts => {
 		thenable = getUnixLocale();
 	}
 
-	return thenable.then(locale => locale || defaultLocale)
+	return thenable
+		.then(locale => locale || defaultLocale)
 		.catch(() => defaultLocale);
 });
 
-module.exports.sync = mem(opts => {
-	opts = opts || defaultOpts;
+module.exports.sync = mem((options = defaultOptions) => {
 	const envLocale = getEnvLocale();
-	let res;
 
-	if (envLocale || opts.spawn === false) {
+	let res;
+	if (envLocale || options.spawn === false) {
 		res = getLocale(envLocale);
 	} else {
 		try {
-			if (process.platform === 'win32') {
-				res = getWinLocaleSync();
-			} else {
-				res = getUnixLocaleSync();
-			}
-		} catch (err) {}
+			res = process.platform === 'win32' ? getWinLocaleSync() : getUnixLocaleSync();
+		} catch (_) {}
 	}
 
 	return res || defaultLocale;

@@ -2,11 +2,13 @@
 
 > Get paths for storing things like data, config, cache, etc
 
+Uses the correct OS-specific paths. Most developers get this wrong.
+
 
 ## Install
 
 ```
-$ npm install --save env-paths
+$ npm install env-paths
 ```
 
 
@@ -14,6 +16,7 @@ $ npm install --save env-paths
 
 ```js
 const envPaths = require('env-paths');
+
 const paths = envPaths('MyApp');
 
 paths.data;
@@ -35,6 +38,8 @@ Type: `string`
 Name of your project. Used to generate the paths.
 
 #### options
+
+Type: `Object`
 
 ##### suffix
 

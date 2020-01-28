@@ -15,7 +15,10 @@ const File = Tacks.File
 const cacheDir = common.cache
 const testDir = common.pkg
 
-const EXEC_OPTS = { cwd: testDir }
+const EXEC_OPTS = {
+  cwd: testDir,
+  nodeExecPath: process.execPath
+}
 
 const PKG = {
   name: 'top',
