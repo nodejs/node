@@ -222,11 +222,9 @@ not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
 
-##### citgm-smoker
+From the CI Job page, click "Build with Parameters" on the left side.
 
-From the citgm-smoker page, click "Build with Parameters" on the left side.
-
-You generally need to enter only two things in the form:
+You generally need to enter only one or both of the following in the form:
 
 * `GIT_REMOTE_REF`: Change this to refs/pull/NNNNN/head where NNNNN is the pull
 request ID.
@@ -237,8 +235,11 @@ open a while.
 Look at the list of jobs on the left hand side under "Build History" and copy
 the link to the one you started (which will be the one on top, but click
 through to make sure it says something like "Started 5 seconds ago"
-(top right) and "Started by user ...". Copy/paste the URL for the job into a
-comment in the pull request.
+(top right) and "Started by user ...".
+
+Copy/paste the URL for the job into a comment in the pull request.
+[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
+is an exception where the GitHub bot will automatically post for you.
 
 ### Internal vs. Public API
 
