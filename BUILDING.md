@@ -28,11 +28,12 @@ file a new issue.
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
+    * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
   * [Windows](#windows)
     * [Prerequisites](#prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
-    * [Building Node.js](#building-nodejs-1)
+    * [Building Node.js](#building-nodejs-2)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
@@ -44,7 +45,7 @@ file a new issue.
   * [Building without Intl support](#building-without-intl-support)
     * [Unix/macOS](#unixmacos-2)
     * [Windows](#windows-3)
-  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacOS-only)
+  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
   * [Build with a specific ICU](#build-with-a-specific-icu)
     * [Unix/macOS](#unixmacos-3)
     * [Windows](#windows-4)
@@ -487,6 +488,17 @@ Example of generating a backtrace from the core dump:
 $ gdb /opt/node-debug/node core.node.8.1535359906
 $ backtrace
 ```
+
+#### Troubleshooting Unix and macOS builds
+
+Stale builds can sometimes result in `file not found` errors while building.
+This and some other problems can be resolved with `make distclean`. The
+`distclean` recipe aggressively removes build artifacts. You will need to
+build again (`make -j4`). Since all build artifacts have been removed, this
+rebuild may take a lot more time than previous builds. Additionally,
+`distclean` removes the file that stores the results of `./configure`. If you
+ran `./configure` with non-default options (such as `--debug`), you will need
+to run it again before invoking `make -j4`.
 
 ### Windows
 
