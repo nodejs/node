@@ -222,6 +222,24 @@ not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
 
+##### citgm-smoker
+
+From the citgm-smoker page, click "Build with Parameters" on the left side.
+
+You generally need to enter only two things in the form:
+
+* `GIT_REMOTE_REF`: Change this to refs/pull/NNNNN/head where NNNNN is the pull
+request ID.
+* `REBASE_ONTO`: Change that to origin/master so the pull request gets rebased
+onto master. This can especially be important for pull requests that have been
+open a while.
+
+Look at the list of jobs on the left hand side under "Build History" and copy
+the link to the one you started (which will be the one on top, but click
+through to make sure it says something like "Started 5 seconds ago"
+(top right) and "Started by user ...". Copy/paste the URL for the job into a
+comment in the pull request.
+
 ### Internal vs. Public API
 
 All functionality in the official Node.js documentation is part of the public
