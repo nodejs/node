@@ -440,7 +440,7 @@ NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
                                              napi_deferred deferred,
                                              napi_value rejection);
 NAPI_EXTERN napi_status napi_is_promise(napi_env env,
-                                        napi_value promise,
+                                        napi_value value,
                                         bool* is_promise);
 
 // Running a script
