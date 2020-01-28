@@ -12,6 +12,8 @@ import re
 import subprocess
 import sys
 
+from collections import OrderedDict
+
 import gyp.common
 import gyp.easy_xml as easy_xml
 import gyp.generator.ninja as ninja_generator
@@ -25,15 +27,7 @@ import gyp.MSVSVersion as MSVSVersion
 from gyp.common import GypError
 from gyp.common import OrderedSet
 
-# TODO: Remove once bots are on 2.7, http://crbug.com/241769
-def _import_OrderedDict():
-  import collections
-  try:
-    return collections.OrderedDict
-  except AttributeError:
-    import gyp.ordered_dict
-    return gyp.ordered_dict.OrderedDict
-OrderedDict = _import_OrderedDict()
+PY3 = bytes != str
 
 
 # Regular expression for validating Visual Studio GUIDs.  If the GUID
@@ -124,6 +118,8 @@ def _GetDomainAndUserName():
       call = subprocess.Popen(['net', 'config', 'Workstation'],
                               stdout=subprocess.PIPE)
       config = call.communicate()[0]
+      if PY3:
+        config = config.decode('utf-8')
       username_re = re.compile(r'^User name\s+(\S+)', re.MULTILINE)
       username_match = username_re.search(config)
       if username_match:
@@ -175,7 +171,7 @@ def _FixPath(path):
 
 
 def _IsWindowsAbsPath(path):
-  """
+  r"""
   On Cygwin systems Python needs a little help determining if a path is an absolute Windows path or not, so that
   it does not treat those as relative, which results in bad paths like:
 

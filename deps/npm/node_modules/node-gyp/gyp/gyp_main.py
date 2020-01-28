@@ -31,7 +31,7 @@ def UnixifyPath(path):
     out = subprocess.Popen(["cygpath", "-u", path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
-    stdout, stderr = out.communicate()
+    stdout, _ = out.communicate()
     if PY3:
       stdout = stdout.decode("utf-8")
     return str(stdout)

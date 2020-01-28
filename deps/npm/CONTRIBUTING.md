@@ -3,80 +3,190 @@
 ## Table of Contents
 
 * [Introduction](#introduction)
-* [Roles](#roles)
-  * [Community Members](#community-members)
-  * [Collaborators](#collaborators)
-  * [npm, Inc Employees](#npm-inc-employees)
-
+* [Code Structure](#code-structure)
+* [Running Tests](#running-tests)
+* [Debugging](#debugging)
+* [Coverage](#coverage)
+* [Benchmarking](#benchmarking)
+* [Types of Contributions](#types-of-contributions)
+  * [Contributing an Issue?](#contributing-an-issue)
+  * [Contributing a Question?](#contributing-a-question)
+  * [Contributing a Bug Fix?](#contributing-a-bug-fix)
+  * [Contributing a Feature?](#contributing-a-bug-feature)
+* [Development Dependencies](#development-dependencies)
+* [Dependencies](#dependencies)
 
 ## Introduction
 
-Welcome to the npm CLI Contributor Guide! This document outlines the npm CLI repository's process for community interaction and contribution. This includes the issue tracker, pull requests, wiki pages, and, to a certain extent, outside communication in the context of the npm CLI. It defines roles, responsibilities, and procedures, and is an entry point for anyone wishing to contribute their time and effort to making npm a better tool for the JavaScript community!
+Welcome to the npm CLI Contributor Guide! This document outlines the npm CLI repository's process for community interaction and contribution. This includes the issue tracker, pull requests, wiki pages, and, to a certain extent, outside communication in the context of the npm CLI. This is an entry point for anyone wishing to contribute their time and effort to making npm a better tool for the JavaScript community!
 
 All interactions in the npm repository are covered by the [npm Code of Conduct](https://www.npmjs.com/policies/conduct)
 
-## Roles
 
-There are three main roles for people participating in the npm issue tracker. Each has a specific set of abilities and responsibilities: [Community members](#community-members), [Collaborators](#collaborators), and [npm, Inc employees](#npm-inc-employees).
+## Code Structure
+```
+/
+├── bin/
+│   │                  # Directory for executable files. It's very rare that you
+│   │                  # will need to update a file in this directory.
+│   │
+│   ├── npm               # npm-cli entrypoint for bourne shell
+│   ├── npm-cli.js        # npm-cli entrypoint for node
+│   ├── npm.cmd           # npm-cli entrypoint for windows
+│   ├── npx               # npx entrypoint for bourne shell
+│   ├── npx-cli.js        # npx entrypoint for node
+│   └── npx.cmd           # npx entrypoint for windows
+│
+├── docs/  📖
+│   │                  # Directory that contains the documentation website for
+│   │                  # the npm-cli. You can run this website locally, and have
+│   │                  # offline docs! 🔥📖🤓
+│   │
+│   ├── content/          # Markdown files for site content
+│   ├── src/              # Source files for the website; gatsby related
+│   └── package.json      # Site manifest; scripts and dependencies
+│
+├── lib/  📦
+│                      # All the Good Bits(tm) of the CLI project live here
+│
+├── node_modules/  🔋
+│                      # Vendored dependencies for the CLI project (See the
+│                      # dependencies section below for more details).
+│
+├── scripts/  📜
+│                      # We've created some helper scripts for working with the
+│                      # CLI project, specifically around managing our vendored
+│                      # dependencies, merging in pull-requests, and publishing
+│                      # releases.
+│
+├── test/  🧪
+│                      # All the tests for the CLI live in this folder. We've
+│                      # got a lot of tests 🤓🧪🩺
+│
+├── CONTRIBUTING.md       # This file! 🎉
+└── package.json          # The projects main manifest file 📃
+```
 
-Failure to comply with the expected responsibilities of each role, or violating the Code of Conduct will result in punitive action relative to the transgression, ranging from a warning to full removal from the project, at the discretion of npm employees.
+## Running Tests
 
-### Community Members
+```
+# Make sure you install the dependencies first before running tests.
+$ npm install
 
-This includes anyone who may show up to the npm/npm repo with issues, PRs, comments etc. They may not have any other involvement with npm.
+# Run tests for the CLI (it could take awhile).
+$ npm run test
+```
 
-#### Abilities
+## Debugging
 
-* Open issues and PRs
-* Comment on issues and PRs
+It can be tricky to track down issues in the CLI. It's a large code base that has been evolving for over a decade. There is a handy `make` command that will connect the **cloned repository** you have on your machine with the global command, so you can add `console.log` statements or debug any other way you feel most comfortable with.
 
-#### Responsibilities
+```
+# Clone the repository to start with
+$ git clone git@github.com:npm/cli.git
 
-* Comment on issues when they have a reference to the answer.
-* If community members aren't sure they are correct and don't have a reference to the answer, please leave the issue and try another one.
-* Defer to collaborators and npm employees for answers.
-* Make sure to search for [the troubleshooting posts on npm.community](https://npm.community/c/support/troubleshooting) and search on the issue tracker for similar issues before opening a new one.
-* Any users with urgent support needs are welcome to email support@npmjs.com, and our dedicated support team will be happy to help.
+# Change working directories into the repository
+$ cd cli
 
-PLEASE don't @ collaborators or npm employees on issues. The CLI team is small, and has many outstanding commitments to fulfill.
+# Make sure you have the latest code (if that's what you're trying to debug)
+$ git fetch origin latest
 
-### Collaborators
+# Connect repository to the global namespace
+$ make link
 
-These are folks who have the ability to label and close issues. The role of collaborators may expand over time, but for now it is a limited (& important) role. This is an excellent way to contribute to npm without writing code.
+#################
+# ALTERNATIVELY
+#################
+# If ou're working on a feature or bug, you can run the same command on your
+# working branch and link that code.
 
-Community members may become collaborators by showing consistent, proven track record of quality contributions to the project, a reasonable level of proficiency with the CLI, and regular participation through the tracker and other related mediums, including regular contact with the CLI team itself. This role entails a higher level of responsibility than community member, so we ask for a higher level of understanding and commitment.
+# Create new branch to work from (there are many ways)
+$ git checkout -b feature/awesome-feature
 
-Collaborators who become inactive for 3 months or longer may have their collaborator privileges removed until they are ready to return.
+# Connect repository to global namespace
+$ make link
+```
 
-#### Abilities
+## Coverage
 
-* Label/triage new issues
-* Respond to ongoing issues
-* Close resolved issues.
+We try and make sure that each new feature or bug fix has tests to go along with them in order to keep code coverages consistent and increasing. We are actively striving for 100% code coverage!
 
-#### Responsibilities
+```
+# You can run the following command to find out coverage
+$ npm run test-coverage
+```
 
-* Only answer questions when they know the answer, and provide a reference to the answer.
-* If collaborators aren't totally confident about their answer, please leave the issue and try another one.
-* If they've responded to an issue, it becomes their responsibility to see it to resolution.
-* Defer to fellow Collaborators & npm employees for answers (Again, please don't @ collaborators or npm employees, thank you!)
-* Make sure to search [the troubleshooting posts on npm.community](https://npm.community/c/support/troubleshooting) and search the rest of the forum for similar topics.
+## Benchmarking
 
-### npm, Inc Employees
+We often want to know if the bug we've fixed for the feature we've added has any sort of performance impact. We've created a [benchmark suite](https://github.com/npm/benchmarks) to run against the CLI project from pull-requests. If you would like to know if there are any performance impacts to the work you're contributing, simply do the following:
 
-Folks who work at npm, Inc, who have a responsibility to ensure the stability and functionality of the tools npm offers.
+1. Make a pull-request against this repository
+2. Add the following comment to the pull-request: "`test this please ✅`"
 
-#### Abilities
+This will trigger the [benmark suite](https://github.com/npm/benchmarks) to run against your pull-request, and when it's finished running it will post a comment on your pull-request just like bellow. You'll be able to see the results from the suite inline in your pull-request.
 
-* Label/triage new issues
-* Respond to ongoing issues
-* Close resolved issues
-* Land PRs
+> You'll notice that the bot-user will also add a 🚀 reaction to your comment to
+let you know that it's sent the request to start the benchmark suite.
 
-Please note that this is a living document, and the CLI team will put up PRs to it as needed.
+![image](https://user-images.githubusercontent.com/2818462/72312698-e2e57f80-3656-11ea-9fcf-4a8f6b97b0d1.png)
 
-#### Responsibilities
+If you've updated your pull-reuqest and you'd like to run the the benchmark suite again, simple update your original comment, by adding `test this please ✅` again, or simply just adding another emoji to the **end**. _(The trigger is the phrase "test this please ✅" at the beginning of a comment. Updates will trigger as well, so long as the phrase stays at the beginning.)_.
 
-* Preserve and promote the health of the CLI, the registry, the website, etc.
+![image](https://user-images.githubusercontent.com/2818462/72313006-ec231c00-3657-11ea-9bd9-227634d67362.png)
 
-In special cases, [Collaborators](#collaborators) may request time to speak with an npm employee directly, by contacting them and coordinating a time/place.
+## Types of Contributions
+
+### Contributing an Issue?
+
+Great!! Is your [new issue](https://github.com/npm/cli/issues/new/choose) a [bug](https://github.com/npm/cli/issues/new?template=bug.md&title=%5BBUG%5D+%3Ctitle%3E), a [feature](https://github.com/npm/cli/issues/new?template=feature.md&title=%5BFEATURE%5D+%3Ctitle%3E), or a [question](https://github.com/npm/cli/issues/new?template=question.md&title=%5BQUESTION%5D+%3Ctitle%3E)?
+
+### Contributing a Question?
+
+Huh? 🤔 Got a situation you're not sure about?! Perfect! We've got some resources you can use.
+
+* Our [documentation site](https://docs.npmjs.com/)
+* The local docs that come with the CLI project
+
+  > **Example**: `npm help install --viewer browser`
+
+* The man pages that are built and shipped with the CLI
+
+  > **Example**: `man npm-install` (only on linux/macOS)
+
+* Search of the [current issues](https://github.com/npm/cli/issues)
+
+### Contributing a Bug Fix?
+
+We'd be happy to triage and help! Head over to the issues and [create a new one](https://github.com/npm/cli/issues/new?template=bug.md&title=%5BBUG%5D+%3Ctitle%3E)!
+
+> We'll need a little bit of information about what happened, rather than "it broke". Such as:
+* When did/does this bug happen?
+* Can you reproduce it? _(Can you make it happen more than once.)_
+* What version of `node`/`npm` are you running on your computer?
+* What did you expect it to do?
+* What did it _actually do?
+* etc...
+
+### Contributing a Feature?
+
+Snazzy, we're always up for fancy new things! If the feature is fairly minor, the team can triage it and prioritize it into our backlog. However, if the feature is a little more complex, then it's best to create an [RFC](https://en.wikipedia.org/wiki/Request_for_Comments) in our [RFC repository](https://github.com/npm/rfcs). Exactly how to do that is outlined in that repository. If you're not sure _exactly_ how to implement your idea, or don't want to make a document about your idea, then please create an issue on that repository. We consider these RRFC's, or a "Requesting Request For Comment".
+
+## Development Dependencies
+
+You'll need a few things installed in order to update and test the CLI project during development:
+
+* [node](https://nodejs.org/) v8 or greater
+
+> We recommend that you have a [node version manager](https://github.com/nvm-sh/nvm) installed if you plan on fixing bugs that might be present in a specific version of node. With a version manager you can easily switch versions of node and test if your changes to the CLI project are working.
+
+* [git](https://git-scm.com/) v2.11+
+
+
+## Dependencies
+
+> Package vendoring is commonly referred to as the case where dependent packages are stored in the same place as your project. That usually means you dependencies are checked into your source management system, such as Git.
+
+The CLI project vendors it's dependencies in the `node_modules/` folder. Meaning all the dependencies that the CLI project uses are contained withing the project itself. This is represented by the `bundledDependencies` section in the root level `package.json` file. The main reason for this is because the `npm` CLI project is distributed with the NodeJS runtime and needs to work out of the box, which means all dependencies need to be available after the runtime is installed.
+
+There are a couple scripts created to help manage this process in the `scripts/` folder.
+

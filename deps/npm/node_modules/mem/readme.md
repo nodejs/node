@@ -2,11 +2,13 @@
 
 > [Memoize](https://en.wikipedia.org/wiki/Memoization) functions - An optimization used to speed up consecutive function calls by caching the result of calls with identical input
 
+Memory is automatically released when an item expires.
+
 
 ## Install
 
 ```
-$ npm install --save mem
+$ npm install mem
 ```
 
 
@@ -22,11 +24,11 @@ const memoized = mem(counter);
 memoized('foo');
 //=> 1
 
-// cached as it's the same arguments
+// Cached as it's the same arguments
 memoized('foo');
 //=> 1
 
-// not cached anymore as the arguments changed
+// Not cached anymore as the arguments changed
 memoized('bar');
 //=> 2
 
@@ -40,35 +42,37 @@ memoized('bar');
 const mem = require('mem');
 
 let i = 0;
-const counter = () => Promise.resolve(++i);
+const counter = async () => ++i;
 const memoized = mem(counter);
 
-memoized().then(a => {
-	console.log(a);
+(async () => {
+	console.log(await memoized());
 	//=> 1
 
-	memoized().then(b => {
-		// the return value didn't increase as it's cached
-		console.log(b);
-		//=> 1
-	});
-});
+	// The return value didn't increase as it's cached
+	console.log(await memoized());
+	//=> 1
+})();
 ```
 
 ```js
 const mem = require('mem');
 const got = require('got');
+const delay = require('delay');
+
 const memGot = mem(got, {maxAge: 1000});
 
-memGot('sindresorhus.com').then(() => {
-	// this call is cached
-	memGot('sindresorhus.com').then(() => {
-		setTimeout(() => {
-			// this call is not cached as the cache has expired
-			memGot('sindresorhus.com').then(() => {});
-		}, 2000);
-	});
-});
+(async () => {
+	await memGot('sindresorhus.com');
+
+	// This call is cached
+	await memGot('sindresorhus.com');
+
+	await delay(2000);
+
+	// This call is not cached as the cache has expired
+	await memGot('sindresorhus.com');
+})();
 ```
 
 
@@ -83,6 +87,8 @@ Type: `Function`
 Function to be memoized.
 
 #### options
+
+Type: `Object`
 
 ##### maxAge
 
@@ -104,7 +110,14 @@ You could for example change it to only cache on the first argument `x => JSON.s
 Type: `Object`<br>
 Default: `new Map()`
 
-Use a different cache storage. Must implement the following methods: `.has(key)`, `.get(key)`, `.set(key, value)`, and optionally `.clear()`. You could for example use a `WeakMap` instead.
+Use a different cache storage. Must implement the following methods: `.has(key)`, `.get(key)`, `.set(key, value)`, `.delete(key)`, and optionally `.clear()`. You could for example use a `WeakMap` instead or [`quick-lru`](https://github.com/sindresorhus/quick-lru) for a LRU cache.
+
+##### cachePromiseRejection
+
+Type: `boolean`<br>
+Default: `false`
+
+Cache rejected promises.
 
 ### mem.clear(fn)
 
@@ -133,13 +146,20 @@ const got = require('got');
 const cache = new StatsMap();
 const memGot = mem(got, {cache});
 
-memGot('sindresorhus.com')
-	.then(() => memGot('sindresorhus.com'))
-	.then(() => memGot('sindresorhus.com'));
+(async () => {
+	await memGot('sindresorhus.com');
+	await memGot('sindresorhus.com');
+	await memGot('sindresorhus.com');
 
-console.log(cache.stats);
-//=> {hits: 2, misses: 1}
+	console.log(cache.stats);
+	//=> {hits: 2, misses: 1}
+})();
 ```
+
+
+## Related
+
+- [p-memoize](https://github.com/sindresorhus/p-memoize) - Memoize promise-returning & async functions
 
 
 ## License

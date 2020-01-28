@@ -12,6 +12,8 @@ import sys
 import gyp
 import glob
 
+PY3 = bytes != str
+
 
 class VisualStudioVersion(object):
   """Information regarding a version of Visual Studio."""
@@ -132,6 +134,8 @@ def _RegistryQueryBase(sysdir, key, value):
   # Obtain the stdout from reg.exe, reading to the end so p.returncode is valid
   # Note that the error text may be in [1] in some cases
   text = p.communicate()[0]
+  if PY3:
+    text = text.decode('utf-8')
   # Check return code from reg.exe; officially 0==success and 1==error
   if p.returncode:
     return None
@@ -334,6 +338,8 @@ def _ConvertToCygpath(path):
   if sys.platform == 'cygwin':
     p = subprocess.Popen(['cygpath', path], stdout=subprocess.PIPE)
     path = p.communicate()[0].strip()
+    if PY3:
+      path = path.decode('utf-8')
   return path
 
 

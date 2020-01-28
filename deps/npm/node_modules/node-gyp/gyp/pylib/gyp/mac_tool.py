@@ -23,6 +23,8 @@ import subprocess
 import sys
 import tempfile
 
+PY3 = bytes != str
+
 
 def main(args):
   executor = MacTool()
@@ -243,6 +245,8 @@ class MacTool(object):
     env['ZERO_AR_DATE'] = '1'
     libtoolout = subprocess.Popen(cmd_list, stderr=subprocess.PIPE, env=env)
     _, err = libtoolout.communicate()
+    if PY3:
+      err = err.decode('utf-8')
     for line in err.splitlines():
       if not libtool_re.match(line) and not libtool_re5.match(line):
         print(line, file=sys.stderr)

@@ -98,7 +98,8 @@ test('test', function (t) {
   common.npm(
     [
       'publish',
-      '--loglevel', 'warn'
+      '--loglevel', 'warn',
+      '--scripts-prepend-node-path'
     ],
     {
       cwd: pkg,

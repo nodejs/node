@@ -239,7 +239,10 @@ def StringToCMakeTargetName(a):
   Invalid for make: ':'
   Invalid for unknown reasons but cause failures: '.'
   """
-  return a.translate(string.maketrans(' /():."', '_______'))
+  try:
+      return a.translate(str.maketrans(' /():."', '_______'))
+  except AttributeError:
+      return a.translate(string.maketrans(' /():."', '_______'))
 
 
 def WriteActions(target_name, actions, extra_sources, extra_deps,

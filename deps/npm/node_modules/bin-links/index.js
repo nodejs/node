@@ -18,6 +18,7 @@ module.exports = BB.promisify(binLinks)
 
 function binLinks (pkg, folder, global, opts, cb) {
   pkg = normalize(pkg)
+  folder = path.resolve(folder)
 
   // if it's global, and folder is in {prefix}/node_modules,
   // then bins are in {prefix}/bin
