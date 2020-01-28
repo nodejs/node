@@ -824,7 +824,8 @@ If a dependency can be used, but you would like npm to proceed if it cannot be
 found or fails to install, then you may put it in the \fBoptionalDependencies\fP
 object\.  This is a map of package name to version or url, just like the
 \fBdependencies\fP object\.  The difference is that build failures do not cause
-installation to fail\.
+installation to fail\.  Running \fBnpm install \-\-no\-optional\fP will prevent these
+dependencies from being installed\.
 .P
 It is still your program's responsibility to handle the lack of the
 dependency\.  For example, something like this:

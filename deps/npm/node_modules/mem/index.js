@@ -1,50 +1,83 @@
 'use strict';
 const mimicFn = require('mimic-fn');
+const isPromise = require('p-is-promise');
+const mapAgeCleaner = require('map-age-cleaner');
 
 const cacheStore = new WeakMap();
 
-const defaultCacheKey = function (x) {
-	if (arguments.length === 1 && (x === null || x === undefined || (typeof x !== 'function' && typeof x !== 'object'))) {
-		return x;
+const defaultCacheKey = (...arguments_) => {
+	if (arguments_.length === 0) {
+		return '__defaultKey';
 	}
 
-	return JSON.stringify(arguments);
+	if (arguments_.length === 1) {
+		const [firstArgument] = arguments_;
+		if (
+			firstArgument === null ||
+			firstArgument === undefined ||
+			(typeof firstArgument !== 'function' && typeof firstArgument !== 'object')
+		) {
+			return firstArgument;
+		}
+	}
+
+	return JSON.stringify(arguments_);
 };
 
-module.exports = (fn, opts) => {
-	opts = Object.assign({
+const mem = (fn, options) => {
+	options = Object.assign({
 		cacheKey: defaultCacheKey,
-		cache: new Map()
-	}, opts);
+		cache: new Map(),
+		cachePromiseRejection: false
+	}, options);
 
-	const memoized = function () {
-		const cache = cacheStore.get(memoized);
-		const key = opts.cacheKey.apply(null, arguments);
+	if (typeof options.maxAge === 'number') {
+		mapAgeCleaner(options.cache);
+	}
 
-		if (cache.has(key)) {
-			const c = cache.get(key);
+	const {cache} = options;
+	options.maxAge = options.maxAge || 0;
 
-			if (typeof opts.maxAge !== 'number' || Date.now() < c.maxAge) {
-				return c.data;
-			}
-		}
-
-		const ret = fn.apply(null, arguments);
-
+	const setData = (key, data) => {
 		cache.set(key, {
-			data: ret,
-			maxAge: Date.now() + (opts.maxAge || 0)
+			data,
+			maxAge: Date.now() + options.maxAge
 		});
-
-		return ret;
 	};
 
-	mimicFn(memoized, fn);
+	const memoized = function (...arguments_) {
+		const key = options.cacheKey(...arguments_);
 
-	cacheStore.set(memoized, opts.cache);
+		if (cache.has(key)) {
+			return cache.get(key).data;
+		}
+
+		const cacheItem = fn.call(this, ...arguments_);
+
+		setData(key, cacheItem);
+
+		if (isPromise(cacheItem) && options.cachePromiseRejection === false) {
+			// Remove rejected promises from cache unless `cachePromiseRejection` is set to `true`
+			cacheItem.catch(() => cache.delete(key));
+		}
+
+		return cacheItem;
+	};
+
+	try {
+		// The below call will throw in some host environments
+		// See https://github.com/sindresorhus/mimic-fn/issues/10
+		mimicFn(memoized, fn);
+	} catch (_) {}
+
+	cacheStore.set(memoized, options.cache);
 
 	return memoized;
 };
+
+module.exports = mem;
+// TODO: Remove this for the next major release
+module.exports.default = mem;
 
 module.exports.clear = fn => {
 	const cache = cacheStore.get(fn);

@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="11.1.1"></a>
+# [11.1.1](https://github.com/yargs/yargs/compare/v11.1.0...v11.1.1) (2019-10-06)
+
+* backport security fix for os-locale.
+
+<a name="11.1.0"></a>
+# [11.1.0](https://github.com/yargs/yargs/compare/v11.0.0...v11.1.0) (2018-03-04)
+
+
+### Bug Fixes
+
+* choose correct config directory when require.main does not exist ([#1056](https://github.com/yargs/yargs/issues/1056)) ([a04678c](https://github.com/yargs/yargs/commit/a04678c))
+
+
+### Features
+
+* allow hidden options to be displayed with --show-hidden ([#1061](https://github.com/yargs/yargs/issues/1061)) ([ea862ae](https://github.com/yargs/yargs/commit/ea862ae))
+* extend *.rc files in addition to json ([#1080](https://github.com/yargs/yargs/issues/1080)) ([11691a6](https://github.com/yargs/yargs/commit/11691a6))
+
 <a name="11.0.0"></a>
 # [11.0.0](https://github.com/yargs/yargs/compare/v10.1.2...v11.0.0) (2018-01-22)
 

@@ -283,22 +283,28 @@
         ua = ua.replace(/\{arch\}/gi, process.arch)
 
         // continuous integration platforms
-        const ci = process.env.GERRIT_PROJECT ? 'ci/gerrit'
-          : process.env.GITLAB_CI ? 'ci/gitlab'
-            : process.env.CIRCLECI ? 'ci/circle-ci'
-              : process.env.SEMAPHORE ? 'ci/semaphore'
-                : process.env.DRONE ? 'ci/drone'
-                  : process.env.GITHUB_ACTION ? 'ci/github-actions'
-                    : process.env.TDDIUM ? 'ci/tddium'
-                      : process.env.JENKINS_URL ? 'ci/jenkins'
-                        : process.env['bamboo.buildKey'] ? 'ci/bamboo'
-                          : process.env.GO_PIPELINE_NAME ? 'ci/gocd'
-                          // codeship and a few others
-                            : process.env.CI_NAME ? `ci/${process.env.CI_NAME}`
-                            // test travis last, since many of these mimic it
-                              : process.env.TRAVIS ? 'ci/travis-ci'
-                                : process.env.CI === 'true' || process.env.CI === '1' ? 'ci/custom'
-                                  : ''
+        const ciName = process.env.GERRIT_PROJECT ? 'gerrit'
+          : process.env.GITLAB_CI ? 'gitlab'
+            : process.env.APPVEYOR ? 'appveyor'
+              : process.env.CIRCLECI ? 'circle-ci'
+                : process.env.SEMAPHORE ? 'semaphore'
+                  : process.env.DRONE ? 'drone'
+                    : process.env.GITHUB_ACTION ? 'github-actions'
+                      : process.env.TDDIUM ? 'tddium'
+                        : process.env.JENKINS_URL ? 'jenkins'
+                          : process.env['bamboo.buildKey'] ? 'bamboo'
+                            : process.env.GO_PIPELINE_NAME ? 'gocd'
+                            // codeship and a few others
+                              : process.env.CI_NAME ? process.env.CI_NAME
+                              // test travis after the others, since several CI systems mimic it
+                                : process.env.TRAVIS ? 'travis-ci'
+                                // aws CodeBuild/CodePipeline
+                                  : process.env.CODEBUILD_SRC_DIR ? 'aws-codebuild'
+                                    : process.env.CI === 'true' || process.env.CI === '1' ? 'custom'
+                                    // Google Cloud Build - it sets almost nothing
+                                      : process.env.BUILDER_OUTPUT ? 'builder'
+                                        : false
+        const ci = ciName ? `ci/${ciName}` : ''
         ua = ua.replace(/\{ci\}/gi, ci)
 
         config.set('user-agent', ua.trim())

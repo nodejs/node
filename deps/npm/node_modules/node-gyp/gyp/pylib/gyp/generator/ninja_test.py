@@ -9,7 +9,6 @@
 import gyp.generator.ninja as ninja
 import unittest
 import sys
-import TestCommon
 
 
 class TestPrefixesAndSuffixes(unittest.TestCase):

@@ -1,0 +1,65 @@
+{
+  "_args": [
+    [
+      "nice-try@1.0.5",
+      "/Users/mperrotte/npminc/cli"
+    ]
+  ],
+  "_development": true,
+  "_from": "nice-try@1.0.5",
+  "_id": "nice-try@1.0.5",
+  "_inBundle": false,
+  "_integrity": "sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==",
+  "_location": "/nice-try",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "nice-try@1.0.5",
+    "name": "nice-try",
+    "escapedName": "nice-try",
+    "rawSpec": "1.0.5",
+    "saveSpec": null,
+    "fetchSpec": "1.0.5"
+  },
+  "_requiredBy": [
+    "/nyc/cross-spawn"
+  ],
+  "_resolved": "https://registry.npmjs.org/nice-try/-/nice-try-1.0.5.tgz",
+  "_spec": "1.0.5",
+  "_where": "/Users/mperrotte/npminc/cli",
+  "authors": [
+    "Tobias Reich <tobias@electerious.com>"
+  ],
+  "bugs": {
+    "url": "https://github.com/electerious/nice-try/issues"
+  },
+  "description": "Tries to execute a function and discards any error that occurs",
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "coveralls": "^3.0.0",
+    "mocha": "^5.1.1",
+    "nyc": "^12.0.1"
+  },
+  "files": [
+    "src"
+  ],
+  "homepage": "https://github.com/electerious/nice-try",
+  "keywords": [
+    "try",
+    "catch",
+    "error"
+  ],
+  "license": "MIT",
+  "main": "src/index.js",
+  "name": "nice-try",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/electerious/nice-try.git"
+  },
+  "scripts": {
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "test": "nyc node_modules/mocha/bin/_mocha"
+  },
+  "version": "1.0.5"
+}

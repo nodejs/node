@@ -1,9 +1,10 @@
 'use strict';
-var invertKv = require('invert-kv');
-var all = require('./lcid.json');
-var inverted = invertKv(all);
+const invertKv = require('invert-kv');
+const all = require('./lcid.json');
 
-exports.from = function (lcidCode) {
+const inverted = invertKv(all);
+
+exports.from = lcidCode => {
 	if (typeof lcidCode !== 'number') {
 		throw new TypeError('Expected a number');
 	}
@@ -11,7 +12,7 @@ exports.from = function (lcidCode) {
 	return inverted[lcidCode];
 };
 
-exports.to = function (localeId) {
+exports.to = localeId => {
 	if (typeof localeId !== 'string') {
 		throw new TypeError('Expected a string');
 	}

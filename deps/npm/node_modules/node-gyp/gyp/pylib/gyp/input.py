@@ -22,6 +22,7 @@ import traceback
 from gyp.common import GypError
 from gyp.common import OrderedSet
 
+PY3 = bytes != str
 
 # A list of types that are treated as linkable.
 linkable_types = [
@@ -239,7 +240,7 @@ def LoadOneBuildFile(build_file_path, data, aux_data, includes,
     if check:
       build_file_data = CheckedEval(build_file_contents)
     else:
-      build_file_data = eval(build_file_contents, {'__builtins__': None},
+      build_file_data = eval(build_file_contents, {'__builtins__': {}},
                              None)
   except SyntaxError as e:
     e.filename = build_file_path
@@ -909,6 +910,9 @@ def ExpandVariables(input, phase, variables, build_file):
                            (e, contents, build_file))
 
           p_stdout, p_stderr = p.communicate('')
+          if PY3:
+            p_stdout = p_stdout.decode('utf-8')
+            p_stderr = p_stderr.decode('utf-8')
 
           if p.wait() != 0 or p_stderr:
             sys.stderr.write(p_stderr)
@@ -1090,7 +1094,7 @@ def EvalSingleCondition(
     else:
       ast_code = compile(cond_expr_expanded, '<string>', 'eval')
       cached_conditions_asts[cond_expr_expanded] = ast_code
-    if eval(ast_code, {'__builtins__': None}, variables):
+    if eval(ast_code, {'__builtins__': {}}, variables):
       return true_dict
     return false_dict
   except SyntaxError as e:

@@ -6,8 +6,13 @@ const path = require('path')
 const http = require('http')
 const https = require('https')
 const install = require('../lib/install')
+const semver = require('semver')
+const devDir = require('./common').devDir()
+const rimraf = require('rimraf')
+const gyp = require('../lib/node-gyp')
+const log = require('npmlog')
 
-require('npmlog').level = 'warn'
+log.level = 'warn'
 
 test('download over http', function (t) {
   t.plan(2)
@@ -102,4 +107,67 @@ test('check certificate splitting', function (t) {
   t.plan(2)
   t.strictEqual(cas.length, 2)
   t.notStrictEqual(cas[0], cas[1])
+})
+
+// only run this test if we are running a version of Node with predictable version path behavior
+
+test('download headers (actual)', function (t) {
+  if (process.env.FAST_TEST ||
+      process.release.name !== 'node' ||
+      semver.prerelease(process.version) !== null ||
+      semver.satisfies(process.version, '<10')) {
+    return t.skip('Skipping acutal download of headers due to test environment configuration')
+  }
+
+  t.plan(17)
+
+  const expectedDir = path.join(devDir, process.version.replace(/^v/, ''))
+  rimraf(expectedDir, (err) => {
+    t.ifError(err)
+
+    const prog = gyp()
+    prog.parseArgv([])
+    prog.devDir = devDir
+    log.level = 'warn'
+    install(prog, [], (err) => {
+      t.ifError(err)
+
+      fs.readFile(path.join(expectedDir, 'installVersion'), 'utf8', (err, data) => {
+        t.ifError(err)
+        t.strictEqual(data, '9\n', 'correct installVersion')
+      })
+
+      fs.readdir(path.join(expectedDir, 'include/node'), (err, list) => {
+        t.ifError(err)
+
+        t.ok(list.includes('common.gypi'))
+        t.ok(list.includes('config.gypi'))
+        t.ok(list.includes('node.h'))
+        t.ok(list.includes('node_version.h'))
+        t.ok(list.includes('openssl'))
+        t.ok(list.includes('uv'))
+        t.ok(list.includes('uv.h'))
+        t.ok(list.includes('v8-platform.h'))
+        t.ok(list.includes('v8.h'))
+        t.ok(list.includes('zlib.h'))
+      })
+
+      fs.readFile(path.join(expectedDir, 'include/node/node_version.h'), 'utf8', (err, contents) => {
+        t.ifError(err)
+
+        const lines = contents.split('\n')
+
+        // extract the 3 version parts from the defines to build a valid version string and
+        // and check them against our current env version
+        const version = ['major', 'minor', 'patch'].reduce((version, type) => {
+          const re = new RegExp(`^#define\\sNODE_${type.toUpperCase()}_VERSION`)
+          const line = lines.find((l) => re.test(l))
+          const i = line ? parseInt(line.replace(/^[^0-9]+([0-9]+).*$/, '$1'), 10) : 'ERROR'
+          return `${version}${type !== 'major' ? '.' : 'v'}${i}`
+        }, '')
+
+        t.strictEqual(version, process.version)
+      })
+    })
+  })
 })
