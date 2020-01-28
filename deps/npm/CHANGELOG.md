@@ -1,3 +1,23 @@
+## 6.13.7 (2020-01-28)
+
+### BUG FIXES
+* [`7dbb91438`](https://github.com/npm/cli/commit/7dbb914382ecd2074fffb7eba81d93262e2d23c6)
+  [#655](https://github.com/npm/cli/pull/655)
+  Update CI detection cases
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+* [`0fb1296c7`](https://github.com/npm/cli/commit/0fb1296c7d6d4bb9e78c96978c433cd65e55c0ea)
+  `libnpx@10.2.2`
+  ([@mikemimik](https://github.com/mikemimik))
+* [`c9b69d569`](https://github.com/npm/cli/commit/c9b69d569fec7944375a746e9c08a6fa9bec96ff)
+  `node-gyp@5.0.7`
+  ([@mikemimik](https://github.com/mikemimik))
+* [`e8dbaf452`](https://github.com/npm/cli/commit/e8dbaf452a1f6c5350bb0c37059b89a7448e7986)
+  `bin-links@1.1.7`
+  ([@mikemimik](https://github.com/mikemimik))
+  * [#613](https://github.com/npm/cli/issues/613) Fixes bin entry for package
+
 ## 6.13.6 (2020-01-09)
 
 ### DEPENDENCIES

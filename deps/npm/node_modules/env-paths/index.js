@@ -4,7 +4,7 @@ const os = require('os');
 
 const homedir = os.homedir();
 const tmpdir = os.tmpdir();
-const env = process.env;
+const {env} = process;
 
 const macos = name => {
 	const library = path.join(homedir, 'Library');
@@ -19,14 +19,15 @@ const macos = name => {
 };
 
 const windows = name => {
-	const appData = env.LOCALAPPDATA || path.join(homedir, 'AppData', 'Local');
+	const appData = env.APPDATA || path.join(homedir, 'AppData', 'Roaming');
+	const localAppData = env.LOCALAPPDATA || path.join(homedir, 'AppData', 'Local');
 
 	return {
-		// data/config/cache/log are invented by me as Windows isn't opinionated about this
-		data: path.join(appData, name, 'Data'),
+		// Data/config/cache/log are invented by me as Windows isn't opinionated about this
+		data: path.join(localAppData, name, 'Data'),
 		config: path.join(appData, name, 'Config'),
-		cache: path.join(appData, name, 'Cache'),
-		log: path.join(appData, name, 'Log'),
+		cache: path.join(localAppData, name, 'Cache'),
+		log: path.join(localAppData, name, 'Log'),
 		temp: path.join(tmpdir, name)
 	};
 };
@@ -45,16 +46,16 @@ const linux = name => {
 	};
 };
 
-module.exports = (name, opts) => {
+const envPaths = (name, options) => {
 	if (typeof name !== 'string') {
 		throw new TypeError(`Expected string, got ${typeof name}`);
 	}
 
-	opts = Object.assign({suffix: 'nodejs'}, opts);
+	options = Object.assign({suffix: 'nodejs'}, options);
 
-	if (opts.suffix) {
-		// add suffix to prevent possible conflict with native apps
-		name += `-${opts.suffix}`;
+	if (options.suffix) {
+		// Add suffix to prevent possible conflict with native apps
+		name += `-${options.suffix}`;
 	}
 
 	if (process.platform === 'darwin') {
@@ -67,3 +68,7 @@ module.exports = (name, opts) => {
 
 	return linux(name);
 };
+
+module.exports = envPaths;
+// TODO: Remove this for the next major release
+module.exports.default = envPaths;

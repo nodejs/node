@@ -476,17 +476,17 @@ function Yargs (processArgs, cwd, parentRequire) {
     return self
   }
 
-  self.pkgConf = function pkgConf (key, path) {
-    argsert('<string> [string]', [key, path], arguments.length)
+  self.pkgConf = function pkgConf (key, rootPath) {
+    argsert('<string> [string]', [key, rootPath], arguments.length)
     let conf = null
     // prefer cwd to require-main-filename in this method
     // since we're looking for e.g. "nyc" config in nyc consumer
     // rather than "yargs" config in nyc (where nyc is the main filename)
-    const obj = pkgUp(path || cwd)
+    const obj = pkgUp(rootPath || cwd)
 
     // If an object exists in the key, add it to options.configObjects
     if (obj[key] && typeof obj[key] === 'object') {
-      conf = applyExtends(obj[key], path || cwd)
+      conf = applyExtends(obj[key], rootPath || cwd)
       options.configObjects = (options.configObjects || []).concat(conf)
     }
 
@@ -494,16 +494,24 @@ function Yargs (processArgs, cwd, parentRequire) {
   }
 
   const pkgs = {}
-  function pkgUp (path) {
-    const npath = path || '*'
+  function pkgUp (rootPath) {
+    const npath = rootPath || '*'
     if (pkgs[npath]) return pkgs[npath]
     const findUp = require('find-up')
 
     let obj = {}
     try {
+      let startDir = rootPath || require('require-main-filename')(parentRequire || require)
+
+      // When called in an environment that lacks require.main.filename, such as a jest test runner,
+      // startDir is already process.cwd(), and should not be shortened.
+      // Whether or not it is _actually_ a directory (e.g., extensionless bin) is irrelevant, find-up handles it.
+      if (!rootPath && path.extname(startDir)) {
+        startDir = path.dirname(startDir)
+      }
+
       const pkgJsonPath = findUp.sync('package.json', {
-        cwd: path || require('path').dirname(require('require-main-filename')(parentRequire || require)),
-        normalize: false
+        cwd: startDir
       })
       obj = JSON.parse(fs.readFileSync(pkgJsonPath))
     } catch (noop) {}
