@@ -5,15 +5,15 @@
 
 ## Install
 
-```sh
-$ npm install --save invert-kv
+```
+$ npm install invert-kv
 ```
 
 
 ## Usage
 
 ```js
-var invertKv = require('invert-kv');
+const invertKv = require('invert-kv');
 
 invertKv({foo: 'bar', unicorn: 'rainbow'});
 //=> {bar: 'foo', rainbow: 'unicorn'}
@@ -22,4 +22,4 @@ invertKv({foo: 'bar', unicorn: 'rainbow'});
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)
