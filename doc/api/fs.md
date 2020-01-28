@@ -4929,7 +4929,7 @@ will be passed as `Buffer` objects.
 If `options.withFileTypes` is set to `true`, the resolved array will contain
 [`fs.Dirent`][] objects.
 
-Example using async iteration:
+Example iterating over a directory listing:
 
 ```js
 const fs = require('fs');
