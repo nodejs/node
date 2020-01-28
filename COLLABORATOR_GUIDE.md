@@ -211,7 +211,7 @@ that the tests are reliable.
 runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
 patches on V8.
 
-* [`node-test-commit-custom-suites`](https://ci.nodejs.org/job/node-test-commit-custom-suites/)
+* [`node-test-commit-custom-suites-freestyle`](https://ci.nodejs.org/job/node-test-commit-custom-suites-freestyle/)
 enables customization of test suites and parameters. It can execute test suites
 not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
