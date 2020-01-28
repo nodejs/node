@@ -348,7 +348,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
 
     if (!async) {
       // sync version
-      env()->PrintSyncTrace();
+      AsyncWrap::env()->PrintSyncTrace();
       DoThreadPoolWork();
       if (CheckError()) {
         UpdateWriteResult();
@@ -397,8 +397,9 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
 
     CHECK_EQ(status, 0);
 
-    HandleScope handle_scope(env()->isolate());
-    Context::Scope context_scope(env()->context());
+    Environment* env = AsyncWrap::env();
+    HandleScope handle_scope(env->isolate());
+    Context::Scope context_scope(env->context());
 
     if (!CheckError())
       return;
@@ -406,7 +407,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     UpdateWriteResult();
 
     // call the write() cb
-    Local<Function> cb = PersistentToLocal::Default(env()->isolate(),
+    Local<Function> cb = PersistentToLocal::Default(env->isolate(),
                                                     write_js_callback_);
     MakeCallback(cb, 0, nullptr);
 
@@ -416,16 +417,17 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
 
   // TODO(addaleax): Switch to modern error system (node_errors.h).
   void EmitError(const CompressionError& err) {
+    Environment* env = AsyncWrap::env();
     // If you hit this assertion, you forgot to enter the v8::Context first.
-    CHECK_EQ(env()->context(), env()->isolate()->GetCurrentContext());
+    CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-    HandleScope scope(env()->isolate());
+    HandleScope scope(env->isolate());
     Local<Value> args[3] = {
-      OneByteString(env()->isolate(), err.message),
-      Integer::New(env()->isolate(), err.err),
-      OneByteString(env()->isolate(), err.code)
+      OneByteString(env->isolate(), err.message),
+      Integer::New(env->isolate(), err.err),
+      OneByteString(env->isolate(), err.code)
     };
-    MakeCallback(env()->onerror_string(), arraysize(args), args);
+    MakeCallback(env->onerror_string(), arraysize(args), args);
 
     // no hope of rescue.
     write_in_progress_ = false;
@@ -454,7 +456,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
 
   void InitStream(uint32_t* write_result, Local<Function> write_js_callback) {
     write_result_ = write_result;
-    write_js_callback_.Reset(env()->isolate(), write_js_callback);
+    write_js_callback_.Reset(AsyncWrap::env()->isolate(), write_js_callback);
     init_done_ = true;
   }
 
@@ -500,7 +502,7 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     if (report == 0) return;
     CHECK_IMPLIES(report < 0, zlib_memory_ >= static_cast<size_t>(-report));
     zlib_memory_ += report;
-    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(report);
+    AsyncWrap::env()->isolate()->AdjustAmountOfExternalAllocatedMemory(report);
   }
 
   struct AllocScope {
