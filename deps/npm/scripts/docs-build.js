@@ -15,7 +15,7 @@ fs.readFile(src, 'utf8', function (err, data) {
   }
 
   var result = data.replace(/@VERSION@/g, npm.version)
-    .replace(/---([\s\S]+)---/g, '')
+    .replace(/^---([\s\S]+?)---/g, '')
     .replace(/\[([^\]]+)\]\(\/cli-commands\/([^)]+)\)/g, replacer)
     .replace(/\[([^\]]+)\]\(\/configuring-npm\/([^)]+)\)/g, replacer)
     .replace(/\[([^\]]+)\]\(\/using-npm\/([^)]+)\)/g, replacer)
