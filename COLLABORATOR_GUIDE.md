@@ -13,6 +13,7 @@
   * [Waiting for Approvals](#waiting-for-approvals)
   * [Testing and CI](#testing-and-ci)
     * [Useful CI Jobs](#useful-ci-jobs)
+    * [Starting a CI Job](#starting-a-ci-job)
   * [Internal vs. Public API](#internal-vs-public-api)
   * [Breaking Changes](#breaking-changes)
     * [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
