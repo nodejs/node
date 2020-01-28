@@ -1510,6 +1510,9 @@ is no entry script.
 <!-- YAML
 added: v0.1.16
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31550
+    description: Added `arrayBuffers` to the returned object.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/9587
     description: Added `external` to the returned object.
@@ -1520,6 +1523,7 @@ changes:
   * `heapTotal` {integer}
   * `heapUsed` {integer}
   * `external` {integer}
+  * `arrayBuffers` {integer}
 
 The `process.memoryUsage()` method returns an object describing the memory usage
 of the Node.js process measured in bytes.
@@ -1538,19 +1542,22 @@ Will generate:
   rss: 4935680,
   heapTotal: 1826816,
   heapUsed: 650472,
-  external: 49879
+  external: 49879,
+  arrayBuffers: 9386
 }
 ```
 
-`heapTotal` and `heapUsed` refer to V8's memory usage.
-`external` refers to the memory usage of C++ objects bound to JavaScript
-objects managed by V8. `rss`, Resident Set Size, is the amount of space
-occupied in the main memory device (that is a subset of the total allocated
-memory) for the process, which includes the _heap_, _code segment_ and _stack_.
-
-The _heap_ is where objects, strings, and closures are stored. Variables are
-stored in the _stack_ and the actual JavaScript code resides in the
-_code segment_.
+* `heapTotal` and `heapUsed` refer to V8's memory usage.
+* `external` refers to the memory usage of C++ objects bound to JavaScript
+  objects managed by V8.
+* `rss`, Resident Set Size, is the amount of space occupied in the main
+  memory device (that is a subset of the total allocated memory) for the
+  process, including all C++ and JavaScript objects and code.
+* `arrayBuffers` refers to memory allocated for `ArrayBuffer`s and
+  `SharedArrayBuffer`s, including all Node.js [`Buffer`][]s.
+  This is also included in the `external` value. When Node.js is used as an
+  embedded library, this value may be `0` because allocations for `ArrayBuffer`s
+  may not be tracked in that case.
 
 When using [`Worker`][] threads, `rss` will be a value that is valid for the
 entire process, while the other fields will only refer to the current thread.
@@ -2518,6 +2525,7 @@ cases:
 [`'exit'`]: #process_event_exit
 [`'message'`]: child_process.html#child_process_event_message
 [`'uncaughtException'`]: #process_event_uncaughtexception
+[`Buffer`]: buffer.html
 [`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
