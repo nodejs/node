@@ -342,3 +342,13 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   d._writableState.errored = true;
   d.emit('close');
 }
+
+{
+  const r = new Readable();
+  finished(r, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+  r.push('asd');
+  r.push(null);
+  r.destroy();
+}

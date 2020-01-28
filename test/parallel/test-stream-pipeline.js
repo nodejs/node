@@ -920,3 +920,21 @@ const { promisify } = require('util');
   }));
   src.end();
 }
+
+{
+  // Make sure 'close' before 'end' finishes without error
+  // if readable has received eof.
+  // Ref: https://github.com/nodejs/node/issues/29699
+  const r = new Readable();
+  const w = new Writable({
+    write(chunk, encoding, cb) {
+      cb();
+    }
+  });
+  pipeline(r, w, (err) => {
+    assert.strictEqual(err, undefined);
+  });
+  r.push('asd');
+  r.push(null);
+  r.emit('close');
+}
