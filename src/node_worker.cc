@@ -261,8 +261,6 @@ void Worker::Run() {
 
       {
         Context::Scope context_scope(env_->context());
-        if (child_port != nullptr)
-          child_port->Close();
         {
           Mutex::ScopedLock lock(mutex_);
           stopped_ = true;
