@@ -87,10 +87,28 @@ static void HostCleanupFinalizationGroupCallback(
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
+  total_mem_usage_ += size;
   if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
     return UncheckedCalloc(size);
   else
     return UncheckedMalloc(size);
+}
+
+void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
+  total_mem_usage_ += size;
+  return node::UncheckedMalloc(size);
+}
+
+void* NodeArrayBufferAllocator::Reallocate(
+    void* data, size_t old_size, size_t size) {
+  total_mem_usage_ += size - old_size;
+  return static_cast<void*>(
+      UncheckedRealloc<char>(static_cast<char*>(data), size));
+}
+
+void NodeArrayBufferAllocator::Free(void* data, size_t size) {
+  total_mem_usage_ -= size;
+  free(data);
 }
 
 DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
@@ -140,11 +158,13 @@ void* DebuggingArrayBufferAllocator::Reallocate(void* data,
 
 void DebuggingArrayBufferAllocator::RegisterPointer(void* data, size_t size) {
   Mutex::ScopedLock lock(mutex_);
+  NodeArrayBufferAllocator::RegisterPointer(data, size);
   RegisterPointerInternal(data, size);
 }
 
 void DebuggingArrayBufferAllocator::UnregisterPointer(void* data, size_t size) {
   Mutex::ScopedLock lock(mutex_);
+  NodeArrayBufferAllocator::UnregisterPointer(data, size);
   UnregisterPointerInternal(data, size);
 }
 
