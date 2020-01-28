@@ -417,6 +417,11 @@ int MapStaticCodeToLargePages() {
     return -1;
   }
 
+#if defined(__FreeBSD__)
+  if (r.from < reinterpret_cast<void*>(&MoveTextRegionToLargePages))
+    return -1;
+#endif
+
   return MoveTextRegionToLargePages(r);
 }
 
