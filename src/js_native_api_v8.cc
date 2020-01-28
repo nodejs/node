@@ -2999,13 +2999,13 @@ napi_status napi_reject_deferred(napi_env env,
 }
 
 napi_status napi_is_promise(napi_env env,
-                            napi_value promise,
+                            napi_value value,
                             bool* is_promise) {
   CHECK_ENV(env);
-  CHECK_ARG(env, promise);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, is_promise);
 
-  *is_promise = v8impl::V8LocalValueFromJsValue(promise)->IsPromise();
+  *is_promise = v8impl::V8LocalValueFromJsValue(value)->IsPromise();
 
   return napi_clear_last_error(env);
 }
