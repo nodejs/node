@@ -20,17 +20,25 @@ socket.setNoDelay();
 
 socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(genSetNoDelay(true), truthyValues.length)
+    setNoDelay: common.mustCall(genSetNoDelay(true), 1)
   }
 });
 truthyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
 socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(genSetNoDelay(false), falseyValues.length)
+    setNoDelay: common.mustNotCall()
   }
 });
 falseyValues.forEach((testVal) => socket.setNoDelay(testVal));
+
+socket = new net.Socket({
+  handle: {
+    setNoDelay: common.mustCall(() => {}, 3)
+  }
+});
+truthyValues.concat(falseyValues).concat(truthyValues)
+  .forEach((testVal) => socket.setNoDelay(testVal));
 
 // If a handler doesn't have a setNoDelay function it shouldn't be called.
 // In the case below, if it is called an exception will be thrown
