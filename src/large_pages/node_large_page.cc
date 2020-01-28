@@ -65,7 +65,11 @@
 // Use madvise with MADV_HUGEPAGE to use Anonymous 2M Pages
 // If successful copy the code there and unmap the original region.
 
-extern char __nodetext;
+#if defined(__linux__)
+extern "C" {
+extern char __executable_start;
+}  // extern "C"
+#endif  // defined(__linux__)
 
 namespace node {
 
@@ -116,17 +120,6 @@ static struct text_region FindNodeTextRegion() {
     return nregion;
   }
 
-  std::string exename;
-  {
-      char selfexe[PATH_MAX];
-
-      size_t size = sizeof(selfexe);
-      if (uv_exepath(selfexe, &size))
-        return nregion;
-
-      exename = std::string(selfexe, size);
-  }
-
   while (std::getline(ifs, map_line)) {
     std::istringstream iss(map_line);
     iss >> std::hex >> start;
@@ -136,26 +129,42 @@ static struct text_region FindNodeTextRegion() {
     iss >> offset;
     iss >> dev;
     iss >> inode;
-    if (inode != 0) {
-      std::string pathname;
-      iss >> pathname;
-      if (pathname == exename && permission == "r-xp") {
-        uintptr_t ntext = reinterpret_cast<uintptr_t>(&__nodetext);
-        if (ntext >= start && ntext < end) {
-          char* from = reinterpret_cast<char*>(hugepage_align_up(ntext));
-          char* to = reinterpret_cast<char*>(hugepage_align_down(end));
 
-          if (from < to) {
-            size_t size = to - from;
-            nregion.found_text_region = true;
-            nregion.from = from;
-            nregion.to = to;
-            nregion.total_hugepages = size / hps;
-          }
-          break;
-        }
-      }
-    }
+    if (inode == 0)
+      continue;
+
+    std::string pathname;
+    iss >> pathname;
+
+    if (start != reinterpret_cast<uintptr_t>(&__executable_start))
+      continue;
+
+    // The next line is our .text section.
+    if (!std::getline(ifs, map_line))
+      break;
+
+    iss = std::istringstream(map_line);
+    iss >> std::hex >> start;
+    iss >> dash;
+    iss >> std::hex >> end;
+    iss >> permission;
+
+    if (permission != "r-xp")
+      break;
+
+    char* from = reinterpret_cast<char*>(hugepage_align_up(start));
+    char* to = reinterpret_cast<char*>(hugepage_align_down(end));
+
+    if (from >= to)
+      break;
+
+    size_t size = to - from;
+    nregion.found_text_region = true;
+    nregion.from = from;
+    nregion.to = to;
+    nregion.total_hugepages = size / hps;
+
+    break;
   }
 
   ifs.close();
@@ -408,14 +417,12 @@ int MapStaticCodeToLargePages() {
     return -1;
   }
 
-#if defined(__linux__) || defined(__FreeBSD__)
-  if (r.from > reinterpret_cast<void*>(&MoveTextRegionToLargePages))
-    return MoveTextRegionToLargePages(r);
-
-  return -1;
-#elif defined(__APPLE__)
-  return MoveTextRegionToLargePages(r);
+#if defined(__FreeBSD__)
+  if (r.from < reinterpret_cast<void*>(&MoveTextRegionToLargePages))
+    return -1;
 #endif
+
+  return MoveTextRegionToLargePages(r);
 }
 
 bool IsLargePagesEnabled() {
