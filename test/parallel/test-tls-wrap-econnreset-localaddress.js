@@ -16,6 +16,7 @@ const server = net.createServer((c) => {
   let errored = false;
   tls.connect({
     port: port,
+    family: 4,
     localAddress: common.localhostIPv4
   }, common.localhostIPv4)
     .once('error', common.mustCall((e) => {
