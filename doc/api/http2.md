@@ -2250,6 +2250,9 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
+  * `protocol` {string} The protocol to connect with, if not set in the
+    `authority`. Value may be either `'http:'` or `'https:'`. **Default:**
+    `'https:'`
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
   * `createConnection` {Function} An optional callback that receives the `URL`
