@@ -70,6 +70,7 @@ namespace node {
   V(UDPWRAP)                                                                  \
   V(SIGINTWATCHDOG)                                                           \
   V(WORKER)                                                                   \
+  V(WORKERHEAPSNAPSHOT)                                                       \
   V(WRITEWRAP)                                                                \
   V(ZLIB)
 

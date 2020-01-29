@@ -59,6 +59,7 @@ class Worker : public AsyncWrap {
   static void GetResourceLimits(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::Local<v8::Float64Array> GetResourceLimits(v8::Isolate* isolate) const;
+  static void TakeHeapSnapshot(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   void CreateEnvMessagePort(Environment* env);
