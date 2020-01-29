@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common.js');
-const path = require('path');
 const { MessageChannel } = require('worker_threads');
 const bench = common.createBenchmark(main, {
   payload: ['string', 'object'],
@@ -11,7 +10,6 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
 
   const n = +conf.n;
-  const sends = +conf.sendsPerBroadcast;
 
   let payload;
 
