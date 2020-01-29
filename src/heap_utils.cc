@@ -385,15 +385,9 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethodNoSideEffect(target,
-                             "buildEmbedderGraph",
-                             BuildEmbedderGraph);
-  env->SetMethodNoSideEffect(target,
-                             "triggerHeapSnapshot",
-                             TriggerHeapSnapshot);
-  env->SetMethodNoSideEffect(target,
-                             "createHeapSnapshotStream",
-                             CreateHeapSnapshotStream);
+  env->SetMethod(target, "buildEmbedderGraph", BuildEmbedderGraph);
+  env->SetMethod(target, "triggerHeapSnapshot", TriggerHeapSnapshot);
+  env->SetMethod(target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
 
   // Create FunctionTemplate for HeapSnapshotStream
   Local<FunctionTemplate> os = FunctionTemplate::New(env->isolate());
