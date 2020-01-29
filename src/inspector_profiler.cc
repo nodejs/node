@@ -107,9 +107,9 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
 }
 
 static bool EnsureDirectory(const std::string& directory, const char* type) {
-  uv_fs_t req;
-  int ret = fs::MKDirpSync(nullptr, &req, directory, 0777, nullptr);
-  uv_fs_req_cleanup(&req);
+  fs::FSReqWrapSync req_wrap_sync;
+  int ret = fs::MKDirpSync(nullptr, &req_wrap_sync.req, directory, 0777,
+                           nullptr);
   if (ret < 0 && ret != UV_EEXIST) {
     char err_buf[128];
     uv_err_name_r(ret, err_buf, sizeof(err_buf));

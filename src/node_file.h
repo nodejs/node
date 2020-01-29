@@ -19,10 +19,13 @@ class FSContinuationData : public MemoryRetainer {
   inline void PushPath(std::string&& path);
   inline void PushPath(const std::string& path);
   inline std::string PopPath();
+  // Used by mkdirp to track the first path created:
+  inline void MaybeSetFirstPath(const std::string& path);
   inline void Done(int result);
 
   int mode() const { return mode_; }
   const std::vector<std::string>& paths() const { return paths_; }
+  const std::string& first_path() const { return first_path_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(FSContinuationData)
@@ -33,6 +36,7 @@ class FSContinuationData : public MemoryRetainer {
   uv_fs_t* req_;
   int mode_;
   std::vector<std::string> paths_;
+  std::string first_path_;
 };
 
 class FSReqBase : public ReqWrap<uv_fs_t> {
@@ -306,8 +310,18 @@ class FSReqWrapSync {
   ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
   uv_fs_t req;
 
+  FSContinuationData* continuation_data() const {
+    return continuation_data_.get();
+  }
+  void set_continuation_data(std::unique_ptr<FSContinuationData> data) {
+    continuation_data_ = std::move(data);
+  }
+
   FSReqWrapSync(const FSReqWrapSync&) = delete;
   FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
+
+ private:
+  std::unique_ptr<FSContinuationData> continuation_data_;
 };
 
 // TODO(addaleax): Currently, callers check the return value and assume
