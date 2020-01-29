@@ -467,7 +467,7 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
             msvs_tool[msvs_setting](msvs_value, msbuild_settings)
           except ValueError as e:
             print('Warning: while converting %s/%s to MSBuild, '
-                  '%s' % (msvs_tool_name, msvs_setting, e), file=stderr)
+                              '%s' % (msvs_tool_name, msvs_setting, e), file=stderr)
         else:
           _ValidateExclusionSetting(msvs_setting,
                                     msvs_tool,
@@ -477,7 +477,7 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
                                     stderr)
     else:
       print('Warning: unrecognized tool %s while converting to '
-            'MSBuild.' % msvs_tool_name, file=stderr)
+                        'MSBuild.' % msvs_tool_name, file=stderr)
   return msbuild_settings
 
 
@@ -522,8 +522,8 @@ def _ValidateSettings(validators, settings, stderr):
           try:
             tool_validators[setting](value)
           except ValueError as e:
-            print('Warning: for %s/%s, %s' % (tool_name, setting, e),
-                  file=stderr)
+            print('Warning: for %s/%s, %s' %
+                              (tool_name, setting, e), file=stderr)
         else:
           _ValidateExclusionSetting(setting,
                                     tool_validators,
@@ -598,7 +598,6 @@ _Same(_compile, 'UndefinePreprocessorDefinitions', _string_list)  # /U
 _Same(_compile, 'UseFullPaths', _boolean)  # /FC
 _Same(_compile, 'WholeProgramOptimization', _boolean)  # /GL
 _Same(_compile, 'XMLDocumentationFileName', _file_name)
-_Same(_compile, 'CompileAsWinRT', _boolean)  # /ZW
 
 _Same(_compile, 'AssemblerOutput',
       _Enumeration(['NoListing',
@@ -976,7 +975,9 @@ _Same(_midl, 'TargetEnvironment',
       _Enumeration(['NotSet',
                     'Win32',  # /env win32
                     'Itanium',  # /env ia64
-                    'X64']))  # /env x64
+                    'X64',  # /env x64
+                    'ARM64',  # /env arm64
+                    ]))
 _Same(_midl, 'EnableErrorChecks',
       _Enumeration(['EnableCustom',
                     'None',  # /error none

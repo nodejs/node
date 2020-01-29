@@ -8,11 +8,10 @@
 
 import gyp.easy_xml as easy_xml
 import unittest
-
 try:
-  from StringIO import StringIO  # Python 2
+  from cStringIO import StringIO
 except ImportError:
-  from io import StringIO  # Python 3
+  from io import StringIO
 
 
 class TestSequenceFunctions(unittest.TestCase):

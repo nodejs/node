@@ -6,13 +6,13 @@
 
 """Unit tests for the MSVSSettings.py file."""
 
+try:
+  from cStringIO import StringIO
+except ImportError:
+  from io import StringIO
+
 import unittest
 import gyp.MSVSSettings as MSVSSettings
-
-try:
-  from StringIO import StringIO  # Python 2
-except ImportError:
-  from io import StringIO  # Python 3
 
 
 class TestSequenceFunctions(unittest.TestCase):
@@ -1085,6 +1085,7 @@ class TestSequenceFunctions(unittest.TestCase):
             'GenerateManifest': 'true',
             'IgnoreImportLibrary': 'true',
             'LinkIncremental': 'false'}}
+    self.maxDiff = 9999  # on failure display a long diff
     actual_msbuild_settings = MSVSSettings.ConvertToMSBuildSettings(
         msvs_settings,
         self.stderr)
@@ -1476,6 +1477,7 @@ class TestSequenceFunctions(unittest.TestCase):
             'ResourceOutputFileName':
             '$(IntDir)$(TargetFileName).embed.manifest.resfdsf'}
         }
+    self.maxDiff = 9999  # on failure display a long diff
     actual_msbuild_settings = MSVSSettings.ConvertToMSBuildSettings(
         msvs_settings,
         self.stderr)

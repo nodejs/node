@@ -20,6 +20,7 @@ import string
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PY3 = bytes != str
 
 # A regex matching an argument corresponding to the output filename passed to
 # link.exe.
@@ -118,20 +119,14 @@ class WinTool(object):
     env = self._GetEnv(arch)
     if use_separate_mspdbsrv == 'True':
       self._UseSeparateMspdbsrv(env, args)
-    if sys.platform == 'win32':
-      args = list(args)  # *args is a tuple by default, which is read-only.
-      args[0] = args[0].replace('/', '\\')
-    # https://docs.python.org/2/library/subprocess.html:
-    # "On Unix with shell=True [...] if args is a sequence, the first item
-    # specifies the command string, and any additional items will be treated as
-    # additional arguments to the shell itself.  That is to say, Popen does the
-    # equivalent of:
-    #   Popen(['/bin/sh', '-c', args[0], args[1], ...])"
-    # For that reason, since going through the shell doesn't seem necessary on
-    # non-Windows don't do that there.
-    link = subprocess.Popen(args, shell=sys.platform == 'win32', env=env,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    link = subprocess.Popen([args[0].replace('/', '\\')] + list(args[1:]),
+                            shell=True,
+                            env=env,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
     out, _ = link.communicate()
+    if PY3:
+      out = out.decode('utf-8')
     for line in out.splitlines():
       if (not line.startswith('   Creating library ') and
           not line.startswith('Generating code') and
@@ -223,6 +218,8 @@ class WinTool(object):
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out, _ = popen.communicate()
+    if PY3:
+      out = out.decode('utf-8')
     for line in out.splitlines():
       if line and 'manifest authoring warning 81010002' not in line:
         print(line)
@@ -255,6 +252,8 @@ class WinTool(object):
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out, _ = popen.communicate()
+    if PY3:
+      out = out.decode('utf-8')
     # Filter junk out of stdout, and write filtered versions. Output we want
     # to filter is pairs of lines that look like this:
     # Processing C:\Program Files (x86)\Microsoft SDKs\...\include\objidl.idl
@@ -274,6 +273,8 @@ class WinTool(object):
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out, _ = popen.communicate()
+    if PY3:
+      out = out.decode('utf-8')
     for line in out.splitlines():
       if (not line.startswith('Copyright (C) Microsoft Corporation') and
           not line.startswith('Microsoft (R) Macro Assembler') and
@@ -289,6 +290,8 @@ class WinTool(object):
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out, _ = popen.communicate()
+    if PY3:
+      out = out.decode('utf-8')
     for line in out.splitlines():
       if (not line.startswith('Microsoft (R) Windows (R) Resource Compiler') and
           not line.startswith('Copyright (C) Microsoft Corporation') and
