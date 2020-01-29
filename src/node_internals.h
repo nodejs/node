@@ -384,6 +384,16 @@ class TraceEventScope {
   void* id_;
 };
 
+namespace heap {
+
+void DeleteHeapSnapshot(const v8::HeapSnapshot* snapshot);
+using HeapSnapshotPointer =
+  DeleteFnPtr<const v8::HeapSnapshot, DeleteHeapSnapshot>;
+
+BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
+    Environment* env, HeapSnapshotPointer&& snapshot);
+}  // namespace heap
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
