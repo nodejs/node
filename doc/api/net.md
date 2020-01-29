@@ -881,7 +881,7 @@ added: v0.1.90
 
 Enable/disable the use of Nagle's algorithm.
 
-When a TCP connection is created it will have Nagle's algorithm enabled.
+When a TCP connection is created, it will have Nagle's algorithm enabled.
 
 Nagle's algorithm delays data before it is sent via the network. It attempts
 to optimize throughput at the expense of latency.
