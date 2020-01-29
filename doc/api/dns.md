@@ -170,6 +170,9 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/39987
+    description: The `verbatim` options defaults to `true` now.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/14731
     description: The `verbatim` option is supported now.
@@ -190,10 +193,9 @@ changes:
   * `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
-    **Default:** currently `false` (addresses are reordered) but this is
-    expected to change in the not too distant future. Default value is
+    **Default:** `true` (addresses are reordered). Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
-    [`--dns-result-order`][]. New code should use `{ verbatim: true }`.
+    [`--dns-result-order`][].
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.

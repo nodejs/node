@@ -49,7 +49,7 @@ const server = net.createServer(function(c) {
   });
 });
 
-server.listen(0, '127.0.0.1', common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   const port = this.address().port;
   const headers = [
     {
