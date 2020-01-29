@@ -125,7 +125,7 @@ section if a custom port is used.
 added: v0.1.90
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31567
     description: The `verbatim` options defaults to `true` now.
   - version: v8.5.0
     pr-url: https://github.com/nodejs/node/pull/14731
