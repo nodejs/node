@@ -239,6 +239,100 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
   });
 }
 
+// `mkdirp` returns first folder created, when all folders are new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const firstPathCreated = path.join(tmpdir.path, dir1);
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err, path) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(path, firstPathCreated);
+  }));
+}
+
+// `mkdirp` returns first folder created, when last folder is new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1));
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err, path) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(path, pathname);
+  }));
+}
+
+// `mkdirp` returns undefined, when no new folders are created.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1, dir2), { recursive: true });
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err, path) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(path, undefined);
+  }));
+}
+
+// `mkdirp.sync` returns first folder created, when all folders are new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const firstPathCreated = path.join(tmpdir.path, dir1);
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  const p = fs.mkdirSync(pathname, { recursive: true });
+  assert.strictEqual(fs.existsSync(pathname), true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  assert.strictEqual(p, firstPathCreated);
+}
+
+// `mkdirp.sync` returns first folder created, when last folder is new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1), { recursive: true });
+  const p = fs.mkdirSync(pathname, { recursive: true });
+  assert.strictEqual(fs.existsSync(pathname), true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  assert.strictEqual(p, pathname);
+}
+
+// `mkdirp.sync` returns undefined, when no new folders are created.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1, dir2), { recursive: true });
+  const p = fs.mkdirSync(pathname, { recursive: true });
+  assert.strictEqual(fs.existsSync(pathname), true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  assert.strictEqual(p, undefined);
+}
+
+// `mkdirp.promises` returns first folder created, when all folders are new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const firstPathCreated = path.join(tmpdir.path, dir1);
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  async function testCase() {
+    const p = await fs.promises.mkdir(pathname, { recursive: true });
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(p, firstPathCreated);
+  }
+  testCase();
+}
+
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
 process.nextTick(() => {});

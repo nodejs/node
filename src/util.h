@@ -764,6 +764,10 @@ class PersistentToLocal {
   }
 };
 
+void replace_substring(std::string* target,
+                       const std::string& search,
+                       const std::string& insert);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
