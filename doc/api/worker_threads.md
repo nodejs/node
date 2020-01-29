@@ -674,6 +674,21 @@ inside the worker thread. If `stdout: true` was not passed to the
 [`Worker`][] constructor, then data will be piped to the parent thread's
 [`process.stdout`][] stream.
 
+### `worker.takeHeapSnapshot()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise} A promise for a Readable Stream containing
+  a V8 heap snapshot
+
+Returns a readable stream for a V8 snapshot of the current state of the Worker.
+See [`v8.getHeapSnapshot()`][] for more details.
+
+If the Worker thread is no longer running, which may occur before the
+[`'exit'` event][] is emitted, the returned `Promise` will be rejected
+immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
+
 ### `worker.terminate()`
 <!-- YAML
 added: v10.5.0
@@ -716,6 +731,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`'exit'` event]: #worker_threads_event_exit
 [`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
+[`ERR_WORKER_NOT_RUNNING`]: errors.html#ERR_WORKER_NOT_RUNNING
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`MessagePort`]: #worker_threads_class_messageport
@@ -743,6 +759,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`require('worker_threads').threadId`]: #worker_threads_worker_threadid
 [`require('worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`trace_events`]: tracing.html
+[`v8.getHeapSnapshot()`]: v8.html#v8_v8_getheapsnapshot
 [`vm`]: vm.html
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
