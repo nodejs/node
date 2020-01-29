@@ -618,10 +618,13 @@ Used to import modules, `JSON`, and local files. Modules can be imported
 from `node_modules`. Local modules and JSON files can be imported using
 a relative path (e.g. `./`, `./foo`, `./bar/baz`, `../foo`) that will be
 resolved against the directory named by [`__dirname`][] (if defined) or
-the current working directory.
+the current working directory. The relative paths of POSIX style are resolved
+in an OS independent fashion, meaning that the examples above will work on
+Windows in the same way they would on Unix systems.
 
 ```js
-// Importing a local module:
+// Importing a local module with a path relative to the `__dirname` or current
+// working directory. (On Windows, this would resolve to .\path\myLocalModule.)
 const myLocalModule = require('./path/myLocalModule');
 
 // Importing a JSON file:
