@@ -2452,8 +2452,10 @@ changes:
 * `callback` {Function}
   * `err` {Error}
 
-Asynchronously creates a directory. No arguments other than a possible exception
-are given to the completion callback.
+Asynchronously creates a directory.
+
+The callback is given a possible exception and, if `recursive` is `true`, the
+first folder path created, `(err, [path])`.
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
@@ -2497,8 +2499,10 @@ changes:
 * `options` {Object|integer}
   * `recursive` {boolean} **Default:** `false`
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+* Returns: {string|undefined}
 
-Synchronously creates a directory. Returns `undefined`.
+Synchronously creates a directory. Returns `undefined`, or if `recursive` is
+`true`, the first folder path created.
 This is the synchronous version of [`fs.mkdir()`][].
 
 See also: mkdir(2).
@@ -4798,8 +4802,8 @@ added: v10.0.0
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
 * Returns: {Promise}
 
-Asynchronously creates a directory then resolves the `Promise` with no
-arguments upon success.
+Asynchronously creates a directory then resolves the `Promise` with either no
+arguments, or the first folder path created if `recursive` is `true`.
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
