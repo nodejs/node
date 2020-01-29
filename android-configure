@@ -40,6 +40,7 @@ case $ARCH in
     arm64|aarch64)
         DEST_CPU="arm64"
         TOOLCHAIN_NAME="aarch64-linux-android"
+        ARCH="arm64"
         ;;
     *)
         echo "Unsupported architecture provided: $ARCH"
