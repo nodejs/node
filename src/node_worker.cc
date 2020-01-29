@@ -694,6 +694,7 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
           HandleScope handle_scope(env->isolate());
           Context::Scope context_scope(env->context());
 
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
           BaseObjectPtr<AsyncWrap> stream = heap::CreateHeapSnapshotStream(
               env, std::move(snapshot));
           Local<Value> args[] = { stream->object() };
