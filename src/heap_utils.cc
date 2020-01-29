@@ -342,7 +342,8 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     os->Inherit(AsyncWrap::GetConstructorTemplate(env));
     Local<ObjectTemplate> ost = os->InstanceTemplate();
     ost->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
-    os->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HeapSnapshotStream"));
+    os->SetClassName(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "HeapSnapshotStream"));
     StreamBase::AddMethods(env, os);
     env->set_streambaseoutputstream_constructor_template(ost);
   }
