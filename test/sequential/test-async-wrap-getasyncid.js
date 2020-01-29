@@ -52,6 +52,7 @@ const { getSystemErrorName } = require('util');
     delete providers.HTTPINCOMINGMESSAGE;
     delete providers.ELDHISTOGRAM;
     delete providers.SIGINTWATCHDOG;
+    delete providers.WORKERHEAPSNAPSHOT;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
