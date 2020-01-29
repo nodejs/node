@@ -93,29 +93,27 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
   else
     ret = UncheckedMalloc(size);
   if (LIKELY(ret != nullptr))
-    total_mem_usage_ += size;
+    total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   return ret;
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   void* ret = node::UncheckedMalloc(size);
   if (LIKELY(ret != nullptr))
-    total_mem_usage_ += size;
+    total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   return ret;
 }
 
 void* NodeArrayBufferAllocator::Reallocate(
     void* data, size_t old_size, size_t size) {
   void* ret = UncheckedRealloc<char>(static_cast<char*>(data), size);
-  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0)) {
-    total_mem_usage_ += size;
-    total_mem_usage_ -= old_size;
-  }
+  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
+    total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
   return ret;
 }
 
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
-  total_mem_usage_ -= size;
+  total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
   free(data);
 }
 
