@@ -60,6 +60,16 @@ NodeTraceWriter::~NodeTraceWriter() {
   }
 }
 
+void replace_substring(std::string* target,
+                       const std::string& search,
+                       const std::string& insert) {
+  size_t pos = target->find(search);
+  for (; pos != std::string::npos; pos = target->find(search, pos)) {
+    target->replace(pos, search.size(), insert);
+    pos += insert.size();
+  }
+}
+
 void NodeTraceWriter::OpenNewFileForStreaming() {
   ++file_num_;
   uv_fs_t req;
