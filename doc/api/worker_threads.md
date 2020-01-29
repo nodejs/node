@@ -731,7 +731,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`'exit'` event]: #worker_threads_event_exit
 [`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
-[`ERR_WORKER_NOT_RUNNING`]: errors.html#
+[`ERR_WORKER_NOT_RUNNING`]: errors.html#ERR_WORKER_NOT_RUNNING
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`MessagePort`]: #worker_threads_class_messageport

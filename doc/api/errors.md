@@ -2450,7 +2450,7 @@ such as `process.stdout.on('data')`.
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`--force-fips`]: cli.html#cli_force_fips
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
-[`ERR_INVALID_ARG_TYPE`]: #errors_err_worker_not_running
+[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`REPL`]: repl.html
 [`Writable`]: stream.html#stream_class_stream_writable
