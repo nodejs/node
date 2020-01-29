@@ -107,8 +107,10 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
 void* NodeArrayBufferAllocator::Reallocate(
     void* data, size_t old_size, size_t size) {
   void* ret = UncheckedRealloc<char>(static_cast<char*>(data), size);
-  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
-    total_mem_usage_ += size - old_size;
+  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0)) {
+    total_mem_usage_ += size;
+    total_mem_usage_ -= old_size;
+  }
   return ret;
 }
 

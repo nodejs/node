@@ -124,7 +124,7 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
 
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
-  std::atomic<uint64_t> total_mem_usage_ {0};
+  std::atomic<size_t> total_mem_usage_ {0};
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
