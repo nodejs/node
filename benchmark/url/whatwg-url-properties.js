@@ -34,7 +34,6 @@ function get(data, prop) {
 }
 
 function main({ e, type, prop, withBase }) {
-  e = +e;
   withBase = withBase === 'true';
   const data = common.bakeUrlData(type, e, withBase, true);
   switch (prop) {
