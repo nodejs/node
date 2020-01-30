@@ -355,7 +355,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvironment);
-  AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvironment);
 #ifdef NODE_REPORT
   AddOption("--experimental-report",
             "enable report generation",
