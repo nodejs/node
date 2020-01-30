@@ -35,7 +35,6 @@ function useWHATWG(data) {
 }
 
 function main({ type, e, method }) {
-  e = +e;
   const data = common.bakeUrlData(type, e, false, false);
 
   var noDead;  // Avoid dead code elimination.
