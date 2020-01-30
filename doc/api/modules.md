@@ -162,7 +162,7 @@ require(X) from module at path Y
    c. THROW "not found"
 4. LOAD_SELF_REFERENCE(X, dirname(Y))
 5. LOAD_NODE_MODULES(X, dirname(Y))
-7. THROW "not found"
+6. THROW "not found"
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as JavaScript text.  STOP
