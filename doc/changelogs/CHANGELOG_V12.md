@@ -86,7 +86,7 @@ ___
 
 The new `--trace-uncaught` CLI flag makes Node.js print a stack trace at the
 time of throwing uncaught exceptions, rather than at the creation of the `Error`
-object, if there is any.  
+object, if there is any.
 This option is not enabled by default because it may affect garbage collection
 behavior negatively.
 
@@ -146,7 +146,7 @@ Colin Ihrig [#30783](https://github.com/nodejs/node/pull/30783).
 ___
 
 V8 was updated to 7.8.279.23. This includes performance improvements to object
-destructuring, RegExp match failures and WebAssembly startup time.  
+destructuring, RegExp match failures and WebAssembly startup time.
 The official release notes are available at https://v8.dev/blog/v8-release-78.
 
 Michaël Zasso [#30109](https://github.com/nodejs/node/pull/30109).
@@ -315,7 +315,7 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`f5cd6d73fd`](https://github.com/nodejs/node/commit/f5cd6d73fd)] - **build**: warn upon --use-largepages config option (Gabriel Schulhof) [#31103](https://github.com/nodejs/node/pull/31103)
 * [[`dea40f8c52`](https://github.com/nodejs/node/commit/dea40f8c52)] - **build**: switch realpath to pwd (Benjamin Coe) [#31095](https://github.com/nodejs/node/pull/31095)
 * [[`5fcf542faa`](https://github.com/nodejs/node/commit/5fcf542faa)] - **build**: re-introduce --use-largepages as no-op (Gabriel Schulhof)
-* [[`cf3926e310`](https://github.com/nodejs/node/commit/cf3926e310)] - **build**: reset embedder string to "-node.0" (Michaël Zasso) [#30109](https://github.com/nodejs/node/pull/30109)
+* [[`cf3926e310`](https://github.com/nodejs/node/commit/cf3926e310)] - **(SEMVER-MINOR)** **build**: reset embedder string to "-node.0" (Michaël Zasso) [#30109](https://github.com/nodejs/node/pull/30109)
 * [[`78cf6d0f89`](https://github.com/nodejs/node/commit/78cf6d0f89)] - **build,win**: fix goto exit in vcbuild (João Reis) [#30931](https://github.com/nodejs/node/pull/30931)
 * [[`4c317ce4d0`](https://github.com/nodejs/node/commit/4c317ce4d0)] - **(SEMVER-MINOR)** **child_process,cluster**: allow using V8 serialization API (Anna Henningsen) [#30162](https://github.com/nodejs/node/pull/30162)
 * [[`7bfc339c47`](https://github.com/nodejs/node/commit/7bfc339c47)] - **(SEMVER-MINOR)** **cli**: add --trace-exit cli option (legendecas) [#30516](https://github.com/nodejs/node/pull/30516)
@@ -342,12 +342,12 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`fcc4bf9667`](https://github.com/nodejs/node/commit/fcc4bf9667)] - **deps**: V8: cherry-pick ca5b0ec (Anna Henningsen) [#30708](https://github.com/nodejs/node/pull/30708)
 * [[`42c456089a`](https://github.com/nodejs/node/commit/42c456089a)] - **deps**: V8: backport 777fa98 (Michaël Zasso) [#30062](https://github.com/nodejs/node/pull/30062)
 * [[`512a0cc63c`](https://github.com/nodejs/node/commit/512a0cc63c)] - **deps**: V8: cherry-pick 53e62af (Michaël Zasso) [#29898](https://github.com/nodejs/node/pull/29898)
-* [[`e60dc1dd22`](https://github.com/nodejs/node/commit/e60dc1dd22)] - **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.7) (Michaël Zasso) [#29241](https://github.com/nodejs/node/pull/29241)
+* [[`e60dc1dd22`](https://github.com/nodejs/node/commit/e60dc1dd22)] - **(SEMVER-MINOR)** **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.7) (Michaël Zasso) [#29241](https://github.com/nodejs/node/pull/29241)
 * [[`887ca3b184`](https://github.com/nodejs/node/commit/887ca3b184)] - **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.6) (Michaël Zasso) [#28955](https://github.com/nodejs/node/pull/28955)
-* [[`da3459b14e`](https://github.com/nodejs/node/commit/da3459b14e)] - **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.5) (Michaël Zasso) [#28005](https://github.com/nodejs/node/pull/28005)
+* [[`da3459b14e`](https://github.com/nodejs/node/commit/da3459b14e)] - **(SEMVER-MINOR)** **deps**: patch V8 to be API/ABI compatible with 7.4 (from 7.5) (Michaël Zasso) [#28005](https://github.com/nodejs/node/pull/28005)
 * [[`8a16f80453`](https://github.com/nodejs/node/commit/8a16f80453)] - **deps**: update V8's postmortem script (Colin Ihrig) [#29694](https://github.com/nodejs/node/pull/29694)
 * [[`6e3828ff12`](https://github.com/nodejs/node/commit/6e3828ff12)] - **deps**: V8: cherry-pick a7dffcd767be (Christian Clauss) [#30218](https://github.com/nodejs/node/pull/30218)
-* [[`dced9beef6`](https://github.com/nodejs/node/commit/dced9beef6)] - **deps**: V8: cherry-pick 0a055086c377 (Michaël Zasso) [#30109](https://github.com/nodejs/node/pull/30109)
+* [[`dced9beef6`](https://github.com/nodejs/node/commit/dced9beef6)] - **(SEMVER-MINOR)** **deps**: V8: cherry-pick 0a055086c377 (Michaël Zasso) [#30109](https://github.com/nodejs/node/pull/30109)
 * [[`c5fdb343e4`](https://github.com/nodejs/node/commit/c5fdb343e4)] - **deps**: V8: cherry-pick e5dbc95 (Gabriel Schulhof) [#30130](https://github.com/nodejs/node/pull/30130)
 * [[`553afa90ad`](https://github.com/nodejs/node/commit/553afa90ad)] - **deps**: V8: cherry-pick ed40ab1 (Michaël Zasso) [#30064](https://github.com/nodejs/node/pull/30064)
 * [[`f364b50774`](https://github.com/nodejs/node/commit/f364b50774)] - **deps**: V8: cherry-pick 716875d (Myles Borins) [#29694](https://github.com/nodejs/node/pull/29694)
@@ -364,7 +364,7 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`b28a85d0b3`](https://github.com/nodejs/node/commit/b28a85d0b3)] - **deps**: V8: fix filename manipulation for Windows (Refael Ackermann) [#28016](https://github.com/nodejs/node/pull/28016)
 * [[`ec625fb8f8`](https://github.com/nodejs/node/commit/ec625fb8f8)] - **(SEMVER-MINOR)** **deps**: update V8 to 7.8.279.23 (Michaël Zasso) [#30109](https://github.com/nodejs/node/pull/30109)
 * [[`25f2df4538`](https://github.com/nodejs/node/commit/25f2df4538)] - **deps,http**: http\_parser set max header size to 8KB (Matteo Collina) [nodejs-private/node-private#143](https://github.com/nodejs-private/node-private/pull/143)
-* [[`008ac37ee5`](https://github.com/nodejs/node/commit/008ac37ee5)] - **deps,src**: patch V8 to be API/ABI compatible with 7.4 (from 7.8) (Anna Henningsen) [#30109](https://github.com/nodejs/node/pull/30109)
+* [[`008ac37ee5`](https://github.com/nodejs/node/commit/008ac37ee5)] - **(SEMVER-MINOR)** **deps,src**: patch V8 to be API/ABI compatible with 7.4 (from 7.8) (Anna Henningsen) [#30109](https://github.com/nodejs/node/pull/30109)
 * [[`8b11954470`](https://github.com/nodejs/node/commit/8b11954470)] - **deps,src,test**: update to uvwasi 0.0.3 (Colin Ihrig) [#30980](https://github.com/nodejs/node/pull/30980)
 * [[`83f89396e4`](https://github.com/nodejs/node/commit/83f89396e4)] - **dgram**: test to add and to drop specific membership (A. Volgin) [#31047](https://github.com/nodejs/node/pull/31047)
 * [[`334fcbe210`](https://github.com/nodejs/node/commit/334fcbe210)] - **dgram**: use for...of (Trivikram Kamat) [#30999](https://github.com/nodejs/node/pull/30999)
@@ -527,7 +527,7 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`a534058d3c`](https://github.com/nodejs/node/commit/a534058d3c)] - **http2**: small clean up in OnStreamRead (Denys Otrishko) [#30351](https://github.com/nodejs/node/pull/30351)
 * [[`fb4f71bff7`](https://github.com/nodejs/node/commit/fb4f71bff7)] - **(SEMVER-MINOR)** **http2**: make maximum tolerated rejected streams configurable (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
 * [[`3bed1fa7da`](https://github.com/nodejs/node/commit/3bed1fa7da)] - **(SEMVER-MINOR)** **http2**: allow to configure maximum tolerated invalid frames (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
-* [[`46cb0da9bf`](https://github.com/nodejs/node/commit/46cb0da9bf)] - **http2**: replace direct array usage with struct for js\_fields\_ (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
+* [[`46cb0da9bf`](https://github.com/nodejs/node/commit/46cb0da9bf)] - **(SEMVER-MINOR)** **http2**: replace direct array usage with struct for js\_fields\_ (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
 * [[`3fe37e6e2b`](https://github.com/nodejs/node/commit/3fe37e6e2b)] - **https**: prevent options object from being mutated (Vighnesh Raut) [#31151](https://github.com/nodejs/node/pull/31151)
 * [[`dc521b03a2`](https://github.com/nodejs/node/commit/dc521b03a2)] - **(SEMVER-MINOR)** **https**: add client support for TLS keylog events (Sam Roberts) [#30053](https://github.com/nodejs/node/pull/30053)
 * [[`a8bf7db040`](https://github.com/nodejs/node/commit/a8bf7db040)] - **inspector**: do not access queueMicrotask from global (Michaël Zasso) [#30732](https://github.com/nodejs/node/pull/30732)
@@ -570,6 +570,10 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`6c34ad6c66`](https://github.com/nodejs/node/commit/6c34ad6c66)] - **lib**: rework logic of stripping BOM+Shebang from commonjs (Gus Caplan) [#27768](https://github.com/nodejs/node/pull/27768)
 * [[`3d4c24d165`](https://github.com/nodejs/node/commit/3d4c24d165)] - **lib,test**: improves ERR\_REQUIRE\_ESM message (Juan José Arboleda) [#30694](https://github.com/nodejs/node/pull/30694)
 * [[`48e1dfe41e`](https://github.com/nodejs/node/commit/48e1dfe41e)] - **meta**: clarify scope of new nodejs.org issue choice (Derek Lewis) [#31123](https://github.com/nodejs/node/pull/31123)
+* [[`c4795e6e76`](https://github.com/nodejs/node/commit/c4795e6e76)] - **module**: fix check exports issue in cjs module loading (Guy Bedford) [#31427](https://github.com/nodejs/node/pull/31427)
+* [[`5bd85cb5a4`](https://github.com/nodejs/node/commit/5bd85cb5a4)] - **(SEMVER-MINOR)** **module**: unflag conditional exports (Guy Bedford) [#31001](https://github.com/nodejs/node/pull/31001)
+* [[`fae517a0d7`](https://github.com/nodejs/node/commit/fae517a0d7)] - **module**: logical conditional exports ordering (Guy Bedford) [#31008](https://github.com/nodejs/node/pull/31008)
+* [[`cad0402276`](https://github.com/nodejs/node/commit/cad0402276)] - **module**: loader getSource, getFormat, transform hooks (Geoffrey Booth) [#30986](https://github.com/nodejs/node/pull/30986)
 * [[`ffc910f9f7`](https://github.com/nodejs/node/commit/ffc910f9f7)] - **module**: fix require in node repl (Yongsheng Zhang) [#30835](https://github.com/nodejs/node/pull/30835)
 * [[`4de60973f9`](https://github.com/nodejs/node/commit/4de60973f9)] - **module**: reduce circular dependency of internal/modules/cjs/loader (Joyee Cheung) [#30349](https://github.com/nodejs/node/pull/30349)
 * [[`a91b735381`](https://github.com/nodejs/node/commit/a91b735381)] - **module**: fix dynamic import from eval (Corey Farrell) [#30624](https://github.com/nodejs/node/pull/30624)
@@ -686,13 +690,14 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`194002b690`](https://github.com/nodejs/node/commit/194002b690)] - **test**: use block-scoping in test-net-server-address (Rich Trott) [#30754](https://github.com/nodejs/node/pull/30754)
 * [[`cc8dc677d5`](https://github.com/nodejs/node/commit/cc8dc677d5)] - **test**: move test-child-process-fork-getconnections to parallel (Rich Trott) [#30749](https://github.com/nodejs/node/pull/30749)
 * [[`6cedeb1aa8`](https://github.com/nodejs/node/commit/6cedeb1aa8)] - **test**: change common.PORT to arbitrary port (Rich Trott) [#30749](https://github.com/nodejs/node/pull/30749)
-* [[`518fd8fcbc`](https://github.com/nodejs/node/commit/518fd8fcbc)] - **test**: update and harden http2-reset-flood (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
+* [[`518fd8fcbc`](https://github.com/nodejs/node/commit/518fd8fcbc)] - **(SEMVER-MINOR)** **test**: update and harden http2-reset-flood (Denys Otrishko) [#30534](https://github.com/nodejs/node/pull/30534)
 * [[`c5f22cbb1b`](https://github.com/nodejs/node/commit/c5f22cbb1b)] - **test**: cover 'close' method in Dir class (Artem Maksimov) [#30310](https://github.com/nodejs/node/pull/30310)
 * [[`56188fe5b2`](https://github.com/nodejs/node/commit/56188fe5b2)] - **test**: use tmpdir.refresh() in test-esm-windows.js (Richard Lau) [#30997](https://github.com/nodejs/node/pull/30997)
 * [[`a1ccf07ae9`](https://github.com/nodejs/node/commit/a1ccf07ae9)] - **test**: make test-os-checked-function work without test harness (Rich Trott) [#30914](https://github.com/nodejs/node/pull/30914)
 * [[`29f807e304`](https://github.com/nodejs/node/commit/29f807e304)] - **test**: delay loading 'os' in test/common module (Rich Trott) [#30914](https://github.com/nodejs/node/pull/30914)
 * [[`de719fcd3b`](https://github.com/nodejs/node/commit/de719fcd3b)] - **test**: remove AtExit() addon test (Anna Henningsen) [#30275](https://github.com/nodejs/node/pull/30275)
 * [[`eb4b932038`](https://github.com/nodejs/node/commit/eb4b932038)] - **test**: revert 6d022c13 (Anna Henningsen) [#30708](https://github.com/nodejs/node/pull/30708)
+* [[`fb74f9c6c1`](https://github.com/nodejs/node/commit/fb74f9c6c1)] - **test,module**: add test for exports cjs loader check (Rich Trott) [#31427](https://github.com/nodejs/node/pull/31427)
 * [[`e5c68cda7c`](https://github.com/nodejs/node/commit/e5c68cda7c)] - **timers**: fix refresh for expired timers (Anatoli Papirovski) [#27345](https://github.com/nodejs/node/pull/27345)
 * [[`facee2a0dc`](https://github.com/nodejs/node/commit/facee2a0dc)] - **timers**: do less work in insert (Anatoli Papirovski) [#27345](https://github.com/nodejs/node/pull/27345)
 * [[`ff9b5fc132`](https://github.com/nodejs/node/commit/ff9b5fc132)] - **tls**: for...of in \_tls\_common.js (Trivikram Kamat) [#30961](https://github.com/nodejs/node/pull/30961)
@@ -717,7 +722,7 @@ Matteo Collina [#27867](https://github.com/nodejs/node/pull/27867).
 * [[`b9c057c85a`](https://github.com/nodejs/node/commit/b9c057c85a)] - **tools,src**: forbid usage of v8::Persistent (Anna Henningsen) [#31018](https://github.com/nodejs/node/pull/31018)
 * [[`70dc7a2672`](https://github.com/nodejs/node/commit/70dc7a2672)] - **url**: declare iterator inside loop (Trivikram Kamat) [#30509](https://github.com/nodejs/node/pull/30509)
 * [[`219c8e9885`](https://github.com/nodejs/node/commit/219c8e9885)] - **(SEMVER-MINOR)** **util**: add more predefined color codes to inspect.colors (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
-* [[`1fbd7ac32e`](https://github.com/nodejs/node/commit/1fbd7ac32e)] - **util**: improve inspect's customInspect performance (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
+* [[`1fbd7ac32e`](https://github.com/nodejs/node/commit/1fbd7ac32e)] - **(SEMVER-MINOR)** **util**: improve inspect's customInspect performance (Ruben Bridgewater) [#30659](https://github.com/nodejs/node/pull/30659)
 * [[`5aecbcfdbe`](https://github.com/nodejs/node/commit/5aecbcfdbe)] - **util**: add internal sleep() function (Colin Ihrig) [#30787](https://github.com/nodejs/node/pull/30787)
 * [[`74f7844a71`](https://github.com/nodejs/node/commit/74f7844a71)] - **v8**: use of TypedArray constructors from primordials (Sebastien Ahkrin) [#30740](https://github.com/nodejs/node/pull/30740)
 * [[`faf3ad2cb4`](https://github.com/nodejs/node/commit/faf3ad2cb4)] - **(SEMVER-MINOR)** **vm**: add Synthetic modules (Gus Caplan) [#29864](https://github.com/nodejs/node/pull/29864)
