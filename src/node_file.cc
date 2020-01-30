@@ -591,7 +591,7 @@ void AfterOpenFileHandle(uv_fs_t* req) {
 void FromNamespacedPath(std::string* path) {
 #ifdef _WIN32
   if (path->compare(0, 4, "\\\\?\\", 4) == 0)
-    *path = path->substr(4)
+    *path = path->substr(4);
   else if (path.compare(0, 8, "\\\\?\\UNC\\", 8) == 0)
     *path = "\\\\" + path.substr(8);
 #endif
