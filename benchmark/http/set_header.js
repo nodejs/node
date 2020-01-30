@@ -16,10 +16,7 @@ const bench = common.createBenchmark(main, {
   n: [1e6],
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const value = conf.value;
-
+function main({ n, value }) {
   const og = new OutgoingMessage();
 
   bench.start();

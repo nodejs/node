@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
+const { Worker } = require('worker_threads');
 const path = require('path');
 const bench = common.createBenchmark(main, {
   workers: [1],
@@ -11,19 +12,14 @@ const bench = common.createBenchmark(main, {
 
 const workerPath = path.resolve(__dirname, '..', 'fixtures', 'echo.worker.js');
 
-function main(conf) {
-  const { Worker } = require('worker_threads');
-
-  const n = +conf.n;
-  const workers = +conf.workers;
-  const sends = +conf.sendsPerBroadcast;
+function main({ n, workers, sendsPerBroadcast: sends, payload: payloadType }) {
   const expectedPerBroadcast = sends * workers;
-  var payload;
-  var readies = 0;
-  var broadcasts = 0;
-  var msgCount = 0;
+  let payload;
+  let readies = 0;
+  let broadcasts = 0;
+  let msgCount = 0;
 
-  switch (conf.payload) {
+  switch (payloadType) {
     case 'string':
       payload = 'hello world!';
       break;

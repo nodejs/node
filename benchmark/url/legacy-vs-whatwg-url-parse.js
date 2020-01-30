@@ -46,7 +46,6 @@ function useWHATWGWithoutBase(data) {
 }
 
 function main({ e, method, type, withBase }) {
-  e = +e;
   withBase = withBase === 'true';
   var noDead;  // Avoid dead code elimination.
   var data;
