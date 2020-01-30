@@ -8,9 +8,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-
-  const n = +conf.n;
-
+  const n = conf.n;
   let payload;
 
   switch (conf.payload) {
