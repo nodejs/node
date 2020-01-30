@@ -1556,7 +1556,8 @@ Will generate:
 * `arrayBuffers` refers to memory allocated for `ArrayBuffer`s and
   `SharedArrayBuffer`s, including all Node.js [`Buffer`][]s.
   This is also included in the `external` value. When Node.js is used as an
-  embedded library, this value may be `0`.
+  embedded library, this value may be `0` because allocations for `ArrayBuffer`s
+  may not be tracked in that case.
 
 When using [`Worker`][] threads, `rss` will be a value that is valid for the
 entire process, while the other fields will only refer to the current thread.
