@@ -3,7 +3,7 @@
 A Node.js process may run out of memory due to excessive consumption of
 native memory. Native Memory is memory which is not managed by the
 V8 Garbage collector and is allocated either by the Node.js runtime, its
-dependencies or native [addons](://nodejs.org/docs/latest/api/n-api.html).
+dependencies or native [addons](https://nodejs.org/docs/latest/api/n-api.html).
 
 This guide provides information on how to use valgrind to investigate these
 issues.
