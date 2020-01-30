@@ -224,7 +224,7 @@ From the CI Job page, click "Build with Parameters" on the left side.
 You generally need to enter only one or both of the following options
 in the form:
 
-* `GIT_REMOTE_REF`: Change to the remote portion of Git refspec.
+* `GIT_REMOTE_REF`: Change to the remote portion of git refspec.
 To specify the branch this way `refs/heads/BRANCH` is used
 (i.e for `master` -> `refs/heads/master`).
 For pull requests it will look like `refs/pull/PR_NUMBER/head`
