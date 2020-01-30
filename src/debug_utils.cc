@@ -468,9 +468,7 @@ void FWrite(FILE* file, const std::string& str) {
   std::vector<wchar_t> wbuf(n);
   MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), wbuf.data(), n);
 
-  // Don't include the final null character in the output
-  CHECK_GT(n, 0);
-  WriteConsoleW(handle, wbuf.data(), n - 1, nullptr, nullptr);
+  WriteConsoleW(handle, wbuf.data(), n, nullptr, nullptr);
   return;
 #elif defined(__ANDROID__)
   if (file == stderr) {
