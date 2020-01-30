@@ -225,11 +225,11 @@ You generally need to enter only one or both of the following options
 in the form:
 
 * `GIT_REMOTE_REF`: Change to the remote portion of git refspec.
-To specify the branch this way `refs/heads/BRANCH` is used
-(i.e for `master` -> `refs/heads/master`).
-For pull requests it will look like `refs/pull/PR_NUMBER/head`
-(i.e. for PR#42 -> `refs/pull/42/head`).
-* `REBASE_ONTO`: Change that to origin/master so the pull request gets rebased
+To specify the branch this way, `refs/heads/BRANCH` is used
+(e.g. for `master` -> `refs/heads/master`).
+For pull requests, it will look like `refs/pull/PR_NUMBER/head`
+(e.g. for PR#42 -> `refs/pull/42/head`).
+* `REBASE_ONTO`: Change that to `origin/master` so the pull request gets rebased
 onto master. This can especially be important for pull requests that have been
 open a while.
 
