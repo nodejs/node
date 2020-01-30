@@ -160,8 +160,10 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
   rtb->mem = mem;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
-  rtb->loss_time = 0;
+  rtb->loss_time = UINT64_MAX;
+  rtb->probe_pkt_left = 0;
   rtb->crypto_level = crypto_level;
+  rtb->cc_pkt_num = 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -183,6 +185,8 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   ngtcp2_rst_on_pkt_sent(rtb->rst, ent, rtb->cc->ccs);
 
+  assert(rtb->cc_pkt_num <= ent->hd.pkt_num);
+
   rtb->cc->ccs->bytes_in_flight += ent->pktlen;
 
   ngtcp2_rst_update_app_limited(rtb->rst, rtb->cc->ccs);
@@ -198,8 +202,10 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
     --rtb->num_ack_eliciting;
   }
 
-  assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
-  rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+  if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
+    assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
+    rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+  }
 }
 
 static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
@@ -355,7 +361,8 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 }
 
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                                 ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+                                 ngtcp2_conn *conn, ngtcp2_tstamp pkt_ts,
+                                 ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   int64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
@@ -403,7 +410,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         if (!rtt_updated && largest_pkt_acked &&
             (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
           rtt_updated = 1;
-          ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
+          ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
         rtb_on_pkt_acked(rtb, ent, ts);
@@ -441,7 +448,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         if (!rtt_updated && largest_pkt_acked &&
             (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
           rtt_updated = 1;
-          ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
+          ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
         rtb_on_pkt_acked(rtb, ent, ts);
@@ -469,7 +476,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
     return 1;
   }
 
-  if (rtb->loss_time == 0) {
+  if (rtb->loss_time == UINT64_MAX) {
     rtb->loss_time = ent->ts + loss_delay;
   } else {
     rtb->loss_time = ngtcp2_min(rtb->loss_time, ent->ts + loss_delay);
@@ -500,7 +507,7 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   int64_t last_lost_pkt_num;
   ngtcp2_ksl_key key;
 
-  rtb->loss_time = 0;
+  rtb->loss_time = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(rcs);
   lost_send_time = ts - loss_delay;
 
@@ -642,21 +649,20 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
 
-void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
+uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb) {
+  uint64_t bytes_in_flight = 0;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
 
-  it = ngtcp2_ksl_begin(&rtb->ents);
-
-  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
+  for (it = ngtcp2_ksl_begin(&rtb->ents); !ngtcp2_ksl_it_end(&it);
+       ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
-    rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
-    ngtcp2_rtb_entry_del(ent, rtb->mem);
+    if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
+      bytes_in_flight += ent->pktlen;
+    }
   }
-  ngtcp2_ksl_clear(&rtb->ents);
 
-  rtb->largest_acked_tx_pkt_num = -1;
-  rtb->num_ack_eliciting = 0;
+  return bytes_in_flight;
 }
 
 size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb) {

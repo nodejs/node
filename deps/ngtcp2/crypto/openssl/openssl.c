@@ -42,6 +42,11 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   return ctx;
 }
 
+ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
+  aead->native_handle = (void *)EVP_aes_128_gcm();
+  return aead;
+}
+
 static const EVP_CIPHER *crypto_ssl_get_aead(SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case TLS1_3_CK_AES_128_GCM_SHA256:

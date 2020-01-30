@@ -38,10 +38,6 @@ typedef enum {
   NGTCP2_SCID_FLAG_NONE,
   NGTCP2_SCID_FLAG_USED = 0x01,
   NGTCP2_SCID_FLAG_RETIRED = 0x02,
-  /* NGTCP2_SCID_FLAG_INITIAL_CID indicates that this Connection ID is
-     provided during handshake (initial Connection ID or in
-     preferred_address transport parameter). */
-  NGTCP2_SCID_FLAG_INITIAL_CID = 0x04,
 } ngtcp2_scid_flag;
 
 typedef struct {

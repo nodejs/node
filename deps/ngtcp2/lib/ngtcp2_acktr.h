@@ -101,10 +101,6 @@ typedef enum {
   /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are
      pending protected packet to be acknowledged. */
   NGTCP2_ACKTR_FLAG_ACTIVE_ACK = 0x02,
-  /* NGTCP2_ACKTR_FLAG_PENDING_ACK_FINISHED is set when server
-     received TLSv1.3 Finished message, and its acknowledgement is
-     pending. */
-  NGTCP2_ACKTR_FLAG_PENDING_FINISHED_ACK = 0x40,
   /* NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK is set when server received
      acknowledgement for ACK which acknowledges the last handshake
      packet from client (which contains TLSv1.3 Finished message). */

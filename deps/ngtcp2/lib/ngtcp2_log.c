@@ -129,8 +129,12 @@ static const char *strerrorcode(uint64_t error_code) {
     return "FRAME_ENCODING_ERROR";
   case NGTCP2_TRANSPORT_PARAMETER_ERROR:
     return "TRANSPORT_PARAMETER_ERROR";
+  case NGTCP2_CONNECTION_ID_LIMIT_ERROR:
+    return "CONNECTION_ID_LIMIT_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
+  case NGTCP2_INVALID_TOKEN:
+    return "INVALID_TOKEN";
   case NGTCP2_CRYPTO_BUFFER_EXCEEDED:
     return "CRYPTO_BUFFER_EXCEEDED";
   case NGTCP2_KEY_UPDATE_ERROR:
@@ -425,6 +429,13 @@ static void log_fr_retire_connection_id(ngtcp2_log *log,
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq);
 }
 
+static void log_fr_handshake_done(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                  const ngtcp2_handshake_done *fr,
+                                  const char *dir) {
+  log->log_printf(log->user_data, (NGTCP2_LOG_PKT " HANDSHAKE_DONE(0x%02x)"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type);
+}
+
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -488,6 +499,9 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
     log_fr_retire_connection_id(log, hd, &fr->retire_connection_id, dir);
+    break;
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    log_fr_handshake_done(log, hd, &fr->handshake_done, dir);
     break;
   default:
     assert(0);
@@ -627,9 +641,9 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_bidi);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_uni_streams=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_uni);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_idle_timeout=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS,
-                  params->idle_timeout / NGTCP2_MILLISECONDS);
+                  params->max_idle_timeout / NGTCP2_MILLISECONDS);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u"),

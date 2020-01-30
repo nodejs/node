@@ -182,8 +182,8 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
     len += varint_paramlen(params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
-  if (params->idle_timeout) {
-    len += varint_paramlen(params->idle_timeout / NGTCP2_MILLISECONDS);
+  if (params->max_idle_timeout) {
+    len += varint_paramlen(params->max_idle_timeout / NGTCP2_MILLISECONDS);
   }
   if (params->active_connection_id_limit) {
     len += varint_paramlen(params->active_connection_id_limit);
@@ -286,9 +286,9 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                            params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
 
-  if (params->idle_timeout) {
-    p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT,
-                           params->idle_timeout / NGTCP2_MILLISECONDS);
+  if (params->max_idle_timeout) {
+    p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT,
+                           params->max_idle_timeout / NGTCP2_MILLISECONDS);
   }
 
   if (params->active_connection_id_limit) {
@@ -372,8 +372,9 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   memset(&params->preferred_address, 0, sizeof(params->preferred_address));
   params->disable_active_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  params->idle_timeout = 0;
-  params->active_connection_id_limit = 0;
+  params->max_idle_timeout = 0;
+  params->active_connection_id_limit =
+      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params->original_connection_id_present = 0;
 
   memset(scb, 0, sizeof(scb));
@@ -440,12 +441,12 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       }
       p += nread;
       break;
-    case NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT:
-      nread = decode_varint(&params->idle_timeout, p, end);
+    case NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT:
+      nread = decode_varint(&params->max_idle_timeout, p, end);
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      params->idle_timeout *= NGTCP2_MILLISECONDS;
+      params->max_idle_timeout *= NGTCP2_MILLISECONDS;
       p += nread;
       break;
     case NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE:

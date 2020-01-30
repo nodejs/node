@@ -484,6 +484,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
     return ngtcp2_pkt_decode_retire_connection_id_frame(
         &dest->retire_connection_id, payload, payloadlen);
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    return ngtcp2_pkt_decode_handshake_done_frame(&dest->handshake_done,
+                                                  payload, payloadlen);
   default:
     if (has_mask(type, NGTCP2_FRAME_STREAM)) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
@@ -1349,6 +1352,16 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
   return (ngtcp2_ssize)len;
 }
 
+ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
+                                                    const uint8_t *payload,
+                                                    size_t payloadlen) {
+  (void)payload;
+  (void)payloadlen;
+
+  dest->type = NGTCP2_FRAME_HANDSHAKE_DONE;
+  return 1;
+}
+
 ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
                                      ngtcp2_frame *fr) {
   switch (fr->type) {
@@ -1401,6 +1414,9 @@ ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
     return ngtcp2_pkt_encode_retire_connection_id_frame(
         out, outlen, &fr->retire_connection_id);
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    return ngtcp2_pkt_encode_handshake_done_frame(out, outlen,
+                                                  &fr->handshake_done);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -1869,6 +1885,20 @@ ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
   return (ngtcp2_ssize)len;
 }
 
+ngtcp2_ssize
+ngtcp2_pkt_encode_handshake_done_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_handshake_done *fr) {
+  (void)fr;
+
+  if (outlen < 1) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  *out++ = NGTCP2_FRAME_HANDSHAKE_DONE;
+
+  return 1;
+}
+
 ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
     uint8_t *dest, size_t destlen, uint8_t unused_random, const uint8_t *dcid,
     size_t dcidlen, const uint8_t *scid, size_t scidlen, const uint32_t *sv,
@@ -1940,35 +1970,15 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
 
 int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
                             size_t payloadlen) {
-  size_t len = 1;
-  const uint8_t *p = payload;
-  size_t odcil;
+  size_t len = /* token */ 1 + NGTCP2_RETRY_TAGLEN;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  odcil = p[0];
-  if (odcil > NGTCP2_MAX_CIDLEN) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  len += odcil;
-  if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  ++p;
-
-  ngtcp2_cid_init(&dest->odcid, p, odcil);
-  p += odcil;
-
-  dest->tokenlen = (size_t)(payload + payloadlen - p);
-  if (dest->tokenlen) {
-    dest->token = p;
-  } else {
-    dest->token = NULL;
-  }
+  dest->token = payload;
+  dest->tokenlen = (size_t)(payloadlen - NGTCP2_RETRY_TAGLEN);
+  ngtcp2_cpymem(dest->tag, payload + dest->tokenlen, NGTCP2_RETRY_TAGLEN);
 
   return 0;
 }
@@ -1982,9 +1992,10 @@ int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
   int64_t cand = (expected & ~mask) | pkt_num;
 
   if (cand <= expected - hwin) {
+    assert(cand <= (int64_t)NGTCP2_MAX_VARINT - win);
     return cand + win;
   }
-  if (cand > expected + hwin && cand > win) {
+  if (cand > expected + hwin && cand >= win) {
     return cand - win;
   }
   return cand;
@@ -2017,9 +2028,10 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
   return 0;
 }
 
-ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
-                                              uint8_t *stateless_reset_token,
-                                              uint8_t *rand, size_t randlen) {
+ngtcp2_ssize
+ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
+                                 const uint8_t *stateless_reset_token,
+                                 const uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
   if (destlen <
@@ -2042,16 +2054,26 @@ ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
   return p - dest;
 }
 
-ngtcp2_ssize ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
-                                    const ngtcp2_pkt_hd *hd,
-                                    const ngtcp2_cid *odcid,
-                                    const uint8_t *token, size_t tokenlen) {
-  uint8_t *p;
-  ngtcp2_ssize nwrite;
+static const uint8_t retry_key[] =
+    "\x4d\x32\xec\xdb\x2a\x21\x33\xc8\x41\xe4\x04\x3d\xf2\x7d\x44\x30";
+static const uint8_t retry_nonce[] =
+    "\x4d\x16\x11\xd0\x55\x13\xa5\x52\xc5\x87\xd5\x75";
 
-  assert(hd->flags & NGTCP2_PKT_FLAG_LONG_FORM);
-  assert(hd->type == NGTCP2_PKT_RETRY);
+ngtcp2_ssize
+ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+                       const ngtcp2_cid *scid, const ngtcp2_cid *odcid,
+                       const uint8_t *token, size_t tokenlen,
+                       ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead) {
+  ngtcp2_pkt_hd hd;
+  uint8_t pseudo_retry[1500];
+  ngtcp2_ssize pseudo_retrylen;
+  uint8_t tag[NGTCP2_RETRY_TAGLEN];
+  int rv;
+  uint8_t *p;
+  size_t offset;
+
   assert(tokenlen > 0);
+  assert(!ngtcp2_cid_eq(scid, odcid));
 
   /* Retry packet is sent at most once per one connection attempt.  In
      the first connection attempt, client has to send random DCID
@@ -2060,28 +2082,105 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  nwrite = ngtcp2_pkt_encode_hd_long(dest, destlen, hd);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, dcid,
+                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1,
+                     NGTCP2_PROTO_VER, /* len = */ 0);
+
+  pseudo_retrylen =
+      ngtcp2_pkt_encode_pseudo_retry(pseudo_retry, sizeof(pseudo_retry), &hd,
+                                     /* unused = */ 0, odcid, token, tokenlen);
+  if (pseudo_retrylen < 0) {
+    return pseudo_retrylen;
+  }
+
+  /* OpenSSL does not like NULL plaintext. */
+  rv = encrypt(NULL, tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
+               sizeof(retry_nonce) - 1, pseudo_retry, (size_t)pseudo_retrylen,
+               NULL);
+  if (rv != 0) {
+    return rv;
+  }
+
+  offset = 1 + odcid->datalen;
+  if (destlen < (size_t)pseudo_retrylen + sizeof(tag) - offset) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = ngtcp2_cpymem(dest, pseudo_retry + offset,
+                    (size_t)pseudo_retrylen - offset);
+  p = ngtcp2_cpymem(p, tag, sizeof(tag));
+
+  return p - dest;
+}
+
+ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
+    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd, uint8_t unused,
+    const ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen) {
+  uint8_t *p = dest;
+  ngtcp2_ssize nwrite;
+
+  if (destlen < 1 + odcid->datalen) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  *p++ = (uint8_t)odcid->datalen;
+  p = ngtcp2_cpymem(p, odcid->data, odcid->datalen);
+  destlen -= (size_t)(p - dest);
+
+  nwrite = ngtcp2_pkt_encode_hd_long(p, destlen, hd);
   if (nwrite < 0) {
     return nwrite;
   }
 
-  if (destlen <
-      (size_t)nwrite + 1 /* ODCID Len */ + odcid->datalen + tokenlen) {
+  if (destlen < (size_t)nwrite + tokenlen) {
     return NGTCP2_ERR_NOBUF;
   }
 
-  dest[0] &= 0xf0;
+  *p &= 0xf0;
+  *p |= unused;
 
-  p = dest + nwrite;
-
-  *p++ = (uint8_t)odcid->datalen;
-  if (odcid->datalen) {
-    p = ngtcp2_cpymem(p, odcid->data, odcid->datalen);
-  }
+  p += nwrite;
 
   p = ngtcp2_cpymem(p, token, tokenlen);
 
   return p - dest;
+}
+
+int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
+                                const uint8_t *pkt, size_t pktlen,
+                                ngtcp2_encrypt encrypt,
+                                const ngtcp2_crypto_aead *aead) {
+  uint8_t pseudo_retry[1500];
+  size_t pseudo_retrylen;
+  uint8_t *p = pseudo_retry;
+  int rv;
+  uint8_t tag[NGTCP2_RETRY_TAGLEN];
+
+  assert(pktlen >= sizeof(retry->tag));
+
+  if (sizeof(pseudo_retry) <
+      1 + retry->odcid.datalen + pktlen - sizeof(retry->tag)) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  *p++ = (uint8_t)retry->odcid.datalen;
+  p = ngtcp2_cpymem(p, retry->odcid.data, retry->odcid.datalen);
+  p = ngtcp2_cpymem(p, pkt, pktlen - sizeof(retry->tag));
+
+  pseudo_retrylen = (size_t)(p - pseudo_retry);
+
+  /* OpenSSL does not like NULL plaintext. */
+  rv = encrypt(NULL, tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
+               sizeof(retry_nonce) - 1, pseudo_retry, pseudo_retrylen, NULL);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (0 != memcmp(retry->tag, tag, sizeof(retry->tag))) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  return 0;
 }
 
 size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,

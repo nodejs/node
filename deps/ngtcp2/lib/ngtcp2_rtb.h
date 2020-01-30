@@ -220,8 +220,13 @@ typedef struct {
   int64_t largest_acked_tx_pkt_num;
   size_t num_ack_eliciting;
   ngtcp2_tstamp loss_time;
+  /* probe_pkt_left is the number of probe packet to send */
+  size_t probe_pkt_left;
   /* crypto_level is encryption level which |crypto| belongs to. */
   ngtcp2_crypto_level crypto_level;
+  /* cc_pkt_num is the smallest packet number that is contributed to
+     bytes_in_flight. */
+  int64_t cc_pkt_num;
 } ngtcp2_rtb;
 
 /*
@@ -257,7 +262,10 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
- * |pkt_num| is a packet number which includes |fr|.
+ * |pkt_num| is a packet number which includes |fr|.  |pkt_ts| is the
+ * timestamp when packet is received.  |ts| should be the current
+ * time.  Usually they are the same, but for buffered packets,
+ * |pkt_ts| would be earlier than |ts|.
  *
  * This function returns the number of newly acknowledged packets if
  * it succeeds, or one of the following negative error codes:
@@ -268,7 +276,8 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
  *     Out of memory
  */
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                                 ngtcp2_conn *conn, ngtcp2_tstamp ts);
+                                 ngtcp2_conn *conn, ngtcp2_tstamp pkt_ts,
+                                 ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
@@ -306,11 +315,10 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects.
- * bytes_in_flight, largest_acked_tx_pkt_num, and num_ack_eliciting
- * are also reset to their initial value.
+ * ngtcp2_rtb_get_bytes_in_flight returns the sum of bytes in flight
+ * for the stored entries.
  */
-void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
+uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_num_ack_eliciting returns the number of ACK eliciting

@@ -123,6 +123,7 @@ typedef enum {
   NGTCP2_FRAME_PATH_RESPONSE = 0x1b,
   NGTCP2_FRAME_CONNECTION_CLOSE = 0x1c,
   NGTCP2_FRAME_CONNECTION_CLOSE_APP = 0x1d,
+  NGTCP2_FRAME_HANDSHAKE_DONE = 0x1e,
 } ngtcp2_frame_type;
 
 typedef struct {
@@ -271,6 +272,10 @@ typedef struct {
   uint64_t seq;
 } ngtcp2_retire_connection_id;
 
+typedef struct {
+  uint8_t type;
+} ngtcp2_handshake_done;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
@@ -292,6 +297,7 @@ typedef union {
   ngtcp2_crypto crypto;
   ngtcp2_new_token new_token;
   ngtcp2_retire_connection_id retire_connection_id;
+  ngtcp2_handshake_done handshake_done;
 } ngtcp2_frame;
 
 struct ngtcp2_pkt_chain;
@@ -427,7 +433,7 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
 
 /*
  * ngtcp2_pkt_decode_retry decodes Retry packet payload |payload| of
- * length |payloadlen|.  The |payload| must start with ODCID Len
+ * length |payloadlen|.  The |payload| must start with Retry token
  * field.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -733,6 +739,22 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
                                              size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_handshake_done_frame decodes HANDSHAKE_DONE frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  HANDSHAKE_DONE frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * HANDSHAKE_DONE frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include HANDSHAKE_DONE frame.
+ */
+ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
+                                                    const uint8_t *payload,
+                                                    size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -998,6 +1020,20 @@ ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
     uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr);
 
 /*
+ * ngtcp2_pkt_encode_handshake_done_frame encodes HANDSHAKE_DONE frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ngtcp2_ssize
+ngtcp2_pkt_encode_handshake_done_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_handshake_done *fr);
+
+/*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
  * |pkt_num|, which is expected to be least significant |n| bits.  The
  * |max_pkt_num| is the highest successfully authenticated packet
@@ -1040,12 +1076,43 @@ size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
  * ngtcp2_pkt_verify_reserved_bits verifies that the first byte |c| of
  * the packet header has the correct reserved bits.
  *
- * This function returns 0 if it succeeds, or the following negative
- * error codes:
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
  *
  * NGTCP2_ERR_PROTO
  *     Reserved bits has wrong value.
  */
 int ngtcp2_pkt_verify_reserved_bits(uint8_t c);
+
+/*
+ * ngtcp2_pkt_encode_pseudo_retry encodes Retry pseudo-packet in the
+ * buffer pointed by |dest| of length |destlen|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_BUF
+ *     Buffer is too short.
+ */
+ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
+    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd, uint8_t unused,
+    const ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen);
+
+/*
+ * ngtcp2_pkt_verify_retry_tag verifies Retry packet.  The buffer
+ * pointed by |pkt| of length |pktlen| must contain Retry packet
+ * including packet header.  The odcid and tag fields of |retry| must
+ * be specified.  |aead| must be AEAD_AES_128_GCM.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_PROTO
+ *     Verification failed.
+ */
+int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
+                                const uint8_t *pkt, size_t pktlen,
+                                ngtcp2_encrypt encrypt,
+                                const ngtcp2_crypto_aead *aead);
 
 #endif /* NGTCP2_PKT_H */

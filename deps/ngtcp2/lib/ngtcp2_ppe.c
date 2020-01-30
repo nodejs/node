@@ -106,6 +106,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_cc *cc = ppe->cc;
   ngtcp2_conn *conn = cc->user_data;
+  void *conn_user_data = conn ? conn->user_data : NULL;
   uint8_t *payload = buf->begin + ppe->hdlen;
   size_t payloadlen = ngtcp2_buf_len(buf) - ppe->hdlen;
   uint8_t mask[NGTCP2_HP_SAMPLELEN];
@@ -127,7 +128,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
 
   rv = cc->encrypt(conn, payload, &cc->aead, payload, payloadlen,
                    cc->ckm->key.base, ppe->nonce, cc->ckm->iv.len, buf->begin,
-                   ppe->hdlen, conn->user_data);
+                   ppe->hdlen, conn_user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -138,7 +139,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   assert(ppe->sample_offset + NGTCP2_HP_SAMPLELEN <= ngtcp2_buf_len(buf));
 
   rv = cc->hp_mask(conn, mask, &cc->hp, cc->hp_key->base,
-                   buf->begin + ppe->sample_offset, conn->user_data);
+                   buf->begin + ppe->sample_offset, conn_user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }

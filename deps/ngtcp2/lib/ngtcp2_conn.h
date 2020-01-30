@@ -98,11 +98,15 @@ typedef enum {
    kept to catch in-flight packet on retired path. */
 #define NGTCP2_MAX_DCID_RETIRED_SIZE 2
 /* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
-   connection ID the local endpoint provides in NEW_CONNECTION_ID to
-   the remote endpoint.  The chosen value was described in old draft.
-   Now a remote endpoint tells the maximum value.  The value can be
-   quite large, and we have to put the sane limit.*/
+   connection ID the local endpoint provides to the remote endpoint.
+   The chosen value was described in old draft.  Now a remote endpoint
+   tells the maximum value.  The value can be quite large, and we have
+   to put the sane limit.*/
 #define NGTCP2_MAX_SCID_POOL_SIZE 8
+
+/* NGTCP2_MAX_NON_ACK_TX_PKT is the maximum number of continuous non
+   ACK-eliciting packets. */
+#define NGTCP2_MAX_NON_ACK_TX_PKT 10
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -150,12 +154,12 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_SADDR_VERIFIED is set when source address is
      verified. */
   NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
+  /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
+     confirmed completion of handshake. */
+  NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED = 0x80,
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
   NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
-  /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
-     have been discarded. */
-  NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
   /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update
      is not confirmed by the local endpoint.  That is, it has not
      received ACK frame which acknowledges packet which is encrypted
@@ -188,6 +192,9 @@ typedef struct {
        last time.*/
     int64_t last_pkt_num;
     ngtcp2_frame_chain *frq;
+    /* num_non_ack_pkt is the number of continuous non ACK-eliciting
+       packets. */
+    size_t num_non_ack_pkt;
   } tx;
 
   struct {
@@ -210,10 +217,10 @@ typedef struct {
      * - 0-RTT packet is only buffered in server Initial encryption
      *   level ngtcp2_pktns.
      *
-     * - Handshake packet is only buffered in client Initial encryption
-     *   level ngtcp2_pktns.
+     * - Handshake packet is only buffered in client Handshake
+     *   encryption level ngtcp2_pktns.
      *
-     * - Short packet is only buffered in Handshake encryption level
+     * - Short packet is only buffered in Short encryption level
      *   ngtcp2_pktns.
      */
     ngtcp2_pkt_chain *buffed_pkts;
@@ -265,8 +272,8 @@ struct ngtcp2_conn {
      during handshake.  It is used to receive late handshake packets
      after handshake completion. */
   ngtcp2_cid odcid;
-  ngtcp2_pktns in_pktns;
-  ngtcp2_pktns hs_pktns;
+  ngtcp2_pktns *in_pktns;
+  ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;
 
   struct {
@@ -295,11 +302,6 @@ struct ngtcp2_conn {
     ngtcp2_pq used;
     /* last_seq is the last sequence number of connection ID. */
     uint64_t last_seq;
-    /* num_initial_id is the number of Connection ID initially offered
-       to the remote endpoint and is not retired yet.  It includes the
-       initial Connection ID used during handshake and the one in
-       preferred_address transport parameter. */
-    size_t num_initial_id;
     /* num_retired is the number of retired Connection ID still
        included in set. */
     size_t num_retired;
@@ -418,6 +420,8 @@ struct ngtcp2_conn {
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;
+    /* retry_aead is AEAD to verify Retry packet integrity. */
+    ngtcp2_crypto_aead retry_aead;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support
@@ -635,7 +639,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
                             ngtcp2_duration ack_delay);
 
-void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
+void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_detect_lost_pkt detects lost packets.

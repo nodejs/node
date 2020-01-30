@@ -730,6 +730,24 @@ write_connection_close_frame(uint8_t *p, const ngtcp2_connection_close *fr) {
   return p;
 }
 
+static uint8_t *write_handshake_done_frame(uint8_t *p,
+                                           const ngtcp2_handshake_done *fr) {
+  ngtcp2_vec name, value;
+  (void)fr;
+
+  /*
+   * {"frame_type":"handshake_done"}
+   */
+#define NGTCP2_QLOG_HANDSHAKE_DONE_FRAME_OVERHEAD 31
+
+  *p++ = '{';
+  p = write_pair(p, ngtcp2_vec_lit(&name, "frame_type"),
+                 ngtcp2_vec_lit(&value, "handshake_done"));
+  *p++ = '}';
+
+  return p;
+}
+
 static void qlog_pkt_write_start(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
                                  int sent) {
   uint8_t *p;
@@ -955,6 +973,14 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     }
     p = write_connection_close_frame(p, &fr->connection_close);
     break;
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    if (ngtcp2_buf_left(&qlog->buf) <
+        NGTCP2_QLOG_HANDSHAKE_DONE_FRAME_OVERHEAD + 1 +
+            NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD) {
+      return;
+    }
+    p = write_handshake_done_frame(p, &fr->handshake_done);
+    break;
   default:
     assert(0);
   }
@@ -1020,8 +1046,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   p = write_pair_bool(p, ngtcp2_vec_lit(&name, "disable_active_migration"),
                       params->disable_active_migration);
   *p++ = ',';
-  p = write_pair_duration(p, ngtcp2_vec_lit(&name, "idle_timeout"),
-                          params->idle_timeout);
+  p = write_pair_duration(p, ngtcp2_vec_lit(&name, "max_idle_timeout"),
+                          params->max_idle_timeout);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "max_packet_size"),
                         params->max_packet_size);
