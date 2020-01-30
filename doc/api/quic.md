@@ -875,6 +875,15 @@ added: REPLACEME
 
 Set to `true` if the TLS handshake has completed.
 
+#### quicsession.handshakeConfirmed
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` when the TLS handshake completion has been confirmed.
+
 #### quicsession.handshakeDuration
 <!-- YAML
 added: REPLACEME

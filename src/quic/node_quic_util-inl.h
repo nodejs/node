@@ -60,8 +60,8 @@ std::string QuicCID::ToString() const {
   return std::string(dest.data(), written);
 }
 
-size_t GetMaxPktLen(const sockaddr* addr) {
-  return addr->sa_family == AF_INET6 ?
+size_t GetMaxPktLen(const SocketAddress& addr) {
+  return addr.family() == AF_INET6 ?
       NGTCP2_MAX_PKTLEN_IPV6 :
       NGTCP2_MAX_PKTLEN_IPV4;
 }

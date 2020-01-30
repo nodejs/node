@@ -182,6 +182,8 @@ enum QuicSessionState : int {
   // has been registered.
   IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED,
 
+  IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED,
+
   // Just the number of session state enums for use when
   // creating the AliasedBuffer.
   IDX_QUIC_SESSION_STATE_COUNT
@@ -193,6 +195,7 @@ enum QuicSessionState : int {
   V(HANDSHAKE_SEND_AT, handshake_send_at, "Handshke Last Sent")                \
   V(HANDSHAKE_CONTINUE_AT, handshake_continue_at, "Handshke Continued")        \
   V(HANDSHAKE_COMPLETED_AT, handshake_completed_at, "Handshake Completed")     \
+  V(HANDSHAKE_CONFIRMED_AT, handshake_confirmed_at, "Handshake Confirmed")     \
   V(HANDSHAKE_ACKED_AT, handshake_acked_at, "Handshake Last Acknowledged")     \
   V(SENT_AT, sent_at, "Last Sent At")                                          \
   V(RECEIVED_AT, received_at, "Last Received At")                              \
@@ -644,19 +647,18 @@ class QuicSession : public AsyncWrap,
       const QuicSessionConfig& config,
       const QuicCID& rcid,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       const QuicCID& dcid,
       const QuicCID& ocid,
       uint32_t version,
       const std::string& alpn = NGTCP2_ALPN_H3,
       uint32_t options = 0,
-      uint64_t initial_connection_close = NGTCP2_NO_ERROR,
       QlogMode qlog = QlogMode::kDisabled);
 
   static BaseObjectPtr<QuicSession> CreateClient(
       QuicSocket* socket,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       crypto::SecureContext* context,
       v8::Local<v8::Value> early_transport_params,
       v8::Local<v8::Value> session_ticket,
@@ -693,8 +695,7 @@ class QuicSession : public AsyncWrap,
       const QuicCID& rcid,
       uint32_t options = 0,
       PreferredAddressStrategy preferred_address_strategy =
-          IgnorePreferredAddressStrategy,
-      uint64_t initial_connection_close = NGTCP2_NO_ERROR);
+          IgnorePreferredAddressStrategy);
 
   // Server Constructor
   QuicSession(
@@ -703,13 +704,12 @@ class QuicSession : public AsyncWrap,
       v8::Local<v8::Object> wrap,
       const QuicCID& rcid,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       const QuicCID& dcid,
       const QuicCID& ocid,
       uint32_t version,
       const std::string& alpn,
       uint32_t options,
-      uint64_t initial_connection_close,
       QlogMode qlog);
 
   // Client Constructor
@@ -717,7 +717,7 @@ class QuicSession : public AsyncWrap,
       QuicSocket* socket,
       v8::Local<v8::Object> wrap,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       crypto::SecureContext* context,
       v8::Local<v8::Value> early_transport_params,
       v8::Local<v8::Value> session_ticket,
@@ -734,19 +734,6 @@ class QuicSession : public AsyncWrap,
   inline QuicCID dcid() const;
 
   QuicApplication* application() const { return application_.get(); }
-
-  enum InitialPacketResult : int {
-    PACKET_OK,
-    PACKET_IGNORE,
-    PACKET_VERSION,
-    PACKET_RETRY
-  };
-
-  static InitialPacketResult Accept(
-    ngtcp2_pkt_hd* hd,
-    uint32_t version,
-    const uint8_t* data,
-    ssize_t nread);
 
   QuicCryptoContext* crypto_context() const { return crypto_context_.get(); }
 
@@ -866,7 +853,7 @@ class QuicSession : public AsyncWrap,
       ssize_t nread,
       const uint8_t* data,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       unsigned int flags);
 
   // Receive a chunk of QUIC stream data received from the peer
@@ -1085,7 +1072,7 @@ class QuicSession : public AsyncWrap,
   void InitServer(
       QuicSessionConfig config,
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       const QuicCID& dcid,
       const QuicCID& ocid,
       uint32_t version,
@@ -1094,7 +1081,7 @@ class QuicSession : public AsyncWrap,
   // Initialize the QuicSession as a client
   bool InitClient(
       const SocketAddress& local_addr,
-      const struct sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       v8::Local<v8::Value> early_transport_params,
       v8::Local<v8::Value> session_ticket,
       v8::Local<v8::Value> dcid,
@@ -1118,6 +1105,7 @@ class QuicSession : public AsyncWrap,
   int GetNewConnectionID(ngtcp2_cid* cid, uint8_t* token, size_t cidlen);
   inline void GetConnectionCloseInfo();
   inline void HandshakeCompleted();
+  inline void HandshakeConfirmed();
   void PathValidation(
     const ngtcp2_path* path,
     ngtcp2_path_validation_result res);
@@ -1158,6 +1146,9 @@ class QuicSession : public AsyncWrap,
       size_t datalen,
       void* user_data);
   static int OnHandshakeCompleted(
+      ngtcp2_conn* conn,
+      void* user_data);
+  static int OnHandshakeConfirmed(
       ngtcp2_conn* conn,
       void* user_data);
   static int OnEncrypt(
@@ -1405,7 +1396,6 @@ class QuicSession : public AsyncWrap,
   SocketAddress local_address_;
   SocketAddress remote_address_;
   uint32_t flags_ = 0;
-  uint64_t initial_connection_close_ = NGTCP2_NO_ERROR;
   size_t max_pktlen_ = 0;
   size_t current_ngtcp2_memory_ = 0;
   size_t connection_close_attempts_ = 0;

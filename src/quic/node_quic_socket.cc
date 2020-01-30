@@ -51,11 +51,11 @@ namespace {
 // Specifically, any version that follows the pattern
 // 0x?a?a?a?a may be used to force version negotiation.
 inline uint32_t GenerateReservedVersion(
-    const sockaddr* addr,
+    const SocketAddress& addr,
     uint32_t version) {
-  socklen_t addrlen = SocketAddress::GetLength(addr);
+  socklen_t addrlen = addr.length();
   uint32_t h = 0x811C9DC5u;
-  const uint8_t* p = reinterpret_cast<const uint8_t*>(addr);
+  const uint8_t* p = addr.raw();
   const uint8_t* ep = p + addrlen;
   for (; p != ep; ++p) {
     h ^= *p;
@@ -223,7 +223,7 @@ void QuicEndpoint::OnRecv(
       nread,
       std::move(buf),
       local_address(),
-      addr,
+      SocketAddress(addr),
       flags);
 }
 
@@ -391,7 +391,7 @@ bool QuicSocket::MaybeStatelessReset(
     ssize_t nread,
     const uint8_t* data,
     const SocketAddress& local_addr,
-    const sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     unsigned int flags) {
   if (UNLIKELY(is_stateless_reset_disabled() || nread < 16))
     return false;
@@ -415,7 +415,7 @@ void QuicSocket::OnReceive(
     ssize_t nread,
     AllocatedBuffer buf,
     const SocketAddress& local_addr,
-    const sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     unsigned int flags) {
   Debug(this, "Receiving %d bytes from the UDP socket.", nread);
 
@@ -577,7 +577,7 @@ void QuicSocket::SendVersionNegotiation(
       const QuicCID& dcid,
       const QuicCID& scid,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr) {
+      const SocketAddress& remote_addr) {
   uint32_t sv[2];
   sv[0] = GenerateReservedVersion(remote_addr, version);
   sv[1] = NGTCP2_PROTO_VER;
@@ -612,7 +612,7 @@ void QuicSocket::SendVersionNegotiation(
 bool QuicSocket::SendStatelessReset(
     const QuicCID& cid,
     const SocketAddress& local_addr,
-    const sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     size_t source_len) {
   if (UNLIKELY(is_stateless_reset_disabled()))
     return false;
@@ -645,7 +645,7 @@ bool QuicSocket::SendStatelessReset(
   auto packet = QuicPacket::Create("stateless reset", pktlen);
   ssize_t nwrite =
       ngtcp2_pkt_write_stateless_reset(
-        reinterpret_cast<uint8_t*>(packet->data()),
+        packet->data(),
         NGTCP2_MAX_PKTLEN_IPV4,
         const_cast<uint8_t*>(token.data()),
         random,
@@ -674,53 +674,38 @@ bool QuicSocket::SendStatelessReset(
 // path validation is enabled, it could attempt to
 // DOS by sending a large number of malicious
 // initial packets to intentionally ellicit retry
-// packets. To help mitigate that risk, we should
-// limit the number of retries we send to a given
-// remote endpoint.
+// packets (It can do so by intentionally sending
+// initial packets that ignore the retry token).
+// To help mitigate that risk, we should limit the number
+// of retries we send to a given remote endpoint.
 bool QuicSocket::SendRetry(
-    uint32_t version,
     const QuicCID& dcid,
     const QuicCID& scid,
     const SocketAddress& local_addr,
-    const sockaddr* remote_addr) {
-  uint8_t token[256];
-  size_t tokenlen = sizeof(token);
+    const SocketAddress& remote_addr) {
+  std::unique_ptr<QuicPacket> packet =
+      GenerateRetryPacket(token_secret_, dcid, scid, local_addr, remote_addr);
+  return packet ?
+      SendPacket(local_addr, remote_addr, std::move(packet)) == 0 : false;
+}
 
-  // Retry tokens are generated cryptographically. They
-  // aren't super expensive but they are still not zero-cost.
-  if (!GenerateRetryToken(token, &tokenlen, remote_addr, dcid, token_secret_))
-    return false;
-
-  ngtcp2_pkt_hd hd;
-  hd.version = version;
-  hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
-  hd.type = NGTCP2_PKT_RETRY;
-  hd.pkt_num = 0;
-  hd.token = nullptr;
-  hd.tokenlen = 0;
-  hd.len = 0;
-  hd.dcid = *scid;
-  hd.scid.datalen = kScidLen;
-
-  EntropySource(hd.scid.data, kScidLen);
-
-  size_t pktlen = tokenlen + (2 * NGTCP2_MAX_CIDLEN) + scid.length() + 8;
-  CHECK_LE(pktlen, NGTCP2_MAX_PKT_SIZE);
-
-  auto packet = QuicPacket::Create("retry", pktlen);
-  ssize_t nwrite =
-      ngtcp2_pkt_write_retry(
-          reinterpret_cast<uint8_t*>(packet->data()),
-          NGTCP2_MAX_PKTLEN_IPV4,
-          &hd,
-          dcid.cid(),
-          token,
-          tokenlen);
-  if (nwrite <= 0)
-    return false;
-  packet->set_length(nwrite);
-  SocketAddress remote_address(remote_addr);
-  return SendPacket(local_addr, remote_address, std::move(packet)) == 0;
+// Shutdown a connection prematurely, before a QuicSession is created.
+void QuicSocket::ImmediateConnectionClose(
+    const ngtcp2_pkt_hd& hd,
+    const SocketAddress& local_addr,
+    const SocketAddress& remote_addr,
+    int32_t reason) {
+  auto packet = QuicPacket::Create("immediate connection close");
+  ssize_t nwrite = ngtcp2_crypto_write_connection_close(
+      packet->data(),
+      packet->length(),
+      &hd.scid,
+      &hd.dcid,
+      reason);
+  if (nwrite > 0) {
+    packet->set_length(nwrite);
+    SendPacket(local_addr, remote_addr, std::move(packet));
+  }
 }
 
 // Inspects the packet and possibly accepts it as a new
@@ -734,13 +719,12 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     ssize_t nread,
     const uint8_t* data,
     const SocketAddress& local_addr,
-    const sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     unsigned int flags) {
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   ngtcp2_pkt_hd hd;
   QuicCID ocid;
-  uint64_t initial_connection_close = NGTCP2_NO_ERROR;
 
   // If the QuicSocket is not listening, the paket will be ignored.
   if (!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
@@ -748,25 +732,16 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     return {};
   }
 
-  // Perform some initial checks on the packet to see if it is an
-  // acceptable initial packet with the right QUIC version.
-  switch (QuicSession::Accept(&hd, version, data, nread)) {
-    case QuicSession::InitialPacketResult::PACKET_VERSION:
-      SendVersionNegotiation(
-          version,
-          dcid,
-          scid,
-          local_addr,
-          remote_addr);
+  switch (ngtcp2_accept(&hd, data, static_cast<size_t>(nread))) {
+    case 1:
+      // Send Version Negotiation
+      SendVersionNegotiation(version, dcid, scid, local_addr, remote_addr);
+      // Fall through
+    case -1:
+      // Either a version negotiation packet was sent or the packet is
+      // an invalid initial packet. Either way, there's nothing more we
+      // can do here.
       return {};
-    case QuicSession::InitialPacketResult::PACKET_RETRY:
-      Debug(this, "0RTT Packet. Sending retry.");
-      SendRetry(version, dcid, scid, local_addr, remote_addr);
-      return {};
-    case QuicSession::InitialPacketResult::PACKET_IGNORE:
-      return {};
-    case QuicSession::InitialPacketResult::PACKET_OK:
-      break;
   }
 
   // If the server is busy, new connections will be shut down immediately
@@ -774,28 +749,17 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // entirely by local user code. It is important to understand that
   // a QuicSession is created and resources are committed even though
   // the QuicSession will be torn down as quickly as possible.
-  if (UNLIKELY(is_flag_set(QUICSOCKET_FLAGS_SERVER_BUSY))) {
-    Debug(this, "QuicSocket is busy");
-    initial_connection_close = NGTCP2_SERVER_BUSY;
-  }
-
-  // Check to see if the number of connections total for this QuicSocket
+  // Else, check to see if the number of connections total for this QuicSocket
   // has been exceeded. If the count has been exceeded, shutdown the connection
   // immediately after the initial keys are installed.
-  if (sessions_.size() >= max_connections_) {
-    Debug(this, "Connection count exceeded");
-    initial_connection_close = NGTCP2_SERVER_BUSY;
+  if (UNLIKELY(is_flag_set(QUICSOCKET_FLAGS_SERVER_BUSY)) ||
+      sessions_.size() >= max_connections_ ||
+      GetCurrentSocketAddressCounter(remote_addr) >=
+          max_connections_per_host_) {
+    Debug(this, "QuicSocket is busy or connection count exceeded");
     IncrementStat(&QuicSocketStats::server_busy_count);
-  }
-
-  // Check to see if the number of connections for this peer has been exceeded.
-  // If the count has been exceeded, shutdown the connection immediately
-  // after the initial keys are installed.
-  if (GetCurrentSocketAddressCounter(remote_addr) >=
-      max_connections_per_host_) {
-    Debug(this, "Connection count for address exceeded");
-    initial_connection_close = NGTCP2_SERVER_BUSY;
-    IncrementStat(&QuicSocketStats::server_busy_count);
+    ImmediateConnectionClose(hd, local_addr, remote_addr, NGTCP2_SERVER_BUSY);
+    return {};
   }
 
   // QUIC has address validation built in to the handshake but allows for
@@ -804,37 +768,33 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // retry token in the packet. If one does not exist, we send a retry with
   // a new token. If it does exist, and if it's valid, we grab the original
   // cid and continue.
-  //
-  // If initial_connection_close is not NGTCP2_NO_ERROR, skip address
-  // validation since we're going to reject the connection anyway.
-  if (initial_connection_close == NGTCP2_NO_ERROR &&
-      is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS) &&
-      hd.type == NGTCP2_PKT_INITIAL) {
-      // If the VALIDATE_ADDRESS_LRU option is set, IsValidatedAddress
-      // will check to see if the given address is in the validated_addrs_
-      // LRU cache. If it is, we'll skip the validation step entirely.
-      // The VALIDATE_ADDRESS_LRU option is disable by default.
-      // TODO(@jasnell): The VALIDATE_ADDRESS_LRU may not be sufficient
-      // to protect against the threat of a malicious peer intentionally
-      // soliciting retry tokens in order to attempt to guess the
-      // retry secret.
-    if (!is_validated_address(remote_addr)) {
-      Debug(this, "Performing explicit address validation.");
-      if (InvalidRetryToken(
-              hd.token,
-              hd.tokenlen,
-              remote_addr,
-              &ocid,
-              token_secret_,
-              retry_token_expiration_)) {
-        Debug(this, "A valid retry token was not found. Sending retry.");
-        SendRetry(version, dcid, scid, local_addr, remote_addr);
+  if (!is_validated_address(remote_addr)) {
+    switch (hd.type) {
+      case NGTCP2_PKT_INITIAL:
+        if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS) ||
+            hd.tokenlen > 0) {
+          Debug(this, "Performing explicit address validation");
+          if (hd.tokenlen == 0) {
+            Debug(this, "No retry token was detected. Generating one.");
+            SendRetry(dcid, scid, local_addr, remote_addr);
+            // Sending a retry token terminates this connection attempt.
+            return {};
+          }
+          if (InvalidRetryToken(
+                  hd,
+                  remote_addr,
+                  &ocid,
+                  token_secret_,
+                  retry_token_expiration_)) {
+            Debug(this, "Invalid retry token was detected. Failing.");
+            ImmediateConnectionClose(hd, local_addr, remote_addr);
+            return {};
+          }
+        }
+        break;
+      case NGTCP2_PKT_0RTT:
+        SendRetry(dcid, scid, local_addr, remote_addr);
         return {};
-      }
-      Debug(this, "A valid retry token was found. Continuing.");
-      set_validated_address(remote_addr);
-    } else {
-      Debug(this, "Skipping validation for recently validated address.");
     }
   }
 
@@ -850,7 +810,6 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
           version,
           server_alpn_,
           server_options_,
-          initial_connection_close,
           qlog_);
   CHECK(session);
 
@@ -898,9 +857,10 @@ int QuicSocket::SendPacket(
   }
 
   last_created_send_wrap_ = nullptr;
-  uv_buf_t buf = uv_buf_init(
-      reinterpret_cast<char*>(packet->data()),
-      packet->length());
+  uv_buf_t buf = packet->buf();
+
+  // TODO(@jasnell): This is still sending on preferred endpoint.
+  // Need to do lookup on local address and send using that.
   CHECK_NOT_NULL(preferred_endpoint_);
   int err = preferred_endpoint_->Send(&buf, 1, remote_addr.data());
 

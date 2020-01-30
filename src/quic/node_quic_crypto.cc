@@ -52,9 +52,7 @@ constexpr char kQuicServerHandshakeTrafficSecret[] =
     "QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET";
 constexpr char kQuicServerTrafficSecret[] =
     "QUIC_SERVER_TRAFFIC_SECRET_0";
-}  // namespace
 
-namespace {
 // Used solely to derive the keys used to generate retry tokens.
 bool DeriveTokenKey(
     uint8_t* token_key,
@@ -100,26 +98,11 @@ void GenerateRandData(uint8_t* buf, size_t len) {
   CHECK_LE(len, arraysize(md));
   std::copy_n(std::begin(md), len, buf);
 }
-}  // namespace
-
-bool GenerateResetToken(
-    uint8_t* token,
-    const uint8_t* secret,
-    const QuicCID& cid) {
-  ngtcp2_crypto_ctx ctx;
-  ngtcp2_crypto_ctx_initial(&ctx);
-  return NGTCP2_OK(ngtcp2_crypto_generate_stateless_reset_token(
-      token,
-      &ctx.md,
-      secret,
-      NGTCP2_STATELESS_RESET_TOKENLEN,
-      cid.cid()));
-}
 
 bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
-    const sockaddr* addr,
+    const SocketAddress& addr,
     const QuicCID& ocid,
     const uint8_t* token_secret) {
   std::array<uint8_t, 4096> plaintext;
@@ -129,15 +112,12 @@ bool GenerateRetryToken(
 
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
-
-  const size_t addrlen = SocketAddress::GetLength(addr);
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(&ctx.aead);
-
   uint64_t now = uv_hrtime();
 
   auto p = std::begin(plaintext);
-  p = std::copy_n(reinterpret_cast<const uint8_t*>(addr), addrlen, p);
-  p = std::copy_n(reinterpret_cast<uint8_t*>(&now), sizeof(now), p);
+  p = std::copy_n(addr.raw(), addr.length(), p);
+  p = std::copy_n(reinterpret_cast<uint8_t*>(&now), sizeof(uint64_t), p);
   p = std::copy_n(ocid->data, ocid->datalen, p);
 
   GenerateRandData(rand_data, kTokenRandLen);
@@ -161,8 +141,8 @@ bool GenerateRetryToken(
           token_key,
           token_iv,
           ivlen,
-          reinterpret_cast<const uint8_t *>(addr),
-          addrlen))) {
+          addr.raw(),
+          addr.length()))) {
     return false;
   }
 
@@ -171,28 +151,78 @@ bool GenerateRetryToken(
   *tokenlen += kTokenRandLen;
   return true;
 }
+}  // namespace
+
+bool GenerateResetToken(
+    uint8_t* token,
+    const uint8_t* secret,
+    const QuicCID& cid) {
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_crypto_ctx_initial(&ctx);
+  return NGTCP2_OK(ngtcp2_crypto_generate_stateless_reset_token(
+      token,
+      &ctx.md,
+      secret,
+      NGTCP2_STATELESS_RESET_TOKENLEN,
+      cid.cid()));
+}
+
+
+std::unique_ptr<QuicPacket> GenerateRetryPacket(
+    const uint8_t* token_secret,
+    const QuicCID& dcid,
+    const QuicCID& scid,
+    const SocketAddress& local_addr,
+    const SocketAddress& remote_addr) {
+
+  uint8_t token[256];
+  size_t tokenlen = sizeof(token);
+
+  if (!GenerateRetryToken(token, &tokenlen, remote_addr, dcid, token_secret))
+    return {};
+
+  QuicCID cid;
+  EntropySource(cid.data(), kScidLen);
+  cid.set_length(kScidLen);
+
+  size_t pktlen = tokenlen + (2 * NGTCP2_MAX_CIDLEN) + scid.length() + 8;
+  CHECK_LE(pktlen, NGTCP2_MAX_PKT_SIZE);
+
+  auto packet = QuicPacket::Create("retry", pktlen);
+  ssize_t nwrite =
+      ngtcp2_crypto_write_retry(
+          packet->data(),
+          NGTCP2_MAX_PKTLEN_IPV4,
+          scid.cid(),
+          cid.cid(),
+          dcid.cid(),
+          token,
+          tokenlen);
+  if (nwrite <= 0)
+    return {};
+  packet->set_length(nwrite);
+  return std::move(packet);
+}
 
 // True if the received retry token is invalid.
 bool InvalidRetryToken(
-    const uint8_t* token,
-    size_t tokenlen,
-    const sockaddr* addr,
+    const ngtcp2_pkt_hd& hd,
+    const SocketAddress& addr,
     QuicCID* ocid,
     const uint8_t* token_secret,
     uint64_t verification_expiration) {
 
-  if (tokenlen < kTokenRandLen)
+  if (hd.tokenlen < kTokenRandLen)
     return true;
 
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
 
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(&ctx.aead);
-  const size_t addrlen = SocketAddress::GetLength(addr);
 
-  size_t ciphertextlen = tokenlen - kTokenRandLen;
-  const uint8_t* ciphertext = token;
-  const uint8_t* rand_data = token + ciphertextlen;
+  size_t ciphertextlen = hd.tokenlen - kTokenRandLen;
+  const uint8_t* ciphertext = hd.token;
+  const uint8_t* rand_data = hd.token + ciphertextlen;
 
   uint8_t token_key[kCryptoTokenKeylen];
   uint8_t token_iv[kCryptoTokenIvlen];
@@ -207,44 +237,43 @@ bool InvalidRetryToken(
     return true;
   }
 
-  std::array<uint8_t, 4096> plaintext;
+  uint8_t plaintext[4096];
 
   if (NGTCP2_ERR(ngtcp2_crypto_decrypt(
-          plaintext.data(),
+          plaintext,
           &ctx.aead,
           ciphertext,
           ciphertextlen,
           token_key,
           token_iv,
           ivlen,
-          reinterpret_cast<const uint8_t*>(addr), addrlen))) {
+          addr.raw(),
+          addr.length()))) {
     return true;
   }
 
   size_t plaintextlen = ciphertextlen - ngtcp2_crypto_aead_taglen(&ctx.aead);
-  if (plaintextlen < addrlen + sizeof(uint64_t))
+  if (plaintextlen < addr.length() + sizeof(uint64_t))
     return true;
 
-  ssize_t cil = plaintextlen - addrlen - sizeof(uint64_t);
+  ssize_t cil = plaintextlen - addr.length() - sizeof(uint64_t);
   if ((cil != 0 && (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN)) ||
-      memcmp(plaintext.data(), addr, addrlen) != 0) {
+      memcmp(plaintext, addr.raw(), addr.length()) != 0) {
     return true;
   }
 
   uint64_t t;
-  memcpy(&t, plaintext.data() + addrlen, sizeof(uint64_t));
-
-  uint64_t now = uv_hrtime();
+  memcpy(&t, plaintext + addr.length(), sizeof(uint64_t));
 
   // 10-second window by default, but configurable for each
   // QuicSocket instance with a MIN_RETRYTOKEN_EXPIRATION second
   // minimum and a MAX_RETRYTOKEN_EXPIRATION second maximum.
-  if (t + verification_expiration * NGTCP2_SECONDS < now)
+  if (t + verification_expiration * NGTCP2_SECONDS < uv_hrtime())
     return true;
 
   ngtcp2_cid_init(
       ocid->cid(),
-      plaintext.data() + addrlen + sizeof(uint64_t),
+      plaintext + addr.length() + sizeof(uint64_t),
       cil);
 
   return false;
@@ -865,10 +894,8 @@ uint32_t GenerateFlowLabel(
   ngtcp2_crypto_ctx_initial(&ctx);
 
   auto p = std::begin(plaintext);
-  p = std::copy_n(reinterpret_cast<const uint8_t*>(local.data()),
-                  local.length(), p);
-  p = std::copy_n(reinterpret_cast<const uint8_t*>(remote.data()),
-                  remote.length(), p);
+  p = std::copy_n(local.raw(), local.length(), p);
+  p = std::copy_n(remote.raw(), remote.length(), p);
   p = std::copy_n(cid->data, cid->datalen, p);
 
   ngtcp2_crypto_hkdf_expand(

@@ -89,15 +89,11 @@ MaybeLocal<String> Http3Header::GetValue(QuicApplication* app) const {
 
 std::string Http3Header::name() const {
   const char* header_name = ToHttpHeaderName(token_);
-  return header_name != nullptr ?
-        std::string(header_name) :
-        std::string(reinterpret_cast<const char*>(name_.data()), name_.len());
+  return header_name != nullptr ? std::string(header_name) : name_.str();
 }
 
 std::string Http3Header::value() const {
-  return std::string(
-      reinterpret_cast<const char*>(value_.data()),
-      value_.len());
+  return value_.str();
 }
 
 size_t Http3Header::length() const {

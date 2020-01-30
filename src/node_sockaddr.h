@@ -69,6 +69,10 @@ class SocketAddress : public MemoryRetainer {
     return reinterpret_cast<const sockaddr*>(&address_);
   }
 
+  const uint8_t* raw() const {
+    return reinterpret_cast<const uint8_t*>(&address_);
+  }
+
   sockaddr* storage() {
     return reinterpret_cast<sockaddr*>(&address_);
   }

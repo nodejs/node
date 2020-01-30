@@ -31,7 +31,7 @@ const server = createSocket({
 });
 
 const kServerName = 'agent2';  // Intentionally the wrong servername
-const kALPN = 'h3-24';
+const kALPN = 'h3-25';
 
 const countdown = new Countdown(1, () => {
   debug('Countdown expired. Destroying sockets');

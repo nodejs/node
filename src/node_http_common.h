@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "v8.h"
+#include <string>
 
 namespace node {
 
@@ -331,6 +332,10 @@ class NgRcBufPointer : public MemoryRetainer {
   size_t len() const {
     vector_t v = T::get_vec(buf_);
     return v.len;
+  }
+
+  std::string str() const {
+    return std::string(reinterpret_cast<const char*>(data()), len());
   }
 
   void reset(rcbuf_t* ptr = nullptr, bool internalizable = false) {

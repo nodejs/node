@@ -154,6 +154,11 @@ class QuicPacket : public MemoryRetainer {
   QuicPacket(const QuicPacket& other);
   uint8_t* data() { return data_.data(); }
   size_t length() const { return data_.size(); }
+  uv_buf_t buf() const {
+    return uv_buf_init(
+      const_cast<char*>(reinterpret_cast<const char*>(data_.data())),
+      length());
+  }
   inline void set_length(size_t len);
   const char* diagnostic_label() const;
 
@@ -174,7 +179,7 @@ class QuicEndpointListener {
       ssize_t nread,
       AllocatedBuffer buf,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       unsigned int flags) = 0;
   virtual ReqWrap<uv_udp_send_t>* OnCreateSendWrap(size_t msg_size) = 0;
   virtual void OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) = 0;
@@ -348,24 +353,23 @@ class QuicSocket : public AsyncWrap,
       ssize_t nread,
       AllocatedBuffer buf,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       unsigned int flags) override;
   void OnError(QuicEndpoint* endpoint, ssize_t error) override;
   void OnEndpointDone(QuicEndpoint* endpoint) override;
 
   // Serializes and transmits a RETRY packet to the connected peer.
   bool SendRetry(
-      uint32_t version,
       const QuicCID& dcid,
       const QuicCID& scid,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr);
+      const SocketAddress& remote_addr);
 
   // Serializes and transmits a Stateless Reset to the connected peer.
   bool SendStatelessReset(
       const QuicCID& cid,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       size_t source_len);
 
   // Serializes and transmits a Version Negotiation packet to the
@@ -375,7 +379,7 @@ class QuicSocket : public AsyncWrap,
       const QuicCID& dcid,
       const QuicCID& scid,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr);
+      const SocketAddress& remote_addr);
 
   void PushListener(QuicSocketListener* listener);
   void RemoveListener(QuicSocketListener* listener);
@@ -390,8 +394,8 @@ class QuicSocket : public AsyncWrap,
 
   void OnSend(int status, QuicPacket* packet);
 
-  inline void set_validated_address(const sockaddr* addr);
-  inline bool is_validated_address(const sockaddr* addr) const;
+  inline void set_validated_address(const SocketAddress& addr);
+  inline bool is_validated_address(const SocketAddress& addr) const;
 
   bool MaybeStatelessReset(
       const QuicCID& dcid,
@@ -399,8 +403,13 @@ class QuicSocket : public AsyncWrap,
       ssize_t nread,
       const uint8_t* data,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       unsigned int flags);
+  void ImmediateConnectionClose(
+      const ngtcp2_pkt_hd& hd,
+      const SocketAddress& local_addr,
+      const SocketAddress& remote_addr,
+      int32_t reason = NGTCP2_INVALID_TOKEN);
 
   BaseObjectPtr<QuicSession> AcceptInitialPacket(
       uint32_t version,
@@ -409,7 +418,7 @@ class QuicSocket : public AsyncWrap,
       ssize_t nread,
       const uint8_t* data,
       const SocketAddress& local_addr,
-      const sockaddr* remote_addr,
+      const SocketAddress& remote_addr,
       unsigned int flags);
 
   BaseObjectPtr<QuicSession> FindSession(const QuicCID& cid);
@@ -417,8 +426,8 @@ class QuicSocket : public AsyncWrap,
   inline void IncrementSocketAddressCounter(const SocketAddress& addr);
   inline void DecrementSocketAddressCounter(const SocketAddress& addr);
   inline void IncrementStatelessResetCounter(const SocketAddress& addr);
-  inline size_t GetCurrentSocketAddressCounter(const sockaddr* addr);
-  inline size_t GetCurrentStatelessResetCounter(const sockaddr* addr);
+  inline size_t GetCurrentSocketAddressCounter(const SocketAddress& addr);
+  inline size_t GetCurrentStatelessResetCounter(const SocketAddress& addr);
 
   // Returns true if, and only if, diagnostic packet loss is enabled
   // and the current packet should be artificially considered lost.
@@ -506,7 +515,16 @@ class QuicSocket : public AsyncWrap,
 
   // Counts the number of stateless resets sent per
   // remote address.
+  // TODO(@jasnell): this counter persists through the
+  // lifetime of the QuicSocket, and therefore can become
+  // a possible risk. Specifically, a malicious peer could
+  // attempt the local peer to count an increasingly large
+  // number of remote addresses. Need to mitigate the
+  // potential risk.
   SocketAddress::Map<size_t> reset_counts_;
+
+  // Counts the number of retry attempts sent per
+  // remote address.
 
   StatelessResetToken::Map<QuicSession> token_map_;
 

@@ -107,7 +107,7 @@ void QuicSessionConfig::ResetToDefaults(Environment* env) {
   transport_params.initial_max_streams_uni =
       DEFAULT_MAX_STREAMS_UNI;
   transport_params.initial_max_data = DEFAULT_MAX_DATA;
-  transport_params.idle_timeout = DEFAULT_IDLE_TIMEOUT;
+  transport_params.max_idle_timeout = DEFAULT_MAX_IDLE_TIMEOUT;
   transport_params.active_connection_id_limit =
       DEFAULT_MAX_ACTIVE_CONNECTION_ID_LIMIT;
   transport_params.max_packet_size =
@@ -138,8 +138,8 @@ void QuicSessionConfig::Set(
             &transport_params.initial_max_streams_bidi);
   SetConfig(env, IDX_QUIC_SESSION_MAX_STREAMS_UNI,
             &transport_params.initial_max_streams_uni);
-  SetConfig(env, IDX_QUIC_SESSION_IDLE_TIMEOUT,
-            &transport_params.idle_timeout);
+  SetConfig(env, IDX_QUIC_SESSION_MAX_IDLE_TIMEOUT,
+            &transport_params.max_idle_timeout);
   SetConfig(env, IDX_QUIC_SESSION_MAX_PACKET_SIZE,
             &transport_params.max_packet_size);
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACK_DELAY,
@@ -147,7 +147,8 @@ void QuicSessionConfig::Set(
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACTIVE_CONNECTION_ID_LIMIT,
             &transport_params.active_connection_id_limit);
 
-  transport_params.idle_timeout = transport_params.idle_timeout * 1000000000;
+  transport_params.max_idle_timeout =
+      transport_params.max_idle_timeout * 1000000000;
 
   // TODO(@jasnell): QUIC allows both IPv4 and IPv6 addresses to be
   // specified. Here we're specifying one or the other. Need to
@@ -1261,13 +1262,12 @@ QuicSession::QuicSession(
     Local<Object> wrap,
     const QuicCID& rcid,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     const QuicCID& dcid,
     const QuicCID& ocid,
     uint32_t version,
     const std::string& alpn,
     uint32_t options,
-    uint64_t initial_connection_close,
     QlogMode qlog)
   : QuicSession(
         NGTCP2_CRYPTO_SIDE_SERVER,
@@ -1279,8 +1279,7 @@ QuicSession::QuicSession(
         std::string(""),  // empty hostname. not used on server side
         rcid,
         options,
-        nullptr,  // Not used on server sessions
-        initial_connection_close) {
+        nullptr) {
   // The config is copied by assignment in the call below.
   InitServer(config, local_addr, remote_addr, dcid, ocid, version, qlog);
 }
@@ -1290,7 +1289,7 @@ QuicSession::QuicSession(
     QuicSocket* socket,
     v8::Local<v8::Object> wrap,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     SecureContext* context,
     Local<Value> early_transport_params,
     Local<Value> session_ticket,
@@ -1332,8 +1331,7 @@ QuicSession::QuicSession(
     const std::string& hostname,
     const QuicCID& rcid,
     uint32_t options,
-    PreferredAddressStrategy preferred_address_strategy,
-    uint64_t initial_connection_close)
+    PreferredAddressStrategy preferred_address_strategy)
   : AsyncWrap(socket->env(), wrap, provider_type),
     StatsBase(socket->env(), wrap,
               HistogramOptions::ACK |
@@ -1342,7 +1340,6 @@ QuicSession::QuicSession(
     socket_(socket),
     alpn_(alpn),
     hostname_(hostname),
-    initial_connection_close_(initial_connection_close),
     idle_(new Timer(socket->env(), [this]() { OnIdleTimeout(); })),
     retransmit_(new Timer(socket->env(), [this]() { MaybeTimeout(); })),
     rcid_(rcid),
@@ -1726,7 +1723,7 @@ bool QuicSession::Receive(
     ssize_t nread,
     const uint8_t* data,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     unsigned int flags) {
   if (is_flag_set(QUICSESSION_FLAG_DESTROYED)) {
     Debug(this, "Ignoring packet because session is destroyed");
@@ -1791,21 +1788,10 @@ bool QuicSession::Receive(
     HandleScope handle_scope(env()->isolate());
     InternalCallbackScope callback_scope(this);
     if (!ReceivePacket(&path, data, nread)) {
-      if (initial_connection_close_ == NGTCP2_NO_ERROR) {
-        Debug(this, "Failure processing received packet (code %" PRIu64 ")",
-              last_error().code);
-        HandleError();
-        return false;
-      }
-      // When initial_connection_close_ is some value other than
-      // NGTCP2_NO_ERROR, then the QuicSession is going to be
-      // immediately responded to with a CONNECTION_CLOSE and
-      // no additional processing will be performed.
-      Debug(this, "Initial connection close with code %" PRIu64,
-            initial_connection_close_);
-      set_last_error(QUIC_ERROR_SESSION, initial_connection_close_);
-      SendConnectionClose();
-      return true;
+      Debug(this, "Failure processing received packet (code %" PRIu64 ")",
+            last_error().code);
+      HandleError();
+      return false;
     }
   }
 
@@ -1850,8 +1836,7 @@ bool QuicSession::ReceiveClientInitial(const QuicCID& dcid) {
   if (UNLIKELY(is_flag_set(QUICSESSION_FLAG_DESTROYED)))
     return false;
   Debug(this, "Receiving client initial parameters.");
-  return DeriveAndInstallInitialKey(this, dcid) &&
-         initial_connection_close_ == NGTCP2_NO_ERROR;
+  return DeriveAndInstallInitialKey(this, dcid);
 }
 
 // Performs intake processing on a received QUIC packet. The received
@@ -1884,12 +1869,7 @@ bool QuicSession::ReceivePacket(
         // address validation by sending a Retry packet
         // then immediately close the connection.
         if (err == NGTCP2_ERR_RETRY && is_server()) {
-          socket()->SendRetry(
-              negotiated_version(),
-              scid_,
-              rcid_,
-              local_address_,
-              remote_address_.data());
+          socket()->SendRetry(scid_, rcid_, local_address_, remote_address_);
           ImmediateClose();
           break;
         }
@@ -2508,55 +2488,18 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   StatsBase::StatsMemoryInfo(tracker);
 }
 
-// When an initial packet is received by a QuicSocket, and there
-// is not an existing server QuicSession instance to handle it,
-// the QuicSocket will call QuicSession::Accept to determine if
-// the initial packet is valid and should continue to be processed.
-QuicSession::InitialPacketResult QuicSession::Accept(
-    ngtcp2_pkt_hd* hd,
-    uint32_t version,
-    const uint8_t* data,
-    ssize_t nread) {
-  // All QUIC packets have a header. That header is either long
-  // or short. Long headers are used in initial packets, short
-  // headers are used after the TLS handshake has been completed.
-  // If the received packet is smaller than the smallest allowable
-  // size for an initial QUIC packet, we're not going to process it
-  if (static_cast<size_t>(nread) < kMinInitialQuicPktSize)
-    return PACKET_IGNORE;
-
-  switch (ngtcp2_accept(hd, data, nread)) {
-    case -1:
-      return PACKET_IGNORE;
-    case 1:
-      return PACKET_VERSION;
-  }
-
-  if (hd->type == NGTCP2_PKT_0RTT)
-    return PACKET_RETRY;
-
-  // Currently, we only understand one version of the QUIC
-  // protocol, but that could change in the future. If it
-  // does change, the following check needs to be updated
-  // to check against a range of possible versions.
-  // See NGTCP2_PROTO_VER and NGTCP2_PROTO_VER_MAX in the
-  // ngtcp2.h header file for more details.
-  return version != NGTCP2_PROTO_VER ? PACKET_VERSION : PACKET_OK;
-}
-
 // Static function to create a new server QuicSession instance
 BaseObjectPtr<QuicSession> QuicSession::CreateServer(
     QuicSocket* socket,
     const QuicSessionConfig& config,
     const QuicCID& rcid,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     const QuicCID& dcid,
     const QuicCID& ocid,
     uint32_t version,
     const std::string& alpn,
     uint32_t options,
-    uint64_t initial_connection_close,
     QlogMode qlog) {
   Local<Object> obj;
   if (!socket->env()
@@ -2577,7 +2520,6 @@ BaseObjectPtr<QuicSession> QuicSession::CreateServer(
           version,
           alpn,
           options,
-          initial_connection_close,
           qlog);
 
   session->AddToSocket(socket);
@@ -2588,7 +2530,7 @@ BaseObjectPtr<QuicSession> QuicSession::CreateServer(
 void QuicSession::InitServer(
     QuicSessionConfig config,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     const QuicCID& dcid,
     const QuicCID& ocid,
     uint32_t version,
@@ -2697,7 +2639,7 @@ void QuicSession::UpdateDataStats() {
 BaseObjectPtr<QuicSession> QuicSession::CreateClient(
     QuicSocket* socket,
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     SecureContext* context,
     Local<Value> early_transport_params,
     Local<Value> session_ticket,
@@ -2742,7 +2684,7 @@ BaseObjectPtr<QuicSession> QuicSession::CreateClient(
 // ability to provide an explicit dcid (this should be rare)
 bool QuicSession::InitClient(
     const SocketAddress& local_addr,
-    const struct sockaddr* remote_addr,
+    const SocketAddress& remote_addr,
     Local<Value> early_transport_params,
     Local<Value> session_ticket,
     Local<Value> dcid_value,
@@ -2759,7 +2701,7 @@ bool QuicSession::InitClient(
   // by the IP version (IPv4 vs IPv6). Packet sizes
   // should be limited to the maximum MTU necessary to
   // prevent IP fragmentation.
-  max_pktlen_ = GetMaxPktLen(remote_addr);
+  max_pktlen_ = GetMaxPktLen(remote_address_);
 
   QuicSessionConfig config(env());
   ExtendMaxStreamsBidi(DEFAULT_MAX_STREAMS_BIDI);
@@ -3003,6 +2945,17 @@ int QuicSession::OnHandshakeCompleted(
   QuicSession* session = static_cast<QuicSession*>(user_data);
   QuicSession::Ngtcp2CallbackScope callback_scope(session);
   session->HandshakeCompleted();
+  return 0;
+}
+
+// Called by ngtcp2 for clients when the handshake has been
+// confirmed. Confirmation occurs *after* handshake completion.
+int QuicSession::OnHandshakeConfirmed(
+    ngtcp2_conn* conn,
+    void* user_data) {
+  QuicSession* session = static_cast<QuicSession*>(user_data);
+  QuicSession::Ngtcp2CallbackScope callback_scope(session);
+  session->HandshakeConfirmed();
   return 0;
 }
 
@@ -3299,7 +3252,8 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnExtendMaxStreamsRemoteBidi,
     OnExtendMaxStreamsRemoteUni,
     OnExtendMaxStreamData,
-    OnConnectionIDStatus
+    OnConnectionIDStatus,
+    OnHandshakeConfirmed
   },
   // NGTCP2_CRYPTO_SIDE_SERVER
   {
@@ -3330,7 +3284,8 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnExtendMaxStreamsRemoteBidi,
     OnExtendMaxStreamsRemoteUni,
     OnExtendMaxStreamData,
-    OnConnectionIDStatus
+    OnConnectionIDStatus,
+    nullptr,  // handshake_confirmed
   }
 };
 
@@ -3466,7 +3421,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
   uint32_t port;
   uint32_t flags;
   SecureContext* sc;
-  sockaddr_storage addr;
+  SocketAddress remote_addr;
 
   uint32_t options = QUICCLIENTSESSION_OPTION_VERIFY_HOSTNAME_IDENTITY;
   std::string alpn(NGTCP2_ALPN_H3);
@@ -3495,7 +3450,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value servername(env->isolate(), args[6]);
   std::string hostname(*servername);
 
-  CHECK_NOT_NULL(SocketAddress::ToSockAddr(family, *address, port, &addr));
+  SocketAddress::New(*address, port, family, &remote_addr);
 
   if (args[11]->IsString()) {
     Utf8Value val(env->isolate(), args[11]);
@@ -3510,7 +3465,7 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
       QuicSession::CreateClient(
           socket,
           socket->local_address(),
-          const_cast<const sockaddr*>(reinterpret_cast<sockaddr*>(&addr)),
+          remote_addr,
           sc,
           args[7],
           args[8],

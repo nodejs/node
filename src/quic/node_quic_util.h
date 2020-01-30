@@ -45,7 +45,7 @@ constexpr uint64_t DEFAULT_MAX_DATA = 1 * 1024 * 1024;
 constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS_PER_HOST = 10;
 constexpr uint64_t DEFAULT_MAX_STREAMS_BIDI = 100;
 constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
-constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 10;
+constexpr uint64_t DEFAULT_MAX_IDLE_TIMEOUT = 10;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10ULL;
 
 
@@ -207,7 +207,7 @@ struct QuicError {
 
 // Helper function that returns the maximum QUIC packet size for
 // the given socket address.
-inline size_t GetMaxPktLen(const sockaddr* addr);
+inline size_t GetMaxPktLen(const SocketAddress& addr);
 
 // QuicPath is a utility class that wraps ngtcp2_path to adapt
 // it to work with SocketAddress

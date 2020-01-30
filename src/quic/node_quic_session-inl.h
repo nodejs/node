@@ -247,7 +247,14 @@ uint32_t QuicSession::negotiated_version() const {
 void QuicSession::HandshakeCompleted() {
   Debug(this, "Handshake is completed");
   RecordTimestamp(&QuicSessionStats::handshake_completed_at);
+  if (is_server()) HandshakeConfirmed();
   listener()->OnHandshakeCompleted();
+}
+
+void QuicSession::HandshakeConfirmed() {
+  Debug(this, "Handshake is confirmed");
+  RecordTimestamp(&QuicSessionStats::handshake_confirmed_at);
+  state_[IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED] = 1;
 }
 
 bool QuicSession::is_handshake_completed() const {

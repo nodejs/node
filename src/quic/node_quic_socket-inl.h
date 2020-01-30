@@ -139,13 +139,13 @@ void QuicSocket::DecrementSocketAddressCounter(const SocketAddress& addr) {
   }
 }
 
-size_t QuicSocket::GetCurrentSocketAddressCounter(const sockaddr* addr) {
-  auto it = addr_counts_.find(SocketAddress(addr));
+size_t QuicSocket::GetCurrentSocketAddressCounter(const SocketAddress& addr) {
+  auto it = addr_counts_.find(addr);
   return it == std::end(addr_counts_) ? 0 : it->second;
 }
 
-size_t QuicSocket::GetCurrentStatelessResetCounter(const sockaddr* addr) {
-  auto it = reset_counts_.find(SocketAddress(addr));
+size_t QuicSocket::GetCurrentStatelessResetCounter(const SocketAddress& addr) {
+  auto it = reset_counts_.find(addr);
   return it == std::end(reset_counts_) ? 0 : it->second;
 }
 
@@ -174,7 +174,7 @@ bool QuicSocket::ToggleStatelessReset() {
   return !is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
 }
 
-void QuicSocket::set_validated_address(const sockaddr* addr) {
+void QuicSocket::set_validated_address(const SocketAddress& addr) {
   if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     // Remove the oldest item if we've hit the LRU limit
     validated_addrs_.push_back(SocketAddress::Hash()(addr));
@@ -183,7 +183,7 @@ void QuicSocket::set_validated_address(const sockaddr* addr) {
   }
 }
 
-bool QuicSocket::is_validated_address(const sockaddr* addr) const {
+bool QuicSocket::is_validated_address(const SocketAddress& addr) const {
   if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     auto res = std::find(std::begin(validated_addrs_),
                          std::end(validated_addrs_),

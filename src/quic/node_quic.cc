@@ -149,7 +149,7 @@ void Initialize(Local<Object> target,
   V(IDX_HTTP3_MAX_HEADER_LENGTH)                                               \
   V(IDX_HTTP3_CONFIG_COUNT)                                                    \
   V(IDX_QUIC_SESSION_ACTIVE_CONNECTION_ID_LIMIT)                               \
-  V(IDX_QUIC_SESSION_IDLE_TIMEOUT)                                             \
+  V(IDX_QUIC_SESSION_MAX_IDLE_TIMEOUT)                                         \
   V(IDX_QUIC_SESSION_MAX_DATA)                                                 \
   V(IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_LOCAL)                               \
   V(IDX_QUIC_SESSION_MAX_STREAM_DATA_BIDI_REMOTE)                              \
@@ -171,6 +171,7 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI)                                    \
   V(IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT)                                      \
   V(IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT)                                    \
+  V(IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED)                                \
   V(MAX_RETRYTOKEN_EXPIRATION)                                                 \
   V(MIN_RETRYTOKEN_EXPIRATION)                                                 \
   V(NGTCP2_APP_NOERROR)                                                        \

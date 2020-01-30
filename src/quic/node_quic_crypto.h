@@ -17,6 +17,7 @@ namespace quic {
 
 // Forward declaration
 class QuicSession;
+class QuicPacket;
 
 #define NGTCP2_ERR(V) (V != 0)
 #define NGTCP2_OK(V) (V == 0)
@@ -78,12 +79,12 @@ bool GenerateResetToken(
 //   * be specific to the client address
 //   * be specific to the original cid
 //   * contain random data.
-bool GenerateRetryToken(
-    uint8_t* token,
-    size_t* tokenlen,
-    const sockaddr* addr,
-    const QuicCID& ocid,
-    const uint8_t* token_secret);
+std::unique_ptr<QuicPacket> GenerateRetryPacket(
+    const uint8_t* token_secret,
+    const QuicCID& dcid,
+    const QuicCID& scid,
+    const SocketAddress& local_addr,
+    const SocketAddress& remote_addr);
 
 uint32_t GenerateFlowLabel(
     const SocketAddress& local,
@@ -95,9 +96,8 @@ uint32_t GenerateFlowLabel(
 // Verifies the validity of a retry token. Returns true if the
 // token is not valid, false otherwise.
 bool InvalidRetryToken(
-    const uint8_t* token,
-    size_t tokenlen,
-    const sockaddr* addr,
+    const ngtcp2_pkt_hd& hd,
+    const SocketAddress& addr,
     QuicCID* ocid,
     const uint8_t* token_secret,
     uint64_t verification_expiration);

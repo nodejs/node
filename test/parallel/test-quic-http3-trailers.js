@@ -24,7 +24,7 @@ const countdown = new Countdown(1, () => {
   client.close();
 });
 
-server.listen({ key, cert, ca, alpn: 'h3-24' });
+server.listen({ key, cert, ca, alpn: 'h3-25' });
 
 server.on('session', common.mustCall((session) => {
 
@@ -60,7 +60,7 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  client = createSocket({ client: { key, cert, ca, alpn: 'h3-24' } });
+  client = createSocket({ client: { key, cert, ca, alpn: 'h3-25' } });
   client.on('close', common.mustCall());
 
   const req = client.connect({
