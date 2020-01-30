@@ -624,7 +624,7 @@ Windows in the same way they would on Unix systems.
 
 ```js
 // Importing a local module with a path relative to the `__dirname` or current
-// working directory (on Windows this would resolve to .\\path\\myLocalModule):
+// working directory (on Windows this would resolve to .\path\myLocalModule):
 const myLocalModule = require('./path/myLocalModule');
 
 // Importing a JSON file:
