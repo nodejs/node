@@ -264,7 +264,7 @@ class ThreadPoolWork {
   virtual void DoThreadPoolWork() = 0;
   virtual void AfterThreadPoolWork(int status) = 0;
 
-  Environment* get_env() const {
+  Environment* env() const {
     return env_;
   }
 
