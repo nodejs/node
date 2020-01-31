@@ -29,7 +29,7 @@ try {
 }
 const napi = napi_binding.hello;
 
-var c = 0;
+let c = 0;
 function js() {
   return c++;
 }
@@ -44,7 +44,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, type }) {
   const fn = type === 'cxx' ? cxx : type === 'napi' ? napi : js;
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     fn();
   }
   bench.end(n);

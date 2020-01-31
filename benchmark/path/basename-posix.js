@@ -19,7 +19,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, pathext }) {
-  var ext;
+  let ext;
   const extIdx = pathext.indexOf('|');
   if (extIdx !== -1) {
     ext = pathext.slice(extIdx + 1);

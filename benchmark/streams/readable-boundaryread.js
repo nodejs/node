@@ -10,14 +10,14 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, type }) {
   const s = new Readable();
-  var data = 'a'.repeat(32);
+  let data = 'a'.repeat(32);
   if (type === 'buffer')
     data = Buffer.from(data);
   s._read = function() {};
 
   bench.start();
-  for (var k = 0; k < n; ++k) {
-    for (var i = 0; i < 1e4; ++i)
+  for (let k = 0; k < n; ++k) {
+    for (let i = 0; i < 1e4; ++i)
       s.push(data);
     while (s.read(32));
   }
