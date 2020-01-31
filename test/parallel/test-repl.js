@@ -549,6 +549,7 @@ const errorTests = [
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,
+      /^    at .*/,
       "  code: 'MODULE_NOT_FOUND',",
       "  requireStack: [ '<repl>' ]",
       '}'
