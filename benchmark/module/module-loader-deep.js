@@ -37,14 +37,13 @@ function main({ ext, cache, files }) {
 }
 
 function measureDir(cache, files) {
-  var i;
   if (cache) {
-    for (i = 0; i <= files; i++) {
+    for (let i = 0; i <= files; i++) {
       require(`${benchmarkDirectory}/${i}`);
     }
   }
   bench.start();
-  for (i = 0; i <= files; i++) {
+  for (let i = 0; i <= files; i++) {
     require(`${benchmarkDirectory}/${i}`);
   }
   bench.end(files);

@@ -24,7 +24,7 @@ function main({ dur, len, type }) {
   const PORT = common.PORT;
 
   const serverHandle = new TCP(TCPConstants.SERVER);
-  var err = serverHandle.bind('127.0.0.1', PORT);
+  let err = serverHandle.bind('127.0.0.1', PORT);
   if (err)
     fail(err, 'bind');
 
@@ -38,7 +38,7 @@ function main({ dur, len, type }) {
 
     // The meat of the benchmark is right here:
     bench.start();
-    var bytes = 0;
+    let bytes = 0;
 
     setTimeout(() => {
       // report in Gb/sec
@@ -67,7 +67,7 @@ function main({ dur, len, type }) {
   }
 
   function client(type, len) {
-    var chunk;
+    let chunk;
     switch (type) {
       case 'buf':
         chunk = Buffer.alloc(len, 'x');
@@ -102,7 +102,7 @@ function main({ dur, len, type }) {
     function write() {
       const writeReq = new WriteWrap();
       writeReq.oncomplete = afterWrite;
-      var err;
+      let err;
       switch (type) {
         case 'buf':
           err = clientHandle.writeBuffer(writeReq, chunk);
