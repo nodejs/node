@@ -32,6 +32,8 @@ class JSStream : public AsyncWrap, public StreamBase {
   SET_MEMORY_INFO_NAME(JSStream)
   SET_SELF_SIZE(JSStream)
 
+  Environment* env() const { return AsyncWrap::env(); }
+
  protected:
   JSStream(Environment* env, v8::Local<v8::Object> obj);
 

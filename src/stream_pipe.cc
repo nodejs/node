@@ -16,7 +16,7 @@ namespace node {
 StreamPipe::StreamPipe(StreamBase* source,
                        StreamBase* sink,
                        Local<Object> obj)
-    : AsyncWrap(source->stream_env(), obj, AsyncWrap::PROVIDER_STREAMPIPE) {
+    : AsyncWrap(source->env(), obj, AsyncWrap::PROVIDER_STREAMPIPE) {
   MakeWeak();
 
   CHECK_NOT_NULL(sink);

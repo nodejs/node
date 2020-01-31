@@ -56,6 +56,10 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
               size_t count,
               uv_stream_t* send_handle) override;
 
+  inline Environment* env() const {
+    return AsyncWrap::env();
+  }
+
   inline uv_stream_t* stream() const {
     return stream_;
   }

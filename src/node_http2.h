@@ -458,6 +458,7 @@ class Http2Stream : public AsyncWrap,
 
   nghttp2_stream* operator*();
 
+  Environment* env() const { return AsyncWrap::env(); }
   Http2Session* session() { return session_.get(); }
   const Http2Session* session() const { return session_.get(); }
 

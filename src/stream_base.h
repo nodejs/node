@@ -296,9 +296,7 @@ class StreamBase : public StreamResource {
       size_t offset = 0,
       StreamBaseJSChecks checks = DONT_SKIP_NREAD_CHECKS);
 
-  // This is named `stream_env` to avoid name clashes, because a lot of
-  // subclasses are also `BaseObject`s.
-  Environment* stream_env() const;
+  Environment* env() const;
 
   // Shut down the current stream. This request can use an existing
   // ShutdownWrap object (that was created in JS), or a new one will be created.

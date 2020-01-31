@@ -56,6 +56,8 @@ class TLSWrap : public AsyncWrap,
                          v8::Local<v8::Context> context,
                          void* priv);
 
+  Environment* env() const { return AsyncWrap::env(); }
+
   // Implement StreamBase:
   bool IsAlive() override;
   bool IsClosing() override;

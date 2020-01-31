@@ -140,19 +140,17 @@ inline StreamBase::StreamBase(Environment* env) : env_(env) {
   PushStreamListener(&default_listener_);
 }
 
-inline Environment* StreamBase::stream_env() const {
+inline Environment* StreamBase::env() const {
   return env_;
 }
 
 inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
-  Environment* env = stream_env();
-
-  HandleScope handle_scope(env->isolate());
+  HandleScope handle_scope(env()->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
-    if (!env->shutdown_wrap_template()
-             ->NewInstance(env->context())
-             .ToLocal(&req_wrap_obj)) {
+    if (!env()->shutdown_wrap_template()
+               ->NewInstance(env()->context())
+               .ToLocal(&req_wrap_obj)) {
       return UV_EBUSY;
     }
     StreamReq::ResetObject(req_wrap_obj);
@@ -169,8 +167,8 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   const char* msg = Error();
   if (msg != nullptr) {
     req_wrap_obj->Set(
-        env->context(),
-        env->error_string(), OneByteString(env->isolate(), msg)).Check();
+        env()->context(),
+        env()->error_string(), OneByteString(env()->isolate(), msg)).Check();
     ClearError();
   }
 
@@ -182,7 +180,6 @@ inline StreamWriteResult StreamBase::Write(
     size_t count,
     uv_stream_t* send_handle,
     v8::Local<v8::Object> req_wrap_obj) {
-  Environment* env = stream_env();
   int err;
 
   size_t total_bytes = 0;
@@ -197,12 +194,12 @@ inline StreamWriteResult StreamBase::Write(
     }
   }
 
-  HandleScope handle_scope(env->isolate());
+  HandleScope handle_scope(env()->isolate());
 
   if (req_wrap_obj.IsEmpty()) {
-    if (!env->write_wrap_template()
-             ->NewInstance(env->context())
-             .ToLocal(&req_wrap_obj)) {
+    if (!env()->write_wrap_template()
+               ->NewInstance(env()->context())
+               .ToLocal(&req_wrap_obj)) {
       return StreamWriteResult { false, UV_EBUSY, nullptr, 0 };
     }
     StreamReq::ResetObject(req_wrap_obj);
@@ -221,9 +218,9 @@ inline StreamWriteResult StreamBase::Write(
 
   const char* msg = Error();
   if (msg != nullptr) {
-    req_wrap_obj->Set(env->context(),
-                      env->error_string(),
-                      OneByteString(env->isolate(), msg)).Check();
+    req_wrap_obj->Set(env()->context(),
+                      env()->error_string(),
+                      OneByteString(env()->isolate(), msg)).Check();
     ClearError();
   }
 
@@ -235,9 +232,7 @@ SimpleShutdownWrap<OtherBase>::SimpleShutdownWrap(
     StreamBase* stream,
     v8::Local<v8::Object> req_wrap_obj)
   : ShutdownWrap(stream, req_wrap_obj),
-    OtherBase(stream->stream_env(),
-              req_wrap_obj,
-              AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
+    OtherBase(stream->env(), req_wrap_obj, AsyncWrap::PROVIDER_SHUTDOWNWRAP) {
 }
 
 inline ShutdownWrap* StreamBase::CreateShutdownWrap(
@@ -250,9 +245,7 @@ SimpleWriteWrap<OtherBase>::SimpleWriteWrap(
     StreamBase* stream,
     v8::Local<v8::Object> req_wrap_obj)
   : WriteWrap(stream, req_wrap_obj),
-    OtherBase(stream->stream_env(),
-              req_wrap_obj,
-              AsyncWrap::PROVIDER_WRITEWRAP) {
+    OtherBase(stream->env(), req_wrap_obj, AsyncWrap::PROVIDER_WRITEWRAP) {
 }
 
 inline WriteWrap* StreamBase::CreateWriteWrap(
