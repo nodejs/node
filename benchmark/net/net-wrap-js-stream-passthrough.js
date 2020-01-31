@@ -12,8 +12,8 @@ const bench = common.createBenchmark(main, {
   flags: ['--expose-internals']
 });
 
-var chunk;
-var encoding;
+let chunk;
+let encoding;
 
 function main({ dur, len, type }) {
   // Can only require internals inside main().
