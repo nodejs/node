@@ -331,6 +331,11 @@ results in the addons being compiled with the debug option.
 If the native addon contains pre-built binaries you will need to force
 a rebuild.
 
+```console
+npm install --debug
+npm rebuild
+```
+
 The next step is to run valgrind after the rebuild. This time the information
 for the leaking location includes the name of the source file and the
 line number:
