@@ -16,7 +16,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, path }) {
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     win32.isAbsolute(i % 3 === 0 ? `${path}${i}` : path);
   }
   bench.end(n);

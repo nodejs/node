@@ -21,7 +21,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, name, cache, files, dir }) {
   tmpdir.refresh();
   fs.mkdirSync(benchmarkDirectory);
-  for (var i = 0; i <= files; i++) {
+  for (let i = 0; i <= files; i++) {
     fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
       `${benchmarkDirectory}${i}/package.json`,
@@ -42,15 +42,14 @@ function main({ n, name, cache, files, dir }) {
 }
 
 function measureDir(n, cache, files, name) {
-  var i;
   if (cache) {
-    for (i = 0; i <= files; i++) {
+    for (let i = 0; i <= files; i++) {
       require(`${benchmarkDirectory}${i}${name}`);
     }
   }
   bench.start();
-  for (i = 0; i <= files; i++) {
-    for (var j = 0; j < n; j++)
+  for (let i = 0; i <= files; i++) {
+    for (let j = 0; j < n; j++)
       require(`${benchmarkDirectory}${i}${name}`);
     // Pretend mixed input (otherwise the results are less representative due to
     // highly specialized code).
