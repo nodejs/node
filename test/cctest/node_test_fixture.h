@@ -70,6 +70,7 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
 
   static void SetUpTestCase() {
     if (!node_initialized) {
+      uv_os_unsetenv("NODE_OPTIONS");
       node_initialized = true;
       int argc = 1;
       const char* argv0 = "cctest";
