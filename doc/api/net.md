@@ -895,7 +895,7 @@ added: v0.1.90
 Sets the socket to timeout after `timeout` milliseconds of inactivity on
 the socket. By default `net.Socket` do not have a timeout.
 
- > Note: Prior to Node.js 13.0.0, [`http.Server`][], [`https.Server`][] and
+Prior to Node.js 13.0.0, [`http.Server`][], [`https.Server`][] and
  > [`http2.Http2Server`][] have a different default socket timeout value.
 
 When an idle timeout is triggered the socket will receive a [`'timeout'`][]
