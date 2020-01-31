@@ -282,7 +282,7 @@ world
 ==4174== ERROR SUMMARY: 5 errors from 5 contexts (suppressed: 0 from 0)
 ```
 
-This is the most interesting report:
+This is the most interesting part of the report:
 
 ```console
 ==4174== 997,000 bytes in 997 blocks are definitely lost in loss record 35 of 35
