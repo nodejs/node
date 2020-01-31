@@ -408,7 +408,7 @@ git checkout v12.14.1
 For example, on *nix:
 ```console
 ./configure --debug
-make  -j4
+make -j4
 ```
 * Make sure to run with your compiled debug version of Node.js. Having used
  `./configure --debug`, two binaries will have been built when `make` was run.
