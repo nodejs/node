@@ -87,9 +87,12 @@ user1@minikube1:~/valgrind/node-addon-examples/1_hello_world/napi$ valgrind node
 
 This reports that Node.js is not _completely_ clean as there is some memory
 that was allocated but not freed when the process shut down. It is often
-impractical/not worth being completely clean in this respect and Node.js
-does a pretty good job only leaving on the order of 6KB that are
-not freed on shutdown.
+impractical/not worth being completely clean in this respect. Modern
+operating systems will clean up the memory of the process after the
+shutdown while attemping to fre all memory to get a clean
+report may have a negative impact on the code complexity and
+shutdown times. Node.js does a pretty good job only leaving on
+the order of 6KB that are not freed on shutdown. 
 
 ## An obvious memory leak
 
@@ -119,10 +122,15 @@ napi_value Method(napi_env env, napi_callback_info info) {
 
 When trying to create a memory leak you need to ensure that
 the compiler has not optimized out the code that creates
-the leak. For example, assigning the result of `malloc()` to either a
-global variable or a variable that is read the compiler will optimize
-out the loop with the malloc and valgrind does not report
-a problem (since it no longer exists in the code being run).
+the leak. For example, by assigning the result of the allocation
+to either a global variable or a variable that will be read
+afterwards the compiler will not optimize it out along with
+the malloc and Valgrind will properly report the memory leak. 
+If `malloc_holder` in the example above is made into a
+local variable then the compiler may freely remove
+it along with the allocations (since it is not used)
+and Valgrind will not find any leaks since they
+will no longer exist in the code being run.
 
 Running valgrind on this code shows the following:
 
