@@ -588,12 +588,12 @@ void AfterOpenFileHandle(uv_fs_t* req) {
 
 // Reverse the logic applied by path.toNamespacedPath() to create a
 // namespace-prefixed path.
-void FromNamespacedPath(std::string* path) {
+void FromNamespacedPath(std::string& path) {
 #ifdef _WIN32
-  if (path->compare(0, 4, "\\\\?\\", 4) == 0)
-    *path = path->substr(4);
+  if (path.compare(0, 4, "\\\\?\\", 4) == 0)
+    path = path.substr(4);
   else if (path.compare(0, 8, "\\\\?\\UNC\\", 8) == 0)
-    *path = "\\\\" + path.substr(8);
+    path = "\\\\" + path.substr(8);
 #endif
 }
 
@@ -607,7 +607,7 @@ void AfterMkdirp(uv_fs_t* req) {
   if (after.Proceed()) {
     if (!req_wrap->continuation_data()->first_path().empty()) {
       std::string first_path(req_wrap->continuation_data()->first_path());
-      FromNamespacedPath(&first_path);
+      FromNamespacedPath(first_path);
       path = StringBytes::Encode(req_wrap->env()->isolate(), first_path.c_str(),
                                  req_wrap->encoding(),
                                  &error);
@@ -1458,7 +1458,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
           !req_wrap_sync.continuation_data()->first_path().empty()) {
         Local<Value> error;
         std::string first_path(req_wrap_sync.continuation_data()->first_path());
-        FromNamespacedPath(&first_path);
+        FromNamespacedPath(first_path);
         MaybeLocal<Value> path = StringBytes::Encode(env->isolate(),
                                                      first_path.c_str(),
                                                      UTF8, &error);
