@@ -3,7 +3,6 @@
 const common = require('../common');
 const assert = require('assert');
 const { codes: { ERR_OUT_OF_RANGE } } = require('internal/errors');
-const { internalBinding } = require('internal/test/binding');
 const SIZE = 28;
 
 const buf1 = Buffer.allocUnsafe(SIZE);
@@ -325,11 +324,6 @@ Buffer.alloc(8, '');
   assert.strictEqual(buf.toString(), 'էէէէէ');
 }
 
-// Testing process.binding. Make sure "start" is properly checked for -1 wrap
-// around.
-assert.strictEqual(
-  internalBinding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1), -2);
-
 // Make sure "end" is properly checked, even if it's magically mangled using
 // Symbol.toPrimitive.
 {
@@ -346,11 +340,6 @@ assert.strictEqual(
              'instance of Object'
   });
 }
-
-// Testing process.binding. Make sure "end" is properly checked for -1 wrap
-// around.
-assert.strictEqual(
-  internalBinding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1), -2);
 
 // Test that bypassing 'length' won't cause an abort.
 assert.throws(() => {
