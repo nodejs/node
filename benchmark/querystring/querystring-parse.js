@@ -10,23 +10,23 @@ const bench = common.createBenchmark(main, {
 
 function main({ type, n }) {
   const input = inputs[type];
-  var i;
+
   // Execute the function a "sufficient" number of times before the timed
   // loop to ensure the function is optimized just once.
   if (type === 'multicharsep') {
-    for (i = 0; i < n; i += 1)
+    for (let i = 0; i < n; i += 1)
       querystring.parse(input, '&&&&&&&&&&');
 
     bench.start();
-    for (i = 0; i < n; i += 1)
+    for (let i = 0; i < n; i += 1)
       querystring.parse(input, '&&&&&&&&&&');
     bench.end(n);
   } else {
-    for (i = 0; i < n; i += 1)
+    for (let i = 0; i < n; i += 1)
       querystring.parse(input);
 
     bench.start();
-    for (i = 0; i < n; i += 1)
+    for (let i = 0; i < n; i += 1)
       querystring.parse(input);
     bench.end(n);
   }
