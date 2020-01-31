@@ -256,6 +256,8 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
     CHECK_EQ(unreported_allocations_, 0);
   }
 
+  Environment* env() const { return AsyncWrap::env(); }
+
   void Close() {
     if (write_in_progress_) {
       pending_close_ = true;
