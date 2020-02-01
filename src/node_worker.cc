@@ -157,7 +157,7 @@ class WorkerThreadData {
     {
       Locker locker(isolate);
       Isolate::Scope isolate_scope(isolate);
-      // V8 computes its stack limit every time a `Locker` is used based on
+      // V8 computes its stack limit the first time a `Locker` is used based on
       // --stack-size. Reset it to the correct value.
       isolate->SetStackLimit(w->stack_base_);
 
