@@ -1442,7 +1442,7 @@ If the loop terminates with a `break` or a `throw`, the stream will be
 destroyed. In other terms, iterating over a stream will consume the stream
 fully. The stream will be read in chunks of size equal to the `highWaterMark`
 option. In the code example above, data will be in a single chunk if the file
-has less then 64kb of data because no `highWaterMark` option is provided to
+has less then 64KB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
 ### Duplex and Transform Streams
@@ -1830,7 +1830,7 @@ changes:
 * `options` {Object}
   * `highWaterMark` {number} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. **Default:**
-    `16384` (16kb), or `16` for `objectMode` streams.
+    `16384` (16KB), or `16` for `objectMode` streams.
   * `decodeStrings` {boolean} Whether to encode `string`s passed to
     [`stream.write()`][stream-write] to `Buffer`s (with the encoding
     specified in the [`stream.write()`][stream-write] call) before passing
@@ -2112,7 +2112,7 @@ changes:
 * `options` {Object}
   * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
     in the internal buffer before ceasing to read from the underlying resource.
-    **Default:** `16384` (16kb), or `16` for `objectMode` streams.
+    **Default:** `16384` (16KB), or `16` for `objectMode` streams.
   * `encoding` {string} If specified, then buffers will be decoded to
     strings using the specified encoding. **Default:** `null`.
   * `objectMode` {boolean} Whether this stream should behave
