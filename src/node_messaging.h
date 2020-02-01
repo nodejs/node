@@ -205,6 +205,7 @@ class MessagePort : public HandleWrap {
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;
   uv_async_t async_;
+  v8::Global<v8::Function> emit_message_fn_;
 
   friend class MessagePortData;
 };

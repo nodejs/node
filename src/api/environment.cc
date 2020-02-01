@@ -482,6 +482,7 @@ bool InitializeContextForSnapshot(Local<Context> context) {
 
     static const char* context_files[] = {"internal/per_context/primordials",
                                           "internal/per_context/domexception",
+                                          "internal/per_context/messageport",
                                           nullptr};
 
     for (const char** module = context_files; *module != nullptr; module++) {
