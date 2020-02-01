@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --no-concurrent-array-buffer-freeing
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -41,5 +42,5 @@ if (r.arrayBuffers > 0) {
   assert(after.external - r.external >= size,
          `${after.external} - ${r.external} >= ${size}`);
   assert.strictEqual(after.arrayBuffers - r.arrayBuffers, size,
-                     `${after.arrayBuffers} - ${r.arrayBuffers} >= ${size}`);
+                     `${after.arrayBuffers} - ${r.arrayBuffers} === ${size}`);
 }
