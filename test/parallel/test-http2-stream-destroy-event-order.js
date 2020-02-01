@@ -10,6 +10,7 @@ let req;
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   stream.on('error', common.mustCall(() => {
+    client.close();
     stream.on('close', common.mustCall(() => {
       server.close();
     }));
@@ -22,8 +23,6 @@ server.listen(0, common.mustCall(() => {
   req = client.request();
   req.resume();
   req.on('error', common.mustCall(() => {
-    req.on('close', common.mustCall(() => {
-      client.close();
-    }));
+    req.on('close', common.mustCall());
   }));
 }));
