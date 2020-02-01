@@ -51,7 +51,9 @@ overhead of creating Workers would likely exceed their benefit.
 
 When implementing a worker pool, use the [`AsyncResource`][] API to inform
 diagnostic tools (e.g. in order to provide asynchronous stack traces) about the
-correlation between tasks and their outcomes.
+correlation between tasks and their outcomes. See
+["Using `AsyncResource` for a `Worker` thread pool"][async-resource-worker-pool]
+in the `async_hooks` documentation for an example implementation.
 
 ## `worker.isMainThread`
 <!-- YAML
@@ -767,6 +769,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`worker.terminate()`]: #worker_threads_worker_terminate
 [`worker.threadId`]: #worker_threads_worker_threadid_1
 [Addons worker support]: addons.html#addons_worker_support
+[async-resource-worker-pool]: async_hooks.html#async-resource-worker-pool
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
 [Signals events]: process.html#process_signal_events
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
