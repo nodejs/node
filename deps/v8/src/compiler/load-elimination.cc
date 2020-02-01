@@ -21,7 +21,7 @@ bool IsRename(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kFinishRegion:
     case IrOpcode::kTypeGuard:
-      return true;
+      return !node->IsDead();
     default:
       return false;
   }
@@ -35,12 +35,14 @@ Node* ResolveRenames(Node* node) {
 }
 
 bool MayAlias(Node* a, Node* b) {
-  if (a == b) return true;
-  if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
-    return false;
-  }
-  switch (b->opcode()) {
-    case IrOpcode::kAllocate: {
+  if (a != b) {
+    if (!NodeProperties::GetType(a).Maybe(NodeProperties::GetType(b))) {
+      return false;
+    } else if (IsRename(b)) {
+      return MayAlias(a, b->InputAt(0));
+    } else if (IsRename(a)) {
+      return MayAlias(a->InputAt(0), b);
+    } else if (b->opcode() == IrOpcode::kAllocate) {
       switch (a->opcode()) {
         case IrOpcode::kAllocate:
         case IrOpcode::kHeapConstant:
@@ -49,16 +51,7 @@ bool MayAlias(Node* a, Node* b) {
         default:
           break;
       }
-      break;
-    }
-    case IrOpcode::kFinishRegion:
-    case IrOpcode::kTypeGuard:
-      return MayAlias(a, b->InputAt(0));
-    default:
-      break;
-  }
-  switch (a->opcode()) {
-    case IrOpcode::kAllocate: {
+    } else if (a->opcode() == IrOpcode::kAllocate) {
       switch (b->opcode()) {
         case IrOpcode::kHeapConstant:
         case IrOpcode::kParameter:
@@ -66,13 +59,7 @@ bool MayAlias(Node* a, Node* b) {
         default:
           break;
       }
-      break;
     }
-    case IrOpcode::kFinishRegion:
-    case IrOpcode::kTypeGuard:
-      return MayAlias(a->InputAt(0), b);
-    default:
-      break;
   }
   return true;
 }
