@@ -22,6 +22,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
+const { MessageChannel } = require('worker_threads');
 
 // setImmediate should run clear its queued cbs once per event loop turn
 // but immediates queued while processing the current queue should happen
@@ -30,18 +31,21 @@ const assert = require('assert');
 // hit should be the exact same size of QUEUE, if we're letting things
 // recursively add to the immediate QUEUE hit will be > QUEUE
 
+// We use MessagePorts to figure out whether the event loop has progressed
+// rather than timers because they are not subject to timer-precision-related
+// flakiness, see https://github.com/nodejs/node/issues/24497 for details.
 let ticked = false;
+{
+  const { port1, port2 } = new MessageChannel();
+  port1.onmessage = () => ticked = true;
+  port1.unref();
+  port2.postMessage('');
+}
 
 let hit = 0;
 const QUEUE = 10;
 
 function run() {
-  if (hit === 0) {
-    setTimeout(() => { ticked = true; }, 1);
-    const now = Date.now();
-    while (Date.now() - now < 2);
-  }
-
   if (ticked) return;
 
   hit += 1;
