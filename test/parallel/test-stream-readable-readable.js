@@ -39,7 +39,6 @@ const { Readable } = require('stream');
     })
   });
   r.resume();
-  r.on('error', common.mustCall());
   r.on('error', common.mustCall(() => {
     assert.strictEqual(r.readable, false);
   }));
