@@ -413,7 +413,6 @@ constexpr size_t kFsStatsBufferLength =
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
-  V(message_event_object_template, v8::ObjectTemplate)                         \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
