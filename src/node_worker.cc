@@ -245,10 +245,6 @@ void Worker::Run() {
   {
     Locker locker(isolate_);
     Isolate::Scope isolate_scope(isolate_);
-    // V8 computes its stack limit every time a `Locker` is used based on
-    // --stack-size. Reset it to the correct value.
-    isolate_->SetStackLimit(stack_base_);
-
     SealHandleScope outer_seal(isolate_);
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
