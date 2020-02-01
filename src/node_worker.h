@@ -100,9 +100,6 @@ class Worker : public AsyncWrap {
   std::unique_ptr<MessagePortData> child_port_data_;
   std::shared_ptr<KVStore> env_vars_;
 
-  // The child port is kept alive by the child Environment's persistent
-  // handle to it, as long as that child Environment exists.
-  MessagePort* child_port_ = nullptr;
   // This is always kept alive because the JS object associated with the Worker
   // instance refers to it via its [kPort] property.
   MessagePort* parent_port_ = nullptr;
