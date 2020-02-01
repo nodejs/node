@@ -6206,8 +6206,8 @@ void CryptoJob::AfterThreadPoolWork(int status) {
   CHECK(status == 0 || status == UV_ECANCELED);
   std::unique_ptr<CryptoJob> job(this);
   if (status == UV_ECANCELED) return;
-  HandleScope handle_scope(get_env()->isolate());
-  Context::Scope context_scope(get_env()->context());
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   CHECK_EQ(false, async_wrap->persistent().IsWeak());
   AfterThreadPoolWork();
 }
@@ -6248,12 +6248,12 @@ struct RandomBytesJob : public CryptoJob {
 
   inline void AfterThreadPoolWork() override {
     Local<Value> arg = ToResult();
-    async_wrap->MakeCallback(get_env()->ondone_string(), 1, &arg);
+    async_wrap->MakeCallback(env()->ondone_string(), 1, &arg);
   }
 
   inline Local<Value> ToResult() const {
-    if (errors.empty()) return Undefined(get_env()->isolate());
-    return errors.ToException(get_env()).ToLocalChecked();
+    if (errors.empty()) return Undefined(env()->isolate());
+    return errors.ToException(env()).ToLocalChecked();
   }
 };
 
@@ -6305,11 +6305,11 @@ struct PBKDF2Job : public CryptoJob {
 
   inline void AfterThreadPoolWork() override {
     Local<Value> arg = ToResult();
-    async_wrap->MakeCallback(get_env()->ondone_string(), 1, &arg);
+    async_wrap->MakeCallback(env()->ondone_string(), 1, &arg);
   }
 
   inline Local<Value> ToResult() const {
-    return Boolean::New(get_env()->isolate(), success.FromJust());
+    return Boolean::New(env()->isolate(), success.FromJust());
   }
 
   inline void Cleanse() {
@@ -6385,12 +6385,12 @@ struct ScryptJob : public CryptoJob {
 
   inline void AfterThreadPoolWork() override {
     Local<Value> arg = ToResult();
-    async_wrap->MakeCallback(get_env()->ondone_string(), 1, &arg);
+    async_wrap->MakeCallback(env()->ondone_string(), 1, &arg);
   }
 
   inline Local<Value> ToResult() const {
-    if (errors.empty()) return Undefined(get_env()->isolate());
-    return errors.ToException(get_env()).ToLocalChecked();
+    if (errors.empty()) return Undefined(env()->isolate());
+    return errors.ToException(env()).ToLocalChecked();
   }
 
   inline void Cleanse() {
@@ -6719,7 +6719,7 @@ class GenerateKeyPairJob : public CryptoJob {
   inline void AfterThreadPoolWork() override {
     Local<Value> args[3];
     ToResult(&args[0], &args[1], &args[2]);
-    async_wrap->MakeCallback(get_env()->ondone_string(), 3, args);
+    async_wrap->MakeCallback(env()->ondone_string(), 3, args);
   }
 
   inline void ToResult(Local<Value>* err,
@@ -6727,14 +6727,14 @@ class GenerateKeyPairJob : public CryptoJob {
                        Local<Value>* privkey) {
     if (pkey_ && EncodeKeys(pubkey, privkey)) {
       CHECK(errors_.empty());
-      *err = Undefined(get_env()->isolate());
+      *err = Undefined(env()->isolate());
     } else {
       if (errors_.empty())
         errors_.Capture();
       CHECK(!errors_.empty());
-      *err = errors_.ToException(get_env()).ToLocalChecked();
-      *pubkey = Undefined(get_env()->isolate());
-      *privkey = Undefined(get_env()->isolate());
+      *err = errors_.ToException(env()).ToLocalChecked();
+      *pubkey = Undefined(env()->isolate());
+      *privkey = Undefined(env()->isolate());
     }
   }
 
@@ -6743,21 +6743,21 @@ class GenerateKeyPairJob : public CryptoJob {
     if (public_key_encoding_.output_key_object_) {
       // Note that this has the downside of containing sensitive data of the
       // private key.
-      if (!KeyObject::Create(get_env(), kKeyTypePublic, pkey_).ToLocal(pubkey))
+      if (!KeyObject::Create(env(), kKeyTypePublic, pkey_).ToLocal(pubkey))
         return false;
     } else {
-      if (!WritePublicKey(get_env(), pkey_.get(), public_key_encoding_)
+      if (!WritePublicKey(env(), pkey_.get(), public_key_encoding_)
                .ToLocal(pubkey))
         return false;
     }
 
     // Now do the same for the private key.
     if (private_key_encoding_.output_key_object_) {
-      if (!KeyObject::Create(get_env(), kKeyTypePrivate, pkey_)
+      if (!KeyObject::Create(env(), kKeyTypePrivate, pkey_)
               .ToLocal(privkey))
         return false;
     } else {
-      if (!WritePrivateKey(get_env(), pkey_.get(), private_key_encoding_)
+      if (!WritePrivateKey(env(), pkey_.get(), private_key_encoding_)
                .ToLocal(privkey))
         return false;
     }
