@@ -15,7 +15,7 @@ async_hooks.createHook({
   }, 2)
 }).enable();
 
-const { port1, port2 } = new MessageChannel();
+const { port1 } = new MessageChannel();
 const inspection = util.inspect(port1);
 assert(inspection.includes('active: true'));
 assert(inspection.includes('refed: false'));
