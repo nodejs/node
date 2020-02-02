@@ -29,7 +29,6 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
-using v8::ObjectTemplate;
 using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Symbol;
