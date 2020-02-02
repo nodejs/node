@@ -1278,6 +1278,7 @@ int MKDirpSync(uv_loop_t* loop,
           }
           break;
         case UV_EACCES:
+        case UV_ENOTDIR:
         case UV_EPERM: {
           return err;
         }
@@ -1356,6 +1357,7 @@ int MKDirpAsync(uv_loop_t* loop,
           break;
         }
         case UV_EACCES:
+        case UV_ENOTDIR:
         case UV_EPERM: {
           req_wrap->continuation_data()->Done(err);
           break;
@@ -1398,7 +1400,6 @@ int MKDirpAsync(uv_loop_t* loop,
             }
             // verify that the path pointed to is actually a directory.
             if (err == 0 && !S_ISDIR(req->statbuf.st_mode)) err = UV_EEXIST;
-            uv_fs_req_cleanup(req);
             req_wrap->continuation_data()->Done(err);
           }});
           if (err < 0) req_wrap->continuation_data()->Done(err);
