@@ -148,6 +148,7 @@ function nextdir() {
       message: /ENOTDIR: .*mkdir/,
       name: 'Error',
       syscall: 'mkdir',
+      path: pathname // See: https://github.com/nodejs/node/issues/28015
     }
   );
 }
@@ -187,6 +188,11 @@ function nextdir() {
     assert.strictEqual(err.code, 'ENOTDIR');
     assert.strictEqual(err.syscall, 'mkdir');
     assert.strictEqual(fs.existsSync(pathname), false);
+    // See: https://github.com/nodejs/node/issues/28015
+    // The path field varies slightly in Windows errors, vs., other platforms
+    // see: https://github.com/libuv/libuv/issues/2661, for this reason we
+    // use startsWith() rather than comparing to the full "pathname".
+    assert(err.path.startsWith(filename));
   }));
 }
 
