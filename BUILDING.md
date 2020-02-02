@@ -28,14 +28,13 @@ file a new issue.
     * [Running Coverage](#running-coverage)
     * [Building the documentation](#building-the-documentation)
     * [Building a debug build](#building-a-debug-build)
-    * [Cleaning up the build](#cleaning-up-the-build)
+    * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
   * [Windows](#windows)
     * [Prerequisites](#prerequisites)
       * [Option 1: Manual install](#option-1-manual-install)
       * [Option 2: Automated install with Boxstarter](#option-2-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
   * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
-  * [Troubleshooting Build failures](#troubleshooting-build-failures)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
     * [Unix/macOS](#unixmacos)
@@ -490,26 +489,16 @@ $ gdb /opt/node-debug/node core.node.8.1535359906
 $ backtrace
 ```
 
-#### Cleaning up the build
+#### Troubleshooting Unix and macOS builds
 
-Always try
-
-``` console
-$ make clean
-$ make -j4
-```
-
-first, to clean the current build and build again.
-
-For a more thorough clean up, try
-
-``` console
-$ make distclean
-$ ./configure
-$ make -j4
-```
-```distclean``` should be followed by ```./configure```, and therefore takes
-significantly longer to rebuild than using ```make clean```.
+Stale builds can sometimes result in `file not found` errors while building.
+This and some other problems can be resolved with `make distclean`. The
+`distclean` recipe aggressively removes build artifacts. You will need to
+build again (`make -j4`). Since all build artifacts have been removed, this
+rebuild may take a lot more time than previous builds. Additionally,
+`distclean` removes the file that stores the results of `./configure`. If you
+ran `./configure` with non-default options (such as `--debug`), you will need
+to run it again before invoking `make -j4`.
 
 ### Windows
 
@@ -618,12 +607,6 @@ a folder. Then run:
 $ ./android-configure /path/to/your/android-ndk
 $ make
 ```
-
-### Troubleshooting Build failures
-Error: ``` fatal error: 'src/snapshot/macros.h' file not found```
-
-This is probably due to a stale build, and should be fixed with a full clean.
-Refer to [Cleaning up the build](#cleaning-up-the-build)
 
 ## `Intl` (ECMA-402) support
 
