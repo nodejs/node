@@ -8,7 +8,8 @@ const { spawnSync } = require('child_process');
 
 {
   const child = spawnSync(process.execPath,
-                          [ '--use-largepages=on', '-p', '42' ]);
+                          [ '--use-largepages=on', '-p', '42' ],
+                          { stdio: ['inherit', 'pipe', 'inherit'] });
   const stdout = child.stdout.toString().match(/\S+/g);
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
