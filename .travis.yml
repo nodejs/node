@@ -61,7 +61,7 @@ jobs:
       node_js: "node"
       install:
         - pyenv global ${PYTHON_VERSION}
-        - make lint-md-rollup lint-py-build || true
+        - make lint-py-build || true
       script:
         - NODE=$(which node) make lint-py doc-only lint
 
