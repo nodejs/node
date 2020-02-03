@@ -2093,8 +2093,8 @@ bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
 
   Debug(this, "Sending %" PRIu64 " bytes to %s from %s",
         packet->length(),
-        remote_address_.ToString().c_str(),
-        local_address_.ToString().c_str());
+        remote_address_,
+        local_address_);
 
   int err = socket()->SendPacket(
       local_address_,
@@ -2696,8 +2696,8 @@ bool QuicSession::InitClient(
   local_address_ = local_addr;
   remote_address_ = remote_addr;
   Debug(this, "Initializing connection from %s to %s",
-        local_address_.ToString().c_str(),
-        remote_address_.ToString().c_str());
+        local_address_,
+        remote_address_);
 
   // The maximum packet length is determined largely
   // by the IP version (IPv4 vs IPv6). Packet sizes

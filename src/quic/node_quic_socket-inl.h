@@ -66,7 +66,7 @@ void QuicSocket::AssociateCID(
 
 void QuicSocket::DisassociateCID(const QuicCID& cid) {
   if (cid) {
-    Debug(this, "Removing association for cid %s", cid.ToString().c_str());
+    Debug(this, "Removing association for cid %s", cid);
     dcid_to_scid_.erase(cid);
   }
 }
@@ -74,13 +74,13 @@ void QuicSocket::DisassociateCID(const QuicCID& cid) {
 void QuicSocket::AssociateStatelessResetToken(
     const StatelessResetToken& token,
     BaseObjectPtr<QuicSession> session) {
-  Debug(this, "Associating stateless reset token %s", token.ToString().c_str());
+  Debug(this, "Associating stateless reset token %s", token);
   token_map_[token] = session;
 }
 
 void QuicSocket::DisassociateStatelessResetToken(
     const StatelessResetToken& token) {
-  Debug(this, "Removing stateless reset token %s", token.ToString().c_str());
+  Debug(this, "Removing stateless reset token %s", token);
   token_map_.erase(token);
 }
 

@@ -105,7 +105,7 @@ bool QuicStream::AddHeader(std::unique_ptr<QuicHeader> header) {
   }
 
   current_headers_length_ += header->length();
-  Debug(this, "Header - %s", header->ToString().c_str());
+  Debug(this, "Header - %s", *header);
   headers_.emplace_back(std::move(header));
   return true;
 }
