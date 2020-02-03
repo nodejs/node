@@ -25,8 +25,9 @@ const { createSocket } = require('quic');
 const socket = createSocket({ endpoint: { port: 1234 } });
 
 // Tell the socket to operate as a server using the given
-// key and certificate to secure new connections.
-socket.listen({ key, cert });
+// key and certificate to secure new connections, using
+// the fictional 'hello' application protocol.
+socket.listen({ key, cert, alpn: 'hello' });
 
 socket.on('session', (session) => {
   // A new server side session has been created!
@@ -67,11 +68,11 @@ components: the `QuicSocket`, the `QuicSession` and the `QuicStream`.
 
 ### QuicSocket
 
-A `QuicSocket` encapsulates a binding to a local UDP port. It is used to send
-data to, and receive data from, remote endpoints. Once created, a `QuicSocket`
-is associated with a local network address and IP port and can act as both a
-QUIC client and server simultaneously. User code at the JavaScript level
-interacts with the `QuicSocket` object to:
+A `QuicSocket` encapsulates a binding to one or more local UDP ports. It is
+used to send data to, and receive data from, remote endpoints. Once created,
+a `QuicSocket` is associated with a local network address and IP port and can
+act as both a QUIC client and server simultaneously. User code at the
+JavaScript level interacts with the `QuicSocket` object to:
 
 * Query or modified the properties of the local UDP binding;
 * Create client `QuicSession` instances;
@@ -79,7 +80,8 @@ interacts with the `QuicSocket` object to:
 * Query activity statistics
 
 Unlike the `net.Socket` and `tls.TLSSocket`, a `QuicSocket` instance cannot be
-directly used by user code at the JavaScript level to send or receive data.
+directly used by user code at the JavaScript level to send or receive data over
+the network.
 
 ### Client and Server QuicSessions
 
@@ -127,7 +129,7 @@ client.on('secure', () => {
 });
 ```
 
-New instance of `QuicServerSession` are created internally by the
+New instances of `QuicServerSession` are created internally by the
 `QuicSocket` if it has been configured to listen for new connections
 using the `listen()` method.
 
@@ -157,7 +159,7 @@ QUIC uses the TLS 1.3 [ALPN][] ("Application-Layer Protocol Negotiation")
 extension to identify the application level protocol that is using the QUIC
 connection.  Every `QuicSession` instance has an ALPN identifier that *must* be
 specified in either the `connect()` or `listen()` options. ALPN identifiers that
-are known to Node.js (such as the ALPN identifier for HTTP/3) may alter how the
+are known to Node.js (such as the ALPN identifier for HTTP/3) will alter how the
 `QuicSession` and `QuicStream` objects operate internally, but the QUIC
 implementation for Node.js has been designed to allow any ALPN to be specified
 and used.
@@ -186,9 +188,10 @@ const stream1 = session.openStream();
 const stream2 = session.openStream({ halfOpen: true });
 ```
 
-As suggested by the names, a bidirectional stream can send data to, and receive
-data from, the QUIC peer; while a unidirectional stream can only be used to
-send data to the peer.
+As suggested by the names, a bidirectional stream allows data to be sent on
+a stream in both directions, by both client and server, regardless of which
+peer opened the stream. A unidirectional stream can be written to only by the
+QuicSession that opened it.
 
 The `'stream'` event is emitted by the `QuicSession` when a new `QuicStream`
 has been initated by the connected peer:
@@ -208,22 +211,25 @@ session.on('stream', (stream) => {
 
 Some QUIC application protocols (like HTTP/3) make use of headers.
 
-There are three specific kinds of headers that the Node.js QUIC
-implementation is capable of handling dependent entirely on known
-application protocol support:
+There are four kinds of headers that the Node.js QUIC implementation
+is capable of handling dependent entirely on known application protocol
+support:
 
 * Informational Headers
 * Initial Headers
 * Trailing Headers
+* Push Headers
 
 These categories correlate exactly with the equivalent HTTP
 concepts:
 
-* Informational Headers == Any response headers transmitted within
+* Informational Headers: Any response headers transmitted within
   a block of headers using a `1xx` status code.
-* Initial Headers == HTTP request or response headers
-* Trailing Headers == A block of headers that follow the body of a
+* Initial Headers: HTTP request or response headers
+* Trailing Headers: A block of headers that follow the body of a
   request or response.
+* Push Promise Headers: A block of headers included in a promised
+  push stream.
 
 If headers are supported by the application protocol in use for
 a given `QuicSession`, the `'initialHeaders'`, `'informationalHeaders'`,
@@ -323,7 +329,7 @@ The object will contain the properties:
 * `family` {string} Either `'IPv4'` or `'IPv6'`.
 * `port` {number} The local IP port to which the `QuicEndpoint` is bound.
 
-If the `QuicEndpoint` is not bound, `quicsocket.address` is an empty object.
+If the `QuicEndpoint` is not bound, `quicendpoint.address` is an empty object.
 
 #### quicendpoint.bound
 <!-- YAML
@@ -561,6 +567,8 @@ added: REPLACEME
 
 Emitted after the `QuicSession` has been destroyed and is no longer usable.
 
+The `'close'` event will not be emitted more than once.
+
 #### Event: `'error'`
 <!-- YAML
 added: REPLACEME
@@ -572,6 +580,8 @@ destroyed with an error.
 The callback will be invoked with a single argument:
 
 * `error` {Object} An `Error` object.
+
+The `'error'` event will not be emitted more than once.
 
 #### Event: `'keylog'`
 <!-- YAML
@@ -596,6 +606,8 @@ const log = fs.createWriteStream('/tmp/ssl-keys.log', { flags: 'a' });
 session.on('keylog', (line) => log.write(line));
 ```
 
+The `'keylog'` event will be emitted multiple times.
+
 #### Event: `'pathValidation'`
 <!-- YAML
 added: REPLACEME
@@ -612,6 +624,8 @@ The callback will be invoked with three arguments:
 * `local` {Object} The local address component of the tested path.
 * `remote` {Object} The remote address component of the tested path.
 
+The `'pathValidation'` event will be emitted multiple times.
+
 #### Event: `'qlog'`
 <!-- YAML
 added: REPLACEME
@@ -623,6 +637,8 @@ Emitted if the `qlog: true` option was passed to `quicsocket.connect()` or
 `quic.createSocket()` functions.
 
 The argument is a JSON fragment according to the [qlog standard][].
+
+The `'qlog'` event will be emitted multiple times.
 
 #### Event: `'secure'`
 <!-- YAML
@@ -642,12 +658,16 @@ The callback will be invoked with two arguments:
 These will also be available using the `quicsession.servername`,
 `quicsession.alpnProtocol`, and `quicsession.cipher` properties.
 
+The `'secure'` event will not be emitted more than once.
+
 #### Event: `'stream'`
 <!-- YAML
 added: REPLACEME
 -->
 
 Emitted when a new `QuicStream` has been initiated by the connected peer.
+
+The `'stream'` event may be emitted multiple times.
 
 #### quicsession.ackDelayRetransmitCount
 <!-- YAML
@@ -1082,6 +1102,9 @@ added: REPLACEME
 
 Initiates QuicSession key update.
 
+An error will be thrown if called before `quicsession.handshakeConfirmed`
+is equal to `true`.
+
 ### Class: QuicClientSession extends QuicSession
 <!-- YAML
 added: REPLACEME
@@ -1107,6 +1130,8 @@ The callback is invoked with a single argument:
 Node.js does not perform any automatic validation or processing of the
 response.
 
+The `'OCSPResponse'` event will not be emitted more than once.
+
 #### Event: `'sessionTicket'`
 <!-- YAML
 added: REPLACEME
@@ -1124,6 +1149,8 @@ three arguments:
 The `sessionTicket` and `remoteTransportParams` are useful when creating a new
 `QuicClientSession` to more quickly resume an existing session.
 
+The `'sessionTicket'` event may be emitted multiple times.
+
 #### Event: `'usePreferredAddress'`
 <!-- YAML
 added: REPLACEME
@@ -1140,6 +1167,8 @@ invoked with a single `address` argument:
 
 This event is purely informational and will be emitted only when
 `preferredAddressPolicy` is set to `'accept'`.
+
+The `'usePreferredAddress'` event will not be emitted more than once.
 
 #### quicclientsession.ephemeralKeyInfo
 <!-- YAML
@@ -1212,6 +1241,8 @@ The callback is invoked with four arguments:
 * `callback` {Function} A callback function that must be called in order for
   the TLS handshake to continue.
 
+The `'clientHello'` event will not be emitted more than once.
+
 #### Event: `'OCSPRequest'`
 <!-- YAML
 added: REPLACEME
@@ -1227,6 +1258,8 @@ The callback is invoked with three arguments:
 * `callback` {Function}
 
 The callback *must* be invoked in order for the TLS handshake to continue.
+
+The `'OCSPRequest'` event will not be emitted more than once.
 
 #### quicserversession.addContext(servername\[, context\])
 <!-- YAML
@@ -1256,6 +1289,8 @@ added: REPLACEME
 
 Emitted after the `QuicSocket` has been destroyed and is no longer usable.
 
+The `'close'` event will not be emitted multiple times.
+
 #### Event: `'error'`
 <!-- YAML
 added: REPLACEME
@@ -1264,6 +1299,8 @@ added: REPLACEME
 Emitted before the `'close'` event if the `QuicSocket` was destroyed with an
 `error`.
 
+The `'error'` event will not be emitted multiple times.
+
 #### Event: `'ready'`
 <!-- YAML
 added: REPLACEME
@@ -1271,12 +1308,16 @@ added: REPLACEME
 
 Emitted once the `QuicSocket` has been bound to a local UDP port.
 
+The `'ready'` event will not be emitted multiple times.
+
 #### Event: `'session'`
 <!-- YAML
 added: REPLACEME
 -->
 
 Emitted when a new `QuicServerSession` has been created.
+
+The `'session'` event will be emitted multiple times.
 
 #### quicsocket.addEndpoint(options)
 <!-- YAML
@@ -1973,7 +2014,7 @@ added: REPLACEME
 
 A `BigInt` representing the length of time the `QuicStream` has been active.
 
-### quicstream.finalSize
+#### quicstream.finalSize
 <!-- YAML
 added: REPLACEME
 -->
