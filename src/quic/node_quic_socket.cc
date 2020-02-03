@@ -1,6 +1,6 @@
 #include "node_quic_socket-inl.h"  // NOLINT(build/include)
 #include "async_wrap-inl.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "nghttp2/nghttp2.h"

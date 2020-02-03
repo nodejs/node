@@ -1,6 +1,6 @@
 #include "node_quic_session-inl.h"  // NOLINT(build/include)
 #include "aliased_buffer.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_crypto_common.h"
 #include "ngtcp2/ngtcp2.h"

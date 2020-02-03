@@ -292,7 +292,7 @@ server.on('ready', common.mustCall(() => {
     debug('QuicClientSession server is %sauthenticated',
           req.authenticated ? '' : 'not ');
     assert(!req.authenticated);
-    common.expectsError(() => { throw req.authenticationError; }, {
+    assert.throws(() => { throw req.authenticationError; }, {
       code: 'ERR_QUIC_VERIFY_HOSTNAME_MISMATCH',
       message: 'Hostname mismatch'
     });

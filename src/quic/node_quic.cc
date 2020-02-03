@@ -1,4 +1,4 @@
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "node.h"
 #include "env-inl.h"
 #include "node_crypto.h"  // SecureContext

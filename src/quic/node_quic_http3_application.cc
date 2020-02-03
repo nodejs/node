@@ -1,5 +1,5 @@
 #include "node.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "node_mem-inl.h"
 #include "node_quic_buffer-inl.h"
 #include "node_quic_http3_application.h"

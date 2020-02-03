@@ -1,4 +1,4 @@
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "node_quic_buffer-inl.h"
 #include "node_quic_default_application.h"
 #include "node_quic_session-inl.h"

@@ -3,7 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "node_crypto.h"
 #include "node_crypto_common.h"
 #include "node_quic_crypto.h"

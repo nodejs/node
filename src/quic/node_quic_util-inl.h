@@ -1,7 +1,7 @@
 #ifndef SRC_QUIC_NODE_QUIC_UTIL_INL_H_
 #define SRC_QUIC_NODE_QUIC_UTIL_INL_H_
 
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "node_internals.h"
 #include "node_quic_crypto.h"
 #include "node_quic_util.h"

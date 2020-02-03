@@ -250,7 +250,7 @@ added: REPLACEME
     using `quicsocket.connect()`.
   * `endpoint` {Object} An object describing the local address to bind to.
     * `address` {string} The local address to bind to. This may be an IPv4 or
-      IPv6 address or a hostname. If a hostname is given, it will be resolved
+      IPv6 address or a host name. If a host name is given, it will be resolved
       to an IP address.
     * `port` {number} The local port to bind to.
     * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
@@ -1134,7 +1134,7 @@ is updated to use the server-advertised preferred address. The callback is
 invoked with a single `address` argument:
 
 * `address` {Object}
-  * `address` {string} The preferred hostname
+  * `address` {string} The preferred host name
   * `port` {number} The preferred IP port
   * `type` {string} Either `'udp4'` or `'udp6'`.
 
@@ -1285,7 +1285,7 @@ added: REPLACEME
 
 * `options`: {Object} An object describing the local address to bind to.
   * `address` {string} The local address to bind to. This may be an IPv4 or
-    IPv6 address or a hostname. If a hostname is given, it will be resolved
+    IPv6 address or a host name. If a host name is given, it will be resolved
     to an IP address.
   * `port` {number} The local port to bind to.
   * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,

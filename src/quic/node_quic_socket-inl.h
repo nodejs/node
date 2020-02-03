@@ -7,7 +7,7 @@
 #include "node_sockaddr.h"
 #include "node_quic_session.h"
 #include "node_crypto.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 
 namespace node {
 

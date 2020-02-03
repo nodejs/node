@@ -1,6 +1,6 @@
 #include "node_quic_stream-inl.h"  // NOLINT(build/include)
 #include "async_wrap-inl.h"
-#include "debug_utils.h"
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_buffer.h"

@@ -687,7 +687,6 @@ module.exports = {
   hasIntl,
   hasCrypto,
   hasQuic,
-  hasIPv6,
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAIX,
