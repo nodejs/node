@@ -39,3 +39,7 @@ If possible please provide textual output instead of screenshots.
 -->
 
 ### Additional information
+
+<!--
+Tell us anything else you think we should know.
+-->
