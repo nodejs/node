@@ -33,6 +33,7 @@ function Benchmark(fn, configs, options) {
   this._time = [0, 0];
   // Used to make sure a benchmark only start a timer once
   this._started = false;
+  this._ended = false;
 
   // this._run will use fork() to create a new process for each configuration
   // combination.
@@ -197,6 +198,9 @@ Benchmark.prototype.end = function(operations) {
   if (!this._started) {
     throw new Error('called end without start');
   }
+  if (this._ended) {
+    throw new Error('called end multiple times');
+  }
   if (typeof operations !== 'number') {
     throw new Error('called end() without specifying operation count');
   }
@@ -210,6 +214,7 @@ Benchmark.prototype.end = function(operations) {
     elapsed[1] = 1;
   }
 
+  this._ended = true;
   const time = elapsed[0] + elapsed[1] / 1e9;
   const rate = operations / time;
   this.report(rate, elapsed);
