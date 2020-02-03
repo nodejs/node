@@ -1940,7 +1940,7 @@ Node.js callbacks. `fs.existsSync()` does not use a callback.
 
 ```js
 if (fs.existsSync('/etc/passwd')) {
-  console.log('The file exists.');
+  console.log('The path exists.');
 }
 ```
 
