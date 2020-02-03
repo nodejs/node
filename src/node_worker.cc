@@ -134,7 +134,16 @@ class WorkerThreadData {
  public:
   explicit WorkerThreadData(Worker* w)
     : w_(w) {
-    CHECK_EQ(uv_loop_init(&loop_), 0);
+    int ret = uv_loop_init(&loop_);
+    if (ret != 0) {
+      char err_buf[128];
+      uv_err_name_r(ret, err_buf, sizeof(err_buf));
+      w->custom_error_ = "ERR_WORKER_INIT_FAILED";
+      w->custom_error_str_ = err_buf;
+      w->loop_init_failed_ = true;
+      w->stopped_ = true;
+      return;
+    }
 
     std::shared_ptr<ArrayBufferAllocator> allocator =
         ArrayBufferAllocator::Create();
@@ -147,6 +156,8 @@ class WorkerThreadData {
     Isolate* isolate = Isolate::Allocate();
     if (isolate == nullptr) {
       w->custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
+      w->custom_error_str_ = "Failed to create new Isolate";
+      w->stopped_ = true;
       return;
     }
 
@@ -204,11 +215,14 @@ class WorkerThreadData {
       isolate->Dispose();
 
       // Wait until the platform has cleaned up all relevant resources.
-      while (!platform_finished)
+      while (!platform_finished) {
+        CHECK(!w_->loop_init_failed_);
         uv_run(&loop_, UV_RUN_ONCE);
+      }
     }
-
-    CheckedUvLoopClose(&loop_);
+    if (!w_->loop_init_failed_) {
+      CheckedUvLoopClose(&loop_);
+    }
   }
 
  private:
@@ -223,6 +237,7 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
                              size_t initial_heap_limit) {
   Worker* worker = static_cast<Worker*>(data);
   worker->custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
+  worker->custom_error_str_ = "JS heap out of memory";
   worker->Exit(1);
   // Give the current GC some extra leeway to let it finish rather than
   // crash hard. We are not going to perform further allocations anyway.
@@ -242,6 +257,7 @@ void Worker::Run() {
 
   WorkerThreadData data(this);
   if (isolate_ == nullptr) return;
+  CHECK(!data.w_->loop_init_failed_);
 
   Debug(this, "Starting worker with id %llu", thread_id_);
   {
@@ -287,9 +303,8 @@ void Worker::Run() {
         TryCatch try_catch(isolate_);
         context = NewContext(isolate_);
         if (context.IsEmpty()) {
-          // TODO(addaleax): Inform the target about the actual underlying
-          // failure.
           custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
+          custom_error_str_ = "Failed to create new Context";
           return;
         }
       }
@@ -417,10 +432,14 @@ void Worker::JoinThread() {
                   Undefined(env()->isolate())).Check();
 
     Local<Value> args[] = {
-      Integer::New(env()->isolate(), exit_code_),
-      custom_error_ != nullptr ?
-          OneByteString(env()->isolate(), custom_error_).As<Value>() :
-          Null(env()->isolate()).As<Value>(),
+        Integer::New(env()->isolate(), exit_code_),
+        custom_error_ != nullptr
+            ? OneByteString(env()->isolate(), custom_error_).As<Value>()
+            : Null(env()->isolate()).As<Value>(),
+        !custom_error_str_.empty()
+            ? OneByteString(env()->isolate(), custom_error_str_.c_str())
+                  .As<Value>()
+            : Null(env()->isolate()).As<Value>(),
     };
 
     MakeCallback(env()->onexit_string(), arraysize(args), args);
