@@ -209,7 +209,7 @@ added: REPLACEME
 * {number}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.flags`
-property contain additional information about garbage collection operation.
+property contains additional information about garbage collection operation.
 The value may be one of:
 
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_NO`
