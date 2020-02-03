@@ -15,9 +15,17 @@ namespace node {
 
 namespace quic {
 
+// Crypto and OpenSSL related utility functions used in
+// various places throughout the QUIC implementation.
+
 // Forward declaration
 class QuicSession;
 class QuicPacket;
+
+// many ngtcp2 functions return 0 to indicate success
+// and non-zero to indicate failure. Most of the time,
+// for such functions we don't care about the specific
+// return value so we simplify using a macro.
 
 #define NGTCP2_ERR(V) (V != 0)
 #define NGTCP2_OK(V) (V == 0)
@@ -28,7 +36,7 @@ class QuicPacket;
 // for TX and RX at the specified level, and
 // generates the QUIC specific keylog events.
 bool SetCryptoSecrets(
-    QuicSession* session,
+    const QuicSession& session,
     ngtcp2_crypto_level level,
     const uint8_t* rx_secret,
     const uint8_t* tx_secret,
@@ -45,13 +53,13 @@ void InitializeSecureContext(
 // QuicSession::InitClient to configure the
 // appropriate settings for the SSL* associated
 // with the session.
-void InitializeTLS(QuicSession* session);
+void InitializeTLS(const QuicSession& session);
 
 // Called when the client QuicSession is created and
 // when the server QuicSession first receives the
 // client hello.
 bool DeriveAndInstallInitialKey(
-    QuicSession* session,
+    const QuicSession& session,
     const QuicCID& dcid);
 
 // Generates a stateless reset token using HKDF with the
@@ -86,6 +94,12 @@ std::unique_ptr<QuicPacket> GenerateRetryPacket(
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr);
 
+// The IPv6 Flow Label is generated and set whenever IPv6 is used.
+// The label is derived as a cryptographic function of the CID,
+// local and remote addresses, and the given secret, that is then
+// truncated to a 20-bit value (per IPv6 requirements). In QUIC,
+// the flow label *may* be used as a way of disambiguating IP
+// packets that belong to the same flow from a remote peer.
 uint32_t GenerateFlowLabel(
     const SocketAddress& local,
     const SocketAddress& remote,
@@ -94,7 +108,9 @@ uint32_t GenerateFlowLabel(
     size_t secretlen);
 
 // Verifies the validity of a retry token. Returns true if the
-// token is not valid, false otherwise.
+// token is *not valid*, false otherwise. If the token is valid,
+// the ocid will be updated to the original CID value encoded
+// within the successfully validated, encrypted token.
 bool InvalidRetryToken(
     const ngtcp2_pkt_hd& hd,
     const SocketAddress& addr,
@@ -109,7 +125,7 @@ int VerifyHostnameIdentity(
     const std::unordered_multimap<std::string, std::string>& altnames);
 
 // Get the ALPN protocol identifier that was negotiated for the session
-v8::Local<v8::Value> GetALPNProtocol(QuicSession* session);
+v8::Local<v8::Value> GetALPNProtocol(const QuicSession& session);
 
 ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
 const char* crypto_level_name(ngtcp2_crypto_level level);

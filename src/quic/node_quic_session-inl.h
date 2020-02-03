@@ -128,7 +128,7 @@ void QuicCryptoContext::set_tls_alert(int err) {
 // created session.
 bool QuicCryptoContext::SetupInitialKey(const QuicCID& dcid) {
   Debug(session(), "Deriving and installing initial keys");
-  return DeriveAndInstallInitialKey(session(), dcid);
+  return DeriveAndInstallInitialKey(*session(), dcid);
 }
 
 QuicApplication::QuicApplication(QuicSession* session) : session_(session) {}

@@ -524,7 +524,7 @@ void JSQuicSessionListener::OnHandshakeCompleted() {
 
   Local<Value> argv[] = {
     servername,
-    GetALPNProtocol(session()),
+    GetALPNProtocol(*session()),
     crypto::GetCipherName(env, ctx->ssl()),
     crypto::GetCipherVersion(env, ctx->ssl()),
     Integer::New(env->isolate(), session()->max_pktlen_),
@@ -922,7 +922,7 @@ bool QuicCryptoContext::OnSecrets(
         "Received secrets for %s crypto level",
         crypto_level_name(level));
 
-  if (!SetCryptoSecrets(session(), level, rx_secret, tx_secret, secretlen))
+  if (!SetCryptoSecrets(*session(), level, rx_secret, tx_secret, secretlen))
     return false;
 
   if (level == NGTCP2_CRYPTO_LEVEL_APP)
@@ -1712,7 +1712,7 @@ bool QuicSession::ReceiveRetry() {
     return false;
   Debug(this, "A retry packet was received. Restarting the handshake.");
   IncrementStat(&QuicSessionStats::retry_count);
-  return DeriveAndInstallInitialKey(this, dcid());
+  return DeriveAndInstallInitialKey(*this, dcid());
 }
 
 // When the QuicSocket receives a QUIC packet, it is forwarded on to here
@@ -1834,7 +1834,7 @@ bool QuicSession::ReceiveClientInitial(const QuicCID& dcid) {
   if (UNLIKELY(is_flag_set(QUICSESSION_FLAG_DESTROYED)))
     return false;
   Debug(this, "Receiving client initial parameters.");
-  return DeriveAndInstallInitialKey(this, dcid);
+  return DeriveAndInstallInitialKey(*this, dcid);
 }
 
 // Performs intake processing on a received QUIC packet. The received
@@ -2570,7 +2570,7 @@ void QuicSession::InitServer(
 
   connection_.reset(conn);
 
-  InitializeTLS(this);
+  InitializeTLS(*this);
   UpdateDataStats();
   UpdateIdleTimer();
 }
@@ -2739,9 +2739,9 @@ bool QuicSession::InitClient(
 
   connection_.reset(conn);
 
-  InitializeTLS(this);
+  InitializeTLS(*this);
 
-  CHECK(DeriveAndInstallInitialKey(this, this->dcid()));
+  CHECK(DeriveAndInstallInitialKey(*this, this->dcid()));
 
   // Remote Transport Params
   if (early_transport_params->IsArrayBufferView()) {
