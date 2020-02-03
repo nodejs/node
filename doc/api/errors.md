@@ -2007,6 +2007,11 @@ meaning of the error depends on the specific function.
 
 The WASI instance has already started.
 
+<a id="ERR_WORKER_INIT_FAILED"></a>
+### `ERR_WORKER_INIT_FAILED`
+
+The `Worker` initialization failed.
+
 <a id="ERR_WORKER_INVALID_EXEC_ARGV"></a>
 ### `ERR_WORKER_INVALID_EXEC_ARGV`
 
