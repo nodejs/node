@@ -35,8 +35,10 @@ function main({ n, sync, writev, callback }) {
   let k = 0;
   function run() {
     while (k++ < n && s.write(b, cb));
-    if (k >= n)
+    if (k >= n) {
       bench.end(n);
+      s.removeListener('drain', run);
+    }
   }
   s.on('drain', run);
   run();
