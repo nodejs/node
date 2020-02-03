@@ -673,6 +673,9 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                                                      : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
+  auto isolate = Isolate::GetCurrent();
+  resource_.Reset(isolate, resource);
+
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
     case PROVIDER_ ## PROVIDER:                                               \
@@ -776,6 +779,16 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
     }
 
     obj = owner.As<Object>();
+  }
+}
+
+Local<Object> AsyncWrap::GetResource() {
+  auto isolate = Isolate::GetCurrent();
+
+  if (resource_.IsEmpty()) {
+    return object();
+  } else {
+    return resource_.Get(isolate);
   }
 }
 
