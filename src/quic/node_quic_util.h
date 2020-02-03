@@ -23,7 +23,8 @@ namespace node {
 namespace quic {
 
 // k-constants are used internally, all-caps constants
-// are exposed to javascript.
+// are exposed to javascript as constants (see node_quic.cc)
+
 constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
 constexpr size_t kMaxValidateAddressLru = 10;
 constexpr size_t kMinInitialQuicPktSize = 1200;
@@ -47,7 +48,13 @@ constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
 constexpr uint64_t DEFAULT_MAX_IDLE_TIMEOUT = 10;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10ULL;
 
-
+// The preferred address policy determines how a client QuicSession
+// handles a server-advertised preferred address. As suggested, the
+// preferred address is the address the server would prefer the
+// client to use for subsequent communication for a QuicSession.
+// The client may choose to ignore the preference but really shouldn't.
+// We currently only support two options in the Node.js implementation,
+// but additional options may be added later.
 enum SelectPreferredAddressPolicy : int {
   // Ignore the server-provided preferred address
   QUIC_PREFERRED_ADDRESS_IGNORE,
@@ -92,6 +99,12 @@ struct StatsTraits {
 template <typename T>
 class StatsBase {
  public:
+  // A StatsBase instance may have one of three histogram
+  // instances. One that records rate of data flow, one
+  // that records size of data chunk, and one that records
+  // rate of data ackwowledgement. These may be used in
+  // slightly different ways of different StatsBase
+  // instances or may be turned off entirely.
   enum HistogramOptions {
     NONE = 0,
     RATE = 1,
@@ -107,14 +120,17 @@ class StatsBase {
   inline ~StatsBase() = default;
 
   // The StatsDebug utility is used when StatsBase is destroyed
-  // to output statistical information.
+  // to output statistical information to Debug. It is designed
+  // to only incur a performance cost constructing the debug
+  // output when Debug output is enabled.
   struct StatsDebug {
     typename T::Base* ptr;
     explicit StatsDebug(typename T::Base* ptr_) : ptr(ptr_) {}
     std::string ToString() const;
   };
 
-  // Increments the given stat field by the given amount
+  // Increments the given stat field by the given amount or 1 if
+  // no amount is specified.
   inline void IncrementStat(uint64_t T::Stats::*member, uint64_t amount = 1);
 
   // Sets an entirely new value for the given stat field
@@ -155,7 +171,7 @@ class StatsBase {
 // client QuicSession receives an advertised preferred address
 // from a server. The helper provides information about the
 // preferred address. The Use() function is used to let
-// ngtcp2 know to use the preferred address for the given family
+// ngtcp2 know to use the preferred address for the given family.
 class QuicPreferredAddress {
  public:
   QuicPreferredAddress(
