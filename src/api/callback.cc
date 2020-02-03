@@ -157,7 +157,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
 
   Local<Function> domain_cb = env->domain_callback();
   MaybeLocal<Value> ret;
-  if (asyncContext.async_id != 0 || domain_cb.IsEmpty() || recv.IsEmpty()) {
+  if (asyncContext.async_id != 0 || domain_cb.IsEmpty()) {
     ret = callback->Call(env->context(), recv, argc, argv);
   } else {
     std::vector<Local<Value>> args(1 + argc);
