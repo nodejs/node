@@ -4,10 +4,18 @@
 // Test QuicSocket constructor option errors
 
 const common = require('../common');
+const async_hooks = require('async_hooks');
 if (!common.hasQuic)
   common.skip('missing quic');
 
 const assert = require('assert');
+
+// Hook verifies that no QuicSocket handles are actually created.
+async_hooks.createHook({
+  init: common.mustCallAtLeast((_, type) => {
+    assert.notStrictEqual(type, 'QUICSOCKET');
+  })
+}).enable();
 
 const { createSocket } = require('quic');
 
@@ -39,13 +47,6 @@ const { createSocket } = require('quic');
   });
 });
 
-// Test invalid QuicSocket lookup argument option
-[1, 1n, {}, [], 'test', true].forEach((lookup) => {
-  assert.throws(() => createSocket({ lookup }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
 // Test invalid QuicSocket ipv6Only argument option
 [1, NaN, 1n, null, {}, []].forEach((ipv6Only) => {
   assert.throws(() => createSocket({ endpoint: { ipv6Only } }), {
@@ -56,6 +57,13 @@ const { createSocket } = require('quic');
 // Test invalid QuicSocket reuseAddr argument option
 [1, NaN, 1n, null, {}, []].forEach((reuseAddr) => {
   assert.throws(() => createSocket({ endpoint: { reuseAddr } }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+// Test invalid QuicSocket lookup argument option
+[1, 1n, {}, [], 'test', true].forEach((lookup) => {
+  assert.throws(() => createSocket({ lookup }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
@@ -80,6 +88,14 @@ const { createSocket } = require('quic');
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
+
+// Test invalid QuicSocket qlog argument option
+[1, NaN, 1n, null, {}, []].forEach((qlog) => {
+  assert.throws(() => createSocket({ qlog }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
 
 // Test invalid QuicSocket retryTokenTimeout option
 [0, 61].forEach((retryTokenTimeout) => {
@@ -118,9 +134,60 @@ const { createSocket } = require('quic');
   });
 });
 
-// Test invalid QuicSocket type argument option
-[1, NaN, 1n, null, {}, []].forEach((type) => {
-  assert.throws(() => createSocket({ endpoint: { type } }), {
+// Test invalid QuicSocket maxConnections option
+[0].forEach((maxConnections) => {
+  assert.throws(() => createSocket({ maxConnections }), {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+});
+
+// Test invalid QuicSocket maxConnectionsPerHost option
+[
+  Number.MAX_SAFE_INTEGER + 1,
+  'test',
+  null,
+  NaN,
+  1n,
+  {},
+  [],
+  false
+].forEach((maxConnections) => {
+  assert.throws(() => createSocket({ maxConnections }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+// Test invalid QuicSocket maxStatelessResetsPerHost option
+[0].forEach((maxStatelessResetsPerHost) => {
+  assert.throws(() => createSocket({ maxStatelessResetsPerHost }), {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+});
+
+// Test invalid QuicSocket maxStatelessResetsPerHost option
+[
+  Number.MAX_SAFE_INTEGER + 1,
+  'test',
+  null,
+  NaN,
+  1n,
+  {},
+  [],
+  false
+].forEach((maxStatelessResetsPerHost) => {
+  assert.throws(() => createSocket({ maxStatelessResetsPerHost }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+[1, 1n, false, 'test'].forEach((options) => {
+  assert.throws(() => createSocket({ endpoint: options }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+  assert.throws(() => createSocket({ client: options }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+  assert.throws(() => createSocket({ server: options }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
