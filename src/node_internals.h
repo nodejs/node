@@ -98,6 +98,7 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
+std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
 
