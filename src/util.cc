@@ -161,13 +161,6 @@ std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
-void GetHumanReadableProcessName(char (*name)[1024]) {
-  // Leave room after title for pid, which can be up to 20 digits for 64 bit.
-  char title[1000] = "Node.js";
-  uv_get_process_title(title, sizeof(title));
-  snprintf(*name, sizeof(*name), "%s[%d]", title, uv_os_getpid());
-}
-
 std::vector<std::string> SplitString(const std::string& in, char delim) {
   std::vector<std::string> out;
   if (in.empty())
