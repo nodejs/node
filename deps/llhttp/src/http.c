@@ -32,6 +32,7 @@ int llhttp__before_headers_complete(llhttp_t* parser, const char* p,
  * 2 - chunk_size_start
  * 3 - body_identity
  * 4 - body_identity_eof
+ * 5 - invalid transfer-encoding for request
  */
 int llhttp__after_headers_complete(llhttp_t* parser, const char* p,
                                    const char* endp) {
@@ -47,8 +48,29 @@ int llhttp__after_headers_complete(llhttp_t* parser, const char* p,
   if (parser->flags & F_SKIPBODY) {
     return 0;
   } else if (parser->flags & F_CHUNKED) {
-    /* chunked encoding - ignore Content-Length header */
+    /* chunked encoding - ignore Content-Length header, prepare for a chunk */
     return 2;
+  } else if (parser->flags & F_TRANSFER_ENCODING) {
+    if (parser->type == HTTP_REQUEST && (parser->flags & F_LENIENT) == 0) {
+      /* RFC 7230 3.3.3 */
+
+      /* If a Transfer-Encoding header field
+       * is present in a request and the chunked transfer coding is not
+       * the final encoding, the message body length cannot be determined
+       * reliably; the server MUST respond with the 400 (Bad Request)
+       * status code and then close the connection.
+       */
+      return 5;
+    } else {
+      /* RFC 7230 3.3.3 */
+
+      /* If a Transfer-Encoding header field is present in a response and
+       * the chunked transfer coding is not the final encoding, the
+       * message body length is determined by reading the connection until
+       * it is closed by the server.
+       */
+      return 4;
+    }
   } else {
     if (!(parser->flags & F_CONTENT_LENGTH)) {
       if (!llhttp_message_needs_eof(parser)) {
@@ -95,6 +117,12 @@ int llhttp_message_needs_eof(const llhttp_t* parser) {
       parser->status_code == 304 ||     /* Not Modified */
       (parser->flags & F_SKIPBODY)) {     /* response to a HEAD request */
     return 0;
+  }
+
+  /* RFC 7230 3.3.3, see `llhttp__after_headers_complete` */
+  if ((parser->flags & F_TRANSFER_ENCODING) &&
+      (parser->flags & F_CHUNKED) == 0) {
+    return 1;
   }
 
   if (parser->flags & (F_CHUNKED | F_CONTENT_LENGTH)) {
