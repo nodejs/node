@@ -29,10 +29,10 @@ common.expectWarning({
   'internal/test/binding': [
     'These APIs are for internal testing only. Do not use them.'
   ],
-  Warning: [
+  'Warning': [
     `Closing file descriptor ${fdnum} on garbage collection`
   ],
-  DeprecationWarning: [[deprecationWarning, 'DEP00XX']]
+  'DeprecationWarning': [[deprecationWarning, 'DEP00XX']]
 });
 
 global.gc();
