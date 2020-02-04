@@ -105,7 +105,7 @@ class StatsBase {
       v8::Local<v8::Object> wrap,
       int options = HistogramOptions::NONE);
 
-  inline ~StatsBase();
+  inline ~StatsBase() = default;
 
   // The StatsDebug utility is used when StatsBase is destroyed
   // to output statistical information.
@@ -141,6 +141,8 @@ class StatsBase {
   inline void RecordAck(uint64_t T::Stats::*member);
 
   inline void StatsMemoryInfo(MemoryTracker* tracker) const;
+
+  inline void DebugStats();
 
  private:
   typename T::Stats stats_{};

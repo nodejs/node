@@ -71,7 +71,7 @@ struct QuicStreamStatsTraits {
   using Base = QuicStream;
 
   template <typename Fn>
-  static void ToString(const QuicStream& ptr, Fn&& add_field);
+  static void ToString(const Base& ptr, Fn&& add_field);
 };
 
 // QuicHeader is a base class for implementing QUIC application

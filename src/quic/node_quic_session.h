@@ -242,7 +242,7 @@ struct QuicSessionStatsTraits {
   using Base = QuicSession;
 
   template <typename Fn>
-  static void ToString(const QuicSession& ptr, Fn&& add_field);
+  static void ToString(const Base& ptr, Fn&& add_field);
 };
 
 class QuicSessionListener {

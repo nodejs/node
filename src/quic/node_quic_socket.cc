@@ -290,6 +290,8 @@ QuicSocket::~QuicSocket() {
   listener_->OnDestroy();
   if (listener == listener_)
     RemoveListener(listener_);
+
+  DebugStats();
 }
 
 template <typename Fn>

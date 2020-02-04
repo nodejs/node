@@ -1372,6 +1372,8 @@ QuicSession::~QuicSession() {
   listener_->OnSessionDestroyed();
   if (listener_ == listener())
     RemoveListener(listener_);
+
+  DebugStats();
 }
 
 template <typename Fn>

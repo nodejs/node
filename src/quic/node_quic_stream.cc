@@ -55,7 +55,9 @@ QuicStream::QuicStream(
   IncrementStat(&QuicStreamStats::max_offset, params.initial_max_data);
 }
 
-QuicStream::~QuicStream() {}
+QuicStream::~QuicStream() {
+  DebugStats();
+}
 
 template <typename Fn>
 void QuicStreamStatsTraits::ToString(const QuicStream& ptr, Fn&& add_field) {

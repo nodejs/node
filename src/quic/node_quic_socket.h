@@ -75,7 +75,7 @@ struct QuicSocketStatsTraits {
   using Base = QuicSocket;
 
   template <typename Fn>
-  static void ToString(const QuicSocket& ptr, Fn&& add_field);
+  static void ToString(const Base& ptr, Fn&& add_field);
 };
 
 class QuicSocket;
