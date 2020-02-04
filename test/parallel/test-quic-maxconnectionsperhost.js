@@ -6,6 +6,8 @@ if (!common.hasQuic)
   common.skip('missing quic');
 
 const { createSocket } = require('quic');
+const assert = require('assert');
+const Countdown = require('../common/countdown');
 const fixtures = require('../common/fixtures');
 const key = fixtures.readKey('agent1-key.pem', 'binary');
 const cert = fixtures.readKey('agent1-cert.pem', 'binary');
@@ -18,18 +20,14 @@ const kALPN = 'zzz';
 // safe integer or is out of range.
 {
   [-1, 0].forEach((maxConnectionsPerHost) => {
-    common.expectsError(() => createSocket({ maxConnectionsPerHost }), {
-      type: RangeError,
-      code: 'ERR_OUT_OF_RANGE',
-      message: /The value of "options\.maxConnectionsPerHost" is out of range/
+    assert.throws(() => createSocket({ maxConnectionsPerHost }), {
+      code: 'ERR_OUT_OF_RANGE'
     });
   });
 
   [Number.MAX_SAFE_INTEGER + 1, 1.1].forEach((maxConnectionsPerHost) => {
-    common.expectsError(() => createSocket({ maxConnectionsPerHost }), {
-      type: TypeError,
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.maxConnectionsPerHost" property must be of type safe integer\. Received type/
+    assert.throws(() => createSocket({ maxConnectionsPerHost }), {
+      code: 'ERR_INVALID_ARG_TYPE'
     });
   });
 }
@@ -42,6 +40,11 @@ const kALPN = 'zzz';
 
   let client;
   let server;
+
+  const countdown = new Countdown(kMaxConnectionsPerHost + 1, () => {
+    client.close();
+    server.close();
+  });
 
   function connect() {
     return client.connect({
@@ -60,41 +63,34 @@ const kALPN = 'zzz';
 
   server.listen({ key, cert, ca, alpn: kALPN, idleTimeout: kIdleTimeout });
 
-  server.on('session', common.mustCall(() => {
-    // TODO(@oyyd): When maxConnectionsPerHost is exceeded, the new session
-    // will still be emitted and won't be destroied automatically. We need
-    // to figure out the reason and fix it.
-  }, kMaxConnectionsPerHost + 1));
+  server.on('session', common.mustCall(() => {}, kMaxConnectionsPerHost));
 
-  server.on('ready', common.mustCall(async () => {
+  server.on('close', common.mustCall(() => {
+    assert.strictEqual(server.serverBusyCount, 1n);
+  }));
+
+  server.on('ready', common.mustCall(() => {
     client = createSocket();
 
     const sessions = [];
 
     for (let i = 0; i < kMaxConnectionsPerHost; i += 1) {
-      const session = await new Promise((resolve) => {
-        const clientSession = connect();
-
-        clientSession.on('error', common.mustNotCall());
-        clientSession.on('secure', common.mustCall(() => {
-          resolve(clientSession);
-        }));
-      });
-
-      sessions.push(session);
+      const req = connect();
+      req.on('error', common.mustNotCall());
+      req.on('close', common.mustCall(() => countdown.dec()));
+      sessions.push(req);
     }
 
-    // Sessions will be closed if the number of connceted sessions is equal
-    // to maxConnectionsPerHost.
-    await new Promise((resolve) => {
-      const clientSession = connect();
-      clientSession.on('error', common.mustNotCall());
-      clientSession.on('close', common.mustCall(() => {
-        resolve();
+    const extra = connect();
+    extra.on('error', console.log);
+    extra.on('close', common.mustCall(() => {
+      countdown.dec();
+      // Shutdown the remaining open sessions.
+      setImmediate(common.mustCall(() => {
+        for (const req of sessions)
+          req.close();
       }));
-    });
+    }));
 
-    client.close();
-    server.close();
   }));
 }
