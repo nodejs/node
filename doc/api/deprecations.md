@@ -45,8 +45,8 @@ However, the deprecation identifier will not be modified.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url:https://github.com/nodejs/node/pull/31164
-    description: End-of-Life
+    pr-url: https://github.com/nodejs/node/pull/31164
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
