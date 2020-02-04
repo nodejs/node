@@ -426,8 +426,8 @@ void StatsBase<T>::StatsMemoryInfo(MemoryTracker* tracker) const {
 
 template <typename T>
 void StatsBase<T>::DebugStats() {
-  StatsDebug stats_debug(static_cast<T::Base*>(this));
-  Debug(static_cast<T::Base*>(this), "Destroyed. %s", stats_debug);
+  StatsDebug stats_debug(static_cast<typename T::Base*>(this));
+  Debug(static_cast<typename T::Base*>(this), "Destroyed. %s", stats_debug);
 }
 
 template <typename T>
