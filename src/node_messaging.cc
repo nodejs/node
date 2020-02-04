@@ -489,6 +489,9 @@ MessagePort::MessagePort(Environment* env,
                          &async_,
                          onmessage), 0);
   async_.data = nullptr;  // Reset later to indicate success of the constructor.
+  auto cleanup = OnScopeLeave([&]() {
+    if (async_.data == nullptr) Close();
+  });
 
   Local<Value> fn;
   if (!wrap->Get(context, env->oninit_symbol()).ToLocal(&fn))
@@ -553,8 +556,8 @@ MessagePort* MessagePort::New(
     return nullptr;
   MessagePort* port = new MessagePort(env, context, instance);
   CHECK_NOT_NULL(port);
-  if (port->async_.data == nullptr) {
-    port->Close();
+  if (port->IsHandleClosing()) {
+    // Construction failed with an exception.
     return nullptr;
   }
 

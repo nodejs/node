@@ -131,12 +131,16 @@ class MessagePortData : public MemoryRetainer {
 // the uv_async_t handle that is used to notify the current event loop of
 // new incoming messages.
 class MessagePort : public HandleWrap {
- public:
+ private:
   // Create a new MessagePort. The `context` argument specifies the Context
   // instance that is used for creating the values emitted from this port.
+  // This is called by MessagePort::New(), which is the public API used for
+  // creating MessagePort instances.
   MessagePort(Environment* env,
               v8::Local<v8::Context> context,
               v8::Local<v8::Object> wrap);
+
+ public:
   ~MessagePort() override;
 
   // Create a new message port instance, optionally over an existing
