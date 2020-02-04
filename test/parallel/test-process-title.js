@@ -13,6 +13,7 @@ if (common.isIBMi)
 // Explicitly assigning to process.title before starting the child process
 // is necessary otherwise *its* process.title is whatever the last
 // SetConsoleTitle() call in our process tree set it to.
+// Can be removed when https://github.com/libuv/libuv/issues/2667 is fixed.
 if (common.isWindows)
   process.title = process.execPath;
 
