@@ -100,7 +100,6 @@ void RegisterSignalHandler(int signal,
 
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
-void GetHumanReadableProcessName(char (*name)[1024]);
 
 void InitializeContextRuntime(v8::Local<v8::Context>);
 
