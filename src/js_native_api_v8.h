@@ -8,6 +8,49 @@
 
 static napi_status napi_clear_last_error(napi_env env);
 
+namespace v8impl {
+
+class RefTracker {
+ public:
+  RefTracker() {}
+  virtual ~RefTracker() {}
+  virtual void Finalize(bool isEnvTeardown) {}
+
+  typedef RefTracker RefList;
+
+  inline void Link(RefList* list) {
+    prev_ = list;
+    next_ = list->next_;
+    if (next_ != nullptr) {
+      next_->prev_ = this;
+    }
+    list->next_ = this;
+  }
+
+  inline void Unlink() {
+    if (prev_ != nullptr) {
+      prev_->next_ = next_;
+    }
+    if (next_ != nullptr) {
+      next_->prev_ = prev_;
+    }
+    prev_ = nullptr;
+    next_ = nullptr;
+  }
+
+  static void FinalizeAll(RefList* list) {
+    while (list->next_ != nullptr) {
+      list->next_->Finalize(true);
+    }
+  }
+
+ private:
+  RefList* next_ = nullptr;
+  RefList* prev_ = nullptr;
+};
+
+}  // end of namespace v8impl
+
 struct napi_env__ {
   explicit napi_env__(v8::Local<v8::Context> context)
       : isolate(context->GetIsolate()),
@@ -22,11 +65,6 @@ struct napi_env__ {
     // `napi_finalizer` deleted them subsequently.
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
-    if (instance_data.finalize_cb != nullptr) {
-      CallIntoModuleThrow([&](napi_env env) {
-        instance_data.finalize_cb(env, instance_data.data, instance_data.hint);
-      });
-    }
   }
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
@@ -76,11 +114,7 @@ struct napi_env__ {
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
   int refs = 1;
-  struct {
-    void* data = nullptr;
-    void* hint = nullptr;
-    napi_finalize finalize_cb = nullptr;
-  } instance_data;
+  void* instance_data = nullptr;
 };
 
 static inline napi_status napi_clear_last_error(napi_env env) {

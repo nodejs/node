@@ -186,47 +186,39 @@ inline static napi_status ConcludeDeferred(napi_env env,
 }
 
 // Wrapper around v8impl::Persistent that implements reference counting.
-class Reference : protected Finalizer, RefTracker {
+class RefBase : protected Finalizer, RefTracker {
  protected:
-  Reference(napi_env env,
-            v8::Local<v8::Value> value,
-            uint32_t initial_refcount,
-            bool delete_self,
-            napi_finalize finalize_callback,
-            void* finalize_data,
-            void* finalize_hint)
+  RefBase(napi_env env,
+          uint32_t initial_refcount,
+          bool delete_self,
+          napi_finalize finalize_callback,
+          void* finalize_data,
+          void* finalize_hint)
        : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
-        _persistent(env->isolate, value),
         _refcount(initial_refcount),
         _delete_self(delete_self) {
-    if (initial_refcount == 0) {
-      _persistent.SetWeak(
-          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
-    }
     Link(finalize_callback == nullptr
         ? &env->reflist
         : &env->finalizing_reflist);
   }
 
  public:
-  void* Data() {
-    return _finalize_data;
+  static RefBase* New(napi_env env,
+                      uint32_t initial_refcount,
+                      bool delete_self,
+                      napi_finalize finalize_callback,
+                      void* finalize_data,
+                      void* finalize_hint) {
+    return new RefBase(env,
+                       initial_refcount,
+                       delete_self,
+                       finalize_callback,
+                       finalize_data,
+                       finalize_hint);
   }
 
-  static Reference* New(napi_env env,
-                        v8::Local<v8::Value> value,
-                        uint32_t initial_refcount,
-                        bool delete_self,
-                        napi_finalize finalize_callback = nullptr,
-                        void* finalize_data = nullptr,
-                        void* finalize_hint = nullptr) {
-    return new Reference(env,
-      value,
-      initial_refcount,
-      delete_self,
-      finalize_callback,
-      finalize_data,
-      finalize_hint);
+  inline void* Data() {
+    return _finalize_data;
   }
 
   // Delete is called in 2 ways. Either from the finalizer or
@@ -244,7 +236,7 @@ class Reference : protected Finalizer, RefTracker {
   // The second way this is called is from
   // the finalizer and _delete_self is set. In this case we
   // know we need to do the deletion so just do it.
-  static void Delete(Reference* reference) {
+  static inline void Delete(RefBase* reference) {
     reference->Unlink();
     if ((reference->RefCount() != 0) ||
         (reference->_delete_self) ||
@@ -257,40 +249,23 @@ class Reference : protected Finalizer, RefTracker {
     }
   }
 
-  uint32_t Ref() {
-    if (++_refcount == 1) {
-      _persistent.ClearWeak();
-    }
-
-    return _refcount;
+  inline uint32_t Ref() {
+    return ++_refcount;
   }
 
-  uint32_t Unref() {
+  inline uint32_t Unref() {
     if (_refcount == 0) {
         return 0;
     }
-    if (--_refcount == 0) {
-      _persistent.SetWeak(
-          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
-    }
-
-    return _refcount;
+    return --_refcount;
   }
 
-  uint32_t RefCount() {
+  inline uint32_t RefCount() {
     return _refcount;
-  }
-
-  v8::Local<v8::Value> Get() {
-    if (_persistent.IsEmpty()) {
-      return v8::Local<v8::Value>();
-    } else {
-      return v8::Local<v8::Value>::New(_env->isolate, _persistent);
-    }
   }
 
  protected:
-  void Finalize(bool is_env_teardown = false) override {
+  inline void Finalize(bool is_env_teardown = false) override {
     if (_finalize_callback != nullptr) {
       _env->CallIntoModuleThrow([&](napi_env env) {
         _finalize_callback(
@@ -307,6 +282,68 @@ class Reference : protected Finalizer, RefTracker {
       Delete(this);
     } else {
       _finalize_ran = true;
+    }
+  }
+
+ private:
+  uint32_t _refcount;
+  bool _delete_self;
+};
+
+class Reference : public RefBase {
+ protected:
+  template <typename... Args>
+  Reference(napi_env env,
+            v8::Local<v8::Value> value,
+            Args&&... args)
+      : RefBase(env, std::forward<Args>(args)...),
+            _persistent(env->isolate, value) {
+    if (RefCount() == 0) {
+      _persistent.SetWeak(
+          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
+    }
+  }
+
+ public:
+  static inline Reference* New(napi_env env,
+                             v8::Local<v8::Value> value,
+                             uint32_t initial_refcount,
+                             bool delete_self,
+                             napi_finalize finalize_callback = nullptr,
+                             void* finalize_data = nullptr,
+                             void* finalize_hint = nullptr) {
+    return new Reference(env,
+                         value,
+                         initial_refcount,
+                         delete_self,
+                         finalize_callback,
+                         finalize_data,
+                         finalize_hint);
+  }
+
+  inline uint32_t Ref() {
+    uint32_t refcount = RefBase::Ref();
+    if (refcount == 1) {
+      _persistent.ClearWeak();
+    }
+    return refcount;
+  }
+
+  inline uint32_t Unref() {
+    uint32_t old_refcount = RefCount();
+    uint32_t refcount = RefBase::Unref();
+    if (old_refcount == 1 && refcount == 0) {
+      _persistent.SetWeak(
+          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
+    }
+    return refcount;
+  }
+
+  inline v8::Local<v8::Value> Get() {
+    if (_persistent.IsEmpty()) {
+      return v8::Local<v8::Value>();
+    } else {
+      return v8::Local<v8::Value>::New(_env->isolate, _persistent);
     }
   }
 
@@ -332,8 +369,6 @@ class Reference : protected Finalizer, RefTracker {
   }
 
   v8impl::Persistent<v8::Value> _persistent;
-  uint32_t _refcount;
-  bool _delete_self;
 };
 
 class ArrayBufferReference final : public Reference {
@@ -354,7 +389,7 @@ class ArrayBufferReference final : public Reference {
   }
 
  private:
-  void Finalize(bool is_env_teardown) override {
+  inline void Finalize(bool is_env_teardown) override {
     if (is_env_teardown) {
       v8::HandleScope handle_scope(_env->isolate);
       v8::Local<v8::Value> ab = Get();
@@ -3111,9 +3146,19 @@ napi_status napi_set_instance_data(napi_env env,
                                    void* finalize_hint) {
   CHECK_ENV(env);
 
-  env->instance_data.data = data;
-  env->instance_data.finalize_cb = finalize_cb;
-  env->instance_data.hint = finalize_hint;
+  v8impl::RefBase* old_data = static_cast<v8impl::RefBase*>(env->instance_data);
+  if (old_data != nullptr) {
+    // Our contract so far has been to not finalize any old data there may be.
+    // So we simply delete it.
+    v8impl::RefBase::Delete(old_data);
+  }
+
+  env->instance_data = v8impl::RefBase::New(env,
+                                            0,
+                                            true,
+                                            finalize_cb,
+                                            data,
+                                            finalize_hint);
 
   return napi_clear_last_error(env);
 }
@@ -3123,7 +3168,9 @@ napi_status napi_get_instance_data(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, data);
 
-  *data = env->instance_data.data;
+  v8impl::RefBase* idata = static_cast<v8impl::RefBase*>(env->instance_data);
+
+  *data = (idata == nullptr ? nullptr : idata->Data());
 
   return napi_clear_last_error(env);
 }
