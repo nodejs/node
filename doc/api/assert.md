@@ -5,8 +5,8 @@
 > Stability: 2 - Stable
 
 The `assert` module provides a set of assertion functions for verifying
-invariants. The module provides a recommended [`strict` mode][] and a more
-lenient legacy mode.
+invariants. The module provides a recommended [strict assertion mode][]
+and a more lenient legacy assertion mode.
 
 ## Class: assert.AssertionError
 
@@ -68,26 +68,30 @@ try {
 }
 ```
 
-## Strict mode
+## Strict assertion mode
 <!-- YAML
 added: v9.9.0
 changes:
+  - version: REPLACEME
+    description: Changed "strict mode" to "strict assertion mode" and "legacy
+                 mode" to "legacy assertion mode" to avoid confusion with the
+                 more usual meaining of "strict mode".
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17615
-    description: Added error diffs to the strict mode
+    description: Added error diffs to the strict assertion mode.
   - version: v9.9.0
     pr-url: https://github.com/nodejs/node/pull/17002
-    description: Added strict mode to the assert module.
+    description: Added strict assertion mode to the assert module.
 -->
 
-In `strict` mode (not to be confused with `"use strict"`), `assert` functions
-use the comparison in the corresponding strict functions. For example,
-[`assert.deepEqual()`][] will behave like [`assert.deepStrictEqual()`][].
+In strict assertion mode, `assert` functions use the comparison in the
+corresponding strict functions. For example, [`assert.deepEqual()`][] will
+behave like [`assert.deepStrictEqual()`][].
 
-In `strict` mode, error messages for objects display a diff. In legacy mode,
-error messages for objects display the objects, often truncated.
+In strict assertion mode, error messages for objects display a diff. In legacy
+assertion mode, error messages for objects display the objects, often truncated.
 
-To use `strict` mode:
+To use strict assertion mode:
 
 ```js
 const assert = require('assert').strict;
@@ -121,22 +125,22 @@ This will also deactivate the colors in the REPL.
 For more on the color support in terminal environments, read
 the tty [getColorDepth()](tty.html#tty_writestream_getcolordepth_env) doc.
 
-## Legacy mode
+## Legacy assertion mode
 
-Legacy mode uses the [Abstract Equality Comparison][] in:
+Legacy assertion mode uses the [Abstract Equality Comparison][] in:
 
 * [`assert.deepEqual()`][]
 * [`assert.equal()`][]
 * [`assert.notDeepEqual()`][]
 * [`assert.notEqual()`][]
 
-To use legacy mode:
+To use legacy assertion mode:
 
 ```js
 const assert = require('assert');
 ```
 
-Whenever possible, use the [`strict` mode][] instead. Otherwise, the
+Whenever possible, use the [strict assertion mode][] instead. Otherwise, the
 [Abstract Equality Comparison][] may cause surprising results. This is
 especially true for [`assert.deepEqual()`][], where the comparison rules are
 lax:
@@ -189,11 +193,11 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.deepStrictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.deepStrictEqual()`][] instead.
 
@@ -606,11 +610,11 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.strictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.strictEqual()`][] instead.
 
@@ -842,11 +846,11 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.notDeepStrictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.notDeepStrictEqual()`][] instead.
 
@@ -953,11 +957,11 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.notStrictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.notStrictEqual()`][] instead.
 
@@ -1418,7 +1422,7 @@ argument.
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_fn_error_message
-[`strict` mode]: #assert_strict_mode
+[strict assertion mode]: #assert_strict_assertion_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
