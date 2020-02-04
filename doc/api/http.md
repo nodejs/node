@@ -1917,7 +1917,7 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/31448
     description: The `insecureHTTPParser` option is supported now.
   - version: v9.6.0, v8.12.0
@@ -2038,7 +2038,7 @@ Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v12.15.0
     pr-url: https://github.com/nodejs/node/pull/31448
     description: The `insecureHTTPParser` option is supported now.
   - version: v10.9.0
