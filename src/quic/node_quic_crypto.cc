@@ -81,24 +81,6 @@ bool DeriveTokenKey(
           kCryptoTokenSecretlen));
 }
 
-void GenerateRandData(uint8_t* buf, size_t len) {
-  uint8_t rand[16];
-  uint8_t md[32];
-
-  const EVP_MD* meth = EVP_sha256();
-  unsigned int mdlen = EVP_MD_size(meth);
-  DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free> ctx;
-  ctx.reset(EVP_MD_CTX_new());
-  CHECK(ctx);
-
-  EntropySource(rand, arraysize(rand));
-  CHECK_EQ(EVP_DigestInit_ex(ctx.get(), meth, nullptr), 1);
-  CHECK_EQ(EVP_DigestUpdate(ctx.get(), rand, arraysize(rand)), 1);
-  CHECK_EQ(EVP_DigestFinal_ex(ctx.get(), rand, &mdlen), 1);
-  CHECK_LE(len, arraysize(md));
-  std::copy_n(std::begin(md), len, buf);
-}
-
 bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
@@ -120,7 +102,7 @@ bool GenerateRetryToken(
   p = std::copy_n(reinterpret_cast<uint8_t*>(&now), sizeof(uint64_t), p);
   p = std::copy_n(ocid->data, ocid->datalen, p);
 
-  GenerateRandData(rand_data, kTokenRandLen);
+  EntropySource(rand_data, kTokenRandLen);
 
   if (!DeriveTokenKey(
           token_key,
