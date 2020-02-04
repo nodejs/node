@@ -4617,18 +4617,31 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
     
     definepos = line.find('define')
     if definepos != -1: # If there is a define in the line
-      if not Match(r'^.*define {1}\S',line):
-        error(filename,linenum, 'whitespace/tab', 2, 'Use one whitespace between define and identifier')
+      if not Match(r'^.*define {1}\S', line): # If there is >1 space between define and identifier
+        error(filename, linenum, 'whitespace/tab', 2, 'Use one whitespace between define and identifier')
 
-      if not Match(r'^.*define \S* {1}\S',line):
-        error(filename,linenum, 'whitespace/tab', 2, 'Use one whitespace between identifier and replacement')
+      if not Match(r'^.*define \S* {1}\S', line): # If there is >1 space between identifier and replacement
+        error(filename, linenum, 'whitespace/tab', 2, 'Use one whitespace between identifier and replacement')
 
     undefpos = line.find('undef')
     if undefpos != -1:
-      if not Match(r'^.*undef {1}\S',line):
-        error(filename,linenum, 'whitespace/tab', 2, 'Use one whitespace between undef and identifier')
+      if not Match(r'^.*undef {1}\S', line):  # If there is >1 space between undef and identifier
+        error(filename, linenum, 'whitespace/tab', 2, 'Use one whitespace between undef and identifier')
     
-    
+    # Start of an if/ifdef/ifndef block
+    if (Match(r'^.*(if|ifdef|ifndef)', line) and not Match(r'^.*endif', line)): 
+      # Indent the following lines until else/elif/endif
+      blockindentlevel = GetIndentLevel(line)
+      nextlinenum = linenum + 1
+      # While the if statement is still open 
+      while (not Match(r'^.*endif', clean_lines.elided[nextlinenum])):
+        nextline = clean_lines.elided[nextlinenum]
+        if not Match(r'^.*(else|elif)', nextline):
+          if (GetIndentLevel(nextline) - 2) != blockindentlevel:
+            error(filename, nextlinenum, 'whitespace/tab', 2, 'Statements with if/ifdef/ifndef blocks should be indented')
+          # If the line isn't an else or elif, then indent it appropriately
+        nextlinenum += 1
+
 
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
