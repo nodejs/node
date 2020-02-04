@@ -859,7 +859,7 @@ void ThrowExportsNotFound(Environment* env,
   const std::string msg = "Package subpath '" + subpath + "' is not defined" +
       " by \"exports\" in " + pjson_url.ToFilePath() + " imported from " +
       base.ToFilePath();
-  node::THROW_ERR_PKG_PATH_NOT_EXPORTED(env, msg.c_str());
+  node::THROW_ERR_PACKAGE_PATH_NOT_EXPORTED(env, msg.c_str());
 }
 
 void ThrowSubpathInvalid(Environment* env,
@@ -1001,7 +1001,7 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
             Utf8Value code_utf8(env->isolate(),
                                 code->ToString(context).ToLocalChecked());
             std::string code_str(*code_utf8, code_utf8.length());
-            if (code_str == "ERR_PKG_PATH_NOT_EXPORTED" ||
+            if (code_str == "ERR_PACKAGE_PATH_NOT_EXPORTED" ||
                 code_str == "ERR_INVALID_PACKAGE_TARGET") {
               continue;
             }
@@ -1051,7 +1051,7 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
             Utf8Value code_utf8(env->isolate(),
                                 code->ToString(context).ToLocalChecked());
             std::string code_str(*code_utf8, code_utf8.length());
-            if (code_str == "ERR_PKG_PATH_NOT_EXPORTED") continue;
+            if (code_str == "ERR_PACKAGE_PATH_NOT_EXPORTED") continue;
             try_catch.ReThrow();
             return Nothing<URL>();
           }
@@ -1146,7 +1146,7 @@ Maybe<URL> PackageMainResolve(Environment* env,
       }
       std::string msg = "No \"exports\" main resolved in " +
           pjson_url.ToFilePath();
-      node::THROW_ERR_PKG_PATH_NOT_EXPORTED(env, msg.c_str());
+      node::THROW_ERR_PACKAGE_PATH_NOT_EXPORTED(env, msg.c_str());
     }
     if (pcfg.has_main == HasMain::Yes) {
       URL resolved(pcfg.main, pjson_url);

@@ -54,7 +54,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                   \
   V(ERR_MODULE_NOT_FOUND, Error)                                             \
   V(ERR_OUT_OF_RANGE, RangeError)                                            \
-  V(ERR_PKG_PATH_NOT_EXPORTED, Error)                                        \
+  V(ERR_PACKAGE_PATH_NOT_EXPORTED, Error)                                    \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \

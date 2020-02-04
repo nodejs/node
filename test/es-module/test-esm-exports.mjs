@@ -87,7 +87,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of undefinedExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PKG_PATH_NOT_EXPORTED');
+      strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
       assertStartsWith(err.message, 'Package subpath ');
       assertIncludes(err.message, subpath);
     }));
@@ -113,7 +113,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   // of falling back to main
   if (isRequire) {
     loadFixture('pkgexports-main').catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PKG_PATH_NOT_EXPORTED');
+      strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
       assertStartsWith(err.message, 'No "exports" main ');
     }));
   }
