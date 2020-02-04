@@ -1424,7 +1424,8 @@ added: REPLACEME
     passphrase: <string>]}`. The object form can only occur in an array.
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
-  * `activeConnectionIdLimit` {number}
+  * `activeConnectionIdLimit` {number} Must be a value between `2` and `8`
+    (inclusive). Default: `2`.
   * `maxAckDelay` {number}
   * `maxData` {number}
   * `maxPacketSize` {number}

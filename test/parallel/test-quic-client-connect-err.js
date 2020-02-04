@@ -107,6 +107,13 @@ const client = createSocket();
   });
 });
 
+// activeConnectionIdLimit must be between 2 and 8, inclusive
+[1, 9].forEach((activeConnectionIdLimit) => {
+  assert.throws(() => client.connect({ activeConnectionIdLimit }), {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+});
+
 ['a', 1n, 1, [], {}].forEach((ipv6Only) => {
   assert.throws(() => client.connect({ ipv6Only }), {
     code: 'ERR_INVALID_ARG_TYPE'
@@ -161,7 +168,7 @@ const client = createSocket();
 //
 //  [x] idleTimeout - must be a number greater than zero
 //  [x] ipv6Only - must be a boolean
-//  [x] activeConnectionIdLimit - must be a number greater than zero
+//  [x] activeConnectionIdLimit - must be a number between 2 and 8
 //  [x] maxAckDelay - must be a number greater than zero
 //  [x] maxData - must be a number greater than zero
 //  [x] maxPacketSize - must be a number greater than zero
