@@ -108,8 +108,6 @@ void QuicSessionConfig::ResetToDefaults(Environment* env) {
       DEFAULT_MAX_STREAMS_UNI;
   transport_params.initial_max_data = DEFAULT_MAX_DATA;
   transport_params.max_idle_timeout = DEFAULT_MAX_IDLE_TIMEOUT;
-  transport_params.active_connection_id_limit =
-      DEFAULT_MAX_ACTIVE_CONNECTION_ID_LIMIT;
   transport_params.max_packet_size =
       NGTCP2_MAX_PKT_SIZE;
   transport_params.max_ack_delay =
@@ -144,8 +142,6 @@ void QuicSessionConfig::Set(
             &transport_params.max_packet_size);
   SetConfig(env, IDX_QUIC_SESSION_MAX_ACK_DELAY,
             &transport_params.max_ack_delay);
-  SetConfig(env, IDX_QUIC_SESSION_MAX_ACTIVE_CONNECTION_ID_LIMIT,
-            &transport_params.active_connection_id_limit);
 
   transport_params.max_idle_timeout =
       transport_params.max_idle_timeout * 1000000000;

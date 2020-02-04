@@ -1426,7 +1426,6 @@ added: REPLACEME
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `activeConnectionIdLimit` {number}
   * `maxAckDelay` {number}
-  * `maxActiveConnectionIDLimit` {number}
   * `maxData` {number}
   * `maxPacketSize` {number}
   * `maxStreamDataBidiLocal` {number}

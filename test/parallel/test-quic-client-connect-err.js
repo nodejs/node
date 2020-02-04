@@ -88,7 +88,6 @@ const client = createSocket();
   'idleTimeout',
   'activeConnectionIdLimit',
   'maxAckDelay',
-  'activeConnectionIdLimit',
   'maxData',
   'maxPacketSize',
   'maxStreamDataBidiLocal',
@@ -164,7 +163,6 @@ const client = createSocket();
 //  [x] ipv6Only - must be a boolean
 //  [x] activeConnectionIdLimit - must be a number greater than zero
 //  [x] maxAckDelay - must be a number greater than zero
-//  [x] maxActiveConnectionIDLimit - must be a number greater than zero
 //  [x] maxData - must be a number greater than zero
 //  [x] maxPacketSize - must be a number greater than zero
 //  [x] maxStreamDataBidiLocal - must be a number greater than zero
