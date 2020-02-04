@@ -97,7 +97,6 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
-void GetHumanReadableProcessName(char (*name)[1024]);
 
 void InitializeContextRuntime(v8::Local<v8::Context>);
 
