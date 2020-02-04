@@ -10,11 +10,9 @@ const {
 const http = require('http');
 
 const hooked = {};
-const types = {};
 createHook({
   init(asyncId, type, triggerAsyncId, resource) {
     hooked[asyncId] = resource;
-    types[asyncId] = type;
   }
 }).enable();
 

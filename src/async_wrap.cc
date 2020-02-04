@@ -675,6 +675,7 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
 
   auto isolate = Isolate::GetCurrent();
   resource_.Reset(isolate, resource);
+  resource_.SetWeak();
 
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
