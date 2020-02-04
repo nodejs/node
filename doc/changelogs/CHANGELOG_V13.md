@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#13.8.0">13.8.0</a><br/>
 <a href="#13.7.0">13.7.0</a><br/>
 <a href="#13.6.0">13.6.0</a><br/>
 <a href="#13.5.0">13.5.0</a><br/>
@@ -36,6 +37,33 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="13.8.0"></a>
+## 2020-02-06, Version 13.8.0 (Current), @BethGriggs
+
+### Notable Changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+* **CVE-2019-15606**: HTTP header values do not have trailing OWS trimmed.
+* **CVE-2019-15605**: HTTP request smuggling using malformed Transfer-Encoding header.
+* **CVE-2019-15604**: Remotely trigger an assertion on a TLS server with a malformed certificate string.
+
+Also, HTTP parsing is more strict to be more secure. Since this may
+cause problems in interoperability with some non-conformant HTTP
+implementations, it is possible to disable the strict checks with the
+`--insecure-http-parser` command line flag, or the `insecureHTTPParser`
+http option. Using the insecure HTTP parser should be avoided.
+
+### Commits
+
+* [[`b7da194714`](https://github.com/nodejs/node/commit/b7da194714)] - **benchmark**: support optional headers with wrk (Sam Roberts) [nodejs-private/node-private#189](https://github.com/nodejs-private/node-private/pull/189)
+* [[`1156a9e5f8`](https://github.com/nodejs/node/commit/1156a9e5f8)] - **crypto**: fix assertion caused by unsupported ext (Fedor Indutny) [nodejs-private/node-private#175](https://github.com/nodejs-private/node-private/pull/175)
+* [[`8f41e837bb`](https://github.com/nodejs/node/commit/8f41e837bb)] - **deps**: update llhttp to 2.0.4 (Beth Griggs) [nodejs-private/node-private#199](https://github.com/nodejs-private/node-private/pull/199)
+* [[`07d56e49cf`](https://github.com/nodejs/node/commit/07d56e49cf)] - **(SEMVER-MINOR)** **http**: make --insecure-http-parser configurable per-stream or per-server (Anna Henningsen) [#31448](https://github.com/nodejs/node/pull/31448)
+* [[`25b6897e8a`](https://github.com/nodejs/node/commit/25b6897e8a)] - **http**: strip trailing OWS from header values (Sam Roberts) [nodejs-private/node-private#189](https://github.com/nodejs-private/node-private/pull/189)
+* [[`eea3a7429b`](https://github.com/nodejs/node/commit/eea3a7429b)] - **test**: using TE to smuggle reqs is not possible (Sam Roberts) [nodejs-private/node-private#199](https://github.com/nodejs-private/node-private/pull/199)
 
 <a id="13.7.0"></a>
 ## 2020-01-21, Version 13.7.0 (Current), @codebytere
