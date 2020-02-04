@@ -27,13 +27,13 @@ const client = createSocket();
 });
 
 // Test invalid address argument option
-[-1, 10, 1n, {}, []].forEach((address) => {
+[-1, 10, 1n, {}, [], true].forEach((address) => {
   assert.throws(() => client.connect({ address }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 
-// Test address can't be IP address argument option
+// Test servername can't be IP address argument option
 [
   '0.0.0.0',
   '8.8.8.8',
@@ -51,9 +51,15 @@ const client = createSocket();
   'a:0:0:0:0:0:0:0',
   'fe80::7:8%eth0',
   'fe80::7:8%1'
-].forEach((address) => {
-  assert.throws(() => client.connect({ address }), {
+].forEach((servername) => {
+  assert.throws(() => client.connect({ servername }), {
     code: 'ERR_INVALID_ARG_VALUE'
+  });
+});
+
+[-1, 10, 1n, {}, [], true].forEach((servername) => {
+  assert.throws(() => client.connect({ servername }), {
+    code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 
