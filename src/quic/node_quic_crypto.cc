@@ -231,7 +231,7 @@ std::unique_ptr<QuicPacket> GenerateRetryPacket(
   if (nwrite <= 0)
     return {};
   packet->set_length(nwrite);
-  return std::move(packet);
+  return packet;
 }
 
 // Validates a retry token included in the given header. This will return
