@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.15.0">12.15.0</a><br/>
 <a href="#12.14.1">12.14.1</a><br/>
 <a href="#12.14.0">12.14.0</a><br/>
 <a href="#12.13.1">12.13.1</a><br/>
@@ -51,6 +52,37 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.15.0"></a>
+## 2020-02-06, Version 12.15.0 'Erbium' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+* **CVE-2019-15606**: HTTP header values do not have trailing OWS trimmed.
+* **CVE-2019-15605**: HTTP request smuggling using malformed Transfer-Encoding header.
+* **CVE-2019-15604**: Remotely trigger an assertion on a TLS server with a malformed certificate string.
+
+Also, HTTP parsing is more strict to be more secure. Since this may
+cause problems in interoperability with some non-conformant HTTP
+implementations, it is possible to disable the strict checks with the
+`--insecure-http-parser` command line flag, or the `insecureHTTPParser`
+http option. Using the insecure HTTP parser should be avoided.
+
+### Commits
+
+* [[`209767c7a2`](https://github.com/nodejs/node/commit/209767c7a2)] - **benchmark**: support optional headers with wrk (Sam Roberts) [nodejs-private/node-private#189](https://github.com/nodejs-private/node-private/pull/189)
+* [[`02c8905051`](https://github.com/nodejs/node/commit/02c8905051)] - **crypto**: fix assertion caused by unsupported ext (Fedor Indutny) [nodejs-private/node-private#175](https://github.com/nodejs-private/node-private/pull/175)
+* [[`25d6011912`](https://github.com/nodejs/node/commit/25d6011912)] - **deps**: update llhttp to 2.0.4 (Beth Griggs) [nodejs-private/llhttp-private#1](https://github.com/nodejs-private/llhttp-private/pull/1)
+* [[`8162f0e194`](https://github.com/nodejs/node/commit/8162f0e194)] - **deps**: upgrade http-parser to v2.9.3 (Sam Roberts) [nodejs-private/http-parser-private#4](https://github.com/nodejs-private/http-parser-private/pull/4)
+* [[`d41314ef99`](https://github.com/nodejs/node/commit/d41314ef99)] - **(SEMVER-MINOR)** **deps**: upgrade http-parser to v2.9.1 (Sam Roberts) [#30473](https://github.com/nodejs/node/pull/30473)
+* [[`7fc565666c`](https://github.com/nodejs/node/commit/7fc565666c)] - **(SEMVER-MINOR)** **http**: make --insecure-http-parser configurable per-stream or per-server (Anna Henningsen) [#31448](https://github.com/nodejs/node/pull/31448)
+* [[`496736ff78`](https://github.com/nodejs/node/commit/496736ff78)] - **(SEMVER-MINOR)** **http**: opt-in insecure HTTP header parsing (Sam Roberts) [#30567](https://github.com/nodejs/node/pull/30567)
+* [[`76fd8910e9`](https://github.com/nodejs/node/commit/76fd8910e9)] - **http**: strip trailing OWS from header values (Sam Roberts) [nodejs-private/node-private#189](https://github.com/nodejs-private/node-private/pull/189)
+* [[`9cd155eb4a`](https://github.com/nodejs/node/commit/9cd155eb4a)] - **test**: using TE to smuggle reqs is not possible (Sam Roberts) [nodejs-private/node-private#192](https://github.com/nodejs-private/node-private/pull/192)
+* [[`ab1fcb89cb`](https://github.com/nodejs/node/commit/ab1fcb89cb)] - **test**: check that --insecure-http-parser works (Sam Roberts) [#31253](https://github.com/nodejs/node/pull/31253)
 
 <a id="12.14.1"></a>
 ## 2020-01-07, Version 12.14.1 'Erbium' (LTS), @BethGriggs
