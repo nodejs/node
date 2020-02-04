@@ -78,8 +78,125 @@ const client = createSocket();
 });
 
 // Test invalid alpn argument option
-[-1, 10, 1n, {}, []].forEach((alpn) => {
+[-1, 10, 1n, {}, [], true].forEach((alpn) => {
   assert.throws(() => client.connect({ alpn }), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
+
+[
+  'idleTimeout',
+  'activeConnectionIdLimit',
+  'maxAckDelay',
+  'activeConnectionIdLimit',
+  'maxData',
+  'maxPacketSize',
+  'maxStreamDataBidiLocal',
+  'maxStreamDataBidiRemote',
+  'maxStreamDataUni',
+  'maxStreamsBidi',
+  'maxStreamsUni',
+].forEach((prop) => {
+  assert.throws(() => client.connect({ [prop]: -1 }), {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+
+  ['a', 1n, [], {}, false, Number.MAX_SAFE_INTEGER + 1].forEach((val) => {
+    assert.throws(() => client.connect({ [prop]: val }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+});
+
+['a', 1n, 1, [], {}].forEach((ipv6Only) => {
+  assert.throws(() => client.connect({ ipv6Only }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+[1, 1n, false, [], {}].forEach((preferredAddressPolicy) => {
+  assert.throws(() => client.connect({ preferredAddressPolicy }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+[1, 1n, 'test', [], {}].forEach((qlog) => {
+  assert.throws(() => client.connect({ qlog }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+[1, 1n, 'test', [], {}].forEach((requestOCSP) => {
+  assert.throws(() => client.connect({ requestOCSP }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+[1, 1n, false, [], {}, 'aaa'].forEach((type) => {
+  assert.throws(() => client.connect({ type }), {
+    code: 'ERR_INVALID_ARG_VALUE'
+  });
+});
+
+
+[
+  'qpackMaxTableCapacity',
+  'qpackBlockedStreams',
+  'maxHeaderListSize',
+  'maxPushes',
+].forEach((prop) => {
+  assert.throws(() => client.connect({ h3: { [prop]: -1 } }), {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+
+  ['a', 1n, [], {}, false, Number.MAX_SAFE_INTEGER + 1].forEach((val) => {
+    assert.throws(() => client.connect({ h3: { [prop]: val } }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+});
+
+// TODO(@jasnell): Test additional options:
+//
+// Client QuicSession Related:
+//
+//  [x] idleTimeout - must be a number greater than zero
+//  [x] ipv6Only - must be a boolean
+//  [x] activeConnectionIdLimit - must be a number greater than zero
+//  [x] maxAckDelay - must be a number greater than zero
+//  [x] maxActiveConnectionIDLimit - must be a number greater than zero
+//  [x] maxData - must be a number greater than zero
+//  [x] maxPacketSize - must be a number greater than zero
+//  [x] maxStreamDataBidiLocal - must be a number greater than zero
+//  [x] maxStreamDataBidiRemote - must be a number greater than zero
+//  [x] maxStreamDataUni - must be a number greater than zero
+//  [x] maxStreamsBidi - must be a number greater than zero
+//  [x] maxStreamsUni - must be a number greater than zero
+//  [x] preferredAddressPolicy - must be eiher 'accept' or 'reject'
+//  [x] qlog - must be a boolean
+//  [x] requestOCSP - must be a boolean
+//  [x] type - must be a string, either 'udp4' or 'udp6'
+//
+// HTTP/3 Related:
+//
+//  [x] h3.qpackMaxTableCapacity - must be a number greater than zero
+//  [x] h3.qpackBlockedStreams - must be a number greater than zero
+//  [x] h3.maxHeaderListSize - must be a number greater than zero
+//  [x] h3.maxPushes - must be a number greater than zero
+//
+// Secure Context Related:
+//
+//  [ ] ca (certificate authority) - must be a string, string array,
+//      Buffer, or Buffer array.
+//  [ ] cert (cert chain) - must be a string, string array, Buffer, or
+//      Buffer array.
+//  [ ] ciphers - must be a string
+//  [ ] clientCertEngine - must be a string
+//  [ ] crl - must be a string, string array, Buffer, or Buffer array
+//  [ ] dhparam - must be a string or Buffer
+//  [ ] ecdhCurve - must be a string
+//  [ ] honorCipherOrder - must be a boolean
+//  [ ] key - must be a string, string array, Buffer, or Buffer array
+//  [ ] passphrase - must be a string
+//  [ ] pfx - must be a string, string array, Buffer, or Buffer array
+//  [ ] secureOptions - must be a number
