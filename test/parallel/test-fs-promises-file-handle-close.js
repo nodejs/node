@@ -32,7 +32,7 @@ async function doOpen() {
 // be eligible for garbage collection.
 {
   doOpen().then(common.mustCall((fd) => {
-    assert.strictEqual(typeof fd, 'number');
+    assert.strictEqual(typeof fd, 'object');
   }));
 }
 
