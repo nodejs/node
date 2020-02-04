@@ -52,7 +52,8 @@ overhead of creating Workers would likely exceed their benefit.
 When implementing a worker pool, use the [`AsyncResource`][] API to inform
 diagnostic tools (e.g. in order to provide asynchronous stack traces) about the
 correlation between tasks and their outcomes. See
-[here][async-resource-worker-pool] for an example implementation.
+["Using `AsyncResource` for a `Worker` thread pool"][async-resource-worker-pool]
+in the `async_hooks` documentation for an example implementation.
 
 ## `worker.isMainThread`
 <!-- YAML
