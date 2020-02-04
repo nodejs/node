@@ -10,6 +10,12 @@ if (common.isSunOS)
 if (common.isIBMi)
   common.skip('Unsupported platform IBMi');
 
+// Explicitly assigning to process.title before starting the child process
+// is necessary otherwise *its* process.title is whatever the last
+// SetConsoleTitle() call in our process tree set it to.
+if (common.isWindows)
+  process.title = process.execPath;
+
 const xs = 'x'.repeat(1024);
 const proc = spawnSync(process.execPath, ['-p', 'process.title', xs]);
 strictEqual(proc.stdout.toString().trim(), process.execPath);
