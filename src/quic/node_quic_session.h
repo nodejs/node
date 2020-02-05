@@ -1102,7 +1102,7 @@ class QuicSession : public AsyncWrap,
   inline void ExtendMaxStreamsBidi(uint64_t max_streams);
   inline void ExtendMaxStreamsRemoteUni(uint64_t max_streams);
   inline void ExtendMaxStreamsRemoteBidi(uint64_t max_streams);
-  int GetNewConnectionID(ngtcp2_cid* cid, uint8_t* token, size_t cidlen);
+  bool GetNewConnectionID(ngtcp2_cid* cid, uint8_t* token, size_t cidlen);
   inline void GetConnectionCloseInfo();
   inline void HandshakeCompleted();
   inline void HandshakeConfirmed();

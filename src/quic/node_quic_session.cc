@@ -1593,21 +1593,23 @@ void QuicSession::Destroy() {
 // Generates and associates a new connection ID for this QuicSession.
 // ngtcp2 will call this multiple times at the start of a new connection
 // in order to build a pool of available CIDs.
-int QuicSession::GetNewConnectionID(
+bool QuicSession::GetNewConnectionID(
     ngtcp2_cid* cid,
     uint8_t* token,
     size_t cidlen) {
-  DCHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
+  if (is_flag_set(QUICSESSION_FLAG_DESTROYED))
+    return false;
+  CHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
   CHECK_NOT_NULL(connection_id_strategy_);
   connection_id_strategy_(this, cid, cidlen);
   QuicCID cid_(cid);
   StatelessResetToken(token, socket()->session_reset_secret(), cid_);
   AssociateCID(cid_);
-  return 0;
+  return true;
 }
 
 void QuicSession::HandleError() {
-  if (is_in_closing_period() && !is_server())
+  if (is_destroyed() || (is_in_closing_period() && !is_server()))
     return;
 
   if (!SendConnectionClose()) {
@@ -2115,7 +2117,7 @@ void QuicSession::SendPendingData() {
   //  * The QuicSession is a server in the closing period
   //  * The QuicSession is not currently associated with a QuicSocket
   if (Ngtcp2CallbackScope::InNgtcp2CallbackScope(this) ||
-      is_flag_set(QUICSESSION_FLAG_DESTROYED) ||
+      is_destroyed() ||
       is_in_draining_period() ||
       (is_server() && is_in_closing_period()) ||
       socket() == nullptr) {
@@ -2124,12 +2126,6 @@ void QuicSession::SendPendingData() {
 
   if (!application_->SendPendingData()) {
     Debug(this, "Error sending QUIC application data");
-    HandleError();
-  }
-
-  // Otherwise, serialize and send any packets waiting in the queue.
-  if (!WritePackets("pending session data - write packets")) {
-    Debug(this, "Error writing pending packets");
     HandleError();
   }
 }
@@ -3134,13 +3130,9 @@ int QuicSession::OnGetNewConnectionID(
     size_t cidlen,
     void* user_data) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
-  // The default case really does not require the Ngtcp2CallbackScope
-  // here but a future alternative implementation of ConnectionIDStrategy
-  // could call out to user code and do other things... so we have
-  // the scope here just to be safe.
-  QuicSession::Ngtcp2CallbackScope callback_scope(session);
-  session->GetNewConnectionID(cid, token, cidlen);
-  return 0;
+  CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session));
+  return session->GetNewConnectionID(cid, token, cidlen) ?
+      0 : NGTCP2_ERR_CALLBACK_FAILURE;
 }
 
 // When a connection is closed, ngtcp2 will call this multiple
