@@ -105,12 +105,8 @@ assert.throws(() => socket.setDiagnosticPacketLoss({ tx: 1.1 }), {
 });
 
 [1, 1n, [], {}, null].forEach((args) => {
-  const message = 'The "on" argument must be of type boolean.' +
-                  ' Received type ' + typeof args;
-
   assert.throws(() => socket.setServerBusy(args), {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message
+    code: 'ERR_INVALID_ARG_TYPE'
   });
 });
 
