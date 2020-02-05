@@ -44,14 +44,12 @@ server.on('session', common.mustCall((session) => {
 
   session.on('secure', common.mustCall((servername, alpn, cipher) => {
     const uni = session.openStream({ halfOpen: true });
+
+    // TODO(@jasnell): There's still a bug in here somewhere. If we
+    // comment out the following line and close without writing
+    // anything, the test hangs.
     uni.write('hi', common.mustCall());
     uni.close(3);
-
-    uni.on('abort', common.mustCall((code, finalSize) => {
-      debug('Undirectional, Server-initiated stream %d aborted', uni.id);
-      assert.strictEqual(code, 3);
-      assert.strictEqual(finalSize, 2);
-    }));
 
     uni.on('data', common.mustNotCall());
 
@@ -63,7 +61,9 @@ server.on('session', common.mustCall((session) => {
       debug('Unidirectional, Server-initiated stream %d closed on server',
             uni.id);
     }));
-    uni.on('error', common.mustNotCall());
+    uni.on('error', common.mustCall(() => {
+      assert.strictEqual(uni.aborted, true);
+    }));
 
     debug('Unidirectional, Server-initiated stream %d opened', uni.id);
   }));
@@ -96,22 +96,16 @@ server.on('ready', common.mustCall(() => {
     stream.write('hello', common.mustCall());
     stream.close(1);
 
-    // The abort event should emit because the stream closed abruptly
-    // before the stream was finished.
-    stream.on('abort', common.mustCall((code, finalSize) => {
-      debug('Bidirectional, Client-initated stream %d aborted', stream.id);
-      assert.strictEqual(code, 1);
-      countdown.dec();
-    }));
+    stream.on('end', common.mustNotCall());
 
-    stream.on('end', common.mustCall(() => {
-      debug('Bidirectional, Client-initiated stream %d ended on client',
-            stream.id);
+    stream.on('error', common.mustCall(() => {
+      assert.strictEqual(stream.aborted, true);
     }));
 
     stream.on('close', common.mustCall(() => {
       debug('Bidirectional, Client-initiated stream %d closed on client',
             stream.id);
+      countdown.dec();
     }));
 
     debug('Bidirectional, Client-initiated stream %d opened', stream.id);

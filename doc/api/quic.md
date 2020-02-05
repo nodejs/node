@@ -1835,19 +1835,6 @@ added: REPLACEME
 
 * Extends: {stream.Duplex}
 
-#### Event: `'abort'`
-<!-- YAML
-added: REPLACEME
--->
-
-Emitted when the `QuicStream` is closed abruptly before the readable
-or writable side has closed naturally.
-
-The callback is invoked with two arguments:
-
-* `code` {number} The QUIC application error code used to terminate the stream.
-* `family` {number} Identifier of the error code family.
-
 #### Event: `'blocked'`
 <!-- YAML
 added: REPLACEME

@@ -134,6 +134,7 @@ void QuicStream::ResetStream(uint64_t app_error_code) {
   // to be acknowledged at the ngtcp2 level will be
   // abandoned.
   set_flag(QUICSTREAM_FLAG_READ_CLOSED);
+  streambuf_.Cancel();
   streambuf_.End();
   session_->ResetStream(stream_id_, app_error_code);
 }
