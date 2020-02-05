@@ -2,7 +2,7 @@
 
 This document describes the technical aspects of the Node.js release process.
 The intended audience is those who have been authorized by the Node.js
-Foundation Technical Steering Committee (TSC) to create, promote, and sign
+Technical Steering Committee (TSC) to create, promote, and sign
 official release builds for Node.js, hosted on <https://nodejs.org/>.
 
 ## Table of Contents
