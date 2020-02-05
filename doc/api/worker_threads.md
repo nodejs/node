@@ -584,6 +584,8 @@ exited by calling [`process.exit()`][], the `exitCode` parameter will be the
 passed exit code. If the worker was terminated, the `exitCode` parameter will
 be `1`.
 
+This is the final event emitted by any `Worker` instance.
+
 ### Event: `'message'`
 <!-- YAML
 added: v10.5.0
@@ -594,6 +596,9 @@ added: v10.5.0
 The `'message'` event is emitted when the worker thread has invoked
 [`require('worker_threads').parentPort.postMessage()`][].
 See the [`port.on('message')`][] event for more details.
+
+All messages sent from the worker thread will be emitted before the
+[`'exit'` event][] is emitted on the `Worker` object.
 
 ### Event: `'online'`
 <!-- YAML
