@@ -183,7 +183,7 @@ Specify the `file` of the custom [experimental ECMAScript Module][] loader.
 
 ### `--insecure-http-parser`
 <!-- YAML
-added: REPLACEME
+added: v10.19.0
 -->
 
 Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
