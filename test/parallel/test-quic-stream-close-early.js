@@ -7,18 +7,17 @@ if (!common.hasQuic)
 
 const Countdown = require('../common/countdown');
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
-const { debuglog } = require('util');
-const debug = debuglog('test');
-const fs = require('fs');
+const {
+  key,
+  cert,
+  ca,
+  debug,
+  kServerPort,
+  kClientPort,
+  setupKeylog
+} = require('../common/quic');
 
 const { createSocket } = require('quic');
-
-const kServerPort = process.env.NODE_DEBUG_KEYLOG ? 5678 : 0;
-const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 
 let client;
 const server = createSocket({ endpoint: { port: kServerPort } });
@@ -37,10 +36,7 @@ server.listen({ key, cert, ca, alpn: kALPN });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
 
-  if (process.env.NODE_DEBUG_KEYLOG) {
-    const kl = fs.createWriteStream(process.env.NODE_DEBUG_KEYLOG);
-    session.on('keylog', kl.write.bind(kl));
-  }
+  setupKeylog(session);
 
   session.on('secure', common.mustCall((servername, alpn, cipher) => {
     const uni = session.openStream({ halfOpen: true });
@@ -91,7 +87,7 @@ server.on('ready', common.mustCall(() => {
     const stream = req.openStream();
 
     // TODO(@jasnell): The close happens synchronously, before any
-    // data for the stream is actually flushed our to the connected
+    // data for the stream is actually flushed out to the connected
     // peer.
     stream.write('hello', common.mustCall());
     stream.close(1);

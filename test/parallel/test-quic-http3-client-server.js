@@ -10,28 +10,26 @@ if (!common.hasQuic)
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const fs = require('fs');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
-const { debuglog } = require('util');
-const debug = debuglog('test');
+
+const {
+  key,
+  cert,
+  ca,
+  debug,
+  kHttp3Alpn,
+  kServerPort,
+  kClientPort,
+  setupKeylog,
+} = require('../common/quic');
 
 const filedata = fs.readFileSync(__filename, { encoding: 'utf8' });
 
 const { createSocket } = require('quic');
 
-const kServerPort = process.env.NODE_DEBUG_KEYLOG ? 5678 : 0;
-const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
-
 let client;
-const server = createSocket({
-  endpoint: { port: kServerPort },
-  validateAddress: true
-});
+const server = createSocket({ endpoint: { port: kServerPort } });
 
 const kServerName = 'agent2';  // Intentionally the wrong servername
-const kALPN = 'h3-25';
 
 const countdown = new Countdown(1, () => {
   debug('Countdown expired. Destroying sockets');
@@ -43,9 +41,7 @@ server.listen({
   key,
   cert,
   ca,
-  requestCert: true,
-  rejectUnauthorized: false,
-  alpn: kALPN,
+  alpn: kHttp3Alpn,
 });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
@@ -53,10 +49,7 @@ server.on('session', common.mustCall((session) => {
   assert.strictEqual(session.maxStreams.bidi, 100);
   assert.strictEqual(session.maxStreams.uni, 3);
 
-  if (process.env.NODE_DEBUG_KEYLOG) {
-    const kl = fs.createWriteStream(process.env.NODE_DEBUG_KEYLOG);
-    session.on('keylog', kl.write.bind(kl));
-  }
+  setupKeylog(session);
 
   session.on('secure', common.mustCall((_, alpn) => {
     debug('QuicServerSession handshake completed');
@@ -104,7 +97,7 @@ server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
   client = createSocket({
     endpoint: { port: kClientPort },
-    client: { key, cert, ca, alpn: kALPN }
+    client: { key, cert, ca, alpn: kHttp3Alpn }
   });
 
   client.on('close', common.mustCall());

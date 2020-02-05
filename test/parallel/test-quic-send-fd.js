@@ -8,10 +8,7 @@ const assert = require('assert');
 const quic = require('quic');
 const fs = require('fs');
 
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
+const { key, cert, ca } = require('../common/quic');
 
 const variants = [];
 for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
@@ -23,10 +20,10 @@ for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
 }
 
 for (const { variant, offset, length } of variants) {
-  const server = quic.createSocket({ validateAddress: true });
+  const server = quic.createSocket();
   let fd;
 
-  server.listen({ key, cert, ca, alpn: 'meow', rejectUnauthorized: false });
+  server.listen({ key, cert, ca, alpn: 'meow' });
 
   server.on('session', common.mustCall((session) => {
     session.on('secure', common.mustCall((servername, alpn, cipher) => {

@@ -125,10 +125,7 @@ socket.on('ready', common.mustCall(() => {
   assert.strictEqual(typeof endpoint.address.port, 'number');
   assert.strictEqual(typeof endpoint.address.family, 'string');
 
-  // On Windows, fd will always be undefined.
-  if (common.isWindows)
-    assert.strictEqual(endpoint.fd, undefined);
-  else
+  if (!common.isWindows)
     assert.strictEqual(typeof endpoint.fd, 'number');
 
   endpoint.setTTL(1);

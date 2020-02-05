@@ -9,10 +9,7 @@ if (!common.hasQuic)
 
 const Countdown = require('../common/countdown');
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
+const { key, cert, ca, kHttp3Alpn } = require('../common/quic');
 
 const { createSocket } = require('quic');
 
@@ -24,7 +21,9 @@ const countdown = new Countdown(2, () => {
   client.close();
 });
 
-server.listen({ key, cert, ca, alpn: 'h3-25' });
+const options = { key, cert, ca, alpn: kHttp3Alpn };
+
+server.listen(options);
 
 server.on('session', common.mustCall((session) => {
 
@@ -66,7 +65,7 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  client = createSocket({ client: { key, cert, ca, alpn: 'h3-25' } });
+  client = createSocket({ client: options });
   client.on('close', common.mustCall());
 
   const req = client.connect({

@@ -24,11 +24,7 @@ if (!common.hasQuic)
 
 const Countdown = require('../common/countdown');
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent8-key.pem', 'binary');
-const cert = fixtures.readKey('agent8-cert.pem', 'binary');
-const { debuglog } = require('util');
-const debug = debuglog('test');
+const { debug, key, cert } = require('../common/quic');
 
 const { createSocket } = require('quic');
 
@@ -50,13 +46,8 @@ server.on('session', common.mustCall((session) => {
     debug('QuicServerSession TLS Handshake Completed.');
 
     ([3, 1n, [], {}, null, 'meow']).forEach((halfOpen) => {
-      const message = 'The "options.halfOpen" property must' +
-        ` be of type boolean. Received type ${typeof halfOpen}`;
-
       assert.throws(() => session.openStream({ halfOpen }), {
         code: 'ERR_INVALID_ARG_TYPE',
-        name: 'TypeError',
-        message
       });
     });
 

@@ -10,18 +10,15 @@ if (!common.hasQuic)
   common.skip('missing quic');
 
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
+const { key, cert, ca } = require('../common/quic');
 const { createSocket } = require('quic');
 
-const kALPN = 'zzz';
 const kServerName = 'agent2';
 const server = createSocket();
 
 let client;
-server.listen({ key, cert, ca, alpn: kALPN });
+const options = { key, cert, ca, alpn: 'zzz' };
+server.listen(options);
 
 server.on('session', common.mustCall((serverSession) => {
   serverSession.on('stream', common.mustCall((stream) => {
@@ -37,7 +34,7 @@ server.on('session', common.mustCall((serverSession) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
+  client = createSocket({ client: options });
 
   const clientSession = client.connect({
     address: 'localhost',

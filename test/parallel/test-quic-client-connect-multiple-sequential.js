@@ -8,10 +8,7 @@ if (!common.hasQuic)
 
 const quic = require('quic');
 
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
+const { key, cert, ca } = require('../common/quic');
 
 const { once } = require('events');
 

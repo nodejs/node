@@ -8,11 +8,7 @@ if (!common.hasQuic)
 const { createSocket } = require('quic');
 const assert = require('assert');
 const Countdown = require('../common/countdown');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
-
+const { key, cert, ca } = require('../common/quic');
 const kServerName = 'agent2';
 const kALPN = 'zzz';
 

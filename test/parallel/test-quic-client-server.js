@@ -19,12 +19,12 @@ const { Buffer } = require('buffer');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const fs = require('fs');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
-const { debuglog } = require('util');
-const debug = debuglog('test');
+const {
+  key,
+  cert,
+  ca,
+  debug,
+} = require('../common/quic');
 
 const filedata = fs.readFileSync(__filename, { encoding: 'utf8' });
 

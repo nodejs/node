@@ -4,15 +4,14 @@ const common = require('../common');
 if (!common.hasQuic)
   common.skip('missing quic');
 
+// Tests that QUIC works properly when using a pair of mocked UDP ports.
+
 const { makeUDPPair } = require('../common/udppair');
 const assert = require('assert');
 const quic = require('quic');
 const { kUDPHandleForTesting } = require('internal/quic/core');
 
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
+const { key, cert, ca } = require('../common/quic');
 
 const { serverSide, clientSide } = makeUDPPair();
 
@@ -24,7 +23,7 @@ serverSide.afterBind();
 server.listen({ key, cert, ca, alpn: 'meow' });
 
 server.on('session', common.mustCall((session) => {
-  session.on('secure', common.mustCall((servername, alpn, cipher) => {
+  session.on('secure', common.mustCall(() => {
     const stream = session.openStream({ halfOpen: false });
     stream.end('Hi!');
     stream.on('data', common.mustNotCall());

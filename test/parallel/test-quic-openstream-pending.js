@@ -9,21 +9,11 @@ if (!common.hasQuic)
 const assert = require('assert');
 const quic = require('quic');
 
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
+const { key, cert, ca } = require('../common/quic');
 
-const server = quic.createSocket({ validateAddress: true });
+const server = quic.createSocket();
 
-server.listen({
-  key,
-  cert,
-  ca,
-  alpn: 'meow',
-  rejectUnauthorized: false,
-  maxStreamsUni: 100
-});
+server.listen({ key, cert, ca, alpn: 'meow' });
 
 server.on('session', common.mustCall((session) => {
   session.on('stream', common.mustCall((stream) => {

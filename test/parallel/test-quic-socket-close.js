@@ -7,8 +7,7 @@ if (!common.hasQuic)
 
 const assert = require('assert');
 const { createSocket } = require('quic');
-
-const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
+const { kClientPort } = require('../common/quic');
 
 {
   const socket = createSocket({ endpoint: { port: kClientPort } });
@@ -23,5 +22,5 @@ const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 {
   const socket = createSocket({ endpoint: { port: kClientPort } });
 
-  socket.close(common.mustCall(() => {}));
+  socket.close(common.mustCall());
 }

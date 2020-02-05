@@ -8,24 +8,21 @@ if (!common.hasQuic)
   common.skip('missing quic');
 
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
-const key = fixtures.readKey('agent1-key.pem', 'binary');
-const cert = fixtures.readKey('agent1-cert.pem', 'binary');
-const ca = fixtures.readKey('ca1-cert.pem', 'binary');
-
-const { debuglog } = require('util');
-const debug = debuglog('test');
+const {
+  key,
+  cert,
+  ca,
+  debug,
+  kServerPort,
+  kClientPort
+} = require('../common/quic');
 
 const { createSocket } = require('quic');
-
-const kServerPort = process.env.NODE_DEBUG_KEYLOG ? 5678 : 0;
-const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
-const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
 
 let client;
 const server = createSocket({
   endpoint: { port: kServerPort },
-  server: { key, cert, ca, alpn: kALPN }
+  server: { key, cert, ca, alpn: 'zzz' }
 });
 
 server.on('busy', common.mustCall((busy) => {
@@ -45,7 +42,7 @@ server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
   client = createSocket({
     endpoint: { port: kClientPort },
-    client: { key, cert, ca, alpn: kALPN }
+    client: { key, cert, ca, alpn: 'zzz' }
   });
 
   client.on('close', common.mustCall());
