@@ -1,6 +1,5 @@
 'use strict';
-
-const { mustCall } = require('../common');
+const { platformTimeout, mustCall } = require('../common');
 const childProcess = require('child_process');
 const assert = require('assert');
 
@@ -14,9 +13,11 @@ if (process.env.CHILD === 'true') {
     ['--trace-sigint', __filename],
     {
       env: { ...process.env, CHILD: 'true' },
-      stdio: 'inherit'
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     });
-  setTimeout(() => cp.kill('SIGINT'), 1 * 1000);
+  cp.on('message', mustCall(() => {
+    setTimeout(() => cp.kill('SIGINT'), platformTimeout(100));
+  }));
   cp.on('exit', mustCall((code, signal) => {
     assert.strictEqual(signal, 'SIGINT');
     assert.strictEqual(code, null);
@@ -26,5 +27,6 @@ if (process.env.CHILD === 'true') {
 function main() {
   // Deactivate colors even if the tty does support colors.
   process.env.NODE_DISABLE_COLORS = '1';
-  setTimeout(() => {}, 10 * 1000);
+  process.channel.ref();  // Keep event loop alive until the signal is received.
+  process.send('ready');
 }
