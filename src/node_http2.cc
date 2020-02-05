@@ -568,27 +568,15 @@ Http2Session::Http2Session(Environment* env,
   outgoing_storage_.reserve(1024);
   outgoing_buffers_.reserve(32);
 
-  {
-    // Make the js_fields_ property accessible to JS land.
-    std::unique_ptr<BackingStore> backing =
-        ArrayBuffer::NewBackingStore(
-            reinterpret_cast<uint8_t*>(&js_fields_),
-            kSessionUint8FieldCount,
-            [](void*, size_t, void*){},
-            nullptr);
-    Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(), std::move(backing));
-    // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
-    if (!ab->IsExternal())
-      ab->Externalize(ab->GetBackingStore());
-    ab->SetPrivate(env->context(),
-                   env->arraybuffer_untransferable_private_symbol(),
-                   True(env->isolate())).Check();
-    js_fields_ab_.Reset(env->isolate(), ab);
-    Local<Uint8Array> uint8_arr =
-        Uint8Array::New(ab, 0, kSessionUint8FieldCount);
-    USE(wrap->Set(env->context(), env->fields_string(), uint8_arr));
-  }
+  // Make the js_fields_ property accessible to JS land.
+  js_fields_store_ =
+      ArrayBuffer::NewBackingStore(env->isolate(), sizeof(SessionJSFields));
+  js_fields_ = new(js_fields_store_->Data()) SessionJSFields;
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), js_fields_store_);
+  Local<Uint8Array> uint8_arr =
+      Uint8Array::New(ab, 0, kSessionUint8FieldCount);
+  USE(wrap->Set(env->context(), env->fields_string(), uint8_arr));
 }
 
 Http2Session::~Http2Session() {
@@ -596,14 +584,7 @@ Http2Session::~Http2Session() {
   Debug(this, "freeing nghttp2 session");
   nghttp2_session_del(session_);
   CHECK_EQ(current_nghttp2_memory_, 0);
-  HandleScope handle_scope(env()->isolate());
-  // Detach js_fields_ab_ to avoid having problem when new Http2Session
-  // instances are created on the same location of previous
-  // instances. This in turn will call ArrayBuffer::NewBackingStore()
-  // multiple times with the same buffer address and causing error.
-  // Ref: https://github.com/nodejs/node/pull/30782
-  Local<ArrayBuffer> ab = js_fields_ab_.Get(env()->isolate());
-  ab->Detach();
+  js_fields_->~SessionJSFields();
 }
 
 std::string Http2Session::diagnostic_name() const {
@@ -871,7 +852,7 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
                  Http2Stream::New(session, id, frame->headers.cat) ==
                      nullptr)) {
       if (session->rejected_stream_count_++ >
-          session->js_fields_.max_rejected_streams)
+          session->js_fields_->max_rejected_streams)
         return NGHTTP2_ERR_CALLBACK_FAILURE;
       // Too many concurrent streams being opened
       nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
@@ -965,9 +946,9 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
   Debug(session,
         "invalid frame received (%u/%u), code: %d",
         session->invalid_frame_count_,
-        session->js_fields_.max_invalid_frames,
+        session->js_fields_->max_invalid_frames,
         lib_error_code);
-  if (session->invalid_frame_count_++ > session->js_fields_.max_invalid_frames)
+  if (session->invalid_frame_count_++ > session->js_fields_->max_invalid_frames)
     return 1;
 
   // If the error is fatal or if error code is ERR_STREAM_CLOSED... emit error
@@ -1003,7 +984,7 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   if (error_code == NGHTTP2_ERR_SESSION_CLOSING ||
       error_code == NGHTTP2_ERR_STREAM_CLOSED ||
       error_code == NGHTTP2_ERR_STREAM_CLOSING ||
-      session->js_fields_.frame_error_listener_count == 0) {
+      session->js_fields_->frame_error_listener_count == 0) {
     return 0;
   }
 
@@ -1306,7 +1287,7 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 // are considered advisory only, so this has no real effect other than to
 // simply let user code know that the priority has changed.
 void Http2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
-  if (js_fields_.priority_listener_count == 0) return;
+  if (js_fields_->priority_listener_count == 0) return;
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
@@ -1375,7 +1356,7 @@ void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
 
 // Called by OnFrameReceived when a complete ALTSVC frame has been received.
 void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
-  if (!(js_fields_.bitfield & (1 << kSessionHasAltsvcListeners))) return;
+  if (!(js_fields_->bitfield & (1 << kSessionHasAltsvcListeners))) return;
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Local<Context> context = env()->context();
@@ -1454,7 +1435,7 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
     return;
   }
 
-  if (!(js_fields_.bitfield & (1 << kSessionHasPingListeners))) return;
+  if (!(js_fields_->bitfield & (1 << kSessionHasPingListeners))) return;
   // Notify the session that a ping occurred
   arg = Buffer::Copy(env(),
                       reinterpret_cast<const char*>(frame->ping.opaque_data),
@@ -1466,8 +1447,8 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
 void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (!ack) {
-    js_fields_.bitfield &= ~(1 << kSessionRemoteSettingsIsUpToDate);
-    if (!(js_fields_.bitfield & (1 << kSessionHasRemoteSettingsListeners)))
+    js_fields_->bitfield &= ~(1 << kSessionRemoteSettingsIsUpToDate);
+    if (!(js_fields_->bitfield & (1 << kSessionHasRemoteSettingsListeners)))
       return;
     // This is not a SETTINGS acknowledgement, notify and return
     MakeCallback(env()->http2session_on_settings_function(), 0, nullptr);
