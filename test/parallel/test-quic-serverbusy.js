@@ -22,10 +22,6 @@ const kServerPort = process.env.NODE_DEBUG_KEYLOG ? 5678 : 0;
 const kClientPort = process.env.NODE_DEBUG_KEYLOG ? 5679 : 0;
 const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
 
-// TODO(@jasnell): Implementation of this test is not yet complete.
-// Once the feature is fully implemented, this test will need to be
-// revisited.
-
 let client;
 const server = createSocket({
   endpoint: { port: kServerPort },
@@ -36,13 +32,14 @@ server.on('busy', common.mustCall((busy) => {
   assert.strictEqual(busy, true);
 }));
 
+// When the server is set as busy, all connections
+// will be rejected with a SERVER_BUSY response.
 server.setServerBusy();
 server.listen();
 
-server.on('session', common.mustCall((session) => {
-  session.on('stream', common.mustNotCall());
-  session.on('close', common.mustCall());
-}));
+server.on('close', common.mustCall());
+server.on('listening', common.mustCall());
+server.on('session', common.mustNotCall());
 
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
@@ -58,25 +55,10 @@ server.on('ready', common.mustCall(() => {
     port: server.endpoints[0].address.port,
   });
 
-  // The client session is going to be destroyed before
-  // the handshake can complete so the secure event will
-  // never emit.
   req.on('secure', common.mustNotCall());
 
   req.on('close', common.mustCall(() => {
     server.close();
     client.close();
   }));
-}));
-
-server.on('listening', common.mustCall());
-
-server.on('close', common.mustCall(() => {
-  assert.throws(
-    () => server.listen(),
-    {
-      code: 'ERR_QUICSOCKET_DESTROYED',
-      message: 'Cannot call listen after a QuicSocket has been destroyed'
-    }
-  );
 }));

@@ -1282,6 +1282,34 @@ method.
 Once created, a `QuicSocket` can be configured to work as both a client and a
 server.
 
+#### Event: `'busy'`
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted when the server busy state has been toggled using
+`quicSocket.setServerBusy()`. The callback is invoked with a single
+boolean argument indicating `true` if busy status is enabled,
+`false` otherwise. This event is strictly informational.
+
+```js
+const { createSocket } = require('quic');
+
+const socket = createSocket();
+
+socket.on('busy', (busy) => {
+  if (busy)
+    console.log('Server is busy');
+  else
+    console.log('Server is not busy');
+});
+
+socket.setServerBusy(true);
+socket.setServerBusy(false);
+```
+
+This `'busy'` event may be emitted multiple times.
+
 #### Event: `'close'`
 <!-- YAML
 added: REPLACEME
