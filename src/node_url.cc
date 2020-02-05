@@ -1183,12 +1183,14 @@ bool ParseHost(const std::string& input,
 
 std::vector<std::string> FromJSStringArray(Environment* env,
                                            Local<Array> array) {
-  std::vector<std::string> vec(array->Length());
+  std::vector<std::string> vec;
+  if (array->Length() > 0)
+    vec.reserve(array->Length());
   for (size_t n = 0; n < array->Length(); n++) {
     Local<Value> val = array->Get(env->context(), n).ToLocalChecked();
     if (val->IsString()) {
       Utf8Value value(env->isolate(), val.As<String>());
-      vec[n] = std::string(*value, value.length());
+      vec.emplace_back(*value, value.length());
     }
   }
   return vec;
