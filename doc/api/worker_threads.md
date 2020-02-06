@@ -513,6 +513,10 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31664
+    description: The `filename` parameter can be a WHATWG `URL` object using
+                 `file:` protocol.
   - version: v13.2.0
     pr-url: https://github.com/nodejs/node/pull/26628
     description: The `resourceLimits` option was introduced.
@@ -521,9 +525,10 @@ changes:
     description: The `argv` option was introduced.
 -->
 
-* `filename` {string} The path to the Worker’s main script. Must be
-  either an absolute path or a relative path (i.e. relative to the
-  current working directory) starting with `./` or `../`.
+* `filename` {string|URL} The path to the Worker’s main script or module. Must
+  be either an absolute path or a relative path (i.e. relative to the
+  current working directory) starting with `./` or `../`, or a WHATWG `URL`
+  object using `file:` protocol.
   If `options.eval` is `true`, this is a string containing JavaScript code
   rather than a path.
 * `options` {Object}
@@ -536,8 +541,9 @@ changes:
     to specify that the parent thread and the child thread should share their
     environment variables; in that case, changes to one thread’s `process.env`
     object will affect the other thread as well. **Default:** `process.env`.
-  * `eval` {boolean} If `true`, interpret the first argument to the constructor
-    as a script that is executed once the worker is online.
+  * `eval` {boolean} If `true` and the first argument is a `string`, interpret
+    the first argument to the constructor as a script that is executed once the
+    worker is online.
   * `execArgv` {string[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this will be provided
