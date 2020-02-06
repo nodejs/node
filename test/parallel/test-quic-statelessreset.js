@@ -55,7 +55,7 @@ server.on('ready', common.mustCall(() => {
     servername: 'localhost',
   });
 
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
+  req.on('secure', common.mustCall(() => {
     const stream = req.openStream();
     stream.end('hello');
     stream.resume();

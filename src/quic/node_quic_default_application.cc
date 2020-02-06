@@ -74,7 +74,7 @@ void DefaultApplication::StreamClose(
 }
 
 void DefaultApplication::ResumeStream(int64_t stream_id) {
-  Debug(session(), "Stream %" PRId64 " has data to send");
+  Debug(session(), "Stream %" PRId64 " has data to send", stream_id);
   ScheduleStream(stream_id);
 }
 

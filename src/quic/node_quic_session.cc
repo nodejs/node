@@ -86,6 +86,60 @@ void CopyPreferredAddress(
 
 }  // namespace
 
+std::string QuicSession::RemoteTransportParamsDebug::ToString() const {
+  ngtcp2_transport_params params;
+  ngtcp2_conn_get_remote_transport_params(session->connection(), &params);
+  std::string out = "Remote Transport Params:\n";
+  out += "  Ack Delay Exponent: " +
+         std::to_string(params.ack_delay_exponent) + "\n";
+  out += "  Active Connection ID Limit: " +
+         std::to_string(params.active_connection_id_limit) + "\n";
+  out += "  Disable Active Migration: " +
+         std::string(params.disable_active_migration ? "Yes" : "No") + "\n";
+  out += "  Initial Max Data: " +
+         std::to_string(params.initial_max_data) + "\n";
+  out += "  Initial Max Stream Data Bidi Local: " +
+         std::to_string(params.initial_max_stream_data_bidi_local) + "\n";
+  out += "  Initial Max Stream Data Bidi Remote: " +
+         std::to_string(params.initial_max_stream_data_bidi_remote) + "\n";
+  out += "  Initial Max Stream Data Uni: " +
+         std::to_string(params.initial_max_stream_data_uni) + "\n";
+  out += "  Initial Max Streams Bidi: " +
+         std::to_string(params.initial_max_streams_bidi) + "\n";
+  out += "  Initial Max Streams Uni: " +
+         std::to_string(params.initial_max_streams_uni) + "\n";
+  out += "  Max Ack Delay: " +
+         std::to_string(params.max_ack_delay) + "\n";
+  out += "  Max Idle Timeout: " +
+         std::to_string(params.max_idle_timeout) + "\n";
+  out += "  Max Packet Size: " +
+         std::to_string(params.max_packet_size) + "\n";
+
+  if (!session->is_server()) {
+    if (params.original_connection_id_present) {
+      QuicCID cid(params.original_connection_id);
+      out += "  Original Connection ID: " + cid.ToString() + "\n";
+    } else {
+      out += "  Original Connection ID: N/A \n";
+    }
+
+    if (params.preferred_address_present) {
+      out += "  Preferred Address Present: Yes\n";
+      // TODO(@jasnell): Serialize the IPv4 and IPv6 address options
+    } else {
+      out += "  Preferred Address Present: No\n";
+    }
+
+    if (params.stateless_reset_token_present) {
+      StatelessResetToken token(params.stateless_reset_token);
+      out += "  Stateless Reset Token: " + token.ToString() + "\n";
+    } else {
+      out += " Stateless Reset Token: N/A";
+    }
+  }
+  return out;
+}
+
 void QuicSessionConfig::ResetToDefaults(Environment* env) {
   ngtcp2_settings_default(this);
   initial_ts = uv_hrtime();
@@ -2367,10 +2421,7 @@ void QuicSession::StreamReset(
 void QuicSession::UpdateConnectionID(
     int type,
     const QuicCID& cid,
-    const uint8_t* token_) {
-  if (token_ == nullptr)
-    return;
-  StatelessResetToken token(token_);
+    const StatelessResetToken& token) {
   switch (type) {
     case NGTCP2_CONNECTION_ID_STATUS_TYPE_ACTIVATE:
       socket_->AssociateStatelessResetToken(
@@ -2943,7 +2994,13 @@ int QuicSession::OnConnectionIDStatus(
   QuicSession* session = static_cast<QuicSession*>(user_data);
   if (UNLIKELY(session->is_destroyed()))
     return NGTCP2_ERR_CALLBACK_FAILURE;
-  session->UpdateConnectionID(type, QuicCID(cid), token);
+
+  QuicCID qcid(cid);
+  Debug(session, "Updating connection ID %s (has reset token? %s)",
+        qcid,
+        token == nullptr ? "No" : "Yes");
+  if (token != nullptr)
+    session->UpdateConnectionID(type, qcid, StatelessResetToken(token));
   return 0;
 }
 

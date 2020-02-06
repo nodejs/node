@@ -24,10 +24,11 @@ void QuicSessionConfig::GenerateStatelessResetToken(
     QuicSession* session,
     const QuicCID& cid) {
   transport_params.stateless_reset_token_present = 1;
-  StatelessResetToken(
+  StatelessResetToken token(
     transport_params.stateless_reset_token,
     session->socket()->session_reset_secret(),
     cid);
+  Debug(session, "Generated stateless reset token %s for CID %s", token, cid);
 }
 
 void QuicSessionConfig::GeneratePreferredAddressToken(
@@ -245,7 +246,8 @@ uint32_t QuicSession::negotiated_version() const {
 // determines that the TLS Handshake is done. The only thing we
 // need to do at this point is let the javascript side know.
 void QuicSession::HandshakeCompleted() {
-  Debug(this, "Handshake is completed");
+  RemoteTransportParamsDebug transport_params(this);
+  Debug(this, "Handshake is completed. %s", transport_params);
   RecordTimestamp(&QuicSessionStats::handshake_completed_at);
   if (is_server()) HandshakeConfirmed();
   listener()->OnHandshakeCompleted();

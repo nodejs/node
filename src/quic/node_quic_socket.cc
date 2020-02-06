@@ -399,10 +399,11 @@ bool QuicSocket::MaybeStatelessReset(
     return false;
   StatelessResetToken possible_token(
       data + nread - NGTCP2_STATELESS_RESET_TOKENLEN);
+  Debug(this, "Possible stateless reset token: %s", possible_token);
   auto it = token_map_.find(possible_token);
   if (it == token_map_.end())
     return false;
-  Debug(this, "Received a stateless reset token");
+  Debug(this, "Received a stateless reset token %s", possible_token);
   return it->second->Receive(nread, data, local_addr, remote_addr, flags);
 }
 

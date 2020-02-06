@@ -1127,7 +1127,10 @@ class QuicSession : public AsyncWrap,
       uint64_t app_error_code);
   bool WritePackets(const char* diagnostic_label = nullptr);
   void UpdateRecoveryStats();
-  void UpdateConnectionID(int type, const QuicCID& cid, const uint8_t* token);
+  void UpdateConnectionID(
+      int type,
+      const QuicCID& cid,
+      const StatelessResetToken& token);
   void UpdateDataStats();
   inline void UpdateEndpoint(const ngtcp2_path& path);
 
@@ -1423,6 +1426,13 @@ class QuicSession : public AsyncWrap,
   StreamsMap streams_;
 
   AliasedFloat64Array state_;
+
+  struct RemoteTransportParamsDebug {
+    QuicSession* session;
+    explicit RemoteTransportParamsDebug(QuicSession* session_)
+        : session(session_) {}
+    std::string ToString() const;
+  };
 
   static const ngtcp2_conn_callbacks callbacks[2];
 
