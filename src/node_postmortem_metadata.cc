@@ -6,7 +6,7 @@
 #include "v8abbr.h"
 #include "node_context_data.h"
 
-#define NODEDBG_SYMBOL(Name)  nodedbg_ ## Name
+#define NODEDBG_SYMBOL(Name) nodedbg_ ## Name
 
 // nodedbg_offset_CLASS__MEMBER__TYPE: Describes the offset to a class member.
 #define NODEDBG_OFFSET(Class, Member, Type) \

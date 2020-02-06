@@ -929,9 +929,9 @@ void TLSWrap::EnableKeylogCallback(
 // - OPENSSL_NO_STDIO excludes BIO_new_fp()
 // HAVE_SSL_TRACE is available on the internal tcp_wrap binding for the tests.
 #if defined(OPENSSL_NO_SSL_TRACE) || defined(OPENSSL_NO_STDIO)
-# define HAVE_SSL_TRACE 0
+#define HAVE_SSL_TRACE 0
 #else
-# define HAVE_SSL_TRACE 1
+#define HAVE_SSL_TRACE 1
 #endif
 
 void TLSWrap::EnableTrace(

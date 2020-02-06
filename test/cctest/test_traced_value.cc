@@ -64,10 +64,10 @@ TEST(TracedValue, Array) {
 
 #define UTF8_SEQUENCE "1" "\xE2\x82\xAC" "23\"\x01\b\f\n\r\t\\"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-# define UTF8_RESULT                                                          \
+#define UTF8_RESULT                                                          \
   "\"1\\u20AC23\\\"\\u0001\\b\\f\\n\\r\\t\\\\\""
 #else
-# define UTF8_RESULT                                                          \
+#define UTF8_RESULT                                                          \
   "\"1\\u00E2\\u0082\\u00AC23\\\"\\u0001\\b\\f\\n\\r\\t\\\\\""
 #endif
 

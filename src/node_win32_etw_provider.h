@@ -30,9 +30,9 @@
 namespace node {
 
 #if defined(_MSC_VER)
-# define INLINE __forceinline
+#define INLINE __forceinline
 #else
-# define INLINE inline
+#define INLINE inline
 #endif
 
 typedef ULONG (NTAPI* EventRegisterFunc)(
