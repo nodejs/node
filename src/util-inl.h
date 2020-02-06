@@ -31,13 +31,13 @@
 // These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
 // To avoid warnings, undefine them before redefining them.
 #ifdef BSWAP_2
-# undef BSWAP_2
+#undef BSWAP_2
 #endif
 #ifdef BSWAP_4
-# undef BSWAP_4
+#undef BSWAP_4
 #endif
 #ifdef BSWAP_8
-# undef BSWAP_8
+#undef BSWAP_8
 #endif
 
 #if defined(_MSC_VER)

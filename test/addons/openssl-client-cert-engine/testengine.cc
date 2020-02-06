@@ -10,19 +10,19 @@
 #include <string>
 
 #ifndef ENGINE_CMD_BASE
-# error did not get engine.h
+#error did not get engine.h
 #endif
 
-#define TEST_ENGINE_ID      "testengine"
-#define TEST_ENGINE_NAME    "dummy test engine"
+#define TEST_ENGINE_ID "testengine"
+#define TEST_ENGINE_NAME "dummy test engine"
 
-#define AGENT_KEY           "test/fixtures/keys/agent1-key.pem"
-#define AGENT_CERT          "test/fixtures/keys/agent1-cert.pem"
+#define AGENT_KEY "test/fixtures/keys/agent1-key.pem"
+#define AGENT_CERT "test/fixtures/keys/agent1-cert.pem"
 
 #ifdef _WIN32
-# define DEFAULT_VISIBILITY __declspec(dllexport)
+#define DEFAULT_VISIBILITY __declspec(dllexport)
 #else
-# define DEFAULT_VISIBILITY __attribute__((visibility("default")))
+#define DEFAULT_VISIBILITY __attribute__((visibility("default")))
 #endif
 
 namespace {

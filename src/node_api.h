@@ -13,17 +13,17 @@
 struct uv_loop_s;  // Forward declaration.
 
 #ifdef _WIN32
-# define NAPI_MODULE_EXPORT __declspec(dllexport)
+#define NAPI_MODULE_EXPORT __declspec(dllexport)
 #else
-# define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
+#define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
 #if defined(__GNUC__)
-# define NAPI_NO_RETURN __attribute__((noreturn))
+#define NAPI_NO_RETURN __attribute__((noreturn))
 #elif defined(_WIN32)
-# define NAPI_NO_RETURN __declspec(noreturn)
+#define NAPI_NO_RETURN __declspec(noreturn)
 #else
-# define NAPI_NO_RETURN
+#define NAPI_NO_RETURN
 #endif
 
 typedef napi_value (*napi_addon_register_func)(napi_env env,
@@ -39,7 +39,7 @@ typedef struct {
   void* reserved[4];
 } napi_module;
 
-#define NAPI_MODULE_VERSION  1
+#define NAPI_MODULE_VERSION 1
 
 #if defined(_MSC_VER)
 #pragma section(".CRT$XCU", read)

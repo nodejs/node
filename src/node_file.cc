@@ -42,7 +42,7 @@
 #include <climits>
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
-# include <io.h>
+#include <io.h>
 #endif
 
 #include <memory>
@@ -74,7 +74,7 @@ using v8::Undefined;
 using v8::Value;
 
 #ifndef S_ISDIR
-# define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
 #ifdef __POSIX__
