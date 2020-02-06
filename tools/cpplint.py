@@ -4611,6 +4611,8 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
   
   directivepos = line.find('#')
   if directivepos != -1:  # If there is a # in the line
+    if not Match(r'^.*#.*(if|define|else)', line):
+      return
 
     if line[directivepos+1] == ' ': # If there is a space between # and the directive
       error(filename, linenum, 'whitespace/tab', 2,\
@@ -4619,53 +4621,28 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
     definepos = line.find('define')
     if definepos != -1: # If there is a define in the line
       # If there is >1 space between define and identifier
-      if not Match(r'^.*define {1}\S', line): 
-        error(filename, linenum, 'whitespace/tab', 2,\
-              'Use one whitespace between define and identifier')
+      if not Match(r'^.*(define|defined) {1}\S', line):
+        if not Match(r'^.*defined\(', line): 
+          error(filename, linenum, 'whitespace/tab', 2,\
+                'Use one whitespace between define and identifier')
+        if Match(r'^.*defined {1}\(', line):
+          error(filename, linenum, 'whitespace/tab', 2,\
+                'Do not have a space between defined and (')
 
       # If there is >1 space between identifier and replacement
-
-      if not (Match(r'^.*define \S* {1}\S', line) or\
-             Match(r'^.*define \S*\s*\\', line) or\
-             Match(r'^.*define \S*\Z', line)):
+      if not (Match(r'^.*define \S* *\S', line) or\
+              Match(r'^.*define \S*\s*\\', line) or\
+              Match(r'^.*define \S*\Z', line) or\
+              Match(r'^.*defined', line)):
         error(filename, linenum, 'whitespace/tab', 2,\
-              'Use one whitespace between identifier and replacement')
+              'Use whitespace between identifier and replacement')
         
-
     undefpos = line.find('undef')
     if undefpos != -1:
       # If there is >1 space between undef and identifier
       if not Match(r'^.*undef {1}\S', line):  
         error(filename, linenum, 'whitespace/tab', 2, 
               'Use one whitespace between undef and identifier')
-    
-    # Start of an if/ifdef/ifndef block
-    if (Match(r'^.*(if|ifdef|ifndef)', line) and not\
-        Match(r'^.*(endif|elif)', line)): 
-      # Indent the following lines until else/elif/endif
-      blockindentlevel = GetIndentLevel(line)
-      nextlinenum = linenum + 1
-      nestinglevel = 0 # Tracks how many nested if else statements there are
-      # While the if statement is still open
-      while not (Match(r'^.*endif', clean_lines.elided[nextlinenum]) and\
-                nestinglevel == 0):
-        nextline = clean_lines.elided[nextlinenum]
-        if IsBlankLine(nextline) == False:
-          # If the line isn't an else/elif and it's a part of the top level if statement then indent
-          if (not Match(r'^.*(else|elif)', nextline) and nestinglevel == 0):
-            # If the line isn't indented, throw an error
-            if (GetIndentLevel(nextline) - 2) != blockindentlevel:
-              error(filename, nextlinenum, 'whitespace/tab', 2,\
-                    'Statements with if/ifdef/ifndef blocks should be indented')
-          # If there is a nested if statement increment nesting level
-          if (Match(r'^.*(if|ifdef|ifndef)', nextline) and not\
-              Match(r'^.*(endif|elif)', nextline)):
-            nestinglevel += 1
-          # At the end of an if else block, decrement nesting level
-          if Match(r'^.*endif', nextline):
-            nestinglevel -= 1
-        nextlinenum += 1
-
 
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
