@@ -422,6 +422,8 @@ struct ngtcp2_conn {
     ngtcp2_vec decrypt_buf;
     /* retry_aead is AEAD to verify Retry packet integrity. */
     ngtcp2_crypto_aead retry_aead;
+    /* tls_error is TLS related error. */
+    int tls_error;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support

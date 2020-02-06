@@ -381,11 +381,13 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
 
   rv = ngtcp2_decode_transport_params(&params, exttype, tp, tplen);
   if (rv != 0) {
+    ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
   }
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
   if (rv != 0) {
+    ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
   }
 

@@ -444,7 +444,7 @@ ngtcp2_crypto_update_key(ngtcp2_conn *conn, uint8_t *rx_secret,
                          const uint8_t *current_tx_secret, size_t secretlen);
 
 /**
- * @funtion
+ * @function
  *
  * `ngtcp2_crypto_update_key_cb` is a wrapper function around
  * `ngtcp2_crypto_update_key`.  It can be directly passed to

@@ -1935,6 +1935,27 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_set_tls_error` sets the TLS related error in |conn|.
+ * In general, error code should be propagated via return value, but
+ * sometimes ngtcp2 API is called inside callback function of TLS
+ * stack and it does not allow to return ngtcp2 error code directly.
+ * In this case, implementation can set the error code (e.g.,
+ * NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM) using this function.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_tls_error(ngtcp2_conn *conn, int liberr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_tls_error` returns the value set by
+ * `ngtcp2_conn_set_tls_error`.  If no value is set, this function
+ * returns 0.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
  * of loss detection timer.  Application should call
  * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_write_pkt`

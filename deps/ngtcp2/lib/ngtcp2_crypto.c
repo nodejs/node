@@ -185,7 +185,9 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->max_idle_timeout) {
     len += varint_paramlen(params->max_idle_timeout / NGTCP2_MILLISECONDS);
   }
-  if (params->active_connection_id_limit) {
+  if (params->active_connection_id_limit &&
+      params->active_connection_id_limit !=
+          NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT) {
     len += varint_paramlen(params->active_connection_id_limit);
   }
 
@@ -291,7 +293,9 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                            params->max_idle_timeout / NGTCP2_MILLISECONDS);
   }
 
-  if (params->active_connection_id_limit) {
+  if (params->active_connection_id_limit &&
+      params->active_connection_id_limit !=
+          NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT) {
     p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
                            params->active_connection_id_limit);
   }

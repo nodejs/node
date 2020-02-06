@@ -229,14 +229,14 @@ int ngtcp2_crypto_derive_and_install_key(
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    rv = ngtcp2_conn_install_key(conn, rx_secret, tx_secret, rx_key, rx_iv,
-                                 rx_hp_key, tx_key, tx_iv, tx_hp_key, secretlen,
-                                 keylen, ivlen);
+    rv = ngtcp2_crypto_set_remote_transport_params(conn, tls, side);
     if (rv != 0) {
       return -1;
     }
 
-    rv = ngtcp2_crypto_set_remote_transport_params(conn, tls, side);
+    rv = ngtcp2_conn_install_key(conn, rx_secret, tx_secret, rx_key, rx_iv,
+                                 rx_hp_key, tx_key, tx_iv, tx_hp_key, secretlen,
+                                 keylen, ivlen);
     if (rv != 0) {
       return -1;
     }

@@ -56,17 +56,10 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
 
 typedef enum {
   NGTCP2_PV_FLAG_NONE,
-  /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of the path
-     validation does not matter. */
-  NGTCP2_PV_FLAG_DONT_CARE = 0x01,
-  /* NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH indicates that DCID should
-     be retired after path validation is aborted or failed.  DCID is
-     not retired if path validation succeeds. */
-  NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH = 0x02,
   /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID
      is available in ngtcp2_pv.  If path validation fails, fallback to
      the fallback DCID.  If path validation succeeds, fallback DCID is
-     retired. */
+     retired if it does not equal to the current DCID. */
   NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE = 0x04,
 } ngtcp2_pv_flag;
 
