@@ -42,6 +42,11 @@ server.on('session', common.mustCall((session) => {
   session.on('close', common.mustCall());
 }));
 
+server.on('close', common.mustCall(() => {
+  // Verify stats recording
+  assert.strictEqual(server.statelessResetCount, 1n);
+}));
+
 server.on('ready', common.mustCall(() => {
   const endpoint = server.endpoints[0];
 
