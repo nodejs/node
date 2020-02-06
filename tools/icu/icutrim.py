@@ -285,7 +285,7 @@ for i in range(len(items)):
         # read in the resource list for the tree
         treelistfile = os.path.join(options.tmpdir,"%s.lst" % tree)
         runcmd("iculslocs", "-i %s -N %s -T %s -l > %s" % (outfile, dataname, tree, treelistfile))
-        fi = open(treelistfile, 'rb')
+        fi = open(treelistfile, 'r')
         treeitems = fi.readlines()
         trees[tree]["locs"] = [treeitems[i].strip() for i in range(len(treeitems))]
         fi.close()
@@ -317,12 +317,12 @@ def removeList(count=0):
             erritems = fi.readlines()
             fi.close()
             #Item zone/zh_Hant_TW.res depends on missing item zone/zh_Hant.res
-            pat = re.compile("""^Item ([^ ]+) depends on missing item ([^ ]+).*""")
+            pat = re.compile(rb"^Item ([^ ]+) depends on missing item ([^ ]+).*")
             for i in range(len(erritems)):
                 line = erritems[i].strip()
                 m = pat.match(line)
                 if m:
-                    toDelete = m.group(1)
+                    toDelete = m.group(1).decode("utf-8")
                     if(options.verbose > 5):
                         print("<< %s added to delete" % toDelete)
                     remove.add(toDelete)
