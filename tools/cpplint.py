@@ -4650,19 +4650,20 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
       while not (Match(r'^.*endif', clean_lines.elided[nextlinenum]) and\
                 nestinglevel == 0):
         nextline = clean_lines.elided[nextlinenum]
-        # If the line isn't an else/elif and it's a part of the top level if statement then indent
-        if (not Match(r'^.*(else|elif)', nextline) and nestinglevel == 0):
-          # If the line isn't indented, throw an error
-          if (GetIndentLevel(nextline) - 2) != blockindentlevel:
-            error(filename, nextlinenum, 'whitespace/tab', 2,\
-                  'Statements with if/ifdef/ifndef blocks should be indented')
-        # If there is a nested if statement increment nesting level
-        if (Match(r'^.*(if|ifdef|ifndef)', nextline) and not\
-            Match(r'^.*(endif|elif)', nextline)):
-          nestinglevel += 1
-        # At the end of an if else block, decrement nesting level
-        if Match(r'^.*endif', nextline):
-          nestinglevel -= 1
+        if IsBlankLine(nextline) == False:
+          # If the line isn't an else/elif and it's a part of the top level if statement then indent
+          if (not Match(r'^.*(else|elif)', nextline) and nestinglevel == 0):
+            # If the line isn't indented, throw an error
+            if (GetIndentLevel(nextline) - 2) != blockindentlevel:
+              error(filename, nextlinenum, 'whitespace/tab', 2,\
+                    'Statements with if/ifdef/ifndef blocks should be indented')
+          # If there is a nested if statement increment nesting level
+          if (Match(r'^.*(if|ifdef|ifndef)', nextline) and not\
+              Match(r'^.*(endif|elif)', nextline)):
+            nestinglevel += 1
+          # At the end of an if else block, decrement nesting level
+          if Match(r'^.*endif', nextline):
+            nestinglevel -= 1
         nextlinenum += 1
 
 
