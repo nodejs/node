@@ -107,7 +107,7 @@ NativeSymbolDebuggingContext::New() {
 
 std::unique_ptr<NativeSymbolDebuggingContext>
 NativeSymbolDebuggingContext::New() {
-  return std::unique_ptr<NativeSymbolDebuggingContext>();
+  return std::make_unique<NativeSymbolDebuggingContext>();
 }
 
 #endif  // HAVE_EXECINFO_H
