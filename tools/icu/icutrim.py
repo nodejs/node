@@ -13,6 +13,7 @@
 
 from __future__ import print_function
 
+import io
 import json
 import optparse
 import os
@@ -159,9 +160,8 @@ def runcmd(tool, cmd, doContinue=False):
     return rc
 
 ## STEP 0 - read in json config
-fi= open(options.filterfile, "rb")
-config=json.load(fi)
-fi.close()
+with io.open(options.filterfile, encoding='utf-8') as fi:
+    config = json.load(fi)
 
 if options.locales:
     config["variables"] = config.get("variables", {})
@@ -285,10 +285,9 @@ for i in range(len(items)):
         # read in the resource list for the tree
         treelistfile = os.path.join(options.tmpdir,"%s.lst" % tree)
         runcmd("iculslocs", "-i %s -N %s -T %s -l > %s" % (outfile, dataname, tree, treelistfile))
-        fi = open(treelistfile, 'rb')
-        treeitems = fi.readlines()
-        trees[tree]["locs"] = [treeitems[i].strip() for i in range(len(treeitems))]
-        fi.close()
+        with io.open(treelistfile, 'r', encoding='utf-8') as fi:
+            treeitems = fi.readlines()
+            trees[tree]["locs"] = [line.strip() for line in treeitems]
         if tree not in config.get("trees", {}):
             print(" Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree))
         else:
@@ -317,12 +316,12 @@ def removeList(count=0):
             erritems = fi.readlines()
             fi.close()
             #Item zone/zh_Hant_TW.res depends on missing item zone/zh_Hant.res
-            pat = re.compile("""^Item ([^ ]+) depends on missing item ([^ ]+).*""")
+            pat = re.compile(bytes(r"^Item ([^ ]+) depends on missing item ([^ ]+).*", 'utf-8'))
             for i in range(len(erritems)):
                 line = erritems[i].strip()
                 m = pat.match(line)
                 if m:
-                    toDelete = m.group(1)
+                    toDelete = m.group(1).decode("utf-8")
                     if(options.verbose > 5):
                         print("<< %s added to delete" % toDelete)
                     remove.add(toDelete)
