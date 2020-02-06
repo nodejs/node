@@ -3515,6 +3515,11 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
           args[13]->IsTrue() ? QlogMode::kEnabled : QlogMode::kDisabled);
 
   session->SendPendingData();
+
+  // Session was created but was unable to bootstrap properly
+  if (session->is_destroyed())
+    return args.GetReturnValue().Set(ERR_FAILED_TO_CREATE_SESSION);
+
   args.GetReturnValue().Set(session->object());
 }
 

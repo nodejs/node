@@ -194,6 +194,7 @@ void Initialize(Local<Object> target,
   V(QUICSTREAM_HEADERS_KIND_PUSH)                                              \
   V(QUICSTREAM_HEADERS_KIND_INITIAL)                                           \
   V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
+  V(ERR_FAILED_TO_CREATE_SESSION)                                              \
   V(UV_EBADF)
 
 #define V(name, _, __)                                                         \

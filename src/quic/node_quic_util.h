@@ -48,6 +48,8 @@ constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
 constexpr uint64_t DEFAULT_MAX_IDLE_TIMEOUT = 10;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10ULL;
 
+constexpr int ERR_FAILED_TO_CREATE_SESSION = -1;
+
 // The preferred address policy determines how a client QuicSession
 // handles a server-advertised preferred address. As suggested, the
 // preferred address is the address the server would prefer the
