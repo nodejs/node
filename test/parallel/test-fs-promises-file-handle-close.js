@@ -39,4 +39,3 @@ doOpen().then(common.mustCall((fd) => {
     setImmediate(common.mustCall());
   });
 }));
-
