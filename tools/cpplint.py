@@ -4628,8 +4628,7 @@ def GetLineWidth(line):
 def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
   """Checks for preprocessor directive spacing, and indentation.
 
-  Things we check for: no spaces between # and the directive,
-  indentation in ifdef blocks, a uniform spacing between define, the identifier,
+  Things we check for: a uniform spacing between define, the identifier,
   and the replacement.
 
   Args:
@@ -4644,10 +4643,6 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
   if directivepos != -1:  # If there is a # in the line
     if not Match(r'^.*#.*(if|define|else|undef|include)', line):  # Makes sure the line is a directive
       return
-
-    if line[directivepos+1] == ' ': # If there is a space between # and the directive
-      error(filename, linenum, 'whitespace/tab', 2,\
-            'Do not have a space between the # and the directive')
     
     definepos = line.find('define')
     if definepos != -1: # If there is a define in the line
