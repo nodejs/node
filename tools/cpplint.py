@@ -4642,7 +4642,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
 
   directivepos = line.find('#')
   if directivepos != -1:  # If there is a # in the line
-    if not Match(r'^.*#.*(if|define|else|undef)', line):  # Makes sure the line is a directive
+    if not Match(r'^.*#.*(if|define|else|undef|include)', line):  # Makes sure the line is a directive
       return
 
     if line[directivepos+1] == ' ': # If there is a space between # and the directive
