@@ -4,9 +4,9 @@
 
 > Stability: 2 - Stable
 
-The `util` module is primarily designed to support the needs of Node.js' own
-internal APIs. However, many of the utilities are useful for application and
-module developers as well. It can be accessed using:
+The `util` module supports the needs of Node.js internal APIs. Many of the
+utilities are useful for application and module developers as well. To access
+it:
 
 ```js
 const util = require('util');
