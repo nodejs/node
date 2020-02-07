@@ -4640,9 +4640,13 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
   line = clean_lines.elided[linenum]
   directivepos = line.find('#')
   if directivepos != -1:  # If there is a # in the line
+<<<<<<< HEAD
 
     # Makes sure the line is a directive
     if not Match(r'^\s*#.*(if|define|else|undef|include|error)', line):
+=======
+    if not Match(r'^.*#.*(if|define|else|undef|include)', line):  # Makes sure the line is a directive
+>>>>>>> tools: update directive styling rules to include #includes
       return
 
     if Match(r'^\s+#', line):
