@@ -47,17 +47,20 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::MeasureMemoryMode;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PrimitiveArray;
+using v8::Promise;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::PropertyDescriptor;
@@ -1203,11 +1206,39 @@ static void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsInt32());
+  int32_t mode = args[0].As<v8::Int32>()->Value();
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context;
+  if (args[1]->IsUndefined()) {
+    context = isolate->GetCurrentContext();
+  } else {
+    CHECK(args[1]->IsObject());
+    ContextifyContext* sandbox =
+        ContextifyContext::ContextFromContextifiedSandbox(env,
+                                                          args[1].As<Object>());
+    CHECK_NOT_NULL(sandbox);
+    context = sandbox->context();
+    if (context.IsEmpty()) {  // Not yet fully initilaized
+      return;
+    }
+  }
+  v8::Local<v8::Promise> promise;
+  if (!isolate->MeasureMemory(context, static_cast<v8::MeasureMemoryMode>(mode))
+           .ToLocal(&promise)) {
+    return;
+  }
+  args.GetReturnValue().Set(promise);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
   ContextifyContext::Init(env, target);
   ContextifyScript::Init(env, target);
 
@@ -1224,6 +1255,19 @@ void Initialize(Local<Object> target,
 
     env->set_compiled_fn_entry_template(tpl->InstanceTemplate());
   }
+
+  Local<Object> constants = Object::New(env->isolate());
+  Local<Object> measure_memory = Object::New(env->isolate());
+  Local<Object> memory_mode = Object::New(env->isolate());
+  MeasureMemoryMode SUMMARY = MeasureMemoryMode::kSummary;
+  MeasureMemoryMode DETAILED = MeasureMemoryMode::kDetailed;
+  NODE_DEFINE_CONSTANT(memory_mode, SUMMARY);
+  NODE_DEFINE_CONSTANT(memory_mode, DETAILED);
+  READONLY_PROPERTY(measure_memory, "mode", memory_mode);
+  READONLY_PROPERTY(constants, "measureMemory", measure_memory);
+  target->Set(context, env->constants_string(), constants).Check();
+
+  env->SetMethod(target, "measureMemory", MeasureMemory);
 }
 
 }  // namespace contextify
