@@ -21,7 +21,7 @@ async function doOpen() {
 
   common.expectWarning({
     Warning: [[`Closing file descriptor ${fh.fd} on garbage collection`]],
-    DeprecationWarning: [[warning, 'DEP00XX']]
+    DeprecationWarning: [[warning, 'DEP0137']]
   });
 
   return fh;

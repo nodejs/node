@@ -2583,8 +2583,8 @@ accordingly instead to avoid the ambigiuty.
 To maintain existing behaviour `response.finished` should be replaced with
 `response.writableEnded`.
 
-<a id="DEP00XX"></a>
-### DEP00XX: Closing fs.FileHandle on garbage collection
+<a id="DEP0137"></a>
+### DEP0137: Closing fs.FileHandle on garbage collection
 <!-- YAML
 changes:
   - version: REPLACEME

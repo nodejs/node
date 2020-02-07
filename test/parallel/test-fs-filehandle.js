@@ -32,7 +32,7 @@ common.expectWarning({
   'Warning': [
     `Closing file descriptor ${fdnum} on garbage collection`
   ],
-  'DeprecationWarning': [[deprecationWarning, 'DEP00XX']]
+  'DeprecationWarning': [[deprecationWarning, 'DEP0137']]
 });
 
 global.gc();

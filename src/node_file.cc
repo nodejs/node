@@ -218,7 +218,7 @@ inline void FileHandle::Close() {
           "Please close FileHandle objects explicitly using "
           "FileHandle.prototype.close(). In the future, an error will be "
           "thrown if a file descriptor is closed during garbage collection.",
-          "DEP00XX").IsNothing();
+          "DEP0137").IsNothing();
     }
   });
 }
