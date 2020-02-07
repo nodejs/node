@@ -244,6 +244,7 @@ Installation via Linux package manager can be achieved with:
 * Fedora: `sudo dnf install python gcc-c++ make`
 * CentOS and RHEL: `sudo yum install python gcc-c++ make`
 * OpenSUSE: `sudo zypper install python gcc-c++ make`
+* Arch Linux, Manjaro: `sudo pacman -S python gcc make`
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
