@@ -520,7 +520,7 @@ The `Server.listenFD()` method was deprecated and removed. Please use
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31169
     description: End-of-Life.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/6739
