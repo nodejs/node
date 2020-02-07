@@ -184,6 +184,9 @@ enum QuicSessionState : int {
 
   IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED,
 
+  // Communicates whether a session was closed due to idle timeout
+  IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT,
+
   // Just the number of session state enums for use when
   // creating the AliasedBuffer.
   IDX_QUIC_SESSION_STATE_COUNT

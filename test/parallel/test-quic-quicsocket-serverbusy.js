@@ -18,11 +18,12 @@ const {
 } = require('../common/quic');
 
 const { createSocket } = require('quic');
+const options = { key, cert, ca, alpn: 'zzz' };
 
 let client;
 const server = createSocket({
   endpoint: { port: kServerPort },
-  server: { key, cert, ca, alpn: 'zzz' }
+  server: options
 });
 
 server.on('busy', common.mustCall((busy) => {
@@ -42,13 +43,13 @@ server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
   client = createSocket({
     endpoint: { port: kClientPort },
-    client: { key, cert, ca, alpn: 'zzz' }
+    client: options
   });
 
   client.on('close', common.mustCall());
 
   const req = client.connect({
-    address: 'localhost',
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });
 

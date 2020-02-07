@@ -37,7 +37,7 @@ async function Test1(options, address) {
   assert.strictEqual(endpoint.destroyed, true);
 }
 
-async function Test2(options) {
+async function Test2() {
   // Creates a server with multiple endpoints (one on udp4 and udp6)
   const server = createSocket({ endpoint: { type: 'udp6' } });
   server.addEndpoint();
@@ -90,4 +90,4 @@ if (common.hasIPv6) {
     Test2());
 }
 
-Promise.all(tests);
+Promise.allSettled(tests);

@@ -27,9 +27,10 @@ const assert = require('assert');
 const { debug, key, cert } = require('../common/quic');
 
 const { createSocket } = require('quic');
+const options = { key, cert, alpn: 'zzz' };
 
 let client;
-const server = createSocket();
+const server = createSocket({ server: options });
 
 const countdown = new Countdown(4, () => {
   debug('Countdown expired. Closing sockets');
@@ -39,7 +40,7 @@ const countdown = new Countdown(4, () => {
 
 const closeHandler = common.mustCall(() => countdown.dec(), 4);
 
-server.listen({ key, cert, alpn: 'zzz' });
+server.listen();
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession created');
   session.on('secure', common.mustCall(() => {
@@ -98,14 +99,10 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   debug('Server listening on port %d', server.endpoints[0].address.port);
-  client = createSocket();
+  client = createSocket({ client: options });
   const req = client.connect({
-    type: 'udp4',
-    address: 'localhost',
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
-    rejectUnauthorized: false,
-    maxStreamsUni: 10,
-    alpn: 'zzz',
   });
 
   req.on('secure', common.mustCall(() => {

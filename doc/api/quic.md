@@ -913,6 +913,15 @@ added: REPLACEME
 
 A `BigInt` representing the length of time taken to complete the TLS handshake.
 
+#### quicsession.idleTimeout
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` if the `QuicSession` was closed due to an idle timeout.
+
 #### quicsession.keyUpdateCount
 <!-- YAML
 added: REPLACEME
@@ -1655,7 +1664,6 @@ added: REPLACEME
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `activeConnectionIdLimit` {number}
   * `maxAckDelay` {number}
-  * `maxActiveConnectionIDLimit` {number}
   * `maxData` {number}
   * `maxPacketSize` {number}
   * `maxStreamsBidi` {number}
@@ -1706,6 +1714,15 @@ added: REPLACEME
 
 A `BigInt` representing the length of time this `QuicSocket` has been listening
 for connections.
+
+#### quicsocket.listening
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Set to `true` if the `QuicSocket` is listening for new connections.
 
 #### quicsocket.packetsIgnored
 <!-- YAML

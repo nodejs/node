@@ -171,6 +171,7 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT)                                      \
   V(IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT)                                    \
   V(IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED)                                \
+  V(IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT)                                       \
   V(MAX_RETRYTOKEN_EXPIRATION)                                                 \
   V(MIN_RETRYTOKEN_EXPIRATION)                                                 \
   V(NGTCP2_APP_NOERROR)                                                        \

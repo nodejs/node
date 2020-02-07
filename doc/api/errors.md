@@ -1703,13 +1703,6 @@ TBD
 
 TBD
 
-<a id="ERR_QUICSOCKET_CLOSING"></a>
-### `ERR_QUICSOCKET_CLOSING`
-
-> Stability: 1 - Experimental
-
-TBD
-
 <a id="ERR_QUICSOCKET_DESTROYED"></a>
 ### `ERR_QUICSOCKET_DESTROYED`
 

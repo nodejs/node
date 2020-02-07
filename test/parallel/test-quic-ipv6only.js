@@ -12,8 +12,8 @@ if (!common.hasQuic)
 const assert = require('assert');
 const { createSocket } = require('quic');
 const { key, cert, ca } = require('../common/quic');
+const { once } = require('events');
 
-const kServerName = 'agent2';
 const kALPN = 'zzz';
 
 // Setting `type` to `udp4` while setting `ipv6Only` to `true` is possible
@@ -31,8 +31,9 @@ const kALPN = 'zzz';
 
 // Connecting ipv6 server by "127.0.0.1" should work when `ipv6Only`
 // is set to `false`.
-{
+(async () => {
   const server = createSocket({ endpoint: { type: 'udp6', ipv6Only: false } });
+  const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   server.listen({ key, cert, ca, alpn: kALPN });
 
@@ -40,83 +41,88 @@ const kALPN = 'zzz';
     serverSession.on('stream', common.mustCall());
   }));
 
-  server.on('ready', common.mustCall(() => {
-    const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
+  await once(server, 'ready');
 
-    const clientSession = client.connect({
-      address: common.localhostIPv4,
-      port: server.endpoints[0].address.port,
-      servername: kServerName,
-    });
+  const session = client.connect({
+    address: common.localhostIPv4,
+    port: server.endpoints[0].address.port,
+  });
 
-    clientSession.on('secure', common.mustCall(() => {
-      const clientStream = clientSession.openStream({ halfOpen: true });
-      clientStream.end('hello');
-      clientStream.on('close', common.mustCall(() => {
-        client.close();
-        server.close();
-      }));
-    }));
-  }));
-}
+  await once(session, 'secure');
+
+  const stream = session.openStream({ halfOpen: true });
+  stream.end('hello');
+
+  await once(stream, 'close');
+
+  client.close();
+  server.close();
+
+  await Promise.allSettled([
+    once(client, 'close'),
+    once(server, 'close')
+  ]);
+})().then(common.mustCall());
 
 // When the `ipv6Only` set to `true`, a client cann't connect to it
 // through "127.0.0.1".
-{
+(async () => {
   const server = createSocket({ endpoint: { type: 'udp6', ipv6Only: true } });
+  const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   server.listen({ key, cert, ca, alpn: kALPN });
   server.on('session', common.mustNotCall());
 
-  server.on('ready', common.mustCall(() => {
-    const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
+  await once(server, 'ready');
 
-    client.on('ready', common.mustCall());
+  const session = client.connect({
+    address: common.localhostIPv4,
+    port: server.endpoints[0].address.port,
+    idleTimeout: common.platformTimeout(1),
+  });
 
-    const clientSession = client.connect({
-      address: common.localhostIPv4,
-      port: server.endpoints[0].address.port,
-      servername: kServerName,
-      idleTimeout: common.platformTimeout(1),
-    });
+  session.on('secure', common.mustNotCall());
 
-    clientSession.on('secure', common.mustNotCall());
-    clientSession.on('close', common.mustCall(() => {
-      client.close();
-      server.close();
-    }));
-  }));
-}
+  await once(session, 'close');
+
+  client.close();
+  server.close();
+
+  await Promise.allSettled([
+    once(client, 'close'),
+    once(server, 'close')
+  ]);
+})();
 
 // Creating the QuicSession fails when connect type does not match the
 // the connect IP address...
-{
+(async () => {
   const server = createSocket({ endpoint: { type: 'udp6' } });
+  const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   server.listen({ key, cert, ca, alpn: kALPN });
   server.on('session', common.mustNotCall());
 
-  server.on('ready', common.mustCall(() => {
-    const client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
+  await once(server, 'ready');
 
-    client.on('ready', common.mustCall());
+  const session = client.connect({
+    address: common.localhostIPv4,
+    port: server.endpoints[0].address.port,
+    type: 'udp6',
+    idleTimeout: common.platformTimeout(1),
+  });
 
-    const clientSession = client.connect({
-      address: common.localhostIPv4,
-      port: server.endpoints[0].address.port,
-      type: 'udp6',
-      servername: kServerName,
-      idleTimeout: common.platformTimeout(1),
-    });
-
-    clientSession.on('error', common.mustCall((err) => {
-      assert.strictEqual(err.code, 'ERR_QUICCLIENTSESSION_FAILED');
-    }));
-
-    clientSession.on('secure', common.mustNotCall());
-    clientSession.on('close', common.mustCall(() => {
-      client.close();
-      server.close();
-    }));
+  session.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_QUICCLIENTSESSION_FAILED');
+    client.close();
+    server.close();
   }));
-}
+
+  session.on('secure', common.mustNotCall());
+  session.on('close', common.mustCall());
+
+  await Promise.allSettled([
+    once(client, 'close'),
+    once(server, 'close')
+  ]);
+})().then(common.mustCall());

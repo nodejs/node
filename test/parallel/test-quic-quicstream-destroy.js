@@ -14,33 +14,24 @@ const {
   debug,
   key,
   cert,
-  ca,
-  kServerPort,
-  kClientPort,
-  setupKeylog
+  ca
 } = require('../common/quic');
 
 const { createSocket } = require('quic');
 
-const kServerName = 'agent2';
-const kALPN = 'zzz';
+const options = { key, cert, ca, alpn: 'zzz' };
 
-const server = createSocket({ endpoint: { port: kServerPort } });
+const server = createSocket({ server: options });
 
-server.listen({ key, cert, ca, alpn: kALPN });
+server.listen();
 
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
-  setupKeylog(session);
 
   session.on('stream', common.mustCall((stream) => {
     stream.destroy();
     stream.on('close', common.mustCall());
     stream.on('error', common.mustNotCall());
-    // Abort will not be called in this case because close()
-    // is not used. The stream is just immediately destroyed
-    // and no longer available for use.
-    stream.on('abort', common.mustNotCall());
     assert(stream.destroyed);
   }));
 }));
@@ -48,22 +39,18 @@ server.on('session', common.mustCall((session) => {
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
 
-  const client = createSocket({
-    endpoint: { port: kClientPort },
-    client: { key, cert, ca, alpn: kALPN }
-  });
+  const client = createSocket({ client: options });
 
   client.on('close', common.mustCall(() => {
     debug('Client closing. Duration', client.duration);
   }));
 
   const req = client.connect({
-    address: 'localhost',
-    port: server.endpoints[0].address.port,
-    servername: kServerName,
+    address: common.localhostIPv4,
+    port: server.endpoints[0].address.port
   });
 
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
+  req.on('secure', common.mustCall(() => {
     debug('QuicClientSession TLS Handshake Complete');
 
     const stream = req.openStream();

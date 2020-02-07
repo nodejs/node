@@ -12,42 +12,46 @@ if (!common.hasQuic)
 const assert = require('assert');
 const { key, cert, ca } = require('../common/quic');
 const { createSocket } = require('quic');
+const { once } = require('events');
 
-const kServerName = 'agent2';
-const server = createSocket();
+(async () => {
+  const server = createSocket();
 
-let client;
-const options = { key, cert, ca, alpn: 'zzz' };
-server.listen(options);
+  let client;
+  const options = { key, cert, ca, alpn: 'zzz' };
+  server.listen(options);
 
-server.on('session', common.mustCall((serverSession) => {
-  serverSession.on('stream', common.mustCall((stream) => {
-    stream.on('data', common.mustCall((data) => {
-      assert.strictEqual(data.toString('utf8'), 'hello');
-    }));
-    stream.on('end', common.mustCall(() => {
+  server.on('session', common.mustCall((serverSession) => {
+    serverSession.on('stream', common.mustCall(async (stream) => {
+      stream.on('data', common.mustCall((data) => {
+        assert.strictEqual(data.toString('utf8'), 'hello');
+      }));
+
+      await once(stream, 'end');
+
       stream.close();
       client.close();
       server.close();
     }));
   }));
-}));
 
-server.on('ready', common.mustCall(() => {
+  await once(server, 'ready');
+
   client = createSocket({ client: options });
 
   const clientSession = client.connect({
-    address: 'localhost',
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
-    servername: kServerName,
     preferredAddressPolicy: 'accept',
   });
 
-  clientSession.on('close', common.mustCall());
+  await once(clientSession, 'secure');
 
-  clientSession.on('secure', common.mustCall(() => {
-    const stream = clientSession.openStream();
-    stream.end('hello');
-    stream.on('close', common.mustCall());
-  }));
-}));
+  const stream = clientSession.openStream();
+  stream.end('hello');
+
+  await Promise.all([
+    once(stream, 'close'),
+    once(client, 'close'),
+    once(server, 'close')]);
+})().then(common.mustCall());

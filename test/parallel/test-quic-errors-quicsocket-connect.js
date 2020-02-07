@@ -1,14 +1,25 @@
 // Flags: --no-warnings
 'use strict';
 
-// Tests QuicClientSession constructor options errors
+// Tests error and input validation checks for QuicSocket.connect()
 
 const common = require('../common');
+
 if (!common.hasQuic)
   common.skip('missing quic');
 
+const { createHook } = require('async_hooks');
 const assert = require('assert');
 const { createSocket } = require('quic');
+
+// Ensure that a QuicClientSession handle is never created during the
+// error condition tests (ensures that argument and error validation)
+// is occurring before the underlying handle is created.
+createHook({
+  init(id, type) {
+    assert.notStrictEqual(type, 'QUICCLIENTSESSION');
+  }
+}).enable();
 
 const client = createSocket();
 
@@ -20,7 +31,7 @@ const client = createSocket();
 });
 
 // Test invalid port argument option
-[-1, 'test', 1n, {}, [], NaN, false].forEach((port) => {
+[-1, 'test', 1n, {}, [], NaN, false, 65536].forEach((port) => {
   assert.throws(() => client.connect({ port }), {
     code: 'ERR_INVALID_ARG_VALUE'
   });
@@ -162,6 +173,12 @@ const client = createSocket();
   });
 });
 
+// Test that connect cannot be called after QuicSocket is closed.
+client.close();
+assert.throws(() => client.connect(), {
+  code: 'ERR_QUICSOCKET_DESTROYED'
+});
+
 // TODO(@jasnell): Test additional options:
 //
 // Client QuicSession Related:
@@ -205,3 +222,4 @@ const client = createSocket();
 //  [ ] passphrase - must be a string
 //  [ ] pfx - must be a string, string array, Buffer, or Buffer array
 //  [ ] secureOptions - must be a number
+//  [x] minDHSize - must be a number

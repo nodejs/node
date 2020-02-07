@@ -43,6 +43,7 @@ assert.strictEqual(socket.serverSessions, 0n);
 assert.strictEqual(socket.clientSessions, 0n);
 
 const endpoint = socket.endpoints[0];
+assert(endpoint);
 
 // Will throw because the QuicSocket is not bound
 {
@@ -52,6 +53,7 @@ const endpoint = socket.endpoints[0];
   assert.throws(() => endpoint.setBroadcast(), err);
   assert.throws(() => endpoint.setMulticastLoopback(), err);
   assert.throws(() => endpoint.setMulticastInterface('0.0.0.0'), err);
+  // TODO(@jasnell): Verify behavior of add/drop membership then test
   // assert.throws(() => endpoint.addMembership(
   //     '127.0.0.1', '127.0.0.1'), err);
   // assert.throws(() => endpoint.dropMembership(
@@ -70,37 +72,14 @@ const endpoint = socket.endpoints[0];
   });
 });
 
-assert.throws(() => socket.setDiagnosticPacketLoss({ rx: -1 }), {
-  code: 'ERR_OUT_OF_RANGE'
-});
-
-assert.throws(() => socket.setDiagnosticPacketLoss({ rx: 1.1 }), {
-  code: 'ERR_OUT_OF_RANGE'
-});
-
-assert.throws(() => socket.setDiagnosticPacketLoss({ tx: -1 }), {
-  code: 'ERR_OUT_OF_RANGE'
-});
-
-assert.throws(() => socket.setDiagnosticPacketLoss({ tx: 1.1 }), {
-  code: 'ERR_OUT_OF_RANGE'
-});
-
-[1, 1n, false, [], {}, null].forEach((alpn) => {
-  assert.throws(() => socket.listen({ alpn }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
-[1, 1n, false, [], {}, null].forEach((ciphers) => {
-  assert.throws(() => socket.listen({ ciphers }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
-[1, 1n, false, [], {}, null].forEach((groups) => {
-  assert.throws(() => socket.listen({ groups }), {
-    code: 'ERR_INVALID_ARG_TYPE'
+[
+  { rx: -1 },
+  { rx: 1.1 },
+  { tx: -1 },
+  { tx: 1.1 }
+].forEach((options) => {
+  assert.throws(() => socket.setDiagnosticPacketLoss(options), {
+    code: 'ERR_OUT_OF_RANGE'
   });
 });
 
@@ -147,49 +126,29 @@ socket.on('ready', common.mustCall(() => {
 }));
 
 socket.on('close', common.mustCall(() => {
-  const makeError = (method) => ({
-    code: 'ERR_QUICSOCKET_DESTROYED',
-    message: `Cannot call ${method} after a QuicSocket has been destroyed`
+  [
+    'ref',
+    'unref',
+    'setTTL',
+    'setMulticastTTL',
+    'setBroadcast',
+    'setMulticastLoopback',
+    'setMulticastInterface',
+    'addMembership',
+    'dropMembership'
+  ].forEach((op) => {
+    assert.throws(() => endpoint[op](), {
+      code: 'ERR_QUICSOCKET_DESTROYED',
+      message: `Cannot call ${op} after a QuicSocket has been destroyed`
+    });
   });
 
-  assert.throws(
-    () => socket.ref(),
-    makeError('ref')
-  );
-  assert.throws(
-    () => socket.unref(),
-    makeError('unref')
-  );
-  assert.throws(
-    () => endpoint.setTTL(1),
-    makeError('setTTL')
-  );
-  assert.throws(
-    () => endpoint.setMulticastTTL(1),
-    makeError('setMulticastTTL')
-  );
-  assert.throws(
-    () => endpoint.setBroadcast(true),
-    makeError('setBroadcast')
-  );
-  assert.throws(
-    () => endpoint.setMulticastLoopback(),
-    makeError('setMulticastLoopback')
-  );
-  assert.throws(
-    () => endpoint.setMulticastInterface(true),
-    makeError('setMulticastInterface')
-  );
-  assert.throws(
-    () => endpoint.addMembership('foo', 'bar'),
-    makeError('addMembership')
-  );
-  assert.throws(
-    () => endpoint.dropMembership('foo', 'bar'),
-    makeError('dropMembership')
-  );
-  assert.throws(
-    () => socket.setServerBusy(true),
-    makeError('setServerBusy')
-  );
+  [
+    'setServerBusy',
+  ].forEach((op) => {
+    assert.throws(() => socket[op](), {
+      code: 'ERR_QUICSOCKET_DESTROYED',
+      message: `Cannot call ${op} after a QuicSocket has been destroyed`
+    });
+  });
 }));

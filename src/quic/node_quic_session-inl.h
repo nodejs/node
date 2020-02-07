@@ -273,6 +273,7 @@ void QuicSession::InitApplication() {
 // the peer. All existing streams are abandoned and closed.
 void QuicSession::OnIdleTimeout() {
   if (!is_flag_set(QUICSESSION_FLAG_DESTROYED)) {
+    state_[IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT] = 1;
     Debug(this, "Idle timeout");
     SilentClose();
   }

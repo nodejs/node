@@ -7,20 +7,13 @@ if (!common.hasQuic)
 
 const assert = require('assert');
 const { createSocket } = require('quic');
-const { kClientPort } = require('../common/quic');
 
 {
-  const socket = createSocket({ endpoint: { port: kClientPort } });
-  socket.close();
+  const socket = createSocket();
+  socket.close(common.mustCall());
+  socket.on('close', common.mustCall());
   assert.throws(() => socket.close(), {
     code: 'ERR_QUICSOCKET_DESTROYED',
-    name: 'Error',
     message: 'Cannot call close after a QuicSocket has been destroyed'
   });
-}
-
-{
-  const socket = createSocket({ endpoint: { port: kClientPort } });
-
-  socket.close(common.mustCall());
 }

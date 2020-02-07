@@ -9,61 +9,59 @@ if (!common.hasQuic)
 
 const assert = require('assert');
 const { key, cert, ca } = require('../common/quic');
+const { once } = require('events');
 
 const { createSocket } = require('quic');
 
-let client;
-
-const server = createSocket();
-
 const kKeylogs = [
-  /CLIENT_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /SERVER_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET.*/,
-  /CLIENT_TRAFFIC_SECRET_0.*/,
-  /SERVER_TRAFFIC_SECRET_0.*/,
-  /QUIC_CLIENT_TRAFFIC_SECRET_0.*/,
-  /QUIC_SERVER_TRAFFIC_SECRET_0.*/,
+  /^CLIENT_HANDSHAKE_TRAFFIC_SECRET .*/,
+  /^SERVER_HANDSHAKE_TRAFFIC_SECRET .*/,
+  /^QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET .*/,
+  /^QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET .*/,
+  /^CLIENT_TRAFFIC_SECRET_0 .*/,
+  /^SERVER_TRAFFIC_SECRET_0 .*/,
+  /^QUIC_CLIENT_TRAFFIC_SECRET_0 .*/,
+  /^QUIC_SERVER_TRAFFIC_SECRET_0 .*/,
 ];
 
-server.listen({ key, cert, ca, alpn: 'zzz' });
+const options = { key, cert, ca, alpn: 'zzz' };
 
-server.on('session', common.mustCall((session) => {
+(async () => {
+  const server = createSocket({ server: options });
+  const client = createSocket({ client: options });
+
   const kServerKeylogs = Array.from(kKeylogs);
-  session.on('keylog', common.mustCall((line) => {
-    assert(kServerKeylogs.shift().test(line));
-  }, kServerKeylogs.length));
+  const kClientKeylogs = Array.from(kKeylogs);
 
-  session.on('stream', common.mustCall((stream) => {
-    stream.setEncoding('utf8');
-    stream.end('hello world');
-    stream.resume();
+  server.listen();
+
+  server.on('session', common.mustCall((session) => {
+    session.on('keylog', common.mustCall((line) => {
+      assert.match(line.toString(), kServerKeylogs.shift());
+    }, kServerKeylogs.length));
   }));
-}));
 
-server.on('ready', common.mustCall(() => {
-  client = createSocket({ client: { key, cert, ca, alpn: 'zzz' } });
+  await once(server, 'ready');
 
   const req = client.connect({
-    address: 'localhost',
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });
 
-  const kClientKeylogs = Array.from(kKeylogs);
-
   req.on('keylog', common.mustCall((line) => {
-    assert(kClientKeylogs.shift().test(line));
+    assert.match(line.toString(), kClientKeylogs.shift());
   }, kClientKeylogs.length));
 
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
-    const stream = req.openStream();
-    stream.setEncoding('utf8');
-    stream.end('hello world');
-    stream.resume();
-    stream.on('close', common.mustCall(() => {
-      server.close();
-      client.close();
-    }));
-  }));
-}));
+  await once(req, 'secure');
+
+  server.close();
+  client.close();
+
+  await Promise.allSettled([
+    once(server, 'close'),
+    once(client, 'close')
+  ]);
+
+  assert.strictEqual(kServerKeylogs.length, 0);
+  assert.strictEqual(kClientKeylogs.length, 0);
+})().then(common.mustCall());

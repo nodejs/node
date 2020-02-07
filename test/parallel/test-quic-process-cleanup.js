@@ -18,10 +18,11 @@ if (workerData === null) {
 }
 
 const { key, cert, ca } = require('../common/quic');
+const options = { key, cert, ca, alpn: 'meow' };
 
-const server = quic.createSocket();
+const server = quic.createSocket({ server: options });
 
-server.listen({ key, cert, ca, alpn: 'meow' });
+server.listen();
 
 server.on('session', common.mustCall((session) => {
   session.on('secure', common.mustCall((servername, alpn, cipher) => {
@@ -37,17 +38,17 @@ server.on('session', common.mustCall((session) => {
 }));
 
 server.on('ready', common.mustCall(() => {
-  const client = quic.createSocket({ client: { key, cert, ca, alpn: 'meow' } });
+  const client = quic.createSocket({ client: options });
 
   const req = client.connect({
-    address: 'localhost',
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port
   });
 
   req.on('stream', common.mustCall(() => {
     if (workerData.removeFromSocket)
       req.removeFromSocket();
-    process.exit();
+    process.exit();  // Exits the worker thread
   }));
 
   req.on('close', common.mustNotCall());

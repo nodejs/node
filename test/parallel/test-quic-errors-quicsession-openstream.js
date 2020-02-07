@@ -7,8 +7,16 @@ if (!common.hasQuic)
 // Test errors thrown when openStream is called incorrectly
 // or is not permitted
 
+const { createHook } = require('async_hooks');
 const assert = require('assert');
 const quic = require('quic');
+
+// Ensure that no QUICSTREAM instances are created during the test
+createHook({
+  init(id, type) {
+    assert.notStrictEqual(type, 'QUICSTREAM');
+  }
+}).enable();
 
 const Countdown = require('../common/countdown');
 const { key, cert, ca } = require('../common/quic');
@@ -29,7 +37,7 @@ server.on('session', common.mustCall((session) => {
 
 server.on('ready', common.mustCall(() => {
   const req = client.connect({
-    address: 'localhost',
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port
   });
 
@@ -41,7 +49,8 @@ server.on('ready', common.mustCall(() => {
   });
 
   // Unidirectional streams are not allowed. openStream will succeeed
-  // but the stream will be destroyed immediately.
+  // but the stream will be destroyed immediately. The underlying
+  // QuicStream C++ handle will not be created.
   req.openStream({ halfOpen: true })
     .on('error', common.expectsError({
       code: 'ERR_QUICSTREAM_OPEN_FAILED'

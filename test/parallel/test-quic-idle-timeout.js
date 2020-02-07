@@ -8,63 +8,66 @@ if (!common.hasQuic)
 const assert = require('assert');
 const { createSocket } = require('quic');
 const { key, cert, ca } = require('../common/quic');
+const { once } = require('events');
 
-const kServerName = 'agent2';
 const kALPN = 'zzz';
-// Allow error for 500 milliseconds more.
-const error = common.platformTimeout(500);
-const idleTimeout = common.platformTimeout(1000);
+const idleTimeout = common.platformTimeout(1);
+const options = { key, cert, ca, alpn: kALPN };
 
-// Test client idle timeout.
-{
-  let client;
-  const server = createSocket();
-  server.listen({ key, cert, ca, alpn: kALPN });
+// Test idleTimeout. The test will hang and fail with a timeout
+// if the idleTimeout is not working correctly.
 
+(async () => {
+  const server = createSocket({ server: options });
+  const client = createSocket({ client: options });
+
+  server.listen();
   server.on('session', common.mustCall());
 
-  server.on('ready', common.mustCall(() => {
-    client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
-    const start = Date.now();
-    const clientSession = client.connect({
-      address: 'localhost',
-      port: server.endpoints[0].address.port,
-      servername: kServerName,
-      idleTimeout,
-    });
+  await once(server, 'ready');
 
-    clientSession.on('close', common.mustCall(() => {
-      client.close();
-      server.close();
-      assert(Date.now() - start < idleTimeout + error);
-    }));
+  const session = client.connect({
+    address: common.localhostIPv4,
+    port: server.endpoints[0].address.port,
+    idleTimeout,
+  });
+
+  await once(session, 'close');
+
+  assert(session.idleTimeout);
+  client.close();
+  server.close();
+
+  await Promise.all([
+    once(client, 'close'),
+    once(server, 'close')
+  ]);
+})().then(common.mustCall());
+
+
+(async () => {
+  const server = createSocket({ server: options });
+  const client = createSocket({ client: options });
+
+  server.listen({ idleTimeout });
+
+  server.on('session', common.mustCall(async (session) => {
+    await once(session, 'close');
+    assert(session.idleTimeout);
+    client.close();
+    server.close();
+    await Promise.all([
+      once(client, 'close'),
+      once(server, 'close')
+    ]);
   }));
-}
 
-// Test server idle timeout.
-{
-  let client;
-  let start;
-  const server = createSocket();
-  server.listen({ key, cert, ca, alpn: kALPN, idleTimeout });
+  await once(server, 'ready');
 
-  server.on('session', common.mustCall((serverSession) => {
-    serverSession.on('close', common.mustCall(() => {
-      client.close();
-      server.close();
-      assert(Date.now() - start < idleTimeout + error);
-    }));
-  }));
+  const session = client.connect({
+    address: common.localhostIPv4,
+    port: server.endpoints[0].address.port,
+  });
 
-  server.on('ready', common.mustCall(() => {
-    client = createSocket({ client: { key, cert, ca, alpn: kALPN } });
-    start = Date.now();
-    const clientSession = client.connect({
-      address: 'localhost',
-      port: server.endpoints[0].address.port,
-      servername: kServerName,
-    });
-
-    clientSession.on('close', common.mustCall());
-  }));
-}
+  await once(session, 'close');
+})().then(common.mustCall());
