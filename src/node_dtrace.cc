@@ -296,14 +296,14 @@ void InitializeDTrace(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
-# define NODE_PROBE(name) env->SetMethod(target, #name, name);
+  #define NODE_PROBE(name) env->SetMethod(target, #name, name);
   NODE_PROBE(DTRACE_NET_SERVER_CONNECTION)
   NODE_PROBE(DTRACE_NET_STREAM_END)
   NODE_PROBE(DTRACE_HTTP_SERVER_REQUEST)
   NODE_PROBE(DTRACE_HTTP_SERVER_RESPONSE)
   NODE_PROBE(DTRACE_HTTP_CLIENT_REQUEST)
   NODE_PROBE(DTRACE_HTTP_CLIENT_RESPONSE)
-# undef NODE_PROBE
+  #undef NODE_PROBE
 #endif
 }
 
