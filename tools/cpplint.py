@@ -4625,6 +4625,56 @@ def GetLineWidth(line):
   else:
     return len(line)
 
+def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
+  """Checks for preprocessor directive spacing, and indentation.
+
+  Things we check for: no spaces between # and the directive,
+  indentation in ifdef blocks, a uniform spacing between define, the identifier,
+  and the replacement.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]  # Get rid of comments and strings
+
+  directivepos = line.find('#')
+  if directivepos != -1:  # If there is a # in the line
+    if not Match(r'^.*#.*(if|define|else)', line):
+      return
+
+    if line[directivepos+1] == ' ': # If there is a space between # and the directive
+      error(filename, linenum, 'whitespace/tab', 2,\
+            'Do not have a space between the # and the directive')
+    
+    definepos = line.find('define')
+    if definepos != -1: # If there is a define in the line
+      # If there is >1 space between define and identifier
+      if not Match(r'^.*(define|defined) {1}\S', line):
+        if not Match(r'^.*defined\(', line): 
+          error(filename, linenum, 'whitespace/tab', 2,\
+                'Use one whitespace between define and identifier')
+        if Match(r'^.*defined {1}\(', line):
+          error(filename, linenum, 'whitespace/tab', 2,\
+                'Do not have a space between defined and (')
+
+      # If there is >1 space between identifier and replacement
+      if not (Match(r'^.*define \S* *\S', line) or\
+              Match(r'^.*define \S*\s*\\', line) or\
+              Match(r'^.*define \S*\Z', line) or\
+              Match(r'^.*defined', line)):
+        error(filename, linenum, 'whitespace/tab', 2,\
+              'Use whitespace between identifier and replacement')
+        
+    undefpos = line.find('undef')
+    if undefpos != -1:
+      # If there is >1 space between undef and identifier
+      if not Match(r'^.*undef {1}\S', line):  
+        error(filename, linenum, 'whitespace/tab', 2, 
+              'Use one whitespace between undef and identifier')
+
 
 def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
                error):
@@ -4750,6 +4800,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckNullTokens(filename, clean_lines, linenum, error)
   CheckV8PersistentTokens(filename, clean_lines, linenum, error)
   CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
+  CheckPreprocessorDirectives(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
