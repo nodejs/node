@@ -4642,7 +4642,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
 
   directivepos = line.find('#')
   if directivepos != -1:  # If there is a # in the line
-    if not Match(r'^.*#.*(if|define|else)', line):
+    if not Match(r'^.*#.*(if|define|else|undef)', line):  # Makes sure the line is a directive
       return
 
     if line[directivepos+1] == ' ': # If there is a space between # and the directive
@@ -4659,14 +4659,6 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
         if Match(r'^.*defined {1}\(', line):
           error(filename, linenum, 'whitespace/tab', 2,\
                 'Do not have a space between defined and (')
-
-      # If there is >1 space between identifier and replacement
-      if not (Match(r'^.*define \S* *\S', line) or\
-              Match(r'^.*define \S*\s*\\', line) or\
-              Match(r'^.*define \S*\Z', line) or\
-              Match(r'^.*defined', line)):
-        error(filename, linenum, 'whitespace/tab', 2,\
-              'Use whitespace between identifier and replacement')
         
     undefpos = line.find('undef')
     if undefpos != -1:
