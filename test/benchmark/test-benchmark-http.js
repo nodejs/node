@@ -29,6 +29,7 @@ runBenchmark('http',
                'type=asc',
                'url=long',
                'value=X-Powered-By',
+               'w=0',
              ],
              {
                NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
