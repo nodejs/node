@@ -405,7 +405,7 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31167
     description: End-of-Life
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
