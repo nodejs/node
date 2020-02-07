@@ -1203,12 +1203,12 @@ url_data HarvestBase(Environment* env, Local<Object> base_obj) {
   Local<Value> flags =
       base_obj->Get(env->context(), env->flags_string()).ToLocalChecked();
   if (flags->IsInt32())
-    flags->Int32Value(context).To(&base.flags);
+    base.flags = flags->Int32Value(context).FromJust();
 
   Local<Value> port =
       base_obj->Get(env->context(), env->port_string()).ToLocalChecked();
   if (port->IsInt32())
-    port->Int32Value(context).To(&base.port);
+    base.port = port->Int32Value(context).FromJust();
 
   Local<Value> scheme =
       base_obj->Get(env->context(), env->scheme_string()).ToLocalChecked();
@@ -2238,8 +2238,7 @@ void ToUSVString(const FunctionCallbackInfo<Value>& args) {
 
   TwoByteValue value(env->isolate(), args[0]);
 
-  int64_t start;
-  args[1]->IntegerValue(env->context()).To(&start);
+  int64_t start = args[1]->IntegerValue(env->context()).FromJust();
   CHECK_GE(start, 0);
 
   for (size_t i = start; i < value.length(); i++) {
