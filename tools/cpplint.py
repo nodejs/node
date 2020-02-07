@@ -4627,23 +4627,27 @@ def GetLineWidth(line):
 
 def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
   """Checks for preprocessor directive spacing, and indentation.
-
-  Things we check for: a uniform spacing between define, the identifier,
-  and the replacement.
-
+  Things we check for: a uniform spacing between define, the
+  identifier, and the replacement, indentation of if/ifdef/ifndef
+  blocks.
   Args:
     filename: The name of the current file.
     clean_lines: A CleansedLines instance containing the file.
     linenum: The number of the line to check.
     error: The function to call with any errors found.
   """
-  line = clean_lines.elided[linenum]  # Get rid of comments and strings
-
+  # Get rid of comments and strings
+  line = clean_lines.elided[linenum]
   directivepos = line.find('#')
   if directivepos != -1:  # If there is a # in the line
-    if not Match(r'^#.*(if|define|else|undef|include)', line):  # Makes sure the line is a directive
+    # Makes sure the line is a directive
+    if not Match(r'^\s*#.*(if|define|else|undef|include|error)', line):
       return
-    
+
+    if Match(r'^\s+#', line):
+        error(filename, linenum, 'whitespace/tab', 2,\
+          'Do not indent the # symbol')
+
     definepos = line.find('define')
     if definepos != -1: # If there is a define in the line
       # If there is >1 space between define and identifier
@@ -4654,7 +4658,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
         if Match(r'^.*defined {1}\(', line):
           error(filename, linenum, 'whitespace/tab', 2,\
                 'Do not have a space between defined and (')
-        
+
     undefpos = line.find('undef')
     if undefpos != -1:
       # If there is >1 space between undef and identifier
@@ -4664,45 +4668,64 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
 
     # Start of an if/ifdef/ifndef block
     if (Match(r'^#\s*(if|ifdef|ifndef)', line) and not\
-        Match(r'^#\s*(endif|elif)', line)): 
-      # Indent the following lines until else/elif/endif
+        Match(r'^#\s*(endif|elif)', line)):
+      endflag = 0 # Set True when the if statement has been closed
+      # Get the indent level of the top level if statement
       try:
         tokens = re.findall(r'#\s+', line)
         blockindentlevel = len(tokens[0])
       except:
-        blockindentlevel = 0
+        blockindentlevel = 1
       nextlinenum = linenum + 1
-      nestinglevel = 0 # Tracks how many nested if else statements there are
-      # While the if statement is still open
-      while not (Match(r'^#\s*endif', clean_lines.elided[nextlinenum]) and\
-                nestinglevel == 0):
+      nestinglevel = 0 # Tracks how many nested if statements there are
+      #print('new loop')
+      while endflag == 0: # While the if statement is still open
+        #print(nextlinenum, nestinglevel)  
         nextline = clean_lines.elided[nextlinenum]
-        if IsBlankLine(nextline) == False:
-          # If the line isn't an else/elif and it's a part of the top level if statement then indent
-          if (not Match(r'^#\s*(else|elif)', nextline) and nestinglevel == 0):
-            # If the line isn't indented, throw an error
-            try:
-              tokens = re.findall(r'#\s+', nextline)
-              nextlineindentlevel = len(tokens[0])
-            except:
-              if not Match(r'^#', nextline):
-                try:
-                  tokens = re.findall(r'^\s+', nextline)
-                  nextlineindentlevel = len(tokens[0])
-                except:
-                  nextlineindentlevel = 0
-              else:
-                nextlineindentlevel = 1
-            if (nextlineindentlevel - 2) != blockindentlevel:
-              error(filename, nextlinenum, 'whitespace/tab', 2,\
-                    'Statements within if/ifdef/ifndef blocks should be indented')
-          # If there is a nested if statement increment nesting level
-          if (Match(r'^#\s*(if|ifdef|ifndef)', nextline) and not\
-              Match(r'^#\s*(endif|elif)', nextline)):
-            nestinglevel += 1
-          # At the end of an if else block, decrement nesting level
-          if Match(r'^#\s*endif', nextline):
-            nestinglevel -= 1
+        # If there is a top level elif/else/endif statement
+        if Match(r'^#\s*(elif|else|endif)', nextline) and nestinglevel == 0:
+          try:
+            # Find indentation of line
+            tokens = re.findall(r'#\s+', nextline)
+            nextlineindentlevel = len(tokens[0])
+          except:
+            # If there is a # at the start of the line with no indentation
+            nextlineindentlevel = 1
+          # Top level elif/else/endif statements should not be indented  
+          if (nextlineindentlevel != blockindentlevel):
+            error(filename, nextlinenum, 'whitespace/tab', 2,\
+                  'Else/elif/endif statements should be indented the same distance as their corresponding if/ifdef/ifndef statement')
+
+        # If the line isn't an else/elif/endif and it's a part of
+        # the top level if statement and it's a preprocessor
+        # directive then indent
+        if ((not Match(r'^#\s*(else|elif|endif)', nextline)) and nestinglevel == 0 and Match(r'^#', nextline)):
+          try:
+            # Find indentation of line
+            tokens = re.findall(r'#\s+', nextline)
+            nextlineindentlevel = len(tokens[0])
+          except:
+            # If there is a # at the start of the line with no indentation
+            nextlineindentlevel = 1
+          # If the lines within the block are not indented
+          if (((blockindentlevel == 1) and (nextlineindentlevel - 1 != blockindentlevel)) or\
+              ((blockindentlevel != 1) and (nextlineindentlevel - 2 != blockindentlevel))):
+            error(filename, nextlinenum, 'whitespace/tab', 2,\
+                  'Statements within if/ifdef/ifndef blocks should be indented')
+
+        # Set endflag to True if the line is a top level endif
+        if Match(r'^#\s*endif', nextline) and nestinglevel == 0:
+          endflag = 1
+
+        # If there is a nested if statement increment nesting level
+        if (Match(r'^#\s*(if|ifdef|ifndef)', nextline) and (not\
+            Match(r'^#\s*(endif|elif)', nextline))):
+          nestinglevel += 1
+
+        # At the end of an if statement, decrement nesting level
+        if Match(r'^#\s*endif', nextline):
+          nestinglevel -= 1
+
         nextlinenum += 1
 
 def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
