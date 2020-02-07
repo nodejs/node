@@ -2,118 +2,92 @@
 
 The security release process covers the steps required to plan/implement a
 security release. This document is copied into the description of the Next
-Security Release, and used to track progess on the release. It contains
-***TEXT LIKE THIS*** which will be replaced during the release process with
-the information described.
+Security Release, and used to track progess on the release. It contains ***TEXT
+LIKE THIS*** which will be replaced during the release process with the
+information described.
 
 ## Planning
 
-* [ ] Open an issue in the private security repo titled `Next Security Release`
-  and add this planning checklist to the description.
+* [ ] Open an [issue](https://github.com/nodejs-private/node-private) titled
+  `Next Security Release`, and put this checklist in the description.
 
 * [ ] Get agreement on the list of vulnerabilities to be addressed:
-  * ***LINKS TO VULNS...***
+  * ***H1 REPORT LINK***: ***DESCRIPTION*** (***CVE or H1 CVE request link***)
+    * v10.x, v12.x: ***LINK to PR URL***
+  * ...
+
+* [ ] PR release announcements in [private](https://github.com/nodejs-private/nodejs.org-private):
+  * (Use previous PRs as templates, don't forget to update the site banner, and
+    the date in the slug so that it will move to the top of the blog list.)
+  * [ ] pre-release: ***LINK TO PR***
+  * [ ] post-release: ***LINK TO PR***
 
 * [ ] Get agreement on the planned date for the release: ***RELEASE DATE***
 
-* [ ] Validate that all vulnerabilities have been assigned a CVE. Upstream deps
-  such as OpenSSL and NPM will have CVEs, issues reported on H1 may have CVEs,
-  otherwise allocate them by following the
-  [cve_management_process](https://github.com/nodejs/node/blob/master/doc/guides/cve_management_process.md).
-
-* [ ] Co-ordinate with the Release team members to line up one or more releasers
-  to do the releases on the agreed date. Releaser: ***NAME of RELEASER(S)***
-
-* [ ] Prep for the security announcements by getting agreement on drafts (use
-  previously announced releases as the template):
-  * pre-release: ***LINK TO COMMENT ON THIS ISSUE CONTAINING DRAFT***
-  * post-release: ***LINK TO COMMENT ON THIS ISSUE CONTAINING DRAFT***
+* [ ] Get release team volunteers for all affected lines:
+  * v12.x: ***NAME of RELEASER(S)***
+  * ... other lines, if multiple releasers
 
 ## Announcement (one week in advance of the planned release)
 
-* [ ] Send pre-release announcement to
-  https://groups.google.com/forum/#!forum/nodejs-sec.
-  One of the existing managers can give access (Ben
-  Noordhuis, Rod Vagg, Michael Dawson). ***LINK TO EMAIL***
+* [ ] Check that all vulnerabilities are ready for release integration:
+  * PRs against all affected release lines or cherry-pick clean
+  * Approved
+  * Pass `make test`
+  * Have CVEs
+  * Described in the pre/post announcements
 
-* [ ] Post pre-release announcement in vulnerabilities section of Nodejs.org
-  blog (https://github.com/nodejs/nodejs.org/tree/master/locale/en/blog/vulnerability).
-  Use last pre-release announcement as a template (it includes blog metadata
-  such as updates to the banner on the Node.js website to indicate security
-  releases are coming).  Submit PR and land immediately. Text was already
-  reviewed in security repo.  ***LINK TO BLOG PR AND POST***
+* [ ] Pre-release announcement [email][]: ***LINK TO EMAIL***
+  (Get access from existing manager: Ben Noordhuis, Rod Vagg, Michael Dawson)
 
-* [ ] Open an issue in the build working repository with a notification of the
-  date for the security release.  Use this issue to co-ordinate with the build
-  team to ensure there will be coverage/availability of build team resources the
-  day of the release. Those who volunteer from the build WG should be available
-  in node/build during the release in case they are needed by the individual
-  doing the release. ***LINK TO BUILD ISSUE***
+* [ ] Pre-release announcement to nodejs.org blog: ***LINK TO BLOG***
+  (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
+  nodejs/nodejs.org)
+
+* [ ] Request releaser(s) to start integrating the PRs to be released.
+
+* [ ] Notify [docker-node][] of upcoming security release date: ***LINK***
+
+* [ ] Notify build-wg of upcoming security release date by opening an issue
+  in [nodejs/build][] to request WG members are available to fix any CI issues.
 
 ## Release day
 
+* [ ] [Lock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#before-the-release)
+
 * [ ] The releaser(s) run the release process to completion.
 
-* [ ] Send post-release announcement as a reply to the
-  original message in https://groups.google.com/forum/#!forum/nodejs-sec
-  ***LINK TO EMAIL***
+* [ ] [Unlock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#after-the-release)
 
-* [ ] Update the blog post in
-  https://github.com/nodejs/nodejs.org/tree/master/locale/en/blog/vulnerability
-  with the information that releases are available and the full
-  vulnerability details. Keep the original blog content at the
-  bottom of the blog. Use this as an example:
-  https://github.com/nodejs/nodejs.org/blob/master/locale/en/blog/vulnerability/june-2016-security-releases.md.
-  Make sure to update the date in the slug so that it will move to
-  the top of the blog list, and not that it updates the
-  banner on Node.js org to indicate the security release(s) are
-  available. ***LINK TO PR***
+* [ ] Post-release announcement in reply [email][]: ***LINK TO EMAIL***
 
-  *Note*: If the release blog obviously points to the people having caused the
-  issue (for example when explicitly mentioning reverting a commit), adding
-  those people as a CC on the PR for the blog post to give them a heads up
-  might be appropriate.
+* [ ] Post-release announcement to Nodejs.org blog: ***LINK TO BLOG POST***
+  * (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
+    nodejs/nodejs.org)
 
-* [ ] Email foundation contact to tweet out nodejs-sec announcement from
-  foundation twitter account. FIXME - who is this contact?
+* [ ] Email `"Rachel Romoff" <rromoff@linuxfoundation.org>` to tweet an
+  announcement, or if you are on twitter you can just direct message the
+  `@nodejs` handle.
 
-* [ ] Create a PR to update the Node.js version in the official docker images.
-  * Checkout the docker-node repo.
-  * Run the update.sh using the `-s` option so that ONLY the Node.js
-    versions are updated. At the request from docker (and because
-    it is good practice) we limit the changes to those necessary in
-    security updates.
-  * Open a PR and get volunteer lined up earlier to approve.
-  * Merge the PR with the merge button.
-  * Checkout the [official-images](https://github.com/docker-library/official-images)
-    repository .
-  * In the docker-node repository run the
-    [generate-stackbrew-library.sh]( https://github.com/nodejs/docker-node/blob/master/generate-stackbrew-library.sh)
-    script and replace official-images/library/node with the output generated.
-    ```console
-    $ ./generate-stackbrew-library.sh > .../official-images/library/node
-    ```
-  * Open a PR with the changes to official-images/library/node making sure to
-    @mention the official images.
-    [maintainers](https://github.com/docker-library/official-images/blob/master/MAINTAINERS).
-    In addition, make sure to prefix the PR title with `[security]`.
-  * Send an email to the
-    [maintainers](https://github.com/docker-library/official-images/blob/master/MAINTAINERS)
-    indicating that the PR is open.
+* [ ] Comment in [docker-node][] issue that release is ready for integration.
+  The docker-node team will build and release docker image updates.
 
-* [ ] If we allocated CVES:
-  * [ ] Ensure that the announced CVEs are reported to Mitre as per the
-    [cve_management_process](https://github.com/nodejs/security-wg/blob/master/processes/cve_management_process.md).
-  * [ ] Ensure that the announced CVEs are updated in the cve-management
-    repository as per the
-    [cve_management_process](https://github.com/nodejs/security-wg/blob/master/processes/cve_management_process.md)
-    so that they are listed under Announced.
+* [ ] For every H1 report resolved:
+  * Close as Resolved
+  * Request Disclosure
+  * Request publication of [H1 CVE requests][]
+    * (Check that the "Version Fixed" field in the CVE is correct, and provide
+      links to the release blogs in the "Public Reference" section)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
   [core](https://github.com/nodejs/security-wg/tree/master/vuln/core)
   vulnerability DB. ***LINK TO PR***
 
+* [ ] Close this issue
+
 * [ ] Make sure the PRs for the vulnerabilities are closed.
 
-* [ ] Ensure this issue in the private security repo for the release is closed
-  out.
+[H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
+[docker-node]: https://github.com/nodejs/docker-node/issues)
+[nodejs/build]: https://github.com/nodejs/build/issues)
+[email]: https://groups.google.com/forum/#!forum/nodejs-sec
