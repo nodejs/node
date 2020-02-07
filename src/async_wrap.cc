@@ -429,6 +429,7 @@ void AsyncWrap::GetProviderType(const FunctionCallbackInfo<Value>& args) {
 
 
 void AsyncWrap::EmitDestroy() {
+  resource_.Reset();
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
@@ -673,9 +674,9 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                                                      : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
-  auto isolate = Isolate::GetCurrent();
-  resource_.Reset(isolate, resource);
-  resource_.SetWeak();
+  if (resource != object()) {
+    resource_.Reset(env()->isolate(), resource);
+  }
 
   switch (provider_type()) {
 #define V(PROVIDER)                                                           \
@@ -784,13 +785,11 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 }
 
 Local<Object> AsyncWrap::GetResource() {
-  auto isolate = Isolate::GetCurrent();
-
   if (resource_.IsEmpty()) {
     return object();
-  } else {
-    return resource_.Get(isolate);
   }
+
+  return resource_.Get(env()->isolate());
 }
 
 }  // namespace node
