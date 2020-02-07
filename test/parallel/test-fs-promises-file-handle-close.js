@@ -27,13 +27,15 @@ async function doOpen() {
   return fh;
 }
 
-// Perform the file open assignment within a block.
-// When the block scope exits, the file handle will
-// be eligible for garbage collection.
-{
-  doOpen().then(common.mustCall((fd) => {
-    assert.strictEqual(typeof fd, 'object');
-  }));
-}
+doOpen().then(common.mustCall((fd) => {
+  assert.strictEqual(typeof fd, 'object');
+})).then(common.mustCall(() => {
+  setImmediate(() => {
+    // The FileHandle should be out-of-scope and no longer accessed now.
+    global.gc();
 
-setTimeout(() => global.gc(), 10);
+    // Wait an extra event loop turn, as the warning is emitted from the
+    // native layer in an unref()'ed setImmediate() callback.
+    setImmediate(common.mustCall());
+  });
+}));
