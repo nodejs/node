@@ -295,6 +295,55 @@ console.log(globalVar);
 // 1000
 ```
 
+## `vm.measureMemory([options, [contextifiedObject]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Measure the memory used by the current execution context or a specified context.
+
+* `options` {Object} Optional.
+  * `mode` {vm.constants.measureMemory.mode}
+    **Default:** `vm.constants.measureMemory.mode.SUMMARY`
+* `contextifiedObject` {Object} Optional. A [contextified][] object returned
+  by `vm.createContext()`. If not specified, measure the memory usage of the
+  current context where `vm.measureMemory()` is invoked.
+* Returns: {Promise} If the memory is successfully measured the promise will
+  resolve with an object containing information about the memory usage.
+
+The format of the object that the returned Promise may resolve with is
+specific to the V8 engine and may change from one version of V8 to the next.
+
+The returned result is different from the statistics returned by
+`v8.GetHeapSpaceStatistics()` in that `vm.measureMemory()` measures
+the memory reachable from a specific context, while
+`v8.GetHeapSpaceStatistics()` measures the memory used by an instance
+of V8 engine, which can switch among multiple contexts that reference
+objects in the heap of one engine.
+
+```js
+const vm = require('vm');
+// Measure the memory used by the current context and return the result
+// in summary.
+vm.measureMemory({ mode: vm.constants.measureMemory.mode.SUMMARY })
+  // Is the same as vm.measureMemory()
+  .then((result) => {
+    // The current format is:
+    // { total: { jsMemoryEstimate: 2211728, jsMemoryRange: [ 0, 2211728 ] } }
+    console.log(result);
+  });
+
+const context = vm.createContext({});
+vm.measureMemory({ mode: vm.constants.measureMemory.mode.DETAILED }, context)
+  .then((result) => {
+    // At the moment the DETAILED format is the same as the SUMMARY one.
+    console.log(result);
+  });
+```
+
 ## Class: `vm.Module`
 <!-- YAML
 added: v13.0.0
@@ -1169,6 +1218,26 @@ the `process.nextTick()` and `queueMicrotask()` functions.
 This issue occurs because all contexts share the same microtask and nextTick
 queues.
 
+## `vm.constants`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object} An object containing commonly used constants for the vm module.
+
+### `vm.constants.measureMemory`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Constants to be used with the [`vm.measureMemory()`][] method.
+
+* `mode` {Object}
+  * `SUMMARY` {integer} Return the measured memory in summary.
+  * `DETAILED` {integer} Return the measured memory in detail.
+
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.html#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
 [`ERR_VM_MODULE_STATUS`]: errors.html#ERR_VM_MODULE_STATUS
 [`Error`]: errors.html#errors_class_error
@@ -1178,6 +1247,7 @@ queues.
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`url.origin`]: url.html#url_url_origin
 [`vm.createContext()`]: #vm_vm_createcontext_contextobject_options
+[`vm.measureMemory()`]: #vm_vm_measurememory_options_contextifiedobject
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedobject_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
