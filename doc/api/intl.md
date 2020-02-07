@@ -201,7 +201,7 @@ to be helpful:
 [`String.prototype.toLowerCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
 [`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
-[`require('util').TextDecoder`]: util.html#util_class_util_textdecoder
+[`require('util').TextDecoder`]: util.md#class-utiltextdecoder
 [BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/
