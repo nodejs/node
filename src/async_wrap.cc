@@ -429,10 +429,10 @@ void AsyncWrap::GetProviderType(const FunctionCallbackInfo<Value>& args) {
 
 
 void AsyncWrap::EmitDestroy() {
-  resource_.Reset();
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
+  resource_.Reset();
 }
 
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
@@ -675,6 +675,8 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
   if (resource != object()) {
+    // TODO(addaleax): Using a strong reference here makes it very easy to
+    // introduce memory leaks. Move away from using a strong reference.
     resource_.Reset(env()->isolate(), resource);
   }
 
