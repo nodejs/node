@@ -1797,8 +1797,27 @@ on the `Http2Server` after `msecs` milliseconds.
 
 The given callback is registered as a listener on the `'timeout'` event.
 
-In case of no callback function were assigned, a new `ERR_INVALID_CALLBACK`
+In case if `callback` is not a function, a new `ERR_INVALID_CALLBACK`
 error will be thrown.
+
+#### `server.timeout`
+<!-- YAML
+added: v8.4.0
+changes:
+  - version: v13.0.0
+    pr-url: https://github.com/nodejs/node/pull/27558
+    description: The default timeout changed from 120s to 0 (no timeout).
+-->
+
+* {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+
+The number of milliseconds of inactivity before a socket is presumed
+to have timed out.
+
+A value of `0` will disable the timeout behavior on incoming connections.
+
+The socket timeout logic is set up on connection, so changing this
+value only affects new connections to the server, not any existing connections.
 
 ### Class: `Http2SecureServer`
 <!-- YAML
@@ -1943,8 +1962,27 @@ on the `Http2SecureServer` after `msecs` milliseconds.
 
 The given callback is registered as a listener on the `'timeout'` event.
 
-In case of no callback function were assigned, a new `ERR_INVALID_CALLBACK`
+In case if `callback` is not a function, a new `ERR_INVALID_CALLBACK`
 error will be thrown.
+
+#### `server.timeout`
+<!-- YAML
+added: v8.4.0
+changes:
+  - version: v13.0.0
+    pr-url: https://github.com/nodejs/node/pull/27558
+    description: The default timeout changed from 120s to 0 (no timeout).
+-->
+
+* {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+
+The number of milliseconds of inactivity before a socket is presumed
+to have timed out.
+
+A value of `0` will disable the timeout behavior on incoming connections.
+
+The socket timeout logic is set up on connection, so changing this
+value only affects new connections to the server, not any existing connections.
 
 ### `http2.createServer(options[, onRequestHandler])`
 <!-- YAML
