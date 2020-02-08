@@ -3235,7 +3235,7 @@ defined in [Section 7.2.14][] of the ECMAScript Language Specification.
 
 ### napi_detach_arraybuffer
 <!-- YAML
-added: REPLACEME
+added: v12.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -3261,7 +3261,7 @@ defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
 
 ### napi_is_detached_arraybuffer
 <!-- YAML
-added: REPLACEME
+added: v12.16.0
 -->
 
 > Stability: 1 - Experimental

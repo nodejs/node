@@ -507,7 +507,7 @@ does not indicate whether the data has been flushed, for this use
 
 ##### `writable.writableCorked`
 <!-- YAML
-added: REPLACEME
+added: v12.16.0
 -->
 
 * {integer}
