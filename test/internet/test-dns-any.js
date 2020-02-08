@@ -119,8 +119,8 @@ TEST(async function test_google(done) {
   function validateResult(res) {
     const types = processResult(res);
     assert.ok(
-      types.A && types.AAAA && types.MX &&
-      types.NS && types.TXT && types.SOA);
+      types.A && types.AAAA && types.MX && types.NS && types.TXT && types.SOA,
+      `Missing record type, found ${Object.keys(types)}`);
   }
 
   validateResult(await dnsPromises.resolve('google.com', 'ANY'));
@@ -140,7 +140,8 @@ TEST(async function test_google(done) {
 TEST(async function test_sip2sip_for_naptr(done) {
   function validateResult(res) {
     const types = processResult(res);
-    assert.ok(types.A && types.NS && types.NAPTR && types.SOA);
+    assert.ok(types.A && types.NS && types.NAPTR && types.SOA,
+              `Missing record type, found ${Object.keys(types)}`);
   }
 
   validateResult(await dnsPromises.resolve('sip2sip.info', 'ANY'));
