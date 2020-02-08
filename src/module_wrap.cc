@@ -897,10 +897,12 @@ void ThrowExportsInvalid(Environment* env,
                          const URL& base) {
   Local<String> target_string;
   if (target->IsObject()) {
-    target_string = v8::JSON::Stringify(env->context(), target.As<v8::Object>(),
-                                        env->empty_string()).ToLocalChecked();
+    if (!v8::JSON::Stringify(env->context(), target.As<v8::Object>(),
+            v8::String::Empty(env->isolate())).ToLocal(&target_string))
+      return;
   } else {
-    target_string = target->ToString(env->context()).ToLocalChecked();
+    if (!target->ToString(env->context()).ToLocal(&target_string))
+      return;
   }
   Utf8Value target_utf8(env->isolate(), target_string);
   std::string target_str(*target_utf8, target_utf8.length());
@@ -1000,9 +1002,8 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
             auto code = e->Get(context, env->code_string()).ToLocalChecked();
             Utf8Value code_utf8(env->isolate(),
                                 code->ToString(context).ToLocalChecked());
-            std::string code_str(*code_utf8, code_utf8.length());
-            if (code_str == "ERR_PACKAGE_PATH_NOT_EXPORTED" ||
-                code_str == "ERR_INVALID_PACKAGE_TARGET") {
+            if (strcmp(*code_utf8, "ERR_PACKAGE_PATH_NOT_EXPORTED") == 0 ||
+                strcmp(*code_utf8, "ERR_INVALID_PACKAGE_TARGET") == 0) {
               continue;
             }
             try_catch.ReThrow();
@@ -1050,8 +1051,8 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
             auto code = e->Get(context, env->code_string()).ToLocalChecked();
             Utf8Value code_utf8(env->isolate(),
                                 code->ToString(context).ToLocalChecked());
-            std::string code_str(*code_utf8, code_utf8.length());
-            if (code_str == "ERR_PACKAGE_PATH_NOT_EXPORTED") continue;
+            if (strcmp(*code_utf8, "ERR_PACKAGE_PATH_NOT_EXPORTED") == 0)
+              continue;
             try_catch.ReThrow();
             return Nothing<URL>();
           }
@@ -1286,11 +1287,9 @@ Maybe<URL> PackageResolve(Environment* env,
     // while executing GetPackageScopeConfig
     URL pjson_url("");
     bool found_pjson = false;
-    for (auto it = env->package_json_cache.begin();
-          it != env->package_json_cache.end();
-          ++it) {
-      if (&it->second == pcfg) {
-        pjson_url = URL::FromFilePath(it->first);
+    for (const auto& it : env->package_json_cache) {
+      if (&it.second == pcfg) {
+        pjson_url = URL::FromFilePath(it.first);
         found_pjson = true;
       }
     }
