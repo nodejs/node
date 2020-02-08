@@ -115,6 +115,7 @@ HandleWrap::HandleWrap(Environment* env,
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
+  CHECK_NOT_NULL(handle->data);
   BaseObjectPtr<HandleWrap> wrap { static_cast<HandleWrap*>(handle->data) };
   wrap->Detach();
 
