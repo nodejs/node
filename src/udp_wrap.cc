@@ -627,20 +627,12 @@ AsyncWrap* UDPWrap::GetAsyncWrap() {
   return this;
 }
 
-int UDPWrap::GetPeerName(sockaddr* name, int* namelen) {
-  return uv_udp_getpeername(&handle_, name, namelen);
+SocketAddress UDPWrap::GetPeerName() {
+  return SocketAddress::FromPeerName(handle_);
 }
 
-int UDPWrap::GetSockName(sockaddr* name, int* namelen) {
-  return uv_udp_getsockname(&handle_, name, namelen);
-}
-
-SocketAddress* UDPWrap::GetPeerName(SocketAddress* addr) {
-  return SocketAddress::FromPeerName(handle_, addr);
-}
-
-SocketAddress* UDPWrap::GetSockName(SocketAddress* addr) {
-  return SocketAddress::FromSockName(handle_, addr);
+SocketAddress UDPWrap::GetSockName() {
+  return SocketAddress::FromSockName(handle_);
 }
 
 void UDPWrapBase::RecvStart(const FunctionCallbackInfo<Value>& args) {

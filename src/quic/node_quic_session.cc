@@ -3488,7 +3488,8 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value servername(env->isolate(), args[6]);
   std::string hostname(*servername);
 
-  SocketAddress::New(*address, port, family, &remote_addr);
+  if (!SocketAddress::New(family, *address, port, &remote_addr))
+    return args.GetReturnValue().Set(ERR_FAILED_TO_CREATE_SESSION);
 
   if (args[11]->IsString()) {
     Utf8Value val(env->isolate(), args[11]);

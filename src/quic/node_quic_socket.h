@@ -205,7 +205,7 @@ class QuicEndpoint : public BaseObject,
       Local<Object> udp_wrap);
 
   const SocketAddress& local_address() const {
-    udp_->GetSockName(&local_address_);
+    local_address_ = udp_->GetSockName();
     return local_address_;
   }
 

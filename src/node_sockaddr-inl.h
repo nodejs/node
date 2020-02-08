@@ -36,6 +36,7 @@ bool SocketAddress::is_numeric_host(const char* hostname, int family) {
 }
 
 int SocketAddress::GetPort(const sockaddr* addr) {
+  CHECK(addr->sa_family == AF_INET || addr->sa_family == AF_INET6);
   return ntohs(addr->sa_family == AF_INET ?
       reinterpret_cast<const sockaddr_in*>(addr)->sin_port :
       reinterpret_cast<const sockaddr_in6*>(addr)->sin6_port);
@@ -46,6 +47,7 @@ int SocketAddress::GetPort(const sockaddr_storage* addr) {
 }
 
 std::string SocketAddress::GetAddress(const sockaddr* addr) {
+  CHECK(addr->sa_family == AF_INET || addr->sa_family == AF_INET6);
   char host[INET6_ADDRSTRLEN];
   const void* src = addr->sa_family == AF_INET ?
       static_cast<const void*>(
@@ -61,10 +63,8 @@ std::string SocketAddress::GetAddress(const sockaddr_storage* addr) {
 }
 
 size_t SocketAddress::GetLength(const sockaddr* addr) {
-  return
-      addr->sa_family == AF_INET6 ?
-          sizeof(sockaddr_in6) :
-          sizeof(sockaddr_in);
+  return addr->sa_family == AF_INET ?
+      sizeof(sockaddr_in) : sizeof(sockaddr_in6);
 }
 
 size_t SocketAddress::GetLength(const sockaddr_storage* addr) {
@@ -125,19 +125,32 @@ void SocketAddress::set_flow_label(uint32_t label) {
 }
 
 std::string SocketAddress::ToString() const {
-  return address() + ":" + std::to_string(port());
+  if (family() != AF_INET && family() != AF_INET6) return "";
+  return (family() == AF_INET6 ?
+              std::string("[") + address() + "]:" :
+              address() + ":") +
+      std::to_string(port());
 }
 
 void SocketAddress::Update(uint8_t* data, size_t len) {
+  CHECK_LE(len, sizeof(address_));
   memcpy(&address_, data, len);
 }
 
 v8::Local<v8::Object> SocketAddress::ToJS(
     Environment* env,
     v8::Local<v8::Object> info) const {
-  return AddressToJS(env, this->data(), info);
+  return AddressToJS(env, data(), info);
 }
 
+bool SocketAddress::operator==(const SocketAddress& other) const {
+  if (family() != other.family()) return false;
+  return memcmp(raw(), other.raw(), length()) == 0;
+}
+
+bool SocketAddress::operator!=(const SocketAddress& other) const {
+  return !(*this == other);
+}
 }  // namespace node
 
 #endif  // NODE_WANT_INTERNALS

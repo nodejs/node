@@ -17,49 +17,45 @@ namespace node {
 class SocketAddress : public MemoryRetainer {
  public:
   struct Hash {
-    size_t operator()(const sockaddr* addr) const;
     size_t operator()(const SocketAddress& addr) const;
   };
 
-  struct Compare {
-    bool operator()(
-        const sockaddr* laddr,
-        const sockaddr* raddr) const;
-    bool operator()(
-        const SocketAddress& laddr,
-        const SocketAddress& raddr) const;
-  };
+  inline bool operator==(const SocketAddress& other) const;
+  inline bool operator!=(const SocketAddress& other) const;
 
   inline static bool is_numeric_host(const char* hostname);
-
   inline static bool is_numeric_host(const char* hostname, int family);
 
-  static sockaddr_storage* ToSockAddr(
+  // Returns true if converting {family, host, port} to *addr succeeded.
+  static bool ToSockAddr(
       int32_t family,
       const char* host,
       uint32_t port,
       sockaddr_storage* addr);
+  // Returns true if converting {family, host, port} to *addr succeeded.
+  static bool New(
+      int32_t family,
+      const char* host,
+      uint32_t port,
+      SocketAddress* addr);
 
+  // Returns the port for an IPv4 or IPv6 address.
   inline static int GetPort(const sockaddr* addr);
-
   inline static int GetPort(const sockaddr_storage* addr);
 
+  // Returns the numeric host as a string for an IPv4 or IPv6 address.
   inline static std::string GetAddress(const sockaddr* addr);
-
   inline static std::string GetAddress(const sockaddr_storage* addr);
 
+  // Returns the port for an IPv4, IPv6 or UNIX domain.
   inline static size_t GetLength(const sockaddr* addr);
-
   inline static size_t GetLength(const sockaddr_storage* addr);
 
   SocketAddress() = default;
 
   inline explicit SocketAddress(const sockaddr* addr);
-
-  inline explicit SocketAddress(const SocketAddress& addr);
-
+  inline SocketAddress(const SocketAddress& addr);
   inline SocketAddress& operator=(const sockaddr* other);
-
   inline SocketAddress& operator=(const SocketAddress& other);
 
   inline const sockaddr& operator*() const;
@@ -82,9 +78,7 @@ class SocketAddress : public MemoryRetainer {
   }
 
   inline int family() const;
-
   inline std::string address() const;
-
   inline int port() const;
 
   // If the SocketAddress is an IPv6 address, returns the
@@ -104,31 +98,10 @@ class SocketAddress : public MemoryRetainer {
 
   inline void Update(uint8_t* data, size_t len);
 
-  template <typename T>
-  static SocketAddress* FromSockName(
-      const T* handle,
-      SocketAddress* addr = nullptr);
-
-  template <typename T>
-  static SocketAddress* FromSockName(
-      const T& handle,
-      SocketAddress* addr = nullptr);
-
-  template <typename T>
-  static SocketAddress* FromPeerName(
-      const T* handle,
-      SocketAddress* addr = nullptr);
-
-  template <typename T>
-  static SocketAddress* FromPeerName(
-      const T& handle,
-      SocketAddress* addr = nullptr);
-
-  static SocketAddress* New(
-      const char* host,
-      uint32_t port,
-      int32_t family = AF_INET,
-      SocketAddress* addr = nullptr);
+  static SocketAddress FromSockName(const uv_udp_t& handle);
+  static SocketAddress FromSockName(const uv_tcp_t& handle);
+  static SocketAddress FromPeerName(const uv_udp_t& handle);
+  static SocketAddress FromPeerName(const uv_tcp_t& handle);
 
   inline v8::Local<v8::Object> ToJS(
       Environment* env,
@@ -141,7 +114,7 @@ class SocketAddress : public MemoryRetainer {
   SET_SELF_SIZE(SocketAddress)
 
   template <typename T>
-  using Map = std::unordered_map<SocketAddress, T, Hash, Compare>;
+  using Map = std::unordered_map<SocketAddress, T, Hash>;
 
  private:
   sockaddr_storage address_;

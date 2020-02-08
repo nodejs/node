@@ -23,8 +23,8 @@ TEST(SocketAddress, SocketAddress) {
   addr.set_flow_label(12345);
   CHECK_EQ(addr.flow_label(), 0);
 
-  CHECK(!SocketAddress::Compare()(addr, addr2));
-  CHECK(SocketAddress::Compare()(addr, addr));
+  CHECK_NE(addr, addr2);
+  CHECK_EQ(addr, addr);
 
   CHECK_EQ(SocketAddress::Hash()(addr), SocketAddress::Hash()(addr));
   CHECK_NE(SocketAddress::Hash()(addr), SocketAddress::Hash()(addr2));

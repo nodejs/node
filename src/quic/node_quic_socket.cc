@@ -1059,7 +1059,7 @@ void QuicSocketListen(const FunctionCallbackInfo<Value>& args) {
             preferred_address_family,
             *preferred_address_host,
             preferred_address_port,
-            &preferred_address_storage) != nullptr) {
+            &preferred_address_storage)) {
       preferred_address =
           reinterpret_cast<const sockaddr*>(&preferred_address_storage);
     }

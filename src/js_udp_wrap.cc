@@ -26,11 +26,8 @@ class JSUDPWrap final : public UDPWrapBase, public AsyncWrap {
   ssize_t Send(uv_buf_t* bufs,
                size_t nbufs,
                const sockaddr* addr) override;
-  int GetPeerName(sockaddr* name, int* namelen) override;
-  int GetSockName(sockaddr* name, int* namelen) override;
-  SocketAddress* GetPeerName(SocketAddress* addr = nullptr) override;
-  SocketAddress* GetSockName(SocketAddress* addr = nullptr) override;
-  int GetSockaddr(sockaddr* name, int* namelen, bool peer);
+  SocketAddress GetPeerName() override;
+  SocketAddress GetSockName() override;
   AsyncWrap* GetAsyncWrap() override { return this; }
 
   static void New(const FunctionCallbackInfo<Value>& args);
@@ -115,32 +112,18 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
   return value_int;
 }
 
-int JSUDPWrap::GetPeerName(sockaddr* name, int* namelen) {
-  return GetSockaddr(name, namelen, true);
-}
-
-int JSUDPWrap::GetSockName(sockaddr* name, int* namelen) {
-  return GetSockaddr(name, namelen, false);
-}
-
-SocketAddress* JSUDPWrap::GetPeerName(SocketAddress* addr) {
+SocketAddress JSUDPWrap::GetPeerName() {
   // TODO(jasnell): Maybe turn this into a real JS-based method.
-  return SocketAddress::New("127.0.0.1", 1337, AF_INET, addr);
+  SocketAddress ret;
+  CHECK(SocketAddress::New(AF_INET, "127.0.0.1", 1337, &ret));
+  return ret;
 }
 
-SocketAddress* JSUDPWrap::GetSockName(SocketAddress* addr) {
+SocketAddress JSUDPWrap::GetSockName() {
   // TODO(jasnell): Maybe turn this into a real JS-based method.
-  return SocketAddress::New("127.0.0.1", 1337, AF_INET, addr);
-}
-
-int JSUDPWrap::GetSockaddr(sockaddr* name, int* namelen, bool peer) {
-  // TODO(addaleax): Maybe turn this into a real JS-based method.
-  sockaddr_in addr_in;
-  CHECK_EQ(uv_ip4_addr("127.0.0.1", 1337, &addr_in), 0);
-  memcpy(name, &addr_in,
-         std::min(static_cast<size_t>(*namelen), sizeof(addr_in)));
-  *namelen = sizeof(addr_in);
-  return 0;
+  SocketAddress ret;
+  CHECK(SocketAddress::New(AF_INET, "127.0.0.1", 1337, &ret));
+  return ret;
 }
 
 void JSUDPWrap::New(const FunctionCallbackInfo<Value>& args) {
