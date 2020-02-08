@@ -488,10 +488,9 @@ MessagePort::MessagePort(Environment* env,
   CHECK_EQ(uv_async_init(env->event_loop(),
                          &async_,
                          onmessage), 0);
-  async_.data = nullptr;  // Reset later to indicate success of the constructor.
-  auto cleanup = OnScopeLeave([&]() {
-    if (async_.data == nullptr) Close();
-  });
+  // Reset later to indicate success of the constructor.
+  bool succeeded = false;
+  auto cleanup = OnScopeLeave([&]() { if (!succeeded) Close(); });
 
   Local<Value> fn;
   if (!wrap->Get(context, env->oninit_symbol()).ToLocal(&fn))
@@ -508,7 +507,7 @@ MessagePort::MessagePort(Environment* env,
     return;
   emit_message_fn_.Reset(env->isolate(), emit_message_fn);
 
-  async_.data = static_cast<void*>(this);
+  succeeded = true;
   Debug(this, "Created message port");
 }
 
