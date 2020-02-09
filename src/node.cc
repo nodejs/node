@@ -790,80 +790,19 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
 
-  std::shared_ptr<EnvironmentOptions> default_env_options =
-      per_process::cli_options->per_isolate->per_env;
-  {
-    std::string text;
-    default_env_options->pending_deprecation =
-        credentials::SafeGetenv("NODE_PENDING_DEPRECATION", &text) &&
-        text[0] == '1';
-  }
-
-  // Allow for environment set preserving symlinks.
-  {
-    std::string text;
-    default_env_options->preserve_symlinks =
-        credentials::SafeGetenv("NODE_PRESERVE_SYMLINKS", &text) &&
-        text[0] == '1';
-  }
-
-  {
-    std::string text;
-    default_env_options->preserve_symlinks_main =
-        credentials::SafeGetenv("NODE_PRESERVE_SYMLINKS_MAIN", &text) &&
-        text[0] == '1';
-  }
-
-  if (default_env_options->redirect_warnings.empty()) {
-    credentials::SafeGetenv("NODE_REDIRECT_WARNINGS",
-                            &default_env_options->redirect_warnings);
-  }
+  HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
 
   if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
-    std::vector<std::string> env_argv;
+    std::vector<std::string> env_argv =
+        ParseNodeOptionsEnvVar(node_options, errors);
+
+    if (!errors->empty()) return 9;
+
     // [0] is expected to be the program name, fill it in from the real argv.
-    env_argv.push_back(argv->at(0));
-
-    bool is_in_string = false;
-    bool will_start_new_arg = true;
-    for (std::string::size_type index = 0;
-         index < node_options.size();
-         ++index) {
-      char c = node_options.at(index);
-
-      // Backslashes escape the following character
-      if (c == '\\' && is_in_string) {
-        if (index + 1 == node_options.size()) {
-          errors->push_back("invalid value for NODE_OPTIONS "
-                            "(invalid escape)\n");
-          return 9;
-        } else {
-          c = node_options.at(++index);
-        }
-      } else if (c == ' ' && !is_in_string) {
-        will_start_new_arg = true;
-        continue;
-      } else if (c == '"') {
-        is_in_string = !is_in_string;
-        continue;
-      }
-
-      if (will_start_new_arg) {
-        env_argv.emplace_back(std::string(1, c));
-        will_start_new_arg = false;
-      } else {
-        env_argv.back() += c;
-      }
-    }
-
-    if (is_in_string) {
-      errors->push_back("invalid value for NODE_OPTIONS "
-                        "(unterminated string)\n");
-      return 9;
-    }
+    env_argv.insert(env_argv.begin(), argv->at(0));
 
     const int exit_code = ProcessGlobalArgs(&env_argv,
                                             nullptr,
