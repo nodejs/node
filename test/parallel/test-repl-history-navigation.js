@@ -18,7 +18,6 @@ const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
   run(data) {
-    let reallyWait = true;
     const _iter = data[Symbol.iterator]();
     const doAction = () => {
       const next = _iter.next();
@@ -34,12 +33,7 @@ class ActionStream extends stream.Stream {
       } else {
         this.emit('data', `${action}`);
       }
-      if (action === WAIT && reallyWait) {
-        setTimeout(doAction, common.platformTimeout(50));
-        reallyWait = false;
-      } else {
-        setImmediate(doAction);
-      }
+      setImmediate(doAction);
     };
     doAction();
   }
@@ -66,6 +60,8 @@ const prompt = '> ';
 const WAIT = '€';
 
 const prev = process.features.inspector;
+
+let completions = 0;
 
 const tests = [
   { // Creates few history to navigate for
@@ -435,12 +431,11 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     completer(line, callback) {
       if (line.endsWith(WAIT)) {
-        setTimeout(
-          callback,
-          common.platformTimeout(40),
-          null,
-          [[`${WAIT}WOW`], line]
-        );
+        if (completions++ === 0) {
+          callback(null, [[`${WAIT}WOW`], line]);
+        } else {
+          setTimeout(callback, 1000, null, [[`${WAIT}WOW`], line]).unref();
+        }
       } else {
         callback(null, [[' Always visible'], line]);
       }
