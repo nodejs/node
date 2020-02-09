@@ -200,9 +200,9 @@ An alias of [`assert.deepStrictEqual()`][].
 
 Tests for deep equality between the `actual` and `expected` parameters. Consider
 using [`assert.deepStrictEqual()`][] instead. [`assert.deepEqual()`][] can have
-potentially surprising results.
+surprising results.
 
-"Deep" equality means that the enumerable "own" properties of child objects
+_Deep equality_ means that the enumerable "own" properties of child objects
 are also recursively evaluated by the following rules.
 
 ### Comparison details
