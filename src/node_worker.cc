@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+using node::kAllowedInEnvironment;
 using node::kDisallowedInEnvironment;
 using v8::Array;
 using v8::ArrayBuffer;
@@ -47,14 +48,15 @@ Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
-               std::vector<std::string>&& exec_argv)
+               std::vector<std::string>&& exec_argv,
+               std::shared_ptr<KVStore> env_vars)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
       start_profiler_idle_notifier_(env->profiler_idle_notifier_started()),
       thread_id_(Environment::AllocateThreadId()),
-      env_vars_(env->env_vars()) {
+      env_vars_(env_vars) {
   Debug(this, "Creating new worker instance with thread id %llu", thread_id_);
 
   // Set up everything that needs to be set up in the parent environment.
@@ -441,6 +443,7 @@ Worker::~Worker() {
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
 
@@ -451,24 +454,81 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
   std::string url;
   std::shared_ptr<PerIsolateOptions> per_isolate_opts = nullptr;
+  std::shared_ptr<KVStore> env_vars = nullptr;
 
   std::vector<std::string> exec_argv_out;
-  bool has_explicit_exec_argv = false;
 
-  CHECK_EQ(args.Length(), 3);
+  CHECK_EQ(args.Length(), 4);
   // Argument might be a string or URL
   if (!args[0]->IsNullOrUndefined()) {
     Utf8Value value(
-        args.GetIsolate(),
-        args[0]->ToString(env->context()).FromMaybe(Local<String>()));
+        isolate, args[0]->ToString(env->context()).FromMaybe(Local<String>()));
     url.append(value.out(), value.length());
   }
 
-  if (args[1]->IsArray()) {
-    Local<Array> array = args[1].As<Array>();
+  if (args[1]->IsNull()) {
+    // Means worker.env = { ...process.env }.
+    env_vars = env->env_vars()->Clone(isolate);
+  } else if (args[1]->IsObject()) {
+    // User provided env.
+    env_vars = KVStore::CreateMapKVStore();
+    env_vars->AssignFromObject(isolate->GetCurrentContext(),
+                               args[1].As<Object>());
+  } else {
+    // Env is shared.
+    env_vars = env->env_vars();
+  }
+
+  if (args[1]->IsObject() || args[2]->IsArray()) {
+    per_isolate_opts.reset(new PerIsolateOptions());
+
+    HandleEnvOptions(
+        per_isolate_opts->per_env, [isolate, &env_vars](const char* name) {
+          MaybeLocal<String> value =
+              env_vars->Get(isolate, OneByteString(isolate, name));
+          return value.IsEmpty() ? std::string{}
+                                 : std::string(*String::Utf8Value(
+                                       isolate, value.ToLocalChecked()));
+        });
+
+#ifndef NODE_WITHOUT_NODE_OPTIONS
+    MaybeLocal<String> maybe_node_opts =
+        env_vars->Get(isolate, OneByteString(isolate, "NODE_OPTIONS"));
+    if (!maybe_node_opts.IsEmpty()) {
+      std::string node_options(
+          *String::Utf8Value(isolate, maybe_node_opts.ToLocalChecked()));
+      std::vector<std::string> errors{};
+      std::vector<std::string> env_argv =
+          ParseNodeOptionsEnvVar(node_options, &errors);
+      // [0] is expected to be the program name, add dummy string.
+      env_argv.insert(env_argv.begin(), "");
+      std::vector<std::string> invalid_args{};
+      options_parser::Parse(&env_argv,
+                            nullptr,
+                            &invalid_args,
+                            per_isolate_opts.get(),
+                            kAllowedInEnvironment,
+                            &errors);
+      if (errors.size() > 0 && args[1]->IsObject()) {
+        // Only fail for explicitly provided env, this protects from failures
+        // when NODE_OPTIONS from parent's env is used (which is the default).
+        Local<Value> error;
+        if (!ToV8Value(env->context(), errors).ToLocal(&error)) return;
+        Local<String> key =
+            FIXED_ONE_BYTE_STRING(env->isolate(), "invalidNodeOptions");
+        // Ignore the return value of Set() because exceptions bubble up to JS
+        // when we return anyway.
+        USE(args.This()->Set(env->context(), key, error));
+        return;
+      }
+    }
+#endif
+  }
+
+  if (args[2]->IsArray()) {
+    Local<Array> array = args[2].As<Array>();
     // The first argument is reserved for program name, but we don't need it
     // in workers.
-    has_explicit_exec_argv = true;
     std::vector<std::string> exec_argv = {""};
     uint32_t length = array->Length();
     for (uint32_t i = 0; i < length; i++) {
@@ -490,8 +550,6 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
     std::vector<std::string> invalid_args{};
     std::vector<std::string> errors{};
-    per_isolate_opts.reset(new PerIsolateOptions());
-
     // Using invalid_args as the v8_args argument as it stores unknown
     // options for the per isolate parser.
     options_parser::Parse(
@@ -518,38 +576,22 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       USE(args.This()->Set(env->context(), key, error));
       return;
     }
-  }
-  if (!has_explicit_exec_argv)
+  } else {
     exec_argv_out = env->exec_argv();
+  }
 
-  Worker* worker =
-      new Worker(env, args.This(), url, per_isolate_opts,
-                 std::move(exec_argv_out));
+  Worker* worker = new Worker(env,
+                              args.This(),
+                              url,
+                              per_isolate_opts,
+                              std::move(exec_argv_out),
+                              env_vars);
 
-  CHECK(args[2]->IsFloat64Array());
-  Local<Float64Array> limit_info = args[2].As<Float64Array>();
+  CHECK(args[3]->IsFloat64Array());
+  Local<Float64Array> limit_info = args[3].As<Float64Array>();
   CHECK_EQ(limit_info->Length(), kTotalResourceLimitCount);
   limit_info->CopyContents(worker->resource_limits_,
                            sizeof(worker->resource_limits_));
-}
-
-void Worker::CloneParentEnvVars(const FunctionCallbackInfo<Value>& args) {
-  Worker* w;
-  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  CHECK(w->thread_joined_);  // The Worker has not started yet.
-
-  w->env_vars_ = w->env()->env_vars()->Clone(args.GetIsolate());
-}
-
-void Worker::SetEnvVars(const FunctionCallbackInfo<Value>& args) {
-  Worker* w;
-  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  CHECK(w->thread_joined_);  // The Worker has not started yet.
-
-  CHECK(args[0]->IsObject());
-  w->env_vars_ = KVStore::CreateMapKVStore();
-  w->env_vars_->AssignFromObject(args.GetIsolate()->GetCurrentContext(),
-                                args[0].As<Object>());
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
@@ -723,8 +765,6 @@ void InitWorker(Local<Object> target,
     w->InstanceTemplate()->SetInternalFieldCount(1);
     w->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(w, "setEnvVars", Worker::SetEnvVars);
-    env->SetProtoMethod(w, "cloneParentEnvVars", Worker::CloneParentEnvVars);
     env->SetProtoMethod(w, "startThread", Worker::StartThread);
     env->SetProtoMethod(w, "stopThread", Worker::StopThread);
     env->SetProtoMethod(w, "ref", Worker::Ref);
