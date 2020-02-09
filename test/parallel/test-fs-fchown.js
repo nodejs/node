@@ -44,7 +44,7 @@ function testGid(input, errObj) {
   testGid(input, errObj);
 });
 
-[-1, 2 ** 32].forEach((input) => {
+[-2, 2 ** 32].forEach((input) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
@@ -52,8 +52,8 @@ function testGid(input, errObj) {
              `>= 0 && <= 2147483647. Received ${input}`
   };
   testFd(input, errObj);
-  errObj.message = 'The value of "uid" is out of range. It must be >= 0 && ' +
-    `< 4294967296. Received ${input}`;
+  errObj.message = 'The value of "uid" is out of range. It must be >= -1 && ' +
+    `<= 4294967295. Received ${input}`;
   testUid(input, errObj);
   errObj.message = errObj.message.replace('uid', 'gid');
   testGid(input, errObj);
