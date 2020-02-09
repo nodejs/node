@@ -12,6 +12,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const process = require('process');
+const { Worker } = require('worker_threads');
 
 // Setup: Copy fixtures to tmp directory.
 
@@ -53,7 +54,7 @@ const linkDir = path.join(dirName,
 
 const linkTarget = path.join('..', '..', 'dep2');
 
-const linkScript = 'linkscript.js';
+const linkScript = './linkscript.js';
 
 const linkScriptTarget = path.join(dirName, 'symlinked.js');
 
@@ -84,4 +85,31 @@ function test() {
     assert.strictEqual(code, 0);
     assert(!signal);
   });
+
+  // Also verify that symlinks works for setting preserve via env variables in
+  // Workers.
+  const worker = new Worker(linkScript, {
+    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' }
+  });
+  worker.on('error', (err) => {
+    console.log('Worker failed');
+    throw err;
+  });
+  worker.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 0);
+  }));
+
+  // Also verify that symlinks works for setting preserve via env variables in
+  // Workers with explicit execArgv.
+  const workerArgv = new Worker(linkScript, {
+    execArgv: [],
+    env: { ...process.env, NODE_PRESERVE_SYMLINKS: '1' }
+  });
+  workerArgv.on('error', (err) => {
+    console.log('Worker with execArgv failed');
+    throw err;
+  });
+  workerArgv.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 0);
+  }));
 }
