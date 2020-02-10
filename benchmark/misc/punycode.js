@@ -62,6 +62,8 @@ function runICU(n, val) {
 
 function main({ n, val, method }) {
   switch (method) {
+    // '' is a default case for tests
+    case '':
     case 'punycode':
       runPunycode(n, val);
       break;

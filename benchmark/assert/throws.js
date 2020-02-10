@@ -15,6 +15,8 @@ function main({ n, method }) {
   const message = 'failure';
 
   switch (method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'doesNotThrow':
       bench.start();
       for (let i = 0; i < n; ++i) {

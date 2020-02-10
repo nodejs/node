@@ -21,7 +21,7 @@ function main({ size, type, method, n }) {
     Buffer.alloc(size) :
     SlowBuffer(size).fill(0);
 
-  const fn = methods[method];
+  const fn = methods[method || 'for'];
 
   bench.start();
   fn(buffer, n);
