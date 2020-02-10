@@ -23,7 +23,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, type }) {
-  const [first, second] = inputs[type];
+  // For testing, if supplied with an empty type, default to string.
+  const [first, second] = inputs[type || 'string'];
 
   bench.start();
   for (let i = 0; i < n; i++) {

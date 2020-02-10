@@ -34,6 +34,8 @@ function usingPredefined() {
 function main({ n, method, args }) {
   let fn;
   switch (method) {
+    // '' is a default case for tests
+    case '':
     case 'restAndSpread':
       fn = usingRestAndSpread;
       break;

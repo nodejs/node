@@ -41,6 +41,7 @@ function main({ n, method }) {
   } = common.binding('trace_events');
 
   switch (method) {
+    case '':
     case 'trace':
       doTrace(n, trace);
       break;
