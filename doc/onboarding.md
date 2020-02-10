@@ -232,7 +232,7 @@ needs to be pointed out separately during the onboarding.
   * [https://github.com/nodejs/readable-stream](https://github.com/nodejs/readable-stream)
   * [https://github.com/nodejs/LTS](https://github.com/nodejs/LTS)
   * [https://github.com/nodejs/citgm](https://github.com/nodejs/citgm)
-* The Node.js Foundation hosts regular summits for active contributors to the
+* The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the
   project. The Foundation has travel funds to cover participants' expenses
   including accommodations, transportation, visa fees, etc. if needed. Check out
