@@ -33,6 +33,13 @@ using Persistent = v8::Global<T>;
 
 using PersistentToLocal = node::PersistentToLocal;
 
+// We use the Node.js doubly-linked list implementation.
+template <typename T>
+using ListNode = node::ListNode<T>;
+
+template <typename T, ListNode<T> (T::*M)>
+using ListHead = node::ListHead<T, M>;
+
 }  // end of namespace v8impl
 
 #endif  // SRC_JS_NATIVE_API_V8_INTERNALS_H_

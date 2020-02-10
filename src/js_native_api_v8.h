@@ -1,8 +1,6 @@
 #ifndef SRC_JS_NATIVE_API_V8_H_
 #define SRC_JS_NATIVE_API_V8_H_
 
-// This file needs to be compatible with C compilers.
-#include <string.h>  // NOLINT(modernize-deprecated-headers)
 #include "js_native_api_types.h"
 #include "js_native_api_v8_internals.h"
 
@@ -12,41 +10,15 @@ namespace v8impl {
 
 class RefTracker {
  public:
-  RefTracker() {}
   virtual ~RefTracker() {}
-  virtual void Finalize(bool isEnvTeardown) {}
-
-  typedef RefTracker RefList;
-
-  inline void Link(RefList* list) {
-    prev_ = list;
-    next_ = list->next_;
-    if (next_ != nullptr) {
-      next_->prev_ = this;
-    }
-    list->next_ = this;
-  }
-
+  virtual void Finalize(bool isEnvTeardown);
   inline void Unlink() {
-    if (prev_ != nullptr) {
-      prev_->next_ = next_;
-    }
-    if (next_ != nullptr) {
-      next_->prev_ = prev_;
-    }
-    prev_ = nullptr;
-    next_ = nullptr;
-  }
-
-  static void FinalizeAll(RefList* list) {
-    while (list->next_ != nullptr) {
-      list->next_->Finalize(true);
-    }
+    list_.Remove();
   }
 
  private:
-  RefList* next_ = nullptr;
-  RefList* prev_ = nullptr;
+  friend struct ::napi_env__;
+  v8impl::ListNode<RefTracker> list_;
 };
 
 }  // end of namespace v8impl
@@ -63,8 +35,12 @@ struct napi_env__ {
     // they delete during their `napi_finalizer` callbacks. If we deleted such
     // references here first, they would be doubly deleted when the
     // `napi_finalizer` deleted them subsequently.
-    v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
-    v8impl::RefTracker::FinalizeAll(&reflist);
+    while (!finalizing_reflist.IsEmpty()) {
+      finalizing_reflist.PopFront()->Finalize(true);
+    }
+    while (!reflist.IsEmpty()) {
+      reflist.PopFront()->Finalize(true);
+    }
   }
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
@@ -108,8 +84,9 @@ struct napi_env__ {
   // We store references in two different lists, depending on whether they have
   // `napi_finalizer` callbacks, because we must first finalize the ones that
   // have such a callback. See `~napi_env__()` above for details.
-  v8impl::RefTracker::RefList reflist;
-  v8impl::RefTracker::RefList finalizing_reflist;
+  v8impl::ListHead<v8impl::RefTracker, &v8impl::RefTracker::list_> reflist;
+  v8impl::ListHead<v8impl::RefTracker,
+                   &v8impl::RefTracker::list_> finalizing_reflist;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;

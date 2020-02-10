@@ -197,13 +197,15 @@ class RefBase : protected Finalizer, RefTracker {
        : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
         _refcount(initial_refcount),
         _delete_self(delete_self) {
-    Link(finalize_callback == nullptr
-        ? &env->reflist
-        : &env->finalizing_reflist);
+    if (finalize_callback == nullptr) {
+      env->reflist.PushFront(this);
+    } else {
+      env->finalizing_reflist.PushFront(this);
+    }
   }
 
  public:
-  static RefBase* New(napi_env env,
+  static inline RefBase* New(napi_env env,
                       uint32_t initial_refcount,
                       bool delete_self,
                       napi_finalize finalize_callback,
