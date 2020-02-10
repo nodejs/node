@@ -82,7 +82,7 @@ by checking `require.main.filename`.
 
 <!-- type=misc -->
 
-The semantics of Node.js's `require()` function were designed to be general
+The semantics of the Node.js `require()` function were designed to be general
 enough to support reasonable directory structures. Package manager programs
 such as `dpkg`, `rpm`, and `npm` will hopefully find it possible to build
 native packages from Node.js modules without modification.
@@ -290,7 +290,7 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 Node.js has several modules compiled into the binary. These modules are
 described in greater detail elsewhere in this documentation.
 
-The core modules are defined within Node.js's source and are located in the
+The core modules are defined within the Node.js source and are located in the
 `lib/` folder.
 
 Core modules are always preferentially loaded if their identifier is
@@ -409,7 +409,7 @@ If this was in a folder at `./some-library`, then
 `require('./some-library')` would attempt to load
 `./some-library/lib/some-library.js`.
 
-This is the extent of Node.js's awareness of `package.json` files.
+This is the extent of the awareness of `package.json` files within Node.js.
 
 If there is no `package.json` file present in the directory, or if the
 `'main'` entry is missing or cannot be resolved, then Node.js
@@ -485,7 +485,7 @@ Additionally, Node.js will search in the following list of GLOBAL_FOLDERS:
 * 2: `$HOME/.node_libraries`
 * 3: `$PREFIX/lib/node`
 
-Where `$HOME` is the user's home directory, and `$PREFIX` is Node.js's
+Where `$HOME` is the user's home directory, and `$PREFIX` is the Node.js
 configured `node_prefix`.
 
 These are mostly for historic reasons.
