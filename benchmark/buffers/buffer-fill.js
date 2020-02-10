@@ -22,7 +22,7 @@ function main({ n, type, size }) {
   const buffer = Buffer.allocUnsafe(size);
   const testFunction = new Function('b', `
     for (var i = 0; i < ${n}; i++) {
-      b.${type};
+      b.${type || 'fill(0)'};
     }
   `);
   bench.start();

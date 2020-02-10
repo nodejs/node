@@ -54,6 +54,8 @@ function main({ n, count, method }) {
     items[i] = i;
 
   switch (method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'for':
       fn = useFor;
       break;

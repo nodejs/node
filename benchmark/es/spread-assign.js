@@ -18,6 +18,8 @@ function main({ n, context, count, rest, method }) {
   let obj;  // eslint-disable-line no-unused-vars
 
   switch (method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case '_extend':
       bench.start();
       for (let i = 0; i < n; i++)
