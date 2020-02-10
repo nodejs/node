@@ -431,7 +431,7 @@ The most common reasons for this are:
 * Calls to functions like `object->Get(...)` or `object->Set(...)` may fail on
   most objects, if the `Object.prototype` object has been modified from userland
   code that added getters or setters.
-* Calls that call *any* JavaScript code, including JavaScript code that is
+* Calls that invoke *any* JavaScript code, including JavaScript code that is
   provided from Node.js internals or V8 internals, will fail when JavaScript
   execution is being terminated. This typically happens inside Workers when
   `worker.terminate()` is called, but it can also affect the main thread when
@@ -533,7 +533,7 @@ of providing the ability to shut down the program in the typical Node.js way
 
 A `TryCatch` will catch regular JavaScript exceptions, as well as termination
 exceptions such as the ones thrown by `worker.terminate()` calls.
-In the latter case, the `try_catch.HasTerminated()` function will return true,
+In the latter case, the `try_catch.HasTerminated()` function will return `true`,
 and the exception object will not be a meaningful JavaScript value.
 `try_catch.ReThrow()` should not be used in this case.
 
