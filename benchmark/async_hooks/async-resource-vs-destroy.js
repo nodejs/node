@@ -19,7 +19,7 @@ const path = '/';
 
 const bench = common.createBenchmark(main, {
   type: ['async-resource', 'destroy'],
-  method: ['callbacks', 'async'],
+  asyncMethod: ['callbacks', 'async'],
   n: [1e6]
 });
 
@@ -129,13 +129,13 @@ const types = {
   'destroy': buildDestroy
 };
 
-const asyncMethod = {
+const asyncMethods = {
   'callbacks': getServeCallbacks,
   'async': getServeAwait
 };
 
-function main({ type, method }) {
-  const { server, close } = types[type](asyncMethod[method]);
+function main({ type, asyncMethod }) {
+  const { server, close } = types[type](asyncMethods[asyncMethod]);
 
   server
     .listen(common.PORT)
