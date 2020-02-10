@@ -4,4 +4,9 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('querystring', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('querystring',
+             [ 'n=1',
+               'input="there is nothing to unescape here"',
+               'type=noencode'
+             ],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
