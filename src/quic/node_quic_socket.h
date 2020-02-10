@@ -386,6 +386,13 @@ class QuicSocket : public AsyncWrap,
 
   inline void AddEndpoint(QuicEndpoint* endpoint, bool preferred = false);
 
+  void ImmediateConnectionClose(
+      const QuicCID& scid,
+      const QuicCID& dcid,
+      const SocketAddress& local_addr,
+      const SocketAddress& remote_addr,
+      int32_t reason = NGTCP2_INVALID_TOKEN);
+
  private:
   static void OnAlloc(
       uv_handle_t* handle,
@@ -405,11 +412,6 @@ class QuicSocket : public AsyncWrap,
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
       unsigned int flags);
-  void ImmediateConnectionClose(
-      const ngtcp2_pkt_hd& hd,
-      const SocketAddress& local_addr,
-      const SocketAddress& remote_addr,
-      int32_t reason = NGTCP2_INVALID_TOKEN);
 
   BaseObjectPtr<QuicSession> AcceptInitialPacket(
       uint32_t version,

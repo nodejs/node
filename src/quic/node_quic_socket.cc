@@ -694,16 +694,18 @@ bool QuicSocket::SendRetry(
 
 // Shutdown a connection prematurely, before a QuicSession is created.
 void QuicSocket::ImmediateConnectionClose(
-    const ngtcp2_pkt_hd& hd,
+    const QuicCID& scid,
+    const QuicCID& dcid,
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr,
     int32_t reason) {
+  Debug(this, "Sending stateless connection close to %s", scid);
   auto packet = QuicPacket::Create("immediate connection close");
   ssize_t nwrite = ngtcp2_crypto_write_connection_close(
       packet->data(),
       packet->length(),
-      &hd.scid,
-      &hd.dcid,
+      scid.cid(),
+      dcid.cid(),
       reason);
   if (nwrite > 0) {
     packet->set_length(nwrite);
@@ -761,7 +763,12 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
           max_connections_per_host_) {
     Debug(this, "QuicSocket is busy or connection count exceeded");
     IncrementStat(&QuicSocketStats::server_busy_count);
-    ImmediateConnectionClose(hd, local_addr, remote_addr, NGTCP2_SERVER_BUSY);
+    ImmediateConnectionClose(
+      QuicCID(hd.scid),
+      QuicCID(hd.dcid),
+      local_addr,
+      remote_addr,
+      NGTCP2_SERVER_BUSY);
     return {};
   }
 
@@ -790,7 +797,11 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
                   token_secret_,
                   retry_token_expiration_)) {
             Debug(this, "Invalid retry token was detected. Failing.");
-            ImmediateConnectionClose(hd, local_addr, remote_addr);
+            ImmediateConnectionClose(
+                QuicCID(hd.scid),
+                QuicCID(hd.dcid),
+                local_addr,
+                remote_addr);
             return {};
           }
         }
