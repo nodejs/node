@@ -11,18 +11,19 @@ tmpdir.refresh();
 const filename = path.resolve(tmpdir.path,
                               `.removeme-benchmark-garbage-${process.pid}`);
 
+let encodingType, encoding, size, filesize;
+
 const bench = common.createBenchmark(main, {
   encodingType: ['buf', 'asc', 'utf'],
-  filesize: [1000 * 1024],
-  highWaterMark: [1024, 4096, 65535, 1024 * 1024],
-  n: 1024
+  filesize: [1000 * 1024 * 1024],
+  size: [1024, 4096, 65535, 1024 * 1024]
 });
 
 function main(conf) {
-  const { encodingType, highWaterMark, filesize } = conf;
-  let { n } = conf;
+  encodingType = conf.encodingType;
+  size = conf.size;
+  filesize = conf.filesize;
 
-  let encoding = '';
   switch (encodingType) {
     case 'buf':
       encoding = null;
@@ -37,38 +38,14 @@ function main(conf) {
       throw new Error(`invalid encodingType: ${encodingType}`);
   }
 
-  // Make file
-  const buf = Buffer.allocUnsafe(filesize);
-  if (encoding === 'utf8') {
-    // ü
-    for (let i = 0; i < buf.length; i++) {
-      buf[i] = i % 2 === 0 ? 0xC3 : 0xBC;
-    }
-  } else if (encoding === 'ascii') {
-    buf.fill('a');
-  } else {
-    buf.fill('x');
-  }
-
-  try { fs.unlinkSync(filename); } catch {}
-  const ws = fs.createWriteStream(filename);
-  ws.on('close', runTest.bind(null, filesize, highWaterMark, encoding, n));
-  ws.on('drain', write);
-  write();
-  function write() {
-    do {
-      n--;
-    } while (false !== ws.write(buf) && n > 0);
-    if (n === 0)
-      ws.end();
-  }
+  makeFile();
 }
 
-function runTest(filesize, highWaterMark, encoding, n) {
-  assert(fs.statSync(filename).size === filesize * n);
+function runTest() {
+  assert(fs.statSync(filename).size === filesize);
   const rs = fs.createReadStream(filename, {
-    highWaterMark,
-    encoding
+    highWaterMark: size,
+    encoding: encoding
   });
 
   rs.on('open', () => {
@@ -85,4 +62,32 @@ function runTest(filesize, highWaterMark, encoding, n) {
     // MB/sec
     bench.end(bytes / (1024 * 1024));
   });
+}
+
+function makeFile() {
+  const buf = Buffer.allocUnsafe(filesize / 1024);
+  if (encoding === 'utf8') {
+    // ü
+    for (let i = 0; i < buf.length; i++) {
+      buf[i] = i % 2 === 0 ? 0xC3 : 0xBC;
+    }
+  } else if (encoding === 'ascii') {
+    buf.fill('a');
+  } else {
+    buf.fill('x');
+  }
+
+  try { fs.unlinkSync(filename); } catch {}
+  let w = 1024;
+  const ws = fs.createWriteStream(filename);
+  ws.on('close', runTest);
+  ws.on('drain', write);
+  write();
+  function write() {
+    do {
+      w--;
+    } while (false !== ws.write(buf) && w > 0);
+    if (w === 0)
+      ws.end();
+  }
 }

@@ -6,11 +6,10 @@ const bench = common.createBenchmark(main, {
   streams: [100, 200, 1000],
   length: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   size: [100000],
-  benchmarker: ['test-double-http2'],
-  duration: 5
+  benchmarker: ['h2load']
 }, { flags: ['--no-warnings'] });
 
-function main({ streams, length, size, duration }) {
+function main({ streams, length, size }) {
   const http2 = require('http2');
   const server = http2.createServer();
   server.on('stream', (stream) => {
@@ -30,7 +29,6 @@ function main({ streams, length, size, duration }) {
     bench.http({
       path: '/',
       requests: 10000,
-      duration,
       maxConcurrentStreams: streams,
     }, () => { server.close(); });
   });

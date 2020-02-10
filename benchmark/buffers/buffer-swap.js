@@ -7,8 +7,6 @@ const bench = common.createBenchmark(main, {
   method: ['swap16', 'swap32', 'swap64'/* , 'htons', 'htonl', 'htonll' */],
   len: [64, 256, 768, 1024, 2056, 8192],
   n: [1e6]
-}, {
-  test: { len: 16 }
 });
 
 // The htons and htonl methods below are used to benchmark the

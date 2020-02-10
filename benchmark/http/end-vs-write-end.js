@@ -14,11 +14,10 @@ const bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
   len: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   c: [100],
-  method: ['write', 'end'],
-  duration: 5
+  method: ['write', 'end']
 });
 
-function main({ len, type, method, c, duration }) {
+function main({ len, type, method, c }) {
   const http = require('http');
   let chunk;
   switch (type) {
@@ -50,8 +49,7 @@ function main({ len, type, method, c, duration }) {
 
   server.listen(common.PORT, () => {
     bench.http({
-      connections: c,
-      duration
+      connections: c
     }, () => {
       server.close();
     });
