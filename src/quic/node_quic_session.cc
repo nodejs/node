@@ -2000,8 +2000,8 @@ void QuicSession::RemoveFromSocket() {
   }
 
   Debug(this, "Removed from the QuicSocket.");
-  socket_->RemoveSession(scid_, remote_address_);
-  socket_.reset();
+  BaseObjectPtr<QuicSocket> socket = std::move(socket_);
+  socket->RemoveSession(scid_, remote_address_);
 }
 
 // Removes the given stream from the QuicSession. All streams must

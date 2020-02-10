@@ -42,11 +42,12 @@ size_t QuicCID::Hash::operator()(const QuicCID& token) const {
   return hash;
 }
 
-bool QuicCID::Compare::operator()(
-    const QuicCID& lcid,
-    const QuicCID& rcid) const {
-  return lcid->datalen != rcid->datalen ?
-      false : memcmp(lcid->data, rcid->data, lcid->datalen) == 0;
+bool QuicCID::operator==(const QuicCID& other) const {
+  return memcmp(cid(), other.cid(), sizeof(ngtcp2_cid)) == 0;
+}
+
+bool QuicCID::operator!=(const QuicCID& other) const {
+  return !(*this == other);
 }
 
 std::string QuicCID::ToString() const {
@@ -310,13 +311,12 @@ size_t StatelessResetToken::Hash::operator()(
   return hash;
 }
 
-bool StatelessResetToken::Compare::operator()(
-    const StatelessResetToken& ltoken,
-    const StatelessResetToken& rtoken) const {
-  return memcmp(
-      ltoken.token_,
-      rtoken.token_,
-      NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
+bool StatelessResetToken::operator==(const StatelessResetToken& other) const {
+  return memcmp(data(), other.data(), NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
+}
+
+bool StatelessResetToken::operator!=(const StatelessResetToken& other) const {
+  return !(*this == other);
 }
 
 template <typename T>

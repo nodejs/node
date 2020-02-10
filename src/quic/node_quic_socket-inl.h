@@ -111,8 +111,8 @@ void QuicSocket::ReceiveStop() {
 void QuicSocket::RemoveSession(
     const QuicCID& cid,
     const SocketAddress& addr) {
-  sessions_.erase(cid);
   DecrementSocketAddressCounter(addr);
+  sessions_.erase(cid);
 }
 
 void QuicSocket::ReportSendError(int error) {

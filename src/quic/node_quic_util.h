@@ -265,9 +265,8 @@ class QuicCID : public MemoryRetainer {
     inline size_t operator()(const QuicCID& cid) const;
   };
 
-  struct Compare {
-    inline bool operator()(const QuicCID& lcid, const QuicCID& rcid) const;
-  };
+  inline bool operator==(const QuicCID& other) const;
+  inline bool operator!=(const QuicCID& other) const;
 
   inline std::string ToString() const;
 
@@ -303,7 +302,7 @@ class QuicCID : public MemoryRetainer {
   SET_SELF_SIZE(QuicCID)
 
   template <typename T>
-  using Map = std::unordered_map<QuicCID, T, QuicCID::Hash, QuicCID::Compare>;
+  using Map = std::unordered_map<QuicCID, T, QuicCID::Hash>;
 
  private:
   ngtcp2_cid cid_{};
@@ -362,11 +361,8 @@ class StatelessResetToken : public MemoryRetainer {
     inline size_t operator()(const StatelessResetToken& token) const;
   };
 
-  struct Compare {
-    inline bool operator()(
-        const StatelessResetToken& ltoken,
-        const StatelessResetToken& rtoken) const;
-  };
+  inline bool operator==(const StatelessResetToken& other) const;
+  inline bool operator!=(const StatelessResetToken& other) const;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(StatelessResetToken)
@@ -377,8 +373,7 @@ class StatelessResetToken : public MemoryRetainer {
       std::unordered_map<
           StatelessResetToken,
           BaseObjectPtr<T>,
-          StatelessResetToken::Hash,
-          StatelessResetToken::Compare>;
+          StatelessResetToken::Hash>;
 
  private:
   uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN]{};

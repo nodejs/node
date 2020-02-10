@@ -1399,8 +1399,8 @@ class QuicSession : public AsyncWrap,
       uint64_t{NGTCP2_NO_ERROR}
   };
   ConnectionPointer connection_;
-  SocketAddress local_address_;
-  SocketAddress remote_address_;
+  SocketAddress local_address_{};
+  SocketAddress remote_address_{};
   uint32_t flags_ = 0;
   size_t max_pktlen_ = 0;
   size_t current_ngtcp2_memory_ = 0;
