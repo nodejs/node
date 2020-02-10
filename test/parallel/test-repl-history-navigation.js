@@ -434,12 +434,7 @@ const tests = [
         if (completions++ === 0) {
           callback(null, [[`${WAIT}WOW`], line]);
         } else {
-          setTimeout(
-            callback,
-            1000,
-            null,
-            [[`${WAIT}WOW`], line]
-          ).unref();
+          setTimeout(callback, 1000, null, [[`${WAIT}WOW`], line]).unref();
         }
       } else {
         callback(null, [[' Always visible'], line]);
