@@ -4,4 +4,13 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('streams', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('streams',
+             [
+               'kind=duplex',
+               'n=1',
+               'sync=no',
+               'writev=no',
+               'callback=no',
+               'type=buffer',
+             ],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

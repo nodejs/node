@@ -11,4 +11,13 @@ if (!common.enoughTestMem)
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('worker', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('worker',
+             [
+               'n=1',
+               'sendsPerBroadcast=1',
+               'workers=1',
+               'payload=string'
+             ],
+             {
+               NODEJS_BENCHMARK_ZERO_ALLOWED: 1
+             });

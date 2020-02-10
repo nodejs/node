@@ -14,4 +14,16 @@ if (!common.enoughTestMem)
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('tls', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('tls',
+             [
+               'concurrency=1',
+               'dur=0.1',
+               'n=1',
+               'size=2',
+               'securing=SecurePair',
+               'type=asc'
+             ],
+             {
+               NODEJS_BENCHMARK_ZERO_ALLOWED: 1,
+               duration: 0
+             });

@@ -10,4 +10,11 @@ if (!common.enoughTestMem)
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('async_hooks');
+runBenchmark('async_hooks',
+             [
+               'asyncHooks=all',
+               'connections=50',
+               'method=trackingDisabled',
+               'n=10'
+             ],
+             {});
