@@ -15,4 +15,10 @@ if (process.features.debug) {
 }
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('napi', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('napi',
+             [
+               'n=1',
+               'engine=v8',
+               'type=String'
+             ],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

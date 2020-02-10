@@ -4,4 +4,10 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('timers', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('timers',
+             [
+               'direction=start',
+               'n=1',
+               'type=depth',
+             ],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
