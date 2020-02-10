@@ -32,7 +32,13 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/resolve-self', isRequire ?
       { default: 'self-cjs' } : { default: 'self-mjs' }],
     // Resolve self sugar
-    ['pkgexports-sugar', { default: 'main' }]
+    ['pkgexports-sugar', { default: 'main' }],
+    ...!isRequire ? [] : [
+      // Sugar cases still encapsulate
+      ['pkgexports-sugar/not-exported.js', { default: 'not-exported' }],
+      ['pkgexports-sugar2/not-exported.js', { default: 'not-exported' }],
+      ['pkgexports-number/hidden.js', { default: 'not-part-of-api' }]
+    ],
   ]);
 
   for (const [validSpecifier, expected] of validSpecifiers) {
@@ -49,10 +55,12 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/missing', './missing'],
     // The file exists but isn't exported. The exports is a number which counts
     // as a non-null value without any properties, just like `{}`.
-    ['pkgexports-number/hidden.js', './hidden.js'],
-    // Sugar cases still encapsulate
-    ['pkgexports-sugar/not-exported.js', './not-exported.js'],
-    ['pkgexports-sugar2/not-exported.js', './not-exported.js'],
+    ...isRequire ? [] : [
+      // Sugar cases still encapsulate
+      ['pkgexports-sugar/not-exported.js', './not-exported.js'],
+      ['pkgexports-sugar2/not-exported.js', './not-exported.js'],
+      ['pkgexports-number/hidden.js', './hidden.js']
+    ],
   ]);
 
   const invalidExports = new Map([
@@ -82,8 +90,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   for (const [specifier, subpath] of undefinedExports) {
     loadFixture(specifier).catch(mustCall((err) => {
       strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
-      assertStartsWith(err.message, 'Package exports');
-      assertIncludes(err.message, `do not define a '${subpath}' subpath`);
+      assertStartsWith(err.message, isRequire ? 'Cannot find module' :
+        'Package exports');
+      if (!isRequire)
+        assertIncludes(err.message, `do not define a '${subpath}' subpath`);
     }));
   }
 
