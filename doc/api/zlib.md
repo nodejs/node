@@ -174,7 +174,7 @@ decompressed result is valid.
 
 ### For zlib-based streams
 
-From `zlib/zconf.h`, modified to Node.js's usage:
+From `zlib/zconf.h`, modified for Node.js usage:
 
 The memory requirements for deflate are (in bytes):
 
