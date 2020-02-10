@@ -9,6 +9,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, len, cipher }) {
+  // Default cipher for tests.
+  if (cipher === '')
+    cipher = 'aes-128-gcm';
   const message = Buffer.alloc(len, 'b');
   const key = crypto.randomBytes(keylen[cipher]);
   const iv = crypto.randomBytes(12);

@@ -28,7 +28,7 @@ function main({ n, buf, type }) {
   const buff = buf === 'fast' ?
     Buffer.alloc(8) :
     require('buffer').SlowBuffer(8);
-  const fn = `read${type}`;
+  const fn = `read${type || 'UInt8'}`;
 
   buff.writeDoubleLE(0, 0);
   bench.start();

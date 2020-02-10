@@ -33,6 +33,8 @@ function runDestructured(n) {
 
 function main({ n, method }) {
   switch (method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'normal':
       runNormal(n);
       break;
