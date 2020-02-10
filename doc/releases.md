@@ -32,6 +32,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [17. Cleanup](#17-cleanup)
   * [18. Announce](#18-announce)
   * [19. Celebrate](#19-celebrate)
+* [LTS Releases](#lts-releases)
 * [Major Releases](#major-releases)
 
 ## Who can make a release?
@@ -671,6 +672,38 @@ Ping the IRC ops and the other [Partner Communities][] liaisons.
 ### 19. Celebrate
 
 _In whatever form you do this..._
+
+## LTS Releases
+
+### Marking a Release Line as LTS
+
+To mark a release line as LTS, the following changes must be made to
+`src/node_version.h`:
+
+* The `NODE_MINOR_VERSION` macro must be incremented by one
+* The `NODE_PATCH_VERSION` macro must be set to `0`
+* The `NODE_VERSION_IS_LTS` macro must be set to `1`
+* The `NODE_VERSION_LTS_CODENAME` macro must be set to the codename selected
+for the LTS release.
+
+For example:
+
+```diff
+-#define NODE_MINOR_VERSION 12
+-#define NODE_PATCH_VERSION 1
++#define NODE_MINOR_VERSION 13
++#define NODE_PATCH_VERSION 0
+
+-#define NODE_VERSION_IS_LTS 0
+-#define NODE_VERSION_LTS_CODENAME ""
++#define NODE_VERSION_IS_LTS 1
++#define NODE_VERSION_LTS_CODENAME "Erbium"
+
+-#define NODE_VERSION_IS_RELEASE 0
++#define NODE_VERSION_IS_RELEASE 1
+```
+
+The changes must be made as part of a new semver-minor release.
 
 ## Major Releases
 
