@@ -424,6 +424,23 @@ This should only be performed if it is actually sure that the operation has
 not failed. A lot of Node.js’s source code does **not** follow this rule, and
 can be brought to crash through this.
 
+In particular, it is often not safe to assume that an operation does not throw
+an exception, even if it seems like it would not do that.
+The most common reasons for this are:
+
+* Calls to functions like `object->Get(...)` or `object->Set(...)` may fail on
+  most objects, if the `Object.prototype` object has been modified from userland
+  code that added getters or setters.
+* Calls that invoke *any* JavaScript code, including JavaScript code that is
+  provided from Node.js internals or V8 internals, will fail when JavaScript
+  execution is being terminated. This typically happens inside Workers when
+  `worker.terminate()` is called, but it can also affect the main thread when
+  e.g. Node.js is used as an embedded library. These exceptions can happen at
+  any point.
+  It is not always obvious whether a V8 call will enter JavaScript. In addition
+  to unexpected getters and setters, accessing some types of built-in objects
+  like `Map`s and `Set`s can also run V8-internal JavaScript code.
+
 ##### MaybeLocal
 
 `v8::MaybeLocal<T>` is a variant of `v8::Maybe<T>` that is either empty or
@@ -433,7 +450,7 @@ operations as the methods of `v8::Maybe`, but with different names:
 | `Maybe`                | `MaybeLocal`                    |
 | ---------------------- | ------------------------------- |
 | `maybe.IsNothing()`    | `maybe_local.IsEmpty()`         |
-| `maybe.IsJust()`       | –                               |
+| `maybe.IsJust()`       | `!maybe_local.IsEmpty()`        |
 | `maybe.To(&value)`     | `maybe_local.ToLocal(&local)`   |
 | `maybe.ToChecked()`    | `maybe_local.ToLocalChecked()`  |
 | `maybe.FromJust()`     | `maybe_local.ToLocalChecked()`  |
@@ -513,6 +530,12 @@ If there is a need to catch JavaScript exceptions in C++, V8 provides the
 `node::errors::TryCatchScope` in Node.js. The latter has the additional feature
 of providing the ability to shut down the program in the typical Node.js way
 (printing the exception + stack trace) if an exception is caught.
+
+A `TryCatch` will catch regular JavaScript exceptions, as well as termination
+exceptions such as the ones thrown by `worker.terminate()` calls.
+In the latter case, the `try_catch.HasTerminated()` function will return `true`,
+and the exception object will not be a meaningful JavaScript value.
+`try_catch.ReThrow()` should not be used in this case.
 
 <a id="libuv-handles-and-requests"></a>
 ### libuv handles and requests
