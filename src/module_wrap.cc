@@ -997,11 +997,18 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
           Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
               target_item, subpath, pkg_subpath, base);
           if (resolved.IsNothing()) {
-            CHECK(try_catch.HasCaught() && !try_catch.Exception().IsEmpty());
-            auto e = try_catch.Exception()->ToObject(context).ToLocalChecked();
-            auto code = e->Get(context, env->code_string()).ToLocalChecked();
-            Utf8Value code_utf8(env->isolate(),
-                                code->ToString(context).ToLocalChecked());
+            CHECK(try_catch.HasCaught());
+            if (try_catch.Exception().IsEmpty()) return Nothing<URL>();
+            Local<Object> e;
+            if (!try_catch.Exception()->ToObject(context).ToLocal(&e))
+              return Nothing<URL>();
+            Local<Value> code;
+            if (!e->Get(context, env->code_string()).ToLocal(&code))
+              return Nothing<URL>();
+            Local<String> code_string;
+            if (!code->ToString(context).ToLocal(&code_string))
+              return Nothing<URL>();
+            Utf8Value code_utf8(env->isolate(), code_string);
             if (strcmp(*code_utf8, "ERR_PACKAGE_PATH_NOT_EXPORTED") == 0 ||
                 strcmp(*code_utf8, "ERR_INVALID_PACKAGE_TARGET") == 0) {
               continue;
@@ -1046,11 +1053,18 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
           Maybe<URL> resolved = ResolveExportsTarget(env, pjson_url,
               conditionalTarget, subpath, pkg_subpath, base);
           if (resolved.IsNothing()) {
-            CHECK(try_catch.HasCaught() && !try_catch.Exception().IsEmpty());
-            auto e = try_catch.Exception()->ToObject(context).ToLocalChecked();
-            auto code = e->Get(context, env->code_string()).ToLocalChecked();
-            Utf8Value code_utf8(env->isolate(),
-                                code->ToString(context).ToLocalChecked());
+            CHECK(try_catch.HasCaught());
+            if (try_catch.Exception().IsEmpty()) return Nothing<URL>();
+            Local<Object> e;
+            if (!try_catch.Exception()->ToObject(context).ToLocal(&e))
+              return Nothing<URL>();
+            Local<Value> code;
+            if (!e->Get(context, env->code_string()).ToLocal(&code))
+              return Nothing<URL>();
+            Local<String> code_string;
+            if (!code->ToString(context).ToLocal(&code_string))
+              return Nothing<URL>();
+            Utf8Value code_utf8(env->isolate(), code_string);
             if (strcmp(*code_utf8, "ERR_PACKAGE_PATH_NOT_EXPORTED") == 0)
               continue;
             try_catch.ReThrow();
