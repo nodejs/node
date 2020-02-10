@@ -9,15 +9,14 @@ if (cluster.isMaster) {
     // Unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
     len: [4, 1024, 102400],
-    c: [50, 500],
-    duration: 5,
+    c: [50, 500]
   });
 } else {
   const port = parseInt(process.env.PORT || PORT);
   require('../fixtures/simple-http-server.js').listen(port);
 }
 
-function main({ type, len, c, duration }) {
+function main({ type, len, c }) {
   process.env.PORT = PORT;
   let workers = 0;
   const w1 = cluster.fork();
@@ -33,8 +32,7 @@ function main({ type, len, c, duration }) {
 
       bench.http({
         path: path,
-        connections: c,
-        duration
+        connections: c
       }, () => {
         w1.destroy();
         w2.destroy();

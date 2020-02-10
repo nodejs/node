@@ -3,8 +3,7 @@ const common = require('../common.js');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
-  res: ['normal', 'setHeader', 'setHeaderWH'],
-  duration: 5
+  res: ['normal', 'setHeader', 'setHeaderWH']
 });
 
 const type = 'bytes';
@@ -16,17 +15,16 @@ const c = 50;
 // normal: writeHead(status, {...})
 // setHeader: statusCode = status, setHeader(...) x2
 // setHeaderWH: setHeader(...), writeHead(status, ...)
-function main({ res, duration }) {
+function main({ res }) {
   process.env.PORT = PORT;
   const server = require('../fixtures/simple-http-server.js')
   .listen(PORT)
   .on('listening', () => {
-    const path = `/${type}/${len}/${chunks}/${res}/${chunkedEnc}`;
+    const path = `/${type}/${len}/${chunks}/normal/${chunkedEnc}`;
 
     bench.http({
       path: path,
-      connections: c,
-      duration
+      connections: c
     }, () => {
       server.close();
     });

@@ -10,11 +10,10 @@ const bench = common.createBenchmark(main, {
   requests: [100, 1000, 5000],
   streams: [1, 10, 20, 40, 100, 200],
   clients: [2],
-  benchmarker: ['test-double-http2'],
-  duration: 5
+  benchmarker: ['h2load']
 }, { flags: ['--no-warnings'] });
 
-function main({ requests, streams, clients, duration }) {
+function main({ requests, streams, clients }) {
   fs.open(file, 'r', (err, fd) => {
     if (err)
       throw err;
@@ -31,7 +30,6 @@ function main({ requests, streams, clients, duration }) {
         requests,
         maxConcurrentStreams: streams,
         clients,
-        duration,
         threads: clients
       }, () => server.close());
     });

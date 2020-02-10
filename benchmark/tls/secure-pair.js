@@ -4,8 +4,6 @@ const bench = common.createBenchmark(main, {
   dur: [5],
   securing: ['SecurePair', 'TLSSocket', 'clear'],
   size: [2, 100, 1024, 1024 * 1024]
-}, {
-  flags: ['--no-warnings']
 });
 
 const fixtures = require('../../test/common/fixtures');
