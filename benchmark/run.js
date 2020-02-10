@@ -4,7 +4,7 @@ const path = require('path');
 const fork = require('child_process').fork;
 const CLI = require('./_cli.js');
 
-const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
+const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
   Run each benchmark in the <category> directory a single time, more than one
   <category> directory can be specified.
 
@@ -14,9 +14,6 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
                             repeated)
   --set    variable=value   set benchmark variable (can be repeated)
   --format [simple|csv]     optional value that specifies the output format
-  test                      only run a single configuration from the options
-                            matrix
-  all                       each benchmark category is run one after the other
 `, { arrayArgs: ['set', 'filter', 'exclude'] });
 const benchmarks = cli.benchmarks();
 
@@ -40,11 +37,7 @@ if (format === 'csv') {
 
 (function recursive(i) {
   const filename = benchmarks[i];
-  const child = fork(
-    path.resolve(__dirname, filename),
-    cli.test ? ['--test'] : [],
-    cli.optional.set
-  );
+  const child = fork(path.resolve(__dirname, filename), cli.optional.set);
 
   if (format !== 'csv') {
     console.log();
@@ -58,10 +51,10 @@ if (format === 'csv') {
     // Construct configuration string, " A=a, B=b, ..."
     let conf = '';
     for (const key of Object.keys(data.conf)) {
-      if (conf !== '')
-        conf += ' ';
       conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
     }
+    // Delete first space of the configuration
+    conf = conf.slice(1);
     if (format === 'csv') {
       // Escape quotes (") for correct csv formatting
       conf = conf.replace(/"/g, '""');

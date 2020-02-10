@@ -31,7 +31,7 @@ const bench = common.createBenchmark(main, {
   argument: ['true', 'false-primitive', 'false-object'],
   n: [1e5]
 }, {
-  flags: ['--expose-internals', '--no-warnings']
+  flags: ['--expose-internals']
 });
 
 function main({ type, argument, version, n }) {

@@ -6,11 +6,7 @@ const bench = common.createBenchmark(main, {
   n: [100000],
   method: ['trace', 'isTraceCategoryEnabled']
 }, {
-  flags: [
-    '--expose-internals',
-    '--no-warnings',
-    '--trace-event-categories', 'foo',
-  ]
+  flags: ['--expose-internals', '--trace-event-categories', 'foo']
 });
 
 const {

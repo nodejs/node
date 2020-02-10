@@ -13,11 +13,10 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   n: [1, 4, 8, 16],
   len: [1, 64, 256],
-  c: [100],
-  duration: 5
+  c: [100]
 });
 
-function main({ len, n, c, duration }) {
+function main({ len, n, c }) {
   const http = require('http');
   const chunk = Buffer.alloc(len, '8');
 
@@ -34,8 +33,7 @@ function main({ len, n, c, duration }) {
 
   server.listen(common.PORT, () => {
     bench.http({
-      connections: c,
-      duration
+      connections: c
     }, () => {
       server.close();
     });

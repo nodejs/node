@@ -519,8 +519,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   kb: [64, 128, 256, 1024],
-  connections: [100, 500],
-  duration: 5
+  connections: [100, 500]
 });
 
 function main(conf) {
@@ -547,8 +546,8 @@ Supported options keys are:
 * `path` - defaults to `/`
 * `connections` - number of concurrent connections to use, defaults to 100
 * `duration` - duration of the benchmark in seconds, defaults to 10
-* `benchmarker` - benchmarker to use, defaults to the first available http
-  benchmarker
+* `benchmarker` - benchmarker to use, defaults to
+`common.default_http_benchmarker`
 
 [autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk

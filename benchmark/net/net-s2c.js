@@ -10,8 +10,6 @@ const bench = common.createBenchmark(main, {
   recvbuflen: [0, 64 * 1024, 1024 * 1024],
   recvbufgenfn: ['true', 'false'],
   dur: [5]
-}, {
-  test: { sendchunklen: 256 }
 });
 
 var chunk;

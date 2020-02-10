@@ -6,16 +6,15 @@ const path = require('path');
 // Create an object of all benchmark scripts
 const benchmarks = {};
 fs.readdirSync(__dirname)
-  .filter((name) => {
-    return name !== 'fixtures' &&
-           fs.statSync(path.resolve(__dirname, name)).isDirectory();
-  })
+  .filter((name) => fs.statSync(path.resolve(__dirname, name)).isDirectory())
   .forEach((category) => {
     benchmarks[category] = fs.readdirSync(path.resolve(__dirname, category))
       .filter((filename) => filename[0] !== '.' && filename[0] !== '_');
   });
 
 function CLI(usage, settings) {
+  if (!(this instanceof CLI)) return new CLI(usage, settings);
+
   if (process.argv.length < 3) {
     this.abort(usage); // Abort will exit the process
   }
@@ -23,7 +22,6 @@ function CLI(usage, settings) {
   this.usage = usage;
   this.optional = {};
   this.items = [];
-  this.test = false;
 
   for (const argName of settings.arrayArgs) {
     this.optional[argName] = [];
@@ -36,7 +34,7 @@ function CLI(usage, settings) {
     if (arg === '--') {
       // Only items can follow --
       mode = 'item';
-    } else if (mode === 'both' && arg[0] === '-') {
+    } else if ('both' === mode && arg[0] === '-') {
       // Optional arguments declaration
 
       if (arg[1] === '-') {
@@ -63,8 +61,6 @@ function CLI(usage, settings) {
 
       // The next value can be either an option or an item
       mode = 'both';
-    } else if (arg === 'test') {
-      this.test = true;
     } else if (['both', 'item'].includes(mode)) {
       // item arguments
       this.items.push(arg);
@@ -87,15 +83,9 @@ CLI.prototype.abort = function(msg) {
 CLI.prototype.benchmarks = function() {
   const paths = [];
 
-  if (this.items.includes('all')) {
-    this.items = Object.keys(benchmarks);
-  }
-
   for (const category of this.items) {
-    if (benchmarks[category] === undefined) {
-      console.error(`The "${category}" category does not exist.`);
-      process.exit(1);
-    }
+    if (benchmarks[category] === undefined)
+      continue;
     for (const scripts of benchmarks[category]) {
       if (this.shouldSkip(scripts)) continue;
 
