@@ -861,7 +861,7 @@ function event(ee, expected) {
       const data = inspect(expected, { compact: false });
       const msg = `The REPL did not reply as expected for:\n\n${data}`;
       reject(new Error(msg));
-    }, common.platformTimeout(500));
+    }, common.platformTimeout(1000));
     ee.once('data', common.mustCall((...args) => {
       clearTimeout(timeout);
       resolve(...args);
