@@ -40,7 +40,7 @@ involving knowledge of several components and APIs:
   other libraries are located in the `deps/` directory in the Node.js source
   tree. Only the libuv, OpenSSL, V8 and zlib symbols are purposefully
   re-exported by Node.js and may be used to various extents by Addons. See
-  [Linking to Node.js' own dependencies][] for additional information.
+  [Linking to libraries included with Node.js][] for additional information.
 
 All of the following examples are available for [download][] and may
 be used as the starting-point for an Addon.
@@ -373,7 +373,7 @@ try {
 }
 ```
 
-### Linking to Node.js' own dependencies
+### Linking to libraries included with Node.js
 
 Node.js uses statically linked libraries such as V8, libuv and OpenSSL. All
 Addons are required to link to V8 and may link to any of the other dependencies
@@ -1361,7 +1361,7 @@ console.log(result);
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [Electron]: https://electronjs.org/
 [Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
-[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
+[Linking to libraries included with Node.js]: #addons_linking_to_libraries_included_with_node_js
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
