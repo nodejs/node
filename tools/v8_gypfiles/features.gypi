@@ -126,7 +126,7 @@
 
     # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
     'v8_enable_pointer_compression%': 0,
-    'v8_enable_31bit_smis_on_64bit_arch%': 1,
+    'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
@@ -147,7 +147,7 @@
     'v8_enable_concurrent_marking%': 1,
 
     # Sets -dV8_ARRAY_BUFFER_EXTENSION
-    'v8_enable_array_buffer_extension%': 0,
+    'v8_enable_array_buffer_extension%': 1,
 
     # Enables various testing features.
     'v8_enable_test_features%': 0,
@@ -195,6 +195,13 @@
     # Use token threaded dispatch for the regular expression interpreter.
     # Use switch-based dispatch if this is false.
     'v8_enable_regexp_interpreter_threaded_dispatch%': 1,
+
+    # Disable all snapshot compression.
+    'v8_enable_snapshot_compression%': 1,
+
+    # Enable control-flow integrity features, such as pointer authentication
+    # for ARM64.
+    'v8_control_flow_integrity%': 0,
 
     # Variables from v8.gni
 
@@ -324,6 +331,12 @@
       }],
       ['v8_enable_regexp_interpreter_threaded_dispatch==1', {
         'defines': ['V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH',],
+      }],
+      ['v8_enable_snapshot_compression==1', {
+        'defines': ['V8_SNAPSHOT_COMPRESSION',],
+      }],
+      ['v8_control_flow_integrity==1', {
+        'defines': ['V8_ENABLE_CONTROL_FLOW_INTEGRITY',],
       }],
     ],  # conditions
     'defines': [

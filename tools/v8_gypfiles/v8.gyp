@@ -221,11 +221,14 @@
             '<(torque_output_root)/torque-generated/bit-fields-tq.h',
             '<(torque_output_root)/torque-generated/builtin-definitions-tq.h',
             '<(torque_output_root)/torque-generated/interface-descriptors-tq.inc',
+            '<(torque_output_root)/torque-generated/factory-tq.cc',
+            '<(torque_output_root)/torque-generated/factory-tq.inc',
             '<(torque_output_root)/torque-generated/field-offsets-tq.h',
             '<(torque_output_root)/torque-generated/class-verifiers-tq.cc',
             '<(torque_output_root)/torque-generated/class-verifiers-tq.h',
             '<(torque_output_root)/torque-generated/enum-verifiers-tq.cc',
             '<(torque_output_root)/torque-generated/objects-printer-tq.cc',
+            '<(torque_output_root)/torque-generated/objects-body-descriptors-tq-inl.h',
             '<(torque_output_root)/torque-generated/class-definitions-tq.cc',
             '<(torque_output_root)/torque-generated/class-definitions-tq-inl.h',
             '<(torque_output_root)/torque-generated/class-definitions-tq.h',
@@ -309,6 +312,7 @@
           '<(torque_output_root)/torque-generated/class-definitions-tq.cc',
           '<(torque_output_root)/torque-generated/class-verifiers-tq.cc',
           '<(torque_output_root)/torque-generated/class-verifiers-tq.h',
+          '<(torque_output_root)/torque-generated/factory-tq.cc',
           '<(torque_output_root)/torque-generated/objects-printer-tq.cc',
         ],
         'include_dirs': [
@@ -425,7 +429,12 @@
             '<(V8_ROOT)/src/builtins/mips64/builtins-mips64.cc',
           ],
         }],
-        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+        ['v8_target_arch=="ppc"', {
+          'sources': [
+            '<(V8_ROOT)/src/builtins/ppc/builtins-ppc.cc',
+          ],
+        }],
+        ['v8_target_arch=="ppc64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/ppc/builtins-ppc.cc',
           ],
@@ -590,6 +599,7 @@
       ],
       'direct_dependent_settings': {
         'sources': [
+          '<(V8_ROOT)/include/v8-fast-api-calls.h',
           '<(V8_ROOT)/include/v8-internal.h',
           '<(V8_ROOT)/include/v8.h',
           '<(V8_ROOT)/include/v8config.h',
@@ -733,6 +743,15 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
+        ['v8_control_flow_integrity==1', {
+          'sources': [
+            '<(V8_ROOT)/src/execution/arm64/pointer-authentication-arm64.h',
+          ],
+        }, {
+          'sources': [
+            '<(V8_ROOT)/src/execution/pointer-authentication-dummy.h',
+          ],
+        }],
         ['v8_target_arch=="ia32"', {
           'sources': [  ### gcmole(arch:ia32) ###
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \+= ")',
@@ -759,32 +778,37 @@
         }],
         ['v8_target_arch=="arm"', {
           'sources': [  ### gcmole(arch:arm) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm.*?sources \+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="arm64"', {
           'sources': [  ### gcmole(arch:arm64) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64.*?sources \+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips.*?sources \+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [  ### gcmole(arch:mips64el) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64.*?sources \+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \+= ")',
           ],
         }],
-        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+        ['v8_target_arch=="ppc"', {
           'sources': [  ### gcmole(arch:ppc) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc.*?sources \+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc\\".*?sources \+= ")',
+          ],
+        }],
+        ['v8_target_arch=="ppc64"', {
+          'sources': [  ### gcmole(arch:ppc64) ###
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc64\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="s390x"', {
           'sources': [  ### gcmole(arch:s390) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390.*?sources \+= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390\\".*?sources \+= ")',
           ],
         }],
         ['OS=="win"', {
@@ -1607,11 +1631,51 @@
         }],
       ],
       'direct_dependent_settings': {
-        'include_dirs': [ '<(V8_ROOT)/third_party/zlib' ],
+        'include_dirs': [
+          '<(V8_ROOT)/third_party/zlib',
+          '<(V8_ROOT)/third_party/zlib/google',
+        ],
       },
       'defines': [ 'ZLIB_IMPLEMENTATION' ],
-      'include_dirs': [ '<(V8_ROOT)/third_party/zlib' ],
-      'sources': [ '<(V8_ROOT)/third_party/zlib/adler32.c' ],
+      'include_dirs': [
+        '<(V8_ROOT)/third_party/zlib',
+        '<(V8_ROOT)/third_party/zlib/google',
+      ],
+      'sources': [
+        '<(V8_ROOT)/third_party/zlib/adler32.c',
+        '<(V8_ROOT)/third_party/zlib/chromeconf.h',
+        '<(V8_ROOT)/third_party/zlib/compress.c',
+        '<(V8_ROOT)/third_party/zlib/contrib/optimizations/insert_string.h',
+        '<(V8_ROOT)/third_party/zlib/contrib/optimizations/insert_string.h',
+        '<(V8_ROOT)/third_party/zlib/cpu_features.c',
+        '<(V8_ROOT)/third_party/zlib/cpu_features.h',
+        '<(V8_ROOT)/third_party/zlib/crc32.c',
+        '<(V8_ROOT)/third_party/zlib/crc32.h',
+        '<(V8_ROOT)/third_party/zlib/deflate.c',
+        '<(V8_ROOT)/third_party/zlib/deflate.h',
+        '<(V8_ROOT)/third_party/zlib/gzclose.c',
+        '<(V8_ROOT)/third_party/zlib/gzguts.h',
+        '<(V8_ROOT)/third_party/zlib/gzlib.c',
+        '<(V8_ROOT)/third_party/zlib/gzread.c',
+        '<(V8_ROOT)/third_party/zlib/gzwrite.c',
+        '<(V8_ROOT)/third_party/zlib/infback.c',
+        '<(V8_ROOT)/third_party/zlib/inffast.c',
+        '<(V8_ROOT)/third_party/zlib/inffast.h',
+        '<(V8_ROOT)/third_party/zlib/inffixed.h',
+        '<(V8_ROOT)/third_party/zlib/inflate.c',
+        '<(V8_ROOT)/third_party/zlib/inflate.h',
+        '<(V8_ROOT)/third_party/zlib/inftrees.c',
+        '<(V8_ROOT)/third_party/zlib/inftrees.h',
+        '<(V8_ROOT)/third_party/zlib/trees.c',
+        '<(V8_ROOT)/third_party/zlib/trees.h',
+        '<(V8_ROOT)/third_party/zlib/uncompr.c',
+        '<(V8_ROOT)/third_party/zlib/zconf.h',
+        '<(V8_ROOT)/third_party/zlib/zlib.h',
+        '<(V8_ROOT)/third_party/zlib/zutil.c',
+        '<(V8_ROOT)/third_party/zlib/zutil.h',
+        '<(V8_ROOT)/third_party/zlib/google/compression_utils_portable.cc',
+        '<(V8_ROOT)/third_party/zlib/google/compression_utils_portable.h',
+      ],
     },  # v8_zlib
   ],
 }
