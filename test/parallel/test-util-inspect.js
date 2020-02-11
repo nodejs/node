@@ -2724,10 +2724,12 @@ assert.strictEqual(
   );
 }
 
-// Test changing util.inspect.colors colors and aliases. Since this might have
-// side effects, we do it last.
+// Test changing util.inspect.colors colors and aliases.
 {
   const colors = util.inspect.colors;
+
+  const originalValue = colors.gray;
+
   // "grey" is reference-equal alias of "gray".
   assert.strictEqual(colors.grey, colors.gray);
 
@@ -2739,5 +2741,10 @@ assert.strictEqual(
 
   colors.grey = [1, 1];
   assert.deepStrictEqual(colors.grey, [1, 1]);
+  assert.strictEqual(colors.grey, colors.gray);
+
+  // Restore original value to avoid side effects in other tests.
+  colors.gray = originalValue;
+  assert.deepStrictEqual(colors.gray, originalValue);
   assert.strictEqual(colors.grey, colors.gray);
 }
