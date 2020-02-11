@@ -405,9 +405,9 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
     return handle_scope.Escape(existing_value.As<Object>());
 
   Local<Object> exports = Object::New(isolate);
-  if (context->Global()->SetPrivate(context, key, exports).IsNothing())
+  if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
+      !InitializePrimordials(context))
     return MaybeLocal<Object>();
-  InitializePrimordials(context);
   return handle_scope.Escape(exports);
 }
 
