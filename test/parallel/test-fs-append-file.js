@@ -130,7 +130,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 }
 
 // Test that appendFile does not accept invalid data type (callback API).
-[false, 5, {}, [], null, undefined].forEach((data) => {
+[false, 5, {}, [], null, undefined].forEach(async (data) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     message: /"data"|"buffer"/
@@ -147,15 +147,17 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     errObj
   );
 
-  assert.rejects(
-    fs.promises.appendFile(filename, data).finally(() => {
-      // The filename shouldn't exist if throwing error.
-      assert.throws(() => fs.statSync(filename), {
-        code: 'ENOENT',
-        message: /no such file or directory/
-      });
-    }),
+  await assert.rejects(
+    fs.promises.appendFile(filename, data),
     errObj
+  );
+  // The filename shouldn't exist if throwing error.
+  assert.throws(
+    () => fs.statSync(filename),
+    {
+      code: 'ENOENT',
+      message: /no such file or directory/
+    }
   );
 });
 
