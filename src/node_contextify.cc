@@ -185,8 +185,11 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 
   object_template->SetHandler(config);
   object_template->SetHandler(indexed_config);
-
-  Local<Context> ctx = NewContext(env->isolate(), object_template);
+  Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
+  if (ctx.IsEmpty()) return MaybeLocal<Context>();
+  // Only partially initialize the context - the primordials are left out
+  // and only initialized when necessary.
+  InitializeContextRuntime(ctx);
 
   if (ctx.IsEmpty()) {
     return MaybeLocal<Context>();

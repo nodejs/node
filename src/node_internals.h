@@ -102,6 +102,7 @@ std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
 void InitializeContextRuntime(v8::Local<v8::Context>);
+bool InitializePrimordials(v8::Local<v8::Context> context);
 
 namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
