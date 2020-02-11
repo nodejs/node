@@ -46,6 +46,8 @@ test-async-hooks-http-parser-destroy: PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
+# https://github.com/nodejs/node/issues/31727
+test-fs-stat-bigint: PASS,FLAKY
 
 [$system==aix]
 
