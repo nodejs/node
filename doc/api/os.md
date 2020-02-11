@@ -389,6 +389,20 @@ operating system response.
 
 Throws a [`SystemError`][] if a user has no `username` or `homedir`.
 
+## `os.version()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {string}
+
+Returns a string identifying the kernel version.
+
+On POSIX systems, the operating system release is determined by calling
+[uname(3)][]. On Windows, `pRtlGetVersion` is used, and if it is not available,
+`GetVersionExW()` will be used. See
+https://en.wikipedia.org/wiki/Uname#Examples for more information.
+
 ## OS Constants
 
 The following constants are exported by `os.constants`.
