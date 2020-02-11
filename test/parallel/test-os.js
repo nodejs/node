@@ -194,6 +194,9 @@ const home = os.homedir();
 is.string(home);
 assert.ok(home.includes(path.sep));
 
+const version = os.version();
+assert.strictEqual(typeof version, 'string');
+
 if (common.isWindows && process.env.USERPROFILE) {
   assert.strictEqual(home, process.env.USERPROFILE);
   delete process.env.USERPROFILE;
