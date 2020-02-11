@@ -405,7 +405,8 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
     return handle_scope.Escape(existing_value.As<Object>());
 
   Local<Object> exports = Object::New(isolate);
-  if (context->Global()->SetPrivate(context, key, exports).IsNothing())
+  if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
+      !InitializePrimordials(context))
     return MaybeLocal<Object>();
   return handle_scope.Escape(exports);
 }
@@ -461,49 +462,50 @@ bool InitializeContextForSnapshot(Local<Context> context) {
 
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                            True(isolate));
+  return InitializePrimordials(context);
+}
 
-  {
-    // Run per-context JS files.
-    Context::Scope context_scope(context);
-    Local<Object> exports;
+bool InitializePrimordials(Local<Context> context) {
+  // Run per-context JS files.
+  Isolate* isolate = context->GetIsolate();
+  Context::Scope context_scope(context);
+  Local<Object> exports;
 
-    Local<String> primordials_string =
-        FIXED_ONE_BYTE_STRING(isolate, "primordials");
-    Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
-    Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
+  Local<String> primordials_string =
+      FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  Local<String> global_string = FIXED_ONE_BYTE_STRING(isolate, "global");
+  Local<String> exports_string = FIXED_ONE_BYTE_STRING(isolate, "exports");
 
-    // Create primordials first and make it available to per-context scripts.
-    Local<Object> primordials = Object::New(isolate);
-    if (!primordials->SetPrototype(context, Null(isolate)).FromJust() ||
-        !GetPerContextExports(context).ToLocal(&exports) ||
-        !exports->Set(context, primordials_string, primordials).FromJust()) {
+  // Create primordials first and make it available to per-context scripts.
+  Local<Object> primordials = Object::New(isolate);
+  if (!primordials->SetPrototype(context, Null(isolate)).FromJust() ||
+      !GetPerContextExports(context).ToLocal(&exports) ||
+      !exports->Set(context, primordials_string, primordials).FromJust()) {
+    return false;
+  }
+
+  static const char* context_files[] = {"internal/per_context/primordials",
+                                        "internal/per_context/domexception",
+                                        "internal/per_context/messageport",
+                                        nullptr};
+
+  for (const char** module = context_files; *module != nullptr; module++) {
+    std::vector<Local<String>> parameters = {
+        global_string, exports_string, primordials_string};
+    Local<Value> arguments[] = {context->Global(), exports, primordials};
+    MaybeLocal<Function> maybe_fn =
+        native_module::NativeModuleEnv::LookupAndCompile(
+            context, *module, &parameters, nullptr);
+    if (maybe_fn.IsEmpty()) {
       return false;
     }
-
-    static const char* context_files[] = {"internal/per_context/primordials",
-                                          "internal/per_context/domexception",
-                                          "internal/per_context/messageport",
-                                          nullptr};
-
-    for (const char** module = context_files; *module != nullptr; module++) {
-      std::vector<Local<String>> parameters = {
-          global_string, exports_string, primordials_string};
-      Local<Value> arguments[] = {context->Global(), exports, primordials};
-      MaybeLocal<Function> maybe_fn =
-          native_module::NativeModuleEnv::LookupAndCompile(
-              context, *module, &parameters, nullptr);
-      if (maybe_fn.IsEmpty()) {
-        return false;
-      }
-      Local<Function> fn = maybe_fn.ToLocalChecked();
-      MaybeLocal<Value> result =
-          fn->Call(context, Undefined(isolate),
-                   arraysize(arguments), arguments);
-      // Execution failed during context creation.
-      // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
-      if (result.IsEmpty()) {
-        return false;
-      }
+    Local<Function> fn = maybe_fn.ToLocalChecked();
+    MaybeLocal<Value> result =
+        fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
+    // Execution failed during context creation.
+    // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
+    if (result.IsEmpty()) {
+      return false;
     }
   }
 
