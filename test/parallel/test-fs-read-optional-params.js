@@ -12,7 +12,7 @@ const defaultBufferAsync = Buffer.alloc(16384);
 
 // Optional buffer, offset, length, position
 // fs.read(fd, callback);
-fs.read(fd, common.mustCall((err, bytesRead, buffer) => {
+fs.read(fd, {}, common.mustCall((err, bytesRead, buffer) => {
   assert.strictEqual(bytesRead, expected.length);
   assert.deepStrictEqual(defaultBufferAsync.length, buffer.length);
 }));
