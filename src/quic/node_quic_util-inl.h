@@ -43,7 +43,7 @@ size_t QuicCID::Hash::operator()(const QuicCID& token) const {
 }
 
 bool QuicCID::operator==(const QuicCID& other) const {
-  return memcmp(cid(), other.cid(), sizeof(ngtcp2_cid)) == 0;
+  return memcmp(cid()->data, other.cid()->data, cid()->datalen) == 0;
 }
 
 bool QuicCID::operator!=(const QuicCID& other) const {

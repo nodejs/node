@@ -1503,6 +1503,8 @@ void QuicSession::AckedStreamDataOffset(
 // here is that any CID's associated with the session have to
 // be associated with the new QuicSocket.
 void QuicSession::AddToSocket(QuicSocket* socket) {
+  CHECK_NOT_NULL(socket);
+  Debug(this, "Adding QuicSession to %s", socket->diagnostic_name());
   socket->AddSession(scid_, BaseObjectPtr<QuicSession>(this));
   switch (crypto_context_->side()) {
     case NGTCP2_CRYPTO_SIDE_SERVER: {
@@ -1978,6 +1980,8 @@ bool QuicSession::ReceiveStreamData(
 // If the session is removed and there are no other references held,
 // the session object will be destroyed automatically.
 void QuicSession::RemoveFromSocket() {
+  CHECK(socket_);
+  Debug(this, "Removing QuicSession from %s", socket_->diagnostic_name());
   if (is_server()) {
     socket_->DisassociateCID(rcid_);
     socket_->DisassociateCID(pscid_);
@@ -2241,19 +2245,29 @@ bool QuicSession::set_session(Local<Value> buffer) {
 bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
   CHECK(!is_server());
   CHECK(!is_flag_set(QUICSESSION_FLAG_DESTROYED));
-  CHECK(!is_flag_set(QUICSESSION_FLAG_GRACEFUL_CLOSING));
+
+  if (is_flag_set(QUICSESSION_FLAG_GRACEFUL_CLOSING))
+    return false;
+
   if (socket == nullptr || socket == socket_.get())
     return true;
 
+  Debug(this, "Migrating to %s", socket->diagnostic_name());
+
   SendSessionScope send(this);
 
-  // Step 1: Add this Session to the given Socket
-  AddToSocket(socket);
+  // Ensure that we maintain a reference to keep this from being
+  // destroyed while we are starting the migration.
+  BaseObjectPtr<QuicSession> ptr(this);
 
-  // Step 2: Remove this Session from the current Socket
+  // Step 1: Remove the session from the current socket
   RemoveFromSocket();
 
-  // Step 3: Update the internal references
+  // Step 2: Add this Session to the given Socket
+  AddToSocket(socket);
+
+  // Step 3: Update the internal references and make sure
+  // we are listening.
   socket_.reset(socket);
   socket->ReceiveStart();
 

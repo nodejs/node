@@ -15,79 +15,77 @@ const {
 } = require('../common/quic');
 
 const { createSocket } = require('quic');
+const { pipeline } = require('stream');
 
+let req;
 let client;
 let client2;
 const server = createSocket();
-const kServerName = 'agent1';
-const kALPN = 'zzz';
 
+const options = { key, cert, ca, alpn: 'zzz' };
 const countdown = new Countdown(2, () => {
   debug('Countdown expired. Destroying sockets');
+  req.close();
   server.close();
   client2.close();
 });
 
-server.listen({ key, cert, ca, alpn: kALPN });
+server.listen(options);
+
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
 
   session.on('stream', common.mustCall((stream) => {
     debug('Bidirectional, Client-initiated stream %d received', stream.id);
-    stream.pipe(stream);
+    pipeline(stream, stream, common.mustCall());
 
-    const uni = session.openStream({ halfOpen: true });
-    uni.end('Hello from the server');
+    session.openStream({ halfOpen: true }).end('Hello from the server');
   }));
 
 }));
 
 server.on('ready', common.mustCall(() => {
   debug('Server is listening on port %d', server.endpoints[0].address.port);
-  const options = { key, cert, ca, alpn: kALPN };
+
   client = createSocket({ client: options });
   client2 = createSocket({ client: options });
 
-  const req = client.connect({
-    address: 'localhost',
+  req = client.connect({
+    address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
-    servername: kServerName,
   });
 
-  client.on('close', () => debug('Client closing'));
+  client.on('close', common.mustCall());
 
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
+  req.on('secure', common.mustCall(() => {
     debug('QuicClientSession TLS Handshake Complete');
 
+    let data = '';
+
     const stream = req.openStream();
+    debug('Bidirectional, Client-initiated stream %d opened', stream.id);
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => data += chunk);
+    stream.on('end', common.mustCall(() => {
+      assert.strictEqual(data, 'Hello from the client');
+      debug('Client received expected data for stream %d', stream.id);
+    }));
+    stream.on('close', common.mustCall(() => {
+      debug('Bidirectional, Client-initiated stream %d closed', stream.id);
+      countdown.dec();
+    }));
     // Send some data on one connection...
     stream.write('Hello ');
 
     // Wait just a bit, then migrate to a different
     // QuicSocket and continue sending.
-    setTimeout(() => {
+    setTimeout(common.mustCall(() => {
       req.setSocket(client2, (err) => {
         assert(!err);
-        debug('Client 1 port is %d', client.endpoints[0].address.port);
-        debug('Client 2 port is %d', client2.endpoints[0].address.port);
         client.close();
-
         stream.end('from the client');
-        let data = '';
-        stream.resume();
-        stream.setEncoding('utf8');
-        stream.on('data', (chunk) => data += chunk);
-        stream.on('end', common.mustCall(() => {
-          assert.strictEqual(data, 'Hello from the client');
-          debug('Client received expected data for stream %d', stream.id);
-        }));
-        stream.on('close', common.mustCall(() => {
-          debug('Bidirectional, Client-initiated stream %d closed', stream.id);
-          countdown.dec();
-        }));
-        debug('Bidirectional, Client-initiated stream %d opened', stream.id);
       });
-    }, common.platformTimeout(100));
+    }), common.platformTimeout(100));
   }));
 
   req.on('stream', common.mustCall((stream) => {
@@ -107,4 +105,4 @@ server.on('ready', common.mustCall(() => {
 }));
 
 server.on('listening', common.mustCall());
-server.on('close', () => debug('Server closing'));
+server.on('close', common.mustCall());
