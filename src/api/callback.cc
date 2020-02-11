@@ -36,7 +36,7 @@ CallbackScope::~CallbackScope() {
 
 InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap, int flags)
     : InternalCallbackScope(async_wrap->env(),
-                            async_wrap->GetResource(),
+                            async_wrap->object(),
                             { async_wrap->get_async_id(),
                               async_wrap->get_trigger_async_id() },
                             flags) {}
