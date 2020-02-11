@@ -152,7 +152,7 @@ class AsyncWrap : public BaseObject {
   static void EmitAfter(Environment* env, double async_id);
   static void EmitPromiseResolve(Environment* env, double async_id);
 
-  void EmitDestroy();
+  void EmitDestroy(bool from_gc = false);
 
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
@@ -199,7 +199,6 @@ class AsyncWrap : public BaseObject {
                                         v8::Local<v8::Object> obj);
 
   bool IsDoneInitializing() const override;
-  v8::Local<v8::Object> GetResource();
 
  private:
   friend class PromiseWrap;
@@ -219,7 +218,6 @@ class AsyncWrap : public BaseObject {
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
   double trigger_async_id_;
-  v8::Global<v8::Object> resource_;
 };
 
 }  // namespace node
