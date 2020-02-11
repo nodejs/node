@@ -391,7 +391,7 @@ class QuicSocket : public AsyncWrap,
       const QuicCID& dcid,
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
-      int32_t reason = NGTCP2_INVALID_TOKEN);
+      int64_t reason = NGTCP2_INVALID_TOKEN);
 
  private:
   static void OnAlloc(

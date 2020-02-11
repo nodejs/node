@@ -698,7 +698,7 @@ void QuicSocket::ImmediateConnectionClose(
     const QuicCID& dcid,
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr,
-    int32_t reason) {
+    int64_t reason) {
   Debug(this, "Sending stateless connection close to %s", scid);
   auto packet = QuicPacket::Create("immediate connection close");
   ssize_t nwrite = ngtcp2_crypto_write_connection_close(
