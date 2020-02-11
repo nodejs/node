@@ -538,7 +538,11 @@ void AsyncWrap::EmitDestroy() {
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
-  resource_.Reset();
+
+  if (!persistent().IsEmpty()) {
+    HandleScope handle_scope(env()->isolate());
+    USE(object()->Set(env()->context(), env()->resource_symbol(), object()));
+  }
 }
 
 void AsyncWrap::QueueDestroyAsyncId(const FunctionCallbackInfo<Value>& args) {
@@ -615,10 +619,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   target->Set(context,
               env->async_ids_stack_string(),
               env->async_hooks()->async_ids_stack().GetJSArray()).Check();
-
-  target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "owner_symbol"),
-              env->owner_symbol()).Check();
 
   Local<Object> constants = Object::New(isolate);
 #define SET_HOOKS_CONSTANT(name)                                              \
@@ -777,10 +777,13 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
                                                      : execution_async_id;
   trigger_async_id_ = env()->get_default_trigger_async_id();
 
-  if (resource != object()) {
-    // TODO(addaleax): Using a strong reference here makes it very easy to
-    // introduce memory leaks. Move away from using a strong reference.
-    resource_.Reset(env()->isolate(), resource);
+  {
+    HandleScope handle_scope(env()->isolate());
+    Local<Object> obj = object();
+    CHECK(!obj.IsEmpty());
+    if (resource != obj) {
+      USE(obj->Set(env()->context(), env()->resource_symbol(), resource));
+    }
   }
 
   switch (provider_type()) {
@@ -887,14 +890,6 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 
     obj = owner.As<Object>();
   }
-}
-
-Local<Object> AsyncWrap::GetResource() {
-  if (resource_.IsEmpty()) {
-    return object();
-  }
-
-  return resource_.Get(env()->isolate());
 }
 
 }  // namespace node
