@@ -487,7 +487,7 @@ open(__filename, 'r', (err, fd) => {
 ```
 
 This can be used to implement continuation local storage without the
-using of a tracking `Map` to store the metadata:
+use of a tracking `Map` to store the metadata:
 
 ```js
 const { createServer } = require('http');
