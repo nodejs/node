@@ -49,13 +49,13 @@ The above example spawns a Worker thread for each `parse()` call. In actual
 practice, use a pool of Workers instead for these kinds of tasks. Otherwise, the
 overhead of creating Workers would likely exceed their benefit.
 
-Worker threads inherit non-process-specific options by default. Refer to
-[`Worker constructor options`][] to know how to customize worker thread options,
-specifically `argv` and `execArgv` options.
-
 When implementing a worker pool, use the [`AsyncResource`][] API to inform
 diagnostic tools (e.g. in order to provide asynchronous stack traces) about the
 correlation between tasks and their outcomes.
+
+Worker threads inherit non-process-specific options by default. Refer to
+[`Worker constructor options`][] to know how to customize worker thread options,
+specifically `argv` and `execArgv` options.
 
 ## `worker.isMainThread`
 <!-- YAML
