@@ -682,9 +682,12 @@ void Http3Application::ReceiveData(
 void Http3Application::DeferredConsume(
     int64_t stream_id,
     size_t consumed) {
-  BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
-  CHECK(stream);
-  session()->ExtendStreamOffset(stream->id(), consumed);
+  // Do nothing here for now. nghttp3 uses the on_deferred_consume
+  // callback to notify when stream data that had previously been
+  // deferred has been delivered to the application so that the
+  // stream data offset can be extended. However, we extend the
+  // data offset from within QuicStream when the data is delivered
+  // so we don't have to do it here.
 }
 
 // Called when a nghttp3 detects that a new block of headers

@@ -67,6 +67,8 @@ void DefaultApplication::UnscheduleStream(int64_t stream_id) {
 void DefaultApplication::StreamClose(
     int64_t stream_id,
     uint64_t app_error_code) {
+  if (!session()->HasStream(stream_id))
+    return;
   if (app_error_code == 0)
     app_error_code = NGTCP2_APP_NOERROR;
   UnscheduleStream(stream_id);

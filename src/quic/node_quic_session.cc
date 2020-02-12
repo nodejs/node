@@ -1264,7 +1264,7 @@ void QuicApplication::MaybeSetFin(const StreamData& stream_data) {
 }
 
 void QuicApplication::StreamOpen(int64_t stream_id) {
-  Debug(session(), "QUIC Stream %" PRId64 " is open.");
+  Debug(session(), "QUIC Stream %" PRId64 " is open.", stream_id);
 }
 
 void QuicApplication::StreamHeaders(
@@ -2385,9 +2385,7 @@ void QuicSession::StreamClose(int64_t stream_id, uint64_t app_error_code) {
         stream_id,
         app_error_code);
 
-  // If the stream does not actually exist, just ignore
-  if (HasStream(stream_id))
-    application_->StreamClose(stream_id, app_error_code);
+  application_->StreamClose(stream_id, app_error_code);
 }
 
 // Called by ngtcp2 when a stream has been opened. All we do is log
