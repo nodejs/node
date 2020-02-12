@@ -8,6 +8,11 @@ const bench = common.createBenchmark(main, {
   duration: [5],
   type: ['string', 'buffer'],
   algorithm: ['gzip', 'brotli']
+}, {
+  test: {
+    inputLen: 1024,
+    duration: 0.2
+  }
 });
 
 function main({ inputLen, duration, type, algorithm }) {
