@@ -2721,7 +2721,7 @@ this API: [`fs.open()`][].
 added: v0.0.2
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31402
     description: Buffer, offset, length and position parameters
                  are now optional
   - version: v10.10.0
