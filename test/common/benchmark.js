@@ -8,13 +8,8 @@ const path = require('path');
 
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
-function runBenchmark(name, args, env) {
-  const argv = [];
-
-  for (let i = 0; i < args.length; i++) {
-    argv.push('--set');
-    argv.push(args[i]);
-  }
+function runBenchmark(name, env) {
+  const argv = ['test'];
 
   argv.push(name);
 

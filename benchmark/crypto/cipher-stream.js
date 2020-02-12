@@ -7,6 +7,8 @@ const bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
   len: [2, 1024, 102400, 1024 * 1024],
   api: ['legacy', 'stream']
+}, {
+  flags: ['--no-warnings']
 });
 
 function main({ api, cipher, type, len, writes }) {

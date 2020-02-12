@@ -7,7 +7,7 @@ const CLI = require('./_cli.js');
 //
 // Parse arguments
 //
-const cli = CLI(`usage: ./node scatter.js [options] [--] <filename>
+const cli = new CLI(`usage: ./node scatter.js [options] [--] <filename>
   Run the benchmark script <filename> many times and output the rate (ops/s)
   together with the benchmark variables as a csv.
 
