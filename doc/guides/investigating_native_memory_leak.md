@@ -89,7 +89,7 @@ This reports that Node.js is not _completely_ clean as there is some memory
 that was allocated but not freed when the process shut down. It is often
 impractical/not worth being completely clean in this respect. Modern
 operating systems will clean up the memory of the process after the
-shutdown while attemping to fre all memory to get a clean
+shutdown while attempting to free all memory to get a clean
 report may have a negative impact on the code complexity and
 shutdown times. Node.js does a pretty good job only leaving on
 the order of 6KB that are not freed on shutdown.
