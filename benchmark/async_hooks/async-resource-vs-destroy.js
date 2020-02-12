@@ -6,6 +6,7 @@ const sleep = promisify(setTimeout);
 const read = promisify(readFile);
 const common = require('../common.js');
 const {
+  AsyncLocal,
   createHook,
   executionAsyncResource,
   executionAsyncId
@@ -18,10 +19,33 @@ const connections = 500;
 const path = '/';
 
 const bench = common.createBenchmark(main, {
-  type: ['async-resource', 'destroy'],
+  type: ['async-local', 'async-resource', 'destroy'],
   asyncMethod: ['callbacks', 'async'],
   n: [1e6]
 });
+
+function buildAsyncLocal(getServe) {
+  const server = createServer(getServe(getCLS, setCLS));
+  const asyncLocal = new AsyncLocal();
+
+  return {
+    server,
+    close
+  };
+
+  function getCLS() {
+    return asyncLocal.unwrap();
+  }
+
+  function setCLS(state) {
+    asyncLocal.store(state);
+  }
+
+  function close() {
+    asyncLocal.disable();
+    server.close();
+  }
+}
 
 function buildCurrentResource(getServe) {
   const server = createServer(getServe(getCLS, setCLS));
@@ -125,6 +149,7 @@ function getServeCallbacks(getCLS, setCLS) {
 }
 
 const types = {
+  'async-local': buildAsyncLocal,
   'async-resource': buildCurrentResource,
   'destroy': buildDestroy
 };
