@@ -25,8 +25,6 @@ const options = { key, cert, ca, alpn: 'meow' };
       stream.on('data', (chunk) => data += chunk);
       await once(stream, 'end');
       assert.strictEqual(data, 'Hello!');
-      server.close();
-      client.close();
     }));
   }));
 
@@ -47,6 +45,9 @@ const options = { key, cert, ca, alpn: 'meow' };
   assert.strictEqual(stream.pending, false);
 
   await once(stream, 'close');
+
+  server.close();
+  client.close();
 
   await Promise.allSettled([
     once(server, 'close'),
