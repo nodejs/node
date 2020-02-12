@@ -223,6 +223,7 @@ class QuicBuffer : public bob::SourceImpl<ngtcp2_vec>,
   QuicBufferChunk* head_ = nullptr;  // Current Read Position
   QuicBufferChunk* tail_ = nullptr;  // Current Write Position
 
+  bool canceled_ = false;
   bool ended_ = false;
   size_t length_ = 0;
   size_t remaining_ = 0;

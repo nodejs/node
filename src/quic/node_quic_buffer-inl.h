@@ -81,7 +81,10 @@ size_t QuicBuffer::Consume(size_t amount) {
 }
 
 size_t QuicBuffer::Cancel(int status) {
-  return Consume(status, length());
+  if (canceled_) return 0;
+  canceled_ = true;
+  size_t t = Consume(status, length());
+  return t;
 }
 
 void QuicBuffer::Push(uv_buf_t buf, DoneCB done) {
