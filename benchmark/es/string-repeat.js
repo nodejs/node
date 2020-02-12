@@ -18,8 +18,6 @@ function main({ n, size, encoding, mode }) {
   let str;
 
   switch (mode) {
-    case '':
-      // Empty string falls through to next line as default, mostly for tests.
     case 'Array':
       bench.start();
       for (let i = 0; i < n; i++)

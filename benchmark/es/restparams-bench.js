@@ -51,8 +51,6 @@ function runUseArguments(n) {
 function main({ n, method }) {
   let fn;
   switch (method) {
-    case '':
-      // Empty string falls through to next line as default, mostly for tests.
     case 'copy':
       fn = runCopyArguments;
       break;
