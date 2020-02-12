@@ -25,7 +25,7 @@ HTTP message headers are represented by an object like this:
 
 Keys are lowercased. Values are not modified.
 
-In order to support the full spectrum of possible HTTP applications, Node.js's
+In order to support the full spectrum of possible HTTP applications, the Node.js
 HTTP API is very low-level. It deals with stream handling and message
 parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
