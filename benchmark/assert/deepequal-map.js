@@ -34,8 +34,6 @@ function main({ n, len, method, strict }) {
   const array = Array(len).fill(1);
 
   switch (method) {
-    case '':
-      // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual_primitiveOnly': {
       const values = array.map((_, i) => [`str_${i}`, 123]);
       benchmark(strict ? deepStrictEqual : deepEqual, n, values);
