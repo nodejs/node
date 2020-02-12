@@ -1,6 +1,6 @@
 # Contributing a new API to N-API
 
-N-API is Node.js's next generation ABI-stable API for native modules.
+N-API is the next-generation ABI-stable API for native modules.
 While improving the API surface is encouraged and welcomed, the following are
 a set of principles and guidelines to keep in mind while adding a new
 N-API API.
