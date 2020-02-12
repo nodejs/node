@@ -2769,7 +2769,7 @@ a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 added: v0.0.2
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
                  to make Buffer, offset, lenght and position optional
 -->
