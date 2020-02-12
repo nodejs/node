@@ -57,10 +57,13 @@ class WrkBenchmarker {
   }
 
   create(options) {
+    const duration = typeof options.duration === 'number' ?
+      Math.max(options.duration, 1) :
+      options.duration;
     const args = [
-      '-d', options.duration,
+      '-d', duration,
       '-c', options.connections,
-      '-t', 8,
+      '-t', Math.min(options.connections, require('os').cpus().length || 8),
       `http://127.0.0.1:${options.port}${options.path}`,
     ];
     for (const field in options.headers) {
@@ -96,8 +99,9 @@ class TestDoubleBenchmarker {
   }
 
   create(options) {
+    process.env.duration = process.env.duration || options.duration || 5;
+
     const env = {
-      duration: options.duration,
       test_url: `http://127.0.0.1:${options.port}${options.path}`,
       ...process.env
     };
@@ -213,7 +217,6 @@ exports.run = function(options, callback) {
                        'is  not installed'));
     return;
   }
-  process.env.duration = process.env.duration || options.duration || 5;
 
   const benchmarker_start = process.hrtime();
 
