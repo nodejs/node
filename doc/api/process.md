@@ -833,7 +833,7 @@ added: v0.7.2
 
 * {number}
 
-The port used by Node.js's debugger when enabled.
+The port used by the Node.js debugger when enabled.
 
 ```js
 process.debugPort = 5858;
@@ -2486,11 +2486,11 @@ cases:
   handler.
 * `2`: Unused (reserved by Bash for builtin misuse)
 * `3` **Internal JavaScript Parse Error**: The JavaScript source code
-  internal in Node.js's bootstrapping process caused a parse error. This
+  internal in the Node.js bootstrapping process caused a parse error. This
   is extremely rare, and generally can only happen during development
   of Node.js itself.
 * `4` **Internal JavaScript Evaluation Failure**: The JavaScript
-  source code internal in Node.js's bootstrapping process failed to
+  source code internal in the Node.js bootstrapping process failed to
   return a function value when evaluated. This is extremely rare, and
   generally can only happen during development of Node.js itself.
 * `5` **Fatal Error**: There was a fatal unrecoverable error in V8.
@@ -2509,7 +2509,7 @@ cases:
 * `9` **Invalid Argument**: Either an unknown option was specified,
   or an option requiring a value was provided without a value.
 * `10` **Internal JavaScript Run-Time Failure**: The JavaScript
-  source code internal in Node.js's bootstrapping process threw an error
+  source code internal in the Node.js bootstrapping process threw an error
   when the bootstrapping function was called. This is extremely rare,
   and generally can only happen during development of Node.js itself.
 * `12` **Invalid Debug Argument**: The `--inspect` and/or `--inspect-brk`
