@@ -27,3 +27,22 @@ const { Worker } = require('worker_threads');
     );
   });
 }
+
+{
+  [
+    Symbol('test'),
+    {},
+    [],
+    () => {}
+  ].forEach((type) => {
+    assert.throws(
+      () => new Worker('', { type, eval: true }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message: 'The "options.type" property must be of type string.' +
+                 common.invalidArgTypeHelper(type)
+      }
+    );
+  });
+}

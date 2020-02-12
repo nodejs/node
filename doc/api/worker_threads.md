@@ -561,14 +561,15 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31760
+    description: The `type` option was introduced.
   - version:
      - v13.13.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32278
     description: The `transferList` option was introduced.
-  - version:
-     - v13.12.0
-     - v12.17.0
+  - version: v13.12.0
     pr-url: https://github.com/nodejs/node/pull/31664
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
@@ -600,9 +601,12 @@ changes:
     to specify that the parent thread and the child thread should share their
     environment variables; in that case, changes to one thread’s `process.env`
     object will affect the other thread as well. **Default:** `process.env`.
-  * `eval` {boolean} If `true` and the first argument is a `string`, interpret
-    the first argument to the constructor as a script that is executed once the
-    worker is online.
+  * `eval` {boolean} If `true`, interpret the first argument to the constructor
+    as a script (or a module if `type` is set to `module`) that is executed once
+    the worker is online.
+  * `type` {string} If `"module"` and `eval` is set to `true`, interpret the
+    first argument as an ECMAScript 2015 module instead of a script. The default
+    value is `"classic"`. Doesn't have any effect when `eval` is set to `false`.
   * `execArgv` {string[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this will be provided
