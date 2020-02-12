@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-// Tests for the regression in _stream_writable fixed in
+// Tests for the regression in _stream_writable discussed in
 // https://github.com/nodejs/node/pull/31756
 
 // Specifically, when a write callback is invoked synchronously
