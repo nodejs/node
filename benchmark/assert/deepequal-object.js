@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   n: [5e3],
   size: [1e2, 1e3, 5e4],
   strict: [0, 1],
-  method: [ 'deepEqual', 'notDeepEqual' ],
+  method: ['deepEqual', 'notDeepEqual'],
 });
 
 function createObj(source, add = '') {
@@ -26,9 +26,6 @@ function createObj(source, add = '') {
 function main({ size, n, method, strict }) {
   // TODO: Fix this "hack". `n` should not be manipulated.
   n = Math.min(Math.ceil(n / size), 20);
-
-  if (!method)
-    method = 'deepEqual';
 
   const source = Array.apply(null, Array(size));
   const actual = createObj(source);

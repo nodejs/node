@@ -76,7 +76,7 @@ function genMethod(method) {
 
 function main({ method, len, n, aligned = 'true' }) {
   const buf = createBuffer(len, aligned === 'true');
-  const bufferSwap = genMethod(method || 'swap16');
+  const bufferSwap = genMethod(method);
 
   bufferSwap(n, buf);
   bench.start();

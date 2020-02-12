@@ -52,8 +52,6 @@ function main({ n, len, primitive, method, strict }) {
   const expectedWrongSet = new Set(expectedWrong);
 
   switch (method) {
-    // Empty string falls through to next line as default, mostly for tests.
-    case '':
     case 'deepEqual_Array':
       run(strict ? deepStrictEqual : deepEqual, n, actual, expected);
       break;

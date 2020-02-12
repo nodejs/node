@@ -74,7 +74,7 @@ function main({ n, buf, type }) {
   const buff = buf === 'fast' ?
     Buffer.alloc(8) :
     require('buffer').SlowBuffer(8);
-  const fn = `write${type || 'UInt8'}`;
+  const fn = `write${type}`;
 
   if (!/\d/.test(fn))
     benchSpecialInt(buff, fn, n);

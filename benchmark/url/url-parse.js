@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ type, n }) {
-  const input = inputs[type] || '';
+  const input = inputs[type];
 
   bench.start();
   for (let i = 0; i < n; i += 1)

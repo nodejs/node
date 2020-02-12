@@ -32,8 +32,6 @@ function main({ n, context, count, rest, method }) {
     args[i] = i;
 
   switch (method) {
-    case '':
-      // Empty string falls through to next line as default, mostly for tests.
     case 'apply':
       bench.start();
       for (let i = 0; i < n; i++)

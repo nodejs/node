@@ -40,7 +40,6 @@ const mod = {
 };
 
 function main({ n, type }) {
-  type = type || 'Uint8';
   const ab = new ArrayBuffer(8);
   const dv = new DataView(ab, 0, 8);
   const le = /LE$/.test(type);

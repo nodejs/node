@@ -20,8 +20,6 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ type, n, len, method, strict }) {
-  if (!method)
-    method = 'deepEqual';
   const clazz = global[type];
   const actual = new clazz(len);
   const expected = new clazz(len);

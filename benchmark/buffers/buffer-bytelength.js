@@ -17,9 +17,9 @@ const chars = [
 
 function main({ n, len, encoding }) {
   let strings = [];
-  let results = [ len * 16 ];
+  let results = [len * 16];
   if (encoding === 'buffer') {
-    strings = [ Buffer.alloc(len * 16, 'a') ];
+    strings = [Buffer.alloc(len * 16, 'a')];
   } else {
     for (const string of chars) {
       // Strings must be built differently, depending on encoding
