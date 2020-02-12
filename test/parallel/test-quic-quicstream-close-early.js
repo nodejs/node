@@ -86,9 +86,6 @@ server.on('ready', common.mustCall(() => {
 
     const stream = req.openStream();
 
-    // TODO(@jasnell): The close happens synchronously, before any
-    // data for the stream is actually flushed out to the connected
-    // peer.
     stream.write('hello', common.mustCall());
     stream.close(1);
 

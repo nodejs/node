@@ -133,10 +133,11 @@ void QuicStream::ResetStream(uint64_t app_error_code) {
   // streambuf_ will be canceled, and all data pending
   // to be acknowledged at the ngtcp2 level will be
   // abandoned.
+  BaseObjectPtr<QuicSession> ptr(session_);
   set_flag(QUICSTREAM_FLAG_READ_CLOSED);
+  session_->ResetStream(stream_id_, app_error_code);
   streambuf_.Cancel();
   streambuf_.End();
-  session_->ResetStream(stream_id_, app_error_code);
 }
 
 void QuicStream::Schedule(Queue* queue) {
