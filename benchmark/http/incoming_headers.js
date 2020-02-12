@@ -3,12 +3,13 @@ const common = require('../common.js');
 const http = require('http');
 
 const bench = common.createBenchmark(main, {
-  c: [50],     // Concurrent connections
-  n: [20],     // Number of header lines to append after the common headers
-  w: [0, 6],   // Amount of trailing whitespace
+  connections: [50], // Concurrent connections
+  headers: [20], // Number of header lines to append after the common headers
+  w: [0, 6], // Amount of trailing whitespace
+  duration: 5
 });
 
-function main({ c, n, w }) {
+function main({ connections, headers, w, duration }) {
   const server = http.createServer((req, res) => {
     res.end();
   });
@@ -21,7 +22,7 @@ function main({ c, n, w }) {
       'Date': new Date().toString(),
       'Cache-Control': 'no-cache'
     };
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < headers; i++) {
       // Note:
       // - autocannon does not send header values with OWS
       // - wrk can only send trailing OWS. This is a side-effect of wrk
@@ -31,8 +32,9 @@ function main({ c, n, w }) {
     }
     bench.http({
       path: '/',
-      connections: c,
-      headers
+      connections,
+      headers,
+      duration
     }, () => {
       server.close();
     });

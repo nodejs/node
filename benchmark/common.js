@@ -4,43 +4,83 @@ const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
 class Benchmark {
-  constructor(fn, configs, options) {
-    // Use the file name as the name of the benchmark
-    this.name = require.main.filename.slice(__dirname.length + 1);
+  // Used to make sure a benchmark only start a timer once
+  #started = false;
+
+  // Indicate that the benchmark ended
+  #ended = false;
+
+  // Holds process.hrtime value
+  #time = [0, 0];
+
+  // Use the file name as the name of the benchmark
+  name = require.main.filename.slice(__dirname.length + 1);
+
+  // Execution arguments i.e. flags used to run the jobs
+  flags = process.env.NODE_BENCHMARK_FLAGS ?
+    process.env.NODE_BENCHMARK_FLAGS.split(/\s+/) :
+    [];
+
+  constructor(fn, configs, options = {}) {
     // Parse job-specific configuration from the command line arguments
-    const parsed_args = this._parseArgs(process.argv.slice(2), configs);
+    const argv = process.argv.slice(2);
+    const parsed_args = this._parseArgs(argv, configs, options);
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
-    // The configuration list as a queue of jobs
-    this.queue = this._queue(this.options);
-    // The configuration of the current job, head of the queue
-    this.config = this.queue[0];
-    // Execution arguments i.e. flags used to run the jobs
-    this.flags = [];
-    if (options && options.flags) {
+    if (options.flags) {
       this.flags = this.flags.concat(options.flags);
     }
-    if (process.env.NODE_BENCHMARK_FLAGS) {
-      const flags = process.env.NODE_BENCHMARK_FLAGS.split(/\s+/);
-      this.flags = this.flags.concat(flags);
-    }
-    // Holds process.hrtime value
-    this._time = [0, 0];
-    // Used to make sure a benchmark only start a timer once
-    this._started = false;
-    this._ended = false;
 
-    // this._run will use fork() to create a new process for each configuration
-    // combination.
-    if (process.env.hasOwnProperty('NODE_RUN_BENCHMARK_FN')) {
-      process.nextTick(() => fn(this.config));
-    } else {
-      process.nextTick(() => this._run());
-    }
+    // The configuration list as a queue of jobs
+    this.queue = this._queue(this.options);
+
+    // The configuration of the current job, head of the queue
+    this.config = this.queue[0];
+
+    process.nextTick(() => {
+      if (process.env.hasOwnProperty('NODE_RUN_BENCHMARK_FN')) {
+        fn(this.config);
+      } else {
+        // _run will use fork() to create a new process for each configuration
+        // combination.
+        this._run();
+      }
+    });
   }
 
-  _parseArgs(argv, configs) {
+  _parseArgs(argv, configs, options) {
     const cliOptions = {};
+
+    // Check for the test mode first.
+    const testIndex = argv.indexOf('--test');
+    if (testIndex !== -1) {
+      for (const [key, rawValue] of Object.entries(configs)) {
+        let value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+        // Set numbers to one by default to reduce the runtime.
+        if (typeof value === 'number') {
+          if (key === 'dur' || key === 'duration') {
+            value = 0.05;
+          } else if (value > 1) {
+            value = 1;
+          }
+        }
+        cliOptions[key] = [value];
+      }
+      // Override specific test options.
+      if (options.test) {
+        for (const [key, value] of Object.entries(options.test)) {
+          cliOptions[key] = Array.isArray(value) ? value : [value];
+        }
+      }
+      argv.splice(testIndex, 1);
+    } else {
+      // Accept single values instead of arrays.
+      for (const [key, value] of Object.entries(configs)) {
+        if (!Array.isArray(value))
+          configs[key] = [value];
+      }
+    }
+
     const extraOptions = {};
     const validArgRE = /^(.+?)=([\s\S]*)$/;
     // Parse configuration arguments
@@ -50,45 +90,43 @@ class Benchmark {
         console.error(`bad argument: ${arg}`);
         process.exit(1);
       }
-      const config = match[1];
-
-      if (configs[config]) {
-        // Infer the type from the config object and parse accordingly
-        const isNumber = typeof configs[config][0] === 'number';
-        const value = isNumber ? +match[2] : match[2];
-        if (!cliOptions[config])
-          cliOptions[config] = [];
-        cliOptions[config].push(value);
+      const [, key, value] = match;
+      if (Object.prototype.hasOwnProperty.call(configs, key)) {
+        if (!cliOptions[key])
+          cliOptions[key] = [];
+        cliOptions[key].push(
+          // Infer the type from the config object and parse accordingly
+          typeof configs[key][0] === 'number' ? +value : value
+        );
       } else {
-        extraOptions[config] = match[2];
+        extraOptions[key] = value;
       }
     }
-    return { cli: Object.assign({}, configs, cliOptions), extra: extraOptions };
+    return { cli: { ...configs, ...cliOptions }, extra: extraOptions };
   }
 
   _queue(options) {
     const queue = [];
     const keys = Object.keys(options);
 
-    // Perform a depth-first walk though all options to generate a
+    // Perform a depth-first walk through all options to generate a
     // configuration list that contains all combinations.
     function recursive(keyIndex, prevConfig) {
       const key = keys[keyIndex];
       const values = options[key];
-      const type = typeof values[0];
 
       for (const value of values) {
         if (typeof value !== 'number' && typeof value !== 'string') {
           throw new TypeError(
             `configuration "${key}" had type ${typeof value}`);
         }
-        if (typeof value !== type) {
+        if (typeof value !== typeof values[0]) {
           // This is a requirement for being able to consistently and
           // predictably parse CLI provided configuration values.
           throw new TypeError(`configuration "${key}" has mixed types`);
         }
 
-        const currConfig = Object.assign({ [key]: value }, prevConfig);
+        const currConfig = { [key]: value, ...prevConfig };
 
         if (keyIndex + 1 < keys.length) {
           recursive(keyIndex + 1, currConfig);
@@ -108,12 +146,11 @@ class Benchmark {
   }
 
   http(options, cb) {
-    const self = this;
-    const http_options = Object.assign({ }, options);
+    const http_options = { ...options };
     http_options.benchmarker = http_options.benchmarker ||
-                              self.config.benchmarker ||
-                              self.extra_options.benchmarker ||
-                              exports.default_http_benchmarker;
+                               this.config.benchmarker ||
+                               this.extra_options.benchmarker ||
+                               http_benchmarkers.default_http_benchmarker;
     http_benchmarkers.run(
       http_options, (error, code, used_benchmarker, result, elapsed) => {
         if (cb) {
@@ -123,14 +160,13 @@ class Benchmark {
           console.error(error);
           process.exit(code || 1);
         }
-        self.config.benchmarker = used_benchmarker;
-        self.report(result, elapsed);
+        this.config.benchmarker = used_benchmarker;
+        this.report(result, elapsed);
       }
     );
   }
 
   _run() {
-    const self = this;
     // If forked, report to the parent.
     if (process.send) {
       process.send({
@@ -140,27 +176,27 @@ class Benchmark {
       });
     }
 
-    (function recursive(queueIndex) {
-      const config = self.queue[queueIndex];
+    const recursive = (queueIndex) => {
+      const config = this.queue[queueIndex];
 
       // Set NODE_RUN_BENCHMARK_FN to indicate that the child shouldn't
       // construct a configuration queue, but just execute the benchmark
       // function.
-      const childEnv = Object.assign({}, process.env);
+      const childEnv = { ...process.env };
       childEnv.NODE_RUN_BENCHMARK_FN = '';
 
       // Create configuration arguments
       const childArgs = [];
-      for (const key of Object.keys(config)) {
-        childArgs.push(`${key}=${config[key]}`);
+      for (const [key, value] of Object.entries(config)) {
+        childArgs.push(`${key}=${value}`);
       }
-      for (const key of Object.keys(self.extra_options)) {
-        childArgs.push(`${key}=${self.extra_options[key]}`);
+      for (const [key, value] of Object.entries(this.extra_options)) {
+        childArgs.push(`${key}=${value}`);
       }
 
       const child = child_process.fork(require.main.filename, childArgs, {
         env: childEnv,
-        execArgv: self.flags.concat(process.execArgv),
+        execArgv: this.flags.concat(process.execArgv),
       });
       child.on('message', sendResult);
       child.on('close', (code) => {
@@ -168,29 +204,31 @@ class Benchmark {
           process.exit(code);
         }
 
-        if (queueIndex + 1 < self.queue.length) {
+        if (queueIndex + 1 < this.queue.length) {
           recursive(queueIndex + 1);
         }
       });
-    })(0);
+    };
+
+    recursive(0);
   }
 
   start() {
-    if (this._started) {
+    if (this.#started) {
       throw new Error('Called start more than once in a single benchmark');
     }
-    this._started = true;
-    this._time = process.hrtime();
+    this.#started = true;
+    this.#time = process.hrtime();
   }
 
   end(operations) {
     // Get elapsed time now and do error checking later for accuracy.
-    const elapsed = process.hrtime(this._time);
+    const elapsed = process.hrtime(this.#time);
 
-    if (!this._started) {
+    if (!this.#started) {
       throw new Error('called end without start');
     }
-    if (this._ended) {
+    if (this.#ended) {
       throw new Error('called end multiple times');
     }
     if (typeof operations !== 'number') {
@@ -206,7 +244,7 @@ class Benchmark {
       elapsed[1] = 1;
     }
 
-    this._ended = true;
+    this.#ended = true;
     const time = elapsed[0] + elapsed[1] / 1e9;
     const rate = operations / time;
     this.report(rate, elapsed);
@@ -216,7 +254,7 @@ class Benchmark {
     sendResult({
       name: this.name,
       conf: this.config,
-      rate: rate,
+      rate,
       time: elapsed[0] + elapsed[1] / 1e9,
       type: 'report',
     });
@@ -334,6 +372,7 @@ function bakeUrlData(type, e = 0, withBase = false, asUrl = false) {
 }
 
 module.exports = {
+  Benchmark,
   PORT: http_benchmarkers.PORT,
   bakeUrlData,
   binding(bindingName) {
@@ -349,8 +388,6 @@ module.exports = {
   createBenchmark(fn, configs, options) {
     return new Benchmark(fn, configs, options);
   },
-  // Benchmark an http server.
-  default_http_benchmarker: http_benchmarkers.default_http_benchmarker,
   sendResult,
   searchParams,
   urlDataTypes: Object.keys(urls).concat(['wpt']),

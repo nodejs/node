@@ -3,10 +3,11 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   asyncHooks: ['init', 'before', 'after', 'all', 'disabled', 'none'],
-  connections: [50, 500]
+  connections: [50, 500],
+  duration: 5
 });
 
-function main({ asyncHooks, connections }) {
+function main({ asyncHooks, connections, duration }) {
   if (asyncHooks !== 'none') {
     let hooks = {
       init() {},
@@ -33,6 +34,7 @@ function main({ asyncHooks, connections }) {
       bench.http({
         connections,
         path,
+        duration
       }, () => {
         server.close();
       });

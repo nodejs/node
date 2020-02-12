@@ -6,9 +6,10 @@ const http = require('http');
 const bench = common.createBenchmark(main, {
   n: [10, 1000],
   len: [1, 100],
+  duration: 5
 });
 
-function main({ len, n }) {
+function main({ len, n, duration }) {
   const headers = {
     'Connection': 'keep-alive',
     'Transfer-Encoding': 'chunked',
@@ -29,7 +30,8 @@ function main({ len, n }) {
   server.listen(common.PORT, () => {
     bench.http({
       path: '/',
-      connections: 10
+      connections: 10,
+      duration
     }, () => {
       server.close();
     });

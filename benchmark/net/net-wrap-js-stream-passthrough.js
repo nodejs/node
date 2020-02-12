@@ -9,6 +9,7 @@ const bench = common.createBenchmark(main, {
   type: ['utf', 'asc', 'buf'],
   dur: [5],
 }, {
+  test: { len: 64 },
   flags: ['--expose-internals']
 });
 
