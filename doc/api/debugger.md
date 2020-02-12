@@ -23,7 +23,7 @@ Break on start in myscript.js:1
 debug>
 ```
 
-Node.js's debugger client is not a full-featured debugger, but simple step and
+The Node.js debugger client is not a full-featured debugger, but simple step and
 inspection are possible.
 
 Inserting the statement `debugger;` into the source code of a script will
