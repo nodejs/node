@@ -309,7 +309,8 @@
     }],
     [ 'OS=="linux" and '
       'target_arch=="x64" and '
-      'llvm_version=="0.0"', {
+      'node_use_large_pages=="true" and '
+      'node_use_large_pages_script_lld=="false"', {
       'ldflags': [
         '-Wl,-T',
         '<!(realpath src/large_pages/ld.implicit.script)',
@@ -317,7 +318,8 @@
     }],
     [ 'OS=="linux" and '
       'target_arch=="x64" and '
-      'llvm_version!="0.0"', {
+      'node_use_large_pages=="true" and '
+      'node_use_large_pages_script_lld=="true"', {
       'ldflags': [
         '-Wl,-T',
         '<!(realpath src/large_pages/ld.implicit.script.lld)',
