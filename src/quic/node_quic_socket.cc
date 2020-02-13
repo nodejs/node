@@ -113,11 +113,6 @@ void QuicSocketListener::OnError(ssize_t code) {
     previous_listener_->OnError(code);
 }
 
-void QuicSocketListener::OnError(int code) {
-  if (previous_listener_ != nullptr)
-    previous_listener_->OnError(code);
-}
-
 void QuicSocketListener::OnSessionReady(BaseObjectPtr<QuicSession> session) {
   if (previous_listener_ != nullptr)
     previous_listener_->OnSessionReady(session);
@@ -143,14 +138,6 @@ void JSQuicSocketListener::OnError(ssize_t code) {
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> arg = Number::New(env->isolate(), static_cast<double>(code));
-  socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
-}
-
-void JSQuicSocketListener::OnError(int code) {
-  Environment* env = socket()->env();
-  HandleScope scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Value> arg = Integer::New(env->isolate(), code);
   socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
 }
 

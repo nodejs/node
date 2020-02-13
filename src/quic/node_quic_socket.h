@@ -89,7 +89,6 @@ class QuicSocketListener {
   virtual ~QuicSocketListener();
 
   virtual void OnError(ssize_t code);
-  virtual void OnError(int code);
   virtual void OnSessionReady(BaseObjectPtr<QuicSession> session);
   virtual void OnServerBusy(bool busy);
   virtual void OnEndpointDone(QuicEndpoint* endpoint);
@@ -106,7 +105,6 @@ class QuicSocketListener {
 class JSQuicSocketListener : public QuicSocketListener {
  public:
   void OnError(ssize_t code) override;
-  void OnError(int code) override;
   void OnSessionReady(BaseObjectPtr<QuicSession> session) override;
   void OnServerBusy(bool busy) override;
   void OnEndpointDone(QuicEndpoint* endpoint) override;
