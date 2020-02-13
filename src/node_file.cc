@@ -748,16 +748,11 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
     type_v.emplace_back(Integer::New(isolate, ent.type));
   }
 
-  Local<Array> result = Array::New(isolate, 2);
-  result->Set(env->context(),
-              0,
-              Array::New(isolate, name_v.data(),
-              name_v.size())).Check();
-  result->Set(env->context(),
-              1,
-              Array::New(isolate, type_v.data(),
-              type_v.size())).Check();
-  req_wrap->Resolve(result);
+  Local<Value> result[] = {
+    Array::New(isolate, name_v.data(), name_v.size()),
+    Array::New(isolate, type_v.data(), type_v.size())
+  };
+  req_wrap->Resolve(Array::New(isolate, result, arraysize(result)));
 }
 
 void Access(const FunctionCallbackInfo<Value>& args) {
@@ -1611,13 +1606,11 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
     Local<Array> names = Array::New(isolate, name_v.data(), name_v.size());
     if (with_types) {
-      Local<Array> result = Array::New(isolate, 2);
-      result->Set(env->context(), 0, names).Check();
-      result->Set(env->context(),
-                  1,
-                  Array::New(isolate, type_v.data(),
-                             type_v.size())).Check();
-      args.GetReturnValue().Set(result);
+      Local<Value> result[] = {
+        names,
+        Array::New(isolate, type_v.data(), type_v.size())
+      };
+      args.GetReturnValue().Set(Array::New(isolate, result, arraysize(result)));
     } else {
       args.GetReturnValue().Set(names);
     }

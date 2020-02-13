@@ -218,19 +218,19 @@ void Initialize(Local<Object> target,
   // Heap space names are extracted once and exposed to JavaScript to
   // avoid excessive creation of heap space name Strings.
   HeapSpaceStatistics s;
-  const Local<Array> heap_spaces = Array::New(env->isolate(),
-                                              number_of_heap_spaces);
+  MaybeStackBuffer<Local<Value>, 16> heap_spaces(number_of_heap_spaces);
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     env->isolate()->GetHeapSpaceStatistics(&s, i);
-    Local<String> heap_space_name = String::NewFromUtf8(env->isolate(),
-                                                        s.space_name(),
-                                                        NewStringType::kNormal)
-                                        .ToLocalChecked();
-    heap_spaces->Set(env->context(), i, heap_space_name).Check();
+    heap_spaces[i] = String::NewFromUtf8(env->isolate(),
+                                         s.space_name(),
+                                         NewStringType::kNormal)
+                                             .ToLocalChecked();
   }
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
-              heap_spaces).Check();
+              Array::New(env->isolate(),
+                         heap_spaces.out(),
+                         number_of_heap_spaces)).Check();
 
   env->SetMethod(target,
                  "updateHeapSpaceStatisticsArrayBuffer",
