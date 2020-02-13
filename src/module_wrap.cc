@@ -236,11 +236,11 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Local<Context> mod_context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
 
-  Local<Array> promises = Array::New(isolate,
-                                     module->GetModuleRequestsLength());
+  const int module_requests_length = module->GetModuleRequestsLength();
+  MaybeStackBuffer<Local<Value>, 16> promises(module_requests_length);
 
   // call the dependency resolve callbacks
-  for (int i = 0; i < module->GetModuleRequestsLength(); i++) {
+  for (int i = 0; i < module_requests_length; i++) {
     Local<String> specifier = module->GetModuleRequest(i);
     Utf8Value specifier_utf8(env->isolate(), specifier);
     std::string specifier_std(*specifier_utf8, specifier_utf8.length());
@@ -262,10 +262,11 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
     obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
 
-    promises->Set(mod_context, i, resolve_promise).Check();
+    promises[i] = resolve_promise;
   }
 
-  args.GetReturnValue().Set(promises);
+  args.GetReturnValue().Set(
+      Array::New(isolate, promises.out(), promises.length()));
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
@@ -398,12 +399,13 @@ void ModuleWrap::GetStaticDependencySpecifiers(
 
   int count = module->GetModuleRequestsLength();
 
-  Local<Array> specifiers = Array::New(env->isolate(), count);
+  MaybeStackBuffer<Local<Value>, 16> specifiers(count);
 
   for (int i = 0; i < count; i++)
-    specifiers->Set(env->context(), i, module->GetModuleRequest(i)).Check();
+    specifiers[i] = module->GetModuleRequest(i);
 
-  args.GetReturnValue().Set(specifiers);
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), specifiers.out(), count));
 }
 
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
