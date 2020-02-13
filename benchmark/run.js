@@ -60,7 +60,7 @@ if (format === 'csv') {
     for (const key of Object.keys(data.conf)) {
       if (conf !== '')
         conf += ' ';
-      conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
+      conf += `${key}=${JSON.stringify(data.conf[key])}`;
     }
     if (format === 'csv') {
       // Escape quotes (") for correct csv formatting
