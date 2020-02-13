@@ -26,15 +26,16 @@ const assert = require('assert');
 const net = require('net');
 
 const host = '*'.repeat(64);
-const errCode = common.isOpenBSD ? 'EAI_FAIL' : 'ENOTFOUND';
+// Resolving hostname > 63 characters may return EAI_FAIL (permanent failure).
+const errCodes = ['ENOTFOUND', 'EAI_FAIL'];
 
 const socket = net.connect(42, host, common.mustNotCall());
 socket.on('error', common.mustCall(function(err) {
-  assert.strictEqual(err.code, errCode);
+  assert(errCodes.includes(err.code), err);
 }));
 socket.on('lookup', common.mustCall(function(err, ip, type) {
   assert(err instanceof Error);
-  assert.strictEqual(err.code, errCode);
+  assert(errCodes.includes(err.code), err);
   assert.strictEqual(ip, undefined);
   assert.strictEqual(type, undefined);
 }));
