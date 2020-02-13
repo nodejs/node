@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const { AsyncLocal } = async_hooks;
@@ -22,12 +22,9 @@ assert.strictEqual(asyncLocal.get(), obj);
 asyncLocal.remove();
 assert.strictEqual(asyncLocal.get(), undefined);
 
-// Throws on modification after removal
-const error = common.expectsError({
-  code: 'ERR_ASYNC_LOCAL_CANNOT_SET_VALUE',
-  name: 'Error',
-});
-assert.throws(() => asyncLocal.set('bar'), error);
+// Subsequent .set() is ignored
+asyncLocal.set('bar');
+assert.strictEqual(asyncLocal.get(), undefined);
 
 // Subsequent .remove() does not throw
 asyncLocal.remove();

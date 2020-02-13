@@ -643,11 +643,6 @@ by the `assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
-<a id="ERR_ASYNC_LOCAL_CANNOT_SET_VALUE"></a>
-### `ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`
-
-An attempt was made to set value for a `AsyncLocal` after it was removed.
-
 <a id="ERR_ASYNC_TYPE"></a>
 ### `ERR_ASYNC_TYPE`
 

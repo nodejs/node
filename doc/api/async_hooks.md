@@ -682,7 +682,7 @@ setImmediate(() => {
 ```
 
 If the `AsyncLocal` was removed before this call is made,
-[`ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`][] is thrown.
+the call will have no effect.
 
 ### `asyncLocal.remove()`
 
@@ -691,8 +691,7 @@ values stored by it. Calling `asyncLocal.remove()` multiple times will
 have no effect.
 
 Any subsequent `asyncLocal.get()` calls will return `undefined`.
-Any subsequent `asyncLocal.set(value)` calls will throw
-[`ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`][].
+Any subsequent `asyncLocal.set(value)` calls will have no effect.
 
 ## Promise execution tracking
 
@@ -983,4 +982,3 @@ for (let i = 0; i < 10; i++) {
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
-[`ERR_ASYNC_LOCAL_CANNOT_SET_VALUE`]: errors.html#ERR_ASYNC_LOCAL_CANNOT_SET_VALUE
