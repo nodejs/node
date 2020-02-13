@@ -238,7 +238,6 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
-  std::string use_largepages = "off";
 
 #ifdef NODE_REPORT
   std::vector<std::string> cmdline;

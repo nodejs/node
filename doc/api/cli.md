@@ -881,22 +881,6 @@ environment variables.
 
 See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
-### `--use-largepages=mode`
-<!-- YAML
-added: v12.16.0
--->
-
-Re-map the Node.js static code to large memory pages at startup. If supported on
-the target system, this will cause the Node.js static code to be moved onto 2
-MiB pages instead of 4 KiB pages.
-
-The following values are valid for `mode`:
-* `off`: No mapping will be attempted. This is the default.
-* `on`: If supported by the OS, mapping will be attempted. Failure to map will
-  be ignored and a message will be printed to standard error.
-* `silent`: If supported by the OS, mapping will be attempted. Failure to map
-  will be ignored and will not be reported.
-
 ### `--v8-options`
 <!-- YAML
 added: v0.1.3
@@ -1153,7 +1137,6 @@ Node.js options that are allowed are:
 * `--track-heap-objects`
 * `--unhandled-rejections`
 * `--use-bundled-ca`
-* `--use-largepages`
 * `--use-openssl-ca`
 * `--v8-pool-size`
 * `--zero-fill-buffers`

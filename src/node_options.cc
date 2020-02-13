@@ -65,11 +65,6 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
                       "used, not both");
   }
 #endif
-  if (use_largepages != "off" &&
-      use_largepages != "on" &&
-      use_largepages != "silent") {
-    errors->push_back("invalid value for --use-largepages");
-  }
   per_isolate->CheckOptions(errors);
 }
 
@@ -793,10 +788,6 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
 #endif
 #endif
-  AddOption("--use-largepages",
-            "Map the Node.js static code to large pages",
-            &PerProcessOptions::use_largepages,
-            kAllowedInEnvironment);
 
   // v12.x backwards compat flags removed in V8 7.9.
   AddOption("--fast_calls_with_arguments_mismatches", "", NoOp{});
