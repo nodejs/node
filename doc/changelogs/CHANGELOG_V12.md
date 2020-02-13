@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.16.1">12.16.1</a><br/>
 <a href="#12.16.0">12.16.0</a><br/>
 <a href="#12.15.0">12.15.0</a><br/>
 <a href="#12.14.1">12.14.1</a><br/>
@@ -53,6 +54,69 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.16.1"></a>
+## 2020-02-18, Version 12.16.1 'Erbium' (LTS), @MylesBorins
+
+### Notable changes
+
+Node.js 12.16.0 included 6 regressions that are being fixed in this release
+
+**Accidental Unflagging of Self Resolving Modules**:
+
+12.16.0 included a large update to the ESM implementation. One of the new features,
+Self Referential Modules, was accidentally released without requiring the `--experimental-modules`
+flag. This release is being made to appropriately flag the feature.
+
+**Process Cleanup Changed Introduced WASM-Related Assertion**:
+
+A change during Node.js process cleanup led to a crash in combination with
+specific usage of WASM. This has been fixed by partially reverted said change.
+A regression test and a full fix are being worked on and will likely be included
+in future 12.x and 13.x releases.
+
+**Use Largepages Runtime Option Introduced Linking Failure**:
+
+A Semver-Minor change to introduce `--use-largepages` as a runtime option
+introduced a linking failure. This had been fixed in master but regressed as the fix has not yet gone out
+in a Current release. The feature has been reverted, but will be able to reland with a fix in a future
+Semver-Minor release.
+
+**Async Hooks was Causing an Exception When Handling Errors**:
+
+Changes in async hooks internals introduced a case where an internal api call could be called with undefined
+causing a process to crash. The change to async hooks was reverted. A regression test and fix has been proposed
+and the change could re land in a future Semver-Patch release if the regression is reliably fixed.
+
+**New Enumerable Read-Only Property on EventEmitter breaks @types/extend**
+
+A new property for enumerating events was added to the EventEmitter class. This
+broke existing code that was using the `@types/extend` module for extending classses
+as `@types/extend` was attemping to write over the existing field which the new
+change made read-only. As this is the first property on EventEmitter that is
+read-only this feature could be considered Semver-Major. The new feature has been
+reverted but could re land in a future Semver-Minor release if a non breaking way
+of applying it is found.
+
+**Exceptions in the HTTP parser were not emitting an uncaughtException**
+
+A refactoring to Node.js interanls resulted in a bug where errors in the HTTP
+parser were not being emitted by `process.on('uncaughtException')`. The fix
+to this bug has been included in this release.
+
+### Commits
+
+* [[`51fdd759b9`](https://github.com/nodejs/node/commit/51fdd759b9)] - **async_hooks**: ensure event after been emitted on runInAsyncScope (legendecas) [#31784](https://github.com/nodejs/node/pull/31784)
+* [[`7a1b0ac06f`](https://github.com/nodejs/node/commit/7a1b0ac06f)] - ***Revert*** "**build**: re-introduce --use-largepages as no-op" (Myles Borins) [#31782](https://github.com/nodejs/node/pull/31782)
+* [[`a53eeca2a9`](https://github.com/nodejs/node/commit/a53eeca2a9)] - ***Revert*** "**build**: switch realpath to pwd" (Myles Borins) [#31782](https://github.com/nodejs/node/pull/31782)
+* [[`6d432994e6`](https://github.com/nodejs/node/commit/6d432994e6)] - ***Revert*** "**build**: warn upon --use-largepages config option" (Myles Borins) [#31782](https://github.com/nodejs/node/pull/31782)
+* [[`a5bc00af12`](https://github.com/nodejs/node/commit/a5bc00af12)] - ***Revert*** "**events**: allow monitoring error events" (Myles Borins)
+* [[`f0b2d875d9`](https://github.com/nodejs/node/commit/f0b2d875d9)] - **module**: 12.x self resolve flag as experimental modules (Guy Bedford) [#31757](https://github.com/nodejs/node/pull/31757)
+* [[`42b68a4e24`](https://github.com/nodejs/node/commit/42b68a4e24)] - **src**: inform callback scopes about exceptions in HTTP parser (Anna Henningsen) [#31801](https://github.com/nodejs/node/pull/31801)
+* [[`065a32f064`](https://github.com/nodejs/node/commit/065a32f064)] - ***Revert*** "**src**: make --use-largepages a runtime option" (Myles Borins) [#31782](https://github.com/nodejs/node/pull/31782)
+* [[`3d5beebc62`](https://github.com/nodejs/node/commit/3d5beebc62)] - ***Revert*** "**src**: make large\_pages node.cc include conditional" (Myles Borins) [#31782](https://github.com/nodejs/node/pull/31782)
+* [[`43d02e20e0`](https://github.com/nodejs/node/commit/43d02e20e0)] - **src**: keep main-thread Isolate attached to platform during Dispose (Anna Henningsen) [#31795](https://github.com/nodejs/node/pull/31795)
+* [[`7a5954ef26`](https://github.com/nodejs/node/commit/7a5954ef26)] - **src**: fix -Winconsistent-missing-override warning (Colin Ihrig) [#30549](https://github.com/nodejs/node/pull/30549)
 
 <a id="12.16.0"></a>
 ## 2020-02-11, Version 12.16.0 'Erbium' (LTS), @targos
