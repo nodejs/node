@@ -1227,7 +1227,7 @@ class Environment : public MemoryRetainer {
                                  void* data);
 
   inline std::shared_ptr<EnvironmentOptions> options();
-  inline std::shared_ptr<HostPort> inspector_host_port();
+  inline std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port();
 
   // The BaseObject count is a debugging helper that makes sure that there are
   // no memory leaks caused by BaseObjects staying alive longer than expected
@@ -1326,7 +1326,7 @@ class Environment : public MemoryRetainer {
   // server starts listening), but when the inspector server starts
   // the inspector_host_port_->port() will be the actual port being
   // used.
-  std::shared_ptr<HostPort> inspector_host_port_;
+  std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port_;
   std::vector<std::string> exec_argv_;
   std::vector<std::string> argv_;
   std::string exec_path_;
