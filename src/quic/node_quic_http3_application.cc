@@ -105,9 +105,10 @@ void Http3Header::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("value", value_);
 }
 
+template <typename T>
 void Http3Application::SetConfig(
     int idx,
-    uint64_t Http3ApplicationConfig::*member) {
+    uint64_t T::*member) {
   AliasedFloat64Array& buffer = env()->quic_state()->http3config_buffer;
   uint64_t flags = static_cast<uint64_t>(buffer[IDX_HTTP3_CONFIG_COUNT]);
   if (flags & (1ULL << idx))
