@@ -4362,7 +4362,7 @@ Following successful read, the `Promise` is resolved with an object with a
 `bytesRead` property specifying the number of bytes read, and a `buffer`
 property that is a reference to the passed in `buffer` argument.
 
-#### `filehandle.read({buffer, offset, length, position})`
+#### `filehandle.read(options)`
 <!-- YAML
 added: REPLACEME
 -->
