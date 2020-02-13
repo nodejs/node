@@ -4509,12 +4509,25 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
 
 
 void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
   Sign* sign;
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
 
   Error err;
-  ArrayBufferViewContents<char> buf(args[0]);
-  err = sign->Update(buf.data(), buf.length());
+
+  // Only copy the data if we have to, because it's a string
+  if (args[0]->IsString()) {
+    StringBytes::InlineDecoder decoder;
+    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
+
+    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
+      return;
+    err = sign->Update(decoder.out(), decoder.size());
+  } else {
+    ArrayBufferViewContents<char> buf(args[0]);
+    err = sign->Update(buf.data(), buf.length());
+  }
 
   sign->CheckThrow(err);
 }
@@ -4834,12 +4847,25 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
 
 
 void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
   Verify* verify;
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
 
   Error err;
-  ArrayBufferViewContents<char> buf(args[0]);
-  err = verify->Update(buf.data(), buf.length());
+
+  // Only copy the data if we have to, because it's a string
+  if (args[0]->IsString()) {
+    StringBytes::InlineDecoder decoder;
+    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
+
+    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
+      return;
+    err = verify->Update(decoder.out(), decoder.size());
+  } else {
+    ArrayBufferViewContents<char> buf(args[0]);
+    err = verify->Update(buf.data(), buf.length());
+  }
 
   verify->CheckThrow(err);
 }
