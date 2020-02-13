@@ -607,8 +607,9 @@ void SyncProcessRunner::Kill() {
     if (r < 0 && r != UV_ESRCH) {
       SetError(r);
 
-      r = uv_process_kill(&uv_process_, SIGKILL);
-      CHECK(r >= 0 || r == UV_ESRCH);
+      // Deliberately ignore the return value, we might not have
+      // sufficient privileges to signal the child process.
+      USE(uv_process_kill(&uv_process_, SIGKILL));
     }
   }
 
