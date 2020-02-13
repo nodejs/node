@@ -145,6 +145,26 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     unsigned int inlen,
     void* arg);
 
+template <typename T>
+void Decode(const FunctionCallbackInfo<Value>& args,
+            void (*callback)(T*, const FunctionCallbackInfo<Value>&,
+                             const char*, size_t)) {
+  T* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
+
+  if (args[0]->IsString()) {
+    StringBytes::InlineDecoder decoder;
+    Environment* env = Environment::GetCurrent(args);
+    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
+    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
+      return;
+    callback(ctx, args, decoder.out(), decoder.size());
+  } else {
+    ArrayBufferViewContents<char> buf(args[0]);
+    callback(ctx, args, buf.data(), buf.length());
+  }
+}
+
 static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   const char* passphrase = static_cast<char*>(u);
   if (passphrase != nullptr) {
@@ -3946,38 +3966,24 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
 
 
 void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Decode<CipherBase>(args, [](CipherBase* cipher,
+                              const FunctionCallbackInfo<Value>& args,
+                              const char* data, size_t size) {
+    AllocatedBuffer out;
+    UpdateResult r = cipher->Update(data, size, &out);
 
-  CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
-
-  AllocatedBuffer out;
-  UpdateResult r;
-
-  // Only copy the data if we have to, because it's a string
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
-
-    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
+    if (r != kSuccess) {
+      if (r == kErrorState) {
+        Environment* env = Environment::GetCurrent(args);
+        ThrowCryptoError(env, ERR_get_error(),
+                         "Trying to add data in unsupported state");
+      }
       return;
-    r = cipher->Update(decoder.out(), decoder.size(), &out);
-  } else {
-    ArrayBufferViewContents<char> buf(args[0]);
-    r = cipher->Update(buf.data(), buf.length(), &out);
-  }
-
-  if (r != kSuccess) {
-    if (r == kErrorState) {
-      ThrowCryptoError(env, ERR_get_error(),
-                       "Trying to add data in unsupported state");
     }
-    return;
-  }
 
-  CHECK(out.data() != nullptr || out.size() == 0);
-
-  args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+    CHECK(out.data() != nullptr || out.size() == 0);
+    args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+  });
 }
 
 
@@ -4139,26 +4145,11 @@ bool Hmac::HmacUpdate(const char* data, int len) {
 
 
 void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Hmac* hmac;
-  ASSIGN_OR_RETURN_UNWRAP(&hmac, args.Holder());
-
-  // Only copy the data if we have to, because it's a string
-  bool r = false;
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
-
-    if (!decoder.Decode(env, args[0].As<String>(), enc).IsNothing()) {
-      r = hmac->HmacUpdate(decoder.out(), decoder.size());
-    }
-  } else {
-    ArrayBufferViewContents<char> buf(args[0]);
-    r = hmac->HmacUpdate(buf.data(), buf.length());
-  }
-
-  args.GetReturnValue().Set(r);
+  Decode<Hmac>(args, [](Hmac* hmac, const FunctionCallbackInfo<Value>& args,
+                        const char* data, size_t size) {
+    bool r = hmac->HmacUpdate(data, size);
+    args.GetReturnValue().Set(r);
+  });
 }
 
 
@@ -4287,28 +4278,11 @@ bool Hash::HashUpdate(const char* data, int len) {
 
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Hash* hash;
-  ASSIGN_OR_RETURN_UNWRAP(&hash, args.Holder());
-
-  // Only copy the data if we have to, because it's a string
-  bool r = true;
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
-
-    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing()) {
-      args.GetReturnValue().Set(false);
-      return;
-    }
-    r = hash->HashUpdate(decoder.out(), decoder.size());
-  } else if (args[0]->IsArrayBufferView()) {
-    ArrayBufferViewContents<char> buf(args[0].As<ArrayBufferView>());
-    r = hash->HashUpdate(buf.data(), buf.length());
-  }
-
-  args.GetReturnValue().Set(r);
+  Decode<Hash>(args, [](Hash* hash, const FunctionCallbackInfo<Value>& args,
+                        const char* data, size_t size) {
+    bool r = hash->HashUpdate(data, size);
+    args.GetReturnValue().Set(r);
+  });
 }
 
 
@@ -4509,27 +4483,11 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
 
 
 void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
-
-  Error err;
-
-  // Only copy the data if we have to, because it's a string
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
-
-    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
-      return;
-    err = sign->Update(decoder.out(), decoder.size());
-  } else {
-    ArrayBufferViewContents<char> buf(args[0]);
-    err = sign->Update(buf.data(), buf.length());
-  }
-
-  sign->CheckThrow(err);
+  Decode<Sign>(args, [](Sign* sign, const FunctionCallbackInfo<Value>& args,
+                        const char* data, size_t size) {
+    Error err = sign->Update(data, size);
+    sign->CheckThrow(err);
+  });
 }
 
 static int GetDefaultSignPadding(const ManagedEVPPKey& key) {
@@ -4847,27 +4805,12 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
 
 
 void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
-
-  Error err;
-
-  // Only copy the data if we have to, because it's a string
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    enum encoding enc = ParseEncoding(env->isolate(), args[1], UTF8);
-
-    if (decoder.Decode(env, args[0].As<String>(), enc).IsNothing())
-      return;
-    err = verify->Update(decoder.out(), decoder.size());
-  } else {
-    ArrayBufferViewContents<char> buf(args[0]);
-    err = verify->Update(buf.data(), buf.length());
-  }
-
-  verify->CheckThrow(err);
+  Decode<Verify>(args, [](Verify* verify,
+                          const FunctionCallbackInfo<Value>& args,
+                          const char* data, size_t size) {
+    Error err = verify->Update(data, size);
+    verify->CheckThrow(err);
+  });
 }
 
 
