@@ -596,11 +596,13 @@ class KVStore {
 
   virtual v8::MaybeLocal<v8::String> Get(v8::Isolate* isolate,
                                          v8::Local<v8::String> key) const = 0;
+  virtual v8::Maybe<std::string> Get(const char* key) const = 0;
   virtual void Set(v8::Isolate* isolate,
                    v8::Local<v8::String> key,
                    v8::Local<v8::String> value) = 0;
   virtual int32_t Query(v8::Isolate* isolate,
                         v8::Local<v8::String> key) const = 0;
+  virtual int32_t Query(const char* key) const = 0;
   virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
   virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
 

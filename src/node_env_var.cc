@@ -29,8 +29,10 @@ using v8::Value;
 class RealEnvStore final : public KVStore {
  public:
   MaybeLocal<String> Get(Isolate* isolate, Local<String> key) const override;
+  Maybe<std::string> Get(const char* key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
   int32_t Query(Isolate* isolate, Local<String> key) const override;
+  int32_t Query(const char* key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
   Local<Array> Enumerate(Isolate* isolate) const override;
 };
@@ -38,8 +40,10 @@ class RealEnvStore final : public KVStore {
 class MapKVStore final : public KVStore {
  public:
   MaybeLocal<String> Get(Isolate* isolate, Local<String> key) const override;
+  Maybe<std::string> Get(const char* key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
   int32_t Query(Isolate* isolate, Local<String> key) const override;
+  int32_t Query(const char* key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
   Local<Array> Enumerate(Isolate* isolate) const override;
 
@@ -58,26 +62,36 @@ Mutex env_var_mutex;
 std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
-MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
-                                     Local<String> property) const {
+Maybe<std::string> RealEnvStore::Get(const char* key) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
-  node::Utf8Value key(isolate, property);
   size_t init_sz = 256;
   MaybeStackBuffer<char, 256> val;
-  int ret = uv_os_getenv(*key, *val, &init_sz);
+  int ret = uv_os_getenv(key, *val, &init_sz);
 
   if (ret == UV_ENOBUFS) {
     // Buffer is not large enough, reallocate to the updated init_sz
     // and fetch env value again.
     val.AllocateSufficientStorage(init_sz);
-    ret = uv_os_getenv(*key, *val, &init_sz);
+    ret = uv_os_getenv(key, *val, &init_sz);
   }
 
   if (ret >= 0) {  // Env key value fetch success.
-    MaybeLocal<String> value_string =
-        String::NewFromUtf8(isolate, *val, NewStringType::kNormal, init_sz);
-    return value_string;
+    return v8::Just(std::string(*val, init_sz));
+  }
+
+  return v8::Nothing<std::string>();
+}
+
+MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
+                                     Local<String> property) const {
+  node::Utf8Value key(isolate, property);
+  Maybe<std::string> value = Get(*key);
+
+  if (value.IsJust()) {
+    std::string val = value.FromJust();
+    return String::NewFromUtf8(
+        isolate, val.data(), NewStringType::kNormal, val.size());
   }
 
   return MaybeLocal<String>();
@@ -97,14 +111,12 @@ void RealEnvStore::Set(Isolate* isolate,
   uv_os_setenv(*key, *val);
 }
 
-int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
+int32_t RealEnvStore::Query(const char* key) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
-
-  node::Utf8Value key(isolate, property);
 
   char val[2];
   size_t init_sz = sizeof(val);
-  int ret = uv_os_getenv(*key, val, &init_sz);
+  int ret = uv_os_getenv(key, val, &init_sz);
 
   if (ret == UV_ENOENT) {
     return -1;
@@ -119,6 +131,11 @@ int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
 #endif
 
   return 0;
+}
+
+int32_t RealEnvStore::Query(Isolate* isolate, Local<String> property) const {
+  node::Utf8Value key(isolate, property);
+  return Query(*key);
 }
 
 void RealEnvStore::Delete(Isolate* isolate, Local<String> property) {
@@ -174,13 +191,19 @@ std::shared_ptr<KVStore> KVStore::Clone(v8::Isolate* isolate) const {
   return copy;
 }
 
-MaybeLocal<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
+Maybe<std::string> MapKVStore::Get(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
+  auto it = map_.find(key);
+  return it == map_.end() ? v8::Nothing<std::string>() : v8::Just(it->second);
+}
+
+MaybeLocal<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
   Utf8Value str(isolate, key);
-  auto it = map_.find(std::string(*str, str.length()));
-  if (it == map_.end()) return Local<String>();
-  return String::NewFromUtf8(isolate, it->second.data(),
-                             NewStringType::kNormal, it->second.size());
+  Maybe<std::string> value = Get(*str);
+  if (value.IsNothing()) return Local<String>();
+  std::string val = value.FromJust();
+  return String::NewFromUtf8(
+      isolate, val.data(), NewStringType::kNormal, val.size());
 }
 
 void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
@@ -193,11 +216,14 @@ void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
   }
 }
 
-int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
+int32_t MapKVStore::Query(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
+  return map_.find(key) == map_.end() ? -1 : 0;
+}
+
+int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
   Utf8Value str(isolate, key);
-  auto it = map_.find(std::string(*str, str.length()));
-  return it == map_.end() ? -1 : 0;
+  return Query(*str);
 }
 
 void MapKVStore::Delete(Isolate* isolate, Local<String> key) {
