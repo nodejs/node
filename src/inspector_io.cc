@@ -239,7 +239,7 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
 std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
-    std::shared_ptr<HostPort> host_port,
+    std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
     const InspectPublishUid& inspect_publish_uid) {
   auto io = std::unique_ptr<InspectorIo>(
       new InspectorIo(main_thread,
@@ -254,7 +254,7 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
-                         std::shared_ptr<HostPort> host_port,
+                         std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
                          const InspectPublishUid& inspect_publish_uid)
     : main_thread_(main_thread),
       host_port_(host_port),
@@ -293,10 +293,17 @@ void InspectorIo::ThreadMain() {
   std::unique_ptr<InspectorIoDelegate> delegate(
       new InspectorIoDelegate(queue, main_thread_, id_,
                               script_path, script_name_));
+  std::string host;
+  int port;
+  {
+    ExclusiveAccess<HostPort>::Scoped host_port(host_port_);
+    host = host_port->host();
+    port = host_port->port();
+  }
   InspectorSocketServer server(std::move(delegate),
                                &loop,
-                               host_port_->host(),
-                               host_port_->port(),
+                               std::move(host),
+                               port,
                                inspect_publish_uid_);
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
@@ -304,7 +311,8 @@ void InspectorIo::ThreadMain() {
   {
     Mutex::ScopedLock scoped_lock(thread_start_lock_);
     if (server.Start()) {
-      host_port_->set_port(server.Port());
+      ExclusiveAccess<HostPort>::Scoped host_port(host_port_);
+      host_port->set_port(server.Port());
     }
     thread_start_condition_.Broadcast(scoped_lock);
   }
@@ -313,7 +321,8 @@ void InspectorIo::ThreadMain() {
 }
 
 std::string InspectorIo::GetWsUrl() const {
-  return FormatWsAddress(host_port_->host(), host_port_->port(), id_, true);
+  ExclusiveAccess<HostPort>::Scoped host_port(host_port_);
+  return FormatWsAddress(host_port->host(), host_port->port(), id_, true);
 }
 
 InspectorIoDelegate::InspectorIoDelegate(

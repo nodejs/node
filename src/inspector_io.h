@@ -30,7 +30,7 @@ class InspectorIo {
   static std::unique_ptr<InspectorIo> Start(
       std::shared_ptr<MainThreadHandle> main_thread,
       const std::string& path,
-      std::shared_ptr<HostPort> host_port,
+      std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
       const InspectPublishUid& inspect_publish_uid);
 
   // Will block till the transport thread shuts down
@@ -42,7 +42,7 @@ class InspectorIo {
  private:
   InspectorIo(std::shared_ptr<MainThreadHandle> handle,
               const std::string& path,
-              std::shared_ptr<HostPort> host_port,
+              std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
               const InspectPublishUid& inspect_publish_uid);
 
   // Wrapper for agent->ThreadMain()
@@ -57,7 +57,7 @@ class InspectorIo {
   // Used to post on a frontend interface thread, lives while the server is
   // running
   std::shared_ptr<RequestQueue> request_queue_;
-  std::shared_ptr<HostPort> host_port_;
+  std::shared_ptr<ExclusiveAccess<HostPort>> host_port_;
   InspectPublishUid inspect_publish_uid_;
 
   // The IO thread runs its own uv_loop to implement the TCP server off
