@@ -2762,7 +2762,7 @@ a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
 ## `fs.read(fd, options, callback)`
 <!-- YAML
-added: v0.0.2
+added: REPLACEME
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/31402
