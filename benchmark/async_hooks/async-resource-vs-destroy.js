@@ -121,7 +121,7 @@ function buildAsyncLocal(getServe) {
   }
 
   function close() {
-    asyncLocal.remove();
+    asyncLocal.destroy();
     server.close();
   }
 }

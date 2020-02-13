@@ -639,7 +639,7 @@ Creates a new instance of `AsyncLocal`.
 * Returns: {any}
 
 Returns the value of the `AsyncLocal` in current execution context,
-or `undefined` if the value is not set or the `AsyncLocal` was removed.
+or `undefined` if the value is not set or the `AsyncLocal` was destroyed.
 
 ### `asyncLocal.set(value)`
 
@@ -681,13 +681,13 @@ setImmediate(() => {
 });
 ```
 
-If the `AsyncLocal` was removed before this call is made,
+If the `AsyncLocal` was destroyed before this call is made,
 the call will have no effect.
 
-### `asyncLocal.remove()`
+### `asyncLocal.destroy()`
 
 Disables value propagation for the `AsyncLocal` and releases all
-values stored by it. Calling `asyncLocal.remove()` multiple times will
+values stored by it. Calling `asyncLocal.destroy()` multiple times will
 have no effect.
 
 Any subsequent `asyncLocal.get()` calls will return `undefined`.

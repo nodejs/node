@@ -7,7 +7,7 @@ const { AsyncLocal } = async_hooks;
 
 // This test ensures correct work of the global hook
 // that serves for propagation of all `AsyncLocal`s
-// in the context of `.remove()` call
+// in the context of `.destroy()` call
 
 const asyncLocalOne = new AsyncLocal();
 asyncLocalOne.set(1);
@@ -16,12 +16,12 @@ asyncLocalTwo.set(2);
 
 setImmediate(() => {
   // Removal of one local should not affect others
-  asyncLocalTwo.remove();
+  asyncLocalTwo.destroy();
   assert.strictEqual(asyncLocalOne.get(), 1);
 
   // Removal of the last active local should not
   // prevent propagation of locals created later
-  asyncLocalOne.remove();
+  asyncLocalOne.destroy();
   const asyncLocalThree = new AsyncLocal();
   asyncLocalThree.set(3);
   setImmediate(() => {

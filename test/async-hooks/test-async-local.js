@@ -19,12 +19,12 @@ const obj = {};
 asyncLocal.set(obj);
 assert.strictEqual(asyncLocal.get(), obj);
 
-asyncLocal.remove();
+asyncLocal.destroy();
 assert.strictEqual(asyncLocal.get(), undefined);
 
 // Subsequent .set() is ignored
 asyncLocal.set('bar');
 assert.strictEqual(asyncLocal.get(), undefined);
 
-// Subsequent .remove() does not throw
-asyncLocal.remove();
+// Subsequent .destroy() does not throw
+asyncLocal.destroy();
