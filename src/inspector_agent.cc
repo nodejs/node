@@ -757,7 +757,7 @@ Agent::~Agent() {}
 
 bool Agent::Start(const std::string& path,
                   const DebugOptions& options,
-                  std::shared_ptr<HostPort> host_port,
+                  std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
                   bool is_main) {
   path_ = path;
   debug_options_ = options;

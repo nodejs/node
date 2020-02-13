@@ -321,7 +321,8 @@ Environment::Environment(IsolateData* isolate_data,
   // part of the per-Isolate option set, for which in turn the defaults are
   // part of the per-process option set.
   options_.reset(new EnvironmentOptions(*isolate_data->options()->per_env));
-  inspector_host_port_.reset(new HostPort(options_->debug_options().host_port));
+  inspector_host_port_.reset(
+      new ExclusiveAccess<HostPort>(options_->debug_options().host_port));
 
 #if HAVE_INSPECTOR
   // We can only create the inspector agent after having cloned the options.
