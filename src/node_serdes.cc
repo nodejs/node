@@ -286,7 +286,6 @@ DeserializerContext::DeserializerContext(Environment* env,
     length_(Buffer::Length(buffer)),
     deserializer_(env->isolate(), data_, length_, this) {
   object()->Set(env->context(), env->buffer_string(), buffer).Check();
-  deserializer_.SetExpectInlineWasm(true);
 
   MakeWeak();
 }
