@@ -11,7 +11,7 @@ if (!common.hasQuic)
 const quic = require('quic');
 const { Worker, workerData } = require('worker_threads');
 
-if (workerData === null) {
+if (workerData == null) {
   new Worker(__filename, { workerData: { removeFromSocket: true } });
   new Worker(__filename, { workerData: { removeFromSocket: false } });
   return;
