@@ -116,16 +116,15 @@ int JSStream::DoWrite(WriteWrap* w,
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
 
-  Local<Array> bufs_arr = Array::New(env()->isolate(), count);
-  Local<Object> buf;
+  MaybeStackBuffer<Local<Value>, 16> bufs_arr(count);
   for (size_t i = 0; i < count; i++) {
-    buf = Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
-    bufs_arr->Set(env()->context(), i, buf).Check();
+    bufs_arr[i] =
+        Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocalChecked();
   }
 
   Local<Value> argv[] = {
     w->object(),
-    bufs_arr
+    Array::New(env()->isolate(), bufs_arr.out(), count)
   };
 
   TryCatchScope try_catch(env());

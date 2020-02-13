@@ -1011,19 +1011,19 @@ static X509_STORE* NewRootCertStore() {
 
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Array> result = Array::New(env->isolate(), arraysize(root_certs));
+  Local<Value> result[arraysize(root_certs)];
 
   for (size_t i = 0; i < arraysize(root_certs); i++) {
-    Local<Value> value;
-    if (!String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(root_certs[i]),
-                                NewStringType::kNormal).ToLocal(&value) ||
-        !result->Set(env->context(), i, value).FromMaybe(false)) {
+    if (!String::NewFromOneByte(
+            env->isolate(),
+            reinterpret_cast<const uint8_t*>(root_certs[i]),
+            NewStringType::kNormal).ToLocal(&result[i])) {
       return;
     }
   }
 
-  args.GetReturnValue().Set(result);
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), result, arraysize(root_certs)));
 }
 
 
@@ -2138,22 +2138,22 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   StackOfASN1 eku(static_cast<STACK_OF(ASN1_OBJECT)*>(
       X509_get_ext_d2i(cert, NID_ext_key_usage, nullptr, nullptr)));
   if (eku) {
-    Local<Array> ext_key_usage = Array::New(env->isolate());
+    const int count = sk_ASN1_OBJECT_num(eku.get());
+    MaybeStackBuffer<Local<Value>, 16> ext_key_usage(count);
     char buf[256];
 
     int j = 0;
-    for (int i = 0; i < sk_ASN1_OBJECT_num(eku.get()); i++) {
+    for (int i = 0; i < count; i++) {
       if (OBJ_obj2txt(buf,
                       sizeof(buf),
                       sk_ASN1_OBJECT_value(eku.get(), i), 1) >= 0) {
-        ext_key_usage->Set(context,
-                           j++,
-                           OneByteString(env->isolate(), buf)).Check();
+        ext_key_usage[j++] = OneByteString(env->isolate(), buf);
       }
     }
 
     eku.reset();
-    info->Set(context, env->ext_key_usage_string(), ext_key_usage).Check();
+    info->Set(context, env->ext_key_usage_string(),
+              Array::New(env->isolate(), ext_key_usage.out(), count)).Check();
   }
 
   if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
@@ -6799,15 +6799,8 @@ void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
   Local<Value> err, pubkey, privkey;
   job->ToResult(&err, &pubkey, &privkey);
 
-  bool (*IsNotTrue)(Maybe<bool>) = [](Maybe<bool> maybe) {
-    return maybe.IsNothing() || !maybe.ToChecked();
-  };
-  Local<Array> ret = Array::New(env->isolate(), 3);
-  if (IsNotTrue(ret->Set(env->context(), 0, err)) ||
-      IsNotTrue(ret->Set(env->context(), 1, pubkey)) ||
-      IsNotTrue(ret->Set(env->context(), 2, privkey)))
-    return;
-  args.GetReturnValue().Set(ret);
+  Local<Value> ret[] = { err, pubkey, privkey };
+  args.GetReturnValue().Set(Array::New(env->isolate(), ret, arraysize(ret)));
 }
 
 void GenerateKeyPairRSA(const FunctionCallbackInfo<Value>& args) {
@@ -6940,17 +6933,6 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   CHECK(ssl);
 
   STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(ssl.get());
-  int n = sk_SSL_CIPHER_num(ciphers);
-  Local<Array> arr = Array::New(env->isolate(), n);
-
-  for (int i = 0; i < n; ++i) {
-    const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
-    arr->Set(env->context(),
-             i,
-             OneByteString(args.GetIsolate(),
-                           SSL_CIPHER_get_name(cipher))).Check();
-  }
-
   // TLSv1.3 ciphers aren't listed by EVP. There are only 5, we could just
   // document them, but since there are only 5, easier to just add them manually
   // and not have to explain their absence in the API docs. They are lower-cased
@@ -6963,13 +6945,20 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
     "tls_aes_128_ccm_sha256"
   };
 
-  for (unsigned i = 0; i < arraysize(TLS13_CIPHERS); ++i) {
-    const char* name = TLS13_CIPHERS[i];
-    arr->Set(env->context(),
-             arr->Length(), OneByteString(args.GetIsolate(), name)).Check();
+  const int n = sk_SSL_CIPHER_num(ciphers);
+  std::vector<Local<Value>> arr(n + arraysize(TLS13_CIPHERS));
+
+  for (int i = 0; i < n; ++i) {
+    const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
+    arr[i] = OneByteString(env->isolate(), SSL_CIPHER_get_name(cipher));
   }
 
-  args.GetReturnValue().Set(arr);
+  for (unsigned i = 0; i < arraysize(TLS13_CIPHERS); ++i) {
+    const char* name = TLS13_CIPHERS[i];
+    arr[n + i] = OneByteString(env->isolate(), name);
+  }
+
+  args.GetReturnValue().Set(Array::New(env->isolate(), arr.data(), arr.size()));
 }
 
 
@@ -7020,22 +7009,23 @@ void GetHashes(const FunctionCallbackInfo<Value>& args) {
 void GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
-  Local<Array> arr = Array::New(env->isolate(), num_curves);
 
   if (num_curves) {
     std::vector<EC_builtin_curve> curves(num_curves);
 
     if (EC_get_builtin_curves(curves.data(), num_curves)) {
-      for (size_t i = 0; i < num_curves; i++) {
-        arr->Set(env->context(),
-                 i,
-                 OneByteString(env->isolate(),
-                               OBJ_nid2sn(curves[i].nid))).Check();
-      }
+      std::vector<Local<Value>> arr(num_curves);
+
+      for (size_t i = 0; i < num_curves; i++)
+        arr[i] = OneByteString(env->isolate(), OBJ_nid2sn(curves[i].nid));
+
+      args.GetReturnValue().Set(
+          Array::New(env->isolate(), arr.data(), arr.size()));
+      return;
     }
   }
 
-  args.GetReturnValue().Set(arr);
+  args.GetReturnValue().Set(Array::New(env->isolate()));
 }
 
 
