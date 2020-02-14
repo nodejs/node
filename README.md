@@ -529,7 +529,7 @@ For information about the governance of the Node.js project, see
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 
-Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
+Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
 maintaining the Node.js project.
 
 ### Release Keys
