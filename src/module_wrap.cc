@@ -264,7 +264,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Local<Context> mod_context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
 
-  int module_requests_length = module->GetModuleRequestsLength();
+  const int module_requests_length = module->GetModuleRequestsLength();
   MaybeStackBuffer<Local<Value>, 16> promises(module_requests_length);
 
   // call the dependency resolve callbacks
