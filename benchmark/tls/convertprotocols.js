@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n }) {
   const input = ['ABC', 'XYZ123', 'FOO'];
-  var m = {};
+  let m = {};
   // First call dominates results
   if (n > 1) {
     tls.convertALPNProtocols(input, m);
