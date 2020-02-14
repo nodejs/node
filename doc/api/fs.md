@@ -4367,10 +4367,10 @@ property that is a reference to the passed in `buffer` argument.
 added: REPLACEME
 -->
 * `options` {Object}
-  * `buffer` {Buffer|Uint8Array}
-  * `offset` {integer}
-  * `length` {integer}
-  * `position` {integer}
+  * `buffer` {Buffer|Uint8Array} **Default:** `Buffer.alloc(16384)`
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.length`
+  * `position` {integer} **Default:** `null`
 * Returns: {Promise}
 
 #### `filehandle.readFile(options)`
