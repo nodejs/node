@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
-  var j = 0;
+  let j = 0;
   function cb1(arg1) {
     j++;
     if (j === n)
