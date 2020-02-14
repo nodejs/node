@@ -39,7 +39,7 @@ result in Collaborators removing their opposition.
 See:
 
 * [List of Collaborators](./README.md#current-project-team-members)
-* [A guide for Collaborators](./COLLABORATOR_GUIDE.md)
+* [A guide for Collaborators](./doc/guides/collaborator-guide.md)
 
 ### Collaborator Activities
 
