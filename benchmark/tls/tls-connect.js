@@ -8,11 +8,11 @@ const bench = common.createBenchmark(main, {
   dur: [5]
 });
 
-var clientConn = 0;
-var serverConn = 0;
-var dur;
-var concurrency;
-var running = true;
+let clientConn = 0;
+let serverConn = 0;
+let dur;
+let concurrency;
+let running = true;
 
 function main(conf) {
   dur = conf.dur;
