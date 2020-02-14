@@ -37,7 +37,7 @@ function benchmark(n, obj, options) {
 }
 
 function main({ method, n, option }) {
-  var obj;
+  let obj;
   const options = opts[option];
   switch (method) {
     case 'Object':
