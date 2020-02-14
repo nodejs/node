@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
-  var i = 0;
+  let i = 0;
   bench.start();
   setTimeout(cb, 1);
   function cb() {
