@@ -1557,7 +1557,7 @@ const cleanup = finished(rs, (err) => {
 });
 ```
 
-### `stream.pipeline(source, ...transforms, destination, callback)`
+### `stream.pipeline(source[, ...transforms], destination, callback)`
 <!-- YAML
 added: v10.0.0
 changes:
