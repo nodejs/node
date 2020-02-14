@@ -7,7 +7,7 @@
 * [Technical Steering Committee](#technical-steering-committee)
   * [TSC Meetings](#tsc-meetings)
 * [Collaborator Nominations](#collaborator-nominations)
-  * [Onboarding](#onboarding)
+  * [Onboarding](#./doc/guides/onboarding)
 * [Consensus Seeking Process](#consensus-seeking-process)
 
 <!-- /TOC -->
@@ -148,7 +148,7 @@ nomination.
 ### Onboarding
 
 After the nomination passes, a TSC member onboards the new Collaborator. See
-[the onboarding guide](./doc/onboarding.md) for details of the onboarding
+[the onboarding guide](./doc/guides/onboarding.md) for details of the onboarding
 process.
 
 ## Consensus Seeking Process

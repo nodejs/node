@@ -924,12 +924,12 @@ endif
 .PHONY: release-only
 release-only: check-xz
 	@if [ "$(DISTTYPE)" = "release" ] && `grep -q REPLACEME doc/api/*.md`; then \
-		echo 'Please update REPLACEME in Added: tags in doc/api/*.md (See doc/releases.md)' ; \
+		echo 'Please update REPLACEME in Added: tags in doc/api/*.md (See doc/guides/releases.md)' ; \
 		exit 1 ; \
 	fi
 	@if [ "$(DISTTYPE)" = "release" ] && \
 		`grep -q DEP...X doc/api/deprecations.md`; then \
-		echo 'Please update DEP...X in doc/api/deprecations.md (See doc/releases.md)' ; \
+		echo 'Please update DEP...X in doc/api/deprecations.md (See doc/guides/releases.md)' ; \
 		exit 1 ; \
 	fi
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
