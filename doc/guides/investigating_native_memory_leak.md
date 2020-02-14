@@ -6,7 +6,7 @@ V8 Garbage collector and is allocated either by the Node.js runtime, its
 dependencies or native [addons](https://nodejs.org/docs/latest/api/n-api.html).
 
 This guide provides information on how to use valgrind to investigate these
-issues.
+issues on Linux platforms.
 
 ## valgrind
 
