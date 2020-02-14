@@ -903,7 +903,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
 [`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
 [`vm` module]: https://nodejs.org/api/vm.html
-[C++ coding style]: ../CPP_STYLE_GUIDE.md
+[C++ coding style]: ../doc/guides/cpp-style-guide.md
 [Callback scopes]: #callback-scopes
 [JavaScript value handles]: #js-handles
 [N-API]: https://nodejs.org/api/n-api.html
