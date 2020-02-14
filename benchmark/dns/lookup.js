@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ name, n, all }) {
-  var i = 0;
+  let i = 0;
 
   if (all === 'true') {
     const opts = { all: true };
