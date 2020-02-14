@@ -330,6 +330,7 @@ class Parser : public AsyncWrap, public StreamListener {
           this, InternalCallbackScope::kSkipTaskQueues);
       head_response = cb.As<Function>()->Call(
           env()->context(), object(), arraysize(argv), argv);
+      if (head_response.IsEmpty()) callback_scope.MarkAsFailed();
     }
 
     int64_t val;
@@ -401,6 +402,7 @@ class Parser : public AsyncWrap, public StreamListener {
       InternalCallbackScope callback_scope(
           this, InternalCallbackScope::kSkipTaskQueues);
       r = cb.As<Function>()->Call(env()->context(), object(), 0, nullptr);
+      if (r.IsEmpty()) callback_scope.MarkAsFailed();
     }
 
     if (r.IsEmpty()) {
