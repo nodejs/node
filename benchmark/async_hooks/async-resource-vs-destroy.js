@@ -51,7 +51,7 @@ function buildCurrentResource(getServe) {
   }
 
   function init(asyncId, type, triggerAsyncId, resource) {
-    var cr = executionAsyncResource();
+    const cr = executionAsyncResource();
     if (cr !== null) {
       resource[cls] = cr[cls];
     }
