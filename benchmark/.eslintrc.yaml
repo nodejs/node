@@ -5,6 +5,7 @@ env:
   es6: true
 
 rules:
+  no-var: error
   comma-dangle:
     - error
     - arrays: 'always-multiline'
