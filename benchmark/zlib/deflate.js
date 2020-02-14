@@ -13,11 +13,11 @@ function main({ n, method, inputLen }) {
   method = method || 'deflate';
   const chunk = Buffer.alloc(inputLen, 'a');
 
-  var i = 0;
   switch (method) {
     // Performs `n` writes for a single deflate stream
-    case 'createDeflate':
-      var deflater = zlib.createDeflate();
+    case 'createDeflate': {
+      let i = 0;
+      const deflater = zlib.createDeflate();
       deflater.resume();
       deflater.on('finish', () => {
         bench.end(n);
@@ -30,9 +30,11 @@ function main({ n, method, inputLen }) {
         deflater.write(chunk, next);
       })();
       break;
+    }
     // Performs `n` single deflate operations
-    case 'deflate':
-      var deflate = zlib.deflate;
+    case 'deflate': {
+      let i = 0;
+      const deflate = zlib.deflate;
       bench.start();
       (function next(err, result) {
         if (i++ === n)
@@ -40,14 +42,16 @@ function main({ n, method, inputLen }) {
         deflate(chunk, next);
       })();
       break;
+    }
     // Performs `n` single deflateSync operations
-    case 'deflateSync':
-      var deflateSync = zlib.deflateSync;
+    case 'deflateSync': {
+      const deflateSync = zlib.deflateSync;
       bench.start();
-      for (; i < n; ++i)
+      for (let i = 0; i < n; ++i)
         deflateSync(chunk);
       bench.end(n);
       break;
+    }
     default:
       throw new Error('Unsupported deflate method');
   }
