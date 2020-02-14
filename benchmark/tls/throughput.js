@@ -7,12 +7,12 @@ const bench = common.createBenchmark(main, {
 });
 
 const fixtures = require('../../test/common/fixtures');
-var options;
+let options;
 const tls = require('tls');
 
 function main({ dur, type, size }) {
-  var encoding;
-  var chunk;
+  let encoding;
+  let chunk;
   switch (type) {
     case 'buf':
       chunk = Buffer.alloc(size, 'b');
@@ -37,7 +37,7 @@ function main({ dur, type, size }) {
   };
 
   const server = tls.createServer(options, onConnection);
-  var conn;
+  let conn;
   server.listen(common.PORT, () => {
     const opt = { port: common.PORT, rejectUnauthorized: false };
     conn = tls.connect(opt, () => {
@@ -52,7 +52,7 @@ function main({ dur, type, size }) {
     }
   });
 
-  var received = 0;
+  let received = 0;
   function onConnection(conn) {
     conn.on('data', (chunk) => {
       received += chunk.length;
