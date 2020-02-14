@@ -55,6 +55,9 @@ class Vector {
 // independently of subject and pattern char size.
 class StringSearchBase {
  protected:
+   StringSearchBase() : bad_char_shift_table_(), good_suffix_shift_table_(),
+                        suffix_table_() {}
+
   // Cap on the maximal shift in the Boyer-Moore implementation. By setting a
   // limit, we can fix the size of tables. For a needle longer than this limit,
   // search will not be optimal, since we only build tables for a suffix
