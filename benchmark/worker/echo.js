@@ -55,7 +55,7 @@ function main({ n, workers, sendsPerBroadcast: sends, payload: payloadType }) {
       return;
     }
     for (const worker of workerObjs) {
-      for (var i = 0; i < sends; ++i)
+      for (let i = 0; i < sends; ++i)
         worker.postMessage(payload);
     }
   }
