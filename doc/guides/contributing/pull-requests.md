@@ -115,7 +115,7 @@ If you are modifying code, please be sure to run `make lint` from time to
 time to ensure that the changes follow the Node.js code style guide.
 
 Any documentation you write (including code comments and API documentation)
-should follow the [Style Guide](../../STYLE_GUIDE.md). Code samples included
+should follow the [Style Guide](../documentation-style.md). Code samples included
 in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows). If you are adding to or deprecating an API,
 use `REPLACEME` for the version number in the documentation YAML.
