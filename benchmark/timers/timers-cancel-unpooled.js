@@ -14,14 +14,13 @@ function main({ n, direction }) {
     timersList.push(setTimeout(cb, i + 1));
   }
 
-  var j;
   bench.start();
   if (direction === 'start') {
-    for (j = 0; j < n; j++) {
+    for (let j = 0; j < n; j++) {
       clearTimeout(timersList[j]);
     }
   } else {
-    for (j = n - 1; j >= 0; j--) {
+    for (let j = n - 1; j >= 0; j--) {
       clearTimeout(timersList[j]);
     }
   }

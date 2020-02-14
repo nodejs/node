@@ -8,11 +8,11 @@ const bench = common.createBenchmark(main, {
 
 function main({ n }) {
 
-  var timer = setTimeout(() => {}, 1);
+  let timer = setTimeout(() => {}, 1);
   for (let i = 0; i < n; i++) {
     setTimeout(cb, 1);
   }
-  var next = timer._idlePrev;
+  let next = timer._idlePrev;
   clearTimeout(timer);
 
   bench.start();
