@@ -585,8 +585,8 @@ The `writable.write()` method writes some data to the stream, and calls the
 supplied `callback` once the data has been fully handled. If an error
 occurs, the `callback` *may or may not* be called with the error as its
 first argument. To reliably detect write errors, add a listener for the
-`'error'` event. If `callback` is called with an error, it will be called
-before the `'error'` event is emitted.
+`'error'` event. The `callback` is called asynchronously and before `'error'` is
+emitted.
 
 The return value is `true` if the internal buffer is less than the
 `highWaterMark` configured when the stream was created after admitting `chunk`.
@@ -1890,8 +1890,8 @@ methods only.
 The `callback` method must be called to signal either that the write completed
 successfully or failed with an error. The first argument passed to the
 `callback` must be the `Error` object if the call failed or `null` if the
-write succeeded. The `callback` method will always be called asynchronously and
-before `'error'` is emitted.
+write succeeded. The `callback` must be called synchronously inside of
+`writable._write()` or asynchronously (i.e. different tick).
 
 All calls to `writable.write()` that occur between the time `writable._write()`
 is called and the `callback` is called will cause the written data to be
