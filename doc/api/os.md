@@ -394,7 +394,7 @@ Throws a [`SystemError`][] if a user has no `username` or `homedir`.
 added: REPLACEME
 -->
 
-* Returns {String}
+* Returns {string}
 
 Returns a string identifying the kernel version.
 
