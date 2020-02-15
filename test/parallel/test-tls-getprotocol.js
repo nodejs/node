@@ -34,7 +34,8 @@ const server = tls.createServer(serverConfig, common.mustCall(function() {
       secureProtocol: v.secureProtocol
     }, common.mustCall(function() {
       assert.strictEqual(this.getProtocol(), v.version);
-      this.on('end', common.mustCall(function() {
+      this.on('end', common.mustCall());
+      this.on('close', common.mustCall(function() {
         assert.strictEqual(this.getProtocol(), null);
       })).end();
       if (++connected === clientConfigs.length)
