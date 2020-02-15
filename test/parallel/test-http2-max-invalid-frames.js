@@ -23,7 +23,10 @@ server.on('stream', (stream) => {
 
 server.listen(0, () => {
   const h2header = Buffer.alloc(9);
-  const conn = net.connect(server.address().port);
+  const conn = net.connect({
+    port: server.address().port,
+    allowHalfOpen: true
+  });
 
   conn.write('PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n');
 
