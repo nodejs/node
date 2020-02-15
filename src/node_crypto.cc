@@ -1701,6 +1701,8 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethodNoSideEffect(t, "verifyError", VerifyError);
   env->SetProtoMethodNoSideEffect(t, "getCipher", GetCipher);
   env->SetProtoMethodNoSideEffect(t, "getSharedSigalgs", GetSharedSigalgs);
+  env->SetProtoMethodNoSideEffect(
+      t, "exportKeyingMaterial", ExportKeyingMaterial);
   env->SetProtoMethod(t, "endParser", EndParser);
   env->SetProtoMethod(t, "certCbDone", CertCbDone);
   env->SetProtoMethod(t, "renegotiate", Renegotiate);
@@ -2216,6 +2218,44 @@ void SSLWrap<Base>::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
                  Array::New(env->isolate(), ret_arr.out(), ret_arr.length()));
 }
 
+template <class Base>
+void SSLWrap<Base>::ExportKeyingMaterial(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsString());
+
+  Base* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+  Environment* env = w->ssl_env();
+
+  uint32_t olen = args[0].As<Uint32>()->Value();
+  node::Utf8Value label(env->isolate(), args[1]);
+
+  AllocatedBuffer out = env->AllocateManaged(olen);
+
+  ByteSource key;
+
+  int useContext = 0;
+  if (!args[2]->IsNull() && Buffer::HasInstance(args[2])) {
+    key = ByteSource::FromBuffer(args[2]);
+
+    useContext = 1;
+  }
+
+  if (SSL_export_keying_material(w->ssl_.get(),
+                                 reinterpret_cast<unsigned char*>(out.data()),
+                                 olen,
+                                 *label,
+                                 label.length(),
+                                 reinterpret_cast<const unsigned char*>(
+                                   key.get()),
+                                 key.size(),
+                                 useContext) != 1) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_export_keying_material");
+  }
+
+  args.GetReturnValue().Set(out.ToBuffer().ToLocalChecked());
+}
 
 template <class Base>
 void SSLWrap<Base>::GetProtocol(const FunctionCallbackInfo<Value>& args) {

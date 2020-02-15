@@ -251,6 +251,8 @@ class SSLWrap {
   static void VerifyError(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSharedSigalgs(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ExportKeyingMaterial(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
