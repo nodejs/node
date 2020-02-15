@@ -32,7 +32,6 @@
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
-#include "string_search.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
