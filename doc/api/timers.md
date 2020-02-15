@@ -12,6 +12,41 @@ The timer functions within Node.js implement a similar API as the timers API
 provided by Web Browsers but use a different internal implementation that is
 built around the Node.js [Event Loop][].
 
+## Capture Rejections of Promises
+
+> Stability: 1 - captureRejections is experimental.
+
+Using `async` functions with timers is problematic because it can lead to
+unhandled rejection in case of a thrown exception:
+
+```js
+setTimeout(async () => {
+  throw new Error('kaboom');
+}, 1000);
+```
+
+The `captureRejections` property can be used to change this behavior,
+allowing a `then(undefined, handler)` handler on the `Promise`. This
+handler routes the exception asynchronously to the `process.on('error')`
+event handler.
+
+```js
+const timers = require('timers');
+timers.captureRejections = true;
+
+setTimeout(async () => {
+  throw new Error('kaboom');
+}, 1000);
+
+process.on('error', (err, timer) => {
+  // Error handled!
+  console.log(err);
+});
+```
+
+The `captureRejections`  property works for `setImmediate()`, `setTimeout()`,
+and `setInterval()`.
+
 ## Class: `Immediate`
 
 This object is created internally and is returned from [`setImmediate()`][]. It
