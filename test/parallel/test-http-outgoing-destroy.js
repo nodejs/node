@@ -10,27 +10,13 @@ const OutgoingMessage = http.OutgoingMessage;
   assert.strictEqual(msg.destroyed, false);
   msg.destroy();
   assert.strictEqual(msg.destroyed, true);
-  msg.write('asd', common.expectsError({
-    name: 'Error',
-    code: 'ERR_STREAM_DESTROYED'
+  let callbackCalled = false;
+  msg.write('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    callbackCalled = true;
   }));
-  msg.on('error', common.expectsError({
-    name: 'Error',
-    code: 'ERR_STREAM_DESTROYED'
-  }));
-}
-
-{
-  const msg = new OutgoingMessage();
-  assert.strictEqual(msg.destroyed, false);
-  msg.destroy();
-  assert.strictEqual(msg.destroyed, true);
-  msg.write('end', common.expectsError({
-    name: 'Error',
-    code: 'ERR_STREAM_DESTROYED'
-  }));
-  msg.on('error', common.expectsError({
-    name: 'Error',
-    code: 'ERR_STREAM_DESTROYED'
+  msg.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+    assert.strictEqual(callbackCalled, true);
   }));
 }
