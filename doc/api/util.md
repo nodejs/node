@@ -885,6 +885,49 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
+### `util.previewValue(value[, opts])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `object` {any} Any JavaScript primitive or `Object`.
+* `options` {Object}
+  * `breakLength` {integer} The length at which input values are split across
+    multiple lines. Set to `Infinity` to format the input as a single line
+    (in combination with `compact` set to `true` or any number >= `1`).
+    **Default:** `80`.
+  * `colors` {boolean} If `true`, the output is styled with ANSI color
+    codes. Colors are customizable. See [Customizing `util.inspect` colors][].
+    **Default:** `false`.
+  * `compact` {boolean|integer} Setting this to `false` causes each object key
+    to be displayed on a new line. It will also add new lines to text that is
+    longer than `breakLength`. If set to a number, the most `n` inner elements
+    are united on a single line as long as all properties fit into
+    `breakLength`. Short array elements are also grouped together. No
+    text will be reduced below 16 characters, no matter the `breakLength` size.
+    For more information, see the example below. **Default:** `3`.
+* Returns: {Promise<string>} A promise of the representation of `object`.
+
+> Stability: 1 - Experimental
+
+The `util.previewValue` method returns promise of a string representation
+of `object` that is intended for debugging. The output of `util.previewValue`
+may change at any time and should not be depended upon programmatically.
+Additional `options` may be passed that alter the result. `util.previewValue()`
+will use the constructor's name make an identifiable tag for an inspected value.
+
+The difference of this method with `util.inspect` is `util.previewValue` can
+reveal target own private fields.
+
+```javascript
+class Foo { #bar = 'baz' }
+
+util.previewValue(new Foo())
+  .then((preview) => {
+    console.log(preview); // 'Foo { #bar: "baz" }'
+  });
+```
+
 ## `util.promisify(original)`
 <!-- YAML
 added: v8.0.0

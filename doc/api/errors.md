@@ -1689,6 +1689,13 @@ object.
 
 An attempt was made to `require()` an [ES Module][].
 
+<a id="ERR_PREVIEW_FAILURE"></a>
+### `ERR_PREVIEW_FAILURE`
+
+> Stability: 1 - Experimental
+
+An attempt of previewing a JavaScript value was failed.
+
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 ### `ERR_SCRIPT_EXECUTION_INTERRUPTED`
 
