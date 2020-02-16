@@ -100,6 +100,16 @@ assert(!OutgoingMessage.prototype.write.call({ _header: 'test' }));
                              common.expectsError(expectedError));
 }
 
+{
+  const expectedError = {
+    code: 'ERR_STREAM_NULL_VALUES',
+    name: 'TypeError',
+  };
+  const outgoingMessage = new OutgoingMessage();
+  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' }, null,
+                             common.expectsError(expectedError));
+}
+
 // addTrailers()
 // The `Error` comes from the JavaScript engine so confirm that it is a
 // `TypeError` but do not check the message. It will be different in different
