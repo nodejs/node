@@ -74,27 +74,31 @@ assert.throws(() => {
   );
 }
 
-assert(OutgoingMessage.prototype.write.call({ _header: 'test' }));
+assert(!OutgoingMessage.prototype.write.call({ _header: 'test' }));
 
-assert.throws(() => {
+{
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "chunk" argument must be of type string or an instance of ' +
+            'Buffer or Uint8Array. Received undefined'
+  };
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' });
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-           'Buffer. Received undefined'
-});
+  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' }, undefined,
+                             common.expectsError(expectedError));
+}
 
-assert.throws(() => {
+{
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "chunk" argument must be of type string or an instance of ' +
+            'Buffer or Uint8Array. Received type number (1)'
+  };
   const outgoingMessage = new OutgoingMessage();
-  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' }, 1);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-           'Buffer. Received type number (1)'
-});
+  outgoingMessage.write.call({ _header: 'test', _hasBody: 'test' }, 1,
+                             common.expectsError(expectedError));
+}
 
 // addTrailers()
 // The `Error` comes from the JavaScript engine so confirm that it is a
