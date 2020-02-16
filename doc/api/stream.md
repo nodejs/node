@@ -587,7 +587,6 @@ occurs, the `callback` *may or may not* be called with the error as its
 first argument. To reliably detect write errors, add a listener for the
 `'error'` event. The `callback` is called asynchronously and before `'error'` is
 emitted.
-and before `'error'` is emitted.
 
 The return value is `true` if the internal buffer is less than the
 `highWaterMark` configured when the stream was created after admitting `chunk`.
