@@ -62,16 +62,16 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
 
+  env->async_hooks()->push_async_context(
+    async_context_.async_id, async_context_.trigger_async_id, object);
+
+  pushed_ids_ = true;
+
   if (asyncContext.async_id != 0 && !skip_hooks_) {
     // No need to check a return value because the application will exit if
     // an exception occurs.
     AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
-
-  env->async_hooks()->push_async_context(async_context_.async_id,
-                              async_context_.trigger_async_id, object);
-
-  pushed_ids_ = true;
 }
 
 InternalCallbackScope::~InternalCallbackScope() {
@@ -88,14 +88,14 @@ void InternalCallbackScope::Close() {
     env_->async_hooks()->clear_async_id_stack();
   }
 
+  if (!failed_ && async_context_.async_id != 0 && !skip_hooks_) {
+    AsyncWrap::EmitAfter(env_, async_context_.async_id);
+  }
+
   if (pushed_ids_)
     env_->async_hooks()->pop_async_context(async_context_.async_id);
 
   if (failed_) return;
-
-  if (async_context_.async_id != 0 && !skip_hooks_) {
-    AsyncWrap::EmitAfter(env_, async_context_.async_id);
-  }
 
   if (env_->async_callback_scope_depth() > 1 || skip_task_queues_) {
     return;
