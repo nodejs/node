@@ -1510,7 +1510,7 @@ is no entry script.
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v13.9.0
     pr-url: https://github.com/nodejs/node/pull/31550
     description: Added `arrayBuffers` to the returned object.
   - version: v7.2.0

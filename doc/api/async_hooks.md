@@ -462,7 +462,7 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
 #### `async_hooks.executionAsyncResource()`
 
 <!-- YAML
-added: REPLACEME
+added: v13.9.0
 -->
 
 * Returns: {Object} The resource representing the current execution.
