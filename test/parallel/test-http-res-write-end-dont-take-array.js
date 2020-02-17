@@ -53,7 +53,7 @@ const http = require('http');
   });
 }
 
-// TODO(ronag): end must handle onFinished w/ error better
+// TODO(ronag): end doesn't always call callback
 // {
 //   const server = http.createServer();
 
