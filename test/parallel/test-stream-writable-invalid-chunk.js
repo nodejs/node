@@ -2,20 +2,21 @@
 
 const common = require('../common');
 const stream = require('stream');
+const assert = require('assert');
 
 function testWriteType(val, objectMode, code) {
   const writable = new stream.Writable({
     objectMode,
     write: () => {}
   });
-  if (!code) {
-    writable.on('error', common.mustNotCall());
+  writable.on('error', common.mustNotCall());
+  if (code) {
+    assert.throws(() => {
+      writable.write(val);
+    }, { code });
   } else {
-    writable.on('error', common.expectsError({
-      code: code,
-    }));
+    writable.write(val);
   }
-  writable.write(val);
 }
 
 testWriteType([], false, 'ERR_INVALID_ARG_TYPE');
