@@ -14,6 +14,8 @@ function testWriteType(val, objectMode, code) {
     assert.throws(() => {
       writable.write(val);
     }, { code });
+  } else {
+    writable.write(val);
   }
 }
 
