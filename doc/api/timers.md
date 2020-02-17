@@ -38,7 +38,7 @@ setTimeout(async () => {
   throw new Error('kaboom');
 }, 1000);
 
-process.on('error', (err, timer) => {
+process.on('error', (err) => {
   // Error handled!
   console.log(err);
 });
