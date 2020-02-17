@@ -683,7 +683,7 @@ inside the worker thread. If `stdout: true` was not passed to the
 
 ### `worker.takeHeapSnapshot()`
 <!-- YAML
-added: REPLACEME
+added: v13.9.0
 -->
 
 * Returns: {Promise} A promise for a Readable Stream containing

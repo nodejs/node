@@ -158,7 +158,7 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 
 ### `--experimental-import-meta-resolve`
 <!-- YAML
-added: REPLACEME
+added: v13.9.0
 -->
 
 Enable experimental `import.meta.resolve()` support.
@@ -788,7 +788,7 @@ i.e. invoking `process.exit()`.
 
 ### `--trace-sigint`
 <!-- YAML
-added: REPLACEME
+added: v13.9.0
 -->
 
 Prints a stack trace on SIGINT.
