@@ -307,7 +307,7 @@ Measure the memory known to V8 and used by the current execution context
 or a specified context.
 
 * `options` {Object} Optional.
-  * `mode` {String} Either `'summary'` or `'detailed'`.
+  * `mode` {string} Either `'summary'` or `'detailed'`.
     **Default:** `'summary'`
   * `context` {Object} Optional. A [contextified][] object returned
     by `vm.createContext()`. If not specified, measure the memory

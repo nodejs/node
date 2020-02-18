@@ -149,7 +149,6 @@ const customTypesMap = {
 
   'vm.Module': 'vm.html#vm_class_vm_module',
   'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
-  'vm.constants.measureMemory.mode': 'vm.html#vm_vm_constants_measurememory',
 
   'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
 
