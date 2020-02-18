@@ -1212,6 +1212,7 @@ static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsUndefined()) {
     context = isolate->GetCurrentContext();
   } else {
+    CHECK(args[1]->IsObject());
     ContextifyContext* sandbox =
         ContextifyContext::ContextFromContextifiedSandbox(env,
                                                           args[1].As<Object>());
