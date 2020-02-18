@@ -1,5 +1,6 @@
 #include "node_native_module.h"
 #include "util-inl.h"
+#include "node_internals.h"
 
 namespace node {
 namespace native_module {
@@ -195,33 +196,7 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
                                                                const char* id) {
 #ifdef NODE_BUILTIN_MODULES_PATH
   std::string filename = OnDiskFileName(id);
-
-  uv_fs_t req;
-  uv_file file =
-      uv_fs_open(nullptr, &req, filename.c_str(), O_RDONLY, 0, nullptr);
-  CHECK_GE(req.result, 0);
-  uv_fs_req_cleanup(&req);
-
-  std::shared_ptr<void> defer_close(nullptr, [file](...) {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
-  std::string contents;
-  char buffer[4096];
-  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
-
-  while (true) {
-    const int r =
-        uv_fs_read(nullptr, &req, file, &buf, 1, contents.length(), nullptr);
-    CHECK_GE(req.result, 0);
-    uv_fs_req_cleanup(&req);
-    if (r <= 0) {
-      break;
-    }
-    contents.append(buf.base, r);
-  }
+  std::string contents = ReadFileSync(filename).FromJust();
 
   return String::NewFromUtf8(
       isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());

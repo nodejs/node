@@ -510,29 +510,6 @@ inline bool ShouldBeTreatedAsRelativeOrAbsolutePath(
   return false;
 }
 
-std::string ReadFile(uv_file file) {
-  std::string contents;
-  uv_fs_t req;
-  char buffer_memory[4096];
-  uv_buf_t buf = uv_buf_init(buffer_memory, sizeof(buffer_memory));
-
-  do {
-    const int r = uv_fs_read(nullptr,
-                             &req,
-                             file,
-                             &buf,
-                             1,
-                             contents.length(),  // offset
-                             nullptr);
-    uv_fs_req_cleanup(&req);
-
-    if (r <= 0)
-      break;
-    contents.append(buf.base, r);
-  } while (true);
-  return contents;
-}
-
 enum DescriptorType {
   FILE,
   DIRECTORY,
@@ -583,16 +560,6 @@ DescriptorType CheckDescriptorAtPath(const std::string& path) {
   return type;
 }
 
-Maybe<std::string> ReadIfFile(const std::string& path) {
-  Maybe<uv_file> fd = OpenDescriptor(path);
-  if (fd.IsNothing()) return Nothing<std::string>();
-  DescriptorType type = CheckDescriptorAtFile(fd.FromJust());
-  if (type != FILE) return Nothing<std::string>();
-  std::string source = ReadFile(fd.FromJust());
-  CloseDescriptor(fd.FromJust());
-  return Just(source);
-}
-
 using Exists = PackageConfig::Exists;
 using IsValid = PackageConfig::IsValid;
 using HasMain = PackageConfig::HasMain;
@@ -614,7 +581,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
     return Just(pcfg);
   }
 
-  Maybe<std::string> source = ReadIfFile(path);
+  Maybe<std::string> source = ReadFileSync(path);
 
   if (source.IsNothing()) {
     auto entry = env->package_json_cache.emplace(path,

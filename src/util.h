@@ -764,6 +764,10 @@ class PersistentToLocal {
   }
 };
 
+ssize_t ReadFileSyncRaw(
+    const char* path, size_t path_len, std::string* contents);
+v8::Maybe<std::string> ReadFileSync(const std::string& path);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

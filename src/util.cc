@@ -56,7 +56,10 @@ namespace node {
 
 using v8::ArrayBufferView;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::String;
 using v8::Value;
 
@@ -216,6 +219,62 @@ int WriteFileSync(v8::Isolate* isolate,
   node::Utf8Value utf8(isolate, string);
   uv_buf_t buf = uv_buf_init(utf8.out(), utf8.length());
   return WriteFileSync(path, buf);
+}
+
+ssize_t ReadFileSyncRaw(
+    const char* path, size_t path_len, std::string* contents) {
+  if (strlen(path) != path_len) {
+    return UV_EINVAL;  // Contains a nul byte.
+  }
+
+  uv_fs_t req;
+
+  const int fd = uv_fs_open(nullptr, &req, path, O_RDONLY, 0, nullptr);
+  uv_fs_req_cleanup(&req);
+  if (fd < 0) {
+    return static_cast<ssize_t>(fd);
+  }
+
+  std::shared_ptr<void> defer_close(nullptr, [fd] (...) {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, fd, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  });
+
+  const size_t kBlockSize = 32 << 10;
+  size_t offset = 0;
+  while (true) {
+    contents->resize(offset + kBlockSize);
+
+    uv_buf_t buf;
+    buf.base = &(*contents)[offset];
+    buf.len = kBlockSize;
+
+    const ssize_t r = uv_fs_read(nullptr, &req, fd, &buf, 1, offset, nullptr);
+    uv_fs_req_cleanup(&req);
+
+    if (r < 0) {
+      return r;
+    }
+
+    offset += r;
+
+    if (static_cast<size_t>(r) != kBlockSize) {
+      break;
+    }
+  }
+
+  return static_cast<ssize_t>(offset);
+}
+
+Maybe<std::string> ReadFileSync(const std::string& path) {
+  std::string contents;
+  const ssize_t nread = ReadFileSyncRaw(path.c_str(), path.length(), &contents);
+  if (nread < 0) {
+    return Nothing<std::string>();
+  }
+  contents.resize(static_cast<size_t>(nread));
+  return Just(contents);
 }
 
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
