@@ -1,10 +1,7 @@
+/* eslint-disable node-core/crypto-check */
 'use strict';
 // Refs: https://github.com/nodejs/node/issues/31733
 const common = require('../common');
-
-if (!common.hasCrypto)
-  common.skip('missing crypto');
-
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
