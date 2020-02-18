@@ -1,1 +1,1 @@
-console.log("dep loaded");
+console.log('dep loaded');

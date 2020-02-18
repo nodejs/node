@@ -1,3 +1,6 @@
+// This test validates inspector's Debugger.setInstrumentationBreakpoint method.
+// Refs: https://github.com/nodejs/node/issues/31138
+
 'use strict';
 const common = require('../common');
 

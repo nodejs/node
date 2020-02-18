@@ -1,1 +1,1 @@
-require("./dep");
+require('./dep');
