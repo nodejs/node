@@ -587,7 +587,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   provider_type_ = provider;
 
   // Use AsyncReset() call to execute the init() callbacks.
-  AsyncReset(execution_async_id, silent);
+  AsyncReset(object, execution_async_id, silent);
   init_hook_ran_ = true;
 }
 
@@ -651,10 +651,6 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
   }
 
   env->destroy_async_id_list()->push_back(async_id);
-}
-
-void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
-  AsyncReset(object(), execution_async_id, silent);
 }
 
 // Generalized call for both the constructor and for handles that are pooled
