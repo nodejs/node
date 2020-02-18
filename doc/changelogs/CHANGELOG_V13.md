@@ -44,14 +44,27 @@
 
 ### Notable changes
 
-* [[`6be51296e4`](https://github.com/nodejs/node/commit/6be51296e4)] - **(SEMVER-MINOR)** **async_hooks**: add executionAsyncResource (Matteo Collina) [#30959](https://github.com/nodejs/node/pull/30959)
-* [[`15b24b71ce`](https://github.com/nodejs/node/commit/15b24b71ce)] - **doc**: add ronag to collaborators (Robert Nagy) [#31498](https://github.com/nodejs/node/pull/31498)
-* [[`1bcf2f9423`](https://github.com/nodejs/node/commit/1bcf2f9423)] - **report**: add support for Workers (Anna Henningsen) [#31386](https://github.com/nodejs/node/pull/31386)
-* [[`676b84a803`](https://github.com/nodejs/node/commit/676b84a803)] - **(SEMVER-MINOR)** **test**: skip keygen tests on arm systems (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
-* [[`bf46c304dd`](https://github.com/nodejs/node/commit/bf46c304dd)] - **(SEMVER-MINOR)** **crypto**: add crypto.diffieHellman (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
-* [[`0d3e095941`](https://github.com/nodejs/node/commit/0d3e095941)] - **(SEMVER-MINOR)** **crypto**: add DH support to generateKeyPair (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
-* [[`15bd2c9f0c`](https://github.com/nodejs/node/commit/15bd2c9f0c)] - **(SEMVER-MINOR)** **crypto**: simplify DH groups (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
-* [[`572322fddf`](https://github.com/nodejs/node/commit/572322fddf)] - **(SEMVER-MINOR)** **crypto**: add key type 'dh' (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
+* **async_hooks**
+  * add executionAsyncResource (Matteo Collina) [#30959](https://github.com/nodejs/node/pull/30959)
+* **crypto**
+  * add crypto.diffieHellman (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
+  * add DH support to generateKeyPair (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
+  * simplify DH groups (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
+  * add key type 'dh' (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
+* **test**
+  * skip keygen tests on arm systems (Tobias Nießen) [#31178](https://github.com/nodejs/node/pull/31178)
+* **perf_hooks**
+  * add property flags to GCPerformanceEntry (Kirill Fomichev) [#29547](https://github.com/nodejs/node/pull/29547)
+* **process**
+  * report ArrayBuffer memory in `memoryUsage()` (Anna Henningsen) [#31550](https://github.com/nodejs/node/pull/31550)
+* **readline**
+  * make tab size configurable (Ruben Bridgewater) [#31318](https://github.com/nodejs/node/pull/31318)
+* **report**
+  * add support for Workers (Anna Henningsen) [#31386](https://github.com/nodejs/node/pull/31386)
+* **worker**
+  * add ability to take heap snapshot from parent thread (Anna Henningsen) [#31569](https://github.com/nodejs/node/pull/31569)
+* **added new collaborators**
+  * add ronag to collaborators (Robert Nagy) [#31498](https://github.com/nodejs/node/pull/31498)
 
 ### Commits
 
