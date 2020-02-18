@@ -251,12 +251,28 @@ table {
 th,
 td {
   border: 1px solid #aaa;
-  padding: .75rem 1rem;
+  padding: .5rem;
   vertical-align: top;
 }
 
 th {
   text-align: left;
+}
+
+td {
+  word-break: break-all; /* Fallback if break-word isn't supported */
+  word-break: break-word;
+}
+
+@media only screen and (min-width: 600px) {
+  th,
+  td {
+    padding: .75rem 1rem;
+  }
+
+  td:first-child {
+    word-break: normal;
+  }
 }
 
 ol,
