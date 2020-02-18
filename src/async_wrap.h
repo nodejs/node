@@ -170,9 +170,6 @@ class AsyncWrap : public BaseObject {
                   double execution_async_id = kInvalidAsyncId,
                   bool silent = false);
 
-  void AsyncReset(double execution_async_id = kInvalidAsyncId,
-                  bool silent = false);
-
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
                                          int argc,
