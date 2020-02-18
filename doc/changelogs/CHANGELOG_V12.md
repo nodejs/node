@@ -86,7 +86,7 @@ Semver-Minor release.
 
 Changes in async hooks internals introduced a case where an internal api call could be called with undefined
 causing a process to crash. The change to async hooks was reverted. A regression test and fix has been proposed
-and the change could re land in a future Semver-Patch release if the regression is reliably fixed.
+and the change could re-land in a future Semver-Patch release if the regression is reliably fixed.
 
 **New Enumerable Read-Only Property on EventEmitter breaks @types/extend**
 
@@ -95,14 +95,14 @@ broke existing code that was using the `@types/extend` module for extending clas
 as `@types/extend` was attemping to write over the existing field which the new
 change made read-only. As this is the first property on EventEmitter that is
 read-only this feature could be considered Semver-Major. The new feature has been
-reverted but could re land in a future Semver-Minor release if a non breaking way
+reverted but could re-land in a future Semver-Minor release if a non breaking way
 of applying it is found.
 
 **Exceptions in the HTTP parser were not emitting an uncaughtException**
 
 A refactoring to Node.js interanls resulted in a bug where errors in the HTTP
-parser were not being emitted by `process.on('uncaughtException')`. The fix
-to this bug has been included in this release.
+parser were not being emitted by `process.on('uncaughtException')` when the `async_hooks` `after`
+hook exists. The fix to this bug has been included in this release.
 
 ### Commits
 
