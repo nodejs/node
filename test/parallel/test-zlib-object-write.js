@@ -9,5 +9,6 @@ gunzip.on('error', common.mustNotCall());
 assert.throws(() => {
   gunzip.write({});
 }, {
-  name: 'TypeError'
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE'
 });

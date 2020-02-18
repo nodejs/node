@@ -46,7 +46,8 @@ nonStringInputs.forEach(common.mustCall((input) => {
   assert.throws(() => {
     zlib.gunzip(input);
   }, {
-    name: 'TypeError'
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE'
   });
 }, nonStringInputs.length));
 
