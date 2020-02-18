@@ -89,6 +89,17 @@ function fstream(config) {
   // Observation: 'close' comes before 'end' on |c|, which definitely feels
   // wrong. Switching to `c.on('end', ...)` doesn't fix the test though.
   crypt.on('close', common.mustCall(() => {
+    // Just to drive home the point that decryption does actually work:
+    // reading the file synchronously, then decrypting it, works.
+    {
+      const ciphertext = fs.readFileSync(filename('b'));
+      const d = crypto.createDecipheriv(cipher, key, iv, { authTagLength });
+      d.setAAD(aad, { plaintextLength });
+      d.setAuthTag(c.getAuthTag());
+      const actual = Buffer.concat([d.update(ciphertext), d.final()]);
+      assert.deepStrictEqual(expected, actual);
+    }
+
     const d = crypto.createDecipheriv(cipher, key, iv, { authTagLength });
     d.setAAD(aad, { plaintextLength });
     d.setAuthTag(c.getAuthTag());
