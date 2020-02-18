@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const net = require('net');
 const assert = require('assert');
 
@@ -55,8 +55,8 @@ function makeCallback(c) {
   };
 }
 
-server.listen(common.PORT, function() {
-  const client = net.createConnection(common.PORT);
+server.listen(0, function() {
+  const client = net.createConnection(server.address().port);
 
   client.on('connect', function() {
     for (let i = 0; i < N; i++) {
