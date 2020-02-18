@@ -138,7 +138,6 @@ class WorkerThreadData {
     if (ret != 0) {
       char err_buf[128];
       uv_err_name_r(ret, err_buf, sizeof(err_buf));
-      std::string error_str = SPrintF("ERR_WORKER_INIT_FAILED: %s", err_buf);
       w->custom_error_ = "ERR_WORKER_INIT_FAILED";
       w->custom_error_str_ = err_buf;
       w->loop_init_failed_ = true;
@@ -238,7 +237,7 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
                              size_t initial_heap_limit) {
   Worker* worker = static_cast<Worker*>(data);
   worker->custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
-  worker->custom_error_str_ = "JS heap Out of Memory";
+  worker->custom_error_str_ = "JS heap out of memory";
   worker->Exit(1);
   // Give the current GC some extra leeway to let it finish rather than
   // crash hard. We are not going to perform further allocations anyway.
@@ -434,8 +433,8 @@ void Worker::JoinThread() {
 
     Local<Value> args[] = {
         Integer::New(env()->isolate(), exit_code_),
-        !custom_error_.empty()
-            ? OneByteString(env()->isolate(), custom_error_.c_str()).As<Value>()
+        custom_error_ != nullptr
+            ? OneByteString(env()->isolate(), custom_error_).As<Value>()
             : Null(env()->isolate()).As<Value>(),
         !custom_error_str_.empty()
             ? OneByteString(env()->isolate(), custom_error_str_.c_str())

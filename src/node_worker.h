@@ -84,7 +84,7 @@ class Worker : public AsyncWrap {
   mutable Mutex mutex_;
 
   bool thread_joined_ = true;
-  std::string custom_error_;
+  const char* custom_error_ = nullptr;
   std::string custom_error_str_;
   bool loop_init_failed_ = false;
   int exit_code_ = 0;
