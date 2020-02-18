@@ -23,7 +23,7 @@ tmpdir.refresh();
 const sessionPath = path.join(tmpdir.path, 'sess.pem');
 
 const server = tls
-  .createServer(options, (s) => s.end('eyecatcher'))
+  .createServer(options, (s) => s.end('ok'))
   .listen(0, '127.0.0.1', common.mustCall(go));
 
 function go() {
@@ -42,7 +42,6 @@ function go() {
   proc.stdout.pipe(process.stdout);  // For debugging.
   proc.on('exit', common.mustCall((exitCode, signalCode) => {
     assert.strictEqual(exitCode, 0);
-    assert(stdout.includes('eyecatcher'));
     assert(stdout.includes('Early data was not sent'));
     assert(stdout.includes('New, TLSv1.3, Cipher is TLS_'));
     next();
@@ -66,7 +65,6 @@ function next() {
   proc.stdout.pipe(process.stdout);  // For debugging.
   proc.on('exit', common.mustCall((exitCode, signalCode) => {
     assert.strictEqual(exitCode, 0);
-    assert(stdout.includes('eyecatcher'));
     assert(stdout.includes('Early data was not sent'));
     assert(stdout.includes('Reused, TLSv1.3, Cipher is TLS_'));
     assert(!stdout.includes('Early data was accepted'));
