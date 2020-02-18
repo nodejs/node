@@ -553,8 +553,30 @@ formatting passes the lint rules on `master`.
 to promote the builds as the `SHASUMS256.txt` file needs to be signed with the
 same GPG key!**
 
-Use `tools/release.sh` to promote and sign the build. When run, it will perform
-the following actions:
+Use `tools/release.sh` to promote and sign the build. Before doing this, you'll
+need to ensure you've loaded the correct ssh key, or you'll see the following:
+
+```sh
+# Checking for releases ...
+Enter passphrase for key '/Users/<user>/.ssh/id_rsa':
+dist@direct.nodejs.org's password:
+```
+
+The key can be loaded either with `ssh-add`:
+
+```sh
+# Substitute node_id_rsa with whatever you've named the key
+$ ssh-add ~/.ssh/node_id_rsa
+```
+
+or at runtime with:
+
+```sh
+# Substitute node_id_rsa with whatever you've named the key
+$ ./tools/release.sh -i ~/.ssh/node_id_rsa
+```
+
+`tools/release.sh` will perform the following actions when run:
 
 **a.** Select a GPG key from your private keys. It will use a command similar
 to: `gpg --list-secret-keys` to list your keys. If you don't have any keys, it
