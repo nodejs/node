@@ -369,7 +369,12 @@ int FileHandle::ReadStart() {
     if (freelist.size() > 0) {
       read_wrap = std::move(freelist.back());
       freelist.pop_back();
-      read_wrap->AsyncReset();
+      // Use a fresh async resource.
+      // Lifetime is ensured via AsyncWrap::resource_.
+      Local<Object> resource = Object::New(env()->isolate());
+      resource->Set(
+          env()->context(), env()->handle_string(), read_wrap->object());
+      read_wrap->AsyncReset(resource);
       read_wrap->file_handle_ = this;
     } else {
       Local<Object> wrap_obj;
