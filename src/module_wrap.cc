@@ -1047,7 +1047,6 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
             return Nothing<URL>();
           }
           CHECK(!try_catch.HasCaught());
-          ProcessEmitExperimentalWarning(env, "Conditional exports");
           return resolved;
         }
       } else if (key_str == "default") {
@@ -1068,7 +1067,6 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
             return Nothing<URL>();
           }
           CHECK(!try_catch.HasCaught());
-          ProcessEmitExperimentalWarning(env, "Conditional exports");
           return resolved;
         }
       }
@@ -1284,7 +1282,6 @@ Maybe<URL> PackageResolve(Environment* env,
       }
     }
     if (found_pjson && pcfg->name == pkg_name && !pcfg->exports.IsEmpty()) {
-      ProcessEmitExperimentalWarning(env, "Package name self resolution");
       if (pkg_subpath == "./") {
         return Just(URL("./", pjson_url));
       } else if (!pkg_subpath.length()) {
