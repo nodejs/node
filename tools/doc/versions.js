@@ -31,6 +31,8 @@ const getUrl = (url) => {
   });
 };
 
+const kNoInternet = !!process.env.NODE_TEST_NO_INTERNET;
+
 module.exports = {
   async versions() {
     if (_versions) {
@@ -42,16 +44,20 @@ module.exports = {
     const url =
       'https://raw.githubusercontent.com/nodejs/node/master/CHANGELOG.md';
     let changelog;
-    try {
-      changelog = await getUrl(url);
-    } catch (e) {
-      // Fail if this is a release build, otherwise fallback to local files.
-      if (isRelease()) {
-        throw e;
-      } else {
-        const file = path.join(srcRoot, 'CHANGELOG.md');
-        console.warn(`Unable to retrieve ${url}. Falling back to ${file}.`);
-        changelog = readFileSync(file, { encoding: 'utf8' });
+    const file = path.join(srcRoot, 'CHANGELOG.md');
+    if (kNoInternet) {
+      changelog = readFileSync(file, { encoding: 'utf8' });
+    } else {
+      try {
+        changelog = await getUrl(url);
+      } catch (e) {
+        // Fail if this is a release build, otherwise fallback to local files.
+        if (isRelease()) {
+          throw e;
+        } else {
+          console.warn(`Unable to retrieve ${url}. Falling back to ${file}.`);
+          changelog = readFileSync(file, { encoding: 'utf8' });
+        }
       }
     }
     const ltsRE = /Long Term Support/i;
