@@ -108,3 +108,16 @@ function expect(expected) {
   ee._events = undefined;
   assert.strictEqual(ee, ee.removeAllListeners());
 }
+
+{
+  const ee = new events.EventEmitter();
+  const symbol = Symbol('symbol');
+  const noop = common.mustNotCall();
+  ee.on(symbol, noop);
+
+  ee.on('removeListener', common.mustCall((...args) => {
+    assert.deepStrictEqual(args, [symbol, noop]);
+  }));
+
+  ee.removeAllListeners();
+}
