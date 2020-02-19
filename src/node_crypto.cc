@@ -5217,7 +5217,7 @@ void DiffieHellman::DiffieHellmanGroup(
   const node::Utf8Value group_name(env->isolate(), args[0]);
   const modp_group* group = FindDiffieHellmanGroup(*group_name);
   if (group == nullptr)
-    return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env, "Unknown group");
+    return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
 
   initialized = diffieHellman->Init(group->prime,
                                     group->prime_size,
