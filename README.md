@@ -331,8 +331,6 @@ For information about the governance of the Node.js project, see
 **João Reis** &lt;reis@janeasystems.com&gt;
 * [joyeecheung](https://github.com/joyeecheung) -
 **Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
-* [julianduque](https://github.com/julianduque) -
-**Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
 **Minwoo Jung** &lt;nodecorelab@gmail.com&gt; (he/him)
 * [kfarnung](https://github.com/kfarnung) -
@@ -474,6 +472,8 @@ For information about the governance of the Node.js project, see
 **Yuval Brik** &lt;yuval@brik.org.il&gt;
 * [joshgav](https://github.com/joshgav) -
 **Josh Gavant** &lt;josh.gavant@outlook.com&gt;
+* [julianduque](https://github.com/julianduque) -
+**Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [kunalspathak](https://github.com/kunalspathak) -
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lucamaraschi](https://github.com/lucamaraschi) -
