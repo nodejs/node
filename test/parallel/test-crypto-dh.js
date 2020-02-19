@@ -392,7 +392,7 @@ assert.throws(
   {
     name: 'Error',
     code: 'ERR_CRYPTO_UNKNOWN_DH_GROUP',
-    message: 'Unknown group'
+    message: 'Unknown DH group'
   },
   'crypto.getDiffieHellman(\'unknown-group\') ' +
   'failed to throw the expected error.'
