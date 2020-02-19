@@ -78,6 +78,9 @@ Because `module` provides a `filename` property (normally equivalent to
 `__filename`), the entry point of the current application can be obtained
 by checking `require.main.filename`.
 
+When running [ECMAScript Modules][], `require.main` is not available. See the
+ECMAScript Modules documentation for a possible [`require.main` alternative][].
+
 ## Addenda: Package manager tips
 
 <!-- type=misc -->
@@ -1148,3 +1151,4 @@ consists of the following keys:
 [`Error.prepareStackTrace(error, trace)`]: https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 [`SourceMap`]: modules.html#modules_class_module_sourcemap
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[`require.main` alternative]: esm.html#esm_no_require_main

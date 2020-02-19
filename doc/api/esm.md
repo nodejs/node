@@ -928,6 +928,26 @@ hooks can provide this workflow in the future.
 
 `require.cache` is not used by `import`. It has a separate cache.
 
+### No `require.main`
+
+To detect when an ES module is run directly with Node.js, it is possible to
+compare the [`import.meta.url`][] value to the command line arguments. For
+example:
+
+```js
+import { fileURLToPath } from 'url';
+import process from 'process';
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  // The script was run directly.
+}
+```
+
+The above approach does not cover the case where the script is run without the
+`.js` extension (e.g. `node script` instead of `node script.js`). These cases
+could be normalized by trimming any extension from the `import.meta.url` and
+`process.argv[1]` values.
+
 ### URL-based paths
 
 ES modules are resolved and cached based upon
