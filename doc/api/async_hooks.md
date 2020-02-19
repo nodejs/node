@@ -76,6 +76,12 @@ function destroy(asyncId) { }
 // (either directly or through other means of resolving a promise).
 function promiseResolve(asyncId) { }
 ```
+### Class: `AsyncHook`
+
+The class `AsyncHook` exposes interface for tracking lifetime events
+of asynchronous operations. Using a unique ID per asynchronous call,
+it helps associating method calls that otherwise do not appear in a
+typical call stack.
 
 #### `async_hooks.createHook(callbacks)`
 
