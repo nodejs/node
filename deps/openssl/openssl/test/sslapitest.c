@@ -6205,6 +6205,135 @@ static int test_ca_names(int tst)
     return testresult;
 }
 
+#ifndef OPENSSL_NO_QUIC
+
+static int test_quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
+                                            const uint8_t *read_secret,
+                                            const uint8_t *write_secret, size_t secret_len)
+{
+    test_printf_stderr("quic_set_encryption_secrets() %s, lvl=%d, len=%zd\n",
+                       ssl->server ? "server" : "client", level, secret_len);
+    return 1;
+}
+static int test_quic_add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
+                                        const uint8_t *data, size_t len)
+{
+    SSL *peer = (SSL*)SSL_get_app_data(ssl);
+
+    test_printf_stderr("quic_add_handshake_data() %s, lvl=%d, *data=0x%02X, len=%zd\n",
+                       ssl->server ? "server" : "client", level, (int)*data, len);
+    if (!TEST_ptr(peer))
+        return 0;
+
+    if (!TEST_true(SSL_provide_quic_data(peer, level, data, len))) {
+        ERR_print_errors_fp(stderr);
+        return 0;
+    }
+
+    return 1;
+}
+static int test_quic_flush_flight(SSL *ssl)
+{
+    test_printf_stderr("quic_flush_flight() %s\n", ssl->server ? "server" : "client");
+    return 1;
+}
+static int test_quic_send_alert(SSL *ssl, enum ssl_encryption_level_t level, uint8_t alert)
+{
+    test_printf_stderr("quic_send_alert() %s, lvl=%d, alert=%d\n",
+                       ssl->server ? "server" : "client", level, alert);
+    return 1;
+}
+
+static SSL_QUIC_METHOD quic_method = {
+    test_quic_set_encryption_secrets,
+    test_quic_add_handshake_data,
+    test_quic_flush_flight,
+    test_quic_send_alert,
+};
+static int test_quic_api(void)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    int testresult = 0;
+    static const char *server_str = "SERVER";
+    static const char *client_str = "CLIENT";
+    const uint8_t *peer_str;
+    size_t peer_str_len;
+
+    /* Clean up logging space */
+    memset(client_log_buffer, 0, sizeof(client_log_buffer));
+    memset(server_log_buffer, 0, sizeof(server_log_buffer));
+    client_log_buffer_index = 0;
+    server_log_buffer_index = 0;
+    error_writing_log = 0;
+
+
+    if (!TEST_ptr(sctx = SSL_CTX_new(TLS_server_method()))
+            || !TEST_true(SSL_CTX_set_quic_method(sctx, &quic_method))
+            || !TEST_ptr(sctx->quic_method)
+            || !TEST_ptr(serverssl = SSL_new(sctx))
+            || !TEST_true(SSL_IS_QUIC(serverssl))
+            || !TEST_true(SSL_set_quic_method(serverssl, NULL))
+            || !TEST_false(SSL_IS_QUIC(serverssl))
+            || !TEST_true(SSL_set_quic_method(serverssl, &quic_method))
+            || !TEST_true(SSL_IS_QUIC(serverssl)))
+        goto end;
+
+    SSL_CTX_free(sctx);
+    sctx = NULL;
+    SSL_free(serverssl);
+    serverssl = NULL;
+
+    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(),
+                                       TLS_client_method(),
+                                       TLS1_3_VERSION, 0,
+                                       &sctx, &cctx, cert, privkey))
+            || !TEST_true(SSL_CTX_set_quic_method(sctx, &quic_method))
+            || !TEST_true(SSL_CTX_set_quic_method(cctx, &quic_method))
+            || !TEST_true(create_ssl_objects(sctx, cctx, &serverssl,
+                                             &clientssl, NULL, NULL))
+            || !TEST_true(SSL_set_quic_transport_params(serverssl,
+                                                        (unsigned char*)server_str,
+                                                        sizeof(server_str)))
+            || !TEST_true(SSL_set_quic_transport_params(clientssl,
+                                                        (unsigned char*)client_str,
+                                                        sizeof(client_str)))
+            || !TEST_true(SSL_set_app_data(serverssl, clientssl))
+            || !TEST_true(SSL_set_app_data(clientssl, serverssl))
+            || !TEST_true(create_ssl_connection(serverssl, clientssl,
+                                                SSL_ERROR_NONE))
+            || !TEST_true(SSL_version(serverssl) == TLS1_3_VERSION)
+            || !TEST_true(SSL_version(clientssl) == TLS1_3_VERSION)
+            || !(TEST_int_eq(SSL_quic_read_level(clientssl), ssl_encryption_application))
+            || !(TEST_int_eq(SSL_quic_read_level(serverssl), ssl_encryption_application))
+            || !(TEST_int_eq(SSL_quic_write_level(clientssl), ssl_encryption_application))
+            || !(TEST_int_eq(SSL_quic_write_level(serverssl), ssl_encryption_application)))
+        goto end;
+
+    SSL_get_peer_quic_transport_params(serverssl, &peer_str, &peer_str_len);
+    if (!TEST_mem_eq(peer_str, peer_str_len, client_str, sizeof(client_str)))
+        goto end;
+    SSL_get_peer_quic_transport_params(clientssl, &peer_str, &peer_str_len);
+    if (!TEST_mem_eq(peer_str, peer_str_len, server_str, sizeof(server_str)))
+        goto end;
+
+    /* Deal with two NewSessionTickets */
+    if (!TEST_true(SSL_process_quic_post_handshake(clientssl))
+            || !TEST_true(SSL_process_quic_post_handshake(clientssl)))
+        goto end;
+
+    testresult = 1;
+
+end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+
+    return testresult;
+}
+#endif
+
 int setup_tests(void)
 {
     if (!TEST_ptr(certsdir = test_get_argument(0))
@@ -6322,6 +6451,9 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_cert_cb, 6);
     ADD_ALL_TESTS(test_client_cert_cb, 2);
     ADD_ALL_TESTS(test_ca_names, 3);
+#ifndef OPENSSL_NO_QUIC
+    ADD_TEST(test_quic_api);
+#endif
     return 1;
 }
 

@@ -9,6 +9,9 @@
 
  Changes between 1.1.1c and 1.1.1d [10 Sep 2019]
 
+  *) Implement BoringSSL's QUIC API
+     [Todd Short]
+
   *) Fixed a fork protection issue. OpenSSL 1.1.1 introduced a rewritten random
      number generator (RNG). This was intended to include protection in the
      event of a fork() system call in order to ensure that the parent and child

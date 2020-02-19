@@ -498,3 +498,14 @@ SSL_CTX_get_recv_max_early_data         498	1_1_1	EXIST::FUNCTION:
 SSL_CTX_set_recv_max_early_data         499	1_1_1	EXIST::FUNCTION:
 SSL_CTX_set_post_handshake_auth         500	1_1_1	EXIST::FUNCTION:
 SSL_get_signature_type_nid              501	1_1_1a	EXIST::FUNCTION:
+SSL_quic_read_level                     10094	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_set_quic_transport_params           10095	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_CIPHER_get_prf_nid                  10096	1_1_1d	EXIST::FUNCTION:
+SSL_is_quic                             10097	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_get_peer_quic_transport_params      10098	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_quic_write_level                    10099	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_CTX_set_quic_method                 10100	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_set_quic_method                     10101	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_quic_max_handshake_flight_len       10102	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_process_quic_post_handshake         10103	1_1_1d	EXIST::FUNCTION:QUIC
+SSL_provide_quic_data                   10104	1_1_1d	EXIST::FUNCTION:QUIC
