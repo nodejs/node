@@ -40838,62 +40838,10 @@ var remark = unified_1()
   .use(remarkStringify)
   .freeze();
 
-const _from = "remark@^11.0.2";
-const _id = "remark@11.0.2";
-const _inBundle = false;
-const _integrity = "sha512-bh+eJgn8wgmbHmIBOuwJFdTVRVpl3fcVP6HxmpPWO0ULGP9Qkh6INJh0N5Uy7GqlV7DQYGoqaKiEIpM5LLvJ8w==";
-const _location = "/remark";
-const _phantomChildren = {
-};
-const _requested = {
-	type: "range",
-	registry: true,
-	raw: "remark@^11.0.2",
-	name: "remark",
-	escapedName: "remark",
-	rawSpec: "^11.0.2",
-	saveSpec: null,
-	fetchSpec: "^11.0.2"
-};
-const _requiredBy = [
-	"/"
-];
-const _resolved = "https://registry.npmjs.org/remark/-/remark-11.0.2.tgz";
-const _shasum = "12b90ea100ac3362b1976fa87a6e4e0ab5968202";
-const _spec = "remark@^11.0.2";
-const _where = "/mnt/c/orgs/nodejs/node-runtime/tools/node-lint-md-cli-rollup";
-const author = {
-	name: "Titus Wormer",
-	email: "tituswormer@gmail.com",
-	url: "https://wooorm.com"
-};
-const bugs = {
-	url: "https://github.com/remarkjs/remark/issues"
-};
-const bundleDependencies = false;
-const contributors = [
-	{
-		name: "Titus Wormer",
-		email: "tituswormer@gmail.com",
-		url: "https://wooorm.com"
-	}
-];
-const dependencies = {
-	"remark-parse": "^7.0.0",
-	"remark-stringify": "^7.0.0",
-	unified: "^8.2.0"
-};
-const deprecated$1 = false;
+const name$1 = "remark";
+const version$1 = "11.0.2";
 const description = "Markdown processor powered by plugins";
-const files = [
-	"index.js",
-	"types/index.d.ts"
-];
-const funding = {
-	type: "opencollective",
-	url: "https://opencollective.com/unified"
-};
-const homepage = "https://remark.js.org";
+const license = "MIT";
 const keywords = [
 	"unified",
 	"remark",
@@ -40907,83 +40855,77 @@ const keywords = [
 	"stringify",
 	"process"
 ];
-const license = "MIT";
-const name$1 = "remark";
-const repository = {
-	type: "git",
-	url: "https://github.com/remarkjs/remark/tree/master/packages/remark"
+const homepage = "https://remark.js.org";
+const repository = "https://github.com/remarkjs/remark/tree/master/packages/remark";
+const bugs = "https://github.com/remarkjs/remark/issues";
+const funding = {
+	type: "opencollective",
+	url: "https://opencollective.com/unified"
+};
+const author = "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)";
+const contributors = [
+	"Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+];
+const files = [
+	"index.js",
+	"types/index.d.ts"
+];
+const types = "types/index.d.ts";
+const dependencies = {
+	"remark-parse": "^7.0.0",
+	"remark-stringify": "^7.0.0",
+	unified: "^8.2.0"
 };
 const scripts = {
 	test: "tape test.js"
 };
-const types = "types/index.d.ts";
-const version$1 = "11.0.2";
 const xo = false;
+const _resolved = "https://registry.npmjs.org/remark/-/remark-11.0.2.tgz";
+const _integrity = "sha512-bh+eJgn8wgmbHmIBOuwJFdTVRVpl3fcVP6HxmpPWO0ULGP9Qkh6INJh0N5Uy7GqlV7DQYGoqaKiEIpM5LLvJ8w==";
+const _from = "remark@11.0.2";
 var _package = {
-	_from: _from,
-	_id: _id,
-	_inBundle: _inBundle,
-	_integrity: _integrity,
-	_location: _location,
-	_phantomChildren: _phantomChildren,
-	_requested: _requested,
-	_requiredBy: _requiredBy,
-	_resolved: _resolved,
-	_shasum: _shasum,
-	_spec: _spec,
-	_where: _where,
-	author: author,
-	bugs: bugs,
-	bundleDependencies: bundleDependencies,
-	contributors: contributors,
-	dependencies: dependencies,
-	deprecated: deprecated$1,
-	description: description,
-	files: files,
-	funding: funding,
-	homepage: homepage,
-	keywords: keywords,
-	license: license,
 	name: name$1,
-	repository: repository,
-	scripts: scripts,
-	types: types,
 	version: version$1,
-	xo: xo
+	description: description,
+	license: license,
+	keywords: keywords,
+	homepage: homepage,
+	repository: repository,
+	bugs: bugs,
+	funding: funding,
+	author: author,
+	contributors: contributors,
+	files: files,
+	types: types,
+	dependencies: dependencies,
+	scripts: scripts,
+	xo: xo,
+	_resolved: _resolved,
+	_integrity: _integrity,
+	_from: _from
 };
 
 var _package$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  _from: _from,
-  _id: _id,
-  _inBundle: _inBundle,
-  _integrity: _integrity,
-  _location: _location,
-  _phantomChildren: _phantomChildren,
-  _requested: _requested,
-  _requiredBy: _requiredBy,
-  _resolved: _resolved,
-  _shasum: _shasum,
-  _spec: _spec,
-  _where: _where,
-  author: author,
-  bugs: bugs,
-  bundleDependencies: bundleDependencies,
-  contributors: contributors,
-  dependencies: dependencies,
-  deprecated: deprecated$1,
-  description: description,
-  files: files,
-  funding: funding,
-  homepage: homepage,
-  keywords: keywords,
-  license: license,
   name: name$1,
-  repository: repository,
-  scripts: scripts,
-  types: types,
   version: version$1,
+  description: description,
+  license: license,
+  keywords: keywords,
+  homepage: homepage,
+  repository: repository,
+  bugs: bugs,
+  funding: funding,
+  author: author,
+  contributors: contributors,
+  files: files,
+  types: types,
+  dependencies: dependencies,
+  scripts: scripts,
   xo: xo,
+  _resolved: _resolved,
+  _integrity: _integrity,
+  _from: _from,
   'default': _package
 });
 
@@ -41001,7 +40943,7 @@ const dependencies$1 = {
 	"markdown-extensions": "^1.1.1",
 	remark: "^11.0.2",
 	"remark-lint": "^6.0.5",
-	"remark-preset-lint-node": "^1.12.0",
+	"remark-preset-lint-node": "^1.13.0",
 	"unified-args": "^7.1.0"
 };
 const main = "dist/index.js";
@@ -42476,14 +42418,19 @@ var plur = (word, plural, count) => {
 	return Math.abs(count) === 1 ? word : plural;
 };
 
-var unistUtilPosition = createCommonjsModule(function (module, exports) {
+var start$1 = factory$8('start');
+var end = factory$8('end');
 
-var position = exports;
+var unistUtilPosition = position$1;
 
-position.start = factory('start');
-position.end = factory('end');
+position$1.start = start$1;
+position$1.end = end;
 
-function factory(type) {
+function position$1(node) {
+  return {start: start$1(node), end: end(node)}
+}
+
+function factory$8(type) {
   point.displayName = type;
 
   return point
@@ -42498,7 +42445,6 @@ function factory(type) {
     }
   }
 }
-});
 
 var unistUtilGenerated = generated;
 
@@ -42519,7 +42465,7 @@ var remarkLintListItemBulletIndent = unifiedLintRule(
   listItemBulletIndent
 );
 
-var start$1 = unistUtilPosition.start;
+var start$2 = unistUtilPosition.start;
 
 function listItemBulletIndent(tree, file) {
   var contents = String(file);
@@ -42536,8 +42482,8 @@ function listItemBulletIndent(tree, file) {
     var reason;
 
     if (!unistUtilGenerated(item)) {
-      final = start$1(item.children[0]);
-      indent = contents.slice(start$1(item).offset, final.offset).match(/^\s*/)[0]
+      final = start$2(item.children[0]);
+      indent = contents.slice(start$2(item).offset, final.offset).match(/^\s*/)[0]
         .length;
 
       if (indent !== 0) {
@@ -42558,7 +42504,7 @@ function listItemBulletIndent(tree, file) {
 
 var remarkLintListItemIndent = unifiedLintRule('remark-lint:list-item-indent', listItemIndent);
 
-var start$2 = unistUtilPosition.start;
+var start$3 = unistUtilPosition.start;
 
 var styles = {'tab-size': true, mixed: true, space: true};
 
@@ -42586,7 +42532,7 @@ function listItemIndent(tree, file, pref) {
 
     function visitItem(item) {
       var head = item.children[0];
-      var final = start$2(head);
+      var final = start$3(head);
       var marker;
       var bulletSize;
       var style;
@@ -42594,7 +42540,7 @@ function listItemIndent(tree, file, pref) {
       var reason;
 
       marker = contents
-        .slice(start$2(item).offset, final.offset)
+        .slice(start$3(item).offset, final.offset)
         .replace(/\[[x ]?]\s*$/i, '');
 
       bulletSize = marker.trimRight().length;
@@ -42645,8 +42591,8 @@ var remarkLintNoAutoLinkWithoutProtocol = unifiedLintRule(
   noAutoLinkWithoutProtocol
 );
 
-var start$3 = unistUtilPosition.start;
-var end = unistUtilPosition.end;
+var start$4 = unistUtilPosition.start;
+var end$1 = unistUtilPosition.end;
 
 // Protocol expression.
 // See: <https://en.wikipedia.org/wiki/URI_scheme#Generic_syntax>.
@@ -42664,8 +42610,8 @@ function noAutoLinkWithoutProtocol(tree, file) {
       children = node.children;
 
       if (
-        start$3(node).column === start$3(children[0]).column - 1 &&
-        end(node).column === end(children[children.length - 1]).column + 1 &&
+        start$4(node).column === start$4(children[0]).column - 1 &&
+        end$1(node).column === end$1(children[children.length - 1]).column + 1 &&
         !protocol$2.test(mdastUtilToString(node))
       ) {
         file.message(reason, node);
@@ -42730,8 +42676,8 @@ function noBlockquoteWithoutMarker(tree, file) {
 
 var remarkLintNoLiteralUrls = unifiedLintRule('remark-lint:no-literal-urls', noLiteralURLs);
 
-var start$4 = unistUtilPosition.start;
-var end$1 = unistUtilPosition.end;
+var start$5 = unistUtilPosition.start;
+var end$2 = unistUtilPosition.end;
 var mailto$3 = 'mailto:';
 var reason$2 = 'Don’t use literal URLs without angle brackets';
 
@@ -42744,8 +42690,8 @@ function noLiteralURLs(tree, file) {
 
     if (
       !unistUtilGenerated(node) &&
-      start$4(node).column === start$4(children[0]).column &&
-      end$1(node).column === end$1(children[children.length - 1]).column &&
+      start$5(node).column === start$5(children[0]).column &&
+      end$2(node).column === end$2(children[children.length - 1]).column &&
       (node.url === mailto$3 + value || node.url === value)
     ) {
       file.message(reason$2, node);
@@ -42758,7 +42704,7 @@ var remarkLintOrderedListMarkerStyle = unifiedLintRule(
   orderedListMarkerStyle
 );
 
-var start$5 = unistUtilPosition.start;
+var start$6 = unistUtilPosition.start;
 
 var styles$1 = {
   ')': true,
@@ -42793,7 +42739,7 @@ function orderedListMarkerStyle(tree, file, pref) {
 
       if (!unistUtilGenerated(child)) {
         marker = contents
-          .slice(start$5(child).offset, start$5(child.children[0]).offset)
+          .slice(start$6(child).offset, start$6(child.children[0]).offset)
           .replace(/\s|\d/g, '')
           .replace(/\[[x ]?]\s*$/i, '');
 
@@ -42914,8 +42860,8 @@ var remarkLintNoHeadingContentIndent = unifiedLintRule(
   noHeadingContentIndent
 );
 
-var start$6 = unistUtilPosition.start;
-var end$2 = unistUtilPosition.end;
+var start$7 = unistUtilPosition.start;
+var end$3 = unistUtilPosition.end;
 
 function noHeadingContentIndent(tree, file) {
   var contents = String(file);
@@ -42943,7 +42889,7 @@ function noHeadingContentIndent(tree, file) {
     type = mdastUtilHeadingStyle(node, 'atx');
 
     if (type === 'atx' || type === 'atx-closed') {
-      initial = start$6(node);
+      initial = start$7(node);
       index = initial.offset;
       char = contents.charAt(index);
 
@@ -42957,7 +42903,7 @@ function noHeadingContentIndent(tree, file) {
       }
 
       index = depth + (index - initial.offset);
-      head = start$6(children[0]).column;
+      head = start$7(children[0]).column;
 
       // Ignore empty headings.
       if (!head) {
@@ -42975,15 +42921,15 @@ function noHeadingContentIndent(tree, file) {
           plur('space', diff) +
           ' before this heading’s content';
 
-        file.message(reason, start$6(children[0]));
+        file.message(reason, start$7(children[0]));
       }
     }
 
     // Closed ATX-heading always must have a space between their content and the
     // final hashes, thus, there is no `add x spaces`.
     if (type === 'atx-closed') {
-      final = end$2(children[children.length - 1]);
-      diff = end$2(node).column - final.column - 1 - depth;
+      final = end$3(children[children.length - 1]);
+      diff = end$3(node).column - final.column - 1 - depth;
 
       if (diff) {
         reason =
@@ -43213,8 +43159,8 @@ var remarkLintCheckboxCharacterStyle = unifiedLintRule(
   checkboxCharacterStyle
 );
 
-var start$7 = unistUtilPosition.start;
-var end$3 = unistUtilPosition.end;
+var start$8 = unistUtilPosition.start;
+var end$4 = unistUtilPosition.end;
 
 var checked = {x: true, X: true};
 var unchecked = {' ': true, '\t': true};
@@ -43259,8 +43205,8 @@ function checkboxCharacterStyle(tree, file, pref) {
     }
 
     type = types$1[node.checked];
-    initial = start$7(node).offset;
-    final = (node.children.length === 0 ? end$3(node) : start$7(node.children[0]))
+    initial = start$8(node).offset;
+    final = (node.children.length === 0 ? end$4(node) : start$8(node.children[0]))
       .offset;
 
     // For a checkbox to be parsed, it must be followed by a whitespace.
@@ -43298,8 +43244,8 @@ var remarkLintCheckboxContentIndent = unifiedLintRule(
   checkboxContentIndent
 );
 
-var start$8 = unistUtilPosition.start;
-var end$4 = unistUtilPosition.end;
+var start$9 = unistUtilPosition.start;
+var end$5 = unistUtilPosition.end;
 
 var reason$9 = 'Checkboxes should be followed by a single character';
 
@@ -43319,9 +43265,9 @@ function checkboxContentIndent(tree, file) {
       return
     }
 
-    initial = start$8(node).offset;
+    initial = start$9(node).offset;
     /* istanbul ignore next - hard to test, couldn’t find a case. */
-    final = (node.children.length === 0 ? end$4(node) : start$8(node.children[0]))
+    final = (node.children.length === 0 ? end$5(node) : start$9(node.children[0]))
       .offset;
 
     while (/[^\S\n]/.test(contents.charAt(final))) {
@@ -43343,8 +43289,8 @@ function checkboxContentIndent(tree, file) {
 
 var remarkLintCodeBlockStyle = unifiedLintRule('remark-lint:code-block-style', codeBlockStyle);
 
-var start$9 = unistUtilPosition.start;
-var end$5 = unistUtilPosition.end;
+var start$a = unistUtilPosition.start;
+var end$6 = unistUtilPosition.end;
 
 var styles$2 = {null: true, fenced: true, indented: true};
 
@@ -43377,8 +43323,8 @@ function codeBlockStyle(tree, file, pref) {
 
   // Get the style of `node`.
   function check(node) {
-    var initial = start$9(node).offset;
-    var final = end$5(node).offset;
+    var initial = start$a(node).offset;
+    var final = end$6(node).offset;
 
     if (unistUtilGenerated(node)) {
       return null
@@ -43415,8 +43361,8 @@ function definitionSpacing(tree, file) {
 
 var remarkLintFencedCodeFlag = unifiedLintRule('remark-lint:fenced-code-flag', fencedCodeFlag);
 
-var start$a = unistUtilPosition.start;
-var end$6 = unistUtilPosition.end;
+var start$b = unistUtilPosition.start;
+var end$7 = unistUtilPosition.end;
 
 var fence$2 = /^ {0,3}([~`])\1{2,}/;
 var reasonInvalid = 'Invalid code-language flag';
@@ -43447,7 +43393,7 @@ function fencedCodeFlag(tree, file, pref) {
           file.message(reasonInvalid, node);
         }
       } else {
-        value = contents.slice(start$a(node).offset, end$6(node).offset);
+        value = contents.slice(start$b(node).offset, end$7(node).offset);
 
         if (!allowEmpty && fence$2.test(value)) {
           file.message(reasonMissing, node);
@@ -43520,7 +43466,7 @@ function fileExtension(tree, file, pref) {
 
 var remarkLintFinalDefinition = unifiedLintRule('remark-lint:final-definition', finalDefinition);
 
-var start$b = unistUtilPosition.start;
+var start$c = unistUtilPosition.start;
 
 function finalDefinition(tree, file) {
   var last = null;
@@ -43528,7 +43474,7 @@ function finalDefinition(tree, file) {
   unistUtilVisit(tree, visitor, true);
 
   function visitor(node) {
-    var line = start$b(node).line;
+    var line = start$c(node).line;
 
     // Ignore generated nodes.
     if (node.type === 'root' || unistUtilGenerated(node)) {
@@ -43609,8 +43555,8 @@ function headingStyle(tree, file, pref) {
 
 var remarkLintMaximumLineLength = unifiedLintRule('remark-lint:maximum-line-length', maximumLineLength);
 
-var start$c = unistUtilPosition.start;
-var end$7 = unistUtilPosition.end;
+var start$d = unistUtilPosition.start;
+var end$8 = unistUtilPosition.end;
 
 function maximumLineLength(tree, file, pref) {
   var style = typeof pref === 'number' && !isNaN(pref) ? pref : 80;
@@ -43650,8 +43596,8 @@ function maximumLineLength(tree, file, pref) {
       return
     }
 
-    initial = start$c(node);
-    final = end$7(node);
+    initial = start$d(node);
+    final = end$8(node);
 
     // No whitelisting when starting after the border, or ending before it.
     if (initial.column > style || final.column < style) {
@@ -43661,7 +43607,7 @@ function maximumLineLength(tree, file, pref) {
     // No whitelisting when there’s whitespace after the link.
     if (
       next &&
-      start$c(next).line === initial.line &&
+      start$d(next).line === initial.line &&
       (!next.value || /^(.+?[ \t].+?)/.test(next.value))
     ) {
       return
@@ -43673,7 +43619,7 @@ function maximumLineLength(tree, file, pref) {
   function ignore(node) {
     /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
     if (!unistUtilGenerated(node)) {
-      whitelist(start$c(node).line - 1, end$7(node).line);
+      whitelist(start$d(node).line - 1, end$8(node).line);
     }
   }
 
@@ -43794,7 +43740,7 @@ function noFileNameOuterDashes(tree, file) {
 
 var remarkLintNoHeadingIndent = unifiedLintRule('remark-lint:no-heading-indent', noHeadingIndent);
 
-var start$d = unistUtilPosition.start;
+var start$e = unistUtilPosition.start;
 
 function noHeadingIndent(tree, file) {
   var contents = String(file);
@@ -43813,7 +43759,7 @@ function noHeadingIndent(tree, file) {
       return
     }
 
-    initial = start$d(node);
+    initial = start$e(node);
     begin = initial.offset;
     index = begin - 1;
 
@@ -43839,7 +43785,7 @@ function noHeadingIndent(tree, file) {
   }
 }
 
-var start$e = unistUtilPosition.start;
+var start$f = unistUtilPosition.start;
 
 
 
@@ -43862,7 +43808,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
           node
         );
       } else {
-        duplicate = unistUtilStringifyPosition(start$e(node));
+        duplicate = unistUtilStringifyPosition(start$f(node));
       }
     }
   }
@@ -43987,10 +43933,214 @@ function noTrailingSpaces(ast, file) {
   }
 }
 
+var convert_1$1 = convert$2;
+
+function convert$2(test) {
+  if (typeof test === 'string') {
+    return typeFactory$1(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$2
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$1 : matchesFactory$1)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$1(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$2(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$1(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$1(tests) {
+  var checks = convertAll$1(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$1(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$2() {
+  return true
+}
+
+var unistUtilVisitParents$1 = visitParents$1;
+
+
+
+var CONTINUE$2 = true;
+var SKIP$2 = 'skip';
+var EXIT$2 = false;
+
+visitParents$1.CONTINUE = CONTINUE$2;
+visitParents$1.SKIP = SKIP$2;
+visitParents$1.EXIT = EXIT$2;
+
+function visitParents$1(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$1(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$1(visitor(node, parents));
+
+      if (result[0] === EXIT$2) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$2) {
+      subresult = toResult$1(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$2 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$2) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$1(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$2, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$1 = visit$1;
+
+
+
+var CONTINUE$3 = unistUtilVisitParents$1.CONTINUE;
+var SKIP$3 = unistUtilVisitParents$1.SKIP;
+var EXIT$3 = unistUtilVisitParents$1.EXIT;
+
+visit$1.CONTINUE = CONTINUE$3;
+visit$1.SKIP = SKIP$3;
+visit$1.EXIT = EXIT$3;
+
+function visit$1(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$1(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintProhibitedStrings = unifiedLintRule('remark-lint:prohibited-strings', prohibitedStrings);
 
 function testProhibited(val, content) {
-  const re = new RegExp(`(\\.|@[a-z0-9/-]*)?\\b(${val.no})\\b(\\.\\w)?`, 'g');
+  let regexpString = '(\\.|@[a-z0-9/-]*)?';
+
+  // If it starts with a letter, make sure it is a word break.
+  if (/^\b/.test(val.no)) {
+    regexpString += '\\b';
+  }
+  regexpString += `(${val.no})`;
+
+  // If it ends with a letter, make sure it is a word break.
+  if (/\b$/.test(val.no)) {
+    regexpString += '\\b';
+  }
+  regexpString += '(\\.\\w)?';
+  const re = new RegExp(regexpString, 'g');
 
   let result = null;
   while (result = re.exec(content)) {
@@ -44003,7 +44153,7 @@ function testProhibited(val, content) {
 }
 
 function prohibitedStrings(ast, file, strings) {
-  unistUtilVisit(ast, 'text', checkText);
+  unistUtilVisit$1(ast, 'text', checkText);
 
   function checkText(node) {
     const content = node.value;
@@ -44024,8 +44174,8 @@ var rule = unifiedLintRule;
 
 var remarkLintRuleStyle = rule('remark-lint:rule-style', ruleStyle);
 
-var start$f = unistUtilPosition.start;
-var end$8 = unistUtilPosition.end;
+var start$g = unistUtilPosition.start;
+var end$9 = unistUtilPosition.end;
 
 function ruleStyle(tree, file, pref) {
   var contents = String(file);
@@ -44041,8 +44191,8 @@ function ruleStyle(tree, file, pref) {
   unistUtilVisit(tree, 'thematicBreak', visitor);
 
   function visitor(node) {
-    var initial = start$f(node).offset;
-    var final = end$8(node).offset;
+    var initial = start$g(node).offset;
+    var final = end$9(node).offset;
     var rule;
 
     if (!unistUtilGenerated(node)) {
@@ -44095,8 +44245,8 @@ function strongMarker(tree, file, pref) {
 
 var remarkLintTableCellPadding = unifiedLintRule('remark-lint:table-cell-padding', tableCellPadding);
 
-var start$g = unistUtilPosition.start;
-var end$9 = unistUtilPosition.end;
+var start$h = unistUtilPosition.start;
+var end$a = unistUtilPosition.end;
 
 var styles$3 = {null: true, padded: true, compact: true};
 
@@ -44144,8 +44294,8 @@ function tableCellPadding(tree, file, pref) {
         next = cells[column + 1];
 
         fence = contents.slice(
-          cell ? end$9(cell).offset : start$g(row).offset,
-          next ? start$g(next).offset : end$9(row).offset
+          cell ? end$a(cell).offset : start$h(row).offset,
+          next ? start$h(next).offset : end$a(row).offset
         );
 
         pos = fence.indexOf('|');
@@ -44222,13 +44372,13 @@ function tableCellPadding(tree, file, pref) {
 }
 
 function size(node) {
-  return end$9(node).offset - start$g(node).offset
+  return end$a(node).offset - start$h(node).offset
 }
 
 var remarkLintTablePipes = unifiedLintRule('remark-lint:table-pipes', tablePipes);
 
-var start$h = unistUtilPosition.start;
-var end$a = unistUtilPosition.end;
+var start$i = unistUtilPosition.start;
+var end$b = unistUtilPosition.end;
 
 var reasonStart = 'Missing initial pipe in table fence';
 var reasonEnd = 'Missing final pipe in table fence';
@@ -44256,15 +44406,15 @@ function tablePipes(tree, file) {
         cells = row.children;
         head = cells[0];
         tail = cells[cells.length - 1];
-        initial = contents.slice(start$h(row).offset, start$h(head).offset);
-        final = contents.slice(end$a(tail).offset, end$a(row).offset);
+        initial = contents.slice(start$i(row).offset, start$i(head).offset);
+        final = contents.slice(end$b(tail).offset, end$b(row).offset);
 
         if (initial.indexOf('|') === -1) {
-          file.message(reasonStart, start$h(row));
+          file.message(reasonStart, start$i(row));
         }
 
         if (final.indexOf('|') === -1) {
-          file.message(reasonEnd, end$a(row));
+          file.message(reasonEnd, end$b(row));
         }
       }
     }
@@ -44276,7 +44426,7 @@ var remarkLintUnorderedListMarkerStyle = unifiedLintRule(
   unorderedListMarkerStyle
 );
 
-var start$i = unistUtilPosition.start;
+var start$j = unistUtilPosition.start;
 
 var styles$4 = {
   '-': true,
@@ -44312,7 +44462,7 @@ function unorderedListMarkerStyle(tree, file, pref) {
 
       if (!unistUtilGenerated(child)) {
         marker = contents
-          .slice(start$i(child).offset, start$i(child.children[0]).offset)
+          .slice(start$j(child).offset, start$j(child.children[0]).offset)
           .replace(/\[[x ]?]\s*$/i, '')
           .replace(/\s/g, '');
 
@@ -44372,8 +44522,9 @@ var plugins$2 = [
       { no: "hostname", yes: "host name" },
       { no: "[Jj]avascript", yes: "JavaScript" },
       { no: "Node", yes: "Node.js" },
-      { no: "Node.JS", yes: "Node.js" },
-      { no: "node.js", yes: "Node.js" },
+      { no: "Node\\.JS", yes: "Node.js" },
+      { no: "node\\.js", yes: "Node.js" },
+      { no: "Node\\.js's?", yes: "the Node.js" },
       { no: "[Nn]ote that", yes: "<nothing>" },
       { no: "Rfc", yes: "RFC" },
       { no: "[Rr][Ff][Cc]\\d+", yes: "RFC <number>" },
