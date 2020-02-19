@@ -34,8 +34,7 @@ module.exports = {
         if (normID === '/node_modules/unified-args/lib/options.js') {
           return code.replace('\'./schema\'', '\'./schema.json\'');
         }
-        if (normID === '/node_modules/chokidar/lib/fsevents-handler.js' &&
-            process.platform !== 'darwin') {
+        if (normID === '/node_modules/chokidar/lib/fsevents-handler.js') {
           return code.replace(
             'fsevents = require(\'fsevents\');', 'fsevents = undefined;'
           );
