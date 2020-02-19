@@ -89,6 +89,7 @@ assert(undocumented.delete('--es-module-specifier-resolution'));
 assert(undocumented.delete('--experimental-worker'));
 assert(undocumented.delete('--no-node-snapshot'));
 assert(undocumented.delete('--loader'));
+assert(undocumented.delete('--unsafe-builtin-resolution'));
 
 assert.strictEqual(undocumented.size, 0,
                    'The following options are not documented as allowed in ' +

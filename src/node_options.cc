@@ -546,6 +546,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvironment);
 
+  AddOption("--unsafe-builtin-resolution", "",
+            &EnvironmentOptions::unsafe_builtin_resolution,
+            kAllowedInEnvironment);
+
   AddOption("--tls-keylog",
             "log TLS decryption keys to named file for traffic analysis",
             &EnvironmentOptions::tls_keylog, kAllowedInEnvironment);
