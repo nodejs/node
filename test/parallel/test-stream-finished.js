@@ -312,7 +312,6 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   }));
 }
 
-
 {
   const r = new Readable({
     autoDestroy: false
@@ -331,4 +330,15 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   rs.on('end', common.mustCall(() => {
     finished(rs, common.mustCall());
   }));
+}
+
+{
+  const d = new EE();
+  d._writableState = {};
+  d._writableState.finished = true;
+  finished(d, { readable: false, writable: true }, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+  }));
+  d._writableState.errored = true;
+  d.emit('close');
 }
