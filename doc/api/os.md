@@ -330,6 +330,18 @@ changes:
 Returns the operating system's default directory for temporary files as a
 string.
 
+By default on macOS, the returned path is a symlink. To get the resolved path,
+use [`fs.realpath()`][] or [`fs.realpathSync()`][].
+
+```js
+const tmpdirPath = os.tmpdir();
+
+// For most use cases, it does not matter whether tmpdirPath is a symlink or not
+// but if it does matter, obtain a resolved path with  fs.realpath() or
+// fs.realpathSync().
+const tmpdirResolvedPath = fs.realpathSync(tmpdirPath);
+```
+
 ## `os.totalmem()`
 <!-- YAML
 added: v0.3.3
@@ -1252,6 +1264,8 @@ The following process scheduling constants are exported by
 </table>
 
 [`SystemError`]: errors.html#errors_class_systemerror
+[`fs.realpath()`]: fs.html#fs_fs_realpath_path_options_callback
+[`fs.realpathSync()`]: fs.html#fs_fs_realpathsync_path_options
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
