@@ -1,5 +1,6 @@
 #include "debug_utils-inl.h"  // NOLINT(build/include)
 #include "env-inl.h"
+#include "node_internals.h"
 
 #ifdef __POSIX__
 #if defined(__linux__)
@@ -53,6 +54,34 @@
 #endif  // _WIN32
 
 namespace node {
+
+void EnabledDebugList::Parse(Environment* env) {
+  std::string cats;
+  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env);
+  Parse(cats, true);
+}
+
+void EnabledDebugList::Parse(const std::string& cats, bool enabled) {
+  std::string debug_categories = cats;
+  while (!debug_categories.empty()) {
+    std::string::size_type comma_pos = debug_categories.find(',');
+    std::string wanted = ToLower(debug_categories.substr(0, comma_pos));
+
+#define V(name)                                                                \
+  {                                                                            \
+    static const std::string available_category = ToLower(#name);              \
+    if (available_category.find(wanted) != std::string::npos)                  \
+      set_enabled(DebugCategory::name, enabled);                               \
+  }
+
+    DEBUG_CATEGORY_NAMES(V)
+#undef V
+
+    if (comma_pos == std::string::npos) break;
+    // Use everything after the `,` as the list for the next iteration.
+    debug_categories = debug_categories.substr(comma_pos + 1);
+  }
+}
 
 #ifdef __POSIX__
 #if HAVE_EXECINFO_H
