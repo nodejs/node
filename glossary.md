@@ -68,7 +68,7 @@ may be worth an early look.
 * WPT: [web-platform-tests](https://github.com/web-platform-tests/wpt)
 * bootstrap: Early phase in the Node.js process startup - that sets up
   the Node.js execution environment and loads the internal modules.
-* code cache: A chunk of memory where the compiled JS code is stored.
+* code cache: A chunk of bytes storing compiled JS code and its metadata.
 * deps: upstream projects that this project depends.
 * godbolt: [Compiler Explorer](https://godbolt.org/) run compilers
   interactively from your web browser and interact with the assembly.
@@ -78,5 +78,7 @@ may be worth an early look.
   callable from JS.
 * primordials: Pristine built-ins that are not effected by prototype
   pollution and tampering with built-ins.
-* snapshot: Native object code compiled from the JS APIs of Node.js
+* snapshot: When referring to the V8 startup snapshot, a chunk of
+  bytes containing data serialized from a V8 heap, which can be
+  deserialized to restore the states of the V8 engine.
 * vendoring: consuming external software into this project.
