@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 
 // This test ensures that fs.existsSync doesn't incorrectly return false.
@@ -31,6 +31,6 @@ for (let i = 0; i < 50; i++) {
 assert(fs.existsSync(dir), 'Directory is not accessible');
 
 // Test if file exists asynchronously
-fs.access(dir, function(err) {
+fs.access(dir, common.mustCall((err) => {
   assert.ifError(err);
-});
+}));
