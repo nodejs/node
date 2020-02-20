@@ -76,12 +76,6 @@ function destroy(asyncId) { }
 // (either directly or through other means of resolving a promise).
 function promiseResolve(asyncId) { }
 ```
-### Class: `AsyncHook`
-
-The class `AsyncHook` exposes interface for tracking lifetime events
-of asynchronous operations. Using a unique ID per asynchronous call,
-it helps associating method calls that otherwise do not appear in a
-typical call stack.
 
 #### `async_hooks.createHook(callbacks)`
 
@@ -175,6 +169,13 @@ track of what caused the asynchronous operation using the information
 provided by AsyncHooks itself. The logging should then be skipped when
 it was the logging itself that caused AsyncHooks callback to call. By
 doing this the otherwise infinite recursion is broken.
+
+### Class: `AsyncHook`
+
+The class `AsyncHook` exposes interface for tracking lifetime events
+of asynchronous operations. Using a unique ID per asynchronous call,
+it helps associating method calls that otherwise do not appear together
+in a typical call stack.
 
 #### `asyncHook.enable()`
 
