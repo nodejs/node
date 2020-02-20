@@ -699,8 +699,7 @@ class Verify : public SignBase {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   Error VerifyFinal(const ManagedEVPPKey& key,
-                    const char* sig,
-                    int siglen,
+                    const ByteSource& sig,
                     int padding,
                     const v8::Maybe<int>& saltlen,
                     bool* verify_result);
