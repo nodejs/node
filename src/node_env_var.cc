@@ -58,6 +58,8 @@ class MapKVStore final : public KVStore {
 namespace per_process {
 Mutex env_var_mutex;
 std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
+std::shared_ptr<EnabledDebugList> enabled_debug_list =
+    std::make_shared<EnabledDebugList>(nullptr);
 }  // namespace per_process
 
 template <typename T>

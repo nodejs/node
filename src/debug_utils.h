@@ -189,7 +189,20 @@ class NativeSymbolDebuggingContext {
 void CheckedUvLoopClose(uv_loop_t* loop);
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
 
-}  // namespace node
+namespace per_process {
+extern std::shared_ptr<EnabledDebugList> enabled_debug_list;
+
+template <typename... Args>
+inline void FORCE_INLINE Debug(DebugCategory cat,
+                               const char* format,
+                               Args&&... args) {
+  Debug(enabled_debug_list.get(), cat, format, std::forward<Args>(args)...);
+}
+
+inline void FORCE_INLINE Debug(DebugCategory cat, const char* message) {
+  Debug(enabled_debug_list.get(), cat, message);
+}
+}  // namespace per_process
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
