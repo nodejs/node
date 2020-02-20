@@ -916,6 +916,10 @@ void Init(int* argc,
 }
 
 InitializationResult InitializeOncePerProcess(int argc, char** argv) {
+  // Initialized the enabled list for Debug() calls with system
+  // environment variables.
+  per_process::enabled_debug_list.Parse(nullptr);
+
   atexit(ResetStdio);
   PlatformInit();
 
