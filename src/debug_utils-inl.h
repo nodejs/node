@@ -164,6 +164,20 @@ inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
   Debug(async_wrap, format.c_str(), std::forward<Args>(args)...);
 }
 
+namespace per_process {
+
+template <typename... Args>
+inline void FORCE_INLINE Debug(DebugCategory cat,
+                               const char* format,
+                               Args&&... args) {
+  Debug(&enabled_debug_list, cat, format, std::forward<Args>(args)...);
+}
+
+inline void FORCE_INLINE Debug(DebugCategory cat, const char* message) {
+  Debug(&enabled_debug_list, cat, message);
+}
+
+}  // namespace per_process
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
