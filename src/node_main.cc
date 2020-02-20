@@ -28,9 +28,12 @@
 #include <WinError.h>
 
 int wmain(int argc, wchar_t* wargv[]) {
-  if (!IsWindows7OrGreater()) {
-    fprintf(stderr, "This application is only supported on Windows 7, "
-                    "Windows Server 2008 R2, or higher.");
+  // Windows Server 2012 (not R2) is supported until 10/10/2023, so we allow it
+  // to run in the experimental support tier.
+  if (!IsWindows8Point1OrGreater() &&
+      !(IsWindowsServer() && IsWindows8OrGreater())) {
+    fprintf(stderr, "This application is only supported on Windows 8.1, "
+                    "Windows Server 2012 R2, or higher.");
     exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
 
