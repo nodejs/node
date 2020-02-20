@@ -42,6 +42,7 @@ void FWrite(FILE* file, const std::string& str);
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
   V(INSPECTOR_PROFILER)                                                        \
+  V(CODE_CACHE)                                                                \
   V(WASI)
 
 enum class DebugCategory {
