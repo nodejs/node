@@ -5323,8 +5323,7 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
 
 
 SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
-                                    const char* sig,
-                                    int siglen,
+                                    const ByteSource& sig,
                                     int padding,
                                     const Maybe<int>& saltlen,
                                     bool* verify_result) {
@@ -5345,11 +5344,8 @@ SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
       ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
       EVP_PKEY_CTX_set_signature_md(pkctx.get(),
                                     EVP_MD_CTX_md(mdctx.get())) > 0) {
-    const int r = EVP_PKEY_verify(pkctx.get(),
-                                  reinterpret_cast<const unsigned char*>(sig),
-                                  siglen,
-                                  m,
-                                  m_len);
+    const unsigned char* s = reinterpret_cast<const unsigned char*>(sig.get());
+    const int r = EVP_PKEY_verify(pkctx.get(), s, sig.size(), m, m_len);
     *verify_result = r == 1;
   }
 
@@ -5394,7 +5390,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   }
 
   bool verify_result;
-  Error err = verify->VerifyFinal(pkey, hbuf.data(), hbuf.length(), padding,
+  Error err = verify->VerifyFinal(pkey, signature, padding,
                                   salt_len, &verify_result);
   if (err != kSignOk)
     return verify->CheckThrow(err);
