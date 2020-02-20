@@ -527,6 +527,9 @@ assert.throws(
     // Unlike DER signatures, IEEE P1363 signatures have a predictable length.
     assert.strictEqual(sig.length, length);
     assert.strictEqual(crypto.verify('sha1', data, opts, sig), true);
+    assert.strictEqual(crypto.createVerify('sha1')
+                             .update(data)
+                             .verify(opts, sig), true);
 
     // Test invalid signature lengths.
     for (const i of [-2, -1, 1, 2, 4, 8]) {
@@ -546,6 +549,14 @@ assert.throws(
   for (const ok of [true, false]) {
     assert.strictEqual(
       crypto.verify('sha256', data, {
+        key: fixtures.readKey('ec-key.pem'),
+        dsaEncoding: 'ieee-p1363'
+      }, extSig),
+      ok
+    );
+
+    assert.strictEqual(
+      crypto.createVerify('sha256').update(data).verify({
         key: fixtures.readKey('ec-key.pem'),
         dsaEncoding: 'ieee-p1363'
       }, extSig),
