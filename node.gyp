@@ -1259,6 +1259,16 @@
       ],
 
       'conditions': [
+        [ 'node_use_openssl=="true"', {
+          'defines': [
+            'HAVE_OPENSSL=1',
+          ],
+        }],
+        ['v8_enable_inspector==1', {
+          'defines': [
+            'HAVE_INSPECTOR=1',
+          ],
+        }],
         ['OS=="win"', {
           'libraries': [
             'dbghelp.lib',
@@ -1303,6 +1313,16 @@
       ],
 
       'conditions': [
+        [ 'node_use_openssl=="true"', {
+          'defines': [
+            'HAVE_OPENSSL=1',
+          ],
+        }],
+        ['v8_enable_inspector==1', {
+          'defines': [
+            'HAVE_INSPECTOR=1',
+          ],
+        }],
         ['OS=="win"', {
           'libraries': [
             'Dbghelp.lib',

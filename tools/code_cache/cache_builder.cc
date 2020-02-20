@@ -1,4 +1,5 @@
 #include "cache_builder.h"
+#include "debug_utils-inl.h"
 #include "node_native_module.h"
 #include "util.h"
 
@@ -67,8 +68,7 @@ static void GetInitializer(const std::string& id, std::stringstream& ss) {
 }
 
 static std::string GenerateCodeCache(
-    const std::map<std::string, ScriptCompiler::CachedData*>& data,
-    bool log_progress) {
+    const std::map<std::string, ScriptCompiler::CachedData*>& data) {
   std::stringstream ss;
   ss << R"(#include <cinttypes>
 #include "node_native_module_env.h"
@@ -89,11 +89,13 @@ const bool has_code_cache = true;
     total += cached_data->length;
     std::string def = GetDefinition(id, cached_data->length, cached_data->data);
     ss << def << "\n\n";
-    if (log_progress) {
-      std::cout << "Generated cache for " << id
-                << ", size = " << FormatSize(cached_data->length)
-                << ", total = " << FormatSize(total) << "\n";
-    }
+    std::string size_str = FormatSize(cached_data->length);
+    std::string total_str = FormatSize(total);
+    per_process::Debug(DebugCategory::CODE_CACHE,
+                       "Generated cache for %s, size = %s, total = %s\n",
+                       id.c_str(),
+                       size_str.c_str(),
+                       total_str.c_str());
   }
 
   ss << R"(void NativeModuleEnv::InitializeCodeCache() {
@@ -142,14 +144,7 @@ std::string CodeCacheBuilder::Generate(Local<Context> context) {
     }
   }
 
-  char env_buf[32];
-  size_t env_size = sizeof(env_buf);
-  int ret = uv_os_getenv("NODE_DEBUG", env_buf, &env_size);
-  bool log_progress = false;
-  if (ret == 0 && strcmp(env_buf, "mkcodecache") == 0) {
-    log_progress = true;
-  }
-  return GenerateCodeCache(data, log_progress);
+  return GenerateCodeCache(data);
 }
 
 }  // namespace native_module

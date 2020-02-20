@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cache_builder.h"
+#include "debug_utils-inl.h"
 #include "libplatform/libplatform.h"
 #include "v8.h"
 
@@ -39,6 +40,8 @@ int main(int argc, char* argv[]) {
     std::cerr << "Cannot open " << argv[1] << "\n";
     return 1;
   }
+
+  node::per_process::enabled_debug_list.Parse(nullptr);
 
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
