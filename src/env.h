@@ -547,20 +547,7 @@ struct ContextInfo {
   bool is_default = false;
 };
 
-// Listing the AsyncWrap provider types first enables us to cast directly
-// from a provider type to a debug category.
-#define DEBUG_CATEGORY_NAMES(V)                                                \
-  NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
-  V(INSPECTOR_SERVER)                                                          \
-  V(INSPECTOR_PROFILER)                                                        \
-  V(WASI)
-
-enum class DebugCategory {
-#define V(name) name,
-  DEBUG_CATEGORY_NAMES(V)
-#undef V
-  CATEGORY_COUNT
-};
+class EnabledDebugList;
 
 // A unique-pointer-ish object that is compatible with the JS engine's
 // ArrayBuffer::Allocator.
@@ -1022,9 +1009,9 @@ class Environment : public MemoryRetainer {
   inline http2::Http2State* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::Http2State> state);
 
-  inline bool debug_enabled(DebugCategory category) const;
-  inline void set_debug_enabled(DebugCategory category, bool enabled);
-  void set_debug_categories(const std::string& cats, bool enabled);
+  EnabledDebugList* enabled_debug_list() const {
+    return enabled_debug_list_.get();
+  }
 
   inline AliasedFloat64Array* fs_stats_field_array();
   inline AliasedBigUint64Array* fs_stats_field_bigint_array();
@@ -1384,9 +1371,7 @@ class Environment : public MemoryRetainer {
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
 
-  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {
-      false};
-
+  std::unique_ptr<EnabledDebugList> enabled_debug_list_;
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;
 
