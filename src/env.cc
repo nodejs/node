@@ -1,6 +1,7 @@
 #include "env.h"
 
 #include "async_wrap.h"
+#include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
@@ -315,6 +316,7 @@ Environment::Environment(IsolateData* isolate_data,
   Context::Scope context_scope(context);
 
   set_env_vars(per_process::system_environment);
+  enabled_debug_list_.Parse(this);
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
@@ -374,10 +376,6 @@ Environment::Environment(IsolateData* isolate_data,
 
   // By default, always abort when --abort-on-uncaught-exception was passed.
   should_abort_on_uncaught_toggle_[0] = 1;
-
-  std::string debug_cats;
-  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &debug_cats, this);
-  set_debug_categories(debug_cats, true);
 
   if (options_->no_force_async_hooks_checks) {
     async_hooks_.no_force_checks();
@@ -862,29 +860,6 @@ Local<Value> Environment::GetNow() {
     return Integer::NewFromUnsigned(isolate(), static_cast<uint32_t>(now));
   else
     return Number::New(isolate(), static_cast<double>(now));
-}
-
-void Environment::set_debug_categories(const std::string& cats, bool enabled) {
-  std::string debug_categories = cats;
-  while (!debug_categories.empty()) {
-    std::string::size_type comma_pos = debug_categories.find(',');
-    std::string wanted = ToLower(debug_categories.substr(0, comma_pos));
-
-#define V(name)                                                          \
-    {                                                                    \
-      static const std::string available_category = ToLower(#name);      \
-      if (available_category.find(wanted) != std::string::npos)          \
-        set_debug_enabled(DebugCategory::name, enabled);                 \
-    }
-
-    DEBUG_CATEGORY_NAMES(V)
-#undef V
-
-    if (comma_pos == std::string::npos)
-      break;
-    // Use everything after the `,` as the list for the next iteration.
-    debug_categories = debug_categories.substr(comma_pos + 1);
-  }
 }
 
 void CollectExceptionInfo(Environment* env,

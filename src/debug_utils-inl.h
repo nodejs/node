@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "debug_utils.h"
+#include "env.h"
 
 #include <type_traits>
 
@@ -88,6 +89,79 @@ std::string COLD_NOINLINE SPrintF(  // NOLINT(runtime/string)
 template <typename... Args>
 void COLD_NOINLINE FPrintF(FILE* file, const char* format, Args&&... args) {
   FWrite(file, SPrintF(format, std::forward<Args>(args)...));
+}
+
+template <typename... Args>
+inline void FORCE_INLINE Debug(EnabledDebugList* list,
+                               DebugCategory cat,
+                               const char* format,
+                               Args&&... args) {
+  if (!UNLIKELY(list->enabled(cat))) return;
+  FPrintF(stderr, format, std::forward<Args>(args)...);
+}
+
+inline void FORCE_INLINE Debug(EnabledDebugList* list,
+                               DebugCategory cat,
+                               const char* message) {
+  if (!UNLIKELY(list->enabled(cat))) return;
+  FPrintF(stderr, "%s", message);
+}
+
+template <typename... Args>
+inline void FORCE_INLINE
+Debug(Environment* env, DebugCategory cat, const char* format, Args&&... args) {
+  Debug(env->enabled_debug_list(), cat, format, std::forward<Args>(args)...);
+}
+
+inline void FORCE_INLINE Debug(Environment* env,
+                               DebugCategory cat,
+                               const char* message) {
+  Debug(env->enabled_debug_list(), cat, message);
+}
+
+template <typename... Args>
+inline void Debug(Environment* env,
+                  DebugCategory cat,
+                  const std::string& format,
+                  Args&&... args) {
+  Debug(env->enabled_debug_list(),
+        cat,
+        format.c_str(),
+        std::forward<Args>(args)...);
+}
+
+// Used internally by the 'real' Debug(AsyncWrap*, ...) functions below, so that
+// the FORCE_INLINE flag on them doesn't apply to the contents of this function
+// as well.
+// We apply COLD_NOINLINE to tell the compiler that it's not worth optimizing
+// this function for speed and it should rather focus on keeping it out of
+// hot code paths. In particular, we want to keep the string concatenating code
+// out of the function containing the original `Debug()` call.
+template <typename... Args>
+void COLD_NOINLINE UnconditionalAsyncWrapDebug(AsyncWrap* async_wrap,
+                                               const char* format,
+                                               Args&&... args) {
+  Debug(async_wrap->env(),
+        static_cast<DebugCategory>(async_wrap->provider_type()),
+        async_wrap->diagnostic_name() + " " + format + "\n",
+        std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
+                               const char* format,
+                               Args&&... args) {
+  DCHECK_NOT_NULL(async_wrap);
+  DebugCategory cat = static_cast<DebugCategory>(async_wrap->provider_type());
+  if (!UNLIKELY(async_wrap->env()->enabled_debug_list()->enabled(cat))) return;
+  UnconditionalAsyncWrapDebug(async_wrap, format, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
+                               const std::string& format,
+                               Args&&... args) {
+  Debug(async_wrap, format.c_str(), std::forward<Args>(args)...);
 }
 
 }  // namespace node
