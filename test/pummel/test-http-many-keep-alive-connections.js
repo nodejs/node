@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -40,9 +40,9 @@ server.once('connection', function(c) {
   connection = c;
 });
 
-server.listen(common.PORT, function connect() {
+server.listen(0, function connect() {
   const request = http.get({
-    port: common.PORT,
+    port: server.address().port,
     path: '/',
     headers: {
       'Connection': 'Keep-alive'

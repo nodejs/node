@@ -23,7 +23,7 @@
 // This tests setTimeout() by having multiple clients connecting and sending
 // data in random intervals. Clients are also randomly disconnecting until there
 // are no more clients left. If no false timeout occurs, this test has passed.
-const common = require('../common');
+require('../common');
 const http = require('http');
 const server = http.createServer();
 let connections = 0;
@@ -44,13 +44,13 @@ server.on('request', function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', function() {
   for (let i = 0; i < 10; i++) {
     connections++;
 
     setTimeout(function() {
       const request = http.request({
-        port: common.PORT,
+        port: server.address().port,
         method: 'POST',
         path: '/'
       });

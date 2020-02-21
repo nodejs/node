@@ -52,7 +52,7 @@ function makeRequest() {
   // more easily.  Also, this is handy when using this test to
   // view V8 opt/deopt behavior.
   const args = process.execArgv.concat([ childScript,
-                                         common.PORT,
+                                         server.address().port,
                                          bytesExpected ]);
 
   const child = spawn(process.execPath, args);
@@ -101,7 +101,7 @@ const server = https.Server(serverOptions, function(req, res) {
   });
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.log(`expecting ${bytesExpected} bytes`);
   makeRequest();
 });
