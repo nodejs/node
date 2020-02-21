@@ -196,9 +196,10 @@ for (const [params1, params2] of [
 test(crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }),
      crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }));
 
+const not256k1 = crypto.getCurves().find((c) => /^sec.*(224|384|512)/.test(c));
 assert.throws(() => {
   test(crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }),
-       crypto.generateKeyPairSync('ec', { namedCurve: 'secp224k1' }));
+       crypto.generateKeyPairSync('ec', { namedCurve: not256k1 }));
 }, {
   name: 'Error',
   code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
