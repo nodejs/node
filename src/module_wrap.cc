@@ -25,6 +25,7 @@ using node::url::URL_FLAGS_FAILED;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -45,6 +46,7 @@ using v8::PrimitiveArray;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
+using v8::ScriptOrModule;
 using v8::String;
 using v8::UnboundModuleScript;
 using v8::Undefined;
@@ -627,7 +629,7 @@ Maybe<const PackageConfig*> GetPackageConfig(Environment* env,
   std::string pkg_src = source.FromJust();
 
   Isolate* isolate = env->isolate();
-  v8::HandleScope handle_scope(isolate);
+  HandleScope handle_scope(isolate);
 
   Local<Object> pkg_json;
   {
@@ -899,7 +901,7 @@ void ThrowExportsInvalid(Environment* env,
                          const URL& base) {
   Local<String> target_string;
   if (target->IsObject()) {
-    if (!v8::JSON::Stringify(env->context(), target.As<v8::Object>(),
+    if (!v8::JSON::Stringify(env->context(), target.As<Object>(),
             v8::String::Empty(env->isolate())).ToLocal(&target_string))
       return;
   } else {
@@ -977,7 +979,7 @@ Maybe<URL> ResolveExportsTarget(Environment* env,
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   if (target->IsString()) {
-    Utf8Value target_utf8(isolate, target.As<v8::String>());
+    Utf8Value target_utf8(isolate, target.As<String>());
     std::string target_str(*target_utf8, target_utf8.length());
     Maybe<URL> resolved = ResolveExportsTargetString(env, target_str, subpath,
         pkg_subpath, pjson_url, base);
@@ -1440,12 +1442,12 @@ void ModuleWrap::GetPackageType(const FunctionCallbackInfo<Value>& args) {
 
 static MaybeLocal<Promise> ImportModuleDynamically(
     Local<Context> context,
-    Local<v8::ScriptOrModule> referrer,
+    Local<ScriptOrModule> referrer,
     Local<String> specifier) {
   Isolate* iso = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
-  v8::EscapableHandleScope handle_scope(iso);
+  EscapableHandleScope handle_scope(iso);
 
   Local<Function> import_callback =
     env->host_import_module_dynamically_callback();
