@@ -613,11 +613,9 @@ const { promisify } = require('util');
     yield 'hello';
     yield 'world';
   }, async function*(source) {
-    const ret = [];
     for await (const chunk of source) {
-      ret.push(chunk.toUpperCase());
+      yield chunk.toUpperCase();
     }
-    yield ret;
   }, async function(source) {
     let ret = '';
     for await (const chunk of source) {
@@ -754,7 +752,6 @@ const { promisify } = require('util');
   }, common.mustCall((err) => {
     assert.strictEqual(err, undefined);
     assert.strictEqual(ret, 'asd');
-    assert.strictEqual(s.destroyed, true);
   }));
 }
 
@@ -775,7 +772,6 @@ const { promisify } = require('util');
   }, common.mustCall((err) => {
     assert.strictEqual(err, undefined);
     assert.strictEqual(ret, 'asd');
-    assert.strictEqual(s.destroyed, true);
   }));
 }
 
