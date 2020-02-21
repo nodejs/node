@@ -22,6 +22,8 @@
 
 #include "node_large_page.h"
 
+#include <cerrno>   // NOLINT(build/include)
+
 // Besides returning ENOTSUP at runtime we do nothing if this define is missing.
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 #include "util.h"
@@ -38,7 +40,6 @@
 #endif
 #include <unistd.h>  // readlink
 
-#include <cerrno>   // NOLINT(build/include)
 #include <climits>  // PATH_MAX
 #include <clocale>
 #include <csignal>
