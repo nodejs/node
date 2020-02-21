@@ -48,7 +48,7 @@ const server = net.createServer(function(socket) {
 });
 
 
-server.listen(common.PORT, function() {
-  const s = net.connect(common.PORT);
+server.listen(0, function() {
+  const s = net.connect(server.address().port);
   s.pipe(process.stdout);
 });

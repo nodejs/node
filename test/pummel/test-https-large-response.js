@@ -43,9 +43,9 @@ const server = https.createServer(options, common.mustCall(function(req, res) {
   res.end(body);
 }));
 
-server.listen(common.PORT, common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   https.get({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: false
   }, common.mustCall(function(res) {
     console.log('response!');
