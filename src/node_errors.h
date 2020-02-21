@@ -39,6 +39,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                   \
   V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                        \
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                      \
+  V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                          \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                      \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
@@ -86,28 +87,30 @@ void OnFatalError(const char* location, const char* message);
 
 // Errors with predefined static messages
 
-#define PREDEFINED_ERROR_MESSAGES(V)                                         \
-  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                        \
-    "Buffer is not available for the current Context")                       \
-  V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")              \
-  V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
-  V(ERR_CRYPTO_UNKNOWN_CIPHER, "Unknown cipher")                             \
-  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                         \
-  V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
-  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
-  V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                      \
-  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
-    "MessagePort was found in message but not listed in transferList")       \
-  V(ERR_MISSING_PLATFORM_FOR_WORKER,                                         \
-    "The V8 platform used by this instance of Node does not support "        \
-    "creating Workers")                                                      \
-  V(ERR_NON_CONTEXT_AWARE_DISABLED,                                          \
-    "Loading non context-aware native modules has been disabled")            \
-  V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                        \
-    "Script execution was interrupted by `SIGINT`")                          \
-  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                         \
-    "Cannot serialize externalized SharedArrayBuffer")                       \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")  \
+#define PREDEFINED_ERROR_MESSAGES(V)                                           \
+  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                          \
+    "Buffer is not available for the current Context")                         \
+  V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
+  V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
+  V(ERR_CRYPTO_UNKNOWN_CIPHER, "Unknown cipher")                               \
+  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                           \
+  V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
+    "Context not associated with Node.js environment")                         \
+  V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
+  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
+  V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
+  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                                 \
+    "MessagePort was found in message but not listed in transferList")         \
+  V(ERR_MISSING_PLATFORM_FOR_WORKER,                                           \
+    "The V8 platform used by this instance of Node does not support "          \
+    "creating Workers")                                                        \
+  V(ERR_NON_CONTEXT_AWARE_DISABLED,                                            \
+    "Loading non context-aware native modules has been disabled")              \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
+    "Script execution was interrupted by `SIGINT`")                            \
+  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                           \
+    "Cannot serialize externalized SharedArrayBuffer")                         \
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \

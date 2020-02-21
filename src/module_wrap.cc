@@ -451,7 +451,12 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
                                                Local<String> specifier,
                                                Local<Module> referrer) {
   Environment* env = Environment::GetCurrent(context);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  if (env == nullptr) {
+    Isolate* isolate = context->GetIsolate();
+    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Module>();
+  }
+
   Isolate* isolate = env->isolate();
 
   ModuleWrap* dependent = GetFromModule(env, referrer);
@@ -1443,7 +1448,11 @@ static MaybeLocal<Promise> ImportModuleDynamically(
     Local<String> specifier) {
   Isolate* iso = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Handle nullptr here.
+  if (env == nullptr) {
+    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(iso);
+    return MaybeLocal<Promise>();
+  }
+
   EscapableHandleScope handle_scope(iso);
 
   Local<Function> import_callback =
