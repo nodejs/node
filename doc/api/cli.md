@@ -1164,6 +1164,9 @@ V8 options that are allowed are:
 * `--stack-trace-limit`
 <!-- node-options-v8 end -->
 
+`--perf-basic-prof-only-functions`, `--perf-basic-prof`,
+`--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
+
 ### `NODE_PATH=path[:…]`
 <!-- YAML
 added: v0.1.32
