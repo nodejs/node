@@ -75,7 +75,9 @@ extern char __executable_start;
 }  // extern "C"
 #endif  // defined(__linux__)
 
+#endif  // defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 namespace node {
+#if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 
 namespace {
 
