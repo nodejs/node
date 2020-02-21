@@ -25,10 +25,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-
 namespace node {
-bool IsLargePagesEnabled();
 int MapStaticCodeToLargePages();
+const char* LargePagesError(int status);
 }  // namespace node
 
 #endif  // NODE_WANT_INTERNALS
