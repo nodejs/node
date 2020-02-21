@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 const net = require('net');
 
 // First test. Check that after error event you can listen right away.
@@ -28,9 +29,9 @@ const net = require('net');
 
   server.listen(common.mustCall(() => server.close()));
 
-  common.expectsError(() => server.listen(), {
+  assert.throws(() => server.listen(), {
     code: 'ERR_SERVER_ALREADY_LISTEN',
-    type: Error
+    name: 'Error'
   });
 }
 

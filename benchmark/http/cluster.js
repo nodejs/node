@@ -18,7 +18,7 @@ if (cluster.isMaster) {
 
 function main({ type, len, c }) {
   process.env.PORT = PORT;
-  var workers = 0;
+  let workers = 0;
   const w1 = cluster.fork();
   const w2 = cluster.fork();
 

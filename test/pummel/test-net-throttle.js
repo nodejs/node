@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -32,8 +32,6 @@ let npauses = 0;
 console.log('build big string');
 const body = 'C'.repeat(N);
 
-console.log(`start server on port ${common.PORT}`);
-
 const server = net.createServer((connection) => {
   connection.write(body.slice(0, part_N));
   connection.write(body.slice(part_N, 2 * part_N));
@@ -44,9 +42,11 @@ const server = net.createServer((connection) => {
   connection.end();
 });
 
-server.listen(common.PORT, () => {
+server.listen(0, () => {
+  const port = server.address().port;
+  console.log(`server started on port ${port}`);
   let paused = false;
-  const client = net.createConnection(common.PORT);
+  const client = net.createConnection(port);
   client.setEncoding('ascii');
   client.on('data', (d) => {
     chars_recved += d.length;

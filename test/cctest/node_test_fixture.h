@@ -70,6 +70,7 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
 
   static void SetUpTestCase() {
     if (!node_initialized) {
+      uv_os_unsetenv("NODE_OPTIONS");
       node_initialized = true;
       int argc = 1;
       const char* argv0 = "cctest";
@@ -80,9 +81,13 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
 
     tracing_agent = std::make_unique<node::tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent.get());
+    node::tracing::TracingController* tracing_controller =
+        tracing_agent->GetTracingController();
     CHECK_EQ(0, uv_loop_init(&current_loop));
-    platform.reset(static_cast<node::NodePlatform*>(
-          node::InitializeV8Platform(4)));
+    static constexpr int kV8ThreadPoolSize = 4;
+    platform.reset(
+        new node::NodePlatform(kV8ThreadPoolSize, tracing_controller));
+    v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
   }
 
@@ -108,7 +113,7 @@ class NodeTestFixture : public NodeZeroIsolateTestFixture {
 
   void SetUp() override {
     NodeZeroIsolateTestFixture::SetUp();
-    isolate_ = NewIsolate(allocator.get(), &current_loop);
+    isolate_ = NewIsolate(allocator.get(), &current_loop, platform.get());
     CHECK_NOT_NULL(isolate_);
     isolate_->Enter();
   }
@@ -116,8 +121,8 @@ class NodeTestFixture : public NodeZeroIsolateTestFixture {
   void TearDown() override {
     platform->DrainTasks(isolate_);
     isolate_->Exit();
-    isolate_->Dispose();
     platform->UnregisterIsolate(isolate_);
+    isolate_->Dispose();
     isolate_ = nullptr;
     NodeZeroIsolateTestFixture::TearDown();
   }

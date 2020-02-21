@@ -23,18 +23,39 @@ const env = common.newEnv().extend({
   npm_config_loglevel: 'error'
 })
 
+/**
+ * NOTE: Tarball Fixtures
+ * They contain package.json files with dependencies like the following:
+ * a-1.0.0.tgz: package/package.json
+ * {
+ *   "name":"a",
+ *   "version":"1.0.0",
+ *   "dependencies":{
+ *     "b":"./b-1.0.0.tgz"
+ *   }
+ * }
+ * example-1.0.0.tgz: package/package.json
+ * {
+ *   "name":"example",
+ *   "version":"1.0.0",
+ *   "dependencies":{
+ *     "a":"./a-1.0.0.tgz",
+ *     "b":"./b-1.0.0.tgz"
+ *   }
+ * }
+ */
 const fixture = new Tacks(Dir({
   cache: Dir(),
   global: Dir(),
   tmp: Dir(),
   testdir: Dir({
     'a-1.0.0.tgz': File(Buffer.from(
-      '1f8b0800000000000003edcfc10e82300c0660ce3ec5d2b38e4eb71d789b' +
-      '010d41e358187890f0ee56493c71319218937d977feb9aa50daebab886f2' +
-      'b0a43cc7ce671b4344abb558ab3f2934223b198b4a598bdcc707a38f9c5b' +
-      '0fb2668c83eb79946fff597611effc131378772528c0c11e6ed4c7b6f37c' +
-      '53122572a5a640be265fb514a198a0e43729f3f2f06a9043738779defd7a' +
-      '89244992e4630fd69e456800080000',
+      '1f8b0800000000000003edcfc10a83300c06e09df71492f35653567bf06d' +
+      'a2067163b558b7c3c4775f54f0e4654c18837e973f4da0249eca1bd59cfa' +
+      '25d535b4eeb03344b4c6245bfd8946995d328b5a5b3bd55264464beebdc8' +
+      '9647e8a99355befd67b92559f34f0ce0e8ce9003c1099edc85a675f2d20a' +
+      '154aa762cfae6257361c201fa090994a8bf33c577dfd82713cfefa86288a' +
+      'a2e8736f68a0ff4400080000',
       'hex'
     )),
     'b-1.0.0.tgz': File(Buffer.from(
@@ -55,12 +76,12 @@ const fixture = new Tacks(Dir({
       })
     }),
     'example-1.0.0.tgz': File(Buffer.from(
-      '1f8b0800000000000003ed8fc10ac2300c8677f62946cedaa5d8f5e0db64' +
-      '5b1853d795758a38f6ee4607e261370722f4bbfce5cb4f493c9527aa39f3' +
-      '73aa63e85cb23288688d4997fc136d304df6b945adad45e9c923375a72ed' +
-      '4596b884817a59e5db7fe65bd277fe0923386a190ec0376afd99610b57ee' +
-      '43d339715aa14231157b7615bbb2e100871148664a65b47b15d450dfa554' +
-      'ccb2f890d3b4f9f57d9148241259e60112d8208a00080000',
+      '1f8b0800000000000003ed8fc10a83300c863def2924e7ada6587bf06daa' +
+      '06719bb55837c6c4775fa6307670a70963d0ef92f02584fcce94275353e2' +
+      '962a8ebeb3d1c620a2562a5ef34f64aae328cd344aa935f21e379962875b' +
+      '3fb2c6c50fa6e757bebdb364895ff54f18c19a962007ba99d69d09f670a5' +
+      'de379d6527050a645391235b912d1bf2908f607826127398e762a8efbc53' +
+      'ccae7873d3b4fb75ba402010087ce2014747c9d500080000',
       'hex'
     )),
     optional: Dir({

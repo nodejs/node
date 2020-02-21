@@ -1,10 +1,13 @@
-#include "debug_utils.h"
+#include "debug_utils-inl.h"  // NOLINT(build/include)
 #include "env-inl.h"
-#include "util-inl.h"
 
 #ifdef __POSIX__
 #if defined(__linux__)
 #include <features.h>
+#endif
+
+#ifdef __ANDROID__
+#include <android/log.h>
 #endif
 
 #if defined(__linux__) && !defined(__GLIBC__) || \
@@ -27,10 +30,10 @@
 #endif  // __POSIX__
 
 #if defined(__linux__) || defined(__sun) || \
-    defined(__FreeBSD__) || defined(__OpenBSD__)
+    defined(__FreeBSD__) || defined(__OpenBSD__) || \
+    defined(__DragonFly__)
 #include <link.h>
-#endif  // (__linux__) || defined(__sun) ||
-        // (__FreeBSD__) || defined(__OpenBSD__)
+#endif
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>  // _dyld_get_image_name()
@@ -97,16 +100,14 @@ class PosixSymbolDebuggingContext final : public NativeSymbolDebuggingContext {
 
 std::unique_ptr<NativeSymbolDebuggingContext>
 NativeSymbolDebuggingContext::New() {
-  return std::unique_ptr<NativeSymbolDebuggingContext>(
-      new PosixSymbolDebuggingContext());
+  return std::make_unique<PosixSymbolDebuggingContext>();
 }
 
 #else  // HAVE_EXECINFO_H
 
 std::unique_ptr<NativeSymbolDebuggingContext>
 NativeSymbolDebuggingContext::New() {
-  return std::unique_ptr<NativeSymbolDebuggingContext>(
-      new NativeSymbolDebuggingContext());
+  return std::make_unique<NativeSymbolDebuggingContext>();
 }
 
 #endif  // HAVE_EXECINFO_H
@@ -293,19 +294,21 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
   struct Info {
     std::unique_ptr<NativeSymbolDebuggingContext> ctx;
     FILE* stream;
+    size_t num_handles;
   };
 
-  Info info { NativeSymbolDebuggingContext::New(), stream };
+  Info info { NativeSymbolDebuggingContext::New(), stream, 0 };
 
-  fprintf(stream, "uv loop at [%p] has %d active handles\n",
-          loop, loop->active_handles);
+  fprintf(stream, "uv loop at [%p] has open handles:\n", loop);
 
   uv_walk(loop, [](uv_handle_t* handle, void* arg) {
     Info* info = static_cast<Info*>(arg);
     NativeSymbolDebuggingContext* sym_ctx = info->ctx.get();
     FILE* stream = info->stream;
+    info->num_handles++;
 
-    fprintf(stream, "[%p] %s\n", handle, uv_handle_type_name(handle->type));
+    fprintf(stream, "[%p] %s%s\n", handle, uv_handle_type_name(handle->type),
+            uv_is_active(handle) ? " (active)" : "");
 
     void* close_cb = reinterpret_cast<void*>(handle->close_cb);
     fprintf(stream, "\tClose callback: %p %s\n",
@@ -329,11 +332,15 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream) {
           first_field, sym_ctx->LookupSymbol(first_field).Display().c_str());
     }
   }, &info);
+
+  fprintf(stream, "uv loop at [%p] has %zu open handles in total\n",
+          loop, info.num_handles);
 }
 
 std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
   std::vector<std::string> list;
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__linux__) || defined(__FreeBSD__) || \
+    defined(__OpenBSD__) || defined(__DragonFly__)
   dl_iterate_phdr(
       [](struct dl_phdr_info* info, size_t size, void* data) {
         auto list = static_cast<std::vector<std::string>*>(data);
@@ -432,6 +439,43 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
   return list;
 }
 
+void FWrite(FILE* file, const std::string& str) {
+  auto simple_fwrite = [&]() {
+    // The return value is ignored because there's no good way to handle it.
+    fwrite(str.data(), str.size(), 1, file);
+  };
+
+  if (file != stderr && file != stdout) {
+    simple_fwrite();
+    return;
+  }
+#ifdef _WIN32
+  HANDLE handle =
+      GetStdHandle(file == stdout ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
+
+  // Check if stderr is something other than a tty/console
+  if (handle == INVALID_HANDLE_VALUE || handle == nullptr ||
+      uv_guess_handle(_fileno(file)) != UV_TTY) {
+    simple_fwrite();
+    return;
+  }
+
+  // Get required wide buffer size
+  int n = MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), nullptr, 0);
+
+  std::vector<wchar_t> wbuf(n);
+  MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), wbuf.data(), n);
+
+  WriteConsoleW(handle, wbuf.data(), n, nullptr, nullptr);
+  return;
+#elif defined(__ANDROID__)
+  if (file == stderr) {
+    __android_log_print(ANDROID_LOG_ERROR, "nodejs", "%s", str.data());
+    return;
+  }
+#endif
+  simple_fwrite();
+}
 
 }  // namespace node
 

@@ -1,3 +1,131 @@
+## 6.13.7 (2020-01-28)
+
+### BUG FIXES
+* [`7dbb91438`](https://github.com/npm/cli/commit/7dbb914382ecd2074fffb7eba81d93262e2d23c6)
+  [#655](https://github.com/npm/cli/pull/655)
+  Update CI detection cases
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+* [`0fb1296c7`](https://github.com/npm/cli/commit/0fb1296c7d6d4bb9e78c96978c433cd65e55c0ea)
+  `libnpx@10.2.2`
+  ([@mikemimik](https://github.com/mikemimik))
+* [`c9b69d569`](https://github.com/npm/cli/commit/c9b69d569fec7944375a746e9c08a6fa9bec96ff)
+  `node-gyp@5.0.7`
+  ([@mikemimik](https://github.com/mikemimik))
+* [`e8dbaf452`](https://github.com/npm/cli/commit/e8dbaf452a1f6c5350bb0c37059b89a7448e7986)
+  `bin-links@1.1.7`
+  ([@mikemimik](https://github.com/mikemimik))
+  * [#613](https://github.com/npm/cli/issues/613) Fixes bin entry for package
+
+## 6.13.6 (2020-01-09)
+
+### DEPENDENCIES
+
+* [`6dba897a1`](https://github.com/npm/cli/commit/6dba897a1e2d56388fb6df0c814b0bb85af366b4)
+  `pacote@9.5.12`:
+    * [`d2f4176`](https://github.com/npm/pacote/commit/d2f4176b6af393d7e29de27e9b638dbcbab9a0c7)
+      fix(git): Do not drop uid/gid when executing in root-owned directory
+      ([@isaacs](https://github.com/isaacs))
+
+## 6.13.5 (2020-01-09)
+
+### BUG FIXES
+
+* [`fd0a802ec`](https://github.com/npm/cli/commit/fd0a802ec468ec7b98d6c15934c355fef0e7ff60) [#550](https://github.com/npm/cli/pull/550) Fix cache location for `npm ci` ([@zhenyavinogradov](https://github.com/zhenyavinogradov))
+* [`4b30f3cca`](https://github.com/npm/cli/commit/4b30f3ccaebf50d6ab3bad130ff94827c017cc16) [#648](https://github.com/npm/cli/pull/648) fix(version): using 'allow-same-version', git commit --allow-empty and git tag -f ([@rhengles](https://github.com/rhengles))
+
+### TESTING
+
+* [`e16f68d30`](https://github.com/npm/cli/commit/e16f68d30d59ce1ddde9fe62f7681b2c07fce84d) test(ci): add failing cache config test ([@ruyadorno](https://github.com/ruyadorno))
+* [`3f009fbf2`](https://github.com/npm/cli/commit/3f009fbf2c42f68c5127efecc6e22db105a74fe0) [#659](https://github.com/npm/cli/pull/659) test: fix bin-overwriting test on Windows ([@isaacs](https://github.com/isaacs))
+* [`43ae0791f`](https://github.com/npm/cli/commit/43ae0791f74f68e02850201a64a6af693657b241) [#601](https://github.com/npm/cli/pull/601) ci: Allow builds to run even if one fails ([@XhmikosR](https://github.com/XhmikosR))
+* [`4a669bee4`](https://github.com/npm/cli/commit/4a669bee4ac54c70adc6979d45cd0605b6dc33fd) [#603](https://github.com/npm/cli/pull/603) Remove the unused appveyor.yml ([@XhmikosR](https://github.com/XhmikosR))
+* [`9295046ac`](https://github.com/npm/cli/commit/9295046ac92bbe82f4d84e1ec90cc81d3b80bfc7) [#600](https://github.com/npm/cli/pull/600) ci: switch to `actions/checkout@v2` ([@XhmikosR](https://github.com/XhmikosR))
+
+### DOCUMENTATION
+
+* [`f2d770ac7`](https://github.com/npm/cli/commit/f2d770ac768ea84867772b90a3c9acbdd0c1cb6a) [#569](https://github.com/npm/cli/pull/569) fix netlify publish path config ([@claudiahdz](https://github.com/claudiahdz))
+* [`462cf0983`](https://github.com/npm/cli/commit/462cf0983dbc18a3d93f77212ca69f878060b2ec) [#627](https://github.com/npm/cli/pull/627) update gatsby dependencies ([@felixonmars](https://github.com/felixonmars))
+* [`6fb5dbb72`](https://github.com/npm/cli/commit/6fb5dbb7213c4c050c9a47a7d5131447b8b7dcc8)
+  [#532](https://github.com/npm/cli/pull/532) docs: clarify usage of global prefix ([@jgehrcke](https://github.com/jgehrcke))
+
+## 6.13.4 (2019-12-11)
+
+## BUGFIXES
+
+* [`320ac9aee`](https://github.com/npm/cli/commit/320ac9aeeafd11bb693c53b31148b8d10c4165e8)
+  [npm/bin-links#12](https://github.com/npm/bin-links/pull/12)
+  [npm/gentle-fs#7](https://github.com/npm/gentle-fs/pull/7)
+  Do not remove global bin/man links inappropriately
+  ([@isaacs](https://github.com/isaacs))
+
+## DEPENDENCIES
+
+* [`52fd21061`](https://github.com/npm/cli/commit/52fd21061ff8b1a73429294620ffe5ebaaa60d3e)
+  `gentle-fs@2.3.0`
+  ([@isaacs](https://github.com/isaacs))
+* [`d06f5c0b0`](https://github.com/npm/cli/commit/d06f5c0b0611c43b6e70ded92af24fa5d83a0f48)
+  `bin-links@1.1.6`
+  ([@isaacs](https://github.com/isaacs))
+
+## 6.13.3 (2019-12-09)
+
+### DEPENDENCIES
+
+* [`19ce061a2`](https://github.com/npm/cli/commit/19ce061a2ee165d8de862c8f0f733c222846b9e1)
+  `bin-links@1.1.5` Properly normalize, sanitize, and verify `bin` entries
+  in `package.json`.
+* [`59c836aae`](https://github.com/npm/cli/commit/59c836aae8d0104a767e80c540b963c91774012a)
+  `npm-packlist@1.4.7`
+* [`fb4ecd7d2`](https://github.com/npm/cli/commit/fb4ecd7d2810b0b4897daaf081a5e2f3f483b310)
+  `pacote@9.5.11`
+    * [`5f33040`](https://github.com/npm/pacote/commit/5f3304028b6985fd380fc77c4840ff12a4898301)
+      [#476](https://github.com/npm/cli/issues/476)
+      [npm/pacote#22](https://github.com/npm/pacote/issues/22)
+      [npm/pacote#14](https://github.com/npm/pacote/issues/14) fix: Do not
+      drop perms in git when not root ([isaacs](https://github.com/isaacs),
+      [@darcyclarke](https://github.com/darcyclarke))
+    * [`6f229f7`](https://github.com/npm/pacote/6f229f78d9911b4734f0a19c6afdc5454034c759)
+      sanitize and normalize package bin field
+      ([isaacs](https://github.com/isaacs))
+* [`1743cb339`](https://github.com/npm/cli/commit/1743cb339767e86431dcd565c7bdb0aed67b293d)
+  `read-package-json@2.1.1`
+
+
+## 6.13.2 (2019-12-03)
+
+### BUG FIXES
+
+* [`4429645b3`](https://github.com/npm/cli/commit/4429645b3538e1cda54d8d1b7ecb3da7a88fdd3c)
+  [#546](https://github.com/npm/cli/pull/546)
+  fix docs target typo
+  ([@richardlau](https://github.com/richardlau))
+* [`867642942`](https://github.com/npm/cli/commit/867642942bec69bb9ab71cff1914fb6a9fe67de8)
+  [#142](https://github.com/npm/cli/pull/142)
+  fix(packageRelativePath): fix 'where' for file deps
+  ([@larsgw](https://github.com/larsgw))
+* [`d480f2c17`](https://github.com/npm/cli/commit/d480f2c176e6976b3cca3565e4c108b599b0379b)
+  [#527](https://github.com/npm/cli/pull/527)
+  Revert "windows: Add preliminary WSL support for npm and npx"
+  ([@craigloewen-msft](https://github.com/craigloewen-msft))
+* [`e4b97962e`](https://github.com/npm/cli/commit/e4b97962e5fce0d49beb541ce5a0f96aee0525de)
+  [#504](https://github.com/npm/cli/pull/504)
+  remove unnecessary package.json read when reading shrinkwrap
+  ([@Lighting-Jack](https://github.com/Lighting-Jack))
+* [`1c65d26ac`](https://github.com/npm/cli/commit/1c65d26ac9f10ac0037094c207d216fbf0e969bf)
+  [#501](https://github.com/npm/cli/pull/501)
+  fix(fund): open url for string shorthand
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`ae7afe565`](https://github.com/npm/cli/commit/ae7afe56504dbffabf9f73d55b6dac1e3e9fed4a)
+  [#263](https://github.com/npm/cli/pull/263)
+  Don't log error message if git tagging is disabled
+  ([@woppa684](https://github.com/woppa684))
+* [`4c1b16f6a`](https://github.com/npm/cli/commit/4c1b16f6aecaf78956b9335734cfde2ac076ee11)
+  [#182](https://github.com/npm/cli/pull/182)
+  Warn the user that it is uninstalling npm-install
+  ([@Hoidberg](https://github.com/Hoidberg))
+
 ## 6.13.1 (2019-11-18)
 
 ### BUG FIXES

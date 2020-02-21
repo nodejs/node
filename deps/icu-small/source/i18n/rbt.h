@@ -144,7 +144,7 @@ public:
      * Implement Transliterator API.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
-    virtual Transliterator* clone(void) const;
+    virtual RuleBasedTransliterator* clone() const;
 
 protected:
     /**

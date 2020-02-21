@@ -35,6 +35,10 @@
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/bn.h>
+#include <openssl/dh.h>
+#include <openssl/ec.h>
+#include <openssl/rsa.h>
 
 namespace node {
 namespace crypto {
@@ -72,6 +76,7 @@ using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
 using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using DHPointer = DeleteFnPtr<DH, DH_free>;
+using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
 
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
@@ -222,6 +227,8 @@ class SSLWrap {
   inline bool is_awaiting_new_session() const { return awaiting_new_session_; }
   inline bool is_waiting_cert_cb() const { return cert_cb_ != nullptr; }
 
+  void MemoryInfo(MemoryTracker* tracker) const;
+
  protected:
   typedef void (*CertCb)(void* arg);
 
@@ -286,7 +293,6 @@ class SSLWrap {
 
   void DestroySSL();
   void WaitForCertCb(CertCb cb, void* arg);
-  void SetSNIContext(SecureContext* sc);
   int SetCACerts(SecureContext* sc);
 
   inline Environment* ssl_env() const {
@@ -308,7 +314,7 @@ class SSLWrap {
   ClientHelloParser hello_parser_;
 
   v8::Global<v8::ArrayBufferView> ocsp_response_;
-  v8::Global<v8::Value> sni_context_;
+  BaseObjectPtr<SecureContext> sni_context_;
 
   friend class SecureContext;
 };

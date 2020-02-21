@@ -1,3 +1,5 @@
+#include <memory>
+
 #include "node_main_instance.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
@@ -34,7 +36,8 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       isolate_data_(nullptr),
       owns_isolate_(false),
       deserialize_mode_(false) {
-  isolate_data_.reset(new IsolateData(isolate_, event_loop, platform, nullptr));
+  isolate_data_ =
+      std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
 
   IsolateSettings misc;
   SetIsolateMiscHandlers(isolate_, misc);
@@ -77,14 +80,11 @@ NodeMainInstance::NodeMainInstance(
   deserialize_mode_ = per_isolate_data_indexes != nullptr;
   // If the indexes are not nullptr, we are not deserializing
   CHECK_IMPLIES(deserialize_mode_, params->external_references != nullptr);
-
-  Locker locker(isolate_);
-
-  isolate_data_.reset(new IsolateData(isolate_,
-                                      event_loop,
-                                      platform,
-                                      array_buffer_allocator_.get(),
-                                      per_isolate_data_indexes));
+  isolate_data_ = std::make_unique<IsolateData>(isolate_,
+                                                event_loop,
+                                                platform,
+                                                array_buffer_allocator_.get(),
+                                                per_isolate_data_indexes);
   IsolateSettings s;
   SetIsolateMiscHandlers(isolate_, s);
   if (!deserialize_mode_) {
@@ -103,6 +103,10 @@ NodeMainInstance::~NodeMainInstance() {
   if (!owns_isolate_) {
     return;
   }
+  // TODO(addaleax): Reverse the order of these calls. The fact that we first
+  // dispose the Isolate is a temporary workaround for
+  // https://github.com/nodejs/node/issues/31752 -- V8 should not be posting
+  // platform tasks during Dispose(), but it does in some WASM edge cases.
   isolate_->Dispose();
   platform_->UnregisterIsolate(isolate_);
 }
@@ -126,10 +130,9 @@ int NodeMainInstance::Run() {
     {
       InternalCallbackScope callback_scope(
           env.get(),
-          Local<Object>(),
+          Object::New(isolate_),
           { 1, 0 },
-          InternalCallbackScope::kAllowEmptyResource |
-              InternalCallbackScope::kSkipAsyncHooks);
+          InternalCallbackScope::kSkipAsyncHooks);
       LoadEnvironment(env.get());
     }
 

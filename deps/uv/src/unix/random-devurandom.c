@@ -37,8 +37,8 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen) {
 
   fd = uv__open_cloexec(path, O_RDONLY);
 
-  if (fd == -1)
-    return UV__ERR(errno);
+  if (fd < 0)
+    return fd;
 
   if (fstat(fd, &s)) {
     uv__close(fd);
@@ -74,10 +74,10 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen) {
 static void uv__random_devurandom_init(void) {
   char c;
 
-  /* Linux's and NetBSD's random(4) man page suggests applications should read
-   * at least once from /dev/random before switching to /dev/urandom in order
-   * to seed the system RNG. Reads from /dev/random can of course block
-   * indefinitely until entropy is available but that's the point.
+  /* Linux's random(4) man page suggests applications should read at least
+   * once from /dev/random before switching to /dev/urandom in order to seed
+   * the system RNG. Reads from /dev/random can of course block indefinitely
+   * until entropy is available but that's the point.
    */
   status = uv__random_readpath("/dev/random", &c, 1);
 }

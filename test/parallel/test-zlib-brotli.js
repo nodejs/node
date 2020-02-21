@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const zlib = require('zlib');
@@ -32,7 +32,7 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
 
 {
   // Test that setting out-of-bounds option values or keys fails.
-  common.expectsError(() => {
+  assert.throws(() => {
     zlib.createBrotliCompress({
       params: {
         10000: 0
@@ -40,12 +40,12 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     });
   }, {
     code: 'ERR_BROTLI_INVALID_PARAM',
-    type: RangeError,
+    name: 'RangeError',
     message: '10000 is not a valid Brotli parameter'
   });
 
   // Test that accidentally using duplicate keys fails.
-  common.expectsError(() => {
+  assert.throws(() => {
     zlib.createBrotliCompress({
       params: {
         '0': 0,
@@ -54,11 +54,11 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     });
   }, {
     code: 'ERR_BROTLI_INVALID_PARAM',
-    type: RangeError,
+    name: 'RangeError',
     message: '00 is not a valid Brotli parameter'
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     zlib.createBrotliCompress({
       params: {
         // This is a boolean flag
@@ -67,7 +67,7 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     });
   }, {
     code: 'ERR_ZLIB_INITIALIZATION_FAILED',
-    type: Error,
+    name: 'Error',
     message: 'Initialization failed'
   });
 }

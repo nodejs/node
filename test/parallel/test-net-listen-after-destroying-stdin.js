@@ -8,15 +8,15 @@ const net = require('net');
 
 process.stdin.destroy();
 
-const server = net.createServer(common.mustCall(function(socket) {
-  console.log('accepted');
-  socket.end();
-  server.close();
+const server = net.createServer(common.mustCall((socket) => {
+  console.log('accepted...');
+  socket.end(common.mustCall(() => { console.log('finished...'); }));
+  server.close(common.mustCall(() => { console.log('closed'); }));
 }));
 
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   console.log('listening...');
 
-  net.createConnection(this.address().port);
-});
+  net.createConnection(server.address().port);
+}));

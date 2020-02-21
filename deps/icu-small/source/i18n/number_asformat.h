@@ -45,7 +45,7 @@ class U_I18N_API LocalizedNumberFormatterAsFormat : public Format {
     /**
      * Creates a copy of this object.
      */
-    Format* clone() const U_OVERRIDE;
+    LocalizedNumberFormatterAsFormat* clone() const U_OVERRIDE;
 
     /**
      * Formats a Number using the wrapped LocalizedNumberFormatter. The provided formattable must be a

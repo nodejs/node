@@ -68,25 +68,25 @@ const keySize = 2048;
   delete Object.prototype.opensslErrorStack;
 }
 
-common.expectsError(
+assert.throws(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
     padding: null,
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The value "null" is invalid for option "padding"'
   });
 
-common.expectsError(
+assert.throws(
   () => crypto.createVerify('SHA256').verify({
     key: certPem,
     saltLength: null,
   }, ''),
   {
     code: 'ERR_INVALID_OPT_VALUE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The value "null" is invalid for option "saltLength"'
   });
 
@@ -306,7 +306,7 @@ common.expectsError(
 {
   [null, NaN, 'boom', {}, [], true, false]
     .forEach((invalidValue) => {
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.createSign('SHA256')
           .update('Test123')
           .sign({
@@ -315,10 +315,10 @@ common.expectsError(
           });
       }, {
         code: 'ERR_INVALID_OPT_VALUE',
-        type: TypeError
+        name: 'TypeError'
       });
 
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.createSign('SHA256')
           .update('Test123')
           .sign({
@@ -328,7 +328,7 @@ common.expectsError(
           });
       }, {
         code: 'ERR_INVALID_OPT_VALUE',
-        type: TypeError
+        name: 'TypeError'
       });
     });
 
@@ -351,11 +351,11 @@ common.expectsError(
 
 // Test throws exception when key options is null
 {
-  common.expectsError(() => {
+  assert.throws(() => {
     crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
   }, {
     code: 'ERR_CRYPTO_SIGN_KEY_REQUIRED',
-    type: Error
+    name: 'Error'
   });
 }
 
@@ -364,18 +364,18 @@ common.expectsError(
   const verify = crypto.createVerify('SHA1');
 
   [1, [], {}, undefined, null, true, Infinity].forEach((input) => {
-    const type = typeof input;
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "algorithm" argument must be of type string. ' +
-               `Received type ${type}`
+      message: 'The "algorithm" argument must be of type string.' +
+               `${common.invalidArgTypeHelper(input)}`
     };
     assert.throws(() => crypto.createSign(input), errObj);
     assert.throws(() => crypto.createVerify(input), errObj);
 
-    errObj.message = 'The "data" argument must be one of type string, ' +
-                     `Buffer, TypedArray, or DataView. Received type ${type}`;
+    errObj.message = 'The "data" argument must be of type string or an ' +
+                     'instance of Buffer, TypedArray, or DataView.' +
+                     common.invalidArgTypeHelper(input);
     assert.throws(() => sign.update(input), errObj);
     assert.throws(() => verify.update(input), errObj);
     assert.throws(() => sign._write(input, 'utf8', () => {}), errObj);
@@ -391,19 +391,20 @@ common.expectsError(
   });
 
   [1, {}, [], Infinity].forEach((input) => {
-    const type = typeof input;
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "key" argument must be one of type string, Buffer, ' +
-               `TypedArray, DataView, or KeyObject. Received type ${type}`
+      message: 'The "key" argument must be of type string or an instance of ' +
+               'Buffer, TypedArray, DataView, or KeyObject.' +
+               common.invalidArgTypeHelper(input)
     };
 
     assert.throws(() => sign.sign(input), errObj);
     assert.throws(() => verify.verify(input), errObj);
 
-    errObj.message = 'The "signature" argument must be one of type string, ' +
-                     `Buffer, TypedArray, or DataView. Received type ${type}`;
+    errObj.message = 'The "signature" argument must be of type string or an ' +
+                     'instance of Buffer, TypedArray, or DataView.' +
+                     common.invalidArgTypeHelper(input);
     assert.throws(() => verify.verify('test', input), errObj);
   });
 }
@@ -477,25 +478,25 @@ common.expectsError(
 [1, {}, [], true, Infinity].forEach((input) => {
   const data = Buffer.alloc(1);
   const sig = Buffer.alloc(1);
-  const type = typeof input;
+  const received = common.invalidArgTypeHelper(input);
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "data" argument must be one of type Buffer, ' +
-             `TypedArray, or DataView. Received type ${type}`
+    message: 'The "data" argument must be an instance of Buffer, ' +
+             `TypedArray, or DataView.${received}`
   };
 
   assert.throws(() => crypto.sign(null, input, 'asdf'), errObj);
   assert.throws(() => crypto.verify(null, input, 'asdf', sig), errObj);
 
-  errObj.message = 'The "key" argument must be one of type string, Buffer, ' +
-                   `TypedArray, DataView, or KeyObject. Received type ${type}`;
+  errObj.message = 'The "key" argument must be of type string or an instance ' +
+                   `of Buffer, TypedArray, DataView, or KeyObject.${received}`;
 
   assert.throws(() => crypto.sign(null, data, input), errObj);
   assert.throws(() => crypto.verify(null, data, input, sig), errObj);
 
-  errObj.message = 'The "signature" argument must be one of type ' +
-                   `Buffer, TypedArray, or DataView. Received type ${type}`;
+  errObj.message = 'The "signature" argument must be an instance of ' +
+                   `Buffer, TypedArray, or DataView.${received}`;
   assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
 });
 
@@ -530,7 +531,7 @@ common.expectsError(
     // Test invalid signature lengths.
     for (const i of [-2, -1, 1, 2, 4, 8]) {
       sig = crypto.randomBytes(length + i);
-      common.expectsError(() => {
+      assert.throws(() => {
         crypto.verify('sha1', data, opts, sig);
       }, {
         message: 'Malformed signature'
@@ -576,7 +577,7 @@ common.expectsError(
   );
 
   for (const dsaEncoding of ['foo', null, {}, 5, true, NaN]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       crypto.sign('sha1', data, {
         key: certPem,
         dsaEncoding

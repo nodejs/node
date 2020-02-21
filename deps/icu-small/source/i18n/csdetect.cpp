@@ -47,7 +47,7 @@ struct CSRecognizerInfo : public UMemory {
 U_NAMESPACE_END
 
 static icu::CSRecognizerInfo **fCSRecognizers = NULL;
-static icu::UInitOnce gCSRecognizersInitOnce;
+static icu::UInitOnce gCSRecognizersInitOnce = U_INITONCE_INITIALIZER;
 static int32_t fCSRecognizers_size = 0;
 
 U_CDECL_BEGIN

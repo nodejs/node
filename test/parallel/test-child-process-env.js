@@ -26,12 +26,13 @@ const os = require('os');
 
 const spawn = require('child_process').spawn;
 
-const env = Object.assign({}, process.env, {
+const env = {
+  ...process.env,
   'HELLO': 'WORLD',
   'UNDEFINED': undefined,
   'NULL': null,
   'EMPTY': ''
-});
+};
 Object.setPrototypeOf(env, {
   'FOO': 'BAR'
 });

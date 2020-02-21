@@ -68,7 +68,8 @@ function translateOptions(cliOptions) {
         fixTypes: cliOptions.fixType,
         allowInlineConfig: cliOptions.inlineConfig,
         reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives,
-        resolvePluginsRelativeTo: cliOptions.resolvePluginsRelativeTo
+        resolvePluginsRelativeTo: cliOptions.resolvePluginsRelativeTo,
+        errorOnUnmatchedPattern: cliOptions.errorOnUnmatchedPattern
     };
 }
 

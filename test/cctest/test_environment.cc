@@ -1,3 +1,4 @@
+#include "node_buffer.h"
 #include "node_internals.h"
 #include "libplatform/libplatform.h"
 
@@ -184,4 +185,58 @@ static void at_exit_js(void* arg) {
   assert(!obj.IsEmpty());  // Assert VM is still alive.
   assert(obj->IsObject());
   called_at_exit_js = true;
+}
+
+TEST_F(EnvironmentTest, SetImmediateCleanup) {
+  int called = 0;
+  int called_unref = 0;
+
+  {
+    const v8::HandleScope handle_scope(isolate_);
+    const Argv argv;
+    Env env {handle_scope, argv};
+
+    (*env)->SetImmediate([&](node::Environment* env_arg) {
+      EXPECT_EQ(env_arg, *env);
+      called++;
+    });
+    (*env)->SetUnrefImmediate([&](node::Environment* env_arg) {
+      EXPECT_EQ(env_arg, *env);
+      called_unref++;
+    });
+  }
+
+  EXPECT_EQ(called, 1);
+  EXPECT_EQ(called_unref, 0);
+}
+
+static char hello[] = "hello";
+
+TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
+  // Test that a Buffer allocated with a free callback is detached after
+  // its callback has been called.
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+
+  int callback_calls = 0;
+
+  v8::Local<v8::ArrayBuffer> ab;
+  {
+    Env env {handle_scope, argv};
+    v8::Local<v8::Object> buf_obj = node::Buffer::New(
+        isolate_,
+        hello,
+        sizeof(hello),
+        [](char* data, void* hint) {
+          CHECK_EQ(data, hello);
+          ++*static_cast<int*>(hint);
+        },
+        &callback_calls).ToLocalChecked();
+    CHECK(buf_obj->IsUint8Array());
+    ab = buf_obj.As<v8::Uint8Array>()->Buffer();
+    CHECK_EQ(ab->ByteLength(), sizeof(hello));
+  }
+
+  CHECK_EQ(callback_calls, 1);
+  CHECK_EQ(ab->ByteLength(), 0);
 }

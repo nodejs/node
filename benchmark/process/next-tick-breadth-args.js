@@ -6,23 +6,26 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n }) {
-  var j = 0;
+  let j = 0;
 
   function cb1(arg1) {
     j++;
     if (j === n)
       bench.end(n);
   }
+
   function cb2(arg1, arg2) {
     j++;
     if (j === n)
       bench.end(n);
   }
+
   function cb3(arg1, arg2, arg3) {
     j++;
     if (j === n)
       bench.end(n);
   }
+
   function cb4(arg1, arg2, arg3, arg4) {
     j++;
     if (j === n)
@@ -30,7 +33,7 @@ function main({ n }) {
   }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     if (i % 4 === 0)
       process.nextTick(cb4, 3.14, 1024, true, false);
     else if (i % 3 === 0)

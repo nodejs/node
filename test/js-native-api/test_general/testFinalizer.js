@@ -13,12 +13,12 @@ test_general.addFinalizerOnly(finalized, callback);
 test_general.addFinalizerOnly(finalized, callback);
 
 // Ensure attached items cannot be retrieved.
-common.expectsError(() => test_general.unwrap(finalized),
-                    { type: Error, message: 'Invalid argument' });
+assert.throws(() => test_general.unwrap(finalized),
+              { name: 'Error', message: 'Invalid argument' });
 
 // Ensure attached items cannot be removed.
-common.expectsError(() => test_general.removeWrap(finalized),
-                    { type: Error, message: 'Invalid argument' });
+assert.throws(() => test_general.removeWrap(finalized),
+              { name: 'Error', message: 'Invalid argument' });
 finalized = null;
 global.gc();
 

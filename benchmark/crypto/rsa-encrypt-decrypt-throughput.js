@@ -35,7 +35,7 @@ function StreamWrite(algo, keylen, message, n, len) {
 
   const privateKey = RSA_PrivatePem[keylen];
   const publicKey = RSA_PublicPem[keylen];
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     const enc = crypto.privateEncrypt(privateKey, message);
     crypto.publicDecrypt(publicKey, enc);
   }

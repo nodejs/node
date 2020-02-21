@@ -9,7 +9,7 @@ function testPushArg(val) {
   });
   readable.on('error', common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   }));
   readable.push(val);
 }
@@ -24,7 +24,7 @@ function testUnshiftArg(val) {
   });
   readable.on('error', common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   }));
   readable.unshift(val);
 }

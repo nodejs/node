@@ -349,7 +349,7 @@ uspoof_setAllowedUnicodeSet(USpoofChecker *sc, const UnicodeSet *chars, UErrorCo
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
-    UnicodeSet *clonedSet = static_cast<UnicodeSet *>(chars->clone());
+    UnicodeSet *clonedSet = chars->clone();
     if (clonedSet == NULL || clonedSet->isBogus()) {
         *status = U_MEMORY_ALLOCATION_ERROR;
         return;

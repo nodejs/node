@@ -73,6 +73,7 @@ static int write_cb_count;
 static int unlink_cb_count;
 static int mkdir_cb_count;
 static int mkdtemp_cb_count;
+static int mkstemp_cb_count;
 static int rmdir_cb_count;
 static int scandir_cb_count;
 static int stat_cb_count;
@@ -107,6 +108,9 @@ static uv_fs_t close_req;
 static uv_fs_t mkdir_req;
 static uv_fs_t mkdtemp_req1;
 static uv_fs_t mkdtemp_req2;
+static uv_fs_t mkstemp_req1;
+static uv_fs_t mkstemp_req2;
+static uv_fs_t mkstemp_req3;
 static uv_fs_t rmdir_req;
 static uv_fs_t scandir_req;
 static uv_fs_t stat_req;
@@ -339,7 +343,8 @@ static void statfs_cb(uv_fs_t* req) {
   ASSERT(req->ptr != NULL);
   stats = req->ptr;
 
-#if defined(_WIN32) || defined(__sun) || defined(_AIX) || defined(__MVS__)
+#if defined(_WIN32) || defined(__sun) || defined(_AIX) || defined(__MVS__) || \
+  defined(__OpenBSD__) || defined(__NetBSD__)
   ASSERT(stats->f_type == 0);
 #else
   ASSERT(stats->f_type > 0);
@@ -535,6 +540,32 @@ static void mkdtemp_cb(uv_fs_t* req) {
   ASSERT(req == &mkdtemp_req1);
   check_mkdtemp_result(req);
   mkdtemp_cb_count++;
+}
+
+
+static void check_mkstemp_result(uv_fs_t* req) {
+  int r;
+
+  ASSERT(req->fs_type == UV_FS_MKSTEMP);
+  ASSERT(req->result >= 0);
+  ASSERT(req->path);
+  ASSERT(strlen(req->path) == 16);
+  ASSERT(memcmp(req->path, "test_file_", 10) == 0);
+  ASSERT(memcmp(req->path + 10, "XXXXXX", 6) != 0);
+  check_permission(req->path, 0600);
+
+  /* Check if req->path is actually a file */
+  r = uv_fs_stat(NULL, &stat_req, req->path, NULL);
+  ASSERT(r == 0);
+  ASSERT(stat_req.statbuf.st_mode & S_IFREG);
+  uv_fs_req_cleanup(&stat_req);
+}
+
+
+static void mkstemp_cb(uv_fs_t* req) {
+  ASSERT(req == &mkstemp_req1);
+  check_mkstemp_result(req);
+  mkstemp_cb_count++;
 }
 
 
@@ -1208,6 +1239,69 @@ TEST_IMPL(fs_mkdtemp) {
 }
 
 
+TEST_IMPL(fs_mkstemp) {
+  int r;
+  int fd;
+  const char path_template[] = "test_file_XXXXXX";
+  uv_fs_t req;
+
+  loop = uv_default_loop();
+
+  r = uv_fs_mkstemp(loop, &mkstemp_req1, path_template, mkstemp_cb);
+  ASSERT(r == 0);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(mkstemp_cb_count == 1);
+
+  /* sync mkstemp */
+  r = uv_fs_mkstemp(NULL, &mkstemp_req2, path_template, NULL);
+  ASSERT(r >= 0);
+  check_mkstemp_result(&mkstemp_req2);
+
+  /* mkstemp return different values on subsequent calls */
+  ASSERT(strcmp(mkstemp_req1.path, mkstemp_req2.path) != 0);
+
+  /* invalid template returns EINVAL */
+  ASSERT(uv_fs_mkstemp(NULL, &mkstemp_req3, "test_file", NULL) == UV_EINVAL);
+
+  /* We can write to the opened file */
+  iov = uv_buf_init(test_buf, sizeof(test_buf));
+  r = uv_fs_write(NULL, &req, mkstemp_req1.result, &iov, 1, -1, NULL);
+  ASSERT(r == sizeof(test_buf));
+  ASSERT(req.result == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  /* Cleanup */
+  uv_fs_close(NULL, &req, mkstemp_req1.result, NULL);
+  uv_fs_req_cleanup(&req);
+  uv_fs_close(NULL, &req, mkstemp_req2.result, NULL);
+  uv_fs_req_cleanup(&req);
+
+  fd = uv_fs_open(NULL, &req, mkstemp_req1.path , O_RDONLY, 0, NULL);
+  ASSERT(fd >= 0);
+  uv_fs_req_cleanup(&req);
+
+  memset(buf, 0, sizeof(buf));
+  iov = uv_buf_init(buf, sizeof(buf));
+  r = uv_fs_read(NULL, &req, fd, &iov, 1, -1, NULL);
+  ASSERT(r >= 0);
+  ASSERT(req.result >= 0);
+  ASSERT(strcmp(buf, test_buf) == 0);
+  uv_fs_req_cleanup(&req);
+
+  uv_fs_close(NULL, &req, fd, NULL);
+  uv_fs_req_cleanup(&req);
+
+  unlink(mkstemp_req1.path);
+  unlink(mkstemp_req2.path);
+  uv_fs_req_cleanup(&mkstemp_req1);
+  uv_fs_req_cleanup(&mkstemp_req2);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(fs_fstat) {
   int r;
   uv_fs_t req;
@@ -1228,6 +1322,25 @@ TEST_IMPL(fs_fstat) {
   ASSERT(req.result >= 0);
   file = req.result;
   uv_fs_req_cleanup(&req);
+
+#ifndef _WIN32
+  ASSERT(0 == fstat(file, &t));
+  ASSERT(0 == uv_fs_fstat(NULL, &req, file, NULL));
+  ASSERT(req.result == 0);
+  s = req.ptr;
+# if defined(__APPLE__)
+  ASSERT(s->st_birthtim.tv_sec == t.st_birthtimespec.tv_sec);
+  ASSERT(s->st_birthtim.tv_nsec == t.st_birthtimespec.tv_nsec);
+# elif defined(__linux__)
+  /* If statx() is supported, the birth time should be equal to the change time
+   * because we just created the file. On older kernels, it's set to zero.
+   */
+  ASSERT(s->st_birthtim.tv_sec == 0 ||
+         s->st_birthtim.tv_sec == t.st_ctim.tv_sec);
+  ASSERT(s->st_birthtim.tv_nsec == 0 ||
+         s->st_birthtim.tv_nsec == t.st_ctim.tv_nsec);
+# endif
+#endif
 
   iov = uv_buf_init(test_buf, sizeof(test_buf));
   r = uv_fs_write(NULL, &req, file, &iov, 1, -1, NULL);
@@ -1263,10 +1376,6 @@ TEST_IMPL(fs_fstat) {
   ASSERT(s->st_mtim.tv_nsec == t.st_mtimespec.tv_nsec);
   ASSERT(s->st_ctim.tv_sec == t.st_ctimespec.tv_sec);
   ASSERT(s->st_ctim.tv_nsec == t.st_ctimespec.tv_nsec);
-  ASSERT(s->st_birthtim.tv_sec == t.st_birthtimespec.tv_sec);
-  ASSERT(s->st_birthtim.tv_nsec == t.st_birthtimespec.tv_nsec);
-  ASSERT(s->st_flags == t.st_flags);
-  ASSERT(s->st_gen == t.st_gen);
 #elif defined(_AIX)
   ASSERT(s->st_atim.tv_sec == t.st_atime);
   ASSERT(s->st_atim.tv_nsec == 0);
@@ -1301,8 +1410,6 @@ TEST_IMPL(fs_fstat) {
      defined(__NetBSD__)
   ASSERT(s->st_birthtim.tv_sec == t.st_birthtim.tv_sec);
   ASSERT(s->st_birthtim.tv_nsec == t.st_birthtim.tv_nsec);
-  ASSERT(s->st_flags == t.st_flags);
-  ASSERT(s->st_gen == t.st_gen);
 # endif
 #else
   ASSERT(s->st_atim.tv_sec == t.st_atime);
@@ -1314,14 +1421,10 @@ TEST_IMPL(fs_fstat) {
 #endif
 #endif
 
-#if defined(__linux__)
-  /* If statx() is supported, the birth time should be equal to the change time
-   * because we just created the file. On older kernels, it's set to zero.
-   */
-  ASSERT(s->st_birthtim.tv_sec == 0 ||
-         s->st_birthtim.tv_sec == t.st_ctim.tv_sec);
-  ASSERT(s->st_birthtim.tv_nsec == 0 ||
-         s->st_birthtim.tv_nsec == t.st_ctim.tv_nsec);
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
+  ASSERT(s->st_flags == t.st_flags);
+  ASSERT(s->st_gen == t.st_gen);
+#else
   ASSERT(s->st_flags == 0);
   ASSERT(s->st_gen == 0);
 #endif
@@ -3782,6 +3885,9 @@ TEST_IMPL(fs_null_req) {
   ASSERT(r == UV_EINVAL);
 
   r = uv_fs_mkdtemp(NULL, NULL, NULL, NULL);
+  ASSERT(r == UV_EINVAL);
+
+  r = uv_fs_mkstemp(NULL, NULL, NULL, NULL);
   ASSERT(r == UV_EINVAL);
 
   r = uv_fs_rmdir(NULL, NULL, NULL, NULL);

@@ -6,13 +6,13 @@ const net = require('net');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
-  len: [64, 102400, 1024 * 1024 * 16],
+  len: [2, 64, 102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5],
 });
 
-var chunk;
-var encoding;
+let chunk;
+let encoding;
 
 function main({ dur, len, type }) {
   switch (type) {

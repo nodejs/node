@@ -54,7 +54,7 @@ public:
      * Transliterator API.
      * @return    A copy of the object.
      */
-    virtual Transliterator* clone(void) const;
+    virtual BreakTransliterator* clone() const;
 
     virtual const UnicodeString &getInsertion() const;
 

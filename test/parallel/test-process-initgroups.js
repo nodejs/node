@@ -20,8 +20,8 @@ if (!common.isMainThread)
       name: 'TypeError',
       message:
         'The "user" argument must be ' +
-        'one of type number or string. ' +
-        `Received type ${typeof val}`
+        'one of type number or string.' +
+        common.invalidArgTypeHelper(val)
     }
   );
 });
@@ -36,8 +36,8 @@ if (!common.isMainThread)
       name: 'TypeError',
       message:
         'The "extraGroup" argument must be ' +
-        'one of type number or string. ' +
-        `Received type ${typeof val}`
+        'one of type number or string.' +
+        common.invalidArgTypeHelper(val)
     }
   );
 });

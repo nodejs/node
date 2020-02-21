@@ -70,5 +70,7 @@ const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
   assert.strictEqual(stream.fd, fd);
 
   stream.end();
-  assert.strictEqual(stream.fd, null);
+  stream.on('close', common.mustCall(() => {
+    assert.strictEqual(stream.fd, null);
+  }));
 }

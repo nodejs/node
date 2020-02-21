@@ -12,7 +12,9 @@ function main({ n }) {
   });
 
   function cb1(arg1) {}
+
   function cb2(arg1, arg2) {}
+
   function cb3(arg1, arg2, arg3) {}
 
   bench.start();

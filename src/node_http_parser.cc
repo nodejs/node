@@ -62,6 +62,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -75,6 +76,10 @@ const uint32_t kOnMessageComplete = 3;
 const uint32_t kOnExecute = 4;
 // Any more fields than this will be flushed into JS
 const size_t kMaxHeaderFieldsCount = 32;
+
+inline bool IsOWS(char c) {
+  return c == ' ' || c == '\t';
+}
 
 // helper class for the Parser
 struct StringPtr {
@@ -135,10 +140,19 @@ struct StringPtr {
 
 
   Local<String> ToString(Environment* env) const {
-    if (str_)
+    if (size_ != 0)
       return OneByteString(env->isolate(), str_, size_);
     else
       return String::Empty(env->isolate());
+  }
+
+
+  // Strip trailing OWS (SPC or HTAB) from string.
+  Local<String> ToTrimmedString(Environment* env) {
+    while (size_ > 0 && IsOWS(str_[size_ - 1])) {
+      size_--;
+    }
+    return ToString(env);
   }
 
 
@@ -316,6 +330,7 @@ class Parser : public AsyncWrap, public StreamListener {
           this, InternalCallbackScope::kSkipTaskQueues);
       head_response = cb.As<Function>()->Call(
           env()->context(), object(), arraysize(argv), argv);
+      if (head_response.IsEmpty()) callback_scope.MarkAsFailed();
     }
 
     int64_t val;
@@ -387,6 +402,7 @@ class Parser : public AsyncWrap, public StreamListener {
       InternalCallbackScope callback_scope(
           this, InternalCallbackScope::kSkipTaskQueues);
       r = cb.As<Function>()->Call(env()->context(), object(), 0, nullptr);
+      if (r.IsEmpty()) callback_scope.MarkAsFailed();
     }
 
     if (r.IsEmpty()) {
@@ -485,9 +501,20 @@ class Parser : public AsyncWrap, public StreamListener {
 
   static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
+    bool lenient = args[3]->IsTrue();
+
+    uint64_t max_http_header_size = 0;
 
     CHECK(args[0]->IsInt32());
     CHECK(args[1]->IsObject());
+
+    if (args.Length() > 2) {
+      CHECK(args[2]->IsNumber());
+      max_http_header_size = args[2].As<Number>()->Value();
+    }
+    if (max_http_header_size == 0) {
+      max_http_header_size = env->options()->max_http_header_size;
+    }
 
     llhttp_type_t type =
         static_cast<llhttp_type_t>(args[0].As<Int32>()->Value());
@@ -505,7 +532,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     parser->set_provider_type(provider);
     parser->AsyncReset(args[1].As<Object>());
-    parser->Init(type);
+    parser->Init(type, max_http_header_size, lenient);
   }
 
   template <bool should_pause>
@@ -718,7 +745,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     for (size_t i = 0; i < num_values_; ++i) {
       headers_v[i * 2] = fields_[i].ToString(env());
-      headers_v[i * 2 + 1] = values_[i].ToString(env());
+      headers_v[i * 2 + 1] = values_[i].ToTrimmedString(env());
     }
 
     return Array::New(env()->isolate(), headers_v, num_values_ * 2);
@@ -752,8 +779,9 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  void Init(llhttp_type_t type) {
+  void Init(llhttp_type_t type, uint64_t max_http_header_size, bool lenient) {
     llhttp_init(&parser_, type, &settings);
+    llhttp_set_lenient(&parser_, lenient);
     header_nread_ = 0;
     url_.Reset();
     status_message_.Reset();
@@ -761,12 +789,13 @@ class Parser : public AsyncWrap, public StreamListener {
     num_values_ = 0;
     have_flushed_ = false;
     got_exception_ = false;
+    max_http_header_size_ = max_http_header_size;
   }
 
 
   int TrackHeader(size_t len) {
     header_nread_ += len;
-    if (header_nread_ >= per_process::cli_options->max_http_header_size) {
+    if (header_nread_ >= max_http_header_size_) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
@@ -801,6 +830,7 @@ class Parser : public AsyncWrap, public StreamListener {
   unsigned int execute_depth_ = 0;
   bool pending_pause_ = false;
   uint64_t header_nread_ = 0;
+  uint64_t max_http_header_size_;
 
   // These are helper functions for filling `http_parser_settings`, which turn
   // a member function of Parser into a C-style HTTP parser callback.

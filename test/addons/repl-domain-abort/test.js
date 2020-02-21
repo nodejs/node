@@ -31,7 +31,7 @@ if (common.isWindows)
   buildPath = buildPath.replace(/\\/g, '/');
 let cb_ran = false;
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert(cb_ran);
   console.log('ok');
 });

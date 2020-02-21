@@ -1,14 +1,14 @@
 'use strict';
-module.exports = function (obj) {
-	if (typeof obj !== 'object') {
+module.exports = object => {
+	if (typeof object !== 'object') {
 		throw new TypeError('Expected an object');
 	}
 
-	var ret = {};
+	const ret = {};
 
-	for (var key in obj) {
-		var val = obj[key];
-		ret[val] = key;
+	for (const key of Object.keys(object)) {
+		const value = object[key];
+		ret[value] = key;
 	}
 
 	return ret;

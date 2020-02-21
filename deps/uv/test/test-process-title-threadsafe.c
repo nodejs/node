@@ -25,7 +25,11 @@
 
 #include <string.h>
 
-#define NUM_ITERATIONS 50
+#ifdef __APPLE__
+# define NUM_ITERATIONS 5
+#else
+# define NUM_ITERATIONS 50
+#endif
 
 static const char* titles[] = {
   "8L2NY0Kdj0XyNFZnmUZigIOfcWjyNr0SkMmUhKw99VLUsZFrvCQQC3XIRfNR8pjyMjXObllled",
@@ -68,7 +72,7 @@ TEST_IMPL(process_title_threadsafe) {
   int i;
 
 #if defined(__sun) || defined(__CYGWIN__) || defined(__MSYS__) || \
-    defined(__MVS__)
+    defined(__MVS__) || defined(__PASE__)
   RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
 #endif
 

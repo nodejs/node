@@ -33,7 +33,7 @@ test('npm version <semver> with commit-hooks disabled', function (t) {
 
     t.same(args1, [ 'commit', '-n' ])
     t.same(args2, [ 'commit', '-n' ])
-    t.same(args3, [ 'commit', '-m', 'some commit message', '-n' ])
+    t.same(args3, [ 'commit', '-n', '-m', 'some commit message' ])
     t.end()
   })
 })

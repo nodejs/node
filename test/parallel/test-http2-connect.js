@@ -9,6 +9,7 @@ const {
 } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
+const assert = require('assert');
 const { createServer, connect } = require('http2');
 const { connect: netConnect } = require('net');
 
@@ -78,7 +79,7 @@ const { connect: netConnect } = require('net');
       }
     }).on('error', expectsError({
       code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-      type: RangeError
+      name: 'RangeError'
     }));
   });
 }
@@ -86,11 +87,11 @@ const { connect: netConnect } = require('net');
 // Check for error for an invalid protocol (not http or https)
 {
   const authority = 'ssh://localhost';
-  expectsError(() => {
+  assert.throws(() => {
     connect(authority);
   }, {
     code: 'ERR_HTTP2_UNSUPPORTED_PROTOCOL',
-    type: Error
+    name: 'Error'
   });
 }
 

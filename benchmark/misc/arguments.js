@@ -32,7 +32,7 @@ function usingPredefined() {
 }
 
 function main({ n, method, args }) {
-  var fn;
+  let fn;
   switch (method) {
     // '' is a default case for tests
     case '':
@@ -53,7 +53,7 @@ function main({ n, method, args }) {
   }
 
   bench.start();
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     fn('part 1', 'part', 2, 'part 3', 'part', 4);
   bench.end(n);
 }

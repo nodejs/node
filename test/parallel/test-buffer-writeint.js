@@ -2,14 +2,14 @@
 
 // Tests to verify signed integers are correctly written
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const errorOutOfBounds = common.expectsError({
+const errorOutOfBounds = {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
+  name: 'RangeError',
   message: new RegExp('^The value of "value" is out of range\\. ' +
                       'It must be >= -\\d+ and <= \\d+\\. Received .+$')
-}, 10);
+};
 
 // Test 8 bit
 {
@@ -213,7 +213,7 @@ const errorOutOfBounds = common.expectsError({
   });
 
   // Test 1 to 6 bytes.
-  for (let i = 1; i < 6; i++) {
+  for (let i = 1; i <= 6; i++) {
     ['writeIntBE', 'writeIntLE'].forEach((fn) => {
       const min = -(2 ** (i * 8 - 1));
       const max = 2 ** (i * 8 - 1) - 1;

@@ -74,6 +74,14 @@ module.exports = {
                 if (node.tag.loc.end.line === node.quasi.loc.start.line) {
                     return;
                 }
+
+                // handle generics type parameters on template tags
+                const tokenBefore = sourceCode.getTokenBefore(node.quasi);
+
+                if (tokenBefore.loc.end.line === node.quasi.loc.start.line) {
+                    return;
+                }
+
                 context.report({ node, loc: node.loc.start, messageId: "taggedTemplate" });
             },
 

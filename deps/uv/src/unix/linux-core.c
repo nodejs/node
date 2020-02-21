@@ -359,9 +359,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     have_signals = 0;
     nevents = 0;
 
-    assert(loop->watchers != NULL);
-    loop->watchers[loop->nwatchers] = (void*) events;
-    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
+    {
+      /* Squelch a -Waddress-of-packed-member warning with gcc >= 9. */
+      union {
+        struct epoll_event* events;
+        uv__io_t* watchers;
+      } x;
+
+      x.events = events;
+      assert(loop->watchers != NULL);
+      loop->watchers[loop->nwatchers] = x.watchers;
+      loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
+    }
+
     for (i = 0; i < nfds; i++) {
       pe = events + i;
       fd = pe->data.fd;
@@ -980,7 +990,7 @@ static uint64_t uv__read_proc_meminfo(const char* what) {
   rc = 0;
   fd = uv__open_cloexec("/proc/meminfo", O_RDONLY);
 
-  if (fd == -1)
+  if (fd < 0)
     return 0;
 
   n = read(fd, buf, sizeof(buf) - 1);

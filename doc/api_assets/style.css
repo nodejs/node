@@ -20,12 +20,12 @@ body {
   background-color: #fff;
 }
 
-h1 { font-size: 2.5rem; }
-h2 { font-size: 2rem; }
-h3 { font-size: 1.75rem; }
-h4 { font-size: 1.5rem; }
-h5 { font-size: 1.25rem; }
-h6 { font-size: 1rem; }
+h1, h1 code { font-size: 2.5rem; }
+h2, h2 code { font-size: 2rem; }
+h3, h3 code { font-size: 1.75rem; }
+h4, h4 code { font-size: 1.5rem; }
+h5, h5 code { font-size: 1.25rem; }
+h6, h6 code { font-size: 1rem; }
 
 h1,
 h2,
@@ -33,10 +33,21 @@ h3,
 h4,
 h5,
 h6 {
+  font-weight: 700;
+  line-height: inherit;
+  position: relative;
   margin: 1.5rem 0 1rem;
   text-rendering: optimizeLegibility;
-  font-weight: 700;
-  position: relative;
+}
+
+h1 code,
+h2 code,
+h3 code,
+h4 code,
+h5 code,
+h6 code {
+  color: inherit;
+  font-family: inherit;
 }
 
 pre,

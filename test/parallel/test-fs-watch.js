@@ -1,6 +1,9 @@
 'use strict';
 const common = require('../common');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
 // Tests if `filename` is provided to watcher on supported platforms
 
 const fs = require('fs');
@@ -85,13 +88,11 @@ for (const testCase of cases) {
 }
 
 [false, 1, {}, [], null, undefined].forEach((input) => {
-  common.expectsError(
+  assert.throws(
     () => fs.watch(input, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "filename" argument must be one of type string, Buffer, ' +
-               `or URL. Received type ${typeof input}`
+      name: 'TypeError'
     }
   );
 });

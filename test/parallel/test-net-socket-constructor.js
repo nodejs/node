@@ -5,11 +5,11 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-common.expectsError(() => {
+assert.throws(() => {
   new net.Socket({ fd: -1 });
 }, { code: 'ERR_OUT_OF_RANGE' });
 
-common.expectsError(() => {
+assert.throws(() => {
   new net.Socket({ fd: 'foo' });
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 

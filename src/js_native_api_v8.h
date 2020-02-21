@@ -8,6 +8,49 @@
 
 static napi_status napi_clear_last_error(napi_env env);
 
+namespace v8impl {
+
+class RefTracker {
+ public:
+  RefTracker() {}
+  virtual ~RefTracker() {}
+  virtual void Finalize(bool isEnvTeardown) {}
+
+  typedef RefTracker RefList;
+
+  inline void Link(RefList* list) {
+    prev_ = list;
+    next_ = list->next_;
+    if (next_ != nullptr) {
+      next_->prev_ = this;
+    }
+    list->next_ = this;
+  }
+
+  inline void Unlink() {
+    if (prev_ != nullptr) {
+      prev_->next_ = next_;
+    }
+    if (next_ != nullptr) {
+      next_->prev_ = prev_;
+    }
+    prev_ = nullptr;
+    next_ = nullptr;
+  }
+
+  static void FinalizeAll(RefList* list) {
+    while (list->next_ != nullptr) {
+      list->next_->Finalize(true);
+    }
+  }
+
+ private:
+  RefList* next_ = nullptr;
+  RefList* prev_ = nullptr;
+};
+
+}  // end of namespace v8impl
+
 struct napi_env__ {
   explicit napi_env__(v8::Local<v8::Context> context)
       : isolate(context->GetIsolate()),
@@ -22,11 +65,6 @@ struct napi_env__ {
     // `napi_finalizer` deleted them subsequently.
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
-    if (instance_data.finalize_cb != nullptr) {
-      CallIntoModuleThrow([&](napi_env env) {
-        instance_data.finalize_cb(env, instance_data.data, instance_data.hint);
-      });
-    }
   }
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
@@ -76,11 +114,7 @@ struct napi_env__ {
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
   int refs = 1;
-  struct {
-    void* data = nullptr;
-    void* hint = nullptr;
-    napi_finalize finalize_cb = nullptr;
-  } instance_data;
+  void* instance_data = nullptr;
 };
 
 static inline napi_status napi_clear_last_error(napi_env env) {
@@ -165,6 +199,17 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                              \
   } while (0)
 
+#define RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env, condition, status)           \
+  do {                                                                         \
+    if (!(condition)) {                                                        \
+      return napi_set_last_error(                                              \
+          (env), try_catch.HasCaught() ? napi_pending_exception : (status));   \
+    }                                                                          \
+  } while (0)
+
+#define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                    \
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsEmpty()), (status))
+
 namespace v8impl {
 
 //=== Conversion between V8 Handles and napi_value ========================
@@ -186,26 +231,43 @@ inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
 
 // Adapter for napi_finalize callbacks.
 class Finalizer {
+ public:
+  // Some Finalizers are run during shutdown when the napi_env is destroyed,
+  // and some need to keep an explicit reference to the napi_env because they
+  // are run independently.
+  enum EnvReferenceMode {
+    kNoEnvReference,
+    kKeepEnvReference
+  };
+
  protected:
   Finalizer(napi_env env,
             napi_finalize finalize_callback,
             void* finalize_data,
-            void* finalize_hint)
+            void* finalize_hint,
+            EnvReferenceMode refmode = kNoEnvReference)
     : _env(env),
       _finalize_callback(finalize_callback),
       _finalize_data(finalize_data),
-      _finalize_hint(finalize_hint) {
+      _finalize_hint(finalize_hint),
+      _has_env_reference(refmode == kKeepEnvReference) {
+    if (_has_env_reference)
+      _env->Ref();
   }
 
-  ~Finalizer() = default;
+  ~Finalizer() {
+    if (_has_env_reference)
+      _env->Unref();
+  }
 
  public:
   static Finalizer* New(napi_env env,
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
-                        void* finalize_hint = nullptr) {
+                        void* finalize_hint = nullptr,
+                        EnvReferenceMode refmode = kNoEnvReference) {
     return new Finalizer(
-      env, finalize_callback, finalize_data, finalize_hint);
+        env, finalize_callback, finalize_data, finalize_hint, refmode);
   }
 
   static void Delete(Finalizer* finalizer) {
@@ -218,6 +280,7 @@ class Finalizer {
   void* _finalize_data;
   void* _finalize_hint;
   bool _finalize_ran = false;
+  bool _has_env_reference = false;
 };
 
 class TryCatch : public v8::TryCatch {

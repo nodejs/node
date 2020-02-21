@@ -25,6 +25,7 @@ const assert = require('assert');
 const EventEmitter = require('events');
 
 function listener1() {}
+
 function listener2() {}
 
 {
@@ -144,14 +145,14 @@ function listener2() {}
 }
 
 // Verify that the removed listener must be a function
-common.expectsError(() => {
+assert.throws(() => {
   const ee = new EventEmitter();
   ee.removeListener('foo', null);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "listener" argument must be of type Function. ' +
-           'Received type object'
+  name: 'TypeError',
+  message: 'The "listener" argument must be of type function. ' +
+           'Received null'
 });
 
 {

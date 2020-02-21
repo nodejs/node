@@ -14,6 +14,7 @@ const pipe = BB.promisify(require('mississippi').pipe)
 const ssri = require('ssri')
 const tar = require('tar')
 const readJson = require('./util/read-json')
+const normalizePackageBin = require('npm-normalize-package-bin')
 
 // `finalizeManifest` takes as input the various kinds of manifests that
 // manifest handlers ('lib/fetchers/*.js#manifest()') return, and makes sure
@@ -105,17 +106,8 @@ function Manifest (pkg, fromTarball, fullMetadata) {
   this._shrinkwrap = pkg._shrinkwrap || fromTarball._shrinkwrap || null
   this.bin = pkg.bin || fromTarball.bin || null
 
-  if (this.bin && Array.isArray(this.bin)) {
-    // Code yanked from read-package-json.
-    const m = (pkg.directories && pkg.directories.bin) || '.'
-    this.bin = this.bin.reduce((acc, mf) => {
-      if (mf && mf.charAt(0) !== '.') {
-        const f = path.basename(mf)
-        acc[f] = path.join(m, mf)
-      }
-      return acc
-    }, {})
-  }
+  // turn arrays and strings into a legit object, strip out bad stuff
+  normalizePackageBin(this)
 
   this._id = null
 

@@ -186,47 +186,39 @@ inline static napi_status ConcludeDeferred(napi_env env,
 }
 
 // Wrapper around v8impl::Persistent that implements reference counting.
-class Reference : private Finalizer, RefTracker {
- private:
-  Reference(napi_env env,
-            v8::Local<v8::Value> value,
-            uint32_t initial_refcount,
-            bool delete_self,
-            napi_finalize finalize_callback,
-            void* finalize_data,
-            void* finalize_hint)
+class RefBase : protected Finalizer, RefTracker {
+ protected:
+  RefBase(napi_env env,
+          uint32_t initial_refcount,
+          bool delete_self,
+          napi_finalize finalize_callback,
+          void* finalize_data,
+          void* finalize_hint)
        : Finalizer(env, finalize_callback, finalize_data, finalize_hint),
-        _persistent(env->isolate, value),
         _refcount(initial_refcount),
         _delete_self(delete_self) {
-    if (initial_refcount == 0) {
-      _persistent.SetWeak(
-          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
-    }
     Link(finalize_callback == nullptr
         ? &env->reflist
         : &env->finalizing_reflist);
   }
 
  public:
-  void* Data() {
-    return _finalize_data;
+  static RefBase* New(napi_env env,
+                      uint32_t initial_refcount,
+                      bool delete_self,
+                      napi_finalize finalize_callback,
+                      void* finalize_data,
+                      void* finalize_hint) {
+    return new RefBase(env,
+                       initial_refcount,
+                       delete_self,
+                       finalize_callback,
+                       finalize_data,
+                       finalize_hint);
   }
 
-  static Reference* New(napi_env env,
-                        v8::Local<v8::Value> value,
-                        uint32_t initial_refcount,
-                        bool delete_self,
-                        napi_finalize finalize_callback = nullptr,
-                        void* finalize_data = nullptr,
-                        void* finalize_hint = nullptr) {
-    return new Reference(env,
-      value,
-      initial_refcount,
-      delete_self,
-      finalize_callback,
-      finalize_data,
-      finalize_hint);
+  inline void* Data() {
+    return _finalize_data;
   }
 
   // Delete is called in 2 ways. Either from the finalizer or
@@ -244,7 +236,7 @@ class Reference : private Finalizer, RefTracker {
   // The second way this is called is from
   // the finalizer and _delete_self is set. In this case we
   // know we need to do the deletion so just do it.
-  static void Delete(Reference* reference) {
+  static inline void Delete(RefBase* reference) {
     reference->Unlink();
     if ((reference->RefCount() != 0) ||
         (reference->_delete_self) ||
@@ -257,40 +249,23 @@ class Reference : private Finalizer, RefTracker {
     }
   }
 
-  uint32_t Ref() {
-    if (++_refcount == 1) {
-      _persistent.ClearWeak();
-    }
-
-    return _refcount;
+  inline uint32_t Ref() {
+    return ++_refcount;
   }
 
-  uint32_t Unref() {
+  inline uint32_t Unref() {
     if (_refcount == 0) {
         return 0;
     }
-    if (--_refcount == 0) {
-      _persistent.SetWeak(
-          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
-    }
+    return --_refcount;
+  }
 
+  inline uint32_t RefCount() {
     return _refcount;
   }
 
-  uint32_t RefCount() {
-    return _refcount;
-  }
-
-  v8::Local<v8::Value> Get() {
-    if (_persistent.IsEmpty()) {
-      return v8::Local<v8::Value>();
-    } else {
-      return v8::Local<v8::Value>::New(_env->isolate, _persistent);
-    }
-  }
-
- private:
-  void Finalize(bool is_env_teardown = false) override {
+ protected:
+  inline void Finalize(bool is_env_teardown = false) override {
     if (_finalize_callback != nullptr) {
       _env->CallIntoModuleThrow([&](napi_env env) {
         _finalize_callback(
@@ -310,6 +285,69 @@ class Reference : private Finalizer, RefTracker {
     }
   }
 
+ private:
+  uint32_t _refcount;
+  bool _delete_self;
+};
+
+class Reference : public RefBase {
+ protected:
+  template <typename... Args>
+  Reference(napi_env env,
+            v8::Local<v8::Value> value,
+            Args&&... args)
+      : RefBase(env, std::forward<Args>(args)...),
+            _persistent(env->isolate, value) {
+    if (RefCount() == 0) {
+      _persistent.SetWeak(
+          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
+    }
+  }
+
+ public:
+  static inline Reference* New(napi_env env,
+                             v8::Local<v8::Value> value,
+                             uint32_t initial_refcount,
+                             bool delete_self,
+                             napi_finalize finalize_callback = nullptr,
+                             void* finalize_data = nullptr,
+                             void* finalize_hint = nullptr) {
+    return new Reference(env,
+                         value,
+                         initial_refcount,
+                         delete_self,
+                         finalize_callback,
+                         finalize_data,
+                         finalize_hint);
+  }
+
+  inline uint32_t Ref() {
+    uint32_t refcount = RefBase::Ref();
+    if (refcount == 1) {
+      _persistent.ClearWeak();
+    }
+    return refcount;
+  }
+
+  inline uint32_t Unref() {
+    uint32_t old_refcount = RefCount();
+    uint32_t refcount = RefBase::Unref();
+    if (old_refcount == 1 && refcount == 0) {
+      _persistent.SetWeak(
+          this, FinalizeCallback, v8::WeakCallbackType::kParameter);
+    }
+    return refcount;
+  }
+
+  inline v8::Local<v8::Value> Get() {
+    if (_persistent.IsEmpty()) {
+      return v8::Local<v8::Value>();
+    } else {
+      return v8::Local<v8::Value>::New(_env->isolate, _persistent);
+    }
+  }
+
+ private:
   // The N-API finalizer callback may make calls into the engine. V8's heap is
   // not in a consistent state during the weak callback, and therefore it does
   // not support calls back into it. However, it provides a mechanism for adding
@@ -331,8 +369,37 @@ class Reference : private Finalizer, RefTracker {
   }
 
   v8impl::Persistent<v8::Value> _persistent;
-  uint32_t _refcount;
-  bool _delete_self;
+};
+
+class ArrayBufferReference final : public Reference {
+ public:
+  // Same signatures for ctor and New() as Reference, except this only works
+  // with ArrayBuffers:
+  template <typename... Args>
+  explicit ArrayBufferReference(napi_env env,
+                                v8::Local<v8::ArrayBuffer> value,
+                                Args&&... args)
+    : Reference(env, value, std::forward<Args>(args)...) {}
+
+  template <typename... Args>
+  static ArrayBufferReference* New(napi_env env,
+                                   v8::Local<v8::ArrayBuffer> value,
+                                   Args&&... args) {
+    return new ArrayBufferReference(env, value, std::forward<Args>(args)...);
+  }
+
+ private:
+  inline void Finalize(bool is_env_teardown) override {
+    if (is_env_teardown) {
+      v8::HandleScope handle_scope(_env->isolate);
+      v8::Local<v8::Value> ab = Get();
+      CHECK(!ab.IsEmpty());
+      CHECK(ab->IsArrayBuffer());
+      ab.As<v8::ArrayBuffer>()->Detach();
+    }
+
+    Reference::Finalize(is_env_teardown);
+  }
 };
 
 enum UnwrapAction {
@@ -866,6 +933,22 @@ napi_status napi_define_class(napi_env env,
 napi_status napi_get_property_names(napi_env env,
                                     napi_value object,
                                     napi_value* result) {
+  return napi_get_all_property_names(
+      env,
+      object,
+      napi_key_include_prototypes,
+      static_cast<napi_key_filter>(napi_key_enumerable |
+                                   napi_key_skip_symbols),
+      napi_key_numbers_to_strings,
+      result);
+}
+
+napi_status napi_get_all_property_names(napi_env env,
+                                        napi_value object,
+                                        napi_key_collection_mode key_mode,
+                                        napi_key_filter key_filter,
+                                        napi_key_conversion key_conversion,
+                                        napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
@@ -873,19 +956,69 @@ napi_status napi_get_property_names(napi_env env,
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(env, context, obj, object);
 
-  v8::MaybeLocal<v8::Array> maybe_propertynames = obj->GetPropertyNames(
-    context,
-    v8::KeyCollectionMode::kIncludePrototypes,
-    static_cast<v8::PropertyFilter>(
-        v8::PropertyFilter::ONLY_ENUMERABLE |
-        v8::PropertyFilter::SKIP_SYMBOLS),
-    v8::IndexFilter::kIncludeIndices,
-    v8::KeyConversionMode::kConvertToString);
+  v8::PropertyFilter filter = v8::PropertyFilter::ALL_PROPERTIES;
+  if (key_filter & napi_key_writable) {
+    filter =
+        static_cast<v8::PropertyFilter>(filter |
+                                        v8::PropertyFilter::ONLY_WRITABLE);
+  }
+  if (key_filter & napi_key_enumerable) {
+    filter =
+        static_cast<v8::PropertyFilter>(filter |
+                                        v8::PropertyFilter::ONLY_ENUMERABLE);
+  }
+  if (key_filter & napi_key_configurable) {
+    filter =
+        static_cast<v8::PropertyFilter>(filter |
+                                        v8::PropertyFilter::ONLY_WRITABLE);
+  }
+  if (key_filter & napi_key_skip_strings) {
+    filter =
+        static_cast<v8::PropertyFilter>(filter |
+                                        v8::PropertyFilter::SKIP_STRINGS);
+  }
+  if (key_filter & napi_key_skip_symbols) {
+    filter =
+        static_cast<v8::PropertyFilter>(filter |
+                                        v8::PropertyFilter::SKIP_SYMBOLS);
+  }
+  v8::KeyCollectionMode collection_mode;
+  v8::KeyConversionMode conversion_mode;
 
-  CHECK_MAYBE_EMPTY(env, maybe_propertynames, napi_generic_failure);
+  switch (key_mode) {
+    case napi_key_include_prototypes:
+      collection_mode = v8::KeyCollectionMode::kIncludePrototypes;
+      break;
+    case napi_key_own_only:
+      collection_mode = v8::KeyCollectionMode::kOwnOnly;
+      break;
+    default:
+      return napi_set_last_error(env, napi_invalid_arg);
+  }
 
-  *result = v8impl::JsValueFromV8LocalValue(
-      maybe_propertynames.ToLocalChecked());
+  switch (key_conversion) {
+    case napi_key_keep_numbers:
+      conversion_mode = v8::KeyConversionMode::kKeepNumbers;
+      break;
+    case napi_key_numbers_to_strings:
+      conversion_mode = v8::KeyConversionMode::kConvertToString;
+      break;
+    default:
+      return napi_set_last_error(env, napi_invalid_arg);
+  }
+
+  v8::MaybeLocal<v8::Array> maybe_all_propertynames =
+      obj->GetPropertyNames(context,
+                            collection_mode,
+                            filter,
+                            v8::IndexFilter::kIncludeIndices,
+                            conversion_mode);
+
+  CHECK_MAYBE_EMPTY_WITH_PREAMBLE(
+      env, maybe_all_propertynames, napi_generic_failure);
+
+  *result =
+      v8impl::JsValueFromV8LocalValue(maybe_all_propertynames.ToLocalChecked());
   return GET_RETURN_STATUS(env);
 }
 
@@ -983,6 +1116,7 @@ napi_status napi_has_own_property(napi_env env,
                                   bool* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, key);
+  CHECK_ARG(env, result);
 
   v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
@@ -1497,10 +1631,8 @@ napi_status napi_create_bigint_words(napi_env env,
 
   v8::Local<v8::Context> context = env->context();
 
-  if (word_count > INT_MAX) {
-    napi_throw_range_error(env, nullptr, "Maximum BigInt size exceeded");
-    return napi_set_last_error(env, napi_pending_exception);
-  }
+  RETURN_STATUS_IF_FALSE(
+      env, word_count <= INT_MAX, napi_invalid_arg);
 
   v8::MaybeLocal<v8::BigInt> b = v8::BigInt::NewFromWords(
       context, sign_bit, word_count, words);
@@ -2579,15 +2711,26 @@ napi_status napi_create_external_arraybuffer(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
+  // The buffer will be freed with v8impl::ArrayBufferReference::New()
+  // below, hence this BackingStore does not need to free the buffer.
+  std::unique_ptr<v8::BackingStore> backing =
+      v8::ArrayBuffer::NewBackingStore(external_data,
+                                       byte_length,
+                                       [](void*, size_t, void*){},
+                                       nullptr);
   v8::Local<v8::ArrayBuffer> buffer =
-      v8::ArrayBuffer::New(isolate, external_data, byte_length);
+      v8::ArrayBuffer::New(isolate, std::move(backing));
+  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
+  if (!buffer->IsExternal())
+    buffer->Externalize(buffer->GetBackingStore());
   v8::Maybe<bool> marked = env->mark_arraybuffer_as_untransferable(buffer);
   CHECK_MAYBE_NOTHING(env, marked, napi_generic_failure);
 
   if (finalize_cb != nullptr) {
     // Create a self-deleting weak reference that invokes the finalizer
-    // callback.
-    v8impl::Reference::New(env,
+    // callback and detaches the ArrayBuffer if it still exists on Environment
+    // teardown.
+    v8impl::ArrayBufferReference::New(env,
         buffer,
         0,
         true,
@@ -2891,13 +3034,13 @@ napi_status napi_reject_deferred(napi_env env,
 }
 
 napi_status napi_is_promise(napi_env env,
-                            napi_value promise,
+                            napi_value value,
                             bool* is_promise) {
   CHECK_ENV(env);
-  CHECK_ARG(env, promise);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, is_promise);
 
-  *is_promise = v8impl::V8LocalValueFromJsValue(promise)->IsPromise();
+  *is_promise = v8impl::V8LocalValueFromJsValue(value)->IsPromise();
 
   return napi_clear_last_error(env);
 }
@@ -3003,9 +3146,19 @@ napi_status napi_set_instance_data(napi_env env,
                                    void* finalize_hint) {
   CHECK_ENV(env);
 
-  env->instance_data.data = data;
-  env->instance_data.finalize_cb = finalize_cb;
-  env->instance_data.hint = finalize_hint;
+  v8impl::RefBase* old_data = static_cast<v8impl::RefBase*>(env->instance_data);
+  if (old_data != nullptr) {
+    // Our contract so far has been to not finalize any old data there may be.
+    // So we simply delete it.
+    v8impl::RefBase::Delete(old_data);
+  }
+
+  env->instance_data = v8impl::RefBase::New(env,
+                                            0,
+                                            true,
+                                            finalize_cb,
+                                            data,
+                                            finalize_hint);
 
   return napi_clear_last_error(env);
 }
@@ -3015,7 +3168,9 @@ napi_status napi_get_instance_data(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, data);
 
-  *data = env->instance_data.data;
+  v8impl::RefBase* idata = static_cast<v8impl::RefBase*>(env->instance_data);
+
+  *data = (idata == nullptr ? nullptr : idata->Data());
 
   return napi_clear_last_error(env);
 }
@@ -3036,6 +3191,21 @@ napi_status napi_detach_arraybuffer(napi_env env, napi_value arraybuffer) {
       env, it->IsDetachable(), napi_detachable_arraybuffer_expected);
 
   it->Detach();
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_is_detached_arraybuffer(napi_env env,
+                                         napi_value arraybuffer,
+                                         bool* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, arraybuffer);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
+
+  *result = value->IsArrayBuffer() &&
+            value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
 
   return napi_clear_last_error(env);
 }

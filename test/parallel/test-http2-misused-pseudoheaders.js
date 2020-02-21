@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const h2 = require('http2');
 
 const server = h2.createServer();
@@ -14,16 +15,16 @@ server.on('stream', common.mustCall((stream) => {
     ':method',
     ':scheme'
   ].forEach((i) => {
-    common.expectsError(() => stream.respond({ [i]: '/' }),
-                        {
-                          code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
-                        });
+    assert.throws(() => stream.respond({ [i]: '/' }),
+                  {
+                    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
+                  });
   });
 
   stream.respond({}, { waitForTrailers: true });
 
   stream.on('wantTrailers', () => {
-    common.expectsError(() => {
+    assert.throws(() => {
       stream.sendTrailers({ ':status': 'bar' });
     }, {
       code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'

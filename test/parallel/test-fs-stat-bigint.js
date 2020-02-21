@@ -19,15 +19,17 @@ function getFilename() {
   return filename;
 }
 
-function verifyStats(bigintStats, numStats) {
+function verifyStats(bigintStats, numStats, allowableDelta) {
+  // allowableDelta: It's possible that the file stats are updated between the
+  // two stat() calls so allow for a small difference.
   for (const key of Object.keys(numStats)) {
     const val = numStats[key];
     if (isDate(val)) {
       const time = val.getTime();
       const time2 = bigintStats[key].getTime();
       assert(
-        Math.abs(time - time2) < 2,
-        `difference of ${key}.getTime() should < 2.\n` +
+        time - time2 <= allowableDelta,
+        `difference of ${key}.getTime() should <= ${allowableDelta}.\n` +
         `Number version ${time}, BigInt version ${time2}n`);
     } else if (key === 'mode') {
       assert.strictEqual(bigintStats[key], BigInt(val));
@@ -65,20 +67,18 @@ function verifyStats(bigintStats, numStats) {
       const nsFromBigInt = bigintStats[nsKey];
       const msFromBigIntNs = Number(nsFromBigInt / (10n ** 6n));
       const msFromNum = numStats[key];
-      // The difference between the millisecond-precision values should be
-      // smaller than 2
+
       assert(
-        Math.abs(msFromNum - Number(msFromBigInt)) < 2,
+        msFromNum - Number(msFromBigInt) <= allowableDelta,
         `Number version ${key} = ${msFromNum}, ` +
-        `BigInt version ${key} = ${msFromBigInt}n`);
-      // The difference between the millisecond-precision value and the
-      // nanosecond-precision value scaled down to milliseconds should be
-      // smaller than 2
+        `BigInt version ${key} = ${msFromBigInt}n, ` +
+        `Allowable delta = ${allowableDelta}`);
+
       assert(
-        Math.abs(msFromNum - Number(msFromBigIntNs)) < 2,
+        msFromNum - Number(msFromBigIntNs) <= allowableDelta,
         `Number version ${key} = ${msFromNum}, ` +
         `BigInt version ${nsKey} = ${nsFromBigInt}n` +
-        ` = ${msFromBigIntNs}ms`);
+        ` = ${msFromBigIntNs}ms, Allowable delta = ${allowableDelta}`);
     } else if (Number.isSafeInteger(val)) {
       assert.strictEqual(
         bigintStats[key], BigInt(val),
@@ -87,92 +87,102 @@ function verifyStats(bigintStats, numStats) {
       );
     } else {
       assert(
-        Math.abs(Number(bigintStats[key]) - val) < 1,
+        Number(bigintStats[key]) - val < 1,
         `${key} is not a safe integer, difference should < 1.\n` +
         `Number version ${val}, BigInt version ${bigintStats[key]}n`);
     }
   }
 }
 
+const runSyncTest = (func, arg) => {
+  const startTime = process.hrtime.bigint();
+  const bigintStats = func(arg, { bigint: true });
+  const numStats = func(arg);
+  const endTime = process.hrtime.bigint();
+  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
+  verifyStats(bigintStats, numStats, allowableDelta);
+};
+
 {
   const filename = getFilename();
-  const bigintStats = fs.statSync(filename, { bigint: true });
-  const numStats = fs.statSync(filename);
-  verifyStats(bigintStats, numStats);
+  runSyncTest(fs.statSync, filename);
 }
 
 if (!common.isWindows) {
   const filename = getFilename();
   const link = `${filename}-link`;
   fs.symlinkSync(filename, link);
-  const bigintStats = fs.lstatSync(link, { bigint: true });
-  const numStats = fs.lstatSync(link);
-  verifyStats(bigintStats, numStats);
+  runSyncTest(fs.lstatSync, link);
 }
 
 {
   const filename = getFilename();
   const fd = fs.openSync(filename, 'r');
-  const bigintStats = fs.fstatSync(fd, { bigint: true });
-  const numStats = fs.fstatSync(fd);
-  verifyStats(bigintStats, numStats);
+  runSyncTest(fs.fstatSync, fd);
   fs.closeSync(fd);
 }
 
+const runCallbackTest = (func, arg, done) => {
+  const startTime = process.hrtime.bigint();
+  func(arg, { bigint: true }, common.mustCall((err, bigintStats) => {
+    func(arg, common.mustCall((err, numStats) => {
+      const endTime = process.hrtime.bigint();
+      const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
+      verifyStats(bigintStats, numStats, allowableDelta);
+      if (done) {
+        done();
+      }
+    }));
+  }));
+};
+
 {
   const filename = getFilename();
-  fs.stat(filename, { bigint: true }, (err, bigintStats) => {
-    fs.stat(filename, (err, numStats) => {
-      verifyStats(bigintStats, numStats);
-    });
-  });
+  runCallbackTest(fs.stat, filename);
 }
 
 if (!common.isWindows) {
   const filename = getFilename();
   const link = `${filename}-link`;
   fs.symlinkSync(filename, link);
-  fs.lstat(link, { bigint: true }, (err, bigintStats) => {
-    fs.lstat(link, (err, numStats) => {
-      verifyStats(bigintStats, numStats);
-    });
-  });
+  runCallbackTest(fs.lstat, link);
 }
 
 {
   const filename = getFilename();
   const fd = fs.openSync(filename, 'r');
-  fs.fstat(fd, { bigint: true }, (err, bigintStats) => {
-    fs.fstat(fd, (err, numStats) => {
-      verifyStats(bigintStats, numStats);
-      fs.closeSync(fd);
-    });
-  });
+  runCallbackTest(fs.fstat, fd, () => { fs.closeSync(fd); });
 }
 
-(async function() {
+const runPromiseTest = async (func, arg) => {
+  const startTime = process.hrtime.bigint();
+  const bigintStats = await func(arg, { bigint: true });
+  const numStats = await func(arg);
+  const endTime = process.hrtime.bigint();
+  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
+  verifyStats(bigintStats, numStats, allowableDelta);
+};
+
+{
   const filename = getFilename();
-  const bigintStats = await promiseFs.stat(filename, { bigint: true });
-  const numStats = await promiseFs.stat(filename);
-  verifyStats(bigintStats, numStats);
-})();
+  runPromiseTest(promiseFs.stat, filename);
+}
 
 if (!common.isWindows) {
-  (async function() {
-    const filename = getFilename();
-    const link = `${filename}-link`;
-    fs.symlinkSync(filename, link);
-    const bigintStats = await promiseFs.lstat(link, { bigint: true });
-    const numStats = await promiseFs.lstat(link);
-    verifyStats(bigintStats, numStats);
-  })();
+  const filename = getFilename();
+  const link = `${filename}-link`;
+  fs.symlinkSync(filename, link);
+  runPromiseTest(promiseFs.lstat, link);
 }
 
 (async function() {
   const filename = getFilename();
   const handle = await promiseFs.open(filename, 'r');
+  const startTime = process.hrtime.bigint();
   const bigintStats = await handle.stat({ bigint: true });
   const numStats = await handle.stat();
-  verifyStats(bigintStats, numStats);
+  const endTime = process.hrtime.bigint();
+  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
+  verifyStats(bigintStats, numStats, allowableDelta);
   await handle.close();
 })();

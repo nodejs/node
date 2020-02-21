@@ -78,7 +78,7 @@ class StringMatcher : public UnicodeFunctor, public UnicodeMatcher, public Unico
      * Implement UnicodeFunctor
      * @return a copy of the object.
      */
-    virtual UnicodeFunctor* clone() const;
+    virtual StringMatcher* clone() const;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeMatcher* pointer

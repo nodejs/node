@@ -21,10 +21,7 @@ U_NAMESPACE_BEGIN
 EventListener::~EventListener() {}
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EventListener)
 
-static UMutex *notifyLock() {
-    static UMutex m = U_MUTEX_INITIALIZER;
-    return &m;
-}
+static UMutex notifyLock;
 
 ICUNotifier::ICUNotifier(void)
 : listeners(NULL)
@@ -33,7 +30,7 @@ ICUNotifier::ICUNotifier(void)
 
 ICUNotifier::~ICUNotifier(void) {
     {
-        Mutex lmx(notifyLock());
+        Mutex lmx(&notifyLock);
         delete listeners;
         listeners = NULL;
     }
@@ -50,7 +47,7 @@ ICUNotifier::addListener(const EventListener* l, UErrorCode& status)
         }
 
         if (acceptsListener(*l)) {
-            Mutex lmx(notifyLock());
+            Mutex lmx(&notifyLock);
             if (listeners == NULL) {
                 listeners = new UVector(5, status);
             } else {
@@ -83,7 +80,7 @@ ICUNotifier::removeListener(const EventListener *l, UErrorCode& status)
         }
 
         {
-            Mutex lmx(notifyLock());
+            Mutex lmx(&notifyLock);
             if (listeners != NULL) {
                 // identity equality check
                 for (int i = 0, e = listeners->size(); i < e; ++i) {
@@ -106,7 +103,7 @@ void
 ICUNotifier::notifyChanged(void)
 {
     if (listeners != NULL) {
-        Mutex lmx(notifyLock());
+        Mutex lmx(&notifyLock);
         if (listeners != NULL) {
             for (int i = 0, e = listeners->size(); i < e; ++i) {
                 EventListener* el = (EventListener*)listeners->elementAt(i);

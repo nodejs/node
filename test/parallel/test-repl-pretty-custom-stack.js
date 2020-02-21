@@ -48,26 +48,26 @@ const tests = [
   {
     // test .load for a file that throws
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
-    expected: 'Thrown:\nError: Whoops!--->\nrepl:*:*--->\nd (repl:*:*)' +
+    expected: 'Uncaught Error: Whoops!--->\nrepl:*:*--->\nd (repl:*:*)' +
               '--->\nc (repl:*:*)--->\nb (repl:*:*)--->\na (repl:*:*)\n'
   },
   {
     command: 'let x y;',
-    expected: 'Thrown:\n' +
-              'let x y;\n      ^\n\nSyntaxError: Unexpected identifier\n'
+    expected: 'let x y;\n      ^\n\n' +
+              'Uncaught SyntaxError: Unexpected identifier\n'
   },
   {
     command: 'throw new Error(\'Whoops!\')',
-    expected: 'Thrown:\nError: Whoops!\n'
+    expected: 'Uncaught Error: Whoops!\n'
   },
   {
     command: 'foo = bar;',
-    expected: 'Thrown:\nReferenceError: bar is not defined\n'
+    expected: 'Uncaught ReferenceError: bar is not defined\n'
   },
   // test anonymous IIFE
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
-    expected: 'Thrown:\nError: Whoops!--->\nrepl:*:*\n'
+    expected: 'Uncaught Error: Whoops!--->\nrepl:*:*\n'
   }
 ];
 

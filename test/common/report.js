@@ -53,7 +53,7 @@ function _validateContent(report) {
   // Verify that all sections are present as own properties of the report.
   const sections = ['header', 'javascriptStack', 'nativeStack',
                     'javascriptHeap', 'libuv', 'environmentVariables',
-                    'sharedObjects', 'resourceUsage'];
+                    'sharedObjects', 'resourceUsage', 'workers'];
   if (!isWindows)
     sections.push('userLimits');
 
@@ -74,9 +74,9 @@ function _validateContent(report) {
                         'componentVersions', 'release', 'osName', 'osRelease',
                         'osVersion', 'osMachine', 'cpus', 'host',
                         'glibcVersionRuntime', 'glibcVersionCompiler', 'cwd',
-                        'reportVersion', 'networkInterfaces'];
+                        'reportVersion', 'networkInterfaces', 'threadId'];
   checkForUnknownFields(header, headerFields);
-  assert.strictEqual(header.reportVersion, 1);  // Increment as needed.
+  assert.strictEqual(header.reportVersion, 2);  // Increment as needed.
   assert.strictEqual(typeof header.event, 'string');
   assert.strictEqual(typeof header.trigger, 'string');
   assert(typeof header.filename === 'string' || header.filename === null);
@@ -84,6 +84,7 @@ function _validateContent(report) {
                         'Invalid Date');
   assert(String(+header.dumpEventTimeStamp), header.dumpEventTimeStamp);
   assert(Number.isSafeInteger(header.processId));
+  assert(Number.isSafeInteger(header.threadId) || header.threadId === null);
   assert.strictEqual(typeof header.cwd, 'string');
   assert(Array.isArray(header.commandLine));
   header.commandLine.forEach((arg) => {
@@ -253,6 +254,10 @@ function _validateContent(report) {
   report.sharedObjects.forEach((sharedObject) => {
     assert.strictEqual(typeof sharedObject, 'string');
   });
+
+  // Verify the format of the workers section.
+  assert(Array.isArray(report.workers));
+  report.workers.forEach(_validateContent);
 }
 
 function checkForUnknownFields(actual, expected) {

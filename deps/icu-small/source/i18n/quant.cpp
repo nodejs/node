@@ -47,7 +47,7 @@ Quantifier::~Quantifier() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* Quantifier::clone() const {
+Quantifier* Quantifier::clone() const {
     return new Quantifier(*this);
 }
 

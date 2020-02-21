@@ -144,7 +144,7 @@ const ListFormatInternal* ListFormatter::getListFormatInternal(
     keyBuffer.append(':', errorCode).append(style, errorCode);
     UnicodeString key(keyBuffer.data(), -1, US_INV);
     ListFormatInternal* result = nullptr;
-    static UMutex listFormatterMutex = U_MUTEX_INITIALIZER;
+    static UMutex listFormatterMutex;
     {
         Mutex m(&listFormatterMutex);
         if (listPatternHash == nullptr) {
@@ -478,8 +478,8 @@ UnicodeString& ListFormatter::format_(
     if (index == 0) {
         offset = 0;
     }
-    int32_t offsetFirst;
-    int32_t offsetSecond;
+    int32_t offsetFirst = 0;
+    int32_t offsetSecond = 0;
     int32_t prefixLength = 0;
     // for n items, there are 2 * (n + 1) boundary including 0 and the upper
     // edge.

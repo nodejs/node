@@ -4038,6 +4038,13 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 
   // If there are empty slots, use one of them.
   int empty_slot = Smi::ToInt(empty_slot_index(*array));
+
+  if (empty_slot == kNoEmptySlotsMarker) {
+    // GCs might have cleared some references, rescan the array for empty slots.
+    PrototypeUsers::ScanForEmptySlots(*array);
+    empty_slot = Smi::ToInt(empty_slot_index(*array));
+  }
+
   if (empty_slot != kNoEmptySlotsMarker) {
     DCHECK_GE(empty_slot, kFirstIndex);
     CHECK_LT(empty_slot, array->length());
@@ -4058,6 +4065,15 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
   array->set_length(length + 1);
   if (assigned_index != nullptr) *assigned_index = length;
   return array;
+}
+
+// static
+void PrototypeUsers::ScanForEmptySlots(WeakArrayList array) {
+  for (int i = kFirstIndex; i < array.length(); i++) {
+    if (array.Get(i)->IsCleared()) {
+      PrototypeUsers::MarkSlotEmpty(array, i);
+    }
+  }
 }
 
 WeakArrayList PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,

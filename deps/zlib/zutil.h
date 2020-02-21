@@ -28,6 +28,21 @@
 #  include <string.h>
 #  include <stdlib.h>
 #endif
+#ifdef NO_ERRNO_H
+#   ifdef _WIN32_WCE
+      /* The Microsoft C Run-Time Library for Windows CE doesn't have
+       * errno.  We define it as a global variable to simplify porting.
+       * Its value is always 0 and should not be used.  We rename it to
+       * avoid conflict with other libraries that use the same workaround.
+       */
+#     define errno z_errno
+#   endif
+    extern int errno;
+#else
+#  ifndef _WIN32_WCE
+#    include <errno.h>
+#  endif
+#endif
 
 #ifdef Z_SOLO
    typedef long ptrdiff_t;  /* guess -- will be caught if guess is wrong */
@@ -267,5 +282,11 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 /* Reverse the bytes in a 32-bit value */
 #define ZSWAP32(q) ((((q) >> 24) & 0xff) + (((q) >> 8) & 0xff00) + \
                     (((q) & 0xff00) << 8) + (((q) & 0xff) << 24))
+
+#ifdef _MSC_VER
+#define zalign(x) __declspec(align(x))
+#else
+#define zalign(x) __attribute__((aligned((x))))
+#endif
 
 #endif /* ZUTIL_H */

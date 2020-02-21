@@ -68,11 +68,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef NOUNCRYPT
-        #define NOUNCRYPT
-#endif
-
-#include "zlib.h"
+#include "third_party/zlib/zlib.h"
 #include "unzip.h"
 
 #ifdef STDC
@@ -1630,6 +1626,7 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
             zdecode(s->keys,s->pcrc_32_tab,source[i]);
 
         s->pfile_in_zip_read->pos_in_zipfile+=12;
+        s->pfile_in_zip_read->rest_read_compressed-=12;
         s->encrypted=1;
     }
 #    endif
@@ -1704,11 +1701,6 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
     pfile_in_zip_read_info->stream.next_out = (Bytef*)buf;
 
     pfile_in_zip_read_info->stream.avail_out = (uInt)len;
-
-    if ((len>pfile_in_zip_read_info->rest_read_uncompressed) &&
-        (!(pfile_in_zip_read_info->raw)))
-        pfile_in_zip_read_info->stream.avail_out =
-            (uInt)pfile_in_zip_read_info->rest_read_uncompressed;
 
     if ((len>pfile_in_zip_read_info->rest_read_compressed+
            pfile_in_zip_read_info->stream.avail_in) &&

@@ -3,18 +3,19 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const http2 = require('http2');
 
 const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
-  common.expectsError(
+  assert.throws(
     () => stream.close('string'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: 'The "code" argument must be of type number. ' +
-               'Received type string'
+               "Received type string ('string')"
     }
   );
   stream.respond();

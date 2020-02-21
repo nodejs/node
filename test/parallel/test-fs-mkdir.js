@@ -66,18 +66,18 @@ function nextdir() {
 // mkdirSync and mkdir require path to be a string, buffer or url.
 // Anything else generates an error.
 [false, 1, {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.mkdir(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.mkdirSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });
@@ -148,6 +148,7 @@ function nextdir() {
       message: /ENOTDIR: .*mkdir/,
       name: 'Error',
       syscall: 'mkdir',
+      path: pathname // See: https://github.com/nodejs/node/issues/28015
     }
   );
 }
@@ -187,6 +188,11 @@ function nextdir() {
     assert.strictEqual(err.code, 'ENOTDIR');
     assert.strictEqual(err.syscall, 'mkdir');
     assert.strictEqual(fs.existsSync(pathname), false);
+    // See: https://github.com/nodejs/node/issues/28015
+    // The path field varies slightly in Windows errors, vs., other platforms
+    // see: https://github.com/libuv/libuv/issues/2661, for this reason we
+    // use startsWith() rather than comparing to the full "pathname".
+    assert(err.path.startsWith(filename));
   }));
 }
 
@@ -217,25 +223,120 @@ if (common.isMainThread && (common.isLinux || common.isOSX)) {
 {
   const pathname = path.join(tmpdir.path, nextdir());
   ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
-    common.expectsError(
+    const received = common.invalidArgTypeHelper(recursive);
+    assert.throws(
       () => fs.mkdir(pathname, { recursive }, common.mustNotCall()),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "recursive" argument must be of type boolean. Received ' +
-          `type ${typeof recursive}`
+        name: 'TypeError',
+        message: 'The "recursive" argument must be of type boolean.' +
+          received
       }
     );
-    common.expectsError(
+    assert.throws(
       () => fs.mkdirSync(pathname, { recursive }),
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError,
-        message: 'The "recursive" argument must be of type boolean. Received ' +
-          `type ${typeof recursive}`
+        name: 'TypeError',
+        message: 'The "recursive" argument must be of type boolean.' +
+          received
       }
     );
   });
+}
+
+// `mkdirp` returns first folder created, when all folders are new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const firstPathCreated = path.join(tmpdir.path, dir1);
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err, path) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(path, firstPathCreated);
+  }));
+}
+
+// `mkdirp` returns first folder created, when last folder is new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1));
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err, path) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(path, pathname);
+  }));
+}
+
+// `mkdirp` returns undefined, when no new folders are created.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1, dir2), { recursive: true });
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err, path) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(path, undefined);
+  }));
+}
+
+// `mkdirp.sync` returns first folder created, when all folders are new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const firstPathCreated = path.join(tmpdir.path, dir1);
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  const p = fs.mkdirSync(pathname, { recursive: true });
+  assert.strictEqual(fs.existsSync(pathname), true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  assert.strictEqual(p, firstPathCreated);
+}
+
+// `mkdirp.sync` returns first folder created, when last folder is new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1), { recursive: true });
+  const p = fs.mkdirSync(pathname, { recursive: true });
+  assert.strictEqual(fs.existsSync(pathname), true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  assert.strictEqual(p, pathname);
+}
+
+// `mkdirp.sync` returns undefined, when no new folders are created.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  fs.mkdirSync(path.join(tmpdir.path, dir1, dir2), { recursive: true });
+  const p = fs.mkdirSync(pathname, { recursive: true });
+  assert.strictEqual(fs.existsSync(pathname), true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  assert.strictEqual(p, undefined);
+}
+
+// `mkdirp.promises` returns first folder created, when all folders are new.
+{
+  const dir1 = nextdir();
+  const dir2 = nextdir();
+  const firstPathCreated = path.join(tmpdir.path, dir1);
+  const pathname = path.join(tmpdir.path, dir1, dir2);
+  async function testCase() {
+    const p = await fs.promises.mkdir(pathname, { recursive: true });
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+    assert.strictEqual(p, firstPathCreated);
+  }
+  testCase();
 }
 
 // Keep the event loop alive so the async mkdir() requests

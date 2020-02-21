@@ -22,6 +22,20 @@
 
 namespace node {
 
+template <typename T>
+inline std::string ToString(const T& value);
+
+// C++-style variant of sprintf()/fprintf() that:
+// - Returns an std::string
+// - Handles \0 bytes correctly
+// - Supports %p and %s. %d, %i and %u are aliases for %s.
+// - Accepts any class that has a ToString() method for stringification.
+template <typename... Args>
+inline std::string SPrintF(const char* format, Args&&... args);
+template <typename... Args>
+inline void FPrintF(FILE* file, const char* format, Args&&... args);
+void FWrite(FILE* file, const std::string& str);
+
 template <typename... Args>
 inline void FORCE_INLINE Debug(Environment* env,
                                DebugCategory cat,
@@ -29,7 +43,7 @@ inline void FORCE_INLINE Debug(Environment* env,
                                Args&&... args) {
   if (!UNLIKELY(env->debug_enabled(cat)))
     return;
-  fprintf(stderr, format, std::forward<Args>(args)...);
+  FPrintF(stderr, format, std::forward<Args>(args)...);
 }
 
 inline void FORCE_INLINE Debug(Environment* env,
@@ -37,7 +51,7 @@ inline void FORCE_INLINE Debug(Environment* env,
                                const char* message) {
   if (!UNLIKELY(env->debug_enabled(cat)))
     return;
-  fprintf(stderr, "%s", message);
+  FPrintF(stderr, "%s", message);
 }
 
 template <typename... Args>

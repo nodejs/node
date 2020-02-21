@@ -95,10 +95,11 @@ void ResetStdio();  // Safe to call more than once and from signal handlers.
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
 #endif
 
+std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
-void GetHumanReadableProcessName(char (*name)[1024]);
 
 void InitializeContextRuntime(v8::Local<v8::Context>);
+bool InitializePrimordials(v8::Local<v8::Context> context);
 
 namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
@@ -109,20 +110,24 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
   void* Allocate(size_t size) override;  // Defined in src/node.cc
-  void* AllocateUninitialized(size_t size) override
-    { return node::UncheckedMalloc(size); }
-  void Free(void* data, size_t) override { free(data); }
-  virtual void* Reallocate(void* data, size_t old_size, size_t size) {
-    return static_cast<void*>(
-        UncheckedRealloc<char>(static_cast<char*>(data), size));
+  void* AllocateUninitialized(size_t size) override;
+  void Free(void* data, size_t size) override;
+  virtual void* Reallocate(void* data, size_t old_size, size_t size);
+  virtual void RegisterPointer(void* data, size_t size) {
+    total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
-  virtual void RegisterPointer(void* data, size_t size) {}
-  virtual void UnregisterPointer(void* data, size_t size) {}
+  virtual void UnregisterPointer(void* data, size_t size) {
+    total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
+  }
 
   NodeArrayBufferAllocator* GetImpl() final { return this; }
+  inline uint64_t total_mem_usage() const {
+    return total_mem_usage_.load(std::memory_order_relaxed);
+  }
 
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
+  std::atomic<size_t> total_mem_usage_ {0};
 };
 
 class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
@@ -204,15 +209,13 @@ class InternalCallbackScope {
  public:
   enum Flags {
     kNoFlags = 0,
-    // Tell the constructor whether its `object` parameter may be empty or not.
-    kAllowEmptyResource = 1,
     // Indicates whether 'before' and 'after' hooks should be skipped.
-    kSkipAsyncHooks = 2,
+    kSkipAsyncHooks = 1,
     // Indicates whether nextTick and microtask queues should be skipped.
     // This should only be used when there is no call into JS in this scope.
     // (The HTTP parser also uses it for some weird backwards
     // compatibility issues, but it shouldn't.)
-    kSkipTaskQueues = 4
+    kSkipTaskQueues = 2
   };
   InternalCallbackScope(Environment* env,
                         v8::Local<v8::Object> object,
@@ -263,6 +266,8 @@ class ThreadPoolWork {
 
   virtual void DoThreadPoolWork() = 0;
   virtual void AfterThreadPoolWork(int status) = 0;
+
+  Environment* env() const { return env_; }
 
  private:
   Environment* env_;
@@ -377,6 +382,16 @@ class TraceEventScope {
   const char* name_;
   void* id_;
 };
+
+namespace heap {
+
+void DeleteHeapSnapshot(const v8::HeapSnapshot* snapshot);
+using HeapSnapshotPointer =
+  DeleteFnPtr<const v8::HeapSnapshot, DeleteHeapSnapshot>;
+
+BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
+    Environment* env, HeapSnapshotPointer&& snapshot);
+}  // namespace heap
 
 }  // namespace node
 

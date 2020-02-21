@@ -103,6 +103,13 @@
       'conditions': [
         [ 'icu_small=="true"', {
           'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
+          'conditions': [
+            [ 'icu_default_data!=""', {
+              'defines': [
+                'NODE_ICU_DEFAULT_DATA_DIR="<(icu_default_data)"',
+              ],
+            }],
+          ],
       }]],
     }],
     [ 'node_no_browser_globals=="true"', {
@@ -264,6 +271,16 @@
         ],
       },
     }],
+    [ 'debug_node=="true"', {
+      'cflags!': [ '-O3' ],
+      'cflags': [ '-g', '-O0' ],
+      'defines': [ 'DEBUG' ],
+      'xcode_settings': {
+        'OTHER_CFLAGS': [
+          '-g', '-O0'
+        ],
+      },
+    }],
     [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux"', {
       'cflags!': [ '-O3' ],
       'ldflags': [ '--coverage',
@@ -298,24 +315,6 @@
     [ 'OS in "freebsd linux"', {
       'ldflags': [ '-Wl,-z,relro',
                    '-Wl,-z,now' ]
-    }],
-    [ 'OS=="linux" and '
-      'target_arch=="x64" and '
-      'node_use_large_pages=="true" and '
-      'node_use_large_pages_script_lld=="false"', {
-      'ldflags': [
-        '-Wl,-T',
-        '<!(realpath src/large_pages/ld.implicit.script)',
-      ]
-    }],
-    [ 'OS=="linux" and '
-      'target_arch=="x64" and '
-      'node_use_large_pages=="true" and '
-      'node_use_large_pages_script_lld=="true"', {
-      'ldflags': [
-        '-Wl,-T',
-        '<!(realpath src/large_pages/ld.implicit.script.lld)',
-      ]
     }],
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],

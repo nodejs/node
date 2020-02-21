@@ -4,9 +4,8 @@
 
 > Stability: 1 - Experimental
 
-The `async_hooks` module provides an API to register callbacks tracking the
-lifetime of asynchronous resources created inside a Node.js application.
-It can be accessed using:
+The `async_hooks` module provides an API to track asynchronous resources. It
+can be accessed using:
 
 ```js
 const async_hooks = require('async_hooks');
@@ -78,7 +77,7 @@ function destroy(asyncId) { }
 function promiseResolve(asyncId) { }
 ```
 
-#### async_hooks.createHook(callbacks)
+#### `async_hooks.createHook(callbacks)`
 
 <!-- YAML
 added: v8.1.0
@@ -171,7 +170,7 @@ provided by AsyncHooks itself. The logging should then be skipped when
 it was the logging itself that caused AsyncHooks callback to call. By
 doing this the otherwise infinite recursion is broken.
 
-#### asyncHook.enable()
+#### `asyncHook.enable()`
 
 * Returns: {AsyncHook} A reference to `asyncHook`.
 
@@ -187,7 +186,7 @@ const async_hooks = require('async_hooks');
 const hook = async_hooks.createHook(callbacks).enable();
 ```
 
-#### asyncHook.disable()
+#### `asyncHook.disable()`
 
 * Returns: {AsyncHook} A reference to `asyncHook`.
 
@@ -203,7 +202,7 @@ Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
 instance is destroyed.
 
-##### init(asyncId, type, triggerAsyncId, resource)
+##### `init(asyncId, type, triggerAsyncId, resource)`
 
 * `asyncId` {number} A unique ID for the async resource.
 * `type` {string} The type of the async resource.
@@ -296,7 +295,7 @@ of propagating what resource is responsible for the new resource's existence.
 `resource` is an object that represents the actual async resource that has
 been initialized. This can contain useful information that can vary based on
 the value of `type`. For instance, for the `GETADDRINFOREQWRAP` resource type,
-`resource` provides the hostname used when looking up the IP address for the
+`resource` provides the host name used when looking up the IP address for the
 host in `net.Server.listen()`. The API for accessing this information is
 currently not considered public, but using the Embedder API, users can provide
 and document their own resource objects. For example, such a resource object
@@ -383,14 +382,14 @@ Timeout(7) -> TickObject(6) -> root(1)
 ```
 
 The `TCPSERVERWRAP` is not part of this graph, even though it was the reason for
-`console.log()` being called. This is because binding to a port without a
-hostname is a *synchronous* operation, but to maintain a completely asynchronous
+`console.log()` being called. This is because binding to a port without a host
+name is a *synchronous* operation, but to maintain a completely asynchronous
 API the user's callback is placed in a `process.nextTick()`.
 
 The graph only shows *when* a resource was created, not *why*, so to track
 the *why* use `triggerAsyncId`.
 
-##### before(asyncId)
+##### `before(asyncId)`
 
 * `asyncId` {number}
 
@@ -407,7 +406,7 @@ asynchronous resources like a TCP server will typically call the `before`
 callback multiple times, while other operations like `fs.open()` will call
 it only once.
 
-##### after(asyncId)
+##### `after(asyncId)`
 
 * `asyncId` {number}
 
@@ -417,7 +416,7 @@ If an uncaught exception occurs during execution of the callback, then `after`
 will run *after* the `'uncaughtException'` event is emitted or a `domain`'s
 handler runs.
 
-##### destroy(asyncId)
+##### `destroy(asyncId)`
 
 * `asyncId` {number}
 
@@ -429,7 +428,7 @@ made to the `resource` object passed to `init` it is possible that `destroy`
 will never be called, causing a memory leak in the application. If the resource
 does not depend on garbage collection, then this will not be an issue.
 
-##### promiseResolve(asyncId)
+##### `promiseResolve(asyncId)`
 
 <!-- YAML
 added: v8.6.0
@@ -460,7 +459,63 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
   after 6
 ```
 
-#### async_hooks.executionAsyncId()
+#### `async_hooks.executionAsyncResource()`
+
+<!-- YAML
+added: v13.9.0
+-->
+
+* Returns: {Object} The resource representing the current execution.
+  Useful to store data within the resource.
+
+Resource objects returned by `executionAsyncResource()` are most often internal
+Node.js handle objects with undocumented APIs. Using any functions or properties
+on the object is likely to crash your application and should be avoided.
+
+Using `executionAsyncResource()` in the top-level execution context will
+return an empty object as there is no handle or request object to use,
+but having an object representing the top-level can be helpful.
+
+```js
+const { open } = require('fs');
+const { executionAsyncId, executionAsyncResource } = require('async_hooks');
+
+console.log(executionAsyncId(), executionAsyncResource());  // 1 {}
+open(__filename, 'r', (err, fd) => {
+  console.log(executionAsyncId(), executionAsyncResource());  // 7 FSReqWrap
+});
+```
+
+This can be used to implement continuation local storage without the
+use of a tracking `Map` to store the metadata:
+
+```js
+const { createServer } = require('http');
+const {
+  executionAsyncId,
+  executionAsyncResource,
+  createHook
+} = require('async_hooks');
+const sym = Symbol('state'); // Private symbol to avoid pollution
+
+createHook({
+  init(asyncId, type, triggerAsyncId, resource) {
+    const cr = executionAsyncResource();
+    if (cr) {
+      resource[sym] = cr[sym];
+    }
+  }
+}).enable();
+
+const server = createServer(function(req, res) {
+  executionAsyncResource()[sym] = { state: req.url };
+  setTimeout(function() {
+    res.end(JSON.stringify(executionAsyncResource()[sym]));
+  }, 100);
+}).listen(3000);
+```
+
+#### `async_hooks.executionAsyncId()`
 
 <!-- YAML
 added: v8.1.0
@@ -501,7 +556,7 @@ const server = net.createServer((conn) => {
 Promise contexts may not get precise `executionAsyncIds` by default.
 See the section on [promise execution tracking][].
 
-#### async_hooks.triggerAsyncId()
+#### `async_hooks.triggerAsyncId()`
 
 * Returns: {number} The ID of the resource responsible for calling the callback
   that is currently being executed.
@@ -577,7 +632,7 @@ Library developers that handle their own asynchronous resources performing tasks
 like I/O, connection pooling, or managing callback queues may use the
 `AsyncWrap` JavaScript API so that all the appropriate callbacks are called.
 
-### Class: AsyncResource
+### Class: `AsyncResource`
 
 The class `AsyncResource` is designed to be extended by the embedder's async
 resources. Using this, users can easily trigger the lifetime events of their
@@ -615,7 +670,7 @@ asyncResource.asyncId();
 asyncResource.triggerAsyncId();
 ```
 
-#### new AsyncResource(type\[, options\])
+#### `new AsyncResource(type[, options])`
 
 * `type` {string} The type of async event.
 * `options` {Object}
@@ -649,7 +704,7 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### asyncResource.runInAsyncScope(fn\[, thisArg, ...args\])
+#### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML
 added: v9.6.0
 -->
@@ -664,7 +719,7 @@ of the async resource. This will establish the context, trigger the AsyncHooks
 before callbacks, call the function, trigger the AsyncHooks after callbacks, and
 then restore the original execution context.
 
-#### asyncResource.emitDestroy()
+#### `asyncResource.emitDestroy()`
 
 * Returns: {AsyncResource} A reference to `asyncResource`.
 
@@ -673,14 +728,136 @@ be thrown if it is called more than once. This **must** be manually called. If
 the resource is left to be collected by the GC then the `destroy` hooks will
 never be called.
 
-#### asyncResource.asyncId()
+#### `asyncResource.asyncId()`
 
 * Returns: {number} The unique `asyncId` assigned to the resource.
 
-#### asyncResource.triggerAsyncId()
+#### `asyncResource.triggerAsyncId()`
 
 * Returns: {number} The same `triggerAsyncId` that is passed to the
 `AsyncResource` constructor.
+
+<a id="async-resource-worker-pool"></a>
+### Using `AsyncResource` for a `Worker` thread pool
+
+The following example shows how to use the `AsyncResource` class to properly
+provide async tracking for a [`Worker`][] pool. Other resource pools, such as
+database connection pools, can follow a similar model.
+
+Assuming that the task is adding two numbers, using a file named
+`task_processor.js` with the following content:
+
+```js
+const { parentPort } = require('worker_threads');
+parentPort.on('message', (task) => {
+  parentPort.postMessage(task.a + task.b);
+});
+```
+
+a Worker pool around it could use the following structure:
+
+```js
+const { AsyncResource } = require('async_hooks');
+const { EventEmitter } = require('events');
+const path = require('path');
+const { Worker } = require('worker_threads');
+
+const kTaskInfo = Symbol('kTaskInfo');
+const kWorkerFreedEvent = Symbol('kWorkerFreedEvent');
+
+class WorkerPoolTaskInfo extends AsyncResource {
+  constructor(callback) {
+    super('WorkerPoolTaskInfo');
+    this.callback = callback;
+  }
+
+  done(err, result) {
+    this.runInAsyncScope(this.callback, null, err, result);
+    this.emitDestroy();  // `TaskInfo`s are used only once.
+  }
+}
+
+class WorkerPool extends EventEmitter {
+  constructor(numThreads) {
+    super();
+    this.numThreads = numThreads;
+    this.workers = [];
+    this.freeWorkers = [];
+
+    for (let i = 0; i < numThreads; i++)
+      this.addNewWorker();
+  }
+
+  addNewWorker() {
+    const worker = new Worker(path.resolve(__dirname, 'task_processor.js'));
+    worker.on('message', (result) => {
+      // In case of success: Call the callback that was passed to `runTask`,
+      // remove the `TaskInfo` associated with the Worker, and mark it as free
+      // again.
+      worker[kTaskInfo].done(null, result);
+      worker[kTaskInfo] = null;
+      this.freeWorkers.push(worker);
+      this.emit(kWorkerFreedEvent);
+    });
+    worker.on('error', (err) => {
+      // In case of an uncaught exception: Call the callback that was passed to
+      // `runTask` with the error.
+      if (worker[kTaskInfo])
+        worker[kTaskInfo].done(err, null);
+      else
+        this.emit('error', err);
+      // Remove the worker from the list and start a new Worker to replace the
+      // current one.
+      this.workers.splice(this.workers.indexOf(worker), 1);
+      this.addNewWorker();
+    });
+    this.workers.push(worker);
+    this.freeWorkers.push(worker);
+  }
+
+  runTask(task, callback) {
+    if (this.freeWorkers.length === 0) {
+      // No free threads, wait until a worker thread becomes free.
+      this.once(kWorkerFreedEvent, () => this.runTask(task, callback));
+      return;
+    }
+
+    const worker = this.freeWorkers.pop();
+    worker[kTaskInfo] = new WorkerPoolTaskInfo(callback);
+    worker.postMessage(task);
+  }
+
+  close() {
+    for (const worker of this.workers) worker.terminate();
+  }
+}
+
+module.exports = WorkerPool;
+```
+
+Without the explicit tracking added by the `WorkerPoolTaskInfo` objects,
+it would appear that the callbacks are associated with the individual `Worker`
+objects. However, the creation of the `Worker`s is not associated with the
+creation of the tasks and does not provide information about when tasks
+were scheduled.
+
+This pool could be used as follows:
+
+```js
+const WorkerPool = require('./worker_pool.js');
+const os = require('os');
+
+const pool = new WorkerPool(os.cpus().length);
+
+let finished = 0;
+for (let i = 0; i < 10; i++) {
+  pool.runTask({ a: 42, b: 100 }, (err, result) => {
+    console.log(i, err, result);
+    if (++finished === 10)
+      pool.close();
+  });
+}
+```
 
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid

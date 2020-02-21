@@ -220,9 +220,9 @@ function test_cyclic_link_protection(realpath, realpathSync, callback) {
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  common.expectsError(() => {
+  assert.throws(() => {
     realpathSync(entry);
-  }, { code: 'ELOOP', type: Error });
+  }, { code: 'ELOOP', name: 'Error' });
   asynctest(
     realpath, [entry], callback, common.mustCall(function(err, result) {
       assert.strictEqual(err.path, entry);
@@ -490,6 +490,7 @@ function test_abs_with_kids(realpath, realpathSync, cb) {
       try { fs.rmdirSync(root + folder); } catch {}
     });
   }
+
   function setup() {
     cleanup();
     ['',

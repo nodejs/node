@@ -519,7 +519,7 @@ UBool RuleBasedBreakIterator::BreakCache::populatePreceding(UErrorCode &status) 
                     // The initial handleNext() only advanced by a single code point. Go again.
                     position = fBI->handleNext();   // Safe rules identify safe pairs.
                 }
-            };
+            }
             positionStatusIdx = fBI->fRuleStatusIndex;
         }
     } while (position >= fromPosition);

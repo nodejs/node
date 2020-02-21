@@ -287,8 +287,7 @@ OlsonTimeZone& OlsonTimeZone::operator=(const OlsonTimeZone& other) {
     typeMapData = other.typeMapData;
 
     delete finalZone;
-    finalZone = (other.finalZone != 0) ?
-        (SimpleTimeZone*) other.finalZone->clone() : 0;
+    finalZone = (other.finalZone != 0) ? other.finalZone->clone() : 0;
 
     finalStartYear = other.finalStartYear;
     finalStartMillis = other.finalStartMillis;
@@ -319,7 +318,7 @@ UBool OlsonTimeZone::operator==(const TimeZone& other) const {
 /**
  * TimeZone API.
  */
-TimeZone* OlsonTimeZone::clone() const {
+OlsonTimeZone* OlsonTimeZone::clone() const {
     return new OlsonTimeZone(*this);
 }
 
@@ -816,7 +815,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
              * For now, we do not set the valid start year when the construction time
              * and create a clone and set the start year when extracting rules.
              */
-            finalZoneWithStartYear = (SimpleTimeZone*)finalZone->clone();
+            finalZoneWithStartYear = finalZone->clone();
             // Check to make sure finalZone was actually cloned.
             if (finalZoneWithStartYear == NULL) {
                 status = U_MEMORY_ALLOCATION_ERROR;
@@ -837,7 +836,7 @@ OlsonTimeZone::initTransitionRules(UErrorCode& status) {
             startTime = tzt.getTime();
         } else {
             // final rule with no transitions
-            finalZoneWithStartYear = (SimpleTimeZone*)finalZone->clone();
+            finalZoneWithStartYear = finalZone->clone();
             // Check to make sure finalZone was actually cloned.
             if (finalZoneWithStartYear == NULL) {
                 status = U_MEMORY_ALLOCATION_ERROR;

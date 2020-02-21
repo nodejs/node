@@ -69,21 +69,21 @@ assert.throws(() => {
     }
   ));
 
-common.expectsError(
+assert.throws(
   () => test_error.throwErrorCode(),
   {
     code: 'ERR_TEST_CODE',
     message: 'Error [error]'
   });
 
-common.expectsError(
+assert.throws(
   () => test_error.throwRangeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
     message: 'RangeError [range error]'
   });
 
-common.expectsError(
+assert.throws(
   () => test_error.throwTypeErrorCode(),
   {
     code: 'ERR_TEST_CODE',

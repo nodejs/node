@@ -68,7 +68,7 @@ inline AsyncHooks::AsyncHooks()
     : async_ids_stack_(env()->isolate(), 16 * 2),
       fields_(env()->isolate(), kFieldsCount),
       async_id_fields_(env()->isolate(), kUidFieldsCount) {
-  v8::HandleScope handle_scope(env()->isolate());
+  clear_async_id_stack();
 
   // Always perform async_hooks checks, not just when async_hooks is enabled.
   // TODO(AndreasMadsen): Consider removing this for LTS releases.
@@ -113,6 +113,10 @@ inline AliasedFloat64Array& AsyncHooks::async_ids_stack() {
   return async_ids_stack_;
 }
 
+inline v8::Local<v8::Array> AsyncHooks::execution_async_resources() {
+  return PersistentToLocal::Strong(execution_async_resources_);
+}
+
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
   return providers_[idx].Get(env()->isolate());
 }
@@ -125,9 +129,12 @@ inline Environment* AsyncHooks::env() {
   return Environment::ForAsyncHooks(this);
 }
 
-// Remember to keep this code aligned with pushAsyncIds() in JS.
-inline void AsyncHooks::push_async_ids(double async_id,
-                                       double trigger_async_id) {
+// Remember to keep this code aligned with pushAsyncContext() in JS.
+inline void AsyncHooks::push_async_context(double async_id,
+                                           double trigger_async_id,
+                                           v8::Local<v8::Value> resource) {
+  v8::HandleScope handle_scope(env()->isolate());
+
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -143,10 +150,13 @@ inline void AsyncHooks::push_async_ids(double async_id,
   fields_[kStackLength] += 1;
   async_id_fields_[kExecutionAsyncId] = async_id;
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
+
+  auto resources = execution_async_resources();
+  USE(resources->Set(env()->context(), offset, resource));
 }
 
-// Remember to keep this code aligned with popAsyncIds() in JS.
-inline bool AsyncHooks::pop_async_id(double async_id) {
+// Remember to keep this code aligned with popAsyncContext() in JS.
+inline bool AsyncHooks::pop_async_context(double async_id) {
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
   if (fields_[kStackLength] == 0) return false;
@@ -175,11 +185,18 @@ inline bool AsyncHooks::pop_async_id(double async_id) {
   async_id_fields_[kTriggerAsyncId] = async_ids_stack_[2 * offset + 1];
   fields_[kStackLength] = offset;
 
+  auto resources = execution_async_resources();
+  USE(resources->Delete(env()->context(), offset));
+
   return fields_[kStackLength] > 0;
 }
 
 // Keep in sync with clearAsyncIdStack in lib/internal/async_hooks.js.
 inline void AsyncHooks::clear_async_id_stack() {
+  auto isolate = env()->isolate();
+  v8::HandleScope handle_scope(isolate);
+  execution_async_resources_.Reset(isolate, v8::Array::New(isolate));
+
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
   fields_[kStackLength] = 0;
@@ -205,7 +222,6 @@ inline AsyncHooks::DefaultTriggerAsyncIdScope ::~DefaultTriggerAsyncIdScope() {
   async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
     old_default_trigger_async_id_;
 }
-
 
 Environment* Environment::ForAsyncHooks(AsyncHooks* hooks) {
   return ContainerOf(&Environment::async_hooks_, hooks);
@@ -240,14 +256,6 @@ inline uint32_t ImmediateInfo::ref_count() const {
 
 inline bool ImmediateInfo::has_outstanding() const {
   return fields_[kHasOutstanding] == 1;
-}
-
-inline void ImmediateInfo::count_inc(uint32_t increment) {
-  fields_[kCount] += increment;
-}
-
-inline void ImmediateInfo::count_dec(uint32_t decrement) {
-  fields_[kCount] -= decrement;
 }
 
 inline void ImmediateInfo::ref_count_inc(uint32_t increment) {
@@ -543,32 +551,35 @@ inline double Environment::get_default_trigger_async_id() {
 
 inline double* Environment::heap_statistics_buffer() const {
   CHECK_NOT_NULL(heap_statistics_buffer_);
-  return heap_statistics_buffer_;
+  return static_cast<double*>(heap_statistics_buffer_->Data());
 }
 
-inline void Environment::set_heap_statistics_buffer(double* pointer) {
-  CHECK_NULL(heap_statistics_buffer_);  // Should be set only once.
-  heap_statistics_buffer_ = pointer;
+inline void Environment::set_heap_statistics_buffer(
+    std::shared_ptr<v8::BackingStore> backing_store) {
+  CHECK(!heap_statistics_buffer_);  // Should be set only once.
+  heap_statistics_buffer_ = std::move(backing_store);
 }
 
 inline double* Environment::heap_space_statistics_buffer() const {
-  CHECK_NOT_NULL(heap_space_statistics_buffer_);
-  return heap_space_statistics_buffer_;
+  CHECK(heap_space_statistics_buffer_);
+  return static_cast<double*>(heap_space_statistics_buffer_->Data());
 }
 
-inline void Environment::set_heap_space_statistics_buffer(double* pointer) {
-  CHECK_NULL(heap_space_statistics_buffer_);  // Should be set only once.
-  heap_space_statistics_buffer_ = pointer;
+inline void Environment::set_heap_space_statistics_buffer(
+    std::shared_ptr<v8::BackingStore> backing_store) {
+  CHECK(!heap_space_statistics_buffer_);  // Should be set only once.
+  heap_space_statistics_buffer_ = std::move(backing_store);
 }
 
 inline double* Environment::heap_code_statistics_buffer() const {
-  CHECK_NOT_NULL(heap_code_statistics_buffer_);
-  return heap_code_statistics_buffer_;
+  CHECK(heap_code_statistics_buffer_);
+  return static_cast<double*>(heap_code_statistics_buffer_->Data());
 }
 
-inline void Environment::set_heap_code_statistics_buffer(double* pointer) {
-  CHECK_NULL(heap_code_statistics_buffer_);  // Should be set only once.
-  heap_code_statistics_buffer_ = pointer;
+inline void Environment::set_heap_code_statistics_buffer(
+    std::shared_ptr<v8::BackingStore> backing_store) {
+  CHECK(!heap_code_statistics_buffer_);  // Should be set only once.
+  heap_code_statistics_buffer_ = std::move(backing_store);
 }
 
 inline char* Environment::http_parser_buffer() const {
@@ -732,7 +743,8 @@ inline uint64_t Environment::heap_prof_interval() const {
 
 #endif  // HAVE_INSPECTOR
 
-inline std::shared_ptr<HostPort> Environment::inspector_host_port() {
+inline
+std::shared_ptr<ExclusiveAccess<HostPort>> Environment::inspector_host_port() {
   return inspector_host_port_;
 }
 
@@ -745,19 +757,51 @@ inline void IsolateData::set_options(
   options_ = std::move(options);
 }
 
+std::unique_ptr<Environment::NativeImmediateCallback>
+Environment::NativeImmediateQueue::Shift() {
+  std::unique_ptr<Environment::NativeImmediateCallback> ret = std::move(head_);
+  if (ret) {
+    head_ = ret->get_next();
+    if (!head_)
+      tail_ = nullptr;  // The queue is now empty.
+  }
+  size_--;
+  return ret;
+}
+
+void Environment::NativeImmediateQueue::Push(
+    std::unique_ptr<Environment::NativeImmediateCallback> cb) {
+  NativeImmediateCallback* prev_tail = tail_;
+
+  size_++;
+  tail_ = cb.get();
+  if (prev_tail != nullptr)
+    prev_tail->set_next(std::move(cb));
+  else
+    head_ = std::move(cb);
+}
+
+void Environment::NativeImmediateQueue::ConcatMove(
+    NativeImmediateQueue&& other) {
+  size_ += other.size_;
+  if (tail_ != nullptr)
+    tail_->set_next(std::move(other.head_));
+  else
+    head_ = std::move(other.head_);
+  tail_ = other.tail_;
+  other.tail_ = nullptr;
+  other.size_ = 0;
+}
+
+size_t Environment::NativeImmediateQueue::size() const {
+  return size_.load();
+}
+
 template <typename Fn>
 void Environment::CreateImmediate(Fn&& cb, bool ref) {
   auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
       std::move(cb), ref);
-  NativeImmediateCallback* prev_tail = native_immediate_callbacks_tail_;
-
-  native_immediate_callbacks_tail_ = callback.get();
-  if (prev_tail != nullptr)
-    prev_tail->set_next(std::move(callback));
-  else
-    native_immediate_callbacks_head_ = std::move(callback);
-
-  immediate_info()->count_inc(1);
+  native_immediates_.Push(std::move(callback));
 }
 
 template <typename Fn>
@@ -772,6 +816,29 @@ void Environment::SetImmediate(Fn&& cb) {
 template <typename Fn>
 void Environment::SetUnrefImmediate(Fn&& cb) {
   CreateImmediate(std::move(cb), false);
+}
+
+template <typename Fn>
+void Environment::SetImmediateThreadsafe(Fn&& cb) {
+  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
+      std::move(cb), false);
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    native_immediates_threadsafe_.Push(std::move(callback));
+  }
+  uv_async_send(&task_queues_async_);
+}
+
+template <typename Fn>
+void Environment::RequestInterrupt(Fn&& cb) {
+  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
+      std::move(cb), false);
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    native_immediates_interrupts_.Push(std::move(callback));
+  }
+  uv_async_send(&task_queues_async_);
+  RequestInterruptFromV8();
 }
 
 Environment::NativeImmediateCallback::NativeImmediateCallback(bool refed)
@@ -838,6 +905,14 @@ inline bool Environment::owns_inspector() const {
   return flags_ & kOwnsInspector;
 }
 
+bool Environment::filehandle_close_warning() const {
+  return emit_filehandle_warning_;
+}
+
+void Environment::set_filehandle_close_warning(bool on) {
+  emit_filehandle_warning_ = on;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
@@ -859,8 +934,26 @@ inline void Environment::remove_sub_worker_context(worker::Worker* context) {
   sub_worker_contexts_.erase(context);
 }
 
+template <typename Fn>
+inline void Environment::ForEachWorker(Fn&& iterator) {
+  for (worker::Worker* w : sub_worker_contexts_) iterator(w);
+}
+
+inline void Environment::add_refs(int64_t diff) {
+  task_queues_async_refs_ += diff;
+  CHECK_GE(task_queues_async_refs_, 0);
+  if (task_queues_async_refs_ == 0)
+    uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+  else
+    uv_ref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
+}
+
 inline bool Environment::is_stopping() const {
-  return thread_stopper_.is_stopped();
+  return is_stopping_.load();
+}
+
+inline void Environment::set_stopping(bool value) {
+  is_stopping_.store(value);
 }
 
 inline std::list<node_module>* Environment::extra_linked_bindings() {
@@ -983,10 +1076,20 @@ inline v8::MaybeLocal<v8::Object> AllocatedBuffer::ToBuffer() {
 inline v8::Local<v8::ArrayBuffer> AllocatedBuffer::ToArrayBuffer() {
   CHECK_NOT_NULL(env_);
   uv_buf_t buf = release();
+  auto callback = [](void* data, size_t length, void* deleter_data){
+    CHECK_NOT_NULL(deleter_data);
+
+    static_cast<v8::ArrayBuffer::Allocator*>(deleter_data)
+        ->Free(data, length);
+  };
+  std::unique_ptr<v8::BackingStore> backing =
+      v8::ArrayBuffer::NewBackingStore(buf.base,
+                                       buf.len,
+                                       callback,
+                                       env_->isolate()
+                                          ->GetArrayBufferAllocator());
   return v8::ArrayBuffer::New(env_->isolate(),
-                              buf.base,
-                              buf.len,
-                              v8::ArrayBufferCreationMode::kInternalized);
+                              std::move(backing));
 }
 
 inline void Environment::ThrowError(const char* errmsg) {
@@ -1102,6 +1205,21 @@ inline void Environment::SetProtoMethodNoSideEffect(
   t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
+inline void Environment::SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
+                                           const char* name,
+                                           v8::FunctionCallback callback) {
+  v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
+  v8::Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(callback, signature, v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  v8::Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
+  that->InstanceTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
 void Environment::AddCleanupHook(void (*fn)(void*), void* arg) {
   auto insertion_info = cleanup_hooks_.emplace(CleanupHookCallback {
     fn, arg, cleanup_hook_counter_++
@@ -1118,6 +1236,7 @@ void Environment::RemoveCleanupHook(void (*fn)(void*), void* arg) {
 inline void Environment::RegisterFinalizationGroupForCleanup(
     v8::Local<v8::FinalizationGroup> group) {
   cleanup_finalization_groups_.emplace_back(isolate(), group);
+  uv_async_send(&task_queues_async_);
 }
 
 size_t CleanupHookCallback::Hash::operator()(
@@ -1152,14 +1271,6 @@ void Environment::modify_base_object_count(int64_t delta) {
 
 int64_t Environment::base_object_count() const {
   return base_object_count_;
-}
-
-bool AsyncRequest::is_stopped() const {
-  return stopped_.load();
-}
-
-void AsyncRequest::set_stopped(bool flag) {
-  stopped_.store(flag);
 }
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)

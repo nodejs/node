@@ -5,8 +5,87 @@
 > Stability: 2 - Stable
 
 The `assert` module provides a set of assertion functions for verifying
-invariants. The module provides a recommended [`strict` mode][] and a more
-lenient legacy mode.
+invariants.
+
+## Strict assertion mode
+<!-- YAML
+added: v9.9.0
+changes:
+  - version: v13.9.0
+    description: Changed "strict mode" to "strict assertion mode" and "legacy
+                 mode" to "legacy assertion mode" to avoid confusion with the
+                 more usual meaining of "strict mode".
+  - version: v9.9.0
+    pr-url: https://github.com/nodejs/node/pull/17615
+    description: Added error diffs to the strict assertion mode.
+  - version: v9.9.0
+    pr-url: https://github.com/nodejs/node/pull/17002
+    description: Added strict assertion mode to the assert module.
+-->
+
+In strict assertion mode, non-strict methods behave like their corresponding
+strict methods. For example, [`assert.deepEqual()`][] will behave like
+[`assert.deepStrictEqual()`][].
+
+In strict assertion mode, error messages for objects display a diff. In legacy
+assertion mode, error messages for objects display the objects, often truncated.
+
+To use strict assertion mode:
+
+```js
+const assert = require('assert').strict;
+```
+
+Example error diff:
+
+```js
+const assert = require('assert').strict;
+
+assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
+// AssertionError: Expected inputs to be strictly deep-equal:
+// + actual - expected ... Lines skipped
+//
+//   [
+//     [
+// ...
+//       2,
+// +     3
+// -     '3'
+//     ],
+// ...
+//     5
+//   ]
+```
+
+To deactivate the colors, use the `NO_COLOR` or `NODE_DISABLE_COLORS`
+environment variables. This will also deactivate the colors in the REPL. For
+more on color support in terminal environments, read the tty
+[getColorDepth()](tty.html#tty_writestream_getcolordepth_env) documentation.
+
+## Legacy assertion mode
+
+Legacy assertion mode uses the [Abstract Equality Comparison][] in:
+
+* [`assert.deepEqual()`][]
+* [`assert.equal()`][]
+* [`assert.notDeepEqual()`][]
+* [`assert.notEqual()`][]
+
+To use legacy assertion mode:
+
+```js
+const assert = require('assert');
+```
+
+Whenever possible, use the [strict assertion mode][] instead. Otherwise, the
+[Abstract Equality Comparison][] may cause surprising results. This is
+especially true for [`assert.deepEqual()`][], where the comparison rules are
+lax:
+
+```js
+// WARNING: This does not throw an AssertionError!
+assert.deepEqual(/a/gi, new Date());
+```
 
 ## Class: assert.AssertionError
 
@@ -15,7 +94,7 @@ lenient legacy mode.
 Indicates the failure of an assertion. All errors thrown by the `assert` module
 will be instances of the `AssertionError` class.
 
-### new assert.AssertionError(options)
+### `new assert.AssertionError(options)`
 <!-- YAML
 added: v0.1.21
 -->
@@ -68,85 +147,7 @@ try {
 }
 ```
 
-## Strict mode
-<!-- YAML
-added: v9.9.0
-changes:
-  - version: v9.9.0
-    pr-url: https://github.com/nodejs/node/pull/17615
-    description: Added error diffs to the strict mode
-  - version: v9.9.0
-    pr-url: https://github.com/nodejs/node/pull/17002
-    description: Added strict mode to the assert module.
--->
-
-In `strict` mode, `assert` functions use the comparison in the corresponding
-strict functions. For example, [`assert.deepEqual()`][] will behave like
-[`assert.deepStrictEqual()`][].
-
-In `strict` mode, error messages for objects display a diff. In legacy mode,
-error messages for objects display the objects, often truncated.
-
-To use `strict` mode:
-
-```js
-const assert = require('assert').strict;
-```
-
-Example error diff:
-
-```js
-const assert = require('assert').strict;
-
-assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
-// AssertionError: Expected inputs to be strictly deep-equal:
-// + actual - expected ... Lines skipped
-//
-//   [
-//     [
-// ...
-//       2,
-// +     3
-// -     '3'
-//     ],
-// ...
-//     5
-//   ]
-```
-
-To deactivate the colors, use the `NO_COLOR` or
-`NODE_DISABLE_COLORS` environment variable.
-This will also deactivate the colors in the REPL.
-
-For more on the color support in terminal environments, read
-the tty [getColorDepth()](tty.html#tty_writestream_getcolordepth_env) doc.
-
-## Legacy mode
-
-Legacy mode uses the [Abstract Equality Comparison][] in:
-
-* [`assert.deepEqual()`][]
-* [`assert.equal()`][]
-* [`assert.notDeepEqual()`][]
-* [`assert.notEqual()`][]
-
-To use legacy mode:
-
-```js
-const assert = require('assert');
-```
-
-Whenever possible, use the [`strict` mode][] instead. Otherwise, the
-[Abstract Equality Comparison][] may cause surprising results. This is
-especially true for [`assert.deepEqual()`][], where the comparison rules are
-lax:
-
-```js
-// WARNING: This does not throw an AssertionError!
-assert.deepEqual(/a/gi, new Date());
-```
-
-## assert(value\[, message\])
+## `assert(value[, message])`
 <!-- YAML
 added: v0.5.9
 -->
@@ -156,10 +157,14 @@ added: v0.5.9
 
 An alias of [`assert.ok()`][].
 
-## assert.deepEqual(actual, expected\[, message\])
+## `assert.deepEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30766
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25008
     description: The type tags are now properly compared and there are a couple
@@ -185,25 +190,26 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.deepStrictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.deepStrictEqual()`][] instead.
 
 Tests for deep equality between the `actual` and `expected` parameters. Consider
 using [`assert.deepStrictEqual()`][] instead. [`assert.deepEqual()`][] can have
-potentially surprising results.
+surprising results.
 
-"Deep" equality means that the enumerable "own" properties of child objects
+_Deep equality_ means that the enumerable "own" properties of child objects
 are also recursively evaluated by the following rules.
 
 ### Comparison details
 
 * Primitive values are compared with the [Abstract Equality Comparison][]
-  ( `==` ).
+  ( `==` ) with the exception of `NaN`. It is treated as being identical in case
+  both sides are `NaN`.
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * Only [enumerable "own" properties][] are considered.
 * [`Error`][] names and messages are always compared, even if these are not
@@ -271,7 +277,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 [`AssertionError`][].
 
-## assert.deepStrictEqual(actual, expected\[, message\])
+## `assert.deepStrictEqual(actual, expected[, message])`
 <!-- YAML
 added: v1.2.0
 changes:
@@ -425,7 +431,43 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.doesNotReject(asyncFn\[, error\]\[, message\])
+## `assert.doesNotMatch(string, regexp[, message])`
+<!-- YAML
+added: v13.6.0
+-->
+
+* `string` {string}
+* `regexp` {RegExp}
+* `message` {string|Error}
+
+> Stability: 1 - Experimental
+
+Expects the `string` input not to match the regular expression.
+
+This feature is currently experimental and the name might change or it might be
+completely removed again.
+
+```js
+const assert = require('assert').strict;
+
+assert.doesNotMatch('I will fail', /fail/);
+// AssertionError [ERR_ASSERTION]: The input was expected to not match the ...
+
+assert.doesNotMatch(123, /pass/);
+// AssertionError [ERR_ASSERTION]: The "string" argument must be of type string.
+
+assert.doesNotMatch('I will pass', /different/);
+// OK
+```
+
+If the values do match, or if the `string` argument is of another type than
+`string`, an [`AssertionError`][] is thrown with a `message` property set equal
+to the value of the `message` parameter. If the `message` parameter is
+undefined, a default error message is assigned. If the `message` parameter is an
+instance of an [`Error`][] then it will be thrown instead of the
+[`AssertionError`][].
+
+## `assert.doesNotReject(asyncFn[, error][, message])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -475,7 +517,7 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   });
 ```
 
-## assert.doesNotThrow(fn\[, error\]\[, message\])
+## `assert.doesNotThrow(fn[, error][, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -551,25 +593,31 @@ assert.doesNotThrow(
 // Throws: AssertionError: Got unwanted exception: Whoops
 ```
 
-## assert.equal(actual, expected\[, message\])
+## `assert.equal(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30766
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
 -->
 
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.strictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.strictEqual()`][] instead.
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
-using the [Abstract Equality Comparison][] ( `==` ).
+using the [Abstract Equality Comparison][] ( `==` ). `NaN` is special handled
+and treated as being identical in case both sides are `NaN`.
 
 ```js
 const assert = require('assert');
@@ -578,6 +626,8 @@ assert.equal(1, 1);
 // OK, 1 == 1
 assert.equal(1, '1');
 // OK, 1 == '1'
+assert.equal(NaN, NaN);
+// OK
 
 assert.equal(1, 2);
 // AssertionError: 1 == 2
@@ -591,7 +641,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.fail(\[message\])
+## `assert.fail([message])`
 <!-- YAML
 added: v0.1.21
 -->
@@ -618,7 +668,7 @@ assert.fail(new TypeError('need array'));
 Using `assert.fail()` with more than two arguments is possible but deprecated.
 See below for further details.
 
-## assert.fail(actual, expected\[, message\[, operator\[, stackStartFn\]\]\])
+## `assert.fail(actual, expected[, message[, operator[, stackStartFn]]])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -681,7 +731,7 @@ suppressFrame();
 //     ...
 ```
 
-## assert.ifError(value)
+## `assert.ifError(value)`
 <!-- YAML
 added: v0.1.97
 changes:
@@ -728,10 +778,50 @@ let err;
 //     at errorFrame
 ```
 
-## assert.notDeepEqual(actual, expected\[, message\])
+## `assert.match(string, regexp[, message])`
+<!-- YAML
+added: v13.6.0
+-->
+
+* `string` {string}
+* `regexp` {RegExp}
+* `message` {string|Error}
+
+> Stability: 1 - Experimental
+
+Expects the `string` input to match the regular expression.
+
+This feature is currently experimental and the name might change or it might be
+completely removed again.
+
+```js
+const assert = require('assert').strict;
+
+assert.match('I will fail', /pass/);
+// AssertionError [ERR_ASSERTION]: The input did not match the regular ...
+
+assert.match(123, /pass/);
+// AssertionError [ERR_ASSERTION]: The "string" argument must be of type string.
+
+assert.match('I will pass', /pass/);
+// OK
+```
+
+If the values do not match, or if the `string` argument is of another type than
+`string`, an [`AssertionError`][] is thrown with a `message` property set equal
+to the value of the `message` parameter. If the `message` parameter is
+undefined, a default error message is assigned. If the `message` parameter is an
+instance of an [`Error`][] then it will be thrown instead of the
+[`AssertionError`][].
+
+## `assert.notDeepEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30766
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -753,11 +843,11 @@ changes:
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.notDeepStrictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.notDeepStrictEqual()`][] instead.
 
@@ -802,7 +892,7 @@ If the values are deeply equal, an [`AssertionError`][] is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
 
-## assert.notDeepStrictEqual(actual, expected\[, message\])
+## `assert.notDeepStrictEqual(actual, expected[, message])`
 <!-- YAML
 added: v1.2.0
 changes:
@@ -850,25 +940,31 @@ the `message` parameter is undefined, a default error message is assigned. If
 the `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the [`AssertionError`][].
 
-## assert.notEqual(actual, expected\[, message\])
+## `assert.notEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/30766
+    description: NaN is now treated as being identical in case both sides are
+                 NaN.
 -->
 
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
 
-**Strict mode**
+**Strict assertion mode**
 
 An alias of [`assert.notStrictEqual()`][].
 
-**Legacy mode**
+**Legacy assertion mode**
 
 > Stability: 0 - Deprecated: Use [`assert.notStrictEqual()`][] instead.
 
 Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
-( `!=` ).
+(`!=` ). `NaN` is special handled and treated as being identical in case both
+sides are `NaN`.
 
 ```js
 const assert = require('assert');
@@ -889,7 +985,7 @@ parameter is undefined, a default error message is assigned. If the `message`
 parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
-## assert.notStrictEqual(actual, expected\[, message\])
+## `assert.notStrictEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -926,7 +1022,7 @@ If the values are strictly equal, an [`AssertionError`][] is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`.
 
-## assert.ok(value\[, message\])
+## `assert.ok(value[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -994,7 +1090,7 @@ assert(0);
 //   assert(0)
 ```
 
-## assert.rejects(asyncFn\[, error\]\[, message\])
+## `assert.rejects(asyncFn[, error][, message])`
 <!-- YAML
 added: v10.0.0
 -->
@@ -1053,7 +1149,7 @@ argument, then `error` is assumed to be omitted and the string will be used for
 example in [`assert.throws()`][] carefully if using a string as the second
 argument gets considered.
 
-## assert.strictEqual(actual, expected\[, message\])
+## `assert.strictEqual(actual, expected[, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1103,7 +1199,7 @@ If the values are not strictly equal, an [`AssertionError`][] is thrown with a
 `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the [`AssertionError`][].
 
-## assert.throws(fn\[, error\]\[, message\])
+## `assert.throws(fn[, error][, message])`
 <!-- YAML
 added: v0.1.21
 changes:
@@ -1266,9 +1362,11 @@ a string as the second argument gets considered:
 function throwingFirst() {
   throw new Error('First');
 }
+
 function throwingSecond() {
   throw new Error('Second');
 }
+
 function notThrowing() {}
 
 // The second argument is a string and the input function threw an Error.
@@ -1321,7 +1419,7 @@ argument.
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_fn_error_message
-[`strict` mode]: #assert_strict_mode
+[strict assertion mode]: #assert_strict_assertion_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring

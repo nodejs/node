@@ -15,22 +15,22 @@ async function createEmptyLinkedModule() {
 }
 
 async function checkArgType() {
-  common.expectsError(() => {
+  assert.throws(() => {
     new SourceTextModule();
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
+    name: 'TypeError'
   });
 
   for (const invalidOptions of [
     0, 1, null, true, 'str', () => {}, { identifier: 0 }, Symbol.iterator,
     { context: null }, { context: 'hucairz' }, { context: {} }
   ]) {
-    common.expectsError(() => {
+    assert.throws(() => {
       new SourceTextModule('', invalidOptions);
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     });
   }
 
@@ -80,11 +80,11 @@ async function checkModuleState() {
     await m.evaluate(false);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type Object. ' +
-             'Received type boolean'
+    message: 'The "options" argument must be of type object. ' +
+             'Received type boolean (false)'
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     const m = new SourceTextModule('');
     m.error;
   }, {
@@ -101,7 +101,7 @@ async function checkModuleState() {
     message: 'Module status must be errored'
   });
 
-  common.expectsError(() => {
+  assert.throws(() => {
     const m = new SourceTextModule('');
     m.namespace;
   }, {
@@ -156,15 +156,15 @@ async function checkLinking() {
   });
 }
 
-common.expectsError(() => {
+assert.throws(() => {
   new SourceTextModule('', {
     importModuleDynamically: 'hucairz'
   });
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "options.importModuleDynamically"' +
-    ' property must be of type function. Received type string'
+  name: 'TypeError',
+  message: 'The "options.importModuleDynamically" property must be of type ' +
+    "function. Received type string ('hucairz')"
 });
 
 // Check the JavaScript engine deals with exceptions correctly
@@ -204,7 +204,7 @@ async function checkInvalidOptionForEvaluate() {
     name: 'TypeError',
     message:
       'The "options.breakOnSigint" property must be of type boolean. ' +
-      'Received type string',
+      "Received type string ('a-string')",
     code: 'ERR_INVALID_ARG_TYPE'
   });
 }

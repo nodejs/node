@@ -10,6 +10,9 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.19.0">10.19.0</a><br/>
+<a href="#10.18.1">10.18.1</a><br/>
+<a href="#10.18.0">10.18.0</a><br/>
 <a href="#10.17.0">10.17.0</a><br/>
 <a href="#10.16.3">10.16.3</a><br/>
 <a href="#10.16.2">10.16.2</a><br/>
@@ -58,6 +61,80 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.19.0"></a>
+## 2020-02-06, Version 10.19.0 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+* **CVE-2019-15606**: HTTP header values do not have trailing OWS trimmed.
+* **CVE-2019-15605**: HTTP request smuggling using malformed Transfer-Encoding header.
+* **CVE-2019-15604**: Remotely trigger an assertion on a TLS server with a malformed certificate string.
+
+Also, HTTP parsing is more strict to be more secure. Since this may
+cause problems in interoperability with some non-conformant HTTP
+implementations, it is possible to disable the strict checks with the
+`--insecure-http-parser` command line flag, or the `insecureHTTPParser`
+http option. Using the insecure HTTP parser should be avoided.
+
+### Commits
+
+* [[`f940bee3b7`](https://github.com/nodejs/node/commit/f940bee3b7)] - **crypto**: fix assertion caused by unsupported ext (Fedor Indutny) [nodejs-private/node-private#175](https://github.com/nodejs-private/node-private/pull/175)
+* [[`49f4220ce5`](https://github.com/nodejs/node/commit/49f4220ce5)] - **deps**: upgrade http-parser to v2.9.3 (Sam Roberts) [nodejs-private/http-parser-private#4](https://github.com/nodejs-private/http-parser-private/pull/4)
+* [[`a28e5cc1ed`](https://github.com/nodejs/node/commit/a28e5cc1ed)] - **(SEMVER-MINOR)** **deps**: upgrade http-parser to v2.9.1 (Sam Roberts) [#30471](https://github.com/nodejs/node/pull/30471)
+* [[`0082f62d9c`](https://github.com/nodejs/node/commit/0082f62d9c)] - **(SEMVER-MINOR)** **http**: make --insecure-http-parser configurable per-stream or per-server (Anna Henningsen) [#31448](https://github.com/nodejs/node/pull/31448)
+* [[`a9849c0ff6`](https://github.com/nodejs/node/commit/a9849c0ff6)] - **(SEMVER-MINOR)** **http**: opt-in insecure HTTP header parsing (Sam Roberts) [#30567](https://github.com/nodejs/node/pull/30567)
+* [[`2eee90e959`](https://github.com/nodejs/node/commit/2eee90e959)] - **http**: strip trailing OWS from header values (Sam Roberts) [nodejs-private/node-private#191](https://github.com/nodejs-private/node-private/pull/191)
+* [[`e2c8f89b75`](https://github.com/nodejs/node/commit/e2c8f89b75)] - **test**: using TE to smuggle reqs is not possible (Sam Roberts) [nodejs-private/node-private#192](https://github.com/nodejs-private/node-private/pull/192)
+* [[`d616722f65`](https://github.com/nodejs/node/commit/d616722f65)] - **test**: check that --insecure-http-parser works (Sam Roberts) [#31253](https://github.com/nodejs/node/pull/31253)
+
+<a id="10.18.1"></a>
+## 2020-01-09, Version 10.18.1 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+* **http2**: fix session memory accounting after pausing (Michael Lehenbauer) [#30684](https://github.com/nodejs/node/pull/30684)
+* **n-api**: correct bug in napi_get_last_error (Octavian Soldea) [#28702](https://github.com/nodejs/node/pull/28702)
+* **tools**: update tzdata to 2019c (Myles Borins) [#30479](https://github.com/nodejs/node/pull/30479)
+
+### Commits
+
+* [[`a80c59130e`](https://github.com/nodejs/node/commit/a80c59130e)] - **build**: fix configure script to work with Apple Clang 11 (Saagar Jha) [#28071](https://github.com/nodejs/node/pull/28071)
+* [[`68b2b5cc51`](https://github.com/nodejs/node/commit/68b2b5cc51)] - **build,win**: propagate error codes in vcbuild (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
+* [[`3e0709cf5e`](https://github.com/nodejs/node/commit/3e0709cf5e)] - **deps**: V8: backport fb63e5cf55e9 (Michaël Zasso) [#30372](https://github.com/nodejs/node/pull/30372)
+* [[`25b8fbda35`](https://github.com/nodejs/node/commit/25b8fbda35)] - **doc**: allow \<code\> in header elements (Rich Trott) [#31086](https://github.com/nodejs/node/pull/31086)
+* [[`a1b095dd46`](https://github.com/nodejs/node/commit/a1b095dd46)] - **doc,dns**: use code markup/markdown in headers (Rich Trott) [#31086](https://github.com/nodejs/node/pull/31086)
+* [[`8f3b8ca515`](https://github.com/nodejs/node/commit/8f3b8ca515)] - **http2**: fix session memory accounting after pausing (Michael Lehenbauer) [#30684](https://github.com/nodejs/node/pull/30684)
+* [[`20f64a96de`](https://github.com/nodejs/node/commit/20f64a96de)] - **http2**: use the latest settings (ZYSzys) [#29780](https://github.com/nodejs/node/pull/29780)
+* [[`81c31005fd`](https://github.com/nodejs/node/commit/81c31005fd)] - **lib**: fix comment nits in bootstrap\loaders.js (Vse Mozhet Byt) [#24641](https://github.com/nodejs/node/pull/24641)
+* [[`88e8b7cf83`](https://github.com/nodejs/node/commit/88e8b7cf83)] - **n-api**: correct bug in napi_get_last_error (Octavian Soldea) [#28702](https://github.com/nodejs/node/pull/28702)
+* [[`77e0318849`](https://github.com/nodejs/node/commit/77e0318849)] - **stream**: increase MAX_HWM (Robert Nagy) [#29938](https://github.com/nodejs/node/pull/29938)
+* [[`894aaa2040`](https://github.com/nodejs/node/commit/894aaa2040)] - **stream**: extract Readable.from in its own file (Matteo Collina) [#30140](https://github.com/nodejs/node/pull/30140)
+* [[`7e941eb17d`](https://github.com/nodejs/node/commit/7e941eb17d)] - **test**: do not fail SLOW tests if they are not slow (Yang Guo) [#25868](https://github.com/nodejs/node/pull/25868)
+* [[`0f3ae77aaf`](https://github.com/nodejs/node/commit/0f3ae77aaf)] - **tools**: update tzdata to 2019c (Myles Borins) [#30479](https://github.com/nodejs/node/pull/30479)
+* [[`4ae8d204cb`](https://github.com/nodejs/node/commit/4ae8d204cb)] - **tools**: move python code out of jenkins shell (Sam Roberts) [#28458](https://github.com/nodejs/node/pull/28458)
+* [[`4879b80d87`](https://github.com/nodejs/node/commit/4879b80d87)] - **tools**: fix v8 testing with devtoolset on ppcle (Sam Roberts) [#28458](https://github.com/nodejs/node/pull/28458)
+
+<a id="10.18.0"></a>
+## 2019-12-17, Version 10.18.0 'Dubnium' (LTS), @MylesBorins
+
+This is a security release.
+
+For more details about the vulnerability please consult the npm blog:
+
+https://blog.npmjs.org/post/189618601100/binary-planting-with-the-npm-cli
+
+### Notable changes
+
+* **deps**: update npm to 6.13.4 [#30904](https://github.com/nodejs/node/pull/30904)
+
+### Commits
+
+* [[`54a466a865`](https://github.com/nodejs/node/commit/54a466a865)] - **build,win**: add test-ci-native and test-ci-js (João Reis) [#30724](https://github.com/nodejs/node/pull/30724)
+* [[`f9b31edb25`](https://github.com/nodejs/node/commit/f9b31edb25)] - **deps**: update npm to 6.13.4 (Isaac Z. Schlueter) [#30904](https://github.com/nodejs/node/pull/30904)
 
 <a id="10.17.0"></a>
 ## 2019-10-22, Version 10.17.0 'Dubnium' (LTS), @BethGriggs

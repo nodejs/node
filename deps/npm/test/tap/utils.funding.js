@@ -1,7 +1,7 @@
 'use strict'
 
 const { test } = require('tap')
-const { getFundingInfo } = require('../../lib/utils/funding')
+const { retrieveFunding, getFundingInfo } = require('../../lib/utils/funding')
 
 test('empty tree', (t) => {
   t.deepEqual(
@@ -542,6 +542,73 @@ test('handle different versions', (t) => {
       length: 4
     },
     'should treat different versions as diff packages'
+  )
+  t.end()
+})
+
+test('retrieve funding info from valid objects', (t) => {
+  t.deepEqual(
+    retrieveFunding({
+      url: 'http://example.com',
+      type: 'Foo'
+    }),
+    {
+      url: 'http://example.com',
+      type: 'Foo'
+    },
+    'should return standard object fields'
+  )
+  t.deepEqual(
+    retrieveFunding({
+      extra: 'Foo',
+      url: 'http://example.com',
+      type: 'Foo'
+    }),
+    {
+      extra: 'Foo',
+      url: 'http://example.com',
+      type: 'Foo'
+    },
+    'should leave untouched extra fields'
+  )
+  t.deepEqual(
+    retrieveFunding({
+      url: 'http://example.com'
+    }),
+    {
+      url: 'http://example.com'
+    },
+    'should accept url-only objects'
+  )
+  t.end()
+})
+
+test('retrieve funding info from invalid objects', (t) => {
+  t.deepEqual(
+    retrieveFunding({}),
+    {},
+    'should passthrough empty objects'
+  )
+  t.deepEqual(
+    retrieveFunding(),
+    undefined,
+    'should not care about undefined'
+  )
+  t.deepEqual(
+    retrieveFunding(),
+    null,
+    'should not care about null'
+  )
+  t.end()
+})
+
+test('retrieve funding info string shorthand', (t) => {
+  t.deepEqual(
+    retrieveFunding('http://example.com'),
+    {
+      url: 'http://example.com'
+    },
+    'should accept string shorthand'
   )
   t.end()
 })

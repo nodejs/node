@@ -220,7 +220,7 @@ RuleBasedCollator::adoptTailoring(CollationTailoring *t, UErrorCode &errorCode) 
     actualLocaleIsSameAsValid = FALSE;
 }
 
-Collator *
+RuleBasedCollator *
 RuleBasedCollator::clone() const {
     return new RuleBasedCollator(*this);
 }

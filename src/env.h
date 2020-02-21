@@ -160,11 +160,12 @@ constexpr size_t kFsStatsBufferLength =
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
-#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
-  V(handle_onclose_symbol, "handle_onclose")                                  \
-  V(no_message_symbol, "no_message_symbol")                                   \
-  V(oninit_symbol, "oninit")                                                  \
-  V(owner_symbol, "owner")                                                    \
+#define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(handle_onclose_symbol, "handle_onclose")                                   \
+  V(no_message_symbol, "no_message_symbol")                                    \
+  V(oninit_symbol, "oninit")                                                   \
+  V(owner_symbol, "owner")                                                     \
+  V(onpskexchange_symbol, "onpskexchange")                                     \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -191,6 +192,7 @@ constexpr size_t kFsStatsBufferLength =
   V(commonjs_string, "commonjs")                                               \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
+  V(crypto_dh_string, "dh")                                                    \
   V(crypto_dsa_string, "dsa")                                                  \
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
@@ -201,7 +203,6 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
-  V(default_string, "default")                                                 \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
@@ -254,6 +255,7 @@ constexpr size_t kFsStatsBufferLength =
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
+  V(identity_string, "identity")                                               \
   V(ignore_string, "ignore")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
   V(inherit_string, "inherit")                                                 \
@@ -324,6 +326,7 @@ constexpr size_t kFsStatsBufferLength =
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
   V(promise_string, "promise")                                                 \
+  V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
   V(raw_string, "raw")                                                         \
@@ -351,6 +354,7 @@ constexpr size_t kFsStatsBufferLength =
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
   V(stack_string, "stack")                                                     \
+  V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
@@ -367,6 +371,13 @@ constexpr size_t kFsStatsBufferLength =
   V(type_string, "type")                                                       \
   V(uid_string, "uid")                                                         \
   V(unknown_string, "<unknown>")                                               \
+  V(url_special_ftp_string, "ftp:")                                            \
+  V(url_special_file_string, "file:")                                          \
+  V(url_special_gopher_string, "gopher:")                                      \
+  V(url_special_http_string, "http:")                                          \
+  V(url_special_https_string, "https:")                                        \
+  V(url_special_ws_string, "ws:")                                              \
+  V(url_special_wss_string, "wss:")                                            \
   V(url_string, "url")                                                         \
   V(username_string, "username")                                               \
   V(valid_from_string, "valid_from")                                           \
@@ -399,7 +410,6 @@ constexpr size_t kFsStatsBufferLength =
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
-  V(message_event_object_template, v8::ObjectTemplate)                         \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
@@ -410,7 +420,8 @@ constexpr size_t kFsStatsBufferLength =
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
-  V(write_wrap_template, v8::ObjectTemplate)
+  V(write_wrap_template, v8::ObjectTemplate)                                   \
+  V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)
 
 #define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
   V(as_callback_data, v8::Object)                                              \
@@ -541,7 +552,8 @@ struct ContextInfo {
 #define DEBUG_CATEGORY_NAMES(V)                                                \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
-  V(INSPECTOR_PROFILER)
+  V(INSPECTOR_PROFILER)                                                        \
+  V(WASI)
 
 enum class DebugCategory {
 #define V(name) name,
@@ -580,34 +592,6 @@ struct AllocatedBuffer {
   uv_buf_t buffer_;
 
   friend class Environment;
-};
-
-class AsyncRequest : public MemoryRetainer {
- public:
-  AsyncRequest() = default;
-  ~AsyncRequest();
-
-  AsyncRequest(const AsyncRequest&) = delete;
-  AsyncRequest& operator=(const AsyncRequest&) = delete;
-  AsyncRequest(AsyncRequest&&) = delete;
-  AsyncRequest& operator=(AsyncRequest&&) = delete;
-
-  void Install(Environment* env, void* data, uv_async_cb target);
-  void Uninstall();
-  void Stop();
-  inline void set_stopped(bool flag);
-  inline bool is_stopped() const;
-  uv_async_t* GetHandle();
-  void MemoryInfo(MemoryTracker* tracker) const override;
-
-
-  SET_MEMORY_INFO_NAME(AsyncRequest)
-  SET_SELF_SIZE(AsyncRequest)
-
- private:
-  Environment* env_;
-  uv_async_t* async_ = nullptr;
-  std::atomic_bool stopped_ {true};
 };
 
 class KVStore {
@@ -671,14 +655,16 @@ class AsyncHooks : public MemoryRetainer {
   inline AliasedUint32Array& fields();
   inline AliasedFloat64Array& async_id_fields();
   inline AliasedFloat64Array& async_ids_stack();
+  inline v8::Local<v8::Array> execution_async_resources();
 
   inline v8::Local<v8::String> provider_string(int idx);
 
   inline void no_force_checks();
   inline Environment* env();
 
-  inline void push_async_ids(double async_id, double trigger_async_id);
-  inline bool pop_async_id(double async_id);
+  inline void push_async_context(double async_id, double trigger_async_id,
+      v8::Local<v8::Value> execution_async_resource_);
+  inline bool pop_async_context(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
 
   AsyncHooks(const AsyncHooks&) = delete;
@@ -723,6 +709,8 @@ class AsyncHooks : public MemoryRetainer {
   AliasedFloat64Array async_id_fields_;
 
   void grow_async_ids_stack();
+
+  v8::Global<v8::Array> execution_async_resources_;
 };
 
 class ImmediateInfo : public MemoryRetainer {
@@ -731,8 +719,6 @@ class ImmediateInfo : public MemoryRetainer {
   inline uint32_t count() const;
   inline uint32_t ref_count() const;
   inline bool has_outstanding() const;
-  inline void count_inc(uint32_t increment);
-  inline void count_dec(uint32_t decrement);
   inline void ref_count_inc(uint32_t increment);
   inline void ref_count_dec(uint32_t decrement);
 
@@ -903,7 +889,7 @@ class Environment : public MemoryRetainer {
               const std::vector<std::string>& exec_args,
               Flags flags = Flags(),
               uint64_t thread_id = kNoThreadId);
-  ~Environment();
+  ~Environment() override;
 
   void InitializeLibuv(bool start_profiler_idle_notifier);
   inline const std::vector<std::string>& exec_argv();
@@ -1017,13 +1003,16 @@ class Environment : public MemoryRetainer {
       package_json_cache;
 
   inline double* heap_statistics_buffer() const;
-  inline void set_heap_statistics_buffer(double* pointer);
+  inline void set_heap_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline double* heap_space_statistics_buffer() const;
-  inline void set_heap_space_statistics_buffer(double* pointer);
+  inline void set_heap_space_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline double* heap_code_statistics_buffer() const;
-  inline void set_heap_code_statistics_buffer(double* pointer);
+  inline void set_heap_code_statistics_buffer(
+      std::shared_ptr<v8::BackingStore> backing_store);
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
@@ -1059,6 +1048,14 @@ class Environment : public MemoryRetainer {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
+  // Increase or decrease a counter that manages whether this Environment
+  // keeps the event loop alive on its own or not. The counter starts out at 0,
+  // meaning it does not, and any positive value will make it keep the event
+  // loop alive.
+  // This is used by Workers to manage their own .ref()/.unref() implementation,
+  // as Workers aren't directly associated with their own libuv handles.
+  inline void add_refs(int64_t diff);
+
   inline bool has_run_bootstrapping_code() const;
   inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
 
@@ -1078,10 +1075,16 @@ class Environment : public MemoryRetainer {
   inline void add_sub_worker_context(worker::Worker* context);
   inline void remove_sub_worker_context(worker::Worker* context);
   void stop_sub_worker_contexts();
+  template <typename Fn>
+  inline void ForEachWorker(Fn&& iterator);
   inline bool is_stopping() const;
+  inline void set_stopping(bool value);
   inline std::list<node_module>* extra_linked_bindings();
   inline node_module* extra_linked_bindings_head();
   inline const Mutex& extra_linked_bindings_mutex() const;
+
+  inline bool filehandle_close_warning() const;
+  inline void set_filehandle_close_warning(bool on);
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -1114,6 +1117,11 @@ class Environment : public MemoryRetainer {
                              const char* name,
                              v8::FunctionCallback callback);
 
+  inline void SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
+                                const char* name,
+                                v8::FunctionCallback callback);
+
+
   // Safe variants denote the function has no side effects.
   inline void SetMethodNoSideEffect(v8::Local<v8::Object> that,
                                     const char* name,
@@ -1128,7 +1136,8 @@ class Environment : public MemoryRetainer {
   void RunAtExitCallbacks();
 
   void RegisterFinalizationGroupForCleanup(v8::Local<v8::FinalizationGroup> fg);
-  bool RunWeakRefCleanup();
+  void RunWeakRefCleanup();
+  void CleanupFinalizationGroups();
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
@@ -1187,6 +1196,15 @@ class Environment : public MemoryRetainer {
   inline void SetImmediate(Fn&& cb);
   template <typename Fn>
   inline void SetUnrefImmediate(Fn&& cb);
+  template <typename Fn>
+  // This behaves like SetImmediate() but can be called from any thread.
+  inline void SetImmediateThreadsafe(Fn&& cb);
+  // This behaves like V8's Isolate::RequestInterrupt(), but also accounts for
+  // the event loop (i.e. combines the V8 function with SetImmediate()).
+  // The passed callback may not throw exceptions.
+  // This function can be called from any thread.
+  template <typename Fn>
+  inline void RequestInterrupt(Fn&& cb);
   // This needs to be available for the JS-land setImmediate().
   void ToggleImmediateRef(bool ref);
 
@@ -1209,15 +1227,15 @@ class Environment : public MemoryRetainer {
                                  void* data);
 
   inline std::shared_ptr<EnvironmentOptions> options();
-  inline std::shared_ptr<HostPort> inspector_host_port();
-
-  inline AsyncRequest* thread_stopper() { return &thread_stopper_; }
+  inline std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port();
 
   // The BaseObject count is a debugging helper that makes sure that there are
   // no memory leaks caused by BaseObjects staying alive longer than expected
   // (in particular, no circular BaseObjectPtr references).
   inline void modify_base_object_count(int64_t delta);
   inline int64_t base_object_count() const;
+
+  inline int32_t stack_trace_limit() const { return 10; }
 
 #if HAVE_INSPECTOR
   void set_coverage_connection(
@@ -1270,6 +1288,8 @@ class Environment : public MemoryRetainer {
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
+  uv_async_t task_queues_async_;
+  int64_t task_queues_async_refs_ = 0;
   bool profiler_idle_notifier_started_ = false;
 
   AsyncHooks async_hooks_;
@@ -1281,6 +1301,7 @@ class Environment : public MemoryRetainer {
   bool trace_sync_io_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
+  bool emit_filehandle_warning_ = true;
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
 
@@ -1305,7 +1326,7 @@ class Environment : public MemoryRetainer {
   // server starts listening), but when the inspector server starts
   // the inspector_host_port_->port() will be the actual port being
   // used.
-  std::shared_ptr<HostPort> inspector_host_port_;
+  std::shared_ptr<ExclusiveAccess<HostPort>> inspector_host_port_;
   std::vector<std::string> exec_argv_;
   std::vector<std::string> argv_;
   std::string exec_path_;
@@ -1327,7 +1348,7 @@ class Environment : public MemoryRetainer {
   bool has_run_bootstrapping_code_ = false;
   bool has_serialized_options_ = false;
 
-  bool can_call_into_js_ = true;
+  std::atomic_bool can_call_into_js_ { true };
   Flags flags_;
   uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
@@ -1355,15 +1376,16 @@ class Environment : public MemoryRetainer {
   int handle_cleanup_waiting_ = 0;
   int request_waiting_ = 0;
 
-  double* heap_statistics_buffer_ = nullptr;
-  double* heap_space_statistics_buffer_ = nullptr;
-  double* heap_code_statistics_buffer_ = nullptr;
+  std::shared_ptr<v8::BackingStore> heap_statistics_buffer_;
+  std::shared_ptr<v8::BackingStore> heap_space_statistics_buffer_;
+  std::shared_ptr<v8::BackingStore> heap_code_statistics_buffer_;
 
   char* http_parser_buffer_ = nullptr;
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
 
-  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {0};
+  bool debug_enabled_[static_cast<int>(DebugCategory::CATEGORY_COUNT)] = {
+      false};
 
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;
@@ -1412,10 +1434,32 @@ class Environment : public MemoryRetainer {
     Fn callback_;
   };
 
-  std::unique_ptr<NativeImmediateCallback> native_immediate_callbacks_head_;
-  NativeImmediateCallback* native_immediate_callbacks_tail_ = nullptr;
+  class NativeImmediateQueue {
+   public:
+    inline std::unique_ptr<NativeImmediateCallback> Shift();
+    inline void Push(std::unique_ptr<NativeImmediateCallback> cb);
+    // ConcatMove adds elements from 'other' to the end of this list, and clears
+    // 'other' afterwards.
+    inline void ConcatMove(NativeImmediateQueue&& other);
 
-  void RunAndClearNativeImmediates();
+    // size() is atomic and may be called from any thread.
+    inline size_t size() const;
+
+   private:
+    std::atomic<size_t> size_ {0};
+    std::unique_ptr<NativeImmediateCallback> head_;
+    NativeImmediateCallback* tail_ = nullptr;
+  };
+
+  NativeImmediateQueue native_immediates_;
+  Mutex native_immediates_threadsafe_mutex_;
+  NativeImmediateQueue native_immediates_threadsafe_;
+  NativeImmediateQueue native_immediates_interrupts_;
+
+  void RunAndClearNativeImmediates(bool only_refed = false);
+  void RunAndClearInterrupts();
+  Environment** interrupt_data_ = nullptr;
+  void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
   // Use an unordered_set, so that we have efficient insertion and removal.
@@ -1426,10 +1470,7 @@ class Environment : public MemoryRetainer {
   bool started_cleanup_ = false;
 
   int64_t base_object_count_ = 0;
-
-  // A custom async abstraction (a pair of async handle and a state variable)
-  // Used by embedders to shutdown running Node instance.
-  AsyncRequest thread_stopper_;
+  std::atomic_bool is_stopping_ { false };
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);

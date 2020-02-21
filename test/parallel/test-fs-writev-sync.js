@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -64,10 +64,10 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
   const fd = fs.openSync(filename, 'w');
 
   [false, 'test', {}, [{}], ['sdf'], null, undefined].forEach((i) => {
-    common.expectsError(
+    assert.throws(
       () => fs.writevSync(fd, i, null), {
         code: 'ERR_INVALID_ARG_TYPE',
-        type: TypeError
+        name: 'TypeError'
       }
     );
   });
@@ -77,11 +77,11 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
 
 // fs.writevSync with wrong fd types
 [false, 'test', {}, [{}], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.writevSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
 });

@@ -14,7 +14,7 @@ const readShrinkwrap = require('./install/read-shrinkwrap.js')
 const mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 const output = require('./utils/output.js')
 const openUrl = require('./utils/open-url.js')
-const { getFundingInfo, validFundingUrl } = require('./utils/funding.js')
+const { getFundingInfo, retrieveFunding, validFundingUrl } = require('./utils/funding.js')
 
 const FundConfig = figgyPudding({
   browser: {}, // used by ./utils/open-url
@@ -132,7 +132,7 @@ function printHuman (fundingInfo, opts) {
 function openFundingUrl (packageName, cb) {
   function getUrlAndOpen (packageMetadata) {
     const { funding } = packageMetadata
-    const { type, url } = funding || {}
+    const { type, url } = retrieveFunding(funding) || {}
     const noFundingError =
       new Error(`No funding method available for: ${packageName}`)
     noFundingError.code = 'ENOFUND'

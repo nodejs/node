@@ -55,6 +55,7 @@ class MapInference {
   V8_WARN_UNUSED_RESULT MapHandles const& GetMaps();
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypes(
       std::function<bool(InstanceType)> f);
+  V8_WARN_UNUSED_RESULT bool Is(Handle<Map> expected_map);
 
   // These methods provide a guard.
   //

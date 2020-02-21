@@ -26,7 +26,6 @@
 
 #include "stream_base.h"
 #include "handle_wrap.h"
-#include "string_bytes.h"
 #include "v8.h"
 
 namespace node {

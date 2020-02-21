@@ -162,7 +162,7 @@ inline int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   ShutdownWrap* req_wrap = CreateShutdownWrap(req_wrap_obj);
   int err = DoShutdown(req_wrap);
 
-  if (err != 0) {
+  if (err != 0 && req_wrap != nullptr) {
     req_wrap->Dispose();
   }
 

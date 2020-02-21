@@ -7,11 +7,14 @@ const server = net.createServer().listen(0, connectToServer);
 
 function connectToServer() {
   const client = net.createConnection(this.address().port, () => {
-    common.expectsError(() => client.write(1337),
-                        {
-                          code: 'ERR_INVALID_ARG_TYPE',
-                          type: TypeError
-                        });
+    client.write(1337, common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError'
+    }));
+    client.on('error', common.expectsError({
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError'
+    }));
 
     client.destroy();
   })

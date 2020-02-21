@@ -9,6 +9,8 @@ prefix sequential
 [$system==win32]
 # https://github.com/nodejs/node/issues/22327
 test-http2-large-file: PASS, FLAKY
+# https://github.com/nodejs/node/issues/26401
+test-worker-prof: PASS, FLAKY
 
 [$system==linux]
 
@@ -21,5 +23,11 @@ test-http2-large-file: PASS, FLAKY
 [$system==aix]
 # https://github.com/nodejs/node/pull/29054
 test-buffer-creation-regression: SKIP
+
+[$system==ibmi]
+# https://github.com/nodejs/node/pull/29054
+test-buffer-creation-regression: SKIP
+# https://github.com/nodejs/node/pull/30819
+test-perf-hooks: SKIP
 
 [$arch==arm]

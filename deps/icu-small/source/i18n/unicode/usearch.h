@@ -24,7 +24,7 @@
  * \file
  * \brief C API: StringSearch
  *
- * C Apis for an engine that provides language-sensitive text searching based
+ * C APIs for an engine that provides language-sensitive text searching based
  * on the comparison rules defined in a <tt>UCollator</tt> data struct,
  * see <tt>ucol.h</tt>. This ensures that language eccentricity can be
  * handled, e.g. for the German collator, characters &szlig; and SS will be matched
@@ -55,7 +55,7 @@
  * <p>
  * This search has APIs similar to that of other text iteration mechanisms
  * such as the break iterators in <tt>ubrk.h</tt>. Using these
- * APIs, it is easy to scan through text looking for all occurances of
+ * APIs, it is easy to scan through text looking for all occurrences of
  * a given pattern. This search iterator allows changing of direction by
  * calling a <tt>reset</tt> followed by a <tt>next</tt> or <tt>previous</tt>.
  * Though a direction change can occur without calling <tt>reset</tt> first,
@@ -130,7 +130,7 @@
  *          pos = usearch_next(search, &status))
  *     {
  *         printf("Found match at %d pos, length is %d\n", pos,
- *                                        usearch_getMatchLength(search));
+ *                                        usearch_getMatchedLength(search));
  *     }
  * }
  *
@@ -479,7 +479,7 @@ U_STABLE int32_t U_EXPORT2 usearch_getMatchedLength(
 * possible. If the buffer fits the matched text exactly, a null-termination
 * is not possible, then a U_STRING_NOT_TERMINATED_ERROR set in status.
 * Pre-flighting can be either done with length = 0 or the API
-* <tt>usearch_getMatchLength</tt>.
+* <tt>usearch_getMatchedLength</tt>.
 * @param strsrch search iterator data struct
 * @param result UChar buffer to store the matched string
 * @param resultCapacity length of the result buffer
@@ -766,7 +766,7 @@ U_STABLE void U_EXPORT2 usearch_reset(UStringSearch *strsrch);
 #ifndef U_HIDE_INTERNAL_API
 /**
   *  Simple forward search for the pattern, starting at a specified index,
-  *     and using using a default set search options.
+  *     and using a default set search options.
   *
   *  This is an experimental function, and is not an official part of the
   *      ICU API.
@@ -783,7 +783,7 @@ U_STABLE void U_EXPORT2 usearch_reset(UStringSearch *strsrch);
   *      are part of a combining sequence, as described below.
   *
   *      A match will not include a partial combining sequence.  Combining
-  *      character sequences  are considered to be  inseperable units,
+  *      character sequences  are considered to be  inseparable units,
   *      and either match the pattern completely, or are considered to not match
   *      at all.  Thus, for example, an A followed a combining accent mark will
   *      not be found when searching for a plain (unaccented) A.   (unless
@@ -792,7 +792,7 @@ U_STABLE void U_EXPORT2 usearch_reset(UStringSearch *strsrch);
   *      When beginning a search, the initial starting position, startIdx,
   *      is assumed to be an acceptable match boundary with respect to
   *      combining characters.  A combining sequence that spans across the
-  *      starting point will not supress a match beginning at startIdx.
+  *      starting point will not suppress a match beginning at startIdx.
   *
   *      Characters that expand to multiple collation elements
   *      (German sharp-S becoming 'ss', or the composed forms of accented
@@ -843,7 +843,7 @@ U_INTERNAL UBool U_EXPORT2 usearch_search(UStringSearch *strsrch,
   *      are part of a combining sequence, as described below.
   *
   *      A match will not include a partial combining sequence.  Combining
-  *      character sequences  are considered to be  inseperable units,
+  *      character sequences  are considered to be  inseparable units,
   *      and either match the pattern completely, or are considered to not match
   *      at all.  Thus, for example, an A followed a combining accent mark will
   *      not be found when searching for a plain (unaccented) A.   (unless
@@ -852,7 +852,7 @@ U_INTERNAL UBool U_EXPORT2 usearch_search(UStringSearch *strsrch,
   *      When beginning a search, the initial starting position, startIdx,
   *      is assumed to be an acceptable match boundary with respect to
   *      combining characters.  A combining sequence that spans across the
-  *      starting point will not supress a match beginning at startIdx.
+  *      starting point will not suppress a match beginning at startIdx.
   *
   *      Characters that expand to multiple collation elements
   *      (German sharp-S becoming 'ss', or the composed forms of accented

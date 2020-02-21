@@ -12,9 +12,13 @@ const test = require('tap').test
 
 const Dir = Tacks.Dir
 const File = Tacks.File
+const cacheDir = common.cache
 const testDir = common.pkg
 
-const EXEC_OPTS = { cwd: testDir }
+const EXEC_OPTS = {
+  cwd: testDir,
+  nodeExecPath: process.execPath
+}
 
 const PKG = {
   name: 'top',
@@ -47,7 +51,7 @@ test('setup', () => {
   const fixture = new Tacks(Dir({
     'package.json': File(PKG)
   }))
-  return rimraf(testDir).then(() => {
+  return Promise.all([rimraf(cacheDir), rimraf(testDir)]).then(() => {
     fixture.create(testDir)
     return mr({port: common.port})
   })
@@ -306,7 +310,35 @@ test('errors if package-lock.json invalid', (t) => {
     )
 })
 
+test('correct cache location when using cache config', (t) => {
+  const fixture = new Tacks(Dir({
+    'package.json': File(PKG),
+    'package-lock.json': File(RAW_LOCKFILE)
+  }))
+  return Promise.all([rimraf(cacheDir), rimraf(testDir)])
+    .then(() => fixture.create(cacheDir))
+    .then(() => fixture.create(testDir))
+    .then(() => common.npm([
+      'ci',
+      `--cache=${cacheDir}`,
+      '--foo=asdf',
+      '--registry', common.registry,
+      '--loglevel', 'warn'
+    ], EXEC_OPTS))
+    .then((ret) => {
+      const code = ret[0]
+      const stderr = ret[2]
+      t.equal(code, 0, 'command completed without error')
+      t.equal(stderr.trim(), '', 'no output on stderr')
+      return fs.readdirAsync(path.join(cacheDir, '_cacache'))
+    })
+    .then((modules) => {
+      t.ok(modules, 'should create _cacache folder')
+      t.end()
+    })
+})
+
 test('cleanup', () => {
   SERVER.close()
-  return rimraf(testDir)
+  return Promise.all([rimraf(cacheDir), rimraf(testDir)])
 })

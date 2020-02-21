@@ -26,6 +26,7 @@ const stat = promisify(fs.stat);
 
 {
   function fn() {}
+
   function promisifedFn() {}
   fn[promisify.custom] = promisifedFn;
   assert.strictEqual(promisify(fn), promisifedFn);
@@ -35,9 +36,9 @@ const stat = promisify(fs.stat);
 {
   function fn() {}
   fn[promisify.custom] = 42;
-  common.expectsError(
+  assert.throws(
     () => promisify(fn),
-    { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }
+    { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' }
   );
 }
 
@@ -184,12 +185,12 @@ const stat = promisify(fs.stat);
 }
 
 [undefined, null, true, 0, 'str', {}, [], Symbol()].forEach((input) => {
-  common.expectsError(
+  assert.throws(
     () => promisify(input),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: 'The "original" argument must be of type Function. ' +
-               `Received type ${typeof input}`
+      name: 'TypeError',
+      message: 'The "original" argument must be of type function.' +
+               common.invalidArgTypeHelper(input)
     });
 });

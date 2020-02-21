@@ -471,8 +471,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
     return;
   }
 
-  // Create a new napi_env for this module or reference one if a pre-existing
-  // one is found.
+  // Create a new napi_env for this specific module.
   napi_env env = v8impl::NewEnv(context);
 
   napi_value _exports;
@@ -732,7 +731,8 @@ napi_status napi_create_external_buffer(napi_env env,
 
   // The finalizer object will delete itself after invoking the callback.
   v8impl::Finalizer* finalizer = v8impl::Finalizer::New(
-    env, finalize_cb, nullptr, finalize_hint);
+      env, finalize_cb, nullptr, finalize_hint,
+      v8impl::Finalizer::kKeepEnvReference);
 
   auto maybe = node::Buffer::New(isolate,
                                 static_cast<char*>(data),

@@ -352,7 +352,7 @@ void ParsedPatternInfo::consumeIntegerFormat(UErrorCode& status) {
                 result.groupingSizes += 1;
                 result.integerNumerals += 1;
                 result.integerTotal += 1;
-                if (!result.rounding.isZero() || state.peek() != u'0') {
+                if (!result.rounding.isZeroish() || state.peek() != u'0') {
                     result.rounding.appendDigit(static_cast<int8_t>(state.peek() - u'0'), 0, true);
                 }
                 break;
@@ -532,7 +532,7 @@ PatternParser::patternInfoToProperties(DecimalFormatProperties& properties, Pars
         properties.roundingIncrement = 0.0;
         properties.minimumSignificantDigits = positive.integerAtSigns;
         properties.maximumSignificantDigits = positive.integerAtSigns + positive.integerTrailingHashSigns;
-    } else if (!positive.rounding.isZero()) {
+    } else if (!positive.rounding.isZeroish()) {
         if (!ignoreRounding) {
             properties.minimumFractionDigits = minFrac;
             properties.maximumFractionDigits = positive.fractionTotal;
@@ -1000,7 +1000,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
 }
 
 void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& patternInfo, bool isPrefix,
-                                                    int8_t signum, UNumberSignDisplay signDisplay,
+                                                    Signum signum, UNumberSignDisplay signDisplay,
                                                     StandardPlural::Form plural,
                                                     bool perMilleReplacesPercent, UnicodeString& output) {
 
@@ -1014,6 +1014,7 @@ void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& 
 
     // Should we use the affix from the negative subpattern? (If not, we will use the positive
     // subpattern.)
+    // TODO: Deal with signum
     bool useNegativeAffixPattern = patternInfo.hasNegativeSubpattern() && (
             signum == -1 || (patternInfo.negativeHasMinusSign() && plusReplacesMinusSign));
 

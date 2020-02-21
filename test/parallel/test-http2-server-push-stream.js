@@ -23,11 +23,11 @@ server.on('stream', common.mustCall((stream, headers) => {
       });
       push.end('pushed by server data');
 
-      common.expectsError(() => {
+      assert.throws(() => {
         push.pushStream({}, common.mustNotCall());
       }, {
         code: 'ERR_HTTP2_NESTED_PUSH',
-        type: Error
+        name: 'Error'
       });
 
       stream.end('test');
@@ -55,6 +55,8 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(headers['x-push-data'], 'pushed by server');
     }));
     stream.on('aborted', common.mustNotCall());
+    // We have to read the data of the push stream to end gracefully.
+    stream.resume();
   }));
 
   let data = '';

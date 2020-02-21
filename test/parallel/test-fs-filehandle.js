@@ -19,13 +19,20 @@ let fdnum;
   assert.strictEqual(ctx.errno, undefined);
 }
 
+const deprecationWarning =
+  'Closing a FileHandle object on garbage collection is deprecated. ' +
+  'Please close FileHandle objects explicitly using ' +
+  'FileHandle.prototype.close(). In the future, an error will be ' +
+  'thrown if a file descriptor is closed during garbage collection.';
+
 common.expectWarning({
   'internal/test/binding': [
     'These APIs are for internal testing only. Do not use them.'
   ],
   'Warning': [
     `Closing file descriptor ${fdnum} on garbage collection`
-  ]
+  ],
+  'DeprecationWarning': [[deprecationWarning, 'DEP0137']]
 });
 
 global.gc();

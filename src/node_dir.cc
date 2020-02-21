@@ -1,10 +1,11 @@
 #include "node_dir.h"
+#include "node_file-inl.h"
 #include "node_process.h"
+#include "memory_tracker-inl.h"
 #include "util.h"
 
 #include "tracing/trace_event.h"
 
-#include "req_wrap-inl.h"
 #include "string_bytes.h"
 
 #include <fcntl.h>
@@ -83,6 +84,10 @@ DirHandle::~DirHandle() {
   CHECK(!closing_);  // We should not be deleting while explicitly closing!
   GCClose();         // Close synchronously and emit warning
   CHECK(closed_);    // We have to be closed at the point
+}
+
+void DirHandle::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("dir", sizeof(*dir_));
 }
 
 // Close the directory handle if it hasn't already been closed. A process
@@ -167,7 +172,7 @@ static MaybeLocal<Array> DirentListToArray(
     int num,
     enum encoding encoding,
     Local<Value>* err_out) {
-  MaybeStackBuffer<Local<Value>, 96> entries(num * 3);
+  MaybeStackBuffer<Local<Value>, 64> entries(num * 2);
 
   // Return an array of all read filenames.
   int j = 0;
@@ -296,7 +301,6 @@ void AfterOpenDir(uv_fs_t* req) {
   }
 
   Environment* env = req_wrap->env();
-  Local<Value> error;
 
   uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
   DirHandle* handle = DirHandle::New(env, dir);
@@ -316,7 +320,7 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
 
   const enum encoding encoding = ParseEncoding(isolate, args[1], UTF8);
 
-  FSReqBase* req_wrap_async = static_cast<FSReqBase*>(GetReqWrap(env, args[2]));
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[2]);
   if (req_wrap_async != nullptr) {  // openDir(path, encoding, req)
     AsyncCall(env, req_wrap_async, args, "opendir", encoding, AfterOpenDir,
               uv_fs_opendir, *path);

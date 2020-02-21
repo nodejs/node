@@ -41,7 +41,14 @@ void SourceRangeAstVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 void SourceRangeAstVisitor::VisitTryCatchStatement(TryCatchStatement* stmt) {
   AstTraversalVisitor::VisitTryCatchStatement(stmt);
+  MaybeRemoveContinuationRange(stmt->try_block());
   MaybeRemoveContinuationRangeOfAsyncReturn(stmt);
+}
+
+void SourceRangeAstVisitor::VisitTryFinallyStatement(
+    TryFinallyStatement* stmt) {
+  AstTraversalVisitor::VisitTryFinallyStatement(stmt);
+  MaybeRemoveContinuationRange(stmt->try_block());
 }
 
 bool SourceRangeAstVisitor::VisitNode(AstNode* node) {

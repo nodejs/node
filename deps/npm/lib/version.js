@@ -256,7 +256,7 @@ function checkGit (localData, cb) {
   statGitFolder(function (er) {
     var doGit = !er && npm.config.get('git-tag-version')
     if (!doGit) {
-      if (er) log.verbose('version', 'error checking for .git', er)
+      if (er && npm.config.get('git-tag-version')) log.verbose('version', 'error checking for .git', er)
       log.verbose('version', 'not tagging in git')
       return cb(null, false)
     }
@@ -286,22 +286,32 @@ function checkGit (localData, cb) {
 
 module.exports.buildCommitArgs = buildCommitArgs
 function buildCommitArgs (args) {
-  args = args || [ 'commit' ]
-  if (!npm.config.get('commit-hooks')) args.push('-n')
-  return args
+  const add = []
+  args = args || []
+  if (args[0] === 'commit') args.shift()
+  if (!npm.config.get('commit-hooks')) add.push('-n')
+  if (npm.config.get('allow-same-version')) add.push('--allow-empty')
+  return ['commit', ...add, ...args]
+}
+
+module.exports.buildTagFlags = buildTagFlags
+function buildTagFlags () {
+  return '-'.concat(
+    npm.config.get('sign-git-tag') ? 's' : '',
+    npm.config.get('allow-same-version') ? 'f' : '',
+    'm'
+  )
 }
 
 function _commit (version, localData, cb) {
   const options = { env: process.env }
   const message = npm.config.get('message').replace(/%s/g, version)
-  const signTag = npm.config.get('sign-git-tag')
   const signCommit = npm.config.get('sign-git-commit')
   const commitArgs = buildCommitArgs([
     'commit',
     ...(signCommit ? ['-S', '-m'] : ['-m']),
     message
   ])
-  const flagForTag = signTag ? '-sm' : '-m'
 
   stagePackageFiles(localData, options).then(() => {
     return git.exec(commitArgs, options)
@@ -309,7 +319,7 @@ function _commit (version, localData, cb) {
     if (!localData.existingTag) {
       return git.exec([
         'tag', npm.config.get('tag-version-prefix') + version,
-        flagForTag, message
+        buildTagFlags(), message
       ], options)
     }
   }).nodeify(cb)

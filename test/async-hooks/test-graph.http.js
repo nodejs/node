@@ -11,11 +11,11 @@ const http = require('http');
 const hooks = initHooks();
 hooks.enable();
 
-const server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
-  this.close(common.mustCall());
+  server.close(common.mustCall());
 }));
-server.listen(0, common.mustCall(function() {
+server.listen(0, common.mustCall(() => {
   http.get({
     host: '::1',
     family: 6,
@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(function() {
   }, common.mustCall());
 }));
 
-process.on('exit', function() {
+process.on('exit', () => {
   hooks.disable();
 
   verifyGraph(

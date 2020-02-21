@@ -1,7 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const { Stream, Writable, Readable, Transform, pipeline } = require('stream');
+const {
+  Stream,
+  Writable,
+  Readable,
+  Transform,
+  pipeline,
+  PassThrough
+} = require('stream');
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
@@ -118,6 +125,12 @@ const { promisify } = require('util');
   read.on('close', common.mustCall());
   transform.on('close', common.mustCall());
   write.on('close', common.mustCall());
+
+  [read, transform, write].forEach((stream) => {
+    stream.on('error', common.mustCall((err) => {
+      assert.deepStrictEqual(err, new Error('kaboom'));
+    }));
+  });
 
   const dst = pipeline(read, transform, write, common.mustCall((err) => {
     assert.deepStrictEqual(err, new Error('kaboom'));
@@ -476,4 +489,427 @@ const { promisify } = require('util');
     () => pipeline(read, transform, write),
     { code: 'ERR_INVALID_CALLBACK' }
   );
+}
+
+{
+  const server = http.Server(function(req, res) {
+    res.write('asd');
+  });
+  server.listen(0, function() {
+    http.get({ port: this.address().port }, (res) => {
+      const stream = new PassThrough();
+
+      stream.on('error', common.mustCall());
+
+      pipeline(
+        res,
+        stream,
+        common.mustCall((err) => {
+          assert.ok(err);
+          // TODO(ronag):
+          // assert.strictEqual(err.message, 'oh no');
+          server.close();
+        })
+      );
+
+      stream.destroy(new Error('oh no'));
+    }).on('error', common.mustNotCall());
+  });
+}
+
+{
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline(function*() {
+    yield 'hello';
+    yield 'world';
+  }(), w, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+{
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }(), w, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+{
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline(function*() {
+    yield 'hello';
+    yield 'world';
+  }, w, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+{
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, w, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, async function*(source) {
+    for await (const chunk of source) {
+      yield chunk.toUpperCase();
+    }
+  }, async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'HELLOWORLD');
+  }));
+}
+
+{
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, async function*(source) {
+    const ret = [];
+    for await (const chunk of source) {
+      ret.push(chunk.toUpperCase());
+    }
+    yield ret;
+  }, async function(source) {
+    let ret = '';
+    for await (const chunk of source) {
+      ret += chunk;
+    }
+    return ret;
+  }, common.mustCall((err, val) => {
+    assert.ok(!err);
+    assert.strictEqual(val, 'HELLOWORLD');
+  }));
+}
+
+{
+  // AsyncIterable destination is returned and finalizes.
+
+  const ret = pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+  }, async function*(source) {
+    for await (const chunk of source) {
+      chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+  }));
+  ret.resume();
+  assert.strictEqual(typeof ret.pipe, 'function');
+}
+
+{
+  // AsyncFunction destination is not returned and error is
+  // propagated.
+
+  const ret = pipeline(async function*() {
+    await Promise.resolve();
+    throw new Error('kaboom');
+  }, async function*(source) {
+    for await (const chunk of source) {
+      chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+  }));
+  ret.resume();
+  assert.strictEqual(typeof ret.pipe, 'function');
+}
+
+{
+  const s = new PassThrough();
+  pipeline(async function*() {
+    throw new Error('kaboom');
+  }, s, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  const s = new PassThrough();
+  pipeline(async function*() {
+    throw new Error('kaboom');
+  }(), s, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  const s = new PassThrough();
+  pipeline(function*() {
+    throw new Error('kaboom');
+  }, s, common.mustCall((err, val) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  const s = new PassThrough();
+  pipeline(function*() {
+    throw new Error('kaboom');
+  }(), s, common.mustCall((err, val) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  const s = new PassThrough();
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, s, async function(source) {
+    for await (const chunk of source) {
+      chunk;
+      throw new Error('kaboom');
+    }
+  }, common.mustCall((err, val) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  const s = new PassThrough();
+  const ret = pipeline(function() {
+    return ['hello', 'world'];
+  }, s, async function*(source) {
+    for await (const chunk of source) {
+      chunk;
+      throw new Error('kaboom');
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(s.destroyed, true);
+  }));
+  ret.resume();
+  assert.strictEqual(typeof ret.pipe, 'function');
+}
+
+{
+  // Legacy streams without async iterator.
+
+  const s = new PassThrough();
+  s.push('asd');
+  s.push(null);
+  s[Symbol.asyncIterator] = null;
+  let ret = '';
+  pipeline(s, async function(source) {
+    for await (const chunk of source) {
+      ret += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(ret, 'asd');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  // v1 streams without read().
+
+  const s = new Stream();
+  process.nextTick(() => {
+    s.emit('data', 'asd');
+    s.emit('end');
+  });
+  s.close = common.mustCall();
+  let ret = '';
+  pipeline(s, async function(source) {
+    for await (const chunk of source) {
+      ret += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(ret, 'asd');
+    assert.strictEqual(s.destroyed, true);
+  }));
+}
+
+{
+  // v1 error streams without read().
+
+  const s = new Stream();
+  process.nextTick(() => {
+    s.emit('error', new Error('kaboom'));
+  });
+  s.destroy = common.mustCall();
+  pipeline(s, async function(source) {
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+  }));
+}
+
+{
+  const s = new PassThrough();
+  assert.throws(() => {
+    pipeline(function(source) {
+    }, s, () => {});
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+    assert.strictEqual(s.destroyed, false);
+    return true;
+  });
+}
+
+{
+  const s = new PassThrough();
+  assert.throws(() => {
+    pipeline(s, function(source) {
+    }, s, () => {});
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+    assert.strictEqual(s.destroyed, false);
+    return true;
+  });
+}
+
+{
+  const s = new PassThrough();
+  assert.throws(() => {
+    pipeline(s, function(source) {
+    }, () => {});
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+    assert.strictEqual(s.destroyed, false);
+    return true;
+  });
+}
+
+{
+  const s = new PassThrough();
+  assert.throws(() => {
+    pipeline(s, function*(source) {
+    }, () => {});
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+    assert.strictEqual(s.destroyed, false);
+    return true;
+  });
+}
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, new Transform({
+    transform(chunk, encoding, cb) {
+      cb(new Error('kaboom'));
+    }
+  }), async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(res, '');
+  }));
+}
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, new Transform({
+    transform(chunk, encoding, cb) {
+      process.nextTick(cb, new Error('kaboom'));
+    }
+  }), async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(res, '');
+  }));
+}
+
+{
+  let res = '';
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+  }, new Transform({
+    decodeStrings: false,
+    transform(chunk, encoding, cb) {
+      cb(null, chunk.toUpperCase());
+    }
+  }), async function(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'HELLOWORLD');
+  }));
+}
+
+{
+  // Ensure no unhandled rejection from async function.
+
+  pipeline(async function*() {
+    yield 'hello';
+  }, async function(source) {
+    throw new Error('kaboom');
+  }, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+  }));
 }

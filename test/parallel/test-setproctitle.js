@@ -5,6 +5,9 @@ const common = require('../common');
 // FIXME add sunos support
 if (common.isSunOS)
   common.skip(`Unsupported platform [${process.platform}]`);
+// FIXME add IBMi support
+if (common.isIBMi)
+  common.skip('Unsupported platform IBMi');
 if (!common.isMainThread)
   common.skip('Setting the process title from Workers is not supported');
 

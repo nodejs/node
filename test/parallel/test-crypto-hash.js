@@ -113,24 +113,24 @@ assert.throws(function() {
 
 // Issue https://github.com/nodejs/node/issues/9819: throwing encoding used to
 // segfault.
-common.expectsError(
+assert.throws(
   () => crypto.createHash('sha256').digest({
     toString: () => { throw new Error('boom'); },
   }),
   {
-    type: Error,
+    name: 'Error',
     message: 'boom'
   });
 
 // Issue https://github.com/nodejs/node/issues/25487: error message for invalid
 // arg type to update method should include all possible types
-common.expectsError(
+assert.throws(
   () => crypto.createHash('sha256').update(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "data" argument must be one of type string, Buffer, ' +
-      'TypedArray, or DataView. Received type undefined'
+    name: 'TypeError',
+    message: 'The "data" argument must be of type string or an instance of ' +
+      'Buffer, TypedArray, or DataView. Received undefined'
   });
 
 // Default UTF-8 encoding
@@ -147,31 +147,31 @@ assert.notStrictEqual(
 const h3 = crypto.createHash('sha256');
 h3.digest();
 
-common.expectsError(
+assert.throws(
   () => h3.digest(),
   {
     code: 'ERR_CRYPTO_HASH_FINALIZED',
-    type: Error
+    name: 'Error'
   });
 
-common.expectsError(
+assert.throws(
   () => h3.update('foo'),
   {
     code: 'ERR_CRYPTO_HASH_FINALIZED',
-    type: Error
+    name: 'Error'
   });
 
 assert.strictEqual(
   crypto.createHash('sha256').update('test').digest('ucs2'),
   crypto.createHash('sha256').update('test').digest().toString('ucs2'));
 
-common.expectsError(
+assert.throws(
   () => crypto.createHash(),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
+    name: 'TypeError',
     message: 'The "algorithm" argument must be of type string. ' +
-             'Received type undefined'
+             'Received undefined'
   }
 );
 
@@ -246,28 +246,28 @@ common.expectsError(
                      '15a2b01f828ea62ac5b3e42f');
 
   // Passing invalid sizes should throw during creation.
-  common.expectsError(() => {
+  assert.throws(() => {
     crypto.createHash('sha256', { outputLength: 28 });
   }, {
     code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH'
   });
 
   for (const outputLength of [null, {}, 'foo', false]) {
-    common.expectsError(() => crypto.createHash('sha256', { outputLength }),
-                        { code: 'ERR_INVALID_ARG_TYPE' });
+    assert.throws(() => crypto.createHash('sha256', { outputLength }),
+                  { code: 'ERR_INVALID_ARG_TYPE' });
   }
 
   for (const outputLength of [-1, .5, Infinity, 2 ** 90]) {
-    common.expectsError(() => crypto.createHash('sha256', { outputLength }),
-                        { code: 'ERR_OUT_OF_RANGE' });
+    assert.throws(() => crypto.createHash('sha256', { outputLength }),
+                  { code: 'ERR_OUT_OF_RANGE' });
   }
 }
 
 {
   const h = crypto.createHash('sha512');
   h.digest();
-  common.expectsError(() => h.copy(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
-  common.expectsError(() => h.digest(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
+  assert.throws(() => h.copy(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
+  assert.throws(() => h.digest(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
 }
 
 {

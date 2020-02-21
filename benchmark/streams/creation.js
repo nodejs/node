@@ -13,14 +13,13 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, kind }) {
-  var i = 0;
   switch (kind) {
     case 'duplex':
       new Duplex({});
       new Duplex();
 
       bench.start();
-      for (; i < n; ++i)
+      for (let i = 0; i < n; ++i)
         new Duplex();
       bench.end(n);
       break;
@@ -29,7 +28,7 @@ function main({ n, kind }) {
       new Readable();
 
       bench.start();
-      for (; i < n; ++i)
+      for (let i = 0; i < n; ++i)
         new Readable();
       bench.end(n);
       break;
@@ -38,7 +37,7 @@ function main({ n, kind }) {
       new Writable();
 
       bench.start();
-      for (; i < n; ++i)
+      for (let i = 0; i < n; ++i)
         new Writable();
       bench.end(n);
       break;
@@ -47,7 +46,7 @@ function main({ n, kind }) {
       new Transform();
 
       bench.start();
-      for (; i < n; ++i)
+      for (let i = 0; i < n; ++i)
         new Transform();
       bench.end(n);
       break;

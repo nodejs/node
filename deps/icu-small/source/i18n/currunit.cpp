@@ -109,7 +109,7 @@ CurrencyUnit& CurrencyUnit::operator=(const CurrencyUnit& other) {
     return *this;
 }
 
-UObject* CurrencyUnit::clone() const {
+CurrencyUnit* CurrencyUnit::clone() const {
     return new CurrencyUnit(*this);
 }
 

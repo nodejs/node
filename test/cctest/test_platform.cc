@@ -101,6 +101,6 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
 
   // Graceful shutdown
   delegate->Shutdown();
-  isolate->Dispose();
   platform->UnregisterIsolate(isolate);
+  isolate->Dispose();
 }

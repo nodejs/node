@@ -1,0 +1,57 @@
+{
+  "_from": "npm-normalize-package-bin@^1.0.0",
+  "_id": "npm-normalize-package-bin@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-EPfafl6JL5/rU+ot6P3gRSCpPDW5VmIzX959Ob1+ySFUuuYHWHekXpwdUZcKP5C+DS4GEtdJluwBjnsNDl+fSA==",
+  "_location": "/npm-normalize-package-bin",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "npm-normalize-package-bin@^1.0.0",
+    "name": "npm-normalize-package-bin",
+    "escapedName": "npm-normalize-package-bin",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/bin-links"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-normalize-package-bin/-/npm-normalize-package-bin-1.0.1.tgz",
+  "_shasum": "6e79a41f23fd235c0623218228da7d9c23b8f6e2",
+  "_spec": "npm-normalize-package-bin@^1.0.0",
+  "_where": "/Users/isaacs/dev/npm/cli/node_modules/bin-links",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "https://izs.me"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-normalize-package-bin/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Turn any flavor of allowable package.json bin into a normalized object",
+  "devDependencies": {
+    "tap": "^14.10.2"
+  },
+  "homepage": "https://github.com/npm/npm-normalize-package-bin#readme",
+  "license": "ISC",
+  "name": "npm-normalize-package-bin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-normalize-package-bin.git"
+  },
+  "scripts": {
+    "postpublish": "git push origin --follow-tags",
+    "postversion": "npm publish",
+    "preversion": "npm test",
+    "snap": "tap",
+    "test": "tap"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "version": "1.0.1"
+}

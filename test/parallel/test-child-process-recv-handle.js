@@ -36,7 +36,9 @@ else
 function master() {
   // spawn() can only create one IPC channel so we use stdin/stdout as an
   // ad-hoc command channel.
-  const proc = spawn(process.execPath, [__filename, 'worker'], {
+  const proc = spawn(process.execPath, [
+    '--expose-internals', __filename, 'worker'
+  ], {
     stdio: ['pipe', 'pipe', 'pipe', 'ipc']
   });
   let handle = null;
@@ -57,12 +59,13 @@ function master() {
 }
 
 function worker() {
-  process.channel.readStop();  // Make messages batch up.
+  const { kChannelHandle } = require('internal/child_process');
+  process[kChannelHandle].readStop();  // Make messages batch up.
   process.stdout.ref();
   process.stdout.write('ok\r\n');
   process.stdin.once('data', common.mustCall((data) => {
     assert.strictEqual(data.toString(), 'ok\r\n');
-    process.channel.readStart();
+    process[kChannelHandle].readStart();
   }));
   let n = 0;
   process.on('message', common.mustCall((msg, handle) => {

@@ -54,62 +54,45 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-         * Checks if there is padding between two tokens
-         * @param {Token} first The first token
-         * @param {Token} second The second token
-         * @returns {boolean} True if there is at least a line between the tokens
+         * Return the last token among the consecutive tokens that have no exceed max line difference in between, before the first token in the next member.
+         * @param {Token} prevLastToken The last token in the previous member node.
+         * @param {Token} nextFirstToken The first token in the next member node.
+         * @param {number} maxLine The maximum number of allowed line difference between consecutive tokens.
+         * @returns {Token} The last token among the consecutive tokens.
          */
-        function isPaddingBetweenTokens(first, second) {
-            const comments = sourceCode.getCommentsBefore(second);
-            const len = comments.length;
+        function findLastConsecutiveTokenAfter(prevLastToken, nextFirstToken, maxLine) {
+            const after = sourceCode.getTokenAfter(prevLastToken, { includeComments: true });
 
-            // If there is no comments
-            if (len === 0) {
-                const linesBetweenFstAndSnd = second.loc.start.line - first.loc.end.line - 1;
-
-                return linesBetweenFstAndSnd >= 1;
+            if (after !== nextFirstToken && after.loc.start.line - prevLastToken.loc.end.line <= maxLine) {
+                return findLastConsecutiveTokenAfter(after, nextFirstToken, maxLine);
             }
+            return prevLastToken;
+        }
 
+        /**
+         * Return the first token among the consecutive tokens that have no exceed max line difference in between, after the last token in the previous member.
+         * @param {Token} nextFirstToken The first token in the next member node.
+         * @param {Token} prevLastToken The last token in the previous member node.
+         * @param {number} maxLine The maximum number of allowed line difference between consecutive tokens.
+         * @returns {Token} The first token among the consecutive tokens.
+         */
+        function findFirstConsecutiveTokenBefore(nextFirstToken, prevLastToken, maxLine) {
+            const before = sourceCode.getTokenBefore(nextFirstToken, { includeComments: true });
 
-            // If there are comments
-            let sumOfCommentLines = 0; // the numbers of lines of comments
-            let prevCommentLineNum = -1; // line number of the end of the previous comment
-
-            for (let i = 0; i < len; i++) {
-                const commentLinesOfThisComment = comments[i].loc.end.line - comments[i].loc.start.line + 1;
-
-                sumOfCommentLines += commentLinesOfThisComment;
-
-                /*
-                 * If this comment and the previous comment are in the same line,
-                 * the count of comment lines is duplicated. So decrement sumOfCommentLines.
-                 */
-                if (prevCommentLineNum === comments[i].loc.start.line) {
-                    sumOfCommentLines -= 1;
-                }
-
-                prevCommentLineNum = comments[i].loc.end.line;
+            if (before !== prevLastToken && nextFirstToken.loc.start.line - before.loc.end.line <= maxLine) {
+                return findFirstConsecutiveTokenBefore(before, prevLastToken, maxLine);
             }
+            return nextFirstToken;
+        }
 
-            /*
-             * If the first block and the first comment are in the same line,
-             * the count of comment lines is duplicated. So decrement sumOfCommentLines.
-             */
-            if (first.loc.end.line === comments[0].loc.start.line) {
-                sumOfCommentLines -= 1;
-            }
-
-            /*
-             * If the last comment and the second block are in the same line,
-             * the count of comment lines is duplicated. So decrement sumOfCommentLines.
-             */
-            if (comments[len - 1].loc.end.line === second.loc.start.line) {
-                sumOfCommentLines -= 1;
-            }
-
-            const linesBetweenFstAndSnd = second.loc.start.line - first.loc.end.line - 1;
-
-            return linesBetweenFstAndSnd - sumOfCommentLines >= 1;
+        /**
+         * Checks if there is a token or comment between two tokens.
+         * @param {Token} before The token before.
+         * @param {Token} after The token after.
+         * @returns {boolean} True if there is a token or comment between two tokens.
+         */
+        function hasTokenOrCommentBetween(before, after) {
+            return sourceCode.getTokensBetween(before, after, { includeComments: true }).length !== 0;
         }
 
         return {
@@ -120,10 +103,13 @@ module.exports = {
                     const curFirst = sourceCode.getFirstToken(body[i]);
                     const curLast = sourceCode.getLastToken(body[i]);
                     const nextFirst = sourceCode.getFirstToken(body[i + 1]);
-                    const isPadded = isPaddingBetweenTokens(curLast, nextFirst);
                     const isMulti = !astUtils.isTokenOnSameLine(curFirst, curLast);
                     const skip = !isMulti && options[1].exceptAfterSingleLine;
-
+                    const beforePadding = findLastConsecutiveTokenAfter(curLast, nextFirst, 1);
+                    const afterPadding = findFirstConsecutiveTokenBefore(nextFirst, curLast, 1);
+                    const isPadded = afterPadding.loc.start.line - beforePadding.loc.end.line > 1;
+                    const hasTokenInPadding = hasTokenOrCommentBetween(beforePadding, afterPadding);
+                    const curLineLastToken = findLastConsecutiveTokenAfter(curLast, nextFirst, 0);
 
                     if ((options[0] === "always" && !skip && !isPadded) ||
                         (options[0] === "never" && isPadded)) {
@@ -131,9 +117,12 @@ module.exports = {
                             node: body[i + 1],
                             messageId: isPadded ? "never" : "always",
                             fix(fixer) {
+                                if (hasTokenInPadding) {
+                                    return null;
+                                }
                                 return isPadded
-                                    ? fixer.replaceTextRange([curLast.range[1], nextFirst.range[0]], "\n")
-                                    : fixer.insertTextAfter(curLast, "\n");
+                                    ? fixer.replaceTextRange([beforePadding.range[1], afterPadding.range[0]], "\n")
+                                    : fixer.insertTextAfter(curLineLastToken, "\n");
                             }
                         });
                     }

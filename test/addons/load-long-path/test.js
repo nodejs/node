@@ -48,6 +48,6 @@ fs.writeFileSync(addonDestinationPath, contents);
 
 // Run test
 const child = fork(__filename, ['child'], { stdio: 'inherit' });
-child.on('exit', common.mustCall(function(code) {
+child.on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 0);
 }));

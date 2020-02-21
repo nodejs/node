@@ -173,7 +173,7 @@ public:
     status = U_SAFECLONE_ALLOCATED_WARNING;
     return clone();
   }
-  virtual BreakIterator* clone(void) const { return new SimpleFilteredSentenceBreakIterator(*this); }
+  virtual SimpleFilteredSentenceBreakIterator* clone() const { return new SimpleFilteredSentenceBreakIterator(*this); }
   virtual UClassID getDynamicClassID(void) const { return NULL; }
   virtual UBool operator==(const BreakIterator& o) const { if(this==&o) return true; return false; }
 

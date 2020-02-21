@@ -321,6 +321,7 @@ _ERROR_CATEGORIES = [
     'runtime/string',
     'runtime/threadsafe_fn',
     'runtime/vlog',
+    'runtime/v8_persistent',
     'whitespace/blank_line',
     'whitespace/braces',
     'whitespace/comma',
@@ -626,6 +627,8 @@ _SEARCH_C_FILE = re.compile(r'\b(?:LINT_C_FILE|'
 _SEARCH_KERNEL_FILE = re.compile(r'\b(?:LINT_KERNEL_FILE)')
 
 _NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
+
+_V8_PERSISTENT_PATTERN = re.compile(r'\bv8::Persistent\b')
 
 _RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
                                             r'(?<!(sizeof|return))'
@@ -3299,7 +3302,7 @@ def CheckForFunctionLengths(filename, clean_lines, linenum,
   """Reports for long function bodies.
 
   For an overview why this is done, see:
-  https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Write_Short_Functions
+  https://google.github.io/styleguide/cppguide.html#Write_Short_Functions
 
   Uses a simplistic algorithm assuming other style guidelines
   (especially spacing) are followed.
@@ -4547,6 +4550,28 @@ def CheckNullTokens(filename, clean_lines, linenum, error):
     error(filename, linenum, 'readability/null_usage', 2,
           'Use nullptr instead of NULL')
 
+def CheckV8PersistentTokens(filename, clean_lines, linenum, error):
+  """Check v8::Persistent usage.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if Match(r'^\s*#', line):
+    return
+
+  if line.find('/*') >= 0 or line.find('*/') >= 0:
+    return
+
+  for match in _V8_PERSISTENT_PATTERN.finditer(line):
+    error(filename, linenum, 'runtime/v8_persistent', 2,
+          'Use v8::Global instead of v8::Persistent')
+
 def CheckLeftLeaningPointer(filename, clean_lines, linenum, error):
   """Check for left-leaning pointer placement.
 
@@ -4723,6 +4748,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
   CheckNullTokens(filename, clean_lines, linenum, error)
+  CheckV8PersistentTokens(filename, clean_lines, linenum, error)
   CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
@@ -5154,7 +5180,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension,
       and line[-1] != '\\'):
     error(filename, linenum, 'build/namespaces', 4,
           'Do not use unnamed namespaces in header files.  See '
-          'https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Namespaces'
+          'https://google.github.io/styleguide/cppguide.html#Namespaces'
           ' for more information.')
 
 

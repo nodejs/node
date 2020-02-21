@@ -28,7 +28,7 @@ disallow('--v8-options');
 disallow('--');
 
 function disallow(opt) {
-  const env = Object.assign({}, process.env, { NODE_OPTIONS: opt });
+  const env = { ...process.env, NODE_OPTIONS: opt };
   exec(process.execPath, { cwd: tmpdir.path, env }, common.mustCall((err) => {
     const message = err.message.split(/\r?\n/)[1];
     const expect = `${process.execPath}: ${opt} is not allowed in NODE_OPTIONS`;

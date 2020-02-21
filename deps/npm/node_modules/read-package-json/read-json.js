@@ -11,7 +11,7 @@ var glob = require('glob')
 var normalizeData = require('normalize-package-data')
 var safeJSON = require('json-parse-better-errors')
 var util = require('util')
-var slash = require('slash')
+var normalizePackageBin = require('npm-normalize-package-bin')
 
 module.exports = readJson
 
@@ -301,7 +301,7 @@ function mans_ (file, data, mans, cb) {
 }
 
 function bins (file, data, cb) {
-  if (Array.isArray(data.bin)) return bins_(file, data, data.bin, cb)
+  data = normalizePackageBin(data)
 
   var m = data.directories && data.directories.bin
   if (data.bin || !m) return cb(null, data)
@@ -318,11 +318,11 @@ function bins_ (file, data, bins, cb) {
   data.bin = bins.reduce(function (acc, mf) {
     if (mf && mf.charAt(0) !== '.') {
       var f = path.basename(mf)
-      acc[f] = slash(path.join(m, mf))
+      acc[f] = path.join(m, mf)
     }
     return acc
   }, {})
-  return cb(null, data)
+  return cb(null, normalizePackageBin(data))
 }
 
 function bundleDependencies (file, data, cb) {
@@ -403,6 +403,7 @@ function checkBinReferences_ (file, data, warn, cb) {
   keys.forEach(function (key) {
     var dirName = path.dirname(file)
     var relName = data.bin[key]
+    /* istanbul ignore if - impossible, bins have been normalized */
     if (typeof relName !== 'string') {
       var msg = 'Bin filename for ' + key +
         ' is not a string: ' + util.inspect(relName)

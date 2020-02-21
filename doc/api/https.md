@@ -7,7 +7,7 @@
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
-## Class: https.Agent
+## Class: `https.Agent`
 <!-- YAML
 added: v0.4.5
 changes:
@@ -23,7 +23,7 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
-### new Agent(\[options\])
+### `new Agent([options])`
 <!-- YAML
 changes:
   - version: v12.5.0
@@ -39,13 +39,13 @@ changes:
   * `servername` {string} the value of
     [Server Name Indication extension][sni wiki] to be sent to the server. Use
     empty string `''` to disable sending the extension.
-    **Default:** hostname of the target server, unless the target server
+    **Default:** host name of the target server, unless the target server
     is specified using an IP address, in which case the default is `''` (no
     extension).
 
     See [`Session Resumption`][] for information about TLS session reuse.
 
-#### Event: 'keylog'
+#### Event: `'keylog'`
 <!-- YAML
 added: v13.2.0
 -->
@@ -70,7 +70,7 @@ https.globalAgent.on('keylog', (line, tlsSocket) => {
 });
 ```
 
-## Class: https.Server
+## Class: `https.Server`
 <!-- YAML
 added: v0.3.4
 -->
@@ -79,7 +79,7 @@ added: v0.3.4
 
 See [`http.Server`][] for more information.
 
-### server.close(\[callback\])
+### `server.close([callback])`
 <!-- YAML
 added: v0.1.90
 -->
@@ -89,27 +89,27 @@ added: v0.1.90
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
-### server.headersTimeout
+### `server.headersTimeout`
 <!-- YAML
 added: v11.3.0
 -->
 
-* {number} **Default:** `40000`
+* {number} **Default:** `60000`
 
 See [`http.Server#headersTimeout`][].
 
-### server.listen()
+### `server.listen()`
 
 Starts the HTTPS server listening for encrypted connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
 
-### server.maxHeadersCount
+### `server.maxHeadersCount`
 
 * {number} **Default:** `2000`
 
 See [`http.Server#maxHeadersCount`][].
 
-### server.setTimeout(\[msecs\]\[, callback\])
+### `server.setTimeout([msecs][, callback])`
 <!-- YAML
 added: v0.11.2
 -->
@@ -120,16 +120,20 @@ added: v0.11.2
 
 See [`http.Server#setTimeout()`][].
 
-### server.timeout
+### `server.timeout`
 <!-- YAML
 added: v0.11.2
+changes:
+  - version: v13.0.0
+    pr-url: https://github.com/nodejs/node/pull/27558
+    description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* {number} **Default:** `120000` (2 minutes)
+* {number} **Default:** 0 (no timeout)
 
 See [`http.Server#timeout`][].
 
-### server.keepAliveTimeout
+### `server.keepAliveTimeout`
 <!-- YAML
 added: v8.0.0
 -->
@@ -138,7 +142,7 @@ added: v8.0.0
 
 See [`http.Server#keepAliveTimeout`][].
 
-## https.createServer(\[options\]\[, requestListener\])
+## `https.createServer([options][, requestListener])`
 <!-- YAML
 added: v0.3.4
 -->
@@ -181,8 +185,8 @@ https.createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
-## https.get(options\[, callback\])
-## https.get(url\[, options\]\[, callback\])
+## `https.get(options[, callback])`
+## `https.get(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
@@ -222,15 +226,15 @@ https.get('https://encrypted.google.com/', (res) => {
 });
 ```
 
-## https.globalAgent
+## `https.globalAgent`
 <!-- YAML
 added: v0.5.9
 -->
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
-## https.request(options\[, callback\])
-## https.request(url\[, options\]\[, callback\])
+## `https.request(options[, callback])`
+## `https.request(url[, options][, callback])`
 <!-- YAML
 added: v0.3.6
 changes:
@@ -368,7 +372,7 @@ const options = {
       return new Error(msg);
     }
 
-    // Pin the exact certificate, rather then the pub key
+    // Pin the exact certificate, rather than the pub key
     const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' +
       'D8:3E:4C:1D:98:DB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
     if (cert.fingerprint256 !== cert256) {

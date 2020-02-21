@@ -29,7 +29,6 @@ const tmpdir = require('../common/tmpdir');
 
 const currentFileData = 'ABCD';
 
-const n = 220;
 const s = '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，疆域包括今天中国的广东、' +
           '广西两省区的大部份地区，福建省、湖南、贵州、云南的一小部份地区和越南的北部。' +
           '南越国是秦朝灭亡后，由南海郡尉赵佗于前203年起兵兼并桂林郡和象郡后建立。' +
@@ -130,51 +129,37 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// Test that appendFile accepts numbers (callback API).
-{
-  const filename = join(tmpdir.path, 'append-numbers.txt');
-  fs.writeFileSync(filename, currentFileData);
+// Test that appendFile does not accept invalid data type (callback API).
+[false, 5, {}, [], null, undefined].forEach(async (data) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /"data"|"buffer"/
+  };
+  const filename = join(tmpdir.path, 'append-invalid-data.txt');
 
-  const m = 0o600;
-  fs.appendFile(filename, n, { mode: m }, common.mustCall((e) => {
-    assert.ifError(e);
+  assert.throws(
+    () => fs.appendFile(filename, data, common.mustNotCall()),
+    errObj
+  );
 
-    // Windows permissions aren't Unix.
-    if (!common.isWindows) {
-      const st = fs.statSync(filename);
-      assert.strictEqual(st.mode & 0o700, m);
+  assert.throws(
+    () => fs.appendFileSync(filename, data),
+    errObj
+  );
+
+  await assert.rejects(
+    fs.promises.appendFile(filename, data),
+    errObj
+  );
+  // The filename shouldn't exist if throwing error.
+  assert.throws(
+    () => fs.statSync(filename),
+    {
+      code: 'ENOENT',
+      message: /no such file or directory/
     }
-
-    fs.readFile(filename, common.mustCall((e, buffer) => {
-      assert.ifError(e);
-      assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
-                         buffer.length);
-    }));
-  }));
-}
-
-// Test that appendFile accepts numbers (promises API).
-{
-  const filename = join(tmpdir.path, 'append-numbers-promises.txt');
-  fs.writeFileSync(filename, currentFileData);
-
-  const m = 0o600;
-  fs.promises.appendFile(filename, n, { mode: m })
-    .then(common.mustCall(() => {
-      // Windows permissions aren't Unix.
-      if (!common.isWindows) {
-        const st = fs.statSync(filename);
-        assert.strictEqual(st.mode & 0o700, m);
-      }
-
-      return fs.promises.readFile(filename);
-    }))
-    .then((buffer) => {
-      assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
-                         buffer.length);
-    })
-    .catch(throwNextTick);
-}
+  );
+});
 
 // Test that appendFile accepts file descriptors (callback API).
 {

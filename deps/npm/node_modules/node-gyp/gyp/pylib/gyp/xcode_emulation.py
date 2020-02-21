@@ -437,7 +437,7 @@ class XcodeSettings(object):
     # most sensible route and should still do the right thing.
     try:
       return GetStdoutQuiet(['xcodebuild', '-version', '-sdk', sdk, infoitem])
-    except:
+    except GypError:
       pass
 
   def _SdkRoot(self, configname):
@@ -855,7 +855,8 @@ class XcodeSettings(object):
       # These flags reflect the compilation options used by xcode to compile
       # extensions.
       ldflags.append('-lpkstart')
-      if XcodeVersion() < '0900':
+      xcode_version, _ = XcodeVersion()
+      if xcode_version < '0900':
         ldflags.append(sdk_root +
             '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
       ldflags.append('-fapplication-extension')
@@ -1088,15 +1089,15 @@ class XcodeSettings(object):
       cache = {}
       cache['BuildMachineOSBuild'] = self._BuildMachineOSBuild()
 
-      xcode, xcode_build = XcodeVersion()
-      cache['DTXcode'] = xcode
+      xcode_version, xcode_build = XcodeVersion()
+      cache['DTXcode'] = xcode_version
       cache['DTXcodeBuild'] = xcode_build
 
       sdk_root = self._SdkRoot(configname)
       if not sdk_root:
         sdk_root = self._DefaultSdkRoot()
       cache['DTSDKName'] = sdk_root
-      if xcode >= '0430':
+      if xcode_version >= '0430':
         cache['DTSDKBuild'] = self._GetSdkVersionInfoItem(
             sdk_root, 'ProductBuildVersion')
       else:
@@ -1126,7 +1127,7 @@ class XcodeSettings(object):
     project, then the environment variable was empty. Starting with this
     version, Xcode uses the name of the newest SDK installed.
     """
-    xcode_version, xcode_build = XcodeVersion()
+    xcode_version, _ = XcodeVersion()
     if xcode_version < '0500':
       return ''
     default_sdk_path = self._XcodeSdkPath('')
@@ -1135,7 +1136,7 @@ class XcodeSettings(object):
       return default_sdk_root
     try:
       all_sdks = GetStdout(['xcodebuild', '-showsdks'])
-    except:
+    except GypError:
       # If xcodebuild fails, there will be no valid SDKs
       return ''
     for line in all_sdks.splitlines():
@@ -1263,10 +1264,12 @@ def XcodeVersion():
   #    Xcode 3.2.6
   #    Component versions: DevToolsCore-1809.0; DevToolsSupport-1806.0
   #    BuildVersion: 10M2518
-  # Convert that to '0463', '4H1503'.
+  # Convert that to ('0463', '4H1503') or ('0326', '10M2518').
   global XCODE_VERSION_CACHE
   if XCODE_VERSION_CACHE:
     return XCODE_VERSION_CACHE
+  version = ""
+  build = ""
   try:
     version_list = GetStdoutQuiet(['xcodebuild', '-version']).splitlines()
     # In some circumstances xcodebuild exits 0 but doesn't return
@@ -1276,21 +1279,16 @@ def XcodeVersion():
     # checking that version.
     if len(version_list) < 2:
       raise GypError("xcodebuild returned unexpected results")
-  except:
-    version = CLTVersion()
-    if version:
-      version = ".".join(version.split(".")[:3])
-    else:
+    version = version_list[0].split()[-1]  # Last word on first line
+    build = version_list[-1].split()[-1]   # Last word on last line
+  except GypError:  # Xcode not installed so look for XCode Command Line Tools
+    version = CLTVersion()  # macOS Catalina returns 11.0.0.0.1.1567737322
+    if not version:
       raise GypError("No Xcode or CLT version detected!")
-    # The CLT has no build information, so we return an empty string.
-    version_list = [version, '']
-  version = version_list[0]
-  build = version_list[-1]
-  # Be careful to convert "4.2" to "0420" and "10.0" to "1000":
-  version = format(''.join((version.split()[-1].split('.') + ['0', '0'])[:3]),
-                   '>04s')
-  if build:
-    build = build.split()[-1]
+  # Be careful to convert "4.2.3" to "0423" and "11.0.0" to "1100":
+  version = version.split(".")[:3]  # Just major, minor, micro
+  version[0] = version[0].zfill(2)  # Add a leading zero if major is one digit
+  version = ("".join(version) + "00")[:4]  # Limit to exactly four characters
   XCODE_VERSION_CACHE = (version, build)
   return XCODE_VERSION_CACHE
 
@@ -1314,7 +1312,7 @@ def CLTVersion():
     try:
       output = GetStdout(['/usr/sbin/pkgutil', '--pkg-info', key])
       return re.search(regex, output).groupdict()['version']
-    except:
+    except GypError:
       continue
 
 
@@ -1524,7 +1522,8 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
   install_name_base = xcode_settings.GetInstallNameBase()
   if install_name_base:
     env['DYLIB_INSTALL_NAME_BASE'] = install_name_base
-  if XcodeVersion() >= '0500' and not env.get('SDKROOT'):
+  xcode_version, _ = XcodeVersion()
+  if xcode_version >= '0500' and not env.get('SDKROOT'):
     sdk_root = xcode_settings._SdkRoot(configuration)
     if not sdk_root:
       sdk_root = xcode_settings._XcodeSdkPath('')

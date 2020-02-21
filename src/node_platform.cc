@@ -2,15 +2,14 @@
 #include "node_internals.h"
 
 #include "env-inl.h"
-#include "debug_utils.h"
-#include <algorithm>
-#include <cmath>
-#include <memory>
+#include "debug_utils-inl.h"
+#include <algorithm>  // find_if(), find(), move()
+#include <cmath>  // llround()
+#include <memory>  // unique_ptr(), shared_ptr(), make_shared()
 
 namespace node {
 
 using v8::Isolate;
-using v8::Local;
 using v8::Object;
 using v8::Platform;
 using v8::Task;
@@ -388,8 +387,9 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   DebugSealHandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
   if (env != nullptr) {
-    InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
-                                   InternalCallbackScope::kAllowEmptyResource);
+    v8::HandleScope scope(isolate);
+    InternalCallbackScope cb_scope(env, Object::New(isolate), { 0, 0 },
+                                   InternalCallbackScope::kNoFlags);
     task->Run();
   } else {
     task->Run();
@@ -511,6 +511,14 @@ double NodePlatform::CurrentClockTimeMillis() {
 TracingController* NodePlatform::GetTracingController() {
   CHECK_NOT_NULL(tracing_controller_);
   return tracing_controller_;
+}
+
+Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
+  return []() {
+    fprintf(stderr, "\n");
+    DumpBacktrace(stderr);
+    fflush(stderr);
+  };
 }
 
 template <class T>

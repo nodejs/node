@@ -3,22 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <cstdlib>
 #include "node_options.h"
 #include "util.h"
-#include <cstdlib>
 
 namespace node {
 
 PerIsolateOptions* PerProcessOptions::get_per_isolate_options() {
   return per_isolate.get();
-}
-
-DebugOptions* EnvironmentOptions::get_debug_options() {
-  return &debug_options_;
-}
-
-const DebugOptions& EnvironmentOptions::debug_options() const {
-  return debug_options_;
 }
 
 EnvironmentOptions* PerIsolateOptions::get_per_env_options() {

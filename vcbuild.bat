@@ -15,6 +15,13 @@ if /i "%1"=="/?" goto help
 
 cd %~dp0
 
+@rem CI_* variables should be kept synchronized with the ones in Makefile
+set CI_NATIVE_SUITES=addons js-native-api node-api
+set CI_JS_SUITES=default
+set CI_DOC=doctool
+@rem Same as the test-ci target in Makefile
+set "common_test_suites=%CI_JS_SUITES% %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
+
 @rem Process arguments.
 set config=Release
 set target=Build
@@ -44,7 +51,6 @@ set noetw_msi_arg=
 set i18n_arg=
 set download_arg=
 set build_release=
-set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 set dll=
@@ -53,10 +59,8 @@ set build_js_native_api_tests=
 set build_node_api_tests=
 set test_node_inspect=
 set test_check_deopts=
-set js_test_suites=default
 set v8_test_options=
 set v8_build_options=
-set "common_test_suites=%js_test_suites% doctool addons js-native-api node-api&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
 set http2_debug=
 set nghttp2_debug=
 set link_module=
@@ -65,6 +69,7 @@ set cctest=
 set openssl_no_asm=
 set doc=
 set extra_msbuild_args=
+set exit_code=0
 
 :next-arg
 if "%1"=="" goto args-done
@@ -90,8 +95,8 @@ if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
-:: test-ci is deprecated
-if /i "%1"=="test-ci"       goto arg-ok
+if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -J -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
+if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -J -p tap --logfile test.tap %CI_JS_SUITES%&set no_cctest=1&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
@@ -133,7 +138,6 @@ if /i "%1"=="intl-none"     set i18n_arg=none&goto arg-ok
 if /i "%1"=="without-intl"  set i18n_arg=none&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
-if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
 if /i "%1"=="static"           set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
@@ -190,7 +194,6 @@ if defined noetw            set configure_flags=%configure_flags% --without-etw&
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
-if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 if defined dll              set configure_flags=%configure_flags% --shared
 if defined enable_static    set configure_flags=%configure_flags% --enable-static
 if defined no_NODE_OPTIONS  set configure_flags=%configure_flags% --without-node-options
@@ -253,9 +256,10 @@ echo Looking for Visual Studio 2019
 set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2017
+set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2019...
-  if not exist "%WIX%\SDK\VS2017" (
+  if not exist "%WIXSDKDIR%" (
     echo Failed to find WiX install for Visual Studio 2019
     echo VS2019 support for WiX is only present starting at version 3.11
     goto vs-set-2017
@@ -288,9 +292,10 @@ if defined target_env if "%target_env%" NEQ "vs2017" goto msbuild-not-found
 echo Looking for Visual Studio 2017
 call tools\msvs\vswhere_usability_wrapper.cmd "[15.0,16.0)"
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
+set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2017...
-  if not exist "%WIX%\SDK\VS2017" (
+  if not exist "%WIXSDKDIR%" (
     echo Failed to find WiX install for Visual Studio 2017
     echo VS2017 support for WiX is only present starting at version 3.11
     goto msbuild-not-found
@@ -475,7 +480,7 @@ if not defined msi goto install-doctools
 echo Building node-v%FULLVERSION%-%target_arch%.msi
 set "msbsdk="
 if defined WindowsSDKVersion set "msbsdk=/p:WindowsTargetPlatformVersion=%WindowsSDKVersion:~0,-1%"
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:WixSdkDir="%WIXSDKDIR%" /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if not defined sign goto upload
@@ -635,9 +640,11 @@ if defined no_cctest echo Skipping cctest because no-cctest was specified && got
 if not exist "%config%\cctest.exe" echo cctest.exe not found. Run "vcbuild test" or "vcbuild cctest" to build it. && goto run-test-py
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
+if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 echo running 'python tools\test.py %test_args%'
 python tools\test.py %test_args%
+if %errorlevel% neq 0 set exit_code=%errorlevel%
 goto test-v8
 
 :test-v8
@@ -703,21 +710,21 @@ del .used_configure_flags
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2017/vs2019] [download-all] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
 echo   vcbuild.bat release msi              : builds release build and MSI installer package
 echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
-echo   vcbuild.bat enable-vtune             : builds nodejs with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
 echo   vcbuild.bat lint                     : runs the C++, documentation and JavaScript linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
 goto exit
 
 :exit
-goto :EOF
+if %errorlevel% neq 0 exit /b %errorlevel%
+exit /b %exit_code%
 
 
 rem ***************

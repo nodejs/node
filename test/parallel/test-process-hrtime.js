@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // The default behavior, return an Array "tuple" of numbers
@@ -33,32 +33,33 @@ validateTuple(tuple);
 validateTuple(process.hrtime(tuple));
 
 // Test that only an Array may be passed to process.hrtime()
-common.expectsError(() => {
+assert.throws(() => {
   process.hrtime(1);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "time" argument must be of type Array. Received type number'
+  name: 'TypeError',
+  message: 'The "time" argument must be an instance of Array. Received type ' +
+           'number (1)'
 });
-common.expectsError(() => {
+assert.throws(() => {
   process.hrtime([]);
 }, {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
+  name: 'RangeError',
   message: 'The value of "time" is out of range. It must be 2. Received 0'
 });
-common.expectsError(() => {
+assert.throws(() => {
   process.hrtime([1]);
 }, {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
+  name: 'RangeError',
   message: 'The value of "time" is out of range. It must be 2. Received 1'
 });
-common.expectsError(() => {
+assert.throws(() => {
   process.hrtime([1, 2, 3]);
 }, {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError,
+  name: 'RangeError',
   message: 'The value of "time" is out of range. It must be 2. Received 3'
 });
 

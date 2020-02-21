@@ -2,8 +2,6 @@
 
 const common = require('../common');
 
-if (!(common.isOSX || common.isWindows))
-  common.skip('recursive option is darwin/windows specific');
 
 const assert = require('assert');
 const path = require('path');
@@ -20,6 +18,11 @@ const testsubdir = fs.mkdtempSync(testDir + path.sep);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 
+if (!common.isOSX && !common.isWindows) {
+  assert.throws(() => { fs.watch(testDir, { recursive: true }); },
+                { code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM' });
+  return;
+}
 const watcher = fs.watch(testDir, { recursive: true });
 
 let watcherClosed = false;

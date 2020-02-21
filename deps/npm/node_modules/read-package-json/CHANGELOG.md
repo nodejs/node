@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="2.1.1"></a>
+## [2.1.1](https://github.com/npm/read-package-json/compare/v2.1.0...v2.1.1) (2019-12-09)
+
+
+### Bug Fixes
+
+* normalize and sanitize pkg bin entries ([b8cb5fa](https://github.com/npm/read-package-json/commit/b8cb5fa))
+
+
+
 <a name="2.1.0"></a>
 # [2.1.0](https://github.com/npm/read-package-json/compare/v2.0.13...v2.1.0) (2019-08-13)
 

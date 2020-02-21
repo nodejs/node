@@ -22,8 +22,8 @@
 #include "memory_tracker-inl.h"
 #include "node_stat_watcher.h"
 #include "async_wrap-inl.h"
-#include "env.h"
-#include "node_file.h"
+#include "env-inl.h"
+#include "node_file-inl.h"
 #include "util-inl.h"
 
 #include <cstring>

@@ -58,22 +58,22 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
 }
 
 // Tests for common.expectsError
-common.expectsError(() => {
+assert.throws(() => {
   throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, { code: 'TEST_ERROR_1' });
-common.expectsError(() => {
+assert.throws(() => {
   throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, { code: 'TEST_ERROR_1',
-     type: TypeError,
+     name: 'TypeError',
      message: /^Error for testing/ });
-common.expectsError(() => {
+assert.throws(() => {
   throw new errors.codes.TEST_ERROR_1.TypeError('a');
-}, { code: 'TEST_ERROR_1', type: TypeError });
-common.expectsError(() => {
+}, { code: 'TEST_ERROR_1', name: 'TypeError' });
+assert.throws(() => {
   throw new errors.codes.TEST_ERROR_1.TypeError('a');
 }, {
   code: 'TEST_ERROR_1',
-  type: TypeError,
+  name: 'TypeError',
   message: 'Error for testing purposes: a'
 });
 

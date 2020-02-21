@@ -13,31 +13,31 @@ const crypto = require('crypto');
                                    ' when called without `new`');
 }
 
-common.expectsError(
+assert.throws(
   () => crypto.createHmac(null),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "hmac" argument must be of type string. Received type object'
+    name: 'TypeError',
+    message: 'The "hmac" argument must be of type string. Received null'
   });
 
 // This used to segfault. See: https://github.com/nodejs/node/issues/9819
-common.expectsError(
+assert.throws(
   () => crypto.createHmac('sha256', 'key').digest({
     toString: () => { throw new Error('boom'); },
   }),
   {
-    type: Error,
+    name: 'Error',
     message: 'boom'
   });
 
-common.expectsError(
+assert.throws(
   () => crypto.createHmac('sha1', null),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "key" argument must be one of type Buffer, TypedArray, ' +
-             'DataView, string, or KeyObject. Received type object'
+    name: 'TypeError',
+    message: 'The "key" argument must be of type string or an instance of ' +
+             'Buffer, TypedArray, DataView, or KeyObject. Received null'
   });
 
 function testHmac(algo, key, data, expected) {

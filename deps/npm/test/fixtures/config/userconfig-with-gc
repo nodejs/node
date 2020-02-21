@@ -1,4 +1,4 @@
-globalconfig = /Users/claudiahdz/npm/cli/test/fixtures/config/globalconfig
+globalconfig = /Users/mperrotte/npminc/cli/test/fixtures/config/globalconfig
 email = i@izs.me
 env-thing = ${random_env_var}
 init.author.name = Isaac Z. Schlueter

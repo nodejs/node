@@ -45,7 +45,7 @@ public:
      * Transliterator API.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
-    virtual Transliterator* clone(void) const;
+    virtual NullTransliterator* clone() const;
 
     /**
      * Implements {@link Transliterator#handleTransliterate}.

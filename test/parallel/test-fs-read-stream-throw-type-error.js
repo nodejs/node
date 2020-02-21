@@ -1,6 +1,7 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
+const assert = require('assert');
 const fs = require('fs');
 
 // This test ensures that appropriate TypeError is thrown by createReadStream
@@ -14,19 +15,19 @@ fs.createReadStream(example, 'utf8');
 fs.createReadStream(example, { encoding: 'utf8' });
 
 const createReadStreamErr = (path, opt, error) => {
-  common.expectsError(() => {
+  assert.throws(() => {
     fs.createReadStream(path, opt);
   }, error);
 };
 
 const typeError = {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError
+  name: 'TypeError'
 };
 
 const rangeError = {
   code: 'ERR_OUT_OF_RANGE',
-  type: RangeError
+  name: 'RangeError'
 };
 
 [123, 0, true, false].forEach((opts) =>

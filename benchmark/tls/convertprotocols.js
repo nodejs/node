@@ -16,7 +16,7 @@ function main({ n }) {
     m = {};
   }
   bench.start();
-  for (var i = 0; i < n; i++)
+  for (let i = 0; i < n; i++)
     tls.convertALPNProtocols(input, m);
   bench.end(n);
 }

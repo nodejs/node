@@ -24,7 +24,7 @@ function main({ dur, len }) {
   const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };
   const child = child_process.spawn('yes', [msg], options);
 
-  var bytes = 0;
+  let bytes = 0;
   child.stdout.on('data', (msg) => {
     bytes += msg.length;
   });

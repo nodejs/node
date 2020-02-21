@@ -20,6 +20,7 @@ function main({ n }) {
     } else
       bench.end(n);
   }
+
   function cb3(arg1, arg2, arg3) {
     if (--counter) {
       if (counter % 4 === 0)
@@ -33,6 +34,7 @@ function main({ n }) {
     } else
       bench.end(n);
   }
+
   function cb2(arg1, arg2) {
     if (--counter) {
       if (counter % 4 === 0)
@@ -46,6 +48,7 @@ function main({ n }) {
     } else
       bench.end(n);
   }
+
   function cb1(arg1) {
     if (--counter) {
       if (counter % 4 === 0)

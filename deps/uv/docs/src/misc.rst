@@ -192,10 +192,10 @@ Data types
 
     ::
 
-    typedef struct uv_env_item_s {
-        char* name;
-        char* value;
-    } uv_env_item_t;
+        typedef struct uv_env_item_s {
+            char* name;
+            char* value;
+        } uv_env_item_t;
 
 .. c:type:: uv_random_t
 
@@ -314,7 +314,7 @@ API
 
 .. c:function:: void uv_loadavg(double avg[3])
 
-    Gets the load average. See: `<http://en.wikipedia.org/wiki/Load_(computing)>`_
+    Gets the load average. See: `<https://en.wikipedia.org/wiki/Load_(computing)>`_
 
     .. note::
         Returns [0,0,0] on Windows (i.e., it's not implemented).
@@ -646,7 +646,7 @@ API
 
     Retrieves system information in `buffer`. The populated data includes the
     operating system name, release, version, and machine. On non-Windows
-    systems, `uv_os_uname()` is a thin wrapper around :man:`uname(3)`. Returns
+    systems, `uv_os_uname()` is a thin wrapper around :man:`uname(2)`. Returns
     zero on success, and a non-zero error value otherwise.
 
     .. versionadded:: 1.25.0
@@ -679,6 +679,7 @@ API
       :man:`sysctl(2)`.
     - FreeBSD: `getrandom(2) <https://www.freebsd.org/cgi/man.cgi?query=getrandom&sektion=2>_`,
       or `/dev/urandom` after reading from `/dev/random` once.
+    - NetBSD: `KERN_ARND` `sysctl(3) <https://netbsd.gw.com/cgi-bin/man-cgi?sysctl+3+NetBSD-current>_`
     - macOS, OpenBSD: `getentropy(2) <https://man.openbsd.org/getentropy.2>_`
       if available, or `/dev/urandom` after reading from `/dev/random` once.
     - AIX: `/dev/random`.
@@ -686,10 +687,16 @@ API
     - Other UNIX: `/dev/urandom` after reading from `/dev/random` once.
 
     :returns: 0 on success, or an error code < 0 on failure. The contents of
-    `buf` is undefined after an error.
+        `buf` is undefined after an error.
 
     .. note::
         When using the synchronous version, both `loop` and `req` parameters
         are not used and can be set to `NULL`.
 
     .. versionadded:: 1.33.0
+
+.. c:function:: void uv_sleep(unsigned int msec)
+
+    Causes the calling thread to sleep for `msec` milliseconds.
+
+    .. versionadded:: 1.34.0

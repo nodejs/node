@@ -62,6 +62,7 @@ const eslintRecommendedPath = path.resolve(__dirname, "../../conf/eslint-recomme
 const eslintAllPath = path.resolve(__dirname, "../../conf/eslint-all.js");
 const configFilenames = [
     ".eslintrc.js",
+    ".eslintrc.cjs",
     ".eslintrc.yaml",
     ".eslintrc.yml",
     ".eslintrc.json",
@@ -279,6 +280,7 @@ function configMissingError(configName, importerName) {
 function loadConfigFile(filePath) {
     switch (path.extname(filePath)) {
         case ".js":
+        case ".cjs":
             return loadJSConfigFile(filePath);
 
         case ".json":

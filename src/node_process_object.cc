@@ -32,11 +32,11 @@ using v8::Value;
 
 static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
-  char buffer[512];
-  uv_get_process_title(buffer, sizeof(buffer));
+  std::string title = GetProcessTitle("node");
   info.GetReturnValue().Set(
-      String::NewFromUtf8(info.GetIsolate(), buffer, NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8(info.GetIsolate(), title.data(),
+                          NewStringType::kNormal, title.size())
+      .ToLocalChecked());
 }
 
 static void ProcessTitleSetter(Local<Name> property,
@@ -51,7 +51,8 @@ static void ProcessTitleSetter(Local<Name> property,
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  int port = env->inspector_host_port()->port();
+  ExclusiveAccess<HostPort>::Scoped host_port(env->inspector_host_port());
+  int port = host_port->port();
   info.GetReturnValue().Set(port);
 }
 
@@ -60,7 +61,8 @@ static void DebugPortSetter(Local<Name> property,
                             const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
   int32_t port = value->Int32Value(env->context()).FromMaybe(0);
-  env->inspector_host_port()->set_port(static_cast<int>(port));
+  ExclusiveAccess<HostPort>::Scoped host_port(env->inspector_host_port());
+  host_port->set_port(static_cast<int>(port));
 }
 
 static void GetParentProcessId(Local<Name> property,

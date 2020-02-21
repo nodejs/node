@@ -283,3 +283,23 @@ child.exec(
     assert.ifError(err);
     assert.strictEqual(stdout, '.mjs file\n');
   }));
+
+
+// Assert that packages can be dynamic imported initial cwd-relative with --eval
+child.exec(
+  `${nodejs} ${execOptions} ` +
+  '--eval "process.chdir(\'..\');' +
+          'import(\'./test/fixtures/es-modules/mjs-file.mjs\')"',
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '.mjs file\n');
+  }));
+
+child.exec(
+  `${nodejs} ` +
+  '--eval "process.chdir(\'..\');' +
+          'import(\'./test/fixtures/es-modules/mjs-file.mjs\')"',
+  common.mustCall((err, stdout) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '.mjs file\n');
+  }));

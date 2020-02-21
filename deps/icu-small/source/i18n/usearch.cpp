@@ -317,7 +317,7 @@ inline uint16_t initializePatternCETable(UStringSearch *strsrch,
         uprv_free(pattern->ces);
     }
 
-    uint16_t  offset      = 0;
+    uint32_t  offset      = 0;
     uint16_t  result      = 0;
     int32_t   ce;
 
@@ -388,7 +388,7 @@ inline uint16_t initializePatternPCETable(UStringSearch *strsrch,
         uprv_free(pattern->pces);
     }
 
-    uint16_t  offset = 0;
+    uint32_t  offset = 0;
     uint16_t  result = 0;
     int64_t   pce;
 
@@ -1351,7 +1351,7 @@ inline int getUnblockedAccentIndex(UChar *accents, int32_t *accentsindex)
 * @param destinationlength target array size, returning the appended length
 * @param source1 null-terminated first array
 * @param source2 second array
-* @param source2length length of seond array
+* @param source2length length of second array
 * @param source3 null-terminated third array
 * @param status error status if any
 * @return new destination array, destination if there was no new allocation
@@ -1560,7 +1560,7 @@ inline void cleanUpSafeText(const UStringSearch *strsrch, UChar *safetext,
 
 /**
 * Take the rearranged end accents and tries matching. If match failed at
-* a seperate preceding set of accents (seperated from the rearranged on by
+* a separate preceding set of accents (separated from the rearranged on by
 * at least a base character) then we rearrange the preceding accents and
 * tries matching again.
 * We allow skipping of the ends of the accent set if the ces do not match.
@@ -2220,7 +2220,7 @@ int32_t doPreviousCanonicalSuffixMatch(UStringSearch *strsrch,
 
 /**
 * Take the rearranged start accents and tries matching. If match failed at
-* a seperate following set of accents (seperated from the rearranged on by
+* a separate following set of accents (separated from the rearranged on by
 * at least a base character) then we rearrange the preceding accents and
 * tries matching again.
 * We allow skipping of the ends of the accent set if the ces do not match.
@@ -3544,7 +3544,12 @@ const CEI *CEIBuffer::get(int32_t index) {
     //   Verify that it is the next one in sequence, which is all
     //   that is allowed.
     if (index != limitIx) {
-        UPRV_UNREACHABLE;
+        U_ASSERT(FALSE);
+        // TODO: In ICU 64 the above assert was changed to use UPRV_UNREACHABLE instead
+        // which unconditionally calls abort(). However, there were cases where this was
+        // being hit. This change is reverted for now, restoring the existing behavior.
+        // ICU-20792 tracks the follow-up work/further investigation on this.
+        return NULL;
     }
 
     // Manage the circular CE buffer indexing
@@ -3581,7 +3586,12 @@ const CEI *CEIBuffer::getPrevious(int32_t index) {
     //   Verify that it is the next one in sequence, which is all
     //   that is allowed.
     if (index != limitIx) {
-        UPRV_UNREACHABLE;
+        U_ASSERT(FALSE);
+        // TODO: In ICU 64 the above assert was changed to use UPRV_UNREACHABLE instead
+        // which unconditionally calls abort(). However, there were cases where this was
+        // being hit. This change is reverted for now, restoring the existing behavior.
+        // ICU-20792 tracks the follow-up work/further investigation on this.
+        return NULL;
     }
 
     // Manage the circular CE buffer indexing
@@ -3852,7 +3862,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
 
 #endif
     // Input parameter sanity check.
-    //  TODO:  should input indicies clip to the text length
+    //  TODO:  should input indices clip to the text length
     //         in the same way that UText does.
     if(strsrch->pattern.cesLength == 0         ||
        startIdx < 0                           ||
@@ -4014,7 +4024,7 @@ U_CAPI UBool U_EXPORT2 usearch_search(UStringSearch  *strsrch,
 
         // Check for the start of the match being within an Collation Element Expansion,
         //   meaning that the first char of the match is only partially matched.
-        //   With exapnsions, the first CE will report the index of the source
+        //   With expansions, the first CE will report the index of the source
         //   character, and all subsequent (expansions) CEs will report the source index of the
         //    _following_ character.
         int32_t secondIx = firstCEI->highIndex;

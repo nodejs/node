@@ -55,10 +55,15 @@
   * OK: JavaScript, Google's V8
   <!--lint disable prohibited-strings remark-lint-->
   * NOT OK: Javascript, Google's v8
-  <!-- lint enable prohibited-strings remark-lint-->
-
 * Use _Node.js_ and not _Node_, _NodeJS_, or similar variants.
+  <!-- lint enable prohibited-strings remark-lint-->
   * When referring to the executable, _`node`_ is acceptable.
+* Be direct.
+  * OK: The return value is a string.
+  <!-- lint disable prohibited-strings remark-lint-->
+  * NOT OK: It is important to note that, in all cases, the return value will be
+    a string regardless.
+  <!-- lint enable prohibited-strings remark-lint-->
 
 See also API documentation structure overview in [doctools README][].
 

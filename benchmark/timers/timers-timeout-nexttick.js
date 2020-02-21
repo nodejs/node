@@ -19,16 +19,18 @@ function main({ n }) {
   function cb() {
     process.nextTick(counter);
   }
+
   function cb2() {
     process.nextTick(counter);
   }
+
   function counter() {
     count++;
     if (count === n)
       bench.end(n);
   }
 
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     setTimeout(i % 2 ? cb : cb2, 1);
   }
 

@@ -19,8 +19,7 @@ function readShrinkwrap (child, next) {
     maybeReadFile('npm-shrinkwrap.json', child),
     // Don't read non-root lockfiles
     child.isTop && maybeReadFile('package-lock.json', child),
-    child.isTop && maybeReadFile('package.json', child),
-    (shrinkwrap, lockfile, pkgJson) => {
+    (shrinkwrap, lockfile) => {
       if (shrinkwrap && lockfile) {
         log.warn('read-shrinkwrap', 'Ignoring package-lock.json because there is already an npm-shrinkwrap.json. Please use only one of the two.')
       }

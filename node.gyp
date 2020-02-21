@@ -2,6 +2,8 @@
   'variables': {
     'v8_use_siphash%': 0,
     'v8_trace_maps%': 0,
+    'v8_enable_pointer_compression%': 0,
+    'v8_enable_31bit_smis_on_64bit_arch%': 0,
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
@@ -23,13 +25,19 @@
     'node_core_target_name%': 'node',
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
+    'node_builtin_modules_path%': '',
     'library_files': [
       'lib/internal/bootstrap/environment.js',
       'lib/internal/bootstrap/loaders.js',
       'lib/internal/bootstrap/node.js',
       'lib/internal/bootstrap/pre_execution.js',
+      'lib/internal/bootstrap/switches/does_own_process_state.js',
+      'lib/internal/bootstrap/switches/does_not_own_process_state.js',
+      'lib/internal/bootstrap/switches/is_main_thread.js',
+      'lib/internal/bootstrap/switches/is_not_main_thread.js',
       'lib/internal/per_context/primordials.js',
       'lib/internal/per_context/domexception.js',
+      'lib/internal/per_context/messageport.js',
       'lib/async_hooks.js',
       'lib/assert.js',
       'lib/buffer.js',
@@ -43,6 +51,7 @@
       'lib/domain.js',
       'lib/events.js',
       'lib/fs.js',
+      'lib/fs/promises.js',
       'lib/http.js',
       'lib/http2.js',
       'lib/_http_agent.js',
@@ -82,6 +91,7 @@
       'lib/util.js',
       'lib/v8.js',
       'lib/vm.js',
+      'lib/wasi.js',
       'lib/worker_threads.js',
       'lib/zlib.js',
       'lib/internal/assert.js',
@@ -130,6 +140,7 @@
       'lib/internal/fs/utils.js',
       'lib/internal/fs/watchers.js',
       'lib/internal/http.js',
+      'lib/internal/heap_utils.js',
       'lib/internal/idna.js',
       'lib/internal/inspector_async_hook.js',
       'lib/internal/js_stream_socket.js',
@@ -138,7 +149,6 @@
       'lib/internal/main/eval_string.js',
       'lib/internal/main/eval_stdin.js',
       'lib/internal/main/inspect.js',
-      'lib/internal/main/print_bash_completion.js',
       'lib/internal/main/print_help.js',
       'lib/internal/main/prof_process.js',
       'lib/internal/main/repl.js',
@@ -150,9 +160,12 @@
       'lib/internal/modules/cjs/loader.js',
       'lib/internal/modules/esm/loader.js',
       'lib/internal/modules/esm/create_dynamic_module.js',
-      'lib/internal/modules/esm/default_resolve.js',
+      'lib/internal/modules/esm/get_format.js',
+      'lib/internal/modules/esm/get_source.js',
       'lib/internal/modules/esm/module_job.js',
       'lib/internal/modules/esm/module_map.js',
+      'lib/internal/modules/esm/resolve.js',
+      'lib/internal/modules/esm/transform_source.js',
       'lib/internal/modules/esm/translators.js',
       'lib/internal/net.js',
       'lib/internal/options.js',
@@ -161,14 +174,13 @@
       'lib/internal/priority_queue.js',
       'lib/internal/process/esm_loader.js',
       'lib/internal/process/execution.js',
-      'lib/internal/process/main_thread_only.js',
       'lib/internal/process/per_thread.js',
       'lib/internal/process/policy.js',
       'lib/internal/process/promises.js',
-      'lib/internal/process/stdio.js',
       'lib/internal/process/warning.js',
       'lib/internal/process/worker_thread_only.js',
       'lib/internal/process/report.js',
+      'lib/internal/process/signal.js',
       'lib/internal/process/task_queues.js',
       'lib/internal/querystring.js',
       'lib/internal/readline/utils.js',
@@ -202,6 +214,7 @@
       'lib/internal/vm/module.js',
       'lib/internal/worker.js',
       'lib/internal/worker/io.js',
+      'lib/internal/watchdog.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/async_iterator.js',
       'lib/internal/streams/buffer_list.js',
@@ -293,7 +306,7 @@
           '-Wl,-bnoerrmsg',
         ],
       }],
-      ['OS in ("linux", "mac") and llvm_version != "0.0"', {
+      ['OS == "linux" and llvm_version != "0.0"', {
         'libraries': ['-latomic'],
       }],
     ],
@@ -321,7 +334,10 @@
         'src/node_main.cc'
       ],
 
-      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
+      'dependencies': [
+        'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
 
       'msvs_settings': {
         'VCLinkerTool': {
@@ -432,7 +448,7 @@
             },
           },
          }],
-        ['want_separate_host_toolset==0', {
+        ['node_use_node_code_cache=="true"', {
           'dependencies': [
             'mkcodecache',
           ],
@@ -495,7 +511,10 @@
         'src',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
-      'dependencies': [ 'deps/histogram/histogram.gyp:histogram' ],
+      'dependencies': [
+        'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
+      ],
 
       'sources': [
         'src/api/async_resource.cc',
@@ -560,6 +579,7 @@
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
+        'src/node_wasi.cc',
         'src/node_watchdog.cc',
         'src/node_worker.cc',
         'src/node_zlib.cc',
@@ -593,6 +613,7 @@
         'src/connect_wrap.h',
         'src/connection_wrap.h',
         'src/debug_utils.h',
+        'src/debug_utils-inl.h',
         'src/env.h',
         'src/env-inl.h',
         'src/handle_wrap.h',
@@ -613,11 +634,14 @@
         'src/node_dir.h',
         'src/node_errors.h',
         'src/node_file.h',
+        'src/node_file-inl.h',
         'src/node_http2.h',
         'src/node_http2_state.h',
         'src/node_i18n.h',
         'src/node_internals.h',
         'src/node_main_instance.h',
+        'src/node_mem.h',
+        'src/node_mem-inl.h',
         'src/node_messaging.h',
         'src/node_metadata.h',
         'src/node_mutex.h',
@@ -637,6 +661,7 @@
         'src/node_url.h',
         'src/node_version.h',
         'src/node_v8_platform-inl.h',
+        'src/node_wasi.h',
         'src/node_watchdog.h',
         'src/node_worker.h',
         'src/pipe_wrap.h',
@@ -688,6 +713,9 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'node_builtin_modules_path!=""', {
+          'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
+        }],
         [ 'node_shared=="true"', {
           'sources': [
             'src/node_snapshot_stub.cc',
@@ -819,10 +847,10 @@
             }],
           ],
         }],
-        [ 'node_use_large_pages=="true" and OS in "linux freebsd mac"', {
+        [ 'OS in "linux freebsd mac" and '
+          'target_arch=="x64" and '
+          'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
-          # The current implementation of Large Pages is under Linux.
-          # Other implementations are possible but not currently supported.
           'sources': [
             'src/large_pages/node_large_page.cc',
             'src/large_pages/node_large_page.h'
@@ -882,22 +910,10 @@
             # Put the code first so it's a dependency and can be used for invocation.
             'tools/js2c.py',
             '<@(library_files)',
-            'config.gypi',
-            'tools/js2c_macros/check_macros.py'
+            'config.gypi'
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-          ],
-          'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
-              'inputs': [ 'tools/js2c_macros/notrace_macros.py' ]
-            }],
-            [ 'node_debug_lib=="false"', {
-              'inputs': [ 'tools/js2c_macros/nodcheck_macros.py' ]
-            }],
-            [ 'node_debug_lib=="true"', {
-              'inputs': [ 'tools/js2c_macros/dcheck_macros.py' ]
-            }]
           ],
           'action': [
             'python', '<@(_inputs)',
@@ -1071,6 +1087,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
         'node_dtrace_provider',
@@ -1086,6 +1103,7 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
+        'deps/uvwasi/include',
         'test/cctest',
       ],
 
@@ -1180,6 +1198,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
       'includes': [
@@ -1192,6 +1211,7 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
+        'deps/uvwasi/include',
       ],
 
       'defines': [
@@ -1223,6 +1243,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
       'includes': [
@@ -1235,6 +1256,7 @@
         'deps/v8/include',
         'deps/cares/include',
         'deps/uv/include',
+        'deps/uvwasi/include',
       ],
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],

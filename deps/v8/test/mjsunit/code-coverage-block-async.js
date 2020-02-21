@@ -119,4 +119,21 @@ new Foo().timeout().next();               // 0400
   {"start":184,"end":302,"count":0},
   {"start":158,"end":182,"count":1}] );
 
+TestCoverage(
+"https://crbug.com/v8/9952",
+`
+async function test(foo) {                // 0000
+  return {bar};                           // 0050
+                                          // 0100
+  function bar() {                        // 0150
+    console.log("test");                  // 0200
+  }                                       // 0250
+}                                         // 0300
+test().then(r => r.bar());                // 0350
+%PerformMicrotaskCheckpoint();            // 0400`,
+[{"start":0,"end":449,"count":1},
+ {"start":0,"end":301,"count":1},
+ {"start":152,"end":253,"count":1},
+ {"start":362,"end":374,"count":1}]);
+
 %DebugToggleBlockCoverage(false);

@@ -22,9 +22,9 @@ const expectedEnv = { foo: 'bar' };
     Symbol('t')
   ];
   invalidModulePath.forEach((modulePath) => {
-    common.expectsError(() => fork(modulePath), {
+    assert.throws(() => fork(modulePath), {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
+      name: 'TypeError',
       message: /^The "modulePath" argument must be of type string/
     });
   });
@@ -49,13 +49,13 @@ const expectedEnv = { foo: 'bar' };
     Symbol('t')
   ];
   invalidSecondArgs.forEach((arg) => {
-    common.expectsError(
+    assert.throws(
       () => {
         fork(fixtures.path('child-process-echo-options.js'), arg);
       },
       {
         code: 'ERR_INVALID_ARG_VALUE',
-        type: TypeError
+        name: 'TypeError'
       }
     );
   });
@@ -92,13 +92,13 @@ const expectedEnv = { foo: 'bar' };
     Symbol('t')
   ];
   invalidThirdArgs.forEach((arg) => {
-    common.expectsError(
+    assert.throws(
       () => {
         fork(fixtures.path('child-process-echo-options.js'), [], arg);
       },
       {
         code: 'ERR_INVALID_ARG_VALUE',
-        type: TypeError
+        name: 'TypeError'
       }
     );
   });

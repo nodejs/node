@@ -34,6 +34,14 @@ update the build and testing process on Windows.
 
 ## configure
 
+The `configure` script recognizes many CLI flags for special build formulas.
+Many are not represented by `vcbuild` shortcuts, and need to be passed
+either by:
+
+* Calling `python configure --XXX --YYY=PPPP` directly, followed by `vcbuild
+  noprojgen`
+* Setting `set config_flags=--XXX --YYY=PPPP` before calling `vcbuild`
+
 To see the help text, run `python configure --help`. Update this file when you
 need to update the configuration process.
 

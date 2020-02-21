@@ -1048,7 +1048,12 @@ static int uv__stream_queue_fd(uv_stream_t* stream, int fd) {
 }
 
 
-#define UV__CMSG_FD_COUNT 64
+#if defined(__PASE__)
+/* on IBMi PASE the control message length can not exceed 256. */
+# define UV__CMSG_FD_COUNT 60
+#else
+# define UV__CMSG_FD_COUNT 64
+#endif
 #define UV__CMSG_FD_SIZE (UV__CMSG_FD_COUNT * sizeof(int))
 
 
@@ -1178,10 +1183,6 @@ static void uv__read(uv_stream_t* stream) {
         stream->read_cb(stream, 0, &buf);
 #if defined(__CYGWIN__) || defined(__MSYS__)
       } else if (errno == ECONNRESET && stream->type == UV_NAMED_PIPE) {
-        uv__stream_eof(stream, &buf);
-        return;
-#elif defined(_AIX)
-      } else if (errno == ECONNRESET && (stream->flags & UV_DISCONNECT)) {
         uv__stream_eof(stream, &buf);
         return;
 #endif

@@ -93,7 +93,7 @@
           '-Wno-unused-parameter',
           '-Wstrict-prototypes',
         ],
-        'OTHER_CFLAGS': [ '-g', '--std=gnu89', '-pedantic' ],
+        'OTHER_CFLAGS': [ '-g', '--std=gnu89' ],
       },
       'conditions': [
         [ 'OS=="win"', {
@@ -217,7 +217,6 @@
             '-fvisibility=hidden',
             '-g',
             '--std=gnu89',
-            '-pedantic',
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter',
@@ -245,7 +244,7 @@
             'src/unix/linux-syscalls.h',
             'src/unix/procfs-exepath.c',
             'src/unix/random-getrandom.c',
-            'src/unix/random-sysctl.c',
+            'src/unix/random-sysctl-linux.c',
             'src/unix/sysinfo-loadavg.c',
           ],
           'link_settings': {
@@ -261,8 +260,9 @@
             'src/unix/pthread-fixes.c',
             'src/unix/android-ifaddrs.c',
             'src/unix/procfs-exepath.c',
+            'src/unix/random-getrandom.c',
+            'src/unix/random-sysctl-linux.c',
             'src/unix/sysinfo-loadavg.c',
-            'src/unix/sysinfo-memory.c',
           ],
           'link_settings': {
             'libraries': [ '-ldl' ],

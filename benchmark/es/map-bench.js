@@ -14,7 +14,7 @@ const bench = common.createBenchmark(main, {
 function runObject(n) {
   const m = {};
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
@@ -27,7 +27,7 @@ function runObject(n) {
 function runNullProtoObject(n) {
   const m = Object.create(null);
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
@@ -40,7 +40,7 @@ function runNullProtoObject(n) {
 function runNullProtoLiteralObject(n) {
   const m = { __proto__: null };
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
@@ -56,7 +56,7 @@ StorageObject.prototype = Object.create(null);
 function runStorageObject(n) {
   const m = new StorageObject();
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     m[`i${i}`] = i;
     m[`s${i}`] = String(i);
     assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
@@ -79,7 +79,7 @@ function fakeMap() {
 function runFakeMap(n) {
   const m = fakeMap();
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     m.set(`i${i}`, i);
     m.set(`s${i}`, String(i));
     assert.strictEqual(String(m.get(`i${i}`)), m.get(`s${i}`));
@@ -92,7 +92,7 @@ function runFakeMap(n) {
 function runMap(n) {
   const m = new Map();
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     m.set(`i${i}`, i);
     m.set(`s${i}`, String(i));
     assert.strictEqual(String(m.get(`i${i}`)), m.get(`s${i}`));

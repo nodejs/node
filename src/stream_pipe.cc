@@ -42,7 +42,7 @@ StreamPipe::StreamPipe(StreamBase* source,
 }
 
 StreamPipe::~StreamPipe() {
-  Unpipe();
+  Unpipe(true);
 }
 
 StreamBase* StreamPipe::source() {
@@ -53,7 +53,7 @@ StreamBase* StreamPipe::sink() {
   return static_cast<StreamBase*>(writable_listener_.stream());
 }
 
-void StreamPipe::Unpipe() {
+void StreamPipe::Unpipe(bool is_in_deletion) {
   if (is_closed_)
     return;
 
@@ -68,11 +68,13 @@ void StreamPipe::Unpipe() {
   source()->RemoveStreamListener(&readable_listener_);
   sink()->RemoveStreamListener(&writable_listener_);
 
+  if (is_in_deletion) return;
+
   // Delay the JS-facing part with SetImmediate, because this might be from
   // inside the garbage collector, so we can’t run JS here.
   HandleScope handle_scope(env()->isolate());
   BaseObjectPtr<StreamPipe> strong_ref{this};
-  env()->SetImmediate([this](Environment* env) {
+  env()->SetImmediate([this, strong_ref](Environment* env) {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
     Local<Object> object = this->object();

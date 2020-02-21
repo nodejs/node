@@ -5,9 +5,9 @@ const assert = require('assert');
 const repl = require('repl');
 const ArrayStream = require('../common/arraystream');
 
-// \u001b[1G - Moves the cursor to 1st column
+// \u001b[nG - Moves the cursor to n st column
 // \u001b[0J - Clear screen
-// \u001b[3G - Moves the cursor to 3rd column
+// \u001b[0K - Clear to line end
 const terminalCode = '\u001b[1G\u001b[0J> \u001b[3G';
 const terminalCodeRegex = new RegExp(terminalCode.replace(/\[/g, '\\['), 'g');
 

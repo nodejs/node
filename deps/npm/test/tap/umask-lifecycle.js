@@ -40,12 +40,13 @@ test('setup', function (t) {
 })
 
 test('umask script', function (t) {
-  common.npm(['run', 'umask'], {
+  common.npm(['run', 'umask', '--scripts-prepend-node-path'], {
     cwd: pkg,
     env: {
       PATH: process.env.PATH,
       Path: process.env.Path,
-      'npm_config_loglevel': 'warn'
+      'npm_config_loglevel': 'warn',
+      nodeExecPath: process.execPath
     }
   }, function (er, code, sout, serr) {
     t.equal(sout, expected)

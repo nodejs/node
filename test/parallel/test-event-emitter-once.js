@@ -50,14 +50,14 @@ e.once('e', common.mustCall());
 e.emit('e');
 
 // Verify that the listener must be a function
-common.expectsError(() => {
+assert.throws(() => {
   const ee = new EventEmitter();
   ee.once('foo', null);
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  type: TypeError,
-  message: 'The "listener" argument must be of type Function. ' +
-           'Received type object'
+  name: 'TypeError',
+  message: 'The "listener" argument must be of type function. ' +
+           'Received null'
 });
 
 {

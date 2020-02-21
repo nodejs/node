@@ -125,7 +125,7 @@ CaseMapTransliterator::CaseMapTransliterator(const CaseMapTransliterator& o) :
 /**
  * Transliterator API.
  */
-/*Transliterator* CaseMapTransliterator::clone(void) const {
+/*CaseMapTransliterator* CaseMapTransliterator::clone() const {
     return new CaseMapTransliterator(*this);
 }*/
 

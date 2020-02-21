@@ -109,11 +109,11 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode_async);
     }
 
-    common.expectsError(
+    assert.throws(
       () => fs.fchmod(fd, {}),
       {
         code: 'ERR_INVALID_ARG_VALUE',
-        type: TypeError,
+        name: 'TypeError',
         message: 'The argument \'mode\' must be a 32-bit unsigned integer ' +
                  'or an octal string. Received {}'
       }
@@ -151,8 +151,9 @@ if (fs.lchmod) {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
-             ` Received type ${typeof input}`
+    message: 'The "path" argument must be of type string or an instance ' +
+             'of Buffer or URL.' +
+             common.invalidArgTypeHelper(input)
   };
   assert.throws(() => fs.chmod(input, 1, common.mustNotCall()), errObj);
   assert.throws(() => fs.chmodSync(input, 1), errObj);

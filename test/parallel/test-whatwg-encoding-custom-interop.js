@@ -5,7 +5,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 
 const assert = require('assert');
 const { customInspectSymbol: inspect } = require('internal/util');
@@ -47,7 +47,7 @@ assert(TextEncoder);
 
   const expectedError = {
     code: 'ERR_INVALID_THIS',
-    type: TypeError,
+    name: 'TypeError',
     message: 'Value of "this" must be of type TextEncoder'
   };
 
@@ -57,8 +57,8 @@ assert(TextEncoder);
 
   const invalidThisArgs = [{}, [], true, 1, '', new TextDecoder()];
   invalidThisArgs.forEach((i) => {
-    common.expectsError(() => inspectFn.call(i, Infinity, {}), expectedError);
-    common.expectsError(() => encodeFn.call(i), expectedError);
-    common.expectsError(() => encodingGetter.call(i), expectedError);
+    assert.throws(() => inspectFn.call(i, Infinity, {}), expectedError);
+    assert.throws(() => encodeFn.call(i), expectedError);
+    assert.throws(() => encodingGetter.call(i), expectedError);
   });
 }

@@ -71,6 +71,7 @@ const writeStream = new WriteStream(fd);
   [{ NO_COLOR: '', COLORTERM: '24bit' }, 1],
   [{ TMUX: '1', FORCE_COLOR: 0 }, 1],
   [{ NO_COLOR: 'true', FORCE_COLOR: 0, COLORTERM: 'truecolor' }, 1],
+  [{ TERM: 'xterm-256color', COLORTERM: 'truecolor' }, 24],
 ].forEach(([env, depth], i) => {
   const actual = writeStream.getColorDepth(env);
   assert.strictEqual(

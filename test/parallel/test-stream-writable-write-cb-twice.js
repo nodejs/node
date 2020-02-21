@@ -7,13 +7,14 @@ const { Writable } = require('stream');
   const writable = new Writable({
     write: common.mustCall((buf, enc, cb) => {
       cb();
-      common.expectsError(cb, {
-        code: 'ERR_MULTIPLE_CALLBACK',
-        type: Error
-      });
+      cb();
     })
   });
   writable.write('hi');
+  writable.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK',
+    name: 'Error'
+  }));
 }
 
 {
@@ -22,14 +23,15 @@ const { Writable } = require('stream');
     write: common.mustCall((buf, enc, cb) => {
       cb();
       process.nextTick(() => {
-        common.expectsError(cb, {
-          code: 'ERR_MULTIPLE_CALLBACK',
-          type: Error
-        });
+        cb();
       });
     })
   });
   writable.write('hi');
+  writable.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK',
+    name: 'Error'
+  }));
 }
 
 {
@@ -38,12 +40,13 @@ const { Writable } = require('stream');
     write: common.mustCall((buf, enc, cb) => {
       process.nextTick(cb);
       process.nextTick(() => {
-        common.expectsError(cb, {
-          code: 'ERR_MULTIPLE_CALLBACK',
-          type: Error
-        });
+        cb();
       });
     })
   });
   writable.write('hi');
+  writable.on('error', common.expectsError({
+    code: 'ERR_MULTIPLE_CALLBACK',
+    name: 'Error'
+  }));
 }

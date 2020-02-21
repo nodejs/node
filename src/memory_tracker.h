@@ -135,6 +135,10 @@ class MemoryTracker {
   inline void TrackFieldWithSize(const char* edge_name,
                                  size_t size,
                                  const char* node_name = nullptr);
+  inline void TrackInlineFieldWithSize(const char* edge_name,
+                                       size_t size,
+                                       const char* node_name = nullptr);
+
   // Shortcut to extract the underlying object out of the smart pointer
   template <typename T>
   inline void TrackField(const char* edge_name,
@@ -228,6 +232,9 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const uv_async_t& value,
                          const char* node_name = nullptr);
+  inline void TrackInlineField(const char* edge_name,
+                               const uv_async_t& value,
+                               const char* node_name = nullptr);
   template <class NativeT, class V8T>
   inline void TrackField(const char* edge_name,
                          const AliasedBufferBase<NativeT, V8T>& value,

@@ -14,15 +14,22 @@ exports = module.exports = {
 }
 
 function linkIfExists (from, to, opts, cb) {
+  opts.currentIsLink = false
+  opts.currentExists = false
   fs.stat(from, function (er) {
     if (er) return cb()
     fs.readlink(to, function (er, fromOnDisk) {
+      if (!er || er.code !== 'ENOENT') {
+        opts.currentExists = true
+      }
       // if the link already exists and matches what we would do,
       // we don't need to do anything
       if (!er) {
+        opts.currentIsLink = true
         var toDir = path.dirname(to)
         var absoluteFrom = path.resolve(toDir, from)
         var absoluteFromOnDisk = path.resolve(toDir, fromOnDisk)
+        opts.currentTarget = absoluteFromOnDisk
         if (absoluteFrom === absoluteFromOnDisk) return cb()
       }
       link(from, to, opts, cb)
@@ -58,7 +65,7 @@ function link (from, to, opts, cb) {
   const tasks = [
     [ensureFromIsNotSource, absTarget, to],
     [fs, 'stat', absTarget],
-    [rm, to, opts],
+    [clobberLinkGently, from, to, opts],
     [mkdir, path.dirname(to)],
     [fs, 'symlink', target, to, 'junction']
   ]
@@ -70,5 +77,50 @@ function link (from, to, opts, cb) {
       tasks.push([chown, to, owner.uid, owner.gid])
       chain(tasks, cb)
     })
+  }
+}
+
+exports._clobberLinkGently = clobberLinkGently
+function clobberLinkGently (from, to, opts, cb) {
+  if (opts.currentExists === false) {
+    // nothing to clobber!
+    opts.log.silly('gently link', 'link does not already exist', {
+      link: to,
+      target: from
+    })
+    return cb()
+  }
+
+  if (!opts.clobberLinkGently ||
+      opts.force === true ||
+      !opts.gently ||
+      typeof opts.gently !== 'string') {
+    opts.log.silly('gently link', 'deleting existing link forcefully', {
+      link: to,
+      target: from,
+      force: opts.force,
+      gently: opts.gently,
+      clobberLinkGently: opts.clobberLinkGently
+    })
+    return rm(to, opts, cb)
+  }
+
+  if (!opts.currentIsLink) {
+    opts.log.verbose('gently link', 'cannot remove, not a link', to)
+    // don't delete.  it'll fail with EEXIST when it tries to symlink.
+    return cb()
+  }
+
+  if (opts.currentTarget.indexOf(opts.gently) === 0) {
+    opts.log.silly('gently link', 'delete existing link', to)
+    return rm(to, opts, cb)
+  } else {
+    opts.log.verbose('gently link', 'refusing to delete existing link', {
+      link: to,
+      currentTarget: opts.currentTarget,
+      newTarget: from,
+      gently: opts.gently
+    })
+    return cb()
   }
 }

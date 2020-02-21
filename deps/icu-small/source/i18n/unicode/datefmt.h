@@ -23,6 +23,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/udat.h"
@@ -220,6 +222,14 @@ public:
      * @stable ICU 2.0
      */
     virtual ~DateFormat();
+
+    /**
+     * Clones this object polymorphically.
+     * The caller owns the result and should delete it when done.
+     * @return clone, or nullptr if an error occurred
+     * @stable ICU 2.0
+     */
+    virtual DateFormat* clone() const = 0;
 
     /**
      * Equality operator.  Returns true if the two formats have the same behavior.
@@ -952,6 +962,8 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _DATEFMT
 //eof

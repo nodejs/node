@@ -12,7 +12,7 @@ function main({ n }) {
   const r = new Readable({ objectMode: true });
   const w = new Writable({ objectMode: true });
 
-  var i = 0;
+  let i = 0;
 
   r._read = () => r.push(i++ === n ? null : b);
   w._write = (data, enc, cb) => cb();

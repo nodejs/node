@@ -1,8 +1,8 @@
 #ifndef INCLUDE_LLHTTP_H_
 #define INCLUDE_LLHTTP_H_
 
-#define LLHTTP_VERSION_MAJOR 1
-#define LLHTTP_VERSION_MINOR 1
+#define LLHTTP_VERSION_MAJOR 2
+#define LLHTTP_VERSION_MINOR 0
 #define LLHTTP_VERSION_PATCH 4
 
 #ifndef INCLUDE_LLHTTP_ITSELF_H_
@@ -29,7 +29,7 @@ struct llhttp__internal_s {
   uint8_t http_major;
   uint8_t http_minor;
   uint8_t header_state;
-  uint8_t flags;
+  uint16_t flags;
   uint8_t upgrade;
   uint16_t status_code;
   uint8_t finish;
@@ -66,14 +66,15 @@ enum llhttp_errno {
   HPE_INVALID_CHUNK_SIZE = 12,
   HPE_INVALID_STATUS = 13,
   HPE_INVALID_EOF_STATE = 14,
-  HPE_CB_MESSAGE_BEGIN = 15,
-  HPE_CB_HEADERS_COMPLETE = 16,
-  HPE_CB_MESSAGE_COMPLETE = 17,
-  HPE_CB_CHUNK_HEADER = 18,
-  HPE_CB_CHUNK_COMPLETE = 19,
-  HPE_PAUSED = 20,
-  HPE_PAUSED_UPGRADE = 21,
-  HPE_USER = 22
+  HPE_INVALID_TRANSFER_ENCODING = 15,
+  HPE_CB_MESSAGE_BEGIN = 16,
+  HPE_CB_HEADERS_COMPLETE = 17,
+  HPE_CB_MESSAGE_COMPLETE = 18,
+  HPE_CB_CHUNK_HEADER = 19,
+  HPE_CB_CHUNK_COMPLETE = 20,
+  HPE_PAUSED = 21,
+  HPE_PAUSED_UPGRADE = 22,
+  HPE_USER = 23
 };
 typedef enum llhttp_errno llhttp_errno_t;
 
@@ -85,7 +86,9 @@ enum llhttp_flags {
   F_UPGRADE = 0x10,
   F_CONTENT_LENGTH = 0x20,
   F_SKIPBODY = 0x40,
-  F_TRAILING = 0x80
+  F_TRAILING = 0x80,
+  F_LENIENT = 0x100,
+  F_TRANSFER_ENCODING = 0x200
 };
 typedef enum llhttp_flags llhttp_flags_t;
 
@@ -157,14 +160,15 @@ typedef enum llhttp_method llhttp_method_t;
   XX(12, INVALID_CHUNK_SIZE, INVALID_CHUNK_SIZE) \
   XX(13, INVALID_STATUS, INVALID_STATUS) \
   XX(14, INVALID_EOF_STATE, INVALID_EOF_STATE) \
-  XX(15, CB_MESSAGE_BEGIN, CB_MESSAGE_BEGIN) \
-  XX(16, CB_HEADERS_COMPLETE, CB_HEADERS_COMPLETE) \
-  XX(17, CB_MESSAGE_COMPLETE, CB_MESSAGE_COMPLETE) \
-  XX(18, CB_CHUNK_HEADER, CB_CHUNK_HEADER) \
-  XX(19, CB_CHUNK_COMPLETE, CB_CHUNK_COMPLETE) \
-  XX(20, PAUSED, PAUSED) \
-  XX(21, PAUSED_UPGRADE, PAUSED_UPGRADE) \
-  XX(22, USER, USER) \
+  XX(15, INVALID_TRANSFER_ENCODING, INVALID_TRANSFER_ENCODING) \
+  XX(16, CB_MESSAGE_BEGIN, CB_MESSAGE_BEGIN) \
+  XX(17, CB_HEADERS_COMPLETE, CB_HEADERS_COMPLETE) \
+  XX(18, CB_MESSAGE_COMPLETE, CB_MESSAGE_COMPLETE) \
+  XX(19, CB_CHUNK_HEADER, CB_CHUNK_HEADER) \
+  XX(20, CB_CHUNK_COMPLETE, CB_CHUNK_COMPLETE) \
+  XX(21, PAUSED, PAUSED) \
+  XX(22, PAUSED_UPGRADE, PAUSED_UPGRADE) \
+  XX(23, USER, USER) \
 
 
 #define HTTP_METHOD_MAP(XX) \
@@ -297,7 +301,7 @@ llhttp_errno_t llhttp_finish(llhttp_t* parser);
 int llhttp_message_needs_eof(const llhttp_t* parser);
 
 /* Returns `1` if there might be any other messages following the last that was
- * successfuly parsed.
+ * successfully parsed.
  */
 int llhttp_should_keep_alive(const llhttp_t* parser);
 
@@ -352,6 +356,18 @@ const char* llhttp_errno_name(llhttp_errno_t err);
 
 /* Returns textual name of HTTP method */
 const char* llhttp_method_name(llhttp_method_t method);
+
+
+/* Enables/disables lenient header value parsing (disabled by default).
+ *
+ * Lenient parsing disables header value token checks, extending llhttp's
+ * protocol support to highly non-compliant clients/server. No
+ * `HPE_INVALID_HEADER_TOKEN` will be raised for incorrect header values when
+ * lenient parsing is "on".
+ *
+ * **(USE AT YOUR OWN RISK)**
+ */
+void llhttp_set_lenient(llhttp_t* parser, int enabled);
 
 #ifdef __cplusplus
 }  /* extern "C" */

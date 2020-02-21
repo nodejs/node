@@ -1,0 +1,169 @@
+// Copyright (C) 2018 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+
+{
+    "$id": "http://unicode.org/icu-filter-schema",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "JSON Schema for an ICU data filter file",
+    "type": "object",
+    "properties": {
+        "strategy": {
+            "type": "string",
+            "enum": ["additive", "subtractive"]
+        },
+        "localeFilter": { "$ref": "#/definitions/filter" },
+        "featureFilters": {
+            "type": "object",
+            "additionalProperties": {
+                "oneOf": [
+                    { "$ref": "#/definitions/filter" },
+                    {
+                        "type": "string",
+                        "enum": ["include", "exclude"]
+                    }
+                ]
+            }
+        },
+        "resourceFilters": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "categories": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "files": { "$ref": "#/definitions/filter" },
+                    "rules": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^[+-]/[\\S]*$"
+                        }
+                    }
+                },
+                "required": ["categories", "rules"],
+                "additionalProperties": false
+            }
+        },
+        "fileReplacements": {
+            "type": "object",
+            "properties": {
+                "directory": {
+                    "type": "string",
+                    "pattern": "^(\\$SRC|\\$FILTERS|\\$CWD|/$|/[^/]+)(/[^/]+)*$"
+                },
+                "replacements": {
+                    "type": "array",
+                    "items": {
+                        "oneOf": [
+                            { "type": "string" },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "src": { "type": "string" },
+                                    "dest": { "type": "string" }
+                                },
+                                "additionalProperties": false,
+                                "required": ["src", "dest"]
+                            }
+                        ]
+                    }
+                }
+            },
+            "additionalProperties": false,
+            "required": ["directory", "replacements"]
+        },
+        "collationUCAData": {
+            "type": "string",
+            "enum": ["unihan", "implicithan"]
+        },
+        "usePoolBundle": {
+            "type": "boolean"
+        }
+    },
+    "additionalProperties": false,
+    "definitions": {
+        "filter": {
+            "type": "object",
+            "oneOf": [
+                {
+                    "properties": {
+                        "filterType": {
+                            "$ref": "#/definitions/blacklistWhitelistFilterTypes"
+                        },
+                        "whitelist": { "$ref": "#/definitions/stringList" }
+                    },
+                    "required": ["whitelist"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "$ref": "#/definitions/blacklistWhitelistFilterTypes"
+                        },
+                        "blacklist": { "$ref": "#/definitions/stringList" }
+                    },
+                    "required": ["blacklist"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "type": "string",
+                            "enum": ["exclude"]
+                        }
+                    },
+                    "required": ["filterType"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "type": "string",
+                            "enum": ["locale"]
+                        },
+                        "includeChildren": {
+                            "type": "boolean"
+                        },
+                        "includeScripts": {
+                            "type": "boolean"
+                        },
+                        "whitelist": { "$ref": "#/definitions/stringList" }
+                    },
+                    "required": ["filterType", "whitelist"],
+                    "additionalProperties": false
+                },
+                {
+                    "properties": {
+                        "filterType": {
+                            "type": "string",
+                            "enum": ["union"]
+                        },
+                        "unionOf": {
+                            "type": "array",
+                            "items": { "$ref": "#/definitions/filter" }
+                        }
+                    },
+                    "required": ["filterType", "unionOf"],
+                    "additionalProperties": false
+                }
+            ]
+        },
+        "blacklistWhitelistFilterTypes": {
+            "type": "string",
+            "enum": [
+                "language",
+                "regex"
+            ]
+        },
+        "stringList": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        }
+    }
+}

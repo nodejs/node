@@ -22,6 +22,7 @@
 #include "util.h"  // NOLINT(build/include_inline)
 #include "util-inl.h"
 
+#include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
@@ -45,6 +46,7 @@
 
 #include <atomic>
 #include <cstdio>
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 
@@ -133,17 +135,30 @@ void LowMemoryNotification() {
   }
 }
 
-std::string GetHumanReadableProcessName() {
-  char name[1024];
-  GetHumanReadableProcessName(&name);
-  return name;
+std::string GetProcessTitle(const char* default_title) {
+  std::string buf(16, '\0');
+
+  for (;;) {
+    const int rc = uv_get_process_title(&buf[0], buf.size());
+
+    if (rc == 0)
+      break;
+
+    if (rc != UV_ENOBUFS)
+      return default_title;
+
+    buf.resize(2 * buf.size());
+  }
+
+  // Strip excess trailing nul bytes. Using strlen() here is safe,
+  // uv_get_process_title() always zero-terminates the result.
+  buf.resize(strlen(&buf[0]));
+
+  return buf;
 }
 
-void GetHumanReadableProcessName(char (*name)[1024]) {
-  // Leave room after title for pid, which can be up to 20 digits for 64 bit.
-  char title[1000] = "Node.js";
-  uv_get_process_title(title, sizeof(title));
-  snprintf(*name, sizeof(*name), "%s[%d]", title, uv_os_getpid());
+std::string GetHumanReadableProcessName() {
+  return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
 std::vector<std::string> SplitString(const std::string& in, char delim) {

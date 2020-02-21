@@ -13,6 +13,7 @@
   * [Waiting for Approvals](#waiting-for-approvals)
   * [Testing and CI](#testing-and-ci)
     * [Useful CI Jobs](#useful-ci-jobs)
+    * [Starting a CI Job](#starting-a-ci-job)
   * [Internal vs. Public API](#internal-vs-public-api)
   * [Breaking Changes](#breaking-changes)
     * [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
@@ -191,12 +192,6 @@ everything else. Start a fresh CI if more than seven days have elapsed since
 the original failing CI as the compiled binaries for the Windows and ARM
 platforms are only kept for seven days.
 
-Some of the CI Jobs may require `GIT_REMOTE_REF` which is the remote portion
-of Git refspec. To specify the branch this way `refs/heads/BRANCH` is used
-(i.e for `master` -> `refs/heads/master`).
-For pull requests it will look like `refs/pull/PR_NUMBER/head`
-(i.e. for PR#42 -> `refs/pull/42/head`).
-
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
@@ -216,11 +211,36 @@ that the tests are reliable.
 runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
 patches on V8.
 
-* [`node-test-commit-custom-suites`](https://ci.nodejs.org/job/node-test-commit-custom-suites/)
+* [`node-test-commit-custom-suites-freestyle`](https://ci.nodejs.org/job/node-test-commit-custom-suites-freestyle/)
 enables customization of test suites and parameters. It can execute test suites
 not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
+
+#### Starting a CI Job
+
+From the CI Job page, click "Build with Parameters" on the left side.
+
+You generally need to enter only one or both of the following options
+in the form:
+
+* `GIT_REMOTE_REF`: Change to the remote portion of git refspec.
+To specify the branch this way, `refs/heads/BRANCH` is used
+(e.g. for `master` -> `refs/heads/master`).
+For pull requests, it will look like `refs/pull/PR_NUMBER/head`
+(e.g. for PR#42 -> `refs/pull/42/head`).
+* `REBASE_ONTO`: Change that to `origin/master` so the pull request gets rebased
+onto master. This can especially be important for pull requests that have been
+open a while.
+
+Look at the list of jobs on the left hand side under "Build History" and copy
+the link to the one you started (which will be the one on top, but click
+through to make sure it says something like "Started 5 seconds ago"
+(top right) and "Started by user ...".
+
+Copy/paste the URL for the job into a comment in the pull request.
+[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
+is an exception where the GitHub bot will automatically post for you.
 
 ### Internal vs. Public API
 

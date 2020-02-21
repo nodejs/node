@@ -45,13 +45,9 @@ U_CDECL_BEGIN
 Static cache for already opened StringPrep profiles
 */
 static UHashtable *SHARED_DATA_HASHTABLE = NULL;
-static icu::UInitOnce gSharedDataInitOnce;
+static icu::UInitOnce gSharedDataInitOnce = U_INITONCE_INITIALIZER;
 
-static UMutex *usprepMutex() {
-    static UMutex m = U_MUTEX_INITIALIZER;
-    return &m;
-}
-
+static UMutex usprepMutex;
 /* format version of spp file */
 //static uint8_t formatVersion[4]={ 0, 0, 0, 0 };
 
@@ -151,9 +147,9 @@ usprep_internal_flushCache(UBool noRefCount){
      * if shared data hasn't even been lazy evaluated yet
      * return 0
      */
-    umtx_lock(usprepMutex());
+    umtx_lock(&usprepMutex);
     if (SHARED_DATA_HASHTABLE == NULL) {
-        umtx_unlock(usprepMutex());
+        umtx_unlock(&usprepMutex);
         return 0;
     }
 
@@ -184,7 +180,7 @@ usprep_internal_flushCache(UBool noRefCount){
         }
 
     }
-    umtx_unlock(usprepMutex());
+    umtx_unlock(&usprepMutex);
 
     return deletedNum;
 }
@@ -262,7 +258,7 @@ loadData(UStringPrepProfile* profile,
     }
 
     /* in the mutex block, set the data for this process */
-    umtx_lock(usprepMutex());
+    umtx_lock(&usprepMutex);
     if(profile->sprepData==NULL) {
         profile->sprepData=dataMemory;
         dataMemory=NULL;
@@ -271,7 +267,7 @@ loadData(UStringPrepProfile* profile,
     } else {
         p=(const int32_t *)udata_getMemory(profile->sprepData);
     }
-    umtx_unlock(usprepMutex());
+    umtx_unlock(&usprepMutex);
     /* initialize some variables */
     profile->mappingData=(uint16_t *)((uint8_t *)(p+_SPREP_INDEX_TOP)+profile->indexes[_SPREP_INDEX_TRIE_SIZE]);
 
@@ -328,12 +324,12 @@ usprep_getProfile(const char* path,
     stackKey.path = (char*) path;
 
     /* fetch the data from the cache */
-    umtx_lock(usprepMutex());
+    umtx_lock(&usprepMutex);
     profile = (UStringPrepProfile*) (uhash_get(SHARED_DATA_HASHTABLE,&stackKey));
     if(profile != NULL) {
         profile->refCount++;
     }
-    umtx_unlock(usprepMutex());
+    umtx_unlock(&usprepMutex);
 
     if(profile == NULL) {
         /* else load the data and put the data in the cache */
@@ -365,7 +361,7 @@ usprep_getProfile(const char* path,
             return NULL;
         }
 
-        umtx_lock(usprepMutex());
+        umtx_lock(&usprepMutex);
         // If another thread already inserted the same key/value, refcount and cleanup our thread data
         profile = (UStringPrepProfile*) (uhash_get(SHARED_DATA_HASHTABLE,&stackKey));
         if(profile != NULL) {
@@ -386,7 +382,7 @@ usprep_getProfile(const char* path,
             profile->refCount = 1;
             uhash_put(SHARED_DATA_HASHTABLE, key.orphan(), profile, status);
         }
-        umtx_unlock(usprepMutex());
+        umtx_unlock(&usprepMutex);
     }
 
     return profile;
@@ -425,12 +421,12 @@ usprep_close(UStringPrepProfile* profile){
         return;
     }
 
-    umtx_lock(usprepMutex());
+    umtx_lock(&usprepMutex);
     /* decrement the ref count*/
     if(profile->refCount > 0){
         profile->refCount--;
     }
-    umtx_unlock(usprepMutex());
+    umtx_unlock(&usprepMutex);
 
 }
 

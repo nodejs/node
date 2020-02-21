@@ -25,7 +25,8 @@ if (!process.env.HAS_STARTED_WORKER) {
   }));
   w.on('error', common.expectsError({
     code: 'ERR_WORKER_OUT_OF_MEMORY',
-    message: 'Worker terminated due to reaching memory limit'
+    message: 'Worker terminated due to reaching memory limit: ' +
+    'JS heap out of memory'
   }));
   return;
 }

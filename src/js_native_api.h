@@ -440,7 +440,7 @@ NAPI_EXTERN napi_status napi_reject_deferred(napi_env env,
                                              napi_deferred deferred,
                                              napi_value rejection);
 NAPI_EXTERN napi_status napi_is_promise(napi_env env,
-                                        napi_value promise,
+                                        napi_value value,
                                         bool* is_promise);
 
 // Running a script
@@ -506,6 +506,15 @@ NAPI_EXTERN napi_status napi_get_value_bigint_words(napi_env env,
                                                     size_t* word_count,
                                                     uint64_t* words);
 
+// Object
+NAPI_EXTERN napi_status
+napi_get_all_property_names(napi_env env,
+                            napi_value object,
+                            napi_key_collection_mode key_mode,
+                            napi_key_filter key_filter,
+                            napi_key_conversion key_conversion,
+                            napi_value* result);
+
 // Instance data
 NAPI_EXTERN napi_status napi_set_instance_data(napi_env env,
                                                void* data,
@@ -518,6 +527,10 @@ NAPI_EXTERN napi_status napi_get_instance_data(napi_env env,
 // ArrayBuffer detaching
 NAPI_EXTERN napi_status napi_detach_arraybuffer(napi_env env,
                                                 napi_value arraybuffer);
+
+NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
+                                                     napi_value value,
+                                                     bool* result);
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

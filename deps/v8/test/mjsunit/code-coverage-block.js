@@ -337,11 +337,7 @@ TestCoverage(
 [{"start":0,"end":849,"count":1},
  {"start":1,"end":801,"count":1},
  {"start":67,"end":87,"count":0},
- {"start":221,"end":222,"count":0},
- {"start":254,"end":274,"count":0},
- {"start":371,"end":372,"count":0},
- {"start":403,"end":404,"count":0},
- {"start":553,"end":554,"count":0}]
+ {"start":254,"end":274,"count":0}]
 );
 
 TestCoverage("try/catch/finally statements with early return",
@@ -358,10 +354,8 @@ TestCoverage("try/catch/finally statements with early return",
 `,
 [{"start":0,"end":449,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":69,"end":70,"count":0},
  {"start":91,"end":150,"count":0},
  {"start":201,"end":401,"count":1},
- {"start":269,"end":270,"count":0},
  {"start":321,"end":400,"count":0}]
 );
 
@@ -393,7 +387,6 @@ TestCoverage(
 `,
 [{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":69,"end":70,"count":0},
  {"start":91,"end":150,"count":0},
  {"start":201,"end":351,"count":1},
  {"start":286,"end":350,"count":0},
@@ -401,7 +394,6 @@ TestCoverage(
  {"start":603,"end":700,"count":0},
  {"start":561,"end":568,"count":0},
  {"start":751,"end":1051,"count":1},
- {"start":819,"end":820,"count":0},
  {"start":861,"end":1050,"count":0}]
 );
 
@@ -561,7 +553,6 @@ try {                                     // 0200
 } catch (e) {}                            // 0450
 `,
 [{"start":0,"end":499,"count":1},
- {"start":451,"end":452,"count":0},
  {"start":12,"end":101,"count":1},
  {"start":60,"end":100,"count":0},
  {"start":264,"end":353,"count":1},
@@ -636,7 +627,6 @@ try {                                     // 0200
 } catch (e) {}                            // 0450
 `,
 [{"start":0,"end":499,"count":1},
- {"start":451,"end":452,"count":0},
  {"start":12,"end":101,"count":1},
  {"start":65,"end":100,"count":0},
  {"start":264,"end":353,"count":1},
@@ -1017,7 +1007,6 @@ try {                                     // 0500
 } catch (err) {}                          // 0600
 `,
 [{"start":0,"end":649,"count":1},
- {"start":351,"end":352,"count":0},
  {"start":602,"end":616,"count":0},
  {"start":0,"end":201,"count":2},
  {"start":69,"end":153,"count":1}]
@@ -1082,5 +1071,110 @@ TestCoverage(
  {"start":0,"end":34,"count":1},
  {"start":16,"end":33,"count":0}]
 );
+
+TestCoverage(
+"https://crbug.com/v8/9952",
+`
+function test(foo = "foodef") {           // 0000
+  return {bar};                           // 0050
+                                          // 0100
+  function bar() {                        // 0150
+    console.log("test");                  // 0200
+  }                                       // 0250
+}                                         // 0300
+test().bar();                             // 0350
+`,
+[{"start":0,"end":399,"count":1},
+ {"start":0,"end":301,"count":1},
+ {"start":152,"end":253,"count":1}]);
+
+TestCoverage(
+"https://crbug.com/v8/9952",
+`
+function test(foo = (()=>{})) {           // 0000
+  return {foo};                           // 0050
+}                                         // 0100
+                                          // 0150
+test(()=>{}).foo();                       // 0200
+`,
+[{"start":0,"end":249,"count":1},
+ {"start":0,"end":101,"count":1},
+ {"start":21,"end":27,"count":0},
+ {"start":205,"end":211,"count":1}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/10030 - original",
+`
+function a (shouldThrow) {                // 0000
+  try {                                   // 0050
+    if (shouldThrow)                      // 0100
+      throw Error('I threw!');            // 0150
+    return 'I ran';                       // 0200
+  } catch(e) {                            // 0250
+    console.info('caught');               // 0300
+  }                                       // 0350
+}                                         // 0400
+a(false);                                 // 0450
+a(true);                                  // 0500
+`,
+[{"start":0,"end":549,"count":1},
+ {"start":0,"end":401,"count":2},
+ {"start":156,"end":353,"count":1}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/10030 - only throw",
+`
+function a (shouldThrow) {                // 0000
+  try {                                   // 0050
+    if (shouldThrow)                      // 0100
+      throw Error('I threw!');            // 0150
+    return 'I ran';                       // 0200
+  } catch(e) {                            // 0250
+    console.info('caught');               // 0300
+  }                                       // 0350
+}                                         // 0400
+a(true);                                  // 0450
+`,
+[{"start":0,"end":499,"count":1},
+ {"start":0,"end":401,"count":1},
+ {"start":180,"end":254,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/10030 - finally",
+`
+function a (shouldThrow) {                // 0000
+  try {                                   // 0050
+    return 'I ran';                       // 0100
+  } finally {                             // 0150
+    console.info('finally');              // 0200
+  }                                       // 0250
+}                                         // 0300
+a(false);                                 // 0350
+a(true);                                  // 0400
+`,
+[{"start":0,"end":449,"count":1},
+ {"start":0,"end":301,"count":2}]);
+
+TestCoverage(
+"https://crbug.com/v8/10030 - catch & finally",
+`
+function a (shouldThrow) {                // 0000
+  try {                                   // 0050
+    return 'I ran';                       // 0100
+  } catch (e) {                           // 0150
+    console.info('caught');               // 0200
+  } finally {                             // 0250
+    console.info('finally');              // 0300
+  }                                       // 0350
+}                                         // 0400
+a(false);                                 // 0450
+a(true);                                  // 0500
+`,
+[{"start":0,"end":549,"count":1},
+ {"start":0,"end":401,"count":2},
+ {"start":154,"end":254,"count":0}]);
 
 %DebugToggleBlockCoverage(false);

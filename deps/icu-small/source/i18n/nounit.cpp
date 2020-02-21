@@ -29,7 +29,7 @@ NoUnit::NoUnit(const char* subtype) {
 NoUnit::NoUnit(const NoUnit& other) : MeasureUnit(other) {
 }
 
-UObject* NoUnit::clone() const {
+NoUnit* NoUnit::clone() const {
     return new NoUnit(*this);
 }
 

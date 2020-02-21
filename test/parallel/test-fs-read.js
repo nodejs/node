@@ -68,6 +68,10 @@ test(new Uint8Array(expected.length),
   }));
 }
 
+assert.throws(() => new fs.Dir(), {
+  code: 'ERR_MISSING_ARGS',
+});
+
 assert.throws(
   () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
   {
@@ -79,7 +83,7 @@ assert.throws(
 assert.throws(
   () => fs.read(null, Buffer.alloc(1), 0, 1, 0),
   {
-    message: 'The "fd" argument must be of type number. Received type object',
+    message: 'The "fd" argument must be of type number. Received null',
     code: 'ERR_INVALID_ARG_TYPE',
   }
 );

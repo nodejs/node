@@ -71,9 +71,8 @@ function useWHATWG(data) {
 }
 
 function main({ type, method, e }) {
-  e = +e;
-  var data;
-  var noDead;  // Avoid dead code elimination.
+  let data;
+  let noDead;  // Avoid dead code elimination.
   switch (method) {
     case 'legacy':
       data = common.bakeUrlData(type, e, false, false);

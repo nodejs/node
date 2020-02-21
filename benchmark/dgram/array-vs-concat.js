@@ -18,12 +18,12 @@ const bench = common.createBenchmark(main, {
 
 function main({ dur, len, num, type, chunks }) {
   const chunk = [];
-  for (var i = 0; i < chunks; i++) {
+  for (let i = 0; i < chunks; i++) {
     chunk.push(Buffer.allocUnsafe(Math.round(len / chunks)));
   }
 
   // Server
-  var sent = 0;
+  let sent = 0;
   const socket = dgram.createSocket('udp4');
   const onsend = type === 'concat' ? onsendConcat : onsendMulti;
 
@@ -32,7 +32,7 @@ function main({ dur, len, num, type, chunks }) {
       // The setImmediate() is necessary to have event loop progress on OSes
       // that only perform synchronous I/O on nonblocking UDP sockets.
       setImmediate(() => {
-        for (var i = 0; i < num; i++) {
+        for (let i = 0; i < num; i++) {
           socket.send(Buffer.concat(chunk), PORT, '127.0.0.1', onsend);
         }
       });
@@ -44,7 +44,7 @@ function main({ dur, len, num, type, chunks }) {
       // The setImmediate() is necessary to have event loop progress on OSes
       // that only perform synchronous I/O on nonblocking UDP sockets.
       setImmediate(() => {
-        for (var i = 0; i < num; i++) {
+        for (let i = 0; i < num; i++) {
           socket.send(chunk, PORT, '127.0.0.1', onsend);
         }
       });

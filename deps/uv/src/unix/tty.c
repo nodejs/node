@@ -139,7 +139,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int unused) {
      * slave device.
      */
     if (uv__tty_is_slave(fd) && ttyname_r(fd, path, sizeof(path)) == 0)
-      r = uv__open_cloexec(path, mode);
+      r = uv__open_cloexec(path, mode | O_NOCTTY);
     else
       r = -1;
 
@@ -293,7 +293,14 @@ uv_handle_type uv_guess_handle(uv_file file) {
   if (file < 0)
     return UV_UNKNOWN_HANDLE;
 
+#if defined(__PASE__)
+  /* On IBMi PASE isatty() always returns true for stdin, stdout and stderr.
+   * Use ioctl() instead to identify whether it's actually a TTY.
+   */
+  if (!ioctl(file, TXISATTY + 0x81, NULL) || errno != ENOTTY)
+#else
   if (isatty(file))
+#endif
     return UV_TTY;
 
   if (fstat(file, &s))

@@ -4,6 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const fixtures = require('../common/fixtures');
+const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
 
@@ -35,16 +36,15 @@ server.on('stream', common.mustCall((stream) => {
       return;
     }
 
-    common.expectsError(
+    assert.throws(
       () => stream.respondWithFD(types[type], {
         'content-type': 'text/plain'
       }),
       {
-        type: TypeError,
+        name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "fd" argument must be one of type number or FileHandle.' +
-                 ' Received type ' +
-                 typeof types[type]
+        message: 'The "fd" argument must be of type number or an instance of' +
+                 ` FileHandle.${common.invalidArgTypeHelper(types[type])}`
       }
     );
   });
@@ -56,14 +56,14 @@ server.on('stream', common.mustCall((stream) => {
         return;
       }
 
-      common.expectsError(
+      assert.throws(
         () => stream.respondWithFD(fd, {
           'content-type': 'text/plain'
         }, {
           [option]: types[type]
         }),
         {
-          type: TypeError,
+          name: 'TypeError',
           code: 'ERR_INVALID_OPT_VALUE',
           message: `The value "${String(types[type])}" is invalid ` +
                    `for option "${option}"`
@@ -73,40 +73,40 @@ server.on('stream', common.mustCall((stream) => {
   });
 
   // Should throw if :status 204, 205 or 304
-  [204, 205, 304].forEach((status) => common.expectsError(
+  [204, 205, 304].forEach((status) => assert.throws(
     () => stream.respondWithFD(fd, {
       'content-type': 'text/plain',
       ':status': status,
     }),
     {
       code: 'ERR_HTTP2_PAYLOAD_FORBIDDEN',
-      type: Error,
+      name: 'Error',
       message: `Responses with ${status} status must not have a payload`
     }
   ));
 
   // Should throw if headers already sent
   stream.respond();
-  common.expectsError(
+  assert.throws(
     () => stream.respondWithFD(fd, {
       'content-type': 'text/plain'
     }),
     {
       code: 'ERR_HTTP2_HEADERS_SENT',
-      type: Error,
+      name: 'Error',
       message: 'Response has already been initiated.'
     }
   );
 
   // Should throw if stream already destroyed
   stream.destroy();
-  common.expectsError(
+  assert.throws(
     () => stream.respondWithFD(fd, {
       'content-type': 'text/plain'
     }),
     {
       code: 'ERR_HTTP2_INVALID_STREAM',
-      type: Error,
+      name: 'Error',
       message: 'The stream has been destroyed'
     }
   );

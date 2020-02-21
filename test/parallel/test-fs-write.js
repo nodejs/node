@@ -135,18 +135,35 @@ fs.open(fn3, 'w', 0o644, common.mustCall((err, fd) => {
 }));
 
 [false, 'test', {}, [], null, undefined].forEach((i) => {
-  common.expectsError(
+  assert.throws(
     () => fs.write(i, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
     }
   );
-  common.expectsError(
+  assert.throws(
     () => fs.writeSync(i),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
+      name: 'TypeError'
+    }
+  );
+});
+
+[false, 5, {}, [], null, undefined].forEach((data) => {
+  assert.throws(
+    () => fs.write(1, data, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /"buffer"/
+    }
+  );
+  assert.throws(
+    () => fs.writeSync(1, data),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /"buffer"/
     }
   );
 });

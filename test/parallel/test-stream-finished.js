@@ -184,3 +184,151 @@ const { promisify } = require('util');
   finished(streamLike, common.mustCall);
   streamLike.emit('close');
 }
+
+{
+  const writable = new Writable({ write() {} });
+  writable.writable = false;
+  writable.destroy();
+  finished(writable, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+}
+
+{
+  const readable = new Readable();
+  readable.readable = false;
+  readable.destroy();
+  finished(readable, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+}
+
+{
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      setImmediate(callback);
+    }
+  });
+  finished(w, common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+  }));
+  w.end('asd');
+  w.destroy();
+}
+
+function testClosed(factory) {
+  {
+    // If already destroyed but finished is cancelled in same tick
+    // don't invoke the callback,
+
+    const s = factory();
+    s.destroy();
+    const dispose = finished(s, common.mustNotCall());
+    dispose();
+  }
+
+  {
+    // If already destroyed invoked callback.
+
+    const s = factory();
+    s.destroy();
+    finished(s, common.mustCall());
+  }
+
+  {
+    // Don't invoke until destroy has completed.
+
+    let destroyed = false;
+    const s = factory({
+      destroy(err, cb) {
+        setImmediate(() => {
+          destroyed = true;
+          cb();
+        });
+      }
+    });
+    s.destroy();
+    finished(s, common.mustCall(() => {
+      assert.strictEqual(destroyed, true);
+    }));
+  }
+
+  {
+    // Invoke callback even if close is inhibited.
+
+    const s = factory({
+      emitClose: false,
+      destroy(err, cb) {
+        cb();
+        finished(s, common.mustCall());
+      }
+    });
+    s.destroy();
+  }
+
+  {
+    // Invoke with deep async.
+
+    const s = factory({
+      destroy(err, cb) {
+        setImmediate(() => {
+          cb();
+          setImmediate(() => {
+            finished(s, common.mustCall());
+          });
+        });
+      }
+    });
+    s.destroy();
+  }
+}
+
+testClosed((opts) => new Readable({ ...opts }));
+testClosed((opts) => new Writable({ write() {}, ...opts }));
+
+{
+  const w = new Writable({
+    write(chunk, encoding, cb) {
+      cb();
+    },
+    autoDestroy: false
+  });
+  w.end('asd');
+  process.nextTick(() => {
+    finished(w, common.mustCall());
+  });
+}
+
+{
+  const w = new Writable({
+    write(chunk, encoding, cb) {
+      cb(new Error());
+    },
+    autoDestroy: false
+  });
+  w.write('asd');
+  w.on('error', common.mustCall(() => {
+    finished(w, common.mustCall());
+  }));
+}
+
+
+{
+  const r = new Readable({
+    autoDestroy: false
+  });
+  r.push(null);
+  r.resume();
+  r.on('end', common.mustCall(() => {
+    finished(r, common.mustCall());
+  }));
+}
+
+{
+  const rs = fs.createReadStream(__filename, { autoClose: false });
+  rs.resume();
+  rs.on('close', common.mustNotCall());
+  rs.on('end', common.mustCall(() => {
+    finished(rs, common.mustCall());
+  }));
+}

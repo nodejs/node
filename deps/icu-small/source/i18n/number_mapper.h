@@ -126,8 +126,14 @@ struct DecimalFormatWarehouse {
 * TODO: Make some of these fields by value instead of by LocalPointer?
 */
 struct DecimalFormatFields : public UMemory {
+
+    DecimalFormatFields() {}
+
+    DecimalFormatFields(const DecimalFormatProperties& propsToCopy)
+        : properties(propsToCopy) {}
+
     /** The property bag corresponding to user-specified settings and settings from the pattern string. */
-    LocalPointer<DecimalFormatProperties> properties;
+    DecimalFormatProperties properties;
 
     /** The symbols for the current locale. */
     LocalPointer<const DecimalFormatSymbols> symbols;
@@ -136,7 +142,7 @@ struct DecimalFormatFields : public UMemory {
     * The pre-computed formatter object. Setters cause this to be re-computed atomically. The {@link
     * #format} method uses the formatter directly without needing to synchronize.
     */
-    LocalPointer<LocalizedNumberFormatter> formatter;
+    LocalizedNumberFormatter formatter;
 
     /** The lazy-computed parser for .parse() */
     std::atomic<::icu::numparse::impl::NumberParserImpl*> atomicParser = {};
@@ -148,7 +154,7 @@ struct DecimalFormatFields : public UMemory {
     DecimalFormatWarehouse warehouse;
 
     /** The effective properties as exported from the formatter object. Used by some getters. */
-    LocalPointer<DecimalFormatProperties> exportedProperties;
+    DecimalFormatProperties exportedProperties;
 
     // Data for fastpath
     bool canUseFastFormat = false;

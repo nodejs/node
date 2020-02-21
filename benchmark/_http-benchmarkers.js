@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const requirementsURL =
-  'https://github.com/nodejs/node/blob/master/doc/guides/writing-and-running-benchmarks.md#http-benchmark-requirements';
+  'https://github.com/nodejs/node/blob/master/benchmark/writing-and-running-benchmarks.md#http-benchmark-requirements';
 
 // The port used by servers and wrk
 exports.PORT = Number(process.env.PORT) || 12346;
@@ -64,6 +64,9 @@ class WrkBenchmarker {
       '-t', 8,
       `http://127.0.0.1:${options.port}${options.path}`,
     ];
+    for (const field in options.headers) {
+      args.push('-H', `${field}: ${options.headers[field]}`);
+    }
     const child = child_process.spawn(this.executable, args);
     return child;
   }

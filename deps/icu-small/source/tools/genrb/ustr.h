@@ -22,7 +22,7 @@
 
 #include "unicode/utypes.h"
 
-#define U_APPEND_CHAR32(c,target,len) {                         \
+#define U_APPEND_CHAR32(c,target,len) UPRV_BLOCK_MACRO_BEGIN {  \
     if (c <= 0xffff)                                            \
     {                                                           \
         *(target)++ = (UChar) c;                                \
@@ -35,9 +35,9 @@
         len=2;                                                  \
         target +=2;                                             \
     }                                                           \
-}
+} UPRV_BLOCK_MACRO_END
 
-#define U_APPEND_CHAR32_ONLY(c,target) {                             \
+#define U_APPEND_CHAR32_ONLY(c,target) UPRV_BLOCK_MACRO_BEGIN { \
     if (c <= 0xffff)                                            \
     {                                                           \
         *(target)++ = (UChar) c;                                \
@@ -48,7 +48,7 @@
         target[1] = U16_TRAIL(c);                               \
         target +=2;                                             \
     }                                                           \
-}
+} UPRV_BLOCK_MACRO_END
 
 /* A C representation of a string "object" (to avoid realloc all the time) */
 struct UString {

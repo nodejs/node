@@ -23918,6 +23918,31 @@ TEST(CreateSyntheticModule) {
   CHECK_EQ(i_module->status(), i::Module::kInstantiated);
 }
 
+TEST(CreateSyntheticModuleGC) {
+  // Try to make sure that CreateSyntheticModule() deals well with a GC
+  // happening during its execution.
+  i::FLAG_gc_interval = 10;
+  i::FLAG_inline_new = false;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  std::vector<v8::Local<v8::String>> export_names{v8_str("default")};
+  v8::Local<v8::String> module_name =
+      v8_str("CreateSyntheticModule-TestSyntheticModuleGC");
+
+  for (int i = 0; i < 200; i++) {
+    Local<Module> module = v8::Module::CreateSyntheticModule(
+        isolate, module_name, export_names,
+        UnexpectedSyntheticModuleEvaluationStepsCallback);
+    USE(module);
+  }
+}
+
 TEST(SyntheticModuleSetExports) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

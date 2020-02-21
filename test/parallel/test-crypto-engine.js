@@ -4,37 +4,40 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const crypto = require('crypto');
 const invalidEngineName = 'xxx';
 
-common.expectsError(
+assert.throws(
   () => crypto.setEngine(true),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "id" argument must be of type string. Received type boolean'
+    name: 'TypeError',
+    message: 'The "id" argument must be of type string. Received type boolean' +
+             ' (true)'
   });
 
-common.expectsError(
+assert.throws(
   () => crypto.setEngine('/path/to/engine', 'notANumber'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError,
-    message: 'The "flags" argument must be of type number. Received type string'
+    name: 'TypeError',
+    message: 'The "flags" argument must be of type number. Received type' +
+             " string ('notANumber')"
   });
 
-common.expectsError(
+assert.throws(
   () => crypto.setEngine(invalidEngineName),
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
-    type: Error,
+    name: 'Error',
     message: `Engine "${invalidEngineName}" was not found`
   });
 
-common.expectsError(
+assert.throws(
   () => crypto.setEngine(invalidEngineName, crypto.constants.ENGINE_METHOD_RSA),
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
-    type: Error,
+    name: 'Error',
     message: `Engine "${invalidEngineName}" was not found`
   });

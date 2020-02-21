@@ -212,13 +212,13 @@ isDataLoaded(UErrorCode *pErrorCode) {
     return U_SUCCESS(*pErrorCode);
 }
 
-#define WRITE_CHAR(buffer, bufferLength, bufferPos, c) { \
+#define WRITE_CHAR(buffer, bufferLength, bufferPos, c) UPRV_BLOCK_MACRO_BEGIN { \
     if((bufferLength)>0) { \
         *(buffer)++=c; \
         --(bufferLength); \
     } \
     ++(bufferPos); \
-}
+} UPRV_BLOCK_MACRO_END
 
 #define U_ISO_COMMENT U_CHAR_NAME_CHOICE_COUNT
 
