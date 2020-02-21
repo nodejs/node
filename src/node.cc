@@ -74,9 +74,7 @@
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
 #endif
 
-#ifdef NODE_ENABLE_LARGE_CODE_PAGES
 #include "large_pages/node_large_page.h"
-#endif
 
 #include <errno.h>
 #include <fcntl.h>  // _O_RDWR
@@ -3029,25 +3027,13 @@ int Start(int argc, char** argv) {
   // This needs to run *before* V8::Initialize().
   Init(&args, &exec_args);
 
-#if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
   if (per_process_opts->use_largepages == "on" ||
       per_process_opts->use_largepages == "silent") {
-    if (node::IsLargePagesEnabled()) {
-      if (node::MapStaticCodeToLargePages() != 0 &&
-          per_process_opts->use_largepages != "silent") {
-        fprintf(stderr,
-                "Mapping code to large pages failed. Reverting to default page "
-                "size.\n");
-      }
-    } else if (per_process_opts->use_largepages != "silent") {
-      fprintf(stderr, "Large pages are not enabled.\n");
+    int result = node::MapStaticCodeToLargePages();
+    if (per_process_opts->use_largepages == "on" && result != 0) {
+      fprintf(stderr, "%s\n", node::LargePagesError(result));
     }
   }
-#else
-  if (per_process_opts->use_largepages == "on") {
-    fprintf(stderr, "Mapping to large pages is not supported.\n");
-  }
-#endif  // NODE_ENABLE_LARGE_CODE_PAGES
 
 #if HAVE_OPENSSL
   {
