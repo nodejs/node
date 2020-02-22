@@ -14,7 +14,9 @@ async function tests() {
   {
     const AsyncIteratorPrototype = Object.getPrototypeOf(
       Object.getPrototypeOf(async function* () {}).prototype);
-    const rs = new Readable({});
+    const rs = new Readable({
+      read() {}
+    });
     assert.strictEqual(
       Object.getPrototypeOf(Object.getPrototypeOf(rs[Symbol.asyncIterator]())),
       AsyncIteratorPrototype);
