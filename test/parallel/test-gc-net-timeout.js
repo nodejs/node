@@ -12,6 +12,9 @@ function serverHandler(sock) {
   sock.on('close', function() {
     clearTimeout(timer);
   });
+  sock.on('end', function() {
+    clearTimeout(timer);
+  });
   sock.on('error', function(err) {
     assert.strictEqual(err.code, 'ECONNRESET');
   });
