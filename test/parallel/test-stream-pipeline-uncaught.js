@@ -20,6 +20,6 @@ pipeline(s, async function(source) {
     chunk;
   }
 }, common.mustCall((err) => {
-  assert.ok(!err);
+  assert.ifError(err);
   throw new Error('asd');
 }));
