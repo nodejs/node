@@ -49,7 +49,7 @@ console.log(decoder.end(Buffer.from([0xAC])));
 added: v0.1.99
 -->
 
-* `encoding` {string} The character encoding the `StringDecoder` will use.
+* `encoding` {string} The character [encoding][] the `StringDecoder` will use.
   **Default:** `'utf8'`.
 
 Creates a new `StringDecoder` instance.
@@ -88,3 +88,5 @@ Returns a decoded string, ensuring that any incomplete multibyte characters at
  the end of the `Buffer`, or `TypedArray`, or `DataView` are omitted from the
  returned string and stored in an internal buffer for the next call to
  `stringDecoder.write()` or `stringDecoder.end()`.
+
+[encoding]: buffer.html#buffer_buffers_and_character_encodings
