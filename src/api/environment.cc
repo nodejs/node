@@ -347,23 +347,8 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
                                       Environment::kOwnsProcessState |
                                       Environment::kOwnsInspector));
   env->InitializeLibuv(per_process::v8_is_profiling);
-  if (env->RunBootstrapping().IsEmpty()) {
+  if (env->RunBootstrapping().IsEmpty())
     return nullptr;
-  }
-
-  std::vector<Local<String>> parameters = {
-      env->require_string(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "markBootstrapComplete")};
-  std::vector<Local<Value>> arguments = {
-      env->native_module_require(),
-      env->NewFunctionTemplate(MarkBootstrapComplete)
-          ->GetFunction(env->context())
-          .ToLocalChecked()};
-  if (ExecuteBootstrapper(
-          env, "internal/bootstrap/environment", &parameters, &arguments)
-          .IsEmpty()) {
-    return nullptr;
-  }
   return env;
 }
 
