@@ -8,18 +8,18 @@ const {
 const assert = require('assert');
 
 process.on('uncaughtException', common.mustCall((err) => {
-  assert.strictEqual(err.message, 'asd');
+  assert.strictEqual(err.message, 'error');
 }));
 
 // Ensure that pipeline that ends with Promise
 // still propagates error to uncaughtException.
 const s = new PassThrough();
-s.end('asd');
+s.end('data');
 pipeline(s, async function(source) {
   for await (const chunk of source) {
     chunk;
   }
 }, common.mustCall((err) => {
   assert.ifError(err);
-  throw new Error('asd');
+  throw new Error('error');
 }));
