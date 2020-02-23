@@ -2233,14 +2233,10 @@ void SSLWrap<Base>::ExportKeyingMaterial(
 
   AllocatedBuffer out = env->AllocateManaged(olen);
 
-  ByteSource key;
-
-  int useContext = 0;
-  if (!args[2]->IsNull() && Buffer::HasInstance(args[2])) {
-    key = ByteSource::FromBuffer(args[2]);
-
-    useContext = 1;
-  }
+  ByteSource context;
+  bool use_context = !args[2]->IsUndefined();
+  if (use_context)
+    context = ByteSource::FromBuffer(args[2]);
 
   if (SSL_export_keying_material(w->ssl_.get(),
                                  reinterpret_cast<unsigned char*>(out.data()),
@@ -2248,9 +2244,9 @@ void SSLWrap<Base>::ExportKeyingMaterial(
                                  *label,
                                  label.length(),
                                  reinterpret_cast<const unsigned char*>(
-                                   key.get()),
-                                 key.size(),
-                                 useContext) != 1) {
+                                     context.get()),
+                                 context.size(),
+                                 use_context) != 1) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_export_keying_material");
   }
 
