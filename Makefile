@@ -1165,6 +1165,7 @@ bench-addons-clean:
 
 .PHONY: lint-md-rollup
 lint-md-rollup:
+	$(RM) tools/.*mdlintstamp
 	cd tools/node-lint-md-cli-rollup && npm install
 	cd tools/node-lint-md-cli-rollup && npm run build-node
 
@@ -1177,27 +1178,22 @@ lint-md-clean:
 lint-md-build:
 	$(warning "Deprecated no-op target 'lint-md-build'")
 
-LINT_MD_DOC_FILES = $(shell find doc -type f -name '*.md')
-run-lint-doc-md = tools/lint-md.js -q -f $(LINT_MD_DOC_FILES)
-# Lint all changed markdown files under doc/
-tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
-	@echo "Running Markdown linter on docs..."
-	@$(call available-node,$(run-lint-doc-md))
-	@touch $@
+ifeq ("$(wildcard tools/.mdlintstamp)","")
+    LINT_MD_NEWER =
+else
+    LINT_MD_NEWER = -newer tools/.mdlintstamp
+endif
 
-LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
-LINT_MD_ROOT_DOCS := $(wildcard *.md)
-LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md') \
-	$(LINT_MD_ROOT_DOCS)
-run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
-# Lint other changed markdown files maintained by us
-tools/.miscmdlintstamp: $(LINT_MD_MISC_FILES)
-	@echo "Running Markdown linter on misc docs..."
-	@$(call available-node,$(run-lint-misc-md))
+LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md)
+LINT_MD_FILES = $(shell find $(LINT_MD_TARGETS) -type f \
+	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
+	$(LINT_MD_NEWER))
+run-lint-md = tools/lint-md.js -q -f --no-stdout $(LINT_MD_FILES)
+# Lint all changed markdown files maintained by us
+tools/.mdlintstamp: $(LINT_MD_FILES)
+	@echo "Running Markdown linter..."
+	@$(call available-node,$(run-lint-md))
 	@touch $@
-
-tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
 .PHONY: lint-md
 # Lints the markdown documents maintained by us in the codebase.
