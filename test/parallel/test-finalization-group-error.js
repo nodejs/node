@@ -5,7 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const g = new globalThis.FinalizationGroup(common.mustCallAtLeast(() => {
+const g = new globalThis.FinalizationRegistry(common.mustCallAtLeast(() => {
   throw new Error('test');
 }, 1));
 g.register({}, 42);
