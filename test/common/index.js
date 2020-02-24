@@ -784,7 +784,7 @@ module.exports = {
   skipIfReportDisabled,
   skipIfWorker,
 
-  get enoughTestCPU() {
+  get enoughTestCpu() {
     const cpus = require('os').cpus();
     return Array.isArray(cpus) && (cpus.length > 1 || cpus[0].speed > 999);
   },
