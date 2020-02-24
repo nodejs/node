@@ -7,7 +7,7 @@ const assert = require('assert');
 // GC (not global.gc()).
 
 const start = Date.now();
-const g = new globalThis.FinalizationGroup(() => {
+const g = new globalThis.FinalizationRegistry(() => {
   const diff = Date.now() - start;
   assert(diff < 10000, `${diff} >= 10000`);
 });
