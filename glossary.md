@@ -7,7 +7,7 @@ You may also need to check https://chromium.googlesource.com/chromiumos/docs/+/m
 * ASYNC: Asynchronous
 * BE: Big Endian - Byte order style in a multibyte data.
   (Opposite of LE, Little Endian)
-* CI: Continuous Intigration.
+* CI: Continuous Integration.
 * CITGM: Canary In The Gold Mine - a smoke test unit in the repo that
   contain popular npm modules.
 * CJS: Common JS.
@@ -56,7 +56,7 @@ You may also need to check https://chromium.googlesource.com/chromiumos/docs/+/m
 * V8: JavaScript engine that is embedded in Node.js.
 * VM: Virtual Machine, in the context of abstracting instructions,
   not to be confused with H/W level or O/S level Virtual machines.
-* WASI: Web Assemby System Interface.
+* WASI: [Web Assemby System Interface]( https://github.com/WebAssembly/WASI)
 * WASM: Web Assembly.
 * WG: Working Group - autonomous teams in the project with specific
   focus areas.
