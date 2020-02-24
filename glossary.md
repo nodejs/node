@@ -1,26 +1,25 @@
 You may also need to check https://chromium.googlesource.com/chromiumos/docs/+/master/glossary.md.
 
-* ABI: Application Binary Interface - contracts for internal
-  API invocations.
+* ABI: [Application Binary Interface](https://en.wikipedia.org/wiki/Application_binary_interface)
 * ASAP: As Soon As Possible.
 * ASM: Assembler - General term for language translator, especially
   from high level to low level.
 * ASYNC: Asynchronous
 * BE: Big Endian - Byte order style in a multibyte data.
   (Opposite of LE, Little Endian)
-* CI: Continues Intigration.
+* CI: Continuous Intigration.
 * CITGM: Canary In The Gold Mine - a smoke test unit in the repo that
   contain popular npm modules.
 * CJS: Common JS.
 * CLDR: Common Locale Data Repository.
-* CLI: Command Line Interface.
+* CLI: [Command Line Interface](https://en.wikipedia.org/wiki/Command-line_interface)
 * CMD: Command.
 * CVE: Common Vulnerebilities and Exposures - A database that
   maintains reported security exposures.
 * ECMA: European Computer Manufacturers Association - A body that
   governs JS spec among other things.
 * ENV: Environment - General term for execution environment.
-* EOF: End Of File.
+* EOF: [End Of File](https://en.wikipedia.org/wiki/End-of-file)
 * EOL: End Of Line (when used within a program), End of Life
   (when used within project documents).
 * ESM: ECMA Script Module.
@@ -45,8 +44,7 @@ You may also need to check https://chromium.googlesource.com/chromiumos/docs/+/m
 * OSX: Mac OS.
 * PPC: Power PC.
 * PTAL: Please Take A Look.
-* RAII: Resource Aquisition Is Intialization - A C++ feature for
-  auto-cleanup of dynamically allocated objects.
+* RAII: [Resource Aquisition Is Intialization](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization)
 * REPL: Read Evaluate Print Loop.
 * RFC: Request For Comments.
 * RSLGTM: Rubber-Stamp Looks Good To Me. The reviewer approving without doing
