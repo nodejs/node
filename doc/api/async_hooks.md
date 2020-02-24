@@ -893,7 +893,7 @@ function log(...args) {
 }
 
 http.createServer((request, response) => {
-  asyncLocalStorage.run(() => {
+  asyncLocalStorage.run(new Map(), () => {
     const store = asyncLocalStorage.getStore();
     store.set(kReq, request);
     someAsyncOperation((err, result) => {
@@ -943,27 +943,27 @@ in the current process.
 added: REPLACEME
 -->
 
-* Returns: {Map}
+* Returns: {any}
 
 This method returns the current store.
 If this method is called outside of an asynchronous context initialized by
 calling `asyncLocalStorage.run` or `asyncLocalStorage.runAndReturn`, it will
 return `undefined`.
 
-### `asyncLocalStorage.run(callback[, ...args])`
+### `asyncLocalStorage.run(store, callback[, ...args])`
 <!-- YAML
 added: REPLACEME
 -->
 
+* `store` {any}
 * `callback` {Function}
 * `...args` {any}
 
 Calling `asyncLocalStorage.run(callback)` will create a new asynchronous
-context.
-Within the callback function and the asynchronous operations from the callback,
-`asyncLocalStorage.getStore()` will return an instance of `Map` known as
-"the store". This store will be persistent through the following
-asynchronous calls.
+context. Within the callback function and the asynchronous operations from
+the callback, `asyncLocalStorage.getStore()` will return the object or
+the primitive value passed into the `store` argument (known as "the store").
+This store will be persistent through the following asynchronous calls.
 
 The callback will be ran asynchronously. Optionally, arguments can be passed
 to the function. They will be passed to the callback function.
@@ -975,10 +975,11 @@ Also, the stacktrace will be impacted by the asynchronous call.
 Example:
 
 ```js
-asyncLocalStorage.run(() => {
-  asyncLocalStorage.getStore(); // Returns a Map
+const store = { id: 1 };
+asyncLocalStorage.run(store, () => {
+  asyncLocalStorage.getStore(); // Returns the store object
   someAsyncOperation(() => {
-    asyncLocalStorage.getStore(); // Returns the same Map
+    asyncLocalStorage.getStore(); // Returns the same object
   });
 });
 asyncLocalStorage.getStore(); // Returns undefined
@@ -1007,20 +1008,21 @@ Also, the stacktrace will be impacted by the asynchronous call.
 Example:
 
 ```js
-asyncLocalStorage.run(() => {
-  asyncLocalStorage.getStore(); // Returns a Map
+asyncLocalStorage.run('store value', () => {
+  asyncLocalStorage.getStore(); // Returns 'store value'
   asyncLocalStorage.exit(() => {
     asyncLocalStorage.getStore(); // Returns undefined
   });
-  asyncLocalStorage.getStore(); // Returns the same Map
+  asyncLocalStorage.getStore(); // Returns 'store value'
 });
 ```
 
-### `asyncLocalStorage.runSyncAndReturn(callback[, ...args])`
+### `asyncLocalStorage.runSyncAndReturn(store, callback[, ...args])`
 <!-- YAML
 added: REPLACEME
 -->
 
+* `store` {any}
 * `callback` {Function}
 * `...args` {any}
 
@@ -1038,9 +1040,10 @@ the context will be exited.
 Example:
 
 ```js
+const store = { id: 2 };
 try {
-  asyncLocalStorage.runSyncAndReturn(() => {
-    asyncLocalStorage.getStore(); // Returns a Map
+  asyncLocalStorage.runSyncAndReturn(store, () => {
+    asyncLocalStorage.getStore(); // Returns the store object
     throw new Error();
   });
 } catch (e) {
@@ -1073,13 +1076,13 @@ Example:
 ```js
 // Within a call to run or runSyncAndReturn
 try {
-  asyncLocalStorage.getStore(); // Returns a Map
+  asyncLocalStorage.getStore(); // Returns the store object or value
   asyncLocalStorage.exitSyncAndReturn(() => {
     asyncLocalStorage.getStore(); // Returns undefined
     throw new Error();
   });
 } catch (e) {
-  asyncLocalStorage.getStore(); // Returns the same Map
+  asyncLocalStorage.getStore(); // Returns the same object or value
   // The error will be caught here
 }
 ```
@@ -1105,8 +1108,9 @@ It cannot be promisified using `util.promisify`. If needed, the `Promise`
 constructor can be used:
 
 ```js
+const store = new Map(); // initialize the store
 new Promise((resolve, reject) => {
-  asyncLocalStorage.run(() => {
+  asyncLocalStorage.run(store, () => {
     someFunction((err, result) => {
       if (err) {
         return reject(err);
@@ -1135,7 +1139,7 @@ the following pattern should be used:
 
 ```js
 async function fn() {
-  await asyncLocalStorage.runSyncAndReturn(() => {
+  await asyncLocalStorage.runSyncAndReturn(new Map(), () => {
     asyncLocalStorage.getStore().set('key', value);
     return foo(); // The return value of foo will be awaited
   });
