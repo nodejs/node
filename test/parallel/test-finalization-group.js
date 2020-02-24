@@ -4,7 +4,7 @@
 
 const common = require('../common');
 
-const g = new globalThis.FinalizationGroup(common.mustCallAtLeast(1));
+const g = new globalThis.FinalizationRegistry(common.mustCallAtLeast(1));
 g.register({}, 42);
 
 setTimeout(() => {
