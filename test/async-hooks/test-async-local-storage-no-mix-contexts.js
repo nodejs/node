@@ -7,8 +7,8 @@ const asyncLocalStorage = new AsyncLocalStorage();
 const asyncLocalStorage2 = new AsyncLocalStorage();
 
 setTimeout(() => {
-  asyncLocalStorage.run(() => {
-    asyncLocalStorage2.run(() => {
+  asyncLocalStorage.run(new Map(), () => {
+    asyncLocalStorage2.run(new Map(), () => {
       const store = asyncLocalStorage.getStore();
       const store2 = asyncLocalStorage2.getStore();
       store.set('hello', 'world');
@@ -28,7 +28,7 @@ setTimeout(() => {
 }, 100);
 
 setTimeout(() => {
-  asyncLocalStorage.run(() => {
+  asyncLocalStorage.run(new Map(), () => {
     const store = asyncLocalStorage.getStore();
     store.set('hello', 'earth');
     setTimeout(() => {

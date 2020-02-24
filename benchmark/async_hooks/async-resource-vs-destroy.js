@@ -106,7 +106,7 @@ function buildDestroy(getServe) {
 function buildAsyncLocalStorage(getServe) {
   const asyncLocalStorage = new AsyncLocalStorage();
   const server = createServer((req, res) => {
-    asyncLocalStorage.runSyncAndReturn(() => {
+    asyncLocalStorage.runSyncAndReturn({}, () => {
       getServe(getCLS, setCLS)(req, res);
     });
   });
@@ -118,12 +118,12 @@ function buildAsyncLocalStorage(getServe) {
 
   function getCLS() {
     const store = asyncLocalStorage.getStore();
-    return store.get('store');
+    return store.state;
   }
 
   function setCLS(state) {
     const store = asyncLocalStorage.getStore();
-    store.set('store', state);
+    store.state = state;
   }
 
   function close() {
