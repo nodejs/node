@@ -457,6 +457,28 @@ const errorTests = [
       /'thefourtheye'/
     ]
   },
+  // Check for wrapped objects.
+  {
+    send: '{ a: 1 }.a', // ({ a: 1 }.a);
+    expect: '1'
+  },
+  {
+    send: '{ a: 1 }.a;', // { a: 1 }.a;
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      /^Uncaught SyntaxError: /
+    ]
+  },
+  {
+    send: '{ a: 1 }["a"] === 1', // ({ a: 1 }['a'] === 1);
+    expect: 'true'
+  },
+  {
+    send: '{ a: 1 }["a"] === 1;', // { a: 1 }; ['a'] === 1;
+    expect: 'false'
+  },
   // Empty lines in the REPL should be allowed
   {
     send: '\n\r\n\r\n',

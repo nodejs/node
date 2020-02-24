@@ -125,7 +125,13 @@ async function tests(options) {
      '\x1B[90m{ a: true }\x1B[39m\x1B[20G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
      '\x1B[90mtrue\x1B[39m\x1B[21G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
      '\x1B[33mtrue\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G']
+     '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
+    ['{};1', [2, 4], '\x1B[33m1\x1B[39m',
+     '{};1',
+     '\x1B[90m1\x1B[39m\x1B[12G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+     '\x1B[33m1\x1B[39m',
+     '\x1B[1G\x1B[0Jrepl > \x1B[8G'
+    ]
   ];
 
   const hasPreview = repl.terminal &&
