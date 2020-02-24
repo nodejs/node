@@ -13,7 +13,7 @@ process.setUncaughtExceptionCaptureCallback((err) => {
   assert.strictEqual(asyncLocalStorage.getStore().get('hello'), 'node');
 });
 
-asyncLocalStorage.run(() => {
+asyncLocalStorage.run(new Map(), () => {
   const store = asyncLocalStorage.getStore();
   store.set('hello', 'node');
   setTimeout(() => {
