@@ -10,7 +10,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(0, () => {
-  asyncLocalStorage.run(() => {
+  asyncLocalStorage.run(new Map(), () => {
     const store = asyncLocalStorage.getStore();
     store.set('hello', 'world');
     http.get({ host: 'localhost', port: server.address().port }, () => {

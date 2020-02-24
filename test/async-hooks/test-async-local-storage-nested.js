@@ -6,9 +6,9 @@ const { AsyncLocalStorage } = require('async_hooks');
 const asyncLocalStorage = new AsyncLocalStorage();
 
 setTimeout(() => {
-  asyncLocalStorage.run(() => {
+  asyncLocalStorage.run(new Map(), () => {
     const asyncLocalStorage2 = new AsyncLocalStorage();
-    asyncLocalStorage2.run(() => {
+    asyncLocalStorage2.run(new Map(), () => {
       const store = asyncLocalStorage.getStore();
       const store2 = asyncLocalStorage2.getStore();
       store.set('hello', 'world');
