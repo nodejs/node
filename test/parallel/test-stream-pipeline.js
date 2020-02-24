@@ -763,7 +763,10 @@ const { promisify } = require('util');
     s.emit('data', 'asd');
     s.emit('end');
   });
-  s.close = common.mustCall();
+  // 'destroyer' can be called multiple times,
+  // once from stream wrapper and
+  // once from iterator wrapper.
+  s.close = common.mustCallAtLeast(1);
   let ret = '';
   pipeline(s, async function(source) {
     for await (const chunk of source) {
@@ -908,4 +911,14 @@ const { promisify } = require('util');
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
   }));
+}
+
+{
+  const src = new PassThrough({ autoDestroy: false });
+  const dst = new PassThrough({ autoDestroy: false });
+  pipeline(src, dst, common.mustCall(() => {
+    assert.strictEqual(src.destroyed, true);
+    assert.strictEqual(dst.destroyed, true);
+  }));
+  src.end();
 }
