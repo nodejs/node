@@ -111,10 +111,6 @@ void Heap::SetRootStringTable(StringTable value) {
   roots_table()[RootIndex::kStringTable] = value.ptr();
 }
 
-void Heap::SetRootNoScriptSharedFunctionInfos(Object value) {
-  roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value.ptr();
-}
-
 void Heap::SetMessageListeners(TemplateList value) {
   roots_table()[RootIndex::kMessageListeners] = value.ptr();
 }

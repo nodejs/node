@@ -5394,34 +5394,6 @@ TEST(ScriptIterator) {
   CHECK_EQ(0, script_count);
 }
 
-
-TEST(SharedFunctionInfoIterator) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  LocalContext context;
-
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-
-  int sfi_count = 0;
-  {
-    HeapObjectIterator it(heap);
-    for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-      if (!obj.IsSharedFunctionInfo()) continue;
-      sfi_count++;
-    }
-  }
-
-  {
-    SharedFunctionInfo::GlobalIterator iterator(isolate);
-    while (!iterator.Next().is_null()) sfi_count--;
-  }
-
-  CHECK_EQ(0, sfi_count);
-}
-
 // This is the same as Factory::NewByteArray, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapTester::AllocateByteArrayForTest(

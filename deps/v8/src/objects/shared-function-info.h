@@ -640,21 +640,6 @@ class SharedFunctionInfo : public HeapObject {
     DISALLOW_COPY_AND_ASSIGN(ScriptIterator);
   };
 
-  // Iterate over all shared function infos on the heap.
-  class GlobalIterator {
-   public:
-    V8_EXPORT_PRIVATE explicit GlobalIterator(Isolate* isolate);
-    V8_EXPORT_PRIVATE SharedFunctionInfo Next();
-
-   private:
-    Isolate* isolate_;
-    Script::Iterator script_iterator_;
-    WeakArrayList::Iterator noscript_sfi_iterator_;
-    SharedFunctionInfo::ScriptIterator sfi_iterator_;
-    DISALLOW_HEAP_ALLOCATION(no_gc_)
-    DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
-  };
-
   DECL_CAST(SharedFunctionInfo)
 
   // Constants.

@@ -907,8 +907,6 @@ void Heap::CreateInitialObjects() {
   set_serialized_objects(roots.empty_fixed_array());
   set_serialized_global_proxy_sizes(roots.empty_fixed_array());
 
-  set_noscript_shared_function_infos(roots.empty_weak_array_list());
-
   /* Canonical off-heap trampoline data */
   set_off_heap_trampoline_relocation_info(
       *Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_));

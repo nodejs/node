@@ -5404,13 +5404,6 @@ void Heap::CompactWeakArrayLists(AllocationType allocation) {
   DCHECK_IMPLIES(allocation == AllocationType::kOld, InOldSpace(*scripts));
   scripts = CompactWeakArrayList(this, scripts, allocation);
   set_script_list(*scripts);
-
-  Handle<WeakArrayList> no_script_list(noscript_shared_function_infos(),
-                                       isolate());
-  DCHECK_IMPLIES(allocation == AllocationType::kOld,
-                 InOldSpace(*no_script_list));
-  no_script_list = CompactWeakArrayList(this, no_script_list, allocation);
-  set_noscript_shared_function_infos(*no_script_list);
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {

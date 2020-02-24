@@ -4988,24 +4988,6 @@ void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
   index_ = 0;
 }
 
-SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
-    : isolate_(isolate),
-      script_iterator_(isolate),
-      noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
-      sfi_iterator_(isolate, script_iterator_.Next()) {}
-
-SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
-  HeapObject next = noscript_sfi_iterator_.Next();
-  if (!next.is_null()) return SharedFunctionInfo::cast(next);
-  for (;;) {
-    next = sfi_iterator_.Next();
-    if (!next.is_null()) return SharedFunctionInfo::cast(next);
-    Script next_script = script_iterator_.Next();
-    if (next_script.is_null()) return SharedFunctionInfo();
-    sfi_iterator_.Reset(isolate_, next_script);
-  }
-}
-
 void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
                                    Handle<Object> script_object,
                                    int function_literal_id,
@@ -5036,30 +5018,8 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     }
 #endif
     list->Set(function_literal_id, HeapObjectReference::Weak(*shared));
-
-    // Remove shared function info from root array.
-    WeakArrayList noscript_list =
-        isolate->heap()->noscript_shared_function_infos();
-    CHECK(noscript_list.RemoveOne(MaybeObjectHandle::Weak(shared)));
   } else {
     DCHECK(shared->script().IsScript());
-    Handle<WeakArrayList> list =
-        isolate->factory()->noscript_shared_function_infos();
-
-#ifdef DEBUG
-    if (FLAG_enable_slow_asserts) {
-      WeakArrayList::Iterator iterator(*list);
-      for (HeapObject next = iterator.Next(); !next.is_null();
-           next = iterator.Next()) {
-        DCHECK_NE(next, *shared);
-      }
-    }
-#endif  // DEBUG
-
-    list =
-        WeakArrayList::AddToEnd(isolate, list, MaybeObjectHandle::Weak(shared));
-
-    isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
 
     // Remove shared function info from old script's list.
     Script old_script = Script::cast(shared->script());
