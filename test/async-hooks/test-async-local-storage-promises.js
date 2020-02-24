@@ -12,7 +12,7 @@ async function main() {
       throw err;
     });
   await new Promise((resolve, reject) => {
-    asyncLocalStorage.run(() => {
+    asyncLocalStorage.run(new Map(), () => {
       const store = asyncLocalStorage.getStore();
       store.set('a', 1);
       next().then(resolve, reject);
