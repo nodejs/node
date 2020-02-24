@@ -2800,7 +2800,7 @@ void SSLWrap<Base>::ExportKeyingMaterial(
                                  *label,
                                  label.length(),
                                  reinterpret_cast<const unsigned char*>(
-                                   context.get()),
+                                     context.get()),
                                  context.size(),
                                  use_context) != 1) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_export_keying_material");
