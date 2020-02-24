@@ -3501,11 +3501,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
     share->clear_padding();
   }
-  // Link into the list.
-  Handle<WeakArrayList> noscript_list = noscript_shared_function_infos();
-  noscript_list = WeakArrayList::AddToEnd(isolate(), noscript_list,
-                                          MaybeObjectHandle::Weak(share));
-  isolate()->heap()->set_noscript_shared_function_infos(*noscript_list);
 
 #ifdef VERIFY_HEAP
   share->SharedFunctionInfoVerify(isolate());

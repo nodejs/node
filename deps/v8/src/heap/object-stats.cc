@@ -829,10 +829,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
   // WeakArrayList.
-  RecordSimpleVirtualObjectStats(
-      HeapObject(),
-      WeakArrayList::cast(heap_->noscript_shared_function_infos()),
-      ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(),
                                  WeakArrayList::cast(heap_->script_list()),
                                  ObjectStats::SCRIPT_LIST_TYPE);
