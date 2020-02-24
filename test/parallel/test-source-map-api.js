@@ -124,3 +124,28 @@ const { readFileSync } = require('fs');
     assert.strictEqual(originalColumn, knownDecodings[column]);
   }
 }
+
+// Test that generated columns are sorted when a negative offset is
+// observed, see: https://github.com/mozilla/source-map/pull/92
+{
+  function makeMinimalMap(generatedColumns, originalColumns) {
+    return {
+      sources: ['test.js'],
+      // Mapping from the 0th line, ${g}th column of the output file to the 0th
+      // source file, 0th line, ${column}th column.
+      mappings: generatedColumns.map((g, i) => `${g}AA${originalColumns[i]}`)
+        .join(',')
+    };
+  }
+  // U = 10
+  // F = -2
+  // A = 0
+  // E = 2
+  const sourceMap = new SourceMap(makeMinimalMap(
+    ['U', 'F', 'F'],
+    ['A', 'E', 'E']
+  ));
+  assert.strictEqual(sourceMap.findEntry(0, 6).originalColumn, 4);
+  assert.strictEqual(sourceMap.findEntry(0, 8).originalColumn, 2);
+  assert.strictEqual(sourceMap.findEntry(0, 10).originalColumn, 0);
+}
