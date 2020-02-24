@@ -68,6 +68,13 @@ sure no unexpected rejections occur, because currently they result in silent
 failures. However, it is useful in some rare cases to disable it, for example if
 the `unhandledRejection` hook is directly used by the test.
 
+### `enoughTestCpu`
+
+* [&lt;boolean>][]
+
+Indicates if there is more than 1 CPU or that the single CPU has a speed of at
+least 1 GHz.
+
 ### `enoughTestMem`
 
 * [&lt;boolean>][]
