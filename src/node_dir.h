@@ -12,8 +12,6 @@ namespace fs_dir {
 // Needed to propagate `uv_dir_t`.
 class DirHandle : public AsyncWrap {
  public:
-  static constexpr int kDirHandleFieldCount = 1;
-
   static DirHandle* New(Environment* env, uv_dir_t* dir);
   ~DirHandle() override;
 

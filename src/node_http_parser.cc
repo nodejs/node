@@ -873,7 +873,7 @@ void InitializeHttpParser(Local<Object> target,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "REQUEST"),

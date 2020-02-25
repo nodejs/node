@@ -74,7 +74,7 @@ void PipeWrap::Initialize(Local<Object> target,
   Local<String> pipeString = FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe");
   t->SetClassName(pipeString);
   t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
+    ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 

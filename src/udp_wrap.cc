@@ -91,7 +91,7 @@ void UDPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(UDPWrap::kInternalFieldCount);
   Local<String> udpString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "UDP");
   t->SetClassName(udpString);

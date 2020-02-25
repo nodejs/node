@@ -268,7 +268,8 @@ void InitializeStreamPipe(Local<Object> target,
   env->SetProtoMethod(pipe, "start", StreamPipe::Start);
   pipe->Inherit(AsyncWrap::GetConstructorTemplate(env));
   pipe->SetClassName(stream_pipe_string);
-  pipe->InstanceTemplate()->SetInternalFieldCount(1);
+  pipe->InstanceTemplate()->SetInternalFieldCount(
+      StreamPipe::kInternalFieldCount);
   target
       ->Set(context, stream_pipe_string,
             pipe->GetFunction(context).ToLocalChecked())

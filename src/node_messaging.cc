@@ -935,7 +935,8 @@ Local<FunctionTemplate> GetMessagePortConstructorTemplate(Environment* env) {
   {
     Local<FunctionTemplate> m = env->NewFunctionTemplate(MessagePort::New);
     m->SetClassName(env->message_port_constructor_string());
-    m->InstanceTemplate()->SetInternalFieldCount(1);
+    m->InstanceTemplate()->SetInternalFieldCount(
+        MessagePort::kInternalFieldCount);
     m->Inherit(HandleWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(m, "postMessage", MessagePort::PostMessage);

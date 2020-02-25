@@ -781,7 +781,8 @@ void InitWorker(Local<Object> target,
   {
     Local<FunctionTemplate> w = env->NewFunctionTemplate(Worker::New);
 
-    w->InstanceTemplate()->SetInternalFieldCount(1);
+    w->InstanceTemplate()->SetInternalFieldCount(
+        Worker::kInternalFieldCount);
     w->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(w, "startThread", Worker::StartThread);
@@ -802,7 +803,8 @@ void InitWorker(Local<Object> target,
   {
     Local<FunctionTemplate> wst = FunctionTemplate::New(env->isolate());
 
-    wst->InstanceTemplate()->SetInternalFieldCount(1);
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerHeapSnapshotTaker::kInternalFieldCount);
     wst->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
     Local<String> wst_string =

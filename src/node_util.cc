@@ -323,7 +323,8 @@ void Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "WeakReference");
   Local<FunctionTemplate> weak_ref =
       env->NewFunctionTemplate(WeakReference::New);
-  weak_ref->InstanceTemplate()->SetInternalFieldCount(1);
+  weak_ref->InstanceTemplate()->SetInternalFieldCount(
+      WeakReference::kInternalFieldCount);
   weak_ref->SetClassName(weak_ref_string);
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
   env->SetProtoMethod(weak_ref, "incRef", WeakReference::IncRef);

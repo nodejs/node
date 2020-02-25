@@ -640,7 +640,8 @@ void Initialize(Local<Object> target,
   Local<FunctionTemplate> eldh =
       env->NewFunctionTemplate(ELDHistogramNew);
   eldh->SetClassName(eldh_classname);
-  eldh->InstanceTemplate()->SetInternalFieldCount(1);
+  eldh->InstanceTemplate()->SetInternalFieldCount(
+      ELDHistogram::kInternalFieldCount);
   env->SetProtoMethod(eldh, "exceeds", ELDHistogramExceeds);
   env->SetProtoMethod(eldh, "min", ELDHistogramMin);
   env->SetProtoMethod(eldh, "max", ELDHistogramMax);
