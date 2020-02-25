@@ -163,18 +163,14 @@ void CheckedUvLoopClose(uv_loop_t* loop);
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
 
 namespace per_process {
-extern std::shared_ptr<EnabledDebugList> enabled_debug_list;
+extern EnabledDebugList enabled_debug_list;
 
 template <typename... Args>
 inline void FORCE_INLINE Debug(DebugCategory cat,
                                const char* format,
-                               Args&&... args) {
-  Debug(enabled_debug_list.get(), cat, format, std::forward<Args>(args)...);
-}
+                               Args&&... args);
 
-inline void FORCE_INLINE Debug(DebugCategory cat, const char* message) {
-  Debug(enabled_debug_list.get(), cat, message);
-}
+inline void FORCE_INLINE Debug(DebugCategory cat, const char* message);
 }  // namespace per_process
 }  // namespace node
 

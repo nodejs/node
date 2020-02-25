@@ -54,6 +54,9 @@
 #endif  // _WIN32
 
 namespace node {
+namespace per_process {
+EnabledDebugList enabled_debug_list;
+}
 
 void EnabledDebugList::Parse(Environment* env) {
   std::string cats;
