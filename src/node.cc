@@ -389,6 +389,12 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
           ->GetFunction(env->context())
           .ToLocalChecked()};
 
+  InternalCallbackScope callback_scope(
+    env,
+    Object::New(env->isolate()),
+    { 1, 0 },
+    InternalCallbackScope::kSkipAsyncHooks);
+
   return scope.EscapeMaybe(
       ExecuteBootstrapper(env, main_script_id, &parameters, &arguments));
 }
