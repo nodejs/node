@@ -11,6 +11,10 @@ test-repl-sigint-nested-eval: PASS, FLAKY
 # by the V8 version used in Node.
 test-memory-usage: SKIP
 test-zlib-unused-weak: SKIP
+# Skip temporarily to land FinalizationGroup to FinalizationRegistry rename
+test-finalization-group-error: SKIP
+test-finalization-group-regular-gc: SKIP
+test-finalization-group: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
