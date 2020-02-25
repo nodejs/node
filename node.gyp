@@ -520,7 +520,6 @@
         'src/api/exceptions.cc',
         'src/api/hooks.cc',
         'src/api/utils.cc',
-
         'src/async_wrap.cc',
         'src/cares_wrap.cc',
         'src/connect_wrap.cc',
