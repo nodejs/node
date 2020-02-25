@@ -80,8 +80,8 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-           'Buffer. Received undefined'
+  message: 'The "chunk" argument must be of type string or an instance of ' +
+           'Buffer or Uint8Array. Received undefined'
 });
 
 assert.throws(() => {
@@ -90,8 +90,8 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-           'Buffer. Received type number (1)'
+  message: 'The "chunk" argument must be of type string or an instance of ' +
+           'Buffer or Uint8Array. Received type number (1)'
 });
 
 assert.throws(() => {
