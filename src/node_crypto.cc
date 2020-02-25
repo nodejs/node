@@ -432,7 +432,8 @@ bool EntropySource(unsigned char* buffer, size_t length) {
 
 void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      SecureContext::kInternalFieldCount);
   Local<String> secureContextString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
   t->SetClassName(secureContextString);
@@ -3217,7 +3218,8 @@ EVP_PKEY* ManagedEVPPKey::get() const {
 
 Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      KeyObject::kInternalFieldCount);
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethodNoSideEffect(t, "getSymmetricKeySize",
@@ -3450,7 +3452,8 @@ CipherBase::CipherBase(Environment* env,
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      CipherBase::kInternalFieldCount);
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethod(t, "initiv", InitIv);
@@ -4076,7 +4079,8 @@ Hmac::Hmac(Environment* env, Local<Object> wrap)
 void Hmac::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      Hmac::kInternalFieldCount);
 
   env->SetProtoMethod(t, "init", HmacInit);
   env->SetProtoMethod(t, "update", HmacUpdate);
@@ -4201,7 +4205,8 @@ Hash::Hash(Environment* env, Local<Object> wrap)
 void Hash::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      Hash::kInternalFieldCount);
 
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
@@ -4472,7 +4477,8 @@ Sign::Sign(Environment* env, Local<Object> wrap) : SignBase(env, wrap) {
 void Sign::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      SignBase::kInternalFieldCount);
 
   env->SetProtoMethod(t, "init", SignInit);
   env->SetProtoMethod(t, "update", SignUpdate);
@@ -4796,7 +4802,8 @@ Verify::Verify(Environment* env, Local<Object> wrap)
 void Verify::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      SignBase::kInternalFieldCount);
 
   env->SetProtoMethod(t, "init", VerifyInit);
   env->SetProtoMethod(t, "update", VerifyUpdate);
@@ -5107,7 +5114,8 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
     const PropertyAttribute attributes =
         static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
-    t->InstanceTemplate()->SetInternalFieldCount(1);
+    t->InstanceTemplate()->SetInternalFieldCount(
+        DiffieHellman::kInternalFieldCount);
 
     env->SetProtoMethod(t, "generateKeys", GenerateKeys);
     env->SetProtoMethod(t, "computeSecret", ComputeSecret);
@@ -5446,7 +5454,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
 
   env->SetProtoMethod(t, "generateKeys", GenerateKeys);
   env->SetProtoMethod(t, "computeSecret", ComputeSecret);

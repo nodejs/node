@@ -19,6 +19,7 @@ struct ContextOptions {
 
 class ContextifyContext {
  public:
+  enum InternalFields { kSlot, kInternalFieldCount };
   ContextifyContext(Environment* env,
                     v8::Local<v8::Object> sandbox_obj,
                     const ContextOptions& options);

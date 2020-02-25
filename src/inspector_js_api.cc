@@ -105,7 +105,8 @@ class JSBindingsConnection : public AsyncWrap {
     Local<String> class_name = ConnectionType::GetClassName(env);
     Local<FunctionTemplate> tmpl =
         env->NewFunctionTemplate(JSBindingsConnection::New);
-    tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        JSBindingsConnection::kInternalFieldCount);
     tmpl->SetClassName(class_name);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
     env->SetProtoMethod(tmpl, "dispatch", JSBindingsConnection::Dispatch);

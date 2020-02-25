@@ -172,7 +172,7 @@ class ConverterObject : public BaseObject, Converter {
     HandleScope scope(env->isolate());
 
     Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
-    t->SetInternalFieldCount(1);
+    t->SetInternalFieldCount(ConverterObject::kInternalFieldCount);
     Local<Object> obj;
     if (!t->NewInstance(env->context()).ToLocal(&obj)) return;
 

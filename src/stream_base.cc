@@ -340,7 +340,8 @@ MaybeLocal<Value> StreamBase::CallJSOnreadMethod(ssize_t nread,
 
   AsyncWrap* wrap = GetAsyncWrap();
   CHECK_NOT_NULL(wrap);
-  Local<Value> onread = wrap->object()->GetInternalField(kOnReadFunctionField);
+  Local<Value> onread = wrap->object()->GetInternalField(
+      StreamBase::kOnReadFunctionField);
   CHECK(onread->IsFunction());
   return wrap->MakeCallback(onread.As<Function>(), arraysize(argv), argv);
 }
@@ -409,8 +410,11 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
                               True(env->isolate()));
   t->PrototypeTemplate()->SetAccessor(
       FIXED_ONE_BYTE_STRING(env->isolate(), "onread"),
-      BaseObject::InternalFieldGet<kOnReadFunctionField>,
-      BaseObject::InternalFieldSet<kOnReadFunctionField, &Value::IsFunction>);
+      BaseObject::InternalFieldGet<
+          StreamBase::kOnReadFunctionField>,
+      BaseObject::InternalFieldSet<
+          StreamBase::kOnReadFunctionField,
+          &Value::IsFunction>);
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {

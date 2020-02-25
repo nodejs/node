@@ -43,7 +43,9 @@ BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
     : persistent_handle_(env->isolate(), object), env_(env) {
   CHECK_EQ(false, object.IsEmpty());
   CHECK_GT(object->InternalFieldCount(), 0);
-  object->SetAlignedPointerInInternalField(0, static_cast<void*>(this));
+  object->SetAlignedPointerInInternalField(
+      BaseObject::kSlot,
+      static_cast<void*>(this));
   env->AddCleanupHook(DeleteMe, static_cast<void*>(this));
   env->modify_base_object_count(1);
 }
@@ -67,7 +69,7 @@ BaseObject::~BaseObject() {
 
   {
     v8::HandleScope handle_scope(env()->isolate());
-    object()->SetAlignedPointerInInternalField(0, nullptr);
+    object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
   }
 }
 
@@ -100,7 +102,8 @@ Environment* BaseObject::env() const {
 
 BaseObject* BaseObject::FromJSObject(v8::Local<v8::Object> obj) {
   CHECK_GT(obj->InternalFieldCount(), 0);
-  return static_cast<BaseObject*>(obj->GetAlignedPointerFromInternalField(0));
+  return static_cast<BaseObject*>(
+      obj->GetAlignedPointerFromInternalField(BaseObject::kSlot));
 }
 
 
@@ -148,11 +151,12 @@ BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
   auto constructor = [](const v8::FunctionCallbackInfo<v8::Value>& args) {
     DCHECK(args.IsConstructCall());
     DCHECK_GT(args.This()->InternalFieldCount(), 0);
-    args.This()->SetAlignedPointerInInternalField(0, nullptr);
+    args.This()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
   };
 
   v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      BaseObject::kInternalFieldCount);
   return t;
 }
 

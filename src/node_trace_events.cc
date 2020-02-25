@@ -129,7 +129,8 @@ void NodeCategorySet::Initialize(Local<Object> target,
 
   Local<FunctionTemplate> category_set =
       env->NewFunctionTemplate(NodeCategorySet::New);
-  category_set->InstanceTemplate()->SetInternalFieldCount(1);
+  category_set->InstanceTemplate()->SetInternalFieldCount(
+      NodeCategorySet::kInternalFieldCount);
   env->SetProtoMethod(category_set, "enable", NodeCategorySet::Enable);
   env->SetProtoMethod(category_set, "disable", NodeCategorySet::Disable);
 
