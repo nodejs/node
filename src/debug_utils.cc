@@ -55,7 +55,7 @@
 
 namespace node {
 
-EnabledDebugList::EnabledDebugList(Environment* env) {
+void EnabledDebugList::Parse(Environment* env) {
   std::string cats;
   credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env);
   Parse(cats, true);

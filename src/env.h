@@ -29,6 +29,7 @@
 #include "inspector_agent.h"
 #include "inspector_profiler.h"
 #endif
+#include "debug_utils.h"
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_binding.h"
@@ -1009,9 +1010,7 @@ class Environment : public MemoryRetainer {
   inline http2::Http2State* http2_state() const;
   inline void set_http2_state(std::unique_ptr<http2::Http2State> state);
 
-  EnabledDebugList* enabled_debug_list() const {
-    return enabled_debug_list_.get();
-  }
+  EnabledDebugList* enabled_debug_list() { return &enabled_debug_list_; }
 
   inline AliasedFloat64Array* fs_stats_field_array();
   inline AliasedBigUint64Array* fs_stats_field_bigint_array();
@@ -1371,7 +1370,7 @@ class Environment : public MemoryRetainer {
   bool http_parser_buffer_in_use_ = false;
   std::unique_ptr<http2::Http2State> http2_state_;
 
-  std::unique_ptr<EnabledDebugList> enabled_debug_list_;
+  EnabledDebugList enabled_debug_list_;
   AliasedFloat64Array fs_stats_field_array_;
   AliasedBigUint64Array fs_stats_field_bigint_array_;
 

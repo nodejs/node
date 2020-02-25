@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async_wrap.h"
-#include "env.h"
 
 #include <sstream>
 #include <string>
@@ -21,6 +20,7 @@
 #endif
 
 namespace node {
+class Environment;
 
 template <typename T>
 inline std::string ToString(const T& value);
@@ -64,7 +64,7 @@ class EnabledDebugList {
   // Uses NODE_DEBUG_NATIVE to initialize the categories. When env is not a
   // nullptr, the environment variables set in the Environment are used.
   // Otherwise the system environment variables are used.
-  EnabledDebugList(Environment* env);
+  void Parse(Environment* env);
 
  private:
   // Set all categories matching cats to the value of enabled.
@@ -83,40 +83,25 @@ template <typename... Args>
 inline void FORCE_INLINE Debug(EnabledDebugList* list,
                                DebugCategory cat,
                                const char* format,
-                               Args&&... args) {
-  if (!UNLIKELY(list->enabled(cat))) return;
-  FPrintF(stderr, format, std::forward<Args>(args)...);
-}
+                               Args&&... args);
 
 inline void FORCE_INLINE Debug(EnabledDebugList* list,
                                DebugCategory cat,
-                               const char* message) {
-  if (!UNLIKELY(list->enabled(cat))) return;
-  FPrintF(stderr, "%s", message);
-}
+                               const char* message);
 
 template <typename... Args>
 inline void FORCE_INLINE
-Debug(Environment* env, DebugCategory cat, const char* format, Args&&... args) {
-  Debug(env->enabled_debug_list(), cat, format, std::forward<Args>(args)...);
-}
+Debug(Environment* env, DebugCategory cat, const char* format, Args&&... args);
 
 inline void FORCE_INLINE Debug(Environment* env,
                                DebugCategory cat,
-                               const char* message) {
-  Debug(env->enabled_debug_list(), cat, message);
-}
+                               const char* message);
 
 template <typename... Args>
 inline void Debug(Environment* env,
                   DebugCategory cat,
                   const std::string& format,
-                  Args&&... args) {
-  Debug(env->enabled_debug_list(),
-        cat,
-        format.c_str(),
-        std::forward<Args>(args)...);
-}
+                  Args&&... args);
 
 // Used internally by the 'real' Debug(AsyncWrap*, ...) functions below, so that
 // the FORCE_INLINE flag on them doesn't apply to the contents of this function
@@ -128,30 +113,17 @@ inline void Debug(Environment* env,
 template <typename... Args>
 void COLD_NOINLINE UnconditionalAsyncWrapDebug(AsyncWrap* async_wrap,
                                                const char* format,
-                                               Args&&... args) {
-  Debug(async_wrap->env(),
-        static_cast<DebugCategory>(async_wrap->provider_type()),
-        async_wrap->diagnostic_name() + " " + format + "\n",
-        std::forward<Args>(args)...);
-}
+                                               Args&&... args);
 
 template <typename... Args>
 inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
                                const char* format,
-                               Args&&... args) {
-  DCHECK_NOT_NULL(async_wrap);
-  DebugCategory cat =
-      static_cast<DebugCategory>(async_wrap->provider_type());
-  if (!UNLIKELY(async_wrap->env()->enabled_debug_list()->enabled(cat))) return;
-  UnconditionalAsyncWrapDebug(async_wrap, format, std::forward<Args>(args)...);
-}
+                               Args&&... args);
 
 template <typename... Args>
 inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
                                const std::string& format,
-                               Args&&... args) {
-  Debug(async_wrap, format.c_str(), std::forward<Args>(args)...);
-}
+                               Args&&... args);
 
 // Debug helper for inspecting the currently running `node` executable.
 class NativeSymbolDebuggingContext {
