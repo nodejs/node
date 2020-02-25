@@ -1636,7 +1636,8 @@ void ModuleWrap::Initialize(Local<Object> target,
 
   Local<FunctionTemplate> tpl = env->NewFunctionTemplate(New);
   tpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"));
-  tpl->InstanceTemplate()->SetInternalFieldCount(1);
+  tpl->InstanceTemplate()->SetInternalFieldCount(
+      ModuleWrap::kInternalFieldCount);
 
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);

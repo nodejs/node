@@ -64,8 +64,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   };
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  sw->InstanceTemplate()->SetInternalFieldCount(
-      StreamReq::kStreamReqField + 1 + 3);
+  sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kInternalFieldCount);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
   sw->SetClassName(wrapString);
@@ -94,7 +93,8 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
 
   Local<FunctionTemplate> ww =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
-  ww->InstanceTemplate()->SetInternalFieldCount(StreamReq::kStreamReqField + 1);
+  ww->InstanceTemplate()->SetInternalFieldCount(
+      StreamReq::kInternalFieldCount);
   Local<String> writeWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
   ww->SetClassName(writeWrapString);
@@ -136,7 +136,7 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
         FIXED_ONE_BYTE_STRING(env->isolate(), "LibuvStreamWrap"));
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StreamBase::kStreamBaseFieldCount);
+        StreamBase::kInternalFieldCount);
     Local<FunctionTemplate> get_write_queue_size =
         FunctionTemplate::New(env->isolate(),
                               GetWriteQueueSize,

@@ -204,7 +204,7 @@ void JSStream::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream");
   t->SetClassName(jsStreamString);
   t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
+    ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "finishWrite", Finish<WriteWrap>);

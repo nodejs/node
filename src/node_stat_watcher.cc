@@ -47,7 +47,8 @@ void StatWatcher::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(StatWatcher::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      StatWatcher::kInternalFieldCount);
   Local<String> statWatcherString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "StatWatcher");
   t->SetClassName(statWatcherString);

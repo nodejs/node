@@ -358,7 +358,7 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(dir, "read", DirHandle::Read);
   env->SetProtoMethod(dir, "close", DirHandle::Close);
   Local<ObjectTemplate> dirt = dir->InstanceTemplate();
-  dirt->SetInternalFieldCount(DirHandle::kDirHandleFieldCount);
+  dirt->SetInternalFieldCount(DirHandle::kInternalFieldCount);
   Local<String> handleString =
        FIXED_ONE_BYTE_STRING(isolate, "DirHandle");
   dir->SetClassName(handleString);

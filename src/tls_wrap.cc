@@ -1269,8 +1269,7 @@ void TLSWrap::Initialize(Local<Object> target,
   Local<String> tlsWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap");
   t->SetClassName(tlsWrapString);
-  t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kStreamBaseFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
   Local<FunctionTemplate> get_write_queue_size =
       FunctionTemplate::New(env->isolate(),
