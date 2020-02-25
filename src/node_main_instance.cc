@@ -122,14 +122,7 @@ int NodeMainInstance::Run() {
   Context::Scope context_scope(env->context());
 
   if (exit_code == 0) {
-    {
-      InternalCallbackScope callback_scope(
-          env.get(),
-          Object::New(isolate_),
-          { 1, 0 },
-          InternalCallbackScope::kSkipAsyncHooks);
-      LoadEnvironment(env.get());
-    }
+    LoadEnvironment(env.get());
 
     env->set_trace_sync_io(env->options()->trace_sync_io);
 
