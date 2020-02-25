@@ -92,7 +92,7 @@ const bool has_code_cache = true;
     std::string size_str = FormatSize(cached_data->length);
     std::string total_str = FormatSize(total);
     per_process::Debug(DebugCategory::CODE_CACHE,
-                       "Generated cache for %s, size = %s, total = %s",
+                       "Generated cache for %s, size = %s, total = %s\n",
                        id.c_str(),
                        size_str.c_str(),
                        total_str.c_str());
