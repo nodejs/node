@@ -1216,7 +1216,8 @@ struct MakeClass {
   static void Make(Environment* env, Local<Object> target, const char* name) {
     Local<FunctionTemplate> z = env->NewFunctionTemplate(Stream::New);
 
-    z->InstanceTemplate()->SetInternalFieldCount(1);
+    z->InstanceTemplate()->SetInternalFieldCount(
+        Stream::kInternalFieldCount);
     z->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
     env->SetProtoMethod(z, "write", Stream::template Write<true>);

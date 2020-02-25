@@ -176,6 +176,10 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
 
 class PromiseWrap : public AsyncWrap {
  public:
+  enum InternalFields {
+    kIsChainedPromiseField = AsyncWrap::kInternalFieldCount,
+    kInternalFieldCount
+  };
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
       : AsyncWrap(env, object, PROVIDER_PROMISE, kInvalidAsyncId, silent) {
     MakeWeak();
@@ -184,9 +188,6 @@ class PromiseWrap : public AsyncWrap {
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(PromiseWrap)
   SET_SELF_SIZE(PromiseWrap)
-
-  static constexpr int kIsChainedPromiseField = 1;
-  static constexpr int kInternalFieldCount = 2;
 
   static PromiseWrap* New(Environment* env,
                           Local<Promise> promise,
@@ -214,15 +215,16 @@ PromiseWrap* PromiseWrap::New(Environment* env,
 void PromiseWrap::getIsChainedPromise(Local<String> property,
                                       const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(
-    info.Holder()->GetInternalField(kIsChainedPromiseField));
+      info.Holder()->GetInternalField(PromiseWrap::kIsChainedPromiseField));
 }
 
 static PromiseWrap* extractPromiseWrap(Local<Promise> promise) {
-  Local<Value> resource_object_value = promise->GetInternalField(0);
-  if (resource_object_value->IsObject()) {
-    return Unwrap<PromiseWrap>(resource_object_value.As<Object>());
-  }
-  return nullptr;
+  // This check is imperfect. If the internal field is set, it should
+  // be an object. If it's not, we just ignore it. Ideally v8 would
+  // have had GetInternalField returning a MaybeLocal but this works
+  // for now.
+  Local<Value> obj = promise->GetInternalField(0);
+  return obj->IsObject() ? Unwrap<PromiseWrap>(obj.As<Object>()) : nullptr;
 }
 
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
@@ -560,7 +562,7 @@ void AsyncWrap::Initialize(Local<Object> target,
     function_template->SetClassName(class_name);
     function_template->Inherit(AsyncWrap::GetConstructorTemplate(env));
     auto instance_template = function_template->InstanceTemplate();
-    instance_template->SetInternalFieldCount(1);
+    instance_template->SetInternalFieldCount(AsyncWrap::kInternalFieldCount);
     auto function =
         function_template->GetFunction(env->context()).ToLocalChecked();
     target->Set(env->context(), class_name, function).Check();

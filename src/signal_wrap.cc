@@ -53,7 +53,8 @@ class SignalWrap : public HandleWrap {
                          void* priv) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
-    constructor->InstanceTemplate()->SetInternalFieldCount(1);
+    constructor->InstanceTemplate()->SetInternalFieldCount(
+        SignalWrap::kInternalFieldCount);
     Local<String> signalString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Signal");
     constructor->SetClassName(signalString);

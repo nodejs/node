@@ -145,7 +145,7 @@ MaybeLocal<Object> ContextifyContext::CreateDataWrapper(Environment* env) {
     return MaybeLocal<Object>();
   }
 
-  wrapper->SetAlignedPointerInInternalField(0, this);
+  wrapper->SetAlignedPointerInInternalField(ContextifyContext::kSlot, this);
   return wrapper;
 }
 
@@ -232,7 +232,8 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
 void ContextifyContext::Init(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> function_template =
       FunctionTemplate::New(env->isolate());
-  function_template->InstanceTemplate()->SetInternalFieldCount(1);
+  function_template->InstanceTemplate()->SetInternalFieldCount(
+      ContextifyContext::kInternalFieldCount);
   env->set_script_data_constructor_function(
       function_template->GetFunction(env->context()).ToLocalChecked());
 
@@ -331,7 +332,8 @@ template <typename T>
 ContextifyContext* ContextifyContext::Get(const PropertyCallbackInfo<T>& args) {
   Local<Value> data = args.Data();
   return static_cast<ContextifyContext*>(
-      data.As<Object>()->GetAlignedPointerFromInternalField(0));
+      data.As<Object>()->GetAlignedPointerFromInternalField(
+          ContextifyContext::kSlot));
 }
 
 // static
@@ -628,7 +630,8 @@ void ContextifyScript::Init(Environment* env, Local<Object> target) {
       FIXED_ONE_BYTE_STRING(env->isolate(), "ContextifyScript");
 
   Local<FunctionTemplate> script_tmpl = env->NewFunctionTemplate(New);
-  script_tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+  script_tmpl->InstanceTemplate()->SetInternalFieldCount(
+      ContextifyScript::kInternalFieldCount);
   script_tmpl->SetClassName(class_name);
   env->SetProtoMethod(script_tmpl, "createCachedData", CreateCachedData);
   env->SetProtoMethod(script_tmpl, "runInContext", RunInContext);
@@ -1251,7 +1254,8 @@ void Initialize(Local<Object> target,
   {
     Local<FunctionTemplate> tpl = FunctionTemplate::New(env->isolate());
     tpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "CompiledFnEntry"));
-    tpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tpl->InstanceTemplate()->SetInternalFieldCount(
+        CompiledFnEntry::kInternalFieldCount);
 
     env->set_compiled_fn_entry_template(tpl->InstanceTemplate());
   }

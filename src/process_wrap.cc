@@ -52,7 +52,8 @@ class ProcessWrap : public HandleWrap {
                          void* priv) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
-    constructor->InstanceTemplate()->SetInternalFieldCount(1);
+    constructor->InstanceTemplate()->SetInternalFieldCount(
+        ProcessWrap::kInternalFieldCount);
     Local<String> processString =
         FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
     constructor->SetClassName(processString);

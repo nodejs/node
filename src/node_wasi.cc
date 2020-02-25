@@ -1810,7 +1810,7 @@ static void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(WASI::New);
   auto wasi_wrap_string = FIXED_ONE_BYTE_STRING(env->isolate(), "WASI");
-  tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+  tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
   tmpl->SetClassName(wasi_wrap_string);
 
   env->SetProtoMethod(tmpl, "args_get", WASI::ArgsGet);

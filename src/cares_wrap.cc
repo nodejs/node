@@ -2223,7 +2223,8 @@ void Initialize(Local<Object> target,
 
   Local<FunctionTemplate> channel_wrap =
       env->NewFunctionTemplate(ChannelWrap::New);
-  channel_wrap->InstanceTemplate()->SetInternalFieldCount(1);
+  channel_wrap->InstanceTemplate()->SetInternalFieldCount(
+      ChannelWrap::kInternalFieldCount);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(channel_wrap, "queryAny", Query<QueryAnyWrap>);
