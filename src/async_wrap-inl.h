@@ -26,6 +26,7 @@
 
 #include "async_wrap.h"
 #include "base_object-inl.h"
+#include "node_errors.h"
 #include "node_internals.h"
 
 namespace node {
@@ -74,9 +75,8 @@ inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
   if (!object()->Get(env()->context(), symbol).ToLocal(&cb_v))
     return v8::MaybeLocal<v8::Value>();
   if (!cb_v->IsFunction()) {
-    // TODO(addaleax): We should throw an error here to fulfill the
-    // `MaybeLocal<>` API contract.
-    return v8::MaybeLocal<v8::Value>();
+    v8::Isolate* isolate = env()->isolate();
+    return Undefined(isolate);
   }
   return MakeCallback(cb_v.As<v8::Function>(), argc, argv);
 }
