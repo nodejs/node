@@ -2760,14 +2760,14 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
-## `fs.read(fd, options, callback)`
+## `fs.read(fd, [options,] callback)`
 <!-- YAML
 added: REPLACEME
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
-                 to make Buffer, offset, lenght and position optional
+                 to make Buffer, offset, length and position optional
 -->
 * `fd` {integer}
 * `options` {Object}
@@ -2779,6 +2779,11 @@ changes:
   * `err` {Error}
   * `bytesRead` {integer}
   * `buffer` {Buffer}
+
+Similar to the above `fs.read` function, this version takes an optional `options` object.  If no `options` object
+is specified, it will default with the above values.
+
+
 
 ## `fs.readdir(path[, options], callback)`
 <!-- YAML
