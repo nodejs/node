@@ -2780,10 +2780,8 @@ changes:
   * `bytesRead` {integer}
   * `buffer` {Buffer}
 
-Similar to the above `fs.read` function, this version takes an optional `options` object.  If no `options` object
-is specified, it will default with the above values.
-
-
+Similar to the above `fs.read` function, this version takes an optional `options` object.
+If no `options` object is specified, it will default with the above values.
 
 ## `fs.readdir(path[, options], callback)`
 <!-- YAML
