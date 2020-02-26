@@ -648,7 +648,7 @@
         'src/http_parser_adaptor.h',
         'src/js_stream.h',
         'src/large_pages/node_large_page.cc',
-        'src/large_pages/node_large_page.h'
+        'src/large_pages/node_large_page.h',
         'src/memory_tracker.h',
         'src/memory_tracker-inl.h',
         'src/module_wrap.h',
