@@ -1,3 +1,4 @@
+(node:*) ExperimentalWarning: The ESM module loader is experimental.
 file:///*/test/message/esm_display_syntax_error.mjs:2
 await async () => 0;
 ^^^^^

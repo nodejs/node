@@ -1,3 +1,4 @@
+(node:*) ExperimentalWarning: The ESM module loader is experimental.
 Error: test
     at one (*fixtures*async-error.js:4:9)
     at two (*fixtures*async-error.js:17:9)
