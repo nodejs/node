@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../../common');
+const { collectStream } = require('../../common/streams');
 const fixture = require('../../common/fixtures');
 
 if (!common.hasCrypto)
@@ -44,13 +45,7 @@ const server = https.createServer(serverOptions, common.mustCall((req, res) => {
   };
 
   const req = https.request(clientOptions, common.mustCall((response) => {
-    let body = '';
-    response.setEncoding('utf8');
-    response.on('data', (chunk) => {
-      body += chunk;
-    });
-
-    response.on('end', common.mustCall(() => {
+    collectStream(response).then(common.mustCall((body) => {
       assert.strictEqual(body, 'hello world');
       server.close();
     }));

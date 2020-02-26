@@ -9,6 +9,7 @@ const assert = require('assert');
 const exec = require('child_process').execFile;
 const { Worker } = require('worker_threads');
 
+const { collectStream } = require('../common/streams');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
@@ -110,15 +111,6 @@ function expect(
   exec(process.execPath, argv, opts, test('child process'));
   if (testWorker)
     workerTest(opts, command, wantsError, test('worker'));
-}
-
-async function collectStream(readable) {
-  readable.setEncoding('utf8');
-  let data = '';
-  for await (const chunk of readable) {
-    data += chunk;
-  }
-  return data;
 }
 
 function workerTest(opts, command, wantsError, test) {
