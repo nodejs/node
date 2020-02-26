@@ -44,6 +44,7 @@ function expectFsNamespace(result) {
 (function testScriptOrModuleImport() {
   common.expectWarning('ExperimentalWarning',
                        'The ESM module loader is experimental.');
+
   // Importing another file, both direct & via eval
   // expectOkNamespace(import(relativePath));
   expectOkNamespace(eval(`import("${relativePath}")`));
