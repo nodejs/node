@@ -19,6 +19,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Internet module](#internet-module)
 * [ongc module](#ongc-module)
 * [Report module](#report-module)
+* [Streams module](#streams-module)
 * [tick module](#tick-module)
 * [tmpdir module](#tmpdir-module)
 * [WPT module](#wpt-module)
@@ -904,6 +905,65 @@ Validates the schema of a diagnostic report file whose path is specified in
 Validates the schema of a diagnostic report whose content is specified in
 `report`. If the report fails validation, an exception is thrown.
 
+## Streams Module
+
+The `streams` module provides a helper functions for stream manipulation.
+
+### `collectChildStreams(child[, waitFor])`
+
+* return [&lt;Promise>][]
+
+Uses `collectStream` to collect `child.stdout`, `child.stderr` streams if
+available, optionally waits for `waitFor` argument and resolves with an
+object `{ stdout, stderr, data }` where `stdout`, `stderr` are strings of
+respective collected streams and `data` is the result of `waitFor` or
+`undefined`.
+
+```js
+const common = require('../common');
+const { spawn } = require('child_process');
+const { once } = require('events');
+
+const child = spawn(...common.pwdCommand);
+common.collectChildStreams(child, once(child, 'exit'))
+  .then(({ stdout, stderr, data: [code, signal] }) => {
+    // ...
+  });
+```
+
+### `collectStream(readable[, callback])`
+
+* return [&lt;Promise>][]
+
+Uses async iterator to collect the data from the `readable` into a string and
+returns it via Promise or callback if provided. Always sets encoding to `'utf8'`.
+
+```js
+const common = require('../common');
+const http = require('assert');
+const assert = require('assert');
+
+http.request({ /* path, port */ }, (res) => {
+  common.collectStream(res).then((body) => {
+    assert.strictEqual(body, 'hello');
+  });
+});
+```
+
+Or using callbacks:
+```js
+const common = require('../common');
+const http = require('assert');
+const assert = require('assert');
+
+http.request({ /* path, port */ }, (res) => {
+  common.collectStream(res, (err, body) => {
+    assert.ifError(err);
+    assert.strictEqual(body, 'hello');
+  });
+});
+```
+
 ## tick Module
 
 The `tick` module provides a helper function that can be used to call a callback
@@ -958,6 +1018,7 @@ See [the WPT tests README][] for details.
 [&lt;Error>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 [&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[&lt;Promise>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 [&lt;bigint>]: https://github.com/tc39/proposal-bigint
 [&lt;boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
