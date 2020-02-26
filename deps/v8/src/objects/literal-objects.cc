@@ -363,7 +363,7 @@ class ObjectDescriptor {
 
   void Finalize(Isolate* isolate) {
     if (HasDictionaryProperties()) {
-      properties_dictionary_template_->SetNextEnumerationIndex(
+      properties_dictionary_template_->set_next_enumeration_index(
           next_enumeration_index_);
       computed_properties_ = FixedArray::ShrinkOrEmpty(
           isolate, computed_properties_, current_computed_index_);
