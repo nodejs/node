@@ -12,23 +12,22 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 let cconn = null;
 let sconn = null;
+let read_len = 0;
+const buffer_size = 1024 * 1024;
 
 function test() {
   if (cconn && sconn) {
     cconn.resume();
     sconn.resume();
-    sconn.end(Buffer.alloc(1024 * 1024));
-    cconn.end();
+    sconn.end(Buffer.alloc(buffer_size));
   }
 }
 
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')
-}, function(c) {
-  c.on('close', function() {
-    server.close();
-  });
+}, (c) => {
+  c.on('close', common.mustCall(() => server.close()));
   sconn = c;
   test();
 }).listen(0, common.mustCall(function() {
@@ -36,6 +35,12 @@ const server = tls.createServer({
     rejectUnauthorized: false
   }, common.mustCall(function() {
     cconn = this;
+    cconn.on('data', (d) => {
+      read_len += d.length;
+      if (read_len === buffer_size) {
+        cconn.end();
+      }
+    });
     test();
   }));
 }));
