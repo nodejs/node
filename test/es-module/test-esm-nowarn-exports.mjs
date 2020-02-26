@@ -16,7 +16,7 @@ child.stderr.on('data', (data) => {
 child.on('close', (code, signal) => {
   strictEqual(code, 0);
   strictEqual(signal, null);
-  ok(stderr.toString().includes(
+  ok(!stderr.toString().includes(
     'ExperimentalWarning: The ESM module loader is experimental'
   ));
   ok(!stderr.toString().includes(
