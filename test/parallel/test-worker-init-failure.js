@@ -35,7 +35,7 @@ if (process.argv[2] === 'child') {
   }
 
 } else {
-  // Limit the number of open files, to force workers to fail
+  // Limit the number of open files, to force workers to fail.
   let testCmd = `ulimit -n ${OPENFILES} && `;
 
   testCmd += `${process.execPath} ${__filename} child`;
@@ -45,15 +45,15 @@ if (process.argv[2] === 'child') {
   let stderr = '';
 
   cp.on('exit', common.mustCall((code, signal) => {
-    assert.strictEqual(code, 0);
-    assert.strictEqual(signal, null);
     if (stdout !== '')
       console.log(`child stdout: ${stdout}`);
     if (stderr !== '')
       console.log(`child stderr: ${stderr}`);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
   }));
 
-  // Turn on the child streams for debugging purpose
+  // Turn on the child streams for debugging purposes.
   cp.stderr.on('data', (chunk) => {
     stdout += chunk;
   });
