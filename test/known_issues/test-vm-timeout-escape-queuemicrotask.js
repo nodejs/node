@@ -12,8 +12,8 @@ const NS_PER_MS = 1000000n;
 
 const hrtime = process.hrtime.bigint;
 
-const loopDuration = common.platformTimeout(100n);
-const timeout = common.platformTimeout(10);
+const loopDuration = common.platformTimeout(1000n);
+const timeout = common.platformTimeout(100);
 
 function loop() {
   const start = hrtime();
