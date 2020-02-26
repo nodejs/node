@@ -634,8 +634,8 @@ void LookupIterator::PrepareTransitionToDataProperty(
       transition_ = cell;
       // Assign an enumeration index to the property and update
       // SetNextEnumerationIndex.
-      int index = dictionary->NextEnumerationIndex();
-      dictionary->SetNextEnumerationIndex(index + 1);
+      int index = GlobalDictionary::NextEnumerationIndex(isolate_, dictionary);
+      dictionary->set_next_enumeration_index(index + 1);
       property_details_ = PropertyDetails(
           kData, attributes, PropertyCellType::kUninitialized, index);
       PropertyCellType new_type =

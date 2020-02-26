@@ -2908,7 +2908,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   }
 
   // Copy the next enumeration index from instance descriptor.
-  dictionary->SetNextEnumerationIndex(real_size + 1);
+  dictionary->set_next_enumeration_index(real_size + 1);
 
   // From here on we cannot fail and we shouldn't GC anymore.
   DisallowHeapAllocation no_allocation;
