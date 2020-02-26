@@ -6677,7 +6677,7 @@ void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
                                                    int expected) {
   Handle<StringTable> table = isolate->factory()->string_table();
   // We need a key instance for the virtual hash function.
-  table = StringTable::EnsureCapacity(isolate, table, expected);
+  table = EnsureCapacity(isolate, table, expected);
   isolate->heap()->SetRootStringTable(*table);
 }
 
@@ -6729,7 +6729,7 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
 
   table = StringTable::CautiousShrink(isolate, table);
   // Adding new string. Grow table if needed.
-  table = StringTable::EnsureCapacity(isolate, table, 1);
+  table = EnsureCapacity(isolate, table);
   isolate->heap()->SetRootStringTable(*table);
 
   return AddKeyNoResize(isolate, key);
@@ -6870,7 +6870,7 @@ Handle<StringSet> StringSet::New(Isolate* isolate) {
 Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(isolate, name)) {
-    stringset = EnsureCapacity(isolate, stringset, 1);
+    stringset = EnsureCapacity(isolate, stringset);
     uint32_t hash = ShapeT::Hash(isolate, *name);
     int entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
@@ -6888,7 +6888,7 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
                                          Handle<Object> key) {
   int32_t hash = key->GetOrCreateHash(isolate).value();
   if (!set->Has(isolate, key, hash)) {
-    set = EnsureCapacity(isolate, set, 1);
+    set = EnsureCapacity(isolate, set);
     int entry = set->FindInsertionEntry(hash);
     set->set(EntryToIndex(entry), *key);
     set->ElementAdded();
@@ -7084,7 +7084,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   src = String::Flatten(isolate, src);
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
-  cache = EnsureCapacity(isolate, cache, 1);
+  cache = EnsureCapacity(isolate, cache);
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
@@ -7116,7 +7116,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     }
   }
 
-  cache = EnsureCapacity(isolate, cache, 1);
+  cache = EnsureCapacity(isolate, cache);
   int entry = cache->FindInsertionEntry(key.Hash());
   Handle<Object> k =
       isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
@@ -7130,7 +7130,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
     Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
     JSRegExp::Flags flags, Handle<FixedArray> value) {
   RegExpKey key(src, flags);
-  cache = EnsureCapacity(isolate, cache, 1);
+  cache = EnsureCapacity(isolate, cache);
   int entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custon IsMatch function during lookups.
@@ -7192,15 +7192,16 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
       isolate, at_least_space_for, allocation, capacity_option);
   dict->SetHash(PropertyArray::kNoHashSentinel);
-  dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
+  dict->set_next_enumeration_index(PropertyDetails::kInitialIndex);
   return dict;
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
-    Isolate* isolate, Handle<Derived> dictionary, int n) {
-  // Check whether there are enough enumeration indices to add n elements.
-  if (!PropertyDetails::IsValidIndex(dictionary->NextEnumerationIndex() + n)) {
+int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
+    Isolate* isolate, Handle<Derived> dictionary) {
+  int index = dictionary->next_enumeration_index();
+  // Check whether the next enumeration index is valid.
+  if (!PropertyDetails::IsValidIndex(index)) {
     // If not, we generate new indices for the properties.
     int length = dictionary->NumberOfElements();
 
@@ -7221,11 +7222,12 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
       dictionary->DetailsAtPut(isolate, index, new_details);
     }
 
-    // Set the next enumeration index.
-    dictionary->SetNextEnumerationIndex(PropertyDetails::kInitialIndex +
-                                        length);
+    index = PropertyDetails::kInitialIndex + length;
   }
-  return HashTable<Derived, Shape>::EnsureCapacity(isolate, dictionary, n);
+
+  // Don't update the next enumeration index here, since we might be looking at
+  // an immutable empty dictionary.
+  return index;
 }
 
 template <typename Derived, typename Shape>
@@ -7274,13 +7276,13 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
   DCHECK_EQ(0, details.dictionary_index());
   // Assign an enumeration index to the property and update
   // SetNextEnumerationIndex.
-  int index = dictionary->NextEnumerationIndex();
+  int index = Derived::NextEnumerationIndex(isolate, dictionary);
   details = details.set_index(index);
   dictionary = AddNoUpdateNextEnumerationIndex(isolate, dictionary, key, value,
                                                details, entry_out);
   // Update enumeration index here in order to avoid potential modification of
   // the canonical empty dictionary which lives in read only space.
-  dictionary->SetNextEnumerationIndex(index + 1);
+  dictionary->set_next_enumeration_index(index + 1);
   return dictionary;
 }
 
@@ -7294,7 +7296,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
   // Valdate key is absent.
   SLOW_DCHECK((dictionary->FindEntry(isolate, key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
-  dictionary = Derived::EnsureCapacity(isolate, dictionary, 1);
+  dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
   // Compute the key object.
   Handle<Object> k = Shape::AsHandle(isolate, key);
@@ -7644,7 +7646,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
   }
 
   // Check whether the hash table should be extended.
-  table = Derived::EnsureCapacity(isolate, table, 1);
+  table = Derived::EnsureCapacity(isolate, table);
   table->AddEntry(table->FindInsertionEntry(hash), *key, *value);
   return table;
 }
@@ -7892,8 +7894,8 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   // Preserve the enumeration index unless the property was deleted or never
   // initialized.
   if (cell->value().IsTheHole(isolate)) {
-    index = dictionary->NextEnumerationIndex();
-    dictionary->SetNextEnumerationIndex(index + 1);
+    index = GlobalDictionary::NextEnumerationIndex(isolate, dictionary);
+    dictionary->set_next_enumeration_index(index + 1);
   } else {
     index = original_details.dictionary_index();
   }
