@@ -1,5 +1,3 @@
-(node:*) ExperimentalWarning: The ESM module loader is experimental.
-(Use `node --trace-warnings ...` to show where the warning was created)
 file:///*/test/fixtures/es-module-loaders/syntax-error-import.mjs:1
 import { foo, notfound } from './module-named-exports.mjs';
               ^^^^^^^^
