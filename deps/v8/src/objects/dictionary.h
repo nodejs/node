@@ -140,16 +140,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static const int kObjectHashIndex = kNextEnumerationIndexIndex + 1;
   static const int kEntryValueIndex = 1;
 
-  // Accessors for next enumeration index.
-  void SetNextEnumerationIndex(int index) {
-    DCHECK_NE(0, index);
-    this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
-  }
-
-  int NextEnumerationIndex() {
-    return Smi::ToInt(this->get(kNextEnumerationIndexIndex));
-  }
-
   void SetHash(int hash) {
     DCHECK(PropertyArray::HashField::is_valid(hash));
     this->set(kObjectHashIndex, Smi::FromInt(hash));
@@ -173,6 +163,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   V8_WARN_UNUSED_RESULT static ExceptionStatus CollectKeysTo(
       Handle<Derived> dictionary, KeyAccumulator* keys);
 
+  // Allocate the next enumeration index. Possibly updates all enumeration
+  // indices in the table.
+  static int NextEnumerationIndex(Isolate* isolate, Handle<Derived> dictionary);
+  // Accessors for next enumeration index.
+  inline int next_enumeration_index();
+  inline void set_next_enumeration_index(int index);
+
   // Return the key indices sorted by its enumeration index.
   static Handle<FixedArray> IterationIndices(Isolate* isolate,
                                              Handle<Derived> dictionary);
@@ -183,10 +180,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static void CopyEnumKeysTo(Isolate* isolate, Handle<Derived> dictionary,
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);
-
-  // Ensure enough space for n additional elements.
-  static Handle<Derived> EnsureCapacity(Isolate* isolate,
-                                        Handle<Derived> dictionary, int n);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
       Isolate* isolate, Handle<Derived> dictionary, Key key,

@@ -31,6 +31,17 @@ template <typename Derived, typename Shape>
 BaseNameDictionary<Derived, Shape>::BaseNameDictionary(Address ptr)
     : Dictionary<Derived, Shape>(ptr) {}
 
+template <typename Derived, typename Shape>
+void BaseNameDictionary<Derived, Shape>::set_next_enumeration_index(int index) {
+  DCHECK_LT(0, index);
+  this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
+}
+
+template <typename Derived, typename Shape>
+int BaseNameDictionary<Derived, Shape>::next_enumeration_index() {
+  return Smi::ToInt(this->get(kNextEnumerationIndexIndex));
+}
+
 GlobalDictionary::GlobalDictionary(Address ptr)
     : BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>(ptr) {
   SLOW_DCHECK(IsGlobalDictionary());
