@@ -29,8 +29,8 @@ if (process.argv[2] === 'child') {
       assert.strictEqual(result, 4);
     });
     worker.on('error', (e) => {
-      assert.match(e.message, /Worker initialization failure: EMFILE/);
-      assert.strictEqual(e.code, 'ERR_WORKER_INIT_FAILED');
+      assert.match(e.message, /EMFILE/);
+      assert.ok(e.code === 'ERR_WORKER_INIT_FAILED' || e.code === 'EMFILE');
     });
   }
 
