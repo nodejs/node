@@ -1727,11 +1727,6 @@ value.
 While using [`dgram.createSocket()`][], the size of the receive or send `Buffer`
 could not be determined.
 
-<a id="ERR_SOCKET_CANNOT_SEND"></a>
-### `ERR_SOCKET_CANNOT_SEND`
-
-Data could be sent on a socket.
-
 <a id="ERR_SOCKET_CLOSED"></a>
 ### `ERR_SOCKET_CLOSED`
 
@@ -2292,6 +2287,15 @@ removed: v10.0.0
 -->
 
 The `repl` module was unable to parse data from the REPL history file.
+
+<a id="ERR_SOCKET_CANNOT_SEND"></a>
+### `ERR_SOCKET_CANNOT_SEND`
+<!-- YAML
+added: v9.0.0
+removed: REPLACEME
+-->
+
+Data could be sent on a socket.
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### `ERR_STDERR_CLOSE`
