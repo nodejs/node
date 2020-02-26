@@ -1,5 +1,3 @@
-(node:*) ExperimentalWarning: The ESM module loader is experimental.
-(Use `node --trace-warnings ...` to show where the warning was created)
 Error: test
     at one (*fixtures*async-error.js:4:9)
     at two (*fixtures*async-error.js:17:9)
