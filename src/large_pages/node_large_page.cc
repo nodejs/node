@@ -70,8 +70,10 @@
 // If successful copy the code there and unmap the original region.
 
 #if defined(__linux__)
+#include <dlfcn.h>  // For retrieving _init at runtime
 extern "C" {
 extern char __executable_start;
+extern char __start_lpstub;
 }  // extern "C"
 #endif  // defined(__linux__)
 
@@ -106,6 +108,20 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
   return ((addr) & ~((hps) - 1));
 }
 
+#if defined(__linux__)
+inline uintptr_t RetrieveInitOffset() {
+  uintptr_t init_offset = 0;
+  void* dlhandle = dlopen(nullptr, RTLD_NOW | RTLD_NOLOAD);
+  if (dlhandle != nullptr) {
+    init_offset = reinterpret_cast<uintptr_t>(dlsym(dlhandle, "_init"));
+    if (dlclose(dlhandle) != 0) {
+      PrintWarning("Failed to dlclose() self after retrieving _init");
+    }
+  }
+  return init_offset;
+}
+#endif
+
 // The format of the maps file is the following
 // address           perms offset  dev   inode       pathname
 // 00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
@@ -121,6 +137,7 @@ struct text_region FindNodeTextRegion() {
   std::string dev;
   char dash;
   uintptr_t start, end, offset, inode;
+  uintptr_t init_offset = RetrieveInitOffset();
 
   ifs.open("/proc/self/maps");
   if (!ifs) {
@@ -147,15 +164,31 @@ struct text_region FindNodeTextRegion() {
     if (start != reinterpret_cast<uintptr_t>(&__executable_start))
       continue;
 
-    // The next line is our .text section.
-    if (!std::getline(ifs, map_line))
-      break;
+    // On Ubuntu 18.04 the binary gets loaded into a single mapping. So, before
+    // we make the assumption that the next mapping contains the .text section
+    // we check if this mapping contains the symbol `_init` -- which, on
+    // Ubuntu 18.04 it does. If so, we calculate `start` and `end` from this
+    // mapping and take into account that we must exclude the section `lpstub`
+    // from the returned range, because `lpstub` contains the code responsible
+    // for re-mapping the .text section, and we don't want it re-mapping itself
+    // as it's doing that, because that will cause the process to crash.
+    if (init_offset != 0 && init_offset >= start && init_offset < end) {
+      uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
+      if (lpstub_start > start && lpstub_start <= end) {
+        end = lpstub_start;
+      }
+      start = init_offset;
+    } else {
+      // The next line is our .text section.
+      if (!std::getline(ifs, map_line))
+        break;
 
-    iss = std::istringstream(map_line);
-    iss >> std::hex >> start;
-    iss >> dash;
-    iss >> std::hex >> end;
-    iss >> permission;
+      iss = std::istringstream(map_line);
+      iss >> std::hex >> start;
+      iss >> dash;
+      iss >> std::hex >> end;
+      iss >> permission;
+    }
 
     if (permission != "r-xp")
       break;
@@ -318,7 +351,7 @@ static bool IsSuperPagesEnabled() {
 // d. If successful copy the code there and unmap the original region
 int
 #if !defined(__APPLE__)
-__attribute__((__section__(".lpstub")))
+__attribute__((__section__("lpstub")))
 #else
 __attribute__((__section__("__TEXT,__lpstub")))
 #endif
