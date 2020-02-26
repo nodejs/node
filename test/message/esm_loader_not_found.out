@@ -1,4 +1,3 @@
-(node:*) ExperimentalWarning: The ESM module loader is experimental.
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
 internal/process/esm_loader.js:*
     internalBinding('errors').triggerUncaughtException(
