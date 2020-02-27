@@ -32,24 +32,27 @@ class EnvironmentTest : public EnvironmentTestFixture {
   }
 };
 
-// TODO(codebytere): re-enable this test.
-// TEST_F(EnvironmentTest, PreExeuctionPreparation) {
-//   const v8::HandleScope handle_scope(isolate_);
-//   const Argv argv;
-//   Env env {handle_scope, argv};
+TEST_F(EnvironmentTest, PreExecutionPreparation) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
 
-//   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  node::LoadEnvironment(*env, [&](const node::StartExecutionCallbackInfo& info)
+                                  -> v8::MaybeLocal<v8::Value> {
+    return v8::Null(isolate_);
+  });
 
-//   const char* run_script = "process.argv0";
-//   v8::Local<v8::Script> script = v8::Script::Compile(
-//       context,
-//       v8::String::NewFromOneByte(isolate_,
-//                                reinterpret_cast<const uint8_t*>(run_script),
-//                                v8::NewStringType::kNormal).ToLocalChecked())
-//       .ToLocalChecked();
-//   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
-//   CHECK(result->IsString());
-// }
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  const char* run_script = "process.argv0";
+  v8::Local<v8::Script> script = v8::Script::Compile(
+      context,
+      v8::String::NewFromOneByte(isolate_,
+                                 reinterpret_cast<const uint8_t*>(run_script),
+                                 v8::NewStringType::kNormal).ToLocalChecked())
+      .ToLocalChecked();
+  v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+  CHECK(result->IsString());
+}
 
 TEST_F(EnvironmentTest, LoadEnvironmentWithCallback) {
   const v8::HandleScope handle_scope(isolate_);
