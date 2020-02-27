@@ -301,7 +301,7 @@ connections using TLS or SSL.
 
 ### Event: 'keylog'
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 * `line` {Buffer} Line of ASCII text, in NSS `SSLKEYLOGFILE` format.
@@ -603,7 +603,7 @@ Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
 ### Event: 'keylog'
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 * `line` {Buffer} Line of ASCII text, in NSS `SSLKEYLOGFILE` format.

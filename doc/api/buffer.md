@@ -1532,7 +1532,7 @@ The `buf.parent` property is a deprecated alias for `buf.buffer`.
 ### buf.readBigInt64BE(offset)
 ### buf.readBigInt64LE(offset)
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -1548,7 +1548,7 @@ Integers read from a `Buffer` are interpreted as two's complement signed values.
 ### buf.readBigUInt64BE(offset)
 ### buf.readBigUInt64LE(offset)
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
@@ -2176,7 +2176,7 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 ### buf.writeBigInt64BE(value, offset)
 ### buf.writeBigInt64LE(value, offset)
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 * `value` {bigint} Number to be written to `buf`.
@@ -2202,7 +2202,7 @@ console.log(buf);
 ### buf.writeBigUInt64BE(value, offset)
 ### buf.writeBigUInt64LE(value, offset)
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 * `value` {bigint} Number to be written to `buf`.

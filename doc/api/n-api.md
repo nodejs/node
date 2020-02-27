@@ -188,7 +188,7 @@ tied to the life cycle of the Agent.
 
 ### napi_set_instance_data
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 napiVersion: 6
 -->
 
@@ -216,7 +216,7 @@ by the previous call, it will not be called.
 
 ### napi_get_instance_data
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 napiVersion: 6
 -->
 
@@ -1376,7 +1376,7 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 ### Enum types
 #### napi_key_collection_mode
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 napiVersion: 6
 -->
 
@@ -1397,7 +1397,7 @@ of the objects's prototype chain as well.
 
 #### napi_key_filter
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 napiVersion: 6
 -->
 
@@ -1416,7 +1416,7 @@ Property filter bits. They can be or'ed to build a composite filter.
 
 #### napi_key_conversion
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 napiVersion: 6
 -->
 
@@ -3181,7 +3181,7 @@ included.
 
 #### napi_get_all_property_names
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 napiVersion: 6
 -->
 

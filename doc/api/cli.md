@@ -361,7 +361,7 @@ with crypto support (default).
 
 ### `--tls-max-v1.2`
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 Does nothing, [`tls.DEFAULT_MAX_VERSION`][] is always 'TLSv1.2'. Exists for
@@ -369,7 +369,7 @@ compatibility with Node.js 11.x and higher.
 
 ### `--tls-min-v1.0`
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1'. Use for compatibility with
@@ -377,7 +377,7 @@ old TLS clients or servers.
 
 ### `--tls-min-v1.1`
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.1'. Use for compatibility
@@ -385,7 +385,7 @@ with old TLS clients or servers.
 
 ### `--tls-min-v1.2`
 <!-- YAML
-added: REPLACEME
+added: v10.20.0
 -->
 
 Set default [`tls.DEFAULT_MIN_VERSION`][] to 'TLSv1.2'. Use this to disable
