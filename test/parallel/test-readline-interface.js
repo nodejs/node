@@ -80,7 +80,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   // Constructor throws if completer is not a function or undefined
   assert.throws(() => {
     readline.createInterface({
-      input,
+      input: input,
       completer: 'string is not valid'
     });
   }, {
@@ -90,7 +90,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 
   assert.throws(() => {
     readline.createInterface({
-      input,
+      input: input,
       completer: ''
     });
   }, {
@@ -100,7 +100,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 
   assert.throws(() => {
     readline.createInterface({
-      input,
+      input: input,
       completer: false
     });
   }, {
@@ -111,7 +111,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   // Constructor throws if historySize is not a positive number
   assert.throws(() => {
     readline.createInterface({
-      input,
+      input: input,
       historySize: 'not a number'
     });
   }, {
@@ -121,7 +121,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 
   assert.throws(() => {
     readline.createInterface({
-      input,
+      input: input,
       historySize: -1
     });
   }, {
@@ -131,7 +131,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 
   assert.throws(() => {
     readline.createInterface({
-      input,
+      input: input,
       historySize: NaN
     });
   }, {
@@ -176,7 +176,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 // Sending a single character with no newline
 {
   const fi = new FakeInput();
-  const rli = new readline.Interface(fi, {});
+  const rli = new readline.Interface({ input: fi });
   rli.on('line', common.mustNotCall());
   fi.emit('data', 'a');
   rli.close();
@@ -1027,8 +1027,8 @@ for (let i = 0; i < 12; i++) {
     }),
   });
   const rl = new readline.createInterface({
-    input,
-    output,
+    input: input,
+    output: output,
     terminal: true,
   });
   rl.line = `a${' '.repeat(1e6)}a`;
