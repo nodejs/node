@@ -1,3 +1,41 @@
+## 6.14.1 (2020-02-26)
+
+* [`303e5c11e`](https://github.com/npm/cli/commit/303e5c11e7db34cf014107aecd2e81c821bfde8d)
+  `hosted-git-info@2.8.7`
+  Fixes a regression where scp-style git urls are passed to the WhatWG URL
+  parser, which does not handle them properly.
+  ([@isaacs](https://github.com/isaacs))
+
+## 6.14.0 (2020-02-25)
+
+### FEATURES
+* [`30f170877`](https://github.com/npm/cli/commit/30f170877954acd036cb234a581e4eb155049b82) [#731](https://github.com/npm/cli/pull/731) add support for multiple funding sources ([@ljharb](https://github.com/ljharb) & [@ruyadorno](hhttps://github.com/ruyadorno/))
+
+### BUG FIXES
+* [`55916b130`](https://github.com/npm/cli/commit/55916b130ef52984584678f2cc17c15c1f031cb5) [#508](https://github.com/npm/cli/pull/508) fix: check `npm.config` before accessing its members ([@kaiyoma](https://github.com/kaiyoma))
+* [`7d0cd65b2`](https://github.com/npm/cli/commit/7d0cd65b23c0986b631b9b54d87bbe74902cc023) [#733](https://github.com/npm/cli/pull/733) fix: access grant with unscoped packages ([@netanelgilad](https://github.com/netanelgilad))
+* [`28c3d40d6`](https://github.com/npm/cli/commit/28c3d40d65eef63f9d6ccb60b99ac57f5057a46e), [`0769c5b20`](https://github.com/npm/cli/commit/30f170877954acd036cb234a581e4eb155049b82) [#945](https://github.com/npm/cli/pull/945), [#697](https://github.com/npm/cli/pull/697) fix: allow new major versions of node to be automatically considered "supported" ([@isaacs](https://github.com/isaacs), [@ljharb](https://github.com/ljharb))
+
+### DEPENDENCIES
+* [`6f39e93`](https://github.com/npm/hosted-git-info/commit/6f39e93bae9162663af6f15a9d10bce675dd5de3) `hosted-git-info@2.8.6` ([@darcyclarke](https://github.com/darcyclarke))
+  * fix: passwords & usernames are escaped properly in git deps ([@stevenhilder](https://github.com/stevenhilder))
+* [`f14b594ee`](https://github.com/npm/cli/commit/f14b594ee9dbfc98ed0b65c65d904782db4f31ad) `chownr@1.1.4` ([@isaacs](https://github.com/isaacs))
+* [`77044150b`](https://github.com/npm/cli/commit/77044150b763d67d997f9ff108219132ea922678) `npm-packlist@1.4.8` ([@isaacs](https://github.com/isaacs))
+* [`1d112461a`](https://github.com/npm/cli/commit/1d112461ad8dc99e5ff7fabb5177e8c2f89a9755) `npm-registry-fetch@4.0.3` ([@isaacs](https://github.com/isaacs))
+  * [`ba8b4fe`](https://github.com/npm/npm-registry-fetch/commit/ba8b4fe60eb6cdf9b39012560aec596eda8ce924) fix: always bypass cache when ?write=true
+* [`a47fed760`](https://github.com/npm/cli/commit/a47fed7603a6ed31dcc314c0c573805f05a96830) `readable-stream@3.6.0`
+  * [`3bbf2d6`](https://github.com/nodejs/readable-stream/commit/3bbf2d6feb45b03f4e46a2ae8251601ad2262121) fix: babel's "loose mode" class transform enbrittles BufferList ([@ljharb](https://github.com/ljharb))
+
+### DOCUMENTATION
+* [`284c1c055`](https://github.com/npm/cli/commit/284c1c055a28c4b334496101799acefe3c54ceb3), [`fbb5f0e50`](https://github.com/npm/cli/commit/fbb5f0e50e54425119fa3f03c5de93e4cb6bfda7) [#729](https://github.com/npm/cli/pull/729) update lifecycle hooks docs
+  ([@seanhealy](https://github.com/seanhealy), [@mikemimik](https://github.com/mikemimik))
+* [`1c272832d`](https://github.com/npm/cli/commit/1c272832d048300e409882313305c416dc6f21a2) [#787](https://github.com/npm/cli/pull/787) fix: trademarks typo ([@dnicolson](https://github.com/dnicolson))
+* [`f6ff41776`](https://github.com/npm/cli/commit/f6ff417767d52418cc8c9e7b9731ede2c3916d2e) [#936](https://github.com/npm/cli/pull/936) fix: postinstall example ([@ajaymathur](https://github.com/ajaymathur))
+* [`373224b16`](https://github.com/npm/cli/commit/373224b16e019b7b63d8f0b4c5d4adb7e5cb80dd) [#939](https://github.com/npm/cli/pull/939) fix: bad links in publish docs ([@vit100](https://github.com/vit100))
+
+### MISCELLANEOUS
+* [`85c79636d`](https://github.com/npm/cli/commit/85c79636df31bac586c0e380c4852ee155a7723c) [#736](https://github.com/npm/cli/pull/736) add script to update dist-tags ([@mikemimik](https://github.com/mikemimik))
+
 ## 6.13.7 (2020-01-28)
 
 ### BUG FIXES

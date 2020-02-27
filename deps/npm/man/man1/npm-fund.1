@@ -1,4 +1,4 @@
-.TH "NPM\-FUND" "1" "January 2020" "" ""
+.TH "NPM\-FUND" "1" "February 2020" "" ""
 .SH "NAME"
 \fBnpm-fund\fR \- Retrieve funding information
 .SS Synopsis
@@ -15,7 +15,8 @@ a given project\. If no package name is provided, it will list all
 dependencies that are looking for funding in a tree\-structure in which
 are listed the type of funding and the url to visit\. If a package name
 is provided then it tries to open its funding url using the \fB\-\-browser\fP
-config param\.
+config param; if there are multiple funding sources for the package, the
+user will be instructed to pass the \fB\-\-which\fP command to disambiguate\.
 .P
 The list will avoid duplicated entries and will stack all packages
 that share the same type/url as a single entry\. Given this nature the
@@ -34,9 +35,9 @@ The browser that is called by the \fBnpm fund\fP command to open websites\.
 .SS json
 .RS 0
 .IP \(bu 2
-Default: false
-.IP \(bu 2
 Type: Boolean
+.IP \(bu 2
+Default: false
 
 .RE
 .P
@@ -52,6 +53,16 @@ Default: true
 .P
 Whether to represent the tree structure using unicode characters\.
 Set it to \fBfalse\fP in order to use all\-ansi output\.
+.SS which
+.RS 0
+.IP \(bu 2
+Type: Number
+.IP \(bu 2
+Default: undefined
+
+.RE
+.P
+If there are multiple funding sources, which 1\-indexed source URL to open\.
 .SH See Also
 .RS 0
 .IP \(bu 2
