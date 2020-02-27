@@ -21,7 +21,8 @@ a given project. If no package name is provided, it will list all
 dependencies that are looking for funding in a tree-structure in which
 are listed the type of funding and the url to visit. If a package name
 is provided then it tries to open its funding url using the `--browser`
-config param.
+config param; if there are multiple funding sources for the package, the
+user will be instructed to pass the `--which` command to disambiguate.
 
 The list will avoid duplicated entries and will stack all packages
 that share the same type/url as a single entry. Given this nature the
@@ -38,8 +39,8 @@ The browser that is called by the `npm fund` command to open websites.
 
 #### json
 
-* Default: false
 * Type: Boolean
+* Default: false
 
 Show information in JSON format.
 
@@ -50,6 +51,13 @@ Show information in JSON format.
 
 Whether to represent the tree structure using unicode characters.
 Set it to `false` in order to use all-ansi output.
+
+#### which
+
+* Type: Number
+* Default: undefined
+
+If there are multiple funding sources, which 1-indexed source URL to open.
 
 ## See Also
 

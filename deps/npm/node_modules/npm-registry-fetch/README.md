@@ -50,6 +50,25 @@ Happy hacking!
 
 ### API
 
+#### Caching and `write=true` query strings
+
+Before performing any PUT or DELETE operation, npm clients first make a
+GET request to the registry resource being updated, which includes
+the query string `?write=true`.
+
+The semantics of this are, effectively, "I intend to write to this thing,
+and need to know the latest current value, so that my write can land
+cleanly".
+
+The public npm registry handles these `?write=true` requests by ensuring
+that the cache is re-validated before sending a response.  In order to
+maintain the same behavior on the client, and not get tripped up by an
+overeager local cache when we intend to write data to the registry, any
+request that comes through `npm-registry-fetch` that contains `write=true`
+in the query string will forcibly set the `prefer-online` option to `true`,
+and set both `prefer-offline` and `offline` to false, so that any local
+cached value will be revalidated.
+
 #### <a name="fetch"></a> `> fetch(url, [opts]) -> Promise<Response>`
 
 Performs a request to a given URL.
@@ -391,6 +410,9 @@ Force offline mode: no network requests will be done during install. To allow
 This option is only really useful if you're also using
 [`opts.cache`](#opts-cache).
 
+This option is set to `true` when the request includes `write=true` in the
+query string.
+
 ##### <a name="opts-otp"></a> `opts.otp`
 
 * Type: Number | String
@@ -402,7 +424,7 @@ account.
 
 ##### <a name="opts-password"></a> `opts.password`
 
-* Alias: _password
+* Alias: `_password`
 * Type: String
 * Default: null
 
@@ -432,6 +454,9 @@ will be requested from the server. To force full offline mode, use
 This option is generally only useful if you're also using
 [`opts.cache`](#opts-cache).
 
+This option is set to `false` when the request includes `write=true` in the
+query string.
+
 ##### <a name="opts-prefer-online"></a> `opts.prefer-online`
 
 * Type: Boolean
@@ -443,6 +468,8 @@ for updates immediately even for fresh package data.
 This option is generally only useful if you're also using
 [`opts.cache`](#opts-cache).
 
+This option is set to `true` when the request includes `write=true` in the
+query string.
 
 ##### <a name="opts-project-scope"></a> `opts.project-scope`
 
@@ -606,4 +633,4 @@ See also [`opts.password`](#opts-password)
 * Default: null
 
 ** DEPRECATED ** This is a legacy authentication token supported only for
-*compatibility. Please use [`opts.token`](#opts-token) instead.
+compatibility. Please use [`opts.token`](#opts-token) instead.
