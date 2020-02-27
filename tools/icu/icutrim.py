@@ -287,7 +287,7 @@ for i in range(len(items)):
         runcmd("iculslocs", "-i %s -N %s -T %s -l > %s" % (outfile, dataname, tree, treelistfile))
         with io.open(treelistfile, 'r', encoding='utf-8') as fi:
             treeitems = fi.readlines()
-            trees[tree]["locs"] = [treeitems[i].strip() for i in range(len(treeitems))]
+            trees[tree]["locs"] = [line.strip() for line in treeitems]
         if tree not in config.get("trees", {}):
             print(" Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree))
         else:
