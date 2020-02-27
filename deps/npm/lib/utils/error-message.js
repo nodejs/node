@@ -35,9 +35,9 @@ function errorMessage (er) {
     case 'EACCES':
     case 'EPERM':
       const isCachePath = typeof er.path === 'string' &&
-        er.path.startsWith(npm.config.get('cache'))
+        npm.config && er.path.startsWith(npm.config.get('cache'))
       const isCacheDest = typeof er.dest === 'string' &&
-        er.dest.startsWith(npm.config.get('cache'))
+        npm.config && er.dest.startsWith(npm.config.get('cache'))
 
       const isWindows = process.platform === 'win32'
 

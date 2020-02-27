@@ -7,13 +7,12 @@
 'use strict'
 exports[`test/tap/fund.js TAP fund containing multi-level nested deps with no funding > should omit dependencies with no funding declared 1`] = `
 nested-no-funding-packages@1.0.0
-+-- lorem@1.0.0
-| \`-- url: https://example.com/lorem
-\`-- bar@1.0.0
-  +-- type: individual
-  +-- url: http://example.com/donate
++-- https://example.com/lorem
+| \`-- lorem@1.0.0
++-- http://example.com/donate
+| \`-- bar@1.0.0
+\`-- https://example.com/sponsor
   \`-- sub-bar@1.0.0
-    \`-- url: https://example.com/sponsor
 
 
 `
@@ -24,19 +23,33 @@ exports[`test/tap/fund.js TAP fund does not support global > should throw EFUNDG
 
 exports[`test/tap/fund.js TAP fund does not support global > should write error msgs to stderr 1`] = `
 npm ERR! code EFUNDGLOBAL
-npm ERR! \`npm fund\` does not support globals
+npm ERR! \`npm fund\` does not support global packages
 `
 
 exports[`test/tap/fund.js TAP fund does not support global, using --json option > should write error msgs to stderr 1`] = `
 npm ERR! code EFUNDGLOBAL
-npm ERR! \`npm fund\` does not support globals
+npm ERR! \`npm fund\` does not support global packages
 `
 
 exports[`test/tap/fund.js TAP fund in which same maintainer owns all its deps > should print stack packages together 1`] = `
-maintainer-owns-all-deps@1.0.0, dep-bar@1.0.0, dep-sub-foo@1.0.0, dep-foo@1.0.0
-+-- type: individual
-\`-- url: http://example.com/donate
+maintainer-owns-all-deps@1.0.0
+\`-- http://example.com/donate
+  \`-- dep-bar@1.0.0, dep-foo@1.0.0, dep-sub-foo@1.0.0
 
+
+`
+
+exports[`test/tap/fund.js TAP fund using nested packages with multiple sources > should prompt with all available URLs 1`] = `
+1: Funding available at the following URL: https://one.example.com
+2: Funding available at the following URL: https://two.example.com
+Run \`npm fund [<@scope>/]<pkg> --which=1\`, for example, to open the first funding URL listed in that package
+
+`
+
+exports[`test/tap/fund.js TAP fund using nested packages with multiple sources, with a source number > should open the numbered URL 1`] = `
+Funding available at the following URL:
+
+https://one.example.com
 
 `
 
