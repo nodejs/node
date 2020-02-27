@@ -161,7 +161,7 @@ class ELDHistogram : public HandleWrap, public Histogram {
     exceeds_ = 0;
     prev_ = 0;
   }
-  int64_t Exceeds() { return exceeds_; }
+  int64_t Exceeds() const { return exceeds_; }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("histogram", GetMemorySize());
