@@ -314,6 +314,19 @@
 
   'targets': [
     {
+      'target_name': 'node_text_start',
+      'type': 'none',
+      'conditions': [
+        [ 'OS=="linux" and '
+          'target_arch=="x64"', {
+          'type': 'static_library',
+          'sources': [
+            'src/large_pages/node_text_start.S'
+          ]
+        }],
+      ]
+    },
+    {
       'target_name': '<(node_core_target_name)',
       'type': 'executable',
 
@@ -497,6 +510,13 @@
           'sources': [
             'src/node_snapshot_stub.cc'
           ],
+        }],
+        [ 'OS=="linux" and '
+          'target_arch=="x64"', {
+          'dependencies': [ 'node_text_start' ],
+          'ldflags+': [
+            '<(PRODUCT_DIR)/obj.target/node_text_start/src/large_pages/node_text_start.o'
+          ]
         }],
       ],
     }, # node_core_target_name
