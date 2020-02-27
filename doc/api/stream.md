@@ -1887,11 +1887,11 @@ This function MUST NOT be called by application code directly. It should be
 implemented by child classes, and called by the internal `Writable` class
 methods only.
 
-The `callback` method must be called to signal either that the write completed
-successfully or failed with an error. The first argument passed to the
-`callback` must be the `Error` object if the call failed or `null` if the
-write succeeded. The `callback` must be called synchronously inside of
-`writable._write()` or asynchronously (i.e. different tick).
+The `callback` function must be called synchronously inside of
+`writable._write()` or asynchronously (i.e. different tick) to signal either
+that the write completed successfully or failed with an error.
+The first argument passed to the `callback` must be the `Error` object if the
+call failed or `null` if the write succeeded.
 
 All calls to `writable.write()` that occur between the time `writable._write()`
 is called and the `callback` is called will cause the written data to be

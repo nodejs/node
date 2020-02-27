@@ -19,7 +19,7 @@ async function testAwait() {
   await asyncLocalStorage.exitSyncAndReturn(testOut);
 }
 
-asyncLocalStorage.run(() => {
+asyncLocalStorage.run(new Map(), () => {
   const store = asyncLocalStorage.getStore();
   store.set('key', 'value');
   testAwait(); // should not reject

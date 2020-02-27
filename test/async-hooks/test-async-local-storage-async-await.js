@@ -12,7 +12,7 @@ async function test() {
 }
 
 async function main() {
-  await asyncLocalStorage.runSyncAndReturn(test);
+  await asyncLocalStorage.runSyncAndReturn(new Map(), test);
   assert.strictEqual(asyncLocalStorage.getStore(), undefined);
 }
 
