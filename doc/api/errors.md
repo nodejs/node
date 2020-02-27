@@ -1967,6 +1967,12 @@ A `Transform` stream finished with data still in the write buffer.
 
 The initialization of a TTY failed due to a system error.
 
+<a id="ERR_UNAVAILABLE_DURING_EXIT"></a>
+### `ERR_UNAVAILABLE_DURING_EXIT`
+
+Function was called within a [`process.on('exit')`][] handler that shouldn't be
+called within [`process.on('exit')`][] handler.
+
 <a id="ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET"></a>
 ### `ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET`
 
@@ -2543,6 +2549,7 @@ such as `process.stdout.on('data')`.
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_constructor_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
+[`process.on('exit')`]: process.html#Event:-`'exit'`
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.html#stream_readable_read_size_1
