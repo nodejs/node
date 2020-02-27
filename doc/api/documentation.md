@@ -27,9 +27,10 @@ The stability indices are as follows:
 
 <!-- separator -->
 
-> Stability: 1 - Experimental. The feature is not subject to Semantic Versioning
-> rules. Non-backward compatible changes or removal may occur in any future
-> release. Use of the feature is not recommended in production environments.
+> Stability: 1 - Experimental. The feature is not subject to
+> [Semantic Versioning][] rules. Non-backward compatible changes or removal may
+> occur in any future release. Use of the feature is not recommended in
+> production environments.
 
 <!-- separator -->
 
@@ -58,6 +59,7 @@ to the corresponding man pages which describe how the system call works.
 Most Unix system calls have Windows analogues. Still, behavior differences may
 be unavoidable.
 
+[Semantic Versioning]: https://semver.org/
 [the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [V8 JavaScript engine]: https://v8.dev/
