@@ -5,7 +5,7 @@ of different Node.js implementations and different ways of
 writing JavaScript run by the built-in JavaScript engine.
 
 For a detailed guide on how to write and run benchmarks in this
-directory, see [the guide on benchmarks](../doc/guides/contributing/writing-and-running-benchmarks.md).
+directory, see [the guide on benchmarks](../doc/guides/writing-and-running-benchmarks.md).
 
 ## Table of Contents
 
