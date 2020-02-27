@@ -131,7 +131,7 @@ const { readFileSync } = require('fs');
   function makeMinimalMap(generatedColumns, originalColumns) {
     return {
       sources: ['test.js'],
-      // Mapping from the 0th line, 0th column of the output file to the 0th
+      // Mapping from the 0th line, ${g}th column of the output file to the 0th
       // source file, 0th line, ${column}th column.
       mappings: generatedColumns.map((g, i) => `${g}AA${originalColumns[i]}`)
         .join(',')
