@@ -28,6 +28,12 @@ if (process.argv[2] === 'child') {
     worker.on('message', (result) => {
       assert.strictEqual(result, 4);
     });
+
+    // We want to test that if there is an error in a constrained running
+    // environment, it will be one of `EMFILE` or `ERR_WORKER_INIT_FAILED`.
+    // `common.mustCall*` cannot be used here as in some environments
+    // (i.e. single cpu) `ulimit` may not lead to such an error.
+
     worker.on('error', (e) => {
       assert.match(e.message, /EMFILE/);
       assert.ok(e.code === 'ERR_WORKER_INIT_FAILED' || e.code === 'EMFILE');
