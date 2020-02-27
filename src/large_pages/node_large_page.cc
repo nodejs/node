@@ -71,7 +71,11 @@
 
 #if defined(__linux__)
 extern "C" {
-extern char __executable_start;
+// This symbol must be declared weak because this file becomes part of all
+// Node.js targets (like node_mksnapshot, node_mkcodecache, and cctest) and
+// those files do not supply the symbol.
+extern char __attribute__((weak)) __node_text_start;
+extern char __start_lpstub;
 }  // extern "C"
 #endif  // defined(__linux__)
 
@@ -121,6 +125,8 @@ struct text_region FindNodeTextRegion() {
   std::string dev;
   char dash;
   uintptr_t start, end, offset, inode;
+  uintptr_t node_text_start = reinterpret_cast<uintptr_t>(&__node_text_start);
+  uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
 
   ifs.open("/proc/self/maps");
   if (!ifs) {
@@ -144,21 +150,15 @@ struct text_region FindNodeTextRegion() {
     std::string pathname;
     iss >> pathname;
 
-    if (start != reinterpret_cast<uintptr_t>(&__executable_start))
+    if (permission != "r-xp")
       continue;
 
-    // The next line is our .text section.
-    if (!std::getline(ifs, map_line))
-      break;
+    if (node_text_start < start || node_text_start >= end)
+      continue;
 
-    iss = std::istringstream(map_line);
-    iss >> std::hex >> start;
-    iss >> dash;
-    iss >> std::hex >> end;
-    iss >> permission;
-
-    if (permission != "r-xp")
-      break;
+    start = node_text_start;
+    if (lpstub_start > start && lpstub_start <= end)
+      end = lpstub_start;
 
     char* from = reinterpret_cast<char*>(hugepage_align_up(start));
     char* to = reinterpret_cast<char*>(hugepage_align_down(end));
@@ -318,7 +318,7 @@ static bool IsSuperPagesEnabled() {
 // d. If successful copy the code there and unmap the original region
 int
 #if !defined(__APPLE__)
-__attribute__((__section__(".lpstub")))
+__attribute__((__section__("lpstub")))
 #else
 __attribute__((__section__("__TEXT,__lpstub")))
 #endif
