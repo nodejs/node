@@ -288,11 +288,10 @@ for i in range(len(items)):
         with io.open(treelistfile, 'r', encoding='utf-8') as fi:
             treeitems = fi.readlines()
             trees[tree]["locs"] = [treeitems[i].strip() for i in range(len(treeitems))]
-            fi.close()
-            if tree not in config.get("trees", {}):
-                print(" Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree))
-            else:
-                queueForRemoval(tree)
+        if tree not in config.get("trees", {}):
+            print(" Warning: filter file %s does not mention trees.%s - will be kept as-is" % (options.filterfile, tree))
+        else:
+            queueForRemoval(tree)
 
 def removeList(count=0):
     # don't allow "keep" items to creep in here.
