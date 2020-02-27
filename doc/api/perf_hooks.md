@@ -463,6 +463,23 @@ console.log(h.percentile(50));
 console.log(h.percentile(99));
 ```
 
+## `perf_hooks.monitorEventLoopIdleness([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `resolution` {number} The sampling rate in milliseconds. Must be greater
+    than zero. **Default:** `10`.
+* Returns: {Histogram}
+
+Creates a `Histogram` object that samples and reports the event loop idleness
+over time (time difference between IO poll start and poll end). The idleness
+will be reported in nanoseconds.
+
+The behavior of `monitorEventLoopIdleness` is identical to
+[`monitorEventLoopDelay`][] above.
+
 ### Class: `Histogram`
 <!-- YAML
 added: v11.10.0
@@ -643,3 +660,4 @@ require('some-module');
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [Async Hooks]: async_hooks.html
 [W3C Performance Timeline]: https://w3c.github.io/performance-timeline/
+[`monitorEventLoopDelay`]: #perf_hooks_perf_hooks_monitoreventloopdelay_options

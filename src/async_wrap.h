@@ -36,6 +36,7 @@ namespace node {
   V(DIRHANDLE)                                                                \
   V(DNSCHANNEL)                                                               \
   V(ELDHISTOGRAM)                                                             \
+  V(ELIHISTOGRAM)                                                             \
   V(FILEHANDLE)                                                               \
   V(FILEHANDLECLOSEREQ)                                                       \
   V(FSEVENTWRAP)                                                              \

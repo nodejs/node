@@ -147,13 +147,10 @@ class GCPerformanceEntry : public PerformanceEntry {
   PerformanceGCFlags gcflags_;
 };
 
-class ELDHistogram : public HandleWrap, public Histogram {
+class EventLoopHistogram : public Histogram {
  public:
-  ELDHistogram(Environment* env,
-               Local<Object> wrap,
-               int32_t resolution);
+  explicit EventLoopHistogram(int32_t resolution);
 
-  bool RecordDelta();
   bool Enable();
   bool Disable();
   void ResetState() {
@@ -162,6 +159,24 @@ class ELDHistogram : public HandleWrap, public Histogram {
     prev_ = 0;
   }
   int64_t Exceeds() const { return exceeds_; }
+
+ protected:
+  bool enabled_ = false;
+  int32_t resolution_ = 0;
+  int64_t exceeds_ = 0;
+  uint64_t prev_ = 0;
+};
+
+// ELD = Event-Loop Delay
+class ELDHistogram : public HandleWrap, public EventLoopHistogram {
+ public:
+  ELDHistogram(Environment* env,
+               Local<Object> wrap,
+               int32_t resolution);
+
+  bool RecordDelta();
+  bool Enable();
+  bool Disable();
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("histogram", GetMemorySize());
@@ -173,11 +188,37 @@ class ELDHistogram : public HandleWrap, public Histogram {
  private:
   static void DelayIntervalCallback(uv_timer_t* req);
 
-  bool enabled_ = false;
-  int32_t resolution_ = 0;
-  int64_t exceeds_ = 0;
-  uint64_t prev_ = 0;
   uv_timer_t timer_;
+};
+
+// ELI = Event-Loop Idleness
+class ELIHistogram : public HandleWrap, public EventLoopHistogram {
+ public:
+  ELIHistogram(Environment* env,
+               Local<Object> wrap,
+               int32_t resolution);
+
+  void RecordPollStart();
+  void RecordPollEnd();
+
+  bool Enable();
+  bool Disable();
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackFieldWithSize("histogram", GetMemorySize());
+  }
+
+  void Close(Local<Value> close_callback) override;
+
+  SET_MEMORY_INFO_NAME(ELIHistogram)
+  SET_SELF_SIZE(ELIHistogram)
+
+ private:
+  static void PrepareCallback(uv_prepare_t* handle);
+  static void CheckCallback(uv_check_t* handle);
+
+  uv_prepare_t prepare_;
+  uv_check_t check_;
 };
 
 }  // namespace performance
