@@ -96,6 +96,7 @@
       'lib/zlib.js',
       'lib/internal/assert.js',
       'lib/internal/assert/assertion_error.js',
+      'lib/internal/assert/calltracker.js',
       'lib/internal/async_hooks.js',
       'lib/internal/buffer.js',
       'lib/internal/cli_table.js',
