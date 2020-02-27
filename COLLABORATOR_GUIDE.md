@@ -591,6 +591,10 @@ for that commit. This is an opportunity to fix commit messages.
     reviewed the change.
     * Useful for @mentions / contact list if something goes wrong in the PR.
     * Protects against the assumption that GitHub will be around forever.
+  * Required: A `Signed-off-by: Name <email>` line for each individual who
+    contributed to the commit. Commit authors should add these lines themselves.
+    Collaborators may add them while landing if the author agrees in the PR
+    discussion.
 
 Other changes may have landed on master since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).

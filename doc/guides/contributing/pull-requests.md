@@ -12,6 +12,7 @@ so that you can make the actual changes. This is where we will start.
 * [The Process of Making Changes](#the-process-of-making-changes)
   * [Step 3: Code](#step-3-code)
   * [Step 4: Commit](#step-4-commit)
+    * [Signing off on commits](#signing-off-on-commits)
     * [Commit message guidelines](#commit-message-guidelines)
   * [Step 5: Rebase](#step-5-rebase)
   * [Step 6: Test](#step-6-test)
@@ -134,11 +135,31 @@ to review changes that are split across multiple commits.
 
 ```text
 $ git add my/changed/files
-$ git commit
+$ git commit -s
 ```
 
 Multiple commits often get squashed when they are landed. See the
 notes about [commit squashing](#commit-squashing).
+
+#### Signing off on commits
+
+All commits landed must contain one `Signed-off-by` metadata statement for
+each author. The value of this statement must
+match the name and email address configured in [Step 1][].
+
+```text
+Signed-off-by: J. Random User <j.random.user@example.com>
+```
+
+To add the `Signed-off-by` statement with `git`, use the `-s` (or `--signoff`)
+option:
+
+```text
+$ git commit -s
+```
+
+Sign-off indicates that the commit complies with
+[Developer's Certificate of Origin 1.1][].
 
 #### Commit message guidelines
 
@@ -587,9 +608,11 @@ If you want to know more about the code review and the landing process, see the
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Collaborator Guide]: ../../../COLLABORATOR_GUIDE.md
+[Developer's Certificate of Origin 1.1]: ../../../CONTRIBUTING.md#developers-certificate-of-origin
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Onboarding guide]: ../../onboarding.md
 [running tests]: ../../../BUILDING.md#running-tests
+[Step 1]: #step-1-fork
