@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "January 2020" "" ""
+.TH "PACKAGE\.JSON" "5" "February 2020" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -216,7 +216,8 @@ npm also sets a top\-level "maintainers" field with your npm user info\.
 .SS funding
 .P
 You can specify an object containing an URL that provides up\-to\-date
-information about ways to help fund development of your package:
+information about ways to help fund development of your package, or
+a string URL, or an array of these:
 .P
 .RS 2
 .nf
@@ -229,13 +230,28 @@ information about ways to help fund development of your package:
   "type" : "patreon",
   "url" : "https://www\.patreon\.com/my\-account"
 }
+
+"funding": "http://example\.com/donate"
+
+"funding": [
+  {
+    "type" : "individual",
+    "url" : "http://example\.com/donate"
+  },
+  "http://example\.com/donateAlso",
+  {
+    "type" : "patreon",
+    "url" : "https://www\.patreon\.com/my\-account"
+  }
+]
 .fi
 .RE
 .P
 Users can use the \fBnpm fund\fP subcommand to list the \fBfunding\fP URLs of all
 dependencies of their project, direct and indirect\. A shortcut to visit each
 funding url is also available when providing the project name such as:
-\fBnpm fund <projectname>\fP\|\.
+\fBnpm fund <projectname>\fP (when there are multiple URLs, the first one will be
+visited)
 .SS files
 .P
 The optional \fBfiles\fP field is an array of file patterns that describes

@@ -75,7 +75,9 @@ module.exports = figgyPudding({
   'scope': {},
   'spec': {},
   'strict-ssl': {},
-  'timeout': {},
+  'timeout': {
+    default: 30 * 1000
+  },
   'user-agent': {
     default: `${
       pkg.name
