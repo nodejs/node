@@ -41,23 +41,20 @@ if (process.argv[2] === 'child') {
   testCmd += `${process.execPath} ${__filename} child`;
   const cp = child_process.exec(testCmd);
 
+  // Turn on the child streams for debugging purposes.
   let stdout = '';
+  cp.stdout.on('data', (chunk) => {
+    stdout += chunk;
+  });
   let stderr = '';
+  cp.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
 
   cp.on('exit', common.mustCall((code, signal) => {
-    if (stdout !== '')
-      console.log(`child stdout: ${stdout}`);
-    if (stderr !== '')
-      console.log(`child stderr: ${stderr}`);
+    console.log(`child stdout: ${stdout}\n`);
+    console.log(`child stderr: ${stderr}\n`);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   }));
-
-  // Turn on the child streams for debugging purposes.
-  cp.stderr.on('data', (chunk) => {
-    stdout += chunk;
-  });
-  cp.stdout.on('data', (chunk) => {
-    stderr += chunk;
-  });
 }
