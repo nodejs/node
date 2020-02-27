@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.0.3"></a>
+## [4.0.3](https://github.com/npm/registry-fetch/compare/v4.0.2...v4.0.3) (2020-02-13)
+
+
+### Bug Fixes
+
+* always bypass cache when ?write=true ([ba8b4fe](https://github.com/npm/registry-fetch/commit/ba8b4fe))
+* use 30s default for timeout as per README ([69c2977](https://github.com/npm/registry-fetch/commit/69c2977)), closes [#20](https://github.com/npm/registry-fetch/issues/20)
+
+
+
 <a name="4.0.2"></a>
 ## [4.0.2](https://github.com/npm/registry-fetch/compare/v4.0.0...v4.0.2) (2019-10-04)
 

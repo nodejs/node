@@ -112,7 +112,7 @@ access.grant = ([perms, scopeteam, pkg], opts) => {
     }
     return modifyPackage(pkg, opts, (pkgName, opts) => {
       return libaccess.grant(pkgName, scopeteam, perms, opts)
-    })
+    }, false)
   })
 }
 
