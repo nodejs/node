@@ -30,7 +30,8 @@ var versions = [
   ['v9.3.0', false, false],
   ['v10.0.0-0', false, false],
   ['v11.0.0-0', false, false],
-  ['v12.0.0-0', false, false]
+  ['v12.0.0-0', false, false],
+  ['v13.0.0-0', false, false]
 ]
 
 test('versions', function (t) {

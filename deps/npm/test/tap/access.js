@@ -217,6 +217,33 @@ test('npm access grant read-write', function (t) {
   )
 })
 
+test('npm access grant read-write on unscoped package', function (t) {
+  server.filteringRequestBody((body) => {
+    const data = JSON.parse(body)
+    t.deepEqual(data, {
+      permissions: 'read-write',
+      package: 'another'
+    }, 'got the right body')
+    return true
+  })
+  server.put('/-/team/myorg/myteam/package', true).reply(201)
+  common.npm(
+    [
+      'access',
+      'grant', 'read-write',
+      'myorg:myteam',
+      'another',
+      '--registry', common.registry
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access grant')
+      t.equal(code, 0, 'exited with Error')
+      t.end()
+    }
+  )
+})
+
 test('npm access grant others', function (t) {
   common.npm(
     [

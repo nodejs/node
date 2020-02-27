@@ -36,7 +36,7 @@ process.on('timing', function (name, value) {
 process.on('exit', function (code) {
   process.emit('timeEnd', 'npm')
   log.disableProgress()
-  if (npm.config.loaded && npm.config.get('timing')) {
+  if (npm.config && npm.config.loaded && npm.config.get('timing')) {
     try {
       timings.logfile = getLogFile()
       cacheFile.append('_timing.json', JSON.stringify(timings) + '\n')
@@ -64,7 +64,7 @@ process.on('exit', function (code) {
       log.verbose('code', code)
     }
   }
-  if (npm.config.loaded && npm.config.get('timing') && !wroteLogFile) writeLogFile()
+  if (npm.config && npm.config.loaded && npm.config.get('timing') && !wroteLogFile) writeLogFile()
   if (wroteLogFile) {
     // just a line break
     if (log.levels[log.level] <= log.levels.error) console.error('')
@@ -79,7 +79,7 @@ process.on('exit', function (code) {
     wroteLogFile = false
   }
 
-  var doExit = npm.config.loaded && npm.config.get('_exit')
+  var doExit = npm.config && npm.config.loaded && npm.config.get('_exit')
   if (doExit) {
     // actually exit.
     if (exitCode === 0 && !itWorked) {
@@ -94,7 +94,7 @@ process.on('exit', function (code) {
 function exit (code, noLog) {
   exitCode = exitCode || process.exitCode || code
 
-  var doExit = npm.config.loaded ? npm.config.get('_exit') : true
+  var doExit = npm.config && npm.config.loaded ? npm.config.get('_exit') : true
   log.verbose('exit', [code, doExit])
   if (log.level === 'silent') noLog = true
 

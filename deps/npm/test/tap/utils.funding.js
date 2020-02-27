@@ -612,3 +612,46 @@ test('retrieve funding info string shorthand', (t) => {
   )
   t.end()
 })
+
+test('retrieve funding info from an array', (t) => {
+  t.deepEqual(
+    retrieveFunding([
+      'http://example.com',
+      {
+        url: 'http://two.example.com'
+      },
+      'http://three.example.com',
+      {
+        url: 'http://three.example.com',
+        type: 'dos'
+      },
+      {
+        url: 'http://three.example.com',
+        type: 'third copy!',
+        extra: 'extra metadata!'
+      }
+    ]),
+    [
+      {
+        url: 'http://example.com'
+      },
+      {
+        url: 'http://two.example.com'
+      },
+      {
+        url: 'http://three.example.com'
+      },
+      {
+        url: 'http://three.example.com',
+        type: 'dos'
+      },
+      {
+        url: 'http://three.example.com',
+        type: 'third copy!',
+        extra: 'extra metadata!'
+      }
+    ],
+    'should accept and normalize multiple funding sources'
+  )
+  t.end()
+})

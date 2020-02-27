@@ -1,101 +1,88 @@
-.TH "SCRIPTS" "7" "January 2020" "" ""
+.TH "SCRIPTS" "7" "February 2020" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
 .P
-npm supports the "scripts" property of the package\.json file, for the
-following scripts:
+The \fB"scripts"\fP property of of your \fBpackage\.json\fP file supports a number of built\-in scripts and their preset life cycle events as well as arbitrary scripts\. These all can be executed by running \fBnpm run\-script <stage>\fP or \fBnpm run <stage>\fP for short\. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP, \fBpostmyscript\fP)\. Scripts from dependencies can be run with \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
+.SS Pre & Post Scripts
+.P
+To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fP section of the \fBpackage\.json\fP, simply create another script \fIwith a matching name\fR and add "pre" or "post" to the beginning of them\.
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "precompress": "{{ executes BEFORE the `compress` script }}",
+    "compress": "{{ run command to compress files }}",
+    "postcompress": "{{ executes AFTER `compress` script }}"
+  }
+}
+.fi
+.RE
+.SS Life Cycle Scripts
+.P
+There are some special life cycle scripts that happen only in certain situations\. These scripts happen in addtion to the "pre" and "post" script\.
 .RS 0
 .IP \(bu 2
-\fBprepublish\fR (\fIas of npm@5, \fBprepublish\fP is deprecated\. Use \fBprepare\fP for build steps and \fBprepublishOnly\fP for upload\-only\.\fR):
-Run BEFORE the package is packed and published, as well as on local \fBnpm
-install\fP without any arguments\. (See below)
-.IP \(bu 2
-\fBprepare\fR:
-Run both BEFORE the package is packed and published, on local \fBnpm
-install\fP without any arguments, and when installing git dependencies (See
-below)\. This is run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
-.IP \(bu 2
-\fBprepublishOnly\fR:
-Run BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fP\|\. (See
-below\.)
-.IP \(bu 2
-\fBprepack\fR:
-run BEFORE a tarball is packed (on \fBnpm pack\fP, \fBnpm publish\fP, and when
-installing git dependencies)
-.IP \(bu 2
-\fBpostpack\fR:
-Run AFTER the tarball has been generated and moved to its final destination\.
-.IP \(bu 2
-\fBpublish\fR, \fBpostpublish\fR:
-Run AFTER the package is published\.
-.IP \(bu 2
-\fBpreinstall\fR:
-Run BEFORE the package is installed
-.IP \(bu 2
-\fBinstall\fR, \fBpostinstall\fR:
-Run AFTER the package is installed\.
-.IP \(bu 2
-\fBpreuninstall\fR, \fBuninstall\fR:
-Run BEFORE the package is uninstalled\.
-.IP \(bu 2
-\fBpostuninstall\fR:
-Run AFTER the package is uninstalled\.
-.IP \(bu 2
-\fBpreversion\fR:
-Run BEFORE bumping the package version\.
-.IP \(bu 2
-\fBversion\fR:
-Run AFTER bumping the package version, but BEFORE commit\.
-.IP \(bu 2
-\fBpostversion\fR:
-Run AFTER bumping the package version, and AFTER commit\.
-.IP \(bu 2
-\fBpretest\fR, \fBtest\fR, \fBposttest\fR:
-Run by the \fBnpm test\fP command\.
-.IP \(bu 2
-\fBprestop\fR, \fBstop\fR, \fBpoststop\fR:
-Run by the \fBnpm stop\fP command\.
-.IP \(bu 2
-\fBprestart\fR, \fBstart\fR, \fBpoststart\fR:
-Run by the \fBnpm start\fP command\.
-.IP \(bu 2
-\fBprerestart\fR, \fBrestart\fR, \fBpostrestart\fR:
-Run by the \fBnpm restart\fP command\. Note: \fBnpm restart\fP will run the
-stop and start scripts if no \fBrestart\fP script is provided\.
-.IP \(bu 2
-\fBpreshrinkwrap\fR, \fBshrinkwrap\fR, \fBpostshrinkwrap\fR:
-Run by the \fBnpm shrinkwrap\fP command\.
+\fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP
 
 .RE
 .P
-Additionally, arbitrary scripts can be executed by running \fBnpm
-run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
-names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with 
-\fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
-.SS Prepublish and Prepare
-.SS Deprecation Note
+\fBprepare\fR (since \fBnpm@4\.0\.0\fP)
+.RS 0
+.IP \(bu 2
+Runs BEFORE the package is packed
+.IP \(bu 2
+Runs BEFORE the package is published
+.IP \(bu 2
+Runs on local \fBnpm install\fP without any arguments
+.IP \(bu 2
+Run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP
+.IP \(bu 2
+NOTE: If a package being installed through git contains a \fBprepare\fP script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and the prepare script will be run, before the package is packaged and installed\.
+
+.RE
 .P
-Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm
-publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package
-for use (some common use cases are described in the section below)\.  It has
-also turned out to be, in practice, very
-confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new
-event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A
-\fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to
-allow users to avoid the confusing behavior of existing npm versions and only
-run on \fBnpm publish\fP (for instance, running the tests one last time to ensure
-they're in good shape)\.
+\fBprepublish\fR (DEPRECATED)
+.RS 0
+.IP \(bu 2
+Same as \fBprepare\fP
+
+.RE
 .P
-See https://github\.com/npm/npm/issues/10074 for a much lengthier
-justification, with further reading, for this change\.
-.SS Use Cases
+\fBprepublishOnly\fR
+.RS 0
+.IP \(bu 2
+Runs BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fP\|\.
+
+.RE
 .P
-If you need to perform operations on your package before it is used, in a way
-that is not dependent on the operating system or architecture of the
-target system, use a \fBprepublish\fP script\.  This includes
-tasks such as:
+\fBprepack\fR
+.RS 0
+.IP \(bu 2
+Runs BEFORE a tarball is packed (on "\fBnpm pack\fP", "\fBnpm publish\fP", and when installing a git dependencies)\.
+.IP \(bu 2
+NOTE: "\fBnpm run pack\fP" is NOT the same as "\fBnpm pack\fP"\. "\fBnpm run pack\fP" is an arbitrary user defined script name, where as, "\fBnpm pack\fP" is a CLI defined command\.
+
+.RE
+.P
+\fBpostpack\fR
+.RS 0
+.IP \(bu 2
+Runs AFTER the tarball has been generated and moved to its final destination\.
+
+.RE
+.SS Prepare and Prepublish
+.P
+\fBDeprecation Note: prepublish\fR
+.P
+Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package for use (some common use cases are described in the section below)\.  It has also turned out to be, in practice, very confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A \fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on \fBnpm publish\fP (for instance, running the tests one last time to ensure they're in good shape)\.
+.P
+See https://github\.com/npm/npm/issues/10074 for a much lengthier justification, with further reading, for this change\.
+.P
+\fBUse Cases\fR
+.P
+If you need to perform operations on your package before it is used, in a way that is not dependent on the operating system or architecture of the target system, use a \fBprepublish\fP script\. This includes tasks such as:
 .RS 0
 .IP \(bu 2
 Compiling CoffeeScript source code into JavaScript\.
@@ -106,9 +93,7 @@ Fetching remote resources that your package will use\.
 
 .RE
 .P
-The advantage of doing these things at \fBprepublish\fP time is that they can be done once, in a
-single place, thus reducing complexity and variability\.
-Additionally, this means that:
+The advantage of doing these things at \fBprepublish\fP time is that they can be done once, in a single place, thus reducing complexity and variability\. Additionally, this means that:
 .RS 0
 .IP \(bu 2
 You can depend on \fBcoffee\-script\fP as a \fBdevDependency\fP, and thus
@@ -119,6 +104,60 @@ the size for your users\.
 .IP \(bu 2
 You don't need to rely on your users having \fBcurl\fP or \fBwget\fP or
 other system tools on the target machines\.
+
+.RE
+.SS Life Cycle Operation Order
+.SS npm help \fBpublish\fP
+.RS 0
+.IP \(bu 2
+\fBprepublishOnly\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBprepublish\fP
+.IP \(bu 2
+\fBpublish\fP
+.IP \(bu 2
+\fBpostpublish\fP
+
+.RE
+.SS npm help \fBpack\fP
+.RS 0
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBpostpack\fP
+
+.RE
+.SS npm help \fBinstall\fP
+.RS 0
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+
+.RE
+.P
+Also triggers
+.RS 0
+.IP \(bu 2
+\fBprepublish\fP (when on local)
+.IP \(bu 2
+\fBprepare\fP (when on local)
+
+.RE
+.SS npm help \fBstart\fP
+.P
+\fBnpm run start\fP has an \fBnpm start\fP shorthand\.
+.RS 0
+.IP \(bu 2
+\fBprestart\fP
+.IP \(bu 2
+\fBstart\fP
+.IP \(bu 2
+\fBpoststart\fP
 
 .RE
 .SS Default Values
@@ -230,7 +269,7 @@ For example, if your package\.json contains this:
 .nf
 { "scripts" :
   { "install" : "scripts/install\.js"
-  , "postinstall" : "scripts/install\.js"
+  , "postinstall" : "scripts/postinstall\.js"
   , "uninstall" : "scripts/uninstall\.js"
   }
 }
