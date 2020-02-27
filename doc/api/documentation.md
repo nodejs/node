@@ -28,9 +28,10 @@ The stability indices are as follows:
 
 <!-- separator -->
 
-> Stability: 1 - Experimental. The feature is not subject to [Semantic Versioning][]
-> rules. Non-backward compatible changes or removal may occur in any future
-> release. Use of the feature is not recommended in production environments.
+> Stability: 1 - Experimental. The feature is not subject to
+> [Semantic Versioning][] rules. Non-backward compatible changes or removal may
+> occur in any future release. Use of the feature is not recommended in
+> production environments.
 
 <!-- separator -->
 
