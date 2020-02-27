@@ -14,13 +14,14 @@ const readShrinkwrap = require('./install/read-shrinkwrap.js')
 const mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 const output = require('./utils/output.js')
 const openUrl = require('./utils/open-url.js')
-const { getFundingInfo, retrieveFunding, validFundingUrl } = require('./utils/funding.js')
+const { getFundingInfo, retrieveFunding, validFundingField, flatCacheSymbol } = require('./utils/funding.js')
 
 const FundConfig = figgyPudding({
   browser: {}, // used by ./utils/open-url
   global: {},
   json: {},
-  unicode: {}
+  unicode: {},
+  which: {}
 })
 
 module.exports = fundCmd
@@ -29,7 +30,7 @@ const usage = require('./utils/usage')
 fundCmd.usage = usage(
   'fund',
   'npm fund [--json]',
-  'npm fund [--browser] [[<@scope>/]<pkg>'
+  'npm fund [--browser] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]'
 )
 
 fundCmd.completion = function (opts, cb) {
@@ -52,96 +53,52 @@ function printJSON (fundingInfo) {
 // level possible, in that process they also carry their dependencies along
 // with them, moving those up in the visual tree
 function printHuman (fundingInfo, opts) {
-  // mapping logic that keeps track of seen items in order to be able
-  // to push all other items from the same type/url in the same place
-  const seen = new Map()
+  const flatCache = fundingInfo[flatCacheSymbol]
 
-  function seenKey ({ type, url } = {}) {
-    return url ? String(type) + String(url) : null
-  }
+  const { name, version } = fundingInfo
+  const printableVersion = version ? `@${version}` : ''
 
-  function setStackedItem (funding, result) {
-    const key = seenKey(funding)
-    if (key && !seen.has(key)) seen.set(key, result)
-  }
+  const items = Object.keys(flatCache).map((url) => {
+    const deps = flatCache[url]
 
-  function retrieveStackedItem (funding) {
-    const key = seenKey(funding)
-    if (key && seen.has(key)) return seen.get(key)
-  }
-
-  // ---
-
-  const getFundingItems = (fundingItems) =>
-    Object.keys(fundingItems || {}).map((fundingItemName) => {
-      // first-level loop, prepare the pretty-printed formatted data
-      const fundingItem = fundingItems[fundingItemName]
-      const { version, funding } = fundingItem
-      const { type, url } = funding || {}
+    const packages = deps.map((dep) => {
+      const { name, version } = dep
 
       const printableVersion = version ? `@${version}` : ''
-      const printableType = type && { label: `type: ${funding.type}` }
-      const printableUrl = url && { label: `url: ${funding.url}` }
-      const result = {
-        fundingItem,
-        label: fundingItemName + printableVersion,
-        nodes: []
-      }
+      return `${name}${printableVersion}`
+    })
 
-      if (printableType) {
-        result.nodes.push(printableType)
-      }
-
-      if (printableUrl) {
-        result.nodes.push(printableUrl)
-      }
-
-      setStackedItem(funding, result)
-
-      return result
-    }).reduce((res, result) => {
-      // recurse and exclude nodes that are going to be stacked together
-      const { fundingItem } = result
-      const { dependencies, funding } = fundingItem
-      const items = getFundingItems(dependencies)
-      const stackedResult = retrieveStackedItem(funding)
-      items.forEach(i => result.nodes.push(i))
-
-      if (stackedResult && stackedResult !== result) {
-        stackedResult.label += `, ${result.label}`
-        items.forEach(i => stackedResult.nodes.push(i))
-        return res
-      }
-
-      res.push(result)
-
-      return res
-    }, [])
-
-  const [ result ] = getFundingItems({
-    [fundingInfo.name]: {
-      dependencies: fundingInfo.dependencies,
-      funding: fundingInfo.funding,
-      version: fundingInfo.version
+    return {
+      label: url,
+      nodes: [packages.join(', ')]
     }
   })
 
-  return archy(result, '', { unicode: opts.unicode })
+  return archy({ label: `${name}${printableVersion}`, nodes: items }, '', { unicode: opts.unicode })
 }
 
-function openFundingUrl (packageName, cb) {
+function openFundingUrl (packageName, fundingSourceNumber, cb) {
   function getUrlAndOpen (packageMetadata) {
     const { funding } = packageMetadata
-    const { type, url } = retrieveFunding(funding) || {}
-    const noFundingError =
-      new Error(`No funding method available for: ${packageName}`)
-    noFundingError.code = 'ENOFUND'
-    const typePrefix = type ? `${type} funding` : 'Funding'
-    const msg = `${typePrefix} available at the following URL`
+    const validSources = [].concat(retrieveFunding(funding)).filter(validFundingField)
 
-    if (validFundingUrl(funding)) {
+    if (validSources.length === 1 || (fundingSourceNumber > 0 && fundingSourceNumber <= validSources.length)) {
+      const { type, url } = validSources[fundingSourceNumber ? fundingSourceNumber - 1 : 0]
+      const typePrefix = type ? `${type} funding` : 'Funding'
+      const msg = `${typePrefix} available at the following URL`
       openUrl(url, msg, cb)
+    } else if (!(fundingSourceNumber >= 1)) {
+      validSources.forEach(({ type, url }, i) => {
+        const typePrefix = type ? `${type} funding` : 'Funding'
+        const msg = `${typePrefix} available at the following URL`
+        console.log(`${i + 1}: ${msg}: ${url}`)
+      })
+      console.log('Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package')
+      cb()
     } else {
+      const noFundingError = new Error(`No valid funding method available for: ${packageName}`)
+      noFundingError.code = 'ENOFUND'
+
       throw noFundingError
     }
   }
@@ -161,15 +118,24 @@ function fundCmd (args, cb) {
   const opts = FundConfig(npmConfig())
   const dir = path.resolve(npm.dir, '..')
   const packageName = args[0]
+  const numberArg = opts.which
+
+  const fundingSourceNumber = numberArg && parseInt(numberArg, 10)
+
+  if (numberArg !== undefined && (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)) {
+    const err = new Error('`npm fund [<@scope>/]<pkg> [--which=fundingSourceNumber]` must be given a positive integer')
+    err.code = 'EFUNDNUMBER'
+    throw err
+  }
 
   if (opts.global) {
-    const err = new Error('`npm fund` does not support globals')
+    const err = new Error('`npm fund` does not support global packages')
     err.code = 'EFUNDGLOBAL'
     throw err
   }
 
   if (packageName) {
-    openFundingUrl(packageName, cb)
+    openFundingUrl(packageName, fundingSourceNumber, cb)
     return
   }
 

@@ -53,26 +53,38 @@ function regFetch (uri, opts) {
       })
     }
   }
-  if (opts.query) {
-    let q = opts.query
+
+  let q = opts.query
+  if (q) {
     if (typeof q === 'string') {
       q = qs.parse(q)
+    } else if (typeof q !== 'object') {
+      throw new TypeError('invalid query option, must be string or object')
     }
     Object.keys(q).forEach(key => {
       if (q[key] === undefined) {
         delete q[key]
       }
     })
-    if (Object.keys(q).length) {
-      const parsed = url.parse(uri)
-      parsed.search = '?' + qs.stringify(
-        parsed.query
-          ? Object.assign(qs.parse(parsed.query), q)
-          : q
-      )
-      uri = url.format(parsed)
-    }
   }
+  const parsed = url.parse(uri)
+
+  const query = parsed.query ? Object.assign(qs.parse(parsed.query), q || {})
+    : Object.keys(q || {}).length ? q
+      : null
+
+  if (query) {
+    if (String(query.write) === 'true' && opts.method === 'GET') {
+      opts = opts.concat({
+        offline: false,
+        'prefer-offline': false,
+        'prefer-online': true
+      })
+    }
+    parsed.search = '?' + qs.stringify(query)
+    uri = url.format(parsed)
+  }
+
   return opts.Promise.resolve(body).then(body => fetch(uri, {
     agent: opts.agent,
     algorithms: opts.algorithms,

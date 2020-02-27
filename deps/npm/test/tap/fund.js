@@ -14,6 +14,7 @@ const base = common.pkg
 const noFunding = path.join(base, 'no-funding-package')
 const maintainerOwnsAllDeps = path.join(base, 'maintainer-owns-all-deps')
 const nestedNoFundingPackages = path.join(base, 'nested-no-funding-packages')
+const nestedMultipleFundingPackages = path.join(base, 'nested-multiple-funding-packages')
 const fundingStringShorthand = path.join(base, 'funding-string-shorthand')
 
 function getFixturePackage ({ name, version, dependencies, funding }, extras) {
@@ -111,6 +112,37 @@ const fixture = new Tacks(Dir({
         funding: {
           url: 'https://example.com/lorem'
         }
+      })
+    })
+  }),
+  'nested-multiple-funding-packages': getFixturePackage({
+    name: 'nested-multiple-funding-packages',
+    funding: [
+      'https://one.example.com',
+      'https://two.example.com'
+    ],
+    dependencies: {
+      foo: '*'
+    },
+    devDependencies: {
+      bar: '*'
+    }
+  }, {
+    node_modules: Dir({
+      foo: getFixturePackage({
+        name: 'foo',
+        funding: [
+          'http://example.com',
+          { url: 'http://sponsors.example.com/me' },
+          'http://collective.example.com'
+        ]
+      }),
+      bar: getFixturePackage({
+        name: 'bar',
+        funding: [
+          'http://collective.example.com',
+          { url: 'http://sponsors.example.com/you' }
+        ]
       })
     })
   })
@@ -225,6 +257,54 @@ testFundCmd({
 })
 
 testFundCmd({
+  title: 'fund containing multi-level nested deps with multiple funding sources, using --json option',
+  assertionMsg: 'should omit dependencies with no funding declared',
+  args: ['--json'],
+  opts: { cwd: nestedMultipleFundingPackages },
+  assertion: jsonTest,
+  expected: {
+    length: 2,
+    name: 'nested-multiple-funding-packages',
+    version: '1.0.0',
+    funding: [
+      {
+        url: 'https://one.example.com'
+      },
+      {
+        url: 'https://two.example.com'
+      }
+    ],
+    dependencies: {
+      bar: {
+        version: '1.0.0',
+        funding: [
+          {
+            url: 'http://collective.example.com'
+          },
+          {
+            url: 'http://sponsors.example.com/you'
+          }
+        ]
+      },
+      foo: {
+        version: '1.0.0',
+        funding: [
+          {
+            url: 'http://example.com'
+          },
+          {
+            url: 'http://sponsors.example.com/me'
+          },
+          {
+            url: 'http://collective.example.com'
+          }
+        ]
+      }
+    }
+  }
+})
+
+testFundCmd({
   title: 'fund does not support global',
   assertionMsg: 'should throw EFUNDGLOBAL error',
   args: ['--global'],
@@ -248,7 +328,7 @@ testFundCmd({
   expected: {
     error: {
       code: 'EFUNDGLOBAL',
-      summary: '`npm fund` does not support globals',
+      summary: '`npm fund` does not support global packages',
       detail: ''
     }
   }
@@ -266,6 +346,20 @@ testFundCmd({
   assertionMsg: 'should open string-only url',
   args: ['.', '--no-browser'],
   opts: { cwd: fundingStringShorthand }
+})
+
+testFundCmd({
+  title: 'fund using nested packages with multiple sources',
+  assertionMsg: 'should prompt with all available URLs',
+  args: ['.'],
+  opts: { cwd: nestedMultipleFundingPackages }
+})
+
+testFundCmd({
+  title: 'fund using nested packages with multiple sources, with a source number',
+  assertionMsg: 'should open the numbered URL',
+  args: ['.', '--which=1', '--no-browser'],
+  opts: { cwd: nestedMultipleFundingPackages }
 })
 
 testFundCmd({

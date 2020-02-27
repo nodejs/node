@@ -10,90 +10,64 @@ description: How npm handles the "scripts" field
 
 ### Description
 
-npm supports the "scripts" property of the package.json file, for the
-following scripts:
+The `"scripts"` property of of your `package.json` file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running `npm run-script <stage>` or `npm run <stage>` for short. *Pre* and *post* commands with matching names will be run for those as well (e.g. `premyscript`, `myscript`, `postmyscript`). Scripts from dependencies can be run with `npm explore <pkg> -- npm run <stage>`.
 
-* **prepublish** (_as of npm@5, `prepublish` is deprecated. Use `prepare` for build steps and `prepublishOnly` for upload-only._):
-  Run BEFORE the package is packed and published, as well as on local `npm
-  install` without any arguments. (See below)
-* **prepare**:
-  Run both BEFORE the package is packed and published, on local `npm
-  install` without any arguments, and when installing git dependencies (See
-  below). This is run AFTER `prepublish`, but BEFORE `prepublishOnly`.
-* **prepublishOnly**:
-  Run BEFORE the package is prepared and packed, ONLY on `npm publish`. (See
-  below.)
-* **prepack**:
-  run BEFORE a tarball is packed (on `npm pack`, `npm publish`, and when
-  installing git dependencies)
-* **postpack**:
-  Run AFTER the tarball has been generated and moved to its final destination.
-* **publish**, **postpublish**:
-  Run AFTER the package is published.
-* **preinstall**:
-  Run BEFORE the package is installed
-* **install**, **postinstall**:
-  Run AFTER the package is installed.
-* **preuninstall**, **uninstall**:
-  Run BEFORE the package is uninstalled.
-* **postuninstall**:
-  Run AFTER the package is uninstalled.
-* **preversion**:
-  Run BEFORE bumping the package version.
-* **version**:
-  Run AFTER bumping the package version, but BEFORE commit.
-* **postversion**:
-  Run AFTER bumping the package version, and AFTER commit.
-* **pretest**, **test**, **posttest**:
-  Run by the `npm test` command.
-* **prestop**, **stop**, **poststop**:
-  Run by the `npm stop` command.
-* **prestart**, **start**, **poststart**:
-  Run by the `npm start` command.
-* **prerestart**, **restart**, **postrestart**:
-  Run by the `npm restart` command. Note: `npm restart` will run the
-  stop and start scripts if no `restart` script is provided.
-* **preshrinkwrap**, **shrinkwrap**, **postshrinkwrap**:
-  Run by the `npm shrinkwrap` command.
+### Pre & Post Scripts
 
-Additionally, arbitrary scripts can be executed by running `npm
-run-script <stage>`. *Pre* and *post* commands with matching
-names will be run for those as well (e.g. `premyscript`, `myscript`,
-`postmyscript`). Scripts from dependencies can be run with 
-`npm explore <pkg> -- npm run <stage>`.
+To create "pre" or "post" scripts for any scripts defined in the `"scripts"` section of the `package.json`, simply create another script *with a matching name* and add "pre" or "post" to the beginning of them.
 
-#### Prepublish and Prepare
+```json
+{
+  "scripts": {
+    "precompress": "{{ executes BEFORE the `compress` script }}",
+    "compress": "{{ run command to compress files }}",
+    "postcompress": "{{ executes AFTER `compress` script }}"
+  }
+}
+```
 
-#### Deprecation Note
+### Life Cycle Scripts
 
-Since `npm@1.1.71`, the npm CLI has run the `prepublish` script for both `npm
-publish` and `npm install`, because it's a convenient way to prepare a package
-for use (some common use cases are described in the section below).  It has
-also turned out to be, in practice, [very
-confusing](https://github.com/npm/npm/issues/10074).  As of `npm@4.0.0`, a new
-event has been introduced, `prepare`, that preserves this existing behavior. A
-_new_ event, `prepublishOnly` has been added as a transitional strategy to
-allow users to avoid the confusing behavior of existing npm versions and only
-run on `npm publish` (for instance, running the tests one last time to ensure
-they're in good shape).
+There are some special life cycle scripts that happen only in certain situations. These scripts happen in addtion to the "pre" and "post" script.
+* `prepare`, `prepublish`, `prepublishOnly`, `prepack`, `postpack`
 
-See <https://github.com/npm/npm/issues/10074> for a much lengthier
-justification, with further reading, for this change.
+**prepare** (since `npm@4.0.0`)
+* Runs BEFORE the package is packed
+* Runs BEFORE the package is published
+* Runs on local `npm install` without any arguments
+* Run AFTER `prepublish`, but BEFORE `prepublishOnly`
+* NOTE: If a package being installed through git contains a `prepare` script, its `dependencies` and `devDependencies` will be installed, and the prepare script will be run, before the package is packaged and installed.
 
-#### Use Cases
+**prepublish** (DEPRECATED)
+* Same as `prepare`
 
-If you need to perform operations on your package before it is used, in a way
-that is not dependent on the operating system or architecture of the
-target system, use a `prepublish` script.  This includes
-tasks such as:
+**prepublishOnly**
+* Runs BEFORE the package is prepared and packed, ONLY on `npm publish`.
+
+**prepack**
+* Runs BEFORE a tarball is packed (on "`npm pack`", "`npm publish`", and when installing a git dependencies).
+* NOTE: "`npm run pack`" is NOT the same as "`npm pack`". "`npm run pack`" is an arbitrary user defined script name, where as, "`npm pack`" is a CLI defined command.
+
+**postpack**
+* Runs AFTER the tarball has been generated and moved to its final destination.
+
+#### Prepare and Prepublish
+
+**Deprecation Note: prepublish**
+
+Since `npm@1.1.71`, the npm CLI has run the `prepublish` script for both `npm publish` and `npm install`, because it's a convenient way to prepare a package for use (some common use cases are described in the section below).  It has also turned out to be, in practice, [very confusing](https://github.com/npm/npm/issues/10074).  As of `npm@4.0.0`, a new event has been introduced, `prepare`, that preserves this existing behavior. A _new_ event, `prepublishOnly` has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on `npm publish` (for instance, running the tests one last time to ensure they're in good shape).
+
+See <https://github.com/npm/npm/issues/10074> for a much lengthier justification, with further reading, for this change.
+
+**Use Cases**
+
+If you need to perform operations on your package before it is used, in a way that is not dependent on the operating system or architecture of the target system, use a `prepublish` script. This includes tasks such as:
 
 * Compiling CoffeeScript source code into JavaScript.
 * Creating minified versions of JavaScript source code.
 * Fetching remote resources that your package will use.
 
-The advantage of doing these things at `prepublish` time is that they can be done once, in a
-single place, thus reducing complexity and variability.
-Additionally, this means that:
+The advantage of doing these things at `prepublish` time is that they can be done once, in a single place, thus reducing complexity and variability. Additionally, this means that:
 
 * You can depend on `coffee-script` as a `devDependency`, and thus
   your users don't need to have it installed.
@@ -102,8 +76,41 @@ Additionally, this means that:
 * You don't need to rely on your users having `curl` or `wget` or
   other system tools on the target machines.
 
-### Default Values
+### Life Cycle Operation Order
 
+#### [`npm publish`](/cli-commands/npm-publish)
+
+* `prepublishOnly`
+* `prepare`
+* `prepublish`
+* `publish`
+* `postpublish`
+
+#### [`npm pack`](/cli-commands/npm-pack)
+
+* `prepack`
+* `postpack`
+
+#### [`npm install`](/cli-commands/npm-install)
+
+* `preinstall`
+* `install`
+* `postinstall`
+
+Also triggers
+
+* `prepublish` (when on local)
+* `prepare` (when on local)
+
+#### [`npm start`](/cli-commands/npm-start)
+
+`npm run start` has an `npm start` shorthand.
+
+* `prestart`
+* `start`
+* `poststart`
+
+### Default Values
 npm will default some script values based on package contents.
 
 * `"start": "node server.js"`:
@@ -208,7 +215,7 @@ For example, if your package.json contains this:
 ```json
 { "scripts" :
   { "install" : "scripts/install.js"
-  , "postinstall" : "scripts/install.js"
+  , "postinstall" : "scripts/postinstall.js"
   , "uninstall" : "scripts/uninstall.js"
   }
 }

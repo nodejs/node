@@ -4,21 +4,30 @@ const URL = require('url').URL
 
 exports.getFundingInfo = getFundingInfo
 exports.retrieveFunding = retrieveFunding
-exports.validFundingUrl = validFundingUrl
+exports.validFundingField = validFundingField
 
-// supports both object funding and string shorthand
+const flatCacheSymbol = Symbol('npm flat cache')
+exports.flatCacheSymbol = flatCacheSymbol
+
+// supports object funding and string shorthand, or an array of these
+// if original was an array, returns an array; else returns the lone item
 function retrieveFunding (funding) {
-  return typeof funding === 'string'
-    ? {
-      url: funding
-    }
-    : funding
+  const sources = [].concat(funding || []).map(item => (
+    typeof item === 'string'
+      ? { url: item }
+      : item
+  ))
+  return Array.isArray(funding) ? sources : sources[0]
 }
 
 // Is the value of a `funding` property of a `package.json`
 // a valid type+url for `npm fund` to display?
-function validFundingUrl (funding) {
+function validFundingField (funding) {
   if (!funding) return false
+
+  if (Array.isArray(funding)) {
+    return funding.every(f => !Array.isArray(f) && validFundingField(f))
+  }
 
   try {
     var parsed = new URL(funding.url || funding)
@@ -34,11 +43,13 @@ function validFundingUrl (funding) {
   return Boolean(parsed.host)
 }
 
+const empty = () => Object.create(null)
+
 function getFundingInfo (idealTree, opts) {
-  let length = 0
+  let packageWithFundingCount = 0
+  const flat = empty()
   const seen = new Set()
   const { countOnly } = opts || {}
-  const empty = () => Object.create(null)
   const _trailingDependencies = Symbol('trailingDependencies')
 
   function tracked (name, version) {
@@ -70,52 +81,70 @@ function getFundingInfo (idealTree, opts) {
     )
   }
 
+  function addToFlatCache (funding, dep) {
+    [].concat(funding || []).forEach((f) => {
+      const key = f.url
+      if (!Array.isArray(flat[key])) {
+        flat[key] = []
+      }
+      flat[key].push(dep)
+    })
+  }
+
+  function attachFundingInfo (target, funding, dep) {
+    if (funding && validFundingField(funding)) {
+      target.funding = retrieveFunding(funding)
+      if (!countOnly) {
+        addToFlatCache(target.funding, dep)
+      }
+
+      packageWithFundingCount++
+    }
+  }
+
   function getFundingDependencies (tree) {
     const deps = tree && tree.dependencies
     if (!deps) return empty()
 
-    // broken into two steps to make sure items appearance
-    // within top levels takes precedence over nested ones
-    return (Object.keys(deps)).map((key) => {
+    const directDepsWithFunding = Object.keys(deps).map((key) => {
       const dep = deps[key]
       const { name, funding, version } = dep
 
-      const fundingItem = {}
-
       // avoids duplicated items within the funding tree
       if (tracked(name, version)) return empty()
+
+      const fundingItem = {}
 
       if (version) {
         fundingItem.version = version
       }
 
-      if (funding && validFundingUrl(funding)) {
-        fundingItem.funding = retrieveFunding(funding)
-        length++
-      }
+      attachFundingInfo(fundingItem, funding, dep)
 
       return {
         dep,
         fundingItem
       }
-    }).reduce((res, { dep, fundingItem }, i) => {
-      if (!fundingItem) return res
+    })
+
+    return directDepsWithFunding.reduce((res, { dep: directDep, fundingItem }, i) => {
+      if (!fundingItem || fundingItem.length === 0) return res
 
       // recurse
-      const dependencies = dep.dependencies &&
-        Object.keys(dep.dependencies).length > 0 &&
-        getFundingDependencies(dep)
+      const transitiveDependencies = directDep.dependencies &&
+        Object.keys(directDep.dependencies).length > 0 &&
+        getFundingDependencies(directDep)
 
       // if we're only counting items there's no need
       // to add all the data to the resulting object
       if (countOnly) return null
 
-      if (hasDependencies(dependencies)) {
-        fundingItem.dependencies = retrieveDependencies(dependencies)
+      if (hasDependencies(transitiveDependencies)) {
+        fundingItem.dependencies = retrieveDependencies(transitiveDependencies)
       }
 
-      if (fundingItem.funding) {
-        res[dep.name] = fundingItem
+      if (fundingItem.funding && fundingItem.funding.length !== 0) {
+        res[directDep.name] = fundingItem
       } else if (fundingItem.dependencies) {
         res[_trailingDependencies] =
           Object.assign(
@@ -126,12 +155,12 @@ function getFundingInfo (idealTree, opts) {
       }
 
       return res
-    }, empty())
+    }, countOnly ? null : empty())
   }
 
   const idealTreeDependencies = getFundingDependencies(idealTree)
   const result = {
-    length
+    length: packageWithFundingCount
   }
 
   if (!countOnly) {
@@ -145,8 +174,9 @@ function getFundingInfo (idealTree, opts) {
       result.funding = retrieveFunding(idealTree.funding)
     }
 
-    result.dependencies =
-      retrieveDependencies(idealTreeDependencies)
+    result.dependencies = retrieveDependencies(idealTreeDependencies)
+
+    result[flatCacheSymbol] = flat
   }
 
   return result
