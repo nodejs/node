@@ -2,8 +2,6 @@ You may also need to check https://chromium.googlesource.com/chromiumos/docs/+/m
 
 * ABI: [Application Binary Interface](https://en.wikipedia.org/wiki/Application_binary_interface)
 * ASAP: As Soon As Possible.
-* ASM: Assembler - General term for language translator, especially
-  from high level to low level.
 * ASYNC: Asynchronous
 * BE: Big Endian - Byte order style in a multibyte data.
   (Opposite of LE, Little Endian)
