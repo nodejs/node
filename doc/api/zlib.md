@@ -102,7 +102,6 @@ limitations in some applications.
 Creating and using a large number of zlib objects simultaneously can cause
 significant memory fragmentation.
 
-
 ```js
 const zlib = require('zlib');
 
@@ -114,9 +113,9 @@ for (let i = 0; i < 30000; ++i) {
 }
 ```
 
-In the preceding example, 30,000 deflate instances are created concurrently. Because
-of how some operating systems handle memory allocation and deallocation,
-this may lead to to significant memory fragmentation.
+In the preceding example, 30,000 deflate instances are created concurrently.
+Because of how some operating systems handle memory allocation and
+deallocation, this may lead to to significant memory fragmentation.
 
 It is strongly recommended that the results of compression
 operations be cached to avoid duplication of effort.
@@ -1157,7 +1156,6 @@ Decompress a chunk of data with [`Unzip`][].
 [Brotli parameters]: #zlib_brotli_constants
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
-[pool size]: cli.html#cli_uv_threadpool_size_size
 [Streams API]: stream.md
 [zlib documentation]: https://zlib.net/manual.html#Constants
 [zlib.createGzip example]: #zlib_zlib
