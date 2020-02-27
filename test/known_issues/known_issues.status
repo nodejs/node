@@ -5,6 +5,11 @@ prefix known_issues
 # sample-test                        : SKIP
 
 [true] # This section applies to all platforms
+# This issue is unfixable with the current implementations of V8 and
+# Node.js. Changes to make this fixable are unlikely to happen in the
+# foreseeable future. The test itself is flaky and skipped.  It
+# serves as a demonstration of the issue only.
+test-vm-timeout-escape-queuemicrotask: SKIP
 
 [$system==win32]
 
