@@ -13,7 +13,6 @@ using v8::Isolate;
 using v8::Object;
 using v8::Platform;
 using v8::Task;
-using node::tracing::TracingController;
 
 namespace {
 
@@ -325,12 +324,16 @@ void PerIsolatePlatformData::DecreaseHandleCount() {
 }
 
 NodePlatform::NodePlatform(int thread_pool_size,
-                           TracingController* tracing_controller) {
-  if (tracing_controller) {
+                           v8::TracingController* tracing_controller) {
+  if (tracing_controller != nullptr) {
     tracing_controller_ = tracing_controller;
   } else {
-    tracing_controller_ = new TracingController();
+    tracing_controller_ = new v8::TracingController();
   }
+  // TODO(addaleax): It's a bit icky that we use global state here, but we can't
+  // really do anything about it unless V8 starts exposing a way to access the
+  // current v8::Platform instance.
+  tracing::TraceEventHelper::SetTracingController(tracing_controller_);
   worker_thread_task_runner_ =
       std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
 }
@@ -518,7 +521,7 @@ double NodePlatform::CurrentClockTimeMillis() {
   return SystemClockTimeMillis();
 }
 
-TracingController* NodePlatform::GetTracingController() {
+v8::TracingController* NodePlatform::GetTracingController() {
   CHECK_NOT_NULL(tracing_controller_);
   return tracing_controller_;
 }

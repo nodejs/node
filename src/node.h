@@ -329,7 +329,7 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   static std::unique_ptr<MultiIsolatePlatform> Create(
       int thread_pool_size,
-      node::tracing::TracingController* tracing_controller = nullptr);
+      v8::TracingController* tracing_controller = nullptr);
 };
 
 enum IsolateSettingsFlags {
@@ -487,9 +487,13 @@ NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
 // Legacy variants of MultiIsolatePlatform::Create().
+// TODO(addaleax): Deprecate in favour of the v8::TracingController variant.
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller);
+NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
+    int thread_pool_size,
+    v8::TracingController* tracing_controller);
 NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
