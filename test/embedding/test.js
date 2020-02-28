@@ -17,4 +17,3 @@ assert.strictEqual(
 assert.strictEqual(
   child_process.spawnSync(process.execPath, ['process.exitCode = 8']).status,
   8);
-
