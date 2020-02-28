@@ -702,8 +702,7 @@ module.exports = {
                 }
 
                 if (node.body.type === "ConditionalExpression" &&
-                    IGNORE_ARROW_CONDITIONALS &&
-                    !isParenthesisedTwice(node.body)
+                    IGNORE_ARROW_CONDITIONALS
                 ) {
                     return;
                 }

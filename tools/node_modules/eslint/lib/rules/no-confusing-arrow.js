@@ -1,6 +1,6 @@
 /**
  * @fileoverview A rule to warn against using arrow functions when they could be
- * confused with comparisions
+ * confused with comparisons
  * @author Jxck <https://github.com/Jxck>
  */
 
@@ -71,7 +71,7 @@ module.exports = {
                     messageId: "confusing",
                     fix(fixer) {
 
-                        // if `allowParens` is not set to true dont bother wrapping in parens
+                        // if `allowParens` is not set to true don't bother wrapping in parens
                         return allowParens && fixer.replaceText(node.body, `(${sourceCode.getText(node.body)})`);
                     }
                 });

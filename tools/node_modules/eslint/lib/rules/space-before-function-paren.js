@@ -50,7 +50,12 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedSpace: "Unexpected space before function parentheses.",
+            missingSpace: "Missing space before function parentheses."
+        }
     },
 
     create(context) {
@@ -123,7 +128,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: leftToken.loc.end,
-                    message: "Unexpected space before function parentheses.",
+                    messageId: "unexpectedSpace",
                     fix(fixer) {
                         const comments = sourceCode.getCommentsBefore(rightToken);
 
@@ -141,7 +146,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: leftToken.loc.end,
-                    message: "Missing space before function parentheses.",
+                    messageId: "missingSpace",
                     fix: fixer => fixer.insertTextAfter(leftToken, " ")
                 });
             }

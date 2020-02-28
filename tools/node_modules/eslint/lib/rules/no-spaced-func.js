@@ -26,7 +26,11 @@ module.exports = {
         replacedBy: ["func-call-spacing"],
 
         fixable: "whitespace",
-        schema: []
+        schema: [],
+
+        messages: {
+            noSpacedFunction: "Unexpected space between function name and paren."
+        }
     },
 
     create(context) {
@@ -62,7 +66,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: lastCalleeToken.loc.start,
-                    message: "Unexpected space between function name and paren.",
+                    messageId: "noSpacedFunction",
                     fix(fixer) {
                         return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
                     }

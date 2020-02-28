@@ -41,6 +41,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         const blacklist = context.options;
+        const reportedNodes = new Set();
 
 
         /**
@@ -54,18 +55,46 @@ module.exports = {
         }
 
         /**
-         * Verifies if we should report an error or not based on the effective
-         * parent node and the identifier name.
-         * @param {ASTNode} effectiveParent The effective parent node of the node to be reported
-         * @param {string} name The identifier name of the identifier node
+         * Checks whether the given node represents an imported name that is renamed in the same import/export specifier.
+         *
+         * Examples:
+         * import { a as b } from 'mod'; // node `a` is renamed import
+         * export { a as b } from 'mod'; // node `a` is renamed import
+         * @param {ASTNode} node `Identifier` node to check.
+         * @returns {boolean} `true` if the node is a renamed import.
+         */
+        function isRenamedImport(node) {
+            const parent = node.parent;
+
+            return (
+                (
+                    parent.type === "ImportSpecifier" &&
+                    parent.imported !== parent.local &&
+                    parent.imported === node
+                ) ||
+                (
+                    parent.type === "ExportSpecifier" &&
+                    parent.parent.source && // re-export
+                    parent.local !== parent.exported &&
+                    parent.local === node
+                )
+            );
+        }
+
+        /**
+         * Verifies if we should report an error or not.
+         * @param {ASTNode} node The node to check
          * @returns {boolean} whether an error should be reported or not
          */
-        function shouldReport(effectiveParent, name) {
+        function shouldReport(node) {
+            const parent = node.parent;
+
             return (
-                effectiveParent.type !== "CallExpression" &&
-                effectiveParent.type !== "NewExpression" &&
-                effectiveParent.parent.type !== "ObjectPattern" &&
-                isInvalid(name)
+                parent.type !== "CallExpression" &&
+                parent.type !== "NewExpression" &&
+                parent.parent.type !== "ObjectPattern" &&
+                !isRenamedImport(node) &&
+                isInvalid(node.name)
             );
         }
 
@@ -76,27 +105,30 @@ module.exports = {
          * @private
          */
         function report(node) {
-            context.report({
-                node,
-                messageId: "blacklisted",
-                data: {
-                    name: node.name
-                }
-            });
+            if (!reportedNodes.has(node)) {
+                context.report({
+                    node,
+                    messageId: "blacklisted",
+                    data: {
+                        name: node.name
+                    }
+                });
+                reportedNodes.add(node);
+            }
         }
 
         return {
 
             Identifier(node) {
-                const name = node.name,
-                    effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
                 // MemberExpressions get special rules
                 if (node.parent.type === "MemberExpression") {
+                    const name = node.name,
+                        effectiveParent = node.parent.parent;
 
                     // Always check object names
                     if (node.parent.object.type === "Identifier" &&
-                        node.parent.object.name === node.name) {
+                        node.parent.object.name === name) {
                         if (isInvalid(name)) {
                             report(node);
                         }
@@ -105,21 +137,13 @@ module.exports = {
                     } else if (effectiveParent.type === "AssignmentExpression" &&
                         (effectiveParent.right.type !== "MemberExpression" ||
                             effectiveParent.left.type === "MemberExpression" &&
-                            effectiveParent.left.property.name === node.name)) {
+                            effectiveParent.left.property.name === name)) {
                         if (isInvalid(name)) {
                             report(node);
                         }
                     }
 
-                // Properties have their own rules
-                } else if (node.parent.type === "Property") {
-
-                    if (shouldReport(effectiveParent, name)) {
-                        report(node);
-                    }
-
-                    // Report anything that is a match and not a CallExpression
-                } else if (shouldReport(effectiveParent, name)) {
+                } else if (shouldReport(node)) {
                     report(node);
                 }
             }

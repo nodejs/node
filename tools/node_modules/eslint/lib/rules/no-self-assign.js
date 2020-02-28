@@ -196,7 +196,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            selfAssignment: "'{{name}}' is assigned to itself."
+        }
     },
 
     create(context) {
@@ -211,7 +215,7 @@ module.exports = {
         function report(node) {
             context.report({
                 node,
-                message: "'{{name}}' is assigned to itself.",
+                messageId: "selfAssignment",
                 data: {
                     name: sourceCode.getText(node).replace(SPACES, "")
                 }

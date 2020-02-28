@@ -40,7 +40,12 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            expectNoLinebreak: "Expected no linebreak before this statement.",
+            expectLinebreak: "Expected a linebreak before this statement."
+        }
     },
 
     create(context) {
@@ -79,13 +84,13 @@ module.exports = {
             if (tokenBefore.loc.end.line === node.loc.start.line && option === "below") {
                 context.report({
                     node,
-                    message: "Expected a linebreak before this statement.",
+                    messageId: "expectLinebreak",
                     fix: fixer => fixer.insertTextBefore(node, "\n")
                 });
             } else if (tokenBefore.loc.end.line !== node.loc.start.line && option === "beside") {
                 context.report({
                     node,
-                    message: "Expected no linebreak before this statement.",
+                    messageId: "expectNoLinebreak",
                     fix(fixer) {
                         if (sourceCode.getText().slice(tokenBefore.range[1], node.range[0]).trim()) {
                             return null;

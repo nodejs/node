@@ -5,13 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-const DEFAULT_MESSAGE_TEMPLATE = "'{{moduleName}}' module is restricted from being used.";
-const CUSTOM_MESSAGE_TEMPLATE = "'{{moduleName}}' module is restricted from being used. {{customMessage}}";
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -72,6 +65,13 @@ module.exports = {
                     additionalItems: false
                 }
             ]
+        },
+
+        messages: {
+            defaultMessage: "'{{name}}' module is restricted from being used.",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            customMessage: "'{{name}}' module is restricted from being used. {{customMessage}}",
+            patternMessage: "'{{name}}' module is restricted from being used by a pattern."
         }
     },
 
@@ -126,17 +126,17 @@ module.exports = {
          * @private
          */
         function reportPath(node) {
-            const moduleName = node.arguments[0].value.trim();
-            const customMessage = restrictedPathMessages[moduleName];
-            const message = customMessage
-                ? CUSTOM_MESSAGE_TEMPLATE
-                : DEFAULT_MESSAGE_TEMPLATE;
+            const name = node.arguments[0].value.trim();
+            const customMessage = restrictedPathMessages[name];
+            const messageId = customMessage
+                ? "customMessage"
+                : "defaultMessage";
 
             context.report({
                 node,
-                message,
+                messageId,
                 data: {
-                    moduleName,
+                    name,
                     customMessage
                 }
             });
@@ -158,18 +158,18 @@ module.exports = {
 
                     // node has arguments and first argument is string
                     if (node.arguments.length && isString(node.arguments[0])) {
-                        const moduleName = node.arguments[0].value.trim();
+                        const name = node.arguments[0].value.trim();
 
                         // check if argument value is in restricted modules array
-                        if (isRestrictedPath(moduleName)) {
+                        if (isRestrictedPath(name)) {
                             reportPath(node);
                         }
 
-                        if (restrictedPatterns.length > 0 && ig.ignores(moduleName)) {
+                        if (restrictedPatterns.length > 0 && ig.ignores(name)) {
                             context.report({
                                 node,
-                                message: "'{{moduleName}}' module is restricted from being used by a pattern.",
-                                data: { moduleName }
+                                messageId: "patternMessage",
+                                data: { name }
                             });
                         }
                     }

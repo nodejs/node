@@ -25,12 +25,15 @@ module.exports = {
             }
         ],
 
-        fixable: "whitespace"
+        fixable: "whitespace",
+
+        messages: {
+            expectVarOnNewline: "Expected variable declaration to be on a new line."
+        }
     },
 
     create(context) {
 
-        const ERROR_MESSAGE = "Expected variable declaration to be on a new line.";
         const always = context.options[0] === "always";
 
         //--------------------------------------------------------------------------
@@ -67,7 +70,7 @@ module.exports = {
                     if (always || prev.init || current.init) {
                         context.report({
                             node,
-                            message: ERROR_MESSAGE,
+                            messageId: "expectVarOnNewline",
                             loc: current.loc.start,
                             fix: fixer => fixer.insertTextBefore(current, "\n")
                         });

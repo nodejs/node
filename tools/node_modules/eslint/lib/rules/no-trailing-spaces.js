@@ -42,7 +42,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            trailingSpace: "Trailing spaces not allowed."
+        }
     },
 
     create(context) {
@@ -74,7 +78,7 @@ module.exports = {
             context.report({
                 node,
                 loc: location,
-                message: "Trailing spaces not allowed.",
+                messageId: "trailingSpace",
                 fix(fixer) {
                     return fixer.removeRange(fixRange);
                 }

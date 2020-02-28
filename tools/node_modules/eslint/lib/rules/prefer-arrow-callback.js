@@ -56,7 +56,7 @@ function getVariableOfArguments(scope) {
 }
 
 /**
- * Checkes whether or not a given node is a callback.
+ * Checks whether or not a given node is a callback.
  * @param {ASTNode} node A node to check.
  * @returns {Object}
  *   {boolean} retv.isCallback - `true` if the node is a callback.
@@ -158,7 +158,11 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            preferArrowCallback: "Unexpected function expression."
+        }
     },
 
     create(context) {
@@ -267,7 +271,7 @@ module.exports = {
                 ) {
                     context.report({
                         node,
-                        message: "Unexpected function expression.",
+                        messageId: "preferArrowCallback",
                         fix(fixer) {
                             if ((!callbackInfo.isLexicalThis && scopeInfo.this) || hasDuplicateParams(node.params)) {
 

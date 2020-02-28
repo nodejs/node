@@ -70,7 +70,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/prefer-rest-params"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            preferRestParams: "Use the rest parameters instead of 'arguments'."
+        }
     },
 
     create(context) {
@@ -84,7 +88,7 @@ module.exports = {
             context.report({
                 node: reference.identifier,
                 loc: reference.identifier.loc,
-                message: "Use the rest parameters instead of 'arguments'."
+                messageId: "preferRestParams"
             });
         }
 

@@ -18,6 +18,8 @@ const astUtils = require("./utils/ast-utils");
 const MODE_ALWAYS = "always",
     MODE_AS_NEEDED = "as-needed";
 
+const validRadixValues = new Set(Array.from({ length: 37 - 2 }, (_, index) => index + 2));
+
 /**
  * Checks whether a given variable is shadowed or not.
  * @param {eslint-scope.Variable} variable A variable to check.
@@ -47,14 +49,14 @@ function isParseIntMethod(node) {
  *
  * The following values are invalid.
  *
- * - A literal except numbers.
+ * - A literal except integers between 2 and 36.
  * - undefined.
  * @param {ASTNode} radix A node of radix to check.
  * @returns {boolean} `true` if the node is valid.
  */
 function isValidRadix(radix) {
     return !(
-        (radix.type === "Literal" && typeof radix.value !== "number") ||
+        (radix.type === "Literal" && !validRadixValues.has(radix.value)) ||
         (radix.type === "Identifier" && radix.name === "undefined")
     );
 }
@@ -87,7 +89,14 @@ module.exports = {
             {
                 enum: ["always", "as-needed"]
             }
-        ]
+        ],
+
+        messages: {
+            missingParameters: "Missing parameters.",
+            redundantRadix: "Redundant radix parameter.",
+            missingRadix: "Missing radix parameter.",
+            invalidRadix: "Invalid radix parameter, must be an integer between 2 and 36."
+        }
     },
 
     create(context) {
@@ -106,7 +115,7 @@ module.exports = {
                 case 0:
                     context.report({
                         node,
-                        message: "Missing parameters."
+                        messageId: "missingParameters"
                     });
                     break;
 
@@ -114,7 +123,7 @@ module.exports = {
                     if (mode === MODE_ALWAYS) {
                         context.report({
                             node,
-                            message: "Missing radix parameter."
+                            messageId: "missingRadix"
                         });
                     }
                     break;
@@ -123,12 +132,12 @@ module.exports = {
                     if (mode === MODE_AS_NEEDED && isDefaultRadix(args[1])) {
                         context.report({
                             node,
-                            message: "Redundant radix parameter."
+                            messageId: "redundantRadix"
                         });
                     } else if (!isValidRadix(args[1])) {
                         context.report({
                             node,
-                            message: "Invalid radix parameter."
+                            messageId: "invalidRadix"
                         });
                     }
                     break;
@@ -142,7 +151,7 @@ module.exports = {
 
                 // Check `parseInt()`
                 variable = astUtils.getVariableByName(scope, "parseInt");
-                if (!isShadowed(variable)) {
+                if (variable && !isShadowed(variable)) {
                     variable.references.forEach(reference => {
                         const node = reference.identifier;
 
@@ -154,7 +163,7 @@ module.exports = {
 
                 // Check `Number.parseInt()`
                 variable = astUtils.getVariableByName(scope, "Number");
-                if (!isShadowed(variable)) {
+                if (variable && !isShadowed(variable)) {
                     variable.references.forEach(reference => {
                         const node = reference.identifier.parent;
 

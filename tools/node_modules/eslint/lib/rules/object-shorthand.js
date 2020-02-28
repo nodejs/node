@@ -92,6 +92,16 @@ module.exports = {
                     maxItems: 2
                 }
             ]
+        },
+
+        messages: {
+            expectedAllPropertiesShorthanded: "Expected shorthand for all properties.",
+            expectedLiteralMethodLongform: "Expected longform method syntax for string literal keys.",
+            expectedPropertyShorthand: "Expected property shorthand.",
+            expectedPropertyLongform: "Expected longform property syntax.",
+            expectedMethodShorthand: "Expected method shorthand.",
+            expectedMethodLongform: "Expected longform method syntax.",
+            unexpectedMix: "Unexpected mix of shorthand and non-shorthand properties."
         }
     },
 
@@ -211,7 +221,7 @@ module.exports = {
 
                     // We have at least 1 shorthand property
                     if (shorthandProperties.length > 0) {
-                        context.report({ node, message: "Unexpected mix of shorthand and non-shorthand properties." });
+                        context.report({ node, messageId: "unexpectedMix" });
                     } else if (checkRedundancy) {
 
                         /*
@@ -221,7 +231,7 @@ module.exports = {
                         const canAlwaysUseShorthand = properties.every(isRedundant);
 
                         if (canAlwaysUseShorthand) {
-                            context.report({ node, message: "Expected shorthand for all properties." });
+                            context.report({ node, messageId: "expectedAllPropertiesShorthanded" });
                         }
                     }
                 }
@@ -430,12 +440,12 @@ module.exports = {
                 // Checks for property/method shorthand.
                 if (isConciseProperty) {
                     if (node.method && (APPLY_NEVER || AVOID_QUOTES && isStringLiteral(node.key))) {
-                        const message = APPLY_NEVER ? "Expected longform method syntax." : "Expected longform method syntax for string literal keys.";
+                        const messageId = APPLY_NEVER ? "expectedMethodLongform" : "expectedLiteralMethodLongform";
 
                         // { x() {} } should be written as { x: function() {} }
                         context.report({
                             node,
-                            message,
+                            messageId,
                             fix: fixer => makeFunctionLongform(fixer, node)
                         });
                     } else if (APPLY_NEVER) {
@@ -443,7 +453,7 @@ module.exports = {
                         // { x } should be written as { x: x }
                         context.report({
                             node,
-                            message: "Expected longform property syntax.",
+                            messageId: "expectedPropertyLongform",
                             fix: fixer => fixer.insertTextAfter(node.key, `: ${node.key.name}`)
                         });
                     }
@@ -464,7 +474,7 @@ module.exports = {
                     ) {
                         context.report({
                             node,
-                            message: "Expected method shorthand.",
+                            messageId: "expectedMethodShorthand",
                             fix: fixer => makeFunctionShorthand(fixer, node)
                         });
                     }
@@ -473,7 +483,7 @@ module.exports = {
                     // {x: x} should be written as {x}
                     context.report({
                         node,
-                        message: "Expected property shorthand.",
+                        messageId: "expectedPropertyShorthand",
                         fix(fixer) {
                             return fixer.replaceText(node, node.value.name);
                         }
@@ -486,7 +496,7 @@ module.exports = {
                     // {"x": x} should be written as {x}
                     context.report({
                         node,
-                        message: "Expected property shorthand.",
+                        messageId: "expectedPropertyShorthand",
                         fix(fixer) {
                             return fixer.replaceText(node, node.value.name);
                         }

@@ -32,7 +32,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            missingSpace: "Operator '{{operator}}' must be spaced."
+        }
     },
 
     create(context) {
@@ -70,7 +74,7 @@ module.exports = {
             context.report({
                 node: mainNode,
                 loc: culpritToken.loc,
-                message: "Operator '{{operator}}' must be spaced.",
+                messageId: "missingSpace",
                 data: {
                     operator: culpritToken.value
                 },
@@ -123,11 +127,11 @@ module.exports = {
          * @private
          */
         function checkConditional(node) {
-            const nonSpacedConsequesntNode = getFirstNonSpacedToken(node.test, node.consequent, "?");
+            const nonSpacedConsequentNode = getFirstNonSpacedToken(node.test, node.consequent, "?");
             const nonSpacedAlternateNode = getFirstNonSpacedToken(node.consequent, node.alternate, ":");
 
-            if (nonSpacedConsequesntNode) {
-                report(node, nonSpacedConsequesntNode);
+            if (nonSpacedConsequentNode) {
+                report(node, nonSpacedConsequentNode);
             } else if (nonSpacedAlternateNode) {
                 report(node, nonSpacedAlternateNode);
             }

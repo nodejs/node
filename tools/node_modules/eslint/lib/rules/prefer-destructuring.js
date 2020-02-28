@@ -82,7 +82,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            preferDestructuring: "Use {{type}} destructuring."
+        }
     },
     create(context) {
 
@@ -137,7 +141,7 @@ module.exports = {
         function report(reportNode, type, fix) {
             context.report({
                 node: reportNode,
-                message: "Use {{type}} destructuring.",
+                messageId: "preferDestructuring",
                 data: { type },
                 fix
             });

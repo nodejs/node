@@ -18,7 +18,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
-const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|flatMap|map|reduce(?:Right)?|some|sort)$/u;
+const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|flatMap|forEach|map|reduce(?:Right)?|some|sort)$/u;
 
 /**
  * Checks a given code path segment is reachable.
@@ -61,12 +61,13 @@ function isTargetMethod(node) {
 
 /**
  * Checks whether or not a given node is a function expression which is the
- * callback of an array method.
+ * callback of an array method, returning the method name.
  * @param {ASTNode} node A node to check. This is one of
  *      FunctionExpression or ArrowFunctionExpression.
- * @returns {boolean} `true` if the node is the callback of an array method.
+ * @returns {string} The method name if the node is a callback method,
+ *      null otherwise.
  */
-function isCallbackOfArrayMethod(node) {
+function getArrayMethodName(node) {
     let currentNode = node;
 
     while (currentNode) {
@@ -95,7 +96,7 @@ function isCallbackOfArrayMethod(node) {
                 const func = astUtils.getUpperFunction(parent);
 
                 if (func === null || !astUtils.isCallee(func)) {
-                    return false;
+                    return null;
                 }
                 currentNode = func.parent;
                 break;
@@ -108,27 +109,31 @@ function isCallbackOfArrayMethod(node) {
              */
             case "CallExpression":
                 if (astUtils.isArrayFromMethod(parent.callee)) {
-                    return (
+                    if (
                         parent.arguments.length >= 2 &&
                         parent.arguments[1] === currentNode
-                    );
+                    ) {
+                        return "from";
+                    }
                 }
                 if (isTargetMethod(parent.callee)) {
-                    return (
+                    if (
                         parent.arguments.length >= 1 &&
                         parent.arguments[0] === currentNode
-                    );
+                    ) {
+                        return astUtils.getStaticPropertyName(parent.callee);
+                    }
                 }
-                return false;
+                return null;
 
             // Otherwise this node is not target.
             default:
-                return false;
+                return null;
         }
     }
 
     /* istanbul ignore next: unreachable */
-    return false;
+    return null;
 }
 
 //------------------------------------------------------------------------------
@@ -153,6 +158,10 @@ module.exports = {
                     allowImplicit: {
                         type: "boolean",
                         default: false
+                    },
+                    checkForEach: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -162,15 +171,17 @@ module.exports = {
         messages: {
             expectedAtEnd: "Expected to return a value at the end of {{name}}.",
             expectedInside: "Expected to return a value in {{name}}.",
-            expectedReturnValue: "{{name}} expected a return value."
+            expectedReturnValue: "{{name}} expected a return value.",
+            expectedNoReturnValue: "{{name}} did not expect a return value."
         }
     },
 
     create(context) {
 
-        const options = context.options[0] || { allowImplicit: false };
+        const options = context.options[0] || { allowImplicit: false, checkForEach: false };
 
         let funcInfo = {
+            arrayMethodName: null,
             upper: null,
             codePath: null,
             hasReturn: false,
@@ -188,18 +199,32 @@ module.exports = {
          * @returns {void}
          */
         function checkLastSegment(node) {
-            if (funcInfo.shouldCheck &&
-                funcInfo.codePath.currentSegments.some(isReachable)
-            ) {
+
+            if (!funcInfo.shouldCheck) {
+                return;
+            }
+
+            let messageId = null;
+
+            if (funcInfo.arrayMethodName === "forEach") {
+                if (options.checkForEach && node.type === "ArrowFunctionExpression" && node.expression) {
+                    messageId = "expectedNoReturnValue";
+                }
+            } else {
+                if (node.body.type === "BlockStatement" && funcInfo.codePath.currentSegments.some(isReachable)) {
+                    messageId = funcInfo.hasReturn ? "expectedAtEnd" : "expectedInside";
+                }
+            }
+
+            if (messageId) {
+                let name = astUtils.getFunctionNameWithKind(funcInfo.node);
+
+                name = messageId === "expectedNoReturnValue" ? lodash.upperFirst(name) : name;
                 context.report({
                     node,
                     loc: getLocation(node, context.getSourceCode()).loc.start,
-                    messageId: funcInfo.hasReturn
-                        ? "expectedAtEnd"
-                        : "expectedInside",
-                    data: {
-                        name: astUtils.getFunctionNameWithKind(funcInfo.node)
-                    }
+                    messageId,
+                    data: { name }
                 });
             }
         }
@@ -208,14 +233,20 @@ module.exports = {
 
             // Stacks this function's information.
             onCodePathStart(codePath, node) {
+
+                let methodName = null;
+
+                if (TARGET_NODE_TYPE.test(node.type)) {
+                    methodName = getArrayMethodName(node);
+                }
+
                 funcInfo = {
+                    arrayMethodName: methodName,
                     upper: funcInfo,
                     codePath,
                     hasReturn: false,
                     shouldCheck:
-                        TARGET_NODE_TYPE.test(node.type) &&
-                        node.body.type === "BlockStatement" &&
-                        isCallbackOfArrayMethod(node) &&
+                        methodName &&
                         !node.async &&
                         !node.generator,
                     node
@@ -229,19 +260,37 @@ module.exports = {
 
             // Checks the return statement is valid.
             ReturnStatement(node) {
-                if (funcInfo.shouldCheck) {
-                    funcInfo.hasReturn = true;
+
+                if (!funcInfo.shouldCheck) {
+                    return;
+                }
+
+                funcInfo.hasReturn = true;
+
+                let messageId = null;
+
+                if (funcInfo.arrayMethodName === "forEach") {
+
+                    // if checkForEach: true, returning a value at any path inside a forEach is not allowed
+                    if (options.checkForEach && node.argument) {
+                        messageId = "expectedNoReturnValue";
+                    }
+                } else {
 
                     // if allowImplicit: false, should also check node.argument
                     if (!options.allowImplicit && !node.argument) {
-                        context.report({
-                            node,
-                            messageId: "expectedReturnValue",
-                            data: {
-                                name: lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
-                            }
-                        });
+                        messageId = "expectedReturnValue";
                     }
+                }
+
+                if (messageId) {
+                    context.report({
+                        node,
+                        messageId,
+                        data: {
+                            name: lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
+                        }
+                    });
                 }
             },
 

@@ -518,6 +518,7 @@ function processCodePathToExit(analyzer, node) {
         case "ImportExpression":
         case "MemberExpression":
         case "NewExpression":
+        case "YieldExpression":
             state.makeFirstThrowablePathInTryBlock();
             break;
 

@@ -203,7 +203,7 @@ module.exports = {
          * stripped.
          * @param {string} line The source line with a trailing comment
          * @param {ASTNode} comment The comment to remove
-         * @returns {string} Line without comment and trailing whitepace
+         * @returns {string} Line without comment and trailing whitespace
          */
         function stripTrailingComment(line, comment) {
 

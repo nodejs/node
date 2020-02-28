@@ -159,7 +159,14 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedLinebreakBeforeClosingBrace: "Unexpected line break before this closing brace.",
+            unexpectedLinebreakAfterOpeningBrace: "Unexpected line break after this opening brace.",
+            expectedLinebreakBeforeClosingBrace: "Expected a line break before this closing brace.",
+            expectedLinebreakAfterOpeningBrace: "Expected a line break after this opening brace."
+        }
     },
 
     create(context) {
@@ -215,7 +222,7 @@ module.exports = {
             if (needsLineBreaks) {
                 if (astUtils.isTokenOnSameLine(openBrace, first)) {
                     context.report({
-                        message: "Expected a line break after this opening brace.",
+                        messageId: "expectedLinebreakAfterOpeningBrace",
                         node,
                         loc: openBrace.loc.start,
                         fix(fixer) {
@@ -229,7 +236,7 @@ module.exports = {
                 }
                 if (astUtils.isTokenOnSameLine(last, closeBrace)) {
                     context.report({
-                        message: "Expected a line break before this closing brace.",
+                        messageId: "expectedLinebreakBeforeClosingBrace",
                         node,
                         loc: closeBrace.loc.start,
                         fix(fixer) {
@@ -251,7 +258,7 @@ module.exports = {
                     (consistent && hasLineBreakBetweenOpenBraceAndFirst && !hasLineBreakBetweenCloseBraceAndLast)
                 ) {
                     context.report({
-                        message: "Unexpected line break after this opening brace.",
+                        messageId: "unexpectedLinebreakAfterOpeningBrace",
                         node,
                         loc: openBrace.loc.start,
                         fix(fixer) {
@@ -271,7 +278,7 @@ module.exports = {
                     (consistent && !hasLineBreakBetweenOpenBraceAndFirst && hasLineBreakBetweenCloseBraceAndLast)
                 ) {
                     context.report({
-                        message: "Unexpected line break before this closing brace.",
+                        messageId: "unexpectedLinebreakBeforeClosingBrace",
                         node,
                         loc: closeBrace.loc.start,
                         fix(fixer) {

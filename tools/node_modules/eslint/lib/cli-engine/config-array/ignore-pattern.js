@@ -103,8 +103,8 @@ function dirSuffix(filePath) {
     return isDir ? "/" : "";
 }
 
-const DefaultPatterns = Object.freeze(["/node_modules/*", "/bower_components/*"]);
-const DotPatterns = Object.freeze([".*", "!../"]);
+const DefaultPatterns = Object.freeze(["/**/node_modules/*"]);
+const DotPatterns = Object.freeze([".*", "!.eslintrc.*", "!../"]);
 
 //------------------------------------------------------------------------------
 // Public
