@@ -1027,6 +1027,38 @@ static X509_STORE* NewRootCertStore() {
 }
 
 
+X509_STORE* CloneRootCertStore() {
+  if (root_cert_store == nullptr) {
+    root_cert_store = NewRootCertStore();
+  }
+
+  X509_STORE* store_clone = X509_STORE_new();
+  X509_STORE_set1_param(store_clone, X509_STORE_get0_param(root_cert_store));
+
+  STACK_OF(X509_OBJECT)* objs = X509_STORE_get0_objects(root_cert_store);
+  for (int i = 0; i < sk_X509_OBJECT_num(objs); i++) {
+    X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
+
+    switch (X509_OBJECT_get_type(obj)) {
+      case X509_LU_X509:
+        {
+          X509* cert = X509_OBJECT_get0_X509(obj);
+          X509_STORE_add_cert(store_clone, cert);
+        }
+        break;
+      case X509_LU_CRL:
+        {
+          X509_CRL* crl = X509_OBJECT_get0_X509_CRL(obj);
+          X509_STORE_add_crl(store_clone, crl);
+        }
+        break;
+    }
+  }
+
+  return store_clone;
+}
+
+
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Value> result[arraysize(root_certs)];
@@ -1064,7 +1096,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   while (X509* x509 = PEM_read_bio_X509_AUX(
       bio.get(), nullptr, NoPasswordCallback, nullptr)) {
     if (cert_store == root_cert_store) {
-      cert_store = NewRootCertStore();
+      cert_store = CloneRootCertStore();
       SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
     }
     X509_STORE_add_cert(cert_store, x509);
@@ -1098,7 +1130,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
   if (cert_store == root_cert_store) {
-    cert_store = NewRootCertStore();
+    cert_store = CloneRootCertStore();
     SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
   }
 
@@ -1475,7 +1507,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
       X509* ca = sk_X509_value(extra_certs.get(), i);
 
       if (cert_store == root_cert_store) {
-        cert_store = NewRootCertStore();
+        cert_store = CloneRootCertStore();
         SSL_CTX_set_cert_store(sc->ctx_.get(), cert_store);
       }
       X509_STORE_add_cert(cert_store, ca);
