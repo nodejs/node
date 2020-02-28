@@ -9,6 +9,9 @@ asyncLocalStorage.runSyncAndReturn(new Map(), () => {
   asyncLocalStorage.getStore().set('foo', 'bar');
   process.nextTick(() => {
     assert.strictEqual(asyncLocalStorage.getStore().get('foo'), 'bar');
+    process.nextTick(() => {
+      assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+    });
     asyncLocalStorage.disable();
     assert.strictEqual(asyncLocalStorage.getStore(), undefined);
     process.nextTick(() => {
