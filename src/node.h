@@ -316,6 +316,10 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   virtual void AddIsolateFinishedCallback(v8::Isolate* isolate,
                                           void (*callback)(void*),
                                           void* data) = 0;
+
+  static std::unique_ptr<MultiIsolatePlatform> Create(
+      int thread_pool_size,
+      node::tracing::TracingController* tracing_controller = nullptr);
 };
 
 enum IsolateSettingsFlags {
@@ -467,6 +471,7 @@ NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 // it returns nullptr.
 NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
 
+// Legacy variants of MultiIsolatePlatform::Create().
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller);

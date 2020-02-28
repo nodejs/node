@@ -490,11 +490,18 @@ MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller) {
-  return new NodePlatform(thread_pool_size, tracing_controller);
+  return MultiIsolatePlatform::Create(thread_pool_size, tracing_controller)
+      .release();
 }
 
 void FreePlatform(MultiIsolatePlatform* platform) {
   delete platform;
+}
+
+std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
+    int thread_pool_size,
+    node::tracing::TracingController* tracing_controller) {
+  return std::make_unique<NodePlatform>(thread_pool_size, tracing_controller);
 }
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
