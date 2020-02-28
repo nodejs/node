@@ -42,7 +42,7 @@ server.listen(0, mustCall(() => {
   }));
 
   req.on('timeout', mustCall(() => {
-    strictEqual(req.socket.listenerCount('timeout'), 0);
+    strictEqual(req.socket.listenerCount('timeout'), 1);
     req.destroy();
   }));
 }));
