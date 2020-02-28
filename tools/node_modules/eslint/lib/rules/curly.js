@@ -141,33 +141,14 @@ module.exports = {
         }
 
         /**
-         * Checks a given IfStatement node requires braces of the consequent chunk.
-         * This returns `true` when below:
-         *
-         * 1. The given node has the `alternate` node.
-         * 2. There is a `IfStatement` which doesn't have `alternate` node in the
-         *    trailing statement chain of the `consequent` node.
-         * @param {ASTNode} node A IfStatement node to check.
-         * @returns {boolean} `true` if the node requires braces of the consequent chunk.
+         * Determines whether the given node has an `else` keyword token as the first token after.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} `true` if the node is followed by an `else` keyword token.
          */
-        function requiresBraceOfConsequent(node) {
-            if (node.alternate && node.consequent.type === "BlockStatement") {
-                if (node.consequent.body.length >= 2) {
-                    return true;
-                }
+        function isFollowedByElseKeyword(node) {
+            const nextToken = sourceCode.getTokenAfter(node);
 
-                for (
-                    let currentNode = node.consequent.body[0];
-                    currentNode;
-                    currentNode = astUtils.getTrailingStatement(currentNode)
-                ) {
-                    if (currentNode.type === "IfStatement" && !currentNode.alternate) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            return Boolean(nextToken) && isElseKeywordToken(nextToken);
         }
 
         /**
@@ -225,6 +206,110 @@ module.exports = {
         }
 
         /**
+         * Determines whether the code represented by the given node contains an `if` statement
+         * that would become associated with an `else` keyword directly appended to that code.
+         *
+         * Examples where it returns `true`:
+         *
+         *    if (a)
+         *        foo();
+         *
+         *    if (a) {
+         *        foo();
+         *    }
+         *
+         *    if (a)
+         *        foo();
+         *    else if (b)
+         *        bar();
+         *
+         *    while (a)
+         *        if (b)
+         *            if(c)
+         *                foo();
+         *            else
+         *                bar();
+         *
+         * Examples where it returns `false`:
+         *
+         *    if (a)
+         *        foo();
+         *    else
+         *        bar();
+         *
+         *    while (a) {
+         *        if (b)
+         *            if(c)
+         *                foo();
+         *            else
+         *                bar();
+         *    }
+         *
+         *    while (a)
+         *        if (b) {
+         *            if(c)
+         *                foo();
+         *        }
+         *        else
+         *            bar();
+         * @param {ASTNode} node Node representing the code to check.
+         * @returns {boolean} `true` if an `if` statement within the code would become associated with an `else` appended to that code.
+         */
+        function hasUnsafeIf(node) {
+            switch (node.type) {
+                case "IfStatement":
+                    if (!node.alternate) {
+                        return true;
+                    }
+                    return hasUnsafeIf(node.alternate);
+                case "ForStatement":
+                case "ForInStatement":
+                case "ForOfStatement":
+                case "LabeledStatement":
+                case "WithStatement":
+                case "WhileStatement":
+                    return hasUnsafeIf(node.body);
+                default:
+                    return false;
+            }
+        }
+
+        /**
+         * Determines whether the existing curly braces around the single statement are necessary to preserve the semantics of the code.
+         * The braces, which make the given block body, are necessary in either of the following situations:
+         *
+         * 1. The statement is a lexical declaration.
+         * 2. Without the braces, an `if` within the statement would become associated with an `else` after the closing brace:
+         *
+         *     if (a) {
+         *         if (b)
+         *             foo();
+         *     }
+         *     else
+         *         bar();
+         *
+         *     if (a)
+         *         while (b)
+         *             while (c) {
+         *                 while (d)
+         *                     if (e)
+         *                         while(f)
+         *                             foo();
+         *            }
+         *     else
+         *         bar();
+         * @param {ASTNode} node `BlockStatement` body with exactly one statement directly inside. The statement can have its own nested statements.
+         * @returns {boolean} `true` if the braces are necessary - removing them (replacing the given `BlockStatement` body with its single statement content)
+         * would change the semantics of the code or produce a syntax error.
+         */
+        function areBracesNecessary(node) {
+            const statement = node.body[0];
+
+            return isLexicalDeclaration(statement) ||
+                hasUnsafeIf(statement) && isFollowedByElseKeyword(node);
+        }
+
+        /**
          * Prepares to check the body of a node to see if it's a block statement.
          * @param {ASTNode} node The node to report if there's a problem.
          * @param {ASTNode} body The body node to check for blocks.
@@ -242,30 +327,29 @@ module.exports = {
             const hasBlock = (body.type === "BlockStatement");
             let expected = null;
 
-            if (node.type === "IfStatement" && node.consequent === body && requiresBraceOfConsequent(node)) {
+            if (hasBlock && (body.body.length !== 1 || areBracesNecessary(body))) {
                 expected = true;
             } else if (multiOnly) {
-                if (hasBlock && body.body.length === 1 && !isLexicalDeclaration(body.body[0])) {
-                    expected = false;
-                }
+                expected = false;
             } else if (multiLine) {
                 if (!isCollapsedOneLiner(body)) {
                     expected = true;
                 }
-            } else if (multiOrNest) {
-                if (hasBlock && body.body.length === 1 && isOneLiner(body.body[0])) {
-                    const leadingComments = sourceCode.getCommentsBefore(body.body[0]);
-                    const isLexDef = isLexicalDeclaration(body.body[0]);
 
-                    if (isLexDef) {
-                        expected = true;
-                    } else {
-                        expected = leadingComments.length > 0;
-                    }
-                } else if (!isOneLiner(body)) {
-                    expected = true;
+                // otherwise, the body is allowed to have braces or not to have braces
+
+            } else if (multiOrNest) {
+                if (hasBlock) {
+                    const statement = body.body[0];
+                    const leadingCommentsInBlock = sourceCode.getCommentsBefore(statement);
+
+                    expected = !isOneLiner(statement) || leadingCommentsInBlock.length > 0;
+                } else {
+                    expected = !isOneLiner(body);
                 }
             } else {
+
+                // default "all"
                 expected = true;
             }
 

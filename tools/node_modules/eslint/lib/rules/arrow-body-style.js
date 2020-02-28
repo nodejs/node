@@ -91,7 +91,7 @@ module.exports = {
          * @returns {Token} The found closing parenthesis token.
          */
         function findClosingParen(token) {
-            let node = sourceCode.getNodeByRangeIndex(token.range[1]);
+            let node = sourceCode.getNodeByRangeIndex(token.range[0]);
 
             while (!astUtils.isParenthesised(sourceCode, node)) {
                 node = node.parent;
@@ -206,24 +206,35 @@ module.exports = {
                         fix(fixer) {
                             const fixes = [];
                             const arrowToken = sourceCode.getTokenBefore(arrowBody, astUtils.isArrowToken);
-                            const firstBodyToken = sourceCode.getTokenAfter(arrowToken);
-                            const lastBodyToken = sourceCode.getLastToken(node);
+                            const [firstTokenAfterArrow, secondTokenAfterArrow] = sourceCode.getTokensAfter(arrowToken, { count: 2 });
+                            const lastToken = sourceCode.getLastToken(node);
                             const isParenthesisedObjectLiteral =
-                                astUtils.isOpeningParenToken(firstBodyToken) &&
-                                astUtils.isOpeningBraceToken(sourceCode.getTokenAfter(firstBodyToken));
-
-                            // Wrap the value by a block and a return statement.
-                            fixes.push(
-                                fixer.insertTextBefore(firstBodyToken, "{return "),
-                                fixer.insertTextAfter(lastBodyToken, "}")
-                            );
+                                astUtils.isOpeningParenToken(firstTokenAfterArrow) &&
+                                astUtils.isOpeningBraceToken(secondTokenAfterArrow);
 
                             // If the value is object literal, remove parentheses which were forced by syntax.
                             if (isParenthesisedObjectLiteral) {
-                                fixes.push(
-                                    fixer.remove(firstBodyToken),
-                                    fixer.remove(findClosingParen(firstBodyToken))
-                                );
+                                const openingParenToken = firstTokenAfterArrow;
+                                const openingBraceToken = secondTokenAfterArrow;
+
+                                if (astUtils.isTokenOnSameLine(openingParenToken, openingBraceToken)) {
+                                    fixes.push(fixer.replaceText(openingParenToken, "{return "));
+                                } else {
+
+                                    // Avoid ASI
+                                    fixes.push(
+                                        fixer.replaceText(openingParenToken, "{"),
+                                        fixer.insertTextBefore(openingBraceToken, "return ")
+                                    );
+                                }
+
+                                // Closing paren for the object doesn't have to be lastToken, e.g.: () => ({}).foo()
+                                fixes.push(fixer.remove(findClosingParen(openingBraceToken)));
+                                fixes.push(fixer.insertTextAfter(lastToken, "}"));
+
+                            } else {
+                                fixes.push(fixer.insertTextBefore(firstTokenAfterArrow, "{return "));
+                                fixes.push(fixer.insertTextAfter(lastToken, "}"));
                             }
 
                             return fixes;

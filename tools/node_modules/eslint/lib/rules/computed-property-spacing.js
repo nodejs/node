@@ -32,7 +32,7 @@ module.exports = {
                 properties: {
                     enforceForClassMembers: {
                         type: "boolean",
-                        default: false
+                        default: true
                     }
                 },
                 additionalProperties: false
@@ -51,7 +51,7 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
         const propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
-        const enforceForClassMembers = context.options[1] && context.options[1].enforceForClassMembers;
+        const enforceForClassMembers = !context.options[1] || context.options[1].enforceForClassMembers;
 
         //--------------------------------------------------------------------------
         // Helpers
