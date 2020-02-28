@@ -157,9 +157,8 @@ struct text_region FindNodeTextRegion() {
       continue;
 
     start = node_text_start;
-    if (lpstub_start > start && lpstub_start <= end) {
+    if (lpstub_start > start && lpstub_start <= end)
       end = lpstub_start;
-    }
 
     char* from = reinterpret_cast<char*>(hugepage_align_up(start));
     char* to = reinterpret_cast<char*>(hugepage_align_down(end));
