@@ -140,7 +140,7 @@ class NodePlatform : public MultiIsolatePlatform {
  public:
   NodePlatform(int thread_pool_size,
                v8::TracingController* tracing_controller);
-  ~NodePlatform() override = default;
+  ~NodePlatform() override;
 
   void DrainTasks(v8::Isolate* isolate) override;
   void Shutdown();
@@ -180,6 +180,7 @@ class NodePlatform : public MultiIsolatePlatform {
 
   v8::TracingController* tracing_controller_;
   std::shared_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner_;
+  bool has_shut_down_ = false;
 };
 
 }  // namespace node
