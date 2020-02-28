@@ -35,7 +35,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            unexpectedTab: "Unexpected tab character."
+        }
     },
 
     create(context) {
@@ -64,7 +68,7 @@ module.exports = {
                                     column: match.index + match[0].length
                                 }
                             },
-                            message: "Unexpected tab character."
+                            messageId: "unexpectedTab"
                         });
                     }
                 });

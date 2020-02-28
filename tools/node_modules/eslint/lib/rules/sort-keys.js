@@ -41,7 +41,7 @@ function getPropertyName(node) {
  * Functions which check that the given 2 names are in specific order.
  *
  * Postfix `I` is meant insensitive.
- * Postfix `N` is meant natual.
+ * Postfix `N` is meant natural.
  * @private
  */
 const isValidOrders = {
@@ -109,7 +109,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            sortKeys: "Expected object keys to be in {{natural}}{{insensitive}}{{order}}ending order. '{{thisName}}' should be before '{{prevName}}'."
+        }
     },
 
     create(context) {
@@ -118,10 +122,10 @@ module.exports = {
         const order = context.options[0] || "asc";
         const options = context.options[1];
         const insensitive = options && options.caseSensitive === false;
-        const natual = options && options.natural;
+        const natural = options && options.natural;
         const minKeys = options && options.minKeys;
         const isValidOrder = isValidOrders[
-            order + (insensitive ? "I" : "") + (natual ? "N" : "")
+            order + (insensitive ? "I" : "") + (natural ? "N" : "")
         ];
 
         // The stack to save the previous property's name for each object literals.
@@ -167,13 +171,13 @@ module.exports = {
                     context.report({
                         node,
                         loc: node.key.loc,
-                        message: "Expected object keys to be in {{natual}}{{insensitive}}{{order}}ending order. '{{thisName}}' should be before '{{prevName}}'.",
+                        messageId: "sortKeys",
                         data: {
                             thisName,
                             prevName,
                             order,
                             insensitive: insensitive ? "insensitive " : "",
-                            natual: natual ? "natural " : ""
+                            natural: natural ? "natural " : ""
                         }
                     });
                 }

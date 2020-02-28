@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-undefined"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedUndefined: "Unexpected use of undefined."
+        }
     },
 
     create(context) {
@@ -32,7 +36,7 @@ module.exports = {
         function report(node) {
             context.report({
                 node,
-                message: "Unexpected use of undefined."
+                messageId: "unexpectedUndefined"
             });
         }
 

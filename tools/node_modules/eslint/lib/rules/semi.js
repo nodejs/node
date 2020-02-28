@@ -135,7 +135,7 @@ module.exports = {
         }
 
         /**
-         * Check whether a given semicolon token is redandant.
+         * Check whether a given semicolon token is redundant.
          * @param {Token} semiToken A semicolon token to check.
          * @returns {boolean} `true` if the next token is `;` or `}`.
          */

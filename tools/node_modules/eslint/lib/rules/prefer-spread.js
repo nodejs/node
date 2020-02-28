@@ -59,7 +59,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: null
+        fixable: null,
+
+        messages: {
+            preferSpread: "Use the spread operator instead of '.apply()'."
+        }
     },
 
     create(context) {
@@ -78,7 +82,7 @@ module.exports = {
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
                     context.report({
                         node,
-                        message: "Use the spread operator instead of '.apply()'."
+                        messageId: "preferSpread"
                     });
                 }
             }

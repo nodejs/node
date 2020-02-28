@@ -316,6 +316,10 @@ module.exports = {
                                         const [, prefix = "", initialOffset = ""] = lineTextToAlignWith.match(/^(\s*(?:\/?\*)?(\s*))/u) || [];
 
                                         offset = `${commentTextPrefix.slice(prefix.length)}${initialOffset}`;
+
+                                        if (/^\s*\//u.test(lineText) && offset.length === 0) {
+                                            offset += " ";
+                                        }
                                         break;
                                     }
 

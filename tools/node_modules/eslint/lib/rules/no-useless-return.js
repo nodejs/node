@@ -32,7 +32,7 @@ function remove(array, element) {
 /**
  * Checks whether it can remove the given return statement or not.
  * @param {ASTNode} node The return statement node to check.
- * @returns {boolean} `true` if the node is removeable.
+ * @returns {boolean} `true` if the node is removable.
  */
 function isRemovable(node) {
     return astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type);
@@ -73,7 +73,11 @@ module.exports = {
         },
 
         fixable: "code",
-        schema: []
+        schema: [],
+
+        messages: {
+            unnecessaryReturn: "Unnecessary return statement."
+        }
     },
 
     create(context) {
@@ -208,7 +212,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: node.loc,
-                        message: "Unnecessary return statement.",
+                        messageId: "unnecessaryReturn",
                         fix(fixer) {
                             if (isRemovable(node) && !sourceCode.getCommentsInside(node).length) {
 

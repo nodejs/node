@@ -33,7 +33,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            noSync: "Unexpected sync method: '{{propertyName}}'."
+        }
     },
 
     create(context) {
@@ -45,7 +49,7 @@ module.exports = {
             [selector](node) {
                 context.report({
                     node,
-                    message: "Unexpected sync method: '{{propertyName}}'.",
+                    messageId: "noSync",
                     data: {
                         propertyName: node.property.name
                     }

@@ -98,7 +98,7 @@ function argNeedsParens(node, sourceCode) {
 
 /**
  * Get the parenthesis tokens of a given ObjectExpression node.
- * This incldues the braces of the object literal and enclosing parentheses.
+ * This includes the braces of the object literal and enclosing parentheses.
  * @param {ASTNode} node The node to get.
  * @param {Token} leftArgumentListParen The opening paren token of the argument list.
  * @param {SourceCode} sourceCode The source code object to get tokens.

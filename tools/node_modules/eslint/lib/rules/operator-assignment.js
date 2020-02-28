@@ -26,10 +26,10 @@ function isCommutativeOperatorWithShorthand(operator) {
 }
 
 /**
- * Checks whether an operator is not commuatative and has an operator assignment
+ * Checks whether an operator is not commutative and has an operator assignment
  * shorthand form.
  * @param   {string}  operator Operator to check.
- * @returns {boolean}          True if the operator is not commuatative and has
+ * @returns {boolean}          True if the operator is not commutative and has
  *     a shorthand form.
  */
 function isNonCommutativeOperatorWithShorthand(operator) {
@@ -219,7 +219,7 @@ module.exports = {
 
                                 if (
                                     operatorToken.range[1] === firstRightToken.range[0] &&
-                                    !astUtils.canTokensBeAdjacent(newOperator, firstRightToken)
+                                    !astUtils.canTokensBeAdjacent({ type: "Punctuator", value: newOperator }, firstRightToken)
                                 ) {
                                     rightTextPrefix = " "; // foo+=+bar -> foo= foo+ +bar
                                 }

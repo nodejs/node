@@ -39,7 +39,14 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedWhitespaceBefore: "Unexpected whitespace before semicolon.",
+            unexpectedWhitespaceAfter: "Unexpected whitespace after semicolon.",
+            missingWhitespaceBefore: "Missing whitespace before semicolon.",
+            missingWhitespaceAfter: "Missing whitespace after semicolon."
+        }
     },
 
     create(context) {
@@ -124,7 +131,7 @@ module.exports = {
                         context.report({
                             node,
                             loc: location,
-                            message: "Unexpected whitespace before semicolon.",
+                            messageId: "unexpectedWhitespaceBefore",
                             fix(fixer) {
                                 const tokenBefore = sourceCode.getTokenBefore(token);
 
@@ -137,7 +144,7 @@ module.exports = {
                         context.report({
                             node,
                             loc: location,
-                            message: "Missing whitespace before semicolon.",
+                            messageId: "missingWhitespaceBefore",
                             fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
                             }
@@ -151,7 +158,7 @@ module.exports = {
                             context.report({
                                 node,
                                 loc: location,
-                                message: "Unexpected whitespace after semicolon.",
+                                messageId: "unexpectedWhitespaceAfter",
                                 fix(fixer) {
                                     const tokenAfter = sourceCode.getTokenAfter(token);
 
@@ -164,7 +171,7 @@ module.exports = {
                             context.report({
                                 node,
                                 loc: location,
-                                message: "Missing whitespace after semicolon.",
+                                messageId: "missingWhitespaceAfter",
                                 fix(fixer) {
                                     return fixer.insertTextAfter(token, " ");
                                 }

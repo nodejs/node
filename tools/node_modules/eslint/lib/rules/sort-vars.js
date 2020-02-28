@@ -33,7 +33,11 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            sortVars: "Variables within the same declaration block should be sorted alphabetically."
+        }
     },
 
     create(context) {
@@ -56,7 +60,7 @@ module.exports = {
                     if (currentVariableName < lastVariableName) {
                         context.report({
                             node: decl,
-                            message: "Variables within the same declaration block should be sorted alphabetically.",
+                            messageId: "sortVars",
                             fix(fixer) {
                                 if (unfixable || fixed) {
                                     return null;

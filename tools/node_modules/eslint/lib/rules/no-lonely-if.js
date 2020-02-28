@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to disallow if as the only statmenet in an else block
+ * @fileoverview Rule to disallow if as the only statement in an else block
  * @author Brandon Mills
  */
 "use strict";

@@ -39,9 +39,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
 
-        // no messages, because the error text comes directly from the regexpp module
+        messages: {
+            regexMessage: "{{message}}."
+        }
     },
 
     create(context) {
@@ -118,7 +120,7 @@ module.exports = {
                 if (message) {
                     context.report({
                         node,
-                        message: "{{message}}.",
+                        messageId: "regexMessage",
                         data: { message }
                     });
                 }

@@ -115,7 +115,7 @@ function isPassingThrough(ctorParams, superArgs) {
  * Checks whether the constructor body is a redundant super call.
  * @param {Array} body constructor body content.
  * @param {Array} ctorParams The params to check against super call.
- * @returns {boolean} true if the construtor body is redundant
+ * @returns {boolean} true if the constructor body is redundant
  */
 function isRedundantSuperCall(body, ctorParams) {
     return (

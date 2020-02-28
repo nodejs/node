@@ -29,7 +29,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-unsafe-finally"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unsafeUsage: "Unsafe usage of {{nodeType}}."
+        }
     },
     create(context) {
 
@@ -86,7 +90,7 @@ module.exports = {
         function check(node) {
             if (isInFinallyBlock(node, node.label)) {
                 context.report({
-                    message: "Unsafe usage of {{nodeType}}.",
+                    messageId: "unsafeUsage",
                     data: {
                         nodeType: node.type
                     },

@@ -61,6 +61,13 @@ module.exports = {
                 ]
             },
             uniqueItems: true
+        },
+
+        messages: {
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            restrictedObjectProperty: "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            restrictedProperty: "'{{propertyName}}' is restricted from being used.{{message}}"
         }
     },
 
@@ -114,8 +121,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    // eslint-disable-next-line eslint-plugin/report-message-format
-                    message: "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}",
+                    messageId: "restrictedObjectProperty",
                     data: {
                         objectName,
                         propertyName,
@@ -127,8 +133,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    // eslint-disable-next-line eslint-plugin/report-message-format
-                    message: "'{{propertyName}}' is restricted from being used.{{message}}",
+                    messageId: "restrictedProperty",
                     data: {
                         propertyName,
                         message

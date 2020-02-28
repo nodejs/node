@@ -1,5 +1,5 @@
 /**
- * @fileoverview disallow unncessary concatenation of template strings
+ * @fileoverview disallow unnecessary concatenation of template strings
  * @author Henry Zhu
  */
 "use strict";
@@ -75,7 +75,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-useless-concat"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedConcat: "Unexpected string concatenation of literals."
+        }
     },
 
     create(context) {
@@ -102,7 +106,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: operatorToken.loc.start,
-                        message: "Unexpected string concatenation of literals."
+                        messageId: "unexpectedConcat"
                     });
                 }
             }

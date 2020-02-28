@@ -39,7 +39,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedComment: "Unexpected '{{matchedTerm}}' comment."
+        }
     },
 
     create(context) {
@@ -140,7 +144,7 @@ module.exports = {
             matches.forEach(matchedTerm => {
                 context.report({
                     node,
-                    message: "Unexpected '{{matchedTerm}}' comment.",
+                    messageId: "unexpectedComment",
                     data: {
                         matchedTerm
                     }

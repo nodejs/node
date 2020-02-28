@@ -142,7 +142,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpectedStringConcatenation: "Unexpected string concatenation."
+        }
     },
 
     create(context) {
@@ -261,7 +265,7 @@ module.exports = {
             if (hasNonStringLiteral(topBinaryExpr)) {
                 context.report({
                     node: topBinaryExpr,
-                    message: "Unexpected string concatenation.",
+                    messageId: "unexpectedStringConcatenation",
                     fix: fixer => fixNonStringBinaryExpression(fixer, node)
                 });
             }

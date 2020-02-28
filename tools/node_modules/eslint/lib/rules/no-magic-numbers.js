@@ -110,11 +110,14 @@ module.exports = {
 
         /**
          * Returns whether the number should be ignored when used as an array index with enabled 'ignoreArrayIndexes' option.
-         * @param {ASTNode} parent the non-"UnaryExpression" parent.
+         * @param {ASTNode} node Node to check
          * @returns {boolean} true if the number should be ignored
          */
-        function shouldIgnoreArrayIndexes(parent) {
-            return parent.type === "MemberExpression" && ignoreArrayIndexes;
+        function shouldIgnoreArrayIndexes(node) {
+            const parent = node.parent;
+
+            return ignoreArrayIndexes &&
+                parent.type === "MemberExpression" && parent.property === node;
         }
 
         return {
@@ -145,7 +148,7 @@ module.exports = {
 
                 if (shouldIgnoreNumber(value) ||
                     shouldIgnoreParseInt(parent, fullNumberNode) ||
-                    shouldIgnoreArrayIndexes(parent) ||
+                    shouldIgnoreArrayIndexes(fullNumberNode) ||
                     shouldIgnoreJSXNumbers(parent)) {
                     return;
                 }

@@ -35,7 +35,12 @@ module.exports = {
             {
                 enum: ["except-parens", "always"]
             }
-        ]
+        ],
+
+        messages: {
+            returnAssignment: "Return statement should not contain assignment.",
+            arrowAssignment: "Arrow function should not return assignment."
+        }
     },
 
     create(context) {
@@ -61,12 +66,12 @@ module.exports = {
                 if (parent && parent.type === "ReturnStatement") {
                     context.report({
                         node: parent,
-                        message: "Return statement should not contain assignment."
+                        messageId: "returnAssignment"
                     });
                 } else if (parent && parent.type === "ArrowFunctionExpression" && parent.body === currentChild) {
                     context.report({
                         node: parent,
-                        message: "Arrow function should not return assignment."
+                        messageId: "arrowAssignment"
                     });
                 }
             }

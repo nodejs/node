@@ -135,7 +135,7 @@ function check(packages, opt) {
  *
  * Convenience wrapper around check().
  * @param   {string[]} packages  Array of node modules to check.
- * @param   {string}   rootDir   The directory contianing a package.json
+ * @param   {string}   rootDir   The directory containing a package.json
  * @returns {Object}             An object whose keys are the module names
  *                               and values are booleans indicating installation.
  */

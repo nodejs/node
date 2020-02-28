@@ -32,7 +32,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-shadow-restricted-names"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            shadowingRestrictedName: "Shadowing of global property '{{name}}'."
+        }
     },
 
     create(context) {
@@ -46,9 +50,9 @@ module.exports = {
                     if (variable.defs.length > 0 && RESTRICTED.has(variable.name) && !safelyShadowsUndefined(variable)) {
                         context.report({
                             node: variable.defs[0].name,
-                            message: "Shadowing of global property '{{idName}}'.",
+                            messageId: "shadowingRestrictedName",
                             data: {
-                                idName: variable.name
+                                name: variable.name
                             }
                         });
                     }

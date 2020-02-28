@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to forbid control charactes from regular expressions.
+ * @fileoverview Rule to forbid control characters from regular expressions.
  * @author Nicholas C. Zakas
  */
 

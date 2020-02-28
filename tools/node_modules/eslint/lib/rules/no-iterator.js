@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const { getStaticPropertyName } = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -33,9 +39,7 @@ module.exports = {
 
             MemberExpression(node) {
 
-                if (node.property &&
-                        (node.property.type === "Identifier" && node.property.name === "__iterator__" && !node.computed) ||
-                        (node.property.type === "Literal" && node.property.value === "__iterator__")) {
+                if (getStaticPropertyName(node) === "__iterator__") {
                     context.report({
                         node,
                         messageId: "noIterator"

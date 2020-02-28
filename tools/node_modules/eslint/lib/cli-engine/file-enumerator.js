@@ -6,7 +6,7 @@
  * 1. Find target files by processing glob patterns.
  * 2. Tie each target file and appropriate configuration.
  *
- * It provies a method:
+ * It provides a method:
  *
  * - `iterateFiles(patterns)`
  *     Iterate files which are matched by given patterns together with the
@@ -283,7 +283,7 @@ class FileEnumerator {
                 continue;
             }
 
-            // Iterate files of this pttern.
+            // Iterate files of this pattern.
             for (const { config, filePath, flag } of this._iterateFiles(pattern)) {
                 foundRegardlessOfIgnored = true;
                 if (flag === IGNORED_SILENTLY) {

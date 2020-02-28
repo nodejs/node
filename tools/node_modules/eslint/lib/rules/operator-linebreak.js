@@ -47,7 +47,14 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            operatorAtBeginning: "'{{operator}}' should be placed at the beginning of the line.",
+            operatorAtEnd: "'{{operator}}' should be placed at the end of the line.",
+            badLinebreak: "Bad line breaking before and after '{{operator}}'.",
+            noLinebreak: "There should be no line break before or after '{{operator}}'."
+        }
     },
 
     create(context) {
@@ -169,7 +176,7 @@ module.exports = {
                         line: operatorToken.loc.end.line,
                         column: operatorToken.loc.end.column
                     },
-                    message: "Bad line breaking before and after '{{operator}}'.",
+                    messageId: "badLinebreak",
                     data: {
                         operator
                     },
@@ -184,7 +191,7 @@ module.exports = {
                         line: operatorToken.loc.end.line,
                         column: operatorToken.loc.end.column
                     },
-                    message: "'{{operator}}' should be placed at the beginning of the line.",
+                    messageId: "operatorAtBeginning",
                     data: {
                         operator
                     },
@@ -199,7 +206,7 @@ module.exports = {
                         line: operatorToken.loc.end.line,
                         column: operatorToken.loc.end.column
                     },
-                    message: "'{{operator}}' should be placed at the end of the line.",
+                    messageId: "operatorAtEnd",
                     data: {
                         operator
                     },
@@ -214,7 +221,7 @@ module.exports = {
                         line: operatorToken.loc.end.line,
                         column: operatorToken.loc.end.column
                     },
-                    message: "There should be no line break before or after '{{operator}}'.",
+                    messageId: "noLinebreak",
                     data: {
                         operator
                     },

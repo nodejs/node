@@ -167,7 +167,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-unmodified-loop-condition"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            loopConditionNotModified: "'{{name}}' is not modified in this loop."
+        }
     },
 
     create(context) {
@@ -184,7 +188,7 @@ module.exports = {
 
             context.report({
                 node,
-                message: "'{{name}}' is not modified in this loop.",
+                messageId: "loopConditionNotModified",
                 data: node
             });
         }

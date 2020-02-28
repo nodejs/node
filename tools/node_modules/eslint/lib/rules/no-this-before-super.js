@@ -45,7 +45,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-this-before-super"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noBeforeSuper: "'{{kind}}' is not allowed before 'super()'."
+        }
     },
 
     create(context) {
@@ -187,7 +191,7 @@ module.exports = {
                         const invalidNode = info.invalidNodes[i];
 
                         context.report({
-                            message: "'{{kind}}' is not allowed before 'super()'.",
+                            messageId: "noBeforeSuper",
                             node: invalidNode,
                             data: {
                                 kind: invalidNode.type === "Super" ? "super" : "this"

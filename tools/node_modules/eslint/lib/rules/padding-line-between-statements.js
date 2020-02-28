@@ -243,7 +243,7 @@ function verifyForNever(context, _, nextNode, paddingLines) {
 
     context.report({
         node: nextNode,
-        message: "Unexpected blank line before this statement.",
+        messageId: "unexpectedBlankLine",
         fix(fixer) {
             if (paddingLines.length >= 2) {
                 return null;
@@ -282,7 +282,7 @@ function verifyForAlways(context, prevNode, nextNode, paddingLines) {
 
     context.report({
         node: nextNode,
-        message: "Expected blank line before this statement.",
+        messageId: "expectedBlankLine",
         fix(fixer) {
             const sourceCode = context.getSourceCode();
             let prevToken = getActualLastToken(sourceCode, prevNode);
@@ -468,6 +468,11 @@ module.exports = {
                 required: ["blankLine", "prev", "next"]
             },
             additionalItems: false
+        },
+
+        messages: {
+            unexpectedBlankLine: "Unexpected blank line before this statement.",
+            expectedBlankLine: "Expected blank line before this statement."
         }
     },
 

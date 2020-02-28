@@ -20,7 +20,12 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-useless-catch"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unnecessaryCatchClause: "Unnecessary catch clause.",
+            unnecessaryCatch: "Unnecessary try/catch wrapper."
+        }
     },
 
     create(context) {
@@ -37,12 +42,12 @@ module.exports = {
                     if (node.parent.finalizer) {
                         context.report({
                             node,
-                            message: "Unnecessary catch clause."
+                            messageId: "unnecessaryCatchClause"
                         });
                     } else {
                         context.report({
                             node: node.parent,
-                            message: "Unnecessary try/catch wrapper."
+                            messageId: "unnecessaryCatch"
                         });
                     }
                 }

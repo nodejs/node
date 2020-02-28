@@ -114,7 +114,7 @@ module.exports = {
         }
 
         /**
-         * Check each alias to ensure that is was assinged to the correct value.
+         * Check each alias to ensure that is was assigned to the correct value.
          * @returns {void}
          */
         function ensureWasAssigned() {

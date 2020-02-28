@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-sparse-arrays"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedSparseArray: "Unexpected comma in middle of array."
+        }
     },
 
     create(context) {
@@ -36,7 +40,7 @@ module.exports = {
                 const emptySpot = node.elements.indexOf(null) > -1;
 
                 if (emptySpot) {
-                    context.report({ node, message: "Unexpected comma in middle of array." });
+                    context.report({ node, messageId: "unexpectedSparseArray" });
                 }
             }
 

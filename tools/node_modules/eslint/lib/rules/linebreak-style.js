@@ -64,7 +64,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            Program: function checkForlinebreakStyle(node) {
+            Program: function checkForLinebreakStyle(node) {
                 const linebreakStyle = context.options[0] || "unix",
                     expectedLF = linebreakStyle === "unix",
                     expectedLFChars = expectedLF ? "\n" : "\r\n",

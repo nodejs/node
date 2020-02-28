@@ -1,6 +1,6 @@
 /**
  * @fileoverview Counts the cyclomatic complexity of each function of the script. See http://en.wikipedia.org/wiki/Cyclomatic_complexity.
- * Counts the number of if, conditional, for, whilte, try, switch/case,
+ * Counts the number of if, conditional, for, while, try, switch/case,
  * @author Patrick Brosset
  */
 

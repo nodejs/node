@@ -49,7 +49,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedUnderscore: "Unexpected dangling '_' in '{{identifier}}'."
+        }
     },
 
     create(context) {
@@ -134,7 +138,7 @@ module.exports = {
                 if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
                     context.report({
                         node,
-                        message: "Unexpected dangling '_' in '{{identifier}}'.",
+                        messageId: "unexpectedUnderscore",
                         data: {
                             identifier
                         }
@@ -156,7 +160,7 @@ module.exports = {
                 !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
                 context.report({
                     node,
-                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    messageId: "unexpectedUnderscore",
                     data: {
                         identifier
                     }
@@ -183,7 +187,7 @@ module.exports = {
                 !isSpecialCaseIdentifierForMemberExpression(identifier) && !isAllowed(identifier)) {
                 context.report({
                     node,
-                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    messageId: "unexpectedUnderscore",
                     data: {
                         identifier
                     }
@@ -204,7 +208,7 @@ module.exports = {
             if (typeof identifier !== "undefined" && enforceInMethodNames && isMethod && hasTrailingUnderscore(identifier)) {
                 context.report({
                     node,
-                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    messageId: "unexpectedUnderscore",
                     data: {
                         identifier
                     }

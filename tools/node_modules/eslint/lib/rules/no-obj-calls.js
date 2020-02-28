@@ -47,8 +47,8 @@ module.exports = {
                 const tracker = new ReferenceTracker(scope);
                 const traceMap = {};
 
-                for (const global of nonCallableGlobals) {
-                    traceMap[global] = {
+                for (const g of nonCallableGlobals) {
+                    traceMap[g] = {
                         [CALL]: true
                     };
                 }

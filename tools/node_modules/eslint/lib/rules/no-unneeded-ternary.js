@@ -47,7 +47,12 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unnecessaryConditionalExpression: "Unnecessary use of boolean literals in conditional expression.",
+            unnecessaryConditionalAssignment: "Unnecessary use of conditional expression for default assignment."
+        }
     },
 
     create(context) {
@@ -118,7 +123,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: node.consequent.loc.start,
-                        message: "Unnecessary use of boolean literals in conditional expression.",
+                        messageId: "unnecessaryConditionalExpression",
                         fix(fixer) {
                             if (node.consequent.value === node.alternate.value) {
 
@@ -140,7 +145,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: node.consequent.loc.start,
-                        message: "Unnecessary use of conditional expression for default assignment.",
+                        messageId: "unnecessaryConditionalAssignment",
                         fix: fixer => {
                             const shouldParenthesizeAlternate = (
                                 astUtils.getPrecedence(node.alternate) < OR_PRECEDENCE &&

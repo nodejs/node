@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-template-curly-in-string"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedTemplateExpression: "Unexpected template string expression."
+        }
     },
 
     create(context) {
@@ -30,7 +34,7 @@ module.exports = {
                 if (typeof node.value === "string" && regex.test(node.value)) {
                     context.report({
                         node,
-                        message: "Unexpected template string expression."
+                        messageId: "unexpectedTemplateExpression"
                     });
                 }
             }

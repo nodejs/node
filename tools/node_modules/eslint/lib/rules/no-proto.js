@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const { getStaticPropertyName } = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -20,7 +26,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-proto"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedProto: "The '__proto__' property is deprecated."
+        }
     },
 
     create(context) {
@@ -28,11 +38,8 @@ module.exports = {
         return {
 
             MemberExpression(node) {
-
-                if (node.property &&
-                        (node.property.type === "Identifier" && node.property.name === "__proto__" && !node.computed) ||
-                        (node.property.type === "Literal" && node.property.value === "__proto__")) {
-                    context.report({ node, message: "The '__proto__' property is deprecated." });
+                if (getStaticPropertyName(node) === "__proto__") {
+                    context.report({ node, messageId: "unexpectedProto" });
                 }
             }
         };

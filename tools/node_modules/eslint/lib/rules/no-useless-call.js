@@ -58,7 +58,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-useless-call"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unnecessaryCall: "Unnecessary '.{{name}}()'."
+        }
     },
 
     create(context) {
@@ -75,7 +79,7 @@ module.exports = {
                 const thisArg = node.arguments[0];
 
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
-                    context.report({ node, message: "unnecessary '.{{name}}()'.", data: { name: node.callee.property.name } });
+                    context.report({ node, messageId: "unnecessaryCall", data: { name: node.callee.property.name } });
                 }
             }
         };

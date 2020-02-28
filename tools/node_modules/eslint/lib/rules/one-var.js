@@ -60,7 +60,17 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            combineUninitialized: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
+            combineInitialized: "Combine this with the previous '{{type}}' statement with initialized variables.",
+            splitUninitialized: "Split uninitialized '{{type}}' declarations into multiple statements.",
+            splitInitialized: "Split initialized '{{type}}' declarations into multiple statements.",
+            splitRequires: "Split requires to be separated into a single block.",
+            combine: "Combine this with the previous '{{type}}' statement.",
+            split: "Split '{{type}}' declarations into multiple statements."
+        }
     },
 
     create(context) {
@@ -361,7 +371,7 @@ module.exports = {
                 if (options.separateRequires && mixedRequires) {
                     context.report({
                         node,
-                        message: "Split requires to be separated into a single block."
+                        messageId: "splitRequires"
                     });
                 }
             }
@@ -384,7 +394,7 @@ module.exports = {
                     if (options[type].initialized === MODE_CONSECUTIVE && options[type].uninitialized === MODE_CONSECUTIVE) {
                         context.report({
                             node,
-                            message: "Combine this with the previous '{{type}}' statement.",
+                            messageId: "combine",
                             data: {
                                 type
                             },
@@ -393,7 +403,7 @@ module.exports = {
                     } else if (options[type].initialized === MODE_CONSECUTIVE && declarationCounts.initialized > 0 && previousDeclCounts.initialized > 0) {
                         context.report({
                             node,
-                            message: "Combine this with the previous '{{type}}' statement with initialized variables.",
+                            messageId: "combineInitialized",
                             data: {
                                 type
                             },
@@ -404,7 +414,7 @@ module.exports = {
                             previousDeclCounts.uninitialized > 0) {
                         context.report({
                             node,
-                            message: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
+                            messageId: "combineUninitialized",
                             data: {
                                 type
                             },
@@ -419,7 +429,7 @@ module.exports = {
                 if (options[type].initialized === MODE_ALWAYS && options[type].uninitialized === MODE_ALWAYS) {
                     context.report({
                         node,
-                        message: "Combine this with the previous '{{type}}' statement.",
+                        messageId: "combine",
                         data: {
                             type
                         },
@@ -429,7 +439,7 @@ module.exports = {
                     if (options[type].initialized === MODE_ALWAYS && declarationCounts.initialized > 0) {
                         context.report({
                             node,
-                            message: "Combine this with the previous '{{type}}' statement with initialized variables.",
+                            messageId: "combineInitialized",
                             data: {
                                 type
                             },
@@ -442,7 +452,7 @@ module.exports = {
                         }
                         context.report({
                             node,
-                            message: "Combine this with the previous '{{type}}' statement with uninitialized variables.",
+                            messageId: "combineUninitialized",
                             data: {
                                 type
                             },
@@ -462,7 +472,7 @@ module.exports = {
                         // both initialized and uninitialized
                         context.report({
                             node,
-                            message: "Split '{{type}}' declarations into multiple statements.",
+                            messageId: "split",
                             data: {
                                 type
                             },
@@ -473,7 +483,7 @@ module.exports = {
                         // initialized
                         context.report({
                             node,
-                            message: "Split initialized '{{type}}' declarations into multiple statements.",
+                            messageId: "splitInitialized",
                             data: {
                                 type
                             },
@@ -484,7 +494,7 @@ module.exports = {
                         // uninitialized
                         context.report({
                             node,
-                            message: "Split uninitialized '{{type}}' declarations into multiple statements.",
+                            messageId: "splitUninitialized",
                             data: {
                                 type
                             },

@@ -190,7 +190,7 @@ function validateRules(
 
 /**
  * Validates a `globals` section of a config file
- * @param {Object} globalsConfig The `glboals` section
+ * @param {Object} globalsConfig The `globals` section
  * @param {string|null} source The name of the configuration source to report in the event of an error.
  * @returns {void}
  */

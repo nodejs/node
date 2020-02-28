@@ -191,7 +191,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpectedVar: "Unexpected var, use let or const instead."
+        }
     },
 
     create(context) {
@@ -307,7 +311,7 @@ module.exports = {
         function report(node) {
             context.report({
                 node,
-                message: "Unexpected var, use let or const instead.",
+                messageId: "unexpectedVar",
 
                 fix(fixer) {
                     const varToken = sourceCode.getFirstToken(node, { filter: t => t.value === "var" });

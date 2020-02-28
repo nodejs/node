@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/require-yield"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            missingYield: "This generator function does not have 'yield'."
+        }
     },
 
     create(context) {
@@ -51,7 +55,7 @@ module.exports = {
             const countYield = stack.pop();
 
             if (countYield === 0 && node.body.body.length > 0) {
-                context.report({ node, message: "This generator function does not have 'yield'." });
+                context.report({ node, messageId: "missingYield" });
             }
         }
 

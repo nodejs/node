@@ -49,7 +49,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            preferReflect: "Avoid using {{existing}}, instead use {{substitute}}."
+        }
     },
 
     create(context) {
@@ -65,7 +69,7 @@ module.exports = {
             preventExtensions: "Object.preventExtensions"
         };
 
-        const reflectSubsitutes = {
+        const reflectSubstitutes = {
             apply: "Reflect.apply",
             call: "Reflect.apply",
             defineProperty: "Reflect.defineProperty",
@@ -89,7 +93,7 @@ module.exports = {
         function report(node, existing, substitute) {
             context.report({
                 node,
-                message: "Avoid using {{existing}}, instead use {{substitute}}.",
+                messageId: "preferReflect",
                 data: {
                     existing,
                     substitute
@@ -101,11 +105,11 @@ module.exports = {
             CallExpression(node) {
                 const methodName = (node.callee.property || {}).name;
                 const isReflectCall = (node.callee.object || {}).name === "Reflect";
-                const hasReflectSubsitute = Object.prototype.hasOwnProperty.call(reflectSubsitutes, methodName);
+                const hasReflectSubsitute = Object.prototype.hasOwnProperty.call(reflectSubstitutes, methodName);
                 const userConfiguredException = exceptions.indexOf(methodName) !== -1;
 
                 if (hasReflectSubsitute && !isReflectCall && !userConfiguredException) {
-                    report(node, existingNames[methodName], reflectSubsitutes[methodName]);
+                    report(node, existingNames[methodName], reflectSubstitutes[methodName]);
                 }
             },
             UnaryExpression(node) {

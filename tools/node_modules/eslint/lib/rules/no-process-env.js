@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-process-env"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedProcessEnv: "Unexpected use of process.env."
+        }
     },
 
     create(context) {
@@ -31,7 +35,7 @@ module.exports = {
                     propertyName = node.property.name;
 
                 if (objectName === "process" && !node.computed && propertyName && propertyName === "env") {
-                    context.report({ node, message: "Unexpected use of process.env." });
+                    context.report({ node, messageId: "unexpectedProcessEnv" });
                 }
 
             }

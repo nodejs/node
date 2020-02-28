@@ -37,16 +37,21 @@ module.exports = {
             }
         ],
 
-        fixable: "whitespace"
+        fixable: "whitespace",
+
+        messages: {
+            propertiesOnNewlineAll: "Object properties must go on a new line if they aren't all on the same line.",
+            propertiesOnNewline: "Object properties must go on a new line."
+        }
     },
 
     create(context) {
         const allowSameLine = context.options[0] && (
             (context.options[0].allowAllPropertiesOnSameLine || context.options[0].allowMultiplePropertiesPerLine /* Deprecated */)
         );
-        const errorMessage = allowSameLine
-            ? "Object properties must go on a new line if they aren't all on the same line."
-            : "Object properties must go on a new line.";
+        const messageId = allowSameLine
+            ? "propertiesOnNewlineAll"
+            : "propertiesOnNewline";
 
         const sourceCode = context.getSourceCode();
 
@@ -73,7 +78,7 @@ module.exports = {
                         context.report({
                             node,
                             loc: firstTokenOfCurrentProperty.loc.start,
-                            message: errorMessage,
+                            messageId,
                             fix(fixer) {
                                 const comma = sourceCode.getTokenBefore(firstTokenOfCurrentProperty);
                                 const rangeAfterComma = [comma.range[1], firstTokenOfCurrentProperty.range[0]];

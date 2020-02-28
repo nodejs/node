@@ -74,11 +74,12 @@ module.exports = {
 
             // Reports the node if its name has been declared already.
             MethodDefinition(node) {
-                if (node.computed) {
+                const name = astUtils.getStaticPropertyName(node);
+
+                if (name === null || node.kind === "constructor") {
                     return;
                 }
 
-                const name = astUtils.getStaticPropertyName(node) || "";
                 const state = getState(name, node.static);
                 let isDuplicate = false;
 

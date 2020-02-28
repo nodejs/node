@@ -37,7 +37,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            nativeReassign: "Read-only global '{{name}}' should not be modified."
+        }
     },
 
     create(context) {
@@ -65,7 +69,7 @@ module.exports = {
             ) {
                 context.report({
                     node: identifier,
-                    message: "Read-only global '{{name}}' should not be modified.",
+                    messageId: "nativeReassign",
                     data: identifier
                 });
             }
