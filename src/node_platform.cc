@@ -333,6 +333,10 @@ NodePlatform::NodePlatform(int thread_pool_size,
       std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
 }
 
+NodePlatform::~NodePlatform() {
+  Shutdown();
+}
+
 void NodePlatform::RegisterIsolate(Isolate* isolate, uv_loop_t* loop) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
   std::shared_ptr<PerIsolatePlatformData> existing = per_isolate_[isolate];
@@ -362,6 +366,8 @@ void NodePlatform::AddIsolateFinishedCallback(Isolate* isolate,
 }
 
 void NodePlatform::Shutdown() {
+  if (has_shut_down_) return;
+  has_shut_down_ = true;
   worker_thread_task_runner_->Shutdown();
 
   {
