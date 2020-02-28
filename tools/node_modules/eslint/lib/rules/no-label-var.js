@@ -26,7 +26,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-label-var"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            identifierClashWithLabel: "Found identifier with same name as label."
+        }
     },
 
     create(context) {
@@ -62,7 +66,10 @@ module.exports = {
                  * with the innermost scope.
                  */
                 if (findIdentifier(scope, node.label.name)) {
-                    context.report({ node, message: "Found identifier with same name as label." });
+                    context.report({
+                        node,
+                        messageId: "identifierClashWithLabel"
+                    });
                 }
             }
 

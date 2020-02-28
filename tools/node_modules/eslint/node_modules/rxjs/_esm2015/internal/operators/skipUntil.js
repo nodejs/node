@@ -19,7 +19,11 @@ class SkipUntilSubscriber extends OuterSubscriber {
         const innerSubscriber = new InnerSubscriber(this, undefined, undefined);
         this.add(innerSubscriber);
         this.innerSubscription = innerSubscriber;
-        subscribeToResult(this, notifier, undefined, undefined, innerSubscriber);
+        const innerSubscription = subscribeToResult(this, notifier, undefined, undefined, innerSubscriber);
+        if (innerSubscription !== innerSubscriber) {
+            this.add(innerSubscription);
+            this.innerSubscription = innerSubscription;
+        }
     }
     _next(value) {
         if (this.hasValue) {

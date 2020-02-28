@@ -37,7 +37,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedThis: "Unexpected 'this'."
+        }
     },
 
     create(context) {
@@ -130,7 +134,10 @@ module.exports = {
                 const current = stack.getCurrent();
 
                 if (current && !current.valid) {
-                    context.report({ node, message: "Unexpected 'this'." });
+                    context.report({
+                        node,
+                        messageId: "unexpectedThis"
+                    });
                 }
             }
         };

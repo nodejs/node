@@ -26,6 +26,7 @@
 const os = require("os");
 const path = require("path");
 const { validateConfigArray } = require("../shared/config-validator");
+const { emitDeprecationWarning } = require("../shared/deprecation-warnings");
 const { ConfigArrayFactory } = require("./config-array-factory");
 const { ConfigArray, ConfigDependency, IgnorePattern } = require("./config-array");
 const loadRules = require("./load-rules");
@@ -105,6 +106,7 @@ function createBaseConfigArray({
      */
     if (rulePaths && rulePaths.length > 0) {
         baseConfigArray.push({
+            type: "config",
             name: "--rulesdir",
             filePath: "",
             plugins: {
@@ -290,10 +292,11 @@ class CascadingConfigArrayFactory {
     /**
      * Load and normalize config files from the ancestor directories.
      * @param {string} directoryPath The path to a leaf directory.
+     * @param {boolean} configsExistInSubdirs `true` if configurations exist in subdirectories.
      * @returns {ConfigArray} The loaded config.
      * @private
      */
-    _loadConfigInAncestors(directoryPath) {
+    _loadConfigInAncestors(directoryPath, configsExistInSubdirs = false) {
         const {
             baseConfigArray,
             configArrayFactory,
@@ -320,6 +323,16 @@ class CascadingConfigArrayFactory {
         // Consider this is root.
         if (directoryPath === homePath && cwd !== homePath) {
             debug("Stop traversing because of considered root.");
+            if (configsExistInSubdirs) {
+                const filePath = ConfigArrayFactory.getPathToConfigFileInDirectory(directoryPath);
+
+                if (filePath) {
+                    emitDeprecationWarning(
+                        filePath,
+                        "ESLINT_PERSONAL_CONFIG_SUPPRESS"
+                    );
+                }
+            }
             return this._cacheConfig(directoryPath, baseConfigArray);
         }
 
@@ -344,7 +357,10 @@ class CascadingConfigArrayFactory {
         // Load from the ancestors and merge it.
         const parentPath = path.dirname(directoryPath);
         const parentConfigArray = parentPath && parentPath !== directoryPath
-            ? this._loadConfigInAncestors(parentPath)
+            ? this._loadConfigInAncestors(
+                parentPath,
+                configsExistInSubdirs || configArray.length > 0
+            )
             : baseConfigArray;
 
         if (configArray.length > 0) {
@@ -400,12 +416,29 @@ class CascadingConfigArrayFactory {
                 configArray.every(c => !c.filePath) &&
                 cliConfigArray.every(c => !c.filePath) // `--config` option can be a file.
             ) {
-                debug("Loading the config file of the home directory.");
+                const homePath = os.homedir();
 
-                finalConfigArray = configArrayFactory.loadInDirectory(
-                    os.homedir(),
-                    { name: "PersonalConfig", parent: finalConfigArray }
+                debug("Loading the config file of the home directory:", homePath);
+
+                const personalConfigArray = configArrayFactory.loadInDirectory(
+                    homePath,
+                    { name: "PersonalConfig" }
                 );
+
+                if (
+                    personalConfigArray.length > 0 &&
+                    !directoryPath.startsWith(homePath)
+                ) {
+                    const lastElement =
+                        personalConfigArray[personalConfigArray.length - 1];
+
+                    emitDeprecationWarning(
+                        lastElement.filePath,
+                        "ESLINT_PERSONAL_CONFIG_LOAD"
+                    );
+                }
+
+                finalConfigArray = finalConfigArray.concat(personalConfigArray);
             }
 
             // Apply CLI options.

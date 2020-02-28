@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-new-object"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            preferLiteral: "The object literal notation {} is preferrable."
+        }
     },
 
     create(context) {
@@ -29,7 +33,10 @@ module.exports = {
 
             NewExpression(node) {
                 if (node.callee.name === "Object") {
-                    context.report({ node, message: "The object literal notation {} is preferrable." });
+                    context.report({
+                        node,
+                        messageId: "preferLiteral"
+                    });
                 }
             }
         };

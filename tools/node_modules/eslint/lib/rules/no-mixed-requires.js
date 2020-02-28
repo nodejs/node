@@ -40,7 +40,12 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            noMixRequire: "Do not mix 'require' and other declarations.",
+            noMixCoreModuleFileComputed: "Do not mix core, module, file and computed requires."
+        }
     },
 
     create(context) {
@@ -211,9 +216,15 @@ module.exports = {
             VariableDeclaration(node) {
 
                 if (isMixed(node.declarations)) {
-                    context.report({ node, message: "Do not mix 'require' and other declarations." });
+                    context.report({
+                        node,
+                        messageId: "noMixRequire"
+                    });
                 } else if (grouping && !isGrouped(node.declarations)) {
-                    context.report({ node, message: "Do not mix core, module, file and computed requires." });
+                    context.report({
+                        node,
+                        messageId: "noMixCoreModuleFileComputed"
+                    });
                 }
             }
         };

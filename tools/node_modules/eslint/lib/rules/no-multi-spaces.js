@@ -44,7 +44,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            multipleSpaces: "Multiple spaces found before '{{displayValue}}'."
+        }
     },
 
     create(context) {
@@ -122,7 +126,7 @@ module.exports = {
                     context.report({
                         node: rightToken,
                         loc: { start: leftToken.loc.end, end: rightToken.loc.start },
-                        message: "Multiple spaces found before '{{displayValue}}'.",
+                        messageId: "multipleSpaces",
                         data: { displayValue },
                         fix: fixer => fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ")
                     });

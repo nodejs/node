@@ -4,19 +4,19 @@
 [![Downloads][downloads-badge]][downloads]
 [![Size][size-badge]][size]
 
-HTML legacy character entity information: for legacy reasons some
-character entities are not required to have a trailing semicolon:
-`&copy` is perfectly okay for `©`.
+HTML legacy character entity information: for legacy reasons some character
+entities are not required to have a trailing semicolon: `&copy` is perfectly
+okay for `©`.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install character-entities-legacy
 ```
 
-## Usage
+## Use
 
 ```js
 var characterEntitiesLegacy = require('character-entities-legacy')
@@ -30,12 +30,11 @@ console.log(characterEntitiesLegacy.sup1) // => '¹'
 
 ### `characterEntitiesLegacy`
 
-Mapping between (case-sensitive) legacy character entity names to
-replacements.
+Mapping between (case-sensitive) legacy character entity names to replacements.
 
 ## Support
 
-See [whatwg/html][html].
+See [`whatwg/html`][html].
 
 ## Related
 
@@ -46,7 +45,7 @@ See [whatwg/html][html].
 *   [`parse-entities`](https://github.com/wooorm/parse-entities)
     — Parse HTML character references
 *   [`stringify-entities`](https://github.com/wooorm/stringify-entities)
-    — Stringify HTML character references
+    — Serialize HTML character references
 
 ## License
 

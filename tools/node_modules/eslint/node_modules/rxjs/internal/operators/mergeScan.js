@@ -67,10 +67,13 @@ var MergeScanSubscriber = (function (_super) {
         }
     };
     MergeScanSubscriber.prototype._innerSub = function (ish, value, index) {
-        var innerSubscriber = new InnerSubscriber_1.InnerSubscriber(this, undefined, undefined);
+        var innerSubscriber = new InnerSubscriber_1.InnerSubscriber(this, value, index);
         var destination = this.destination;
         destination.add(innerSubscriber);
-        subscribeToResult_1.subscribeToResult(this, ish, value, index, innerSubscriber);
+        var innerSubscription = subscribeToResult_1.subscribeToResult(this, ish, undefined, undefined, innerSubscriber);
+        if (innerSubscription !== innerSubscriber) {
+            destination.add(innerSubscription);
+        }
     };
     MergeScanSubscriber.prototype._complete = function () {
         this.hasCompleted = true;

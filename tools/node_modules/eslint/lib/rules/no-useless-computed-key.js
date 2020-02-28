@@ -71,14 +71,11 @@ module.exports = {
                     message: MESSAGE_UNNECESSARY_COMPUTED,
                     data: { property: sourceCode.getText(key) },
                     fix(fixer) {
-                        const leftSquareBracket = sourceCode.getFirstToken(node, astUtils.isOpeningBracketToken);
-                        const rightSquareBracket = sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken);
-                        const tokensBetween = sourceCode.getTokensBetween(leftSquareBracket, rightSquareBracket, 1);
+                        const leftSquareBracket = sourceCode.getTokenBefore(key, astUtils.isOpeningBracketToken);
+                        const rightSquareBracket = sourceCode.getTokenAfter(key, astUtils.isClosingBracketToken);
 
-                        if (tokensBetween.slice(0, -1).some((token, index) =>
-                            sourceCode.getText().slice(token.range[1], tokensBetween[index + 1].range[0]).trim())) {
-
-                            // If there are comments between the brackets and the property name, don't do a fix.
+                        // If there are comments between the brackets and the property name, don't do a fix.
+                        if (sourceCode.commentsExistBetween(leftSquareBracket, rightSquareBracket)) {
                             return null;
                         }
 

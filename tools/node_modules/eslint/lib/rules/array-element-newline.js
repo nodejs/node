@@ -24,28 +24,52 @@ module.exports = {
 
         fixable: "whitespace",
 
-        schema: [
-            {
-                oneOf: [
-                    {
-                        enum: ["always", "never", "consistent"]
-                    },
-                    {
-                        type: "object",
-                        properties: {
-                            multiline: {
-                                type: "boolean"
-                            },
-                            minItems: {
-                                type: ["integer", "null"],
-                                minimum: 0
-                            }
+        schema: {
+            definitions: {
+                basicConfig: {
+                    oneOf: [
+                        {
+                            enum: ["always", "never", "consistent"]
                         },
-                        additionalProperties: false
-                    }
-                ]
-            }
-        ],
+                        {
+                            type: "object",
+                            properties: {
+                                multiline: {
+                                    type: "boolean"
+                                },
+                                minItems: {
+                                    type: ["integer", "null"],
+                                    minimum: 0
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    ]
+                }
+            },
+            items: [
+                {
+                    oneOf: [
+                        {
+                            $ref: "#/definitions/basicConfig"
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                ArrayExpression: {
+                                    $ref: "#/definitions/basicConfig"
+                                },
+                                ArrayPattern: {
+                                    $ref: "#/definitions/basicConfig"
+                                }
+                            },
+                            additionalProperties: false,
+                            minProperties: 1
+                        }
+                    ]
+                }
+            ]
+        },
 
         messages: {
             unexpectedLineBreak: "There should be no linebreak here.",
@@ -93,6 +117,20 @@ module.exports = {
          * @returns {{ArrayExpression: {multiline: boolean, minItems: number}, ArrayPattern: {multiline: boolean, minItems: number}}} Normalized option object.
          */
         function normalizeOptions(options) {
+            if (options && (options.ArrayExpression || options.ArrayPattern)) {
+                let expressionOptions, patternOptions;
+
+                if (options.ArrayExpression) {
+                    expressionOptions = normalizeOptionValue(options.ArrayExpression);
+                }
+
+                if (options.ArrayPattern) {
+                    patternOptions = normalizeOptionValue(options.ArrayPattern);
+                }
+
+                return { ArrayExpression: expressionOptions, ArrayPattern: patternOptions };
+            }
+
             const value = normalizeOptionValue(options);
 
             return { ArrayExpression: value, ArrayPattern: value };
@@ -176,6 +214,10 @@ module.exports = {
             const elements = node.elements;
             const normalizedOptions = normalizeOptions(context.options[0]);
             const options = normalizedOptions[node.type];
+
+            if (!options) {
+                return;
+            }
 
             let elementBreak = false;
 

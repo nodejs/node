@@ -33,6 +33,7 @@ function shareReplayOperator({ bufferSize = Number.POSITIVE_INFINITY, windowTime
                 },
                 complete() {
                     isComplete = true;
+                    subscription = undefined;
                     subject.complete();
                 },
             });

@@ -5,18 +5,18 @@
 [![Downloads][downloads-badge]][downloads]
 [![Size][size-badge]][size]
 
-Create a custom constructor which can be modified without affecting the
-original class.
+Create a custom constructor which can be modified without affecting the original
+class.
 
-## Installation
+## Install
 
-[npm][npm-install]:
+[npm][]:
 
-```bash
+```sh
 npm install unherit
 ```
 
-## Usage
+## Use
 
 ```js
 var EventEmitter = require('events').EventEmitter
@@ -38,17 +38,17 @@ new Emitter() instanceof EventEmitter // => true
 
 ### `unherit(Super)`
 
-Create a custom constructor which can be modified without affecting the
-original class.
+Create a custom constructor which can be modified without affecting the original
+class.
 
 ###### Parameters
 
-*   `Super` (`Function`) — Super-class.
+*   `Super` (`Function`) — Super-class
 
 ###### Returns
 
-`Function` — Constructor acting like `Super`, which can be modified
-without affecting the original class.
+`Function` — Constructor acting like `Super`, which can be modified without
+affecting the original class.
 
 ## License
 
@@ -72,7 +72,7 @@ without affecting the original class.
 
 [size]: https://bundlephobia.com/result?p=unherit
 
-[npm-install]: https://docs.npmjs.com/cli/install
+[npm]: https://docs.npmjs.com/cli/install
 
 [license]: license
 
