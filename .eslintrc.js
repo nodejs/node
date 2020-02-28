@@ -274,6 +274,7 @@ module.exports = {
       functions: false,
       variables: false,
     }],
+    'no-useless-backreference': 'error',
     'no-useless-call': 'error',
     'no-useless-catch': 'error',
     'no-useless-concat': 'error',
