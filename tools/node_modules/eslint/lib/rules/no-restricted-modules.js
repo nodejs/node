@@ -106,8 +106,17 @@ module.exports = {
          * @param {ASTNode} node The node to check.
          * @returns {boolean} If the node is a string literal.
          */
-        function isString(node) {
+        function isStringLiteral(node) {
             return node && node.type === "Literal" && typeof node.value === "string";
+        }
+
+        /**
+         * Function to check if a node is a static string template literal.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} If the node is a string template literal.
+         */
+        function isStaticTemplateLiteral(node) {
+            return node && node.type === "TemplateLiteral" && node.expressions.length === 0;
         }
 
         /**
@@ -120,13 +129,30 @@ module.exports = {
         }
 
         /**
+         * Extract string from Literal or TemplateLiteral node
+         * @param {ASTNode} node The node to extract from
+         * @returns {string|null} Extracted string or null if node doesn't represent a string
+         */
+        function getFirstArgumentString(node) {
+            if (isStringLiteral(node)) {
+                return node.value.trim();
+            }
+
+            if (isStaticTemplateLiteral(node)) {
+                return node.quasis[0].value.cooked.trim();
+            }
+
+            return null;
+        }
+
+        /**
          * Report a restricted path.
          * @param {node} node representing the restricted path reference
+         * @param {string} name restricted path
          * @returns {void}
          * @private
          */
-        function reportPath(node) {
-            const name = node.arguments[0].value.trim();
+        function reportPath(node, name) {
             const customMessage = restrictedPathMessages[name];
             const messageId = customMessage
                 ? "customMessage"
@@ -156,21 +182,25 @@ module.exports = {
             CallExpression(node) {
                 if (isRequireCall(node)) {
 
-                    // node has arguments and first argument is string
-                    if (node.arguments.length && isString(node.arguments[0])) {
-                        const name = node.arguments[0].value.trim();
+                    // node has arguments
+                    if (node.arguments.length) {
+                        const name = getFirstArgumentString(node.arguments[0]);
 
-                        // check if argument value is in restricted modules array
-                        if (isRestrictedPath(name)) {
-                            reportPath(node);
-                        }
+                        // if first argument is a string literal or a static string template literal
+                        if (name) {
 
-                        if (restrictedPatterns.length > 0 && ig.ignores(name)) {
-                            context.report({
-                                node,
-                                messageId: "patternMessage",
-                                data: { name }
-                            });
+                            // check if argument value is in restricted modules array
+                            if (isRestrictedPath(name)) {
+                                reportPath(node, name);
+                            }
+
+                            if (restrictedPatterns.length > 0 && ig.ignores(name)) {
+                                context.report({
+                                    node,
+                                    messageId: "patternMessage",
+                                    data: { name }
+                                });
+                            }
                         }
                     }
                 }

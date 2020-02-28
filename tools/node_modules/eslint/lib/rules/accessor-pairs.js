@@ -171,7 +171,7 @@ module.exports = {
                 },
                 enforceForClassMembers: {
                     type: "boolean",
-                    default: false
+                    default: true
                 }
             },
             additionalProperties: false
@@ -190,7 +190,7 @@ module.exports = {
         const config = context.options[0] || {};
         const checkGetWithoutSet = config.getWithoutSet === true;
         const checkSetWithoutGet = config.setWithoutGet !== false;
-        const enforceForClassMembers = config.enforceForClassMembers === true;
+        const enforceForClassMembers = config.enforceForClassMembers !== false;
         const sourceCode = context.getSourceCode();
 
         /**
