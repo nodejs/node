@@ -212,6 +212,8 @@ coverage-clean:
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcno
 	$(RM) out/$(BUILDTYPE)/obj.target/cctest/src/*.gcno
 	$(RM) out/$(BUILDTYPE)/obj.target/cctest/test/cctest/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/embedtest/src/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/embedtest/test/embedding/*.gcno
 
 .PHONY: coverage
 # Build and test with code coverage reporting.  Leave the lib directory
@@ -250,8 +252,8 @@ coverage-test: coverage-build
 								TEST_CI_ARGS="$(TEST_CI_ARGS) --type=coverage" $(MAKE) $(COVTESTS)
 	$(MAKE) coverage-report-js
 	-(cd out && "../gcovr/scripts/gcovr" \
-		--gcov-exclude='.*\b(deps|usr|out|cctest)\b' -v -r Release/obj.target \
-		--html --html-detail -o ../coverage/cxxcoverage.html \
+		--gcov-exclude='.*\b(deps|usr|out|cctest|embedding)\b' -v \
+		-r Release/obj.target --html --html-detail -o ../coverage/cxxcoverage.html \
 		--gcov-executable="$(GCOV)")
 	@echo -n "Javascript coverage %: "
 	@grep -B1 Lines coverage/index.html | head -n1 \
@@ -276,6 +278,7 @@ coverage-report-js:
 # Runs the C++ tests using the built `cctest` executable.
 cctest: all
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
+	@out/$(BUILDTYPE)/embedtest "require('./test/embedding/test.js')"
 
 .PHONY: list-gtests
 list-gtests:
@@ -529,6 +532,7 @@ test-ci: | clear-stalled build-addons build-js-native-api-tests build-node-api-t
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
+	out/Release/embedtest 'require("./test/embedding/test.js")'
 	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -1258,6 +1262,8 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/addons/*/*.h \
 	test/cctest/*.cc \
 	test/cctest/*.h \
+	test/embedding/*.cc \
+	test/embedding/*.h \
 	test/js-native-api/*/*.cc \
 	test/js-native-api/*/*.h \
 	test/node-api/*/*.cc \
