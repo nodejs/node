@@ -477,9 +477,14 @@ NODE_EXTERN void FreeEnvironment(Environment* env);
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 
 // This returns the MultiIsolatePlatform used in the main thread of Node.js.
-// If NODE_USE_V8_PLATFORM haven't been defined when Node.js was built,
+// If NODE_USE_V8_PLATFORM has not been defined when Node.js was built,
 // it returns nullptr.
+// TODO(addaleax): Deprecate in favour of GetMultiIsolatePlatform().
 NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
+// This returns the MultiIsolatePlatform used for an Environment or IsolateData
+// instance, if one exists.
+NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
+NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
 // Legacy variants of MultiIsolatePlatform::Create().
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(

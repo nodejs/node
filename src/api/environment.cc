@@ -487,6 +487,14 @@ MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform() {
   return per_process::v8_platform.Platform();
 }
 
+MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env) {
+  return GetMultiIsolatePlatform(env->isolate_data());
+}
+
+MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
+  return env->platform();
+}
+
 MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     node::tracing::TracingController* tracing_controller) {
