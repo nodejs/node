@@ -187,7 +187,11 @@ module.exports = {
                 }
             },
             additionalProperties: false
-        }]
+        }],
+
+        messages: {
+            useRecommendation: "use `{{recommendation}}` instead."
+        }
     },
 
     create(context) {
@@ -204,7 +208,7 @@ module.exports = {
         function report(node, recommendation, shouldFix) {
             context.report({
                 node,
-                message: "use `{{recommendation}}` instead.",
+                messageId: "useRecommendation",
                 data: {
                     recommendation
                 },

@@ -1,22 +1,29 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var nextHandle = 1;
-var tasksByHandle = {};
-function runIfPresent(handle) {
-    var cb = tasksByHandle[handle];
-    if (cb) {
-        cb();
+var RESOLVED = (function () { return Promise.resolve(); })();
+var activeHandles = {};
+function findAndClearHandle(handle) {
+    if (handle in activeHandles) {
+        delete activeHandles[handle];
+        return true;
     }
+    return false;
 }
 exports.Immediate = {
     setImmediate: function (cb) {
         var handle = nextHandle++;
-        tasksByHandle[handle] = cb;
-        Promise.resolve().then(function () { return runIfPresent(handle); });
+        activeHandles[handle] = true;
+        RESOLVED.then(function () { return findAndClearHandle(handle) && cb(); });
         return handle;
     },
     clearImmediate: function (handle) {
-        delete tasksByHandle[handle];
+        findAndClearHandle(handle);
     },
+};
+exports.TestTools = {
+    pending: function () {
+        return Object.keys(activeHandles).length;
+    }
 };
 //# sourceMappingURL=Immediate.js.map

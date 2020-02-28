@@ -143,7 +143,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-useless-constructor"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noUselessConstructor: "Useless constructor."
+        }
     },
 
     create(context) {
@@ -165,7 +169,7 @@ module.exports = {
             if (superClass ? isRedundantSuperCall(body, ctorParams) : (body.length === 0)) {
                 context.report({
                     node,
-                    message: "Useless constructor."
+                    messageId: "noUselessConstructor"
                 });
             }
         }

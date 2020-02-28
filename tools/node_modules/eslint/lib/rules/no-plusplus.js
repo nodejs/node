@@ -32,7 +32,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedUnaryOp: "Unary operator '{{operator}}' used."
+        }
     },
 
     create(context) {
@@ -52,7 +56,7 @@ module.exports = {
                 }
                 context.report({
                     node,
-                    message: "Unary operator '{{operator}}' used.",
+                    messageId: "unexpectedUnaryOp",
                     data: {
                         operator: node.operator
                     }

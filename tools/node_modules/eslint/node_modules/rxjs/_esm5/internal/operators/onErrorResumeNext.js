@@ -64,7 +64,10 @@ var OnErrorResumeNextSubscriber = /*@__PURE__*/ (function (_super) {
             var innerSubscriber = new InnerSubscriber(this, undefined, undefined);
             var destination = this.destination;
             destination.add(innerSubscriber);
-            subscribeToResult(this, next, undefined, undefined, innerSubscriber);
+            var innerSubscription = subscribeToResult(this, next, undefined, undefined, innerSubscriber);
+            if (innerSubscription !== innerSubscriber) {
+                destination.add(innerSubscription);
+            }
         }
         else {
             this.destination.complete();

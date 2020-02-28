@@ -50,6 +50,52 @@ const
 
 const ajv = require("../shared/ajv")({ strictDefaults: true });
 
+
+//------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/**
+ * A test case that is expected to pass lint.
+ * @typedef {Object} ValidTestCase
+ * @property {string} code Code for the test case.
+ * @property {any[]} [options] Options for the test case.
+ * @property {{ [name: string]: any }} [settings] Settings for the test case.
+ * @property {string} [filename] The fake filename for the test case. Useful for rules that make assertion about filenames.
+ * @property {string} [parser] The absolute path for the parser.
+ * @property {{ [name: string]: any }} [parserOptions] Options for the parser.
+ * @property {{ [name: string]: "readonly" | "writable" | "off" }} [globals] The additional global variables.
+ * @property {{ [name: string]: boolean }} [env] Environments for the test case.
+ */
+
+/**
+ * A test case that is expected to fail lint.
+ * @typedef {Object} InvalidTestCase
+ * @property {string} code Code for the test case.
+ * @property {number | Array<TestCaseError | string | RegExp>} errors Expected errors.
+ * @property {string | null} [output] The expected code after autofixes are applied. If set to `null`, the test runner will assert that no autofix is suggested.
+ * @property {any[]} [options] Options for the test case.
+ * @property {{ [name: string]: any }} [settings] Settings for the test case.
+ * @property {string} [filename] The fake filename for the test case. Useful for rules that make assertion about filenames.
+ * @property {string} [parser] The absolute path for the parser.
+ * @property {{ [name: string]: any }} [parserOptions] Options for the parser.
+ * @property {{ [name: string]: "readonly" | "writable" | "off" }} [globals] The additional global variables.
+ * @property {{ [name: string]: boolean }} [env] Environments for the test case.
+ */
+
+/**
+ * A description of a reported error used in a rule tester test.
+ * @typedef {Object} TestCaseError
+ * @property {string | RegExp} [message] Message.
+ * @property {string} [messageId] Message ID.
+ * @property {string} [type] The type of the reported AST node.
+ * @property {{ [name: string]: string }} [data] The data used to fill the message template.
+ * @property {number} [line] The 1-based line number of the reported start location.
+ * @property {number} [column] The 1-based column number of the reported start location.
+ * @property {number} [endLine] The 1-based line number of the reported end location.
+ * @property {number} [endColumn] The 1-based column number of the reported end location.
+ */
+
 //------------------------------------------------------------------------------
 // Private Members
 //------------------------------------------------------------------------------
@@ -128,7 +174,7 @@ function freezeDeeply(x) {
  */
 function sanitize(text) {
     return text.replace(
-        /[\u0000-\u0009|\u000b-\u001a]/gu, // eslint-disable-line no-control-regex
+        /[\u0000-\u0009\u000b-\u001a]/gu, // eslint-disable-line no-control-regex
         c => `\\u${c.codePointAt(0).toString(16).padStart(4, "0")}`
     );
 }
@@ -273,7 +319,10 @@ class RuleTester {
      * Adds a new rule test to execute.
      * @param {string} ruleName The name of the rule to run.
      * @param {Function} rule The rule to test.
-     * @param {Object} test The collection of tests to run.
+     * @param {{
+     *   valid: (ValidTestCase | string)[],
+     *   invalid: InvalidTestCase[]
+     * }} test The collection of tests to run.
      * @returns {void}
      */
     run(ruleName, rule, test) {

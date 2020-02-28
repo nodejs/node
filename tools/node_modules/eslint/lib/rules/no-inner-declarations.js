@@ -24,7 +24,11 @@ module.exports = {
             {
                 enum: ["functions", "both"]
             }
-        ]
+        ],
+
+        messages: {
+            moveDeclToRoot: "Move {{type}} declaration to {{body}} root."
+        }
     },
 
     create(context) {
@@ -68,7 +72,7 @@ module.exports = {
             if (!valid) {
                 context.report({
                     node,
-                    message: "Move {{type}} declaration to {{body}} root.",
+                    messageId: "moveDeclToRoot",
                     data: {
                         type: (node.type === "FunctionDeclaration" ? "function" : "variable"),
                         body: (body.type === "Program" ? "program" : "function body")

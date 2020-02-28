@@ -88,7 +88,7 @@ const IGNORED = 2;
  * @typedef {Object} FileEnumeratorInternalSlots
  * @property {CascadingConfigArrayFactory} configArrayFactory The factory for config arrays.
  * @property {string} cwd The base directory to start lookup.
- * @property {RegExp} extensionRegExp The RegExp to test if a string ends with specific file extensions.
+ * @property {RegExp|null} extensionRegExp The RegExp to test if a string ends with specific file extensions.
  * @property {boolean} globInputPaths Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
  * @property {boolean} ignoreFlag The flag to check ignored files.
  * @property {(filePath:string, dot:boolean) => boolean} defaultIgnores The default predicate function to ignore files.
@@ -127,12 +127,12 @@ function statSafeSync(filePath) {
 /**
  * Get filenames in a given path to a directory.
  * @param {string} directoryPath The path to target directory.
- * @returns {string[]} The filenames.
+ * @returns {import("fs").Dirent[]} The filenames.
  * @private
  */
 function readdirSafeSync(directoryPath) {
     try {
-        return fs.readdirSync(directoryPath);
+        return fs.readdirSync(directoryPath, { withFileTypes: true });
     } catch (error) {
         /* istanbul ignore next */
         if (error.code !== "ENOENT") {
@@ -140,6 +140,27 @@ function readdirSafeSync(directoryPath) {
         }
         return [];
     }
+}
+
+/**
+ * Create a `RegExp` object to detect extensions.
+ * @param {string[] | null} extensions The extensions to create.
+ * @returns {RegExp | null} The created `RegExp` object or null.
+ */
+function createExtensionRegExp(extensions) {
+    if (extensions) {
+        const normalizedExts = extensions.map(ext => escapeRegExp(
+            ext.startsWith(".")
+                ? ext.slice(1)
+                : ext
+        ));
+
+        return new RegExp(
+            `.\\.(?:${normalizedExts.join("|")})$`,
+            "u"
+        );
+    }
+    return null;
 }
 
 /**
@@ -188,7 +209,7 @@ class FileEnumerator {
     constructor({
         cwd = process.cwd(),
         configArrayFactory = new CascadingConfigArrayFactory({ cwd }),
-        extensions = [".js"],
+        extensions = null,
         globInputPaths = true,
         errorOnUnmatchedPattern = true,
         ignore = true
@@ -197,17 +218,7 @@ class FileEnumerator {
             configArrayFactory,
             cwd,
             defaultIgnores: IgnorePattern.createDefaultIgnore(cwd),
-            extensionRegExp: new RegExp(
-                `.\\.(?:${extensions
-                    .map(ext => escapeRegExp(
-                        ext.startsWith(".")
-                            ? ext.slice(1)
-                            : ext
-                    ))
-                    .join("|")
-                })$`,
-                "u"
-            ),
+            extensionRegExp: createExtensionRegExp(extensions),
             globInputPaths,
             errorOnUnmatchedPattern,
             ignoreFlag: ignore
@@ -215,11 +226,36 @@ class FileEnumerator {
     }
 
     /**
-     * The `RegExp` object that tests if a file path has the allowed file extensions.
-     * @type {RegExp}
+     * Check if a given file is target or not.
+     * @param {string} filePath The path to a candidate file.
+     * @param {ConfigArray} [providedConfig] Optional. The configuration for the file.
+     * @returns {boolean} `true` if the file is a target.
      */
-    get extensionRegExp() {
-        return internalSlotsMap.get(this).extensionRegExp;
+    isTargetPath(filePath, providedConfig) {
+        const {
+            configArrayFactory,
+            extensionRegExp
+        } = internalSlotsMap.get(this);
+
+        // If `--ext` option is present, use it.
+        if (extensionRegExp) {
+            return extensionRegExp.test(filePath);
+        }
+
+        // `.js` file is target by default.
+        if (filePath.endsWith(".js")) {
+            return true;
+        }
+
+        // use `overrides[].files` to check additional targets.
+        const config =
+            providedConfig ||
+            configArrayFactory.getConfigArrayForFile(
+                filePath,
+                { ignoreNotFoundError: true }
+            );
+
+        return config.isAdditionalTargetPath(filePath);
     }
 
     /**
@@ -380,18 +416,17 @@ class FileEnumerator {
      */
     *_iterateFilesRecursive(directoryPath, options) {
         debug(`Enter the directory: ${directoryPath}`);
-        const { configArrayFactory, extensionRegExp } = internalSlotsMap.get(this);
+        const { configArrayFactory } = internalSlotsMap.get(this);
 
         /** @type {ConfigArray|null} */
         let config = null;
 
         // Enumerate the files of this directory.
-        for (const filename of readdirSafeSync(directoryPath)) {
-            const filePath = path.join(directoryPath, filename);
-            const stat = statSafeSync(filePath); // TODO: Use `withFileTypes` in the future.
+        for (const entry of readdirSafeSync(directoryPath)) {
+            const filePath = path.join(directoryPath, entry.name);
 
             // Check if the file is matched.
-            if (stat && stat.isFile()) {
+            if (entry.isFile()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,
@@ -404,29 +439,30 @@ class FileEnumerator {
                         { ignoreNotFoundError: true }
                     );
                 }
-                const ignored = this._isIgnoredFile(filePath, { ...options, config });
-                const flag = ignored ? IGNORED_SILENTLY : NONE;
                 const matched = options.selector
 
                     // Started with a glob pattern; choose by the pattern.
                     ? options.selector.match(filePath)
 
                     // Started with a directory path; choose by file extensions.
-                    : extensionRegExp.test(filePath);
+                    : this.isTargetPath(filePath, config);
 
                 if (matched) {
-                    debug(`Yield: ${filename}${ignored ? " but ignored" : ""}`);
+                    const ignored = this._isIgnoredFile(filePath, { ...options, config });
+                    const flag = ignored ? IGNORED_SILENTLY : NONE;
+
+                    debug(`Yield: ${entry.name}${ignored ? " but ignored" : ""}`);
                     yield {
                         config: configArrayFactory.getConfigArrayForFile(filePath),
                         filePath,
                         flag
                     };
                 } else {
-                    debug(`Didn't match: ${filename}`);
+                    debug(`Didn't match: ${entry.name}`);
                 }
 
             // Dive into the sub directory.
-            } else if (options.recursive && stat && stat.isDirectory()) {
+            } else if (options.recursive && entry.isDirectory()) {
                 if (!config) {
                     config = configArrayFactory.getConfigArrayForFile(
                         filePath,

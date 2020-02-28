@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-octal"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noOcatal: "Octal literals should not be used."
+        }
     },
 
     create(context) {
@@ -29,7 +33,10 @@ module.exports = {
 
             Literal(node) {
                 if (typeof node.value === "number" && /^0[0-9]/u.test(node.raw)) {
-                    context.report({ node, message: "Octal literals should not be used." });
+                    context.report({
+                        node,
+                        messageId: "noOcatal"
+                    });
                 }
             }
         };

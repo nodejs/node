@@ -7,17 +7,17 @@
 
 Check if a character is alphabetical.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install is-alphabetical
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var alphabetical = require('is-alphabetical')
 
 alphabetical('a') // => true
@@ -30,8 +30,8 @@ alphabetical('💩') // => false
 
 ### `alphabetical(character|code)`
 
-Check whether the given character code (`number`), or the character
-code at the first position (`string`), is alphabetical.
+Check whether the given character code (`number`), or the character code at the
+first position (`string`), is alphabetical.
 
 ## Related
 

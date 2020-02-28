@@ -76,10 +76,13 @@ var MergeMapSubscriber = (function (_super) {
         this._innerSub(result, value, index);
     };
     MergeMapSubscriber.prototype._innerSub = function (ish, value, index) {
-        var innerSubscriber = new InnerSubscriber_1.InnerSubscriber(this, undefined, undefined);
+        var innerSubscriber = new InnerSubscriber_1.InnerSubscriber(this, value, index);
         var destination = this.destination;
         destination.add(innerSubscriber);
-        subscribeToResult_1.subscribeToResult(this, ish, value, index, innerSubscriber);
+        var innerSubscription = subscribeToResult_1.subscribeToResult(this, ish, undefined, undefined, innerSubscriber);
+        if (innerSubscription !== innerSubscriber) {
+            destination.add(innerSubscription);
+        }
     };
     MergeMapSubscriber.prototype._complete = function () {
         this.hasCompleted = true;

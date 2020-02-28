@@ -273,7 +273,7 @@ function adjustBlock(block) {
     /**
      * Adjusts ESLint messages to point to the correct location in the Markdown.
      * @param {Message} message A message from ESLint.
-     * @returns {Message} The same message, but adjusted ot the correct location.
+     * @returns {Message} The same message, but adjusted to the correct location.
      */
     return function adjustMessage(message) {
 
@@ -308,7 +308,7 @@ function adjustBlock(block) {
                     // Apply the mapping delta for this range.
                     return range + block.rangeMap[i - 1].md;
                 }),
-                text: message.fix.text.replace("\n", `\n${block.baseIndentText}`)
+                text: message.fix.text.replace(/\n/g, `\n${block.baseIndentText}`)
             };
         }
 

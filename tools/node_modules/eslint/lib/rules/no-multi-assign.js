@@ -21,7 +21,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-multi-assign"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedChain: "Unexpected chained assignment."
+        }
     },
 
     create(context) {
@@ -35,7 +39,7 @@ module.exports = {
                 if (["AssignmentExpression", "VariableDeclarator"].indexOf(node.parent.type) !== -1) {
                     context.report({
                         node,
-                        message: "Unexpected chained assignment."
+                        messageId: "unexpectedChain"
                     });
                 }
             }

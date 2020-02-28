@@ -7,17 +7,17 @@
 
 List of escapable characters in markdown.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install markdown-escapes
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var escapes = require('markdown-escapes');
 
 // Access by property:
@@ -31,9 +31,9 @@ escapes({gfm: true}); //=> ['\\', '`', ..., '~', '|']
 
 ### `escapes([options])`
 
-Get escapes.  Supports `options.commonmark` and `options.gfm`, which
-when `true` returns the extra escape characters supported by those
-flavours.
+Get escapes.
+Supports `options.commonmark` and `options.gfm`, which when `true` returns the
+extra escape characters supported by those flavors.
 
 ###### Returns
 

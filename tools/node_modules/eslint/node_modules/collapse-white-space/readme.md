@@ -5,19 +5,19 @@
 [![Downloads][downloads-badge]][downloads]
 [![Size][size-badge]][size]
 
-Replace multiple white-space characters with a single space.
+Replace multiple whitespace characters with a single space.
 
-## Installation
+## Install
 
-[npm][npm-install]:
+[npm][]:
 
-```bash
+```sh
 npm install collapse-white-space
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var collapse = require('collapse-white-space')
 
 collapse('\tfoo \n\tbar  \t\r\nbaz') //=> ' foo bar baz'
@@ -27,7 +27,7 @@ collapse('\tfoo \n\tbar  \t\r\nbaz') //=> ' foo bar baz'
 
 ### `collapse(value)`
 
-Replace multiple white-space characters in value with a single space.
+Replace multiple whitespace characters in value with a single space.
 
 ## License
 
@@ -51,7 +51,7 @@ Replace multiple white-space characters in value with a single space.
 
 [size]: https://bundlephobia.com/result?p=collapse-white-space
 
-[npm-install]: https://docs.npmjs.com/cli/install
+[npm]: https://docs.npmjs.com/cli/install
 
 [license]: license
 
