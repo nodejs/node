@@ -39,6 +39,11 @@ module.exports = {
             },
             uniqueItems: true,
             minItems: 0
+        },
+
+        messages: {
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            restrictedSyntax: "{{message}}"
         }
     },
 
@@ -48,14 +53,14 @@ module.exports = {
             const hasCustomMessage = !isStringFormat && Boolean(selectorOrObject.message);
 
             const selector = isStringFormat ? selectorOrObject : selectorOrObject.selector;
-            const message = hasCustomMessage ? selectorOrObject.message : "Using '{{selector}}' is not allowed.";
+            const message = hasCustomMessage ? selectorOrObject.message : `Using '${selector}' is not allowed.`;
 
             return Object.assign(result, {
                 [selector](node) {
                     context.report({
                         node,
-                        message,
-                        data: hasCustomMessage ? {} : { selector }
+                        messageId: "restrictedSyntax",
+                        data: { message }
                     });
                 }
             });

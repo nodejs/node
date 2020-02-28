@@ -90,13 +90,27 @@ module.exports = {
          * @private
          */
         function isConstant(node, inBooleanPosition) {
+
+            // node.elements can return null values in the case of sparse arrays ex. [,]
+            if (!node) {
+                return true;
+            }
             switch (node.type) {
                 case "Literal":
                 case "ArrowFunctionExpression":
                 case "FunctionExpression":
                 case "ObjectExpression":
-                case "ArrayExpression":
                     return true;
+                case "TemplateLiteral":
+                    return (inBooleanPosition && node.quasis.some(quasi => quasi.value.cooked.length)) ||
+                        node.expressions.every(exp => isConstant(exp, inBooleanPosition));
+
+                case "ArrayExpression": {
+                    if (node.parent.type === "BinaryExpression" && node.parent.operator === "+") {
+                        return node.elements.every(element => isConstant(element, false));
+                    }
+                    return true;
+                }
 
                 case "UnaryExpression":
                     if (node.operator === "void") {

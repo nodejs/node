@@ -121,7 +121,7 @@ function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
             currentToken.range[1] !== nextToken.range[0] ||
 
                 /*
-                 * For backward compatibility, check speces in JSXText.
+                 * For backward compatibility, check spaces in JSXText.
                  * https://github.com/eslint/eslint/issues/12614
                  */
                 (

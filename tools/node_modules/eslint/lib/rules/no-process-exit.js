@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-process-exit"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noProcessExit: "Don't use process.exit(); throw an error instead."
+        }
     },
 
     create(context) {
@@ -30,7 +34,7 @@ module.exports = {
 
         return {
             "CallExpression > MemberExpression.callee[object.name = 'process'][property.name = 'exit']"(node) {
-                context.report({ node: node.parent, message: "Don't use process.exit(); throw an error instead." });
+                context.report({ node: node.parent, messageId: "noProcessExit" });
             }
         };
 

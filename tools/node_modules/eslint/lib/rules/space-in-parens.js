@@ -169,7 +169,7 @@ module.exports = {
         }
 
         /**
-         * Determines if a closing paren is immediately preceeded by a required space
+         * Determines if a closing paren is immediately preceded by a required space
          * @param {Object} tokenBeforeClosingParen The token before the paren
          * @param {Object} closingParenToken The paren token
          * @returns {boolean} True if the closing paren is missing a required space
@@ -190,7 +190,7 @@ module.exports = {
         }
 
         /**
-         * Determines if a closer paren is immediately preceeded by a disallowed space
+         * Determines if a closer paren is immediately preceded by a disallowed space
          * @param {Object} tokenBeforeClosingParen The token before the paren
          * @param {Object} closingParenToken The paren token
          * @returns {boolean} True if the closing paren has a disallowed space

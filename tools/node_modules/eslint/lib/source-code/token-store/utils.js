@@ -1,5 +1,5 @@
 /**
- * @fileoverview Define utilify functions for token store.
+ * @fileoverview Define utility functions for token store.
  * @author Toru Nagashima
  */
 "use strict";

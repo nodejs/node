@@ -32,7 +32,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unnecessarilyRenamed: "{{type}} {{name}} unnecessarily renamed."
+        }
     },
 
     create(context) {
@@ -59,7 +63,7 @@ module.exports = {
 
             return context.report({
                 node,
-                message: "{{type}} {{name}} unnecessarily renamed.",
+                messageId: "unnecessarilyRenamed",
                 data: {
                     name,
                     type

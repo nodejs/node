@@ -1272,7 +1272,7 @@ class Linter {
      * @param {string|SourceCode} textOrSourceCode The source code.
      * @param {ConfigData|ExtractedConfig} config The config array.
      * @param {VerifyOptions&ProcessorOptions} options The options.
-     * @param {ConfigArray} [configForRecursive] The `CofnigArray` object to apply multiple processors recursively.
+     * @param {ConfigArray} [configForRecursive] The `ConfigArray` object to apply multiple processors recursively.
      * @returns {LintMessage[]} The found problems.
      */
     _verifyWithProcessor(textOrSourceCode, config, options, configForRecursive) {

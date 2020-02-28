@@ -31,7 +31,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            rejectAnError: "Expected the Promise rejection reason to be an Error."
+        }
     },
 
     create(context) {
@@ -58,7 +62,7 @@ module.exports = {
             ) {
                 context.report({
                     node: callExpression,
-                    message: "Expected the Promise rejection reason to be an Error."
+                    messageId: "rejectAnError"
                 });
             }
         }

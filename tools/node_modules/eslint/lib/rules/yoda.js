@@ -49,11 +49,30 @@ function isRangeTestOperator(operator) {
  * @returns {boolean} True if the node is a negative number that looks like a
  *                    real literal and should be treated as such.
  */
-function looksLikeLiteral(node) {
+function isNegativeNumericLiteral(node) {
     return (node.type === "UnaryExpression" &&
         node.operator === "-" &&
         node.prefix &&
         astUtils.isNumericLiteral(node.argument));
+}
+
+/**
+ * Determines whether a node is a Template Literal which can be determined statically.
+ * @param {ASTNode} node Node to test
+ * @returns {boolean} True if the node is a Template Literal without expression.
+ */
+function isStaticTemplateLiteral(node) {
+    return node.type === "TemplateLiteral" && node.expressions.length === 0;
+}
+
+/**
+ * Determines whether a non-Literal node should be treated as a single Literal node.
+ * @param {ASTNode} node Node to test
+ * @returns {boolean} True if the node should be treated as a single Literal node.
+ */
+function looksLikeLiteral(node) {
+    return isNegativeNumericLiteral(node) ||
+        isStaticTemplateLiteral(node);
 }
 
 /**
@@ -65,19 +84,29 @@ function looksLikeLiteral(node) {
  *  1. The original node if the node is already a Literal
  *  2. A normalized Literal node with the negative number as the value if the
  *     node represents a negative number literal.
- *  3. The Literal node which has the `defaultValue` argument if it exists.
- *  4. Otherwise `null`.
+ *  3. A normalized Literal node with the string as the value if the node is
+ *     a Template Literal without expression.
+ *  4. The Literal node which has the `defaultValue` argument if it exists.
+ *  5. Otherwise `null`.
  */
 function getNormalizedLiteral(node, defaultValue) {
     if (node.type === "Literal") {
         return node;
     }
 
-    if (looksLikeLiteral(node)) {
+    if (isNegativeNumericLiteral(node)) {
         return {
             type: "Literal",
             value: -node.argument.value,
             raw: `-${node.argument.value}`
+        };
+    }
+
+    if (isStaticTemplateLiteral(node)) {
+        return {
+            type: "Literal",
+            value: node.quasis[0].value.cooked,
+            raw: node.quasis[0].value.raw
         };
     }
 

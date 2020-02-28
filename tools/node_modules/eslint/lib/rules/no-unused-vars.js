@@ -12,6 +12,18 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/**
+ * Bag of data used for formatting the `unusedVar` lint message.
+ * @typedef {Object} UnusedVarMessageData
+ * @property {string} varName The name of the unused var.
+ * @property {'defined'|'assigned a value'} action Description of the vars state.
+ * @property {string} additional Any additional info to be appended at the end.
+ */
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -60,7 +72,11 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            unusedVar: "'{{varName}}' is {{action}} but never used{{additional}}."
+        }
     },
 
     create(context) {
@@ -101,12 +117,12 @@ module.exports = {
         }
 
         /**
-         * Generate the warning message about the variable being
-         * defined and unused, including the ignore pattern if configured.
+         * Generates the message data about the variable being defined and unused,
+         * including the ignore pattern if configured.
          * @param {Variable} unusedVar eslint-scope variable object.
-         * @returns {string} The warning message to be used with this unused variable.
+         * @returns {UnusedVarMessageData} The message data to be used with this unused variable.
          */
-        function getDefinedMessage(unusedVar) {
+        function getDefinedMessageData(unusedVar) {
             const defType = unusedVar.defs && unusedVar.defs[0] && unusedVar.defs[0].type;
             let type;
             let pattern;
@@ -122,20 +138,29 @@ module.exports = {
                 pattern = config.varsIgnorePattern.toString();
             }
 
-            const additional = type ? ` Allowed unused ${type} must match ${pattern}.` : "";
+            const additional = type ? `. Allowed unused ${type} must match ${pattern}` : "";
 
-            return `'{{name}}' is defined but never used.${additional}`;
+            return {
+                varName: unusedVar.name,
+                action: "defined",
+                additional
+            };
         }
 
         /**
          * Generate the warning message about the variable being
          * assigned and unused, including the ignore pattern if configured.
-         * @returns {string} The warning message to be used with this unused variable.
+         * @param {Variable} unusedVar eslint-scope variable object.
+         * @returns {UnusedVarMessageData} The message data to be used with this unused variable.
          */
-        function getAssignedMessage() {
-            const additional = config.varsIgnorePattern ? ` Allowed unused vars must match ${config.varsIgnorePattern.toString()}.` : "";
+        function getAssignedMessageData(unusedVar) {
+            const additional = config.varsIgnorePattern ? `. Allowed unused vars must match ${config.varsIgnorePattern.toString()}` : "";
 
-            return `'{{name}}' is assigned a value but never used.${additional}`;
+            return {
+                varName: unusedVar.name,
+                action: "assigned a value",
+                additional
+            };
         }
 
         //--------------------------------------------------------------------------
@@ -282,7 +307,7 @@ module.exports = {
         function getRhsNode(ref, prevRhsNode) {
             const id = ref.identifier;
             const parent = id.parent;
-            const granpa = parent.parent;
+            const grandparent = parent.parent;
             const refScope = ref.from.variableScope;
             const varScope = ref.resolved.scope.variableScope;
             const canBeUsedLater = refScope !== varScope || astUtils.isInLoop(id);
@@ -296,7 +321,7 @@ module.exports = {
             }
 
             if (parent.type === "AssignmentExpression" &&
-                granpa.type === "ExpressionStatement" &&
+                grandparent.type === "ExpressionStatement" &&
                 id === parent.left &&
                 !canBeUsedLater
             ) {
@@ -342,7 +367,7 @@ module.exports = {
 
                             /*
                              * If it encountered statements, this is a complex pattern.
-                             * Since analyzeing complex patterns is hard, this returns `true` to avoid false positive.
+                             * Since analyzing complex patterns is hard, this returns `true` to avoid false positive.
                              */
                             return true;
                         }
@@ -389,7 +414,7 @@ module.exports = {
         function isReadForItself(ref, rhsNode) {
             const id = ref.identifier;
             const parent = id.parent;
-            const granpa = parent.parent;
+            const grandparent = parent.parent;
 
             return ref.isRead() && (
 
@@ -397,12 +422,12 @@ module.exports = {
                 (// in RHS of an assignment for itself. e.g. `a = a + 1`
                     ((
                         parent.type === "AssignmentExpression" &&
-                    granpa.type === "ExpressionStatement" &&
+                    grandparent.type === "ExpressionStatement" &&
                     parent.left === id
                     ) ||
                 (
                     parent.type === "UpdateExpression" &&
-                    granpa.type === "ExpressionStatement"
+                    grandparent.type === "ExpressionStatement"
                 ) || rhsNode &&
                 isInside(id, rhsNode) &&
                 !isInsideOfStorableFunction(id, rhsNode)))
@@ -595,10 +620,10 @@ module.exports = {
                     if (unusedVar.defs.length > 0) {
                         context.report({
                             node: unusedVar.identifiers[0],
-                            message: unusedVar.references.some(ref => ref.isWrite())
-                                ? getAssignedMessage()
-                                : getDefinedMessage(unusedVar),
-                            data: unusedVar
+                            messageId: "unusedVar",
+                            data: unusedVar.references.some(ref => ref.isWrite())
+                                ? getAssignedMessageData(unusedVar)
+                                : getDefinedMessageData(unusedVar)
                         });
 
                     // If there are no regular declaration, report the first `/*globals*/` comment directive.
@@ -608,8 +633,8 @@ module.exports = {
                         context.report({
                             node: programNode,
                             loc: astUtils.getNameLocationInGlobalDirectiveComment(sourceCode, directiveComment, unusedVar.name),
-                            message: getDefinedMessage(unusedVar),
-                            data: unusedVar
+                            messageId: "unusedVar",
+                            data: getDefinedMessageData(unusedVar)
                         });
                     }
                 }

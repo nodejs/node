@@ -45,7 +45,7 @@ module.exports = {
                 properties: {
                     enforceForSwitchCase: {
                         type: "boolean",
-                        default: false
+                        default: true
                     },
                     enforceForIndexOf: {
                         type: "boolean",
@@ -66,7 +66,7 @@ module.exports = {
 
     create(context) {
 
-        const enforceForSwitchCase = context.options[0] && context.options[0].enforceForSwitchCase;
+        const enforceForSwitchCase = !context.options[0] || context.options[0].enforceForSwitchCase;
         const enforceForIndexOf = context.options[0] && context.options[0].enforceForIndexOf;
 
         /**

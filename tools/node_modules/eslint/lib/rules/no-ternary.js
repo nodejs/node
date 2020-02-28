@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-ternary"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noTernaryOperator: "Ternary operator used."
+        }
     },
 
     create(context) {
@@ -28,7 +32,7 @@ module.exports = {
         return {
 
             ConditionalExpression(node) {
-                context.report({ node, message: "Ternary operator used." });
+                context.report({ node, messageId: "noTernaryOperator" });
             }
 
         };

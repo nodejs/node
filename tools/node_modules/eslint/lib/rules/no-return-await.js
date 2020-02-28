@@ -10,8 +10,6 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const message = "Redundant use of `await` on a return value.";
-
 module.exports = {
     meta: {
         type: "suggestion",
@@ -28,7 +26,11 @@ module.exports = {
         fixable: null,
 
         schema: [
-        ]
+        ],
+
+        messages: {
+            redundantUseOfAwait: "Redundant use of `await` on a return value."
+        }
     },
 
     create(context) {
@@ -42,7 +44,7 @@ module.exports = {
             context.report({
                 node: context.getSourceCode().getFirstToken(node),
                 loc: node.loc,
-                message
+                messageId: "redundantUseOfAwait"
             });
         }
 

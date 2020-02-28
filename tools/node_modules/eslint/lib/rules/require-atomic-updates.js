@@ -223,7 +223,7 @@ module.exports = {
 
                 /*
                  * Register the variable to verify after ESLint traversed the `writeExpr` node
-                 * if this reference is an assignment to a variable which is referred from other clausure.
+                 * if this reference is an assignment to a variable which is referred from other closure.
                  */
                 if (writeExpr &&
                     writeExpr.parent.right === writeExpr && // ← exclude variable declarations.

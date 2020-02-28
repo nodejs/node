@@ -20,14 +20,18 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-with"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedWith: "Unexpected use of 'with' statement."
+        }
     },
 
     create(context) {
 
         return {
             WithStatement(node) {
-                context.report({ node, message: "Unexpected use of 'with' statement." });
+                context.report({ node, messageId: "unexpectedWith" });
             }
         };
 
