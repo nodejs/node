@@ -20,7 +20,7 @@ server.listen(0, () => {
   const req = get({ agent, port }, (res) => {
     res.on('end', () => {
       strictEqual(req.setTimeout(0), req);
-      strictEqual(socket.listenerCount('timeout'), 0);
+      strictEqual(socket.listenerCount('timeout'), 1);
       agent.destroy();
       server.close();
     });

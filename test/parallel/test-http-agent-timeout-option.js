@@ -18,6 +18,6 @@ request.on('socket', mustCall((socket) => {
 
   const listeners = socket.listeners('timeout');
 
-  strictEqual(listeners.length, 1);
-  strictEqual(listeners[0], request.timeoutCb);
+  strictEqual(listeners.length, 2);
+  strictEqual(listeners[1], request.timeoutCb);
 }));
