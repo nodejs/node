@@ -85,6 +85,7 @@ module.exports = {
     'comma-style': 'error',
     'computed-property-spacing': 'error',
     'constructor-super': 'error',
+    'default-case-last': 'error',
     'dot-location': ['error', 'property'],
     'dot-notation': 'error',
     'eol-last': 'error',
