@@ -360,7 +360,7 @@ the event emitter instance, the event’s name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
 
-### EventEmitter.errorMonitor
+### `EventEmitter.errorMonitor`
 <!-- YAML
 added: REPLACEME
 -->
