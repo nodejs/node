@@ -157,7 +157,11 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            usedBeforeDefined: "'{{name}}' was used before it was defined."
+        }
     },
 
     create(context) {
@@ -212,7 +216,7 @@ module.exports = {
                 // Reports.
                 context.report({
                     node: reference.identifier,
-                    message: "'{{name}}' was used before it was defined.",
+                    messageId: "usedBeforeDefined",
                     data: reference.identifier
                 });
             });

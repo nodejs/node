@@ -61,9 +61,12 @@ module.exports = {
          * @returns {boolean} whether an error should be reported or not
          */
         function shouldReport(effectiveParent, name) {
-            return effectiveParent.type !== "CallExpression" &&
+            return (
+                effectiveParent.type !== "CallExpression" &&
                 effectiveParent.type !== "NewExpression" &&
-                isInvalid(name);
+                effectiveParent.parent.type !== "ObjectPattern" &&
+                isInvalid(name)
+            );
         }
 
         /**
@@ -98,11 +101,11 @@ module.exports = {
                             report(node);
                         }
 
-                        // Report AssignmentExpressions only if they are the left side of the assignment
+                    // Report AssignmentExpressions only if they are the left side of the assignment
                     } else if (effectiveParent.type === "AssignmentExpression" &&
                         (effectiveParent.right.type !== "MemberExpression" ||
-                        effectiveParent.left.type === "MemberExpression" &&
-                        effectiveParent.left.property.name === node.name)) {
+                            effectiveParent.left.type === "MemberExpression" &&
+                            effectiveParent.left.property.name === node.name)) {
                         if (isInvalid(name)) {
                             report(node);
                         }
@@ -115,7 +118,7 @@ module.exports = {
                         report(node);
                     }
 
-                // Report anything that is a match and not a CallExpression
+                    // Report anything that is a match and not a CallExpression
                 } else if (shouldReport(effectiveParent, name)) {
                     report(node);
                 }

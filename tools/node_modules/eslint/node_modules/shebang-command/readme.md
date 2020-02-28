@@ -6,7 +6,7 @@
 ## Install
 
 ```
-$ npm install --save shebang-command
+$ npm install shebang-command
 ```
 
 
@@ -32,8 +32,3 @@ shebangCommand('#!/bin/bash');
 Type: `string`
 
 String containing a shebang.
-
-
-## License
-
-MIT © [Kevin Martensson](http://github.com/kevva)

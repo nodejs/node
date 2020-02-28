@@ -59,7 +59,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            noIrregularWhitespace: "Irregular whitespace not allowed."
+        }
     },
 
     create(context) {
@@ -161,7 +165,11 @@ module.exports = {
                         column: match.index
                     };
 
-                    errors.push({ node, message: "Irregular whitespace not allowed.", loc: location });
+                    errors.push({
+                        node,
+                        messageId: "noIrregularWhitespace",
+                        loc: location
+                    });
                 }
             });
         }
@@ -186,7 +194,11 @@ module.exports = {
                     column: sourceLines[lineIndex].length
                 };
 
-                errors.push({ node, message: "Irregular whitespace not allowed.", loc: location });
+                errors.push({
+                    node,
+                    messageId: "noIrregularWhitespace",
+                    loc: location
+                });
                 lastLineIndex = lineIndex;
             }
         }

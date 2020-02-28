@@ -26,6 +26,36 @@ function hasArraySpread(node) {
 }
 
 /**
+ * Determines whether the given node is an accessor property (getter/setter).
+ * @param {ASTNode} node Node to check.
+ * @returns {boolean} `true` if the node is a getter or a setter.
+ */
+function isAccessorProperty(node) {
+    return node.type === "Property" &&
+        (node.kind === "get" || node.kind === "set");
+}
+
+/**
+ * Determines whether the given object expression node has accessor properties (getters/setters).
+ * @param {ASTNode} node `ObjectExpression` node to check.
+ * @returns {boolean} `true` if the node has at least one getter/setter.
+ */
+function hasAccessors(node) {
+    return node.properties.some(isAccessorProperty);
+}
+
+/**
+ * Determines whether the given call expression node has object expression arguments with accessor properties (getters/setters).
+ * @param {ASTNode} node `CallExpression` node to check.
+ * @returns {boolean} `true` if the node has at least one argument that is an object expression with at least one getter/setter.
+ */
+function hasArgumentsWithAccessors(node) {
+    return node.arguments
+        .filter(arg => arg.type === "ObjectExpression")
+        .some(hasAccessors);
+}
+
+/**
  * Helper that checks if the node needs parentheses to be valid JS.
  * The default is to wrap the node in parentheses to avoid parsing errors.
  * @param {ASTNode} node The node that the rule warns on
@@ -249,7 +279,11 @@ module.exports = {
                     if (
                         node.arguments.length >= 1 &&
                         node.arguments[0].type === "ObjectExpression" &&
-                        !hasArraySpread(node)
+                        !hasArraySpread(node) &&
+                        !(
+                            node.arguments.length > 1 &&
+                            hasArgumentsWithAccessors(node)
+                        )
                     ) {
                         const messageId = node.arguments.length === 1
                             ? "useLiteralMessage"

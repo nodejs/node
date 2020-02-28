@@ -18,7 +18,7 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
-const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|map|reduce(?:Right)?|some|sort)$/u;
+const TARGET_METHODS = /^(?:every|filter|find(?:Index)?|flatMap|map|reduce(?:Right)?|some|sort)$/u;
 
 /**
  * Checks a given code path segment is reachable.

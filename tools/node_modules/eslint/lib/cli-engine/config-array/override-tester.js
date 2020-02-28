@@ -96,14 +96,22 @@ class OverrideTester {
     static create(files, excludedFiles, basePath) {
         const includePatterns = normalizePatterns(files);
         const excludePatterns = normalizePatterns(excludedFiles);
-        const allPatterns = includePatterns.concat(excludePatterns);
+        let endsWithWildcard = false;
 
-        if (allPatterns.length === 0) {
+        if (includePatterns.length === 0) {
             return null;
         }
 
         // Rejects absolute paths or relative paths to parents.
-        for (const pattern of allPatterns) {
+        for (const pattern of includePatterns) {
+            if (path.isAbsolute(pattern) || pattern.includes("..")) {
+                throw new Error(`Invalid override pattern (expected relative path not containing '..'): ${pattern}`);
+            }
+            if (pattern.endsWith("*")) {
+                endsWithWildcard = true;
+            }
+        }
+        for (const pattern of excludePatterns) {
             if (path.isAbsolute(pattern) || pattern.includes("..")) {
                 throw new Error(`Invalid override pattern (expected relative path not containing '..'): ${pattern}`);
             }
@@ -112,7 +120,11 @@ class OverrideTester {
         const includes = toMatcher(includePatterns);
         const excludes = toMatcher(excludePatterns);
 
-        return new OverrideTester([{ includes, excludes }], basePath);
+        return new OverrideTester(
+            [{ includes, excludes }],
+            basePath,
+            endsWithWildcard
+        );
     }
 
     /**
@@ -125,28 +137,44 @@ class OverrideTester {
      */
     static and(a, b) {
         if (!b) {
-            return a && new OverrideTester(a.patterns, a.basePath);
+            return a && new OverrideTester(
+                a.patterns,
+                a.basePath,
+                a.endsWithWildcard
+            );
         }
         if (!a) {
-            return new OverrideTester(b.patterns, b.basePath);
+            return new OverrideTester(
+                b.patterns,
+                b.basePath,
+                b.endsWithWildcard
+            );
         }
 
         assert.strictEqual(a.basePath, b.basePath);
-        return new OverrideTester(a.patterns.concat(b.patterns), a.basePath);
+        return new OverrideTester(
+            a.patterns.concat(b.patterns),
+            a.basePath,
+            a.endsWithWildcard || b.endsWithWildcard
+        );
     }
 
     /**
      * Initialize this instance.
      * @param {Pattern[]} patterns The matchers.
      * @param {string} basePath The base path.
+     * @param {boolean} endsWithWildcard If `true` then a pattern ends with `*`.
      */
-    constructor(patterns, basePath) {
+    constructor(patterns, basePath, endsWithWildcard = false) {
 
         /** @type {Pattern[]} */
         this.patterns = patterns;
 
         /** @type {string} */
         this.basePath = basePath;
+
+        /** @type {boolean} */
+        this.endsWithWildcard = endsWithWildcard;
     }
 
     /**

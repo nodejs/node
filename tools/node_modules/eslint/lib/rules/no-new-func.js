@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-new-func"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noFunctionConstructor: "The Function constructor is eval."
+        }
     },
 
     create(context) {
@@ -36,7 +40,10 @@ module.exports = {
          * @private
          */
         function report(node) {
-            context.report({ node, message: "The Function constructor is eval." });
+            context.report({
+                node,
+                messageId: "noFunctionConstructor"
+            });
         }
 
         return {

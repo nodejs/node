@@ -6,15 +6,15 @@
 
 HTML character entity information.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install character-entities
 ```
 
-## Usage
+## Use
 
 ```js
 var characterEntities = require('character-entities')
@@ -32,7 +32,7 @@ Mapping between (case-sensitive) character entity names to replacements.
 
 ## Support
 
-See [html.spec.whatwg.org][html].
+See [`html.spec.whatwg.org`][html].
 
 ## Related
 

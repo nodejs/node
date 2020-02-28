@@ -5,9 +5,23 @@
 
 "use strict";
 
+const { isNumericLiteral } = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/**
+ * Convert the value to bigint if it's a string. Otherwise return the value as-is.
+ * @param {bigint|number|string} x The value to normalize.
+ * @returns {bigint|number} The normalized value.
+ */
+function normalizeIgnoreValue(x) {
+    if (typeof x === "string") {
+        return BigInt(x.slice(0, -1));
+    }
+    return x;
+}
 
 module.exports = {
     meta: {
@@ -34,7 +48,10 @@ module.exports = {
                 ignore: {
                     type: "array",
                     items: {
-                        type: "number"
+                        anyOf: [
+                            { type: "number" },
+                            { type: "string", pattern: "^[+-]?(?:0|[1-9][0-9]*)n$" }
+                        ]
                     },
                     uniqueItems: true
                 },
@@ -56,17 +73,8 @@ module.exports = {
         const config = context.options[0] || {},
             detectObjects = !!config.detectObjects,
             enforceConst = !!config.enforceConst,
-            ignore = config.ignore || [],
+            ignore = (config.ignore || []).map(normalizeIgnoreValue),
             ignoreArrayIndexes = !!config.ignoreArrayIndexes;
-
-        /**
-         * Returns whether the node is number literal
-         * @param {Node} node the node literal being evaluated
-         * @returns {boolean} true if the node is a number literal
-         */
-        function isNumber(node) {
-            return typeof node.value === "number";
-        }
 
         /**
          * Returns whether the number should be ignored
@@ -113,7 +121,7 @@ module.exports = {
             Literal(node) {
                 const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
-                if (!isNumber(node)) {
+                if (!isNumericLiteral(node)) {
                     return;
                 }
 

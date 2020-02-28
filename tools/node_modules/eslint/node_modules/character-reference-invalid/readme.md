@@ -6,15 +6,15 @@
 
 HTML invalid numeric character reference information.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install character-reference-invalid
 ```
 
-## Usage
+## Use
 
 ```js
 var characterReferenceInvalid = require('character-reference-invalid')
@@ -32,7 +32,7 @@ Mapping between invalid numeric character reference to replacements.
 
 ## Support
 
-See [html.spec.whatwg.org][html].
+See [`html.spec.whatwg.org`][html].
 
 ## Related
 
@@ -45,7 +45,7 @@ See [html.spec.whatwg.org][html].
 *   [`parse-entities`](https://github.com/wooorm/parse-entities)
     — Parse HTML character references
 *   [`stringify-entities`](https://github.com/wooorm/stringify-entities)
-    — Stringify HTML character references
+    — Serialize HTML character references
 
 ## License
 

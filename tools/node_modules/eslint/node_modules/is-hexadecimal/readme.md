@@ -7,17 +7,17 @@
 
 Check if a character is hexadecimal.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install is-hexadecimal
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var hexadecimal = require('is-hexadecimal')
 
 hexadecimal('a') // => true
@@ -30,8 +30,8 @@ hexadecimal('💩') // => false
 
 ### `hexadecimal(character|code)`
 
-Check whether the given character code (`number`), or the character
-code at the first position (`string`), is hexadecimal.
+Check whether the given character code (`number`), or the character code at the
+first position (`string`), is hexadecimal.
 
 ## Related
 

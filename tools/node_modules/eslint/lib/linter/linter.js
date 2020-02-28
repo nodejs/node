@@ -268,6 +268,15 @@ function createDisableDirectives(options) {
 }
 
 /**
+ * Remove the ignored part from a given directive comment and trim it.
+ * @param {string} value The comment text to strip.
+ * @returns {string} The stripped text.
+ */
+function stripDirectiveComment(value) {
+    return value.split(/\s-{2,}\s/u)[0].trim();
+}
+
+/**
  * Parses comments in file to extract file-specific config of rules, globals
  * and environments and merges them with global config; also code blocks
  * where reporting is disabled or enabled and merges them with reporting config.
@@ -286,7 +295,7 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
     const disableDirectives = [];
 
     ast.comments.filter(token => token.type !== "Shebang").forEach(comment => {
-        const trimmedCommentText = comment.value.trim();
+        const trimmedCommentText = stripDirectiveComment(comment.value);
         const match = /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|exported|globals?)(?:\s|$)/u.exec(trimmedCommentText);
 
         if (!match) {
@@ -444,8 +453,11 @@ function findEslintEnv(text) {
 
     eslintEnvPattern.lastIndex = 0;
 
-    while ((match = eslintEnvPattern.exec(text))) {
-        retv = Object.assign(retv || {}, commentParser.parseListConfig(match[1]));
+    while ((match = eslintEnvPattern.exec(text)) !== null) {
+        retv = Object.assign(
+            retv || {},
+            commentParser.parseListConfig(stripDirectiveComment(match[1]))
+        );
     }
 
     return retv;

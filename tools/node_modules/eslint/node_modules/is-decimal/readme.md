@@ -7,17 +7,17 @@
 
 Check if a character is decimal.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install is-decimal
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var decimal = require('is-decimal')
 
 decimal('0') // => true
@@ -30,8 +30,8 @@ decimal('💩') // => false
 
 ### `decimal(character|code)`
 
-Check whether the given character code (`number`), or the character
-code at the first position (`string`), is decimal.
+Check whether the given character code (`number`), or the character code at the
+first position (`string`), is decimal.
 
 ## Related
 

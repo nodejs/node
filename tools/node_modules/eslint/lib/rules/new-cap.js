@@ -9,6 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+const astUtils = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
@@ -160,13 +162,7 @@ module.exports = {
             let name = "";
 
             if (node.callee.type === "MemberExpression") {
-                const property = node.callee.property;
-
-                if (property.type === "Literal" && (typeof property.value === "string")) {
-                    name = property.value;
-                } else if (property.type === "Identifier" && !node.callee.computed) {
-                    name = property.name;
-                }
+                name = astUtils.getStaticPropertyName(node.callee) || "";
             } else {
                 name = node.callee.name;
             }

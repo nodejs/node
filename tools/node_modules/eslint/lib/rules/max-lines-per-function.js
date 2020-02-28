@@ -54,9 +54,6 @@ const OPTIONS_OR_INTEGER_SCHEMA = {
 function getCommentLineNumbers(comments) {
     const map = new Map();
 
-    if (!comments) {
-        return map;
-    }
     comments.forEach(comment => {
         for (let i = comment.loc.start.line; i <= comment.loc.end.line; i++) {
             map.set(i, comment);

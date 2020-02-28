@@ -40,7 +40,13 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedLabel: "Unexpected labeled statement.",
+            unexpectedLabelInBreak: "Unexpected label in break statement.",
+            unexpectedLabelInContinue: "Unexpected label in continue statement."
+        }
     },
 
     create(context) {
@@ -113,7 +119,7 @@ module.exports = {
                 if (!isAllowed(scopeInfo.kind)) {
                     context.report({
                         node,
-                        message: "Unexpected labeled statement."
+                        messageId: "unexpectedLabel"
                     });
                 }
 
@@ -124,7 +130,7 @@ module.exports = {
                 if (node.label && !isAllowed(getKind(node.label.name))) {
                     context.report({
                         node,
-                        message: "Unexpected label in break statement."
+                        messageId: "unexpectedLabelInBreak"
                     });
                 }
             },
@@ -133,7 +139,7 @@ module.exports = {
                 if (node.label && !isAllowed(getKind(node.label.name))) {
                     context.report({
                         node,
-                        message: "Unexpected label in continue statement."
+                        messageId: "unexpectedLabelInContinue"
                     });
                 }
             }

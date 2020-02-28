@@ -6,16 +6,7 @@ const shebangCommand = require('shebang-command');
 function readShebang(command) {
     // Read the first 150 bytes from the file
     const size = 150;
-    let buffer;
-
-    if (Buffer.alloc) {
-        // Node.js v4.5+ / v5.10+
-        buffer = Buffer.alloc(size);
-    } else {
-        // Old Node.js API
-        buffer = new Buffer(size);
-        buffer.fill(0); // zero-fill
-    }
+    const buffer = Buffer.alloc(size);
 
     let fd;
 

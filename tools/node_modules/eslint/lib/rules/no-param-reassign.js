@@ -58,7 +58,12 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            assignmentToFunctionParam: "Assignment to function parameter '{{name}}'.",
+            assignmentToFunctionParamProp: "Assignment to property of function parameter '{{name}}'."
+        }
     },
 
     create(context) {
@@ -177,9 +182,17 @@ module.exports = {
                 (index === 0 || references[index - 1].identifier !== identifier)
             ) {
                 if (reference.isWrite()) {
-                    context.report({ node: identifier, message: "Assignment to function parameter '{{name}}'.", data: { name: identifier.name } });
+                    context.report({
+                        node: identifier,
+                        messageId: "assignmentToFunctionParam",
+                        data: { name: identifier.name }
+                    });
                 } else if (props && isModifyingProp(reference) && !isIgnoredPropertyAssignment(identifier.name)) {
-                    context.report({ node: identifier, message: "Assignment to property of function parameter '{{name}}'.", data: { name: identifier.name } });
+                    context.report({
+                        node: identifier,
+                        messageId: "assignmentToFunctionParamProp",
+                        data: { name: identifier.name }
+                    });
                 }
             }
         }

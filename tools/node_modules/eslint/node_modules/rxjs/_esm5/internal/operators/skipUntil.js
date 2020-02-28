@@ -23,7 +23,11 @@ var SkipUntilSubscriber = /*@__PURE__*/ (function (_super) {
         var innerSubscriber = new InnerSubscriber(_this, undefined, undefined);
         _this.add(innerSubscriber);
         _this.innerSubscription = innerSubscriber;
-        subscribeToResult(_this, notifier, undefined, undefined, innerSubscriber);
+        var innerSubscription = subscribeToResult(_this, notifier, undefined, undefined, innerSubscriber);
+        if (innerSubscription !== innerSubscriber) {
+            _this.add(innerSubscription);
+            _this.innerSubscription = innerSubscription;
+        }
         return _this;
     }
     SkipUntilSubscriber.prototype._next = function (value) {

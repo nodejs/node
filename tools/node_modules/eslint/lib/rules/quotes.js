@@ -110,7 +110,11 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            wrongQuotes: "Strings must use {{description}}."
+        }
     },
 
     create(context) {
@@ -273,7 +277,7 @@ module.exports = {
                     if (!isValid) {
                         context.report({
                             node,
-                            message: "Strings must use {{description}}.",
+                            messageId: "wrongQuotes",
                             data: {
                                 description: settings.description
                             },
@@ -304,7 +308,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    message: "Strings must use {{description}}.",
+                    messageId: "wrongQuotes",
                     data: {
                         description: settings.description
                     },

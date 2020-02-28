@@ -5,17 +5,17 @@
 [![Downloads][downloads-badge]][downloads]
 [![Size][size-badge]][size]
 
-Remove final newline characters from a string.
+Remove final line feeds from a string.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install trim-trailing-lines
 ```
 
-## Usage
+## Use
 
 ```js
 var trimTrailingLines = require('trim-trailing-lines')
@@ -29,11 +29,11 @@ trimTrailingLines('foo\nbar\n\n') // => 'foo\nbar'
 
 ### `trimTrailingLines(value)`
 
-Remove final newline characters from `value`.
+Remove final line feed characters from `value`.
 
 ###### Parameters
 
-*   `value` (`string`) — Value with trailing newlines, coerced to string.
+*   `value` (`string`) — Value with trailing line feeds, coerced to string.
 
 ###### Returns
 

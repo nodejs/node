@@ -5,6 +5,8 @@
 
 "use strict";
 
+const astUtils = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -53,21 +55,6 @@ module.exports = {
             return stateMap[key][isStatic ? "static" : "nonStatic"];
         }
 
-        /**
-         * Gets the name text of a given node.
-         * @param {ASTNode} node A node to get the name.
-         * @returns {string} The name text of the node.
-         */
-        function getName(node) {
-            switch (node.type) {
-                case "Identifier": return node.name;
-                case "Literal": return String(node.value);
-
-                /* istanbul ignore next: syntax error */
-                default: return "";
-            }
-        }
-
         return {
 
             // Initializes the stack of state of member declarations.
@@ -91,7 +78,7 @@ module.exports = {
                     return;
                 }
 
-                const name = getName(node.key);
+                const name = astUtils.getStaticPropertyName(node) || "";
                 const state = getState(name, node.static);
                 let isDuplicate = false;
 

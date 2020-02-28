@@ -184,6 +184,21 @@ module.exports = {
         }
 
         /**
+         * Check if a node is a JSXEmptyExpression contained in a single line JSXExpressionContainer.
+         * @param {ASTNode} node A node to check.
+         * @returns {boolean} True if the node is a JSXEmptyExpression contained in a single line JSXExpressionContainer.
+         */
+        function isJSXEmptyExpressionInSingleLineContainer(node) {
+            if (!node || !node.parent || node.type !== "JSXEmptyExpression" || node.parent.type !== "JSXExpressionContainer") {
+                return false;
+            }
+
+            const parent = node.parent;
+
+            return parent.loc.start.line === parent.loc.end.line;
+        }
+
+        /**
          * Gets the line after the comment and any remaining trailing whitespace is
          * stripped.
          * @param {string} line The source line with a trailing comment
@@ -253,6 +268,33 @@ module.exports = {
         }
 
         /**
+         * Returns an array of all comments in the source code.
+         * If the element in the array is a JSXEmptyExpression contained with a single line JSXExpressionContainer,
+         * the element is changed with JSXExpressionContainer node.
+         * @returns {ASTNode[]} An array of comment nodes
+         */
+        function getAllComments() {
+            const comments = [];
+
+            sourceCode.getAllComments()
+                .forEach(commentNode => {
+                    const containingNode = sourceCode.getNodeByRangeIndex(commentNode.range[0]);
+
+                    if (isJSXEmptyExpressionInSingleLineContainer(containingNode)) {
+
+                        // push a unique node only
+                        if (comments[comments.length - 1] !== containingNode.parent) {
+                            comments.push(containingNode.parent);
+                        }
+                    } else {
+                        comments.push(commentNode);
+                    }
+                });
+
+            return comments;
+        }
+
+        /**
          * Check the program for max length
          * @param {ASTNode} node Node to examine
          * @returns {void}
@@ -264,7 +306,7 @@ module.exports = {
             const lines = sourceCode.lines,
 
                 // list of comments to ignore
-                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? sourceCode.getAllComments() : [];
+                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? getAllComments() : [];
 
             // we iterate over comments in parallel with the lines
             let commentsIndex = 0;

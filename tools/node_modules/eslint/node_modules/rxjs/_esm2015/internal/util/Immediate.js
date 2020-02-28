@@ -1,20 +1,27 @@
 let nextHandle = 1;
-const tasksByHandle = {};
-function runIfPresent(handle) {
-    const cb = tasksByHandle[handle];
-    if (cb) {
-        cb();
+const RESOLVED = (() => Promise.resolve())();
+const activeHandles = {};
+function findAndClearHandle(handle) {
+    if (handle in activeHandles) {
+        delete activeHandles[handle];
+        return true;
     }
+    return false;
 }
 export const Immediate = {
     setImmediate(cb) {
         const handle = nextHandle++;
-        tasksByHandle[handle] = cb;
-        Promise.resolve().then(() => runIfPresent(handle));
+        activeHandles[handle] = true;
+        RESOLVED.then(() => findAndClearHandle(handle) && cb());
         return handle;
     },
     clearImmediate(handle) {
-        delete tasksByHandle[handle];
+        findAndClearHandle(handle);
     },
+};
+export const TestTools = {
+    pending() {
+        return Object.keys(activeHandles).length;
+    }
 };
 //# sourceMappingURL=Immediate.js.map

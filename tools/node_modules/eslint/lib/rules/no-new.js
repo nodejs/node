@@ -21,14 +21,21 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-new"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noNewStatement: "Do not use 'new' for side effects."
+        }
     },
 
     create(context) {
 
         return {
             "ExpressionStatement > NewExpression"(node) {
-                context.report({ node: node.parent, message: "Do not use 'new' for side effects." });
+                context.report({
+                    node: node.parent,
+                    messageId: "noNewStatement"
+                });
             }
         };
 

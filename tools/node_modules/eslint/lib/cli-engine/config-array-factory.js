@@ -437,6 +437,29 @@ class ConfigArrayFactory {
     }
 
     /**
+     * Check if a config file on a given directory exists or not.
+     * @param {string} directoryPath The path to a directory.
+     * @returns {string | null} The path to the found config file. If not found then null.
+     */
+    static getPathToConfigFileInDirectory(directoryPath) {
+        for (const filename of configFilenames) {
+            const filePath = path.join(directoryPath, filename);
+
+            if (fs.existsSync(filePath)) {
+                if (filename === "package.json") {
+                    try {
+                        loadPackageJSONConfigFile(filePath);
+                        return filePath;
+                    } catch (error) { /* ignore */ }
+                } else {
+                    return filePath;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Load `.eslintignore` file.
      * @param {string} filePath The path to a `.eslintignore` file to load.
      * @returns {ConfigArray} Loaded config. An empty `ConfigArray` if any config doesn't exist.
@@ -542,7 +565,7 @@ class ConfigArrayFactory {
      */
     *_normalizeESLintIgnoreData(ignorePatterns, filePath, name) {
         const elements = this._normalizeObjectConfigData(
-            { ignorePatterns },
+            { type: "ignore", ignorePatterns },
             filePath,
             name
         );
@@ -644,6 +667,7 @@ class ConfigArrayFactory {
             root,
             rules,
             settings,
+            type = "config",
             overrides: overrideList = []
         },
         filePath,
@@ -675,6 +699,7 @@ class ConfigArrayFactory {
         yield {
 
             // Debug information.
+            type,
             name,
             filePath,
 
@@ -1024,6 +1049,7 @@ class ConfigArrayFactory {
                 if (processorId.startsWith(".")) {
                     yield* this._normalizeObjectConfigData(
                         {
+                            type: "implicit-processor",
                             files: [`*${processorId}`],
                             processor: `${pluginId}/${processorId}`
                         },

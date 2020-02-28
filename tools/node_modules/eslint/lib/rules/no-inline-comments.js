@@ -21,7 +21,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-inline-comments"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedInlineComment: "Unexpected comment inline with code."
+        }
     },
 
     create(context) {
@@ -64,7 +68,10 @@ module.exports = {
                 return;
             }
 
-            context.report({ node, message: "Unexpected comment inline with code." });
+            context.report({
+                node,
+                messageId: "unexpectedInlineComment"
+            });
         }
 
         //--------------------------------------------------------------------------

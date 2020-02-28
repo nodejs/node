@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-nested-ternary"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noNestedTernary: "Do not nest ternary expressions."
+        }
     },
 
     create(context) {
@@ -29,7 +33,10 @@ module.exports = {
             ConditionalExpression(node) {
                 if (node.alternate.type === "ConditionalExpression" ||
                         node.consequent.type === "ConditionalExpression") {
-                    context.report({ node, message: "Do not nest ternary expressions." });
+                    context.report({
+                        node,
+                        messageId: "noNestedTernary"
+                    });
                 }
             }
         };

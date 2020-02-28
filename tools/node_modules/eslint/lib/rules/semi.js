@@ -67,6 +67,11 @@ module.exports = {
                     maxItems: 2
                 }
             ]
+        },
+
+        messages: {
+            missingSemi: "Missing semicolon.",
+            extraSemi: "Extra semicolon."
         }
     },
 
@@ -91,12 +96,12 @@ module.exports = {
          */
         function report(node, missing) {
             const lastToken = sourceCode.getLastToken(node);
-            let message,
+            let messageId,
                 fix,
                 loc;
 
             if (!missing) {
-                message = "Missing semicolon.";
+                messageId = "missingSemi";
                 loc = {
                     start: lastToken.loc.end,
                     end: astUtils.getNextLocation(sourceCode, lastToken.loc.end)
@@ -105,7 +110,7 @@ module.exports = {
                     return fixer.insertTextAfter(lastToken, ";");
                 };
             } else {
-                message = "Extra semicolon.";
+                messageId = "extraSemi";
                 loc = lastToken.loc;
                 fix = function(fixer) {
 
@@ -123,7 +128,7 @@ module.exports = {
             context.report({
                 node,
                 loc,
-                message,
+                messageId,
                 fix
             });
 

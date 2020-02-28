@@ -20,7 +20,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unexpectedLonelyIf: "Unexpected if as the only statement in an else block."
+        }
     },
 
     create(context) {
@@ -38,7 +42,7 @@ module.exports = {
                         parent === grandparent.alternate) {
                     context.report({
                         node,
-                        message: "Unexpected if as the only statement in an else block.",
+                        messageId: "unexpectedLonelyIf",
                         fix(fixer) {
                             const openingElseCurly = sourceCode.getFirstToken(parent);
                             const closingElseCurly = sourceCode.getLastToken(parent);

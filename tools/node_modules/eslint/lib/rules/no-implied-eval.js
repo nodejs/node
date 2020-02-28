@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-implied-eval"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            impliedEval: "Implied eval. Consider passing a function instead of a string."
+        }
     },
 
     create(context) {
@@ -107,7 +111,10 @@ module.exports = {
                 // remove the entire substack, to avoid duplicate reports
                 const substack = impliedEvalAncestorsStack.pop();
 
-                context.report({ node: substack[0], message: "Implied eval. Consider passing a function instead of a string." });
+                context.report({
+                    node: substack[0],
+                    messageId: "impliedEval"
+                });
             }
         }
 

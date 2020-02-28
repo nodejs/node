@@ -414,8 +414,7 @@ module.exports = {
             if (property.computed) {
                 return sourceCode.getText().slice(key.range[0], key.range[1]);
             }
-
-            return property.key.name || property.key.value;
+            return astUtils.getStaticPropertyName(property);
         }
 
         /**

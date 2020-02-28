@@ -44,10 +44,13 @@ class ExhaustMapSubscriber extends OuterSubscriber {
         this._innerSub(result, value, index);
     }
     _innerSub(result, value, index) {
-        const innerSubscriber = new InnerSubscriber(this, undefined, undefined);
+        const innerSubscriber = new InnerSubscriber(this, value, index);
         const destination = this.destination;
         destination.add(innerSubscriber);
-        subscribeToResult(this, result, value, index, innerSubscriber);
+        const innerSubscription = subscribeToResult(this, result, undefined, undefined, innerSubscriber);
+        if (innerSubscription !== innerSubscriber) {
+            destination.add(innerSubscription);
+        }
     }
     _complete() {
         this.hasCompleted = true;

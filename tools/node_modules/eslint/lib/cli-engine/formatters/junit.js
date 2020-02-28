@@ -32,7 +32,7 @@ function getMessageType(message) {
  * @private
  */
 function pathWithoutExt(filePath) {
-    return path.posix.join(path.posix.dirname(filePath), path.basename(filePath, path.extname(filePath)));
+    return path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)));
 }
 
 //------------------------------------------------------------------------------

@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-iterator"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noIterator: "Reserved name '__iterator__'."
+        }
     },
 
     create(context) {
@@ -32,7 +36,10 @@ module.exports = {
                 if (node.property &&
                         (node.property.type === "Identifier" && node.property.name === "__iterator__" && !node.computed) ||
                         (node.property.type === "Literal" && node.property.value === "__iterator__")) {
-                    context.report({ node, message: "Reserved name '__iterator__'." });
+                    context.report({
+                        node,
+                        messageId: "noIterator"
+                    });
                 }
             }
         };

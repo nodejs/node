@@ -448,3 +448,8 @@ Auto submit based on your current input, saving one extra enter
 Inquirer prompt for to select a file or directory in file tree
 
 ![inquirer-file-tree-selection-prompt](https://github.com/anc95/inquirer-file-tree-selection/blob/master/example/screenshot.gif)
+
+[**inquirer-table-prompt**](https://github.com/eduardoboucas/inquirer-table-prompt)<br>
+A table-like prompt for Inquirer.
+
+![inquirer-table-prompt](https://raw.githubusercontent.com/eduardoboucas/inquirer-table-prompt/master/screen-capture.gif)

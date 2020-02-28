@@ -67,7 +67,7 @@ module.exports = {
         function reportNoBeginningSpace(node, token, tokenAfter) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: token.loc.end, end: tokenAfter.loc.start },
                 messageId: "unexpectedSpaceAfter",
                 data: {
                     tokenValue: token.value
@@ -88,7 +88,7 @@ module.exports = {
         function reportNoEndingSpace(node, token, tokenBefore) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: { start: tokenBefore.loc.end, end: token.loc.start },
                 messageId: "unexpectedSpaceBefore",
                 data: {
                     tokenValue: token.value
@@ -108,7 +108,7 @@ module.exports = {
         function reportRequiredBeginningSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 messageId: "missingSpaceAfter",
                 data: {
                     tokenValue: token.value
@@ -128,7 +128,7 @@ module.exports = {
         function reportRequiredEndingSpace(node, token) {
             context.report({
                 node,
-                loc: token.loc.start,
+                loc: token.loc,
                 messageId: "missingSpaceBefore",
                 data: {
                     tokenValue: token.value

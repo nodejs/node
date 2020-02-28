@@ -5,13 +5,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-const DEFAULT_MESSAGE_TEMPLATE = "Unexpected use of '{{name}}'.",
-    CUSTOM_MESSAGE_TEMPLATE = "Unexpected use of '{{name}}'. {{customMessage}}";
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -46,6 +39,12 @@ module.exports = {
             },
             uniqueItems: true,
             minItems: 0
+        },
+
+        messages: {
+            defaultMessage: "Unexpected use of '{{name}}'.",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            customMessage: "Unexpected use of '{{name}}'. {{customMessage}}"
         }
     },
 
@@ -75,13 +74,13 @@ module.exports = {
         function reportReference(reference) {
             const name = reference.identifier.name,
                 customMessage = restrictedGlobalMessages[name],
-                message = customMessage
-                    ? CUSTOM_MESSAGE_TEMPLATE
-                    : DEFAULT_MESSAGE_TEMPLATE;
+                messageId = customMessage
+                    ? "customMessage"
+                    : "defaultMessage";
 
             context.report({
                 node: reference.identifier,
-                message,
+                messageId,
                 data: {
                     name,
                     customMessage

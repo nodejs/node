@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-new-wrappers"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noConstructor: "Do not use {{fn}} as a constructor."
+        }
     },
 
     create(context) {
@@ -31,7 +35,11 @@ module.exports = {
                 const wrapperObjects = ["String", "Number", "Boolean", "Math", "JSON"];
 
                 if (wrapperObjects.indexOf(node.callee.name) > -1) {
-                    context.report({ node, message: "Do not use {{fn}} as a constructor.", data: { fn: node.callee.name } });
+                    context.report({
+                        node,
+                        messageId: "noConstructor",
+                        data: { fn: node.callee.name }
+                    });
                 }
             }
         };

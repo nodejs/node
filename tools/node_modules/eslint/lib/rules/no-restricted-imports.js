@@ -64,7 +64,11 @@ module.exports = {
 
             everything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
             // eslint-disable-next-line eslint-plugin/report-message-format
-            everythingWithCustomMessage: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted. {{customMessage}}"
+            everythingWithCustomMessage: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted. {{customMessage}}",
+
+            importName: "'{{importName}}' import from '{{importSource}}' is restricted.",
+            // eslint-disable-next-line eslint-plugin/report-message-format
+            importNameWithCustomMessage: "'{{importName}}' import from '{{importSource}}' is restricted. {{customMessage}}"
         },
 
         schema: {
@@ -87,6 +91,7 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
         const options = Array.isArray(context.options) ? context.options : [];
         const isPathAndPatternsObject =
             typeof options[0] === "object" &&
@@ -94,6 +99,11 @@ module.exports = {
 
         const restrictedPaths = (isPathAndPatternsObject ? options[0].paths : context.options) || [];
         const restrictedPatterns = (isPathAndPatternsObject ? options[0].patterns : []) || [];
+
+        // if no imports are restricted we don"t need to check
+        if (Object.keys(restrictedPaths).length === 0 && restrictedPatterns.length === 0) {
+            return {};
+        }
 
         const restrictedPathMessages = restrictedPaths.reduce((memo, importSource) => {
             if (typeof importSource === "string") {
@@ -107,40 +117,68 @@ module.exports = {
             return memo;
         }, {});
 
-        // if no imports are restricted we don"t need to check
-        if (Object.keys(restrictedPaths).length === 0 && restrictedPatterns.length === 0) {
-            return {};
-        }
-
         const restrictedPatternsMatcher = ignore().add(restrictedPatterns);
 
         /**
-         * Checks to see if "*" is being used to import everything.
-         * @param {Set.<string>} importNames Set of import names that are being imported
-         * @returns {boolean} whether everything is imported or not
-         */
-        function isEverythingImported(importNames) {
-            return importNames.has("*");
-        }
-
-        /**
          * Report a restricted path.
+         * @param {string} importSource path of the import
+         * @param {Map<string,Object[]>} importNames Map of import names that are being imported
          * @param {node} node representing the restricted path reference
          * @returns {void}
          * @private
          */
-        function reportPath(node) {
-            const importSource = node.source.value.trim();
-            const customMessage = restrictedPathMessages[importSource] && restrictedPathMessages[importSource].message;
+        function checkRestrictedPathAndReport(importSource, importNames, node) {
+            if (!Object.prototype.hasOwnProperty.call(restrictedPathMessages, importSource)) {
+                return;
+            }
 
-            context.report({
-                node,
-                messageId: customMessage ? "pathWithCustomMessage" : "path",
-                data: {
-                    importSource,
-                    customMessage
+            const customMessage = restrictedPathMessages[importSource].message;
+            const restrictedImportNames = restrictedPathMessages[importSource].importNames;
+
+            if (restrictedImportNames) {
+                if (importNames.has("*")) {
+                    const specifierData = importNames.get("*")[0];
+
+                    context.report({
+                        node,
+                        messageId: customMessage ? "everythingWithCustomMessage" : "everything",
+                        loc: specifierData.loc,
+                        data: {
+                            importSource,
+                            importNames: restrictedImportNames,
+                            customMessage
+                        }
+                    });
                 }
-            });
+
+                restrictedImportNames.forEach(importName => {
+                    if (importNames.has(importName)) {
+                        const specifiers = importNames.get(importName);
+
+                        specifiers.forEach(specifier => {
+                            context.report({
+                                node,
+                                messageId: customMessage ? "importNameWithCustomMessage" : "importName",
+                                loc: specifier.loc,
+                                data: {
+                                    importSource,
+                                    customMessage,
+                                    importName
+                                }
+                            });
+                        });
+                    }
+                });
+            } else {
+                context.report({
+                    node,
+                    messageId: customMessage ? "pathWithCustomMessage" : "path",
+                    data: {
+                        importSource,
+                        customMessage
+                    }
+                });
+            }
         }
 
         /**
@@ -162,75 +200,6 @@ module.exports = {
         }
 
         /**
-         * Report a restricted path specifically when using the '*' import.
-         * @param {string} importSource path of the import
-         * @param {node} node representing the restricted path reference
-         * @returns {void}
-         * @private
-         */
-        function reportPathForEverythingImported(importSource, node) {
-            const importNames = restrictedPathMessages[importSource].importNames;
-            const customMessage = restrictedPathMessages[importSource] && restrictedPathMessages[importSource].message;
-
-            context.report({
-                node,
-                messageId: customMessage ? "everythingWithCustomMessage" : "everything",
-                data: {
-                    importSource,
-                    importNames,
-                    customMessage
-                }
-            });
-        }
-
-        /**
-         * Check if the given importSource is restricted because '*' is being imported.
-         * @param {string} importSource path of the import
-         * @param {Set.<string>} importNames Set of import names that are being imported
-         * @returns {boolean} whether the path is restricted
-         * @private
-         */
-        function isRestrictedForEverythingImported(importSource, importNames) {
-            return Object.prototype.hasOwnProperty.call(restrictedPathMessages, importSource) &&
-                restrictedPathMessages[importSource].importNames &&
-                isEverythingImported(importNames);
-        }
-
-        /**
-         * Check if the given importNames are restricted given a list of restrictedImportNames.
-         * @param {Set.<string>} importNames Set of import names that are being imported
-         * @param {string[]} restrictedImportNames array of import names that are restricted for this import
-         * @returns {boolean} whether the objectName is restricted
-         * @private
-         */
-        function isRestrictedObject(importNames, restrictedImportNames) {
-            return restrictedImportNames.some(restrictedObjectName => (
-                importNames.has(restrictedObjectName)
-            ));
-        }
-
-        /**
-         * Check if the given importSource is a restricted path.
-         * @param {string} importSource path of the import
-         * @param {Set.<string>} importNames Set of import names that are being imported
-         * @returns {boolean} whether the variable is a restricted path or not
-         * @private
-         */
-        function isRestrictedPath(importSource, importNames) {
-            let isRestricted = false;
-
-            if (Object.prototype.hasOwnProperty.call(restrictedPathMessages, importSource)) {
-                if (restrictedPathMessages[importSource].importNames) {
-                    isRestricted = isRestrictedObject(importNames, restrictedPathMessages[importSource].importNames);
-                } else {
-                    isRestricted = true;
-                }
-            }
-
-            return isRestricted;
-        }
-
-        /**
          * Check if the given importSource is restricted by a pattern.
          * @param {string} importSource path of the import
          * @returns {boolean} whether the variable is a restricted pattern or not
@@ -248,26 +217,39 @@ module.exports = {
          */
         function checkNode(node) {
             const importSource = node.source.value.trim();
-            const importNames = node.specifiers ? node.specifiers.reduce((set, specifier) => {
-                if (specifier.type === "ImportDefaultSpecifier") {
-                    set.add("default");
-                } else if (specifier.type === "ImportNamespaceSpecifier") {
-                    set.add("*");
-                } else if (specifier.imported) {
-                    set.add(specifier.imported.name);
-                } else if (specifier.local) {
-                    set.add(specifier.local.name);
+            const importNames = new Map();
+
+            if (node.type === "ExportAllDeclaration") {
+                const starToken = sourceCode.getFirstToken(node, 1);
+
+                importNames.set("*", [{ loc: starToken.loc }]);
+            } else if (node.specifiers) {
+                for (const specifier of node.specifiers) {
+                    let name;
+                    const specifierData = { loc: specifier.loc };
+
+                    if (specifier.type === "ImportDefaultSpecifier") {
+                        name = "default";
+                    } else if (specifier.type === "ImportNamespaceSpecifier") {
+                        name = "*";
+                    } else if (specifier.imported) {
+                        name = specifier.imported.name;
+                    } else if (specifier.local) {
+                        name = specifier.local.name;
+                    }
+
+                    if (name) {
+                        if (importNames.has(name)) {
+                            importNames.get(name).push(specifierData);
+                        } else {
+                            importNames.set(name, [specifierData]);
+                        }
+                    }
                 }
-                return set;
-            }, new Set()) : new Set();
-
-            if (isRestrictedForEverythingImported(importSource, importNames)) {
-                reportPathForEverythingImported(importSource, node);
             }
 
-            if (isRestrictedPath(importSource, importNames)) {
-                reportPath(node);
-            }
+            checkRestrictedPathAndReport(importSource, importNames, node);
+
             if (isRestrictedPattern(importSource)) {
                 reportPathForPatterns(node);
             }

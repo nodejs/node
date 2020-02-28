@@ -20,7 +20,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-new-symbol"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            noNewSymbol: "`Symbol` cannot be called as a constructor."
+        }
     },
 
     create(context) {
@@ -35,7 +39,10 @@ module.exports = {
                         const node = ref.identifier;
 
                         if (node.parent && node.parent.type === "NewExpression") {
-                            context.report({ node, message: "`Symbol` cannot be called as a constructor." });
+                            context.report({
+                                node,
+                                messageId: "noNewSymbol"
+                            });
                         }
                     });
                 }

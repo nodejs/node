@@ -32,7 +32,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            globalShouldNotBeModified: "Read-only global '{{name}}' should not be modified."
+        }
     },
 
     create(context) {
@@ -60,8 +64,10 @@ module.exports = {
             ) {
                 context.report({
                     node: identifier,
-                    message: "Read-only global '{{name}}' should not be modified.",
-                    data: identifier
+                    messageId: "globalShouldNotBeModified",
+                    data: {
+                        name: identifier.name
+                    }
                 });
             }
         }

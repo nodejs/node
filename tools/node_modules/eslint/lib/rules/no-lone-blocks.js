@@ -20,7 +20,12 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-lone-blocks"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            redundantBlock: "Block is redundant.",
+            redundantNestedBlock: "Nested block is redundant."
+        }
     },
 
     create(context) {
@@ -35,9 +40,12 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            const message = node.parent.type === "BlockStatement" ? "Nested block is redundant." : "Block is redundant.";
+            const messageId = node.parent.type === "BlockStatement" ? "redundantNestedBlock" : "redundantBlock";
 
-            context.report({ node, message });
+            context.report({
+                node,
+                messageId
+            });
         }
 
         /**

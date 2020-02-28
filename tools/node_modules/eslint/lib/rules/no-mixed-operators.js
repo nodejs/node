@@ -112,7 +112,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedMixedOperator: "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'."
+        }
     },
 
     create(context) {
@@ -188,8 +192,6 @@ module.exports = {
             const parent = node.parent;
             const left = (getChildNode(parent) === node) ? node : parent;
             const right = (getChildNode(parent) !== node) ? node : parent;
-            const message =
-                "Unexpected mix of '{{leftOperator}}' and '{{rightOperator}}'.";
             const data = {
                 leftOperator: left.operator || "?:",
                 rightOperator: right.operator || "?:"
@@ -198,13 +200,13 @@ module.exports = {
             context.report({
                 node: left,
                 loc: getOperatorToken(left).loc,
-                message,
+                messageId: "unexpectedMixedOperator",
                 data
             });
             context.report({
                 node: right,
                 loc: getOperatorToken(right).loc,
-                message,
+                messageId: "unexpectedMixedOperator",
                 data
             });
         }

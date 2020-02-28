@@ -170,6 +170,28 @@ module.exports = {
         }
 
         /**
+         * Determines if a node that is expected to be parenthesised is surrounded by
+         * (potentially) invalid extra parentheses with considering precedence level of the node.
+         * If the preference level of the node is not higher or equal to precedence lower limit, it also checks
+         * whether the node is surrounded by parentheses twice or not.
+         * @param {ASTNode} node The node to be checked.
+         * @param {number} precedenceLowerLimit The lower limit of precedence.
+         * @returns {boolean} True if the node is has an unexpected extra pair of parentheses.
+         * @private
+         */
+        function hasExcessParensWithPrecedence(node, precedenceLowerLimit) {
+            if (ruleApplies(node) && isParenthesised(node)) {
+                if (
+                    precedence(node) >= precedenceLowerLimit ||
+                    isParenthesisedTwice(node)
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
          * Determines if a node test expression is allowed to have a parenthesised assignment
          * @param {ASTNode} node The node to be checked.
          * @returns {boolean} True if the assignment can be parenthesised.
@@ -321,6 +343,17 @@ module.exports = {
         }
 
         /**
+         * Determines if the given node can be the assignment target in destructuring or the LHS of an assignment.
+         * This is to avoid an autofix that could change behavior because parsers mistakenly allow invalid syntax,
+         * such as `(a = b) = c` and `[(a = b) = c] = []`. Ideally, this function shouldn't be necessary.
+         * @param {ASTNode} [node] The node to check
+         * @returns {boolean} `true` if the given node can be a valid assignment target
+         */
+        function canBeAssignmentTarget(node) {
+            return node && (node.type === "Identifier" || node.type === "MemberExpression");
+        }
+
+        /**
          * Report the node
          * @param {ASTNode} node node to evaluate
          * @returns {void}
@@ -370,17 +403,13 @@ module.exports = {
         }
 
         /**
-         * Evaluate Unary update
+         * Evaluate a argument of the node.
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
-        function checkUnaryUpdate(node) {
-            if (node.type === "UnaryExpression" && node.argument.type === "BinaryExpression" && node.argument.operator === "**") {
-                return;
-            }
-
-            if (hasExcessParens(node.argument) && precedence(node.argument) >= precedence(node)) {
+        function checkArgumentWithPrecedence(node) {
+            if (hasExcessParensWithPrecedence(node.argument, precedence(node))) {
                 report(node.argument);
             }
         }
@@ -411,25 +440,24 @@ module.exports = {
         function checkCallNew(node) {
             const callee = node.callee;
 
-            if (hasExcessParens(callee) && precedence(callee) >= precedence(node)) {
+            if (hasExcessParensWithPrecedence(callee, precedence(node))) {
                 const hasNewParensException = callee.type === "NewExpression" && !isNewExpressionWithParens(callee);
 
                 if (
                     hasDoubleExcessParens(callee) ||
                     !isIIFE(node) && !hasNewParensException && !(
 
-                        /*
-                         * Allow extra parens around a new expression if
-                         * there are intervening parentheses.
-                         */
-                        (callee.type === "MemberExpression" && doesMemberExpressionContainCallExpression(callee))
+                        // Allow extra parens around a new expression if they are intervening parentheses.
+                        node.type === "NewExpression" &&
+                        callee.type === "MemberExpression" &&
+                        doesMemberExpressionContainCallExpression(callee)
                     )
                 ) {
                     report(node.callee);
                 }
             }
             node.arguments
-                .filter(arg => hasExcessParens(arg) && precedence(arg) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                .filter(arg => hasExcessParensWithPrecedence(arg, PRECEDENCE_OF_ASSIGNMENT_EXPR))
                 .forEach(report);
         }
 
@@ -444,15 +472,26 @@ module.exports = {
             const leftPrecedence = precedence(node.left);
             const rightPrecedence = precedence(node.right);
             const isExponentiation = node.operator === "**";
-            const shouldSkipLeft = (NESTED_BINARY && (node.left.type === "BinaryExpression" || node.left.type === "LogicalExpression")) ||
-              node.left.type === "UnaryExpression" && isExponentiation;
+            const shouldSkipLeft = NESTED_BINARY && (node.left.type === "BinaryExpression" || node.left.type === "LogicalExpression");
             const shouldSkipRight = NESTED_BINARY && (node.right.type === "BinaryExpression" || node.right.type === "LogicalExpression");
 
-            if (!shouldSkipLeft && hasExcessParens(node.left) && (leftPrecedence > prec || (leftPrecedence === prec && !isExponentiation))) {
-                report(node.left);
+            if (!shouldSkipLeft && hasExcessParens(node.left)) {
+                if (
+                    !(node.left.type === "UnaryExpression" && isExponentiation) &&
+                    (leftPrecedence > prec || (leftPrecedence === prec && !isExponentiation)) ||
+                    isParenthesisedTwice(node.left)
+                ) {
+                    report(node.left);
+                }
             }
-            if (!shouldSkipRight && hasExcessParens(node.right) && (rightPrecedence > prec || (rightPrecedence === prec && isExponentiation))) {
-                report(node.right);
+
+            if (!shouldSkipRight && hasExcessParens(node.right)) {
+                if (
+                    (rightPrecedence > prec || (rightPrecedence === prec && isExponentiation)) ||
+                    isParenthesisedTwice(node.right)
+                ) {
+                    report(node.right);
+                }
             }
         }
 
@@ -485,11 +524,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpreadOperator(node) {
-            const hasExtraParens = precedence(node.argument) >= PRECEDENCE_OF_ASSIGNMENT_EXPR
-                ? hasExcessParens(node.argument)
-                : hasDoubleExcessParens(node.argument);
-
-            if (hasExtraParens) {
+            if (hasExcessParensWithPrecedence(node.argument, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                 report(node.argument);
             }
         }
@@ -651,7 +686,13 @@ module.exports = {
         return {
             ArrayExpression(node) {
                 node.elements
-                    .filter(e => e && hasExcessParens(e) && precedence(e) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                    .filter(e => e && hasExcessParensWithPrecedence(e, PRECEDENCE_OF_ASSIGNMENT_EXPR))
+                    .forEach(report);
+            },
+
+            ArrayPattern(node) {
+                node.elements
+                    .filter(e => canBeAssignmentTarget(e) && hasExcessParens(e))
                     .forEach(report);
             },
 
@@ -674,18 +715,18 @@ module.exports = {
                     if (astUtils.isOpeningParenToken(tokenBeforeFirst) && astUtils.isOpeningBraceToken(firstBodyToken)) {
                         tokensToIgnore.add(firstBodyToken);
                     }
-                    if (hasExcessParens(node.body) && precedence(node.body) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                    if (hasExcessParensWithPrecedence(node.body, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                         report(node.body);
                     }
                 }
             },
 
             AssignmentExpression(node) {
-                if (isReturnAssignException(node)) {
-                    return;
+                if (canBeAssignmentTarget(node.left) && hasExcessParens(node.left)) {
+                    report(node.left);
                 }
 
-                if (hasExcessParens(node.right) && precedence(node.right) >= precedence(node)) {
+                if (!isReturnAssignException(node) && hasExcessParensWithPrecedence(node.right, precedence(node))) {
                     report(node.right);
                 }
             },
@@ -702,8 +743,8 @@ module.exports = {
 
             ClassBody(node) {
                 node.body
-                    .filter(member => member.type === "MethodDefinition" && member.computed &&
-                        member.key && hasExcessParens(member.key) && precedence(member.key) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                    .filter(member => member.type === "MethodDefinition" && member.computed && member.key)
+                    .filter(member => hasExcessParensWithPrecedence(member.key, PRECEDENCE_OF_ASSIGNMENT_EXPR))
                     .forEach(member => report(member.key));
             },
 
@@ -711,16 +752,18 @@ module.exports = {
                 if (isReturnAssignException(node)) {
                     return;
                 }
-
-                if (hasExcessParens(node.test) && precedence(node.test) >= precedence({ type: "LogicalExpression", operator: "||" })) {
+                if (
+                    !isCondAssignException(node) &&
+                    hasExcessParensWithPrecedence(node.test, precedence({ type: "LogicalExpression", operator: "||" }))
+                ) {
                     report(node.test);
                 }
 
-                if (hasExcessParens(node.consequent) && precedence(node.consequent) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                if (hasExcessParensWithPrecedence(node.consequent, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                     report(node.consequent);
                 }
 
-                if (hasExcessParens(node.alternate) && precedence(node.alternate) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                if (hasExcessParensWithPrecedence(node.alternate, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                     report(node.alternate);
                 }
             },
@@ -757,9 +800,19 @@ module.exports = {
                         tokensToIgnore.add(firstLeftToken);
                     }
                 }
-                if (!(node.type === "ForOfStatement" && node.right.type === "SequenceExpression") && hasExcessParens(node.right)) {
+
+                if (node.type === "ForOfStatement") {
+                    const hasExtraParens = node.right.type === "SequenceExpression"
+                        ? hasDoubleExcessParens(node.right)
+                        : hasExcessParens(node.right);
+
+                    if (hasExtraParens) {
+                        report(node.right);
+                    }
+                } else if (hasExcessParens(node.right)) {
                     report(node.right);
                 }
+
                 if (hasExcessParens(node.left)) {
                     report(node.left);
                 }
@@ -911,10 +964,16 @@ module.exports = {
 
             ObjectExpression(node) {
                 node.properties
+                    .filter(property => property.value && hasExcessParensWithPrecedence(property.value, PRECEDENCE_OF_ASSIGNMENT_EXPR))
+                    .forEach(property => report(property.value));
+            },
+
+            ObjectPattern(node) {
+                node.properties
                     .filter(property => {
                         const value = property.value;
 
-                        return value && hasExcessParens(value) && precedence(value) >= PRECEDENCE_OF_ASSIGNMENT_EXPR;
+                        return canBeAssignmentTarget(value) && hasExcessParens(value);
                     }).forEach(property => report(property.value));
             },
 
@@ -922,9 +981,17 @@ module.exports = {
                 if (node.computed) {
                     const { key } = node;
 
-                    if (key && hasExcessParens(key) && precedence(key) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                    if (key && hasExcessParensWithPrecedence(key, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                         report(key);
                     }
+                }
+            },
+
+            RestElement(node) {
+                const argument = node.argument;
+
+                if (canBeAssignmentTarget(argument) && hasExcessParens(argument)) {
+                    report(argument);
                 }
             },
 
@@ -945,8 +1012,10 @@ module.exports = {
             },
 
             SequenceExpression(node) {
+                const precedenceOfNode = precedence(node);
+
                 node.expressions
-                    .filter(e => hasExcessParens(e) && precedence(e) >= precedence(node))
+                    .filter(e => hasExcessParensWithPrecedence(e, precedenceOfNode))
                     .forEach(report);
             },
 
@@ -970,16 +1039,17 @@ module.exports = {
                 }
             },
 
-            UnaryExpression: checkUnaryUpdate,
-            UpdateExpression: checkUnaryUpdate,
-            AwaitExpression: checkUnaryUpdate,
+            UnaryExpression: checkArgumentWithPrecedence,
+            UpdateExpression: checkArgumentWithPrecedence,
+            AwaitExpression: checkArgumentWithPrecedence,
 
             VariableDeclarator(node) {
-                if (node.init && hasExcessParens(node.init) &&
-                        precedence(node.init) >= PRECEDENCE_OF_ASSIGNMENT_EXPR &&
+                if (
+                    node.init && hasExcessParensWithPrecedence(node.init, PRECEDENCE_OF_ASSIGNMENT_EXPR) &&
 
-                        // RegExp literal is allowed to have parens (#1589)
-                        !(node.init.type === "Literal" && node.init.regex)) {
+                    // RegExp literal is allowed to have parens (#1589)
+                    !(node.init.type === "Literal" && node.init.regex)
+                ) {
                     report(node.init);
                 }
             },
@@ -1022,9 +1092,13 @@ module.exports = {
             },
 
             AssignmentPattern(node) {
-                const { right } = node;
+                const { left, right } = node;
 
-                if (right && hasExcessParens(right) && precedence(right) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
+                if (canBeAssignmentTarget(left) && hasExcessParens(left)) {
+                    report(left);
+                }
+
+                if (right && hasExcessParensWithPrecedence(right, PRECEDENCE_OF_ASSIGNMENT_EXPR)) {
                     report(right);
                 }
             }

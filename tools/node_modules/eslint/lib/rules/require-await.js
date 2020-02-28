@@ -39,7 +39,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/require-await"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            missingAwait: "{{name}} has no 'await' expression."
+        }
     },
 
     create(context) {
@@ -68,7 +72,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: astUtils.getFunctionHeadLoc(node, sourceCode),
-                    message: "{{name}} has no 'await' expression.",
+                    messageId: "missingAwait",
                     data: {
                         name: capitalizeFirstLetter(
                             astUtils.getFunctionNameWithKind(node)

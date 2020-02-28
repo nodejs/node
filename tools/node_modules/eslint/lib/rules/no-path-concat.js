@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-path-concat"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            usePathFunctions: "Use path.join() or path.resolve() instead of + to create paths."
+        }
     },
 
     create(context) {
@@ -42,7 +46,10 @@ module.exports = {
                         (right.type === "Identifier" && MATCHER.test(right.name)))
                 ) {
 
-                    context.report({ node, message: "Use path.join() or path.resolve() instead of + to create paths." });
+                    context.report({
+                        node,
+                        messageId: "usePathFunctions"
+                    });
                 }
             }
 

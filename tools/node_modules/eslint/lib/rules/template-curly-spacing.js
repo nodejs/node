@@ -57,7 +57,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingBefore(token) {
-            const prevToken = sourceCode.getTokenBefore(token);
+            const prevToken = sourceCode.getTokenBefore(token, { includeComments: true });
 
             if (prevToken &&
                 CLOSE_PAREN.test(token.value) &&
@@ -86,7 +86,7 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingAfter(token) {
-            const nextToken = sourceCode.getTokenAfter(token);
+            const nextToken = sourceCode.getTokenAfter(token, { includeComments: true });
 
             if (nextToken &&
                 OPEN_PAREN.test(token.value) &&

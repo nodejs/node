@@ -53,10 +53,13 @@ export class MergeMapSubscriber extends OuterSubscriber {
         this._innerSub(result, value, index);
     }
     _innerSub(ish, value, index) {
-        const innerSubscriber = new InnerSubscriber(this, undefined, undefined);
+        const innerSubscriber = new InnerSubscriber(this, value, index);
         const destination = this.destination;
         destination.add(innerSubscriber);
-        subscribeToResult(this, ish, value, index, innerSubscriber);
+        const innerSubscription = subscribeToResult(this, ish, undefined, undefined, innerSubscriber);
+        if (innerSubscription !== innerSubscriber) {
+            destination.add(innerSubscription);
+        }
     }
     _complete() {
         this.hasCompleted = true;

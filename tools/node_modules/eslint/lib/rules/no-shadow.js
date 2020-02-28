@@ -41,7 +41,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            noShadow: "'{{name}}' is already declared in the upper scope."
+        }
     },
 
     create(context) {
@@ -163,7 +167,7 @@ module.exports = {
                 ) {
                     context.report({
                         node: variable.identifiers[0],
-                        message: "'{{name}}' is already declared in the upper scope.",
+                        messageId: "noShadow",
                         data: variable
                     });
                 }

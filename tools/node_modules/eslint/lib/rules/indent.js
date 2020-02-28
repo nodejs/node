@@ -540,8 +540,15 @@ module.exports = {
                         ]
                     },
                     outerIIFEBody: {
-                        type: "integer",
-                        minimum: 0
+                        oneOf: [
+                            {
+                                type: "integer",
+                                minimum: 0
+                            },
+                            {
+                                enum: ["off"]
+                            }
+                        ]
                     },
                     MemberExpression: {
                         oneOf: [
@@ -587,6 +594,10 @@ module.exports = {
                     ObjectExpression: ELEMENT_LIST_SCHEMA,
                     ImportDeclaration: ELEMENT_LIST_SCHEMA,
                     flatTernaryExpressions: {
+                        type: "boolean",
+                        default: false
+                    },
+                    offsetTernaryExpressions: {
                         type: "boolean",
                         default: false
                     },
@@ -922,7 +933,11 @@ module.exports = {
 
             parameterParens.add(openingParen);
             parameterParens.add(closingParen);
-            offsets.setDesiredOffset(openingParen, sourceCode.getTokenBefore(openingParen), 0);
+
+            const offsetAfterToken = node.callee.type === "TaggedTemplateExpression" ? sourceCode.getFirstToken(node.callee.quasi) : openingParen;
+            const offsetToken = sourceCode.getTokenBefore(offsetAfterToken);
+
+            offsets.setDesiredOffset(openingParen, offsetToken, 0);
 
             addElementListIndent(node.arguments, openingParen, closingParen, options.CallExpression.arguments);
         }
@@ -1088,7 +1103,6 @@ module.exports = {
             },
 
             "BlockStatement, ClassBody"(node) {
-
                 let blockIndentLevel;
 
                 if (node.parent && isOuterIIFE(node.parent)) {
@@ -1108,6 +1122,7 @@ module.exports = {
                 if (!astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type)) {
                     offsets.setDesiredOffset(sourceCode.getFirstToken(node), sourceCode.getFirstToken(node.parent), 0);
                 }
+
                 addElementListIndent(node.body, sourceCode.getFirstToken(node), sourceCode.getLastToken(node), blockIndentLevel);
             },
 
@@ -1142,7 +1157,8 @@ module.exports = {
                     offsets.setDesiredOffset(questionMarkToken, firstToken, 1);
                     offsets.setDesiredOffset(colonToken, firstToken, 1);
 
-                    offsets.setDesiredOffset(firstConsequentToken, firstToken, 1);
+                    offsets.setDesiredOffset(firstConsequentToken, firstToken,
+                        options.offsetTernaryExpressions ? 2 : 1);
 
                     /*
                      * The alternate and the consequent should usually have the same indentation.
@@ -1167,7 +1183,9 @@ module.exports = {
                          * If `baz` were aligned with `bar` rather than being offset by 1 from `foo`, `baz` would end up
                          * having no expected indentation.
                          */
-                        offsets.setDesiredOffset(firstAlternateToken, firstToken, 1);
+                        offsets.setDesiredOffset(firstAlternateToken, firstToken,
+                            firstAlternateToken.type === "Punctuator" &&
+                            options.offsetTernaryExpressions ? 2 : 1);
                     }
                 }
             },

@@ -136,6 +136,14 @@ function plugin(options, Parser) {
           chunkStart = this.pos;
           break;
 
+        case 62: // '>'
+        case 125: // '}'
+          this.raise(
+            this.pos,
+            "Unexpected token `" + this.input[this.pos] + "`. Did you mean `" +
+              (ch === 62 ? "&gt;" : "&rbrace;") + "` or " + "`{\"" + this.input[this.pos] + "\"}" + "`?"
+          );
+
         default:
           if (isNewLine(ch)) {
             out += this.input.slice(chunkStart, this.pos);
@@ -414,8 +422,8 @@ function plugin(options, Parser) {
 
     // Parse JSX text
 
-    jsx_parseText(value) {
-      let node = this.parseLiteral(value);
+    jsx_parseText() {
+      let node = this.parseLiteral(this.value);
       node.type = "JSXText";
       return node;
     }
@@ -430,7 +438,7 @@ function plugin(options, Parser) {
 
     parseExprAtom(refShortHandDefaultPos) {
       if (this.type === tok.jsxText)
-        return this.jsx_parseText(this.value);
+        return this.jsx_parseText();
       else if (this.type === tok.jsxTagStart)
         return this.jsx_parseElement();
       else

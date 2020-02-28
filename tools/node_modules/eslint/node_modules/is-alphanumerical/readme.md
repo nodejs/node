@@ -7,17 +7,17 @@
 
 Check if a character is alphanumerical (`[a-zA-Z0-9]`).
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install is-alphanumerical
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var alphanumerical = require('is-alphanumerical')
 
 alphanumerical('a') // => true
@@ -31,8 +31,8 @@ alphanumerical('💩') // => false
 
 ### `alphanumerical(character)`
 
-Check whether the given character code (`number`), or the character
-code at the first position (`string`), is alphanumerical.
+Check whether the given character code (`number`), or the character code at the
+first position (`string`), is alphanumerical.
 
 ## Related
 

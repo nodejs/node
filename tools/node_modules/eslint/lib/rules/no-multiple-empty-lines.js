@@ -42,7 +42,13 @@ module.exports = {
                 required: ["max"],
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            blankBeginningOfFile: "Too many blank lines at the beginning of file. Max of {{max}} allowed.",
+            blankEndOfFile: "Too many blank lines at the end of file. Max of {{max}} allowed.",
+            consecutiveBlank: "More than {{max}} blank {{pluralizedLines}} not allowed."
+        }
     },
 
     create(context) {
@@ -94,25 +100,31 @@ module.exports = {
 
                     // Given two line numbers of non-empty lines, report the lines between if the difference is too large.
                     .reduce((lastLineNumber, lineNumber) => {
-                        let message, maxAllowed;
+                        let messageId, maxAllowed;
 
                         if (lastLineNumber === 0) {
-                            message = "Too many blank lines at the beginning of file. Max of {{max}} allowed.";
+                            messageId = "blankBeginningOfFile";
                             maxAllowed = maxBOF;
                         } else if (lineNumber === allLines.length + 1) {
-                            message = "Too many blank lines at the end of file. Max of {{max}} allowed.";
+                            messageId = "blankEndOfFile";
                             maxAllowed = maxEOF;
                         } else {
-                            message = "More than {{max}} blank {{pluralizedLines}} not allowed.";
+                            messageId = "consecutiveBlank";
                             maxAllowed = max;
                         }
 
                         if (lineNumber - lastLineNumber - 1 > maxAllowed) {
                             context.report({
                                 node,
-                                loc: { start: { line: lastLineNumber + maxAllowed + 1, column: 0 }, end: { line: lineNumber, column: 0 } },
-                                message,
-                                data: { max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines" },
+                                loc: {
+                                    start: { line: lastLineNumber + maxAllowed + 1, column: 0 },
+                                    end: { line: lineNumber, column: 0 }
+                                },
+                                messageId,
+                                data: {
+                                    max: maxAllowed,
+                                    pluralizedLines: maxAllowed === 1 ? "line" : "lines"
+                                },
                                 fix(fixer) {
                                     const rangeStart = sourceCode.getIndexFromLoc({ line: lastLineNumber + 1, column: 0 });
 

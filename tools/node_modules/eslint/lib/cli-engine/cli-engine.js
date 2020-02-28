@@ -57,7 +57,7 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
  * @property {string} configFile The configuration file to use.
  * @property {string} cwd The value to use for the current working directory.
  * @property {string[]} envs An array of environments to load.
- * @property {string[]} extensions An array of file extensions to check.
+ * @property {string[]|null} extensions An array of file extensions to check.
  * @property {boolean|Function} fix Execute in autofix mode. If a function, should return a boolean.
  * @property {string[]} fixTypes Array of rule types to apply fixes for.
  * @property {string[]} globals An array of global variables to declare.
@@ -201,7 +201,7 @@ function calculateStatsPerRun(results) {
  * @param {boolean} config.fix If `true` then it does fix.
  * @param {boolean} config.allowInlineConfig If `true` then it uses directive comments.
  * @param {boolean} config.reportUnusedDisableDirectives If `true` then it reports unused `eslint-disable` comments.
- * @param {RegExp} config.extensionRegExp The `RegExp` object that tests if a file path has the allowed file extensions.
+ * @param {FileEnumerator} config.fileEnumerator The file enumerator to check if a path is a target or not.
  * @param {Linter} config.linter The linter instance to verify.
  * @returns {LintResult} The result of linting.
  * @private
@@ -214,7 +214,7 @@ function verifyText({
     fix,
     allowInlineConfig,
     reportUnusedDisableDirectives,
-    extensionRegExp,
+    fileEnumerator,
     linter
 }) {
     const filePath = providedFilePath || "<text>";
@@ -238,13 +238,11 @@ function verifyText({
 
             /**
              * Check if the linter should adopt a given code block or not.
-             * Currently, the linter adopts code blocks if the name matches `--ext` option.
-             * In the future, `overrides` in the configuration would affect the adoption (https://github.com/eslint/rfcs/pull/20).
              * @param {string} blockFilename The virtual filename of a code block.
              * @returns {boolean} `true` if the linter should adopt the code block.
              */
             filterCodeBlock(blockFilename) {
-                return extensionRegExp.test(blockFilename);
+                return fileEnumerator.isTargetPath(blockFilename);
             }
         }
     );
@@ -704,7 +702,7 @@ class CLIEngine {
             return patterns.filter(Boolean);
         }
 
-        const extensions = options.extensions.map(ext => ext.replace(/^\./u, ""));
+        const extensions = (options.extensions || [".js"]).map(ext => ext.replace(/^\./u, ""));
         const dirSuffix = `/**/*.{${extensions.join(",")}}`;
 
         return patterns.filter(Boolean).map(pathname => {
@@ -803,7 +801,7 @@ class CLIEngine {
                 fix,
                 allowInlineConfig,
                 reportUnusedDisableDirectives,
-                extensionRegExp: fileEnumerator.extensionRegExp,
+                fileEnumerator,
                 linter
             });
 
@@ -891,7 +889,7 @@ class CLIEngine {
                 fix,
                 allowInlineConfig,
                 reportUnusedDisableDirectives,
-                extensionRegExp: fileEnumerator.extensionRegExp,
+                fileEnumerator,
                 linter
             }));
         }
