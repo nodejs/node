@@ -80,15 +80,12 @@ class NodeTraceStateObserver
 };
 
 struct V8Platform {
-  bool initialize_;
-
-  V8Platform()
-      : initialize_(false) {}
+  bool initialized_ = false;
 
 #if NODE_USE_V8_PLATFORM
   inline void Initialize(int thread_pool_size) {
-    CHECK(!initialize_);
-    initialize_ = true;
+    CHECK(!initialized_);
+    initialized_ = true;
     tracing_agent_ = std::make_unique<tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
     node::tracing::TracingController* controller =
@@ -107,9 +104,9 @@ struct V8Platform {
   }
 
   inline void Dispose() {
-    if(!initialize_)
+    if (!initialized_)
       return;
-    initialize_ = false;
+    initialized_ = false;
 
     StopTracingAgent();
     platform_->Shutdown();
