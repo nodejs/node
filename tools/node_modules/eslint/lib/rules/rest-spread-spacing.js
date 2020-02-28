@@ -26,7 +26,12 @@ module.exports = {
             {
                 enum: ["always", "never"]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedWhitespace: "Unexpected whitespace after {{type}} operator.",
+            expectedWhitespace: "Expected whitespace after {{type}} operator."
+        }
     },
 
     create(context) {
@@ -78,7 +83,7 @@ module.exports = {
                         line: operator.loc.end.line,
                         column: operator.loc.end.column
                     },
-                    message: "Expected whitespace after {{type}} operator.",
+                    messageId: "expectedWhitespace",
                     data: {
                         type
                     },
@@ -93,7 +98,7 @@ module.exports = {
                         line: operator.loc.end.line,
                         column: operator.loc.end.column
                     },
-                    message: "Unexpected whitespace after {{type}} operator.",
+                    messageId: "unexpectedWhitespace",
                     data: {
                         type
                     },

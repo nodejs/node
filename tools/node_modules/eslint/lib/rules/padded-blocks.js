@@ -60,7 +60,12 @@ module.exports = {
                     }
                 }
             }
-        ]
+        ],
+
+        messages: {
+            alwaysPadBlock: "Block must be padded by blank lines.",
+            neverPadBlock: "Block must not be padded by blank lines."
+        }
     },
 
     create(context) {
@@ -89,9 +94,6 @@ module.exports = {
         if (Object.prototype.hasOwnProperty.call(exceptOptions, "allowSingleLineBlocks")) {
             options.allowSingleLineBlocks = exceptOptions.allowSingleLineBlocks === true;
         }
-
-        const ALWAYS_MESSAGE = "Block must be padded by blank lines.",
-            NEVER_MESSAGE = "Block must not be padded by blank lines.";
 
         const sourceCode = context.getSourceCode();
 
@@ -145,9 +147,9 @@ module.exports = {
         }
 
         /**
-         * Checks if the given token is preceeded by a blank line.
+         * Checks if the given token is preceded by a blank line.
          * @param {Token} token The token to check
-         * @returns {boolean} Whether or not the token is preceeded by a blank line
+         * @returns {boolean} Whether or not the token is preceded by a blank line
          */
         function getLastBlockToken(token) {
             let last = token,
@@ -208,7 +210,7 @@ module.exports = {
                         fix(fixer) {
                             return fixer.insertTextAfter(tokenBeforeFirst, "\n");
                         },
-                        message: ALWAYS_MESSAGE
+                        messageId: "alwaysPadBlock"
                     });
                 }
                 if (!blockHasBottomPadding) {
@@ -218,7 +220,7 @@ module.exports = {
                         fix(fixer) {
                             return fixer.insertTextBefore(tokenAfterLast, "\n");
                         },
-                        message: ALWAYS_MESSAGE
+                        messageId: "alwaysPadBlock"
                     });
                 }
             } else {
@@ -230,7 +232,7 @@ module.exports = {
                         fix(fixer) {
                             return fixer.replaceTextRange([tokenBeforeFirst.range[1], firstBlockToken.range[0] - firstBlockToken.loc.start.column], "\n");
                         },
-                        message: NEVER_MESSAGE
+                        messageId: "neverPadBlock"
                     });
                 }
 
@@ -239,7 +241,7 @@ module.exports = {
                     context.report({
                         node,
                         loc: { line: tokenAfterLast.loc.end.line, column: tokenAfterLast.loc.end.column - 1 },
-                        message: NEVER_MESSAGE,
+                        messageId: "neverPadBlock",
                         fix(fixer) {
                             return fixer.replaceTextRange([lastBlockToken.range[1], tokenAfterLast.range[0] - tokenAfterLast.loc.start.column], "\n");
                         }

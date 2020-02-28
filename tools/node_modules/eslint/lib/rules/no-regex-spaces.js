@@ -45,7 +45,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            multipleSpaces: "Spaces are hard to count. Use {{{length}}}."
+        }
     },
 
     create(context) {
@@ -96,7 +100,7 @@ module.exports = {
                 ) {
                     context.report({
                         node: nodeToReport,
-                        message: "Spaces are hard to count. Use {{{length}}}.",
+                        messageId: "multipleSpaces",
                         data: { length },
                         fix(fixer) {
                             if (pattern !== rawPattern) {
@@ -109,7 +113,7 @@ module.exports = {
                         }
                     });
 
-                    // Report only the first occurence of consecutive spaces
+                    // Report only the first occurrence of consecutive spaces
                     return;
                 }
             }

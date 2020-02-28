@@ -50,7 +50,13 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            sortImportsAlphabetically: "Imports should be sorted alphabetically.",
+            sortMembersAlphabetically: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
+            unexpectedSyntaxOrder: "Expected '{{syntaxA}}' syntax before '{{syntaxB}}' syntax."
+        }
     },
 
     create(context) {
@@ -132,7 +138,7 @@ module.exports = {
                             if (currentMemberSyntaxGroupIndex < previousMemberSyntaxGroupIndex) {
                                 context.report({
                                     node,
-                                    message: "Expected '{{syntaxA}}' syntax before '{{syntaxB}}' syntax.",
+                                    messageId: "unexpectedSyntaxOrder",
                                     data: {
                                         syntaxA: memberSyntaxSortOrder[currentMemberSyntaxGroupIndex],
                                         syntaxB: memberSyntaxSortOrder[previousMemberSyntaxGroupIndex]
@@ -146,7 +152,7 @@ module.exports = {
                             ) {
                                 context.report({
                                     node,
-                                    message: "Imports should be sorted alphabetically."
+                                    messageId: "sortImportsAlphabetically"
                                 });
                             }
                         }
@@ -163,7 +169,7 @@ module.exports = {
                     if (firstUnsortedIndex !== -1) {
                         context.report({
                             node: importSpecifiers[firstUnsortedIndex],
-                            message: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
+                            messageId: "sortMembersAlphabetically",
                             data: { memberName: importSpecifiers[firstUnsortedIndex].local.name },
                             fix(fixer) {
                                 if (importSpecifiers.some(specifier =>

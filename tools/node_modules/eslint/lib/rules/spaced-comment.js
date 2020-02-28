@@ -221,7 +221,16 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedSpaceAfterMarker: "Unexpected space or tab after marker ({{refChar}}) in comment.",
+            expectedExceptionAfter: "Expected exception block, space or tab after '{{refChar}}' in comment.",
+            unexpectedSpaceBefore: "Unexpected space or tab before '*/' in comment.",
+            unexpectedSpaceAfter: "Unexpected space or tab after '{{refChar}}' in comment.",
+            expectedSpaceBefore: "Expected space or tab before '*/' in comment.",
+            expectedSpaceAfter: "Expected space or tab after '{{refChar}}' in comment."
+        }
     },
 
     create(context) {
@@ -259,12 +268,12 @@ module.exports = {
         /**
          * Reports a beginning spacing error with an appropriate message.
          * @param {ASTNode} node A comment node to check.
-         * @param {string} message An error message to report.
+         * @param {string} messageId An error message to report.
          * @param {Array} match An array of match results for markers.
          * @param {string} refChar Character used for reference in the error message.
          * @returns {void}
          */
-        function reportBegin(node, message, match, refChar) {
+        function reportBegin(node, messageId, match, refChar) {
             const type = node.type.toLowerCase(),
                 commentIdentifier = type === "block" ? "/*" : "//";
 
@@ -284,7 +293,7 @@ module.exports = {
                     return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
 
                 },
-                message,
+                messageId,
                 data: { refChar }
             });
         }
@@ -292,11 +301,11 @@ module.exports = {
         /**
          * Reports an ending spacing error with an appropriate message.
          * @param {ASTNode} node A comment node to check.
-         * @param {string} message An error message to report.
+         * @param {string} messageId An error message to report.
          * @param {string} match An array of the matched whitespace characters.
          * @returns {void}
          */
-        function reportEnd(node, message, match) {
+        function reportEnd(node, messageId, match) {
             context.report({
                 node,
                 fix(fixer) {
@@ -309,7 +318,7 @@ module.exports = {
                     return fixer.replaceTextRange([start, end], "");
 
                 },
-                message
+                messageId
             });
         }
 
@@ -338,26 +347,26 @@ module.exports = {
                     const marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
 
                     if (rule.hasExceptions) {
-                        reportBegin(node, "Expected exception block, space or tab after '{{refChar}}' in comment.", hasMarker, marker);
+                        reportBegin(node, "expectedExceptionAfter", hasMarker, marker);
                     } else {
-                        reportBegin(node, "Expected space or tab after '{{refChar}}' in comment.", hasMarker, marker);
+                        reportBegin(node, "expectedSpaceAfter", hasMarker, marker);
                     }
                 }
 
                 if (balanced && type === "block" && !endMatch) {
-                    reportEnd(node, "Expected space or tab before '*/' in comment.");
+                    reportEnd(node, "expectedSpaceBefore");
                 }
             } else {
                 if (beginMatch) {
                     if (!beginMatch[1]) {
-                        reportBegin(node, "Unexpected space or tab after '{{refChar}}' in comment.", beginMatch, commentIdentifier);
+                        reportBegin(node, "unexpectedSpaceAfter", beginMatch, commentIdentifier);
                     } else {
-                        reportBegin(node, "Unexpected space or tab after marker ({{refChar}}) in comment.", beginMatch, beginMatch[1]);
+                        reportBegin(node, "unexpectedSpaceAfterMarker", beginMatch, beginMatch[1]);
                     }
                 }
 
                 if (balanced && type === "block" && endMatch) {
-                    reportEnd(node, "Unexpected space or tab before '*/' in comment.", endMatch);
+                    reportEnd(node, "unexpectedSpaceBefore", endMatch);
                 }
             }
         }

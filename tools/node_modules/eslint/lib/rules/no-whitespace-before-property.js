@@ -26,7 +26,11 @@ module.exports = {
         },
 
         fixable: "whitespace",
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedWhitespace: "Unexpected whitespace before property {{propName}}."
+        }
     },
 
     create(context) {
@@ -49,7 +53,7 @@ module.exports = {
 
             context.report({
                 node,
-                message: "Unexpected whitespace before property {{propName}}.",
+                messageId: "unexpectedWhitespace",
                 data: {
                     propName: sourceCode.getText(node.property)
                 },

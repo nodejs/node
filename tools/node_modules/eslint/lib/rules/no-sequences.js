@@ -26,7 +26,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-sequences"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unexpectedCommaExpression: "Unexpected use of comma operator."
+        }
     },
 
     create(context) {
@@ -107,7 +111,7 @@ module.exports = {
 
                 const firstCommaToken = sourceCode.getTokenAfter(node.expressions[0], astUtils.isCommaToken);
 
-                context.report({ node, loc: firstCommaToken.loc, message: "Unexpected use of comma operator." });
+                context.report({ node, loc: firstCommaToken.loc, messageId: "unexpectedCommaExpression" });
             }
         };
 

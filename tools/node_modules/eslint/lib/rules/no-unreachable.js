@@ -110,7 +110,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-unreachable"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            unreachableCode: "Unreachable code."
+        }
     },
 
     create(context) {
@@ -154,7 +158,7 @@ module.exports = {
              */
             if (!range.isEmpty) {
                 context.report({
-                    message: "Unreachable code.",
+                    messageId: "unreachableCode",
                     loc: range.location,
                     node: range.startNode
                 });

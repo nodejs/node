@@ -75,7 +75,11 @@ module.exports = {
         },
 
         schema: [{ enum: ["last", "first"] }],
-        fixable: "whitespace"
+        fixable: "whitespace",
+
+        messages: {
+            expectedSemiColon: "Expected this semicolon to be at {{pos}}."
+        }
     },
 
     create(context) {
@@ -97,7 +101,7 @@ module.exports = {
             if ((expected === "last" && !prevIsSameLine) || (expected === "first" && !nextIsSameLine)) {
                 context.report({
                     loc: semiToken.loc,
-                    message: "Expected this semicolon to be at {{pos}}.",
+                    messageId: "expectedSemiColon",
                     data: {
                         pos: (expected === "last")
                             ? "the end of the previous line"

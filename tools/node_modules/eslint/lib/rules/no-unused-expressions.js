@@ -38,7 +38,11 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        messages: {
+            unusedExpression: "Expected an assignment or function call and instead saw an expression."
+        }
     },
 
     create(context) {
@@ -127,7 +131,7 @@ module.exports = {
         return {
             ExpressionStatement(node) {
                 if (!isValidExpression(node.expression) && !isDirective(node, context.getAncestors())) {
-                    context.report({ node, message: "Expected an assignment or function call and instead saw an expression." });
+                    context.report({ node, messageId: "unusedExpression" });
                 }
             }
         };

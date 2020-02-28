@@ -21,7 +21,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-self-compare"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            comparingToSelf: "Comparing to itself is potentially pointless."
+        }
     },
 
     create(context) {
@@ -47,7 +51,7 @@ module.exports = {
                 const operators = new Set(["===", "==", "!==", "!=", ">", "<", ">=", "<="]);
 
                 if (operators.has(node.operator) && hasSameTokens(node.left, node.right)) {
-                    context.report({ node, message: "Comparing to itself is potentially pointless." });
+                    context.report({ node, messageId: "comparingToSelf" });
                 }
             }
         };

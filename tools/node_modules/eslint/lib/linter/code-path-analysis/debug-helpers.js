@@ -70,7 +70,7 @@ module.exports = {
 
     /**
      * Dumps a DOT code of a given code path.
-     * The DOT code can be visialized with Graphvis.
+     * The DOT code can be visualized with Graphvis.
      * @param {CodePath} codePath A code path to dump.
      * @returns {void}
      * @see http://www.graphviz.org
@@ -135,7 +135,7 @@ module.exports = {
 
     /**
      * Makes a DOT code of a given code path.
-     * The DOT code can be visialized with Graphvis.
+     * The DOT code can be visualized with Graphvis.
      * @param {CodePath} codePath A code path to make DOT.
      * @param {Object} traceMap Optional. A map to check whether or not segments had been done.
      * @returns {string} A DOT code of the code path.

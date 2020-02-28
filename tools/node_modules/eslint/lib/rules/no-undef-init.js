@@ -23,7 +23,11 @@ module.exports = {
         },
 
         schema: [],
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unnecessaryUndefinedInit: "It's not necessary to initialize '{{name}}' to undefined."
+        }
     },
 
     create(context) {
@@ -43,7 +47,7 @@ module.exports = {
                 if (init === "undefined" && node.parent.kind !== "const" && !shadowed) {
                     context.report({
                         node,
-                        message: "It's not necessary to initialize '{{name}}' to undefined.",
+                        messageId: "unnecessaryUndefinedInit",
                         data: { name },
                         fix(fixer) {
                             if (node.parent.kind === "var") {

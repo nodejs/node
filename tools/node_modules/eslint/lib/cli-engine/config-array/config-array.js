@@ -5,7 +5,7 @@
  * config file, base config files that were extended, loaded parsers, and loaded
  * plugins.
  *
- * `ConfigArray` class provies three properties and two methods.
+ * `ConfigArray` class provides three properties and two methods.
  *
  * - `pluginEnvironments`
  * - `pluginProcessors`

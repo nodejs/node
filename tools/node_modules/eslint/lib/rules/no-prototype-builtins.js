@@ -19,7 +19,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-prototype-builtins"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            prototypeBuildIn: "Do not access Object.prototype method '{{prop}}' from target object."
+        }
     },
 
     create(context) {
@@ -42,7 +46,7 @@ module.exports = {
 
             if (DISALLOWED_PROPS.indexOf(propName) > -1) {
                 context.report({
-                    message: "Do not access Object.prototype method '{{prop}}' from target object.",
+                    messageId: "prototypeBuildIn",
                     loc: node.callee.property.loc.start,
                     data: { prop: propName },
                     node

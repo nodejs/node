@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to disalow whitespace that is not a tab or space, whitespace inside strings and comments are allowed
+ * @fileoverview Rule to disallow whitespace that is not a tab or space, whitespace inside strings and comments are allowed
  * @author Jonathan Kingston
  * @author Christophe Porteneuve
  */

@@ -211,7 +211,7 @@ class ForkContext {
     }
 
     /**
-     * Clears all secments in this context.
+     * Clears all segments in this context.
      * @returns {void}
      */
     clear() {

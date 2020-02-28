@@ -47,7 +47,12 @@ module.exports = {
                     }
                 ]
             }
-        ]
+        ],
+
+        messages: {
+            unexpectedSpace: "Unexpected space before opening brace.",
+            missingSpace: "Missing space before opening brace."
+        }
     },
 
     create(context) {
@@ -114,7 +119,7 @@ module.exports = {
                 if (requireSpace && !hasSpace) {
                     context.report({
                         node,
-                        message: "Missing space before opening brace.",
+                        messageId: "missingSpace",
                         fix(fixer) {
                             return fixer.insertTextBefore(node, " ");
                         }
@@ -122,7 +127,7 @@ module.exports = {
                 } else if (requireNoSpace && hasSpace) {
                     context.report({
                         node,
-                        message: "Unexpected space before opening brace.",
+                        messageId: "unexpectedSpace",
                         fix(fixer) {
                             return fixer.removeRange([precedingToken.range[1], node.range[0]]);
                         }

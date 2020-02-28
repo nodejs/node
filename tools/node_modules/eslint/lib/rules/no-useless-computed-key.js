@@ -15,8 +15,6 @@ const astUtils = require("./utils/ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const MESSAGE_UNNECESSARY_COMPUTED = "Unnecessarily computed property [{{property}}] found.";
-
 module.exports = {
     meta: {
         type: "suggestion",
@@ -38,7 +36,11 @@ module.exports = {
             },
             additionalProperties: false
         }],
-        fixable: "code"
+        fixable: "code",
+
+        messages: {
+            unnecessarilyComputedProperty: "Unnecessarily computed property [{{property}}] found."
+        }
     },
     create(context) {
         const sourceCode = context.getSourceCode();
@@ -68,7 +70,7 @@ module.exports = {
             if (key.type === "Literal" && (nodeType === "string" || nodeType === "number") && key.value !== allowedKey) {
                 context.report({
                     node,
-                    message: MESSAGE_UNNECESSARY_COMPUTED,
+                    messageId: "unnecessarilyComputedProperty",
                     data: { property: sourceCode.getText(key) },
                     fix(fixer) {
                         const leftSquareBracket = sourceCode.getTokenBefore(key, astUtils.isOpeningBracketToken);

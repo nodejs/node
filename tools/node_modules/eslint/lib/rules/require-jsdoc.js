@@ -52,7 +52,11 @@ module.exports = {
         ],
 
         deprecated: true,
-        replacedBy: []
+        replacedBy: [],
+
+        messages: {
+            missingJSDocComment: "Missing JSDoc comment."
+        }
     },
 
     create(context) {
@@ -72,7 +76,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            context.report({ node, message: "Missing JSDoc comment." });
+            context.report({ node, messageId: "missingJSDocComment" });
         }
 
         /**
