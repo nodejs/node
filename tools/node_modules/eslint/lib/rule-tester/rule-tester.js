@@ -119,6 +119,32 @@ const RuleTesterParameters = [
     "output"
 ];
 
+/*
+ * All allowed property names in error objects.
+ */
+const errorObjectParameters = new Set([
+    "message",
+    "messageId",
+    "data",
+    "type",
+    "line",
+    "column",
+    "endLine",
+    "endColumn",
+    "suggestions"
+]);
+const friendlyErrorObjectParameterList = `[${[...errorObjectParameters].map(key => `'${key}'`).join(", ")}]`;
+
+/*
+ * All allowed property names in suggestion objects.
+ */
+const suggestionObjectParameters = new Set([
+    "desc",
+    "messageId",
+    "output"
+]);
+const friendlySuggestionObjectParameterList = `[${[...suggestionObjectParameters].map(key => `'${key}'`).join(", ")}]`;
+
 const hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
 
 /**
@@ -573,13 +599,21 @@ class RuleTester {
 
                         // Just an error message.
                         assertMessageMatches(message.message, error);
-                    } else if (typeof error === "object") {
+                    } else if (typeof error === "object" && error !== null) {
 
                         /*
                          * Error object.
                          * This may have a message, messageId, data, node type, line, and/or
                          * column.
                          */
+
+                        Object.keys(error).forEach(propertyName => {
+                            assert.ok(
+                                errorObjectParameters.has(propertyName),
+                                `Invalid error property name '${propertyName}'. Expected one of ${friendlyErrorObjectParameterList}.`
+                            );
+                        });
+
                         if (hasOwnProperty(error, "message")) {
                             assert.ok(!hasOwnProperty(error, "messageId"), "Error should not specify both 'message' and a 'messageId'.");
                             assert.ok(!hasOwnProperty(error, "data"), "Error should not specify both 'data' and 'message'.");
@@ -654,6 +688,17 @@ class RuleTester {
                                 assert.strictEqual(message.suggestions.length, error.suggestions.length, `Error should have ${error.suggestions.length} suggestions. Instead found ${message.suggestions.length} suggestions`);
 
                                 error.suggestions.forEach((expectedSuggestion, index) => {
+                                    assert.ok(
+                                        typeof expectedSuggestion === "object" && expectedSuggestion !== null,
+                                        "Test suggestion in 'suggestions' array must be an object."
+                                    );
+                                    Object.keys(expectedSuggestion).forEach(propertyName => {
+                                        assert.ok(
+                                            suggestionObjectParameters.has(propertyName),
+                                            `Invalid suggestion property name '${propertyName}'. Expected one of ${friendlySuggestionObjectParameterList}.`
+                                        );
+                                    });
+
                                     const actualSuggestion = message.suggestions[index];
 
                                     /**

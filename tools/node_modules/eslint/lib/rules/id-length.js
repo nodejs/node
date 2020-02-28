@@ -63,6 +63,7 @@ module.exports = {
 
                 return obj;
             }, {});
+        const reportedNode = new Set();
 
         const SUPPORTED_EXPRESSIONS = {
             MemberExpression: properties && function(parent) {
@@ -82,8 +83,15 @@ module.exports = {
             VariableDeclarator(parent, node) {
                 return parent.id === node;
             },
-            Property: properties && function(parent, node) {
-                return parent.key === node;
+            Property(parent, node) {
+
+                if (parent.parent.type === "ObjectPattern") {
+                    return (
+                        parent.value !== parent.key && parent.value === node ||
+                        parent.value === parent.key && parent.key === node && properties
+                    );
+                }
+                return properties && !parent.computed && parent.key === node;
             },
             ImportDefaultSpecifier: true,
             RestElement: true,
@@ -92,7 +100,8 @@ module.exports = {
             ClassDeclaration: true,
             FunctionDeclaration: true,
             MethodDefinition: true,
-            CatchClause: true
+            CatchClause: true,
+            ArrayPattern: true
         };
 
         return {
@@ -109,7 +118,8 @@ module.exports = {
 
                 const isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
 
-                if (isValidExpression && (isValidExpression === true || isValidExpression(parent, node))) {
+                if (isValidExpression && !reportedNode.has(node) && (isValidExpression === true || isValidExpression(parent, node))) {
+                    reportedNode.add(node);
                     context.report({
                         node,
                         messageId: isShort ? "tooShort" : "tooLong",

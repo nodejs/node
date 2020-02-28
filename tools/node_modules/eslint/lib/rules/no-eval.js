@@ -158,7 +158,7 @@ module.exports = {
 
             context.report({
                 node: reportNode,
-                loc: locationNode.loc.start,
+                loc: locationNode.loc,
                 messageId: "unexpected"
             });
         }

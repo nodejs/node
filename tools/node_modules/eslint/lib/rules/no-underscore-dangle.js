@@ -205,7 +205,7 @@ module.exports = {
             const identifier = node.key.name;
             const isMethod = node.type === "MethodDefinition" || node.type === "Property" && node.method;
 
-            if (typeof identifier !== "undefined" && enforceInMethodNames && isMethod && hasTrailingUnderscore(identifier)) {
+            if (typeof identifier !== "undefined" && enforceInMethodNames && isMethod && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
                 context.report({
                     node,
                     messageId: "unexpectedUnderscore",
