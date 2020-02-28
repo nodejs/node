@@ -454,6 +454,25 @@ class ConfigArray extends Array {
 
         return cache.get(cacheKey);
     }
+
+    /**
+     * Check if a given path is an additional lint target.
+     * @param {string} filePath The absolute path to the target file.
+     * @returns {boolean} `true` if the file is an additional lint target.
+     */
+    isAdditionalTargetPath(filePath) {
+        for (const { criteria, type } of this) {
+            if (
+                type === "config" &&
+                criteria &&
+                !criteria.endsWithWildcard &&
+                criteria.test(filePath)
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 const exportObject = {

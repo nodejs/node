@@ -53,8 +53,7 @@ function looksLikeLiteral(node) {
     return (node.type === "UnaryExpression" &&
         node.operator === "-" &&
         node.prefix &&
-        node.argument.type === "Literal" &&
-        typeof node.argument.value === "number");
+        astUtils.isNumericLiteral(node.argument));
 }
 
 /**

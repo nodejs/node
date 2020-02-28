@@ -22,7 +22,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-func-assign"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            isAFunction: "'{{name}}' is a function."
+        }
     },
 
     create(context) {
@@ -34,7 +38,13 @@ module.exports = {
          */
         function checkReference(references) {
             astUtils.getModifyingReferences(references).forEach(reference => {
-                context.report({ node: reference.identifier, message: "'{{name}}' is a function.", data: { name: reference.identifier.name } });
+                context.report({
+                    node: reference.identifier,
+                    messageId: "isAFunction",
+                    data: {
+                        name: reference.identifier.name
+                    }
+                });
             });
         }
 

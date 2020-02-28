@@ -7,17 +7,17 @@
 
 Enter/exit a state.
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install state-toggle
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var toggle = require('state-toggle')
 
 var ctx = {on: false}
@@ -37,9 +37,9 @@ console.log(ctx.on) // => false
 
 ### `toggle(key, initial[, ctx])`
 
-Create a toggle, which when entering toggles `key` on `ctx` (or `this`,
-if `ctx` is not given) to `!initial`, and when exiting, sets `key` on
-the context back to the value it had before entering.
+Create a toggle, which when entering toggles `key` on `ctx` (or `this`, if `ctx`
+is not given) to `!initial`, and when exiting, sets `key` on the context back to
+the value it had before entering.
 
 ###### Returns
 
@@ -51,8 +51,8 @@ Enter the state.
 
 ###### Context
 
-If no `ctx` was given to `toggle`, the context object (`this`) of `enter()`
-is used to toggle.
+If no `ctx` was given to `toggle`, the context object (`this`) of `enter()` is
+used to toggle.
 
 ###### Returns
 

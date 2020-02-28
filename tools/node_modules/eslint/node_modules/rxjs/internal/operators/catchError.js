@@ -54,7 +54,10 @@ var CatchSubscriber = (function (_super) {
             this._unsubscribeAndRecycle();
             var innerSubscriber = new InnerSubscriber_1.InnerSubscriber(this, undefined, undefined);
             this.add(innerSubscriber);
-            subscribeToResult_1.subscribeToResult(this, result, undefined, undefined, innerSubscriber);
+            var innerSubscription = subscribeToResult_1.subscribeToResult(this, result, undefined, undefined, innerSubscriber);
+            if (innerSubscription !== innerSubscriber) {
+                this.add(innerSubscription);
+            }
         }
     };
     return CatchSubscriber;

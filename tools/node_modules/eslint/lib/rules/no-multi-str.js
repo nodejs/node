@@ -26,7 +26,11 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-multi-str"
         },
 
-        schema: []
+        schema: [],
+
+        messages: {
+            multilineString: "Multiline support is limited to browsers supporting ES5 only."
+        }
     },
 
     create(context) {
@@ -49,7 +53,10 @@ module.exports = {
 
             Literal(node) {
                 if (astUtils.LINEBREAK_MATCHER.test(node.raw) && !isJSXElement(node.parent)) {
-                    context.report({ node, message: "Multiline support is limited to browsers supporting ES5 only." });
+                    context.report({
+                        node,
+                        messageId: "multilineString"
+                    });
                 }
             }
         };

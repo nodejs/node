@@ -40,7 +40,10 @@ var CatchSubscriber = /*@__PURE__*/ (function (_super) {
             this._unsubscribeAndRecycle();
             var innerSubscriber = new InnerSubscriber(this, undefined, undefined);
             this.add(innerSubscriber);
-            subscribeToResult(this, result, undefined, undefined, innerSubscriber);
+            var innerSubscription = subscribeToResult(this, result, undefined, undefined, innerSubscriber);
+            if (innerSubscription !== innerSubscriber) {
+                this.add(innerSubscription);
+            }
         }
     };
     return CatchSubscriber;

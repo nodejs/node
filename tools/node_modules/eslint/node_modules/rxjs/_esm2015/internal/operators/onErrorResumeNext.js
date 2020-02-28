@@ -51,7 +51,10 @@ class OnErrorResumeNextSubscriber extends OuterSubscriber {
             const innerSubscriber = new InnerSubscriber(this, undefined, undefined);
             const destination = this.destination;
             destination.add(innerSubscriber);
-            subscribeToResult(this, next, undefined, undefined, innerSubscriber);
+            const innerSubscription = subscribeToResult(this, next, undefined, undefined, innerSubscriber);
+            if (innerSubscription !== innerSubscriber) {
+                destination.add(innerSubscription);
+            }
         }
         else {
             this.destination.complete();

@@ -124,7 +124,7 @@ const windows = {
 };
 
 if (platform === 'linux') {
-	// The main one doesn't look that good on Ubuntu
+	// The main one doesn't look that good on Ubuntu.
 	main.questionMarkPrefix = '?';
 }
 
@@ -147,3 +147,5 @@ const fn = string => {
 };
 
 module.exports = Object.assign(fn, figures);
+module.exports.main = main;
+module.exports.windows = windows;

@@ -40,6 +40,8 @@ module.exports = {
             },
             additionalProperties: false
         }]
+
+        // no messages, because the error text comes directly from the regexpp module
     },
 
     create(context) {

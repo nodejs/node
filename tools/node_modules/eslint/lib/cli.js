@@ -17,7 +17,6 @@
 
 const fs = require("fs"),
     path = require("path"),
-    mkdirp = require("mkdirp"),
     { CLIEngine } = require("./cli-engine"),
     options = require("./options"),
     log = require("./shared/logging"),
@@ -115,7 +114,7 @@ function printResults(engine, results, format, outputFile) {
             }
 
             try {
-                mkdirp.sync(path.dirname(filePath));
+                fs.mkdirSync(path.dirname(filePath), { recursive: true });
                 fs.writeFileSync(filePath, output);
             } catch (ex) {
                 log.error("There was a problem writing the output file:\n%s", ex);

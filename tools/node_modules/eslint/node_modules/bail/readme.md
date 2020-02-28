@@ -7,15 +7,15 @@
 
 :warning: Throw a given error.
 
-## Installation
+## Install
 
-[npm][npm-install]:
+[npm][]:
 
-```bash
+```sh
 npm install bail
 ```
 
-## Usage
+## Use
 
 ```js
 var bail = require('bail')
@@ -26,7 +26,7 @@ bail(new Error('failure'))
 // Error: failure
 //     at repl:1:6
 //     at REPLServer.defaultEval (repl.js:154:27)
-//     ...
+//     …
 ```
 
 ## API
@@ -71,7 +71,7 @@ Throw a given error.
 
 [size]: https://bundlephobia.com/result?p=bail
 
-[npm-install]: https://docs.npmjs.com/cli/install
+[npm]: https://docs.npmjs.com/cli/install
 
 [license]: license
 

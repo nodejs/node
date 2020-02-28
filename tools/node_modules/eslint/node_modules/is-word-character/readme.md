@@ -5,20 +5,19 @@
 [![Downloads][downloads-badge]][downloads]
 [![Size][size-badge]][size]
 
-Check if a character is a word character (`\w`, which equals
-`[a-zA-Z0-9_]`).
+Check if a character is a word character (`\w`, which equals `[a-zA-Z0-9_]`).
 
-## Installation
+## Install
 
 [npm][]:
 
-```bash
+```sh
 npm install is-word-character
 ```
 
-## Usage
+## Use
 
-```javascript
+```js
 var wordCharacter = require('is-word-character')
 
 wordCharacter('a') // => true
@@ -33,8 +32,8 @@ wordCharacter('💩') // => false
 
 ### `wordCharacter(character|code)`
 
-Check whether the given character code (`number`), or the character
-code at the first position (`string`), is a word character.
+Check whether the given character code (`number`), or the character code at the
+first position (`string`), is a word character.
 
 ## Related
 

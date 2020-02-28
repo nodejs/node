@@ -10,13 +10,12 @@
 //------------------------------------------------------------------------------
 
 const
-    path = require("path"),
     util = require("util"),
-    lodash = require("lodash"),
     configSchema = require("../../conf/config-schema"),
     BuiltInEnvironments = require("../../conf/environments"),
     BuiltInRules = require("../rules"),
-    ConfigOps = require("./config-ops");
+    ConfigOps = require("./config-ops"),
+    { emitDeprecationWarning } = require("./deprecation-warnings");
 
 const ajv = require("./ajv")();
 const ruleValidators = new WeakMap();
@@ -26,11 +25,6 @@ const noop = Function.prototype;
 // Private
 //------------------------------------------------------------------------------
 let validateSchema;
-
-// Defitions for deprecation warnings.
-const deprecationWarningMessages = {
-    ESLINT_LEGACY_ECMAFEATURES: "The 'ecmaFeatures' config file property is deprecated, and has no effect."
-};
 const severityMap = {
     error: 2,
     warn: 1,
@@ -253,25 +247,6 @@ function formatErrors(errors) {
         return `"${field}" ${error.message}. Value: ${JSON.stringify(error.data)}`;
     }).map(message => `\t- ${message}.\n`).join("");
 }
-
-/**
- * Emits a deprecation warning containing a given filepath. A new deprecation warning is emitted
- * for each unique file path, but repeated invocations with the same file path have no effect.
- * No warnings are emitted if the `--no-deprecation` or `--no-warnings` Node runtime flags are active.
- * @param {string} source The name of the configuration source to report the warning for.
- * @param {string} errorCode The warning message to show.
- * @returns {void}
- */
-const emitDeprecationWarning = lodash.memoize((source, errorCode) => {
-    const rel = path.relative(process.cwd(), source);
-    const message = deprecationWarningMessages[errorCode];
-
-    process.emitWarning(
-        `${message} (found in "${rel}")`,
-        "DeprecationWarning",
-        errorCode
-    );
-});
 
 /**
  * Validates the top level properties of the config object.

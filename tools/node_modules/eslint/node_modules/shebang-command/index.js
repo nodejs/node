@@ -1,19 +1,19 @@
 'use strict';
-var shebangRegex = require('shebang-regex');
+const shebangRegex = require('shebang-regex');
 
-module.exports = function (str) {
-	var match = str.match(shebangRegex);
+module.exports = (string = '') => {
+	const match = string.match(shebangRegex);
 
 	if (!match) {
 		return null;
 	}
 
-	var arr = match[0].replace(/#! ?/, '').split(' ');
-	var bin = arr[0].split('/').pop();
-	var arg = arr[1];
+	const [path, argument] = match[0].replace(/#! ?/, '').split(' ');
+	const binary = path.split('/').pop();
 
-	return (bin === 'env' ?
-		arg :
-		bin + (arg ? ' ' + arg : '')
-	);
+	if (binary === 'env') {
+		return argument;
+	}
+
+	return argument ? `${binary} ${argument}` : binary;
 };

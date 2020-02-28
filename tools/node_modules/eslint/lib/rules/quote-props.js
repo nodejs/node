@@ -8,8 +8,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const espree = require("espree"),
-    keywords = require("./utils/keywords");
+const espree = require("espree");
+const astUtils = require("./utils/ast-utils");
+const keywords = require("./utils/keywords");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -177,7 +178,7 @@ module.exports = {
                     data: { property: key.name },
                     fix: fixer => fixer.replaceText(key, getQuotedKey(key))
                 });
-            } else if (NUMBERS && key.type === "Literal" && typeof key.value === "number") {
+            } else if (NUMBERS && key.type === "Literal" && astUtils.isNumericLiteral(key)) {
                 context.report({
                     node,
                     message: MESSAGE_NUMERIC,
