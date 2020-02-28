@@ -1,3 +1,7 @@
+// This file is part of the embedder test, which is intentionally built without
+// NODE_WANT_INTERNALS, so we define it here manually.
+#define NODE_WANT_INTERNALS 1
+
 #include "node_native_module_env.h"
 
 // The stub here is used when configure is run without `--code-cache-path`.
