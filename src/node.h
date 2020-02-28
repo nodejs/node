@@ -229,10 +229,20 @@ NODE_EXTERN int Stop(Environment* env);
 
 // TODO(addaleax): Officially deprecate this and replace it with something
 // better suited for a public embedder API.
+// It is recommended to use InitializeNodeWithArgs() instead as an embedder.
+// Init() calls InitializeNodeWithArgs() and exits the process with the exit
+// code returned from it.
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
                       const char*** exec_argv);
+// Set up per-process state needed to run Node.js. This will consume arguments
+// from argv, fill exec_argv, and possibly add errors resulting from parsing
+// the arguments to `errors`. The return value is a suggested exit code for the
+// program; If it is 0, then initializing Node.js succeeded.
+NODE_EXTERN int InitializeNodeWithArgs(std::vector<std::string>* argv,
+                                       std::vector<std::string>* exec_argv,
+                                       std::vector<std::string>* errors);
 
 enum OptionEnvvarSettings {
   kAllowedInEnvironment,
