@@ -239,8 +239,6 @@ For information about the governance of the Node.js project, see
 **Anto Aravinth** &lt;anto.aravinth.cse@gmail.com&gt; (he/him)
 * [apapirovski](https://github.com/apapirovski) -
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
-* [aqrln](https://github.com/aqrln) -
-**Alexey Orlenko** &lt;eaglexrlnk@gmail.com&gt; (he/him)
 * [bcoe](https://github.com/bcoe) -
 **Ben Coe** &lt;bencoe@gmail.com&gt; (he/him)
 * [bengl](https://github.com/bengl) -
@@ -440,6 +438,8 @@ For information about the governance of the Node.js project, see
 **Andras** &lt;andras@kinvey.com&gt;
 * [AnnaMag](https://github.com/AnnaMag) -
 **Anna M. Kedzierska** &lt;anna.m.kedzierska@gmail.com&gt;
+* [aqrln](https://github.com/aqrln) -
+**Alexey Orlenko** &lt;eaglexrlnk@gmail.com&gt; (he/him)
 * [brendanashworth](https://github.com/brendanashworth) -
 **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
