@@ -26,7 +26,16 @@ module.exports = {
             url: "https://eslint.org/docs/rules/no-extra-boolean-cast"
         },
 
-        schema: [],
+        schema: [{
+            type: "object",
+            properties: {
+                enforceForLogicalOperands: {
+                    type: "boolean",
+                    default: false
+                }
+            },
+            additionalProperties: false
+        }],
         fixable: "code",
 
         messages: {
@@ -48,21 +57,65 @@ module.exports = {
         ];
 
         /**
+         * Check if a node is a Boolean function or constructor.
+         * @param {ASTNode} node the node
+         * @returns {boolean} If the node is Boolean function or constructor
+         */
+        function isBooleanFunctionOrConstructorCall(node) {
+
+            // Boolean(<bool>) and new Boolean(<bool>)
+            return (node.type === "CallExpression" || node.type === "NewExpression") &&
+                    node.callee.type === "Identifier" &&
+                        node.callee.name === "Boolean";
+        }
+
+        /**
+         * Checks whether the node is a logical expression and that the option is enabled
+         * @param {ASTNode} node the node
+         * @returns {boolean} if the node is a logical expression and option is enabled
+         */
+        function isLogicalContext(node) {
+            return node.type === "LogicalExpression" &&
+            (node.operator === "||" || node.operator === "&&") &&
+            (context.options.length && context.options[0].enforceForLogicalOperands === true);
+
+        }
+
+
+        /**
          * Check if a node is in a context where its value would be coerced to a boolean at runtime.
          * @param {ASTNode} node The node
-         * @param {ASTNode} parent Its parent
          * @returns {boolean} If it is in a boolean context
          */
-        function isInBooleanContext(node, parent) {
+        function isInBooleanContext(node) {
             return (
-                (BOOLEAN_NODE_TYPES.indexOf(parent.type) !== -1 &&
-                    node === parent.test) ||
+                (isBooleanFunctionOrConstructorCall(node.parent) &&
+                node === node.parent.arguments[0]) ||
+
+                (BOOLEAN_NODE_TYPES.indexOf(node.parent.type) !== -1 &&
+                    node === node.parent.test) ||
 
                 // !<bool>
-                (parent.type === "UnaryExpression" &&
-                    parent.operator === "!")
+                (node.parent.type === "UnaryExpression" &&
+                    node.parent.operator === "!")
             );
         }
+
+        /**
+         * Checks whether the node is a context that should report an error
+         * Acts recursively if it is in a logical context
+         * @param {ASTNode} node the node
+         * @returns {boolean} If the node is in one of the flagged contexts
+         */
+        function isInFlaggedContext(node) {
+            return isInBooleanContext(node) ||
+            (isLogicalContext(node.parent) &&
+
+            // For nested logical statements
+            isInFlaggedContext(node.parent)
+            );
+        }
+
 
         /**
          * Check if a node has comments inside.
@@ -75,24 +128,18 @@ module.exports = {
 
         return {
             UnaryExpression(node) {
-                const ancestors = context.getAncestors(),
-                    parent = ancestors.pop(),
-                    grandparent = ancestors.pop();
+                const parent = node.parent;
+
 
                 // Exit early if it's guaranteed not to match
                 if (node.operator !== "!" ||
-                        parent.type !== "UnaryExpression" ||
-                        parent.operator !== "!") {
+                          parent.type !== "UnaryExpression" ||
+                          parent.operator !== "!") {
                     return;
                 }
 
-                if (isInBooleanContext(parent, grandparent) ||
 
-                    // Boolean(<bool>) and new Boolean(<bool>)
-                    ((grandparent.type === "CallExpression" || grandparent.type === "NewExpression") &&
-                        grandparent.callee.type === "Identifier" &&
-                        grandparent.callee.name === "Boolean")
-                ) {
+                if (isInFlaggedContext(parent)) {
                     context.report({
                         node: parent,
                         messageId: "unexpectedNegation",
@@ -110,6 +157,10 @@ module.exports = {
                                 prefix = " ";
                             }
 
+                            if (astUtils.getPrecedence(node.argument) < astUtils.getPrecedence(parent.parent)) {
+                                return fixer.replaceText(parent, `(${sourceCode.getText(node.argument)})`);
+                            }
+
                             return fixer.replaceText(parent, prefix + sourceCode.getText(node.argument));
                         }
                     });
@@ -122,7 +173,7 @@ module.exports = {
                     return;
                 }
 
-                if (isInBooleanContext(node, parent)) {
+                if (isInFlaggedContext(node)) {
                     context.report({
                         node,
                         messageId: "unexpectedCall",

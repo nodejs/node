@@ -10,6 +10,21 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
+const eslintUtils = require("eslint-utils");
+
+//----------------------------------------------------------------------
+// Helpers
+//----------------------------------------------------------------------
+
+/**
+ * Check if the given node is callee of a `NewExpression` node
+ * @param {ASTNode} node node to check
+ * @returns {boolean} True if the node is callee of a `NewExpression` node
+ * @private
+ */
+function isCalleeOfNewExpression(node) {
+    return node.parent.type === "NewExpression" && node.parent.callee === node;
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -58,13 +73,23 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-         * Check if the node is wrapped in ()
+         * Check if the node is wrapped in any (). All parens count: grouping parens and parens for constructs such as if()
          * @param {ASTNode} node node to evaluate
-         * @returns {boolean} True if it is wrapped
+         * @returns {boolean} True if it is wrapped in any parens
          * @private
          */
-        function wrapped(node) {
+        function isWrappedInAnyParens(node) {
             return astUtils.isParenthesised(sourceCode, node);
+        }
+
+        /**
+         * Check if the node is wrapped in grouping (). Parens for constructs such as if() don't count
+         * @param {ASTNode} node node to evaluate
+         * @returns {boolean} True if it is wrapped in grouping parens
+         * @private
+         */
+        function isWrappedInGroupingParens(node) {
+            return eslintUtils.isParenthesized(1, node, sourceCode);
         }
 
         /**
@@ -99,10 +124,10 @@ module.exports = {
                     return;
                 }
 
-                const callExpressionWrapped = wrapped(node),
-                    functionExpressionWrapped = wrapped(innerNode);
+                const isCallExpressionWrapped = isWrappedInAnyParens(node),
+                    isFunctionExpressionWrapped = isWrappedInAnyParens(innerNode);
 
-                if (!callExpressionWrapped && !functionExpressionWrapped) {
+                if (!isCallExpressionWrapped && !isFunctionExpressionWrapped) {
                     context.report({
                         node,
                         messageId: "wrapInvocation",
@@ -112,27 +137,39 @@ module.exports = {
                             return fixer.replaceText(nodeToSurround, `(${sourceCode.getText(nodeToSurround)})`);
                         }
                     });
-                } else if (style === "inside" && !functionExpressionWrapped) {
+                } else if (style === "inside" && !isFunctionExpressionWrapped) {
                     context.report({
                         node,
                         messageId: "wrapExpression",
                         fix(fixer) {
 
-                            /*
-                             * The outer call expression will always be wrapped at this point.
-                             * Replace the range between the end of the function expression and the end of the call expression.
-                             * for example, in `(function(foo) {}(bar))`, the range `(bar))` should get replaced with `)(bar)`.
-                             * Replace the parens from the outer expression, and parenthesize the function expression.
-                             */
-                            const parenAfter = sourceCode.getTokenAfter(node);
+                            // The outer call expression will always be wrapped at this point.
 
-                            return fixer.replaceTextRange(
-                                [innerNode.range[1], parenAfter.range[1]],
-                                `)${sourceCode.getText().slice(innerNode.range[1], parenAfter.range[0])}`
-                            );
+                            if (isWrappedInGroupingParens(node) && !isCalleeOfNewExpression(node)) {
+
+                                /*
+                                 * Parenthesize the function expression and remove unnecessary grouping parens around the call expression.
+                                 * Replace the range between the end of the function expression and the end of the call expression.
+                                 * for example, in `(function(foo) {}(bar))`, the range `(bar))` should get replaced with `)(bar)`.
+                                 */
+
+                                const parenAfter = sourceCode.getTokenAfter(node);
+
+                                return fixer.replaceTextRange(
+                                    [innerNode.range[1], parenAfter.range[1]],
+                                    `)${sourceCode.getText().slice(innerNode.range[1], parenAfter.range[0])}`
+                                );
+                            }
+
+                            /*
+                             * Call expression is wrapped in mandatory parens such as if(), or in necessary grouping parens.
+                             * These parens cannot be removed, so just parenthesize the function expression.
+                             */
+
+                            return fixer.replaceText(innerNode, `(${sourceCode.getText(innerNode)})`);
                         }
                     });
-                } else if (style === "outside" && !callExpressionWrapped) {
+                } else if (style === "outside" && !isCallExpressionWrapped) {
                     context.report({
                         node,
                         messageId: "moveInvocation",

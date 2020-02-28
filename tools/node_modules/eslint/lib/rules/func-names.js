@@ -119,8 +119,7 @@ module.exports = {
                 (parent.type === "VariableDeclarator" && parent.id.type === "Identifier" && parent.init === node) ||
                 (parent.type === "Property" && parent.value === node) ||
                 (parent.type === "AssignmentExpression" && parent.left.type === "Identifier" && parent.right === node) ||
-                (parent.type === "ExportDefaultDeclaration" && parent.declaration === node) ||
-                (parent.type === "AssignmentPattern" && parent.right === node);
+                (parent.type === "AssignmentPattern" && parent.left.type === "Identifier" && parent.right === node);
         }
 
         /**
@@ -151,33 +150,41 @@ module.exports = {
             });
         }
 
-        return {
-            "FunctionExpression:exit"(node) {
+        /**
+         * The listener for function nodes.
+         * @param {ASTNode} node function node
+         * @returns {void}
+         */
+        function handleFunction(node) {
 
-                // Skip recursive functions.
-                const nameVar = context.getDeclaredVariables(node)[0];
+            // Skip recursive functions.
+            const nameVar = context.getDeclaredVariables(node)[0];
 
-                if (isFunctionName(nameVar) && nameVar.references.length > 0) {
-                    return;
+            if (isFunctionName(nameVar) && nameVar.references.length > 0) {
+                return;
+            }
+
+            const hasName = Boolean(node.id && node.id.name);
+            const config = getConfigForNode(node);
+
+            if (config === "never") {
+                if (hasName && node.type !== "FunctionDeclaration") {
+                    reportUnexpectedNamedFunction(node);
                 }
-
-                const hasName = Boolean(node.id && node.id.name);
-                const config = getConfigForNode(node);
-
-                if (config === "never") {
-                    if (hasName) {
-                        reportUnexpectedNamedFunction(node);
-                    }
-                } else if (config === "as-needed") {
-                    if (!hasName && !hasInferredName(node)) {
-                        reportUnexpectedUnnamedFunction(node);
-                    }
-                } else {
-                    if (!hasName && !isObjectOrClassMethod(node)) {
-                        reportUnexpectedUnnamedFunction(node);
-                    }
+            } else if (config === "as-needed") {
+                if (!hasName && !hasInferredName(node)) {
+                    reportUnexpectedUnnamedFunction(node);
+                }
+            } else {
+                if (!hasName && !isObjectOrClassMethod(node)) {
+                    reportUnexpectedUnnamedFunction(node);
                 }
             }
+        }
+
+        return {
+            "FunctionExpression:exit": handleFunction,
+            "ExportDefaultDeclaration > FunctionDeclaration": handleFunction
         };
     }
 };

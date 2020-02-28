@@ -697,20 +697,6 @@ module.exports = {
         }
 
         /**
-         * Check to see if the first element inside an array is an object and on the same line as the node
-         * If the node is not an array then it will return false.
-         * @param {ASTNode} node node to check
-         * @returns {boolean} success/failure
-         */
-        function isFirstArrayElementOnSameLine(node) {
-            if (node.type === "ArrayExpression" && node.elements[0]) {
-                return node.elements[0].loc.start.line === node.loc.start.line && node.elements[0].type === "ObjectExpression";
-            }
-            return false;
-
-        }
-
-        /**
          * Check indent for array block content or object block content
          * @param {ASTNode} node node to examine
          * @returns {void}
@@ -776,8 +762,6 @@ module.exports = {
                             nodeIndent += indentSize;
                         }
                     }
-                } else if (!parentVarNode && !isFirstArrayElementOnSameLine(parent) && parent.type !== "MemberExpression" && parent.type !== "ExpressionStatement" && parent.type !== "AssignmentExpression" && parent.type !== "Property") {
-                    nodeIndent += indentSize;
                 }
 
                 checkFirstNodeLineIndent(node, nodeIndent);

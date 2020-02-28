@@ -82,6 +82,28 @@ module.exports = {
         }
 
         /**
+         * Checks whether the given node is a renamed identifier node in an ObjectPattern destructuring.
+         *
+         * Examples:
+         * const { a : b } = foo; // node `a` is renamed node.
+         * @param {ASTNode} node `Identifier` node to check.
+         * @returns {boolean} `true` if the node is a renamed node in an ObjectPattern destructuring.
+         */
+        function isRenamedInDestructuring(node) {
+            const parent = node.parent;
+
+            return (
+                (
+                    !parent.computed &&
+                    parent.type === "Property" &&
+                    parent.parent.type === "ObjectPattern" &&
+                    parent.value !== node &&
+                    parent.key === node
+                )
+            );
+        }
+
+        /**
          * Verifies if we should report an error or not.
          * @param {ASTNode} node The node to check
          * @returns {boolean} whether an error should be reported or not
@@ -92,8 +114,8 @@ module.exports = {
             return (
                 parent.type !== "CallExpression" &&
                 parent.type !== "NewExpression" &&
-                parent.parent.type !== "ObjectPattern" &&
                 !isRenamedImport(node) &&
+                !isRenamedInDestructuring(node) &&
                 isInvalid(node.name)
             );
         }
@@ -138,6 +160,24 @@ module.exports = {
                         (effectiveParent.right.type !== "MemberExpression" ||
                             effectiveParent.left.type === "MemberExpression" &&
                             effectiveParent.left.property.name === name)) {
+                        if (isInvalid(name)) {
+                            report(node);
+                        }
+
+                    // Report the last identifier in an ObjectPattern destructuring.
+                    } else if (
+                        (
+                            effectiveParent.type === "Property" &&
+                            effectiveParent.value === node.parent &&
+                            effectiveParent.parent.type === "ObjectPattern"
+                        ) ||
+                        effectiveParent.type === "RestElement" ||
+                        effectiveParent.type === "ArrayPattern" ||
+                        (
+                            effectiveParent.type === "AssignmentPattern" &&
+                            effectiveParent.left === node.parent
+                        )
+                    ) {
                         if (isInvalid(name)) {
                             report(node);
                         }
