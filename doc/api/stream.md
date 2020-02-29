@@ -369,7 +369,7 @@ to be processed. However, use of `writable.cork()` without implementing
 
 See also: [`writable.uncork()`][], [`writable._writev()`][stream-_writev].
 
-##### `writable.destroy([error])`
+##### `writable.destroy([error, callback])`
 <!-- YAML
 added: v8.0.0
 -->
@@ -388,6 +388,11 @@ the `'drain'` event before destroying the stream.
 
 Once `destroy()` has been called any further calls will be a noop and no
 further errors except from `_destroy` may be emitted as `'error'`.
+
+If passed `callback`; it will be invoked once the stream destrution has
+completed. If an error has occured it will be passed as the first argument to
+the callback and no `uncaughtException` error will occur even if no `'error'`
+listener has been registered on the stream.
 
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].

@@ -248,9 +248,33 @@ const assert = require('assert');
 
   const expected = new Error('kaboom');
 
+  let ticked = false;
   write.destroy(expected, common.mustCall((err) => {
     assert.strictEqual(err, undefined);
+    assert.strictEqual(ticked, true);
+    let ticked2 = false;
+    write.destroy(expected, common.mustCall((err) => {
+      assert.strictEqual(err, undefined);
+      assert.strictEqual(ticked2, true);
+    }));
+    ticked2 = true;
   }));
+  ticked = true;
+
+  // Destroy already destroyed.
+
+  ticked = false;
+  write.destroy(expected, common.mustCall((err) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(ticked, true);
+    let ticked2 = false;
+    write.destroy(expected, common.mustCall((err) => {
+      assert.strictEqual(err, undefined);
+      assert.strictEqual(ticked2, true);
+    }));
+    ticked2 = true;
+  }));
+  ticked = true;
 }
 
 {
