@@ -117,14 +117,18 @@ tmpdir.refresh();
 // https://github.com/joyent/node/issues/6690
 {
   let oldhandle;
-  common.expectsInternalAssertion(
+  assert.throws(
     () => {
       const w = fs.watch(__filename, common.mustNotCall());
       oldhandle = w._handle;
       w._handle = { close: w._handle.close };
       w.close();
     },
-    'handle must be a FSEvent'
+    {
+      message: /^handle must be a FSEvent/,
+      name: 'Error',
+      code: 'ERR_INTERNAL_ASSERTION',
+    }
   );
   oldhandle.close(); // clean up
 }

@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 'use strict';
-const common = require('../common');
+require('../common');
 const {
   hijackStdout,
   restoreStdout,
@@ -50,10 +50,13 @@ errors.E('TEST_ERROR_2', (a, b) => `${a} ${b}`, Error);
 }
 
 {
-  common.expectsInternalAssertion(
+  assert.throws(
     () => new errors.codes.TEST_ERROR_1(),
-    'Code: TEST_ERROR_1; The provided arguments ' +
-    'length (0) does not match the required ones (1).'
+    {
+      message: /^Code: TEST_ERROR_1; The provided arguments length \(0\) does not match the required ones \(1\)\./,
+      name: 'Error',
+      code: 'ERR_INTERNAL_ASSERTION'
+    }
   );
 }
 
