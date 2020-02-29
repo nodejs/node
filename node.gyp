@@ -816,9 +816,11 @@
         [ 'node_use_openssl=="true"', {
           'sources': [
             'src/node_crypto.cc',
+            'src/node_crypto_common.cc',
             'src/node_crypto_bio.cc',
             'src/node_crypto_clienthello.cc',
             'src/node_crypto.h',
+            'src/node_crypto_common.h',
             'src/node_crypto_bio.h',
             'src/node_crypto_clienthello.h',
             'src/node_crypto_clienthello-inl.h',
