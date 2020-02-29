@@ -239,6 +239,9 @@ added: v0.11.4
 An object which contains arrays of sockets currently awaiting use by
 the agent when `keepAlive` is enabled. Do not modify.
 
+Sockets in the `freeSockets` list will be automatically destroyed and
+removed from the array on `'timeout'`.
+
 ### `agent.getName(options)`
 <!-- YAML
 added: v0.11.4
