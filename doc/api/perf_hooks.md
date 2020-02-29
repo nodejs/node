@@ -432,21 +432,31 @@ is equal to `type`.
 ## `perf_hooks.monitorEventLoopDelay([options])`
 <!-- YAML
 added: v11.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32018
+    description: introduce precise mode (`resoltuion` equal to `0`). Change
+      the default `resolution` to `0`.
 -->
 
 * `options` {Object}
-  * `resolution` {number} The sampling rate in milliseconds. Must be greater
-    than zero. **Default:** `10`.
+  * `resolution` {number} Optional sampling rate in milliseconds. Must be
+    greater or equal to zero. **Default:** `0`.
 * Returns: {Histogram}
 
 Creates a `Histogram` object that samples and reports the event loop delay
 over time. The delays will be reported in nanoseconds.
 
-Using a timer to detect approximate event loop delay works because the
-execution of timers is tied specifically to the lifecycle of the libuv
-event loop. That is, a delay in the loop will cause a delay in the execution
-of the timer, and those delays are specifically what this API is intended to
-detect.
+When `resolution` is zero precise time difference between IO poll end and IO
+poll start is entered into the histogram on every event-loop iteration. During
+standby (i.e., no event-loop activity) - no data is added to the histogram.
+
+When `resolution` is non-zero a timer is used to detect approximate event loop
+delay. This works because the execution of timers is tied specifically to the
+lifecycle of the libuv event loop. That is, a delay in the loop will cause a
+delay in the execution of the timer, and those delays are specifically what this
+API is intended to detect. Timer-based monitoring happens continuously and adds
+delay statistics to the histogram even during standby.
 
 ```js
 const { monitorEventLoopDelay } = require('perf_hooks');
