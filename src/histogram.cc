@@ -105,7 +105,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::New(
   CHECK_LE(lowest, highest);
   CHECK_GT(figures, 0);
   v8::Local<v8::Object> obj;
-  auto tmpl = env->histogram_ctor_template();
+  auto tmpl = env->histogram_instance_template();
   if (!tmpl->NewInstance(env->context()).ToLocal(&obj))
     return {};
 
@@ -115,7 +115,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::New(
 
 void HistogramBase::Initialize(Environment* env) {
   // Guard against multiple initializations
-  if (!env->histogram_ctor_template().IsEmpty())
+  if (!env->histogram_instance_template().IsEmpty())
     return;
 
   Local<FunctionTemplate> histogram = FunctionTemplate::New(env->isolate());
@@ -135,7 +135,7 @@ void HistogramBase::Initialize(Environment* env) {
   env->SetProtoMethod(histogram, "percentiles", HistogramBase::GetPercentiles);
   env->SetProtoMethod(histogram, "reset", HistogramBase::DoReset);
 
-  env->set_histogram_ctor_template(histogramt);
+  env->set_histogram_instance_template(histogramt);
 }
 
 }  // namespace node
