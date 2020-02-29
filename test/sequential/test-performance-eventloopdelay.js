@@ -39,7 +39,7 @@ const { sleep } = require('internal/util');
     );
   });
 
-  [-1, 0, Infinity].forEach((i) => {
+  [-1, Infinity].forEach((i) => {
     assert.throws(
       () => monitorEventLoopDelay({ resolution: i }),
       {
@@ -50,8 +50,8 @@ const { sleep } = require('internal/util');
   });
 }
 
-{
-  const histogram = monitorEventLoopDelay({ resolution: 1 });
+for (const resolution of [ 0, 1 ]) {
+  const histogram = monitorEventLoopDelay({ resolution });
   histogram.enable();
   let m = 5;
   function spinAWhile() {

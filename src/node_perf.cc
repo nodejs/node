@@ -474,7 +474,7 @@ static void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
   int32_t resolution = args[0]->IntegerValue(env->context()).FromJust();
-  CHECK_GT(resolution, 0);
+  CHECK_GE(resolution, 0);
   new ELDHistogram(env, args.This(), resolution);
 }
 }  // namespace
@@ -489,29 +489,53 @@ ELDHistogram::ELDHistogram(
                           Histogram(1, 3.6e12),
                           resolution_(resolution) {
   MakeWeak();
-  uv_timer_init(env->event_loop(), &timer_);
+
+  // Since we pass `timer_` to `HandleWrap` constructor - we have to
+  // initialize it here. It is equally important to have it initialized for
+  // correct operation of `Close()` below.
+  CHECK_EQ(uv_timer_init(env->event_loop(), &timer_), 0);
+
+  if (is_precise()) {
+    CHECK_EQ(uv_prepare_init(env->event_loop(), &prepare_), 0);
+  }
+}
+
+void ELDHistogram::Close(Local<Value> close_callback) {
+  // HandleWrap::Close will call `uv_close()` on `timer_` and
+  // deallocate `ELDHistogram` in `HandleWrap::OnClose`.
+  // Therefore, it is safe to call `uv_close` with `nullptr` here.
+  if (is_precise() && !IsHandleClosing()) {
+    uv_close(reinterpret_cast<uv_handle_t*>(&prepare_), nullptr);
+  }
+
+  HandleWrap::Close(close_callback);
+}
+
+void ELDHistogram::TraceHistogram() {
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop), "min", Min());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop), "max", Max());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop), "mean", Mean());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop), "stddev", Stddev());
 }
 
 void ELDHistogram::DelayIntervalCallback(uv_timer_t* req) {
   ELDHistogram* histogram = ContainerOf(&ELDHistogram::timer_, req);
   histogram->RecordDelta();
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "min", histogram->Min());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "max", histogram->Max());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "mean", histogram->Mean());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "stddev", histogram->Stddev());
+  histogram->TraceHistogram();
 }
 
-bool ELDHistogram::RecordDelta() {
+void ELDHistogram::PrepareCallback(uv_prepare_t* handle) {
+  ELDHistogram* histogram = ContainerOf(&ELDHistogram::prepare_, handle);
+  histogram->RecordDelta();
+  histogram->TraceHistogram();
+}
+
+void ELDHistogram::RecordDelta() {
   uint64_t time = uv_hrtime();
-  bool ret = true;
   if (prev_ > 0) {
     int64_t delta = time - prev_;
     if (delta > 0) {
-      ret = Record(delta);
+      bool ret = Record(delta);
       TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
                      "delay", delta);
       if (!ret) {
@@ -525,25 +549,35 @@ bool ELDHistogram::RecordDelta() {
     }
   }
   prev_ = time;
-  return ret;
 }
 
 bool ELDHistogram::Enable() {
   if (enabled_ || IsHandleClosing()) return false;
   enabled_ = true;
   prev_ = 0;
-  uv_timer_start(&timer_,
-                 DelayIntervalCallback,
-                 resolution_,
-                 resolution_);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
+
+  if (is_precise()) {
+    CHECK_EQ(uv_prepare_start(&prepare_, PrepareCallback), 0);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&prepare_));
+  } else {
+    CHECK_EQ(uv_timer_start(&timer_,
+                            DelayIntervalCallback,
+                            resolution_,
+                            resolution_),
+        0);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
+  }
   return true;
 }
 
 bool ELDHistogram::Disable() {
   if (!enabled_ || IsHandleClosing()) return false;
   enabled_ = false;
-  uv_timer_stop(&timer_);
+  if (is_precise()) {
+    CHECK_EQ(uv_prepare_stop(&prepare_), 0);
+  } else {
+    CHECK_EQ(uv_timer_stop(&timer_), 0);
+  }
   return true;
 }
 

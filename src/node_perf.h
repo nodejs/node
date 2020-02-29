@@ -153,7 +153,8 @@ class ELDHistogram : public HandleWrap, public Histogram {
                Local<Object> wrap,
                int32_t resolution);
 
-  bool RecordDelta();
+  void RecordDelta();
+  void TraceHistogram();
   bool Enable();
   bool Disable();
   void ResetState() {
@@ -162,6 +163,8 @@ class ELDHistogram : public HandleWrap, public Histogram {
     prev_ = 0;
   }
   int64_t Exceeds() { return exceeds_; }
+
+  void Close(Local<Value> close_callback = Local<Value>()) override;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackFieldWithSize("histogram", GetMemorySize());
@@ -172,12 +175,18 @@ class ELDHistogram : public HandleWrap, public Histogram {
 
  private:
   static void DelayIntervalCallback(uv_timer_t* req);
+  static void PrepareCallback(uv_prepare_t* handle);
+
+  inline bool is_precise() const {
+    return resolution_ == 0;
+  }
 
   bool enabled_ = false;
   int32_t resolution_ = 0;
   int64_t exceeds_ = 0;
   uint64_t prev_ = 0;
   uv_timer_t timer_;
+  uv_prepare_t prepare_;
 };
 
 }  // namespace performance
