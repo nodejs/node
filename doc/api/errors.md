@@ -1966,6 +1966,12 @@ from another module.
 
 A string that contained unescaped characters was received.
 
+<a id="ERR_UNEXPECTED_INSTANCE"></a>
+### `ERR_UNEXPECTED_INSTANCE`
+
+A value's prototype chain lacks an expected constructor. This could be a result
+of monkey-patching gone awry or prototype poisoning.
+
 <a id="ERR_UNHANDLED_ERROR"></a>
 ### `ERR_UNHANDLED_ERROR`
 
