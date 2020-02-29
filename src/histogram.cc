@@ -83,7 +83,7 @@ void HistogramBase::GetPercentiles(
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
-  histogram->Percentiles([map,env](double key, double value) {
+  histogram->Percentiles([map, env](double key, double value) {
     map->Set(
         env->context(),
         Number::New(env->isolate(), key),
