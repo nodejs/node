@@ -369,7 +369,7 @@ to be processed. However, use of `writable.cork()` without implementing
 
 See also: [`writable.uncork()`][], [`writable._writev()`][stream-_writev].
 
-##### `writable.destroy([error, callback])`
+##### `writable.destroy([error][, callback])`
 <!-- YAML
 added: v8.0.0
 -->
