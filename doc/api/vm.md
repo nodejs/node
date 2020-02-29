@@ -298,7 +298,7 @@ console.log(globalVar);
 ## `vm.measureMemory([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 > Stability: 1 - Experimental

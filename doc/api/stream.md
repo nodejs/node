@@ -1572,7 +1572,7 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v13.10.0
     pr-url: https://github.com/nodejs/node/pull/31223
     description: Add support for async generators.
 -->

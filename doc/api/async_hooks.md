@@ -861,7 +861,7 @@ for (let i = 0; i < 10; i++) {
 
 ## Class: `AsyncLocalStorage`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 This class is used to create asynchronous state within callbacks and promise
@@ -911,7 +911,7 @@ from each other. It is safe to instantiate this class multiple times.
 
 ### `new AsyncLocalStorage()`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
@@ -919,7 +919,7 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 
 ### `asyncLocalStorage.disable()`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 This method disables the instance of `AsyncLocalStorage`. All subsequent calls
@@ -940,7 +940,7 @@ in the current process.
 
 ### `asyncLocalStorage.getStore()`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 * Returns: {any}
@@ -952,7 +952,7 @@ return `undefined`.
 
 ### `asyncLocalStorage.run(store, callback[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 * `store` {any}
@@ -987,7 +987,7 @@ asyncLocalStorage.getStore(); // Returns undefined
 
 ### `asyncLocalStorage.exit(callback[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 * `callback` {Function}
@@ -1019,7 +1019,7 @@ asyncLocalStorage.run('store value', () => {
 
 ### `asyncLocalStorage.runSyncAndReturn(store, callback[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 * `store` {any}
@@ -1054,7 +1054,7 @@ try {
 
 ### `asyncLocalStorage.exitSyncAndReturn(callback[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 * `callback` {Function}
