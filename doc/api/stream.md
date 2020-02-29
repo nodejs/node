@@ -2941,6 +2941,6 @@ contain multi-byte characters.
 [stream-write]: #stream_writable_write_chunk_encoding_callback
 [Stream Three States]: #stream_three_states
 [writable-_destroy]: #stream_writable_destroy_err_callback
-[writable-destroy]: #stream_writable_destroy_error
+[writable-destroy]: #stream_writable_destroy_error_callback
 [writable-new]: #stream_constructor_new_stream_writable_options
 [zlib]: zlib.html
