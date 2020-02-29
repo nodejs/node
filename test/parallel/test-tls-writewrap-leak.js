@@ -12,13 +12,14 @@ const server = net.createServer(common.mustCall((c) => {
   c.destroy();
 })).listen(0, common.mustCall(() => {
   const c = tls.connect({ port: server.address().port });
-  c.on('error', () => {
-    // Otherwise `.write()` callback won't be invoked.
-    c._undestroy();
-  });
+
+  c.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ECONNRESET');
+    server.close();
+  }));
 
   c.write('hello', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ECANCELED');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
     server.close();
   }));
 }));
