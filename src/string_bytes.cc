@@ -587,7 +587,11 @@ static void force_ascii(const char* src, char* dst, size_t len) {
 }
 
 
-static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
+size_t StringBytes::hex_encode(
+    const char* src,
+    size_t slen,
+    char* dst,
+    size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
   CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
@@ -603,6 +607,12 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   return dlen;
 }
 
+std::string StringBytes::hex_encode(const char* src, size_t slen) {
+  size_t dlen = slen * 2;
+  std::string dst(dlen, '\0');
+  hex_encode(src, slen, &dst[0], dlen);
+  return dst;
+}
 
 #define CHECK_BUFLEN_IN_RANGE(len)                                    \
   do {                                                                \

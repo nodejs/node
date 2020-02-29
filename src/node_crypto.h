@@ -90,6 +90,8 @@ class SecureContext final : public BaseObject {
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
+  SSL_CTX* operator*() const { return ctx_.get(); }
+
   // TODO(joyeecheung): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(SecureContext)
@@ -778,6 +780,17 @@ bool EntropySource(unsigned char* buffer, size_t length);
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !OPENSSL_NO_ENGINE
 void InitCrypto(v8::Local<v8::Object> target);
+
+void ThrowCryptoError(Environment* env,
+                      unsigned long err,  // NOLINT(runtime/int)
+                      const char* message = nullptr);
+
+template <typename T>
+inline T* MallocOpenSSL(size_t count) {
+  void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
+  CHECK_IMPLIES(mem == nullptr, count == 0);
+  return static_cast<T*>(mem);
+}
 
 }  // namespace crypto
 }  // namespace node

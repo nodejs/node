@@ -206,6 +206,7 @@ constexpr size_t kFsStatsBufferLength =
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
+  V(dh_string, "DH")                                                           \
   V(dns_a_string, "A")                                                         \
   V(dns_aaaa_string, "AAAA")                                                   \
   V(dns_cname_string, "CNAME")                                                 \
@@ -219,6 +220,7 @@ constexpr size_t kFsStatsBufferLength =
   V(done_string, "done")                                                       \
   V(dot_string, ".")                                                           \
   V(duration_string, "duration")                                               \
+  V(ecdh_string, "ECDH")                                                       \
   V(emit_warning_string, "emitWarning")                                        \
   V(empty_object_string, "{}")                                                 \
   V(encoding_string, "encoding")                                               \
