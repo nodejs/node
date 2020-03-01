@@ -541,7 +541,7 @@ void ELDHistogram::RecordCoarseDelta() {
     if (delta > 0) {
       bool ret = Record(delta);
       TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-          "delay", delta);
+                     "delay", delta);
       if (!ret) {
         if (exceeds_ < 0xFFFFFFFF)
           exceeds_++;
