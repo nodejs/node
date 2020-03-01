@@ -447,7 +447,7 @@ changes:
 Creates a `Histogram` object that samples and reports the event loop delay
 over time. The delays will be reported in nanoseconds.
 
-When `resolution` is zero precise time difference between IO poll end and IO
+When `resolution` is zero a precise time difference between IO poll end and IO
 poll start is entered into the histogram on every event-loop iteration. During
 standby (i.e., no event-loop activity) - no data is added to the histogram.
 
