@@ -435,7 +435,7 @@ added: v11.10.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/32018
-    description: introduce precise mode (`resoltuion` equal to `0`). Change
+    description: Introduce precise mode (`resolution` equal to `0`). Change
       the default `resolution` to `0`.
 -->
 
