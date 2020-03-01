@@ -132,3 +132,25 @@ tmpdir.refresh();
   );
   oldhandle.close(); // clean up
 }
+
+{
+  let oldhandle;
+  assert.throws(
+    () => {
+      const w = fs.watch(__filename, common.mustNotCall());
+      oldhandle = w._handle;
+      const protoSymbols =
+        Object.getOwnPropertySymbols(Object.getPrototypeOf(w));
+      const kFSWatchStart =
+        protoSymbols.find((val) => val.toString() === 'Symbol(kFSWatchStart)');
+      w._handle = {};
+      w[kFSWatchStart]();
+    },
+    {
+      name: 'TypeError',
+      code: 'ERR_UNEXPECTED_INSTANCE',
+      message: 'handle must have FSEvent in its prototype chain',
+    }
+  );
+  oldhandle.close(); // clean up
+}
