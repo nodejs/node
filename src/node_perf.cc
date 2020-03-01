@@ -489,6 +489,10 @@ ELDHistogram::ELDHistogram(
                           Histogram(1, 3.6e12),
                           resolution_(resolution) {
   MakeWeak();
+
+  // Since we pass `timer_` to `HandleWrap` constructor - we have to
+  // initialize it here. It is equally important to have it initialized for
+  // correct operation of `Close()` below.
   CHECK_EQ(uv_timer_init(env->event_loop(), &timer_), 0);
 
   if (is_precise()) {
