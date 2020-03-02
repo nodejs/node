@@ -482,6 +482,15 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    task_queues_async_initialized_ = true;
+    if (native_immediates_threadsafe_.size() > 0 ||
+        native_immediates_interrupts_.size() > 0) {
+      uv_async_send(&task_queues_async_);
+    }
+  }
+
   // Register clean-up cb to be called to clean up the handles
   // when the environment is freed, note that they are not cleaned in
   // the one environment per process setup, but will be called in
@@ -539,6 +548,11 @@ void Environment::RegisterHandleCleanups() {
 }
 
 void Environment::CleanupHandles() {
+  {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    task_queues_async_initialized_ = false;
+  }
+
   Isolate::DisallowJavascriptExecutionScope disallow_js(isolate(),
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
 
@@ -1107,6 +1121,7 @@ void Environment::CleanupFinalizationGroups() {
       if (try_catch.HasCaught() && !try_catch.HasTerminated())
         errors::TriggerUncaughtException(isolate(), try_catch);
       // Re-schedule the execution of the remainder of the queue.
+      CHECK(task_queues_async_initialized_);
       uv_async_send(&task_queues_async_);
       return;
     }
