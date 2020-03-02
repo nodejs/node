@@ -161,7 +161,7 @@ def runcmd(tool, cmd, doContinue=False):
 
 ## STEP 0 - read in json config
 with io.open(options.filterfile, encoding='utf-8') as fi:
-    config=json.load(fi)
+    config = json.load(fi)
 
 if options.locales:
     config["variables"] = config.get("variables", {})
