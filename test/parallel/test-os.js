@@ -127,7 +127,10 @@ assert.ok(arch.length > 0);
 if (!common.isSunOS) {
   // not implemented yet
   assert.ok(os.loadavg().length > 0);
-  assert.ok(os.freemem() > 0);
+  // On IBMi PASE, the amount of memory in use includes storage used for
+  // memory and disks so it is possible to exceed the amount of main storage.
+  if (!common.isIBMi)
+    assert.ok(os.freemem() > 0);
   assert.ok(os.totalmem() > 0);
 }
 
