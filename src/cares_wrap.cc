@@ -64,6 +64,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Null;
 using v8::Object;
@@ -1917,7 +1918,7 @@ int ParseIP(const char* ip, ParseIPResult* result = nullptr) {
 }
 
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+  Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
 
   ParseIPResult result;
@@ -1927,7 +1928,7 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   char canonical_ip[INET6_ADDRSTRLEN];
   const int af = (rc == 4 ? AF_INET : AF_INET6);
   CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
-  v8::Local<String> val = String::NewFromUtf8(isolate, canonical_ip,
+  Local<String> val = String::NewFromUtf8(isolate, canonical_ip,
       v8::NewStringType::kNormal).ToLocalChecked();
   args.GetReturnValue().Set(val);
 }
