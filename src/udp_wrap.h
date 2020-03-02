@@ -75,6 +75,12 @@ class UDPListener {
 
 class UDPWrapBase {
  public:
+  // While UDPWrapBase itself does not extend from HandleWrap, classes
+  // derived from it will (like UDPWrap)
+  enum InternalFields {
+    kUDPWrapBaseField = HandleWrap::kInternalFieldCount,
+    kInternalFieldCount
+  };
   virtual ~UDPWrapBase();
 
   // Start emitting OnAlloc() + OnRecv() events on the listener.
@@ -115,10 +121,6 @@ class UDPWrap final : public HandleWrap,
                       public UDPWrapBase,
                       public UDPListener {
  public:
-  enum InternalFields {
-    kUDPWrapBaseField = HandleWrap::kInternalFieldCount,
-    kInternalFieldCount
-  };
   enum SocketType {
     SOCKET
   };

@@ -98,9 +98,9 @@ void UDPWrapBase::set_listener(UDPListener* listener) {
 }
 
 UDPWrapBase* UDPWrapBase::FromObject(Local<Object> obj) {
-  CHECK_GT(obj->InternalFieldCount(), UDPWrap::kUDPWrapBaseField);
+  CHECK_GT(obj->InternalFieldCount(), UDPWrapBase::kUDPWrapBaseField);
   return static_cast<UDPWrapBase*>(
-      obj->GetAlignedPointerFromInternalField(UDPWrap::kUDPWrapBaseField));
+      obj->GetAlignedPointerFromInternalField(UDPWrapBase::kUDPWrapBaseField));
 }
 
 void UDPWrapBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
@@ -114,7 +114,7 @@ UDPWrap::UDPWrap(Environment* env, Local<Object> object)
                  reinterpret_cast<uv_handle_t*>(&handle_),
                  AsyncWrap::PROVIDER_UDPWRAP) {
   object->SetAlignedPointerInInternalField(
-      kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
+      UDPWrapBase::kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
 
   int r = uv_udp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // can't fail anyway
@@ -130,7 +130,8 @@ void UDPWrap::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
-  t->InstanceTemplate()->SetInternalFieldCount(UDPWrap::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      UDPWrapBase::kInternalFieldCount);
   Local<String> udpString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "UDP");
   t->SetClassName(udpString);
