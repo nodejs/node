@@ -984,3 +984,30 @@ const { promisify } = require('util');
   }));
   src.end();
 }
+
+{
+  let res = '';
+  const rs = new Readable({
+    read() {
+      setImmediate(() => {
+        rs.push('hello');
+      });
+    }
+  });
+  const ws = new Writable({
+    write: common.mustNotCall()
+  });
+  pipeline(rs, async function*(stream) {
+    /* eslint no-unused-vars: off */
+    for await (const chunk of stream) {
+      throw new Error('kaboom');
+    }
+  }, async function *(source) {
+    for await (const chunk of source) {
+      res += chunk;
+    }
+  }, ws, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(res, '');
+  }));
+}
