@@ -108,7 +108,7 @@ function pipeLittle() {
   console.error('pipe a little');
   const w = new Writable();
   let written = 0;
-  w.on('finish', function() {
+  w.on('finish', () => {
     assert.strictEqual(written, 200);
     setImmediate(read1234);
   });
@@ -160,7 +160,7 @@ function pipe() {
     written += chunk.length;
     cb();
   };
-  w.on('finish', function() {
+  w.on('finish', () => {
     console.error('written', written, totalPushed);
     assert.strictEqual(written, expectEndingData);
     assert.strictEqual(totalPushed, expectTotalData);
