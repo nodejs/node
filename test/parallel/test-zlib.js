@@ -171,7 +171,8 @@ zlib.createDeflateRaw({ windowBits: 8 });
       .pipe(zlib.createInflateRaw({ windowBits: 8 }))
       .on('data', (chunk) => reinflated.push(chunk))
       .on('end', common.mustCall(
-        () => assert(Buffer.concat(raw).equals(Buffer.concat(reinflated)))));
+        () => assert(Buffer.concat(raw).equals(Buffer.concat(reinflated)))))
+      .on('close', common.mustCall(1));
 }
 
 // For each of the files, make sure that compressing and
