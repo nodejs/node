@@ -189,6 +189,7 @@ tied to the life cycle of the Agent.
 ### napi_set_instance_data
 <!-- YAML
 added: REPLACEME
+napiVersion: 6
 -->
 
 ```C
@@ -216,6 +217,7 @@ by the previous call, it will not be called.
 ### napi_get_instance_data
 <!-- YAML
 added: REPLACEME
+napiVersion: 6
 -->
 
 ```C
@@ -1375,9 +1377,8 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 #### napi_key_collection_mode
 <!-- YAML
 added: REPLACEME
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 typedef enum {
@@ -1397,9 +1398,8 @@ of the objects's prototype chain as well.
 #### napi_key_filter
 <!-- YAML
 added: REPLACEME
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 typedef enum {
@@ -1417,9 +1417,8 @@ Property filter bits. They can be or'ed to build a composite filter.
 #### napi_key_conversion
 <!-- YAML
 added: REPLACEME
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 typedef enum {
@@ -1940,9 +1939,8 @@ The JavaScript `Number` type is described in
 #### napi_create_bigint_int64
 <!-- YAML
 added: v10.7.0
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_create_bigint_int64(napi_env env,
@@ -1961,9 +1959,8 @@ This API converts the C `int64_t` type to the JavaScript `BigInt` type.
 #### napi_create_bigint_uint64
 <!-- YAML
 added: v10.7.0
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_create_bigint_uint64(napi_env env,
@@ -1982,9 +1979,8 @@ This API converts the C `uint64_t` type to the JavaScript `BigInt` type.
 #### napi_create_bigint_words
 <!-- YAML
 added: v10.7.0
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_create_bigint_words(napi_env env,
@@ -2319,9 +2315,8 @@ This API returns the C double primitive equivalent of the given JavaScript
 #### napi_get_value_bigint_int64
 <!-- YAML
 added: v10.7.0
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_get_value_bigint_int64(napi_env env,
@@ -2347,9 +2342,8 @@ This API returns the C `int64_t` primitive equivalent of the given JavaScript
 #### napi_get_value_bigint_uint64
 <!-- YAML
 added: v10.7.0
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_get_value_bigint_uint64(napi_env env,
@@ -2375,9 +2369,8 @@ This API returns the C `uint64_t` primitive equivalent of the given JavaScript
 #### napi_get_value_bigint_words
 <!-- YAML
 added: v10.7.0
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_status napi_get_value_bigint_words(napi_env env,
@@ -3189,9 +3182,8 @@ included.
 #### napi_get_all_property_names
 <!-- YAML
 added: REPLACEME
+napiVersion: 6
 -->
-
-> Stability: 1 - Experimental
 
 ```C
 napi_get_all_property_names(napi_env env,

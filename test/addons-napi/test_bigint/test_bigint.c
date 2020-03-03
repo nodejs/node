@@ -1,5 +1,3 @@
-#define NAPI_EXPERIMENTAL
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <node_api.h>

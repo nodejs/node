@@ -113,7 +113,8 @@
  */
 #define NODE_MODULE_VERSION 64
 
-// the NAPI_VERSION provided by this version of the runtime
-#define NAPI_VERSION  5
+// The NAPI_VERSION provided by this version of the runtime. This is the version
+// which the Node binary being built supports.
+#define NAPI_VERSION  6
 
 #endif  // SRC_NODE_VERSION_H_
