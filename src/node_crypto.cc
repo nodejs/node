@@ -999,7 +999,7 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   std::vector<Local<Value>> result;
   result.reserve(num_objs);
 
-  for (size_t i = 0; i < num_objs; i++) {
+  for (int i = 0; i < num_objs; i++) {
     X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
     if (X509_OBJECT_get_type(obj) == X509_LU_X509) {
       X509* cert = X509_OBJECT_get0_X509(obj);
