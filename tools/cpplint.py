@@ -4627,17 +4627,10 @@ def GetLineWidth(line):
 
 def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
   """Checks for preprocessor directive spacing, and indentation.
-<<<<<<< HEAD
-  Things we check for: a uniform spacing between define, the
-  identifier, and the replacement, indentation of if/ifdef/ifndef
-  blocks.
-=======
-
   Things we check for: a uniform spacing between define, the
   identifier, and the replacement, indentation of if/ifdef/ifndef
   blocks.
 
->>>>>>> tools: changed if statement indentation rules
   Args:
     filename: The name of the current file.
     clean_lines: A CleansedLines instance containing the file.
@@ -4645,25 +4638,11 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
     error: The function to call with any errors found.
   """
   # Get rid of comments and strings
-<<<<<<< HEAD
   line = clean_lines.elided[linenum]
   directivepos = line.find('#')
   if directivepos != -1:  # If there is a # in the line
-<<<<<<< HEAD
-
     # Makes sure the line is a directive
     if not Match(r'^\s*#.*(if|define|else|undef|include|error)', line):
-=======
-    if not Match(r'^#.*(if|define|else|undef|include)', line):  # Makes sure the line is a directive
->>>>>>> tools: add ifdef block indentation check
-=======
-  line = clean_lines.elided[linenum] 
-
-  directivepos = line.find('#')
-  if directivepos != -1:  # If there is a # in the line
-    # Makes sure the line is a directive
-    if not Match(r'^#.*(if|define|else|undef|include)', line):
->>>>>>> tools: changed if statement indentation rules
       return
 
     if Match(r'^\s+#', line):
