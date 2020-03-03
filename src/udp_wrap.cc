@@ -22,6 +22,7 @@
 #include "udp_wrap.h"
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_sockaddr-inl.h"
 #include "handle_wrap.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
@@ -629,12 +630,12 @@ AsyncWrap* UDPWrap::GetAsyncWrap() {
   return this;
 }
 
-int UDPWrap::GetPeerName(sockaddr* name, int* namelen) {
-  return uv_udp_getpeername(&handle_, name, namelen);
+SocketAddress UDPWrap::GetPeerName() {
+  return SocketAddress::FromPeerName(handle_);
 }
 
-int UDPWrap::GetSockName(sockaddr* name, int* namelen) {
-  return uv_udp_getsockname(&handle_, name, namelen);
+SocketAddress UDPWrap::GetSockName() {
+  return SocketAddress::FromSockName(handle_);
 }
 
 void UDPWrapBase::RecvStart(const FunctionCallbackInfo<Value>& args) {
