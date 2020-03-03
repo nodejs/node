@@ -2153,8 +2153,11 @@ def CheckForHeaderGuard(filename, clean_lines, error):
         # set ifndef to the header guard presented on the #ifndef line.
         ifndef = linesplit[1]
         ifndef_linenum = linenum
-      if not define and linesplit[0] == '#define':
-        define = linesplit[1]
+      if not define and (linesplit[0] == '#define' or linesplit[1] == 'define'):
+        if linesplit[1] == 'define':
+          define = linesplit[2]
+        else:
+          define = linesplit[1]
     # find the last occurrence of #endif, save entire line
     if line.startswith('#endif'):
       endif = line
