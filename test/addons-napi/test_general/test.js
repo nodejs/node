@@ -34,7 +34,7 @@ assert.notStrictEqual(test_general.testGetPrototype(baseObject),
 
 // test version management functions
 // expected version is currently 4
-assert.strictEqual(test_general.testGetVersion(), 5);
+assert.strictEqual(test_general.testGetVersion(), 6);
 
 const [ major, minor, patch, release ] = test_general.testGetNodeVersion();
 assert.strictEqual(process.version.split('-')[0],

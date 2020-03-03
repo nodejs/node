@@ -10,7 +10,7 @@
 #define NAPI_VERSION 2147483647
 #else
 // The baseline version for N-API
-#define NAPI_VERSION 5
+#define NAPI_VERSION 6
 #endif
 #endif
 
@@ -699,7 +699,7 @@ NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
 
 #endif  // NAPI_VERSION >= 5
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 6
 
 // BigInt
 NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,
@@ -745,7 +745,7 @@ napi_get_all_property_names(napi_env env,
                             napi_key_conversion key_conversion,
                             napi_value* result);
 
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 6
 
 EXTERN_C_END
 
