@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define NAPI_EXPERIMENTAL
 #include <js_native_api.h>
 #include "../common.h"
 
