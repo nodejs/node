@@ -1,5 +1,3 @@
-#define NAPI_EXPERIMENTAL
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <js_native_api.h>

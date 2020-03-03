@@ -115,7 +115,7 @@ typedef struct {
   napi_status error_code;
 } napi_extended_error_info;
 
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 6
 typedef enum {
   napi_key_include_prototypes,
   napi_key_own_only
@@ -134,6 +134,6 @@ typedef enum {
   napi_key_keep_numbers,
   napi_key_numbers_to_strings
 } napi_key_conversion;
-#endif
+#endif  // NAPI_VERSION >= 6
 
 #endif  // SRC_JS_NATIVE_API_TYPES_H_

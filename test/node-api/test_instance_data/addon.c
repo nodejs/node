@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 
 static void addon_free(napi_env env, void* data, void* hint) {
