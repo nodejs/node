@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <uv.h>
-#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
