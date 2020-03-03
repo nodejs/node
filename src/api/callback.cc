@@ -139,6 +139,7 @@ void InternalCallbackScope::Close() {
 }
 
 MaybeLocal<Value> InternalMakeCallback(Environment* env,
+                                       Local<Object> resource,
                                        Local<Object> recv,
                                        const Local<Function> callback,
                                        int argc,
@@ -150,7 +151,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
     CHECK(!argv[i].IsEmpty());
 #endif
 
-  InternalCallbackScope scope(env, recv, asyncContext);
+  InternalCallbackScope scope(env, resource, asyncContext);
   if (scope.Failed()) {
     return MaybeLocal<Value>();
   }
@@ -224,7 +225,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   CHECK_NOT_NULL(env);
   Context::Scope context_scope(env->context());
   MaybeLocal<Value> ret =
-      InternalMakeCallback(env, recv, callback, argc, argv, asyncContext);
+      InternalMakeCallback(env, recv, recv, callback, argc, argv, asyncContext);
   if (ret.IsEmpty() && env->async_callback_scope_depth() == 0) {
     // This is only for legacy compatibility and we may want to look into
     // removing/adjusting it.

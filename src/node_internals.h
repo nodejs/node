@@ -199,6 +199,7 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
 
 v8::MaybeLocal<v8::Value> InternalMakeCallback(
     Environment* env,
+    v8::Local<v8::Object> resource,
     v8::Local<v8::Object> recv,
     const v8::Local<v8::Function> callback,
     int argc,
