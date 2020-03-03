@@ -510,7 +510,7 @@ class IsolateData : public MemoryRetainer {
 #undef VS
 #undef VP
 
-  std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
+  std::unordered_map<const char*, v8::Eternal<v8::String>> http_static_strs;
   inline v8::Isolate* isolate() const;
   IsolateData(const IsolateData&) = delete;
   IsolateData& operator=(const IsolateData&) = delete;

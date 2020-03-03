@@ -170,7 +170,16 @@ const expectedHeaderNames = {
   HTTP2_HEADER_CONTENT_MD5: 'content-md5',
   HTTP2_HEADER_TE: 'te',
   HTTP2_HEADER_UPGRADE: 'upgrade',
-  HTTP2_HEADER_HTTP2_SETTINGS: 'http2-settings'
+  HTTP2_HEADER_HTTP2_SETTINGS: 'http2-settings',
+  HTTP2_HEADER_X_XSS_PROTECTION: 'x-xss-protection',
+  HTTP2_HEADER_ALT_SVC: 'alt-svc',
+  HTTP2_HEADER_CONTENT_SECURITY_POLICY: 'content-security-policy',
+  HTTP2_HEADER_EARLY_DATA: 'early-data',
+  HTTP2_HEADER_EXPECT_CT: 'expect-ct',
+  HTTP2_HEADER_ORIGIN: 'origin',
+  HTTP2_HEADER_PURPOSE: 'purpose',
+  HTTP2_HEADER_TIMING_ALLOW_ORIGIN: 'timing-allow-origin',
+  HTTP2_HEADER_X_FORWARDED_FOR: 'x-forwarded-for',
 };
 
 const expectedNGConstants = {
