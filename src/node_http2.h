@@ -8,6 +8,7 @@
 #include "nghttp2/nghttp2.h"
 
 #include "node_http2_state.h"
+#include "node_http_common.h"
 #include "node_mem.h"
 #include "node_perf.h"
 #include "stream_base-inl.h"
@@ -50,8 +51,36 @@ using performance::PerformanceEntry;
 #define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
 
-#define MAX_MAX_HEADER_LIST_SIZE 16777215u
-#define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
+struct Http2HeadersTraits {
+  typedef nghttp2_nv nv_t;
+  static const uint8_t kNoneFlag = NGHTTP2_NV_FLAG_NONE;
+};
+
+struct Http2RcBufferPointerTraits {
+  typedef nghttp2_rcbuf rcbuf_t;
+  typedef nghttp2_vec vector_t;
+
+  static void inc(rcbuf_t* buf) {
+    CHECK_NOT_NULL(buf);
+    nghttp2_rcbuf_incref(buf);
+  }
+  static void dec(rcbuf_t* buf) {
+    CHECK_NOT_NULL(buf);
+    nghttp2_rcbuf_decref(buf);
+  }
+  static vector_t get_vec(rcbuf_t* buf) {
+    CHECK_NOT_NULL(buf);
+    return nghttp2_rcbuf_get_buf(buf);
+  }
+  static bool is_static(const rcbuf_t* buf) {
+    CHECK_NOT_NULL(buf);
+    return nghttp2_rcbuf_is_static(buf);
+  }
+};
+
+using Http2Headers = NgHeaders<Http2HeadersTraits>;
+using Http2RcBufferPointer = NgRcBufPointer<Http2RcBufferPointerTraits>;
+
 
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
@@ -94,224 +123,6 @@ struct nghttp2_stream_write : public MemoryRetainer {
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(nghttp2_stream_write)
   SET_SELF_SIZE(nghttp2_stream_write)
-};
-
-struct nghttp2_header : public MemoryRetainer {
-  nghttp2_rcbuf* name = nullptr;
-  nghttp2_rcbuf* value = nullptr;
-  uint8_t flags = 0;
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(nghttp2_header)
-  SET_SELF_SIZE(nghttp2_header)
-};
-
-
-// Unlike the HTTP/1 implementation, the HTTP/2 implementation is not limited
-// to a fixed number of known supported HTTP methods. These constants, therefore
-// are provided strictly as a convenience to users and are exposed via the
-// require('http2').constants object.
-#define HTTP_KNOWN_METHODS(V)                                                 \
-  V(ACL, "ACL")                                                               \
-  V(BASELINE_CONTROL, "BASELINE-CONTROL")                                     \
-  V(BIND, "BIND")                                                             \
-  V(CHECKIN, "CHECKIN")                                                       \
-  V(CHECKOUT, "CHECKOUT")                                                     \
-  V(CONNECT, "CONNECT")                                                       \
-  V(COPY, "COPY")                                                             \
-  V(DELETE, "DELETE")                                                         \
-  V(GET, "GET")                                                               \
-  V(HEAD, "HEAD")                                                             \
-  V(LABEL, "LABEL")                                                           \
-  V(LINK, "LINK")                                                             \
-  V(LOCK, "LOCK")                                                             \
-  V(MERGE, "MERGE")                                                           \
-  V(MKACTIVITY, "MKACTIVITY")                                                 \
-  V(MKCALENDAR, "MKCALENDAR")                                                 \
-  V(MKCOL, "MKCOL")                                                           \
-  V(MKREDIRECTREF, "MKREDIRECTREF")                                           \
-  V(MKWORKSPACE, "MKWORKSPACE")                                               \
-  V(MOVE, "MOVE")                                                             \
-  V(OPTIONS, "OPTIONS")                                                       \
-  V(ORDERPATCH, "ORDERPATCH")                                                 \
-  V(PATCH, "PATCH")                                                           \
-  V(POST, "POST")                                                             \
-  V(PRI, "PRI")                                                               \
-  V(PROPFIND, "PROPFIND")                                                     \
-  V(PROPPATCH, "PROPPATCH")                                                   \
-  V(PUT, "PUT")                                                               \
-  V(REBIND, "REBIND")                                                         \
-  V(REPORT, "REPORT")                                                         \
-  V(SEARCH, "SEARCH")                                                         \
-  V(TRACE, "TRACE")                                                           \
-  V(UNBIND, "UNBIND")                                                         \
-  V(UNCHECKOUT, "UNCHECKOUT")                                                 \
-  V(UNLINK, "UNLINK")                                                         \
-  V(UNLOCK, "UNLOCK")                                                         \
-  V(UPDATE, "UPDATE")                                                         \
-  V(UPDATEREDIRECTREF, "UPDATEREDIRECTREF")                                   \
-  V(VERSION_CONTROL, "VERSION-CONTROL")
-
-// These are provided strictly as a convenience to users and are exposed via the
-// require('http2').constants objects
-#define HTTP_KNOWN_HEADERS(V)                                                 \
-  V(STATUS, ":status")                                                        \
-  V(METHOD, ":method")                                                        \
-  V(AUTHORITY, ":authority")                                                  \
-  V(SCHEME, ":scheme")                                                        \
-  V(PATH, ":path")                                                            \
-  V(PROTOCOL, ":protocol")                                                    \
-  V(ACCEPT_CHARSET, "accept-charset")                                         \
-  V(ACCEPT_ENCODING, "accept-encoding")                                       \
-  V(ACCEPT_LANGUAGE, "accept-language")                                       \
-  V(ACCEPT_RANGES, "accept-ranges")                                           \
-  V(ACCEPT, "accept")                                                         \
-  V(ACCESS_CONTROL_ALLOW_CREDENTIALS, "access-control-allow-credentials")     \
-  V(ACCESS_CONTROL_ALLOW_HEADERS, "access-control-allow-headers")             \
-  V(ACCESS_CONTROL_ALLOW_METHODS, "access-control-allow-methods")             \
-  V(ACCESS_CONTROL_ALLOW_ORIGIN, "access-control-allow-origin")               \
-  V(ACCESS_CONTROL_EXPOSE_HEADERS, "access-control-expose-headers")           \
-  V(ACCESS_CONTROL_MAX_AGE, "access-control-max-age")                         \
-  V(ACCESS_CONTROL_REQUEST_HEADERS, "access-control-request-headers")         \
-  V(ACCESS_CONTROL_REQUEST_METHOD, "access-control-request-method")           \
-  V(AGE, "age")                                                               \
-  V(ALLOW, "allow")                                                           \
-  V(AUTHORIZATION, "authorization")                                           \
-  V(CACHE_CONTROL, "cache-control")                                           \
-  V(CONNECTION, "connection")                                                 \
-  V(CONTENT_DISPOSITION, "content-disposition")                               \
-  V(CONTENT_ENCODING, "content-encoding")                                     \
-  V(CONTENT_LANGUAGE, "content-language")                                     \
-  V(CONTENT_LENGTH, "content-length")                                         \
-  V(CONTENT_LOCATION, "content-location")                                     \
-  V(CONTENT_MD5, "content-md5")                                               \
-  V(CONTENT_RANGE, "content-range")                                           \
-  V(CONTENT_TYPE, "content-type")                                             \
-  V(COOKIE, "cookie")                                                         \
-  V(DATE, "date")                                                             \
-  V(DNT, "dnt")                                                               \
-  V(ETAG, "etag")                                                             \
-  V(EXPECT, "expect")                                                         \
-  V(EXPIRES, "expires")                                                       \
-  V(FORWARDED, "forwarded")                                                   \
-  V(FROM, "from")                                                             \
-  V(HOST, "host")                                                             \
-  V(IF_MATCH, "if-match")                                                     \
-  V(IF_MODIFIED_SINCE, "if-modified-since")                                   \
-  V(IF_NONE_MATCH, "if-none-match")                                           \
-  V(IF_RANGE, "if-range")                                                     \
-  V(IF_UNMODIFIED_SINCE, "if-unmodified-since")                               \
-  V(LAST_MODIFIED, "last-modified")                                           \
-  V(LINK, "link")                                                             \
-  V(LOCATION, "location")                                                     \
-  V(MAX_FORWARDS, "max-forwards")                                             \
-  V(PREFER, "prefer")                                                         \
-  V(PROXY_AUTHENTICATE, "proxy-authenticate")                                 \
-  V(PROXY_AUTHORIZATION, "proxy-authorization")                               \
-  V(RANGE, "range")                                                           \
-  V(REFERER, "referer")                                                       \
-  V(REFRESH, "refresh")                                                       \
-  V(RETRY_AFTER, "retry-after")                                               \
-  V(SERVER, "server")                                                         \
-  V(SET_COOKIE, "set-cookie")                                                 \
-  V(STRICT_TRANSPORT_SECURITY, "strict-transport-security")                   \
-  V(TRAILER, "trailer")                                                       \
-  V(TRANSFER_ENCODING, "transfer-encoding")                                   \
-  V(TE, "te")                                                                 \
-  V(TK, "tk")                                                                 \
-  V(UPGRADE_INSECURE_REQUESTS, "upgrade-insecure-requests")                   \
-  V(UPGRADE, "upgrade")                                                       \
-  V(USER_AGENT, "user-agent")                                                 \
-  V(VARY, "vary")                                                             \
-  V(VIA, "via")                                                               \
-  V(WARNING, "warning")                                                       \
-  V(WWW_AUTHENTICATE, "www-authenticate")                                     \
-  V(X_CONTENT_TYPE_OPTIONS, "x-content-type-options")                         \
-  V(X_FRAME_OPTIONS, "x-frame-options")                                       \
-  V(HTTP2_SETTINGS, "http2-settings")                                         \
-  V(KEEP_ALIVE, "keep-alive")                                                 \
-  V(PROXY_CONNECTION, "proxy-connection")
-
-enum http_known_headers {
-  HTTP_KNOWN_HEADER_MIN,
-#define V(name, value) HTTP_HEADER_##name,
-  HTTP_KNOWN_HEADERS(V)
-#undef V
-  HTTP_KNOWN_HEADER_MAX
-};
-
-// While some of these codes are used within the HTTP/2 implementation in
-// core, they are provided strictly as a convenience to users and are exposed
-// via the require('http2').constants object.
-#define HTTP_STATUS_CODES(V)                                                  \
-  V(CONTINUE, 100)                                                            \
-  V(SWITCHING_PROTOCOLS, 101)                                                 \
-  V(PROCESSING, 102)                                                          \
-  V(EARLY_HINTS, 103)                                                         \
-  V(OK, 200)                                                                  \
-  V(CREATED, 201)                                                             \
-  V(ACCEPTED, 202)                                                            \
-  V(NON_AUTHORITATIVE_INFORMATION, 203)                                       \
-  V(NO_CONTENT, 204)                                                          \
-  V(RESET_CONTENT, 205)                                                       \
-  V(PARTIAL_CONTENT, 206)                                                     \
-  V(MULTI_STATUS, 207)                                                        \
-  V(ALREADY_REPORTED, 208)                                                    \
-  V(IM_USED, 226)                                                             \
-  V(MULTIPLE_CHOICES, 300)                                                    \
-  V(MOVED_PERMANENTLY, 301)                                                   \
-  V(FOUND, 302)                                                               \
-  V(SEE_OTHER, 303)                                                           \
-  V(NOT_MODIFIED, 304)                                                        \
-  V(USE_PROXY, 305)                                                           \
-  V(TEMPORARY_REDIRECT, 307)                                                  \
-  V(PERMANENT_REDIRECT, 308)                                                  \
-  V(BAD_REQUEST, 400)                                                         \
-  V(UNAUTHORIZED, 401)                                                        \
-  V(PAYMENT_REQUIRED, 402)                                                    \
-  V(FORBIDDEN, 403)                                                           \
-  V(NOT_FOUND, 404)                                                           \
-  V(METHOD_NOT_ALLOWED, 405)                                                  \
-  V(NOT_ACCEPTABLE, 406)                                                      \
-  V(PROXY_AUTHENTICATION_REQUIRED, 407)                                       \
-  V(REQUEST_TIMEOUT, 408)                                                     \
-  V(CONFLICT, 409)                                                            \
-  V(GONE, 410)                                                                \
-  V(LENGTH_REQUIRED, 411)                                                     \
-  V(PRECONDITION_FAILED, 412)                                                 \
-  V(PAYLOAD_TOO_LARGE, 413)                                                   \
-  V(URI_TOO_LONG, 414)                                                        \
-  V(UNSUPPORTED_MEDIA_TYPE, 415)                                              \
-  V(RANGE_NOT_SATISFIABLE, 416)                                               \
-  V(EXPECTATION_FAILED, 417)                                                  \
-  V(TEAPOT, 418)                                                              \
-  V(MISDIRECTED_REQUEST, 421)                                                 \
-  V(UNPROCESSABLE_ENTITY, 422)                                                \
-  V(LOCKED, 423)                                                              \
-  V(FAILED_DEPENDENCY, 424)                                                   \
-  V(TOO_EARLY, 425)                                                           \
-  V(UPGRADE_REQUIRED, 426)                                                    \
-  V(PRECONDITION_REQUIRED, 428)                                               \
-  V(TOO_MANY_REQUESTS, 429)                                                   \
-  V(REQUEST_HEADER_FIELDS_TOO_LARGE, 431)                                     \
-  V(UNAVAILABLE_FOR_LEGAL_REASONS, 451)                                       \
-  V(INTERNAL_SERVER_ERROR, 500)                                               \
-  V(NOT_IMPLEMENTED, 501)                                                     \
-  V(BAD_GATEWAY, 502)                                                         \
-  V(SERVICE_UNAVAILABLE, 503)                                                 \
-  V(GATEWAY_TIMEOUT, 504)                                                     \
-  V(HTTP_VERSION_NOT_SUPPORTED, 505)                                          \
-  V(VARIANT_ALSO_NEGOTIATES, 506)                                             \
-  V(INSUFFICIENT_STORAGE, 507)                                                \
-  V(LOOP_DETECTED, 508)                                                       \
-  V(BANDWIDTH_LIMIT_EXCEEDED, 509)                                            \
-  V(NOT_EXTENDED, 510)                                                        \
-  V(NETWORK_AUTHENTICATION_REQUIRED, 511)
-
-enum http_status_codes {
-#define V(name, code) HTTP_STATUS_##name = code,
-  HTTP_STATUS_CODES(V)
-#undef V
 };
 
 // The Padding Strategy determines the method by which extra padding is
@@ -446,6 +257,17 @@ class Http2StreamListener : public StreamListener {
   void OnStreamRead(ssize_t nread, const uv_buf_t& buf) override;
 };
 
+struct Http2HeaderTraits {
+  typedef Http2RcBufferPointer rcbufferpointer_t;
+  typedef Http2Session allocator_t;
+
+  // HTTP/2 does not support identifying header names by token id.
+  // HTTP/3 will, however, so we prepare for that now.
+  static const char* ToHttpHeaderName(int32_t token) { return nullptr; }
+};
+
+using Http2Header = NgHeader<Http2HeaderTraits>;
+
 class Http2Stream : public AsyncWrap,
                     public StreamBase {
  public:
@@ -476,13 +298,13 @@ class Http2Stream : public AsyncWrap,
   bool HasWantsWrite() const override { return true; }
 
   // Initiate a response on this stream.
-  int SubmitResponse(nghttp2_nv* nva, size_t len, int options);
+  int SubmitResponse(const Http2Headers& headers, int options);
 
   // Submit informational headers for this stream
-  int SubmitInfo(nghttp2_nv* nva, size_t len);
+  int SubmitInfo(const Http2Headers& headers);
 
   // Submit trailing headers for this stream
-  int SubmitTrailers(nghttp2_nv* nva, size_t len);
+  int SubmitTrailers(const Http2Headers& headers);
   void OnTrailers();
 
   // Submit a PRIORITY frame for this stream
@@ -495,8 +317,7 @@ class Http2Stream : public AsyncWrap,
 
   // Submits a PUSH_PROMISE frame with this stream as the parent.
   Http2Stream* SubmitPushPromise(
-      nghttp2_nv* nva,
-      size_t len,
+      const Http2Headers& headers,
       int32_t* ret,
       int options = 0);
 
@@ -545,8 +366,16 @@ class Http2Stream : public AsyncWrap,
 
   bool AddHeader(nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t flags);
 
-  inline std::vector<nghttp2_header> move_headers() {
-    return std::move(current_headers_);
+  template <typename Fn>
+  void TransferHeaders(Fn&& fn) {
+    size_t i = 0;
+    for (const auto& header : current_headers_ )
+      fn(header, i++);
+    current_headers_.clear();
+  }
+
+  size_t headers_count() const {
+    return current_headers_.size();
   }
 
   inline nghttp2_headers_category headers_category() const {
@@ -625,7 +454,7 @@ class Http2Stream : public AsyncWrap,
   // signalling the end of the HEADERS frame
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
   uint32_t current_headers_length_ = 0;  // total number of octets
-  std::vector<nghttp2_header> current_headers_;
+  std::vector<Http2Header> current_headers_;
 
   // This keeps track of the amount of data read from the socket while the
   // socket was in paused mode. When `ReadStart()` is called (and not before
@@ -743,8 +572,7 @@ class Http2Session : public AsyncWrap,
   // This only works if the session is a client session.
   Http2Stream* SubmitRequest(
       nghttp2_priority_spec* prispec,
-      nghttp2_nv* nva,
-      size_t len,
+      const Http2Headers& headers,
       int32_t* ret,
       int options = 0);
 
@@ -1187,96 +1015,6 @@ class Http2Session::Http2Settings : public AsyncWrap {
   uint64_t startTime_;
   size_t count_ = 0;
   nghttp2_settings_entry entries_[IDX_SETTINGS_COUNT];
-};
-
-class ExternalHeader :
-    public String::ExternalOneByteStringResource {
- public:
-  explicit ExternalHeader(nghttp2_rcbuf* buf)
-     : buf_(buf), vec_(nghttp2_rcbuf_get_buf(buf)) {
-  }
-
-  ~ExternalHeader() override {
-    nghttp2_rcbuf_decref(buf_);
-    buf_ = nullptr;
-  }
-
-  const char* data() const override {
-    return const_cast<const char*>(reinterpret_cast<char*>(vec_.base));
-  }
-
-  size_t length() const override {
-    return vec_.len;
-  }
-
-  static inline
-  MaybeLocal<String> GetInternalizedString(Environment* env,
-                                           const nghttp2_vec& vec) {
-    return String::NewFromOneByte(env->isolate(),
-                                  vec.base,
-                                  v8::NewStringType::kInternalized,
-                                  vec.len);
-  }
-
-  template <bool may_internalize>
-  static MaybeLocal<String> New(Http2Session* session, nghttp2_rcbuf* buf) {
-    Environment* env = session->env();
-    if (nghttp2_rcbuf_is_static(buf)) {
-      auto& static_str_map = env->isolate_data()->http2_static_strs;
-      v8::Eternal<v8::String>& eternal = static_str_map[buf];
-      if (eternal.IsEmpty()) {
-        Local<String> str =
-            GetInternalizedString(env, nghttp2_rcbuf_get_buf(buf))
-                .ToLocalChecked();
-        eternal.Set(env->isolate(), str);
-        return str;
-      }
-      return eternal.Get(env->isolate());
-    }
-
-    nghttp2_vec vec = nghttp2_rcbuf_get_buf(buf);
-    if (vec.len == 0) {
-      nghttp2_rcbuf_decref(buf);
-      return String::Empty(env->isolate());
-    }
-
-    if (may_internalize && vec.len < 64) {
-      nghttp2_rcbuf_decref(buf);
-      // This is a short header name, so there is a good chance V8 already has
-      // it internalized.
-      return GetInternalizedString(env, vec);
-    }
-
-    session->StopTrackingRcbuf(buf);
-    ExternalHeader* h_str = new ExternalHeader(buf);
-    MaybeLocal<String> str = String::NewExternalOneByte(env->isolate(), h_str);
-    if (str.IsEmpty())
-      delete h_str;
-
-    return str;
-  }
-
- private:
-  nghttp2_rcbuf* buf_;
-  nghttp2_vec vec_;
-};
-
-class Headers {
- public:
-  Headers(Isolate* isolate, Local<Context> context, Local<Array> headers);
-  ~Headers() = default;
-
-  nghttp2_nv* operator*() {
-    return reinterpret_cast<nghttp2_nv*>(*buf_);
-  }
-
-  size_t length() const {
-    return count_;
-  }
-
- private:
-  size_t count_;
-  MaybeStackBuffer<char, 3000> buf_;
 };
 
 class Origins {
