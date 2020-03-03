@@ -1,4 +1,3 @@
-#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include <stdlib.h>
 #include "../../js-native-api/common.h"
