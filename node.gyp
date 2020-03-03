@@ -203,6 +203,11 @@
       'deps/acorn/dist/walk.js',
     ],
     'conditions': [
+      ['GENERATOR == "ninja"', {
+        'node_text_start_object_path': 'src/large_pages/node_text_start.node_text_start.o'
+      }, {
+        'node_text_start_object_path': 'node_text_start/src/large_pages/node_text_start.o'
+      }],
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
         'conditions': [
@@ -327,7 +332,7 @@
           'target_arch=="x64"', {
           'dependencies': [ 'node_text_start' ],
           'ldflags+': [
-            '<(PRODUCT_DIR)/obj.target/node_text_start/src/large_pages/node_text_start.o'
+            '<(obj_dir)/<(node_text_start_object_path)'
           ]
         }],
       ],
