@@ -5,6 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node-v8/issues/120
+test-inspector-multisession-ws: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/20750
