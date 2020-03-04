@@ -119,6 +119,11 @@ Enable experimental ES modules support for import.meta.resolve().
 .It Fl -experimental-json-modules
 Enable experimental JSON interop support for the ES Module loader.
 .
+.It Fl -experimental-loader Ns = Ns Ar module
+Specify the
+.Ar module
+to use as a custom module loader.
+.
 .It Fl -experimental-modules
 Enable experimental latest experimental modules features.
 .
@@ -220,16 +225,20 @@ Default is
 V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js instances for debugging and profiling.
 It uses the Chrome DevTools Protocol.
 .
-.It Fl -experimental-loader Ns = Ns Ar module
-Specify the
-.Ar module
-to use as a custom module loader.
-.
 .It Fl -insecure-http-parser
 Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
 interoperability with non-conformant HTTP implementations. It may also allow
 request smuggling and other HTTP attacks that rely on invalid headers being
 accepted. Avoid using this option.
+.
+.It Fl -jitless
+Disable runtime allocation of executable memory. This may be required on
+some platforms for security reasons. It can also reduce attack surface on
+other platforms, but the performance impact may be severe.
+.
+.Pp
+This flag is inherited from V8 and is subject to change upstream. It may
+disappear in a non-semver-major release.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 8KB.

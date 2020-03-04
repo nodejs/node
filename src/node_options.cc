@@ -616,6 +616,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "disallow eval and friends",
             V8Option{},
             kAllowedInEnvironment);
+  AddOption("--jitless",
+             "disable runtime allocation of executable memory",
+             V8Option{},
+             kAllowedInEnvironment);
 
 #ifdef NODE_REPORT
   AddOption("--report-uncaught-exception",
