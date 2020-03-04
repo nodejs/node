@@ -171,6 +171,13 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   static constexpr int kBinarySearchSwitchMinimalCases = 4;
 
+  // Returns true if an offset should be applied to the given stack check. This
+  // is the case for stack checks on function-entry when the offset is non-zero,
+  // where the offset is the difference between the size of optimized and
+  // corresponding deoptimized frames.
+  bool ShouldApplyOffsetToStackCheck(Instruction* instr, uint32_t* offset);
+  uint32_t GetStackCheckOffset();
+
  private:
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }

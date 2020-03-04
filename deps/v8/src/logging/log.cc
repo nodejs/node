@@ -112,9 +112,9 @@ class CodeEventLogger::NameBuffer {
     } else {
       Symbol symbol = Symbol::cast(name);
       AppendBytes("symbol(");
-      if (!symbol.name().IsUndefined()) {
+      if (!symbol.description().IsUndefined()) {
         AppendBytes("\"");
-        AppendString(String::cast(symbol.name()));
+        AppendString(String::cast(symbol.description()));
         AppendBytes("\" ");
       }
       AppendBytes("hash ");
@@ -235,7 +235,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       wasm::WasmName name) {
   name_buffer_->Init(tag);
   if (name.empty()) {
-    name_buffer_->AppendBytes("<wasm-unknown>");
+    name_buffer_->AppendBytes("<wasm-unnamed>");
   } else {
     name_buffer_->AppendBytes(name.begin(), name.length());
   }
@@ -245,6 +245,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   } else {
     name_buffer_->AppendInt(code->index());
   }
+  name_buffer_->AppendByte('-');
+  name_buffer_->AppendBytes(ExecutionTierToString(code->tier()));
   LogRecordedBuffer(code, name_buffer_->get(), name_buffer_->size());
 }
 
@@ -690,6 +692,42 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
   event.name.str = name;
   event.name.len = length;
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+
+  wasm::WasmModuleSourceMap* source_map =
+      code->native_module()->GetWasmSourceMap();
+  wasm::WireBytesRef code_ref =
+      code->native_module()->module()->functions[code->index()].code;
+  uint32_t code_offset = code_ref.offset();
+  uint32_t code_end_offset = code_ref.end_offset();
+
+  std::vector<v8::JitCodeEvent::line_info_t> mapping_info;
+  std::string filename;
+  std::unique_ptr<JitCodeEvent::wasm_source_info_t> wasm_source_info;
+
+  if (source_map && source_map->IsValid() &&
+      source_map->HasSource(code_offset, code_end_offset)) {
+    size_t last_line_number = 0;
+
+    for (SourcePositionTableIterator iterator(code->source_positions());
+         !iterator.done(); iterator.Advance()) {
+      uint32_t offset = iterator.source_position().ScriptOffset() + code_offset;
+      if (!source_map->HasValidEntry(code_offset, offset)) continue;
+      if (filename.empty()) {
+        filename = source_map->GetFilename(offset);
+      }
+      mapping_info.push_back({static_cast<size_t>(iterator.code_offset()),
+                              last_line_number, JitCodeEvent::POSITION});
+      last_line_number = source_map->GetSourceLine(offset) + 1;
+    }
+
+    wasm_source_info = std::make_unique<JitCodeEvent::wasm_source_info_t>();
+    wasm_source_info->filename = filename.c_str();
+    wasm_source_info->filename_size = filename.size();
+    wasm_source_info->line_number_table_size = mapping_info.size();
+    wasm_source_info->line_number_table = mapping_info.data();
+
+    event.wasm_source_info = wasm_source_info.get();
+  }
   code_event_handler_(&event);
 }
 

@@ -78,10 +78,20 @@ TEST(AllocateNotExternal) {
   void* memory = reinterpret_cast<Isolate*>(env->GetIsolate())
                      ->array_buffer_allocator()
                      ->Allocate(1024);
+
+// Keep the test until the functions are removed.
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
   v8::Local<v8::ArrayBuffer> buffer =
       v8::ArrayBuffer::New(env->GetIsolate(), memory, 1024,
                            v8::ArrayBufferCreationMode::kInternalized);
   CHECK(!buffer->IsExternal());
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+
   CHECK_EQ(memory, buffer->GetBackingStore()->Data());
 }
 

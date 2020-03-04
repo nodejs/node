@@ -87,7 +87,9 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
-    ScopeIterator scope_iterator(isolate_, frame_inspector_.get());
+    ScopeIterator scope_iterator(
+        isolate_, frame_inspector_.get(),
+        ScopeIterator::ReparseStrategy::kFunctionLiteral);
     // We lookup this variable in function context only when it is used in arrow
     // function otherwise V8 can optimize it out.
     if (!scope_iterator.ClosureScopeHasThisReference()) {
@@ -115,10 +117,11 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
 }
 
 v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
-  DCHECK(!Done());
+  CHECK(!Done());
   if (frame_inspector_ && frame_inspector_->IsWasm()) {
     return v8::Local<v8::Value>();
   }
+  CHECK_NOT_NULL(iterator_.frame());
   bool is_optimized = iterator_.frame()->is_optimized();
   if (is_optimized || !is_top_frame_ ||
       !isolate_->debug()->IsBreakAtReturn(iterator_.javascript_frame())) {
@@ -156,12 +159,11 @@ std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
   StandardFrame* frame = iterator_.frame();
-  if (frame->is_wasm_interpreter_entry()) {
-    return std::unique_ptr<v8::debug::ScopeIterator>(new DebugWasmScopeIterator(
-        isolate_, iterator_.frame(), inlined_frame_index_));
+  if (frame->is_wasm()) {
+    return std::make_unique<DebugWasmScopeIterator>(isolate_, iterator_.frame(),
+                                                    inlined_frame_index_);
   }
-  return std::unique_ptr<v8::debug::ScopeIterator>(
-      new DebugScopeIterator(isolate_, frame_inspector_.get()));
+  return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }
 
 bool DebugStackTraceIterator::Restart() {

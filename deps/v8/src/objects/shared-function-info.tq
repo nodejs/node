@@ -1,0 +1,47 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+extern class PreparseData extends HeapObject {
+  // TODO(v8:8983): Add declaration for variable-sized region.
+  data_length: int32;
+  children_length: int32;
+}
+
+extern class InterpreterData extends Struct {
+  bytecode_array: BytecodeArray;
+  interpreter_trampoline: Code;
+}
+
+extern class SharedFunctionInfo extends HeapObject {
+  weak function_data: Object;
+  name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
+  outer_scope_info_or_feedback_metadata: HeapObject;
+  script_or_debug_info: Script|DebugInfo|Undefined;
+  length: int16;
+  formal_parameter_count: uint16;
+  // Currently set to uint16, can be set to uint8 to save space.
+  expected_nof_properties: uint16;
+  function_token_offset: int16;
+  flags: int32;
+  function_literal_id: int32;
+  @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
+}
+
+@abstract
+@generateCppClass
+extern class UncompiledData extends HeapObject {
+  inferred_name: String;
+  start_position: int32;
+  end_position: int32;
+}
+
+@generateCppClass
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {
+}
+
+@generateCppClass
+extern class UncompiledDataWithPreparseData extends UncompiledData {
+  preparse_data: PreparseData;
+}

@@ -196,7 +196,7 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 }
 
 inline Object JavaScriptFrame::function_slot_object() const {
-  const int offset = JavaScriptFrameConstants::kFunctionOffset;
+  const int offset = StandardFrameConstants::kFunctionOffset;
   return Object(base::Memory<Address>(fp() + offset));
 }
 

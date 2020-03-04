@@ -6,6 +6,7 @@
 #define V8_BUILTINS_ACCESSORS_H_
 
 #include "include/v8.h"
+#include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/property-details.h"
 #include "src/utils/allocation.h"

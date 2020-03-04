@@ -13,14 +13,12 @@ namespace {{namespace}} {
 
 class {{config.lib.export_macro}} Serializable {
 public:
-    ProtocolMessage serialize(bool binary) {
-      if (binary)
-        return StringUtil::binaryToMessage(serializeToBinary());
-      else
-        return StringUtil::jsonToMessage(serializeToJSON());
+    virtual std::vector<uint8_t> TakeSerialized() && {
+      std::vector<uint8_t> out;
+      AppendSerialized(&out);
+      return out;
     }
-    virtual String serializeToJSON() = 0;
-    virtual std::vector<uint8_t> serializeToBinary() = 0;
+    virtual void AppendSerialized(std::vector<uint8_t>* out) const = 0;
     virtual ~Serializable() = default;
 };
 

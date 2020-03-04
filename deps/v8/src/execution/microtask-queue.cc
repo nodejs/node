@@ -177,6 +177,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     capacity_ = 0;
     size_ = 0;
     start_ = 0;
+    DCHECK(isolate->has_scheduled_exception());
     isolate->SetTerminationOnExternalTryCatch();
     OnCompleted(isolate);
     return -1;

@@ -58,7 +58,7 @@ Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
-  scheduler.GenerateImmediateDominatorTree();
+  scheduler.GenerateDominatorTree();
 
   scheduler.PrepareUses();
   scheduler.ScheduleEarly();
@@ -1165,17 +1165,18 @@ void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
   }
 }
 
-
-void Scheduler::GenerateImmediateDominatorTree() {
-  TRACE("--- IMMEDIATE BLOCK DOMINATORS -----------------------------\n");
-
+void Scheduler::GenerateDominatorTree(Schedule* schedule) {
   // Seed start block to be the first dominator.
-  schedule_->start()->set_dominator_depth(0);
+  schedule->start()->set_dominator_depth(0);
 
   // Build the block dominator tree resulting from the above seed.
-  PropagateImmediateDominators(schedule_->start()->rpo_next());
+  PropagateImmediateDominators(schedule->start()->rpo_next());
 }
 
+void Scheduler::GenerateDominatorTree() {
+  TRACE("--- IMMEDIATE BLOCK DOMINATORS -----------------------------\n");
+  GenerateDominatorTree(schedule_);
+}
 
 // -----------------------------------------------------------------------------
 // Phase 3: Prepare use counts for nodes.

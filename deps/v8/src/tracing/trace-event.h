@@ -412,16 +412,6 @@ class TraceID {
   uint64_t raw_id_;
 };
 
-// Simple union to store various types as uint64_t.
-union TraceValueUnion {
-  bool as_bool;
-  uint64_t as_uint;
-  int64_t as_int;
-  double as_double;
-  const void* as_pointer;
-  const char* as_string;
-};
-
 // Simple container for const char* that should be copied instead of retained.
 class TraceStringWithCopy {
  public:
@@ -479,42 +469,32 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
 // Define SetTraceValue for each allowed type. It stores the type and
 // value in the return arguments. This allows this API to avoid declaring any
 // structures so that it is portable to third_party libraries.
-#define INTERNAL_DECLARE_SET_TRACE_VALUE(actual_type, union_member,         \
-                                         value_type_id)                     \
-  static V8_INLINE void SetTraceValue(actual_type arg, unsigned char* type, \
-                                      uint64_t* value) {                    \
-    TraceValueUnion type_value;                                             \
-    type_value.union_member = arg;                                          \
-    *type = value_type_id;                                                  \
-    *value = type_value.as_uint;                                            \
-  }
-// Simpler form for int types that can be safely casted.
-#define INTERNAL_DECLARE_SET_TRACE_VALUE_INT(actual_type, value_type_id)    \
-  static V8_INLINE void SetTraceValue(actual_type arg, unsigned char* type, \
-                                      uint64_t* value) {                    \
-    *type = value_type_id;                                                  \
-    *value = static_cast<uint64_t>(arg);                                    \
-  }
+// This is the base implementation for integer types (including bool) and enums.
+template <typename T>
+static V8_INLINE typename std::enable_if<
+    std::is_integral<T>::value || std::is_enum<T>::value, void>::type
+SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
+  *type = std::is_same<T, bool>::value
+              ? TRACE_VALUE_TYPE_BOOL
+              : std::is_signed<T>::value ? TRACE_VALUE_TYPE_INT
+                                         : TRACE_VALUE_TYPE_UINT;
+  *value = static_cast<uint64_t>(arg);
+}
 
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(uint64_t, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(unsigned int, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(uint16_t, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(unsigned char, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(int64_t, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(int, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(int16_t, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(signed char, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE(bool, as_bool, TRACE_VALUE_TYPE_BOOL)
-INTERNAL_DECLARE_SET_TRACE_VALUE(double, as_double, TRACE_VALUE_TYPE_DOUBLE)
-INTERNAL_DECLARE_SET_TRACE_VALUE(const void*, as_pointer,
-                                 TRACE_VALUE_TYPE_POINTER)
-INTERNAL_DECLARE_SET_TRACE_VALUE(const char*, as_string,
-                                 TRACE_VALUE_TYPE_STRING)
-INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&, as_string,
+#define INTERNAL_DECLARE_SET_TRACE_VALUE(actual_type, value_type_id)        \
+  static V8_INLINE void SetTraceValue(actual_type arg, unsigned char* type, \
+                                      uint64_t* value) {                    \
+    *type = value_type_id;                                                  \
+    *value = 0;                                                             \
+    STATIC_ASSERT(sizeof(arg) <= sizeof(*value));                           \
+    memcpy(value, &arg, sizeof(arg));                                       \
+  }
+INTERNAL_DECLARE_SET_TRACE_VALUE(double, TRACE_VALUE_TYPE_DOUBLE)
+INTERNAL_DECLARE_SET_TRACE_VALUE(const void*, TRACE_VALUE_TYPE_POINTER)
+INTERNAL_DECLARE_SET_TRACE_VALUE(const char*, TRACE_VALUE_TYPE_STRING)
+INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&,
                                  TRACE_VALUE_TYPE_COPY_STRING)
-
 #undef INTERNAL_DECLARE_SET_TRACE_VALUE
-#undef INTERNAL_DECLARE_SET_TRACE_VALUE_INT
 
 static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
                                     unsigned char* type, uint64_t* value) {

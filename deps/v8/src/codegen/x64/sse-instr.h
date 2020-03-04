@@ -5,6 +5,36 @@
 #ifndef V8_CODEGEN_X64_SSE_INSTR_H_
 #define V8_CODEGEN_X64_SSE_INSTR_H_
 
+// SSE instructions whose AVX version has two operands.
+#define SSE_UNOP_INSTRUCTION_LIST(V) \
+  V(sqrtps, 0F, 51)                  \
+  V(rsqrtps, 0F, 52)                 \
+  V(rcpps, 0F, 53)                   \
+  V(cvtdq2ps, 0F, 5B)
+
+// SSE instructions whose AVX version has three operands.
+#define SSE_BINOP_INSTRUCTION_LIST(V) \
+  V(andps, 0F, 54)                    \
+  V(andnps, 0F, 55)                   \
+  V(orps, 0F, 56)                     \
+  V(xorps, 0F, 57)                    \
+  V(addps, 0F, 58)                    \
+  V(mulps, 0F, 59)                    \
+  V(subps, 0F, 5C)                    \
+  V(minps, 0F, 5D)                    \
+  V(divps, 0F, 5E)                    \
+  V(maxps, 0F, 5F)
+
+// Instructions dealing with scalar single-precision values.
+#define SSE_INSTRUCTION_LIST_SS(V) \
+  V(sqrtss, F3, 0F, 51)            \
+  V(addss, F3, 0F, 58)             \
+  V(mulss, F3, 0F, 59)             \
+  V(subss, F3, 0F, 5C)             \
+  V(minss, F3, 0F, 5D)             \
+  V(divss, F3, 0F, 5E)             \
+  V(maxss, F3, 0F, 5F)
+
 #define SSE2_INSTRUCTION_LIST(V) \
   V(sqrtpd, 66, 0F, 51)          \
   V(andnpd, 66, 0F, 55)          \
@@ -66,6 +96,16 @@
   V(por, 66, 0F, EB)             \
   V(pxor, 66, 0F, EF)
 
+// Instructions dealing with scalar double-precision values.
+#define SSE2_INSTRUCTION_LIST_SD(V) \
+  V(sqrtsd, F2, 0F, 51)             \
+  V(addsd, F2, 0F, 58)              \
+  V(mulsd, F2, 0F, 59)              \
+  V(subsd, F2, 0F, 5C)              \
+  V(minsd, F2, 0F, 5D)              \
+  V(divsd, F2, 0F, 5E)              \
+  V(maxsd, F2, 0F, 5F)
+
 #define SSSE3_INSTRUCTION_LIST(V) \
   V(pabsb, 66, 0F, 38, 1C)        \
   V(pabsw, 66, 0F, 38, 1D)        \
@@ -83,9 +123,11 @@
   V(ptest, 66, 0F, 38, 17)       \
   V(pmovsxbw, 66, 0F, 38, 20)    \
   V(pmovsxwd, 66, 0F, 38, 23)    \
+  V(pmovsxdq, 66, 0F, 38, 25)    \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pmovzxbw, 66, 0F, 38, 30)    \
   V(pmovzxwd, 66, 0F, 38, 33)    \
+  V(pmovzxdq, 66, 0F, 38, 35)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
   V(pminuw, 66, 0F, 38, 3A)      \
@@ -95,6 +137,12 @@
   V(pmaxuw, 66, 0F, 38, 3E)      \
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
+
+#define SSE4_EXTRACT_INSTRUCTION_LIST(V) \
+  V(extractps, 66, 0F, 3A, 17)           \
+  V(pextrb, 66, 0F, 3A, 14)              \
+  V(pextrw, 66, 0F, 3A, 15)              \
+  V(pextrd, 66, 0F, 3A, 16)
 
 #define SSE4_2_INSTRUCTION_LIST(V) V(pcmpgtq, 66, 0F, 38, 37)
 

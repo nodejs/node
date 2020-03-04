@@ -21,7 +21,7 @@ namespace internal {
 namespace {
 
 bool IsUninitializedLiteralSite(Object literal_site) {
-  return literal_site == Smi::kZero;
+  return literal_site == Smi::zero();
 }
 
 bool HasBoilerplate(Handle<Object> literal_site) {
@@ -133,8 +133,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       }
     } else {
       Handle<NameDictionary> dict(copy->property_dictionary(isolate), isolate);
-      int capacity = dict->Capacity();
-      for (int i = 0; i < capacity; i++) {
+      for (InternalIndex i : dict->IterateEntries()) {
         Object raw = dict->ValueAt(isolate, i);
         if (!raw.IsJSObject(isolate)) continue;
         DCHECK(dict->KeyAt(isolate, i).IsName());
@@ -183,8 +182,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case DICTIONARY_ELEMENTS: {
       Handle<NumberDictionary> element_dictionary(
           copy->element_dictionary(isolate), isolate);
-      int capacity = element_dictionary->Capacity();
-      for (int i = 0; i < capacity; i++) {
+      for (InternalIndex i : element_dictionary->IterateEntries()) {
         Object raw = element_dictionary->ValueAt(isolate, i);
         if (!raw.IsJSObject(isolate)) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -417,7 +415,7 @@ Handle<JSObject> CreateObjectLiteral(
     if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
       if (value->IsUninitialized(isolate)) {
-        value = handle(Smi::kZero, isolate);
+        value = handle(Smi::zero(), isolate);
       }
       JSObject::SetOwnElementIgnoreAttributes(boilerplate, element_index, value,
                                               NONE)

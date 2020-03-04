@@ -27,11 +27,16 @@ namespace torque_internal {
   }
 }
 
-type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
-type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
+type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
+type StrongTagged extends Tagged
+    generates 'TNode<Object>' constexpr 'ObjectPtr';
+type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+type WeakHeapObject extends Tagged;
+type Weak<T : type extends HeapObject> extends WeakHeapObject;
+type Uninitialized extends Tagged;
 
 @abstract
-extern class HeapObject extends Tagged {
+extern class HeapObject extends StrongTagged {
   map: Map;
 }
 type Map extends HeapObject generates 'TNode<Map>';
@@ -64,6 +69,8 @@ type Code extends HeapObject generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
+
+macro FromConstexpr<To: type, From: type>(o: From): To;
 )";
 
 TorqueCompilerResult TestCompileTorque(std::string source) {
@@ -87,12 +94,57 @@ void ExpectSuccessfulCompilation(std::string source) {
 }
 
 template <class T>
-void ExpectFailingCompilation(
-    std::string source, ::testing::PolymorphicMatcher<T> message_pattern) {
+using MatcherVector =
+    std::vector<std::pair<::testing::PolymorphicMatcher<T>, LineAndColumn>>;
+
+template <class T>
+void ExpectFailingCompilation(std::string source,
+                              MatcherVector<T> message_patterns) {
   TorqueCompilerResult result = TestCompileTorque(std::move(source));
   ASSERT_FALSE(result.messages.empty());
-  EXPECT_THAT(result.messages[0].message, message_pattern);
+  EXPECT_GE(result.messages.size(), message_patterns.size());
+  size_t limit = message_patterns.size();
+  if (result.messages.size() < limit) {
+    limit = result.messages.size();
+  }
+  for (size_t i = 0; i < limit; ++i) {
+    EXPECT_THAT(result.messages[i].message, message_patterns[i].first);
+    if (message_patterns[i].second != LineAndColumn::Invalid()) {
+      base::Optional<SourcePosition> actual = result.messages[i].position;
+      EXPECT_TRUE(actual.has_value());
+      EXPECT_EQ(actual->start, message_patterns[i].second);
+    }
+  }
 }
+
+template <class T>
+void ExpectFailingCompilation(
+    std::string source, ::testing::PolymorphicMatcher<T> message_pattern) {
+  ExpectFailingCompilation(
+      source, MatcherVector<T>{{message_pattern, LineAndColumn::Invalid()}});
+}
+
+int CountPreludeLines() {
+  static int result = -1;
+  if (result == -1) {
+    std::string prelude(kTestTorquePrelude);
+    result = static_cast<int>(std::count(prelude.begin(), prelude.end(), '\n'));
+  }
+  return result;
+}
+
+using SubstrWithPosition =
+    std::pair<::testing::PolymorphicMatcher<
+                  ::testing::internal::HasSubstrMatcher<std::string>>,
+              LineAndColumn>;
+
+SubstrWithPosition SubstrTester(const std::string& message, int line, int col) {
+  // Change line and column from 1-based to 0-based.
+  return {::testing::HasSubstr(message),
+          LineAndColumn{line + CountPreludeLines() - 1, col - 1}};
+}
+
+using SubstrVector = std::vector<SubstrWithPosition>;
 
 }  // namespace
 
@@ -316,6 +368,120 @@ TEST(Torque, LetShouldBeConstIsSkippedForStructs) {
       return foo;
     }
   )");
+}
+
+TEST(Torque, GenericAbstractType) {
+  ExpectSuccessfulCompilation(R"(
+    type Foo<T: type> extends HeapObject;
+    extern macro F1(HeapObject);
+    macro F2<T: type>(x: Foo<T>) {
+      F1(x);
+    }
+    @export
+    macro F3(a: Foo<Smi>, b: Foo<HeapObject>){
+      F2(a);
+      F2(b);
+    }
+  )");
+
+  ExpectFailingCompilation(R"(
+    type Foo<T: type> extends HeapObject;
+    macro F1<T: type>(x: Foo<T>) {}
+    @export
+    macro F2(a: Foo<Smi>) {
+      F1<HeapObject>(a);
+    })",
+                           HasSubstr("cannot find suitable callable"));
+
+  ExpectFailingCompilation(R"(
+    type Foo<T: type> extends HeapObject;
+    extern macro F1(Foo<HeapObject>);
+    @export
+    macro F2(a: Foo<Smi>) {
+      F1(a);
+    })",
+                           HasSubstr("cannot find suitable callable"));
+}
+
+TEST(Torque, SpecializationRequesters) {
+  ExpectFailingCompilation(
+      R"(
+    macro A<T: type extends HeapObject>() {}
+    macro B<T: type>() {
+      A<T>();
+    }
+    macro C<T: type>() {
+      B<T>();
+    }
+    macro D() {
+      C<Smi>();
+    }
+  )",
+      SubstrVector{
+          SubstrTester("cannot find suitable callable", 4, 7),
+          SubstrTester("Note: in specialization B<Smi> requested here", 7, 7),
+          SubstrTester("Note: in specialization C<Smi> requested here", 10,
+                       7)});
+
+  ExpectFailingCompilation(
+      R"(
+    extern macro RetVal(): Object;
+    builtin A<T: type extends HeapObject>(implicit context: Context)(): Object {
+      return RetVal();
+    }
+    builtin B<T: type>(implicit context: Context)(): Object {
+      return A<T>();
+    }
+    builtin C<T: type>(implicit context: Context)(): Object {
+      return B<T>();
+    }
+    builtin D(implicit context: Context)(): Object {
+      return C<Smi>();
+    }
+  )",
+      SubstrVector{
+          SubstrTester("cannot find suitable callable", 7, 14),
+          SubstrTester("Note: in specialization B<Smi> requested here", 10, 14),
+          SubstrTester("Note: in specialization C<Smi> requested here", 13,
+                       14)});
+
+  ExpectFailingCompilation(
+      R"(
+    struct A<T: type extends HeapObject> {}
+    struct B<T: type> {
+      a: A<T>;
+    }
+    struct C<T: type> {
+      b: B<T>;
+    }
+    struct D {
+      c: C<Smi>;
+    }
+  )",
+      SubstrVector{
+          SubstrTester("Could not instantiate generic", 4, 10),
+          SubstrTester("Note: in specialization B<Smi> requested here", 7, 10),
+          SubstrTester("Note: in specialization C<Smi> requested here", 10,
+                       10)});
+
+  ExpectFailingCompilation(
+      R"(
+    macro A<T: type extends HeapObject>() {}
+    macro B<T: type>() {
+      A<T>();
+    }
+    struct C<T: type> {
+      Method() {
+        B<T>();
+      }
+    }
+    macro D(_b: C<Smi>) {}
+  )",
+      SubstrVector{
+          SubstrTester("cannot find suitable callable", 4, 7),
+          SubstrTester("Note: in specialization B<Smi> requested here", 8, 9),
+          SubstrTester("Note: in specialization C<Smi> requested here", 11,
+                       5)});
 }
 
 }  // namespace torque

@@ -178,8 +178,8 @@ bool DebugPropertyIterator::should_move_to_next_stage() const {
 namespace {
 base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
     Handle<JSReceiver> object, Handle<Name> name) {
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) return debug::NativeAccessorType::None;
+  size_t index;
+  if (name->AsIntegerIndex(&index)) return debug::NativeAccessorType::None;
   LookupIterator it =
       LookupIterator(object->GetIsolate(), object, name, LookupIterator::OWN);
   if (!it.IsFound()) return debug::NativeAccessorType::None;

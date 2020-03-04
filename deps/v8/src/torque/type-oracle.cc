@@ -25,25 +25,39 @@ void TypeOracle::FinalizeAggregateTypes() {
 }
 
 // static
-const StructType* TypeOracle::GetGenericStructTypeInstance(
-    GenericStructType* generic_struct, TypeVector arg_types) {
-  auto& params = generic_struct->generic_parameters();
-  auto& specializations = generic_struct->specializations();
+const Type* TypeOracle::GetGenericTypeInstance(GenericType* generic_type,
+                                               TypeVector arg_types) {
+  auto& params = generic_type->generic_parameters();
 
   if (params.size() != arg_types.size()) {
     ReportError("Generic struct takes ", params.size(), " parameters, but ",
                 arg_types.size(), " were given");
   }
 
-  if (auto specialization = specializations.Get(arg_types)) {
+  if (auto specialization = generic_type->GetSpecialization(arg_types)) {
     return *specialization;
   } else {
-    CurrentScope::Scope generic_scope(generic_struct->ParentScope());
-    auto struct_type = TypeVisitor::ComputeType(generic_struct->declaration(),
-                                                {{generic_struct, arg_types}});
-    specializations.Add(arg_types, struct_type);
-    return struct_type;
+    const Type* type = nullptr;
+    // AddSpecialization can raise an error, which should be reported in the
+    // scope of the code requesting the specialization, not the generic type's
+    // parent scope, hence the following block.
+    {
+      v8::internal::torque::Scope* requester_scope = CurrentScope::Get();
+      CurrentScope::Scope generic_scope(generic_type->ParentScope());
+      type = TypeVisitor::ComputeType(generic_type->declaration(),
+                                      {{generic_type, arg_types}},
+                                      requester_scope);
+    }
+    generic_type->AddSpecialization(arg_types, type);
+    return type;
   }
+}
+
+// static
+Namespace* TypeOracle::CreateGenericTypeInstantiationNamespace() {
+  Get().generic_type_instantiation_namespaces_.push_back(
+      std::make_unique<Namespace>(GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING));
+  return Get().generic_type_instantiation_namespaces_.back().get();
 }
 
 }  // namespace torque

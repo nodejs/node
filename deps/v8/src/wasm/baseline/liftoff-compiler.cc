@@ -22,6 +22,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
@@ -118,6 +119,84 @@ constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
                                             kWasmF64};
 constexpr Vector<const ValueType> kSupportedTypes =
     ArrayVector(kSupportedTypesArr);
+
+constexpr Condition GetCompareCondition(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprI32Eq:
+      return kEqual;
+    case kExprI32Ne:
+      return kUnequal;
+    case kExprI32LtS:
+      return kSignedLessThan;
+    case kExprI32LtU:
+      return kUnsignedLessThan;
+    case kExprI32GtS:
+      return kSignedGreaterThan;
+    case kExprI32GtU:
+      return kUnsignedGreaterThan;
+    case kExprI32LeS:
+      return kSignedLessEqual;
+    case kExprI32LeU:
+      return kUnsignedLessEqual;
+    case kExprI32GeS:
+      return kSignedGreaterEqual;
+    case kExprI32GeU:
+      return kUnsignedGreaterEqual;
+    default:
+#if V8_HAS_CXX14_CONSTEXPR
+      UNREACHABLE();
+#else
+      // We need to return something for old compilers here.
+      return kEqual;
+#endif
+  }
+}
+
+// Builds a {DebugSideTable}.
+class DebugSideTableBuilder {
+ public:
+  class EntryBuilder {
+   public:
+    explicit EntryBuilder(int pc_offset, int stack_height)
+        : pc_offset_(pc_offset), stack_height_(stack_height) {}
+
+    void SetConstant(int index, int32_t i32_const) {
+      // Add constants in order.
+      DCHECK(constants_.empty() || constants_.back().index < index);
+      constants_.push_back({index, i32_const});
+    }
+
+    DebugSideTable::Entry ToTableEntry() const {
+      DCHECK_LE(0, stack_height_);
+      return DebugSideTable::Entry{pc_offset_, stack_height_, constants_};
+    }
+
+    int pc_offset() const { return pc_offset_; }
+
+   private:
+    const int pc_offset_;
+    const int stack_height_;
+    std::vector<DebugSideTable::Entry::Constant> constants_;
+  };
+
+  // Adds a new entry, and returns a reference for modifying that entry. The
+  // reference can only be used until the next call to {NewEntry}.
+  EntryBuilder& NewEntry(int pc_offset, int stack_height) {
+    DCHECK(entries_.empty() || entries_.back().pc_offset() < pc_offset);
+    entries_.emplace_back(pc_offset, stack_height);
+    return entries_.back();
+  }
+
+  DebugSideTable GenerateDebugSideTable() {
+    std::vector<DebugSideTable::Entry> table_entries;
+    table_entries.reserve(entries_.size());
+    for (auto& entry : entries_) table_entries.push_back(entry.ToTableEntry());
+    return DebugSideTable{std::move(table_entries)};
+  }
+
+ private:
+  std::vector<EntryBuilder> entries_;
+};
 
 class LiftoffCompiler {
  public:
@@ -270,7 +349,8 @@ class LiftoffCompiler {
     int num_locals = decoder->num_locals();
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
-      __ set_local_type(i, decoder->GetLocalType(i));
+      ValueType type = decoder->GetLocalType(i);
+      __ set_local_type(i, type);
     }
   }
 
@@ -406,13 +486,13 @@ class LiftoffCompiler {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
         ValueType type = decoder->GetLocalType(param_idx);
-        __ cache_state()->stack_state.emplace_back(type);
+        __ PushStack(type);
       }
     } else {
       for (uint32_t param_idx = num_params; param_idx < __ num_locals();
            ++param_idx) {
         ValueType type = decoder->GetLocalType(param_idx);
-        __ cache_state()->stack_state.emplace_back(type, int32_t{0});
+        __ PushConstant(type, int32_t{0});
       }
     }
 
@@ -453,6 +533,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), false);
     __ CallRuntimeStub(ool->stub);
+    RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
     DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
@@ -469,7 +550,7 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(&ool);
     }
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
-                              __ GetTotalFrameSlotCount());
+                              __ GetTotalFrameSlotSize());
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCount());
     __ MaybeEmitOutOfLineConstantPool();
@@ -492,6 +573,10 @@ class LiftoffCompiler {
   void Block(FullDecoder* decoder, Control* block) {}
 
   void Loop(FullDecoder* decoder, Control* loop) {
+    if (loop->start_merge.arity > 0 || loop->end_merge.arity > 1) {
+      return unsupported(decoder, kMultiValue, "multi-value loop");
+    }
+
     // Before entering a loop, spill all locals to the stack, in order to free
     // the cache registers, and to avoid unnecessarily reloading stack values
     // into registers at branches.
@@ -634,19 +719,6 @@ class LiftoffCompiler {
     __ PushRegister(result_type, dst);
   }
 
-  void EmitI32UnOpWithCFallback(bool (LiftoffAssembler::*emit_fn)(Register,
-                                                                  Register),
-                                ExternalReference (*fallback_fn)()) {
-    auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
-      if (emit_fn && (asm_.*emit_fn)(dst.gp(), src.gp())) return;
-      ExternalReference ext_ref = fallback_fn();
-      ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
-      FunctionSig sig_i_i(1, 1, sig_i_i_reps);
-      GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src, ext_ref);
-    };
-    EmitUnOp<kWasmI32, kWasmI32>(emit_with_c_fallback);
-  }
-
   template <ValueType type>
   void EmitFloatUnOpWithCFallback(
       bool (LiftoffAssembler::*emit_fn)(DoubleRegister, DoubleRegister),
@@ -706,14 +778,7 @@ class LiftoffCompiler {
           __ emit_##fn(dst.gp(), src.gp());             \
         });                                             \
     break;
-#define CASE_I32_SIGN_EXTENSION(opcode, fn)             \
-  case kExpr##opcode:                                   \
-    EmitUnOp<kWasmI32, kWasmI32>(                       \
-        [=](LiftoffRegister dst, LiftoffRegister src) { \
-          __ emit_##fn(dst.gp(), src.gp());             \
-        });                                             \
-    break;
-#define CASE_I64_SIGN_EXTENSION(opcode, fn)             \
+#define CASE_I64_UNOP(opcode, fn)                       \
   case kExpr##opcode:                                   \
     EmitUnOp<kWasmI64, kWasmI64>(                       \
         [=](LiftoffRegister dst, LiftoffRegister src) { \
@@ -787,11 +852,13 @@ class LiftoffCompiler {
                            &ExternalReference::wasm_uint64_to_float64, kNoTrap)
       CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr, kNoTrap)
       CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr, kNoTrap)
-      CASE_I32_SIGN_EXTENSION(I32SExtendI8, i32_signextend_i8)
-      CASE_I32_SIGN_EXTENSION(I32SExtendI16, i32_signextend_i16)
-      CASE_I64_SIGN_EXTENSION(I64SExtendI8, i64_signextend_i8)
-      CASE_I64_SIGN_EXTENSION(I64SExtendI16, i64_signextend_i16)
-      CASE_I64_SIGN_EXTENSION(I64SExtendI32, i64_signextend_i32)
+      CASE_I32_UNOP(I32SExtendI8, i32_signextend_i8)
+      CASE_I32_UNOP(I32SExtendI16, i32_signextend_i16)
+      CASE_I64_UNOP(I64SExtendI8, i64_signextend_i8)
+      CASE_I64_UNOP(I64SExtendI16, i64_signextend_i16)
+      CASE_I64_UNOP(I64SExtendI32, i64_signextend_i32)
+      CASE_I64_UNOP(I64Clz, i64_clz)
+      CASE_I64_UNOP(I64Ctz, i64_ctz)
       case kExprI32Eqz:
         DCHECK(decoder->lookahead(0, kExprI32Eqz));
         if (decoder->lookahead(1, kExprBrIf)) {
@@ -804,21 +871,37 @@ class LiftoffCompiler {
               __ emit_i32_eqz(dst.gp(), src.gp());
             });
         break;
-      case kExprI32Popcnt:
-        EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
-                                 &ExternalReference::wasm_word32_popcnt);
-        break;
       case kExprI64Eqz:
         EmitUnOp<kWasmI64, kWasmI32>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               __ emit_i64_eqz(dst.gp(), src);
             });
         break;
-      case kExprI64Clz:
-      case kExprI64Ctz:
+      case kExprI32Popcnt:
+        EmitUnOp<kWasmI32, kWasmI32>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
+              ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
+              FunctionSig sig_i_i(1, 1, sig_i_i_reps);
+              GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src,
+                            ExternalReference::wasm_word32_popcnt());
+            });
+        break;
       case kExprI64Popcnt:
-        return unsupported(decoder, kComplexOperation,
-                           WasmOpcodes::OpcodeName(opcode));
+        EmitUnOp<kWasmI64, kWasmI64>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              if (__ emit_i64_popcnt(dst, src)) return;
+              // The c function returns i32. We will zero-extend later.
+              ValueType sig_i_l_reps[] = {kWasmI32, kWasmI64};
+              FunctionSig sig_i_l(1, 1, sig_i_l_reps);
+              LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
+              GenerateCCall(&c_call_dst, &sig_i_l, kWasmStmt, &src,
+                            ExternalReference::wasm_word64_popcnt());
+              // Now zero-extend the result to i64.
+              __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
+                                      nullptr);
+            });
+        break;
       case kExprI32SConvertSatF32:
       case kExprI32UConvertSatF32:
       case kExprI32SConvertSatF64:
@@ -833,8 +916,7 @@ class LiftoffCompiler {
         UNREACHABLE();
     }
 #undef CASE_I32_UNOP
-#undef CASE_I32_SIGN_EXTENSION
-#undef CASE_I64_SIGN_EXTENSION
+#undef CASE_I64_UNOP
 #undef CASE_FLOAT_UNOP
 #undef CASE_FLOAT_UNOP_WITH_CFALLBACK
 #undef CASE_TYPE_CONVERSION
@@ -848,7 +930,7 @@ class LiftoffCompiler {
 
     LiftoffAssembler::VarState rhs_slot = __ cache_state()->stack_state.back();
     // Check if the RHS is an immediate.
-    if (rhs_slot.loc() == LiftoffAssembler::VarState::kIntConst) {
+    if (rhs_slot.is_const()) {
       __ cache_state()->stack_state.pop_back();
       int32_t imm = rhs_slot.i32_const();
 
@@ -911,13 +993,13 @@ class LiftoffCompiler {
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
 #define CASE_I32_BINOP(opcode, fn)                                           \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
         });
 #define CASE_I32_BINOPI(opcode, fn)                                          \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOpImm<kWasmI32, kWasmI32>(                                 \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
@@ -926,13 +1008,13 @@ class LiftoffCompiler {
           __ emit_##fn(dst.gp(), lhs.gp(), imm);                             \
         });
 #define CASE_I64_BINOP(opcode, fn)                                           \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI64, kWasmI64>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst, lhs, rhs);                                       \
         });
 #define CASE_I64_BINOPI(opcode, fn)                                          \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOpImm<kWasmI64, kWasmI64>(                                 \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst, lhs, rhs);                                       \
@@ -941,58 +1023,64 @@ class LiftoffCompiler {
           __ emit_##fn(dst, lhs, imm);                                       \
         });
 #define CASE_FLOAT_BINOP(opcode, type, fn)                                   \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasm##type, kWasm##type>(                              \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.fp(), lhs.fp(), rhs.fp());                        \
         });
-#define CASE_I32_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+#define CASE_I32_CMPOP(opcode)                                               \
+  case kExpr##opcode:                                                        \
+    DCHECK(decoder->lookahead(0, kExpr##opcode));                            \
+    if (decoder->lookahead(1, kExprBrIf)) {                                  \
+      DCHECK(!has_outstanding_op());                                         \
+      outstanding_op_ = kExpr##opcode;                                       \
+      break;                                                                 \
+    }                                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          constexpr Condition cond = GetCompareCondition(kExpr##opcode);     \
           __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
         });
 #define CASE_I64_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI64, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_i64_set_cond(cond, dst.gp(), lhs, rhs);                    \
         });
 #define CASE_F32_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmF32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
 #define CASE_F64_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmF64, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
-#define CASE_I32_SHIFTOP(opcode, fn)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
-    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp(), {});                    \
+#define CASE_I64_SHIFTOP(opcode, fn)                                      \
+  case kExpr##opcode:                                                     \
+    return EmitBinOpImm<kWasmI64, kWasmI64>(                              \
+        [=](LiftoffRegister dst, LiftoffRegister src,                     \
+            LiftoffRegister amount) {                                     \
+          __ emit_##fn(dst, src,                                          \
+                       amount.is_pair() ? amount.low_gp() : amount.gp()); \
+        },                                                                \
+        [=](LiftoffRegister dst, LiftoffRegister src, int32_t amount) {   \
+          __ emit_##fn(dst, src, amount);                                 \
         });
-#define CASE_I64_SHIFTOP(opcode, fn)                                           \
-  case WasmOpcode::kExpr##opcode:                                              \
-    return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,              \
-                                             LiftoffRegister src,              \
-                                             LiftoffRegister amount) {         \
-      __ emit_##fn(dst, src, amount.is_pair() ? amount.low_gp() : amount.gp(), \
-                   {});                                                        \
-    });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
-  case WasmOpcode::kExpr##opcode:                                            \
-    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
+  case kExpr##opcode:                                                        \
+    return EmitBinOp<kWasm##type, kWasm##type>(                              \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
           auto ext_ref = ExternalReference::ext_ref_fn();                    \
-          ValueType sig_i_ii_reps[] = {kWasmI32, kWasmI32, kWasmI32};        \
-          FunctionSig sig_i_ii(1, 2, sig_i_ii_reps);                         \
-          GenerateCCall(&dst, &sig_i_ii, kWasmStmt, args, ext_ref);          \
+          ValueType sig_reps[] = {kWasm##type, kWasm##type, kWasm##type};    \
+          const bool out_via_stack = kWasm##type == kWasmI64;                \
+          FunctionSig sig(out_via_stack ? 0 : 1, 2, sig_reps);               \
+          ValueType out_arg_type = out_via_stack ? kWasmI64 : kWasmStmt;     \
+          GenerateCCall(&dst, &sig, out_arg_type, args, ext_ref);            \
         });
     switch (opcode) {
       CASE_I32_BINOPI(I32Add, i32_add)
@@ -1004,16 +1092,16 @@ class LiftoffCompiler {
       CASE_I64_BINOPI(I64And, i64_and)
       CASE_I64_BINOPI(I64Ior, i64_or)
       CASE_I64_BINOPI(I64Xor, i64_xor)
-      CASE_I32_CMPOP(I32Eq, kEqual)
-      CASE_I32_CMPOP(I32Ne, kUnequal)
-      CASE_I32_CMPOP(I32LtS, kSignedLessThan)
-      CASE_I32_CMPOP(I32LtU, kUnsignedLessThan)
-      CASE_I32_CMPOP(I32GtS, kSignedGreaterThan)
-      CASE_I32_CMPOP(I32GtU, kUnsignedGreaterThan)
-      CASE_I32_CMPOP(I32LeS, kSignedLessEqual)
-      CASE_I32_CMPOP(I32LeU, kUnsignedLessEqual)
-      CASE_I32_CMPOP(I32GeS, kSignedGreaterEqual)
-      CASE_I32_CMPOP(I32GeU, kUnsignedGreaterEqual)
+      CASE_I32_CMPOP(I32Eq)
+      CASE_I32_CMPOP(I32Ne)
+      CASE_I32_CMPOP(I32LtS)
+      CASE_I32_CMPOP(I32LtU)
+      CASE_I32_CMPOP(I32GtS)
+      CASE_I32_CMPOP(I32GtU)
+      CASE_I32_CMPOP(I32LeS)
+      CASE_I32_CMPOP(I32LeU)
+      CASE_I32_CMPOP(I32GeS)
+      CASE_I32_CMPOP(I32GeU)
       CASE_I64_BINOPI(I64Add, i64_add)
       CASE_I64_BINOP(I64Sub, i64_sub)
       CASE_I64_BINOP(I64Mul, i64_mul)
@@ -1039,14 +1127,16 @@ class LiftoffCompiler {
       CASE_F64_CMPOP(F64Gt, kUnsignedGreaterThan)
       CASE_F64_CMPOP(F64Le, kUnsignedLessEqual)
       CASE_F64_CMPOP(F64Ge, kUnsignedGreaterEqual)
-      CASE_I32_SHIFTOP(I32Shl, i32_shl)
-      CASE_I32_SHIFTOP(I32ShrS, i32_sar)
-      CASE_I32_SHIFTOP(I32ShrU, i32_shr)
+      CASE_I32_BINOPI(I32Shl, i32_shl)
+      CASE_I32_BINOPI(I32ShrS, i32_sar)
+      CASE_I32_BINOPI(I32ShrU, i32_shr)
+      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
+      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
       CASE_I64_SHIFTOP(I64Shl, i64_shl)
       CASE_I64_SHIFTOP(I64ShrS, i64_sar)
       CASE_I64_SHIFTOP(I64ShrU, i64_shr)
-      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
-      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
+      CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
+      CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
       CASE_FLOAT_BINOP(F32Add, F32, f32_add)
       CASE_FLOAT_BINOP(F32Sub, F32, f32_sub)
       CASE_FLOAT_BINOP(F32Mul, F32, f32_mul)
@@ -1061,7 +1151,7 @@ class LiftoffCompiler {
       CASE_FLOAT_BINOP(F64Min, F64, f64_min)
       CASE_FLOAT_BINOP(F64Max, F64, f64_max)
       CASE_FLOAT_BINOP(F64CopySign, F64, f64_copysign)
-      case WasmOpcode::kExprI32DivS:
+      case kExprI32DivS:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1077,7 +1167,7 @@ class LiftoffCompiler {
                            div_unrepresentable);
         });
         break;
-      case WasmOpcode::kExprI32DivU:
+      case kExprI32DivU:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1086,7 +1176,7 @@ class LiftoffCompiler {
           __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
         });
         break;
-      case WasmOpcode::kExprI32RemS:
+      case kExprI32RemS:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1095,7 +1185,7 @@ class LiftoffCompiler {
           __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
         break;
-      case WasmOpcode::kExprI32RemU:
+      case kExprI32RemU:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1104,7 +1194,7 @@ class LiftoffCompiler {
           __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
         break;
-      case WasmOpcode::kExprI64DivS:
+      case kExprI64DivS:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1124,7 +1214,7 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64DivU:
+      case kExprI64DivU:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1136,7 +1226,7 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64RemS:
+      case kExprI64RemS:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1148,7 +1238,7 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64RemU:
+      case kExprI64RemU:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1160,10 +1250,6 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64Rol:
-      case WasmOpcode::kExprI64Ror:
-        return unsupported(decoder, kComplexOperation,
-                           WasmOpcodes::OpcodeName(opcode));
       default:
         UNREACHABLE();
     }
@@ -1176,13 +1262,12 @@ class LiftoffCompiler {
 #undef CASE_I64_CMPOP
 #undef CASE_F32_CMPOP
 #undef CASE_F64_CMPOP
-#undef CASE_I32_SHIFTOP
 #undef CASE_I64_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
 
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
-    __ cache_state()->stack_state.emplace_back(kWasmI32, value);
+    __ PushConstant(kWasmI32, value);
   }
 
   void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
@@ -1192,7 +1277,7 @@ class LiftoffCompiler {
     // a register immediately.
     int32_t value_i32 = static_cast<int32_t>(value);
     if (value_i32 == value) {
-      __ cache_state()->stack_state.emplace_back(kWasmI64, value_i32);
+      __ PushConstant(kWasmI64, value_i32);
     } else {
       LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64));
       __ LoadConstant(reg, WasmValue(value));
@@ -1251,12 +1336,12 @@ class LiftoffCompiler {
         __ PushRegister(slot.type(), slot.reg());
         break;
       case kIntConst:
-        __ cache_state()->stack_state.emplace_back(imm.type, slot.i32_const());
+        __ PushConstant(imm.type, slot.i32_const());
         break;
       case kStack: {
         auto rc = reg_class_for(imm.type);
         LiftoffRegister reg = __ GetUnusedRegister(rc);
-        __ Fill(reg, imm.index, imm.type);
+        __ Fill(reg, slot.offset(), imm.type);
         __ PushRegister(slot.type(), reg);
         break;
       }
@@ -1266,11 +1351,12 @@ class LiftoffCompiler {
   void LocalSetFromStackSlot(LiftoffAssembler::VarState* dst_slot,
                              uint32_t local_index) {
     auto& state = *__ cache_state();
+    auto& src_slot = state.stack_state.back();
     ValueType type = dst_slot->type();
     if (dst_slot->is_reg()) {
       LiftoffRegister slot_reg = dst_slot->reg();
       if (state.get_use_count(slot_reg) == 1) {
-        __ Fill(dst_slot->reg(), state.stack_height() - 1, type);
+        __ Fill(dst_slot->reg(), src_slot.offset(), type);
         return;
       }
       state.dec_used(slot_reg);
@@ -1279,8 +1365,8 @@ class LiftoffCompiler {
     DCHECK_EQ(type, __ local_type(local_index));
     RegClass rc = reg_class_for(type);
     LiftoffRegister dst_reg = __ GetUnusedRegister(rc);
-    __ Fill(dst_reg, __ cache_state()->stack_height() - 1, type);
-    *dst_slot = LiftoffAssembler::VarState(type, dst_reg);
+    __ Fill(dst_reg, src_slot.offset(), type);
+    *dst_slot = LiftoffAssembler::VarState(type, dst_reg, dst_slot->offset());
     __ cache_state()->inc_used(dst_reg);
   }
 
@@ -1291,12 +1377,12 @@ class LiftoffCompiler {
     switch (source_slot.loc()) {
       case kRegister:
         if (target_slot.is_reg()) state.dec_used(target_slot.reg());
-        target_slot = source_slot;
+        target_slot.Copy(source_slot);
         if (is_tee) state.inc_used(target_slot.reg());
         break;
       case kIntConst:
         if (target_slot.is_reg()) state.dec_used(target_slot.reg());
-        target_slot = source_slot;
+        target_slot.Copy(source_slot);
         break;
       case kStack:
         LocalSetFromStackSlot(&target_slot, local_index);
@@ -1421,17 +1507,24 @@ class LiftoffCompiler {
   }
 
   void BrIf(FullDecoder* decoder, const Value& /* cond */, uint32_t depth) {
-    Condition cond = kEqual;  // Unary "equal" means "equals zero".
-
-    if (has_outstanding_op()) {
-      DCHECK_EQ(kExprI32Eqz, outstanding_op_);
-      cond = kUnequal;  // Unary "unequal" means "not equals zero".
-      outstanding_op_ = kNoOutstandingOp;
-    }
-
     Label cont_false;
     Register value = __ PopToRegister().gp();
-    __ emit_cond_jump(cond, &cont_false, kWasmI32, value);
+
+    if (!has_outstanding_op()) {
+      // Unary "equal" means "equals zero".
+      __ emit_cond_jump(kEqual, &cont_false, kWasmI32, value);
+    } else if (outstanding_op_ == kExprI32Eqz) {
+      // Unary "unequal" means "not equals zero".
+      __ emit_cond_jump(kUnequal, &cont_false, kWasmI32, value);
+      outstanding_op_ = kNoOutstandingOp;
+    } else {
+      // Otherwise, it's an i32 compare opcode.
+      Condition cond = NegateCondition(GetCompareCondition(outstanding_op_));
+      Register rhs = value;
+      Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
+      __ emit_cond_jump(cond, &cont_false, kWasmI32, lhs, rhs);
+      outstanding_op_ = kNoOutstandingOp;
+    }
 
     BrOrRet(decoder, depth);
     __ bind(&cont_false);
@@ -1473,6 +1566,8 @@ class LiftoffCompiler {
     GenerateBrTable(decoder, tmp, value, min, split, table_iterator,
                     br_targets);
     __ bind(&upper_half);
+    // table_iterator will trigger a DCHECK if we don't stop decoding now.
+    if (did_bailout()) return;
     // Emit br table for upper half:
     GenerateBrTable(decoder, tmp, value, split, max, table_iterator,
                     br_targets);
@@ -1496,6 +1591,8 @@ class LiftoffCompiler {
                       &br_targets);
 
       __ bind(&case_default);
+      // table_iterator will trigger a DCHECK if we don't stop decoding now.
+      if (did_bailout()) return;
     }
 
     // Generate the default case.
@@ -1533,7 +1630,7 @@ class LiftoffCompiler {
   bool BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
                       uint32_t offset, Register index, LiftoffRegList pinned) {
     const bool statically_oob =
-        !IsInBounds(offset, access_size, env_->max_memory_size);
+        !base::IsInBounds(offset, access_size, env_->max_memory_size);
 
     if (!statically_oob &&
         (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {
@@ -1622,47 +1719,20 @@ class LiftoffCompiler {
     __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, mem_rep), address,
              StoreType::kI32Store8, pinned);
 
+    WasmTraceMemoryDescriptor descriptor;
+    DCHECK_EQ(0, descriptor.GetStackParameterCount());
+    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+    Register param_reg = descriptor.GetRegisterParameter(0);
+    if (info.gp() != param_reg) {
+      __ Move(param_reg, info.gp(), LiftoffAssembler::kWasmIntPtr);
+    }
+
     source_position_table_builder_.AddPosition(__ pc_offset(),
                                                SourcePosition(position), false);
-
-    Register args[] = {info.gp()};
-    GenerateRuntimeCall(Runtime::kWasmTraceMemory, arraysize(args), args);
-    __ DeallocateStackSlot(sizeof(MemoryTracingInfo));
-  }
-
-  void GenerateRuntimeCall(Runtime::FunctionId runtime_function, int num_args,
-                           Register* args) {
-    // Currently, only one argument is supported. More arguments require some
-    // caution for the parallel register moves (reuse StackTransferRecipe).
-    DCHECK_EQ(1, num_args);
-#ifdef DEBUG
-    auto call_descriptor = compiler::Linkage::GetRuntimeCallDescriptor(
-        compilation_zone_, runtime_function, num_args,
-        compiler::Operator::kNoProperties, compiler::CallDescriptor::kNoFlags);
-    constexpr size_t kInputShift = 1;  // Input 0 is the call target.
-    compiler::LinkageLocation param_loc =
-        call_descriptor->GetInputLocation(kInputShift);
-    // Runtime calls take their arguments on the stack.
-    DCHECK(param_loc.IsCallerFrameSlot());
-#endif
-    LiftoffStackSlots stack_slots(&asm_);
-    stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
-                                               LiftoffRegister(args[0])));
-    stack_slots.Construct();
-
-    // Set context to "no context" for the runtime call.
-    __ TurboAssembler::Move(kContextRegister,
-                            Smi::FromInt(Context::kNoContext));
-    Register centry = kJavaScriptCallCodeStartRegister;
-    LOAD_INSTANCE_FIELD(centry, IsolateRoot, kSystemPointerSize);
-    // All cache registers are spilled and there are no register arguments.
-    LiftoffRegList pinned;
-    auto centry_id =
-        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
-    __ LoadTaggedPointer(centry, centry, no_reg,
-                         IsolateData::builtin_slot_offset(centry_id), pinned);
-    __ CallRuntimeWithCEntry(runtime_function, centry);
+    __ CallRuntimeStub(WasmCode::kWasmTraceMemory);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ DeallocateStackSlot(sizeof(MemoryTracingInfo));
   }
 
   Register AddMemoryMasking(Register index, uint32_t* offset,
@@ -1718,6 +1788,12 @@ class LiftoffCompiler {
                            offset, decoder->position());
     }
   }
+  void LoadTransform(FullDecoder* decoder, LoadType type,
+                     LoadTransformationKind transform,
+                     const MemoryAccessImmediate<validate>& imm,
+                     const Value& index_val, Value* result) {
+    unsupported(decoder, kSimd, "simd");
+  }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate<validate>& imm,
@@ -1766,7 +1842,7 @@ class LiftoffCompiler {
     __ SpillAllRegisters();
 
     constexpr Register kGpReturnReg = kGpReturnRegisters[0];
-    static_assert(kLiftoffAssemblerGpCacheRegs & Register::bit<kGpReturnReg>(),
+    static_assert(kLiftoffAssemblerGpCacheRegs & kGpReturnReg.bit(),
                   "first return register is a cache register (needs more "
                   "complex code here otherwise)");
     LiftoffRegister result = pinned.set(LiftoffRegister(kGpReturnReg));
@@ -1781,6 +1857,7 @@ class LiftoffCompiler {
     if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
+    RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     if (kReturnRegister0 != result.gp()) {
@@ -1788,6 +1865,18 @@ class LiftoffCompiler {
     }
 
     __ PushRegister(kWasmI32, result);
+  }
+
+  void RegisterDebugSideTableEntry() {
+    if (V8_LIKELY(!debug_sidetable_builder_)) return;
+    int stack_height = static_cast<int>(__ cache_state()->stack_height());
+    auto entry =
+        debug_sidetable_builder_->NewEntry(__ pc_offset(), stack_height);
+    // Record all constants on the stack.
+    for (int idx = 0; idx < stack_height; ++idx) {
+      auto& slot = __ cache_state()->stack_state[idx];
+      if (slot.is_const()) entry.SetConstant(idx, slot.i32_const());
+    }
   }
 
   void CallDirect(FullDecoder* decoder,
@@ -1833,10 +1922,6 @@ class LiftoffCompiler {
           __ pc_offset(), SourcePosition(decoder->position()), false);
 
       __ CallIndirect(imm.sig, call_descriptor, target);
-
-      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-      __ FinishCall(imm.sig, call_descriptor);
     } else {
       // A direct call within this module just gets the current instance.
       __ PrepareCall(imm.sig, call_descriptor);
@@ -1847,11 +1932,12 @@ class LiftoffCompiler {
       // Just encode the function index. This will be patched at instantiation.
       Address addr = static_cast<Address>(imm.index);
       __ CallNativeWasmCode(addr);
-
-      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
-
-      __ FinishCall(imm.sig, call_descriptor);
     }
+
+    RegisterDebugSideTableEntry();
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ FinishCall(imm.sig, call_descriptor);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
@@ -1916,8 +2002,7 @@ class LiftoffCompiler {
       // 3) mask = diff & neg_index
       __ emit_i32_and(mask, diff, neg_index);
       // 4) mask = mask >> 31
-      __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(int32_t{31}));
-      __ emit_i32_sar(mask, mask, tmp_const, pinned);
+      __ emit_i32_sar(mask, mask, 31);
 
       // Apply mask.
       __ emit_i32_and(index, index, mask);
@@ -1926,12 +2011,9 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("Check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
-    // Multiply {index} by 4 to represent kInt32Size items.
-    STATIC_ASSERT(kInt32Size == 4);
-    // TODO(wasm): use a emit_i32_shli() instead of two adds.
-    // (currently cannot use shl on ia32/x64 because it clobbers %rcx).
-    __ emit_i32_add(index, index, index);
-    __ emit_i32_add(index, index, index);
+    // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
+    STATIC_ASSERT((1 << 2) == kInt32Size);
+    __ emit_i32_shl(index, index, 2);
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);
 
@@ -1985,6 +2067,7 @@ class LiftoffCompiler {
     __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(imm.sig, call_descriptor, target);
 
+    RegisterDebugSideTableEntry();
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);
@@ -2007,11 +2090,6 @@ class LiftoffCompiler {
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate>& imm,
                   const Vector<Value> inputs, Value* result) {
-    unsupported(decoder, kSimd, "simd");
-  }
-  void SimdShiftOp(FullDecoder* decoder, WasmOpcode opcode,
-                   const SimdShiftImmediate<validate>& imm, const Value& input,
-                   Value* result) {
     unsupported(decoder, kSimd, "simd");
   }
   void Simd8x16ShuffleOp(FullDecoder* decoder,
@@ -2092,6 +2170,8 @@ class LiftoffCompiler {
 
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
+  // TODO(clemensb): Provide a DebugSideTableBuilder here.
+  DebugSideTableBuilder* const debug_sidetable_builder_ = nullptr;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
@@ -2137,18 +2217,22 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
                                                 int func_index,
                                                 Counters* counters,
                                                 WasmFeatures* detected) {
+  int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation", "func_index", func_index,
-               "body_size",
-               static_cast<uint32_t>(func_body.end - func_body.start));
+               "body_size", func_body_size);
 
   Zone zone(allocator, "LiftoffCompilationZone");
   const WasmModule* module = env ? env->module : nullptr;
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
+  size_t code_size_estimate =
+      WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
+  // Allocate the initial buffer a bit bigger to avoid reallocation during code
+  // generation.
   std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
-      wasm::WasmInstructionBuffer::New();
+      wasm::WasmInstructionBuffer::New(128 + code_size_estimate * 4 / 3);
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView());

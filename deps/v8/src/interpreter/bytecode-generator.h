@@ -379,6 +379,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        HandlerTable::CatchPrediction catch_prediction,
                        TryFinallyStatement* stmt_for_coverage = nullptr);
 
+  template <typename ExpressionFunc>
+  void BuildOptionalChain(ExpressionFunc expression_func);
+
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which
   // specifies the type of the result of the visited expression.

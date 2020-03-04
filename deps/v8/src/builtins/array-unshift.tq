@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_unshift {
+namespace array {
   extern builtin ArrayUnshift(Context, JSFunction, JSAny, int32): JSAny;
 
   transitioning macro GenericArrayUnshift(
@@ -78,7 +78,8 @@ namespace array_unshift {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.unshift
   transitioning javascript builtin ArrayPrototypeUnshift(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     try {
       const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
       array::EnsureWriteableFastElements(array);

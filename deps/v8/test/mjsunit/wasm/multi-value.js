@@ -66,6 +66,49 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(1, 4), 5);
 })();
 
+(function MultiBlockUnreachableTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_il_v = builder.addType(makeSig([], [kWasmI32, kWasmI64]));
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprBlock, sig_il_v,
+      kExprI32Const, 1,
+      kExprI64Const, 1,
+      kExprBr, 0,
+      kExprI32Const, 1,
+      kExprI64Const, 1,
+      kExprEnd,
+      kExprDrop])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(1, 2), 1);
+})();
+
+(function MultiBlockUnreachableTypeErrorTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_il_v = builder.addType(makeSig([], [kWasmI32, kWasmI64]));
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprBlock, sig_il_v,
+      kExprI32Const, 1,
+      kExprI64Const, 1,
+      kExprBr, 0,
+      kExprI64Const, 1,
+      kExprI32Const, 1,
+      // Wrong order: expect i32, i64.
+      kExprEnd,
+      kExprDrop])
+    .exportAs("main");
+
+  assertThrows(() => new WebAssembly.Module(builder.toBuffer()),
+      WebAssembly.CompileError, /expected type i64, found i32.const/);
+})();
 
 (function MultiLoopResultTest() {
   print("MultiLoopResultTest");
@@ -252,6 +295,24 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(1), 6);
 })();
 
+(function MultiIfOneArmedNoTypeCheckTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_i_l = builder.addType(kSig_i_l);
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprI64Const, 0,
+      kExprI32Const, 0,
+      kExprIf, sig_i_l,
+      kExprDrop,
+      kExprI32Const, 0,
+      kExprEnd]);
+
+  assertThrows(() => new WebAssembly.Module(builder.toBuffer()),
+      WebAssembly.CompileError, /expected i32, got i64/);
+})();
+
 (function MultiResultTest() {
   print("MultiResultTest");
   let builder = new WasmModuleBuilder();
@@ -339,6 +400,62 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(1), 2);
   assertEquals(instance.exports.main(2), 8);
   assertEquals(instance.exports.main(10), 200);
+})();
+
+(function MultiBrTableTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_ii_v = builder.addType(kSig_v_v);
+
+  builder.addFunction("main", kSig_ii_v)
+    .addBody([
+      kExprI32Const, 1, kExprI32Const, 2,
+      kExprI32Const, 0,
+      kExprBrTable, 1, 0, 0,
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(instance.exports.main(), [1, 2]);
+})();
+
+(function MultiUnreachablePolymorphicTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_v_i = builder.addType(kSig_v_i);
+  let sig_i_i = builder.addType(kSig_i_i);
+
+  builder.addFunction("block", kSig_v_v)
+    .addBody([
+      kExprReturn,
+      kExprBlock, sig_v_i,
+      kExprDrop,
+      kExprEnd
+    ])
+    .exportAs("block");
+  builder.addFunction("if_else", kSig_v_v)
+    .addBody([
+      kExprReturn,
+      kExprIf, sig_v_i,
+      kExprDrop,
+      kExprElse,
+      kExprDrop,
+      kExprEnd
+    ])
+    .exportAs("if_else");
+  builder.addFunction("loop", kSig_v_v)
+    .addBody([
+      kExprReturn,
+      kExprLoop, sig_i_i,
+      kExprEnd,
+      kExprDrop
+    ])
+    .exportAs("loop");
+  // TODO(thibaudm): Create eh + mv mjsunit test and add try/catch case.
+  let instance = builder.instantiate();
+  instance.exports.block();
+  instance.exports.if_else();
+  instance.exports.loop();
 })();
 
 (function MultiWasmToJSReturnTest() {

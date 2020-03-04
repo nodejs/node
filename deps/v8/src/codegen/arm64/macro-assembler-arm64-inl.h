@@ -390,7 +390,7 @@ void TurboAssembler::CmovX(const Register& rd, const Register& rn,
   DCHECK(!rd.IsSP());
   DCHECK(rd.Is64Bits() && rn.Is64Bits());
   DCHECK((cond != al) && (cond != nv));
-  if (!rd.is(rn)) {
+  if (rd != rn) {
     csel(rd, rn, rd, cond);
   }
 }
@@ -596,7 +596,7 @@ void TurboAssembler::Fmov(VRegister fd, VRegister fn) {
   // registers. fmov(s0, s0) is not a no-op because it clears the top word of
   // d0. Technically, fmov(d0, d0) is not a no-op either because it clears the
   // top of q0, but VRegister does not currently support Q registers.
-  if (!fd.Is(fn) || !fd.Is64Bits()) {
+  if (fd != fn || !fd.Is64Bits()) {
     fmov(fd, fn);
   }
 }
@@ -771,7 +771,7 @@ void TurboAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
   mrs(rt, sysreg);
 }
 
-void MacroAssembler::Msr(SystemRegister sysreg, const Register& rt) {
+void TurboAssembler::Msr(SystemRegister sysreg, const Register& rt) {
   DCHECK(allow_macro_instructions());
   msr(sysreg, rt);
 }

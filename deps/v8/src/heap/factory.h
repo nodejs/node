@@ -372,10 +372,6 @@ class V8_EXPORT_PRIVATE Factory {
       const ExternalOneByteString::Resource* resource);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
-  // Create a new external string object for one-byte encoded native script.
-  // It does not cache the resource data pointer.
-  Handle<ExternalOneByteString> NewNativeSourceString(
-      const ExternalOneByteString::Resource* resource);
 
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(AllocationType allocation = AllocationType::kOld);
@@ -810,9 +806,15 @@ class V8_EXPORT_PRIVATE Factory {
 #undef DECLARE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> NumberToString(Smi number, bool check_cache = true);
+  Handle<String> SmiToString(Smi number, bool check_cache = true);
+  Handle<String> HeapNumberToString(Handle<HeapNumber> number, double value,
+                                    bool check_cache = true);
 
-  inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
+  Handle<String> SizeToString(size_t value, bool check_cache = true);
+  inline Handle<String> Uint32ToString(uint32_t value,
+                                       bool check_cache = true) {
+    return SizeToString(value, check_cache);
+  }
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   ROOT_LIST(ROOT_ACCESSOR)
@@ -889,7 +891,7 @@ class V8_EXPORT_PRIVATE Factory {
   // irregexp regexp and stores it in the regexp.
   void SetRegExpIrregexpData(Handle<JSRegExp> regexp, JSRegExp::Type type,
                              Handle<String> source, JSRegExp::Flags flags,
-                             int capture_count);
+                             int capture_count, uint32_t backtrack_limit);
 
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.
@@ -961,6 +963,11 @@ class V8_EXPORT_PRIVATE Factory {
       return *this;
     }
 
+    CodeBuilder& set_is_executable(bool executable) {
+      is_executable_ = executable;
+      return *this;
+    }
+
     // Indicates the CodeDataContainer should be allocated in read-only space.
     // As an optimization, if the kind-specific flags match that of a canonical
     // container, it will be used instead.
@@ -988,6 +995,7 @@ class V8_EXPORT_PRIVATE Factory {
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
+    bool is_executable_ = true;
     bool read_only_data_container_ = false;
     bool is_movable_ = true;
     bool is_turbofanned_ = false;
@@ -1025,7 +1033,7 @@ class V8_EXPORT_PRIVATE Factory {
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header
   // uninitialized.
-  Handle<Context> NewContext(RootIndex map_root_index, int size,
+  Handle<Context> NewContext(Handle<Map> map, int size,
                              int variadic_part_length,
                              AllocationType allocation);
 
@@ -1075,6 +1083,7 @@ class V8_EXPORT_PRIVATE Factory {
       ElementsKind elements_kind, int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo();
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,
       int maybe_builtin_index, FunctionKind kind = kNormalFunction);

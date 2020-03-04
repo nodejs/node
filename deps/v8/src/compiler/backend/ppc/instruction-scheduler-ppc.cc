@@ -110,9 +110,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_BitcastDoubleToInt64:
     case kPPC_ByteRev32:
     case kPPC_ByteRev64:
-    case kPPC_DecompressSigned:
-    case kPPC_DecompressPointer:
-    case kPPC_DecompressAny:
     case kPPC_CompressSigned:
     case kPPC_CompressPointer:
     case kPPC_CompressAny:

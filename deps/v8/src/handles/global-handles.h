@@ -87,6 +87,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   static void SetFinalizationCallbackForTraced(
       Address* location, void* parameter,
       WeakCallbackInfo<void>::Callback callback);
+  static void MarkTraced(Address* location);
 
   explicit GlobalHandles(Isolate* isolate);
   ~GlobalHandles();

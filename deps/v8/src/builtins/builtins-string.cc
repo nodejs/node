@@ -155,13 +155,13 @@ BUILTIN(StringPrototypeLocaleCompare) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str2,
                                      Object::ToString(isolate, args.at(1)));
 
-  if (str1.is_identical_to(str2)) return Smi::kZero;  // Equal.
+  if (str1.is_identical_to(str2)) return Smi::zero();  // Equal.
   int str1_length = str1->length();
   int str2_length = str2->length();
 
   // Decide trivial cases without flattening.
   if (str1_length == 0) {
-    if (str2_length == 0) return Smi::kZero;  // Equal.
+    if (str2_length == 0) return Smi::zero();  // Equal.
     return Smi::FromInt(-str2_length);
   } else {
     if (str2_length == 0) return Smi::FromInt(str1_length);

@@ -15,12 +15,34 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-const Type* TypeVisitor::ComputeType(TypeDeclaration* decl) {
+const Type* TypeVisitor::ComputeType(TypeDeclaration* decl,
+                                     MaybeSpecializationKey specialized_from,
+                                     Scope* specialization_requester) {
+  SourcePosition requester_position = CurrentSourcePosition::Get();
   CurrentSourcePosition::Scope scope(decl->pos);
+  Scope* current_scope = CurrentScope::Get();
+  if (specialized_from) {
+    current_scope = TypeOracle::CreateGenericTypeInstantiationNamespace();
+    current_scope->SetSpecializationRequester(
+        {requester_position, specialization_requester,
+         Type::ComputeName(decl->name->value, specialized_from)});
+  }
+  CurrentScope::Scope new_current_scope_scope(current_scope);
+  if (specialized_from) {
+    auto& params = specialized_from->generic->generic_parameters();
+    auto arg_types_iterator = specialized_from->specialized_types.begin();
+    for (auto param : params) {
+      TypeAlias* alias =
+          Declarations::DeclareType(param.name, *arg_types_iterator);
+      alias->SetIsUserDefined(false);
+      arg_types_iterator++;
+    }
+  }
+
   switch (decl->kind) {
 #define ENUM_ITEM(name)        \
   case AstNode::Kind::k##name: \
-    return ComputeType(name::cast(decl));
+    return ComputeType(name::cast(decl), specialized_from);
     AST_TYPE_DECLARATION_NODE_KIND_LIST(ENUM_ITEM)
 #undef ENUM_ITEM
     default:
@@ -28,7 +50,8 @@ const Type* TypeVisitor::ComputeType(TypeDeclaration* decl) {
   }
 }
 
-const Type* TypeVisitor::ComputeType(TypeAliasDeclaration* decl) {
+const Type* TypeVisitor::ComputeType(TypeAliasDeclaration* decl,
+                                     MaybeSpecializationKey specialized_from) {
   const Type* type = ComputeType(decl->type);
   type->AddAlias(decl->name->value);
   return type;
@@ -51,7 +74,8 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
 }
 }  // namespace
 
-const AbstractType* TypeVisitor::ComputeType(AbstractTypeDeclaration* decl) {
+const AbstractType* TypeVisitor::ComputeType(
+    AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from) {
   std::string generates =
       ComputeGeneratesType(decl->generates, !decl->is_constexpr);
 
@@ -85,7 +109,7 @@ const AbstractType* TypeVisitor::ComputeType(AbstractTypeDeclaration* decl) {
 
   return TypeOracle::GetAbstractType(parent_type, decl->name->value,
                                      decl->transient, generates,
-                                     non_constexpr_version);
+                                     non_constexpr_version, specialized_from);
 }
 
 void DeclareMethods(AggregateType* container_type,
@@ -108,23 +132,13 @@ void DeclareMethods(AggregateType* container_type,
 }
 
 const StructType* TypeVisitor::ComputeType(
-    StructDeclaration* decl,
-    StructType::MaybeSpecializationKey specialized_from) {
+    StructDeclaration* decl, MaybeSpecializationKey specialized_from) {
   StructType* struct_type = TypeOracle::GetStructType(decl, specialized_from);
   CurrentScope::Scope struct_namespace_scope(struct_type->nspace());
   CurrentSourcePosition::Scope position_activator(decl->pos);
 
-  if (specialized_from) {
-    auto& params = specialized_from->generic->generic_parameters();
-    auto arg_types_iterator = specialized_from->specialized_types.begin();
-    for (auto param : params) {
-      TypeAlias* alias = Declarations::DeclareType(param, *arg_types_iterator);
-      alias->SetIsUserDefined(false);
-      arg_types_iterator++;
-    }
-  }
-
   size_t offset = 0;
+  bool packable = true;
   for (auto& field : decl->fields) {
     CurrentSourcePosition::Scope position_activator(
         field.name_and_type.type->pos);
@@ -133,37 +147,66 @@ const StructType* TypeVisitor::ComputeType(
       ReportError("struct field \"", field.name_and_type.name->value,
                   "\" carries constexpr type \"", *field_type, "\"");
     }
-    struct_type->RegisterField({field.name_and_type.name->pos,
-                                struct_type,
-                                base::nullopt,
-                                {field.name_and_type.name->value, field_type},
-                                offset,
-                                false,
-                                field.const_qualified,
-                                false});
-    offset += LoweredSlotCount(field_type);
+    Field f{field.name_and_type.name->pos,
+            struct_type,
+            base::nullopt,
+            {field.name_and_type.name->value, field_type},
+            offset,
+            false,
+            field.const_qualified,
+            false};
+    auto optional_size = SizeOf(f.name_and_type.type);
+    // Structs may contain fields that aren't representable in packed form. If
+    // so, then this field and any subsequent fields should have their offsets
+    // marked as invalid.
+    if (!optional_size.has_value()) {
+      packable = false;
+    }
+    if (!packable) {
+      f.offset = Field::kInvalidOffset;
+    }
+    struct_type->RegisterField(f);
+    // Offsets are assigned based on an assumption of no space between members.
+    // This might lead to invalid alignment in some cases, but most structs are
+    // never actually packed in memory together (they just represent a batch of
+    // CSA TNode values that should be passed around together). For any struct
+    // that is used as a class field, we verify its offsets when setting up the
+    // class type.
+    if (optional_size.has_value()) {
+      size_t field_size = 0;
+      std::tie(field_size, std::ignore) = *optional_size;
+      offset += field_size;
+    }
   }
   return struct_type;
 }
 
-const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
+const ClassType* TypeVisitor::ComputeType(
+    ClassDeclaration* decl, MaybeSpecializationKey specialized_from) {
   ClassType* new_class;
   // TODO(sigurds): Remove this hack by introducing a declarable for classes.
   const TypeAlias* alias =
       Declarations::LookupTypeAlias(QualifiedName(decl->name->value));
   GlobalContext::RegisterClass(alias);
   DCHECK_EQ(*alias->delayed_, decl);
+  bool is_shape = decl->flags & ClassFlag::kIsShape;
+  if (is_shape && !(decl->flags & ClassFlag::kExtern)) {
+    ReportError("Shapes must be extern, add \"extern\" to the declaration.");
+  }
+  if (is_shape && decl->flags & ClassFlag::kUndefinedLayout) {
+    ReportError("Shapes need to define their layout.");
+  }
   if (decl->flags & ClassFlag::kExtern) {
     if (!decl->super) {
       ReportError("Extern class must extend another type.");
     }
     const Type* super_type = TypeVisitor::ComputeType(*decl->super);
-    if (super_type != TypeOracle::GetTaggedType()) {
+    if (super_type != TypeOracle::GetStrongTaggedType()) {
       const ClassType* super_class = ClassType::DynamicCast(super_type);
       if (!super_class) {
         ReportError(
             "class \"", decl->name->value,
-            "\" must extend either Tagged or an already declared class");
+            "\" must extend either StrongTagged or an already declared class");
       }
       if (super_class->HasUndefinedLayout() &&
           !(decl->flags & ClassFlag::kUndefinedLayout)) {
@@ -174,6 +217,18 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
     }
 
     std::string generates = decl->name->value;
+    if (is_shape) {
+      const ClassType* super_class = ClassType::DynamicCast(super_type);
+      if (!super_class ||
+          !super_class->IsSubtypeOf(TypeOracle::GetJSObjectType())) {
+        Error("Shapes need to extend a subclass of ",
+              *TypeOracle::GetJSObjectType())
+            .Throw();
+      }
+      // Shapes use their super class in CSA code since they have incomplete
+      // support for type-checks on the C++ side.
+      generates = super_class->name();
+    }
     if (decl->generates) {
       bool enforce_tnode_type = true;
       generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
@@ -216,11 +271,11 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
       type = alias->type();
       pos = alias->GetDeclarationPosition();
     } else {
-      auto* generic_struct =
-          Declarations::LookupUniqueGenericStructType(qualified_name);
-      type = TypeOracle::GetGenericStructTypeInstance(generic_struct,
-                                                      ComputeTypeVector(args));
-      pos = generic_struct->declaration()->name->pos;
+      auto* generic_type =
+          Declarations::LookupUniqueGenericType(qualified_name);
+      type = TypeOracle::GetGenericTypeInstance(generic_type,
+                                                ComputeTypeVector(args));
+      pos = generic_type->declaration()->name->pos;
     }
 
     if (GlobalContext::collect_language_server_data()) {
@@ -273,14 +328,44 @@ void TypeVisitor::VisitClassFieldsAndMethods(
     CurrentSourcePosition::Scope position_activator(
         field_expression.name_and_type.type->pos);
     const Type* field_type = ComputeType(field_expression.name_and_type.type);
+    if (class_type->IsShape()) {
+      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+        ReportError(
+            "in-object properties only support subtypes of Object, but "
+            "found type ",
+            *field_type);
+      }
+      if (field_expression.weak) {
+        ReportError("in-object properties cannot be weak");
+      }
+    }
     if (!(class_declaration->flags & ClassFlag::kExtern)) {
-      if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        ReportError("non-extern classes do not support untagged fields");
+      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+        ReportError(
+            "non-extern classes only support subtypes of type Object, but "
+            "found type ",
+            *field_type);
       }
       if (field_expression.weak) {
         ReportError("non-extern classes do not support weak fields");
       }
     }
+    if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
+      for (const Field& struct_field : struct_type->fields()) {
+        if (!struct_field.name_and_type.type->IsSubtypeOf(
+                TypeOracle::GetTaggedType())) {
+          // If we ever actually need different sizes of struct fields, then we
+          // can define the packing and alignment rules. Until then, let's keep
+          // it simple. This restriction also helps keep the tagged and untagged
+          // regions separate in the class layout (see also
+          // FieldOffsetsGenerator::GetSectionFor).
+          Error(
+              "Classes do not support fields which are structs containing "
+              "untagged data.");
+        }
+      }
+    }
+    base::Optional<NameAndType> index_field;
     if (field_expression.index) {
       if (seen_indexed_field ||
           (super_class && super_class->HasIndexedField())) {
@@ -288,18 +373,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
             "only one indexable field is currently supported per class");
       }
       seen_indexed_field = true;
-      const NameAndType& index_field =
-          class_type->LookupFieldInternal(*field_expression.index)
-              .name_and_type;
-      class_type->RegisterField(
-          {field_expression.name_and_type.name->pos,
-           class_type,
-           index_field,
-           {field_expression.name_and_type.name->value, field_type},
-           class_offset,
-           field_expression.weak,
-           field_expression.const_qualified,
-           field_expression.generate_verify});
+      index_field = class_type->LookupFieldInternal(*field_expression.index)
+                        .name_and_type;
     } else {
       if (seen_indexed_field) {
         ReportError("cannot declare non-indexable field \"",
@@ -307,27 +382,26 @@ void TypeVisitor::VisitClassFieldsAndMethods(
                     "\" after an indexable field "
                     "declaration");
       }
-      const Field& field = class_type->RegisterField(
-          {field_expression.name_and_type.name->pos,
-           class_type,
-           base::nullopt,
-           {field_expression.name_and_type.name->value, field_type},
-           class_offset,
-           field_expression.weak,
-           field_expression.const_qualified,
-           field_expression.generate_verify});
-      size_t field_size;
-      std::string size_string;
-      std::string machine_type;
-      std::tie(field_size, size_string) = field.GetFieldSizeInformation();
-      // Our allocations don't support alignments beyond kTaggedSize.
-      size_t alignment = std::min(
-          static_cast<size_t>(TargetArchitecture::TaggedSize()), field_size);
-      if (alignment > 0 && class_offset % alignment != 0) {
-        ReportError("field ", field_expression.name_and_type.name,
-                    " at offset ", class_offset, " is not ", alignment,
-                    "-byte aligned.");
-      }
+    }
+    const Field& field = class_type->RegisterField(
+        {field_expression.name_and_type.name->pos,
+         class_type,
+         index_field,
+         {field_expression.name_and_type.name->value, field_type},
+         class_offset,
+         field_expression.weak,
+         field_expression.const_qualified,
+         field_expression.generate_verify});
+    size_t field_size;
+    std::tie(field_size, std::ignore) = field.GetFieldSizeInformation();
+    // Our allocations don't support alignments beyond kTaggedSize.
+    size_t alignment = std::min(
+        static_cast<size_t>(TargetArchitecture::TaggedSize()), field_size);
+    if (alignment > 0 && class_offset % alignment != 0) {
+      ReportError("field ", field_expression.name_and_type.name, " at offset ",
+                  class_offset, " is not ", alignment, "-byte aligned.");
+    }
+    if (!field_expression.index) {
       class_offset += field_size;
     }
   }
@@ -350,11 +424,16 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
   }
 
   QualifiedName qualified_name{basic->namespace_qualification, basic->name};
-  base::Optional<GenericStructType*> maybe_generic_struct =
-      Declarations::TryLookupGenericStructType(qualified_name);
+  base::Optional<GenericType*> maybe_generic_type =
+      Declarations::TryLookupGenericType(qualified_name);
+
+  StructDeclaration* decl =
+      maybe_generic_type
+          ? StructDeclaration::DynamicCast((*maybe_generic_type)->declaration())
+          : nullptr;
 
   // Compute types of non-generic structs as usual
-  if (!maybe_generic_struct) {
+  if (!(maybe_generic_type && decl)) {
     const Type* type = ComputeType(type_expression);
     const StructType* struct_type = StructType::DynamicCast(type);
     if (!struct_type) {
@@ -363,20 +442,20 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
     return struct_type;
   }
 
-  auto generic_struct = *maybe_generic_struct;
+  auto generic_type = *maybe_generic_type;
   auto explicit_type_arguments = ComputeTypeVector(basic->generic_arguments);
 
   std::vector<TypeExpression*> term_parameters;
-  auto& fields = generic_struct->declaration()->fields;
+  auto& fields = decl->fields;
   term_parameters.reserve(fields.size());
   for (auto& field : fields) {
     term_parameters.push_back(field.name_and_type.type);
   }
 
-  CurrentScope::Scope generic_scope(generic_struct->ParentScope());
-  TypeArgumentInference inference(
-      generic_struct->declaration()->generic_parameters,
-      explicit_type_arguments, term_parameters, term_argument_types);
+  CurrentScope::Scope generic_scope(generic_type->ParentScope());
+  TypeArgumentInference inference(generic_type->generic_parameters(),
+                                  explicit_type_arguments, term_parameters,
+                                  term_argument_types);
 
   if (inference.HasFailed()) {
     ReportError("failed to infer type arguments for struct ", basic->name,
@@ -384,10 +463,10 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
   }
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(type_expression->pos,
-                                      generic_struct->declaration()->name->pos);
+                                      generic_type->declaration()->name->pos);
   }
-  return TypeOracle::GetGenericStructTypeInstance(generic_struct,
-                                                  inference.GetResult());
+  return StructType::cast(
+      TypeOracle::GetGenericTypeInstance(generic_type, inference.GetResult()));
 }
 
 }  // namespace torque

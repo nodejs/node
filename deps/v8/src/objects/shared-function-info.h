@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/bit-field.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
@@ -23,10 +24,6 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
-
-namespace tracing {
-class TracedValue;
-}
 
 namespace internal {
 
@@ -100,9 +97,8 @@ class PreparseData
 class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  inline static void Initialize(
-      UncompiledData data, String inferred_name, int start_position,
-      int end_position,
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -137,9 +133,9 @@ class UncompiledDataWithPreparseData
  public:
   DECL_PRINTER(UncompiledDataWithPreparseData)
 
-  inline static void Initialize(
-      UncompiledDataWithPreparseData data, String inferred_name,
-      int start_position, int end_position, PreparseData scope_data,
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
+      PreparseData scope_data,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -173,8 +169,15 @@ class SharedFunctionInfo : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
-  V8_EXPORT_PRIVATE static constexpr Object const kNoSharedNameSentinel =
-      Smi::kZero;
+  // This initializes the SharedFunctionInfo after allocation. It must
+  // initialize all fields, and leave the SharedFunctionInfo in a state where
+  // it is safe for the GC to visit it.
+  //
+  // Important: This function MUST not allocate.
+  void Init(ReadOnlyRoots roots, int unique_id);
+
+  V8_EXPORT_PRIVATE static constexpr Smi const kNoSharedNameSentinel =
+      Smi::zero();
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String Name() const;
@@ -368,6 +371,9 @@ class SharedFunctionInfo : public HeapObject {
   inline HeapObject script() const;
   inline void set_script(HeapObject script);
 
+  // True if the underlying script was parsed and compiled in REPL mode.
+  inline bool is_repl_mode() const;
+
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
   inline DebugInfo GetDebugInfo() const;
@@ -490,10 +496,10 @@ class SharedFunctionInfo : public HeapObject {
   // - internal break points
   // - coverage and type profile
   // - error stack trace
-  inline bool IsSubjectToDebugging();
+  inline bool IsSubjectToDebugging() const;
 
   // Whether this function is defined in user-provided JavaScript code.
-  inline bool IsUserJavaScript();
+  inline bool IsUserJavaScript() const;
 
   // True if one can flush compiled code from this function, in such a way that
   // it can later be re-compiled.
@@ -517,8 +523,19 @@ class SharedFunctionInfo : public HeapObject {
   // Hence it takes the mode as an argument.
   inline bool ShouldFlushBytecode(BytecodeFlushMode mode);
 
-  // Check whether or not this function is inlineable.
-  bool IsInlineable();
+  enum Inlineability {
+    kIsInlineable,
+    // Different reasons for not being inlineable:
+    kHasNoScript,
+    kNeedsBinaryCoverage,
+    kHasOptimizationDisabled,
+    kIsBuiltin,
+    kIsNotUserCode,
+    kHasNoBytecode,
+    kExceedsBytecodeLimit,
+    kMayContainBreakPoints,
+  };
+  Inlineability GetInlineability() const;
 
   // Source size of this function.
   int SourceSize();
@@ -545,7 +562,7 @@ class SharedFunctionInfo : public HeapObject {
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
-  bool AreSourcePositionsAvailable() const;
+  V8_EXPORT_PRIVATE bool AreSourcePositionsAvailable() const;
 
   // Hash based on function literal id and script id.
   V8_EXPORT_PRIVATE uint32_t Hash();
@@ -565,22 +582,6 @@ class SharedFunctionInfo : public HeapObject {
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
-
-  // Returns the SharedFunctionInfo in a format tracing can support.
-  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue(
-      FunctionLiteral* literal);
-
-  // The tracing scope for SharedFunctionInfo objects.
-  static const char* kTraceScope;
-
-  // Returns the unique TraceID for this SharedFunctionInfo (within the
-  // kTraceScope, works only for functions that have a Script and start/end
-  // position).
-  uint64_t TraceID(FunctionLiteral* literal = nullptr) const;
-
-  // Returns the unique trace ID reference for this SharedFunctionInfo
-  // (based on the |TraceID()| above).
-  std::unique_ptr<v8::tracing::TracedValue> TraceIDRef() const;
 
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {

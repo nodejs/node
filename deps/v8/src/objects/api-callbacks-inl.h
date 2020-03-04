@@ -42,17 +42,17 @@ ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 bool AccessorInfo::has_getter() {
-  bool result = getter() != Smi::kZero;
+  bool result = getter() != Smi::zero();
   DCHECK_EQ(result,
-            getter() != Smi::kZero &&
+            getter() != Smi::zero() &&
                 Foreign::cast(getter()).foreign_address() != kNullAddress);
   return result;
 }
 
 bool AccessorInfo::has_setter() {
-  bool result = setter() != Smi::kZero;
+  bool result = setter() != Smi::zero();
   DCHECK_EQ(result,
-            setter() != Smi::kZero &&
+            setter() != Smi::zero() &&
                 Foreign::cast(setter()).foreign_address() != kNullAddress);
   return result;
 }

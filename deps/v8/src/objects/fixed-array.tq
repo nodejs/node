@@ -1,0 +1,117 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+extern class FixedArrayBase extends HeapObject {
+  length: Smi;
+}
+
+extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
+
+type EmptyFixedArray extends FixedArray;
+
+extern class FixedDoubleArray extends FixedArrayBase {
+  floats[length]: float64;
+}
+
+extern class WeakFixedArray extends HeapObject { length: Smi; }
+
+extern class ByteArray extends FixedArrayBase {}
+
+@hasSameInstanceTypeAsParent
+extern class ArrayList extends FixedArray {
+}
+
+@hasSameInstanceTypeAsParent
+@noVerifier
+extern class TemplateList extends FixedArray {
+}
+
+extern class WeakArrayList extends HeapObject {
+  capacity: Smi;
+  length: Smi;
+  objects[length]: MaybeObject;
+}
+
+extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
+    FixedArrayBase): intptr;
+
+extern operator '.objects[]' macro LoadFixedArrayElement(
+    FixedArray, intptr): Object;
+extern operator '.objects[]' macro LoadFixedArrayElement(
+    FixedArray, Smi): Object;
+extern operator '.objects[]' macro LoadFixedArrayElement(
+    FixedArray, constexpr int31): Object;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, intptr, Smi): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, Smi, Smi): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, intptr, HeapObject): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, intptr, Object): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, constexpr int31, Smi): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, constexpr int31, HeapObject): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, Smi, Object): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, Smi, Object, constexpr WriteBarrierMode): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, Smi, Smi, constexpr WriteBarrierMode): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, constexpr int31, Object, constexpr WriteBarrierMode): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, constexpr int31, Smi, constexpr WriteBarrierMode): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, intptr, Object, constexpr WriteBarrierMode): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, intptr, Smi, constexpr WriteBarrierMode): void;
+extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
+    FixedDoubleArray, intptr, float64): void;
+extern operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(
+    FixedDoubleArray, Smi, float64): void;
+extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
+    FixedDoubleArray, intptr): float64;
+operator '[]=' macro StoreFixedDoubleArrayDirect(
+    a: FixedDoubleArray, i: Smi, v: Number) {
+  a.floats[i] = Convert<float64>(v);
+}
+operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
+  a.objects[i] = v;
+}
+
+extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
+    labels IfHole;
+extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, intptr): float64
+    labels IfHole;
+extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, uintptr): float64
+    labels IfHole;
+extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
+
+extern macro AllocateZeroedFixedArray(intptr): FixedArray;
+extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
+extern macro CalculateNewElementsCapacity(Smi): Smi;
+extern macro CalculateNewElementsCapacity(intptr): intptr;
+
+extern macro AllocateFixedArrayWithHoles(
+    intptr, constexpr AllocationFlags): FixedArray;
+extern macro AllocateFixedDoubleArrayWithHoles(
+    intptr, constexpr AllocationFlags): FixedDoubleArray;
+extern macro CopyFixedArrayElements(
+    constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray,
+    intptr, intptr, intptr): void;
+extern macro CopyFixedArrayElements(
+    constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray, Smi,
+    Smi, Smi): void;
+
+extern macro ExtractFixedArray(FixedArrayBase, Smi, Smi, Smi): FixedArrayBase;
+extern macro ExtractFixedArray(
+    FixedArrayBase, Smi, Smi, Smi,
+    constexpr ExtractFixedArrayFlags): FixedArrayBase;
+
+extern macro ExtractFixedArray(
+    FixedArray, intptr, intptr, intptr,
+    constexpr ExtractFixedArrayFlags): FixedArray;

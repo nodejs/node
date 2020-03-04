@@ -129,9 +129,6 @@ namespace compiler {
   V(PPC_StoreDouble)                 \
   V(PPC_ByteRev32)                   \
   V(PPC_ByteRev64)                   \
-  V(PPC_DecompressSigned)            \
-  V(PPC_DecompressPointer)           \
-  V(PPC_DecompressAny)               \
   V(PPC_CompressSigned)              \
   V(PPC_CompressPointer)             \
   V(PPC_CompressAny)                 \

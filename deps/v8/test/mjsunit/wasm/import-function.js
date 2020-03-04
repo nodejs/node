@@ -384,3 +384,59 @@ testImportName('');
   new WebAssembly.Instance(module, {q: {imp: exp.f}});
   assertEquals(11, new Uint8Array(exp.mem.buffer)[0], 'memory changed to 11');
 })();
+
+(function testImportWrapperWorksWithStrictAndSloppy() {
+  function jsSloppyMatch(x) {
+    assertSame(globalThis, this);
+    return x - 4;
+  }
+
+  function jsStrictMatch(x) {
+    "use strict";
+
+    assertEquals(undefined, this);
+    return x - 4;
+  }
+
+  function jsSloppyMismatch(x, y) {
+    assertSame(globalThis, this);
+    assertEquals(undefined, y);
+    return x - 4;
+  }
+
+  function jsStrictMismatch(x, y) {
+    "use strict";
+
+    assertEquals(undefined, this);
+    assertEquals(undefined, y);
+    return x - 4;
+  }
+
+  const builder = new WasmModuleBuilder();
+  const functionIndex = builder.addImport("imports", "jsFun", kSig_i_i);
+  builder.addFunction('wasmFun', kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI32Const, 2,
+      kExprI32Mul,
+      kExprCallFunction, functionIndex
+    ])
+    .exportFunc();
+  const module = builder.toModule();
+
+  print("Running matching sloppy function");
+  const instanceSloppyMatch = new WebAssembly.Instance(module, {imports: {jsFun: jsSloppyMatch}});
+  assertEquals(42, instanceSloppyMatch.exports.wasmFun(23));
+
+  print("Running matching strict function");
+  const instanceStrictMatch = new WebAssembly.Instance(module, {imports: {jsFun: jsStrictMatch}});
+  assertEquals(42, instanceStrictMatch.exports.wasmFun(23));
+
+  print("Running mismatching sloppy function");
+  const instanceSloppyMismatch = new WebAssembly.Instance(module, {imports: {jsFun: jsSloppyMismatch}});
+  assertEquals(42, instanceSloppyMismatch.exports.wasmFun(23));
+
+  print("Running mismatching strict function");
+  const instanceStrictMismatch = new WebAssembly.Instance(module, {imports: {jsFun: jsStrictMismatch}});
+  assertEquals(42, instanceStrictMismatch.exports.wasmFun(23));
+})();

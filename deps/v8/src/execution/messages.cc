@@ -320,6 +320,8 @@ Handle<Object> StackFrameBase::GetWasmModuleName() {
   return isolate_->factory()->undefined_value();
 }
 
+int StackFrameBase::GetWasmFunctionIndex() { return StackFrameBase::kNone; }
+
 Handle<Object> StackFrameBase::GetWasmInstance() {
   return isolate_->factory()->undefined_value();
 }
@@ -687,7 +689,7 @@ void FrameArrayIterator::Advance() { frame_ix_++; }
 StackFrameBase* FrameArrayIterator::Frame() {
   DCHECK(HasFrame());
   const int flags = array_->Flags(frame_ix_).value();
-  int flag_mask = FrameArray::kIsWasmFrame |
+  int flag_mask = FrameArray::kIsWasmCompiledFrame |
                   FrameArray::kIsWasmInterpretedFrame |
                   FrameArray::kIsAsmJsWasmFrame;
   switch (flags & flag_mask) {
@@ -695,7 +697,7 @@ StackFrameBase* FrameArrayIterator::Frame() {
       // JavaScript Frame.
       js_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &js_frame_;
-    case FrameArray::kIsWasmFrame:
+    case FrameArray::kIsWasmCompiledFrame:
     case FrameArray::kIsWasmInterpretedFrame:
       // Wasm Frame:
       wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);

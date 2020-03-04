@@ -106,21 +106,6 @@ DEFINE_MAKE_CHECK_OP_STRING(unsigned long long)  // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(void const*)
 #undef DEFINE_MAKE_CHECK_OP_STRING
 
-
-// Explicit instantiations for floating point checks.
-#define DEFINE_CHECK_OP_IMPL(NAME)                                            \
-  template std::string* Check##NAME##Impl<float, float>(float lhs, float rhs, \
-                                                        char const* msg);     \
-  template std::string* Check##NAME##Impl<double, double>(                    \
-      double lhs, double rhs, char const* msg);
-DEFINE_CHECK_OP_IMPL(EQ)
-DEFINE_CHECK_OP_IMPL(NE)
-DEFINE_CHECK_OP_IMPL(LE)
-DEFINE_CHECK_OP_IMPL(LT)
-DEFINE_CHECK_OP_IMPL(GE)
-DEFINE_CHECK_OP_IMPL(GT)
-#undef DEFINE_CHECK_OP_IMPL
-
 }  // namespace base
 }  // namespace v8
 

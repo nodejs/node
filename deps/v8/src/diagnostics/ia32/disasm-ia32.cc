@@ -2259,13 +2259,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           } else if (*data == 0x90) {
             data++;
             AppendToBuffer("nop");  // 2 byte nop.
-          } else if (*data == 0xF3) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("psllq %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
           } else if (*data == 0x71) {
             data++;
             int mod, regop, rm;
@@ -2291,13 +2284,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             AppendToBuffer("ps%sq %s,%d", sf_str[regop / 2],
                            NameOfXMMRegister(rm), static_cast<int>(imm8));
             data += 2;
-          } else if (*data == 0xD3) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("psrlq %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
           } else if (*data == 0x7F) {
             AppendToBuffer("movdqa ");
             data++;

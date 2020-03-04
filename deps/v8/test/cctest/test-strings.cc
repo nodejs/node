@@ -1922,12 +1922,14 @@ TEST(HashArrayIndexStrings) {
 #if V8_TARGET_ARCH_32_BIT
     {"4294967295", false, 0, false, 0},  // Valid length but not index.
     {"4294967296", false, 0, false, 0},
-    {"18446744073709551615", false, 0, false, 0},
+    {"9007199254740991", false, 0, false, 0},
 #else
     {"4294967295", false, 0, true, 4294967295u},
     {"4294967296", false, 0, true, 4294967296ull},
-    {"18446744073709551615", false, 0, true, 18446744073709551615ull},
+    {"9007199254740991", false, 0, true, 9007199254740991ull},
 #endif
+    {"9007199254740992", false, 0, false, 0},
+    {"18446744073709551615", false, 0, false, 0},
     {"18446744073709551616", false, 0, false, 0}
   };
   for (int i = 0, n = arraysize(tests); i < n; i++) {

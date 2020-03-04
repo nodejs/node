@@ -102,11 +102,17 @@ class V8_EXPORT_PRIVATE EhFrameWriter {
     RecordRegisterSavedToStack(RegisterToDwarfCode(name), offset);
   }
 
+  // Directly accepts a DWARF register code, needed for
+  // handling pseudo-registers on some platforms.
+  void RecordRegisterSavedToStack(int dwarf_register_code, int offset);
+
   // The register has not been modified from the previous frame.
   void RecordRegisterNotModified(Register name);
+  void RecordRegisterNotModified(int dwarf_register_code);
 
   // The register follows the rule defined in the CIE.
   void RecordRegisterFollowsInitialRule(Register name);
+  void RecordRegisterFollowsInitialRule(int dwarf_register_code);
 
   void Finish(int code_size);
 
@@ -168,10 +174,6 @@ class V8_EXPORT_PRIVATE EhFrameWriter {
 
   // Write nops until the size reaches a multiple of 8 bytes.
   void WritePaddingToAlignedSize(int unpadded_size);
-
-  // Internal version that directly accepts a DWARF register code, needed for
-  // handling pseudo-registers on some platforms.
-  void RecordRegisterSavedToStack(int register_code, int offset);
 
   int GetProcedureAddressOffset() const {
     return fde_offset() + EhFrameConstants::kProcedureAddressOffsetInFde;

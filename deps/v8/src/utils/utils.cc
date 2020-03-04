@@ -133,8 +133,6 @@ void StrNCpy(Vector<char> dest, const char* src, size_t n) {
   base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
 }
 
-void Flush(FILE* out) { fflush(out); }
-
 char* ReadLine(const char* prompt) {
   char* result = nullptr;
   char line_buf[256];
@@ -229,18 +227,6 @@ std::string VectorToString(const std::vector<char>& chars) {
   return std::string(chars.begin(), chars.end());
 }
 
-}  // namespace
-
-std::string ReadFile(const char* filename, bool* exists, bool verbose) {
-  std::vector<char> result = ReadCharsFromFile(filename, exists, verbose);
-  return VectorToString(result);
-}
-
-std::string ReadFile(FILE* file, bool* exists, bool verbose) {
-  std::vector<char> result = ReadCharsFromFile(file, exists, verbose, "");
-  return VectorToString(result);
-}
-
 int WriteCharsToFile(const char* str, int size, FILE* f) {
   int total = 0;
   while (total < size) {
@@ -254,17 +240,16 @@ int WriteCharsToFile(const char* str, int size, FILE* f) {
   return total;
 }
 
-int AppendChars(const char* filename, const char* str, int size, bool verbose) {
-  FILE* f = base::OS::FOpen(filename, "ab");
-  if (f == nullptr) {
-    if (verbose) {
-      base::OS::PrintError("Cannot open file %s for writing.\n", filename);
-    }
-    return 0;
-  }
-  int written = WriteCharsToFile(str, size, f);
-  fclose(f);
-  return written;
+}  // namespace
+
+std::string ReadFile(const char* filename, bool* exists, bool verbose) {
+  std::vector<char> result = ReadCharsFromFile(filename, exists, verbose);
+  return VectorToString(result);
+}
+
+std::string ReadFile(FILE* file, bool* exists, bool verbose) {
+  std::vector<char> result = ReadCharsFromFile(file, exists, verbose, "");
+  return VectorToString(result);
 }
 
 int WriteChars(const char* filename, const char* str, int size, bool verbose) {

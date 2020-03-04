@@ -783,10 +783,10 @@ class ArrayConcatVisitor {
     storage_ = isolate_->global_handles()->Create(storage);
   }
 
-  using FastElementsField = BitField<bool, 0, 1>;
-  using ExceedsLimitField = BitField<bool, 1, 1>;
-  using IsFixedArrayField = BitField<bool, 2, 1>;
-  using HasSimpleElementsField = BitField<bool, 3, 1>;
+  using FastElementsField = base::BitField<bool, 0, 1>;
+  using ExceedsLimitField = base::BitField<bool, 1, 1>;
+  using IsFixedArrayField = base::BitField<bool, 2, 1>;
+  using HasSimpleElementsField = base::BitField<bool, 3, 1>;
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -853,9 +853,8 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary dictionary = NumberDictionary::cast(array->elements());
-      int capacity = dictionary.Capacity();
       ReadOnlyRoots roots(isolate);
-      for (int i = 0; i < capacity; i++) {
+      for (InternalIndex i : dictionary.IterateEntries()) {
         Object key = dictionary.KeyAt(i);
         if (dictionary.IsKey(roots, key)) {
           element_count++;
@@ -930,7 +929,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       uint32_t capacity = dict.Capacity();
       ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
-        Object k = dict.KeyAt(j);
+        Object k = dict.KeyAt(InternalIndex(j));
         if (!dict.IsKey(roots, k)) continue;
         DCHECK(k.IsNumber());
         uint32_t index = static_cast<uint32_t>(k.Number());
@@ -1355,7 +1354,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage = NumberDictionary::New(isolate, estimate_nof);
   } else {
     DCHECK(species->IsConstructor());
-    Handle<Object> length(Smi::kZero, isolate);
+    Handle<Object> length(Smi::zero(), isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,

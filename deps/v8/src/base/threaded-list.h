@@ -34,6 +34,8 @@ class ThreadedListBase final : public BaseClass {
     DCHECK_NULL(*TLTraits::next(v));
     *tail_ = v;
     tail_ = TLTraits::next(v);
+    // Check that only one element was added (and that hasn't created a cycle).
+    DCHECK_NULL(*tail_);
   }
 
   void AddFront(T* v) {

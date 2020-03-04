@@ -78,9 +78,10 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   Date = new Proxy(Date, handler);
 })();
 
-// Mock performace.now().
+// Mock performace methods.
 (function () {
   performance.now = function () { return 1.2; }
+  performance.measureMemory = function () { return []; }
 })();
 
 // Mock stack traces.

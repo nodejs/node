@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
@@ -276,11 +277,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  const RuntimeCallCounterId counters[2] = {
-      RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-      RuntimeCallCounterId::kPreParseWithVariableResolution};
-  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      counters[parsing_on_main_thread_]);
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      RuntimeCallCounterId::kPreParseWithVariableResolution,
+      RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();

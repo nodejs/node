@@ -103,13 +103,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
+  void LoadMap(Register destination, Register object);
+
   void RetpolineJump(Register reg);
 
-  void CallForDeoptimization(Address target, int deopt_id);
+  void Trap() override;
 
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
+  void CallForDeoptimization(Address target, int deopt_id);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
@@ -138,14 +138,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Removes current frame and its arguments from the stack preserving the
   // arguments and a return address pushed to the stack for the next call. Both
-  // |callee_args_count| and |caller_args_count_reg| do not include receiver.
-  // |callee_args_count| is not modified, |caller_args_count_reg| is trashed.
+  // |callee_args_count| and |caller_args_count| do not include receiver.
+  // |callee_args_count| is not modified. |caller_args_count| is trashed.
   // |number_of_temp_values_after_return_address| specifies the number of words
   // pushed to the stack after the return address. This is to allow "allocation"
   // of scratch registers that this function requires by saving their values on
   // the stack.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
+  void PrepareForTailCall(Register callee_args_count,
+                          Register caller_args_count, Register scratch0,
                           Register scratch1,
                           int number_of_temp_values_after_return_address);
 
@@ -260,6 +260,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Movaps, movaps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, const Operand&)
 
@@ -289,6 +290,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Psubb, psubb)
   AVX_OP3_XO(Psubw, psubw)
   AVX_OP3_XO(Psubd, psubd)
+  AVX_OP3_XO(Psubq, psubq)
   AVX_OP3_XO(Punpcklbw, punpcklbw)
   AVX_OP3_XO(Punpckhbw, punpckhbw)
   AVX_OP3_XO(Pxor, pxor)
@@ -331,7 +333,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Minpd, minpd)
   AVX_PACKED_OP3(Maxpd, maxpd)
   AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
+  AVX_PACKED_OP3(Psllq, psllq)
+  AVX_PACKED_OP3(Psrlq, psrlq)
+  AVX_PACKED_OP3(Paddq, paddq)
+  AVX_PACKED_OP3(Psubq, psubq)
+  AVX_PACKED_OP3(Pmuludq, pmuludq)
 #undef AVX_PACKED_OP3
+
+  AVX_PACKED_OP3_WITH_TYPE(Psllq, psllq, XMMRegister, uint8_t)
 #undef AVX_PACKED_OP3_WITH_TYPE
 
 // Non-SSE2 instructions.
@@ -553,8 +562,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
-  // Load the global function with the given index.
-  void LoadGlobalFunction(int index, Register function);
+  // Load a value from the native context with a given index.
+  void LoadNativeContextSlot(Register dst, int index);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -562,19 +571,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Invoke the JavaScript function code by either calling or jumping.
 
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
 
   // On function call, call into the debugger.
   // This may clobber ecx.
   void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
+                               Register expected_parameter_count,
+                               Register actual_parameter_count);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
@@ -704,10 +713,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag,
-                      Label::Distance done_distance);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
@@ -736,18 +744,6 @@ inline Operand FieldOperand(Register object, int offset) {
 inline Operand FieldOperand(Register object, Register index, ScaleFactor scale,
                             int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
-}
-
-inline Operand ContextOperand(Register context, int index) {
-  return Operand(context, Context::SlotOffset(index));
-}
-
-inline Operand ContextOperand(Register context, Register index) {
-  return Operand(context, index, times_tagged_size, Context::SlotOffset(0));
-}
-
-inline Operand NativeContextOperand() {
-  return ContextOperand(esi, Context::NATIVE_CONTEXT_INDEX);
 }
 
 #define ACCESS_MASM(masm) masm->

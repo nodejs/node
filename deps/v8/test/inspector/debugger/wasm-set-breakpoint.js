@@ -75,8 +75,9 @@ Protocol.Debugger.onPaused(pause_msg => {
   evalWithUrl(instantiate_code, 'instantiate');
   InspectorTest.log(
       'Waiting for two wasm scripts (ignoring first non-wasm script).');
-  const [, {params: wasm_script_a}, {params: wasm_script_b}] =
-      await Protocol.Debugger.onceScriptParsed(3);
+  // Ignore javascript and full module wasm script, get scripts for functions.
+  const [, , {params: wasm_script_a}, {params: wasm_script_b}] =
+      await Protocol.Debugger.onceScriptParsed(4);
   for (script of [wasm_script_a, wasm_script_b]) {
     InspectorTest.log('Source of script ' + script.url + ':');
     let src_msg =

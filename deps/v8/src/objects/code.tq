@@ -1,0 +1,26 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generatePrint
+@generateCppClass
+extern class SourcePositionTableWithFrameCache extends Struct {
+  source_position_table: ByteArray;
+  stack_frame_cache: Object;
+}
+
+type DependentCode extends WeakFixedArray;
+
+extern class BytecodeArray extends FixedArrayBase {
+  // TODO(v8:8983): bytecode array object sizes vary based on their contents.
+  constant_pool: FixedArray;
+  handler_table: ByteArray;
+  source_position_table: Undefined|ByteArray|SourcePositionTableWithFrameCache;
+  frame_size: int32;
+  parameter_size: int32;
+  incoming_new_target_or_generator_register: int32;
+  osr_nesting_level: int8;
+  bytecode_age: int8;
+}
+
+extern class CodeDataContainer extends HeapObject;

@@ -268,7 +268,6 @@ class ShellOptions {
   bool omit_quit = false;
   bool wait_for_wasm = true;
   bool stress_opt = false;
-  bool stress_deopt = false;
   int stress_runs = 1;
   bool interactive_shell = false;
   bool test_shell = false;

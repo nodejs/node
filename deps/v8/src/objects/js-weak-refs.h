@@ -69,7 +69,7 @@ class JSFinalizationGroup : public JSObject {
                                 TORQUE_GENERATED_JS_FINALIZATION_GROUP_FIELDS)
 
   // Bitfields in flags.
-  using ScheduledForCleanupField = BitField<bool, 0, 1>;
+  using ScheduledForCleanupField = base::BitField<bool, 0, 1>;
 
   OBJECT_CONSTRUCTORS(JSFinalizationGroup, JSObject);
 };

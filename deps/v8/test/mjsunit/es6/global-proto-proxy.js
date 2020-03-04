@@ -8,7 +8,7 @@ var global = this;
   var calledGet = false;
   var calledHas = false;
   var calledSet = false;
-  var target = {};
+  var target = {getGlobal: 1};
   var assertEquals = global.assertEquals;
   var proxy = new Proxy(target, {
     has(target, property) {
@@ -35,7 +35,8 @@ var global = this;
   assertTrue(calledSet);
   "findGlobal" in global;
   assertTrue(calledHas);
+  assertEquals("number", typeof(makeGlobal));
   var deletedOwn = delete makeGlobal;
   assertTrue(deletedOwn);
-  assertEquals(void 0, makeGlobal);
+  assertEquals("undefined", typeof(makeGlobal));
 })();

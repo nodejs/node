@@ -25,6 +25,11 @@ proposal_flags = [{
                     'name': 'JS-BigInt-integration',
                     'flags': ['--experimental-wasm-bigint']
                   },
+                  {
+                    'name': 'multi-value',
+                    'flags': ['--experimental-wasm-mv',
+                              '--no-experimental-wasm-bulk-memory']
+                  },
                   ]
 
 class TestLoader(testsuite.JSTestLoader):

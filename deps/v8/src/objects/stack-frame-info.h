@@ -22,6 +22,7 @@ class StackFrameInfo : public Struct {
   DECL_INT_ACCESSORS(line_number)
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)
+  DECL_INT_ACCESSORS(wasm_function_index)
   DECL_INT_ACCESSORS(promise_all_index)
   // Wasm frames only: function_offset instead of promise_all_index.
   DECL_INT_ACCESSORS(function_offset)
@@ -88,6 +89,7 @@ class StackTraceFrame
   static int GetScriptId(Handle<StackTraceFrame> frame);
   static int GetPromiseAllIndex(Handle<StackTraceFrame> frame);
   static int GetFunctionOffset(Handle<StackTraceFrame> frame);
+  static int GetWasmFunctionIndex(Handle<StackTraceFrame> frame);
 
   static Handle<Object> GetFileName(Handle<StackTraceFrame> frame);
   static Handle<Object> GetScriptNameOrSourceUrl(Handle<StackTraceFrame> frame);

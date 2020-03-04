@@ -90,7 +90,7 @@ BUILTIN(DataViewConstructor) {
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
-    Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::kZero);
+    Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::zero());
   }
 
   // 11. Set O's [[ViewedArrayBuffer]] internal slot to buffer.

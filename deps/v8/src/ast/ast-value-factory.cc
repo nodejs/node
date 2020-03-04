@@ -38,7 +38,7 @@ namespace internal {
 
 namespace {
 
-// For using StringToArrayIndex.
+// For using StringToIndex.
 class OneByteStringStream {
  public:
   explicit OneByteStringStream(Vector<const byte> lb) :
@@ -76,9 +76,13 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
     *index = Name::ArrayIndexValueBits::decode(hash_field_);
   } else {
     OneByteStringStream stream(literal_bytes_);
-    CHECK(StringToArrayIndex(&stream, index));
+    CHECK(StringToIndex(&stream, index));
   }
   return true;
+}
+
+bool AstRawString::IsIntegerIndex() const {
+  return (hash_field_ & Name::kIsNotIntegerIndexMask) == 0;
 }
 
 bool AstRawString::IsOneByteEqualTo(const char* data) const {
@@ -244,6 +248,50 @@ AstConsString* AstValueFactory::NewConsString(const AstRawString* str) {
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
                                               const AstRawString* str2) {
   return NewConsString()->AddString(zone_, str1)->AddString(zone_, str2);
+}
+
+const AstRawString* AstValueFactory::Flatten(const AstConsString* str) {
+  if (str->IsEmpty()) return empty_string();
+  AstConsString::Segment segment = str->segment_;
+  if (!segment.next) return segment.string;
+
+  int length = segment.string->length();
+  bool is_one_byte = segment.string->is_one_byte();
+  while (segment.next) {
+    segment = *segment.next;
+    length += segment.string->length();
+    is_one_byte &= segment.string->is_one_byte();
+  }
+
+  if (is_one_byte) {
+    Vector<byte> data(zone()->NewArray<byte>(length), length);
+    segment = str->segment_;
+    byte* p = data.begin();
+    while (true) {
+      CopyChars(p, segment.string->raw_data(), segment.string->length());
+      p += segment.string->length();
+      if (!segment.next) break;
+      segment = *segment.next;
+    }
+    return GetOneByteString(data);
+  }
+
+  Vector<uint16_t> data(zone()->NewArray<uint16_t>(length), length);
+  segment = str->segment_;
+  uint16_t* p = data.begin();
+  while (true) {
+    if (segment.string->is_one_byte()) {
+      CopyChars(p, segment.string->raw_data(), segment.string->length());
+    } else {
+      CopyChars(p,
+                reinterpret_cast<const uint16_t*>(segment.string->raw_data()),
+                segment.string->length());
+    }
+    p += segment.string->length();
+    if (!segment.next) break;
+    segment = *segment.next;
+  }
+  return GetTwoByteString(data);
 }
 
 void AstValueFactory::Internalize(Isolate* isolate) {

@@ -102,7 +102,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+        BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                      i.pc());
         os << WasmOpcodes::OpcodeName(opcode);
         if (imm.type == kWasmBottom) {
@@ -142,7 +142,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       }
       case kExprCallIndirect:
       case kExprReturnCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+        CallIndirectImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                         i.pc());
         DCHECK_EQ(0, imm.table_index);
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.sig_index;

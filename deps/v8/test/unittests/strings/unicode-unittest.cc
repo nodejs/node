@@ -31,7 +31,7 @@ void DecodeUtf16(const std::vector<uint8_t>& bytes,
   Utf8Decoder decoder(utf8_data);
 
   std::vector<uint16_t> utf16(decoder.utf16_length());
-  decoder.Decode(&utf16[0], utf8_data);
+  decoder.Decode(utf16.data(), utf8_data);
 
   // Decode back into code points
   for (size_t i = 0; i < utf16.size(); i++) {
@@ -48,8 +48,8 @@ void DecodeIncrementally(const std::vector<byte>& bytes,
                          std::vector<unibrow::uchar>* output) {
   unibrow::Utf8::Utf8IncrementalBuffer buffer = 0;
   unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
-  const byte* cursor = &bytes[0];
-  const byte* end = &bytes[bytes.size()];
+  const byte* cursor = bytes.data();
+  const byte* end = bytes.data() + bytes.size();
   while (cursor < end) {
     unibrow::uchar result =
         unibrow::Utf8::ValueOfIncremental(&cursor, &state, &buffer);

@@ -1,0 +1,21 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+@generateCppClass
+extern class Name extends PrimitiveHeapObject {
+  hash_field: uint32;
+}
+// This is the same as Name, but with the information that there are no other
+// kinds of names.
+type AnyName = PrivateSymbol|PublicSymbol|String;
+
+@generateCppClass
+extern class Symbol extends Name {
+  flags: int32;
+  description: String|Undefined;
+}
+
+type PublicSymbol extends Symbol;
+type PrivateSymbol extends Symbol;

@@ -60,11 +60,19 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
     to_register_with_v8_.push_back(global);
   }
 
+  void AddReferenceForTracing(v8::TracedReference<v8::Value>* ref) {
+    to_register_with_v8_references_.push_back(ref);
+  }
+
   bool AdvanceTracing(double deadline_in_ms) final {
     for (auto global : to_register_with_v8_) {
       RegisterEmbedderReference(global->As<v8::Data>());
     }
     to_register_with_v8_.clear();
+    for (auto ref : to_register_with_v8_references_) {
+      RegisterEmbedderReference(ref->As<v8::Data>());
+    }
+    to_register_with_v8_references_.clear();
     return true;
   }
 
@@ -78,7 +86,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
     }
   }
 
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRegisteredFromV8(void* first_field) const {
@@ -99,6 +107,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
  private:
   std::vector<std::pair<void*, void*>> registered_from_v8_;
   std::vector<v8::TracedGlobal<v8::Object>*> to_register_with_v8_;
+  std::vector<v8::TracedReference<v8::Value>*> to_register_with_v8_references_;
   bool consider_traced_global_as_root_ = true;
   TracePrologueBehavior prologue_behavior_ = TracePrologueBehavior::kNoop;
   v8::Global<v8::Array> array_;
@@ -520,6 +529,74 @@ TEST(TracedGlobalWrapperClassId) {
   CHECK_EQ(17, traced.WrapperClassId());
 }
 
+TEST(TracedReferenceHandlesMarking) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::TracedReference<v8::Value> live;
+  v8::TracedReference<v8::Value> dead;
+  live.Reset(isolate, v8::Undefined(isolate));
+  dead.Reset(isolate, v8::Undefined(isolate));
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  {
+    TestEmbedderHeapTracer tracer;
+    heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+    tracer.AddReferenceForTracing(&live);
+    const size_t initial_count = global_handles->handles_count();
+    InvokeMarkSweep();
+    const size_t final_count = global_handles->handles_count();
+    // Handles are black allocated, so the first GC does not collect them.
+    CHECK_EQ(initial_count, final_count);
+  }
+
+  {
+    TestEmbedderHeapTracer tracer;
+    heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+    tracer.AddReferenceForTracing(&live);
+    const size_t initial_count = global_handles->handles_count();
+    InvokeMarkSweep();
+    const size_t final_count = global_handles->handles_count();
+    CHECK_EQ(initial_count, final_count + 1);
+  }
+}
+
+TEST(TracedReferenceHandlesDoNotLeak) {
+  // TracedReference handles are not cleared by the destructor of the embedder
+  // object. To avoid leaks we need to mark these handles during GC.
+  // This test checks that unmarked handles do not leak.
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::TracedReference<v8::Value> ref;
+  ref.Reset(isolate, v8::Undefined(isolate));
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  const size_t initial_count = global_handles->handles_count();
+  // We need two GCs because handles are black allocated.
+  InvokeMarkSweep();
+  InvokeMarkSweep();
+  const size_t final_count = global_handles->handles_count();
+  CHECK_EQ(initial_count, final_count + 1);
+}
+
+TEST(TracedGlobalHandlesAreRetained) {
+  // TracedGlobal handles are cleared by the destructor of the embedder object.
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::TracedGlobal<v8::Value> global;
+  global.Reset(isolate, v8::Undefined(isolate));
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  const size_t initial_count = global_handles->handles_count();
+  // We need two GCs because handles are black allocated.
+  InvokeMarkSweep();
+  InvokeMarkSweep();
+  const size_t final_count = global_handles->handles_count();
+  CHECK_EQ(initial_count, final_count);
+}
+
 namespace {
 
 class TracedGlobalVisitor final
@@ -704,7 +781,7 @@ class EmptyEmbedderHeapTracer : public v8::EmbedderHeapTracer {
   bool AdvanceTracing(double deadline_in_ms) final { return true; }
   bool IsTracingDone() final { return true; }
   void TracePrologue(EmbedderHeapTracer::TraceFlags) final {}
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 };
 

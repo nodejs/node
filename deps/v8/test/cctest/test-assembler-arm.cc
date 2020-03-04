@@ -1335,12 +1335,12 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmovl_s32))));
     __ vst1(Neon8, NeonListOperand(q3), NeonMemOperand(r4));
     // Narrow what we widened.
-    __ vqmovn(NeonU16, d0, q2);
+    __ vqmovn(NeonU16, NeonU16, d0, q2);
     __ vstr(d0, r0, offsetof(T, vqmovn_u16));
     __ vmov(d1, d0);
-    __ vqmovn(NeonS8, d2, q0);
+    __ vqmovn(NeonS8, NeonS8, d2, q0);
     __ vstr(d2, r0, offsetof(T, vqmovn_s8));
-    __ vqmovn(NeonS32, d4, q3);
+    __ vqmovn(NeonS32, NeonS32, d4, q3);
     __ vstr(d4, r0, offsetof(T, vqmovn_s32));
 
     // ARM core register to scalar.

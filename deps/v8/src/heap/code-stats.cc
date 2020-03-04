@@ -61,17 +61,17 @@ void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 // - by code comment (only in debug mode)
 void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
                                            Isolate* isolate) {
-  PagedSpaceObjectIterator obj_it(space);
+  PagedSpaceObjectIterator obj_it(isolate->heap(), space);
   for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
 
-// Collects code size statistics in LargeObjectSpace:
+// Collects code size statistics in OldLargeObjectSpace:
 // - code and metadata size
 // - by code kind (only in debug mode)
 // - by code comment (only in debug mode)
-void CodeStatistics::CollectCodeStatistics(LargeObjectSpace* space,
+void CodeStatistics::CollectCodeStatistics(OldLargeObjectSpace* space,
                                            Isolate* isolate) {
   LargeObjectSpaceObjectIterator obj_it(space);
   for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {

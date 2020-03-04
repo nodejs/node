@@ -73,7 +73,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   Label context_check;
   __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ JumpIfSmi(rdi, &context_check);
-  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rax, Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ movq(arg_reg_1, rax);
   __ Set(arg_reg_2, static_cast<int>(deopt_kind));

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_map {
+namespace array {
   transitioning javascript builtin
   ArrayMapLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
       length: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
@@ -28,7 +28,7 @@ namespace array_map {
 
   transitioning javascript builtin
   ArrayMapLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
       length: JSAny, result: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
@@ -224,7 +224,8 @@ namespace array_map {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.map
   transitioning javascript builtin
-  ArrayMap(js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+  ArrayMap(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
+      JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.map');
 

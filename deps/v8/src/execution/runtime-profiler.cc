@@ -172,6 +172,7 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
+  if (function.IsOptimized()) return OptimizationReason::kDoNotOptimize;
   int ticks = function.feedback_vector().profiler_ticks();
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +

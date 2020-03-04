@@ -30,7 +30,7 @@ class PropertyArray : public HeapObject {
   inline int Hash() const;
 
   inline Object get(int index) const;
-  inline Object get(Isolate* isolate, int index) const;
+  inline Object get(const Isolate* isolate, int index) const;
 
   inline void set(int index, Object value);
   // Setter with explicit barrier mode.
@@ -55,16 +55,15 @@ class PropertyArray : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_PROPERTY_ARRAY_FIELDS)
-  static const int kHeaderSize = kSize;
 
   // Garbage collection support.
   using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
   static const int kLengthFieldSize = 10;
-  using LengthField = BitField<int, 0, kLengthFieldSize>;
+  using LengthField = base::BitField<int, 0, kLengthFieldSize>;
   static const int kMaxLength = LengthField::kMax;
-  using HashField =
-      BitField<int, kLengthFieldSize, kSmiValueSize - kLengthFieldSize - 1>;
+  using HashField = base::BitField<int, kLengthFieldSize,
+                                   kSmiValueSize - kLengthFieldSize - 1>;
 
   static const int kNoHashSentinel = 0;
 

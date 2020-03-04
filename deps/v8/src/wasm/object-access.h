@@ -39,6 +39,11 @@ class ObjectAccess : public AllStatic {
   static constexpr int FormalParameterCountOffsetInSharedFunctionInfo() {
     return ToTagged(SharedFunctionInfo::kFormalParameterCountOffset);
   }
+
+  // Get the offset of the flags in a {SharedFunctionInfo} object.
+  static constexpr int FlagsOffsetInSharedFunctionInfo() {
+    return ToTagged(SharedFunctionInfo::kFlagsOffset);
+  }
 };
 
 }  // namespace wasm

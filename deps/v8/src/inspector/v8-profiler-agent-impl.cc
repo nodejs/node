@@ -488,6 +488,44 @@ Response V8ProfilerAgentImpl::takeTypeProfile(
   return Response::OK();
 }
 
+Response V8ProfilerAgentImpl::enableRuntimeCallStats() {
+  if (m_counters)
+    return Response::Error("RuntimeCallStats collection already enabled.");
+
+  if (V8Inspector* inspector = v8::debug::GetInspector(m_isolate))
+    m_counters = inspector->enableCounters();
+  else
+    return Response::Error("No inspector found.");
+
+  return Response::OK();
+}
+
+Response V8ProfilerAgentImpl::disableRuntimeCallStats() {
+  if (m_counters) m_counters.reset();
+  return Response::OK();
+}
+
+Response V8ProfilerAgentImpl::getRuntimeCallStats(
+    std::unique_ptr<protocol::Array<protocol::Profiler::CounterInfo>>*
+        out_result) {
+  if (!m_counters)
+    return Response::Error("RuntimeCallStats collection is not enabled.");
+
+  *out_result =
+      std::make_unique<protocol::Array<protocol::Profiler::CounterInfo>>();
+
+  for (const auto& counter : m_counters->getCountersMap()) {
+    (*out_result)
+        ->emplace_back(
+            protocol::Profiler::CounterInfo::create()
+                .setName(String16(counter.first.data(), counter.first.length()))
+                .setValue(counter.second)
+                .build());
+  }
+
+  return Response::OK();
+}
+
 String16 V8ProfilerAgentImpl::nextProfileId() {
   return String16::fromInteger(
       v8::base::Relaxed_AtomicIncrement(&s_lastProfileId, 1));

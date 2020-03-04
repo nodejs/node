@@ -46,7 +46,8 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ('more' first - it has the longer running tests)
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop'],
+  'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop',
+            'instruction_scheduling'],
 }
 
 GC_STRESS_FLAGS = ['--gc-interval=500', '--stress-compaction',
@@ -173,11 +174,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
     if self.build_config.asan:
       options.extra_flags.append('--invoke-weak-callbacks')
-
-    if self.build_config.no_snap:
-      # Speed up slow nosnap runs. Allocation verification is covered by
-      # running mksnapshot on other builders.
-      options.extra_flags.append('--no-turbo-verify-allocation')
 
     if options.novfp3:
       options.extra_flags.append('--noenable-vfp3')

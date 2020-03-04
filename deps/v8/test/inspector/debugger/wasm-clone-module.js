@@ -29,7 +29,7 @@ Protocol.Debugger.onScriptParsed(msg => {
   let url = msg.params.url;
   if (url.startsWith('wasm://')) {
     InspectorTest.log(`Got URL: ${url}`);
-    if (++scriptsSeen == 3) {
+    if (++scriptsSeen == 6) {
       InspectorTest.log('Done!');
       InspectorTest.completeTest();
     }

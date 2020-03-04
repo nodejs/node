@@ -22,7 +22,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     : test_module_(std::make_shared<WasmModule>()),
       test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
-      enabled_features_(WasmFeaturesFromIsolate(isolate_)),
+      enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
@@ -241,7 +241,6 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   DCHECK_EQ(index, test_module_->data_segments.size());
   DCHECK_EQ(index, data_segment_starts_.size());
   DCHECK_EQ(index, data_segment_sizes_.size());
-  DCHECK_EQ(index, dropped_data_segments_.size());
 
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
@@ -268,12 +267,10 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   }
   data_segment_starts_.push_back(new_data_address + old_data_size);
   data_segment_sizes_.push_back(bytes.length());
-  dropped_data_segments_.push_back(0);
 
   // The vector pointers may have moved, so update the instance object.
   instance_object_->set_data_segment_starts(data_segment_starts_.data());
   instance_object_->set_data_segment_sizes(data_segment_sizes_.data());
-  instance_object_->set_dropped_data_segments(dropped_data_segments_.data());
   return index;
 }
 
@@ -318,8 +315,12 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
 
+  const bool kUsesLiftoff = true;
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get(),
+                                                          kUsesLiftoff);
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
-      isolate_, enabled_features_, test_module_);
+      isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
 
   Handle<WasmModuleObject> module_object =
@@ -342,14 +343,14 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
   DecodeResult result =
-      BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr, builder,
+      BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
                    &unused_detected_features, body, nullptr);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr,
+      result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
                             builder, &unused_detected_features, body, nullptr);
     }
 #endif

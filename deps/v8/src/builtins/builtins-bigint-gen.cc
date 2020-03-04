@@ -25,7 +25,7 @@ TF_BUILTIN(BigIntToI64, CodeStubAssembler) {
   TVARIABLE(UintPtrT, var_high);
 
   BigIntToRawBytes(n, &var_low, &var_high);
-  ReturnRaw(var_low.value());
+  Return(var_low.value());
 }
 
 // https://tc39.github.io/proposal-bigint/#sec-to-big-int64
@@ -43,8 +43,7 @@ TF_BUILTIN(BigIntToI32Pair, CodeStubAssembler) {
   TVARIABLE(UintPtrT, var_high);
 
   BigIntToRawBytes(bigint, &var_low, &var_high);
-  Return(SloppyTNode<Object>(var_low.value()),
-         SloppyTNode<Object>(var_high.value()));
+  Return(var_low.value(), var_high.value());
 }
 
 // https://tc39.github.io/proposal-bigint/#sec-bigint-constructor-number-value

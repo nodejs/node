@@ -19,7 +19,7 @@ namespace proxy {
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
   transitioning builtin
   ProxySetProperty(implicit context: Context)(
-      proxy: JSProxy, name: PropertyKey | PrivateSymbol, value: JSAny,
+      proxy: JSProxy, name: PropertyKey|PrivateSymbol, value: JSAny,
       receiverValue: JSAny): JSAny {
     // 1. Assert: IsPropertyKey(P) is true.
     assert(TaggedIsNotSmi(name));

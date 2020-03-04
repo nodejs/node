@@ -136,7 +136,7 @@ TEST(DisasmIa320) {
   __ push(Immediate(23456));
   __ push(ecx);
   __ push(esi);
-  __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(Operand(ebp, StandardFrameConstants::kFunctionOffset));
   __ push(Operand(ebx, ecx, times_4, 0));
   __ push(Operand(ebx, ecx, times_4, 0));
   __ push(Operand(ebx, ecx, times_4, 10000));
@@ -291,7 +291,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic = BUILTIN_CODE(isolate, LoadIC);
+  Handle<Code> ic = BUILTIN_CODE(isolate, ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -535,9 +535,7 @@ TEST(DisasmIa320) {
     __ psraw(xmm0, 17);
     __ psrad(xmm0, 17);
     __ psllq(xmm0, 17);
-    __ psllq(xmm0, xmm1);
     __ psrlq(xmm0, 17);
-    __ psrlq(xmm0, xmm1);
 
     __ pshufhw(xmm5, xmm1, 5);
     __ pshufhw(xmm5, Operand(edx, 4), 5);
@@ -735,6 +733,7 @@ TEST(DisasmIa320) {
 
       __ vpsllw(xmm0, xmm7, 21);
       __ vpslld(xmm0, xmm7, 21);
+      __ vpsllq(xmm0, xmm7, 21);
       __ vpsrlw(xmm0, xmm7, 21);
       __ vpsrld(xmm0, xmm7, 21);
       __ vpsrlq(xmm0, xmm7, 21);

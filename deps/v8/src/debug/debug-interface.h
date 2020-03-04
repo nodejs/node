@@ -162,6 +162,7 @@ class WasmScript : public Script {
   MemorySpan<const uint8_t> Bytecode() const;
 
   std::pair<int, int> GetFunctionRange(int function_index) const;
+  int GetContainingFunction(int byte_offset) const;
 
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
   uint32_t GetFunctionHash(int function_index);
@@ -478,8 +479,8 @@ enum class EvaluateGlobalMode {
 };
 
 V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
-    v8::Isolate* isolate, v8::Local<v8::String> source,
-    EvaluateGlobalMode mode);
+    v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
+    bool repl_mode = false);
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 

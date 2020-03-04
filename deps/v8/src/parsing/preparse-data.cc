@@ -21,7 +21,7 @@ namespace internal {
 
 namespace {
 
-using ScopeSloppyEvalCanExtendVarsField = BitField8<bool, 0, 1>;
+using ScopeSloppyEvalCanExtendVarsField = base::BitField8<bool, 0, 1>;
 using InnerScopeCallsEvalField =
     ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
 using NeedsPrivateNameContextChainRecalcField =
@@ -29,14 +29,14 @@ using NeedsPrivateNameContextChainRecalcField =
 using ShouldSaveClassVariableIndexField =
     NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
 
-using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
+using VariableMaybeAssignedField = base::BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
 
-using HasDataField = BitField<bool, 0, 1>;
+using HasDataField = base::BitField<bool, 0, 1>;
 using LengthEqualsParametersField = HasDataField::Next<bool, 1>;
 using NumberOfParametersField = LengthEqualsParametersField::Next<uint16_t, 16>;
 
-using LanguageField = BitField8<LanguageMode, 0, 1>;
+using LanguageField = base::BitField8<LanguageMode, 0, 1>;
 using UsesSuperField = LanguageField::Next<bool, 1>;
 STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 

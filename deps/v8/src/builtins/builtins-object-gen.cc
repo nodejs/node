@@ -262,10 +262,10 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
     TVARIABLE(IntPtrT, var_result_index, IntPtrConstant(0));
     TVARIABLE(IntPtrT, var_descriptor_number, IntPtrConstant(0));
-    VariableList vars({&var_descriptor_number, &var_result_index}, zone());
     // Let desc be ? O.[[GetOwnProperty]](key).
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-    Label loop(this, vars), after_loop(this), next_descriptor(this);
+    Label loop(this, {&var_descriptor_number, &var_result_index}),
+        after_loop(this), next_descriptor(this);
     Branch(IntPtrEqual(var_descriptor_number.value(), object_enum_length),
            &after_loop, &loop);
 
@@ -387,7 +387,8 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
     TVARIABLE(IntPtrT, var_index);
     TVARIABLE(Name, var_unique);
 
-    Label if_index(this), if_unique_name(this), if_notunique_name(this);
+    Label if_index(this, &var_index), if_unique_name(this),
+        if_notunique_name(this);
     TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique,
               &call_runtime, &if_notunique_name);
 
@@ -397,9 +398,6 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 
     BIND(&if_index);
     {
-      // Handle negative keys in the runtime.
-      GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)),
-             &call_runtime);
       TryLookupElement(object, map, instance_type, var_index.value(),
                        &return_true, &return_false, &return_false,
                        &call_runtime);
@@ -515,8 +513,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, {}, object_enum_length,
-        INTPTR_PARAMETERS);
+        PACKED_ELEMENTS, array_map, array_length, {},
+        Signed(object_enum_length));
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
@@ -610,8 +608,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<JSArray> array;
     TNode<FixedArrayBase> elements;
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        PACKED_ELEMENTS, array_map, array_length, {}, object_enum_length,
-        INTPTR_PARAMETERS);
+        PACKED_ELEMENTS, array_map, array_length, {},
+        Signed(object_enum_length));
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
@@ -1060,70 +1058,6 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
 }
 
 // ES #sec-object.create
-TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
-  TNode<Object> const prototype = CAST(Parameter(Descriptor::kPrototypeArg));
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  Label call_runtime(this, Label::kDeferred), prototype_null(this),
-      prototype_jsreceiver(this);
-  {
-    Comment("Argument check: prototype");
-    GotoIf(IsNull(prototype), &prototype_null);
-    BranchIfJSReceiver(prototype, &prototype_jsreceiver, &call_runtime);
-  }
-
-  TVARIABLE(Map, map);
-  TVARIABLE(HeapObject, properties);
-  Label instantiate_map(this);
-
-  BIND(&prototype_null);
-  {
-    Comment("Prototype is null");
-    map = CAST(LoadContextElement(
-        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
-    properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
-    Goto(&instantiate_map);
-  }
-
-  BIND(&prototype_jsreceiver);
-  {
-    Comment("Prototype is JSReceiver");
-    properties = EmptyFixedArrayConstant();
-    TNode<HeapObject> object_function = CAST(
-        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
-    TNode<Map> object_function_map = LoadObjectField<Map>(
-        object_function, JSFunction::kPrototypeOrInitialMapOffset);
-    map = object_function_map;
-    GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
-           &instantiate_map);
-    Comment("Try loading the prototype info");
-    TNode<PrototypeInfo> prototype_info =
-        LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
-    TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
-        prototype_info, PrototypeInfo::kObjectCreateMapOffset);
-    GotoIf(TaggedEqual(maybe_map, UndefinedConstant()), &call_runtime);
-    map = CAST(GetHeapObjectAssumeWeak(maybe_map, &call_runtime));
-    Goto(&instantiate_map);
-  }
-
-  BIND(&instantiate_map);
-  {
-    Comment("Instantiate map");
-    TNode<JSObject> instance =
-        AllocateJSObjectFromMap(map.value(), properties.value());
-    Return(instance);
-  }
-
-  BIND(&call_runtime);
-  {
-    Comment("Call Runtime (prototype is not null/jsreceiver)");
-    TNode<Object> result = CallRuntime(Runtime::kObjectCreate, context,
-                                       prototype, UndefinedConstant());
-    Return(result);
-  }
-}
-
-// ES #sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;
@@ -1220,8 +1154,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
 // ES #sec-object.is
 TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
-  TNode<Object> const left = CAST(Parameter(Descriptor::kLeft));
-  TNode<Object> const right = CAST(Parameter(Descriptor::kRight));
+  const TNode<Object> left = CAST(Parameter(Descriptor::kLeft));
+  const TNode<Object> right = CAST(Parameter(Descriptor::kRight));
 
   Label return_true(this), return_false(this);
   BranchIfSameValue(left, right, &return_true, &return_false);
@@ -1234,15 +1168,15 @@ TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
-  TNode<Object> const value = CAST(Parameter(Descriptor::kValue));
-  TNode<Oddball> const done = CAST(Parameter(Descriptor::kDone));
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  const TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  const TNode<Oddball> done = CAST(Parameter(Descriptor::kDone));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Map> const map = CAST(
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> map = CAST(
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
-  TNode<JSObject> const result = AllocateJSObjectFromMap(map);
+  const TNode<JSObject> result = AllocateJSObjectFromMap(map);
 
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, value);
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);
@@ -1314,8 +1248,8 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
-  TNode<JSObject> result =
-      AllocateJSObjectFromMap(map, nullptr, nullptr, kNone, kWithSlackTracking);
+  TNode<JSObject> result = AllocateJSObjectFromMap(
+      map, base::nullopt, base::nullopt, kNone, kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,

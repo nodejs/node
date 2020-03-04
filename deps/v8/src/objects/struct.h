@@ -34,7 +34,7 @@ class Tuple2 : public TorqueGeneratedTuple2<Tuple2, Struct> {
   TQ_OBJECT_CONSTRUCTORS(Tuple2)
 };
 
-class Tuple3 : public TorqueGeneratedTuple3<Tuple3, Tuple2> {
+class Tuple3 : public TorqueGeneratedTuple3<Tuple3, Struct> {
  public:
   void BriefPrintDetails(std::ostream& os);
 

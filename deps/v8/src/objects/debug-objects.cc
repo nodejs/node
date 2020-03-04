@@ -359,7 +359,7 @@ void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
   const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
   set(slot_start + kSlotStartSourcePositionIndex, Smi::FromInt(from_pos));
   set(slot_start + kSlotEndSourcePositionIndex, Smi::FromInt(to_pos));
-  set(slot_start + kSlotBlockCountIndex, Smi::kZero);
+  set(slot_start + kSlotBlockCountIndex, Smi::zero());
 }
 
 void CoverageInfo::IncrementBlockCount(int slot_index) {
@@ -372,7 +372,7 @@ void CoverageInfo::IncrementBlockCount(int slot_index) {
 void CoverageInfo::ResetBlockCount(int slot_index) {
   DCHECK_LT(slot_index, SlotCount());
   const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  set(slot_start + kSlotBlockCountIndex, Smi::kZero);
+  set(slot_start + kSlotBlockCountIndex, Smi::zero());
 }
 
 void CoverageInfo::Print(std::unique_ptr<char[]> function_name) {

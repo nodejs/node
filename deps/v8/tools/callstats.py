@@ -370,8 +370,7 @@ def read_stats(path, domain, args):
   if args.aggregate:
     groups = [
         ('Group-IC', re.compile(".*IC_.*")),
-        ('Group-OptimizeBackground',
-         re.compile(".*OptimizeConcurrent.*|RecompileConcurrent.*")),
+        ('Group-OptimizeBackground', re.compile(".*OptimizeBackground.*")),
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
         ('Group-CompileBackground', re.compile("(.*CompileBackground.*)")),

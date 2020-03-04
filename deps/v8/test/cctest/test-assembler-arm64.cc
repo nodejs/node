@@ -11818,27 +11818,27 @@ TEST(register_bit) {
   // teardown.
 
   // Simple tests.
-  CHECK(x0.bit() == (1ULL << 0));
-  CHECK(x1.bit() == (1ULL << 1));
-  CHECK(x10.bit() == (1ULL << 10));
+  CHECK_EQ(x0.bit(), 1ULL << 0);
+  CHECK_EQ(x1.bit(), 1ULL << 1);
+  CHECK_EQ(x10.bit(), 1ULL << 10);
 
   // AAPCS64 definitions.
-  CHECK(fp.bit() == (1ULL << kFramePointerRegCode));
-  CHECK(lr.bit() == (1ULL << kLinkRegCode));
+  CHECK_EQ(fp.bit(), 1ULL << kFramePointerRegCode);
+  CHECK_EQ(lr.bit(), 1ULL << kLinkRegCode);
 
   // Fixed (hardware) definitions.
-  CHECK(xzr.bit() == (1ULL << kZeroRegCode));
+  CHECK_EQ(xzr.bit(), 1ULL << kZeroRegCode);
 
   // Internal ABI definitions.
-  CHECK(sp.bit() == (1ULL << kSPRegInternalCode));
-  CHECK(sp.bit() != xzr.bit());
+  CHECK_EQ(sp.bit(), 1ULL << kSPRegInternalCode);
+  CHECK_NE(sp.bit(), xzr.bit());
 
   // xn.bit() == wn.bit() at all times, for the same n.
-  CHECK(x0.bit() == w0.bit());
-  CHECK(x1.bit() == w1.bit());
-  CHECK(x10.bit() == w10.bit());
-  CHECK(xzr.bit() == wzr.bit());
-  CHECK(sp.bit() == wsp.bit());
+  CHECK_EQ(x0.bit(), w0.bit());
+  CHECK_EQ(x1.bit(), w1.bit());
+  CHECK_EQ(x10.bit(), w10.bit());
+  CHECK_EQ(xzr.bit(), wzr.bit());
+  CHECK_EQ(sp.bit(), wsp.bit());
 }
 
 TEST(peek_poke_simple) {
@@ -12189,7 +12189,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
           case 2:  __ Pop(r[i], r[i+1]);         break;
           case 1:  __ Pop(r[i]);                 break;
           default:
-            CHECK(i == reg_count);
+            CHECK_EQ(i, reg_count);
             break;
         }
         break;
@@ -12338,7 +12338,7 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
           case 2:  __ Pop(v[i], v[i+1]);         break;
           case 1:  __ Pop(v[i]);                 break;
           default:
-            CHECK(i == reg_count);
+            CHECK_EQ(i, reg_count);
             break;
         }
         break;
@@ -12872,12 +12872,12 @@ TEST(copy_noop) {
 TEST(noreg) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to NoReg.
-  CHECK(NoReg.Is(NoVReg));
-  CHECK(NoVReg.Is(NoReg));
-  CHECK(NoReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoReg));
-  CHECK(NoVReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoVReg));
+  CHECK_EQ(NoReg, NoVReg);
+  CHECK_EQ(NoVReg, NoReg);
+  CHECK_EQ(NoReg, NoCPUReg);
+  CHECK_EQ(NoCPUReg, NoReg);
+  CHECK_EQ(NoVReg, NoCPUReg);
+  CHECK_EQ(NoCPUReg, NoVReg);
 
   CHECK(NoReg.IsNone());
   CHECK(NoVReg.IsNone());
@@ -13337,24 +13337,24 @@ TEST(vreg) {
 TEST(isvalid) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to IsValid().
-  CHECK(!NoReg.IsValid());
-  CHECK(!NoVReg.IsValid());
-  CHECK(!NoCPUReg.IsValid());
+  CHECK(!NoReg.is_valid());
+  CHECK(!NoVReg.is_valid());
+  CHECK(!NoCPUReg.is_valid());
 
-  CHECK(x0.IsValid());
-  CHECK(w0.IsValid());
-  CHECK(x30.IsValid());
-  CHECK(w30.IsValid());
-  CHECK(xzr.IsValid());
-  CHECK(wzr.IsValid());
+  CHECK(x0.is_valid());
+  CHECK(w0.is_valid());
+  CHECK(x30.is_valid());
+  CHECK(w30.is_valid());
+  CHECK(xzr.is_valid());
+  CHECK(wzr.is_valid());
 
-  CHECK(sp.IsValid());
-  CHECK(wsp.IsValid());
+  CHECK(sp.is_valid());
+  CHECK(wsp.is_valid());
 
-  CHECK(d0.IsValid());
-  CHECK(s0.IsValid());
-  CHECK(d31.IsValid());
-  CHECK(s31.IsValid());
+  CHECK(d0.is_valid());
+  CHECK(s0.is_valid());
+  CHECK(d31.is_valid());
+  CHECK(s31.is_valid());
 
   CHECK(x0.IsRegister());
   CHECK(w0.IsRegister());
@@ -13376,20 +13376,20 @@ TEST(isvalid) {
 
   // Test the same as before, but using CPURegister types. This shouldn't make
   // any difference.
-  CHECK(static_cast<CPURegister>(x0).IsValid());
-  CHECK(static_cast<CPURegister>(w0).IsValid());
-  CHECK(static_cast<CPURegister>(x30).IsValid());
-  CHECK(static_cast<CPURegister>(w30).IsValid());
-  CHECK(static_cast<CPURegister>(xzr).IsValid());
-  CHECK(static_cast<CPURegister>(wzr).IsValid());
+  CHECK(static_cast<CPURegister>(x0).is_valid());
+  CHECK(static_cast<CPURegister>(w0).is_valid());
+  CHECK(static_cast<CPURegister>(x30).is_valid());
+  CHECK(static_cast<CPURegister>(w30).is_valid());
+  CHECK(static_cast<CPURegister>(xzr).is_valid());
+  CHECK(static_cast<CPURegister>(wzr).is_valid());
 
-  CHECK(static_cast<CPURegister>(sp).IsValid());
-  CHECK(static_cast<CPURegister>(wsp).IsValid());
+  CHECK(static_cast<CPURegister>(sp).is_valid());
+  CHECK(static_cast<CPURegister>(wsp).is_valid());
 
-  CHECK(static_cast<CPURegister>(d0).IsValid());
-  CHECK(static_cast<CPURegister>(s0).IsValid());
-  CHECK(static_cast<CPURegister>(d31).IsValid());
-  CHECK(static_cast<CPURegister>(s31).IsValid());
+  CHECK(static_cast<CPURegister>(d0).is_valid());
+  CHECK(static_cast<CPURegister>(s0).is_valid());
+  CHECK(static_cast<CPURegister>(d31).is_valid());
+  CHECK(static_cast<CPURegister>(s31).is_valid());
 
   CHECK(static_cast<CPURegister>(x0).IsRegister());
   CHECK(static_cast<CPURegister>(w0).IsRegister());
@@ -13497,10 +13497,10 @@ TEST(cpureglist_utils_x) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == x0.type());
+  CHECK_EQ(test.type(), x0.type());
 
-  CHECK(test.PopHighestIndex().Is(x3));
-  CHECK(test.PopLowestIndex().Is(x0));
+  CHECK_EQ(test.PopHighestIndex(), x3);
+  CHECK_EQ(test.PopLowestIndex(), x0);
 
   CHECK(test.IncludesAliasOf(x1));
   CHECK(test.IncludesAliasOf(x2));
@@ -13511,8 +13511,8 @@ TEST(cpureglist_utils_x) {
   CHECK(!test.IncludesAliasOf(w0));
   CHECK(!test.IncludesAliasOf(w3));
 
-  CHECK(test.PopHighestIndex().Is(x2));
-  CHECK(test.PopLowestIndex().Is(x1));
+  CHECK_EQ(test.PopHighestIndex(), x2);
+  CHECK_EQ(test.PopLowestIndex(), x1);
 
   CHECK(!test.IncludesAliasOf(x1));
   CHECK(!test.IncludesAliasOf(x2));
@@ -13562,10 +13562,10 @@ TEST(cpureglist_utils_w) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == w10.type());
+  CHECK_EQ(test.type(), w10.type());
 
-  CHECK(test.PopHighestIndex().Is(w13));
-  CHECK(test.PopLowestIndex().Is(w10));
+  CHECK_EQ(test.PopHighestIndex(), w13);
+  CHECK_EQ(test.PopLowestIndex(), w10);
 
   CHECK(test.IncludesAliasOf(x11));
   CHECK(test.IncludesAliasOf(x12));
@@ -13576,8 +13576,8 @@ TEST(cpureglist_utils_w) {
   CHECK(!test.IncludesAliasOf(w10));
   CHECK(!test.IncludesAliasOf(w13));
 
-  CHECK(test.PopHighestIndex().Is(w12));
-  CHECK(test.PopLowestIndex().Is(w11));
+  CHECK_EQ(test.PopHighestIndex(), w12);
+  CHECK_EQ(test.PopLowestIndex(), w11);
 
   CHECK(!test.IncludesAliasOf(x11));
   CHECK(!test.IncludesAliasOf(x12));
@@ -13628,10 +13628,10 @@ TEST(cpureglist_utils_d) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == d20.type());
+  CHECK_EQ(test.type(), d20.type());
 
-  CHECK(test.PopHighestIndex().Is(d23));
-  CHECK(test.PopLowestIndex().Is(d20));
+  CHECK_EQ(test.PopHighestIndex(), d23);
+  CHECK_EQ(test.PopLowestIndex(), d20);
 
   CHECK(test.IncludesAliasOf(d21));
   CHECK(test.IncludesAliasOf(d22));
@@ -13642,8 +13642,8 @@ TEST(cpureglist_utils_d) {
   CHECK(!test.IncludesAliasOf(s20));
   CHECK(!test.IncludesAliasOf(s23));
 
-  CHECK(test.PopHighestIndex().Is(d22));
-  CHECK(test.PopLowestIndex().Is(d21));
+  CHECK_EQ(test.PopHighestIndex(), d22);
+  CHECK_EQ(test.PopLowestIndex(), d21);
 
   CHECK(!test.IncludesAliasOf(d21));
   CHECK(!test.IncludesAliasOf(d22));
@@ -14700,11 +14700,11 @@ TEST(pool_size) {
   for (RelocIterator it(*code, pool_mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsConstPool(info->rmode())) {
-      CHECK(info->data() == constant_pool_size);
+      CHECK_EQ(info->data(), constant_pool_size);
       ++pool_count;
     }
     if (RelocInfo::IsVeneerPool(info->rmode())) {
-      CHECK(info->data() == veneer_pool_size);
+      CHECK_EQ(info->data(), veneer_pool_size);
       ++pool_count;
     }
   }

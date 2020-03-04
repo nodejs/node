@@ -968,7 +968,7 @@ TEST(AtomicOpDisassembly) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
-    auto enabled_features = WasmFeaturesFromIsolate(isolate);
+    auto enabled_features = WasmFeatures::FromIsolate(isolate);
     Handle<WasmModuleObject> module_object =
         isolate->wasm_engine()
             ->SyncCompile(isolate, enabled_features, &thrower,

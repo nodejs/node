@@ -31,6 +31,7 @@
 #include "src/d8/d8-platforms.h"
 #include "src/d8/d8.h"
 #include "src/debug/debug-interface.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/init/v8.h"
@@ -43,7 +44,6 @@
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/sanitizer/msan.h"
-#include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -129,19 +129,12 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
  private:
   static constexpr size_t kVMThreshold = 65536;
-  static constexpr size_t kTwoGB = 2u * 1024u * 1024u * 1024u;
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-    // TODO(titzer): allocations should fail if >= 2gb because array buffers
-    // store their lengths as a SMI internally.
-    if (length >= kTwoGB) return nullptr;
-
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    // Rounding up could go over the limit.
-    if (allocated >= kTwoGB) return nullptr;
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
                             PageAllocator::kReadWrite);
   }
@@ -1367,7 +1360,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<String> str_obj;
 
     if (arg->IsSymbol()) {
-      arg = Local<Symbol>::Cast(arg)->Name();
+      arg = Local<Symbol>::Cast(arg)->Description();
     }
     if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
@@ -1681,9 +1674,9 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     printf("%s\n", exception_string);
   } else if (message->GetScriptOrigin().Options().IsWasm()) {
     // Print wasm-function[(function index)]:(offset): (message).
-    int function_index = message->GetLineNumber(context).FromJust() - 1;
+    int function_index = message->GetWasmFunctionIndex();
     int offset = message->GetStartColumn(context).FromJust();
-    printf("wasm-function[%d]:%d: %s\n", function_index, offset,
+    printf("wasm-function[%d]:0x%x: %s\n", function_index, offset,
            exception_string);
   } else {
     // Print (filename):(line number): (message).
@@ -2082,7 +2075,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
   DCHECK(!context.IsEmpty());
-  if (i::FLAG_perf_prof_annotate_wasm) {
+  if (i::FLAG_perf_prof_annotate_wasm || i::FLAG_vtune_prof_annotate_wasm) {
     isolate->SetWasmLoadSourceMapCallback(ReadFile);
   }
   InitializeModuleEmbedderData(context);
@@ -2318,23 +2311,6 @@ static char* ReadChars(const char* name, int* size_out) {
   return chars;
 }
 
-struct DataAndPersistent {
-  uint8_t* data;
-  int byte_length;
-  Global<ArrayBuffer> handle;
-};
-
-static void ReadBufferWeakCallback(
-    const v8::WeakCallbackInfo<DataAndPersistent>& data) {
-  int byte_length = data.GetParameter()->byte_length;
-  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(byte_length));
-
-  delete[] data.GetParameter()->data;
-  data.GetParameter()->handle.Reset();
-  delete data.GetParameter();
-}
-
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   static_assert(sizeof(char) == sizeof(uint8_t),
                 "char and uint8_t should both have 1 byte");
@@ -2346,19 +2322,20 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  DataAndPersistent* data = new DataAndPersistent;
-  data->data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
-  if (data->data == nullptr) {
-    delete data;
+  uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
+  if (data == nullptr) {
     Throw(isolate, "Error reading file");
     return;
   }
-  data->byte_length = length;
-  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data->data, length);
-  data->handle.Reset(isolate, buffer);
-  data->handle.SetWeak(data, ReadBufferWeakCallback,
-                       v8::WeakCallbackType::kParameter);
-  isolate->AdjustAmountOfExternalAllocatedMemory(length);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      ArrayBuffer::NewBackingStore(
+          data, length,
+          [](void* data, size_t length, void*) {
+            delete[] reinterpret_cast<uint8_t*>(data);
+          },
+          nullptr);
+  Local<v8::ArrayBuffer> buffer =
+      ArrayBuffer::New(isolate, std::move(backing_store));
 
   args.GetReturnValue().Set(buffer);
 }
@@ -2941,9 +2918,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-deopt") == 0) {
-      options.stress_deopt = true;
-      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-background-compile") == 0) {
       options.stress_background_compile = true;
       argv[i] = nullptr;
@@ -2955,7 +2929,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
-      options.stress_deopt = false;
     } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
       logfile_per_isolate = true;
       argv[i] = nullptr;
@@ -3395,9 +3368,6 @@ class Serializer : public ValueSerializer::Delegate {
       }
 
       auto backing_store = array_buffer->GetBackingStore();
-      if (!array_buffer->IsExternal()) {
-        array_buffer->Externalize(backing_store);
-      }
       data_->backing_stores_.push_back(std::move(backing_store));
       array_buffer->Detach();
     }
@@ -3466,6 +3436,52 @@ class Deserializer : public ValueDeserializer::Delegate {
   std::unique_ptr<SerializationData> data_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
+};
+
+class D8Testing {
+ public:
+  /**
+   * Get the number of runs of a given test that is required to get the full
+   * stress coverage.
+   */
+  static int GetStressRuns() {
+    if (internal::FLAG_stress_runs != 0) return internal::FLAG_stress_runs;
+#ifdef DEBUG
+    // In debug mode the code runs much slower so stressing will only make two
+    // runs.
+    return 2;
+#else
+    return 5;
+#endif
+  }
+
+  /**
+   * Indicate the number of the run which is about to start. The value of run
+   * should be between 0 and one less than the result from GetStressRuns()
+   */
+  static void PrepareStressRun(int run) {
+    static const char* kLazyOptimizations =
+        "--prepare-always-opt "
+        "--max-inlined-bytecode-size=999999 "
+        "--max-inlined-bytecode-size-cumulative=999999 "
+        "--noalways-opt";
+    static const char* kForcedOptimizations = "--always-opt";
+
+    if (run == GetStressRuns() - 1) {
+      V8::SetFlagsFromString(kForcedOptimizations);
+    } else {
+      V8::SetFlagsFromString(kLazyOptimizations);
+    }
+  }
+
+  /**
+   * Force deoptimization of all functions.
+   */
+  static void DeoptimizeAll(Isolate* isolate) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::HandleScope scope(i_isolate);
+    i::Deoptimizer::DeoptimizeAll(i_isolate);
+  }
 };
 
 std::unique_ptr<SerializationData> Shell::SerializeValue(
@@ -3664,19 +3680,17 @@ int Shell::Main(int argc, char* argv[]) {
       tracing_controller->StartTracing(trace_config);
     }
 
-    if (options.stress_opt || options.stress_deopt) {
-      Testing::SetStressRunType(options.stress_opt ? Testing::kStressTypeOpt
-                                                   : Testing::kStressTypeDeopt);
-      options.stress_runs = Testing::GetStressRuns();
+    if (options.stress_opt) {
+      options.stress_runs = D8Testing::GetStressRuns();
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
         printf("============ Stress %d/%d ============\n", i + 1,
                options.stress_runs);
-        Testing::PrepareStressRun(i);
+        D8Testing::PrepareStressRun(i);
         bool last_run = i == options.stress_runs - 1;
         result = RunMain(isolate, argc, argv, last_run);
       }
       printf("======== Full Deoptimization =======\n");
-      Testing::DeoptimizeAll(isolate);
+      D8Testing::DeoptimizeAll(isolate);
     } else if (i::FLAG_stress_runs > 0) {
       options.stress_runs = i::FLAG_stress_runs;
       for (int i = 0; i < options.stress_runs && result == 0; i++) {

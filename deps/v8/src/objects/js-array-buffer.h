@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 
@@ -204,7 +205,7 @@ class JSTypedArray : public JSArrayBufferView {
   // as Tagged_t value and an |external_pointer| value.
   // For full-pointer mode the compensation value is zero.
   static inline Address ExternalPointerCompensationForOnHeapArray(
-      Isolate* isolate);
+      const Isolate* isolate);
 
   // Subtracts external pointer compensation from the external pointer value.
   inline void RemoveExternalPointerCompensationForSerialization();

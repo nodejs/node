@@ -17,7 +17,7 @@ namespace wasm {
 
 struct CompilationEnv;
 struct FunctionBody;
-struct WasmFeatures;
+class WasmFeatures;
 
 // Note: If this list changes, also the histogram "V8.LiftoffBailoutReasons"
 // on the chromium side needs to be updated.
@@ -51,7 +51,7 @@ enum LiftoffBailoutReason : int8_t {
   kNumBailoutReasons
 };
 
-WasmCompilationResult ExecuteLiftoffCompilation(
+V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
     Counters*, WasmFeatures* detected_features);
 

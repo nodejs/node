@@ -194,7 +194,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 // s3: scratch register
 // s4: scratch register 2
 #define DECLARE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
+  constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
@@ -265,7 +265,7 @@ using FloatRegister = FPURegister;
 using DoubleRegister = FPURegister;
 
 #define DECLARE_DOUBLE_REGISTER(R) \
-  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
+  constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
 DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 #undef DECLARE_DOUBLE_REGISTER
 
@@ -275,7 +275,7 @@ constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 using Simd128Register = MSARegister;
 
 #define DECLARE_SIMD128_REGISTER(R) \
-  constexpr Simd128Register R = Simd128Register::from_code<kMsaCode_##R>();
+  constexpr Simd128Register R = Simd128Register::from_code(kMsaCode_##R);
 SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
 #undef DECLARE_SIMD128_REGISTER
 

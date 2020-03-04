@@ -42,10 +42,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
 
   static Callable KeyedStoreIC_SloppyArguments(Isolate* isolate,
                                                KeyedAccessStoreMode mode);
-  static Callable KeyedStoreIC_Slow(Isolate* isolate,
-                                    KeyedAccessStoreMode mode);
-  static Callable StoreInArrayLiteralIC_Slow(Isolate* isolate,
-                                             KeyedAccessStoreMode mode);
   static Callable ElementsTransitionAndStore(Isolate* isolate,
                                              KeyedAccessStoreMode mode);
   static Callable StoreFastElementIC(Isolate* isolate,

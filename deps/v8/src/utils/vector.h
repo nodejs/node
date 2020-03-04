@@ -23,7 +23,7 @@ class Vector {
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
-#ifdef V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(length == 0 || data != nullptr);
 #endif
   }
@@ -118,14 +118,11 @@ class Vector {
   }
 
   bool operator==(const Vector<const T> other) const {
-    if (length_ != other.length_) return false;
-    if (start_ == other.start_) return true;
-    for (size_t i = 0; i < length_; ++i) {
-      if (start_[i] != other.start_[i]) {
-        return false;
-      }
-    }
-    return true;
+    return std::equal(begin(), end(), other.begin(), other.end());
+  }
+
+  bool operator!=(const Vector<const T> other) const {
+    return !operator==(other);
   }
 
  private:
@@ -243,14 +240,6 @@ inline Vector<const uint8_t> OneByteVector(const char* data, size_t length) {
 
 inline Vector<const uint8_t> OneByteVector(const char* data) {
   return OneByteVector(data, strlen(data));
-}
-
-inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, strlen(data));
-}
-
-inline Vector<char> MutableCStrVector(char* data, size_t max) {
-  return Vector<char>(data, strnlen(data, max));
 }
 
 // For string literals, ArrayVector("foo") returns a vector ['f', 'o', 'o', \0]

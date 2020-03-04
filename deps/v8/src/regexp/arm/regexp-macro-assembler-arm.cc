@@ -154,6 +154,19 @@ void RegExpMacroAssemblerARM::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerARM::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    __ ldr(r0, MemOperand(frame_pointer(), kBacktrackCount));
+    __ add(r0, r0, Operand(1));
+    __ str(r0, MemOperand(frame_pointer(), kBacktrackCount));
+    __ cmp(r0, Operand(backtrack_limit()));
+    __ b(ne, &next);
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(r0);
   __ add(pc, r0, Operand(code_pointer()));
@@ -642,9 +655,16 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Set frame pointer in space for it if this is not a direct call
   // from generated code.
   __ add(frame_pointer(), sp, Operand(4 * kPointerSize));
+
+  STATIC_ASSERT(kSuccessfulCaptures == kInputString - kSystemPointerSize);
   __ mov(r0, Operand::Zero());
   __ push(r0);  // Make room for success counter and initialize it to 0.
+  STATIC_ASSERT(kStringStartMinusOne ==
+                kSuccessfulCaptures - kSystemPointerSize);
   __ push(r0);  // Make room for "string start - 1" constant.
+  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  __ push(r0);  // The backtrack counter.
+
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
   Label stack_ok;
@@ -1073,17 +1093,10 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ mov(ip, Operand(stack_guard_check));
 
-  if (FLAG_embedded_builtins) {
-    EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
-    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
-    __ mov(lr, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-  } else {
-    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
-    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
-    __ mov(lr, Operand(reinterpret_cast<intptr_t>(code.location()),
-                       RelocInfo::CODE_TARGET));
-  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+  Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+  __ mov(lr, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(lr);
 
   // Drop the return address from the stack.

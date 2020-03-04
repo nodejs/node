@@ -2955,10 +2955,9 @@ using InstructionSelectorStoreWithBarrierTest =
 TEST_P(InstructionSelectorStoreWithBarrierTest,
        StoreWithWriteBarrierParameters) {
   const WriteBarrierKind barrier_kind = GetParam();
-  StreamBuilder m(this, MachineType::Int32(),
-                  MachineType::TypeCompressedTaggedPointer(),
-                  MachineType::Int32(), MachineType::TypeCompressedTagged());
-  m.Store(MachineType::RepCompressedTagged(), m.Parameter(0), m.Parameter(1),
+  StreamBuilder m(this, MachineType::Int32(), MachineType::TaggedPointer(),
+                  MachineType::Int32(), MachineType::AnyTagged());
+  m.Store(MachineRepresentation::kTagged, m.Parameter(0), m.Parameter(1),
           m.Parameter(2), barrier_kind);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -2974,10 +2973,9 @@ TEST_P(InstructionSelectorStoreWithBarrierTest,
        StoreWithWriteBarrierImmediate) {
   const WriteBarrierKind barrier_kind = GetParam();
   TRACED_FOREACH(int32_t, index, kStoreWithBarrierImmediates) {
-    StreamBuilder m(this, MachineType::Int32(),
-                    MachineType::TypeCompressedTaggedPointer(),
-                    MachineType::TypeCompressedTagged());
-    m.Store(MachineType::RepCompressedTagged(), m.Parameter(0),
+    StreamBuilder m(this, MachineType::Int32(), MachineType::TaggedPointer(),
+                    MachineType::AnyTagged());
+    m.Store(MachineRepresentation::kTagged, m.Parameter(0),
             m.Int32Constant(index), m.Parameter(1), barrier_kind);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build(kAllExceptNopInstructions);

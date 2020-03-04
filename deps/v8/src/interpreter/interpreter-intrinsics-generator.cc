@@ -269,13 +269,13 @@ TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
   __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
   __ GotoIfNot(__ IsJSReceiver(__ CAST(sync_iterator)), &not_receiver);
 
-  TNode<Object> const next =
+  const TNode<Object> next =
       __ GetProperty(context, sync_iterator, factory()->next_string());
 
-  TNode<NativeContext> const native_context = __ LoadNativeContext(context);
-  TNode<Map> const map = __ CAST(__ LoadContextElement(
+  const TNode<NativeContext> native_context = __ LoadNativeContext(context);
+  const TNode<Map> map = __ CAST(__ LoadContextElement(
       native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
-  TNode<JSObject> const iterator = __ AllocateJSObjectFromMap(map);
+  const TNode<JSObject> iterator = __ AllocateJSObjectFromMap(map);
 
   __ StoreObjectFieldNoWriteBarrier(
       iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
@@ -308,7 +308,7 @@ TNode<Object> IntrinsicsGenerator::GeneratorGetResumeMode(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
   TNode<JSGeneratorObject> generator =
       __ CAST(__ LoadRegisterFromRegisterList(args, 0));
-  TNode<Object> const value =
+  const TNode<Object> value =
       __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
 
   return value;
@@ -326,10 +326,10 @@ TNode<Object> IntrinsicsGenerator::GeneratorClose(
 
 TNode<Object> IntrinsicsGenerator::GetImportMetaObject(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context) {
-  TNode<Context> const module_context = __ LoadModuleContext(context);
-  TNode<HeapObject> const module =
+  const TNode<Context> module_context = __ LoadModuleContext(context);
+  const TNode<HeapObject> module =
       __ CAST(__ LoadContextElement(module_context, Context::EXTENSION_INDEX));
-  TNode<Object> const import_meta =
+  const TNode<Object> import_meta =
       __ LoadObjectField(module, SourceTextModule::kImportMetaOffset);
 
   InterpreterAssembler::TVariable<Object> return_value(assembler_);

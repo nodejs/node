@@ -123,6 +123,22 @@
 }],  # ALWAYS
 
 ##############################################################################
+['(arch != ia32 and arch != x64)', {
+  # BUG(v8:9860). We can only safely read the native context for a frame on
+  # ia32 and x64.
+  'test-cpu-profiler/ContextFilterMovedNativeContext': [FAIL],
+  'test-cpu-profiler/ContextIsolation': [FAIL],
+}],
+
+##############################################################################
+['tsan == True', {
+  # BUG(v8:9869) TSAN considers SIGPROF an asynchronous signal, and will call
+  # into the handler after the stack has drifted from the context on the
+  # signal.
+  'test-cpu-profiler/*': [SKIP],
+}],
+
+##############################################################################
 ['arch == arm64', {
   'test-api/Bug618': [PASS],
 
@@ -151,7 +167,7 @@
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
-  'test-cpu-profiler/MultipleIsolates': [PASS, SLOW],
+  'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
   'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
@@ -181,37 +197,6 @@
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'
-
-##############################################################################
-['no_snap == True', {
-  # Slow tests.
-  'test-api/ExternalWrap': [PASS, SLOW],
-  'test-api/FastReturnValues*': [PASS, SLOW],
-  'test-decls/CrossScriptReferences_Simple2': [PASS, SLOW],
-  # "WithWarmup" means starting from a snapshot, for which nosnap builds lack
-  # support.
-  'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
-  'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
-  # Fails the embedded blob <-> Isolate verification step.
-  'test-serialize/CustomSnapshotDataBlobWithLocker': [SKIP],
-
-  # https://crbug.com/v8/7763
-  'test-lockers/ExtensionsRegistration': [SKIP],
-}],  # 'no_snap == True'
-
-##############################################################################
-['no_snap == True and system != windows and mode == debug', {
-  # BUG(v8:9400).
-  'test-heap/Regress615489': [SKIP],
-}], # 'no_snap == True and system != windows and mode == debug'
-
-##############################################################################
-# TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
-# section to not overwrite the expectations for TestThatAlwaysFails.
-['no_snap == True and system == windows', {
-  # Windows doesn't support nosnap mode.
-  'test-serialize/*': [SKIP],
-}],  # 'no_snap == True and system == windows'
 
 ##############################################################################
 ['is_full_debug', {
@@ -245,6 +230,9 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
+
+  # Test is just big and quite slow.
+  'test-cpu-profiler/Inlining2': [PASS, SLOW],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -359,15 +347,6 @@
 }],  # 'mips_arch_variant == r6'
 
 ##############################################################################
-['arch == android_arm or arch == android_ia32', {
-
-  # Tests crash as there is no /tmp directory in Android.
-  'test-log/LogAccessorCallbacks': [SKIP],
-  'test-log/LogCallbacks': [SKIP],
-  'test-log/ProfLazyMode': [SKIP],
-}],  # 'arch == android_arm or arch == android_ia32'
-
-##############################################################################
 ['system == android', {
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
@@ -408,6 +387,9 @@
 
   # TODO(ppc/s390): support concurrent patching of jump table
   'test-jump-table-assembler/*': [SKIP],
+
+  # Liftoff is not currently supported on ppc and s390
+  'test-liftoff-*': [SKIP],
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
@@ -454,15 +436,9 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
-# The stack unwinder API is only supported on x64.
-['arch != x64', {
+# The stack unwinder API is only supported on x64 and arm64.
+['arch != x64 and arch != arm64', {
   'test-unwinder/*': [SKIP]
-}],
-
-##############################################################################
-# Windows stack unwinding is only supported on x64.
-['arch != x64 or system != windows', {
-  'test-stack-unwinding-x64/*': [SKIP]
 }],
 
 ##############################################################################
@@ -474,7 +450,7 @@
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
-  'test-api/WasmStreaming*': [SKIP],
+  'test-api-wasm/WasmStreaming*': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
@@ -610,11 +586,6 @@
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
   'test-macro-assembler-arm/ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
 }], # variant == jitless
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ##############################################################################
 ['variant == turboprop', {

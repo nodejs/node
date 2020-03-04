@@ -45,6 +45,7 @@ class Block {
     }
   }
 
+  std::vector<Instruction>& instructions() { return instructions_; }
   const std::vector<Instruction>& instructions() const { return instructions_; }
   bool IsComplete() const {
     return !instructions_.empty() && instructions_.back()->IsBlockTerminator();
@@ -74,6 +75,12 @@ class ControlFlowGraph {
     return &blocks_.back();
   }
   void PlaceBlock(Block* block) { placed_blocks_.push_back(block); }
+  template <typename UnaryPredicate>
+  void UnplaceBlockIf(UnaryPredicate&& predicate) {
+    auto newEnd = std::remove_if(placed_blocks_.begin(), placed_blocks_.end(),
+                                 std::forward<UnaryPredicate>(predicate));
+    placed_blocks_.erase(newEnd, placed_blocks_.end());
+  }
   Block* start() const { return start_; }
   base::Optional<Block*> end() const { return end_; }
   void set_end(Block* end) { end_ = end; }
@@ -87,6 +94,7 @@ class ControlFlowGraph {
     }
   }
   const std::vector<Block*>& blocks() const { return placed_blocks_; }
+  size_t NumberOfBlockIds() const { return next_block_id_; }
 
  private:
   std::list<Block> blocks_;
@@ -106,6 +114,8 @@ class CfgAssembler {
     if (!CurrentBlockIsComplete()) {
       cfg_.set_end(current_block_);
     }
+    OptimizeCfg();
+    DCHECK(CfgIsComplete());
     return cfg_;
   }
 
@@ -116,6 +126,12 @@ class CfgAssembler {
   }
 
   bool CurrentBlockIsComplete() const { return current_block_->IsComplete(); }
+  bool CfgIsComplete() const {
+    return std::all_of(
+        cfg_.blocks().begin(), cfg_.blocks().end(), [this](Block* block) {
+          return (cfg_.end() && *cfg_.end() == block) || block->IsComplete();
+        });
+  }
 
   void Emit(Instruction instruction) {
     instruction.TypeInstruction(&current_stack_, &cfg_);
@@ -150,6 +166,7 @@ class CfgAssembler {
   void DebugBreak();
 
   void PrintCurrentStack(std::ostream& s) { s << "stack: " << current_stack_; }
+  void OptimizeCfg();
 
  private:
   friend class CfgAssemblerScopedTemporaryBlock;

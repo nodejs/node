@@ -336,15 +336,17 @@ MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
           DCHECK(isolate->external_caught_exception());
           *params.exception_out = v8::Utils::OpenHandle(*catcher.Exception());
         }
-      }
-      if (params.message_handling == Execution::MessageHandling::kReport) {
-        isolate->OptionalRescheduleException(true);
+        if (params.message_handling == Execution::MessageHandling::kReport) {
+          isolate->OptionalRescheduleException(true);
+        }
       }
     }
   }
 
-  // Re-request terminate execution interrupt to trigger later.
-  if (is_termination) isolate->stack_guard()->RequestTerminateExecution();
+  if (is_termination) {
+    // Reschedule terminate execution exception.
+    isolate->OptionalRescheduleException(false);
+  }
 
   return maybe_result;
 }

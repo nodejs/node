@@ -28,7 +28,7 @@ BUILTIN(SymbolConstructor) {
   if (!description->IsUndefined(isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
                                        Object::ToString(isolate, description));
-    result->set_name(*description);
+    result->set_description(String::cast(*description));
   }
   return *result;
 }
@@ -55,7 +55,7 @@ BUILTIN(SymbolKeyFor) {
   DisallowHeapAllocation no_gc;
   Object result;
   if (symbol->is_in_public_symbol_table()) {
-    result = symbol->name();
+    result = symbol->description();
     DCHECK(result.IsString());
   } else {
     result = ReadOnlyRoots(isolate).undefined_value();

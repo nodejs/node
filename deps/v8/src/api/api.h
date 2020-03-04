@@ -558,17 +558,6 @@ void InvokeAccessorGetterCallback(
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);
 
-class Testing {
- public:
-  static v8::Testing::StressType stress_type() { return stress_type_; }
-  static void set_stress_type(v8::Testing::StressType stress_type) {
-    stress_type_ = stress_type;
-  }
-
- private:
-  static v8::Testing::StressType stress_type_;
-};
-
 }  // namespace internal
 }  // namespace v8
 

@@ -135,6 +135,12 @@ ScriptOriginOptions OriginOptionsForEval(Object script) {
                              outer_origin_options.IsOpaque());
 }
 
+REPLMode OriginReplMode(Object script) {
+  if (!script.IsScript()) return REPLMode::kNo;
+
+  return Script::cast(script).is_repl_mode() ? REPLMode::kYes : REPLMode::kNo;
+}
+
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -219,12 +225,13 @@ CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   return UpdateState(PrepareJobImpl(isolate), State::kReadyToExecute);
 }
 
-CompilationJob::Status OptimizedCompilationJob::ExecuteJob() {
+CompilationJob::Status OptimizedCompilationJob::ExecuteJob(
+    RuntimeCallStats* stats) {
   DisallowHeapAccess no_heap_access;
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
-  return UpdateState(ExecuteJobImpl(), State::kReadyToFinalize);
+  return UpdateState(ExecuteJobImpl(stats), State::kReadyToFinalize);
 }
 
 CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
@@ -476,6 +483,15 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(
   CompilationJob::Status status = job->FinalizeJob(shared_info, isolate);
   if (status == CompilationJob::SUCCEEDED) {
     InstallUnoptimizedCode(compilation_info, shared_info, parse_info, isolate);
+
+    // It's possible that source position collection was enabled after the
+    // background compile was started in which the compiled bytecode will not be
+    // missing source positions (for instance by enabling the cpu profiler). So
+    // force source position collection now in that case.
+    if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+    }
+
     CodeEventListener::LogEventsAndTags log_tag;
     if (parse_info->is_toplevel()) {
       log_tag = compilation_info->is_eval() ? CodeEventListener::EVAL_TAG
@@ -730,13 +746,14 @@ void InsertCodeIntoOptimizedCodeCache(
 bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kRecompileSynchronous);
+      isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+               "V8.OptimizeNonConcurrent");
 
   if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED ||
-      job->ExecuteJob() != CompilationJob::SUCCEEDED ||
+      job->ExecuteJob(isolate->counters()->runtime_call_stats()) !=
+          CompilationJob::SUCCEEDED ||
       job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
     if (FLAG_trace_opt) {
       PrintF("[aborted optimizing ");
@@ -777,9 +794,9 @@ bool GetOptimizedCodeLater(OptimizedCompilationJob* job, Isolate* isolate) {
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kRecompileSynchronous);
+      isolate, RuntimeCallCounterId::kOptimizeConcurrentPrepare);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+               "V8.OptimizeConcurrentPrepare");
 
   if (job->PrepareJob(isolate) != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
@@ -1094,9 +1111,9 @@ BackgroundCompileTask::~BackgroundCompileTask() = default;
 
 namespace {
 
-// A scope object that ensures a parse info's runtime call stats, stack limit
-// and on_background_thread fields is set correctly during worker-thread
-// compile, and restores it after going out of scope.
+// A scope object that ensures a parse info's runtime call stats and stack limit
+// are set correctly during worker-thread compile, and restores it after going
+// out of scope.
 class OffThreadParseInfoScope {
  public:
   OffThreadParseInfoScope(
@@ -1106,7 +1123,6 @@ class OffThreadParseInfoScope {
         original_runtime_call_stats_(parse_info_->runtime_call_stats()),
         original_stack_limit_(parse_info_->stack_limit()),
         worker_thread_scope_(worker_thread_runtime_stats) {
-    parse_info_->set_on_background_thread(true);
     parse_info_->set_runtime_call_stats(worker_thread_scope_.Get());
     parse_info_->set_stack_limit(GetCurrentStackPosition() - stack_size * KB);
   }
@@ -1114,7 +1130,6 @@ class OffThreadParseInfoScope {
   ~OffThreadParseInfoScope() {
     parse_info_->set_stack_limit(original_stack_limit_);
     parse_info_->set_runtime_call_stats(original_runtime_call_stats_);
-    parse_info_->set_on_background_thread(false);
   }
 
  private:
@@ -1164,11 +1179,9 @@ void BackgroundCompileTask::Run() {
 
 bool Compiler::Analyze(ParseInfo* parse_info) {
   DCHECK_NOT_NULL(parse_info->literal());
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      parse_info->on_background_thread()
-          ? RuntimeCallCounterId::kCompileBackgroundAnalyse
-          : RuntimeCallCounterId::kCompileAnalyse);
+  RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
+                                     RuntimeCallCounterId::kCompileAnalyse,
+                                     RuntimeCallStats::kThreadSpecific);
   if (!Rewriter::Rewrite(parse_info)) return false;
   if (!DeclarationScope::Analyze(parse_info)) return false;
   return true;
@@ -1542,8 +1555,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     ParseInfo parse_info(isolate);
-    script = parse_info.CreateScript(
-        isolate, source, OriginOptionsForEval(outer_info->script()));
+    script = parse_info.CreateScript(isolate, source,
+                                     OriginOptionsForEval(outer_info->script()),
+                                     OriginReplMode(outer_info->script()));
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
@@ -1562,10 +1576,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
     }
     script->set_eval_from_position(eval_position);
-    TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
-        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
-        TRACE_ID_WITH_SCOPE(Script::kTraceScope, script->id()),
-        script->ToTracedValue());
 
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
@@ -1652,13 +1662,14 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
       isolate->modify_code_gen_callback();
   RuntimeCallTimerScope timer(
       isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
-  MaybeLocal<v8::String> modified_source =
+  ModifyCodeGenerationFromStringsResult result =
       modify_callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(*source));
-  if (modified_source.IsEmpty()) return false;
-
-  // Use the new source (which might be the same as the old source) and return.
-  *source = Utils::OpenHandle(*modified_source.ToLocalChecked(), false);
-  return true;
+  if (result.codegen_allowed && !result.modified_source.IsEmpty()) {
+    // Use the new source (which might be the same as the old source).
+    *source =
+        Utils::OpenHandle(*result.modified_source.ToLocalChecked(), false);
+  }
+  return result.codegen_allowed;
 }
 
 // Run Embedder-mandated checks before generating code from a string.
@@ -1676,38 +1687,49 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
 // - !source_is_null() and unknown_object can't be true at the same time.
 std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     Isolate* isolate, Handle<Context> context,
-    Handle<i::Object> source_object) {
-  Handle<String> source;
-  if (source_object->IsString()) source = Handle<String>::cast(source_object);
-
+    Handle<i::Object> original_source) {
   // Check if the context unconditionally allows code gen from strings.
   // allow_code_gen_from_strings can be many things, so we'll always check
   // against the 'false' literal, so that e.g. undefined and 'true' are treated
   // the same.
   if (!context->allow_code_gen_from_strings().IsFalse(isolate)) {
-    return {source, !source_object->IsString()};
+    if (!original_source->IsString()) {
+      return {MaybeHandle<String>(), true};
+    }
+    return {Handle<String>::cast(original_source), false};
   }
 
   // Check if the context allows code generation for this string.
   // allow_code_gen_callback only allows proper strings.
   // (I.e., let allow_code_gen_callback decide, if it has been set.)
   if (isolate->allow_code_gen_callback()) {
-    if (source_object->IsString() &&
-        CodeGenerationFromStringsAllowed(isolate, context, source)) {
-      return {source, !source_object->IsString()};
+    if (!original_source->IsString()) {
+      return {MaybeHandle<String>(), true};
     }
+    Handle<String> string_source = Handle<String>::cast(original_source);
+    if (!CodeGenerationFromStringsAllowed(isolate, context, string_source)) {
+      return {MaybeHandle<String>(), false};
+    }
+    return {string_source, false};
   }
 
   // Check if the context wants to block or modify this source object.
   // Double-check that we really have a string now.
   // (Let modify_code_gen_callback decide, if it's been set.)
   if (isolate->modify_code_gen_callback()) {
-    if (ModifyCodeGenerationFromStrings(isolate, context, &source_object) &&
-        source_object->IsString())
-      return {Handle<String>::cast(source_object), false};
+    Handle<i::Object> modified_source = original_source;
+    if (!ModifyCodeGenerationFromStrings(isolate, context, &modified_source)) {
+      return {MaybeHandle<String>(), false};
+    }
+    if (!modified_source->IsString()) {
+      return {MaybeHandle<String>(), true};
+    }
+    return {Handle<String>::cast(modified_source), false};
   }
 
-  return {MaybeHandle<String>(), !source_object->IsString()};
+  // If unconditional codegen was disabled, and no callback defined, we block
+  // strings and allow all other objects.
+  return {MaybeHandle<String>(), !original_source->IsString()};
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
@@ -1956,8 +1978,8 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
                          ScriptOriginOptions origin_options,
                          NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script =
-      parse_info->CreateScript(isolate, source, origin_options, natives);
+  Handle<Script> script = parse_info->CreateScript(
+      isolate, source, origin_options, script_details.repl_mode, natives);
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
     script->set_name(*script_name);
@@ -1973,10 +1995,6 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
     script->set_host_defined_options(*host_defined_options);
   }
   LOG(isolate, ScriptDetails(*script));
-  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
-      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
-      TRACE_ID_WITH_SCOPE(Script::kTraceScope, script->id()),
-      script->ToTracedValue());
   return script;
 }
 
@@ -2054,6 +2072,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // No cache entry found compile the script.
     NewScript(isolate, &parse_info, source, script_details, origin_options,
               natives);
+    DCHECK_EQ(parse_info.is_repl_mode(), parse_info.script()->is_repl_mode());
 
     // Compile the function and add it to the isolate cache.
     if (origin_options.IsModule()) parse_info.set_module();
@@ -2290,9 +2309,9 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(
-      isolate, RuntimeCallCounterId::kRecompileSynchronous);
+      isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.RecompileSynchronous");
+               "V8.OptimizeConcurrentFinalize");
 
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 

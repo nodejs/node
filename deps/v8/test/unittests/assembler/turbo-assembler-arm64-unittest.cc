@@ -121,7 +121,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     Register dst_slot = test_case.dst_slot;
 
     Operand offset_operand(0);
-    if (test_case.offset_register.Is(no_reg)) {
+    if (test_case.offset_register == no_reg) {
       offset_operand = Operand(offset);
     } else {
       __ Mov(test_case.offset_register, Operand(offset));
@@ -131,7 +131,7 @@ TEST_P(TurboAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
     std::stringstream comment;
     comment << "-- " << test_case.comment << ": MoveObjectAndSlot("
             << dst_object << ", " << dst_slot << ", " << src_object << ", ";
-    if (test_case.offset_register.Is(no_reg)) {
+    if (test_case.offset_register == no_reg) {
       comment << "#" << offset;
     } else {
       comment << test_case.offset_register;

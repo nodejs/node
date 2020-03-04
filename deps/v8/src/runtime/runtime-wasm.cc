@@ -71,7 +71,7 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
   if (function->IsNull(isolate)) {
     return Smi::FromInt(true);
   }
-  if (WasmExportedFunction::IsWasmExportedFunction(*function)) {
+  if (WasmExternalFunction::IsWasmExternalFunction(*function)) {
     return Smi::FromInt(true);
   }
   return Smi::FromInt(false);
@@ -562,7 +562,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
-  uint32_t table_size = static_cast<uint32_t>(table->entries().length());
+  uint32_t table_size = table->current_length();
 
   if (start > table_size) {
     return ThrowTableOutOfBounds(isolate, instance);

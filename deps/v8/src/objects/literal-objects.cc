@@ -81,14 +81,16 @@ void AddToDescriptorArrayTemplate(
 
 Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
-    Handle<Object> value, PropertyDetails details, int* entry_out = nullptr) {
+    Handle<Object> value, PropertyDetails details,
+    InternalIndex* entry_out = nullptr) {
   return NameDictionary::AddNoUpdateNextEnumerationIndex(
       isolate, dictionary, name, value, details, entry_out);
 }
 
 Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t element,
-    Handle<Object> value, PropertyDetails details, int* entry_out = nullptr) {
+    Handle<Object> value, PropertyDetails details,
+    InternalIndex* entry_out = nullptr) {
   // NumberDictionary does not maintain the enumeration order, so it's
   // a normal Add().
   return NumberDictionary::Add(isolate, dictionary, element, value, details,
@@ -122,10 +124,10 @@ template <typename Dictionary, typename Key>
 void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
                              Key key, int key_index,
                              ClassBoilerplate::ValueKind value_kind,
-                             Object value) {
-  int entry = dictionary->FindEntry(isolate, key);
+                             Smi value) {
+  InternalIndex entry = dictionary->FindEntry(isolate, key);
 
-  if (entry == kNotFound) {
+  if (entry.is_not_found()) {
     // Entry not found, add new one.
     const bool is_elements_dictionary =
         std::is_same<Dictionary, NumberDictionary>::value;
@@ -302,7 +304,7 @@ class ObjectDescriptor {
                                      ClassBoilerplate::kFullComputedEntrySize)
             : factory->empty_fixed_array();
 
-    temp_handle_ = handle(Smi::kZero, isolate);
+    temp_handle_ = handle(Smi::zero(), isolate);
   }
 
   void AddConstant(Isolate* isolate, Handle<Name> name, Handle<Object> value,
@@ -363,7 +365,7 @@ class ObjectDescriptor {
 
   void Finalize(Isolate* isolate) {
     if (HasDictionaryProperties()) {
-      properties_dictionary_template_->set_next_enumeration_index(
+      properties_dictionary_template_->SetNextEnumerationIndex(
           next_enumeration_index_);
       computed_properties_ = FixedArray::ShrinkOrEmpty(
           isolate, computed_properties_, current_computed_index_);
@@ -390,14 +392,14 @@ class ObjectDescriptor {
 
 void ClassBoilerplate::AddToPropertiesTemplate(
     Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
-    int key_index, ClassBoilerplate::ValueKind value_kind, Object value) {
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value) {
   AddToDictionaryTemplate(isolate, dictionary, name, key_index, value_kind,
                           value);
 }
 
 void ClassBoilerplate::AddToElementsTemplate(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
-    int key_index, ClassBoilerplate::ValueKind value_kind, Object value) {
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value) {
   AddToDictionaryTemplate(isolate, dictionary, key, key_index, value_kind,
                           value);
 }
@@ -522,7 +524,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 
   // Add name accessor to the class object if necessary.
   bool install_class_name_accessor = false;
-  if (!expr->has_name_static_property()) {
+  if (!expr->has_name_static_property() &&
+      expr->constructor()->has_shared_name()) {
     if (static_desc.HasDictionaryProperties()) {
       // Install class name accessor if necessary during class literal
       // instantiation.

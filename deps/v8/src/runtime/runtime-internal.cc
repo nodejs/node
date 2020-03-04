@@ -82,6 +82,48 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
+RUNTIME_FUNCTION(Runtime_ReportDetachedWindowAccess) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<NativeContext> native_context(isolate->context().native_context(),
+                                       isolate);
+  v8::Isolate::UseCounterFeature counter_main;
+  v8::Isolate::UseCounterFeature counter_10s;
+  v8::Isolate::UseCounterFeature counter_1min;
+  switch (native_context->GetDetachedWindowReason()) {
+    case v8::Context::kWindowNotDetached:
+      // We should never get here. Just exit early in case we do.
+      return ReadOnlyRoots(isolate).undefined_value();
+    case v8::Context::kDetachedWindowByNavigation:
+      counter_main = v8::Isolate::kCallInDetachedWindowByNavigation;
+      counter_10s = v8::Isolate::kCallInDetachedWindowByNavigationAfter10s;
+      counter_1min = v8::Isolate::kCallInDetachedWindowByNavigationAfter1min;
+      break;
+    case v8::Context::kDetachedWindowByClosing:
+      counter_main = v8::Isolate::kCallInDetachedWindowByClosing;
+      counter_10s = v8::Isolate::kCallInDetachedWindowByClosingAfter10s;
+      counter_1min = v8::Isolate::kCallInDetachedWindowByClosingAfter1min;
+      break;
+    case v8::Context::kDetachedWindowByOtherReason:
+      counter_main = v8::Isolate::kCallInDetachedWindowByOtherReason;
+      counter_10s = v8::Isolate::kCallInDetachedWindowByOtherReasonAfter10s;
+      counter_1min = v8::Isolate::kCallInDetachedWindowByOtherReasonAfter1min;
+      break;
+  }
+  isolate->CountUsage(counter_main);
+  // This can be off by up to 1s in each direction, but that's ok.
+  int secs_passed = native_context->SecondsSinceDetachedWindow();
+  if (secs_passed >= 10) {
+    isolate->CountUsage(counter_10s);
+  }
+  if (secs_passed >= 60) {
+    isolate->CountUsage(counter_1min);
+  }
+
+  // The return value isn't needed, but RUNTIME_FUNCTION sets it up.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 #define THROW_ERROR(isolate, args, call)                               \
   HandleScope scope(isolate);                                          \
   DCHECK_LE(1, args.length());                                         \
@@ -278,6 +320,21 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed()) {
+    return isolate->StackOverflow();
+  }
+
+  return isolate->stack_guard()->HandleInterrupts();
+}
+
+RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_UINT32_ARG_CHECKED(gap, 0);
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+
+  // First check if this is a real stack overflow.
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(gap)) {
     return isolate->StackOverflow();
   }
 
@@ -573,5 +630,18 @@ RUNTIME_FUNCTION(Runtime_GetInitializerFunction) {
   Handle<Object> initializer = JSReceiver::GetDataProperty(constructor, key);
   return *initializer;
 }
+
+RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
+  CONVERT_INT32_ARG_CHECKED(radix, 1);
+
+  char* const str = DoubleToRadixCString(number, radix);
+  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
+  DeleteArray(str);
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

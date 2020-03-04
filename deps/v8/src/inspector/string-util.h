@@ -22,10 +22,7 @@ class Value;
 
 using String = v8_inspector::String16;
 using StringBuilder = v8_inspector::String16Builder;
-struct ProtocolMessage {
-  String json;
-  std::vector<uint8_t> binary;
-};
+using ProtocolMessage = std::vector<uint8_t>;
 
 class StringUtil {
  public:
@@ -72,15 +69,9 @@ class StringUtil {
   }
   static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
   static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);
-  static ProtocolMessage jsonToMessage(String message);
-  static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 
   static String fromUTF8(const uint8_t* data, size_t length) {
     return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
-  }
-
-  static String fromUTF16(const uint16_t* data, size_t length) {
-    return String16(data, length);
   }
 
   static String fromUTF16LE(const uint16_t* data, size_t length) {

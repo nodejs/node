@@ -23,6 +23,7 @@
   V(_, currencyDisplay_string, "currencyDisplay")                   \
   V(_, currencySign_string, "currencySign")                         \
   V(_, dateStyle_string, "dateStyle")                               \
+  V(_, dateTimeField_string, "dateTimeField")                       \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
   V(_, decimal_string, "decimal")                                   \
@@ -33,6 +34,7 @@
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
+  V(_, fallback_string, "fallback")                                 \
   V(_, first_string, "first")                                       \
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
@@ -324,36 +326,38 @@
   V(_, writable_string, "writable")                                  \
   V(_, zero_string, "0")
 
-#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)               \
-  V(_, call_site_frame_array_symbol)                      \
-  V(_, call_site_frame_index_symbol)                      \
-  V(_, console_context_id_symbol)                         \
-  V(_, console_context_name_symbol)                       \
-  V(_, class_fields_symbol)                               \
-  V(_, class_positions_symbol)                            \
-  V(_, detailed_stack_trace_symbol)                       \
-  V(_, elements_transition_symbol)                        \
-  V(_, error_end_pos_symbol)                              \
-  V(_, error_script_symbol)                               \
-  V(_, error_start_pos_symbol)                            \
-  V(_, frozen_symbol)                                     \
-  V(_, generic_symbol)                                    \
-  V(_, home_object_symbol)                                \
-  V(_, interpreter_trampoline_symbol)                     \
-  V(_, megamorphic_symbol)                                \
-  V(_, native_context_index_symbol)                       \
-  V(_, nonextensible_symbol)                              \
-  V(_, not_mapped_symbol)                                 \
-  V(_, promise_debug_marker_symbol)                       \
-  V(_, promise_forwarding_handler_symbol)                 \
-  V(_, promise_handled_by_symbol)                         \
-  V(_, regexp_result_cached_indices_or_match_info_symbol) \
-  V(_, regexp_result_names_symbol)                        \
-  V(_, sealed_symbol)                                     \
-  V(_, stack_trace_symbol)                                \
-  V(_, strict_function_transition_symbol)                 \
-  V(_, wasm_exception_tag_symbol)                         \
-  V(_, wasm_exception_values_symbol)                      \
+#define PRIVATE_SYMBOL_LIST_GENERATOR(V, _)           \
+  V(_, call_site_frame_array_symbol)                  \
+  V(_, call_site_frame_index_symbol)                  \
+  V(_, console_context_id_symbol)                     \
+  V(_, console_context_name_symbol)                   \
+  V(_, class_fields_symbol)                           \
+  V(_, class_positions_symbol)                        \
+  V(_, detailed_stack_trace_symbol)                   \
+  V(_, elements_transition_symbol)                    \
+  V(_, error_end_pos_symbol)                          \
+  V(_, error_script_symbol)                           \
+  V(_, error_start_pos_symbol)                        \
+  V(_, frozen_symbol)                                 \
+  V(_, generic_symbol)                                \
+  V(_, home_object_symbol)                            \
+  V(_, interpreter_trampoline_symbol)                 \
+  V(_, megamorphic_symbol)                            \
+  V(_, native_context_index_symbol)                   \
+  V(_, nonextensible_symbol)                          \
+  V(_, not_mapped_symbol)                             \
+  V(_, promise_debug_marker_symbol)                   \
+  V(_, promise_forwarding_handler_symbol)             \
+  V(_, promise_handled_by_symbol)                     \
+  V(_, regexp_result_cached_indices_or_regexp_symbol) \
+  V(_, regexp_result_names_symbol)                    \
+  V(_, regexp_result_regexp_input_symbol)             \
+  V(_, regexp_result_regexp_last_index_symbol)        \
+  V(_, sealed_symbol)                                 \
+  V(_, stack_trace_symbol)                            \
+  V(_, strict_function_transition_symbol)             \
+  V(_, wasm_exception_tag_symbol)                     \
+  V(_, wasm_exception_values_symbol)                  \
   V(_, uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)          \
@@ -475,6 +479,7 @@
   F(MINOR_MC_RESET_LIVENESS)                         \
   F(MINOR_MC_SWEEPING)                               \
   F(SCAVENGER_FAST_PROMOTE)                          \
+  F(SCAVENGER_FREE_REMEMBERED_SET)                   \
   F(SCAVENGER_SCAVENGE)                              \
   F(SCAVENGER_PROCESS_ARRAY_BUFFERS)                 \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \

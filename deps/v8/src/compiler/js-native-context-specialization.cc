@@ -92,8 +92,6 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSPromiseResolve(node);
     case IrOpcode::kJSResolvePromise:
       return ReduceJSResolvePromise(node);
-    case IrOpcode::kJSLoadContext:
-      return ReduceJSLoadContext(node);
     case IrOpcode::kJSLoadGlobal:
       return ReduceJSLoadGlobal(node);
     case IrOpcode::kJSStoreGlobal:
@@ -744,31 +742,15 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   return Replace(value);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
-  ContextAccess const& access = ContextAccessOf(node->op());
-  // Specialize JSLoadContext(NATIVE_CONTEXT_INDEX) to the known native
-  // context (if any), so we can constant-fold those fields, which is
-  // safe, since the NATIVE_CONTEXT_INDEX slot is always immutable.
-  if (access.index() == Context::NATIVE_CONTEXT_INDEX) {
-    Node* value = jsgraph()->Constant(native_context());
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 namespace {
 
 FieldAccess ForPropertyCellValue(MachineRepresentation representation,
                                  Type type, MaybeHandle<Map> map,
                                  NameRef const& name) {
   WriteBarrierKind kind = kFullWriteBarrier;
-  if (representation == MachineRepresentation::kTaggedSigned ||
-      representation == MachineRepresentation::kCompressedSigned) {
+  if (representation == MachineRepresentation::kTaggedSigned) {
     kind = kNoWriteBarrier;
-  } else if (representation == MachineRepresentation::kTaggedPointer ||
-             representation == MachineRepresentation::kCompressedPointer) {
+  } else if (representation == MachineRepresentation::kTaggedPointer) {
     kind = kPointerWriteBarrier;
   }
   MachineType r = MachineType::TypeForRepresentation(representation);
@@ -884,21 +866,20 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // Load from constant type cell can benefit from type feedback.
         MaybeHandle<Map> map;
         Type property_cell_value_type = Type::NonInternal();
-        MachineRepresentation representation =
-            MachineType::RepCompressedTagged();
+        MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_details.cell_type() == PropertyCellType::kConstantType) {
           // Compute proper type based on the current value in the cell.
           if (property_cell_value.IsSmi()) {
             property_cell_value_type = Type::SignedSmall();
-            representation = MachineType::RepCompressedTaggedSigned();
+            representation = MachineRepresentation::kTaggedSigned;
           } else if (property_cell_value.IsHeapNumber()) {
             property_cell_value_type = Type::Number();
-            representation = MachineType::RepCompressedTaggedPointer();
+            representation = MachineRepresentation::kTaggedPointer;
           } else {
             MapRef property_cell_value_map =
                 property_cell_value.AsHeapObject().map();
             property_cell_value_type = Type::For(property_cell_value_map);
-            representation = MachineType::RepCompressedTaggedPointer();
+            representation = MachineRepresentation::kTaggedPointer;
 
             // We can only use the property cell value map for map check
             // elimination if it's stable, i.e. the HeapObject wasn't
@@ -941,8 +922,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // cell.
         dependencies()->DependOnGlobalProperty(property_cell);
         Type property_cell_value_type;
-        MachineRepresentation representation =
-            MachineType::RepCompressedTagged();
+        MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value.IsHeapObject()) {
           // We cannot do anything if the {property_cell_value}s map is no
           // longer stable.
@@ -961,13 +941,13 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
                   ZoneHandleSet<Map>(property_cell_value_map.object())),
               value, effect, control);
           property_cell_value_type = Type::OtherInternal();
-          representation = MachineType::RepCompressedTaggedPointer();
+          representation = MachineRepresentation::kTaggedPointer;
         } else {
           // Check that the {value} is a Smi.
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(FeedbackSource()), value, effect, control);
           property_cell_value_type = Type::SignedSmall();
-          representation = MachineType::RepCompressedTaggedSigned();
+          representation = MachineRepresentation::kTaggedSigned;
         }
         effect = graph()->NewNode(simplified()->StoreField(ForPropertyCellValue(
                                       representation, property_cell_value_type,
@@ -982,7 +962,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         dependencies()->DependOnGlobalProperty(property_cell);
         effect = graph()->NewNode(
             simplified()->StoreField(ForPropertyCellValue(
-                MachineType::RepCompressedTagged(), Type::NonInternal(),
+                MachineRepresentation::kTagged, Type::NonInternal(),
                 MaybeHandle<Map>(), name)),
             jsgraph()->Constant(property_cell), value, effect, control);
         break;
@@ -1455,7 +1435,8 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
                              : feedback.AsCall().speculation_mode();
   const Operator* call_op =
       javascript()->Call(2, CallFrequency(), p.callFeedback(),
-                         ConvertReceiverMode::kNotNullOrUndefined, mode);
+                         ConvertReceiverMode::kNotNullOrUndefined, mode,
+                         CallFeedbackRelation::kRelated);
   Node* call_property = graph()->NewNode(call_op, load_property, receiver,
                                          context, frame_state, effect, control);
   effect = call_property;
@@ -2371,8 +2352,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
             value = effect = a.Finish();
 
             field_access.type = Type::Any();
-            field_access.machine_type =
-                MachineType::TypeCompressedTaggedPointer();
+            field_access.machine_type = MachineType::TaggedPointer();
             field_access.write_barrier_kind = kPointerWriteBarrier;
           } else {
             // We just store directly to the HeapNumber.
@@ -2382,7 +2362,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                 name.object(),
                 MaybeHandle<Map>(),
                 Type::OtherInternal(),
-                MachineType::TypeCompressedTaggedPointer(),
+                MachineType::TaggedPointer(),
                 kPointerWriteBarrier,
                 LoadSensitivity::kUnsafe,
                 access_info.GetConstFieldInfo(),
@@ -2414,9 +2394,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
-      case MachineRepresentation::kCompressedSigned:
-      case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressed:
         if (store_to_existing_constant_field) {
           DCHECK(!access_info.HasTransitionMap());
           // If the field is constant check that the value we are going
@@ -2432,16 +2409,13 @@ JSNativeContextSpecialization::BuildPropertyStore(
           return ValueEffectControl(value, effect, control);
         }
 
-        if (field_representation == MachineRepresentation::kTaggedSigned ||
-            field_representation == MachineRepresentation::kCompressedSigned) {
+        if (field_representation == MachineRepresentation::kTaggedSigned) {
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(FeedbackSource()), value, effect, control);
           field_access.write_barrier_kind = kNoWriteBarrier;
 
         } else if (field_representation ==
-                       MachineRepresentation::kTaggedPointer ||
-                   field_representation ==
-                       MachineRepresentation::kCompressedPointer) {
+                   MachineRepresentation::kTaggedPointer) {
           Handle<Map> field_map;
           if (access_info.field_map().ToHandle(&field_map)) {
             // Emit a map check for the value.
@@ -2457,12 +2431,13 @@ JSNativeContextSpecialization::BuildPropertyStore(
           field_access.write_barrier_kind = kPointerWriteBarrier;
 
         } else {
-          DCHECK(field_representation == MachineRepresentation::kTagged ||
-                 field_representation == MachineRepresentation::kCompressed);
+          DCHECK(field_representation == MachineRepresentation::kTagged);
         }
         break;
       case MachineRepresentation::kNone:
       case MachineRepresentation::kBit:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
@@ -2842,13 +2817,13 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Compute the element access.
     Type element_type = Type::NonInternal();
-    MachineType element_machine_type = MachineType::TypeCompressedTagged();
+    MachineType element_machine_type = MachineType::AnyTagged();
     if (IsDoubleElementsKind(elements_kind)) {
       element_type = Type::Number();
       element_machine_type = MachineType::Float64();
     } else if (IsSmiElementsKind(elements_kind)) {
       element_type = Type::SignedSmall();
-      element_machine_type = MachineType::TypeCompressedTaggedSigned();
+      element_machine_type = MachineType::TaggedSigned();
     }
     ElementAccess element_access = {
         kTaggedBase,       FixedArray::kHeaderSize,
@@ -2865,7 +2840,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
       if (elements_kind == HOLEY_ELEMENTS ||
           elements_kind == HOLEY_SMI_ELEMENTS) {
-        element_access.machine_type = MachineType::TypeCompressedTagged();
+        element_access.machine_type = MachineType::AnyTagged();
       }
 
       // Check if we can return undefined for out-of-bounds loads.
@@ -2973,7 +2948,7 @@ JSNativeContextSpecialization::BuildElementAccess(
 
         if (elements_kind == HOLEY_ELEMENTS ||
             elements_kind == HOLEY_SMI_ELEMENTS) {
-          element_access.machine_type = MachineType::TypeCompressedTagged();
+          element_access.machine_type = MachineType::AnyTagged();
         }
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);

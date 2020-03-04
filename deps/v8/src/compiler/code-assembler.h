@@ -51,6 +51,7 @@ class JSAsyncGeneratorObject;
 class JSCollator;
 class JSCollection;
 class JSDateTimeFormat;
+class JSDisplayNames;
 class JSListFormat;
 class JSLocale;
 class JSNumberFormat;
@@ -106,6 +107,7 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
 enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };
 
 class AccessCheckNeeded;
+class BigIntBase;
 class BigIntWrapper;
 class ClassBoilerplate;
 class BooleanWrapper;
@@ -537,15 +539,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Parameter(int value);
 
   TNode<Context> GetJSContextParameter();
-  void Return(SloppyTNode<Object> value);
-  void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2);
-  void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2,
-              SloppyTNode<Object> value3);
+  void Return(TNode<Object> value);
+  void Return(TNode<Object> value1, TNode<Object> value2);
+  void Return(TNode<Object> value1, TNode<Object> value2, TNode<Object> value3);
+  void Return(TNode<Int32T> value);
+  void Return(TNode<Uint32T> value);
+  void Return(TNode<WordT> value);
+  void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 
-  void ReturnIf(Node* condition, Node* value);
-
-  void ReturnRaw(Node* value);
+  void ReturnIf(Node* condition, TNode<Object> value);
 
   void AbortCSAAssert(Node* message);
   void DebugBreak();
@@ -914,6 +917,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
   // Assumes that the double can be exactly represented as an int.
+  TNode<IntPtrT> ChangeFloat64ToIntPtr(TNode<Float64T> value);
   TNode<UintPtrT> ChangeFloat64ToUintPtr(SloppyTNode<Float64T> value);
   // Same in the opposite direction.
   TNode<Float64T> ChangeUintPtrToFloat64(TNode<UintPtrT> value);
@@ -951,14 +955,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   template <class... TArgs>
-  TNode<Object> CallRuntimeWithCEntry(Runtime::FunctionId function,
-                                      TNode<Code> centry,
-                                      SloppyTNode<Object> context,
-                                      TArgs... args) {
-    return CallRuntimeWithCEntryImpl(function, centry, context, {args...});
-  }
-
-  template <class... TArgs>
   void TailCallRuntime(Runtime::FunctionId function,
                        SloppyTNode<Object> context, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
@@ -972,17 +968,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        SloppyTNode<Object> context, TArgs... args) {
     return TailCallRuntimeImpl(function, arity, context,
                                {implicit_cast<SloppyTNode<Object>>(args)...});
-  }
-
-  template <class... TArgs>
-  void TailCallRuntimeWithCEntry(Runtime::FunctionId function,
-                                 TNode<Code> centry, TNode<Object> context,
-                                 TArgs... args) {
-    int argc = sizeof...(args);
-    TNode<Int32T> arity = Int32Constant(argc);
-    return TailCallRuntimeWithCEntryImpl(
-        function, arity, centry, context,
-        {implicit_cast<SloppyTNode<Object>>(args)...});
   }
 
   //
@@ -1175,18 +1160,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                 TNode<Object> context,
                                 std::initializer_list<TNode<Object>> args);
 
-  TNode<Object> CallRuntimeWithCEntryImpl(
-      Runtime::FunctionId function, TNode<Code> centry, TNode<Object> context,
-      std::initializer_list<TNode<Object>> args);
-
   void TailCallRuntimeImpl(Runtime::FunctionId function, TNode<Int32T> arity,
                            TNode<Object> context,
                            std::initializer_list<TNode<Object>> args);
-
-  void TailCallRuntimeWithCEntryImpl(Runtime::FunctionId function,
-                                     TNode<Int32T> arity, TNode<Code> centry,
-                                     TNode<Object> context,
-                                     std::initializer_list<TNode<Object>> args);
 
   void TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
                         TNode<Code> target, TNode<Object> context,

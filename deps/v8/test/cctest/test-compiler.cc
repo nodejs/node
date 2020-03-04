@@ -27,9 +27,12 @@
 
 #include <stdlib.h>
 #include <wchar.h>
+#include <memory>
 
 #include "src/init/v8.h"
 
+#include "include/v8-profiler.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -39,6 +42,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -1056,6 +1060,72 @@ TEST(DecideToPretenureDuringCompilation) {
   }
   isolate->Exit();
   isolate->Dispose();
+}
+
+namespace {
+
+// Dummy external source stream which returns the whole source in one go.
+class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  explicit DummySourceStream(const char* source) : done_(false) {
+    source_length_ = static_cast<int>(strlen(source));
+    source_buffer_ = source;
+  }
+
+  size_t GetMoreData(const uint8_t** dest) override {
+    if (done_) {
+      return 0;
+    }
+    uint8_t* buf = new uint8_t[source_length_ + 1];
+    memcpy(buf, source_buffer_, source_length_ + 1);
+    *dest = buf;
+    done_ = true;
+    return source_length_;
+  }
+
+ private:
+  int source_length_;
+  const char* source_buffer_;
+  bool done_;
+};
+
+}  // namespace
+
+// Tests that doing something that causes source positions to need to be
+// collected after a background compilation task has started does result in
+// source positions being collected.
+TEST(ProfilerEnabledDuringBackgroundCompile) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  const char* source = "var a = 0;";
+
+  v8::ScriptCompiler::StreamedSource streamed_source(
+      std::make_unique<DummySourceStream>(source),
+      v8::ScriptCompiler::StreamedSource::UTF8);
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+      v8::ScriptCompiler::StartStreamingScript(isolate, &streamed_source));
+
+  // Run the background compilation task on the main thread.
+  task->Run();
+
+  // Enable the CPU profiler.
+  auto* cpu_profiler = v8::CpuProfiler::New(isolate, v8::kStandardNaming);
+  v8::Local<v8::String> profile = v8_str("profile");
+  cpu_profiler->StartProfiling(profile);
+
+  // Finalize the background compilation task ensuring it completed
+  // successfully.
+  v8::Local<v8::Script> script =
+      v8::ScriptCompiler::Compile(isolate->GetCurrentContext(),
+                                  &streamed_source, v8_str(source),
+                                  v8::ScriptOrigin(v8_str("foo")))
+          .ToLocalChecked();
+
+  i::Handle<i::Object> obj = Utils::OpenHandle(*script);
+  CHECK(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable());
+
+  cpu_profiler->StopProfiling(profile);
 }
 
 }  // namespace internal

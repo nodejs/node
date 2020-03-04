@@ -102,7 +102,7 @@ void ObjectDeserializer::LinkAllocationSites() {
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
-    if (heap->allocation_sites_list() == Smi::kZero) {
+    if (heap->allocation_sites_list() == Smi::zero()) {
       site.set_weak_next(ReadOnlyRoots(heap).undefined_value());
     } else {
       site.set_weak_next(heap->allocation_sites_list());

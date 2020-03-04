@@ -99,13 +99,13 @@
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator_run == True', SKIP]],
 
   # Very slow test
-  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
+  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
-  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
-  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
-  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
+  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
   # This test allocates a 2G block of memory and if there are multiple
   # variants this can lead to OOM.
@@ -124,14 +124,13 @@
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
   # used in multi-threaded runs.
-  # On android there is no /tmp directory.
   # Currently d8-os generates a temporary directory name using Math.random(), so
   # we cannot run several variants of d8-os simultaneously, since all of them
   # get the same random seed and would generate the same directory name. Besides
   # that, it doesn't make sense to run several variants of d8-os anyways.
-  'd8/d8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
-  'tools/tickprocessor': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
-  'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  'd8/d8-os': [PASS, NO_VARIANTS, ['isolates', SKIP]],
+  'tools/tickprocessor': [PASS, NO_VARIANTS],
+  'tools/dumpcpp': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # These tests generate files in the test directory, so we cannot run several
@@ -159,7 +158,7 @@
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
 
   # This test variant makes only sense on arm.
-  'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
+  'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64]', SKIP]],
 
   # Too slow for slow variants.
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
@@ -196,7 +195,7 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
   # worker creation/shutdown is very slow in debug mode
-  'd8/d8-worker-shutdown*': [PASS, ['mode == debug', SLOW], ['no_snap', SKIP]],
+  'd8/d8-worker-shutdown*': [PASS, ['mode == debug', SLOW]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -256,6 +255,11 @@
   # Test doesn't work on 32-bit architectures (it would require a
   # regexp pattern with too many captures).
   'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
+
+  # OOM with too many isolates/memory objects (https://crbug.com/1010272)
+  # Predictable tests fail due to race between postMessage and GrowMemory
+  # Agressively skipping test for variants, and simulator runs.
+  'regress/wasm/regress-1010272': [PASS, NO_VARIANTS, ['simulator_run', SKIP], ['system == android', SKIP], ['predictable', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -360,6 +364,7 @@
   'regress/wasm/*': [SKIP],
   'regress/regress-8947': [SKIP],
   'regress/regress-9165': [SKIP],
+  'regress/regress-1034394': [SKIP],
   'regress/regress-v8-9106': [SKIP],
   'wasm/*': [SKIP],
 
@@ -369,6 +374,7 @@
   'asm/call-stdlib': [SKIP],
   'asm/call-annotation': [SKIP],
   'asm/global-imports': [SKIP],
+  'asm/regress-1027595': [SKIP],
   'asm/regress-913822': [SKIP],
   'asm/regress-937650': [SKIP],
   'asm/regress-9531': [SKIP],
@@ -399,6 +405,15 @@
   'regexp-tier-up-multiple': [SKIP],
   'regress/regress-996234': [SKIP],
 
+  # Tests that depend on optimization (beyond doing assertOptimized).
+  'compiler/is-being-interpreted-*': [SKIP],
+  'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
+
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
   'tools/compiler-trace-flags-wasm': [SKIP],
@@ -413,7 +428,6 @@
 ##############################################################################
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
-  'compiler/regress-9017': [SKIP],
   'regress/regress-2790': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
@@ -430,7 +444,7 @@
 }],  # 'byteorder == big'
 
 ##############################################################################
-['arch == arm64 or arch == android_arm64', {
+['arch == arm64', {
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -442,7 +456,6 @@
   # tests.
   'asm/embenchen/box2d': [SKIP],
   'asm/embenchen/lua_binarytrees': [SKIP],
-  'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
   'compiler/regress-4': [SKIP],
@@ -474,12 +487,11 @@
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
   'array-splice': [PASS, SLOW],
-  'array-store-and-grow': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
+  'frozen-array-reduce': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
-  'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
@@ -490,7 +502,6 @@
   'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
-  'unbox-double-arrays': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
@@ -503,17 +514,10 @@
 
 ##############################################################################
 ['arch == arm64 and simulator_run', {
-  # Slow in simulator builds
-  'compiler/osr-follow': [PASS, SLOW],
-  'es6/array-concat': [PASS, SLOW],
-  'non-extensible-array-reduce': [PASS, SLOW],
-  'regress/regress-454725': [PASS, SLOW],
-  'regress/regress-708247': [PASS, SLOW],
   'compiler/osr-big': [PASS, SLOW],
-  'frozen-array-reduce': [PASS, SLOW],
-  'json': [PASS, SLOW],
-  'sealed-array-reduce': [PASS, SLOW],
+  'regress/regress-454725': [PASS, SLOW],
   'try': [PASS, SLOW],
+  'non-extensible-array-reduce': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
 ##############################################################################
@@ -534,7 +538,6 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'big-array-literal': [SKIP],
-  'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639
@@ -609,7 +612,6 @@
   'es6/large-classes-properties': [SKIP],
 
   # Slow tests.
-  'compiler/regress-9017': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-500980': [PASS, SLOW],
@@ -619,12 +621,12 @@
 }],  # 'tsan == True'
 
 ##############################################################################
-['arch == arm or arch == android_arm', {
+['arch == arm', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
-  'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
+  'regress/regress-1122': [PASS, SLOW, ['mode == debug', SKIP]],
 
   # Flaky test that can hit compilation-time stack overflow in debug mode.
   'unicode-test': [PASS, ['mode == debug', PASS, FAIL]],
@@ -635,7 +637,6 @@
 
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
-  'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
@@ -660,7 +661,7 @@
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
   'wasm/atomics': [PASS, SLOW],
-}],  # 'arch == arm or arch == android_arm'
+}],  # 'arch == arm
 
 ##############################################################################
 ['(arch == mipsel or arch == mips or arch == mips64el or arch == mips64) and simulator_run != True', {
@@ -779,7 +780,6 @@
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
-  'big-object-literal': [SKIP],
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
@@ -805,18 +805,11 @@
   'icu-date-lord-howe': [SKIP],
   'regress/regress-6288': [SKIP],
   # OOM:
-  'regress/regress-748069': [FAIL],
   'regress/regress-752764': [FAIL],
   # Flaky OOM:
   'regress/regress-779407': [SKIP],
   'regress/regress-852258': [SKIP],
 }],  # 'system == android'
-
-##############################################################################
-['system == macos', {
-  # BUG(v8:5333)
-  'big-object-literal': [SKIP],
-}],  # 'system == macos'
 
 ##############################################################################
 ['isolates', {
@@ -843,6 +836,7 @@
   'deopt-recursive-lazy-once': [SKIP],
   'deopt-recursive-soft-once': [SKIP],
   'code-coverage-block-opt': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
 
   # Bounds check triggers forced deopt for array constructors.
   'array-constructor-feedback': [SKIP],
@@ -858,6 +852,9 @@
 
   # Too slow tests.
   'regress/regress-740784': [SKIP],
+
+  # https://crbug.com/v8/9984
+  'compiler/opt-higher-order-functions': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
@@ -884,6 +881,7 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
   'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-v8-9267-*': [SKIP],
@@ -930,9 +928,6 @@
   # Deadlocks on predictable platform (https://crbug.com/v8/9760).
   'wasm/async-compile': [SKIP],
   'wasm/streaming-compile': [SKIP],
-
-  # Race between postMessage and wasm memory.grow. (https://crbug.com/1010272).
-  'regress/wasm/regress-1010272': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -976,7 +971,6 @@
 ['variant == stress', {
   # Slow tests.
   'array-natives-elements': [SKIP],
-  'big-object-literal': [SKIP],
   'es6/array-iterator-turbo': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
@@ -1026,6 +1020,13 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['variant == nooptimization', {
+  # Tests that depend on optimization (beyond doing assertOptimized).
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
+}],  # variant == nooptimization
+
+##############################################################################
 ['(arch == arm or arch == arm64)', {
   # Flaky tests: https://crbug.com/v8/8090
   'regress/regress-752764': [SKIP],
@@ -1063,7 +1064,7 @@
 ['no_harness', {
     # skip assertion tests since the stack trace is broken if mjsunit is
     # included in the snapshot
-    'mjsunit-assertion-error' : [SKIP],
+    'mjsunit-assertion-error': [SKIP],
 }], # no_harness
 
 ##############################################################################
@@ -1082,34 +1083,10 @@
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ##############################################################################
-['variant == slow_path and gc_stress', {
-  # Slow tests.
-  'regress/regress-crbug-493779': [SKIP],
-  'string-replace-gc': [SKIP],
-}],  # variant == slow_path
-
-##############################################################################
-['arch == x64', {
-  # TODO: Flaky test: crbug.com/v8/7899
-  'wasm/asm-wasm-i32': [SKIP],
-  'wasm/asm-wasm-f64': [SKIP],
-}], # arch == x64
-
-##############################################################################
 ['arch not in [x64, arm, arm64] or system != linux', {
   # Unwinding info writer is only supported on x64, arm, and arm64 Linux
   'regress/regress-913844': [SKIP],
 }],
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
-
-['not embedded_builtins', {
-  # Explicitly sets jitless flag.
-  'regress/regress-992389': [SKIP],
-}], # not embedded_builtins
 
 ##############################################################################
 ['variant == turboprop', {
@@ -1118,14 +1095,26 @@
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
   'compiler/redundancy-elimination': [SKIP],
+  'compiler/regress-9945-*': [SKIP],
 
   # Static asserts for optimizations don't hold due to removed optimization
   # phases.
   'compiler/concurrent-inlining-1': [SKIP],
   'compiler/concurrent-inlining-2': [SKIP],
-  'compiler/diamond-followedby-branch': [SKIP],
-  'compiler/load-elimination-const-field': [SKIP],
   'compiler/constant-fold-add-static': [SKIP],
+  'compiler/diamond-followedby-branch': [SKIP],
+  'compiler/is-being-interpreted-*': [SKIP],
+  'compiler/load-elimination-const-field': [SKIP],
+  'compiler/serializer-accessors': [SKIP],
+  'compiler/serializer-apply': [SKIP],
+  'compiler/serializer-call': [SKIP],
+  'compiler/serializer-feedback-propagation-*': [SKIP],
+  'compiler/serializer-transition-propagation': [SKIP],
+
+  # Some tests rely on inlining.
+  'compiler/opt-higher-order-functions': [SKIP],
+  'regress/regress-1049982-1': [SKIP],
+  'regress/regress-1049982-2': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################

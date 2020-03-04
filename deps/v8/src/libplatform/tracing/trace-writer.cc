@@ -59,7 +59,7 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
                                      TraceObject::ArgValue value) {
   switch (type) {
     case TRACE_VALUE_TYPE_BOOL:
-      stream_ << (value.as_bool ? "true" : "false");
+      stream_ << (value.as_uint ? "true" : "false");
       break;
     case TRACE_VALUE_TYPE_UINT:
       stream_ << value.as_uint;

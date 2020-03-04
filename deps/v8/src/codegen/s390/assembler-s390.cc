@@ -218,6 +218,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
         supportsCPUFeature("vx")) {
       supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
     }
+    // Test for Vector Enhancement Facility 2 - Bit 148
+    if (facilities[2] & (one << (63 - (148 - 128))) &&
+        supportsCPUFeature("vx")) {
+      supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
+    }
     // Test for Miscellaneous Instruction Extension Facility - Bit 58
     if (facilities[0] & (1lu << (63 - 58))) {
       supported_ |= (1u << MISC_INSTR_EXT2);

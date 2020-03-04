@@ -38,6 +38,13 @@ struct TorqueMessage {
 
 DECLARE_CONTEXTUAL_VARIABLE(TorqueMessages, std::vector<TorqueMessage>);
 
+template <class... Args>
+std::string ToString(Args&&... args) {
+  std::stringstream stream;
+  USE((stream << std::forward<Args>(args))...);
+  return stream.str();
+}
+
 class V8_EXPORT_PRIVATE MessageBuilder {
  public:
   MessageBuilder(const std::string& message, TorqueMessage::Kind kind);
@@ -59,6 +66,7 @@ class V8_EXPORT_PRIVATE MessageBuilder {
   void Report() const;
 
   TorqueMessage message_;
+  std::vector<TorqueMessage> extra_messages_;
 };
 
 // Used for throwing exceptions. Retrieve TorqueMessage from the contextual
@@ -67,9 +75,7 @@ struct TorqueAbortCompilation {};
 
 template <class... Args>
 static MessageBuilder Message(TorqueMessage::Kind kind, Args&&... args) {
-  std::stringstream stream;
-  USE((stream << std::forward<Args>(args))...);
-  return MessageBuilder(stream.str(), kind);
+  return MessageBuilder(ToString(std::forward<Args>(args)...), kind);
 }
 
 template <class... Args>
@@ -298,18 +304,6 @@ inline std::ostream& operator<<(std::ostream& os, const Stack<T>& t) {
   os << "}";
   return os;
 }
-class ToString {
- public:
-  template <class T>
-  ToString& operator<<(T&& x) {
-    s_ << std::forward<T>(x);
-    return *this;
-  }
-  operator std::string() { return s_.str(); }
-
- private:
-  std::stringstream s_;
-};
 
 static const char* const kBaseNamespaceName = "base";
 static const char* const kTestNamespaceName = "test";

@@ -106,11 +106,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged()) {
         return Replace(m.InputAt(0));
       }
-      if (m.IsChangeCompressedSignedToTaggedSigned()) {
-        Node* new_node = graph()->NewNode(
-            simplified()->ChangeCompressedSignedToInt32(), m.InputAt(0));
-        return Replace(new_node);
-      }
       break;
     }
     case IrOpcode::kChangeTaggedToUint32: {
@@ -148,37 +143,13 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned: {
-      DCHECK(COMPRESS_POINTERS_BOOL);
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsChangeInt31ToTaggedSigned()) {
-        Node* new_node = graph()->NewNode(
-            simplified()->ChangeInt31ToCompressedSigned(), m.InputAt(0));
-        return Replace(new_node);
-      }
-      break;
-    }
-    case IrOpcode::kChangeCompressedSignedToInt32: {
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsCheckedInt32ToCompressedSigned()) {
-        return Replace(m.InputAt(0));
-      }
-      break;
-    }
+    case IrOpcode::kCheckedTaggedToArrayIndex:
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedSignedToInt32: {
       NodeMatcher m(node->InputAt(0));
       if (m.IsConvertTaggedHoleToUndefined()) {
         node->ReplaceInput(0, m.InputAt(0));
         return Changed(node);
-      }
-      break;
-    }
-    case IrOpcode::kCheckedTaggedToTaggedPointer: {
-      NodeMatcher m(node->InputAt(0));
-      if (m.IsChangeCompressedPointerToTaggedPointer()) {
-        RelaxEffectsAndControls(node);
-        return Replace(m.node());
       }
       break;
     }

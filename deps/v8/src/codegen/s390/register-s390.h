@@ -170,7 +170,7 @@ static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
+  constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr Register no_reg = Register::no_reg();
@@ -216,7 +216,7 @@ using FloatRegister = DoubleRegister;
 using Simd128Register = DoubleRegister;
 
 #define DEFINE_REGISTER(R) \
-  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
+  constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
@@ -241,7 +241,7 @@ class CRegister : public RegisterBase<CRegister, kCAfterLast> {
 
 constexpr CRegister no_creg = CRegister::no_reg();
 #define DECLARE_C_REGISTER(R) \
-  constexpr CRegister R = CRegister::from_code<kCCode_##R>();
+  constexpr CRegister R = CRegister::from_code(kCCode_##R);
 C_REGISTERS(DECLARE_C_REGISTER)
 #undef DECLARE_C_REGISTER
 

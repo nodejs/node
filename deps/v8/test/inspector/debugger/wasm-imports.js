@@ -101,7 +101,8 @@ function printFailure(message) {
 }
 
 function waitForWasmScript(msg) {
-  if (!msg || !msg.params.url.startsWith('wasm://')) {
+  if (!msg || !msg.params.url.startsWith('wasm://') ||
+    msg.params.url.split('/').length != 5) {
     return Protocol.Debugger.onceScriptParsed().then(waitForWasmScript);
   }
   InspectorTest.log('Got wasm script!');

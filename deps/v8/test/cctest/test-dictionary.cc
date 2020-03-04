@@ -84,7 +84,7 @@ static void TestHashMap(Handle<HashMap> table) {
     Handle<JSObject> value = factory->NewJSArray(11);
     table = HashMap::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
-    CHECK_NE(table->FindEntry(isolate, key), HashMap::kNotFound);
+    CHECK(table->FindEntry(isolate, key).is_found());
     CHECK_EQ(table->Lookup(key), *value);
     CHECK(key->GetIdentityHash().IsSmi());
   }
@@ -94,7 +94,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(key->GetOrCreateIdentityHash(isolate).IsSmi());
-    CHECK_EQ(table->FindEntry(isolate, key), HashMap::kNotFound);
+    CHECK(table->FindEntry(isolate, key).is_not_found());
     CHECK_EQ(table->Lookup(key), roots.the_hole_value());
     CHECK(key->GetIdentityHash().IsSmi());
   }
@@ -189,9 +189,8 @@ TEST(HashSet) {
 class ObjectHashTableTest: public ObjectHashTable {
  public:
   explicit ObjectHashTableTest(ObjectHashTable o) : ObjectHashTable(o) {}
-  ObjectHashTableTest* operator->() { return this; }
 
-  void insert(int entry, int key, int value) {
+  void insert(InternalIndex entry, int key, int value) {
     set(EntryToIndex(entry), Smi::FromInt(key));
     set(EntryToIndex(entry) + 1, Smi::FromInt(value));
   }
@@ -217,7 +216,7 @@ TEST(HashTableRehash) {
     ObjectHashTableTest t(*table);
     int capacity = t.capacity();
     for (int i = 0; i < capacity - 1; i++) {
-      t.insert(i, i * i, i);
+      t.insert(InternalIndex(i), i * i, i);
     }
     t.Rehash(ReadOnlyRoots(isolate));
     for (int i = 0; i < capacity - 1; i++) {
@@ -230,7 +229,7 @@ TEST(HashTableRehash) {
     ObjectHashTableTest t(*table);
     int capacity = t.capacity();
     for (int i = 0; i < capacity / 2; i++) {
-      t.insert(i, i * i, i);
+      t.insert(InternalIndex(i), i * i, i);
     }
     t.Rehash(ReadOnlyRoots(isolate));
     for (int i = 0; i < capacity / 2; i++) {
@@ -308,7 +307,8 @@ TEST(MaximumClonedShallowObjectProperties) {
   // not in large-object space.
   const int max_capacity = NameDictionary::ComputeCapacity(
       ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
-  const int max_literal_entry = max_capacity / NameDictionary::kEntrySize;
+  const InternalIndex max_literal_entry(max_capacity /
+                                        NameDictionary::kEntrySize);
   const int max_literal_index = NameDictionary::EntryToIndex(max_literal_entry);
   CHECK_LE(NameDictionary::OffsetOfElementAt(max_literal_index),
            kMaxRegularHeapObjectSize);

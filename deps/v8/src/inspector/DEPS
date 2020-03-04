@@ -18,8 +18,6 @@ include_rules = [
   "+src/debug/debug-interface.h",
   "+src/debug/interface-types.h",
   "+src/utils/vector.h",
-  "+third_party/inspector_protocol/encoding/encoding.h",
-  "+third_party/inspector_protocol/encoding/encoding.cc",
-  "+../../third_party/inspector_protocol/encoding/encoding.h",
-  "+../../third_party/inspector_protocol/encoding/encoding.cc",
+  "+third_party/inspector_protocol/crdtp",
+  "+../../third_party/inspector_protocol/crdtp",
 ]

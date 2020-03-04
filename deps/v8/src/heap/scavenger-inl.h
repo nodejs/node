@@ -482,7 +482,7 @@ int ScavengeVisitor::VisitEphemeronHashTable(Map map,
   // later. This allows to only iterate the tables' values, which are treated
   // as strong independetly of whether the key is live.
   scavenger_->AddEphemeronHashTable(table);
-  for (int i = 0; i < table.Capacity(); i++) {
+  for (InternalIndex i : table.IterateEntries()) {
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
     VisitPointer(table, value_slot);

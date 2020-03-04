@@ -28,6 +28,7 @@ class OptimizedCompilationInfo;
 class OptimizedCompilationJob;
 class ParseInfo;
 class Parser;
+class RuntimeCallStats;
 class ScriptData;
 struct ScriptStreamingData;
 class TimedHistogram;
@@ -112,15 +113,20 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       int eval_scope_position, int eval_position);
 
   struct ScriptDetails {
-    ScriptDetails() : line_offset(0), column_offset(0) {}
+    ScriptDetails()
+        : line_offset(0), column_offset(0), repl_mode(REPLMode::kNo) {}
     explicit ScriptDetails(Handle<Object> script_name)
-        : line_offset(0), column_offset(0), name_obj(script_name) {}
+        : line_offset(0),
+          column_offset(0),
+          name_obj(script_name),
+          repl_mode(REPLMode::kNo) {}
 
     int line_offset;
     int column_offset;
     i::MaybeHandle<i::Object> name_obj;
     i::MaybeHandle<i::Object> source_map_url;
     i::MaybeHandle<i::FixedArray> host_defined_options;
+    REPLMode repl_mode;
   };
 
   // Create a function that results from wrapping |source| in a function,
@@ -300,7 +306,7 @@ class OptimizedCompilationJob : public CompilationJob {
 
   // Executes the compile job. Can be called on a background thread if
   // can_execute_on_background_thread() returns true.
-  V8_WARN_UNUSED_RESULT Status ExecuteJob();
+  V8_WARN_UNUSED_RESULT Status ExecuteJob(RuntimeCallStats* stats);
 
   // Finalizes the compile job. Must be called on the main thread.
   V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
@@ -325,7 +331,7 @@ class OptimizedCompilationJob : public CompilationJob {
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
-  virtual Status ExecuteJobImpl() = 0;
+  virtual Status ExecuteJobImpl(RuntimeCallStats* stats) = 0;
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
  private:

@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
-  return Smi::kZero;
+  return Smi::zero();
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {

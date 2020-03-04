@@ -90,9 +90,13 @@ Node* GraphTest::UndefinedConstant() {
 Node* GraphTest::EmptyFrameState() {
   Node* state_values =
       graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
+  FrameStateFunctionInfo const* function_info =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kInterpretedFunction, 0, 0,
+          Handle<SharedFunctionInfo>());
   return graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                           nullptr),
+                           function_info),
       state_values, state_values, state_values, NumberConstant(0),
       UndefinedConstant(), graph()->start());
 }

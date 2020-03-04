@@ -14,7 +14,6 @@ group("gn_all") {
     "message:v8_message",
     "mjsunit:v8_mjsunit",
     "mozilla:v8_mozilla",
-    "preparser:v8_preparser",
     "test262:v8_test262",
     "wasm-js:v8_wasm_js",
     "wasm-spec-tests:v8_wasm_spec_tests",
@@ -46,20 +45,13 @@ group("v8_perf") {
 
   data_deps = [
     "..:v8_python_base",
-    "cctest:cctest",
     "..:d8",
     "../tools:v8_android_test_runner_deps",
+    "../tools:v8_testrunner",
   ]
 
   data = [
     "../tools/run_perf.py",
-
-    # TODO(machenbach): These files are referenced by the perf runner.
-    # They should be transformed into a proper python module.
-    "../tools/testrunner/local/android.py",
-    "../tools/testrunner/local/command.py",
-    "../tools/testrunner/local/utils.py",
-    "../tools/testrunner/objects/output.py",
 
     # This is often used to trigger performance bots. We include it in the
     # isolate to not get these builds deduped.
@@ -81,7 +73,6 @@ group("v8_bot_default") {
     "message:v8_message",
     "mjsunit:v8_mjsunit",
     "mkgrokdump:mkgrokdump",
-    "preparser:v8_preparser",
     "unittests:unittests",
     "wasm-api-tests:wasm_api_tests",
     "wasm-js:v8_wasm_js",
@@ -102,7 +93,6 @@ group("v8_default") {
     "message:v8_message",
     "mjsunit:v8_mjsunit",
     "mkgrokdump:mkgrokdump",
-    "preparser:v8_preparser",
     "unittests:unittests",
     "wasm-api-tests:wasm_api_tests",
     "wasm-js:v8_wasm_js",
@@ -131,7 +121,6 @@ group("v8_d8_default") {
     "intl:v8_intl",
     "message:v8_message",
     "mjsunit:v8_mjsunit",
-    "preparser:v8_preparser",
     "webkit:v8_webkit",
   ]
 }

@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 
 class OptimizedCompilationJob;
+class RuntimeCallStats;
 class SharedFunctionInfo;
 
 class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
@@ -57,7 +58,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   enum ModeFlag { COMPILE, FLUSH };
 
   void FlushOutputQueue(bool restore_function_code);
-  void CompileNext(OptimizedCompilationJob* job);
+  void CompileNext(OptimizedCompilationJob* job, RuntimeCallStats* stats);
   OptimizedCompilationJob* NextInput(bool check_if_flushing = false);
 
   inline int InputQueueIndex(int i) {

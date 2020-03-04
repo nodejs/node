@@ -7,6 +7,8 @@
 
 #include "src/strings/string-hasher.h"
 
+#include <type_traits>
+
 #include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
@@ -33,28 +35,40 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
 
 uint32_t StringHasher::GetTrivialHash(int length) {
   DCHECK_GT(length, String::kMaxHashCalcLength);
-  // String hash of a large string is simply the length.
-  return (static_cast<uint32_t>(length) << String::kHashShift) |
-         String::kIsNotArrayIndexMask | String::kIsNotIntegerIndexMask;
+  // The hash of a large string is simply computed from the length. We don't
+  // have quite enough bits, so we drop the least significant bit.
+  // TODO(9904): Free up one bit, so we don't have to drop anything here.
+  constexpr int kDroppedBits = 1;
+  // Ensure that the max length after dropping bits is small enough to be
+  // shifted without losing information.
+  STATIC_ASSERT(base::bits::CountLeadingZeros32(String::kMaxLength) +
+                    kDroppedBits >=
+                String::kHashShift);
+  uint32_t hash = static_cast<uint32_t>(length) >> kDroppedBits;
+  return (hash << String::kHashShift) | String::kIsNotArrayIndexMask |
+         String::kIsNotIntegerIndexMask;
 }
 
-template <typename schar>
-uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
+template <typename char_t>
+uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
                                             uint64_t seed) {
+  STATIC_ASSERT(std::is_integral<char_t>::value);
+  STATIC_ASSERT(sizeof(char_t) <= 2);
+  using uchar = typename std::make_unsigned<char_t>::type;
+  const uchar* chars = reinterpret_cast<const uchar*>(chars_raw);
   DCHECK_LE(0, length);
   DCHECK_IMPLIES(0 < length, chars != nullptr);
   if (length >= 1) {
     if (IsDecimalDigit(chars[0]) && (length == 1 || chars[0] != '0')) {
-      uint32_t index = 0;
       if (length <= String::kMaxArrayIndexSize) {
         // Possible array index; try to compute the array index hash.
-        index = chars[0] - '0';
+        uint32_t index = chars[0] - '0';
         int i = 1;
         do {
           if (i == length) {
             return MakeArrayIndexHash(index, length);
           }
-        } while (TryAddIndexChar(&index, chars[i++]));
+        } while (TryAddArrayIndexChar(&index, chars[i++]));
       }
       // The following block wouldn't do anything on 32-bit platforms,
       // because kMaxArrayIndexSize == kMaxIntegerIndexSize there, and
@@ -70,10 +84,11 @@ uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
         // if there are non-digit characters.
         uint32_t is_integer_index = 0;
         uint32_t running_hash = static_cast<uint32_t>(seed);
-        uint64_t index_big = index;
-        const schar* end = &chars[length];
+        uint64_t index_big = 0;
+        const uchar* end = &chars[length];
         while (chars != end) {
-          if (is_integer_index == 0 && !TryAddIndexChar(&index_big, *chars)) {
+          if (is_integer_index == 0 &&
+              !TryAddIntegerIndexChar(&index_big, *chars)) {
             is_integer_index = String::kIsNotIntegerIndexMask;
           }
           running_hash = AddCharacterCore(running_hash, *chars++);
@@ -92,7 +107,7 @@ uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
 
   // Non-index hash.
   uint32_t running_hash = static_cast<uint32_t>(seed);
-  const schar* end = &chars[length];
+  const uchar* end = &chars[length];
   while (chars != end) {
     running_hash = AddCharacterCore(running_hash, *chars++);
   }

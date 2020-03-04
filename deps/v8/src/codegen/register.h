@@ -25,70 +25,37 @@ namespace internal {
 // and best performance in optimized code.
 template <typename SubType, int kAfterLastRegister>
 class RegisterBase {
-  // Internal enum class; used for calling constexpr methods, where we need to
-  // pass an integral type as template parameter.
-  enum class RegisterCode : int { kFirst = 0, kAfterLast = kAfterLastRegister };
-
  public:
   static constexpr int kCode_no_reg = -1;
   static constexpr int kNumRegisters = kAfterLastRegister;
 
   static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
 
-  template <int code>
-  static constexpr SubType from_code() {
-    static_assert(code >= 0 && code < kNumRegisters, "must be valid reg code");
-    return SubType{code};
-  }
-
-  constexpr operator RegisterCode() const {
-    return static_cast<RegisterCode>(reg_code_);
-  }
-
-  template <RegisterCode reg_code>
-  static constexpr int code() {
-    static_assert(
-        reg_code >= RegisterCode::kFirst && reg_code < RegisterCode::kAfterLast,
-        "must be valid reg");
-    return static_cast<int>(reg_code);
-  }
-
-  template <RegisterCode reg_code>
-  static constexpr int is_valid() {
-    return static_cast<int>(reg_code) != kCode_no_reg;
-  }
-
-  template <RegisterCode reg_code>
-  static constexpr RegList bit() {
-    return is_valid<reg_code>() ? RegList{1} << code<reg_code>() : RegList{};
-  }
-
-  static SubType from_code(int code) {
+  static constexpr SubType from_code(int code) {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK_LE(0, code);
     DCHECK_GT(kNumRegisters, code);
+#endif
     return SubType{code};
   }
 
-  // Constexpr version (pass registers as template parameters).
-  template <RegisterCode... reg_codes>
-  static constexpr RegList ListOf() {
-    return CombineRegLists(RegisterBase::bit<reg_codes>()...);
-  }
-
-  // Non-constexpr version (pass registers as method parameters).
   template <typename... Register>
-  static RegList ListOf(Register... regs) {
+  static constexpr RegList ListOf(Register... regs) {
     return CombineRegLists(regs.bit()...);
   }
 
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
-  int code() const {
+  constexpr int code() const {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(is_valid());
+#endif
     return reg_code_;
   }
 
-  RegList bit() const { return is_valid() ? RegList{1} << code() : RegList{}; }
+  constexpr RegList bit() const {
+    return is_valid() ? RegList{1} << code() : RegList{};
+  }
 
   inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;
@@ -102,6 +69,8 @@ class RegisterBase {
 
  protected:
   explicit constexpr RegisterBase(int code) : reg_code_(code) {}
+
+ private:
   int reg_code_;
 };
 

@@ -19,7 +19,7 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
     Local<Value> arg = args[i];
     Local<String> str_obj;
 
-    if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Name();
+    if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Description();
     if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) return;
 
     v8::String::Utf8Value str(isolate, str_obj);

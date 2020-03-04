@@ -851,9 +851,16 @@ void Accessors::RegExpResultIndicesGetter(
   HandleScope scope(isolate);
   Handle<JSRegExpResult> regexp_result(
       Handle<JSRegExpResult>::cast(Utils::OpenHandle(*info.Holder())));
-  Handle<Object> indices(
+  MaybeHandle<JSArray> maybe_indices(
       JSRegExpResult::GetAndCacheIndices(isolate, regexp_result));
-  info.GetReturnValue().Set(Utils::ToLocal(indices));
+  Handle<JSArray> indices;
+  if (!maybe_indices.ToHandle(&indices)) {
+    isolate->OptionalRescheduleException(false);
+    Handle<Object> result = isolate->factory()->undefined_value();
+    info.GetReturnValue().Set(Utils::ToLocal(result));
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(indices));
+  }
 }
 
 Handle<AccessorInfo> Accessors::MakeRegExpResultIndicesInfo(Isolate* isolate) {

@@ -1,0 +1,29 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@hasSameInstanceTypeAsParent
+extern class BreakPoint extends Tuple2 {
+}
+@hasSameInstanceTypeAsParent
+extern class BreakPointInfo extends Tuple2 {
+}
+type CoverageInfo extends FixedArray;
+
+@generateCppClass
+extern class DebugInfo extends Struct {
+  shared: SharedFunctionInfo;
+  debugger_hints: Smi;
+  // Script field from shared function info.
+  script: Undefined|Script;
+  // The original uninstrumented bytecode array for functions with break
+  // points - the instrumented bytecode is held in the shared function info.
+  original_bytecode_array: Undefined|BytecodeArray;
+  // The debug instrumented bytecode array for functions with break points
+  // - also pointed to by the shared function info.
+  debug_bytecode_array: Undefined|BytecodeArray;
+  // Fixed array holding status information for each active break point.
+  break_points: FixedArray;
+  flags: Smi;
+  coverage_info: CoverageInfo|Undefined;
+}

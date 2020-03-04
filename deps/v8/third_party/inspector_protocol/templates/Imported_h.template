@@ -34,7 +34,7 @@ public:
         String local_json = ({{config.imported.from_imported_string % "std::move(json)"}});
         StringUtil::builderAppend(*output, local_json);
     }
-    void writeBinary(std::vector<uint8_t>* output) const override {
+    void AppendSerialized(std::vector<uint8_t>* output) const override {
         m_exported->writeBinary(output);
     }
     std::unique_ptr<Value> clone() const override {
@@ -61,7 +61,7 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
         }
 
         std::vector<uint8_t> binary;
-        value->writeBinary(&binary);
+        value->AppendSerialized(&binary);
         auto result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(binary.data(), binary.size());
         if (!result)
             errors->addError("cannot parse");

@@ -162,30 +162,20 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     AccessorAssembler accessor_asm(state());
-    ExitPoint exit_point(this, [=](Node* result) {
+    ExitPoint exit_point(this, [=](TNode<Object> result) {
       SetAccumulator(result);
       Dispatch();
     });
 
-    LazyNode<Smi> lazy_smi_slot = [=] {
-      return SmiTag(Signed(BytecodeOperandIdx(slot_operand_index)));
-    };
+    TNode<Smi> smi_slot =
+        SmiTag(Signed(BytecodeOperandIdx(slot_operand_index)));
+    TNode<UintPtrT> slot = BytecodeOperandIdx(slot_operand_index);
+    TNode<Context> context = GetContext();
+    TNode<Name> name =
+        CAST(LoadConstantPoolEntryAtOperandIndex(name_operand_index));
 
-    LazyNode<UintPtrT> lazy_slot = [=] {
-      return BytecodeOperandIdx(slot_operand_index);
-    };
-
-    LazyNode<Context> lazy_context = [=] { return GetContext(); };
-
-    LazyNode<Name> lazy_name = [=] {
-      TNode<Name> name =
-          CAST(LoadConstantPoolEntryAtOperandIndex(name_operand_index));
-      return name;
-    };
-
-    accessor_asm.LoadGlobalIC(maybe_feedback_vector, lazy_smi_slot, lazy_slot,
-                              lazy_context, lazy_name, typeof_mode,
-                              &exit_point);
+    accessor_asm.LoadGlobalIC(maybe_feedback_vector, smi_slot, slot, context,
+                              name, typeof_mode, &exit_point);
   }
 };
 
@@ -519,18 +509,16 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   TNode<Object> recv = LoadRegisterAtOperandIndex(0);
 
   // Load the name and context lazily.
-  LazyNode<Smi> lazy_smi_slot = [=] { return SmiTag(Signed(feedback_slot)); };
-  LazyNode<Name> lazy_name = [=] {
-    return CAST(LoadConstantPoolEntryAtOperandIndex(1));
-  };
-  LazyNode<Context> lazy_context = [=] { return GetContext(); };
+  TNode<Smi> smi_slot = SmiTag(Signed(feedback_slot));
+  TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
+  TNode<Context> context = GetContext();
 
   Label done(this);
   TVARIABLE(Object, var_result);
   ExitPoint exit_point(this, &done, &var_result);
 
-  AccessorAssembler::LazyLoadICParameters params(
-      lazy_context, recv, lazy_name, lazy_smi_slot, feedback_vector);
+  AccessorAssembler::LoadICParameters params(context, recv, name, smi_slot,
+                                             feedback_vector);
   AccessorAssembler accessor_asm(state());
   accessor_asm.LoadIC_BytecodeHandler(&params, &exit_point);
 
@@ -1692,7 +1680,7 @@ IGNITION_HANDLER(CallRuntime, InterpreterAssembler) {
   TNode<Uint32T> function_id = BytecodeOperandRuntimeId(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<Context> context = GetContext();
-  Node* result = CallRuntimeN(function_id, context, args);
+  TNode<Object> result = CAST(CallRuntimeN(function_id, context, args));
   SetAccumulator(result);
   Dispatch();
 }
@@ -2537,9 +2525,10 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   {
     TNode<Map> array_map = LoadJSArrayElementsMap(GetInitialFastElementsKind(),
                                                   LoadNativeContext(context));
-    result =
-        AllocateJSArray(GetInitialFastElementsKind(), array_map, SmiConstant(0),
-                        SmiConstant(0), {}, ParameterMode::SMI_PARAMETERS);
+    TNode<Smi> length = SmiConstant(0);
+    TNode<IntPtrT> capacity = IntPtrConstant(0);
+    result = AllocateJSArray(GetInitialFastElementsKind(), array_map, capacity,
+                             length);
     Goto(&end);
   }
 

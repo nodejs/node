@@ -81,15 +81,16 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(WASM_I32V(kResult1),
-                          WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
-                                  WASM_STMTS(WASM_CALL_INDIRECT2(
-                                                 sig_index, WASM_GET_LOCAL(0),
-                                                 WASM_I32V(7), WASM_I32V(9)),
-                                             WASM_DROP))),
-               WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
+  BUILD(r,
+        WASM_TRY_CATCH_T(
+            kWasmI32,
+            WASM_STMTS(WASM_I32V(kResult1),
+                       WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                               WASM_STMTS(WASM_CALL_INDIRECT(
+                                              sig_index, WASM_I32V(7),
+                                              WASM_I32V(9), WASM_GET_LOCAL(0)),
+                                          WASM_DROP))),
+            WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
   r.CheckCallViaJS(kResult0, 0);

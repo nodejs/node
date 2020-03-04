@@ -64,11 +64,11 @@ function getMemoryInit(mem, segment_data) {
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
   builder.addDataSegment(0, [4, 5, 6]);
-  builder.addFunction('init', kSig_v_v)
+  builder.addFunction('init', kSig_v_i)
       .addBody([
         kExprI32Const, 0,  // Dest.
         kExprI32Const, 0,  // Source.
-        kExprI32Const, 0,  // Size in bytes.
+        kExprLocalGet, 0,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
         1,  // Data segment index.
         0,  // Memory index.
@@ -79,7 +79,12 @@ function getMemoryInit(mem, segment_data) {
   // is a trap, not a validation error.
   const instance = builder.instantiate();
 
-  assertTraps(kTrapDataSegmentDropped, () => instance.exports.init());
+  // Initialization succeeds, because source address and size are 0
+  // which is valid on a dropped segment.
+  instance.exports.init(0);
+
+  // Initialization fails, because the segment is implicitly dropped.
+  assertTraps(kTrapMemOutOfBounds, () => instance.exports.init(1));
 })();
 
 (function TestDataDropOnActiveSegment() {
@@ -95,7 +100,8 @@ function getMemoryInit(mem, segment_data) {
       .exportAs('drop');
 
   const instance = builder.instantiate();
-  assertTraps(kTrapDataSegmentDropped, () => instance.exports.drop());
+  // Drop on passive segment is equivalent to double drop which is allowed.
+  instance.exports.drop();
 })();
 
 function getMemoryCopy(mem) {
@@ -163,7 +169,9 @@ function getMemoryFill(mem) {
       .exportAs('drop');
 
   const instance = builder.instantiate();
-  assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
+  // Segment already got dropped after initialization and is therefore
+  // not active anymore.
+  instance.exports.drop();
 })();
 
 (function TestLazyDataSegmentBoundsCheck() {
@@ -176,36 +184,12 @@ function getMemoryFill(mem) {
 
   assertEquals(0, view[kPageSize - 1]);
 
-  // Instantiation fails, but still modifies memory.
-  assertThrows(() => builder.instantiate({m: {memory}}), WebAssembly.LinkError);
+  // Instantiation fails, memory remains unmodified.
+  assertThrows(() => builder.instantiate({m: {memory}}), WebAssembly.RuntimeError);
 
-  assertEquals(42, view[kPageSize - 1]);
+  assertEquals(0, view[kPageSize - 1]);
   // The second segment is not initialized.
   assertEquals(0, view[0]);
-})();
-
-(function TestLazyElementSegmentBoundsCheck() {
-  const table = new WebAssembly.Table({initial: 3, element: 'anyfunc'});
-  const builder = new WasmModuleBuilder();
-  builder.addImportedTable('m', 'table', 1);
-  const f = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, 42]);
-
-  const tableIndex = 0;
-  const isGlobal = false;
-  builder.addElementSegment(tableIndex, 2, isGlobal, [f.index, f.index]);
-  builder.addElementSegment(tableIndex, 0, isGlobal, [f.index, f.index]);
-
-  assertEquals(null, table.get(0));
-  assertEquals(null, table.get(1));
-  assertEquals(null, table.get(2));
-
-  // Instantiation fails, but still modifies the table.
-  assertThrows(() => builder.instantiate({m: {table}}), WebAssembly.LinkError);
-
-  // The second segment is not initialized.
-  assertEquals(null, table.get(0));
-  assertEquals(null, table.get(1));
-  assertEquals(42, table.get(2)());
 })();
 
 (function TestLazyDataAndElementSegments() {
@@ -226,8 +210,7 @@ function getMemoryFill(mem) {
   // Instantiation fails, but still modifies the table. The memory is not
   // modified, since data segments are initialized after element segments.
   assertThrows(
-      () => builder.instantiate({m: {memory, table}}), WebAssembly.LinkError);
+      () => builder.instantiate({m: {memory, table}}), WebAssembly.RuntimeError);
 
-  assertEquals(42, table.get(0)());
   assertEquals(0, view[0]);
 })();

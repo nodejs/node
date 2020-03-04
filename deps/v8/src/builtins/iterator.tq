@@ -6,6 +6,7 @@
 
 namespace iterator {
   // Returned from IteratorBuiltinsAssembler::GetIterator().
+  @export
   struct IteratorRecord {
     // iteratorRecord.[[Iterator]]
     object: JSReceiver;
@@ -47,7 +48,7 @@ namespace iterator {
 
   transitioning builtin GetIteratorWithFeedback(
       context: Context, receiver: JSAny, loadSlot: Smi, callSlot: Smi,
-      feedback: Undefined | FeedbackVector): JSAny {
+      feedback: Undefined|FeedbackVector): JSAny {
     let iteratorMethod: JSAny;
     typeswitch (feedback) {
       case (Undefined): {
@@ -64,7 +65,7 @@ namespace iterator {
 
   transitioning builtin CallIteratorWithFeedback(
       context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
-      feedback: Undefined | FeedbackVector): JSAny {
+      feedback: Undefined|FeedbackVector): JSAny {
     const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
     CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
     const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)

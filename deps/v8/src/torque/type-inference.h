@@ -55,26 +55,24 @@ namespace torque {
 // should be instantiated in the appropriate scope.
 class TypeArgumentInference {
  public:
-  TypeArgumentInference(const NameVector& type_parameters,
+  TypeArgumentInference(const GenericParameters& type_parameters,
                         const TypeVector& explicit_type_arguments,
                         const std::vector<TypeExpression*>& term_parameters,
                         const TypeVector& term_argument_types);
 
   bool HasFailed() const { return failure_reason_.has_value(); }
-  const char* GetFailureReason() { return *failure_reason_; }
+  const std::string& GetFailureReason() { return *failure_reason_; }
   TypeVector GetResult() const;
+  void Fail(std::string reason) { failure_reason_ = {reason}; }
 
  private:
-  void Fail(const char* reason) { failure_reason_ = {reason}; }
-
   void Match(TypeExpression* parameter, const Type* argument_type);
-  void MatchGeneric(BasicTypeExpression* parameter,
-                    const StructType* argument_type);
+  void MatchGeneric(BasicTypeExpression* parameter, const Type* argument_type);
 
   size_t num_explicit_;
   std::unordered_map<std::string, size_t> type_parameter_from_name_;
   std::vector<base::Optional<const Type*>> inferred_;
-  base::Optional<const char*> failure_reason_;
+  base::Optional<std::string> failure_reason_;
 };
 
 }  // namespace torque

@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
+#include "src/utils/vector.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

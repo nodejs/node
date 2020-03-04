@@ -148,6 +148,8 @@ namespace compiler {
   V(S390_LoadReverse16RR)                   \
   V(S390_LoadReverse32RR)                   \
   V(S390_LoadReverse64RR)                   \
+  V(S390_LoadReverseSimd128RR)              \
+  V(S390_LoadReverseSimd128)                \
   V(S390_LoadReverse16)                     \
   V(S390_LoadReverse32)                     \
   V(S390_LoadReverse64)                     \
@@ -161,11 +163,9 @@ namespace compiler {
   V(S390_StoreReverse16)                    \
   V(S390_StoreReverse32)                    \
   V(S390_StoreReverse64)                    \
+  V(S390_StoreReverseSimd128)               \
   V(S390_StoreFloat32)                      \
   V(S390_StoreDouble)                       \
-  V(S390_DecompressSigned)                  \
-  V(S390_DecompressPointer)                 \
-  V(S390_DecompressAny)                     \
   V(S390_CompressSigned)                    \
   V(S390_CompressPointer)                   \
   V(S390_CompressAny)                       \
@@ -196,7 +196,9 @@ namespace compiler {
   V(S390_Word64AtomicXorUint8)              \
   V(S390_Word64AtomicXorUint16)             \
   V(S390_Word64AtomicXorUint32)             \
-  V(S390_Word64AtomicXorUint64)
+  V(S390_Word64AtomicXorUint64)             \
+  V(S390_StoreSimd128)                      \
+  V(S390_LoadSimd128)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

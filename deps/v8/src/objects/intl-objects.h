@@ -277,6 +277,9 @@ class Intl {
   // Check the calendar is well formed.
   static bool IsWellFormedCalendar(const std::string& value);
 
+  // Check the currency is well formed.
+  static bool IsWellFormedCurrency(const std::string& value);
+
   struct ResolvedLocale {
     std::string locale;
     icu::Locale icu_locale;

@@ -19,19 +19,23 @@ class Snapper {
     this.disassemblyExpand = document.getElementById(C.DISASSEMBLY_EXPAND_ID);
     this.disassemblyCollapse = document.getElementById(C.DISASSEMBLY_COLLAPSE_ID);
 
-    document.getElementById("source-collapse").addEventListener("click", () => {
+    document.getElementById("show-hide-source").addEventListener("click", () => {
+      this.resizer.resizerLeft.classed("snapped", !this.resizer.resizerLeft.classed("snapped"));
       this.setSourceExpanded(!this.sourceExpand.classList.contains("invisible"));
       this.resizer.updatePanes();
     });
-    document.getElementById("disassembly-collapse").addEventListener("click", () => {
+    document.getElementById("show-hide-disassembly").addEventListener("click", () => {
+      this.resizer.resizerRight.classed("snapped", !this.resizer.resizerRight.classed("snapped"));
       this.setDisassemblyExpanded(!this.disassemblyExpand.classList.contains("invisible"));
       this.resizer.updatePanes();
     });
   }
 
   restoreExpandedState(): void {
+    this.resizer.resizerLeft.classed("snapped", window.sessionStorage.getItem("expandedState-source") == "false");
+    this.resizer.resizerRight.classed("snapped", window.sessionStorage.getItem("expandedState-disassembly") == "false");
     this.setSourceExpanded(this.getLastExpandedState("source", true));
-    this.setDisassemblyExpanded(this.getLastExpandedState("disassembly", false));
+    this.setDisassemblyExpanded(this.getLastExpandedState("disassembly", true));
   }
 
   getLastExpandedState(type: string, defaultState: boolean): boolean {
@@ -40,99 +44,83 @@ class Snapper {
     return state === 'true';
   }
 
-  sourceExpandUpdate(newState: boolean): void {
-    window.sessionStorage.setItem("expandedState-source", `${newState}`);
-    this.sourceExpand.classList.toggle("invisible", newState);
-    this.sourceCollapse.classList.toggle("invisible", !newState);
+  sourceUpdate(isSourceExpanded: boolean): void {
+    window.sessionStorage.setItem("expandedState-source", `${isSourceExpanded}`);
+    this.sourceExpand.classList.toggle("invisible", isSourceExpanded);
+    this.sourceCollapse.classList.toggle("invisible", !isSourceExpanded);
   }
 
-  setSourceExpanded(newState: boolean): void {
-    if (this.sourceExpand.classList.contains("invisible") === newState) return;
-    const resizer = this.resizer;
-    this.sourceExpandUpdate(newState);
-    if (newState) {
-      resizer.sepLeft = resizer.sepLeftSnap;
-      resizer.sepLeftSnap = 0;
-    } else {
-      resizer.sepLeftSnap = resizer.sepLeft;
-      resizer.sepLeft = 0;
-    }
+  setSourceExpanded(isSourceExpanded: boolean): void {
+    this.sourceUpdate(isSourceExpanded);
+    this.resizer.updateLeftWidth();
   }
 
-  disassemblyExpandUpdate(newState: boolean): void {
-    window.sessionStorage.setItem("expandedState-disassembly", `${newState}`);
-    this.disassemblyExpand.classList.toggle("invisible", newState);
-    this.disassemblyCollapse.classList.toggle("invisible", !newState);
+  disassemblyUpdate(isDisassemblyExpanded: boolean): void {
+    window.sessionStorage.setItem("expandedState-disassembly", `${isDisassemblyExpanded}`);
+    this.disassemblyExpand.classList.toggle("invisible", isDisassemblyExpanded);
+    this.disassemblyCollapse.classList.toggle("invisible", !isDisassemblyExpanded);
   }
 
-  setDisassemblyExpanded(newState: boolean): void {
-    if (this.disassemblyExpand.classList.contains("invisible") === newState) return;
-    const resizer = this.resizer;
-    this.disassemblyExpandUpdate(newState);
-    if (newState) {
-      resizer.sepRight = resizer.sepRightSnap;
-      resizer.sepRightSnap = resizer.clientWidth;
-    } else {
-      resizer.sepRightSnap = resizer.sepRight;
-      resizer.sepRight = resizer.clientWidth;
-    }
-  }
-
-  panesUpdated(): void {
-    this.sourceExpandUpdate(this.resizer.sepLeft > this.resizer.deadWidth);
-    this.disassemblyExpandUpdate(this.resizer.sepRight <
-      (this.resizer.clientWidth - this.resizer.deadWidth));
+  setDisassemblyExpanded(isDisassemblyExpanded: boolean): void {
+    this.disassemblyUpdate(isDisassemblyExpanded);
+    this.resizer.updateRightWidth();
   }
 }
 
 export class Resizer {
   snapper: Snapper;
   deadWidth: number;
-  clientWidth: number;
   left: HTMLElement;
   right: HTMLElement;
-  middle: HTMLElement;
   sepLeft: number;
   sepRight: number;
-  sepLeftSnap: number;
-  sepRightSnap: number;
-  sepWidthOffset: number;
   panesUpdatedCallback: () => void;
   resizerRight: d3.Selection<HTMLDivElement, any, any, any>;
   resizerLeft: d3.Selection<HTMLDivElement, any, any, any>;
+
+  private readonly SOURCE_PANE_DEFAULT_PERCENT = 1 / 4;
+  private readonly DISASSEMBLY_PANE_DEFAULT_PERCENT = 3 / 4;
 
   constructor(panesUpdatedCallback: () => void, deadWidth: number) {
     const resizer = this;
     resizer.panesUpdatedCallback = panesUpdatedCallback;
     resizer.deadWidth = deadWidth;
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
-    resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
     resizer.resizerLeft = d3.select('#resizer-left');
     resizer.resizerRight = d3.select('#resizer-right');
-    resizer.sepLeftSnap = 0;
-    resizer.sepRightSnap = 0;
-    // Offset to prevent resizers from sliding slightly over one another.
-    resizer.sepWidthOffset = 7;
+    // Set default sizes, if they weren't set.
+    if (window.sessionStorage.getItem("source-pane-percent") === null) {
+      window.sessionStorage.setItem("source-pane-percent", `${this.SOURCE_PANE_DEFAULT_PERCENT}`);
+    }
+    if (window.sessionStorage.getItem("disassembly-pane-percent") === null) {
+      window.sessionStorage.setItem("disassembly-pane-percent", `${this.DISASSEMBLY_PANE_DEFAULT_PERCENT}`);
+    }
+
     this.updateWidths();
 
     const dragResizeLeft = d3.drag()
       .on('drag', function () {
         const x = d3.mouse(this.parentElement)[0];
-        resizer.sepLeft = Math.min(Math.max(0, x), resizer.sepRight - resizer.sepWidthOffset);
+        resizer.sepLeft = Math.min(Math.max(0, x), resizer.sepRight);
         resizer.updatePanes();
       })
       .on('start', function () {
         resizer.resizerLeft.classed("dragged", true);
-        const x = d3.mouse(this.parentElement)[0];
-        if (x > deadWidth) {
-          resizer.sepLeftSnap = resizer.sepLeft;
-        }
       })
       .on('end', function () {
-        if (!resizer.isRightSnapped()) {
-          window.sessionStorage.setItem("source-pane-width", `${resizer.sepLeft / resizer.clientWidth}`);
+        // If the panel is close enough to the left, treat it as if it was pulled all the way to the lefg.
+        const x = d3.mouse(this.parentElement)[0];
+        if (x <= deadWidth) {
+          resizer.sepLeft = 0;
+          resizer.updatePanes();
         }
+        // Snap if dragged all the way to the left.
+        resizer.resizerLeft.classed("snapped", resizer.sepLeft === 0);
+        if (!resizer.isLeftSnapped()) {
+          window.sessionStorage.setItem("source-pane-percent", `${resizer.sepLeft / document.body.getBoundingClientRect().width}`);
+        }
+        resizer.snapper.setSourceExpanded(!resizer.isLeftSnapped());
         resizer.resizerLeft.classed("dragged", false);
       });
     resizer.resizerLeft.call(dragResizeLeft);
@@ -140,21 +128,26 @@ export class Resizer {
     const dragResizeRight = d3.drag()
       .on('drag', function () {
         const x = d3.mouse(this.parentElement)[0];
-        resizer.sepRight = Math.max(resizer.sepLeft + resizer.sepWidthOffset, Math.min(x, resizer.clientWidth));
+        resizer.sepRight = Math.max(resizer.sepLeft, Math.min(x, document.body.getBoundingClientRect().width));
         resizer.updatePanes();
       })
       .on('start', function () {
         resizer.resizerRight.classed("dragged", true);
-        const x = d3.mouse(this.parentElement)[0];
-        if (x < (resizer.clientWidth - deadWidth)) {
-          resizer.sepRightSnap = resizer.sepRight;
-        }
       })
       .on('end', function () {
-        if (!resizer.isRightSnapped()) {
-          console.log(`disassembly-pane-width ${resizer.sepRight}`);
-          window.sessionStorage.setItem("disassembly-pane-width", `${resizer.sepRight / resizer.clientWidth}`);
+        // If the panel is close enough to the right, treat it as if it was pulled all the way to the right.
+        const x = d3.mouse(this.parentElement)[0];
+        const clientWidth = document.body.getBoundingClientRect().width;
+        if (x >= (clientWidth - deadWidth)) {
+          resizer.sepRight = clientWidth - 1;
+          resizer.updatePanes();
         }
+        // Snap if dragged all the way to the right.
+        resizer.resizerRight.classed("snapped", resizer.sepRight >= clientWidth - 1);
+        if (!resizer.isRightSnapped()) {
+          window.sessionStorage.setItem("disassembly-pane-percent", `${resizer.sepRight / clientWidth}`);
+        }
+        resizer.snapper.setDisassemblyExpanded(!resizer.isRightSnapped());
         resizer.resizerRight.classed("dragged", false);
       });
     resizer.resizerRight.call(dragResizeRight);
@@ -167,33 +160,42 @@ export class Resizer {
   }
 
   isLeftSnapped() {
-    return this.sepLeft === 0;
+    return this.resizerLeft.classed("snapped");
   }
 
   isRightSnapped() {
-    return this.sepRight >= this.clientWidth - 1;
+    return this.resizerRight.classed("snapped");
   }
 
   updatePanes() {
-    const leftSnapped = this.isLeftSnapped();
-    const rightSnapped = this.isRightSnapped();
-    this.resizerLeft.classed("snapped", leftSnapped);
-    this.resizerRight.classed("snapped", rightSnapped);
     this.left.style.width = this.sepLeft + 'px';
-    this.middle.style.width = (this.sepRight - this.sepLeft) + 'px';
-    this.right.style.width = (this.clientWidth - this.sepRight) + 'px';
     this.resizerLeft.style('left', this.sepLeft + 'px');
-    this.resizerRight.style('right', (this.clientWidth - this.sepRight - 1) + 'px');
+    this.right.style.width = (document.body.getBoundingClientRect().width - this.sepRight) + 'px';
+    this.resizerRight.style('right', (document.body.getBoundingClientRect().width - this.sepRight - 1) + 'px');
 
-    this.snapper.panesUpdated();
     this.panesUpdatedCallback();
   }
 
+  updateLeftWidth() {
+    if (this.isLeftSnapped()) {
+      this.sepLeft = 0;
+    } else {
+      const sepLeft = window.sessionStorage.getItem("source-pane-percent");
+      this.sepLeft = document.body.getBoundingClientRect().width * Number.parseFloat(sepLeft);
+    }
+  }
+
+  updateRightWidth() {
+    if (this.isRightSnapped()) {
+      this.sepRight = document.body.getBoundingClientRect().width;
+    } else {
+      const sepRight = window.sessionStorage.getItem("disassembly-pane-percent");
+      this.sepRight = document.body.getBoundingClientRect().width * Number.parseFloat(sepRight);
+    }
+  }
+
   updateWidths() {
-    this.clientWidth = document.body.getBoundingClientRect().width;
-    const sepLeft = window.sessionStorage.getItem("source-pane-width");
-    this.sepLeft = this.clientWidth * (sepLeft ? Number.parseFloat(sepLeft) : (1 / 3));
-    const sepRight = window.sessionStorage.getItem("disassembly-pane-width");
-    this.sepRight = this.clientWidth * (sepRight ? Number.parseFloat(sepRight) : (2 / 3));
+    this.updateLeftWidth();
+    this.updateRightWidth();
   }
 }

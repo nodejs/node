@@ -1304,13 +1304,16 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   }
 
   // Armv8.3 Pointer authentication helpers.
-  static uint64_t CalculatePACMask(uint64_t ptr, PointerType type, int ext_bit);
-  static uint64_t ComputePAC(uint64_t data, uint64_t context, PACKey key);
-  static uint64_t AuthPAC(uint64_t ptr, uint64_t context, PACKey key,
-                          PointerType type);
-  static uint64_t AddPAC(uint64_t ptr, uint64_t context, PACKey key,
-                         PointerType type);
-  static uint64_t StripPAC(uint64_t ptr, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t CalculatePACMask(uint64_t ptr,
+                                                     PointerType type,
+                                                     int ext_bit);
+  V8_EXPORT_PRIVATE static uint64_t ComputePAC(uint64_t data, uint64_t context,
+                                               PACKey key);
+  V8_EXPORT_PRIVATE static uint64_t AuthPAC(uint64_t ptr, uint64_t context,
+                                            PACKey key, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t AddPAC(uint64_t ptr, uint64_t context,
+                                           PACKey key, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t StripPAC(uint64_t ptr, PointerType type);
 
  protected:
   // Simulation helpers ------------------------------------

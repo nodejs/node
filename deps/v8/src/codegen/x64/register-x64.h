@@ -52,13 +52,13 @@ enum RegisterCode {
 
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
-  bool is_byte_register() const { return reg_code_ <= 3; }
+  bool is_byte_register() const { return code() <= 3; }
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
-  int high_bit() const { return reg_code_ >> 3; }
+  int high_bit() const { return code() >> 3; }
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
-  int low_bits() const { return reg_code_ & 0x7; }
+  int low_bits() const { return code() & 0x7; }
 
  private:
   friend class RegisterBase<Register, kRegAfterLast>;
@@ -70,7 +70,7 @@ static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DECLARE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
+  constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
@@ -78,10 +78,9 @@ constexpr Register no_reg = Register::no_reg();
 constexpr int kNumRegs = 16;
 
 constexpr RegList kJSCallerSaved =
-    Register::ListOf<rax, rcx, rdx,
+    Register::ListOf(rax, rcx, rdx,
                      rbx,  // used as a caller-saved register in JavaScript code
-                     rdi   // callee function
-                     >();
+                     rdi);  // callee function
 
 constexpr int kNumJSCallerSaved = 5;
 
@@ -155,10 +154,10 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
  public:
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
-  int high_bit() const { return reg_code_ >> 3; }
+  int high_bit() const { return code() >> 3; }
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
-  int low_bits() const { return reg_code_ & 0x7; }
+  int low_bits() const { return code() & 0x7; }
 
  private:
   friend class RegisterBase<XMMRegister, kDoubleAfterLast>;
@@ -176,7 +175,7 @@ using DoubleRegister = XMMRegister;
 using Simd128Register = XMMRegister;
 
 #define DECLARE_REGISTER(R) \
-  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
+  constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();

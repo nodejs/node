@@ -1,0 +1,69 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+extern class Context extends HeapObject {
+  length: Smi;
+  scope_info: ScopeInfo;
+  previous: Object;
+}
+extern class AwaitContext extends Context generates 'TNode<Context>';
+extern class BlockContext extends Context generates 'TNode<Context>';
+extern class CatchContext extends Context generates 'TNode<Context>';
+extern class DebugEvaluateContext extends Context
+    generates 'TNode<Context>';
+extern class EvalContext extends Context generates 'TNode<Context>';
+extern class FunctionContext extends Context generates 'TNode<Context>';
+extern class ModuleContext extends Context generates 'TNode<Context>';
+extern class NativeContext extends Context;
+extern class ScriptContext extends Context generates 'TNode<Context>';
+extern class WithContext extends Context generates 'TNode<Context>';
+
+type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
+const ARRAY_BUFFER_FUN_INDEX: constexpr NativeContextSlot
+    generates 'Context::ARRAY_BUFFER_FUN_INDEX';
+const ARRAY_BUFFER_NOINIT_FUN_INDEX: constexpr NativeContextSlot
+    generates 'Context::ARRAY_BUFFER_NOINIT_FUN_INDEX';
+const ARRAY_BUFFER_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::ARRAY_BUFFER_MAP_INDEX';
+const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
+    generates 'Context::ARRAY_JOIN_STACK_INDEX';
+const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
+    generates 'Context::OBJECT_FUNCTION_INDEX';
+const ITERATOR_RESULT_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::ITERATOR_RESULT_MAP_INDEX';
+const JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX';
+const JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX';
+const MATH_RANDOM_CACHE_INDEX: constexpr NativeContextSlot
+    generates 'Context::MATH_RANDOM_CACHE_INDEX';
+const MATH_RANDOM_INDEX_INDEX: constexpr NativeContextSlot
+    generates 'Context::MATH_RANDOM_INDEX_INDEX';
+const PROXY_REVOCABLE_RESULT_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::PROXY_REVOCABLE_RESULT_MAP_INDEX';
+const REFLECT_APPLY_INDEX: constexpr NativeContextSlot
+    generates 'Context::REFLECT_APPLY_INDEX';
+const REGEXP_FUNCTION_INDEX: constexpr NativeContextSlot
+    generates 'Context::REGEXP_FUNCTION_INDEX';
+const REGEXP_LAST_MATCH_INFO_INDEX: constexpr NativeContextSlot
+    generates 'Context::REGEXP_LAST_MATCH_INFO_INDEX';
+const INITIAL_STRING_ITERATOR_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::INITIAL_STRING_ITERATOR_MAP_INDEX';
+const SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP: constexpr NativeContextSlot
+    generates 'Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP';
+extern operator '[]' macro LoadContextElement(
+    NativeContext, NativeContextSlot): Object;
+extern operator '[]=' macro StoreContextElement(
+    NativeContext, NativeContextSlot, Object): void;
+
+type ContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
+const PROXY_SLOT: constexpr ContextSlot
+    generates 'Context::MIN_CONTEXT_SLOTS';
+extern operator '[]' macro LoadContextElement(Context, ContextSlot): Object;
+extern operator '[]=' macro StoreContextElement(
+    Context, ContextSlot, Object): void;
+
+extern operator '[]' macro LoadContextElement(Context, intptr): Object;
+extern operator '[]' macro LoadContextElement(Context, Smi): Object;

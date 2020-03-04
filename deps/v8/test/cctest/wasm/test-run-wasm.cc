@@ -2508,13 +2508,12 @@ WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
                                   WASM_I32V(1), WASM_I32V(f_ind_index)));
 
   BUILD(f_ind_fn,
-        WASM_IF_ELSE_I(WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V(1)),
-                       WASM_GET_LOCAL(1),
-                       WASM_RETURN_CALL_INDIRECT(
-                           sig_index, WASM_GET_LOCAL(2),
-                           WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
-                           WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                           WASM_GET_LOCAL(2))));
+        WASM_IF_ELSE_I(
+            WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(1),
+            WASM_RETURN_CALL_INDIRECT(
+                sig_index, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                WASM_GET_LOCAL(2), WASM_GET_LOCAL(2))));
 
   uint32_t test_values[] = {1, 2, 5, 10, 10000};
 
@@ -2944,8 +2943,8 @@ WASM_EXEC_TEST(SimpleCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the caller function.
-  BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I32V_2(66),
-                               WASM_I32V_1(22)));
+  BUILD(r, WASM_CALL_INDIRECT(1, WASM_I32V_2(66), WASM_I32V_1(22),
+                              WASM_GET_LOCAL(0)));
 
   CHECK_EQ(88, r.Call(0));
   CHECK_EQ(44, r.Call(1));
@@ -2977,11 +2976,11 @@ WASM_EXEC_TEST(MultipleCallIndirect) {
                                        arraysize(indirect_function_table));
 
   // Build the caller function.
-  BUILD(r, WASM_I32_ADD(
-               WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                   WASM_GET_LOCAL(2)),
-               WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(1), WASM_GET_LOCAL(2),
-                                   WASM_GET_LOCAL(0))));
+  BUILD(r,
+        WASM_I32_ADD(WASM_CALL_INDIRECT(1, WASM_GET_LOCAL(1), WASM_GET_LOCAL(2),
+                                        WASM_GET_LOCAL(0)),
+                     WASM_CALL_INDIRECT(1, WASM_GET_LOCAL(2), WASM_GET_LOCAL(0),
+                                        WASM_GET_LOCAL(1))));
 
   CHECK_EQ(5, r.Call(0, 1, 2));
   CHECK_EQ(19, r.Call(0, 1, 9));
@@ -3009,8 +3008,8 @@ WASM_EXEC_TEST(CallIndirect_EmptyTable) {
   r.builder().AddIndirectFunctionTable(nullptr, 0);
 
   // Build the caller function.
-  BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I32V_2(66),
-                               WASM_I32V_1(22)));
+  BUILD(r, WASM_CALL_INDIRECT(1, WASM_I32V_2(66), WASM_I32V_1(22),
+                              WASM_GET_LOCAL(0)));
 
   CHECK_TRAP(r.Call(0));
   CHECK_TRAP(r.Call(1));
@@ -3048,8 +3047,8 @@ WASM_EXEC_TEST(CallIndirect_canonical) {
                                        arraysize(indirect_function_table));
 
   // Build the caller function.
-  BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I32V_2(77),
-                               WASM_I32V_1(11)));
+  BUILD(r, WASM_CALL_INDIRECT(1, WASM_I32V_2(77), WASM_I32V_1(11),
+                              WASM_GET_LOCAL(0)));
 
   CHECK_EQ(88, r.Call(0));
   CHECK_EQ(66, r.Call(1));

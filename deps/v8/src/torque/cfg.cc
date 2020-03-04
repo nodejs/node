@@ -160,6 +160,55 @@ void CfgAssembler::DebugBreak() {
   Emit(AbortInstruction{AbortInstruction::Kind::kDebugBreak});
 }
 
+std::vector<std::size_t> CountBlockPredecessors(const ControlFlowGraph& cfg) {
+  std::vector<std::size_t> count(cfg.NumberOfBlockIds(), 0);
+  count[cfg.start()->id()] = 1;
+
+  for (const Block* block : cfg.blocks()) {
+    std::vector<Block*> successors;
+    for (const auto& instruction : block->instructions()) {
+      instruction->AppendSuccessorBlocks(&successors);
+    }
+    for (Block* successor : successors) {
+      DCHECK_LT(successor->id(), count.size());
+      ++count[successor->id()];
+    }
+  }
+
+  return count;
+}
+
+void CfgAssembler::OptimizeCfg() {
+  auto predecessor_count = CountBlockPredecessors(cfg_);
+
+  for (Block* block : cfg_.blocks()) {
+    if (cfg_.end() && *cfg_.end() == block) continue;
+    if (predecessor_count[block->id()] == 0) continue;
+
+    while (!block->instructions().empty()) {
+      const auto& instruction = block->instructions().back();
+      if (!instruction.Is<GotoInstruction>()) break;
+      Block* destination = instruction.Cast<GotoInstruction>().destination;
+      if (destination == block) break;
+      if (cfg_.end() && *cfg_.end() == destination) break;
+      DCHECK_GT(predecessor_count[destination->id()], 0);
+      if (predecessor_count[destination->id()] != 1) break;
+
+      DCHECK_GT(destination->instructions().size(), 0);
+      block->instructions().pop_back();
+      block->instructions().insert(block->instructions().end(),
+                                   destination->instructions().begin(),
+                                   destination->instructions().end());
+
+      --predecessor_count[destination->id()];
+      DCHECK_EQ(predecessor_count[destination->id()], 0);
+    }
+  }
+
+  cfg_.UnplaceBlockIf(
+      [&](Block* b) { return predecessor_count[b->id()] == 0; });
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

@@ -56,6 +56,9 @@ class JSLocale : public JSObject {
   // "(3*8alphanum) *("-" (3*8alphanum)) sequence" sequence
   static bool Is38AlphaNumList(const std::string& value);
 
+  // Help function to check well-formed "3alpha"
+  static bool Is3Alpha(const std::string& value);
+
   DECL_CAST(JSLocale)
 
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)

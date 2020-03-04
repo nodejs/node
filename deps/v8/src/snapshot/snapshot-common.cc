@@ -192,9 +192,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   DCHECK_EQ(total_length, payload_offset);
   v8::StartupData result = {data, static_cast<int>(total_length)};
 
-  Checksum checksum(ChecksummedContent(&result));
-  SetHeaderValue(data, kChecksumPartAOffset, checksum.a());
-  SetHeaderValue(data, kChecksumPartBOffset, checksum.b());
+  SetHeaderValue(data, kChecksumOffset, Checksum(ChecksummedContent(&result)));
 
   return result;
 }
@@ -208,14 +206,13 @@ uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
 bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
-  uint32_t expected_a = GetHeaderValue(data, kChecksumPartAOffset);
-  uint32_t expected_b = GetHeaderValue(data, kChecksumPartBOffset);
-  Checksum checksum(ChecksummedContent(data));
+  uint32_t expected = GetHeaderValue(data, kChecksumOffset);
+  uint32_t result = Checksum(ChecksummedContent(data));
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Verifying snapshot checksum took %0.3f ms]\n", ms);
   }
-  return checksum.Check(expected_a, expected_b);
+  return result == expected;
 }
 
 uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,

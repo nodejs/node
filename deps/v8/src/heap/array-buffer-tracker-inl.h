@@ -32,6 +32,8 @@ void ArrayBufferTracker::RegisterNew(
     Heap* heap, JSArrayBuffer buffer,
     std::shared_ptr<BackingStore> backing_store) {
   if (!backing_store) return;
+  // If {buffer_start} is {nullptr}, we don't have to track and free it.
+  if (!backing_store->buffer_start()) return;
 
   // ArrayBuffer tracking works only for small objects.
   DCHECK(!heap->IsLargeObject(buffer));

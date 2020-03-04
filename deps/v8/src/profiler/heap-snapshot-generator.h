@@ -83,8 +83,8 @@ class HeapGraphEdge {
   V8_INLINE HeapSnapshot* snapshot() const;
   int from_index() const { return FromIndexField::decode(bit_field_); }
 
-  using TypeField = BitField<Type, 0, 3>;
-  using FromIndexField = BitField<int, 3, 29>;
+  using TypeField = base::BitField<Type, 0, 3>;
+  using FromIndexField = base::BitField<int, 3, 29>;
   uint32_t bit_field_;
   HeapEntry* to_entry_;
   union {

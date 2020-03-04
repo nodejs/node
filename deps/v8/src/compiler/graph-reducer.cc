@@ -94,7 +94,8 @@ Reduction GraphReducer::Reduce(Node* const node) {
         // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
         if (FLAG_trace_turbo_reduction) {
-          StdoutStream{} << "- In-place update of " << *node << " by reducer "
+          AllowHandleDereference allow_deref;
+          StdoutStream{} << "- In-place update of #" << *node << " by reducer "
                          << (*i)->reducer_name() << std::endl;
         }
         skip = i;
@@ -103,7 +104,8 @@ Reduction GraphReducer::Reduce(Node* const node) {
       } else {
         // {node} was replaced by another node.
         if (FLAG_trace_turbo_reduction) {
-          StdoutStream{} << "- Replacement of " << *node << " with "
+          AllowHandleDereference allow_deref;
+          StdoutStream{} << "- Replacement of #" << *node << " with #"
                          << *(reduction.replacement()) << " by reducer "
                          << (*i)->reducer_name() << std::endl;
         }

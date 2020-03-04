@@ -116,6 +116,15 @@ void Script::set_compilation_state(CompilationState state) {
   set_flags(BooleanBit::set(flags(), kCompilationStateBit,
                             state == COMPILATION_STATE_COMPILED));
 }
+
+bool Script::is_repl_mode() const {
+  return BooleanBit::get(flags(), kREPLModeBit);
+}
+
+void Script::set_is_repl_mode(bool value) {
+  set_flags(BooleanBit::set(flags(), kREPLModeBit, value));
+}
+
 ScriptOriginOptions Script::origin_options() {
   return ScriptOriginOptions((flags() & kOriginOptionsMask) >>
                              kOriginOptionsShift);

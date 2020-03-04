@@ -1675,6 +1675,95 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithConstant) {
 }
 
 // -----------------------------------------------------------------------------
+// Int64Mul
+
+TEST_F(MachineOperatorReducerTest, Int64MulWithZero) {
+  Node* p0 = Parameter(0);
+  {
+    Node* mul = graph()->NewNode(machine()->Int64Mul(), Int64Constant(0), p0);
+
+    Reduction r = Reduce(mul);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+  {
+    Node* mul = graph()->NewNode(machine()->Int64Mul(), p0, Int64Constant(0));
+
+    Reduction r = Reduce(mul);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Constant(0));
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Int64MulWithOne) {
+  Node* p0 = Parameter(0);
+  {
+    Node* mul = graph()->NewNode(machine()->Int64Mul(), Int64Constant(1), p0);
+
+    Reduction r = Reduce(mul);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(p0, r.replacement());
+  }
+  {
+    Node* mul = graph()->NewNode(machine()->Int64Mul(), p0, Int64Constant(1));
+
+    Reduction r = Reduce(mul);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(p0, r.replacement());
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Int64MulWithMinusOne) {
+  Node* p0 = Parameter(0);
+
+  {
+    Reduction r =
+        Reduce(graph()->NewNode(machine()->Int64Mul(), Int64Constant(-1), p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Sub(IsInt64Constant(0), p0));
+  }
+
+  {
+    Reduction r =
+        Reduce(graph()->NewNode(machine()->Int64Mul(), p0, Int64Constant(-1)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt64Sub(IsInt64Constant(0), p0));
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Int64MulWithPowerOfTwo) {
+  Node* p0 = Parameter(0);
+
+  {
+    Reduction r =
+        Reduce(graph()->NewNode(machine()->Int64Mul(), Int64Constant(8), p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsWord64Shl(p0, IsInt64Constant(3)));
+  }
+
+  {
+    Reduction r =
+        Reduce(graph()->NewNode(machine()->Int64Mul(), p0, Int64Constant(8)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsWord64Shl(p0, IsInt64Constant(3)));
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Int64MulWithConstant) {
+  TRACED_FOREACH(int64_t, x, kInt64Values) {
+    TRACED_FOREACH(int64_t, y, kInt64Values) {
+      Node* mul = graph()->NewNode(machine()->Int64Mul(), Int64Constant(x),
+                                   Int64Constant(y));
+
+      Reduction r = Reduce(mul);
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt64Constant(base::MulWithWraparound(x, y)));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Int32LessThan
 
 TEST_F(MachineOperatorReducerTest, Int32LessThanWithWord32Or) {

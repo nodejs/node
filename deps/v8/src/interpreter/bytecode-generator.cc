@@ -1188,6 +1188,9 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
 
   AllocateTopLevelRegisters();
 
+  // Perform a stack-check before the body.
+  builder()->StackCheck(info()->literal()->start_position());
+
   if (info()->literal()->CanSuspend()) {
     BuildGeneratorPrologue();
   }
@@ -1251,9 +1254,6 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // Emit initializing assignments for module namespace imports (if any).
   VisitModuleNamespaceImports();
-
-  // Perform a stack-check before the body.
-  builder()->StackCheck(literal->start_position());
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {
@@ -1363,6 +1363,9 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
         builder()->LoadTheHole().StoreAccumulatorInRegister(destination);
       }
       break;
+    case VariableLocation::REPL_GLOBAL:
+      // REPL let's are stored in script contexts. They get initialized
+      // with the hole the same way as normal context allocated variables.
     case VariableLocation::CONTEXT:
       if (variable->binding_needs_init()) {
         DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
@@ -1416,6 +1419,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
       break;
     }
+    case VariableLocation::REPL_GLOBAL:
     case VariableLocation::CONTEXT: {
       DCHECK_EQ(0, execution_context()->ContextChainDepth(variable->scope()));
       VisitFunctionLiteral(decl->fun());
@@ -2055,7 +2059,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     builder()
         ->LoadLiteral(class_name)
         .StoreAccumulatorInRegister(brand)
-        .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
+        .CallRuntime(Runtime::kCreatePrivateBrandSymbol, brand);
     BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
                             HoleCheckMode::kElided);
   }
@@ -3066,6 +3070,13 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
       }
       break;
     }
+    case VariableLocation::REPL_GLOBAL: {
+      DCHECK(variable->IsReplGlobalLet());
+      FeedbackSlot slot = GetCachedLoadGlobalICSlot(typeof_mode, variable);
+      builder()->LoadGlobal(variable->raw_name(), feedback_index(slot),
+                            typeof_mode);
+      break;
+    }
   }
 }
 
@@ -3246,6 +3257,33 @@ void BytecodeGenerator::BuildVariableAssignment(
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
       builder()->StoreModuleVariable(variable->index(), depth);
+      break;
+    }
+    case VariableLocation::REPL_GLOBAL: {
+      // A let declaration like 'let x = 7' is effectively translated to:
+      //   <top of the script>:
+      //     ScriptContext.x = TheHole;
+      //   ...
+      //   <where the actual 'let' is>:
+      //     ScriptContextTable.x = 7; // no hole check
+      //
+      // The ScriptContext slot for 'x' that we store to here is not
+      // necessarily the ScriptContext of this script, but rather the
+      // first ScriptContext that has a slot for name 'x'.
+      DCHECK(variable->IsReplGlobalLet());
+      if (op == Token::INIT) {
+        RegisterList store_args = register_allocator()->NewRegisterList(2);
+        builder()
+            ->StoreAccumulatorInRegister(store_args[1])
+            .LoadLiteral(variable->raw_name())
+            .StoreAccumulatorInRegister(store_args[0]);
+        builder()->CallRuntime(Runtime::kStoreGlobalNoHoleCheckForReplLet,
+                               store_args);
+      } else {
+        FeedbackSlot slot =
+            GetCachedStoreGlobalICSlot(language_mode(), variable);
+        builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
+      }
       break;
     }
   }
@@ -4598,14 +4636,19 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
   }
 }
 
-void BytecodeGenerator::VisitOptionalChain(OptionalChain* expr) {
+template <typename ExpressionFunc>
+void BytecodeGenerator::BuildOptionalChain(ExpressionFunc expression_func) {
   BytecodeLabel done;
   OptionalChainNullLabelScope label_scope(this);
-  VisitForAccumulatorValue(expr->expression());
+  expression_func();
   builder()->Jump(&done);
   label_scope.labels()->Bind(builder());
   builder()->LoadUndefined();
   builder()->Bind(&done);
+}
+
+void BytecodeGenerator::VisitOptionalChain(OptionalChain* expr) {
+  BuildOptionalChain([&]() { VisitForAccumulatorValue(expr->expression()); });
 }
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
@@ -4617,11 +4660,6 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
   } else {
     VisitPropertyLoad(Register::invalid_value(), expr);
   }
-}
-
-void BytecodeGenerator::VisitResolvedProperty(ResolvedProperty* expr) {
-  // Handled by VisitCall().
-  UNREACHABLE();
 }
 
 void BytecodeGenerator::VisitArguments(const ZonePtrList<Expression>* args,
@@ -4666,13 +4704,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       Property* property = callee_expr->AsProperty();
       VisitAndPushIntoRegisterList(property->obj(), &args);
       VisitPropertyLoadForRegister(args.last_register(), property, callee);
-      break;
-    }
-    case Call::RESOLVED_PROPERTY_CALL: {
-      ResolvedProperty* resolved = callee_expr->AsResolvedProperty();
-      VisitAndPushIntoRegisterList(resolved->object(), &args);
-      VisitForAccumulatorValue(resolved->property());
-      builder()->StoreAccumulatorInRegister(callee);
       break;
     }
     case Call::GLOBAL_CALL: {
@@ -4737,6 +4768,16 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
+    case Call::NAMED_OPTIONAL_CHAIN_PROPERTY_CALL:
+    case Call::KEYED_OPTIONAL_CHAIN_PROPERTY_CALL: {
+      OptionalChain* chain = callee_expr->AsOptionalChain();
+      Property* property = chain->expression()->AsProperty();
+      BuildOptionalChain([&]() {
+        VisitAndPushIntoRegisterList(property->obj(), &args);
+        VisitPropertyLoadForRegister(args.last_register(), property, callee);
+      });
+      break;
+    }
     case Call::SUPER_CALL:
       UNREACHABLE();
   }
@@ -4790,8 +4831,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallNoFeedback(callee, args);
   } else if (call_type == Call::NAMED_PROPERTY_CALL ||
-             call_type == Call::KEYED_PROPERTY_CALL ||
-             call_type == Call::RESOLVED_PROPERTY_CALL) {
+             call_type == Call::KEYED_PROPERTY_CALL) {
     DCHECK(!implicit_undefined_receiver);
     builder()->CallProperty(callee, args,
                             feedback_index(feedback_spec()->AddCallICSlot()));

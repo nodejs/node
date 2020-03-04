@@ -485,10 +485,10 @@ class V8_EXPORT_PRIVATE UsePosition final
   static UsePositionHintType HintTypeForOperand(const InstructionOperand& op);
 
  private:
-  using TypeField = BitField<UsePositionType, 0, 2>;
-  using HintTypeField = BitField<UsePositionHintType, 2, 3>;
-  using RegisterBeneficialField = BitField<bool, 5, 1>;
-  using AssignedRegisterField = BitField<int32_t, 6, 6>;
+  using TypeField = base::BitField<UsePositionType, 0, 2>;
+  using HintTypeField = base::BitField<UsePositionHintType, 2, 3>;
+  using RegisterBeneficialField = base::BitField<bool, 5, 1>;
+  using AssignedRegisterField = base::BitField<int32_t, 6, 6>;
 
   InstructionOperand* const operand_;
   void* hint_;
@@ -669,12 +669,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void VerifyPositions() const;
   void VerifyIntervals() const;
 
-  using SpilledField = BitField<bool, 0, 1>;
+  using SpilledField = base::BitField<bool, 0, 1>;
   // Bits (1,7[ are used by TopLevelLiveRange.
-  using AssignedRegisterField = BitField<int32_t, 7, 6>;
-  using RepresentationField = BitField<MachineRepresentation, 13, 8>;
-  using RecombineField = BitField<bool, 21, 1>;
-  using ControlFlowRegisterHint = BitField<uint8_t, 22, 6>;
+  using AssignedRegisterField = base::BitField<int32_t, 7, 6>;
+  using RepresentationField = base::BitField<MachineRepresentation, 13, 8>;
+  using RecombineField = base::BitField<bool, 21, 1>;
+  using ControlFlowRegisterHint = base::BitField<uint8_t, 22, 6>;
   // Bit 28 is used by TopLevelLiveRange.
 
   // Unique among children and splinters of the same virtual register.
@@ -985,11 +985,11 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   friend class LiveRange;
   void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
 
-  using HasSlotUseField = BitField<SlotUseKind, 1, 2>;
-  using IsPhiField = BitField<bool, 3, 1>;
-  using IsNonLoopPhiField = BitField<bool, 4, 1>;
-  using SpillTypeField = BitField<SpillType, 5, 2>;
-  using DeferredFixedField = BitField<bool, 28, 1>;
+  using HasSlotUseField = base::BitField<SlotUseKind, 1, 2>;
+  using IsPhiField = base::BitField<bool, 3, 1>;
+  using IsNonLoopPhiField = base::BitField<bool, 4, 1>;
+  using SpillTypeField = base::BitField<SpillType, 5, 2>;
+  using DeferredFixedField = base::BitField<bool, 28, 1>;
 
   int vreg_;
   int last_child_id_;
@@ -1365,6 +1365,8 @@ class LinearScanAllocator final : public RegisterAllocator {
                                    RpoNumber predecessor);
   RpoNumber ChooseOneOfTwoPredecessorStates(InstructionBlock* current_block,
                                             LifetimePosition boundary);
+  bool CheckConflict(MachineRepresentation rep, int reg,
+                     RangeWithRegisterSet* to_be_live);
   void ComputeStateFromManyPredecessors(InstructionBlock* current_block,
                                         RangeWithRegisterSet* to_be_live);
 

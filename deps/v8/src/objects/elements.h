@@ -33,13 +33,13 @@ class ElementsAccessor {
   virtual void Validate(JSObject obj) = 0;
 
   // Returns true if a holder contains an element with the specified index
-  // without iterating up the prototype chain.  The caller can optionally pass
-  // in the backing store to use for the check, which must be compatible with
-  // the ElementsKind of the ElementsAccessor. If backing_store is nullptr, the
-  // holder->elements() is used as the backing store. If a |filter| is
-  // specified the PropertyAttributes of the element at the given index
-  // are compared to the given |filter|. If they match/overlap the given
-  // index is ignored. Note that only Dictionary elements have custom
+  // without iterating up the prototype chain. The first version takes the
+  // backing store to use for the check, which must be compatible with the
+  // ElementsKind of the ElementsAccessor; the second version uses
+  // holder->elements() as the backing store. If a |filter| is specified,
+  // the PropertyAttributes of the element at the given index are compared
+  // to the given |filter|. If they match/overlap, the given index is ignored.
+  // Note that only Dictionary elements have custom
   // PropertyAttributes associated, hence the |filter| argument is ignored for
   // all but DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
   virtual bool HasElement(JSObject holder, uint32_t index,
@@ -56,7 +56,7 @@ class ElementsAccessor {
   virtual Handle<Object> Get(Handle<JSObject> holder, InternalIndex entry) = 0;
 
   virtual bool HasAccessors(JSObject holder) = 0;
-  virtual uint32_t NumberOfElements(JSObject holder) = 0;
+  virtual size_t NumberOfElements(JSObject holder) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
@@ -126,28 +126,27 @@ class ElementsAccessor {
 
   virtual Handle<NumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
-  virtual uint32_t GetCapacity(JSObject holder,
-                               FixedArrayBase backing_store) = 0;
+  virtual size_t GetCapacity(JSObject holder, FixedArrayBase backing_store) = 0;
 
   virtual Object Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
-                      uint32_t start, uint32_t end) = 0;
+                      size_t start, size_t end) = 0;
 
   // Check an Object's own elements for an element (using SameValueZero
   // semantics)
   virtual Maybe<bool> IncludesValue(Isolate* isolate, Handle<JSObject> receiver,
-                                    Handle<Object> value, uint32_t start,
-                                    uint32_t length) = 0;
+                                    Handle<Object> value, size_t start,
+                                    size_t length) = 0;
 
   // Check an Object's own elements for the index of an element (using SameValue
   // semantics)
   virtual Maybe<int64_t> IndexOfValue(Isolate* isolate,
                                       Handle<JSObject> receiver,
-                                      Handle<Object> value, uint32_t start,
-                                      uint32_t length) = 0;
+                                      Handle<Object> value, size_t start,
+                                      size_t length) = 0;
 
   virtual Maybe<int64_t> LastIndexOfValue(Handle<JSObject> receiver,
                                           Handle<Object> value,
-                                          uint32_t start) = 0;
+                                          size_t start) = 0;
 
   virtual void Reverse(JSObject receiver) = 0;
 
@@ -157,7 +156,7 @@ class ElementsAccessor {
 
   virtual Object CopyElements(Handle<Object> source,
                               Handle<JSObject> destination, size_t length,
-                              uint32_t offset = 0) = 0;
+                              size_t offset) = 0;
 
   virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
                                                      Handle<JSObject> object,
@@ -180,7 +179,7 @@ class ElementsAccessor {
   // the NumberDictionary.
   virtual InternalIndex GetEntryForIndex(Isolate* isolate, JSObject holder,
                                          FixedArrayBase backing_store,
-                                         uint32_t index) = 0;
+                                         size_t index) = 0;
 
   virtual PropertyDetails GetDetails(JSObject holder, InternalIndex entry) = 0;
   virtual void Reconfigure(Handle<JSObject> object,

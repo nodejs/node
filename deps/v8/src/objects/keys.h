@@ -96,7 +96,7 @@ class KeyAccumulator final {
   void set_may_have_elements(bool value) { may_have_elements_ = value; }
   // Shadowing keys are used to filter keys. This happens when non-enumerable
   // keys appear again on the prototype chain.
-  void AddShadowingKey(Object key);
+  void AddShadowingKey(Object key, AllowHeapAllocation* allow_gc);
   void AddShadowingKey(Handle<Object> key);
 
  private:

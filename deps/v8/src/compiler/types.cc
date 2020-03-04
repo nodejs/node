@@ -210,6 +210,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_V8_BREAK_ITERATOR_TYPE:
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
+    case JS_DISPLAY_NAMES_TYPE:
     case JS_LIST_FORMAT_TYPE:
     case JS_LOCALE_TYPE:
     case JS_NUMBER_FORMAT_TYPE:
@@ -1022,7 +1023,7 @@ void Type::PrintTo(std::ostream& os) const {
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
   } else if (this->IsHeapConstant()) {
-    os << "HeapConstant(" << Brief(*this->AsHeapConstant()->Value()) << ")";
+    os << "HeapConstant(" << this->AsHeapConstant()->Ref() << ")";
   } else if (this->IsOtherNumberConstant()) {
     os << "OtherNumberConstant(" << this->AsOtherNumberConstant()->Value()
        << ")";

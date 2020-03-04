@@ -11,6 +11,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/marking-visitor.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
@@ -65,12 +66,11 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
   // task 0, reserved for the main thread).
   static constexpr int kMaxTasks = 7;
-  using MarkingWorklist = Worklist<HeapObject, 64 /* segment size */>;
-  using EmbedderTracingWorklist = Worklist<HeapObject, 16 /* segment size */>;
 
-  ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
-                    MarkingWorklist* on_hold, WeakObjects* weak_objects,
-                    EmbedderTracingWorklist* embedder_objects);
+  ConcurrentMarking(Heap* heap, MarkingWorklist* marking_worklist,
+                    MarkingWorklist* on_hold,
+                    EmbedderTracingWorklist* embedder_worklist,
+                    WeakObjects* weak_objects);
 
   // Schedules asynchronous tasks to perform concurrent marking. Objects in the
   // heap should not be moved while these are active (can be stopped safely via
@@ -112,10 +112,10 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   class Task;
   void Run(int task_id, TaskState* task_state);
   Heap* const heap_;
-  MarkingWorklist* const shared_;
+  MarkingWorklist* const marking_worklist_;
   MarkingWorklist* const on_hold_;
+  EmbedderTracingWorklist* const embedder_worklist_;
   WeakObjects* const weak_objects_;
-  EmbedderTracingWorklist* const embedder_objects_;
   TaskState task_state_[kMaxTasks + 1];
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> ephemeron_marked_{false};

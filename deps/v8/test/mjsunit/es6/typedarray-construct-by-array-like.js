@@ -211,8 +211,8 @@ tests.push(function TestFromTypedArraySpeciesDetachsBuffer(constr) {
   assertThrows(() => new constr(a1));
 });
 
-tests.push(function TestLengthIsMaxSmi(constr) {
-  var myObject = { 0: 5, 1: 6, length: %MaxSmi() + 1 };
+tests.push(function TestTypedArrayMaxLength(constr) {
+  var myObject = { 0: 5, 1: 6, length: %TypedArrayMaxLength() + 1 };
 
   assertThrows(function() {
     new constr(myObject);

@@ -36,7 +36,6 @@ class V8 : public AllStatic {
   // Should be used only for testing.
   V8_EXPORT_PRIVATE static void SetPlatformForTesting(v8::Platform* platform);
 
-  static void SetNativesBlob(StartupData* natives_blob);
   static void SetSnapshotBlob(StartupData* snapshot_blob);
 
  private:

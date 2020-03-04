@@ -29,7 +29,7 @@ namespace wasm {
 class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
-struct WasmFeatures;
+class WasmFeatures;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -158,10 +158,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
                                std::forward<Args>(args)...);
   }
 
-  // Trigger code logging for this WasmCode in all Isolates which have access to
-  // the NativeModule containing this code. This method can be called from
-  // background threads.
-  void LogCode(WasmCode*);
+  // Trigger code logging for the given code objects in all Isolates which have
+  // access to the NativeModule containing this code. This method can be called
+  // from background threads.
+  void LogCode(Vector<WasmCode*>);
 
   // Enable code logging for the given Isolate. Initially, code logging is
   // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during
@@ -175,16 +175,12 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory
-  // is determined with a heuristic based on the total size of wasm
-  // code. The native module may later request more memory.
-  // TODO(titzer): isolate is only required here for CompilationState.
+  // is determined by {code_size_estimate}. The native module may later request
+  // more memory.
+  // TODO(wasm): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, const WasmFeatures& enabled_features,
-      std::shared_ptr<const WasmModule> module);
-  std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, const WasmFeatures& enabled_features,
-      size_t code_size_estimate, bool can_request_more,
-      std::shared_ptr<const WasmModule> module);
+      std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
   void FreeNativeModule(NativeModule*);
 
@@ -215,8 +211,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
 
-  // Constructs a WasmEngine instance. Depending on whether we are sharing
-  // engines this might be a pointer to a new instance or to a shared one.
+  // Returns a reference to the WasmEngine shared by the entire process. Try to
+  // use {Isolate::wasm_engine} instead if it is available, which encapsulates
+  // engine lifetime decisions during Isolate bootstrapping.
   static std::shared_ptr<WasmEngine> GetWasmEngine();
 
  private:

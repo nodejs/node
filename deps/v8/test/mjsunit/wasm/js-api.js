@@ -380,6 +380,9 @@ assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
 let instanceExportsDesc =
     Object.getOwnPropertyDescriptor(instanceProto, 'exports');
 assertEq(typeof instanceExportsDesc.get, 'function');
+assertEq(instanceExportsDesc.get.name, 'get exports');
+assertEq(instanceExportsDesc.get.length, 0);
+assertFalse('prototype' in instanceExportsDesc.get);
 assertEq(instanceExportsDesc.set, undefined);
 assertTrue(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
@@ -456,6 +459,9 @@ assertEq(Object.getPrototypeOf(mem1), memoryProto);
 // 'WebAssembly.Memory.prototype.buffer' accessor property
 let bufferDesc = Object.getOwnPropertyDescriptor(memoryProto, 'buffer');
 assertEq(typeof bufferDesc.get, 'function');
+assertEq(bufferDesc.get.name, 'get buffer');
+assertEq(bufferDesc.get.length, 0);
+assertFalse('prototype' in bufferDesc.get);
 assertEq(bufferDesc.set, undefined);
 assertTrue(bufferDesc.enumerable);
 assertTrue(bufferDesc.configurable);
@@ -476,7 +482,6 @@ assertTrue(memGrowDesc.enumerable);
 assertTrue(memGrowDesc.configurable);
 
 // 'WebAssembly.Memory.prototype.grow' method
-
 let memGrow = memGrowDesc.value;
 assertEq(memGrow.length, 1);
 assertThrows(
@@ -608,6 +613,9 @@ assertEq(Object.getPrototypeOf(tbl1), tableProto);
 // 'WebAssembly.Table.prototype.length' accessor data property
 let lengthDesc = Object.getOwnPropertyDescriptor(tableProto, 'length');
 assertEq(typeof lengthDesc.get, 'function');
+assertEq(lengthDesc.get.name, 'get length');
+assertEq(lengthDesc.get.length, 0);
+assertFalse('prototype' in lengthDesc.get);
 assertEq(lengthDesc.set, undefined);
 assertTrue(lengthDesc.enumerable);
 assertTrue(lengthDesc.configurable);
@@ -912,4 +920,26 @@ assertInstantiateSuccess(
                /Can't set the value/);
   assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1n), TypeError,
                /Can't set the value/);
+})();
+
+(function TestAccessorFunctions() {
+  function isConstructor(value) {
+    var p = new Proxy(value, { construct: () => ({}) });
+    try {
+      return new p, true;
+    } catch(e) {
+      return false;
+    }
+  };
+  function testAccessorFunction(obj, prop, accessor) {
+    var desc = Object.getOwnPropertyDescriptor(obj, prop);
+    assertSame('function', typeof desc[accessor]);
+    assertFalse(desc[accessor].hasOwnProperty('prototype'));
+    assertFalse(isConstructor(desc[accessor]));
+  }
+  testAccessorFunction(WebAssembly.Global.prototype, "value", "get");
+  testAccessorFunction(WebAssembly.Global.prototype, "value", "set");
+  testAccessorFunction(WebAssembly.Instance.prototype, "exports", "get");
+  testAccessorFunction(WebAssembly.Memory.prototype, "buffer", "get");
+  testAccessorFunction(WebAssembly.Table.prototype, "length", "get");
 })();

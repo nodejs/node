@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_reverse {
-  macro LoadElement<ElementsAccessor: type, T: type>(
+namespace array {
+  macro LoadElement<ElementsAccessor : type extends ElementsKind, T: type>(
       elements: FixedArrayBase, index: Smi): T;
 
   LoadElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
@@ -28,7 +28,7 @@ namespace array_reverse {
         otherwise unreachable;
   }
 
-  macro StoreElement<ElementsAccessor: type, T: type>(
+  macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(
       implicit context:
           Context)(elements: FixedArrayBase, index: Smi, value: T);
 
@@ -165,7 +165,8 @@ namespace array_reverse {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reverse
   transitioning javascript builtin ArrayPrototypeReverse(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     try {
       TryFastPackedArrayReverse(receiver) otherwise Baseline;
       return receiver;

@@ -35,7 +35,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
                                    BodyLocalDecls* decls)
     : Decoder(start, end) {
   if (decls != nullptr) {
-    if (DecodeLocalDecls(kAllWasmFeatures, decls, start, end)) {
+    if (DecodeLocalDecls(WasmFeatures::All(), decls, start, end)) {
       pc_ += decls->encoded_size;
       if (pc_ > end_) pc_ = end_;
     }
@@ -61,9 +61,9 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
 std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
                                           FunctionSig* sig, const byte* pc,
                                           const byte* end) {
-  WasmFeatures unused_detected_features;
+  WasmFeatures unused_detected_features = WasmFeatures::None();
   WasmDecoder<Decoder::kNoValidate> decoder(
-      module, kAllWasmFeatures, &unused_detected_features, sig, pc, end);
+      module, WasmFeatures::All(), &unused_detected_features, sig, pc, end);
   return decoder.StackEffect(pc);
 }
 
@@ -98,8 +98,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const WasmModule* module, PrintLocals print_locals,
                       std::ostream& os, std::vector<int>* line_numbers) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFeatures unused_detected_features;
-  WasmDecoder<Decoder::kNoValidate> decoder(module, kAllWasmFeatures,
+  WasmFeatures unused_detected_features = WasmFeatures::None();
+  WasmDecoder<Decoder::kNoValidate> decoder(module, WasmFeatures::All(),
                                             &unused_detected_features, body.sig,
                                             body.start, body.end);
   int line_nr = 0;
@@ -208,7 +208,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+        BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                      i.pc());
         os << "   // @" << i.pc_offset();
         if (decoder.Complete(imm)) {
@@ -239,7 +239,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+        CallIndirectImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                         i.pc());
         os << "   // sig #" << imm.sig_index;
         if (decoder.Complete(i.pc(), imm)) {

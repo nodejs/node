@@ -107,6 +107,8 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
     set_outer_scope_info(handle(shared->GetOuterScopeInfo(), isolate));
   }
 
+  set_repl_mode(shared->is_repl_mode());
+
   // CollectTypeProfile uses its own feedback slots. If we have existing
   // FeedbackMetadata, we can only collect type profile if the feedback vector
   // has the appropriate slots.
@@ -165,6 +167,7 @@ DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
                                        ScriptOriginOptions origin_options,
+                                       REPLMode repl_mode,
                                        NativesFlag natives) {
   // Create a script object describing the script to be compiled.
   Handle<Script> script;
@@ -187,6 +190,7 @@ Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
       break;
   }
   script->set_origin_options(origin_options);
+  script->set_is_repl_mode(repl_mode == REPLMode::kYes);
 
   SetScriptForToplevelCompile(isolate, script);
   return script;
@@ -220,6 +224,7 @@ void ParseInfo::SetScriptForToplevelCompile(Isolate* isolate,
   set_toplevel();
   set_collect_type_profile(isolate->is_collecting_type_profile() &&
                            script->IsUserJavaScript());
+  set_repl_mode(script->is_repl_mode());
   if (script->is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }

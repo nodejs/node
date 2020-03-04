@@ -117,7 +117,7 @@ async function waitForTwoWasmScripts() {
   while (num < 2) {
     let msg = await Protocol.Debugger.onceScriptParsed();
     let url = msg.params.url;
-    if (!url.startsWith('wasm://')) {
+    if (!url.startsWith('wasm://') || url.split('/').length != 5) {
       InspectorTest.log('Ignoring script with url ' + url);
       continue;
     }

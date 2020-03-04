@@ -23,7 +23,8 @@ namespace internal {
 
 MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source,
-                                          debug::EvaluateGlobalMode mode) {
+                                          debug::EvaluateGlobalMode mode,
+                                          REPLMode repl_mode) {
   // Disable breaks in side-effect free mode.
   DisableBreak disable_break_scope(
       isolate->debug(),
@@ -32,13 +33,14 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
               debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect);
 
   Handle<Context> context = isolate->native_context();
+  Compiler::ScriptDetails script_details(isolate->factory()->empty_string());
+  script_details.repl_mode = repl_mode;
   ScriptOriginOptions origin_options(false, true);
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source,
-          Compiler::ScriptDetails(isolate->factory()->empty_string()),
-          origin_options, nullptr, nullptr, ScriptCompiler::kNoCompileOptions,
-          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE);
+          isolate, source, script_details, origin_options, nullptr, nullptr,
+          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
+          NOT_NATIVES_CODE);
 
   Handle<SharedFunctionInfo> shared_info;
   if (!maybe_function_info.ToHandle(&shared_info)) return MaybeHandle<Object>();
@@ -169,7 +171,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     : isolate_(isolate),
       frame_inspector_(frame, inlined_jsframe_index, isolate),
       scope_iterator_(isolate, &frame_inspector_,
-                      ScopeIterator::COLLECT_NON_LOCALS) {
+                      ScopeIterator::ReparseStrategy::kScript) {
   Handle<Context> outer_context(frame_inspector_.GetFunction()->context(),
                                 isolate);
   evaluation_context_ = outer_context;

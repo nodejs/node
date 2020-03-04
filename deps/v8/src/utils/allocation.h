@@ -76,7 +76,7 @@ class FreeStoreAllocationPolicy {
 void* AllocWithRetry(size_t size);
 
 V8_EXPORT_PRIVATE void* AlignedAlloc(size_t size, size_t alignment);
-void AlignedFree(void* ptr);
+V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();

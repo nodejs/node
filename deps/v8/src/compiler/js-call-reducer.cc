@@ -10,11 +10,13 @@
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/tnode.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
@@ -36,6 +38,1091 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Shorter lambda declarations with less visual clutter.
+#define _ [&]()  // NOLINT(whitespace/braces)
+
+class JSCallReducerAssembler : public GraphAssembler {
+ public:
+  JSCallReducerAssembler(JSGraph* jsgraph, Zone* zone, Node* node)
+      : GraphAssembler(jsgraph, zone), node_(node), if_exception_nodes_(zone) {
+    InitializeEffectControl(NodeProperties::GetEffectInput(node),
+                            NodeProperties::GetControlInput(node));
+
+    has_external_exception_handler_ =
+        NodeProperties::IsExceptionalCall(node, &external_exception_handler_);
+  }
+  virtual ~JSCallReducerAssembler() {}
+
+  TNode<Object> ReduceMathUnary(const Operator* op);
+  TNode<Object> ReduceMathBinary(const Operator* op);
+  TNode<String> ReduceStringPrototypeSubstring();
+  TNode<String> ReduceStringPrototypeSlice();
+
+  bool has_external_exception_handler() const {
+    return has_external_exception_handler_;
+  }
+  bool SubgraphContainsExceptionalControlFlow() const {
+    return !if_exception_nodes_.empty();
+  }
+  Node* external_exception_handler() const {
+    DCHECK(has_external_exception_handler());
+    return external_exception_handler_;
+  }
+
+  // Returns {value, effect, control}.
+  std::tuple<Node*, Node*, Node*> MergeExceptionalPaths();
+
+  Node* node_ptr() const { return node_; }
+
+ protected:
+  using NodeGenerator0 = std::function<TNode<Object>()>;
+  using VoidGenerator0 = std::function<void()>;
+
+  // TODO(jgruber): Currently IfBuilder0 and IfBuilder1 are implemented as
+  // separate classes. If, in the future, we encounter additional use cases that
+  // return more than 1 value, we should merge these back into a single variadic
+  // implementation.
+  class IfBuilder0 {
+   public:
+    IfBuilder0(GraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
+        : gasm_(gasm), cond_(cond), negate_cond_(negate_cond) {}
+
+    V8_WARN_UNUSED_RESULT IfBuilder0& ExpectTrue() {
+      DCHECK_EQ(hint_, BranchHint::kNone);
+      hint_ = BranchHint::kTrue;
+      return *this;
+    }
+
+    V8_WARN_UNUSED_RESULT IfBuilder0& ExpectFalse() {
+      DCHECK_EQ(hint_, BranchHint::kNone);
+      hint_ = BranchHint::kFalse;
+      return *this;
+    }
+
+    V8_WARN_UNUSED_RESULT IfBuilder0& Then(const VoidGenerator0& body) {
+      then_body_ = body;
+      return *this;
+    }
+    V8_WARN_UNUSED_RESULT IfBuilder0& Else(const VoidGenerator0& body) {
+      else_body_ = body;
+      return *this;
+    }
+
+    void Build() {
+      // Unlike IfBuilder1, this supports an empty then or else body. This is
+      // possible since the merge does not take any value inputs.
+      DCHECK(then_body_ || else_body_);
+
+      if (negate_cond_) std::swap(then_body_, else_body_);
+
+      auto if_true = (hint_ == BranchHint::kFalse) ? gasm_->MakeDeferredLabel()
+                                                   : gasm_->MakeLabel();
+      auto if_false = (hint_ == BranchHint::kTrue) ? gasm_->MakeDeferredLabel()
+                                                   : gasm_->MakeLabel();
+      auto merge = gasm_->MakeLabel();
+      gasm_->Branch(cond_, &if_true, &if_false);
+
+      gasm_->Bind(&if_true);
+      if (then_body_) then_body_();
+      gasm_->Goto(&merge);
+
+      gasm_->Bind(&if_false);
+      if (else_body_) else_body_();
+      gasm_->Goto(&merge);
+
+      gasm_->Bind(&merge);
+    }
+
+   private:
+    GraphAssembler* const gasm_;
+    const TNode<Boolean> cond_;
+    const bool negate_cond_;
+    BranchHint hint_ = BranchHint::kNone;
+    VoidGenerator0 then_body_;
+    VoidGenerator0 else_body_;
+  };
+
+  IfBuilder0 If(TNode<Boolean> cond) { return {this, cond, false}; }
+  IfBuilder0 IfNot(TNode<Boolean> cond) { return {this, cond, true}; }
+
+  template <typename T>
+  class IfBuilder1 {
+    using If1BodyFunction = std::function<TNode<T>()>;
+
+   public:
+    IfBuilder1(GraphAssembler* gasm, TNode<Boolean> cond)
+        : gasm_(gasm), cond_(cond) {}
+
+    V8_WARN_UNUSED_RESULT IfBuilder1& ExpectTrue() {
+      DCHECK_EQ(hint_, BranchHint::kNone);
+      hint_ = BranchHint::kTrue;
+      return *this;
+    }
+
+    V8_WARN_UNUSED_RESULT IfBuilder1& ExpectFalse() {
+      DCHECK_EQ(hint_, BranchHint::kNone);
+      hint_ = BranchHint::kFalse;
+      return *this;
+    }
+
+    V8_WARN_UNUSED_RESULT IfBuilder1& Then(const If1BodyFunction& body) {
+      then_body_ = body;
+      return *this;
+    }
+    V8_WARN_UNUSED_RESULT IfBuilder1& Else(const If1BodyFunction& body) {
+      else_body_ = body;
+      return *this;
+    }
+
+    V8_WARN_UNUSED_RESULT TNode<T> Value() {
+      DCHECK(then_body_);
+      DCHECK(else_body_);
+      auto if_true = (hint_ == BranchHint::kFalse) ? gasm_->MakeDeferredLabel()
+                                                   : gasm_->MakeLabel();
+      auto if_false = (hint_ == BranchHint::kTrue) ? gasm_->MakeDeferredLabel()
+                                                   : gasm_->MakeLabel();
+      auto merge = gasm_->MakeLabel(kPhiRepresentation);
+      gasm_->Branch(cond_, &if_true, &if_false);
+
+      gasm_->Bind(&if_true);
+      TNode<T> then_result = then_body_();
+      gasm_->Goto(&merge, then_result);
+
+      gasm_->Bind(&if_false);
+      TNode<T> else_result = else_body_();
+      gasm_->Goto(&merge, else_result);
+
+      gasm_->Bind(&merge);
+      return merge.PhiAt<T>(0);
+    }
+
+   private:
+    static constexpr MachineRepresentation kPhiRepresentation =
+        MachineRepresentation::kTagged;
+
+    GraphAssembler* const gasm_;
+    const TNode<Boolean> cond_;
+    BranchHint hint_ = BranchHint::kNone;
+    If1BodyFunction then_body_;
+    If1BodyFunction else_body_;
+  };
+
+  template <typename T>
+  IfBuilder1<T> SelectIf(TNode<Boolean> cond) {
+    return {this, cond};
+  }
+
+  // Simplified operators.
+  TNode<Number> SpeculativeToNumber(
+      TNode<Object> value,
+      NumberOperationHint hint = NumberOperationHint::kNumberOrOddball);
+  TNode<Smi> CheckSmi(TNode<Object> value);
+  TNode<String> CheckString(TNode<Object> value);
+  TNode<Number> CheckBounds(TNode<Number> value, TNode<Number> limit);
+
+  // Common operators.
+  TNode<Smi> TypeGuardUnsignedSmall(TNode<Object> value);
+  TNode<Object> TypeGuardNonInternal(TNode<Object> value);
+
+  // Javascript operators.
+  TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
+                        TNode<Object> arg0, TNode<Object> arg1,
+                        TNode<Object> arg2, FrameState frame_state);
+  TNode<Object> JSCall4(TNode<Object> function, TNode<Object> this_arg,
+                        TNode<Object> arg0, TNode<Object> arg1,
+                        TNode<Object> arg2, TNode<Object> arg3,
+                        FrameState frame_state);
+  TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
+                               TNode<Object> arg0, TNode<Object> arg1,
+                               FrameState frame_state);
+  // Used in special cases in which we are certain CreateArray does not throw.
+  TNode<JSArray> CreateArrayNoThrow(TNode<Object> ctor, TNode<Number> size);
+
+  void MaybeInsertMapChecks(MapInference* inference,
+                            bool has_stability_dependency) {
+    // TODO(jgruber): Implement MapInference::InsertMapChecks in graph
+    // assembler.
+    if (!has_stability_dependency) {
+      Node* e = effect();
+      inference->InsertMapChecks(jsgraph(), &e, control(), feedback());
+      InitializeEffectControl(e, control());
+    }
+  }
+
+  // TODO(jgruber): Currently, it's the responsibility of the developer to
+  // note which operations may throw and appropriately wrap these in a call to
+  // MayThrow (see e.g. JS Call and CallRuntime). A more methodical approach
+  // would be good. Note also that this only handles the very basic case (not
+  // involving custom handlers) so far and will probably have to be extended in
+  // the future.
+  TNode<Object> MayThrow(const NodeGenerator0& body) {
+    TNode<Object> result = body();
+
+    if (has_external_exception_handler()) {
+      Effect e = effect();
+      Control c = control();
+
+      // The IfException node is later merged into the outer graph.
+      Node* if_exception =
+          AddNode(graph()->NewNode(common()->IfException(), e, c));
+      if_exception_nodes_.push_back(if_exception);
+
+      InitializeEffectControl(e, c);
+      AddNode(graph()->NewNode(common()->IfSuccess(), c));
+    }
+
+    return result;
+  }
+
+  using ConditionFunction1 = std::function<TNode<Boolean>(TNode<Number>)>;
+  using StepFunction1 = std::function<TNode<Number>(TNode<Number>)>;
+  class ForBuilder0 {
+    using For0BodyFunction = std::function<void(TNode<Number>)>;
+
+   public:
+    ForBuilder0(GraphAssembler* gasm, TNode<Number> initial_value,
+                const ConditionFunction1& cond, const StepFunction1& step)
+        : gasm_(gasm),
+          initial_value_(initial_value),
+          cond_(cond),
+          step_(step) {}
+
+    void Do(const For0BodyFunction& body) {
+      auto loop_header = gasm_->MakeLoopLabel(kPhiRepresentation);
+      auto loop_body = gasm_->MakeLabel();
+      auto loop_exit = gasm_->MakeLabel();
+
+      gasm_->Goto(&loop_header, initial_value_);
+
+      gasm_->Bind(&loop_header);
+      Control loop_header_control = gasm_->control();  // For LoopExit below.
+      TNode<Number> i = loop_header.PhiAt<Number>(0);
+
+      gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit,
+                            BranchHint::kTrue);
+
+      gasm_->Bind(&loop_body);
+      body(i);
+      gasm_->Goto(&loop_header, step_(i));
+
+      gasm_->Bind(&loop_exit);
+      // Introduce proper LoopExit and LoopExitEffect nodes to mark
+      // {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
+      gasm_->LoopExit(loop_header_control);
+      gasm_->LoopExitEffect();
+    }
+
+   private:
+    static constexpr MachineRepresentation kPhiRepresentation =
+        MachineRepresentation::kTagged;
+
+    GraphAssembler* const gasm_;
+    const TNode<Number> initial_value_;
+    const ConditionFunction1 cond_;
+    const StepFunction1 step_;
+  };
+
+  ForBuilder0 ForSmiZeroUntil(TNode<Number> excluded_limit) {
+    TNode<Number> initial_value = ZeroConstant();
+    auto cond = [=](TNode<Number> i) {
+      return NumberLessThan(i, excluded_limit);
+    };
+    auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
+    return {this, initial_value, cond, step};
+  }
+
+  ForBuilder0 Forever(TNode<Number> initial_value, const StepFunction1& step) {
+    return {this, initial_value, [=](TNode<Number>) { return TrueConstant(); },
+            step};
+  }
+
+  using For1BodyFunction = std::function<void(TNode<Number>, TNode<Object>*)>;
+  class ForBuilder1 {
+   public:
+    ForBuilder1(GraphAssembler* gasm, TNode<Number> initial_value,
+                const ConditionFunction1& cond, const StepFunction1& step,
+                TNode<Object> initial_arg0)
+        : gasm_(gasm),
+          initial_value_(initial_value),
+          cond_(cond),
+          step_(step),
+          initial_arg0_(initial_arg0) {}
+
+    V8_WARN_UNUSED_RESULT ForBuilder1& Do(const For1BodyFunction& body) {
+      body_ = body;
+      return *this;
+    }
+
+    TNode<Object> Value() {
+      DCHECK(body_);
+      TNode<Object> arg0 = initial_arg0_;
+
+      auto loop_header =
+          gasm_->MakeLoopLabel(kPhiRepresentation, kPhiRepresentation);
+      auto loop_body = gasm_->MakeDeferredLabel(kPhiRepresentation);
+      auto loop_exit = gasm_->MakeDeferredLabel(kPhiRepresentation);
+
+      gasm_->Goto(&loop_header, initial_value_, initial_arg0_);
+
+      gasm_->Bind(&loop_header);
+      Control loop_header_control = gasm_->control();  // For LoopExit below.
+      TNode<Number> i = loop_header.PhiAt<Number>(0);
+      arg0 = loop_header.PhiAt<Object>(1);
+
+      gasm_->BranchWithHint(cond_(i), &loop_body, &loop_exit, BranchHint::kTrue,
+                            arg0);
+
+      gasm_->Bind(&loop_body);
+      body_(i, &arg0);
+      gasm_->Goto(&loop_header, step_(i), arg0);
+
+      gasm_->Bind(&loop_exit);
+      // Introduce proper LoopExit and LoopExitEffect nodes to mark
+      // {loop_header} as a candidate for loop peeling (crbug.com/v8/8273).
+      gasm_->LoopExit(loop_header_control);
+      gasm_->LoopExitEffect();
+
+      return loop_exit.PhiAt<Object>(0);
+    }
+
+   private:
+    static constexpr MachineRepresentation kPhiRepresentation =
+        MachineRepresentation::kTagged;
+
+    GraphAssembler* const gasm_;
+    const TNode<Number> initial_value_;
+    const ConditionFunction1 cond_;
+    const StepFunction1 step_;
+    For1BodyFunction body_;
+    const TNode<Object> initial_arg0_;
+  };
+
+  ForBuilder1 For1(TNode<Number> initial_value, const ConditionFunction1& cond,
+                   const StepFunction1& step, TNode<Object> initial_arg0) {
+    return {this, initial_value, cond, step, initial_arg0};
+  }
+
+  const FeedbackSource& feedback() const {
+    CallParameters const& p = CallParametersOf(node_ptr()->op());
+    return p.feedback();
+  }
+
+  TNode<Object> ValueInput(int index) const {
+    return TNode<Object>::UncheckedCast(
+        NodeProperties::GetValueInput(node_, index));
+  }
+
+  template <typename T>
+  TNode<T> ValueInputAs(int index) const {
+    return TNode<T>::UncheckedCast(ValueInput(index));
+  }
+
+  TNode<Object> ValueInputOrNaN(int index) {
+    return TNode<Object>::UncheckedCast(
+        node_ptr()->op()->ValueInputCount() > index
+            ? NodeProperties::GetValueInput(node_, index)
+            : NaNConstant());
+  }
+
+  TNode<Object> ValueInputOrUndefined(int index) {
+    return TNode<Object>::UncheckedCast(
+        node_ptr()->op()->ValueInputCount() > index
+            ? NodeProperties::GetValueInput(node_, index)
+            : UndefinedConstant());
+  }
+
+  TNode<Context> ContextInput() const {
+    return TNode<Context>::UncheckedCast(
+        NodeProperties::GetContextInput(node_));
+  }
+
+  FrameState FrameStateInput() const {
+    return FrameState(NodeProperties::GetFrameStateInput(node_));
+  }
+
+  JSOperatorBuilder* javascript() const { return jsgraph()->javascript(); }
+
+ private:
+  Node* const node_;
+
+  bool has_external_exception_handler_;
+  Node* external_exception_handler_;
+  NodeVector if_exception_nodes_;
+};
+
+enum class ArrayReduceDirection { kLeft, kRight };
+
+// This subclass bundles functionality specific to reducing iterating array
+// builtins.
+class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
+ public:
+  IteratingArrayBuiltinReducerAssembler(JSGraph* jsgraph, Zone* zone,
+                                        Node* node)
+      : JSCallReducerAssembler(jsgraph, zone, node) {
+    DCHECK(FLAG_turbo_inline_array_builtins);
+  }
+
+  TNode<Object> ReduceArrayPrototypeForEach(
+      MapInference* inference, const bool has_stability_dependency,
+      ElementsKind kind, const SharedFunctionInfoRef& shared);
+  TNode<Object> ReduceArrayPrototypeReduce(MapInference* inference,
+                                           const bool has_stability_dependency,
+                                           ElementsKind kind,
+                                           ArrayReduceDirection direction,
+                                           const SharedFunctionInfoRef& shared);
+  TNode<JSArray> ReduceArrayPrototypeMap(
+      MapInference* inference, const bool has_stability_dependency,
+      ElementsKind kind, const SharedFunctionInfoRef& shared,
+      const NativeContextRef& native_context);
+
+  void ThrowIfNotCallable(TNode<Object> maybe_callable,
+                          FrameState frame_state) {
+    IfNot(ObjectIsCallable(maybe_callable))
+        .Then(_ {
+          JSCallRuntime2(Runtime::kThrowTypeError,
+                         NumberConstant(static_cast<double>(
+                             MessageTemplate::kCalledNonCallable)),
+                         maybe_callable, frame_state);
+
+          Unreachable();  // The runtime call throws unconditionally.
+        })
+        .ExpectTrue()
+        .Build();
+  }
+
+  // Returns {index,value}. Assumes that the map has not changed, but possibly
+  // the length and backing store.
+  std::pair<TNode<Number>, TNode<Object>> SafeLoadElement(ElementsKind kind,
+                                                          TNode<JSArray> o,
+                                                          TNode<Number> index) {
+    // Make sure that the access is still in bounds, since the callback could
+    // have changed the array's size.
+    TNode<Number> length = LoadJSArrayLength(o, kind);
+    index = CheckBounds(index, length);
+
+    // Reload the elements pointer before calling the callback, since the
+    // previous callback might have resized the array causing the elements
+    // buffer to be re-allocated.
+    TNode<HeapObject> elements =
+        LoadField<HeapObject>(AccessBuilder::ForJSObjectElements(), o);
+    TNode<Object> value = LoadElement<Object>(
+        AccessBuilder::ForFixedArrayElement(kind, LoadSensitivity::kCritical),
+        elements, index);
+    return std::make_pair(index, value);
+  }
+
+  template <typename... Vars>
+  TNode<Object> MaybeSkipHole(
+      TNode<Object> o, ElementsKind kind,
+      GraphAssemblerLabel<sizeof...(Vars)>* continue_label, Vars... vars) {
+    if (!IsHoleyElementsKind(kind)) return o;
+
+    // TODO(jgruber): Currently we just assume all merge variables to have a
+    // tagged representation.
+    auto if_not_hole = GraphAssemblerLabel<sizeof...(Vars)>(
+        GraphAssemblerLabelType::kNonDeferred, NewBasicBlock(false),
+        MachineRepresentation::kTagged);
+    BranchWithHint(HoleCheck(kind, o), continue_label, &if_not_hole,
+                   BranchHint::kFalse, vars...);
+
+    // The contract is that we don't leak "the hole" into "user JavaScript",
+    // so we must rename the {element} here to explicitly exclude "the hole"
+    // from the type of {element}.
+    Bind(&if_not_hole);
+    return TypeGuardNonInternal(o);
+  }
+
+  TNode<Smi> LoadJSArrayLength(TNode<JSArray> array, ElementsKind kind) {
+    return LoadField<Smi>(AccessBuilder::ForJSArrayLength(kind), array);
+  }
+
+  TNode<Boolean> HoleCheck(ElementsKind kind, TNode<Object> v) {
+    return IsDoubleElementsKind(kind)
+               ? NumberIsFloat64Hole(TNode<Number>::UncheckedCast(v))
+               : IsTheHole(v);
+  }
+};
+
+TNode<Number> JSCallReducerAssembler::SpeculativeToNumber(
+    TNode<Object> value, NumberOperationHint hint) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->SpeculativeToNumber(hint, feedback()),
+                       value, effect(), control()));
+}
+
+TNode<Smi> JSCallReducerAssembler::CheckSmi(TNode<Object> value) {
+  return AddNode<Smi>(graph()->NewNode(simplified()->CheckSmi(feedback()),
+                                       value, effect(), control()));
+}
+
+TNode<String> JSCallReducerAssembler::CheckString(TNode<Object> value) {
+  return AddNode<String>(graph()->NewNode(simplified()->CheckString(feedback()),
+                                          value, effect(), control()));
+}
+
+TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Number> value,
+                                                  TNode<Number> limit) {
+  return AddNode<Number>(graph()->NewNode(simplified()->CheckBounds(feedback()),
+                                          value, limit, effect(), control()));
+}
+
+TNode<Smi> JSCallReducerAssembler::TypeGuardUnsignedSmall(TNode<Object> value) {
+  return TNode<Smi>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), value));
+}
+
+TNode<Object> JSCallReducerAssembler::TypeGuardNonInternal(
+    TNode<Object> value) {
+  return TNode<Object>::UncheckedCast(TypeGuard(Type::NonInternal(), value));
+}
+
+TNode<Object> JSCallReducerAssembler::JSCall3(
+    TNode<Object> function, TNode<Object> this_arg, TNode<Object> arg0,
+    TNode<Object> arg1, TNode<Object> arg2, FrameState frame_state) {
+  CallParameters const& p = CallParametersOf(node_ptr()->op());
+  return MayThrow(_ {
+    return AddNode<Object>(graph()->NewNode(
+        javascript()->Call(5, p.frequency(), p.feedback(),
+                           ConvertReceiverMode::kAny, p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        function, this_arg, arg0, arg1, arg2, ContextInput(), frame_state,
+        effect(), control()));
+  });
+}
+
+TNode<Object> JSCallReducerAssembler::JSCall4(
+    TNode<Object> function, TNode<Object> this_arg, TNode<Object> arg0,
+    TNode<Object> arg1, TNode<Object> arg2, TNode<Object> arg3,
+    FrameState frame_state) {
+  CallParameters const& p = CallParametersOf(node_ptr()->op());
+  return MayThrow(_ {
+    return AddNode<Object>(graph()->NewNode(
+        javascript()->Call(6, p.frequency(), p.feedback(),
+                           ConvertReceiverMode::kAny, p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        function, this_arg, arg0, arg1, arg2, arg3, ContextInput(), frame_state,
+        effect(), control()));
+  });
+}
+
+TNode<Object> JSCallReducerAssembler::JSCallRuntime2(
+    Runtime::FunctionId function_id, TNode<Object> arg0, TNode<Object> arg1,
+    FrameState frame_state) {
+  return MayThrow(_ {
+    return AddNode<Object>(
+        graph()->NewNode(javascript()->CallRuntime(function_id, 2), arg0, arg1,
+                         ContextInput(), frame_state, effect(), control()));
+  });
+}
+
+TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(TNode<Object> ctor,
+                                                          TNode<Number> size) {
+  return AddNode<JSArray>(graph()->NewNode(
+      javascript()->CreateArray(1, MaybeHandle<AllocationSite>()), ctor, ctor,
+      size, ContextInput(), FrameStateInput(), effect(), control()));
+}
+
+std::tuple<Node*, Node*, Node*>
+JSCallReducerAssembler::MergeExceptionalPaths() {
+  DCHECK(has_external_exception_handler());
+  DCHECK(SubgraphContainsExceptionalControlFlow());
+
+  const int size = static_cast<int>(if_exception_nodes_.size());
+
+  if (size == 1) {
+    // No merge needed.
+    Node* e = if_exception_nodes_[0];
+    return std::make_tuple(e, e, e);
+  }
+
+  Node* merge = graph()->NewNode(common()->Merge(size),
+                                 static_cast<int>(if_exception_nodes_.size()),
+                                 if_exception_nodes_.data());
+
+  // These phis additionally take {merge} as an input. Temporarily add it to the
+  // list.
+  if_exception_nodes_.push_back(merge);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(size),
+                                static_cast<int>(if_exception_nodes_.size()),
+                                if_exception_nodes_.data());
+  Node* phi = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, size),
+      static_cast<int>(if_exception_nodes_.size()), if_exception_nodes_.data());
+  if_exception_nodes_.pop_back();
+
+  return std::make_tuple(phi, ephi, merge);
+}
+
+TNode<Object> JSCallReducerAssembler::ReduceMathUnary(const Operator* op) {
+  TNode<Object> input = ValueInput(2);
+  TNode<Number> input_as_number = SpeculativeToNumber(input);
+  return TNode<Object>::UncheckedCast(graph()->NewNode(op, input_as_number));
+}
+
+TNode<Object> JSCallReducerAssembler::ReduceMathBinary(const Operator* op) {
+  TNode<Object> left = ValueInput(2);
+  TNode<Object> right = ValueInputOrNaN(3);
+  TNode<Number> left_number = SpeculativeToNumber(left);
+  TNode<Number> right_number = SpeculativeToNumber(right);
+  return TNode<Object>::UncheckedCast(
+      graph()->NewNode(op, left_number, right_number));
+}
+
+TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSubstring() {
+  TNode<Object> receiver = ValueInput(1);
+  TNode<Object> start = ValueInput(2);
+  TNode<Object> end = ValueInputOrUndefined(3);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> start_smi = CheckSmi(start);
+
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> end_smi = SelectIf<Number>(IsUndefined(end))
+                              .Then(_ { return length; })
+                              .Else(_ { return CheckSmi(end); })
+                              .ExpectFalse()
+                              .Value();
+
+  TNode<Number> zero = TNode<Number>::UncheckedCast(ZeroConstant());
+  TNode<Number> finalStart = NumberMin(NumberMax(start_smi, zero), length);
+  TNode<Number> finalEnd = NumberMin(NumberMax(end_smi, zero), length);
+  TNode<Number> from = NumberMin(finalStart, finalEnd);
+  TNode<Number> to = NumberMax(finalStart, finalEnd);
+
+  return StringSubstring(receiver_string, from, to);
+}
+
+TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
+  TNode<Object> receiver = ValueInput(1);
+  TNode<Object> start = ValueInput(2);
+  TNode<Object> end = ValueInputOrUndefined(3);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> start_smi = CheckSmi(start);
+
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> end_smi = SelectIf<Number>(IsUndefined(end))
+                              .Then(_ { return length; })
+                              .Else(_ { return CheckSmi(end); })
+                              .ExpectFalse()
+                              .Value();
+
+  TNode<Number> zero = TNode<Number>::UncheckedCast(ZeroConstant());
+  TNode<Number> from_untyped =
+      SelectIf<Number>(NumberLessThan(start_smi, zero))
+          .Then(_ { return NumberMax(NumberAdd(length, start_smi), zero); })
+          .Else(_ { return NumberMin(start_smi, length); })
+          .ExpectFalse()
+          .Value();
+  // {from} is always in non-negative Smi range, but our typer cannot figure
+  // that out yet.
+  TNode<Smi> from = TypeGuardUnsignedSmall(from_untyped);
+
+  TNode<Number> to_untyped =
+      SelectIf<Number>(NumberLessThan(end_smi, zero))
+          .Then(_ { return NumberMax(NumberAdd(length, end_smi), zero); })
+          .Else(_ { return NumberMin(end_smi, length); })
+          .ExpectFalse()
+          .Value();
+  // {to} is always in non-negative Smi range, but our typer cannot figure that
+  // out yet.
+  TNode<Smi> to = TypeGuardUnsignedSmall(to_untyped);
+
+  return SelectIf<String>(NumberLessThan(from, to))
+      .Then(_ { return StringSubstring(receiver_string, from, to); })
+      .Else(_ { return EmptyStringConstant(); })
+      .ExpectTrue()
+      .Value();
+}
+
+namespace {
+
+struct ForEachFrameStateParams {
+  JSGraph* jsgraph;
+  SharedFunctionInfoRef shared;
+  TNode<Context> context;
+  TNode<Object> target;
+  FrameState outer_frame_state;
+  TNode<Object> receiver;
+  TNode<Object> callback;
+  TNode<Object> this_arg;
+  TNode<Object> original_length;
+};
+
+FrameState ForEachLoopLazyFrameState(const ForEachFrameStateParams& params,
+                                     TNode<Object> k) {
+  Builtins::Name builtin = Builtins::kArrayForEachLoopLazyDeoptContinuation;
+  Node* checkpoint_params[] = {params.receiver, params.callback,
+                               params.this_arg, k, params.original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::LAZY));
+}
+
+FrameState ForEachLoopEagerFrameState(const ForEachFrameStateParams& params,
+                                      TNode<Object> k) {
+  Builtins::Name builtin = Builtins::kArrayForEachLoopEagerDeoptContinuation;
+  Node* checkpoint_params[] = {params.receiver, params.callback,
+                               params.this_arg, k, params.original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::EAGER));
+}
+
+}  // namespace
+
+TNode<Object>
+IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
+    MapInference* inference, const bool has_stability_dependency,
+    ElementsKind kind, const SharedFunctionInfoRef& shared) {
+  FrameState outer_frame_state = FrameStateInput();
+  TNode<Context> context = ContextInput();
+  TNode<Object> target = ValueInput(0);
+  TNode<JSArray> receiver = ValueInputAs<JSArray>(1);
+  TNode<Object> fncallback = ValueInputOrUndefined(2);
+  TNode<Object> this_arg = ValueInputOrUndefined(3);
+
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
+
+  ForEachFrameStateParams frame_state_params{
+      jsgraph(), shared,     context,  target,         outer_frame_state,
+      receiver,  fncallback, this_arg, original_length};
+
+  ThrowIfNotCallable(fncallback, ForEachLoopLazyFrameState(frame_state_params,
+                                                           ZeroConstant()));
+
+  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+    Checkpoint(ForEachLoopEagerFrameState(frame_state_params, k));
+
+    // Deopt if the map has changed during the iteration.
+    MaybeInsertMapChecks(inference, has_stability_dependency);
+
+    TNode<Object> element;
+    std::tie(k, element) = SafeLoadElement(kind, receiver, k);
+
+    auto continue_label = MakeLabel();
+    element = MaybeSkipHole(element, kind, &continue_label);
+
+    TNode<Number> next_k = NumberAdd(k, OneConstant());
+    JSCall3(fncallback, this_arg, element, k, receiver,
+            ForEachLoopLazyFrameState(frame_state_params, next_k));
+
+    Goto(&continue_label);
+    Bind(&continue_label);
+  });
+
+  return UndefinedConstant();
+}
+
+namespace {
+
+struct ReduceFrameStateParams {
+  JSGraph* jsgraph;
+  SharedFunctionInfoRef shared;
+  ArrayReduceDirection direction;
+  TNode<Context> context;
+  TNode<Object> target;
+  FrameState outer_frame_state;
+};
+
+FrameState ReducePreLoopLazyFrameState(const ReduceFrameStateParams& params,
+                                       TNode<Object> receiver,
+                                       TNode<Object> callback, TNode<Object> k,
+                                       TNode<Number> original_length) {
+  Builtins::Name builtin =
+      (params.direction == ArrayReduceDirection::kLeft)
+          ? Builtins::kArrayReduceLoopLazyDeoptContinuation
+          : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
+  Node* checkpoint_params[] = {receiver, callback, k, original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::LAZY));
+}
+
+FrameState ReducePreLoopEagerFrameState(const ReduceFrameStateParams& params,
+                                        TNode<Object> receiver,
+                                        TNode<Object> callback,
+                                        TNode<Number> original_length) {
+  Builtins::Name builtin =
+      (params.direction == ArrayReduceDirection::kLeft)
+          ? Builtins::kArrayReducePreLoopEagerDeoptContinuation
+          : Builtins::kArrayReduceRightPreLoopEagerDeoptContinuation;
+  Node* checkpoint_params[] = {receiver, callback, original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::EAGER));
+}
+
+FrameState ReduceLoopLazyFrameState(const ReduceFrameStateParams& params,
+                                    TNode<Object> receiver,
+                                    TNode<Object> callback, TNode<Object> k,
+                                    TNode<Number> original_length) {
+  Builtins::Name builtin =
+      (params.direction == ArrayReduceDirection::kLeft)
+          ? Builtins::kArrayReduceLoopLazyDeoptContinuation
+          : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
+  Node* checkpoint_params[] = {receiver, callback, k, original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::LAZY));
+}
+
+FrameState ReduceLoopEagerFrameState(const ReduceFrameStateParams& params,
+                                     TNode<Object> receiver,
+                                     TNode<Object> callback, TNode<Object> k,
+                                     TNode<Number> original_length,
+                                     TNode<Object> accumulator) {
+  Builtins::Name builtin =
+      (params.direction == ArrayReduceDirection::kLeft)
+          ? Builtins::kArrayReduceLoopEagerDeoptContinuation
+          : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
+  Node* checkpoint_params[] = {receiver, callback, k, original_length,
+                               accumulator};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared, builtin, params.target, params.context,
+      checkpoint_params, arraysize(checkpoint_params), params.outer_frame_state,
+      ContinuationFrameStateMode::EAGER));
+}
+
+}  // namespace
+
+TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeReduce(
+    MapInference* inference, const bool has_stability_dependency,
+    ElementsKind kind, ArrayReduceDirection direction,
+    const SharedFunctionInfoRef& shared) {
+  FrameState outer_frame_state = FrameStateInput();
+  TNode<Context> context = ContextInput();
+  TNode<Object> target = ValueInput(0);
+  TNode<JSArray> receiver = ValueInputAs<JSArray>(1);
+  TNode<Object> fncallback = ValueInputOrUndefined(2);
+
+  ReduceFrameStateParams frame_state_params{
+      jsgraph(), shared, direction, context, target, outer_frame_state};
+
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
+
+  // Set up variable behavior depending on the reduction kind (left/right).
+  TNode<Number> k;
+  StepFunction1 step;
+  ConditionFunction1 cond;
+  TNode<Number> zero = ZeroConstant();
+  TNode<Number> one = OneConstant();
+  if (direction == ArrayReduceDirection::kLeft) {
+    k = zero;
+    step = [&](TNode<Number> i) { return NumberAdd(i, one); };
+    cond = [&](TNode<Number> i) { return NumberLessThan(i, original_length); };
+  } else {
+    k = NumberSubtract(original_length, one);
+    step = [&](TNode<Number> i) { return NumberSubtract(i, one); };
+    cond = [&](TNode<Number> i) { return NumberLessThanOrEqual(zero, i); };
+  }
+
+  ThrowIfNotCallable(
+      fncallback, ReducePreLoopLazyFrameState(frame_state_params, receiver,
+                                              fncallback, k, original_length));
+
+  // Set initial accumulator value.
+  TNode<Object> accumulator;
+  if (node_ptr()->op()->ValueInputCount() > 3) {
+    accumulator = ValueInput(3);  // Initial value specified by the user.
+  } else {
+    // The initial value was not specified by the user. In this case, the first
+    // (or last in the case of reduceRight) non-holey value of the array is
+    // used. Loop until we find it. If not found, trigger a deopt.
+    // TODO(jgruber): The deopt does not seem necessary. Instead we could simply
+    // throw the TypeError here from optimized code.
+    auto found_initial_element = MakeLabel(MachineRepresentation::kTagged,
+                                           MachineRepresentation::kTagged);
+    Forever(k, step).Do([&](TNode<Number> k) {
+      Checkpoint(ReducePreLoopEagerFrameState(frame_state_params, receiver,
+                                              fncallback, original_length));
+      CheckIf(cond(k), DeoptimizeReason::kNoInitialElement);
+
+      TNode<Object> element;
+      std::tie(k, element) = SafeLoadElement(kind, receiver, k);
+
+      GotoIfNot(HoleCheck(kind, element), &found_initial_element, k, element);
+    });
+    Unreachable();  // The loop is exited either by deopt or a jump to below.
+    InitializeEffectControl(nullptr, nullptr);
+
+    // TODO(jgruber): This manual fiddling with blocks could be avoided by
+    // implementing a `break` mechanic for loop builders.
+    Bind(&found_initial_element);
+    k = step(found_initial_element.PhiAt<Number>(0));
+    accumulator = found_initial_element.PhiAt<Object>(1);
+    accumulator = TypeGuardNonInternal(accumulator);
+  }
+
+  TNode<Object> result =
+      For1(k, cond, step, accumulator)
+          .Do([&](TNode<Number> k, TNode<Object>* accumulator) {
+            Checkpoint(ReduceLoopEagerFrameState(frame_state_params, receiver,
+                                                 fncallback, k, original_length,
+                                                 *accumulator));
+
+            // Deopt if the map has changed during the iteration.
+            MaybeInsertMapChecks(inference, has_stability_dependency);
+
+            TNode<Object> element;
+            std::tie(k, element) = SafeLoadElement(kind, receiver, k);
+
+            auto continue_label = MakeLabel(MachineRepresentation::kTagged);
+            element =
+                MaybeSkipHole(element, kind, &continue_label, *accumulator);
+
+            TNode<Number> next_k = step(k);
+            TNode<Object> next_accumulator = JSCall4(
+                fncallback, UndefinedConstant(), *accumulator, element, k,
+                receiver,
+                ReduceLoopLazyFrameState(frame_state_params, receiver,
+                                         fncallback, next_k, original_length));
+            Goto(&continue_label, next_accumulator);
+
+            Bind(&continue_label);
+            *accumulator = continue_label.PhiAt<Object>(0);
+          })
+          .Value();
+
+  return result;
+}
+
+namespace {
+
+struct MapFrameStateParams {
+  JSGraph* jsgraph;
+  SharedFunctionInfoRef shared;
+  TNode<Context> context;
+  TNode<Object> target;
+  FrameState outer_frame_state;
+  TNode<Object> receiver;
+  TNode<Object> callback;
+  TNode<Object> this_arg;
+  TNode<JSArray> a;
+  TNode<Object> original_length;
+};
+
+FrameState MapLoopLazyFrameState(const MapFrameStateParams& params,
+                                 TNode<Number> k) {
+  Node* checkpoint_params[] = {
+      params.receiver,       params.callback, params.this_arg, params.a, k,
+      params.original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtins::kArrayMapLoopLazyDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::LAZY));
+}
+
+FrameState MapLoopEagerFrameState(const MapFrameStateParams& params,
+                                  TNode<Number> k) {
+  Node* checkpoint_params[] = {
+      params.receiver,       params.callback, params.this_arg, params.a, k,
+      params.original_length};
+  return FrameState(CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtins::kArrayMapLoopEagerDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::EAGER));
+}
+
+}  // namespace
+
+TNode<JSArray> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeMap(
+    MapInference* inference, const bool has_stability_dependency,
+    ElementsKind kind, const SharedFunctionInfoRef& shared,
+    const NativeContextRef& native_context) {
+  FrameState outer_frame_state = FrameStateInput();
+  TNode<Context> context = ContextInput();
+  TNode<Object> target = ValueInput(0);
+  TNode<JSArray> receiver = ValueInputAs<JSArray>(1);
+  TNode<Object> fncallback = ValueInputOrUndefined(2);
+  TNode<Object> this_arg = ValueInputOrUndefined(3);
+
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
+
+  // If the array length >= kMaxFastArrayLength, then CreateArray
+  // will create a dictionary. We should deopt in this case, and make sure
+  // not to attempt inlining again.
+  original_length = CheckBounds(original_length,
+                                NumberConstant(JSArray::kMaxFastArrayLength));
+
+  // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
+  // exceptional projections because it cannot throw with the given
+  // parameters.
+  TNode<Object> array_ctor =
+      Constant(native_context.GetInitialJSArrayMap(kind).GetConstructor());
+  TNode<JSArray> a = CreateArrayNoThrow(array_ctor, original_length);
+
+  MapFrameStateParams frame_state_params{
+      jsgraph(), shared,     context,  target, outer_frame_state,
+      receiver,  fncallback, this_arg, a,      original_length};
+
+  ThrowIfNotCallable(fncallback,
+                     MapLoopLazyFrameState(frame_state_params, ZeroConstant()));
+
+  ForSmiZeroUntil(original_length).Do([&](TNode<Number> k) {
+    Checkpoint(MapLoopEagerFrameState(frame_state_params, k));
+    MaybeInsertMapChecks(inference, has_stability_dependency);
+
+    TNode<Object> element;
+    std::tie(k, element) = SafeLoadElement(kind, receiver, k);
+
+    auto continue_label = MakeLabel();
+    element = MaybeSkipHole(element, kind, &continue_label);
+
+    TNode<Object> v = JSCall3(fncallback, this_arg, element, k, receiver,
+                              MapLoopLazyFrameState(frame_state_params, k));
+
+    // The array {a} should be HOLEY_SMI_ELEMENTS because we'd only come into
+    // this loop if the input array length is non-zero, and "new Array({x > 0})"
+    // always produces a HOLEY array.
+    MapRef holey_double_map =
+        native_context.GetInitialJSArrayMap(HOLEY_DOUBLE_ELEMENTS);
+    MapRef holey_map = native_context.GetInitialJSArrayMap(HOLEY_ELEMENTS);
+    TransitionAndStoreElement(holey_double_map, holey_map, a, k, v);
+
+    Goto(&continue_label);
+    Bind(&continue_label);
+  });
+
+  return a;
+}
+
+#undef _
+
+Reduction JSCallReducer::ReplaceWithSubgraph(JSCallReducerAssembler* gasm,
+                                             Node* subgraph) {
+  // TODO(jgruber): Consider a less fiddly way of integrating the new subgraph
+  // into the outer graph. For instance, the subgraph could be created in
+  // complete isolation, and then plugged into the outer graph in one go.
+  // Instead of manually tracking IfException nodes, we could iterate the
+  // subgraph.
+
+  // Replace the Call node with the newly-produced subgraph.
+  ReplaceWithValue(gasm->node_ptr(), subgraph, gasm->effect(), gasm->control());
+
+  // Wire exception edges contained in the newly-produced subgraph into the
+  // outer graph.
+  if (gasm->has_external_exception_handler() &&
+      gasm->SubgraphContainsExceptionalControlFlow()) {
+    Node* v;
+    Node* e;
+    Node* c;
+    std::tie(v, e, c) = gasm->MergeExceptionalPaths();
+
+    ReplaceWithValue(gasm->external_exception_handler(), v, e, c);
+  }
+
+  return Replace(subgraph);
+}
+
 Reduction JSCallReducer::ReduceMathUnary(Node* node, const Operator* op) {
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -47,17 +1134,9 @@ Reduction JSCallReducer::ReduceMathUnary(Node* node, const Operator* op) {
     return Replace(value);
   }
 
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* input = NodeProperties::GetValueInput(node, 2);
-
-  input = effect =
-      graph()->NewNode(simplified()->SpeculativeToNumber(
-                           NumberOperationHint::kNumberOrOddball, p.feedback()),
-                       input, effect, control);
-  Node* value = graph()->NewNode(op, input);
-  ReplaceWithValue(node, value, effect);
-  return Replace(value);
+  JSCallReducerAssembler a(jsgraph(), temp_zone(), node);
+  Node* subgraph = a.ReduceMathUnary(op);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceMathBinary(Node* node, const Operator* op) {
@@ -70,24 +1149,10 @@ Reduction JSCallReducer::ReduceMathBinary(Node* node, const Operator* op) {
     ReplaceWithValue(node, value);
     return Replace(value);
   }
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
-  Node* left = NodeProperties::GetValueInput(node, 2);
-  Node* right = node->op()->ValueInputCount() > 3
-                    ? NodeProperties::GetValueInput(node, 3)
-                    : jsgraph()->NaNConstant();
-  left = effect =
-      graph()->NewNode(simplified()->SpeculativeToNumber(
-                           NumberOperationHint::kNumberOrOddball, p.feedback()),
-                       left, effect, control);
-  right = effect =
-      graph()->NewNode(simplified()->SpeculativeToNumber(
-                           NumberOperationHint::kNumberOrOddball, p.feedback()),
-                       right, effect, control);
-  Node* value = graph()->NewNode(op, left, right);
-  ReplaceWithValue(node, value, effect);
-  return Replace(value);
+  JSCallReducerAssembler a(jsgraph(), temp_zone(), node);
+  Node* subgraph = a.ReduceMathBinary(op);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 // ES6 section 20.2.2.19 Math.imul ( x, y )
@@ -314,8 +1379,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       while (arity-- > 3) node->RemoveInput(3);
 
       // Morph the {node} to a {JSCallWithArrayLike}.
-      NodeProperties::ChangeOp(node,
-                               javascript()->CallWithArrayLike(p.frequency()));
+      NodeProperties::ChangeOp(
+          node, javascript()->CallWithArrayLike(
+                    p.frequency(), p.feedback(), p.speculation_mode(),
+                    CallFeedbackRelation::kUnrelated));
       Reduction const reduction = ReduceJSCallWithArrayLike(node);
       return reduction.Changed() ? reduction : Changed(node);
     } else {
@@ -342,8 +1409,11 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       Node* effect0 = effect;
       Node* control0 = control;
       Node* value0 = effect0 = control0 = graph()->NewNode(
-          javascript()->CallWithArrayLike(p.frequency()), target, this_argument,
-          arguments_list, context, frame_state, effect0, control0);
+          javascript()->CallWithArrayLike(p.frequency(), p.feedback(),
+                                          p.speculation_mode(),
+                                          CallFeedbackRelation::kUnrelated),
+          target, this_argument, arguments_list, context, frame_state, effect0,
+          control0);
 
       // Lower to {JSCall} if {arguments_list} is either null or undefined.
       Node* effect1 = effect;
@@ -387,14 +1457,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     }
   }
   // Change {node} to the new {JSCall} operator.
-  // TODO(mslekova): Since this introduces a Call that will get optimized by
-  // the JSCallReducer, we basically might have to do all the serialization
-  // that we do for that here as well. The only difference is that here we
-  // disable speculation (cf. the empty FeedbackSource above), causing the
-  // JSCallReducer to do much less work. We should revisit this later.
   NodeProperties::ChangeOp(
-      node,
-      javascript()->Call(arity, p.frequency(), FeedbackSource(), convert_mode));
+      node, javascript()->Call(arity, p.frequency(), p.feedback(), convert_mode,
+                               p.speculation_mode(),
+                               CallFeedbackRelation::kUnrelated));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -569,8 +1635,9 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
     --arity;
   }
   NodeProperties::ChangeOp(
-      node,
-      javascript()->Call(arity, p.frequency(), FeedbackSource(), convert_mode));
+      node, javascript()->Call(arity, p.frequency(), p.feedback(), convert_mode,
+                               p.speculation_mode(),
+                               CallFeedbackRelation::kUnrelated));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -801,8 +1868,10 @@ Reduction JSCallReducer::ReduceReflectApply(Node* node) {
   while (arity-- > 3) {
     node->RemoveInput(arity);
   }
-  NodeProperties::ChangeOp(node,
-                           javascript()->CallWithArrayLike(p.frequency()));
+  NodeProperties::ChangeOp(
+      node, javascript()->CallWithArrayLike(p.frequency(), p.feedback(),
+                                            p.speculation_mode(),
+                                            CallFeedbackRelation::kUnrelated));
   Reduction const reduction = ReduceJSCallWithArrayLike(node);
   return reduction.Changed() ? reduction : Changed(node);
 }
@@ -1068,628 +2137,120 @@ bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
   }
   return true;
 }
+
+// Wraps common setup code for iterating array builtins.
+class IteratingArrayBuiltinHelper {
+ public:
+  IteratingArrayBuiltinHelper(Node* node, JSHeapBroker* broker,
+                              JSGraph* jsgraph,
+                              CompilationDependencies* dependencies)
+      : disallow_heap_access_(FLAG_concurrent_inlining),
+        receiver_(NodeProperties::GetValueInput(node, 1)),
+        effect_(NodeProperties::GetEffectInput(node)),
+        control_(NodeProperties::GetControlInput(node)),
+        inference_(broker, receiver_, effect_) {
+    if (!FLAG_turbo_inline_array_builtins) return;
+
+    DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+    const CallParameters& p = CallParametersOf(node->op());
+    if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+      return;
+    }
+
+    // Try to determine the {receiver} map.
+    if (!inference_.HaveMaps()) return;
+    MapHandles const& receiver_maps = inference_.GetMaps();
+
+    if (!CanInlineArrayIteratingBuiltin(broker, receiver_maps,
+                                        &elements_kind_)) {
+      return;
+    }
+
+    // TODO(jgruber): May only be needed for holey elements kinds.
+    if (!dependencies->DependOnNoElementsProtector()) UNREACHABLE();
+    has_stability_dependency_ = inference_.RelyOnMapsPreferStability(
+        dependencies, jsgraph, &effect_, control_, p.feedback());
+
+    can_reduce_ = true;
+  }
+
+  bool can_reduce() const { return can_reduce_; }
+  bool has_stability_dependency() const { return has_stability_dependency_; }
+  Node* effect() const { return effect_; }
+  Node* control() const { return control_; }
+  MapInference* inference() { return &inference_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
+
+ private:
+  DisallowHeapAccessIf disallow_heap_access_;
+  bool can_reduce_ = false;
+  bool has_stability_dependency_ = false;
+  Node* receiver_;
+  Node* effect_;
+  Node* control_;
+  MapInference inference_;
+  ElementsKind elements_kind_;
+};
+
 }  // namespace
 
 Reduction JSCallReducer::ReduceArrayForEach(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-
-  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* fncallback = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
-  Node* this_arg = node->op()->ValueInputCount() > 3
-                       ? NodeProperties::GetValueInput(node, 3)
-                       : jsgraph()->UndefinedConstant();
-
-  // Try to determine the {receiver} map.
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  ElementsKind kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return inference.NoChange();
-  }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-  bool const stability_dependency = inference.RelyOnMapsPreferStability(
-      dependencies(), jsgraph(), &effect, control, p.feedback());
-
-  Node* k = jsgraph()->ZeroConstant();
-  Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-
-  Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
-                               original_length};
-  const int stack_parameters = arraysize(checkpoint_params);
-
-  // Check whether the given callback function is callable. Note that this has
-  // to happen outside the loop to make sure we also throw on empty arrays.
-  Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kArrayForEachLoopLazyDeoptContinuation,
-      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-      outer_frame_state, ContinuationFrameStateMode::LAZY);
-  Node* check_fail = nullptr;
-  Node* check_throw = nullptr;
-  WireInCallbackIsCallableCheck(fncallback, context, check_frame_state, effect,
-                                &control, &check_fail, &check_throw);
-
-  // Start the loop.
-  Node* vloop = k = WireInLoopStart(k, &control, &effect);
-  Node *loop = control, *eloop = effect;
-  checkpoint_params[3] = k;
-
-  Node* continue_test =
-      graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                           continue_test, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
-  control = if_true;
-
-  {
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArrayForEachLoopEagerDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::EAGER);
-    effect =
-        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-  }
-
-  // Deopt if the map has changed during the iteration.
-  if (!stability_dependency) {
-    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
-  }
-
-  Node* element =
-      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-  Node* next_k =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
-
-  checkpoint_params[3] = next_k;
-
-  Node* hole_true = nullptr;
-  Node* hole_false = nullptr;
-  Node* effect_true = effect;
-
-  if (IsHoleyElementsKind(kind)) {
-    // Holey elements kind require a hole check and skipping of the element in
-    // the case of a hole.
-    Node* check;
-    if (IsDoubleElementsKind(kind)) {
-      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-    } else {
-      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                               jsgraph()->TheHoleConstant());
-    }
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-    hole_true = graph()->NewNode(common()->IfTrue(), branch);
-    hole_false = graph()->NewNode(common()->IfFalse(), branch);
-    control = hole_false;
-
-    // The contract is that we don't leak "the hole" into "user JavaScript",
-    // so we must rename the {element} here to explicitly exclude "the hole"
-    // from the type of {element}.
-    element = effect = graph()->NewNode(
-        common()->TypeGuard(Type::NonInternal()), element, effect, control);
-  }
-
-  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kArrayForEachLoopLazyDeoptContinuation,
-      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-      outer_frame_state, ContinuationFrameStateMode::LAZY);
-
-  control = effect = graph()->NewNode(
-      javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
-      receiver, context, frame_state, effect, control);
-
-  // Rewire potential exception edges.
-  Node* on_exception = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
-                                     &check_fail, &control);
-  }
-
-  if (IsHoleyElementsKind(kind)) {
-    Node* after_call_control = control;
-    Node* after_call_effect = effect;
-    control = hole_true;
-    effect = effect_true;
-
-    control = graph()->NewNode(common()->Merge(2), control, after_call_control);
-    effect = graph()->NewNode(common()->EffectPhi(2), effect, after_call_effect,
-                              control);
-  }
-
-  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
-
-  control = if_false;
-  effect = eloop;
-
-  // Introduce proper LoopExit and LoopExitEffect nodes to mark
-  // {loop} as a candidate for loop peeling (crbug.com/v8/8273).
-  control = graph()->NewNode(common()->LoopExit(), control, loop);
-  effect = graph()->NewNode(common()->LoopExitEffect(), effect, control);
-
-  // Wire up the branch for the case when IsCallable fails for the callback.
-  // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the successful
-  // completion to the graph end.
-  Node* throw_node =
-      graph()->NewNode(common()->Throw(), check_throw, check_fail);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-
-  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect, control);
-  return Replace(jsgraph()->UndefinedConstant());
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
+  TNode<Object> subgraph = a.ReduceArrayPrototypeForEach(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceArrayReduce(
-    Node* node, ArrayReduceDirection direction,
-    const SharedFunctionInfoRef& shared) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+    Node* node, const SharedFunctionInfoRef& shared) {
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-  bool left = direction == ArrayReduceDirection::kLeft;
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
+  TNode<Object> subgraph = a.ReduceArrayPrototypeReduce(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(),
+      ArrayReduceDirection::kLeft, shared);
+  return ReplaceWithSubgraph(&a, subgraph);
+}
 
-  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* fncallback = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
+Reduction JSCallReducer::ReduceArrayReduceRight(
+    Node* node, const SharedFunctionInfoRef& shared) {
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  // Try to determine the {receiver} map.
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  ElementsKind kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return inference.NoChange();
-  }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-  bool const stability_dependency = inference.RelyOnMapsPreferStability(
-      dependencies(), jsgraph(), &effect, control, p.feedback());
-
-  Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
-
-  Node* initial_index =
-      left ? jsgraph()->ZeroConstant()
-           : graph()->NewNode(simplified()->NumberSubtract(), original_length,
-                              jsgraph()->OneConstant());
-  const Operator* next_op =
-      left ? simplified()->NumberAdd() : simplified()->NumberSubtract();
-  Node* k = initial_index;
-
-  Node* check_frame_state;
-  {
-    Builtins::Name builtin_lazy =
-        left ? Builtins::kArrayReduceLoopLazyDeoptContinuation
-             : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
-    Node* checkpoint_params[] = {receiver, fncallback, k, original_length,
-                                 jsgraph()->UndefinedConstant()};
-    const int stack_parameters = arraysize(checkpoint_params);
-    check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, builtin_lazy, node->InputAt(0), context,
-        &checkpoint_params[0], stack_parameters - 1, outer_frame_state,
-        ContinuationFrameStateMode::LAZY);
-  }
-  Node* check_fail = nullptr;
-  Node* check_throw = nullptr;
-  // Check whether the given callback function is callable. Note that
-  // this has to happen outside the loop to make sure we also throw on
-  // empty arrays.
-  WireInCallbackIsCallableCheck(fncallback, context, check_frame_state, effect,
-                                &control, &check_fail, &check_throw);
-
-  std::function<Node*(Node*)> hole_check = [this, kind](Node* element) {
-    if (IsDoubleElementsKind(kind)) {
-      return graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-    } else {
-      return graph()->NewNode(simplified()->ReferenceEqual(), element,
-                              jsgraph()->TheHoleConstant());
-    }
-  };
-
-  // Set initial accumulator value
-  Node* cur = jsgraph()->TheHoleConstant();
-
-  if (node->op()->ValueInputCount() > 3) {
-    cur = NodeProperties::GetValueInput(node, 3);
-  } else {
-    // Find first/last non holey element. In case the search fails, we need a
-    // deopt continuation.
-    Builtins::Name builtin_eager =
-        left ? Builtins::kArrayReducePreLoopEagerDeoptContinuation
-             : Builtins::kArrayReduceRightPreLoopEagerDeoptContinuation;
-    Node* checkpoint_params[] = {receiver, fncallback, original_length};
-    const int stack_parameters = arraysize(checkpoint_params);
-    Node* find_first_element_frame_state =
-        CreateJavaScriptBuiltinContinuationFrameState(
-            jsgraph(), shared, builtin_eager, node->InputAt(0), context,
-            &checkpoint_params[0], stack_parameters, outer_frame_state,
-            ContinuationFrameStateMode::EAGER);
-
-    Node* vloop = k = WireInLoopStart(k, &control, &effect);
-    Node* loop = control;
-    Node* eloop = effect;
-    effect = graph()->NewNode(common()->Checkpoint(),
-                              find_first_element_frame_state, effect, control);
-    Node* continue_test =
-        left ? graph()->NewNode(simplified()->NumberLessThan(), k,
-                                original_length)
-             : graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                jsgraph()->ZeroConstant(), k);
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kNoInitialElement),
-        continue_test, effect, control);
-
-    cur = SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-    Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
-
-    Node* hole_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                         hole_check(cur), control);
-    Node* found_el = graph()->NewNode(common()->IfFalse(), hole_branch);
-    control = found_el;
-    Node* is_hole = graph()->NewNode(common()->IfTrue(), hole_branch);
-
-    WireInLoopEnd(loop, eloop, vloop, next_k, is_hole, effect);
-    // We did the hole-check, so exclude hole from the type.
-    cur = effect = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                                    cur, effect, control);
-    k = next_k;
-  }
-
-  // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* kloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
-  Node* curloop = cur = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), cur, cur, loop);
-
-  control = loop;
-  effect = eloop;
-
-  Node* continue_test =
-      left
-          ? graph()->NewNode(simplified()->NumberLessThan(), k, original_length)
-          : graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                             jsgraph()->ZeroConstant(), k);
-
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                           continue_test, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
-  control = if_true;
-
-  {
-    Builtins::Name builtin_eager =
-        left ? Builtins::kArrayReduceLoopEagerDeoptContinuation
-             : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
-    Node* checkpoint_params[] = {receiver, fncallback, k, original_length,
-                                 curloop};
-    const int stack_parameters = arraysize(checkpoint_params);
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, builtin_eager, node->InputAt(0), context,
-        &checkpoint_params[0], stack_parameters, outer_frame_state,
-        ContinuationFrameStateMode::EAGER);
-    effect =
-        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
-  }
-
-  // Deopt if the map has changed during the iteration.
-  if (!stability_dependency) {
-    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
-  }
-
-  Node* element =
-      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-  Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
-
-  Node* hole_true = nullptr;
-  Node* hole_false = nullptr;
-  Node* effect_true = effect;
-
-  if (IsHoleyElementsKind(kind)) {
-    // Holey elements kind require a hole check and skipping of the element in
-    // the case of a hole.
-    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                    hole_check(element), control);
-    hole_true = graph()->NewNode(common()->IfTrue(), branch);
-    hole_false = graph()->NewNode(common()->IfFalse(), branch);
-    control = hole_false;
-
-    // The contract is that we don't leak "the hole" into "user JavaScript",
-    // so we must rename the {element} here to explicitly exclude "the hole"
-    // from the type of {element}.
-    element = effect = graph()->NewNode(
-        common()->TypeGuard(Type::NonInternal()), element, effect, control);
-  }
-
-  Node* next_cur;
-  {
-    Builtins::Name builtin_lazy =
-        left ? Builtins::kArrayReduceLoopLazyDeoptContinuation
-             : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
-    Node* checkpoint_params[] = {receiver, fncallback, next_k, original_length,
-                                 curloop};
-    const int stack_parameters = arraysize(checkpoint_params);
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, builtin_lazy, node->InputAt(0), context,
-        &checkpoint_params[0], stack_parameters - 1, outer_frame_state,
-        ContinuationFrameStateMode::LAZY);
-
-    next_cur = control = effect =
-        graph()->NewNode(javascript()->Call(6, p.frequency()), fncallback,
-                         jsgraph()->UndefinedConstant(), cur, element, k,
-                         receiver, context, frame_state, effect, control);
-  }
-
-  // Rewire potential exception edges.
-  Node* on_exception = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
-                                     &check_fail, &control);
-  }
-
-  if (IsHoleyElementsKind(kind)) {
-    Node* after_call_control = control;
-    Node* after_call_effect = effect;
-    control = hole_true;
-    effect = effect_true;
-
-    control = graph()->NewNode(common()->Merge(2), control, after_call_control);
-    effect = graph()->NewNode(common()->EffectPhi(2), effect, after_call_effect,
-                              control);
-    next_cur =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), cur,
-                         next_cur, control);
-  }
-
-  k = next_k;
-  cur = next_cur;
-
-  loop->ReplaceInput(1, control);
-  kloop->ReplaceInput(1, k);
-  curloop->ReplaceInput(1, cur);
-  eloop->ReplaceInput(1, effect);
-
-  control = if_false;
-  effect = eloop;
-
-  // Wire up the branch for the case when IsCallable fails for the callback.
-  // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the
-  // successful completion to the graph end.
-  Node* throw_node =
-      graph()->NewNode(common()->Throw(), check_throw, check_fail);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-
-  ReplaceWithValue(node, curloop, effect, control);
-  return Replace(curloop);
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
+  TNode<Object> subgraph = a.ReduceArrayPrototypeReduce(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(),
+      ArrayReduceDirection::kRight, shared);
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                         const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
 
-  if (!FLAG_turbo_inline_array_builtins) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
+  // Array.prototype.map calls CreateArray and thus requires this additional
+  // protector dependency.
+  if (!dependencies()->DependOnArraySpeciesProtector()) {
+    return h.inference()->NoChange();
   }
 
-  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* fncallback = node->op()->ValueInputCount() > 2
-                         ? NodeProperties::GetValueInput(node, 2)
-                         : jsgraph()->UndefinedConstant();
-  Node* this_arg = node->op()->ValueInputCount() > 3
-                       ? NodeProperties::GetValueInput(node, 3)
-                       : jsgraph()->UndefinedConstant();
+  IteratingArrayBuiltinReducerAssembler a(jsgraph(), temp_zone(), node);
+  a.InitializeEffectControl(h.effect(), h.control());
 
-  // Try to determine the {receiver} map.
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  ElementsKind kind;
-  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return inference.NoChange();
-  }
-  if (!dependencies()->DependOnArraySpeciesProtector())
-    return inference.NoChange();
-  if (IsHoleyElementsKind(kind)) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-  }
-  bool const stability_dependency = inference.RelyOnMapsPreferStability(
-      dependencies(), jsgraph(), &effect, control, p.feedback());
-
-  Node* array_constructor = jsgraph()->Constant(
-      native_context().GetInitialJSArrayMap(kind).GetConstructor());
-  Node* k = jsgraph()->ZeroConstant();
-  Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-
-  // If the array length >= kMaxFastArrayLength, then CreateArray
-  // will create a dictionary. We should deopt in this case, and make sure
-  // not to attempt inlining again.
-  original_length = effect = graph()->NewNode(
-      simplified()->CheckBounds(p.feedback()), original_length,
-      jsgraph()->Constant(JSArray::kMaxFastArrayLength), effect, control);
-
-  // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
-  // exceptional projections because it cannot throw with the given
-  // parameters.
-  Node* a = control = effect = graph()->NewNode(
-      javascript()->CreateArray(1, MaybeHandle<AllocationSite>()),
-      array_constructor, array_constructor, original_length, context,
-      outer_frame_state, effect, control);
-
-  Node* checkpoint_params[] = {receiver, fncallback, this_arg,
-                               a,        k,          original_length};
-  const int stack_parameters = arraysize(checkpoint_params);
-
-  // Check whether the given callback function is callable. Note that this has
-  // to happen outside the loop to make sure we also throw on empty arrays.
-  Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kArrayMapLoopLazyDeoptContinuation,
-      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-      outer_frame_state, ContinuationFrameStateMode::LAZY);
-  Node* check_fail = nullptr;
-  Node* check_throw = nullptr;
-  WireInCallbackIsCallableCheck(fncallback, context, check_frame_state, effect,
-                                &control, &check_fail, &check_throw);
-
-  // Start the loop.
-  Node* vloop = k = WireInLoopStart(k, &control, &effect);
-  Node *loop = control, *eloop = effect;
-  checkpoint_params[4] = k;
-
-  Node* continue_test =
-      graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                           continue_test, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
-  control = if_true;
-
-  {
-    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), shared, Builtins::kArrayMapLoopEagerDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::EAGER);
-    effect =
-        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-  }
-
-  // Deopt if the map has changed during the iteration.
-  if (!stability_dependency) {
-    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
-  }
-
-  Node* element =
-      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-  Node* next_k =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
-
-  Node* hole_true = nullptr;
-  Node* hole_false = nullptr;
-  Node* effect_true = effect;
-
-  if (IsHoleyElementsKind(kind)) {
-    // Holey elements kind require a hole check and skipping of the element in
-    // the case of a hole.
-    Node* check;
-    if (IsDoubleElementsKind(kind)) {
-      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-    } else {
-      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                               jsgraph()->TheHoleConstant());
-    }
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-    hole_true = graph()->NewNode(common()->IfTrue(), branch);
-    hole_false = graph()->NewNode(common()->IfFalse(), branch);
-    control = hole_false;
-
-    // The contract is that we don't leak "the hole" into "user JavaScript",
-    // so we must rename the {element} here to explicitly exclude "the hole"
-    // from the type of {element}.
-    element = effect = graph()->NewNode(
-        common()->TypeGuard(Type::NonInternal()), element, effect, control);
-  }
-
-  // This frame state is dealt with by hand in
-  // ArrayMapLoopLazyDeoptContinuation.
-  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kArrayMapLoopLazyDeoptContinuation,
-      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-      outer_frame_state, ContinuationFrameStateMode::LAZY);
-
-  Node* callback_value = control = effect = graph()->NewNode(
-      javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
-      receiver, context, frame_state, effect, control);
-
-  // Rewire potential exception edges.
-  Node* on_exception = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
-                                     &check_fail, &control);
-  }
-
-  // The array {a} should be HOLEY_SMI_ELEMENTS because we'd only come into
-  // this loop if the input array length is non-zero, and "new Array({x > 0})"
-  // always produces a HOLEY array.
-  MapRef holey_double_map =
-      native_context().GetInitialJSArrayMap(HOLEY_DOUBLE_ELEMENTS);
-  MapRef holey_map = native_context().GetInitialJSArrayMap(HOLEY_ELEMENTS);
-  effect = graph()->NewNode(simplified()->TransitionAndStoreElement(
-                                holey_double_map.object(), holey_map.object()),
-                            a, k, callback_value, effect, control);
-
-  if (IsHoleyElementsKind(kind)) {
-    Node* after_call_and_store_control = control;
-    Node* after_call_and_store_effect = effect;
-    control = hole_true;
-    effect = effect_true;
-
-    control = graph()->NewNode(common()->Merge(2), control,
-                               after_call_and_store_control);
-    effect = graph()->NewNode(common()->EffectPhi(2), effect,
-                              after_call_and_store_effect, control);
-  }
-
-  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
-
-  control = if_false;
-  effect = eloop;
-
-  // Wire up the branch for the case when IsCallable fails for the callback.
-  // Since {check_throw} is an unconditional throw, it's impossible to
-  // return a successful completion. Therefore, we simply connect the
-  // successful completion to the graph end.
-  Node* throw_node =
-      graph()->NewNode(common()->Throw(), check_throw, check_fail);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
-
-  ReplaceWithValue(node, a, effect, control);
-  return Replace(a);
+  TNode<Object> subgraph =
+      a.ReduceArrayPrototypeMap(h.inference(), h.has_stability_dependency(),
+                                h.elements_kind(), shared, native_context());
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 Reduction JSCallReducer::ReduceArrayFilter(
@@ -1864,8 +2425,11 @@ Reduction JSCallReducer::ReduceArrayFilter(
         outer_frame_state, ContinuationFrameStateMode::LAZY);
 
     callback_value = control = effect = graph()->NewNode(
-        javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
-        receiver, context, frame_state, effect, control);
+        javascript()->Call(5, p.frequency(), p.feedback(),
+                           ConvertReceiverMode::kAny, p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        fncallback, this_arg, element, k, receiver, context, frame_state,
+        effect, control);
   }
 
   // Rewire potential exception edges.
@@ -2074,8 +2638,11 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
         ContinuationFrameStateMode::LAZY);
 
     callback_value = control = effect = graph()->NewNode(
-        javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
-        receiver, context, frame_state, effect, control);
+        javascript()->Call(5, p.frequency(), p.feedback(),
+                           ConvertReceiverMode::kAny, p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        fncallback, this_arg, element, k, receiver, context, frame_state,
+        effect, control);
   }
 
   // Rewire potential exception edges.
@@ -2392,8 +2959,11 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
 
     callback_value = control = effect = graph()->NewNode(
-        javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
-        receiver, context, frame_state, effect, control);
+        javascript()->Call(5, p.frequency(), p.feedback(),
+                           ConvertReceiverMode::kAny, p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        fncallback, this_arg, element, k, receiver, context, frame_state,
+        effect, control);
   }
 
   // Rewire potential exception edges.
@@ -2726,8 +3296,11 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
 
     callback_value = control = effect = graph()->NewNode(
-        javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
-        receiver, context, frame_state, effect, control);
+        javascript()->Call(5, p.frequency(), p.feedback(),
+                           ConvertReceiverMode::kAny, p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        fncallback, this_arg, element, k, receiver, context, frame_state,
+        effect, control);
   }
 
   // Rewire potential exception edges.
@@ -3003,11 +3576,14 @@ bool IsSafeArgumentsElements(Node* node) {
 
 Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Node* node, int arity, CallFrequency const& frequency,
-    FeedbackSource const& feedback) {
+    FeedbackSource const& feedback, SpeculationMode speculation_mode,
+    CallFeedbackRelation feedback_relation) {
   DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
          node->opcode() == IrOpcode::kJSCallWithSpread ||
          node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
          node->opcode() == IrOpcode::kJSConstructWithSpread);
+  DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
+                 feedback.IsValid());
 
   Node* arguments_list = NodeProperties::GetValueInput(node, arity);
   if (arguments_list->opcode() != IrOpcode::kJSCreateArguments) {
@@ -3034,7 +3610,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
           // Ignore uses for arguments#length.
           STATIC_ASSERT(
               static_cast<int>(JSArray::kLengthOffset) ==
-              static_cast<int>(JSArgumentsObjectWithLength::kLengthOffset));
+              static_cast<int>(JSStrictArgumentsObject::kLengthOffset));
+          STATIC_ASSERT(
+              static_cast<int>(JSArray::kLengthOffset) ==
+              static_cast<int>(JSSloppyArgumentsObject::kLengthOffset));
           continue;
         } else if (access.offset == JSObject::kElementsOffset) {
           // Ignore safe uses for arguments#elements.
@@ -3145,7 +3724,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   if (node->opcode() == IrOpcode::kJSCallWithArrayLike ||
       node->opcode() == IrOpcode::kJSCallWithSpread) {
     NodeProperties::ChangeOp(
-        node, javascript()->Call(arity + 1, frequency, feedback));
+        node, javascript()->Call(arity + 1, frequency, feedback,
+                                 ConvertReceiverMode::kAny, speculation_mode,
+                                 CallFeedbackRelation::kUnrelated));
     Reduction const reduction = ReduceJSCall(node);
     return reduction.Changed() ? reduction : Changed(node);
   } else {
@@ -3286,8 +3867,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       }
 
       NodeProperties::ChangeOp(
-          node, javascript()->Call(arity, p.frequency(), FeedbackSource(),
-                                   convert_mode));
+          node, javascript()->Call(arity, p.frequency(), p.feedback(),
+                                   convert_mode, p.speculation_mode(),
+                                   CallFeedbackRelation::kUnrelated));
 
       // Try to further reduce the JSCall {node}.
       Reduction const reduction = ReduceJSCall(node);
@@ -3334,25 +3916,30 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
             ? ConvertReceiverMode::kAny
             : ConvertReceiverMode::kNotNullOrUndefined;
     NodeProperties::ChangeOp(
-        node, javascript()->Call(arity, p.frequency(), FeedbackSource(),
-                                 convert_mode));
+        node, javascript()->Call(arity, p.frequency(), p.feedback(),
+                                 convert_mode, p.speculation_mode(),
+                                 CallFeedbackRelation::kUnrelated));
 
     // Try to further reduce the JSCall {node}.
     Reduction const reduction = ReduceJSCall(node);
     return reduction.Changed() ? reduction : Changed(node);
   }
 
-  if (!p.feedback().IsValid()) return NoChange();
+  if (!ShouldUseCallICFeedback(target) ||
+      p.feedback_relation() != CallFeedbackRelation::kRelated ||
+      !p.feedback().IsValid()) {
+    return NoChange();
+  }
+
   ProcessedFeedback const& feedback =
-      broker()->GetFeedbackForCall(FeedbackSource(p.feedback()));
+      broker()->GetFeedbackForCall(p.feedback());
   if (feedback.IsInsufficient()) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
   }
 
   base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
-  if (feedback_target.has_value() && ShouldUseCallICFeedback(target) &&
-      feedback_target->map().is_callable()) {
+  if (feedback_target.has_value() && feedback_target->map().is_callable()) {
     Node* target_function = jsgraph()->Constant(*feedback_target);
 
     // Check that the {target} is still the {target_function}.
@@ -3439,9 +4026,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kArrayFilter:
       return ReduceArrayFilter(node, shared);
     case Builtins::kArrayReduce:
-      return ReduceArrayReduce(node, ArrayReduceDirection::kLeft, shared);
+      return ReduceArrayReduce(node, shared);
     case Builtins::kArrayReduceRight:
-      return ReduceArrayReduce(node, ArrayReduceDirection::kRight, shared);
+      return ReduceArrayReduceRight(node, shared);
     case Builtins::kArrayPrototypeFind:
       return ReduceArrayFind(node, ArrayFindVariant::kFind, shared);
     case Builtins::kArrayPrototypeFindIndex:
@@ -3673,12 +4260,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayIterator(node, IterationKind::kKeys);
     case Builtins::kTypedArrayPrototypeValues:
       return ReduceArrayIterator(node, IterationKind::kValues);
-    case Builtins::kPromiseInternalConstructor:
-      return ReducePromiseInternalConstructor(node);
-    case Builtins::kPromiseInternalReject:
-      return ReducePromiseInternalReject(node);
-    case Builtins::kPromiseInternalResolve:
-      return ReducePromiseInternalResolve(node);
     case Builtins::kPromisePrototypeCatch:
       return ReducePromisePrototypeCatch(node);
     case Builtins::kPromisePrototypeFinally:
@@ -3734,9 +4315,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
 
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
-  CallFrequency frequency = CallFrequencyOf(node->op());
-  return ReduceCallOrConstructWithArrayLikeOrSpread(node, 2, frequency,
-                                                    FeedbackSource());
+  const CallParameters& p = CallParametersOf(node->op());
+  int arity = static_cast<int>(p.arity());
+  DCHECK_EQ(arity, 2);
+  return ReduceCallOrConstructWithArrayLikeOrSpread(
+      node, arity, p.frequency(), p.feedback(), p.speculation_mode(),
+      p.feedback_relation());
 }
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
@@ -3746,8 +4330,9 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   int arity = static_cast<int>(p.arity() - 1);
   CallFrequency frequency = p.frequency();
   FeedbackSource feedback = p.feedback();
-  return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency,
-                                                    feedback);
+  return ReduceCallOrConstructWithArrayLikeOrSpread(
+      node, arity, frequency, feedback, p.speculation_mode(),
+      p.feedback_relation());
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
@@ -3876,9 +4461,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
             return Changed(node);
           }
 
-          // Otherwise we can only lower to JSCreate if we know that
-          // the value parameter is ignored, which is only the case if
-          // the {new_target} and {target} are definitely not identical.
+          // If {target} is not the same as {new_target} (i.e. the Object
+          // constructor), {value} will be ignored and therefore we can lower
+          // to {JSCreate}. See https://tc39.es/ecma262/#sec-object-value.
           HeapObjectMatcher mnew_target(new_target);
           if (mnew_target.HasValue() &&
               !mnew_target.Ref(broker()).equals(function)) {
@@ -4030,59 +4615,9 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
     return NoChange();
   }
 
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* start = NodeProperties::GetValueInput(node, 2);
-  Node* end = node->op()->ValueInputCount() > 3
-                  ? NodeProperties::GetValueInput(node, 3)
-                  : jsgraph()->UndefinedConstant();
-
-  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
-                                       receiver, effect, control);
-
-  start = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()), start,
-                                    effect, control);
-
-  Node* length = graph()->NewNode(simplified()->StringLength(), receiver);
-
-  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), end,
-                                 jsgraph()->UndefinedConstant());
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-  Node* vtrue = length;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  Node* vfalse = efalse = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                           end, efalse, if_false);
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-  end = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         vtrue, vfalse, control);
-  Node* finalStart =
-      graph()->NewNode(simplified()->NumberMin(),
-                       graph()->NewNode(simplified()->NumberMax(), start,
-                                        jsgraph()->ZeroConstant()),
-                       length);
-  Node* finalEnd =
-      graph()->NewNode(simplified()->NumberMin(),
-                       graph()->NewNode(simplified()->NumberMax(), end,
-                                        jsgraph()->ZeroConstant()),
-                       length);
-
-  Node* from =
-      graph()->NewNode(simplified()->NumberMin(), finalStart, finalEnd);
-  Node* to = graph()->NewNode(simplified()->NumberMax(), finalStart, finalEnd);
-
-  Node* value = effect = graph()->NewNode(simplified()->StringSubstring(),
-                                          receiver, from, to, effect, control);
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  JSCallReducerAssembler a(jsgraph(), temp_zone(), node);
+  Node* subgraph = a.ReduceStringPrototypeSubstring();
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 // ES #sec-string.prototype.slice
@@ -4093,98 +4628,9 @@ Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
     return NoChange();
   }
 
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* start = NodeProperties::GetValueInput(node, 2);
-  Node* end = node->op()->ValueInputCount() > 3
-                  ? NodeProperties::GetValueInput(node, 3)
-                  : jsgraph()->UndefinedConstant();
-
-  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
-                                       receiver, effect, control);
-
-  start = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()), start,
-                                    effect, control);
-
-  Node* length = graph()->NewNode(simplified()->StringLength(), receiver);
-
-  // Replace {end} argument with {length} if it is undefined.
-  {
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), end,
-                                   jsgraph()->UndefinedConstant());
-
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue = effect;
-    Node* vtrue = length;
-
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* efalse = effect;
-    Node* vfalse = efalse = graph()->NewNode(
-        simplified()->CheckSmi(p.feedback()), end, efalse, if_false);
-
-    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-    end = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vtrue, vfalse, control);
-  }
-
-  Node* from = graph()->NewNode(
-      common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-      graph()->NewNode(simplified()->NumberLessThan(), start,
-                       jsgraph()->ZeroConstant()),
-      graph()->NewNode(
-          simplified()->NumberMax(),
-          graph()->NewNode(simplified()->NumberAdd(), length, start),
-          jsgraph()->ZeroConstant()),
-      graph()->NewNode(simplified()->NumberMin(), start, length));
-  // {from} is always in non-negative Smi range, but our typer cannot
-  // figure that out yet.
-  from = effect = graph()->NewNode(common()->TypeGuard(Type::UnsignedSmall()),
-                                   from, effect, control);
-
-  Node* to = graph()->NewNode(
-      common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-      graph()->NewNode(simplified()->NumberLessThan(), end,
-                       jsgraph()->ZeroConstant()),
-      graph()->NewNode(simplified()->NumberMax(),
-                       graph()->NewNode(simplified()->NumberAdd(), length, end),
-                       jsgraph()->ZeroConstant()),
-      graph()->NewNode(simplified()->NumberMin(), end, length));
-  // {to} is always in non-negative Smi range, but our typer cannot
-  // figure that out yet.
-  to = effect = graph()->NewNode(common()->TypeGuard(Type::UnsignedSmall()), to,
-                                 effect, control);
-
-  Node* result_string = nullptr;
-  // Return empty string if {from} is smaller than {to}.
-  {
-    Node* check = graph()->NewNode(simplified()->NumberLessThan(), from, to);
-
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue = effect;
-    Node* vtrue = etrue = graph()->NewNode(simplified()->StringSubstring(),
-                                           receiver, from, to, etrue, if_true);
-
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* efalse = effect;
-    Node* vfalse = jsgraph()->EmptyStringConstant();
-
-    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-    result_string =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         vtrue, vfalse, control);
-  }
-
-  ReplaceWithValue(node, result_string, effect, control);
-  return Replace(result_string);
+  JSCallReducerAssembler a(jsgraph(), temp_zone(), node);
+  Node* subgraph = a.ReduceStringPrototypeSlice();
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 // ES #sec-string.prototype.substr
@@ -4293,8 +4739,9 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
-  return ReduceCallOrConstructWithArrayLikeOrSpread(node, 1, frequency,
-                                                    FeedbackSource());
+  return ReduceCallOrConstructWithArrayLikeOrSpread(
+      node, 1, frequency, FeedbackSource(),
+      SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kRelated);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
@@ -4304,8 +4751,9 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   int arity = static_cast<int>(p.arity() - 2);
   CallFrequency frequency = p.frequency();
   FeedbackSource feedback = p.feedback();
-  return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency,
-                                                    feedback);
+  return ReduceCallOrConstructWithArrayLikeOrSpread(
+      node, arity, frequency, feedback, SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation::kRelated);
 }
 
 Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
@@ -5085,8 +5533,6 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   FieldAccess index_access = AccessBuilder::ForJSArrayIteratorNextIndex();
   if (IsTypedArrayElementsKind(elements_kind)) {
     index_access.type = TypeCache::Get()->kJSTypedArrayLengthType;
-    index_access.machine_type = MachineType::TypeCompressedTaggedSigned();
-    index_access.write_barrier_kind = kNoWriteBarrier;
   } else {
     index_access.type = TypeCache::Get()->kJSArrayLengthType;
   }
@@ -5763,8 +6209,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   // 9. Call executor with both resolving functions
   effect = control = graph()->NewNode(
       javascript()->Call(4, p.frequency(), FeedbackSource(),
-                         ConvertReceiverMode::kNullOrUndefined,
-                         SpeculationMode::kDisallowSpeculation),
+                         ConvertReceiverMode::kNullOrUndefined),
       executor, jsgraph()->UndefinedConstant(), resolve, reject, context,
       frame_state, effect, control);
 
@@ -5776,8 +6221,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
     // 10a. Call reject if the call to executor threw.
     exception_effect = exception_control = graph()->NewNode(
         javascript()->Call(3, p.frequency(), FeedbackSource(),
-                           ConvertReceiverMode::kNullOrUndefined,
-                           SpeculationMode::kDisallowSpeculation),
+                           ConvertReceiverMode::kNullOrUndefined),
         reject, jsgraph()->UndefinedConstant(), reason, context, frame_state,
         exception_effect, exception_control);
 
@@ -5811,70 +6255,6 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
 
   ReplaceWithValue(node, promise, effect, control);
   return Replace(promise);
-}
-
-// V8 Extras: v8.createPromise(parent)
-Reduction JSCallReducer::ReducePromiseInternalConstructor(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-
-  // Check that promises aren't being observed through (debug) hooks.
-  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
-
-  // Create a new pending promise.
-  Node* value = effect =
-      graph()->NewNode(javascript()->CreatePromise(), context, effect);
-
-  ReplaceWithValue(node, value, effect);
-  return Replace(value);
-}
-
-// V8 Extras: v8.rejectPromise(promise, reason)
-Reduction JSCallReducer::ReducePromiseInternalReject(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* promise = node->op()->ValueInputCount() >= 2
-                      ? NodeProperties::GetValueInput(node, 2)
-                      : jsgraph()->UndefinedConstant();
-  Node* reason = node->op()->ValueInputCount() >= 3
-                     ? NodeProperties::GetValueInput(node, 3)
-                     : jsgraph()->UndefinedConstant();
-  Node* debug_event = jsgraph()->TrueConstant();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Reject the {promise} using the given {reason}, and trigger debug logic.
-  Node* value = effect =
-      graph()->NewNode(javascript()->RejectPromise(), promise, reason,
-                       debug_event, context, frame_state, effect, control);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
-// V8 Extras: v8.resolvePromise(promise, resolution)
-Reduction JSCallReducer::ReducePromiseInternalResolve(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* promise = node->op()->ValueInputCount() >= 2
-                      ? NodeProperties::GetValueInput(node, 2)
-                      : jsgraph()->UndefinedConstant();
-  Node* resolution = node->op()->ValueInputCount() >= 3
-                         ? NodeProperties::GetValueInput(node, 3)
-                         : jsgraph()->UndefinedConstant();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Resolve the {promise} using the given {resolution}.
-  Node* value = effect =
-      graph()->NewNode(javascript()->ResolvePromise(), promise, resolution,
-                       context, frame_state, effect, control);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
 }
 
 bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
@@ -5932,7 +6312,8 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   NodeProperties::ChangeOp(
       node, javascript()->Call(2 + arity, p.frequency(), p.feedback(),
                                ConvertReceiverMode::kNotNullOrUndefined,
-                               p.speculation_mode()));
+                               p.speculation_mode(),
+                               CallFeedbackRelation::kUnrelated));
   Reduction const reduction = ReducePromisePrototypeThen(node);
   return reduction.Changed() ? reduction : Changed(node);
 }
@@ -6059,7 +6440,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   NodeProperties::ChangeOp(
       node, javascript()->Call(2 + arity, p.frequency(), p.feedback(),
                                ConvertReceiverMode::kNotNullOrUndefined,
-                               p.speculation_mode()));
+                               p.speculation_mode(),
+                               CallFeedbackRelation::kUnrelated));
   Reduction const reduction = ReducePromisePrototypeThen(node);
   return reduction.Changed() ? reduction : Changed(node);
 }
@@ -7228,7 +7610,7 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
-  if (node->op()->ValueInputCount() < 3) {
+  if (node->op()->ValueInputCount() < 4) {
     return NoChange();
   }
 

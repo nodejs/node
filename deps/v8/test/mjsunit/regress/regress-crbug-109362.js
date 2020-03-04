@@ -19,7 +19,7 @@ function test(expectation, f) {
 1 + reference_error //@ sourceURL=evaltest
 })
 */
-test("1:5", new Function(
+test("3:5", new Function(
     '1 + reference_error //@ sourceURL=evaltest'));
 /*
 (function(x
@@ -28,7 +28,7 @@ test("1:5", new Function(
  1 + reference_error //@ sourceURL=evaltest
 })
 */
-test("2:6", new Function(
+test("4:6", new Function(
     'x', '\n 1 + reference_error //@ sourceURL=evaltest'));
 /*
 (function(x
@@ -40,7 +40,7 @@ test("2:6", new Function(
  1 + reference_error //@ sourceURL=evaltest
 })
 */
-test("5:6", new Function(
+test("7:6", new Function(
     'x\n\n', "z//\n", "y", '\n 1 + reference_error //@ sourceURL=evaltest'));
 /*
 (function(x/\*,z//
@@ -49,7 +49,7 @@ test("5:6", new Function(
 1 + reference_error //@ sourceURL=evaltest
 })
 */
-test("2:5", new Function(
+test("4:5", new Function(
     'x/*', "z//\n", "y*/", '1 + reference_error //@ sourceURL=evaltest'));
 /*
 (function () {

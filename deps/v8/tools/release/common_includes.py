@@ -48,7 +48,6 @@ import urllib2
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
-CHANGELOG_FILE = "ChangeLog"
 DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
@@ -91,99 +90,6 @@ def FileToText(file_name):
 
 def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
-
-
-def Fill80(line):
-  # Replace tabs and remove surrounding space.
-  line = re.sub(r"\t", r"        ", line.strip())
-
-  # Format with 8 characters indentation and line width 80.
-  return textwrap.fill(line, width=80, initial_indent="        ",
-                       subsequent_indent="        ")
-
-
-def MakeComment(text):
-  return MSub(r"^( ?)", "#", text)
-
-
-def StripComments(text):
-  # Use split not splitlines to keep terminal newlines.
-  return "\n".join(filter(lambda x: not x.startswith("#"), text.split("\n")))
-
-
-def MakeChangeLogBody(commit_messages, auto_format=False):
-  result = ""
-  added_titles = set()
-  for (title, body, author) in commit_messages:
-    # TODO(machenbach): Better check for reverts. A revert should remove the
-    # original CL from the actual log entry.
-    title = title.strip()
-    if auto_format:
-      # Only add commits that set the LOG flag correctly.
-      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:(?:Y(?:ES)?)|TRUE)"
-      if not re.search(log_exp, body, flags=re.I | re.M):
-        continue
-      # Never include reverts.
-      if title.startswith("Revert "):
-        continue
-      # Don't include duplicates.
-      if title in added_titles:
-        continue
-
-    # Add and format the commit's title and bug reference. Move dot to the end.
-    added_titles.add(title)
-    raw_title = re.sub(r"(\.|\?|!)$", "", title)
-    bug_reference = MakeChangeLogBugReference(body)
-    space = " " if bug_reference else ""
-    result += "%s\n" % Fill80("%s%s%s." % (raw_title, space, bug_reference))
-
-    # Append the commit's author for reference if not in auto-format mode.
-    if not auto_format:
-      result += "%s\n" % Fill80("(%s)" % author.strip())
-
-    result += "\n"
-  return result
-
-
-def MakeChangeLogBugReference(body):
-  """Grep for "BUG=xxxx" lines in the commit message and convert them to
-  "(issue xxxx)".
-  """
-  crbugs = []
-  v8bugs = []
-
-  def AddIssues(text):
-    ref = re.match(r"^BUG[ \t]*=[ \t]*(.+)$", text.strip())
-    if not ref:
-      return
-    for bug in ref.group(1).split(","):
-      bug = bug.strip()
-      match = re.match(r"^v8:(\d+)$", bug)
-      if match: v8bugs.append(int(match.group(1)))
-      else:
-        match = re.match(r"^(?:chromium:)?(\d+)$", bug)
-        if match: crbugs.append(int(match.group(1)))
-
-  # Add issues to crbugs and v8bugs.
-  map(AddIssues, body.splitlines())
-
-  # Filter duplicates, sort, stringify.
-  crbugs = map(str, sorted(set(crbugs)))
-  v8bugs = map(str, sorted(set(v8bugs)))
-
-  bug_groups = []
-  def FormatIssues(prefix, bugs):
-    if len(bugs) > 0:
-      plural = "s" if len(bugs) > 1 else ""
-      bug_groups.append("%sissue%s %s" % (prefix, plural, ", ".join(bugs)))
-
-  FormatIssues("", v8bugs)
-  FormatIssues("Chromium ", crbugs)
-
-  if len(bug_groups) > 0:
-    return "(%s)" % ", ".join(bug_groups)
-  else:
-    return ""
 
 
 def SortingKey(version):
@@ -281,9 +187,6 @@ class SideEffectHandler(object):  # pragma: no cover
 
   def Sleep(self, seconds):
     time.sleep(seconds)
-
-  def GetDate(self):
-    return datetime.date.today().strftime("%Y-%m-%d")
 
   def GetUTCStamp(self):
     return time.mktime(datetime.datetime.utcnow().timetuple())
@@ -526,9 +429,6 @@ class Step(GitRecipesMixin):
     wait_plan = wait_plan or [3, 60, 600]
     cmd = lambda: self._side_effect_handler.ReadURL(url, params)
     return self.Retry(cmd, retry_on, wait_plan)
-
-  def GetDate(self):
-    return self._side_effect_handler.GetDate()
 
   def Die(self, msg=""):
     if msg != "":

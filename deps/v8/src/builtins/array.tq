@@ -8,13 +8,13 @@ namespace array {
   // Naming convention from elements.cc. We have a similar intent but implement
   // fastpaths using generics instead of using a class hierarchy for elements
   // kinds specific implementations.
-  type GenericElementsAccessor;
-  type FastPackedSmiElements;
-  type FastPackedObjectElements;
-  type FastPackedDoubleElements;
-  type FastSmiOrObjectElements;
-  type FastDoubleElements;
-  type DictionaryElements;
+  type GenericElementsAccessor extends ElementsKind;
+  type FastPackedSmiElements extends ElementsKind;
+  type FastPackedObjectElements extends ElementsKind;
+  type FastPackedDoubleElements extends ElementsKind;
+  type FastSmiOrObjectElements extends ElementsKind;
+  type FastDoubleElements extends ElementsKind;
+  type DictionaryElements extends ElementsKind;
 
   macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
     assert(IsFastElementsKind(array.map.elements_kind));
@@ -52,4 +52,30 @@ namespace array {
   }
 
   extern macro SetPropertyLength(implicit context: Context)(JSAny, Number);
+
+  const kLengthDescriptorIndex:
+      constexpr int31 generates 'JSArray::kLengthDescriptorIndex';
+  const kAttributesReadOnlyMask: constexpr int31
+  generates 'PropertyDetails::kAttributesReadOnlyMask';
+
+  @export
+  macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
+      void labels Bailout {
+    // Don't support arrays in dictionary named property mode.
+    if (IsDictionaryMap(map)) {
+      goto Bailout;
+    }
+
+    // Check whether the length property is writable. The length property is the
+    // only default named property on arrays. It's nonconfigurable, hence is
+    // guaranteed to stay the first property.
+    const descriptors: DescriptorArray = map.instance_descriptors;
+    const descriptor:&DescriptorEntry =
+        & descriptors.descriptors[kLengthDescriptorIndex];
+    assert(TaggedEqual(descriptor->key, LengthStringConstant()));
+    const details: Smi = UnsafeCast<Smi>(descriptor->details);
+    if ((details & kAttributesReadOnlyMask) != 0) {
+      goto Bailout;
+    }
+  }
 }

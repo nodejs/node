@@ -39,12 +39,13 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
     kProxyContextLength,
   };
 
-  Node* AllocateJSArrayForCodeStubArguments(Node* context,
-                                            const CodeStubArguments& args,
-                                            Node* argc, ParameterMode mode);
+  TNode<JSArray> AllocateJSArrayForCodeStubArguments(
+      TNode<Context> context, const CodeStubArguments& args,
+      TNode<IntPtrT> argc);
 
  private:
-  Node* CreateProxyRevokeFunctionContext(Node* proxy, Node* native_context);
+  TNode<Context> CreateProxyRevokeFunctionContext(
+      TNode<JSProxy> proxy, TNode<NativeContext> native_context);
 };
 
 }  // namespace internal

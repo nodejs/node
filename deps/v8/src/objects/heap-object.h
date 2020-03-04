@@ -70,11 +70,11 @@ class HeapObject : public Object {
   inline ReadOnlyRoots GetReadOnlyRoots() const;
   // This version is intended to be used for the isolate values produced by
   // i::GetIsolateForPtrCompr(HeapObject) function which may return nullptr.
-  inline ReadOnlyRoots GetReadOnlyRoots(Isolate* isolate) const;
+  inline ReadOnlyRoots GetReadOnlyRoots(const Isolate* isolate) const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;
+  V8_INLINE bool Is##Type(const Isolate* isolate) const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
   IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
@@ -84,9 +84,9 @@ class HeapObject : public Object {
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
+#define IS_TYPE_FUNCTION_DECL(Type, Value)               \
+  V8_INLINE bool Is##Type(const Isolate* isolate) const; \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;    \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
@@ -94,7 +94,7 @@ class HeapObject : public Object {
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(Isolate* isolate) const;
+  V8_INLINE bool Is##Name(const Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 

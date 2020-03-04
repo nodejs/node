@@ -952,13 +952,18 @@ Response V8DebuggerAgentImpl::restartFrame(
   return Response::OK();
 }
 
-Response V8DebuggerAgentImpl::getScriptSource(const String16& scriptId,
-                                              String16* scriptSource) {
+Response V8DebuggerAgentImpl::getScriptSource(
+    const String16& scriptId, String16* scriptSource,
+    Maybe<protocol::Binary>* bytecode) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
   ScriptsMap::iterator it = m_scripts.find(scriptId);
   if (it == m_scripts.end())
     return Response::Error("No script for id: " + scriptId);
   *scriptSource = it->second->source(0);
+  v8::MemorySpan<const uint8_t> span;
+  if (it->second->wasmBytecode().To(&span)) {
+    *bytecode = protocol::Binary::fromSpan(span.data(), span.size());
+  }
   return Response::OK();
 }
 

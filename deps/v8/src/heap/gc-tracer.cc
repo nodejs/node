@@ -564,6 +564,7 @@ void GCTracer::PrintNVP() const {
           "fast_promote=%.2f "
           "scavenge=%.2f "
           "scavenge.process_array_buffers=%.2f "
+          "scavenge.free_remembered_set=%.2f "
           "scavenge.roots=%.2f "
           "scavenge.weak=%.2f "
           "scavenge.weak_global_handles.identify=%.2f "
@@ -604,6 +605,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
           current_.scopes[Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS],
+          current_.scopes[Scope::SCAVENGER_FREE_REMEMBERED_SET],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
           current_

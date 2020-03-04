@@ -21,7 +21,6 @@ namespace torque {
 DEFINE_CONTEXTUAL_VARIABLE(CurrentAst)
 
 using TypeList = std::vector<TypeExpression*>;
-using GenericParameters = std::vector<Identifier*>;
 
 struct ExpressionWithSource {
   Expression* expression;
@@ -218,6 +217,14 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<base::Optional<ClassBody*>>::id =
         ParseResultTypeId::kOptionalClassBody;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<GenericParameter>::id =
+        ParseResultTypeId::kGenericParameter;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<GenericParameters>::id =
+        ParseResultTypeId::kGenericParameters;
 
 namespace {
 
@@ -245,8 +252,9 @@ void NamingConventionError(const std::string& type, const Identifier* name,
 
 void LintGenericParameters(const GenericParameters& parameters) {
   for (auto parameter : parameters) {
-    if (!IsUpperCamelCase(parameter->value)) {
-      NamingConventionError("Generic parameter", parameter, "UpperCamelCase");
+    if (!IsUpperCamelCase(parameter.name->value)) {
+      NamingConventionError("Generic parameter", parameter.name,
+                            "UpperCamelCase");
     }
   }
 }
@@ -513,7 +521,8 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
   }
   Declaration* result = declaration;
   if (!generic_parameters.empty()) {
-    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -543,7 +552,8 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
     if (export_to_csa) ReportError("Cannot export generics to CSA.");
-    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -569,7 +579,8 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
-    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -612,10 +623,15 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name, "UpperCamelCase");
   }
+  auto generic_parameters = child_results->NextAs<GenericParameters>();
   auto extends = child_results->NextAs<base::Optional<Identifier*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
-  Declaration* decl = MakeNode<AbstractTypeDeclaration>(
+  TypeDeclaration* type_decl = MakeNode<AbstractTypeDeclaration>(
       name, transient, extends, std::move(generates));
+  Declaration* decl = type_decl;
+  if (!generic_parameters.empty()) {
+    decl = MakeNode<GenericTypeDeclaration>(generic_parameters, type_decl);
+  }
 
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
@@ -633,10 +649,15 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
           MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + (*extends)->value);
       (*constexpr_extends)->pos = name->pos;
     }
-    AbstractTypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
+    TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
         constexpr_name, transient, constexpr_extends, constexpr_generates);
     constexpr_decl->pos = name->pos;
-    result.push_back(constexpr_decl);
+    Declaration* decl = constexpr_decl;
+    if (!generic_parameters.empty()) {
+      decl =
+          MakeNode<GenericTypeDeclaration>(generic_parameters, constexpr_decl);
+    }
+    result.push_back(decl);
   }
 
   return ParseResult{result};
@@ -766,7 +787,6 @@ base::Optional<ParseResult> MakeClassDeclaration(
   AnnotationSet annotations(
       child_results,
       {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
-       ANNOTATION_INSTANTIATED_ABSTRACT_CLASS,
        ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
        ANNOTATION_GENERATE_CPP_CLASS,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
@@ -780,9 +800,6 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (generate_verify) flags |= ClassFlag::kGenerateVerify;
   if (annotations.Contains(ANNOTATION_ABSTRACT)) {
     flags |= ClassFlag::kAbstract;
-  }
-  if (annotations.Contains(ANNOTATION_INSTANTIATED_ABSTRACT_CLASS)) {
-    flags |= ClassFlag::kInstantiatedAbstractClass;
   }
   if (annotations.Contains(ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT)) {
     flags |= ClassFlag::kHasSameInstanceTypeAsParent;
@@ -801,6 +818,14 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (is_extern) flags |= ClassFlag::kExtern;
   auto transient = child_results->NextAs<bool>();
   if (transient) flags |= ClassFlag::kTransient;
+  std::string kind = child_results->NextAs<Identifier*>()->value;
+  if (kind == "shape") {
+    flags |= ClassFlag::kIsShape;
+    flags |= ClassFlag::kTransient;
+    flags |= ClassFlag::kHasSameInstanceTypeAsParent;
+  } else {
+    DCHECK_EQ(kind, "class");
+  }
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name, "UpperCamelCase");
@@ -873,6 +898,10 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
+  bool is_export = child_results->NextAs<bool>();
+  StructFlags flags = StructFlag::kNone;
+  if (is_export) flags |= StructFlag::kExport;
+
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Struct", name, "UpperCamelCase");
@@ -881,9 +910,12 @@ base::Optional<ParseResult> MakeStructDeclaration(
   LintGenericParameters(generic_parameters);
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
-  Declaration* result =
-      MakeNode<StructDeclaration>(name, std::move(methods), std::move(fields),
-                                  std::move(generic_parameters));
+  TypeDeclaration* struct_decl = MakeNode<StructDeclaration>(
+      flags, name, std::move(methods), std::move(fields));
+  Declaration* result = struct_decl;
+  if (!generic_parameters.empty()) {
+    result = MakeNode<GenericTypeDeclaration>(generic_parameters, struct_decl);
+  }
   return ParseResult{result};
 }
 
@@ -990,6 +1022,13 @@ base::Optional<ParseResult> MakeUnionTypeExpression(
   auto b = child_results->NextAs<TypeExpression*>();
   TypeExpression* result = MakeNode<UnionTypeExpression>(a, b);
   return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeGenericParameter(
+    ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<Identifier*>();
+  auto constraint = child_results->NextAs<base::Optional<TypeExpression*>>();
+  return ParseResult{GenericParameter{name, constraint}};
 }
 
 base::Optional<ParseResult> MakeExpressionStatement(
@@ -1296,6 +1335,16 @@ base::Optional<ParseResult> MakeFieldAccessExpression(
   auto object = child_results->NextAs<Expression*>();
   auto field = child_results->NextAs<Identifier*>();
   Expression* result = MakeNode<FieldAccessExpression>(object, field);
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeReferenceFieldAccessExpression(
+    ParseResultIterator* child_results) {
+  auto object = child_results->NextAs<Expression*>();
+  auto field = child_results->NextAs<Identifier*>();
+  // `a->b` is equivalent to `(*a).b`.
+  Expression* deref = MakeNode<DereferenceExpression>(object);
+  Expression* result = MakeNode<FieldAccessExpression>(deref, field);
   return ParseResult{result};
 }
 
@@ -1642,18 +1691,22 @@ struct TorqueGrammar : Grammar {
   Symbol type = {Rule({&simpleType}), Rule({&type, Token("|"), &simpleType},
                                            MakeUnionTypeExpression)};
 
+  // Result: GenericParameter
+  Symbol genericParameter = {
+      Rule({&name, Token(":"), Token("type"),
+            Optional<TypeExpression*>(Sequence({Token("extends"), &type}))},
+           MakeGenericParameter)};
+
   // Result: GenericParameters
   Symbol genericParameters = {
-      Rule({Token("<"),
-            List<Identifier*>(Sequence({&name, Token(":"), Token("type")}),
-                              Token(",")),
+      Rule({Token("<"), List<GenericParameter>(&genericParameter, Token(",")),
             Token(">")})};
 
   // Result: TypeList
   Symbol genericSpecializationTypeList = {
       Rule({Token("<"), typeList, Token(">")})};
 
-  // Result: base::Optional<TypeList>
+  // Result: base::Optional<GenericParameters>
   Symbol* optionalGenericParameters = Optional<TypeList>(&genericParameters);
 
   Symbol implicitParameterList{
@@ -1795,6 +1848,8 @@ struct TorqueGrammar : Grammar {
       Rule({&intrinsicCallExpression}),
       Rule({&identifierExpression}),
       Rule({&primaryExpression, Token("."), &name}, MakeFieldAccessExpression),
+      Rule({&primaryExpression, Token("->"), &name},
+           MakeReferenceFieldAccessExpression),
       Rule({&primaryExpression, Token("["), expression, Token("]")},
            MakeElementAccessExpression),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
@@ -1992,18 +2047,19 @@ struct TorqueGrammar : Grammar {
             &externalString, Token(";")},
            AsSingletonVector<Declaration*, MakeExternConstDeclaration>()),
       Rule({annotations, CheckIf(Token("extern")), CheckIf(Token("transient")),
-            Token("class"), &name,
+            OneOf({"class", "shape"}), &name,
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             &optionalClassBody},
            AsSingletonVector<Declaration*, MakeClassDeclaration>()),
-      Rule({Token("struct"), &name,
+      Rule({CheckIf(Token("@export")), Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
             List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
       Rule({CheckIf(Token("transient")), Token("type"), &name,
+            TryOrDefault<GenericParameters>(&genericParameters),
             Optional<Identifier*>(Sequence({Token("extends"), &name})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),

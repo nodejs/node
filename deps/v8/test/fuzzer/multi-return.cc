@@ -143,7 +143,7 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   return isolate->wasm_engine()->NewNativeModule(
-      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module));
+      isolate, i::wasm::WasmFeatures::All(), std::move(module), code_size);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

@@ -139,7 +139,7 @@ namespace {
 
 bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
   if (r1 == r2) return true;
-  return IsAnyCompressedTagged(r1) && IsAnyCompressedTagged(r2);
+  return IsAnyTagged(r1) && IsAnyTagged(r2);
 }
 
 }  // namespace
@@ -807,7 +807,7 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   // Add the new elements on {object}.
   state = state->AddField(
       object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-      {node, MachineType::RepCompressedTaggedPointer()}, zone());
+      {node, MachineRepresentation::kTaggedPointer}, zone());
   return UpdateState(node, state);
 }
 
@@ -835,7 +835,7 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   // Add the new elements on {object}.
   state = state->AddField(
       object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-      {node, MachineType::RepCompressedTaggedPointer()}, zone());
+      {node, MachineRepresentation::kTaggedPointer}, zone());
   return UpdateState(node, state);
 }
 
@@ -913,7 +913,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
       access.base_is_tagged == kTaggedBase) {
-    DCHECK(IsAnyCompressedTagged(access.machine_type.representation()));
+    DCHECK(IsAnyTagged(access.machine_type.representation()));
     ZoneHandleSet<Map> object_maps;
     if (state->LookupMaps(object, &object_maps) && object_maps.size() == 1) {
       Node* value = jsgraph()->HeapConstant(object_maps[0]);
@@ -977,7 +977,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
       access.base_is_tagged == kTaggedBase) {
-    DCHECK(IsAnyCompressedTagged(access.machine_type.representation()));
+    DCHECK(IsAnyTagged(access.machine_type.representation()));
     // Kill all potential knowledge about the {object}s map.
     state = state->KillMaps(object, zone());
     Type const new_value_type = NodeProperties::GetType(new_value);
@@ -1069,6 +1069,8 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1076,9 +1078,6 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
       if (Node* replacement = state->LookupElement(
               object, index, access.machine_type.representation())) {
         // Make sure we don't resurrect dead {replacement} nodes.
@@ -1124,6 +1123,8 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1131,9 +1132,6 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
       state = state->AddElement(object, index, new_value,
                                 access.machine_type.representation(), zone());
       break;
@@ -1427,7 +1425,6 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       break;

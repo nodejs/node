@@ -20,16 +20,18 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   using IteratorRecord = TorqueStructIteratorRecord;
 
   // Returns object[Symbol.iterator].
-  TNode<Object> GetIteratorMethod(Node* context, Node* object);
+  TNode<Object> GetIteratorMethod(TNode<Context> context, TNode<Object>);
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
-  IteratorRecord GetIterator(Node* context, Node* object,
+  IteratorRecord GetIterator(SloppyTNode<Context> context,
+                             SloppyTNode<Object> object,
                              Label* if_exception = nullptr,
-                             Variable* exception = nullptr);
-  IteratorRecord GetIterator(Node* context, Node* object, Node* method,
+                             TVariable<Object>* exception = nullptr);
+  IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object,
+                             TNode<Object> method,
                              Label* if_exception = nullptr,
-                             Variable* exception = nullptr);
+                             TVariable<Object>* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorstep
   // If the iterator is done, goto {if_done}, otherwise returns an iterator
@@ -39,7 +41,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSReceiver> IteratorStep(
       TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
       base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt,
-      Label* if_exception = nullptr, Variable* exception = nullptr);
+      Label* if_exception = nullptr, TVariable<Object>* exception = nullptr);
 
   TNode<JSReceiver> IteratorStep(
       TNode<Context> context, const IteratorRecord& iterator,
@@ -54,12 +56,15 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   TNode<Object> IteratorValue(
       TNode<Context> context, TNode<JSReceiver> result,
       base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt,
-      Label* if_exception = nullptr, Variable* exception = nullptr);
+      Label* if_exception = nullptr, TVariable<Object>* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorclose
-  void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,
-                                Label* if_exception, Variable* exception);
-  void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,
+  void IteratorCloseOnException(TNode<Context> context,
+                                const IteratorRecord& iterator,
+                                Label* if_exception,
+                                TVariable<Object>* exception);
+  void IteratorCloseOnException(TNode<Context> context,
+                                const IteratorRecord& iterator,
                                 TNode<Object> exception);
 
   // #sec-iterabletolist

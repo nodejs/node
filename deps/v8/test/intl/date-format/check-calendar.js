@@ -67,7 +67,7 @@ validCalendar.forEach(function(calendar) {
   locales.forEach(function(base) {
     let l = base + "-u-ca-" + calendar;
     let dtf = new Intl.DateTimeFormat([base], {calendar});
-    assertEquals(l, dtf.resolvedOptions().locale);
+    assertEquals(base, dtf.resolvedOptions().locale);
 
     // Test the formatting result is the same as passing in via u-ca-
     // in the locale.

@@ -913,7 +913,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
     Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.begin(), chars.length());
-    if (IsInRange(token, Token::IDENTIFIER, Token::YIELD)) return token;
+    if (base::IsInRange(token, Token::IDENTIFIER, Token::YIELD)) return token;
 
     if (token == Token::FUTURE_STRICT_RESERVED_WORD) {
       if (escaped) return Token::ESCAPED_STRICT_RESERVED_WORD;
@@ -923,7 +923,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
     if (!escaped) return token;
 
     STATIC_ASSERT(Token::LET + 1 == Token::STATIC);
-    if (IsInRange(token, Token::LET, Token::STATIC)) {
+    if (base::IsInRange(token, Token::LET, Token::STATIC)) {
       return Token::ESCAPED_STRICT_RESERVED_WORD;
     }
     return Token::ESCAPED_KEYWORD;

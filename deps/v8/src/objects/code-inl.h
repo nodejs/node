@@ -75,7 +75,7 @@ Object AbstractCode::stack_frame_cache() {
     return SourcePositionTableWithFrameCache::cast(maybe_table)
         .stack_frame_cache();
   }
-  return Smi::kZero;
+  return Smi::zero();
 }
 
 int AbstractCode::SizeIncludingMetadata() {
@@ -253,10 +253,7 @@ void Code::set_next_code_link(Object value) {
 }
 
 int Code::InstructionSize() const {
-  if (is_off_heap_trampoline()) {
-    DCHECK(FLAG_embedded_builtins);
-    return OffHeapInstructionSize();
-  }
+  if (is_off_heap_trampoline()) return OffHeapInstructionSize();
   return raw_instruction_size();
 }
 
@@ -265,10 +262,7 @@ Address Code::raw_instruction_start() const {
 }
 
 Address Code::InstructionStart() const {
-  if (is_off_heap_trampoline()) {
-    DCHECK(FLAG_embedded_builtins);
-    return OffHeapInstructionStart();
-  }
+  if (is_off_heap_trampoline()) return OffHeapInstructionStart();
   return raw_instruction_start();
 }
 
@@ -277,10 +271,7 @@ Address Code::raw_instruction_end() const {
 }
 
 Address Code::InstructionEnd() const {
-  if (is_off_heap_trampoline()) {
-    DCHECK(FLAG_embedded_builtins);
-    return OffHeapInstructionEnd();
-  }
+  if (is_off_heap_trampoline()) return OffHeapInstructionEnd();
   return raw_instruction_end();
 }
 
@@ -325,7 +316,7 @@ int Code::SizeIncludingMetadata() const {
 }
 
 ByteArray Code::unchecked_relocation_info() const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return ByteArray::unchecked_cast(
       TaggedField<HeapObject, kRelocationInfoOffset>::load(isolate, *this));
 }
@@ -346,7 +337,6 @@ Address Code::entry() const { return raw_instruction_start(); }
 
 bool Code::contains(Address inner_pointer) {
   if (is_off_heap_trampoline()) {
-    DCHECK(FLAG_embedded_builtins);
     if (OffHeapInstructionStart() <= inner_pointer &&
         inner_pointer < OffHeapInstructionEnd()) {
       return true;
@@ -595,6 +585,11 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
   return InstanceTypeChecker::IsPropertyCell(instance_type) ||
          InstanceTypeChecker::IsJSReceiver(instance_type) ||
          InstanceTypeChecker::IsContext(instance_type);
+}
+
+bool Code::IsExecutable() {
+  return !Builtins::IsBuiltinId(builtin_index()) || !is_off_heap_trampoline() ||
+         Builtins::CodeObjectIsExecutable(builtin_index());
 }
 
 // This field has to have relaxed atomic accessors because it is accessed in the

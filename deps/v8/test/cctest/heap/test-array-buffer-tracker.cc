@@ -151,7 +151,7 @@ TEST(ArrayBuffer_Compaction) {
 TEST(ArrayBuffer_UnregisterDuringSweep) {
 // Regular pages in old space (without compaction) are processed concurrently
 // in the sweeper. If we happen to unregister a buffer (either explicitly, or
-// implicitly through e.g. |Externalize|) we need to sync with the sweeper
+// implicitly through e.g. |Detach|) we need to sync with the sweeper
 // task.
 //
 // Note: This test will will only fail on TSAN configurations.
@@ -189,12 +189,10 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
     }
 
     CcTest::CollectGarbage(OLD_SPACE);
-    // |Externalize| will cause the buffer to be |Unregister|ed. Without
+    // |Detach| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
-    v8::ArrayBuffer::Contents contents = ab->Externalize();
-    contents.Deleter()(contents.Data(), contents.ByteLength(),
-                       contents.DeleterData());
+    ab->Detach();
   }
 }
 

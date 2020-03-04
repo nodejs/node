@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "include/v8.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
@@ -256,7 +257,7 @@ class V8_EXPORT_PRIVATE Scanner {
     Location() : beg_pos(0), end_pos(0) { }
 
     int length() const { return end_pos - beg_pos; }
-    bool IsValid() const { return IsInRange(beg_pos, 0, end_pos); }
+    bool IsValid() const { return base::IsInRange(beg_pos, 0, end_pos); }
 
     static Location invalid() { return Location(-1, 0); }
 
@@ -446,13 +447,13 @@ class V8_EXPORT_PRIVATE Scanner {
       return token == Token::PRIVATE_NAME || token == Token::ILLEGAL ||
              token == Token::ESCAPED_KEYWORD || token == Token::UNINITIALIZED ||
              token == Token::REGEXP_LITERAL ||
-             IsInRange(token, Token::NUMBER, Token::STRING) ||
+             base::IsInRange(token, Token::NUMBER, Token::STRING) ||
              Token::IsAnyIdentifier(token) || Token::IsKeyword(token) ||
-             IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
+             base::IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
     }
     bool CanAccessRawLiteral() const {
       return token == Token::ILLEGAL || token == Token::UNINITIALIZED ||
-             IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
+             base::IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
     }
 #endif  // DEBUG
   };
@@ -467,11 +468,11 @@ class V8_EXPORT_PRIVATE Scanner {
   };
 
   inline bool IsValidBigIntKind(NumberKind kind) {
-    return IsInRange(kind, BINARY, DECIMAL);
+    return base::IsInRange(kind, BINARY, DECIMAL);
   }
 
   inline bool IsDecimalNumberKind(NumberKind kind) {
-    return IsInRange(kind, DECIMAL, DECIMAL_WITH_LEADING_ZERO);
+    return base::IsInRange(kind, DECIMAL, DECIMAL_WITH_LEADING_ZERO);
   }
 
   static const int kCharacterLookaheadBufferSize = 1;

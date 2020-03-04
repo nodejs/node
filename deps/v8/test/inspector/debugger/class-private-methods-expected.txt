@@ -1,0 +1,20 @@
+Test private class methods
+
+Running test: testScopesPaused
+[
+    [0] : {
+        name : #field
+        value : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+]
+{
+    result : {
+        description : 3
+        type : number
+        value : 3
+    }
+}

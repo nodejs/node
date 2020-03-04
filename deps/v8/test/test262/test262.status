@@ -463,6 +463,10 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9875
+  'language/expressions/coalesce/tco-pos-undefined': [FAIL],
+  'language/expressions/coalesce/tco-pos-null': [FAIL],
+
   # https://github.com/tc39/test262/issues/2034
   'language/expressions/postfix-decrement/arguments': [SKIP],
   'language/expressions/postfix-decrement/arguments-nostrict': [SKIP],
@@ -496,37 +500,6 @@
   'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
   # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  #
-  # The spec should be changed to make target === holding throw and then we should change these tests.
-  'built-ins/FinalizationGroup/prototype/register/unregisterToken-same-as-holdings-and-target': [FAIL],
-  'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],
-  'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  #
-  # This test has target === holdings which throws, changing holdings to
-  #  { y } makes the test pass.
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
-
-  # https://github.com/tc39/test262/issues/2256
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
-
-  # https://github.com/tc39/test262/issues/2239
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  # 'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
-
-  # https://github.com/tc39/test262/issues/2255
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
-
-  # https://github.com/tc39/test262/issues/2260
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9612
   'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
 
@@ -539,24 +512,21 @@
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9646
+  'built-ins/ThrowTypeError/name': [FAIL],
+  'language/expressions/class/name': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9742
   'intl402/Locale/getters': [FAIL],
 
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9741
-  'intl402/Locale/constructor-tag': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9800
-  'built-ins/String/prototype/matchAll/flags-undefined-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/flags-nonglobal-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9819
-  'built-ins/Array/prototype/flatMap/array-like-objects-nested': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9808
+  'built-ins/AggregateError/*': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -719,10 +689,5 @@
   # https://crbug.com/856119
   'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
 }],  # system == windows
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ]

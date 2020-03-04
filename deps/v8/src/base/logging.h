@@ -198,7 +198,7 @@ DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
 // be out of line, while the "Impl" code should be inline. Caller
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
-std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
+V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
   std::ostringstream ss;
   ss << msg << " (";
   PrintCheckOperand<Lhs>(ss, lhs);
@@ -268,11 +268,12 @@ struct is_unsigned_vs_signed : public is_signed_vs_unsigned<Rhs, Lhs> {};
 #define MAKE_UNSIGNED(Type, value)         \
   static_cast<typename std::make_unsigned< \
       typename comparison_underlying_type<Type>::type>::type>(value)
-#define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)                  \
-  template <typename Lhs, typename Rhs>                                 \
-  V8_INLINE typename std::enable_if<CHECK<Lhs, Rhs>::value, bool>::type \
-      Cmp##NAME##Impl(Lhs lhs, Rhs rhs) {                               \
-    return IMPL;                                                        \
+#define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)            \
+  template <typename Lhs, typename Rhs>                           \
+  V8_INLINE constexpr                                             \
+      typename std::enable_if<CHECK<Lhs, Rhs>::value, bool>::type \
+          Cmp##NAME##Impl(Lhs lhs, Rhs rhs) {                     \
+    return IMPL;                                                  \
   }
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, EQ,
                             lhs >= 0 && MAKE_UNSIGNED(Lhs, lhs) ==
@@ -302,29 +303,24 @@ DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, GE, CmpLEImpl(rhs, lhs))
 // not integral or their signedness matches (i.e. whenever no specialization is
 // required, see above). Otherwise it is disabled by the enable_if construct,
 // and the compiler will pick a specialization from above.
-#define DEFINE_CHECK_OP_IMPL(NAME, op)                                         \
-  template <typename Lhs, typename Rhs>                                        \
-  V8_INLINE                                                                    \
-      typename std::enable_if<!is_signed_vs_unsigned<Lhs, Rhs>::value &&       \
-                                  !is_unsigned_vs_signed<Lhs, Rhs>::value,     \
-                              bool>::type Cmp##NAME##Impl(Lhs lhs, Rhs rhs) {  \
-    return lhs op rhs;                                                         \
-  }                                                                            \
-  template <typename Lhs, typename Rhs>                                        \
-  V8_INLINE std::string* Check##NAME##Impl(Lhs lhs, Rhs rhs,                   \
-                                           char const* msg) {                  \
-    using LhsPassT = typename pass_value_or_ref<Lhs>::type;                    \
-    using RhsPassT = typename pass_value_or_ref<Rhs>::type;                    \
-    bool cmp = Cmp##NAME##Impl<LhsPassT, RhsPassT>(lhs, rhs);                  \
-    return V8_LIKELY(cmp)                                                      \
-               ? nullptr                                                       \
-               : MakeCheckOpString<LhsPassT, RhsPassT>(lhs, rhs, msg);         \
-  }                                                                            \
-  extern template V8_BASE_EXPORT std::string* Check##NAME##Impl<float, float>( \
-      float lhs, float rhs, char const* msg);                                  \
-  extern template V8_BASE_EXPORT std::string*                                  \
-      Check##NAME##Impl<double, double>(double lhs, double rhs,                \
-                                        char const* msg);
+#define DEFINE_CHECK_OP_IMPL(NAME, op)                                        \
+  template <typename Lhs, typename Rhs>                                       \
+  V8_INLINE constexpr                                                         \
+      typename std::enable_if<!is_signed_vs_unsigned<Lhs, Rhs>::value &&      \
+                                  !is_unsigned_vs_signed<Lhs, Rhs>::value,    \
+                              bool>::type Cmp##NAME##Impl(Lhs lhs, Rhs rhs) { \
+    return lhs op rhs;                                                        \
+  }                                                                           \
+  template <typename Lhs, typename Rhs>                                       \
+  V8_INLINE constexpr std::string* Check##NAME##Impl(Lhs lhs, Rhs rhs,        \
+                                                     char const* msg) {       \
+    using LhsPassT = typename pass_value_or_ref<Lhs>::type;                   \
+    using RhsPassT = typename pass_value_or_ref<Rhs>::type;                   \
+    bool cmp = Cmp##NAME##Impl<LhsPassT, RhsPassT>(lhs, rhs);                 \
+    return V8_LIKELY(cmp)                                                     \
+               ? nullptr                                                      \
+               : MakeCheckOpString<LhsPassT, RhsPassT>(lhs, rhs, msg);        \
+  }
 DEFINE_CHECK_OP_IMPL(EQ, ==)
 DEFINE_CHECK_OP_IMPL(NE, !=)
 DEFINE_CHECK_OP_IMPL(LE, <=)

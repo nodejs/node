@@ -10,8 +10,8 @@ Protocol.Debugger.enable();
 let evaluate = code => Protocol.Runtime.evaluate({expression: code});
 
 (async function test() {
-  let scriptId = await instantiateWasm();
-  await setBreakpoint(scriptId);
+  let scriptIds = await instantiateWasm();
+  await setBreakpoint(scriptIds);
   printPauseLocationsAndContinue();
   await evaluate('instance.exports.main(4)');
   InspectorTest.log('exports.main returned. Test finished.');
@@ -35,6 +35,16 @@ async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true);
 
+  // Add a function without breakpoint, to check that locals are shown
+  // correctly in compiled code.
+  builder.addFunction('call_func', kSig_v_i).addLocals({f32_count: 1}).addBody([
+    // Set local 1 to 7.2.
+    ...wasmF32Const(7.2), kExprLocalSet, 1,
+    // Call function 'func', forwarding param 0.
+    kExprLocalGet, 0, kExprCallFunction, 1
+  ]).exportAs('main');
+
+  // A second function which will be stepped through.
   builder.addFunction('func', kSig_v_i)
       .addLocals(
           {i32_count: 1, i64_count: 1, f64_count: 1},
@@ -56,8 +66,7 @@ async function instantiateWasm() {
 
         // Set global 0 to 15
         kExprI32Const, 15, kExprGlobalSet, 0,
-      ])
-      .exportAs('main');
+      ]);
 
   var module_bytes = builder.toArray();
 
@@ -77,13 +86,14 @@ async function instantiateWasm() {
   await evaluate('var instance;\n' + instantiate.toString());
   InspectorTest.log('Calling instantiate function.');
   evaluate('instantiate(' + JSON.stringify(module_bytes) + ')');
-  return waitForWasmScript();
+  return waitForWasmScripts();
 }
 
-async function setBreakpoint(scriptId) {
-  InspectorTest.log('Setting breakpoint on line 2 (first instruction)');
+async function setBreakpoint(scriptIds) {
+  InspectorTest.log(
+      'Setting breakpoint on line 2 (first instruction) of second function');
   let breakpoint = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptId, 'lineNumber': 2}});
+      {'location': {'scriptId': scriptIds[1], 'lineNumber': 2}});
   printFailure(breakpoint);
   InspectorTest.logMessage(breakpoint.result.actualLocation);
 }
@@ -95,17 +105,18 @@ function printFailure(message) {
   return message;
 }
 
-async function waitForWasmScript() {
-  InspectorTest.log('Waiting for wasm script to be parsed.');
-  while (true) {
+async function waitForWasmScripts() {
+  InspectorTest.log('Waiting for two wasm scripts to be parsed.');
+  let wasm_script_ids = [];
+  while (wasm_script_ids.length < 2) {
     let script_msg = await Protocol.Debugger.onceScriptParsed();
     let url = script_msg.params.url;
-    if (!url.startsWith('wasm://')) {
-      continue;
+    if (url.startsWith('wasm://') && url.split('/').length == 5) {
+      InspectorTest.log('Got wasm script!');
+      wasm_script_ids.push(script_msg.params.scriptId);
     }
-    InspectorTest.log('Got wasm script!');
-    return script_msg.params.scriptId;
   }
+  return wasm_script_ids;
 }
 
 async function getScopeValues(value) {

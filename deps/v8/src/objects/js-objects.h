@@ -68,7 +68,8 @@ class JSReceiver : public HeapObject {
   inline void initialize_properties(Isolate* isolate);
 
   // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
+  static void DeleteNormalizedProperty(Handle<JSReceiver> object,
+                                       InternalIndex entry);
 
   DECL_CAST(JSReceiver)
   DECL_VERIFIER(JSReceiver)
@@ -381,7 +382,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                  PropertyAttributes attributes);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  SetOwnElementIgnoreAttributes(Handle<JSObject> object, uint32_t index,
+  SetOwnElementIgnoreAttributes(Handle<JSObject> object, size_t index,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
@@ -614,14 +615,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   const char* reason);
 
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(const Isolate* isolate,
+                                   FieldIndex index) const;
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(Isolate* isolate, FieldIndex index) const;
+  inline Object RawFastPropertyAt(const Isolate* isolate,
+                                  FieldIndex index) const;
   inline double RawFastDoublePropertyAt(FieldIndex index) const;
   inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
@@ -716,7 +719,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(const Isolate* isolate) const;
 #endif
 
   Object SlowReverseLookup(Object value);
@@ -1156,11 +1159,26 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSFunction> function);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
-                                TORQUE_GENERATED_JS_FUNCTION_FIELDS)
+  struct FieldOffsets {
+    DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
+                                  TORQUE_GENERATED_JS_FUNCTION_FIELDS)
+  };
+  static constexpr int kSharedFunctionInfoOffset =
+      FieldOffsets::kSharedFunctionInfoOffset;
+  static constexpr int kContextOffset = FieldOffsets::kContextOffset;
+  static constexpr int kFeedbackCellOffset = FieldOffsets::kFeedbackCellOffset;
+  static constexpr int kCodeOffset = FieldOffsets::kCodeOffset;
+  static constexpr int kPrototypeOrInitialMapOffset =
+      FieldOffsets::kPrototypeOrInitialMapOffset;
 
+ private:
+  // JSFunction doesn't have a fixed header size:
+  // Hide JSFunctionOrBoundFunction::kHeaderSize to avoid confusion.
+  static const int kHeaderSize;
+
+ public:
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = kSize;
+  static constexpr int kSizeWithPrototype = FieldOffsets::kHeaderSize;
 
   OBJECT_CONSTRUCTORS(JSFunction, JSFunctionOrBoundFunction);
 };
@@ -1205,7 +1223,7 @@ class JSGlobalObject : public JSSpecialObject {
   // Ensure that the global object has a cell for the given property name.
   static Handle<PropertyCell> EnsureEmptyPropertyCell(
       Handle<JSGlobalObject> global, Handle<Name> name,
-      PropertyCellType cell_type, int* entry_out = nullptr);
+      PropertyCellType cell_type, InternalIndex* entry_out = nullptr);
 
   DECL_CAST(JSGlobalObject)
 
@@ -1361,8 +1379,9 @@ class JSMessageObject : public JSObject {
   // TODO(v8:8989): [torque] Support marker constants.
   static const int kPointerFieldsEndOffset = kStartPositionOffset;
 
-  using BodyDescriptor = FixedBodyDescriptor<HeapObject::kMapOffset,
-                                             kPointerFieldsEndOffset, kSize>;
+  using BodyDescriptor =
+      FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
+                          kHeaderSize>;
 
  private:
   friend class Factory;
@@ -1415,7 +1434,7 @@ class JSStringIterator
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  // [index]: The [[StringIteratorNextIndex]] inobject property.
+  // [index]: The [[StringIteratorNextIndex]] slot.
   inline int index() const;
   inline void set_index(int value);
 

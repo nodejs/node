@@ -93,8 +93,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
           newCallFrames,
       Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
       Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) override;
-  Response getScriptSource(const String16& scriptId,
-                           String16* scriptSource) override;
+  Response getScriptSource(const String16& scriptId, String16* scriptSource,
+                           Maybe<protocol::Binary>* bytecode) override;
   Response getWasmBytecode(const String16& scriptId,
                            protocol::Binary* bytecode) override;
   Response pause() override;

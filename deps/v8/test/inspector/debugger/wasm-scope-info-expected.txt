@@ -1,9 +1,10 @@
 Test retrieving scope information when pausing in wasm functions
 Installing code and global variable.
 Calling instantiate function.
-Waiting for wasm script to be parsed.
+Waiting for two wasm scripts to be parsed.
 Got wasm script!
-Setting breakpoint on line 2 (first instruction)
+Got wasm script!
+Setting breakpoint on line 2 (first instruction) of second function
 {
     columnNumber : 2
     lineNumber : 2
@@ -21,6 +22,9 @@ at func (2:2):
  - scope (local):
    locals: "i32Arg": 4 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -37,6 +41,9 @@ at func (3:2):
  - scope (local):
    locals: "i32Arg": 4 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: "0": 11 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -53,6 +60,9 @@ at func (4:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -69,6 +79,9 @@ at func (5:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: "0": 47 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -85,6 +98,9 @@ at func (6:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -101,6 +117,9 @@ at func (7:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: "0": 9223372036854775807 (string)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -117,6 +136,9 @@ at func (8:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -133,6 +155,9 @@ at func (9:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
    stack: "0": -9223372036854775808 (string)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -149,6 +174,9 @@ at func (10:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -165,6 +193,9 @@ at func (11:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -181,6 +212,9 @@ at func (12:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -197,6 +231,9 @@ at func (13:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number), "1": 7 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -213,6 +250,9 @@ at func (14:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number), "1": 7 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -229,6 +269,9 @@ at func (15:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 0.14285714285714285 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -245,6 +288,9 @@ at func (16:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -261,6 +307,9 @@ at func (17:2):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
    stack: "0": 15 (number)
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -277,7 +326,18 @@ at func (18:0):
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
    stack: 
+at call_func (5:2):
+ - scope (global):
+   globals: "global#0": 15 (number)
 at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+instance.exports.main(4)#
+
+Scope:
+at (anonymous) (0:24):
  - scope (global):
    -- skipped globals
 

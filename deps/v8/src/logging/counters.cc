@@ -125,7 +125,7 @@ Counters::Counters(Isolate* isolate)
       STATS_COUNTER_TS_LIST(SC)
 #undef SC
       // clang format on
-      runtime_call_stats_(),
+      runtime_call_stats_(RuntimeCallStats::kMainIsolateThread),
       worker_thread_runtime_call_stats_() {
   static const struct {
     Histogram Counters::*member;
@@ -426,7 +426,8 @@ void RuntimeCallTimer::Snapshot() {
   Resume(now);
 }
 
-RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
+RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
+    : in_use_(false), thread_type_(thread_type) {
   static const char* const kNames[] = {
 #define CALL_BUILTIN_COUNTER(name) "GC_" #name,
       FOR_EACH_GC_COUNTER(CALL_BUILTIN_COUNTER)  //
@@ -446,10 +447,45 @@ RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
 #define CALL_BUILTIN_COUNTER(name) #name,
       FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
+#define THREAD_SPECIFIC_COUNTER(name) #name,
+      FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER)  //
+#undef THREAD_SPECIFIC_COUNTER
   };
   for (int i = 0; i < kNumberOfCounters; i++) {
     this->counters_[i] = RuntimeCallCounter(kNames[i]);
   }
+}
+
+namespace {
+constexpr RuntimeCallCounterId FirstCounter(RuntimeCallCounterId first, ...) {
+  return first;
+}
+
+#define THREAD_SPECIFIC_COUNTER(name) k##name,
+constexpr RuntimeCallCounterId kFirstThreadVariantCounter =
+    FirstCounter(FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER) 0);
+#undef THREAD_SPECIFIC_COUNTER
+
+#define THREAD_SPECIFIC_COUNTER(name) +1
+constexpr int kThreadVariantCounterCount =
+    0 FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER);
+#undef THREAD_SPECIFIC_COUNTER
+
+constexpr auto kLastThreadVariantCounter = static_cast<RuntimeCallCounterId>(
+    kFirstThreadVariantCounter + kThreadVariantCounterCount - 1);
+}  // namespace
+
+bool RuntimeCallStats::HasThreadSpecificCounterVariants(
+    RuntimeCallCounterId id) {
+  // Check that it's in the range of the thread-specific variant counters and
+  // also that it's one of the background counters.
+  return id >= kFirstThreadVariantCounter && id <= kLastThreadVariantCounter;
+}
+
+bool RuntimeCallStats::IsBackgroundThreadSpecificVariant(
+    RuntimeCallCounterId id) {
+  return HasThreadSpecificCounterVariants(id) &&
+         (id - kFirstThreadVariantCounter) % 2 == 1;
 }
 
 void RuntimeCallStats::Enter(RuntimeCallTimer* timer,
@@ -479,9 +515,14 @@ void RuntimeCallStats::Add(RuntimeCallStats* other) {
 }
 
 // static
-void RuntimeCallStats::CorrectCurrentCounterId(
-    RuntimeCallCounterId counter_id) {
+void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallCounterId counter_id,
+                                               CounterMode mode) {
   DCHECK(IsCalledOnTheSameThread());
+  if (mode == RuntimeCallStats::CounterMode::kThreadSpecific) {
+    counter_id = CounterIdForThread(counter_id);
+  }
+  DCHECK(IsCounterAppropriateForThread(counter_id));
+
   RuntimeCallTimer* timer = current_timer();
   if (timer == nullptr) return;
   RuntimeCallCounter* counter = GetCounter(counter_id);
@@ -536,7 +577,8 @@ void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
   in_use_ = false;
 }
 
-WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats() {}
+WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats()
+    : isolate_thread_id_(ThreadId::Current()) {}
 
 WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
   if (tls_key_) base::Thread::DeleteThreadLocalKey(*tls_key_);
@@ -550,8 +592,10 @@ base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
 
 RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
   DCHECK(TracingFlags::is_runtime_stats_enabled());
+  // Never create a new worker table on the isolate's main thread.
+  DCHECK_NE(ThreadId::Current(), isolate_thread_id_);
   std::unique_ptr<RuntimeCallStats> new_table =
-      std::make_unique<RuntimeCallStats>();
+      std::make_unique<RuntimeCallStats>(RuntimeCallStats::kWorkerThread);
   RuntimeCallStats* result = new_table.get();
 
   base::MutexGuard lock(&mutex_);

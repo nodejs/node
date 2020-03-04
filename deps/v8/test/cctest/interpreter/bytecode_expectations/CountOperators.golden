@@ -209,16 +209,16 @@ frame size: 2
 parameter count: 1
 bytecode array length: 23
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
   /*   53 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
-  /*   78 S> */ B(LdaCurrentContextSlot), U8(4),
+  /*   78 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(Inc), U8(0),
-  /*   87 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   87 E> */ B(StaCurrentContextSlot), U8(2),
   /*   89 S> */ B(Return),
 ]
 constant pool: [
@@ -236,18 +236,18 @@ frame size: 3
 parameter count: 1
 bytecode array length: 29
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
   /*   53 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
-  /*   78 S> */ B(LdaCurrentContextSlot), U8(4),
+  /*   78 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(ToNumeric), U8(0),
                 B(Star), R(2),
                 B(Dec), U8(0),
-  /*   86 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   86 E> */ B(StaCurrentContextSlot), U8(2),
                 B(Ldar), R(2),
   /*   89 S> */ B(Return),
 ]

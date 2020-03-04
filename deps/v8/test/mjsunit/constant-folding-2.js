@@ -278,7 +278,6 @@ test(function stringCodePointAt() {
 }, 10);
 
 test(function stringFromCodePoint() {
-  assertEquals(String.fromCodePoint(""), "\0");
   assertEquals(String.fromCodePoint(), "");
   assertEquals(String.fromCodePoint(-0), "\0");
   assertEquals(String.fromCodePoint(0), "\0");

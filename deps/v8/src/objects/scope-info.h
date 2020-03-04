@@ -55,12 +55,15 @@ class ScopeInfo : public FixedArray {
 
   // Return the number of context slots for code if a context is allocated. This
   // number consists of three parts:
-  //  1. Size of fixed header for every context: Context::MIN_CONTEXT_SLOTS
+  //  1. Size of header for every context.
   //  2. One context slot per context allocated local.
   //  3. One context slot for the function name if it is context allocated.
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
+  int ContextHeaderLength() const;
+
+  bool HasContextExtensionSlot() const;
 
   // Does this scope declare a "this" binding?
   bool HasReceiver() const;
@@ -194,6 +197,10 @@ class ScopeInfo : public FixedArray {
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
 
+  // REPL mode scopes allow re-declaraction of let variables. They come from
+  // debug evaluate but are different to IsDebugEvaluateScope().
+  bool IsReplModeScope() const;
+
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
 #endif
@@ -204,6 +211,7 @@ class ScopeInfo : public FixedArray {
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
+  static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
@@ -233,12 +241,14 @@ class ScopeInfo : public FixedArray {
         kVariablePartIndex
   };
 
+  static const int kFlagsOffset = OffsetOfElementAt(Fields::kFlags);
+
   // Used for the function name variable for named function expressions, and for
   // the receiver.
   enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
 
   // Properties of scopes.
-  using ScopeTypeField = BitField<ScopeType, 0, 4>;
+  using ScopeTypeField = base::BitField<ScopeType, 0, 4>;
   using SloppyEvalCanExtendVarsField = ScopeTypeField::Next<bool, 1>;
   STATIC_ASSERT(LanguageModeSize == 2);
   using LanguageModeField = SloppyEvalCanExtendVarsField::Next<LanguageMode, 1>;
@@ -261,6 +271,9 @@ class ScopeInfo : public FixedArray {
   using ForceContextAllocationField = IsDebugEvaluateScopeField::Next<bool, 1>;
   using PrivateNameLookupSkipsOuterClassField =
       ForceContextAllocationField::Next<bool, 1>;
+  using HasContextExtensionSlotField =
+      PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
+  using IsReplModeScopeField = HasContextExtensionSlotField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 
@@ -313,8 +326,10 @@ class ScopeInfo : public FixedArray {
   int ModuleVariablesIndex() const;
 
   static bool NeedsPositionInfo(ScopeType type);
+
+  enum class BootstrappingType { kScript, kFunction, kNative };
   static Handle<ScopeInfo> CreateForBootstrapping(Isolate* isolate,
-                                                  ScopeType type);
+                                                  BootstrappingType type);
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
@@ -332,7 +347,7 @@ class ScopeInfo : public FixedArray {
   static const int kPositionInfoEntries = 2;
 
   // Properties of variables.
-  using VariableModeField = BitField<VariableMode, 0, 4>;
+  using VariableModeField = base::BitField<VariableMode, 0, 4>;
   using InitFlagField = VariableModeField::Next<InitializationFlag, 1>;
   using MaybeAssignedFlagField = InitFlagField::Next<MaybeAssignedFlag, 1>;
   using ParameterNumberField = MaybeAssignedFlagField::Next<uint32_t, 16>;

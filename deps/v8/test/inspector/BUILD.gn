@@ -42,6 +42,7 @@ v8_executable("inspector-test") {
     "json-parse.js",
     "protocol-test.js",
     "runtime/",
+    "runtime-call-stats/",
     "sessions/",
     "testcfg.py",
     "type-profiler/",

@@ -102,9 +102,17 @@ class WasmTranslation::TranslatorImpl {
   }
 
   void Translate(TransLocation* loc) {
-    const OffsetTable& offset_table = GetOffsetTable(loc);
+    v8::Isolate* isolate = loc->translation->isolate_;
+    int func_index = GetFunctionIndexFromLocation(loc);
+    DCHECK_GE(func_index, 0);
+    const OffsetTable& offset_table = GetOffsetTable(isolate, func_index);
     DCHECK(!offset_table.empty());
-    uint32_t byte_offset = static_cast<uint32_t>(loc->column);
+    std::pair<int, int> func_range =
+        script_.Get(isolate)->GetFunctionRange(func_index);
+    DCHECK_LE(func_range.first, loc->column);
+    DCHECK_LT(loc->column, func_range.second);
+    uint32_t byte_offset =
+        static_cast<uint32_t>(loc->column - func_range.first);
 
     // Binary search for the given offset.
     unsigned left = 0;                                            // inclusive
@@ -143,25 +151,25 @@ class WasmTranslation::TranslatorImpl {
     // Binary search for the given line and column.
     auto element = std::lower_bound(reverse_table.begin(), reverse_table.end(),
                                     *loc, LessThan);
+    std::pair<int, int> func_range =
+        script_.Get(isolate)->GetFunctionRange(func_index);
+    DCHECK_LE(func_range.first, func_range.second);
 
-    int found_byte_offset = 0;
+    int found_byte_offset = func_range.first;
     // We want an entry on the same line if possible.
     if (element == reverse_table.end()) {
       // We did not find an element, so this points after the function.
-      std::pair<int, int> func_range =
-          script_.Get(isolate)->GetFunctionRange(func_index);
-      DCHECK_LE(func_range.first, func_range.second);
-      found_byte_offset = func_range.second - func_range.first;
+      found_byte_offset = func_range.second;
     } else if (element->line == loc->line || element == reverse_table.begin()) {
-      found_byte_offset = element->byte_offset;
+      found_byte_offset = element->byte_offset + func_range.first;
     } else {
       auto prev = element - 1;
       DCHECK(prev->line == loc->line);
-      found_byte_offset = prev->byte_offset;
+      found_byte_offset = prev->byte_offset + func_range.first;
     }
 
     loc->script_id = String16::fromInteger(script_.Get(isolate)->Id());
-    loc->line = func_index;
+    loc->line = 0;
     loc->column = found_byte_offset;
   }
 
@@ -197,6 +205,7 @@ class WasmTranslation::TranslatorImpl {
   }
 
  private:
+  friend class WasmTranslation;
   String16 GetFakeScriptUrl(v8::Isolate* isolate, int func_index) {
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
     String16 script_name =
@@ -222,7 +231,7 @@ class WasmTranslation::TranslatorImpl {
     return String16::concat(script_id, '-', String16::fromInteger(func_index));
   }
   String16 GetFakeScriptId(const TransLocation* loc) {
-    return GetFakeScriptId(loc->script_id, loc->line);
+    return GetFakeScriptId(loc->script_id, GetFunctionIndexFromLocation(loc));
   }
 
   void ReportFakeScript(v8::Isolate* isolate,
@@ -249,10 +258,15 @@ class WasmTranslation::TranslatorImpl {
     return func_index;
   }
 
-  const OffsetTable& GetOffsetTable(const TransLocation* loc) {
-    int func_index = loc->line;
-    return GetSourceInformation(loc->translation->isolate_, func_index)
-        .offset_table;
+  int GetFunctionIndexFromLocation(const TransLocation* loc) {
+    DCHECK_EQ(0, loc->line);
+    v8::Isolate* isolate = loc->translation->isolate_;
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+    return script->GetContainingFunction(loc->column);
+  }
+
+  const OffsetTable& GetOffsetTable(v8::Isolate* isolate, int func_index) {
+    return GetSourceInformation(isolate, func_index).offset_table;
   }
 
   const OffsetTable& GetReverseTable(v8::Isolate* isolate, int func_index) {
@@ -382,6 +396,17 @@ bool WasmTranslation::TranslateProtocolLocationToWasmScriptLocation(
   *column_number = trans_loc.column;
 
   return true;
+}
+
+// Find the end byte offset for a fake script.
+int WasmTranslation::GetEndOffset(const String16& script_id) {
+  auto it = fake_scripts_.find(script_id);
+  DCHECK_NE(fake_scripts_.end(), it);
+  TranslatorImpl* translator = it->second;
+  int func_index = translator->GetFunctionIndexFromFakeScriptId(script_id);
+  std::pair<int, int> func_range =
+      translator->script_.Get(isolate_)->GetFunctionRange(func_index);
+  return func_range.second;
 }
 
 void WasmTranslation::AddFakeScript(const String16& scriptId,

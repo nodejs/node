@@ -101,7 +101,7 @@ v8_source_set("unittests_sources") {
     "compiler/control-equivalence-unittest.cc",
     "compiler/control-flow-optimizer-unittest.cc",
     "compiler/dead-code-elimination-unittest.cc",
-    "compiler/decompression-elimination-unittest.cc",
+    "compiler/decompression-optimizer-unittest.cc",
     "compiler/diamond-unittest.cc",
     "compiler/effect-control-linearizer-unittest.cc",
     "compiler/graph-reducer-unittest.cc",
@@ -215,6 +215,7 @@ v8_source_set("unittests_sources") {
     "utils/detachable-vector-unittest.cc",
     "utils/locked-queue-unittest.cc",
     "utils/utils-unittest.cc",
+    "utils/vector-unittest.cc",
     "wasm/control-transfer-unittest.cc",
     "wasm/decoder-unittest.cc",
     "wasm/function-body-decoder-unittest.cc",
@@ -233,15 +234,6 @@ v8_source_set("unittests_sources") {
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
   ]
-
-  if (use_jumbo_build) {
-    jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): figure out how to make this build in both
-      # modes.  Template issues on windows if we add a functional_unittest
-      # namespace as with the other files.
-      "base/functional-unittest.cc",
-    ]
-  }
 
   if (v8_current_cpu == "arm") {
     sources += [
@@ -304,8 +296,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../../third_party/inspector_protocol:bindings_test",
-    "../../third_party/inspector_protocol:encoding_test",
+    "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",

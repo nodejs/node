@@ -259,8 +259,11 @@ class ValueSerializerTest : public TestWithIsolate {
 
   Local<Object> NewDummyUint8Array() {
     static uint8_t data[] = {4, 5, 6};
+    std::unique_ptr<v8::BackingStore> backing_store =
+        ArrayBuffer::NewBackingStore(
+            data, sizeof(data), [](void*, size_t, void*) {}, nullptr);
     Local<ArrayBuffer> ab =
-        ArrayBuffer::New(isolate(), static_cast<void*>(data), sizeof(data));
+        ArrayBuffer::New(isolate(), std::move(backing_store));
     return Uint8Array::New(ab, 0, sizeof(data));
   }
 
@@ -1724,7 +1727,7 @@ class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
   ValueSerializerTestWithArrayBufferTransfer() {
     {
       Context::Scope scope(serialization_context());
-      input_buffer_ = ArrayBuffer::New(isolate(), nullptr, 0);
+      input_buffer_ = ArrayBuffer::New(isolate(), 0);
     }
     {
       Context::Scope scope(deserialization_context());
@@ -2022,7 +2025,15 @@ class ValueSerializerTestWithSharedArrayBufferClone
               std::move(backing_store));
       return Utils::ToLocalShared(buffer);
     } else {
-      return SharedArrayBuffer::New(isolate(), data, byte_length);
+      std::unique_ptr<v8::BackingStore> backing_store =
+          SharedArrayBuffer::NewBackingStore(
+              data, byte_length,
+              [](void*, size_t, void*) {
+                // Leak the buffer as it has the
+                // lifetime of the test.
+              },
+              nullptr);
+      return SharedArrayBuffer::New(isolate(), std::move(backing_store));
     }
   }
 

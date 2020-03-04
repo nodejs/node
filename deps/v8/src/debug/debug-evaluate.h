@@ -24,7 +24,8 @@ class FrameInspector;
 class DebugEvaluate : public AllStatic {
  public:
   static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
-                                    debug::EvaluateGlobalMode mode);
+                                    debug::EvaluateGlobalMode mode,
+                                    REPLMode repl_mode = REPLMode::kNo);
 
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:

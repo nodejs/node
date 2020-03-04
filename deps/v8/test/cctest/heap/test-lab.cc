@@ -30,7 +30,7 @@ static void VerifyIterable(v8::internal::Address base,
   size_t counter = 0;
   while (base < limit) {
     object = HeapObject::FromAddress(base);
-    CHECK(object.IsFiller());
+    CHECK(object.IsFreeSpaceOrFiller());
     CHECK_LT(counter, expected_size.size());
     CHECK_EQ(expected_size[counter], object.Size());
     base += object.Size();

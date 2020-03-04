@@ -66,9 +66,6 @@ class Interpreter {
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           Code handler);
 
-  // GC support.
-  void IterateDispatchTable(RootVisitor* v);
-
   // Disassembler support.
   V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
 

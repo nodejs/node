@@ -33,7 +33,7 @@ class TimedScope {
 };
 
 template <typename Char>
-bool TryAddIndexChar(uint32_t* index, Char c) {
+bool TryAddArrayIndexChar(uint32_t* index, Char c) {
   if (!IsDecimalDigit(c)) return false;
   int d = c - '0';
   // The maximum index is 4294967294; for the computation below to not
@@ -46,20 +46,15 @@ bool TryAddIndexChar(uint32_t* index, Char c) {
 }
 
 template <typename Char>
-bool TryAddIndexChar(uint64_t* index, Char c) {
+bool TryAddIntegerIndexChar(uint64_t* index, Char c) {
   if (!IsDecimalDigit(c)) return false;
   int d = c - '0';
-  // The maximum uint64_t is 18446744073709551615; for the computation below to
-  // not exceed that, the previous index value must be <= 1844674407370955161
-  // if d <= 5, or <= 1844674407370955160 if d >= 6. The (d+2)>>3 computation
-  // is a branch-free way to express that.
-  if (*index > 1844674407370955161ull - ((d + 2) >> 3)) return false;
   *index = (*index) * 10 + d;
-  return true;
+  return (*index <= kMaxSafeIntegerUint64);
 }
 
-template <typename Stream, typename index_t>
-bool StringToArrayIndex(Stream* stream, index_t* index) {
+template <typename Stream, typename index_t, enum ToIndexMode mode>
+bool StringToIndex(Stream* stream, index_t* index) {
   uint16_t ch = stream->GetNext();
 
   // If the string begins with a '0' character, it must only consist
@@ -76,14 +71,16 @@ bool StringToArrayIndex(Stream* stream, index_t* index) {
   while (stream->HasMore()) {
     // Clang on Mac doesn't think that size_t and uint*_t should be
     // implicitly convertible.
-    if (sizeof(index_t) == 8) {
-      if (!TryAddIndexChar(reinterpret_cast<uint64_t*>(&result),
-                           stream->GetNext())) {
+    if (sizeof(result) == 8) {
+      DCHECK_EQ(kToIntegerIndex, mode);
+      if (!TryAddIntegerIndexChar(reinterpret_cast<uint64_t*>(&result),
+                                  stream->GetNext())) {
         return false;
       }
     } else {
-      if (!TryAddIndexChar(reinterpret_cast<uint32_t*>(&result),
-                           stream->GetNext()))
+      // Either mode is fine here.
+      if (!TryAddArrayIndexChar(reinterpret_cast<uint32_t*>(&result),
+                                stream->GetNext()))
         return false;
     }
   }

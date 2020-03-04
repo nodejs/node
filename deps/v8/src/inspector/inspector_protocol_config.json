@@ -46,11 +46,7 @@
         "string_header": "src/inspector/string-util.h"
     },
 
-    "encoding_lib": {
-        "namespace": "v8_inspector_protocol_encoding"
-    },
-
-    "bindings_lib": {
-        "namespace": "v8_inspector_protocol_bindings"
+    "crdtp": {
+        "namespace": "v8_crdtp"
     }
 }

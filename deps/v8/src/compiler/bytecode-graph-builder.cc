@@ -233,6 +233,13 @@ class BytecodeGraphBuilder {
 
   // Check the context chain for extensions, for lookup fast paths.
   Environment* CheckContextExtensions(uint32_t depth);
+  // Slow path taken when we cannot figure out the current scope info.
+  Environment* CheckContextExtensionsSlowPath(uint32_t depth);
+  // Helper function that tries to get the current scope info.
+  base::Optional<ScopeInfoRef> TryGetScopeInfo();
+  // Helper function to create a context extension check.
+  Environment* CheckContextExtensionAtDepth(Environment* slow_environment,
+                                            uint32_t depth);
 
   // Helper function to create binary operation hint from the recorded
   // type feedback.
@@ -347,8 +354,9 @@ class BytecodeGraphBuilder {
   void set_currently_peeled_loop_offset(int offset) {
     currently_peeled_loop_offset_ = offset;
   }
-  bool skip_next_stack_check() const { return skip_next_stack_check_; }
-  void unset_skip_next_stack_check() { skip_next_stack_check_ = false; }
+  bool skip_first_stack_check() const { return skip_first_stack_check_; }
+  bool visited_first_stack_check() const { return visited_first_stack_check_; }
+  void set_visited_first_stack_check() { visited_first_stack_check_ = true; }
   int current_exception_handler() const { return current_exception_handler_; }
   void set_current_exception_handler(int index) {
     current_exception_handler_ = index;
@@ -381,7 +389,9 @@ class BytecodeGraphBuilder {
   Environment* environment_;
   bool const osr_;
   int currently_peeled_loop_offset_;
-  bool skip_next_stack_check_;
+
+  const bool skip_first_stack_check_;
+  bool visited_first_stack_check_ = false;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -957,8 +967,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
-      skip_next_stack_check_(flags &
-                             BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
+      skip_first_stack_check_(flags &
+                              BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
       merge_environments_(local_zone),
       generator_merge_environments_(local_zone),
       exception_handlers_(local_zone),
@@ -1269,12 +1279,6 @@ void BytecodeGraphBuilder::VisitSingleBytecode() {
 
   if (environment() != nullptr) {
     BuildLoopHeaderEnvironment(current_offset);
-    if (skip_next_stack_check() && bytecode_iterator().current_bytecode() ==
-                                       interpreter::Bytecode::kStackCheck) {
-      unset_skip_next_stack_check();
-      return;
-    }
-
     switch (bytecode_iterator().current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
@@ -1565,47 +1569,115 @@ void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
   BuildLdaLookupSlot(TypeofMode::INSIDE_TYPEOF);
 }
 
+BytecodeGraphBuilder::Environment*
+BytecodeGraphBuilder::CheckContextExtensionAtDepth(
+    Environment* slow_environment, uint32_t depth) {
+  Node* extension_slot = NewNode(
+      javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false));
+  Node* check_no_extension =
+      NewNode(simplified()->ReferenceEqual(), extension_slot,
+              jsgraph()->UndefinedConstant());
+  NewBranch(check_no_extension);
+  {
+    SubEnvironment sub_environment(this);
+    NewIfFalse();
+    // If there is an extension, merge into the slow path.
+    if (slow_environment == nullptr) {
+      slow_environment = environment();
+      NewMerge();
+    } else {
+      slow_environment->Merge(environment(),
+                              bytecode_analysis().GetInLivenessFor(
+                                  bytecode_iterator().current_offset()));
+    }
+  }
+  NewIfTrue();
+  // Do nothing on if there is no extension, eventually falling through to
+  // the fast path.
+  DCHECK_NOT_NULL(slow_environment);
+  return slow_environment;
+}
+
+base::Optional<ScopeInfoRef> BytecodeGraphBuilder::TryGetScopeInfo() {
+  Node* context = environment()->Context();
+  switch (context->opcode()) {
+    case IrOpcode::kJSCreateFunctionContext:
+      return ScopeInfoRef(
+          broker(),
+          CreateFunctionContextParametersOf(context->op()).scope_info());
+    case IrOpcode::kJSCreateBlockContext:
+    case IrOpcode::kJSCreateCatchContext:
+    case IrOpcode::kJSCreateWithContext:
+      return ScopeInfoRef(broker(), ScopeInfoOf(context->op()));
+    case IrOpcode::kParameter: {
+      ScopeInfoRef scope_info = shared_info_.scope_info();
+      if (scope_info.HasOuterScopeInfo()) {
+        scope_info = scope_info.OuterScopeInfo();
+      }
+      return scope_info;
+    }
+    default:
+      return base::nullopt;
+  }
+}
+
 BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     uint32_t depth) {
+  base::Optional<ScopeInfoRef> maybe_scope_info = TryGetScopeInfo();
+  if (!maybe_scope_info.has_value()) {
+    return CheckContextExtensionsSlowPath(depth);
+  }
+
+  ScopeInfoRef scope_info = maybe_scope_info.value();
+  // We only need to check up to the last-but-one depth, because an eval
+  // in the same scope as the variable itself has no way of shadowing it.
+  Environment* slow_environment = nullptr;
+  for (uint32_t d = 0; d < depth; d++) {
+    if (scope_info.HasContextExtension()) {
+      slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
+    }
+    DCHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
+    if (scope_info.HasOuterScopeInfo()) {
+      scope_info = scope_info.OuterScopeInfo();
+    }
+  }
+
+  // The depth can be zero, in which case no slow-path checks are built, and
+  // the slow path environment can be null.
+  DCHECK_IMPLIES(slow_environment == nullptr, depth == 0);
+  return slow_environment;
+}
+
+BytecodeGraphBuilder::Environment*
+BytecodeGraphBuilder::CheckContextExtensionsSlowPath(uint32_t depth) {
   // Output environment where the context has an extension
   Environment* slow_environment = nullptr;
 
-  // We only need to check up to the last-but-one depth, because the an eval
+  // We only need to check up to the last-but-one depth, because an eval
   // in the same scope as the variable itself has no way of shadowing it.
   for (uint32_t d = 0; d < depth; d++) {
-    Node* extension_slot =
-        NewNode(javascript()->LoadContext(d, Context::EXTENSION_INDEX, false));
+    Node* has_extension = NewNode(javascript()->HasContextExtension(d));
 
-    Node* check_no_extension =
-        NewNode(simplified()->ReferenceEqual(), extension_slot,
-                jsgraph()->TheHoleConstant());
-
-    NewBranch(check_no_extension);
-
+    Environment* undefined_extension_env;
+    NewBranch(has_extension);
     {
       SubEnvironment sub_environment(this);
-
-      NewIfFalse();
-      // If there is an extension, merge into the slow path.
-      if (slow_environment == nullptr) {
-        slow_environment = environment();
-        NewMerge();
-      } else {
-        slow_environment->Merge(environment(),
-                                bytecode_analysis().GetInLivenessFor(
-                                    bytecode_iterator().current_offset()));
-      }
+      NewIfTrue();
+      slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
+      undefined_extension_env = environment();
     }
-
-    NewIfTrue();
+    NewIfFalse();
+    environment()->Merge(undefined_extension_env,
+                         bytecode_analysis().GetInLivenessFor(
+                             bytecode_iterator().current_offset()));
+    mark_as_needing_eager_checkpoint(true);
     // Do nothing on if there is no extension, eventually falling through to
     // the fast path.
   }
 
   // The depth can be zero, in which case no slow-path checks are built, and
   // the slow path environment can be null.
-  DCHECK(depth == 0 || slow_environment != nullptr);
-
+  DCHECK_IMPLIES(slow_environment == nullptr, depth == 0);
   return slow_environment;
 }
 
@@ -2153,8 +2225,9 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
   FeedbackSource feedback = CreateFeedbackSource(slot_id);
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
-  const Operator* op = javascript()->Call(arg_count, frequency, feedback,
-                                          receiver_mode, speculation_mode);
+  const Operator* op =
+      javascript()->Call(arg_count, frequency, feedback, receiver_mode,
+                         speculation_mode, CallFeedbackRelation::kRelated);
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
@@ -2337,8 +2410,9 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   FeedbackSource feedback = CreateFeedbackSource(slot_id);
   CallFrequency frequency = ComputeCallFrequency(slot_id);
+  SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
   const Operator* op = javascript()->CallWithSpread(
-      static_cast<int>(reg_count + 1), frequency, feedback);
+      static_cast<int>(reg_count + 1), frequency, feedback, speculation_mode);
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
@@ -3178,8 +3252,20 @@ void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
 }
 
 void BytecodeGraphBuilder::VisitStackCheck() {
+  // Note: The stack check kind is determined heuristically: we simply assume
+  // that the first seen stack check is at function-entry, and all other stack
+  // checks are at iteration-body. An alternative precise solution would be to
+  // parameterize the StackCheck bytecode; but this has the caveat of increased
+  // code size.
+  StackCheckKind kind = StackCheckKind::kJSIterationBody;
+  if (!visited_first_stack_check()) {
+    set_visited_first_stack_check();
+    kind = StackCheckKind::kJSFunctionEntry;
+    if (skip_first_stack_check()) return;
+  }
+
   PrepareEagerCheckpoint();
-  Node* node = NewNode(javascript()->StackCheck());
+  Node* node = NewNode(javascript()->StackCheck(kind));
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
@@ -4078,7 +4164,7 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SourcePositionTable* source_positions,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
-  DCHECK(shared_info.IsSerializedForCompilation(feedback_vector));
+  DCHECK(broker->IsSerializedForCompilation(shared_info, feedback_vector));
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_vector, osr_offset, jsgraph, invocation_frequency,

@@ -157,8 +157,7 @@ TNode<Object> InterpreterAssembler::GetAccumulator() {
   return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
-// TODO(v8:6949): Remove sloppy-ness from SetAccumulator's value argument.
-void InterpreterAssembler::SetAccumulator(SloppyTNode<Object> value) {
+void InterpreterAssembler::SetAccumulator(TNode<Object> value) {
   DCHECK(Bytecodes::WritesAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
   accumulator_ = value;
@@ -211,15 +210,15 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
   Goto(&context_search);
   BIND(&context_search);
   {
-    // Check if context has an extension slot
+    // Check if context has an extension slot.
     TNode<BoolT> has_extension =
-        LoadContextHasExtensionField(cur_context.value());
+        LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));
     GotoIfNot(has_extension, &no_extension);
 
-    // Jump to the target if the extension slot is not a hole.
+    // Jump to the target if the extension slot is not an undefined value.
     TNode<Object> extension_slot =
         LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
-    Branch(TaggedNotEqual(extension_slot, TheHoleConstant()), target,
+    Branch(TaggedNotEqual(extension_slot, UndefinedConstant()), target,
            &no_extension);
 
     BIND(&no_extension);

@@ -45,6 +45,10 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
+namespace third_party_heap {
+class Heap;
+}
+
 class IncrementalMarking;
 class BackingStore;
 class JSArrayBuffer;
@@ -96,10 +100,6 @@ enum class InvalidateRecordedSlots { kYes, kNo };
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
 enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
-
-enum class FixedArrayVisitationMode { kRegular, kIncremental };
-
-enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
 
@@ -228,6 +228,18 @@ class Heap {
     TEAR_DOWN
   };
 
+  // Emits GC events for DevTools timeline.
+  class DevToolsTraceEventScope {
+   public:
+    DevToolsTraceEventScope(Heap* heap, const char* event_name,
+                            const char* event_type);
+    ~DevToolsTraceEventScope();
+
+   private:
+    Heap* heap_;
+    const char* event_name_;
+  };
+
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
 
@@ -248,19 +260,27 @@ class Heap {
   // Don't apply pointer multiplier on Android since it has no swap space and
   // should instead adapt it's heap size based on available physical memory.
   static const int kPointerMultiplier = 1;
+  static const int kHeapLimitMultiplier = 1;
 #else
-  static const int kPointerMultiplier = i::kTaggedSize / 4;
+  static const int kPointerMultiplier = kTaggedSize / 4;
+  // The heap limit needs to be computed based on the system pointer size
+  // because we want a pointer-compressed heap to have larger limit than
+  // an orinary 32-bit which that is contrained by 2GB virtual address space.
+  static const int kHeapLimitMultiplier = kSystemPointerSize / 4;
 #endif
 
   static const size_t kMaxInitialOldGenerationSize =
-      256 * MB * kPointerMultiplier;
+      256 * MB * kHeapLimitMultiplier;
 
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
-  static constexpr size_t kOldGenerationToSemiSpaceRatio = 128;
-  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory = 256;
+  // Young generation size is the same for compressed heaps and 32-bit heaps.
+  static constexpr size_t kOldGenerationToSemiSpaceRatio =
+      128 * kHeapLimitMultiplier / kPointerMultiplier;
+  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
+      256 * kHeapLimitMultiplier / kPointerMultiplier;
   static constexpr size_t kOldGenerationLowMemory =
-      128 * MB * kPointerMultiplier;
+      128 * MB * kHeapLimitMultiplier;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
   static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
   static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
@@ -680,7 +700,7 @@ class Heap {
   OldSpace* old_space() { return old_space_; }
   CodeSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
-  LargeObjectSpace* lo_space() { return lo_space_; }
+  OldLargeObjectSpace* lo_space() { return lo_space_; }
   CodeLargeObjectSpace* code_lo_space() { return code_lo_space_; }
   NewLargeObjectSpace* new_lo_space() { return new_lo_space_; }
   ReadOnlySpace* read_only_space() { return read_only_space_; }
@@ -1052,6 +1072,9 @@ class Heap {
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
+  // Limit on the max old generation size imposed by the underlying allocator.
+  V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize();
+
   V8_EXPORT_PRIVATE static size_t HeapSizeFromPhysicalMemory(
       uint64_t physical_memory);
   V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
@@ -1368,6 +1391,8 @@ class Heap {
 
   // Calculates the nof entries for the full sized number to string cache.
   inline int MaxNumberToStringCacheSize() const;
+
+  static Isolate* GetIsolateFromWritableObject(HeapObject object);
 
  private:
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
@@ -1793,6 +1818,10 @@ class Heap {
 
   void FinalizePartialMap(Map map);
 
+  // Allocate empty fixed typed array of given type.
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateEmptyFixedTypedArray(ExternalArrayType array_type);
+
   void set_force_oom(bool value) { force_oom_ = value; }
 
   // ===========================================================================
@@ -1874,7 +1903,7 @@ class Heap {
   OldSpace* old_space_ = nullptr;
   CodeSpace* code_space_ = nullptr;
   MapSpace* map_space_ = nullptr;
-  LargeObjectSpace* lo_space_ = nullptr;
+  OldLargeObjectSpace* lo_space_ = nullptr;
   CodeLargeObjectSpace* code_lo_space_ = nullptr;
   NewLargeObjectSpace* new_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
@@ -1975,7 +2004,7 @@ class Heap {
   unsigned int maximum_size_scavenges_ = 0;
 
   // Total time spent in GC.
-  double total_gc_time_ms_;
+  double total_gc_time_ms_ = 0.0;
 
   // Last time an idle notification happened.
   double last_idle_notification_time_ = 0.0;
@@ -2084,6 +2113,8 @@ class Heap {
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 
+  std::unique_ptr<third_party_heap::Heap> tp_heap_;
+
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
@@ -2094,10 +2125,9 @@ class Heap {
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
-  friend class LargeObjectSpace;
-  template <FixedArrayVisitationMode fixed_array_mode,
-            TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-  friend class MarkingVisitor;
+  friend class OldLargeObjectSpace;
+  template <typename ConcreteVisitor, typename MarkingState>
+  friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
   friend class MinorMarkCompactCollector;
@@ -2198,6 +2228,7 @@ class CodePageCollectionMemoryModificationScope {
 class CodePageMemoryModificationScope {
  public:
   explicit inline CodePageMemoryModificationScope(MemoryChunk* chunk);
+  explicit inline CodePageMemoryModificationScope(Code object);
   inline ~CodePageMemoryModificationScope();
 
  private:

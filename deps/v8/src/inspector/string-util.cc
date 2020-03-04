@@ -126,20 +126,6 @@ std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
 }
 
 // static
-ProtocolMessage StringUtil::jsonToMessage(String message) {
-  ProtocolMessage result;
-  result.json = std::move(message);
-  return result;
-}
-
-// static
-ProtocolMessage StringUtil::binaryToMessage(std::vector<uint8_t> message) {
-  ProtocolMessage result;
-  result.binary = std::move(message);
-  return result;
-}
-
-// static
 void StringUtil::builderAppendQuotedString(StringBuilder& builder,
                                            const String& str) {
   builder.append('"');

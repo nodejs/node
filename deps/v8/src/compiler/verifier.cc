@@ -38,6 +38,7 @@ class Verifier::Visitor {
         check_inputs(check_inputs),
         code_type(code_type) {}
 
+  void CheckSwitch(Node* node, const AllNodes& all);
   void Check(Node* node, const AllNodes& all);
 
   Zone* zone;
@@ -91,6 +92,47 @@ class Verifier::Visitor {
     }
   }
 };
+
+void Verifier::Visitor::CheckSwitch(Node* node, const AllNodes& all) {
+  // Count the number of {kIfValue} uses.
+  int case_count = 0;
+  bool expect_default = true;
+
+  // Data structure to check that each {kIfValue} has a unique value.
+  std::unordered_set<int32_t> if_value_parameters;
+
+  Node::Uses uses = node->uses();
+  for (const Node* use : uses) {
+    CHECK(all.IsLive(use));
+    switch (use->opcode()) {
+      case IrOpcode::kIfValue: {
+        // Check if each value is unique.
+        CHECK(
+            if_value_parameters.emplace(IfValueParametersOf(use->op()).value())
+                .second);
+        ++case_count;
+        break;
+      }
+      case IrOpcode::kIfDefault: {
+        // We expect exactly one {kIfDefault}.
+        CHECK(expect_default);
+        expect_default = false;
+        break;
+      }
+      default: {
+        FATAL("Switch #%d illegally used by #%d:%s", node->id(), use->id(),
+              use->op()->mnemonic());
+        break;
+      }
+    }
+  }
+
+  CHECK(!expect_default);
+  // + 1 because of the one {kIfDefault}.
+  CHECK_EQ(node->op()->ControlOutputCount(), case_count + 1);
+  // Type is empty.
+  CheckNotTyped(node);
+}
 
 void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   int value_count = node->op()->ValueInputCount();
@@ -289,36 +331,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     }
     case IrOpcode::kSwitch: {
-      // Switch uses are Case and Default.
-      int count_case = 0, count_default = 0;
-      for (const Node* use : node->uses()) {
-        CHECK(all.IsLive(use));
-        switch (use->opcode()) {
-          case IrOpcode::kIfValue: {
-            for (const Node* user : node->uses()) {
-              if (user != use && user->opcode() == IrOpcode::kIfValue) {
-                CHECK_NE(IfValueParametersOf(use->op()).value(),
-                         IfValueParametersOf(user->op()).value());
-              }
-            }
-            ++count_case;
-            break;
-          }
-          case IrOpcode::kIfDefault: {
-            ++count_default;
-            break;
-          }
-          default: {
-            FATAL("Switch #%d illegally used by #%d:%s", node->id(), use->id(),
-                  use->op()->mnemonic());
-            break;
-          }
-        }
-      }
-      CHECK_EQ(1, count_default);
-      CHECK_EQ(node->op()->ControlOutputCount(), count_case + count_default);
-      // Type is empty.
-      CheckNotTyped(node);
+      CheckSwitch(node, all);
       break;
     }
     case IrOpcode::kIfValue:
@@ -800,6 +813,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Callable());
       break;
 
+    case IrOpcode::kJSHasContextExtension:
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kJSLoadContext:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());
@@ -985,6 +1001,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kSpeculativeBigIntAdd:
+    case IrOpcode::kSpeculativeBigIntSubtract:
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kSpeculativeBigIntNegate:
@@ -995,6 +1012,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kBigIntAdd:
+    case IrOpcode::kBigIntSubtract:
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
       CheckTypeIs(node, Type::BigInt());
@@ -1340,7 +1358,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
 
-    case IrOpcode::kChangeCompressedSignedToInt32:
     case IrOpcode::kChangeTaggedSignedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1382,8 +1399,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     }
     case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
-    case IrOpcode::kChangeCompressedToTaggedSigned:  // Fall through.
-    case IrOpcode::kChangeTaggedToCompressedSigned:
       break;
     case IrOpcode::kTruncateTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
@@ -1395,7 +1410,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kChangeInt31ToCompressedSigned:
     case IrOpcode::kChangeInt31ToTaggedSigned: {
       // Signed31 /\ UntaggedInt32 -> Signed31 /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1542,7 +1556,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedUint32Div:
     case IrOpcode::kCheckedUint32Mod:
     case IrOpcode::kCheckedInt32Mul:
-    case IrOpcode::kCheckedInt32ToCompressedSigned:
     case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedInt64ToInt32:
     case IrOpcode::kCheckedInt64ToTaggedSigned:
@@ -1556,14 +1569,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedFloat64ToInt64:
     case IrOpcode::kCheckedTaggedSignedToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kCheckedTaggedToArrayIndex:
     case IrOpcode::kCheckedTaggedToInt64:
     case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
-    case IrOpcode::kCheckedCompressedToTaggedSigned:
-    case IrOpcode::kCheckedCompressedToTaggedPointer:
-    case IrOpcode::kCheckedTaggedToCompressedSigned:
-    case IrOpcode::kCheckedTaggedToCompressedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
     case IrOpcode::kAssertType:
       break;
@@ -1812,16 +1822,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kBitcastWordToTaggedSigned:
-    case IrOpcode::kBitcastWord32ToCompressedSigned:
-    case IrOpcode::kBitcastCompressedSignedToWord32:
+    case IrOpcode::kBitcastWord32ToWord64:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
     case IrOpcode::kChangeTaggedToCompressed:
-    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-    case IrOpcode::kChangeCompressedToTagged:
-    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
     case IrOpcode::kChangeInt32ToFloat64:
     case IrOpcode::kChangeInt64ToFloat64:
     case IrOpcode::kChangeUint32ToFloat64:
@@ -1852,6 +1856,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kWord32PoisonOnSpeculation:
     case IrOpcode::kWord64PoisonOnSpeculation:
+    case IrOpcode::kLoadStackCheckOffset:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kUnalignedLoad:

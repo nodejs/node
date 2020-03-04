@@ -43,16 +43,21 @@ d::MemoryAccessResult ReadMemory(uintptr_t address, uint8_t* destination,
   return d::MemoryAccessResult::kOk;
 }
 
+void CheckPropBase(const d::PropertyBase& property, const char* expected_type,
+                   const char* expected_name) {
+  CHECK(property.type == std::string("v8::internal::TaggedValue") ||
+        property.type == std::string(expected_type));
+  CHECK(property.decompressed_type == std::string(expected_type));
+  CHECK(property.name == std::string(expected_name));
+}
+
 void CheckProp(const d::ObjectProperty& property, const char* expected_type,
                const char* expected_name,
                d::PropertyKind expected_kind = d::PropertyKind::kSingle,
                size_t expected_num_values = 1) {
+  CheckPropBase(property, expected_type, expected_name);
   CHECK_EQ(property.num_values, expected_num_values);
-  CHECK(property.type == std::string("v8::internal::TaggedValue") ||
-        property.type == std::string(expected_type));
-  CHECK(property.decompressed_type == std::string(expected_type));
   CHECK(property.kind == expected_kind);
-  CHECK(property.name == std::string(expected_name));
 }
 
 template <typename TValue>
@@ -64,6 +69,30 @@ void CheckProp(const d::ObjectProperty& property, const char* expected_type,
 
 bool StartsWith(std::string full_string, std::string prefix) {
   return full_string.substr(0, prefix.size()) == prefix;
+}
+
+void CheckStructProp(const d::StructProperty& property,
+                     const char* expected_type, const char* expected_name,
+                     size_t expected_offset) {
+  CheckPropBase(property, expected_type, expected_name);
+  CHECK_EQ(property.offset, expected_offset);
+}
+
+const d::ObjectProperty& FindProp(const d::ObjectPropertiesResult& props,
+                                  std::string name) {
+  for (size_t i = 0; i < props.num_properties; ++i) {
+    if (name == props.properties[i]->name) {
+      return *props.properties[i];
+    }
+  }
+  CHECK_WITH_MSG(false, ("property '" + name + "' not found").c_str());
+  UNREACHABLE();
+}
+
+template <typename TValue>
+TValue ReadProp(const d::ObjectPropertiesResult& props, std::string name) {
+  const d::ObjectProperty& prop = FindProp(props, name);
+  return *reinterpret_cast<TValue*>(prop.address);
 }
 
 }  // namespace
@@ -254,6 +283,69 @@ TEST(GetObjectProperties) {
   o = v8::Utils::OpenHandle(*v);
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
   CHECK(std::string(props->brief).substr(79, 7) == std::string("aa...\" "));
+
+  // Build a basic JS object and get its properties.
+  v = CompileRun("({a: 1, b: 2})");
+  o = v8::Utils::OpenHandle(*v);
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+
+  // Objects constructed from literals get their properties placed inline, so
+  // the GetObjectProperties response should include an array.
+  const d::ObjectProperty& prop = FindProp(*props, "in-object properties");
+  CheckProp(prop, "v8::internal::Object", "in-object properties",
+            d::PropertyKind::kArrayOfKnownSize, 2);
+  // The second item in that array is the SMI value 2 from the object literal.
+  props2 =
+      d::GetObjectProperties(reinterpret_cast<i::Tagged_t*>(prop.address)[1],
+                             &ReadMemory, heap_addresses);
+  CHECK(props2->brief == std::string("2 (0x2)"));
+
+  // Verify the result for a heap object field which is itself a struct: the
+  // "descriptors" field on a DescriptorArray.
+  // Start by getting the object's map and the map's descriptor array.
+  props = d::GetObjectProperties(ReadProp<i::Tagged_t>(*props, "map"),
+                                 &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties(
+      ReadProp<i::Tagged_t>(*props, "instance_descriptors"), &ReadMemory,
+      heap_addresses);
+  // It should have at least two descriptors (possibly plus slack).
+  CheckProp(*props->properties[1], "uint16_t", "number_of_all_descriptors");
+  uint16_t number_of_all_descriptors =
+      *reinterpret_cast<uint16_t*>(props->properties[1]->address);
+  CHECK_GE(number_of_all_descriptors, 2);
+  // The "descriptors" property should describe the struct layout for each
+  // element in the array.
+  const d::ObjectProperty& descriptors = *props->properties[6];
+  // No C++ type is reported directly because there may not be an actual C++
+  // struct with this layout, hence the empty string in this check.
+  CheckProp(descriptors, /*type=*/"", "descriptors",
+            d::PropertyKind::kArrayOfKnownSize, number_of_all_descriptors);
+  CHECK_EQ(descriptors.size, 3 * i::kTaggedSize);
+  CHECK_EQ(descriptors.num_struct_fields, 3);
+  CheckStructProp(*descriptors.struct_fields[0],
+                  "v8::internal::PrimitiveHeapObject", "key",
+                  0 * i::kTaggedSize);
+  CheckStructProp(*descriptors.struct_fields[1], "v8::internal::Object",
+                  "details", 1 * i::kTaggedSize);
+  CheckStructProp(*descriptors.struct_fields[2], "v8::internal::Object",
+                  "value", 2 * i::kTaggedSize);
+}
+
+TEST(ListObjectClasses) {
+  CcTest::InitializeVM();
+
+  // The ListObjectClasses result will change as classes are added, removed, or
+  // renamed. Just check that a few expected classes are included in the list,
+  // and that there are no duplicates.
+  const d::ClassList* class_list = d::ListObjectClasses();
+  std::unordered_set<std::string> class_set;
+  for (size_t i = 0; i < class_list->num_class_names; ++i) {
+    CHECK_WITH_MSG(class_set.insert(class_list->class_names[i]).second,
+                   "there should be no duplicate entries");
+  }
+  CHECK_NE(class_set.find("v8::internal::HeapObject"), class_set.end());
+  CHECK_NE(class_set.find("v8::internal::String"), class_set.end());
+  CHECK_NE(class_set.find("v8::internal::JSRegExp"), class_set.end());
 }
 
 }  // namespace internal

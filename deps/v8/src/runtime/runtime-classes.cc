@@ -17,6 +17,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
 #include "src/runtime/runtime.h"
@@ -215,8 +216,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
       Handle<Dictionary>::cast(isolate->factory()->CopyFixedArrayWithMap(
           dictionary_template, dictionary_map));
   // Clone all AccessorPairs in the dictionary.
-  int capacity = dictionary->Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object value = dictionary->ValueAt(i);
     if (value.IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
@@ -235,9 +235,8 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
   Handle<Name> name_string = isolate->factory()->name_string();
 
   // Replace all indices with proper methods.
-  int capacity = dictionary->Capacity();
   ReadOnlyRoots roots(isolate);
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object maybe_key = dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
     if (install_name_accessor && *install_name_accessor &&
@@ -282,6 +281,26 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
     }
   }
   return true;
+}
+
+void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+                      Handle<NameDictionary> properties_dictionary) {
+  ReadOnlyRoots roots(isolate);
+  for (InternalIndex i : properties_dictionary->IterateEntries()) {
+    Object maybe_key = properties_dictionary->KeyAt(i);
+    if (!NameDictionary::IsKey(roots, maybe_key)) continue;
+    Handle<Name> name(Name::cast(maybe_key), isolate);
+    LookupIterator::UpdateProtector(isolate, receiver, name);
+  }
+}
+
+void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+                      Handle<DescriptorArray> properties_template) {
+  int nof_descriptors = properties_template->number_of_descriptors();
+  for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
+    Handle<Name> name(properties_template->GetKey(i), isolate);
+    LookupIterator::UpdateProtector(isolate, receiver, name);
+  }
 }
 
 bool AddDescriptorsByTemplate(
@@ -370,6 +389,8 @@ bool AddDescriptorsByTemplate(
     }
   }
 
+  UpdateProtectors(isolate, receiver, descriptors_template);
+
   map->InitializeDescriptors(isolate, *descriptors,
                              LayoutDescriptor::FastPointerLayout());
   if (elements_dictionary->NumberOfElements() > 0) {
@@ -417,7 +438,7 @@ bool AddDescriptorsByTemplate(
 
     ValueKind value_kind = ComputedEntryFlags::ValueKindBits::decode(flags);
     int key_index = ComputedEntryFlags::KeyIndexBits::decode(flags);
-    Object value = Smi::FromInt(key_index + 1);  // Value follows name.
+    Smi value = Smi::FromInt(key_index + 1);  // Value follows name.
 
     Handle<Object> key = args.at<Object>(key_index);
     DCHECK(key->IsName());
@@ -449,6 +470,8 @@ bool AddDescriptorsByTemplate(
         isolate->factory()->function_name_accessor(), details);
     CHECK_EQ(*dict, *properties_dictionary);
   }
+
+  UpdateProtectors(isolate, receiver, properties_dictionary);
 
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,

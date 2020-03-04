@@ -886,4 +886,99 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
   i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
 }
 
+TEST(TerminateExecutionTopLevelAwaitSync) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  env.local()
+      ->Global()
+      ->Set(env.local(), v8_str("terminate"),
+            v8::Function::New(env.local(),
+                              [](const v8::FunctionCallbackInfo<Value>& info) {
+                                info.GetIsolate()->TerminateExecution();
+                              })
+                .ToLocalChecked())
+      .ToChecked();
+
+  Local<String> source_text = v8_str("terminate(); while (true) {}");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+
+  CHECK(module->Evaluate(env.local()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.HasTerminated());
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
+  CHECK_EQ(module->GetException(), v8::Null(isolate));
+
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+}
+
+TEST(TerminateExecutionTopLevelAwaitAsync) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  env.local()
+      ->Global()
+      ->Set(env.local(), v8_str("terminate"),
+            v8::Function::New(env.local(),
+                              [](const v8::FunctionCallbackInfo<Value>& info) {
+                                info.GetIsolate()->TerminateExecution();
+                              })
+                .ToLocalChecked())
+      .ToChecked();
+
+  Local<Promise::Resolver> eval_promise =
+      Promise::Resolver::New(env.local()).ToLocalChecked();
+  env.local()
+      ->Global()
+      ->Set(env.local(), v8_str("evalPromise"), eval_promise)
+      .ToChecked();
+
+  Local<String> source_text =
+      v8_str("await evalPromise; terminate(); while (true) {}");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+
+  Local<Promise> promise =
+      Local<Promise>::Cast(module->Evaluate(env.local()).ToLocalChecked());
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+  CHECK_EQ(promise->State(), Promise::PromiseState::kPending);
+  CHECK(!try_catch.HasCaught());
+  CHECK(!try_catch.HasTerminated());
+
+  eval_promise->Resolve(env.local(), v8::Undefined(isolate)).ToChecked();
+
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.HasTerminated());
+  CHECK_EQ(promise->State(), Promise::PromiseState::kPending);
+
+  // The termination exception doesn't trigger the module's
+  // catch handler, so the module isn't transitioned to kErrored.
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+}
+
 }  // anonymous namespace

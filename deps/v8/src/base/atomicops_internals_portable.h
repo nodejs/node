@@ -101,6 +101,14 @@ inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
   return old_value;
 }
 
+inline Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
+                                              Atomic32 old_value,
+                                              Atomic32 new_value) {
+  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
+                              __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+  return old_value;
+}
+
 inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
 }
@@ -168,6 +176,14 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
                                        Atomic64 old_value, Atomic64 new_value) {
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
                               __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+  return old_value;
+}
+
+inline Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
+                                              Atomic64 old_value,
+                                              Atomic64 new_value) {
+  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
+                              __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
   return old_value;
 }
 

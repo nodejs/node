@@ -343,8 +343,8 @@ class Displacement {
  private:
   int data_;
 
-  using TypeField = BitField<Type, 0, 2>;
-  using NextField = BitField<int, 2, 32 - 2>;
+  using TypeField = base::BitField<Type, 0, 2>;
+  using NextField = base::BitField<int, 2, 32 - 2>;
 
   void init(Label* L, Type type);
 };
@@ -361,6 +361,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // otherwise valid instructions.)
   // This allows for a single, fast space check per instruction.
   static constexpr int kGap = 32;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -996,9 +997,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void psraw(XMMRegister reg, uint8_t shift);
   void psrad(XMMRegister reg, uint8_t shift);
   void psllq(XMMRegister reg, uint8_t shift);
-  void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, uint8_t shift);
-  void psrlq(XMMRegister dst, XMMRegister src);
 
   void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     pshufhw(dst, Operand(src), shuffle);
@@ -1332,6 +1331,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vpsllq(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsrlw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8);

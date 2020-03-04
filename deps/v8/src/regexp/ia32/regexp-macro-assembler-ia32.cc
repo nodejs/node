@@ -142,6 +142,17 @@ void RegExpMacroAssemblerIA32::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerIA32::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    __ inc(Operand(ebp, kBacktrackCount));
+    __ cmp(Operand(ebp, kBacktrackCount), Immediate(backtrack_limit()));
+    __ j(not_equal, &next);
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(ebx);
   __ add(ebx, Immediate(masm_->CodeObject()));
@@ -678,8 +689,14 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
+
+  STATIC_ASSERT(kSuccessfulCaptures == kBackup_ebx - kSystemPointerSize);
   __ push(Immediate(0));  // Number of successful matches in a global regexp.
+  STATIC_ASSERT(kStringStartMinusOne ==
+                kSuccessfulCaptures - kSystemPointerSize);
   __ push(Immediate(0));  // Make room for "string start - 1" constant.
+  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  __ push(Immediate(0));  // The backtrack counter.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;

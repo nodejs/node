@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_API_CALLBACKS_H_
 #define V8_OBJECTS_API_CALLBACKS_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/struct.h"
 #include "torque-generated/class-definitions-tq.h"
 
@@ -108,7 +109,7 @@ class AccessCheckInfo
   // Dispatched behavior.
   DECL_PRINTER(AccessCheckInfo)
 
-  static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
+  static AccessCheckInfo Get(const Isolate* isolate, Handle<JSObject> receiver);
 
   TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
 };

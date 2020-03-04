@@ -17,14 +17,14 @@ namespace v8 {
 template <typename T>
 inline T ToCData(v8::internal::Object obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  if (obj == v8::internal::Smi::kZero) return nullptr;
+  if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
       v8::internal::Foreign::cast(obj).foreign_address());
 }
 
 template <>
 inline v8::internal::Address ToCData(v8::internal::Object obj) {
-  if (obj == v8::internal::Smi::kZero) return v8::internal::kNullAddress;
+  if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
   return v8::internal::Foreign::cast(obj).foreign_address();
 }
 
@@ -32,7 +32,7 @@ template <typename T>
 inline v8::internal::Handle<v8::internal::Object> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  if (obj == nullptr) return handle(v8::internal::Smi::kZero, isolate);
+  if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
   return isolate->factory()->NewForeign(
       reinterpret_cast<v8::internal::Address>(obj));
 }
@@ -41,7 +41,7 @@ template <>
 inline v8::internal::Handle<v8::internal::Object> FromCData(
     v8::internal::Isolate* isolate, v8::internal::Address obj) {
   if (obj == v8::internal::kNullAddress) {
-    return handle(v8::internal::Smi::kZero, isolate);
+    return handle(v8::internal::Smi::zero(), isolate);
   }
   return isolate->factory()->NewForeign(obj);
 }

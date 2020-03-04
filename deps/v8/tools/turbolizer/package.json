@@ -13,9 +13,8 @@
   "author": "The V8 team",
   "license": "MIT",
   "dependencies": {
-    "@types/d3": "^5.5.0",
+    "@types/d3": "^5.7.2",
     "d3": "^5.7.0",
-    "rollup": "^0.68.2",
     "rollup-plugin-node-resolve": "^4.0.0",
     "rollup-plugin-typescript2": "^0.20.1"
   },
@@ -27,8 +26,9 @@
     "chai": "^4.2.0",
     "local-web-server": "^2.6.0",
     "mocha": "^5.2.0",
+    "rollup": "^0.68.2",
     "ts-mocha": "^2.0.0",
-    "typescript": "^3.2.2",
-    "tslint": "^5.12.0"
+    "tslint": "^5.12.0",
+    "typescript": "^3.2.2"
   }
 }

@@ -431,7 +431,8 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
       native_context, constructor_function_index_var.value()));
   TNode<Object> initial_map =
       LoadObjectField(constructor, JSFunction::kPrototypeOrInitialMapOffset);
-  TNode<HeapObject> js_primitive_wrapper = Allocate(JSPrimitiveWrapper::kSize);
+  TNode<HeapObject> js_primitive_wrapper =
+      Allocate(JSPrimitiveWrapper::kHeaderSize);
   StoreMapNoWriteBarrier(js_primitive_wrapper, initial_map);
   StoreObjectFieldRoot(js_primitive_wrapper,
                        JSPrimitiveWrapper::kPropertiesOrHashOffset,

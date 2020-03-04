@@ -22,13 +22,13 @@ parameter count: 1
 bytecode array length: 28
 bytecodes: [
   /*   44 E> */ B(StackCheck),
-                B(LdaCurrentContextSlot), U8(5),
+                B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(2),
-  /*   49 S> */ B(LdaCurrentContextSlot), U8(5),
+  /*   49 S> */ B(LdaCurrentContextSlot), U8(3),
   /*   61 E> */ B(LdaKeyedProperty), R(this), U8(0),
-                B(LdaCurrentContextSlot), U8(4),
+                B(LdaCurrentContextSlot), U8(2),
                 B(Star), R(2),
   /*   63 E> */ B(CallAnyReceiver), R(2), R(this), U8(1), U8(2),
   /*   66 S> */ B(Return),
@@ -53,11 +53,11 @@ parameter count: 1
 bytecode array length: 29
 bytecodes: [
   /*   44 E> */ B(StackCheck),
-                B(LdaCurrentContextSlot), U8(5),
+                B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(2),
-  /*   49 S> */ B(Wide), B(LdaSmi), I16(261),
+  /*   49 S> */ B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -85,11 +85,11 @@ parameter count: 1
 bytecode array length: 29
 bytecodes: [
   /*   44 E> */ B(StackCheck),
-                B(LdaCurrentContextSlot), U8(5),
+                B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(2),
-  /*   49 S> */ B(Wide), B(LdaSmi), I16(261),
+  /*   49 S> */ B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),

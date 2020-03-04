@@ -6,10 +6,8 @@
 
 // TODO(nicohartmann): Discuss whether types used by multiple builtins should be
 // in global namespace
-@noVerifier
 extern class BigIntBase extends PrimitiveHeapObject
-    generates 'TNode<BigInt>' {
-}
+    generates 'TNode<BigInt>' {}
 
 type BigInt extends BigIntBase;
 
@@ -176,6 +174,51 @@ namespace bigint {
       const y = Cast<BigInt>(yNum) otherwise MixedTypes;
 
       return BigIntAddImpl(x, y) otherwise BigIntTooBig;
+    }
+    label MixedTypes {
+      ThrowTypeError(kBigIntMixedTypes);
+    }
+    label BigIntTooBig {
+      ThrowRangeError(kBigIntTooBig);
+    }
+  }
+
+  macro BigIntSubtractImpl(implicit context: Context)(x: BigInt, y: BigInt):
+      BigInt labels BigIntTooBig {
+    const xsign = ReadBigIntSign(x);
+    const ysign = ReadBigIntSign(y);
+    if (xsign != ysign) {
+      // x - (-y) == x + y
+      // (-x) - y == -(x + y)
+      return MutableBigIntAbsoluteAdd(x, y, xsign) otherwise BigIntTooBig;
+    }
+
+    // x - y == -(y - x)
+    // (-x) - (-y) == y - x == -(x - y)
+    if (MutableBigIntAbsoluteCompare(x, y) >= 0) {
+      return MutableBigIntAbsoluteSub(x, y, xsign);
+    }
+    return MutableBigIntAbsoluteSub(y, x, InvertSign(xsign));
+  }
+
+  builtin BigIntSubtractNoThrow(implicit context:
+                                    Context)(x: BigInt, y: BigInt): Numeric {
+    try {
+      return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
+    }
+    label BigIntTooBig {
+      // Smi sentinal is used to signal BigIntTooBig exception.
+      return Convert<Smi>(0);
+    }
+  }
+
+  builtin BigIntSubtract(implicit context:
+                             Context)(xNum: Numeric, yNum: Numeric): BigInt {
+    try {
+      const x = Cast<BigInt>(xNum) otherwise MixedTypes;
+      const y = Cast<BigInt>(yNum) otherwise MixedTypes;
+
+      return BigIntSubtractImpl(x, y) otherwise BigIntTooBig;
     }
     label MixedTypes {
       ThrowTypeError(kBigIntMixedTypes);

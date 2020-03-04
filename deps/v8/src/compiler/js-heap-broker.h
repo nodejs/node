@@ -12,6 +12,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
+#include "src/compiler/serializer-hints.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/objects/feedback-vector.h"
@@ -179,6 +180,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
+  bool ShouldBeSerializedForCompilation(const SharedFunctionInfoRef& shared,
+                                        const FeedbackVectorRef& feedback,
+                                        const HintsVector& arguments) const;
+  void SetSerializedForCompilation(const SharedFunctionInfoRef& shared,
+                                   const FeedbackVectorRef& feedback,
+                                   const HintsVector& arguments);
+  bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
+                                  const FeedbackVectorRef& feedback) const;
+
   std::ostream& Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -239,6 +249,22 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       property_access_infos_;
 
   ZoneVector<ObjectData*> typed_array_string_tags_;
+
+  struct SerializedFunction {
+    SharedFunctionInfoRef shared;
+    FeedbackVectorRef feedback;
+
+    bool operator<(const SerializedFunction& other) const {
+      if (shared.object().address() < other.shared.object().address()) {
+        return true;
+      }
+      if (shared.object().address() == other.shared.object().address()) {
+        return feedback.object().address() < other.feedback.object().address();
+      }
+      return false;
+    }
+  };
+  ZoneMultimap<SerializedFunction, HintsVector> serialized_functions_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

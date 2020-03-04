@@ -120,7 +120,7 @@ class ValueSerializer {
   void WriteJSDate(JSDate date);
   Maybe<bool> WriteJSPrimitiveWrapper(Handle<JSPrimitiveWrapper> value)
       V8_WARN_UNUSED_RESULT;
-  void WriteJSRegExp(JSRegExp regexp);
+  void WriteJSRegExp(Handle<JSRegExp> regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)

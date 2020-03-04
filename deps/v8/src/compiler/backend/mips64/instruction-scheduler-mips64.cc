@@ -69,6 +69,25 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Dsub:
     case kMips64DsubOvf:
     case kMips64Ext:
+    case kMips64F64x2Abs:
+    case kMips64F64x2Neg:
+    case kMips64F64x2Sqrt:
+    case kMips64F64x2Add:
+    case kMips64F64x2Sub:
+    case kMips64F64x2Mul:
+    case kMips64F64x2Div:
+    case kMips64F64x2Min:
+    case kMips64F64x2Max:
+    case kMips64F64x2Eq:
+    case kMips64F64x2Ne:
+    case kMips64F64x2Lt:
+    case kMips64F64x2Le:
+    case kMips64I64x2Add:
+    case kMips64I64x2Sub:
+    case kMips64I64x2Neg:
+    case kMips64I64x2Shl:
+    case kMips64I64x2ShrS:
+    case kMips64I64x2ShrU:
     case kMips64F32x4Abs:
     case kMips64F32x4Add:
     case kMips64F32x4AddHoriz:
@@ -90,6 +109,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64F32x4Splat:
     case kMips64F32x4Sub:
     case kMips64F32x4UConvertI32x4:
+    case kMips64F64x2Splat:
+    case kMips64F64x2ExtractLane:
+    case kMips64F64x2ReplaceLane:
     case kMips64Float32Max:
     case kMips64Float32Min:
     case kMips64Float32RoundDown:
@@ -114,7 +136,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I16x8AddSaturateS:
     case kMips64I16x8AddSaturateU:
     case kMips64I16x8Eq:
-    case kMips64I16x8ExtractLane:
+    case kMips64I16x8ExtractLaneU:
+    case kMips64I16x8ExtractLaneS:
     case kMips64I16x8GeS:
     case kMips64I16x8GeU:
     case kMips64I16x8GtS:
@@ -173,7 +196,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I8x16AddSaturateS:
     case kMips64I8x16AddSaturateU:
     case kMips64I8x16Eq:
-    case kMips64I8x16ExtractLane:
+    case kMips64I8x16ExtractLaneU:
+    case kMips64I8x16ExtractLaneS:
     case kMips64I8x16GeS:
     case kMips64I8x16GeU:
     case kMips64I8x16GtS:
@@ -255,6 +279,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64S8x4Reverse:
     case kMips64S8x8Reverse:
     case kMips64S8x16Shuffle:
+    case kMips64S8x16Swizzle:
     case kMips64Sar:
     case kMips64Seb:
     case kMips64Seh:

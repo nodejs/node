@@ -57,7 +57,8 @@ class MockStreamingProcessor : public StreamingProcessor {
   }
 
   bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
-                                std::shared_ptr<WireBytesStorage>) override {
+                                std::shared_ptr<WireBytesStorage>,
+                                int code_section_length) override {
     return true;
   }
 
@@ -608,14 +609,13 @@ TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
       0x1,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
-      kCodeSectionCode,      // Section ID      -- ERROR (where it should be)
-      0x3,                   // Section Length  -- ERROR (where it is reported)
+      kCodeSectionCode,      // Section ID      -- ERROR
+      0x3,                   // Section Length
       0x1,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  // TODO(wasm): This should report at the second kCodeSectionCode.
-  ExpectFailure(ArrayVector(data), sizeof(data) - 4,
+  ExpectFailure(ArrayVector(data), sizeof(data) - 5,
                 "code section can only appear once");
 }
 
@@ -651,14 +651,13 @@ TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
       0x1,                   // Name Length
       0x1,                   // Name
       0x0,                   // Content
-      kCodeSectionCode,      // Section ID     -- ERROR (where it should be)
-      0x3,                   // Section Length -- ERROR (where it is reported)
+      kCodeSectionCode,      // Section ID     -- ERROR
+      0x3,                   // Section Length
       0x1,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  // TODO(wasm): This should report at the second kCodeSectionCode.
-  ExpectFailure(ArrayVector(data), sizeof(data) - 4,
+  ExpectFailure(ArrayVector(data), sizeof(data) - 5,
                 "code section can only appear once");
 }
 

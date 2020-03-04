@@ -76,8 +76,12 @@ function handleScriptParsed(messageObject) {
   ++numScripts;
 
   if (url.startsWith('wasm://')) {
-    InspectorTest.log('This is a wasm script (nr ' + wasmScripts.length + ').');
-    wasmScripts.push(scriptId);
+    // Only want the fake (function specific) scripts, not the one for the full
+    // module.
+    if (url.split('/').length == 5) {
+      InspectorTest.log('This is a wasm script (nr ' + wasmScripts.length + ').');
+      wasmScripts.push(scriptId);
+    }
   }
 }
 

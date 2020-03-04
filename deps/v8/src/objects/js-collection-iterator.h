@@ -22,10 +22,6 @@ class JSCollectionIterator
  public:
   void JSCollectionIteratorPrint(std::ostream& os, const char* name);
 
-  // JSCollectionIterator is abstract, but also defines the size for all of its
-  // concrete subclasses.
-  static constexpr int kSize = kHeaderSize;
-
   TQ_OBJECT_CONSTRUCTORS(JSCollectionIterator)
 };
 

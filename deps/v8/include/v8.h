@@ -883,19 +883,6 @@ class TracedReferenceBase {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  /**
-   * Adds a finalization callback to the handle. The type of this callback is
-   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
-   * parameter and the first two internal fields of the object.
-   *
-   * The callback is then supposed to reset the handle in the callback. No
-   * further V8 API may be called in this callback. In case additional work
-   * involving V8 needs to be done, a second callback can be scheduled using
-   * WeakCallbackInfo<void>::SetSecondPassCallback.
-   */
-  V8_INLINE void SetFinalizationCallback(
-      void* parameter, WeakCallbackInfo<void>::Callback callback);
-
   template <class S>
   V8_INLINE TracedReferenceBase<S>& As() const {
     return reinterpret_cast<TracedReferenceBase<S>&>(
@@ -1033,6 +1020,19 @@ class TracedGlobal : public TracedReferenceBase<T> {
     return reinterpret_cast<TracedGlobal<S>&>(
         const_cast<TracedGlobal<T>&>(*this));
   }
+
+  /**
+   * Adds a finalization callback to the handle. The type of this callback is
+   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
+   * parameter and the first two internal fields of the object.
+   *
+   * The callback is then supposed to reset the handle in the callback. No
+   * further V8 API may be called in this callback. In case additional work
+   * involving V8 needs to be done, a second callback can be scheduled using
+   * WeakCallbackInfo<void>::SetSecondPassCallback.
+   */
+  V8_INLINE void SetFinalizationCallback(
+      void* parameter, WeakCallbackInfo<void>::Callback callback);
 };
 
 /**
@@ -1142,6 +1142,20 @@ class TracedReference : public TracedReferenceBase<T> {
     return reinterpret_cast<TracedReference<S>&>(
         const_cast<TracedReference<T>&>(*this));
   }
+
+  /**
+   * Adds a finalization callback to the handle. The type of this callback is
+   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
+   * parameter and the first two internal fields of the object.
+   *
+   * The callback is then supposed to reset the handle in the callback. No
+   * further V8 API may be called in this callback. In case additional work
+   * involving V8 needs to be done, a second callback can be scheduled using
+   * WeakCallbackInfo<void>::SetSecondPassCallback.
+   */
+  V8_DEPRECATE_SOON("Use TracedGlobal<> if callbacks are required.")
+  V8_INLINE void SetFinalizationCallback(
+      void* parameter, WeakCallbackInfo<void>::Callback callback);
 };
 
  /**
@@ -1746,11 +1760,9 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8 };
 
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
     V8_DEPRECATE_SOON(
         "This class takes ownership of source_stream, so use the constructor "
         "taking a unique_ptr to make these semantics clearer")
-#endif
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
@@ -2002,6 +2014,12 @@ class V8_EXPORT Message {
   int GetEndPosition() const;
 
   /**
+   * Returns the Wasm function index where the error occurred. Returns -1 if
+   * message is not from a Wasm script.
+   */
+  int GetWasmFunctionIndex() const;
+
+  /**
    * Returns the error level of the message.
    */
   int ErrorLevel() const;
@@ -2033,6 +2051,7 @@ class V8_EXPORT Message {
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;
   static const int kNoScriptIdInfo = 0;
+  static const int kNoWasmFunctionIndexInfo = -1;
 };
 
 
@@ -2202,6 +2221,8 @@ struct UnwindState {
   MemoryRange code_range;
   MemoryRange embedded_code_range;
   JSEntryStub js_entry_stub;
+  JSEntryStub js_construct_entry_stub;
+  JSEntryStub js_run_microtasks_entry_stub;
 };
 
 /**
@@ -2865,9 +2886,8 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
-  static constexpr int kMaxLength = internal::kApiTaggedSize == 4
-                                        ? (1 << 28) - 16
-                                        : internal::kSmiMaxValue / 2 - 24;
+  static constexpr int kMaxLength =
+      internal::kApiSystemPointerSize == 4 ? (1 << 28) - 16 : (1 << 29) - 24;
 
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
@@ -3232,30 +3252,35 @@ class V8_EXPORT String : public Name {
 class V8_EXPORT Symbol : public Name {
  public:
   /**
-   * Returns the print name string of the symbol, or undefined if none.
+   * Returns the description string of the symbol, or undefined if none.
    */
-  Local<Value> Name() const;
+  Local<Value> Description() const;
+
+  V8_DEPRECATE_SOON("Use Symbol::Description()")
+  Local<Value> Name() const { return Description(); }
 
   /**
-   * Create a symbol. If name is not empty, it will be used as the description.
+   * Create a symbol. If description is not empty, it will be used as the
+   * description.
    */
   static Local<Symbol> New(Isolate* isolate,
-                           Local<String> name = Local<String>());
+                           Local<String> description = Local<String>());
 
   /**
    * Access global symbol registry.
    * Note that symbols created this way are never collected, so
    * they should only be used for statically fixed properties.
-   * Also, there is only one global name space for the names used as keys.
+   * Also, there is only one global name space for the descriptions used as
+   * keys.
    * To minimize the potential for clashes, use qualified names as keys.
    */
-  static Local<Symbol> For(Isolate *isolate, Local<String> name);
+  static Local<Symbol> For(Isolate* isolate, Local<String> description);
 
   /**
    * Retrieve a global symbol. Similar to |For|, but using a separate
    * registry that is not accessible by (and cannot clash with) JavaScript code.
    */
-  static Local<Symbol> ForApi(Isolate *isolate, Local<String> name);
+  static Local<Symbol> ForApi(Isolate* isolate, Local<String> description);
 
   // Well-known symbols
   static Local<Symbol> GetAsyncIterator(Isolate* isolate);
@@ -4647,28 +4672,6 @@ class V8_EXPORT WasmModuleObject : public Object {
   WasmModuleObject() = delete;
 
   /**
-   * An opaque, native heap object for transferring wasm modules. It
-   * supports move semantics, and does not support copy semantics.
-   */
-  using TransferrableModule = CompiledWasmModule;
-
-  /**
-   * Get an in-memory, non-persistable, and context-independent (meaning,
-   * suitable for transfer to another Isolate and Context) representation
-   * of this wasm compiled module.
-   */
-  V8_DEPRECATED("Use GetCompiledModule")
-  TransferrableModule GetTransferrableModule();
-
-  /**
-   * Efficiently re-create a WasmModuleObject, without recompiling, from
-   * a TransferrableModule.
-   */
-  V8_DEPRECATED("Use FromCompiledModule")
-  static MaybeLocal<WasmModuleObject> FromTransferrableModule(
-      Isolate* isolate, const TransferrableModule&);
-
-  /**
    * Efficiently re-create a WasmModuleObject, without recompiling, from
    * a CompiledWasmModule.
    */
@@ -4831,6 +4834,7 @@ enum class ArrayBufferCreationMode { kInternalized, kExternalized };
 
 /**
  * A wrapper around the backing store (i.e. the raw memory) of an array buffer.
+ * See a document linked in http://crbug.com/v8/9908 for more information.
  *
  * The allocation and destruction of backing stores is generally managed by
  * V8. Clients should always use standard C++ memory ownership types (i.e.
@@ -4857,7 +4861,17 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
    */
   size_t ByteLength() const;
 
+  /**
+   * Indicates whether the backing store was created for an ArrayBuffer or
+   * a SharedArrayBuffer.
+   */
+  bool IsShared() const;
+
  private:
+  /**
+   * See [Shared]ArrayBuffer::GetBackingStore and
+   * [Shared]ArrayBuffer::NewBackingStore.
+   */
   BackingStore();
 };
 
@@ -5000,6 +5014,9 @@ class V8_EXPORT ArrayBuffer : public Object {
    * |Allocator::Free| once all ArrayBuffers referencing it are collected by
    * the garbage collector.
    */
+  V8_DEPRECATE_SOON(
+      "Use the version that takes a BackingStore. "
+      "See http://crbug.com/v8/9908.")
   static Local<ArrayBuffer> New(
       Isolate* isolate, void* data, size_t byte_length,
       ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
@@ -5046,6 +5063,9 @@ class V8_EXPORT ArrayBuffer : public Object {
    * Returns true if ArrayBuffer is externalized, that is, does not
    * own its memory block.
    */
+  V8_DEPRECATE_SOON(
+      "With v8::BackingStore externalized ArrayBuffers are "
+      "the same as ordinary ArrayBuffers. See http://crbug.com/v8/9908.")
   bool IsExternal() const;
 
   /**
@@ -5071,6 +5091,8 @@ class V8_EXPORT ArrayBuffer : public Object {
    * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
    * was allocated with ArrayBuffer::Allocator::Allocate.
    */
+  V8_DEPRECATE_SOON(
+      "Use GetBackingStore or Detach. See http://crbug.com/v8/9908.")
   Contents Externalize();
 
   /**
@@ -5080,6 +5102,7 @@ class V8_EXPORT ArrayBuffer : public Object {
    * With the new lifetime management of backing stores there is no need for
    * externalizing, so this function exists only to make the transition easier.
    */
+  V8_DEPRECATE_SOON("This will be removed together with IsExternal.")
   void Externalize(const std::shared_ptr<BackingStore>& backing_store);
 
   /**
@@ -5090,6 +5113,7 @@ class V8_EXPORT ArrayBuffer : public Object {
    * The embedder should make sure to hold a strong reference to the
    * ArrayBuffer while accessing this pointer.
    */
+  V8_DEPRECATE_SOON("Use GetBackingStore. See http://crbug.com/v8/9908.")
   Contents GetContents();
 
   /**
@@ -5178,7 +5202,9 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
   /*
    * The largest typed array size that can be constructed using New.
    */
-  static constexpr size_t kMaxLength = internal::kSmiMaxValue;
+  static constexpr size_t kMaxLength = internal::kApiSystemPointerSize == 4
+                                           ? internal::kSmiMaxValue
+                                           : 0x7FFFFFFF;  // kMaxInt32
 
   /**
    * Number of elements in this typed array
@@ -5473,6 +5499,9 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * specified. The memory block will not be reclaimed when a created
    * SharedArrayBuffer is garbage-collected.
    */
+  V8_DEPRECATE_SOON(
+      "Use the version that takes a BackingStore. "
+      "See http://crbug.com/v8/9908.")
   static Local<SharedArrayBuffer> New(
       Isolate* isolate, void* data, size_t byte_length,
       ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
@@ -5519,7 +5548,9 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * Create a new SharedArrayBuffer over an existing memory block. Propagate
    * flags to indicate whether the underlying buffer can be grown.
    */
-  V8_DEPRECATED("Use New method with data, and byte_length instead.")
+  V8_DEPRECATED(
+      "Use the version that takes a BackingStore. "
+      "See http://crbug.com/v8/9908.")
   static Local<SharedArrayBuffer> New(
       Isolate* isolate, const SharedArrayBuffer::Contents&,
       ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
@@ -5528,6 +5559,9 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * Returns true if SharedArrayBuffer is externalized, that is, does not
    * own its memory block.
    */
+  V8_DEPRECATE_SOON(
+      "With v8::BackingStore externalized SharedArrayBuffers are the same "
+      "as ordinary SharedArrayBuffers. See http://crbug.com/v8/9908.")
   bool IsExternal() const;
 
   /**
@@ -5542,6 +5576,8 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * v8::Isolate::CreateParams::array_buffer_allocator.
    *
    */
+  V8_DEPRECATE_SOON(
+      "Use GetBackingStore or Detach. See http://crbug.com/v8/9908.")
   Contents Externalize();
 
   /**
@@ -5551,6 +5587,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * With the new lifetime management of backing stores there is no need for
    * externalizing, so this function exists only to make the transition easier.
    */
+  V8_DEPRECATE_SOON("This will be removed together with IsExternal.")
   void Externalize(const std::shared_ptr<BackingStore>& backing_store);
 
   /**
@@ -5565,6 +5602,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * by the allocator specified in
    * v8::Isolate::CreateParams::array_buffer_allocator.
    */
+  V8_DEPRECATE_SOON("Use GetBackingStore. See http://crbug.com/v8/9908.")
   Contents GetContents();
 
   /**
@@ -5721,6 +5759,29 @@ class V8_EXPORT RegExp : public Object {
   static V8_WARN_UNUSED_RESULT MaybeLocal<RegExp> New(Local<Context> context,
                                                       Local<String> pattern,
                                                       Flags flags);
+
+  /**
+   * Like New, but additionally specifies a backtrack limit. If the number of
+   * backtracks done in one Exec call hits the limit, a match failure is
+   * immediately returned.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<RegExp> NewWithBacktrackLimit(
+      Local<Context> context, Local<String> pattern, Flags flags,
+      uint32_t backtrack_limit);
+
+  /**
+   * Executes the current RegExp instance on the given subject string.
+   * Equivalent to RegExp.prototype.exec as described in
+   *
+   *   https://tc39.es/ecma262/#sec-regexp.prototype.exec
+   *
+   * On success, an Array containing the matched strings is returned. On
+   * failure, returns Null.
+   *
+   * Note: modifies global context state, accessible e.g. through RegExp.input.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Object> Exec(Local<Context> context,
+                                                Local<String> subject);
 
   /**
    * Returns the value of the source property: a string representing
@@ -6242,6 +6303,7 @@ class V8_EXPORT FunctionTemplate : public Template {
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
   /** Get a template included in the snapshot by index. */
+  V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
   static MaybeLocal<FunctionTemplate> FromSnapshot(Isolate* isolate,
                                                    size_t index);
 
@@ -6533,6 +6595,7 @@ class V8_EXPORT ObjectTemplate : public Template {
       Local<FunctionTemplate> constructor = Local<FunctionTemplate>());
 
   /** Get a template included in the snapshot by index. */
+  V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
   static MaybeLocal<ObjectTemplate> FromSnapshot(Isolate* isolate,
                                                  size_t index);
 
@@ -7122,6 +7185,7 @@ class PromiseRejectMessage {
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtasks Callbacks ---
+V8_DEPRECATE_SOON("Use *WithData version.")
 typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
@@ -7275,8 +7339,23 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
  */
 typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context,
                                                        Local<String> source);
-typedef MaybeLocal<String> (*ModifyCodeGenerationFromStringsCallback)(
-    Local<Context> context, Local<Value> source);
+
+struct ModifyCodeGenerationFromStringsResult {
+  // If true, proceed with the codegen algorithm. Otherwise, block it.
+  bool codegen_allowed = false;
+  // Overwrite the original source with this string, if present.
+  // Use the original source if empty.
+  // This field is considered only if codegen_allowed is true.
+  MaybeLocal<String> modified_source;
+};
+
+/**
+ * Callback to check if codegen is allowed from a source object, and convert
+ * the source to string if necessary.See  ModifyCodeGenerationFromStrings.
+ */
+typedef ModifyCodeGenerationFromStringsResult (
+    *ModifyCodeGenerationFromStringsCallback)(Local<Context> context,
+                                              Local<Value> source);
 
 // --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
@@ -7355,9 +7434,32 @@ typedef size_t (*NearHeapLimitCallback)(void* data, size_t current_heap_limit,
                                         size_t initial_heap_limit);
 
 /**
+ * Collection of shared per-process V8 memory information.
+ *
+ * Instances of this class can be passed to
+ * v8::V8::GetSharedMemoryStatistics to get shared memory statistics from V8.
+ */
+class V8_EXPORT SharedMemoryStatistics {
+ public:
+  SharedMemoryStatistics();
+  size_t read_only_space_size() { return read_only_space_size_; }
+  size_t read_only_space_used_size() { return read_only_space_used_size_; }
+  size_t read_only_space_physical_size() {
+    return read_only_space_physical_size_;
+  }
+
+ private:
+  size_t read_only_space_size_;
+  size_t read_only_space_used_size_;
+  size_t read_only_space_physical_size_;
+
+  friend class V8;
+};
+
+/**
  * Collection of V8 heap information.
  *
- * Instances of this class can be passed to v8::V8::HeapStatistics to
+ * Instances of this class can be passed to v8::Isolate::GetHeapStatistics to
  * get heap statistics from V8.
  */
 class V8_EXPORT HeapStatistics {
@@ -7512,6 +7614,20 @@ struct JitCodeEvent {
     // The position type.
     PositionType position_type;
   };
+
+  struct wasm_source_info_t {
+    // Source file name.
+    const char* filename;
+    // Length of filename.
+    size_t filename_size;
+    // Line number table, which maps offsets of JITted code to line numbers of
+    // source file.
+    const line_info_t* line_number_table;
+    // Number of entries in the line number table.
+    size_t line_number_table_size;
+  };
+
+  wasm_source_info_t* wasm_source_info;
 
   union {
     // Only valid for CODE_ADDED.
@@ -7670,7 +7786,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
-  V8_DEPRECATE_SOON("Use version taking TracedReferenceBase<v8::Data> argument")
+  V8_DEPRECATED("Use version taking TracedReferenceBase<v8::Data> argument")
   void RegisterEmbedderReference(const TracedReferenceBase<v8::Value>& ref);
   void RegisterEmbedderReference(const TracedReferenceBase<v8::Data>& ref);
 
@@ -7704,8 +7820,7 @@ class V8_EXPORT EmbedderHeapTracer {
    * overriden to fill a |TraceSummary| that is used by V8 to schedule future
    * garbage collections.
    */
-  V8_DEPRECATED("Use version with parameter.") virtual void TraceEpilogue() {}
-  virtual void TraceEpilogue(TraceSummary* trace_summary);
+  virtual void TraceEpilogue(TraceSummary* trace_summary) {}
 
   /**
    * Called upon entering the final marking pause. No more incremental marking
@@ -7756,8 +7871,7 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
-  V8_DEPRECATE_SOON(
-      "Use TracedReference version when not requiring destructors.")
+  V8_DEPRECATED("Use TracedReference version when not requiring destructors.")
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedGlobal<v8::Value>& handle);
 
@@ -7988,8 +8102,8 @@ class V8_EXPORT Isolate {
    */
   class V8_EXPORT SuppressMicrotaskExecutionScope {
    public:
-    explicit SuppressMicrotaskExecutionScope(Isolate* isolate);
-    explicit SuppressMicrotaskExecutionScope(MicrotaskQueue* microtask_queue);
+    explicit SuppressMicrotaskExecutionScope(
+        Isolate* isolate, MicrotaskQueue* microtask_queue = nullptr);
     ~SuppressMicrotaskExecutionScope();
 
     // Prevent copying of Scope objects.
@@ -8118,6 +8232,22 @@ class V8_EXPORT Isolate {
     kCallSiteAPIGetFunctionSloppyCall = 76,
     kCallSiteAPIGetThisSloppyCall = 77,
     kRegExpMatchAllWithNonGlobalRegExp = 78,
+    kRegExpExecCalledOnSlowRegExp = 79,
+    kRegExpReplaceCalledOnSlowRegExp = 80,
+    kDisplayNames = 81,
+    kSharedArrayBufferConstructed = 82,
+    // Temporary kCallInDetachedWindowBy* counters are for reporting function
+    // calls within contexts marked using |SetDetachedWindowReason|.
+    // TODO(bartekn,chromium:1018156): Remove once not needed.
+    kCallInDetachedWindowByNavigation = 83,
+    kCallInDetachedWindowByNavigationAfter10s = 84,
+    kCallInDetachedWindowByNavigationAfter1min = 85,
+    kCallInDetachedWindowByClosing = 86,
+    kCallInDetachedWindowByClosingAfter10s = 87,
+    kCallInDetachedWindowByClosingAfter1min = 88,
+    kCallInDetachedWindowByOtherReason = 89,
+    kCallInDetachedWindowByOtherReasonAfter10s = 90,
+    kCallInDetachedWindowByOtherReasonAfter1min = 91,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -9179,8 +9309,6 @@ class V8_EXPORT V8 {
    *   handled entirely on the embedders' side.
    * - The call will abort if the data is invalid.
    */
-  V8_DEPRECATED("The natives blob is deprecated (https://crbug.com/v8/7624).")
-  static void SetNativesDataBlob(StartupData* startup_blob);
   static void SetSnapshotDataBlob(StartupData* startup_blob);
 
   /** Set the callback to invoke in case of Dcheck failures. */
@@ -9265,18 +9393,14 @@ class V8_EXPORT V8 {
    * V8 needs to be given those external files during startup. There are
    * three ways to do this:
    * - InitializeExternalStartupData(const char*)
-   *   This will look in the given directory for files "natives_blob.bin"
-   *   and "snapshot_blob.bin" - which is what the default build calls them.
-   * - InitializeExternalStartupData(const char*, const char*)
-   *   As above, but will directly use the two given file names.
-   * - Call SetNativesDataBlob, SetNativesDataBlob.
-   *   This will read the blobs from the given data structures and will
+   *   This will look in the given directory for the file "snapshot_blob.bin".
+   * - InitializeExternalStartupDataFromFile(const char*)
+   *   As above, but will directly use the given file name.
+   * - Call SetSnapshotDataBlob.
+   *   This will read the blobs from the given data structure and will
    *   not perform any file IO.
    */
   static void InitializeExternalStartupData(const char* directory_path);
-  V8_DEPRECATED("The natives blob is deprecated (https://crbug.com/v8/7624).")
-  static void InitializeExternalStartupData(const char* natives_blob,
-                                            const char* snapshot_blob);
   static void InitializeExternalStartupDataFromFile(const char* snapshot_blob);
 
   /**
@@ -9336,6 +9460,11 @@ class V8_EXPORT V8 {
   static void SetUnhandledExceptionCallback(
       UnhandledExceptionCallback unhandled_exception_callback);
 #endif
+
+  /**
+   * Get statistics about the shared memory usage.
+   */
+  static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
 
  private:
   V8();
@@ -9458,6 +9587,7 @@ class V8_EXPORT SnapshotCreator {
    * Add a template to be included in the snapshot blob.
    * \returns the index of the template in the snapshot blob.
    */
+  V8_DEPRECATED("use AddData instead")
   size_t AddTemplate(Local<Template> template_obj);
 
   /**
@@ -9818,6 +9948,32 @@ class V8_EXPORT Context {
    * the global object can be reused to create a new context.
    */
   void DetachGlobal();
+
+  /**
+   * Reason for detaching a window.
+   */
+  enum DetachedWindowReason {
+    kWindowNotDetached = 0,
+    kDetachedWindowByNavigation,
+    kDetachedWindowByClosing,
+    kDetachedWindowByOtherReason
+  };
+
+  /**
+   * Sets a reason for detaching window, for reporting purposes.
+   *
+   * This API is experimental and may change or be deleted. Do not use!
+   *
+   * A window is a Blink concept. This API marks the context as backing
+   * a detached window. This doesn't necessarily mean that the context is
+   * detached.
+   *
+   * Every time a JS function is called within a context that has a non-zero
+   * DetachedWindowReason, Runtime::kReportDetachedWindowAccess is invoked,
+   * which will report this call to Blink via a callback, which in turn can
+   * report number of such calls via UKM metrics.
+   */
+  void SetDetachedWindowReason(DetachedWindowReason reason);
 
   /**
    * Creates a new context and returns a handle to the newly allocated
@@ -10583,10 +10739,17 @@ uint16_t TracedReferenceBase<T>::WrapperClassId() const {
 }
 
 template <class T>
-void TracedReferenceBase<T>::SetFinalizationCallback(
+void TracedGlobal<T>::SetFinalizationCallback(
     void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
-  V8::SetFinalizationCallbackTraced(reinterpret_cast<internal::Address*>(val_),
-                                    parameter, callback);
+  V8::SetFinalizationCallbackTraced(
+      reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
+}
+
+template <class T>
+void TracedReference<T>::SetFinalizationCallback(
+    void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
+  V8::SetFinalizationCallbackTraced(
+      reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
 }
 
 template <typename T>
@@ -10901,7 +11064,7 @@ Local<Value> Object::GetInternalField(int index) {
 #ifdef V8_COMPRESS_POINTERS
     // We read the full pointer value and then decompress it in order to avoid
     // dealing with potential endiannes issues.
-    value = I::DecompressTaggedAnyField(obj, static_cast<int32_t>(value));
+    value = I::DecompressTaggedAnyField(obj, static_cast<uint32_t>(value));
 #endif
     internal::Isolate* isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(obj);
@@ -11546,7 +11709,7 @@ Local<Value> Context::GetEmbedderData(int index) {
   // We read the full pointer value and then decompress it in order to avoid
   // dealing with potential endiannes issues.
   value =
-      I::DecompressTaggedAnyField(embedder_data, static_cast<int32_t>(value));
+      I::DecompressTaggedAnyField(embedder_data, static_cast<uint32_t>(value));
 #endif
   internal::Isolate* isolate = internal::IsolateFromNeverReadOnlySpaceObject(
       *reinterpret_cast<A*>(this));

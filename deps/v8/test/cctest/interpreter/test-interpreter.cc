@@ -2569,7 +2569,7 @@ TEST(InterpreterConstruct) {
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::kZero);
+  CHECK_EQ(Smi::cast(*return_val), Smi::zero());
 }
 
 TEST(InterpreterConstructWithArgument) {
@@ -2774,10 +2774,10 @@ TEST(InterpreterLogicalAnd) {
       std::make_pair("var a, b = 10; return a && b;\n",
                      factory->undefined_value()),
       std::make_pair("var a = 0, b = 10; return a && b / a;\n",
-                     handle(Smi::kZero, isolate)),
+                     handle(Smi::zero(), isolate)),
       std::make_pair("var a = '0', b = 10; return a && b;\n",
                      handle(Smi::FromInt(10), isolate)),
-      std::make_pair("return 0.0 && 3.2;\n", handle(Smi::kZero, isolate)),
+      std::make_pair("return 0.0 && 3.2;\n", handle(Smi::zero(), isolate)),
       std::make_pair("return 'a' && 'b';\n",
                      factory->NewStringFromStaticChars("b")),
       std::make_pair("return 'a' && 0 || 'b', 'c';\n",
@@ -2930,7 +2930,8 @@ TEST(InterpreterCountOperators) {
       std::make_pair("var a = 'string'; return a--;", factory->nan_value()),
       std::make_pair("var a = true; return ++a;",
                      handle(Smi::FromInt(2), isolate)),
-      std::make_pair("var a = false; return a--;", handle(Smi::kZero, isolate)),
+      std::make_pair("var a = false; return a--;",
+                     handle(Smi::zero(), isolate)),
       std::make_pair("var a = { val: 11 }; return ++a.val;",
                      handle(Smi::FromInt(12), isolate)),
       std::make_pair("var a = { val: 11 }; return a.val--;",
@@ -4114,19 +4115,19 @@ TEST(InterpreterLookupContextSlot) {
   std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
       // Eval in inner context.
       std::make_tuple("var x = 0;", "eval(''); return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
       std::make_tuple("var x = 0;", "eval('var x = 1'); return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("var x = 0;",
                       "'use strict'; eval('var x = 1'); return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
       // Eval in outer context.
       std::make_tuple("var x = 0; eval('');", "return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
       std::make_tuple("var x = 0; eval('var x = 1');", "return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("'use strict'; var x = 0; eval('var x = 1');",
-                      "return x;", handle(Smi::kZero, isolate)),
+                      "return x;", handle(Smi::zero(), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(lookup_slot); i++) {
@@ -4156,18 +4157,18 @@ TEST(InterpreterLookupGlobalSlot) {
   std::tuple<const char*, const char*, Handle<Object>> lookup_slot[] = {
       // Eval in inner context.
       std::make_tuple("x = 0;", "eval(''); return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
       std::make_tuple("x = 0;", "eval('var x = 1'); return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("x = 0;", "'use strict'; eval('var x = 1'); return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
       // Eval in outer context.
       std::make_tuple("x = 0; eval('');", "return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
       std::make_tuple("x = 0; eval('var x = 1');", "return x;",
                       handle(Smi::FromInt(1), isolate)),
       std::make_tuple("'use strict'; x = 0; eval('var x = 1');", "return x;",
-                      handle(Smi::kZero, isolate)),
+                      handle(Smi::zero(), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(lookup_slot); i++) {

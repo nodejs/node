@@ -19,18 +19,14 @@
 
 bool IsValidInput(const uint8_t* data, size_t size) {
   // Ignore too long inputs as they tend to find OOM or timeouts, not real bugs.
-  if (size > 2048) {
-    return false;
-  }
+  if (size > 2048) return false;
 
-  std::list<char> parentheses;
+  std::vector<char> parentheses;
   const char* ptr = reinterpret_cast<const char*>(data);
 
   for (size_t i = 0; i != size; ++i) {
     // Check that all characters in the data are valid.
-    if (!(std::isspace(ptr[i]) || std::isprint(ptr[i]))) {
-      return false;
-    }
+    if (!std::isspace(ptr[i]) && !std::isprint(ptr[i])) return false;
 
     // Check balance of parentheses in the data.
     switch (ptr[i]) {
@@ -40,15 +36,15 @@ bool IsValidInput(const uint8_t* data, size_t size) {
         parentheses.push_back(ptr[i]);
         break;
       case ')':
-        if (parentheses.back() != '(') return false;
+        if (parentheses.empty() || parentheses.back() != '(') return false;
         parentheses.pop_back();
         break;
       case ']':
-        if (parentheses.back() != '[') return false;
+        if (parentheses.empty() || parentheses.back() != '[') return false;
         parentheses.pop_back();
         break;
       case '}':
-        if (parentheses.back() != '{') return false;
+        if (parentheses.empty() || parentheses.back() != '{') return false;
         parentheses.pop_back();
         break;
       default:

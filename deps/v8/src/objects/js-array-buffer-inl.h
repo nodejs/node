@@ -123,7 +123,7 @@ void JSTypedArray::set_external_pointer(Address value) {
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
-    Isolate* isolate) {
+    const Isolate* isolate) {
 #ifdef V8_COMPRESS_POINTERS
   return GetIsolateRoot(isolate);
 #else
@@ -133,7 +133,7 @@ Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
 
 void JSTypedArray::RemoveExternalPointerCompensationForSerialization() {
   DCHECK(is_on_heap());
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   set_external_pointer(external_pointer() -
                        ExternalPointerCompensationForOnHeapArray(isolate));
 }
@@ -150,7 +150,7 @@ void* JSTypedArray::DataPtr() {
 }
 
 void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {
-  set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
+  set_base_pointer(Smi::zero(), SKIP_WRITE_BARRIER);
   Address address = reinterpret_cast<Address>(base) + offset;
   set_external_pointer(address);
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
@@ -158,7 +158,7 @@ void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {
 
 void JSTypedArray::SetOnHeapDataPtr(HeapObject base, Address offset) {
   set_base_pointer(base);
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   set_external_pointer(offset +
                        ExternalPointerCompensationForOnHeapArray(isolate));
   DCHECK_EQ(base.ptr() + offset, reinterpret_cast<Address>(DataPtr()));

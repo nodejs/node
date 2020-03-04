@@ -1,21 +1,37 @@
 DESCRIPTION -------------------------------------------------------------------
 
 gcmole is a simple static analysis tool used to find possible evaluation order 
-dependent GC-unsafe places in the V8 codebase.
+dependent GC-unsafe places in the V8 codebase and "stale" pointers to the heap
+(ones whose addresses got invalidated by the GC).
 
 For example the following code is GC-unsafe:
 
     Handle<Object> Foo();  // Assume Foo can trigger a GC.
-    void Bar(Object*, Object*);
+    void Bar(Object, Object);
 
     Handle<Object> baz;
     baz->Qux(*Foo());  // (a)
-    Bar(*Foo(), *baz);  // (b)
+    Bar(*Foo(), *baz); // (b)
 
 Both in cases (a) and (b) compiler is free to evaluate call arguments (that 
 includes receiver) in any order. That means it can dereference baz before 
 calling to Foo and save a raw pointer to a heap object in the register or 
-on the stack.  
+on the stack.
+
+In terms of the AST analysis that gcmole does, it warns about places in the
+code which result in 2 subtrees, the order of execution of which is undefined
+by C++, one of which causes a GC and the other dereferences a Handle to a raw
+Object (or its subclasses).
+
+The following code triggers a stale variable warning (assuming that the Foo
+function was detected as potentially allocating, as in the previous example):
+
+    JSObject raw_obj = ...;
+    Foo();
+    raw_obj.Print();
+
+Since Foo can trigger a GC, it might have moved the raw_obj. The solution is
+simply to store it as a Handle.
 
 PREREQUISITES -----------------------------------------------------------------
 

@@ -23,7 +23,14 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 2);
+  // TODO(mythria): Remove the on_non_existent parameter to this function. This
+  // should only be called when getting named properties on receiver. This
+  // doesn't handle the global variable loads.
+#ifdef DEBUG
   CONVERT_ARG_HANDLE_CHECKED(Smi, on_non_existent, 3);
+  DCHECK_NE(static_cast<OnNonExistent>(on_non_existent->value()),
+            OnNonExistent::kThrowReferenceError);
+#endif
 
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
@@ -33,9 +40,7 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
     return ReadOnlyRoots(isolate).exception();
   }
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::GetProperty(
-                   &it, static_cast<OnNonExistent>(on_non_existent->value())));
+  RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
 
 RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {

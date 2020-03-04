@@ -44,6 +44,9 @@ local FLAGS = {
    -- TODO add some sort of whiteliste to filter out false positives.
    dead_vars = false;
 
+   -- Enable verbose tracing from the plugin itself.
+   verbose_trace = false;
+
    -- When building gcsuspects whitelist certain functions as if they
    -- can be causing GC. Currently used to reduce number of false
    -- positives in dead variables analysis. See TODO for WHITELIST
@@ -310,7 +313,10 @@ local WHITELIST = {
    "StateTag",
 
    -- Ignore printing of elements transition.
-   "PrintElementsTransition"
+   "PrintElementsTransition",
+
+   -- CodeCreateEvent receives AbstractCode (a raw ptr) as an argument.
+   "CodeCreateEvent",
 };
 
 local function AddCause(name, cause)
@@ -443,8 +449,9 @@ local function CheckCorrectnessForArch(arch, for_test)
    log("** Searching for evaluation order problems%s for %s",
        FLAGS.dead_vars and " and dead variables" or "",
        arch)
-   local plugin_args
-   if FLAGS.dead_vars then plugin_args = { "--dead-vars" } end
+   local plugin_args = {}
+   if FLAGS.dead_vars then table.insert(plugin_args, "--dead-vars") end
+   if FLAGS.verbose_trace then table.insert(plugin_args, '--verbose') end
    InvokeClangPluginForEachFile(files,
                                 cfg:extend { plugin = "find-problems",
                                              plugin_args = plugin_args },
@@ -468,7 +475,8 @@ end
 local function TestRun()
    local errors, output = SafeCheckCorrectnessForArch('x64', true)
    if not errors then
-      log("** Test file should produce errors, but none were found.")
+      log("** Test file should produce errors, but none were found. Output:")
+      log(output)
       return false
    end
 

@@ -448,6 +448,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
           // We reached the allocation of the {receiver}.
           return kNoReceiverMaps;
         }
+        result = kUnreliableReceiverMaps;  // JSCreate can have side-effect.
         break;
       }
       case IrOpcode::kJSCreatePromise: {

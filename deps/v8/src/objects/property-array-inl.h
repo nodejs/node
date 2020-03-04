@@ -25,11 +25,11 @@ SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 SYNCHRONIZED_SMI_ACCESSORS(PropertyArray, length_and_hash, kLengthAndHashOffset)
 
 Object PropertyArray::get(int index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-Object PropertyArray::get(Isolate* isolate, int index) const {
+Object PropertyArray::get(const Isolate* isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   return TaggedField<Object>::Relaxed_Load(isolate, *this,

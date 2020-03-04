@@ -498,7 +498,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t code_section_size = reader->Read<size_t>();
   if (code_section_size == 0) {
     DCHECK(FLAG_wasm_lazy_compilation ||
-           native_module_->enabled_features().compilation_hints);
+           native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
     return true;
   }
@@ -608,19 +608,23 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   ModuleWireBytes wire_bytes(wire_bytes_vec);
   // TODO(titzer): module features should be part of the serialization format.
-  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result =
       DecodeWasmModule(enabled_features, wire_bytes.start(), wire_bytes.end(),
                        false, i::wasm::kWasmOrigin, isolate->counters(),
                        isolate->wasm_engine()->allocator());
   if (decode_result.failed()) return {};
-  CHECK_NOT_NULL(decode_result.value());
-  WasmModule* module = decode_result.value().get();
-  Handle<Script> script =
-      CreateWasmScript(isolate, wire_bytes, module->source_map_url);
+  std::shared_ptr<WasmModule> module = std::move(decode_result.value());
+  CHECK_NOT_NULL(module);
+  Handle<Script> script = CreateWasmScript(
+      isolate, wire_bytes, module->source_map_url, module->name);
 
+  const bool kIncludeLiftoff = false;
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
+                                                          kIncludeLiftoff);
   auto shared_native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled_features, std::move(decode_result.value()));
+      isolate, enabled_features, std::move(module), code_size_estimate);
   shared_native_module->SetWireBytes(OwnedVector<uint8_t>::Of(wire_bytes_vec));
 
   Handle<FixedArray> export_wrappers;

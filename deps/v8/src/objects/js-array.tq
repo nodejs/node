@@ -1,0 +1,301 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class JSArrayIterator extends JSObject {
+  iterated_object: JSReceiver;
+  next_index: Number;
+  kind: Smi;
+}
+
+extern class JSArray extends JSObject {
+  IsEmpty(): bool {
+    return this.length == 0;
+  }
+  length: Number;
+}
+
+macro NewJSArray(implicit context: Context)(
+    map: Map, elements: FixedArrayBase): JSArray {
+  return new JSArray{
+    map,
+    properties_or_hash: kEmptyFixedArray,
+    elements,
+    length: elements.length
+  };
+}
+
+macro NewJSArray(implicit context: Context)(): JSArray {
+  return new JSArray{
+    map: GetFastPackedSmiElementsJSArrayMap(),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    length: 0
+  };
+}
+
+// A HeapObject with a JSArray map, and either fast packed elements, or fast
+// holey elements when the global NoElementsProtector is not invalidated.
+transient type FastJSArray extends JSArray;
+
+// A HeapObject with a JSArray map, and either fast packed elements, or fast
+// holey elements or frozen, sealed elements when the global NoElementsProtector
+// is not invalidated.
+transient type FastJSArrayForRead extends JSArray;
+
+// A FastJSArray when the global ArraySpeciesProtector is not invalidated.
+transient type FastJSArrayForCopy extends FastJSArray;
+
+// A FastJSArray when the global ArrayIteratorProtector is not invalidated.
+transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
+
+// A FastJSArrayForRead when the global ArrayIteratorProtector is not
+// invalidated.
+transient type FastJSArrayForReadWithNoCustomIteration extends
+    FastJSArrayForRead;
+
+extern macro AllocateJSArray(
+    constexpr ElementsKind, Map, intptr, Smi,
+    constexpr AllocationFlags): JSArray;
+extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
+extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
+extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
+
+macro LoadElementNoHole<T : type extends FixedArrayBase>(
+    a: JSArray, index: Smi): JSAny
+    labels IfHole;
+
+LoadElementNoHole<FixedArray>(implicit context: Context)(
+    a: JSArray, index: Smi): JSAny
+    labels IfHole {
+  try {
+    const elements: FixedArray =
+        Cast<FixedArray>(a.elements) otherwise Unexpected;
+    const e = UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
+    typeswitch (e) {
+      case (TheHole): {
+        goto IfHole;
+      }
+      case (e: JSAny): {
+        return e;
+      }
+    }
+  }
+  label Unexpected {
+    unreachable;
+  }
+}
+
+LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
+    a: JSArray, index: Smi): JSAny
+    labels IfHole {
+  try {
+    const elements: FixedDoubleArray =
+        Cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
+    const e: float64 =
+        LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
+    return AllocateHeapNumberWithValue(e);
+  }
+  label Unexpected {
+    unreachable;
+  }
+}
+
+extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
+
+extern macro MoveElements(
+    constexpr ElementsKind, FixedArrayBase, intptr, intptr, intptr): void;
+macro TorqueMoveElementsSmi(
+    elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
+    count: intptr): void {
+  MoveElements(HOLEY_SMI_ELEMENTS, elements, dstIndex, srcIndex, count);
+}
+macro TorqueMoveElements(
+    elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
+    count: intptr): void {
+  MoveElements(HOLEY_ELEMENTS, elements, dstIndex, srcIndex, count);
+}
+macro TorqueMoveElements(
+    elements: FixedDoubleArray, dstIndex: intptr, srcIndex: intptr,
+    count: intptr): void {
+  MoveElements(HOLEY_DOUBLE_ELEMENTS, elements, dstIndex, srcIndex, count);
+}
+
+extern macro CopyElements(
+    constexpr ElementsKind, FixedArrayBase, intptr, FixedArrayBase, intptr,
+    intptr): void;
+macro TorqueCopyElements(
+    dstElements: FixedArray, dstIndex: intptr, srcElements: FixedArray,
+    srcIndex: intptr, count: intptr): void {
+  CopyElements(
+      HOLEY_ELEMENTS, dstElements, dstIndex, srcElements, srcIndex, count);
+}
+macro TorqueCopyElements(
+    dstElements: FixedDoubleArray, dstIndex: intptr,
+    srcElements: FixedDoubleArray, srcIndex: intptr, count: intptr): void {
+  CopyElements(
+      HOLEY_DOUBLE_ELEMENTS, dstElements, dstIndex, srcElements, srcIndex,
+      count);
+}
+
+extern builtin CloneFastJSArray(Context, FastJSArrayForCopy): JSArray;
+
+struct FastJSArrayWitness {
+  Get(): FastJSArray {
+    return this.unstable;
+  }
+
+  Recheck() labels CastError {
+    if (this.stable.map != this.map) goto CastError;
+    // We don't need to check elements kind or whether the prototype
+    // has changed away from the default JSArray prototype, because
+    // if the map remains the same then those properties hold.
+    //
+    // However, we have to make sure there are no elements in the
+    // prototype chain.
+    if (IsNoElementsProtectorCellInvalid()) goto CastError;
+    this.unstable = %RawDownCast<FastJSArray>(this.stable);
+  }
+
+  LoadElementNoHole(implicit context: Context)(k: Smi): JSAny
+      labels FoundHole {
+    if (this.hasDoubles) {
+      return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
+          otherwise FoundHole;
+    } else {
+      return LoadElementNoHole<FixedArray>(this.unstable, k)
+          otherwise FoundHole;
+    }
+  }
+
+  StoreHole(k: Smi) {
+    if (this.hasDoubles) {
+      const elements = Cast<FixedDoubleArray>(this.unstable.elements)
+          otherwise unreachable;
+      StoreFixedDoubleArrayHoleSmi(elements, k);
+    } else {
+      const elements = Cast<FixedArray>(this.unstable.elements)
+          otherwise unreachable;
+      StoreFixedArrayElement(elements, k, TheHole);
+    }
+  }
+
+  LoadElementOrUndefined(implicit context: Context)(k: Smi): JSAny {
+    try {
+      return this.LoadElementNoHole(k) otherwise FoundHole;
+    }
+    label FoundHole {
+      return Undefined;
+    }
+  }
+
+  EnsureArrayPushable(implicit context: Context)() labels Failed {
+    EnsureArrayPushable(this.map) otherwise Failed;
+    array::EnsureWriteableFastElements(this.unstable);
+    this.arrayIsPushable = true;
+  }
+
+  ChangeLength(newLength: Smi) {
+    assert(this.arrayIsPushable);
+    this.unstable.length = newLength;
+  }
+
+  Push(value: JSAny) labels Failed {
+    assert(this.arrayIsPushable);
+    if (this.hasDoubles) {
+      BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
+          otherwise Failed;
+    } else if (this.hasSmis) {
+      BuildAppendJSArray(HOLEY_SMI_ELEMENTS, this.unstable, value)
+          otherwise Failed;
+    } else {
+      assert(
+          this.map.elements_kind == HOLEY_ELEMENTS ||
+          this.map.elements_kind == PACKED_ELEMENTS);
+      BuildAppendJSArray(HOLEY_ELEMENTS, this.unstable, value)
+          otherwise Failed;
+    }
+  }
+
+  MoveElements(dst: intptr, src: intptr, length: intptr) {
+    assert(this.arrayIsPushable);
+    if (this.hasDoubles) {
+      const elements: FixedDoubleArray =
+          Cast<FixedDoubleArray>(this.unstable.elements)
+          otherwise unreachable;
+      TorqueMoveElements(elements, dst, src, length);
+    } else {
+      const elements: FixedArray = Cast<FixedArray>(this.unstable.elements)
+          otherwise unreachable;
+      if (this.hasSmis) {
+        TorqueMoveElementsSmi(elements, dst, src, length);
+      } else {
+        TorqueMoveElements(elements, dst, src, length);
+      }
+    }
+  }
+
+  const stable: JSArray;
+  unstable: FastJSArray;
+  const map: Map;
+  const hasDoubles: bool;
+  const hasSmis: bool;
+  arrayIsPushable: bool;
+}
+
+macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
+  const kind = array.map.elements_kind;
+  return FastJSArrayWitness{
+    stable: array,
+    unstable: array,
+    map: array.map,
+    hasDoubles: IsDoubleElementsKind(kind),
+    hasSmis: IsElementsKindLessThanOrEqual(kind, HOLEY_SMI_ELEMENTS),
+    arrayIsPushable: false
+  };
+}
+
+struct FastJSArrayForReadWitness {
+  Get(): FastJSArrayForRead {
+    return this.unstable;
+  }
+
+  Recheck() labels CastError {
+    if (this.stable.map != this.map) goto CastError;
+    // We don't need to check elements kind or whether the prototype
+    // has changed away from the default JSArray prototype, because
+    // if the map remains the same then those properties hold.
+    //
+    // However, we have to make sure there are no elements in the
+    // prototype chain.
+    if (IsNoElementsProtectorCellInvalid()) goto CastError;
+    this.unstable = %RawDownCast<FastJSArrayForRead>(this.stable);
+  }
+
+  LoadElementNoHole(implicit context: Context)(k: Smi): JSAny
+      labels FoundHole {
+    if (this.hasDoubles) {
+      return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
+          otherwise FoundHole;
+    } else {
+      return LoadElementNoHole<FixedArray>(this.unstable, k)
+          otherwise FoundHole;
+    }
+  }
+
+  const stable: JSArray;
+  unstable: FastJSArrayForRead;
+  const map: Map;
+  const hasDoubles: bool;
+}
+
+macro NewFastJSArrayForReadWitness(array: FastJSArrayForRead):
+    FastJSArrayForReadWitness {
+  const kind = array.map.elements_kind;
+  return FastJSArrayForReadWitness{
+    stable: array,
+    unstable: array,
+    map: array.map,
+    hasDoubles: IsDoubleElementsKind(kind)
+  };
+}

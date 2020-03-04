@@ -1802,7 +1802,7 @@ TEST(StrictOctal) {
       "    01;               \n"
       "  };                  \n"
       "};                    \n";
-  v8_compile(v8_str(script));
+  CHECK(v8_try_compile(v8_str(script)).IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(isolate, try_catch.Exception());
   CHECK_EQ(0,
@@ -3308,7 +3308,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context context = f->context();
+  i::Handle<i::Context> context(f->context(), isolate);
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
@@ -3318,7 +3318,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, &zone, context.scope_info(), script_scope, &avf,
+      isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
   CHECK_NOT_NULL(name);
@@ -3358,7 +3358,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context context = f->context();
+  i::Handle<i::Context> context(f->context(), isolate);
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
@@ -3367,7 +3367,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, &zone, context.scope_info(), script_scope, &avf,
+      isolate, &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
 

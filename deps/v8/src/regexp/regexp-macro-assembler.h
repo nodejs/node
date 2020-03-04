@@ -172,6 +172,10 @@ class RegExpMacroAssembler {
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
 
+  void set_backtrack_limit(uint32_t backtrack_limit) {
+    backtrack_limit_ = backtrack_limit;
+  }
+
   enum GlobalMode {
     NOT_GLOBAL,
     GLOBAL_NO_ZERO_LENGTH_CHECK,
@@ -190,8 +194,15 @@ class RegExpMacroAssembler {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
+ protected:
+  bool has_backtrack_limit() const {
+    return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
+  }
+  uint32_t backtrack_limit() const { return backtrack_limit_; }
+
  private:
   bool slow_safe_compiler_;
+  uint32_t backtrack_limit_ = JSRegExp::kNoBacktrackLimit;
   GlobalMode global_mode_;
   Isolate* isolate_;
   Zone* zone_;

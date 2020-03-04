@@ -1,0 +1,45 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+extern class JSRegExp extends JSObject {
+  data: FixedArray|Undefined;
+  source: String|Undefined;
+  flags: Smi|Undefined;
+}
+
+// Note: Although a condition for a FastJSRegExp is having a positive smi
+// lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
+// for this to change without transitioning the transient type. As a precaution,
+// validate the lastIndex is positive smi when used in fast paths.
+transient type FastJSRegExp extends JSRegExp;
+
+extern operator '.global' macro
+RegExpBuiltinsAssembler::FastFlagGetterGlobal(FastJSRegExp): bool;
+extern operator '.unicode' macro
+RegExpBuiltinsAssembler::FastFlagGetterUnicode(FastJSRegExp): bool;
+extern operator '.lastIndex' macro
+RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
+extern operator '.lastIndex=' macro
+RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
+
+extern shape JSRegExpResult extends JSArray {
+  // In-object properties:
+  // The below fields are externally exposed.
+  index: JSAny;
+  input: JSAny;
+  groups: JSAny;
+
+  // The below fields are for internal use only.
+  cached_indices_or_regexp: JSRegExpResultIndices|JSRegExp;
+  names: FixedArray|Undefined;
+  regexp_input: String;
+  regexp_last_index: Smi;
+}
+
+extern shape JSRegExpResultIndices extends JSArray {
+  // In-object properties:
+  // The groups field is externally exposed.
+  groups: JSAny;
+}

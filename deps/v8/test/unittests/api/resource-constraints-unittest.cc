@@ -44,9 +44,10 @@ TEST(ResourceConstraints, ConfigureDefaults) {
   const size_t KB = static_cast<size_t>(i::KB);
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t pm = i::Heap::kPointerMultiplier;
+  const size_t hlm = i::Heap::kHeapLimitMultiplier;
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(2048u * MB, 0u);
-  ASSERT_EQ(512u * pm * MB, constraints.max_old_generation_size_in_bytes());
+  ASSERT_EQ(512u * hlm * MB, constraints.max_old_generation_size_in_bytes());
   ASSERT_EQ(3 * 4096 * pm * KB,
             constraints.max_young_generation_size_in_bytes());
   ASSERT_EQ(0u, constraints.initial_old_generation_size_in_bytes());

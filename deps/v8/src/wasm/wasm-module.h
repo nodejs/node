@@ -250,9 +250,14 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index);
 
 // Returns the function containing the given byte offset.
-// Returns -1 if the byte offset is not contained in any function of this
-// module.
+// Returns -1 if the byte offset is not contained in any
+// function of this module.
 int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset);
+
+// Returns the function containing the given byte offset.
+// Will return preceding function if the byte offset is not
+// contained within a function.
+int GetNearestWasmFunction(const WasmModule* module, uint32_t byte_offset);
 
 // Compute the disassembly of a wasm function.
 // Returns the disassembly string and a list of <byte_offset, line, column>
@@ -370,6 +375,11 @@ class TruncatedUserString {
   const int length_;
   char buffer_[kMaxLen];
 };
+
+// Print the signature into the given {buffer}. If {buffer} is non-empty, it
+// will be null-terminated, even if the signature is cut off. Returns the number
+// of characters written, excluding the terminating null-byte.
+size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig*);
 
 }  // namespace wasm
 }  // namespace internal

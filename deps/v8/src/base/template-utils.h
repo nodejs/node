@@ -81,6 +81,12 @@ struct is_same<T> : public std::true_type {};
 template <typename T, typename... Ts>
 struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
 
+// Returns true, iff all values (implicitly converted to bool) are trueish.
+template <typename... Args>
+constexpr bool all(Args... rest) {
+  return fold(std::logical_and<>{}, true, rest...);
+}
+
 }  // namespace base
 }  // namespace v8
 

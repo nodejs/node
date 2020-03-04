@@ -122,53 +122,6 @@ Callable CodeFactory::KeyedStoreIC_SloppyArguments(Isolate* isolate,
   return isolate->builtins()->CallableFor(isolate, builtin_index);
 }
 
-Callable CodeFactory::KeyedStoreIC_Slow(Isolate* isolate,
-                                        KeyedAccessStoreMode mode) {
-  Builtins::Name builtin_index;
-  switch (mode) {
-    case STANDARD_STORE:
-      builtin_index = Builtins::kKeyedStoreIC_Slow_Standard;
-      break;
-    case STORE_AND_GROW_HANDLE_COW:
-      builtin_index = Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW;
-      break;
-    case STORE_IGNORE_OUT_OF_BOUNDS:
-      builtin_index = Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB;
-      break;
-    case STORE_HANDLE_COW:
-      builtin_index = Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return isolate->builtins()->CallableFor(isolate, builtin_index);
-}
-
-Callable CodeFactory::StoreInArrayLiteralIC_Slow(Isolate* isolate,
-                                                 KeyedAccessStoreMode mode) {
-  Builtins::Name builtin_index;
-  switch (mode) {
-    case STANDARD_STORE:
-      builtin_index = Builtins::kStoreInArrayLiteralIC_Slow_Standard;
-      break;
-    case STORE_AND_GROW_HANDLE_COW:
-      builtin_index =
-          Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW;
-      break;
-    case STORE_IGNORE_OUT_OF_BOUNDS:
-      builtin_index =
-          Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB;
-      break;
-    case STORE_HANDLE_COW:
-      builtin_index =
-          Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return isolate->builtins()->CallableFor(isolate, builtin_index);
-}
-
 Callable CodeFactory::ElementsTransitionAndStore(Isolate* isolate,
                                                  KeyedAccessStoreMode mode) {
   Builtins::Name builtin_index;

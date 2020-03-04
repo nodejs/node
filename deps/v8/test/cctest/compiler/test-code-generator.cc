@@ -147,9 +147,10 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
     }
     params.push_back(element);
   }
-  __ Return(tester.raw_assembler_for_testing()->AddNode(
-      tester.raw_assembler_for_testing()->common()->Call(call_descriptor),
-      static_cast<int>(params.size()), params.data()));
+  __ Return(
+      __ UncheckedCast<Object>(tester.raw_assembler_for_testing()->AddNode(
+          tester.raw_assembler_for_testing()->common()->Call(call_descriptor),
+          static_cast<int>(params.size()), params.data())));
   return tester.GenerateCodeCloseAndEscape();
 }
 

@@ -1,0 +1,48 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+type SourceTextModuleInfo extends FixedArray;
+
+@generateCppClass
+extern class SourceTextModule extends Module {
+  // The code representing this module, or an abstraction thereof.
+  code: SharedFunctionInfo|JSFunction|JSGeneratorObject|SourceTextModuleInfo;
+
+  // Arrays of cells corresponding to regular exports and regular imports.
+  // A cell's position in the array is determined by the cell index of the
+  // associated module entry (which coincides with the variable index of the
+  // associated variable).
+  regular_exports: FixedArray;
+  regular_imports: FixedArray;
+
+  // Modules imported or re-exported by this module.
+  // Corresponds 1-to-1 to the module specifier strings in
+  // SourceTextModuleInfo::module_requests.
+  requested_modules: FixedArray;
+
+  // Script from which the module originates.
+  script: Script;
+
+  // The value of import.meta inside of this module.
+  // Lazily initialized on first access. It's the hole before first access and
+  // a JSObject afterwards.
+  import_meta: TheHole|JSObject;
+  async_parent_modules: ArrayList;
+  top_level_capability: JSPromise|Undefined;
+  dfs_index: Smi;
+  dfs_ancestor_index: Smi;
+  pending_async_dependencies: Smi;
+  flags: Smi;
+}
+
+@generateCppClass
+extern class SourceTextModuleInfoEntry extends Struct {
+  export_name: String|Undefined;
+  local_name: String|Undefined;
+  import_name: String|Undefined;
+  module_request: Smi;
+  cell_index: Smi;
+  beg_pos: Smi;
+  end_pos: Smi;
+}

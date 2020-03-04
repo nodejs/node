@@ -1,0 +1,49 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class Map extends HeapObject {
+  PrototypeInfo(): PrototypeInfo labels HasNoPrototypeInfo {
+    typeswitch (this.transitions_or_prototype_info) {
+      case (Weak<Map>): {
+        goto HasNoPrototypeInfo;
+      }
+      case (Smi): {
+        goto HasNoPrototypeInfo;
+      }
+      case (info: PrototypeInfo): {
+        return info;
+      }
+      case (Map | TransitionArray): {
+        goto HasNoPrototypeInfo;
+      }
+    }
+  }
+
+  instance_size_in_words: uint8;
+  in_object_properties_start_or_constructor_function_index: uint8;
+  used_or_unused_instance_size_in_words: uint8;
+  visitor_id: uint8;
+  instance_type: InstanceType;
+  bit_field: uint8;
+  bit_field2: uint8;
+  bit_field3: uint32;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
+  prototype: JSReceiver|Null;
+  constructor_or_back_pointer_or_native_context: Object;
+  instance_descriptors: DescriptorArray;
+  @if(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: LayoutDescriptor;
+  @ifnot(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: void;
+  dependent_code: DependentCode;
+  prototype_validity_cell: Smi|Cell;
+  weak transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|
+      PrototypeInfo|Smi;
+}
+
+@export
+macro LoadMapPrototypeInfo(m: Map): PrototypeInfo labels HasNoPrototypeInfo {
+  return m.PrototypeInfo() otherwise HasNoPrototypeInfo;
+}

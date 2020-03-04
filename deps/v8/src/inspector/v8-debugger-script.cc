@@ -394,9 +394,9 @@ class WasmVirtualScript : public V8DebuggerScript {
 
     v8::debug::Location translatedEnd = end;
     if (translatedEnd.IsEmpty()) {
-      // Stop before the start of the next function.
-      translatedEnd =
-          v8::debug::Location(translatedStart.GetLineNumber() + 1, 0);
+      // Stop at the end of the function.
+      int end_offset = m_wasmTranslation->GetEndOffset(scriptId());
+      translatedEnd = v8::debug::Location(0, end_offset);
     } else {
       TranslateProtocolLocationToV8Location(m_wasmTranslation, &translatedEnd,
                                             scriptId(), v8ScriptId);

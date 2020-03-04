@@ -1,0 +1,78 @@
+Tests stepping to javascript from wasm
+Installing code and global variable.
+Calling instantiate function.
+Waiting for wasm scripts to be parsed.
+Ignoring script with url v8://test/callInstantiate
+Ignoring script with url wasm://wasm/485e942e
+Got wasm script: wasm://wasm/485e942e/485e942e-0
+Setting breakpoint on line 2 of wasm function
+{
+    columnNumber : 0
+    lineNumber : 2
+    scriptId : <scriptId>
+}
+Start run 1
+paused
+function test() {
+  #debugger;
+  instance.exports.main();
+
+Debugger.resume
+paused
+  nop
+#end
+
+
+Debugger.stepOut
+paused
+  instance.exports.main();
+  var x = #1;
+  x++;
+
+Debugger.resume
+exports.main returned!
+Finished run 1!
+
+Start run 2
+paused
+function test() {
+  #debugger;
+  instance.exports.main();
+
+Debugger.resume
+paused
+  nop
+#end
+
+
+Debugger.stepOver
+paused
+  instance.exports.main();
+  var x = #1;
+  x++;
+
+Debugger.resume
+exports.main returned!
+Finished run 2!
+
+Start run 3
+paused
+function test() {
+  #debugger;
+  instance.exports.main();
+
+Debugger.resume
+paused
+  nop
+#end
+
+
+Debugger.stepInto
+paused
+  instance.exports.main();
+  var x = #1;
+  x++;
+
+Debugger.resume
+exports.main returned!
+Finished run 3!

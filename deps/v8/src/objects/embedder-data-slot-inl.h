@@ -35,7 +35,7 @@ void EmbedderDataSlot::store_smi(Smi value) {
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
 #ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
-  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::kZero);
+  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
 #endif
 }
 
@@ -49,7 +49,7 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 #ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))
-      .Relaxed_Store(Smi::kZero);
+      .Relaxed_Store(Smi::zero());
 #endif
 }
 
@@ -63,7 +63,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
 #ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(object, slot_offset + kRawPayloadOffset))
-      .Relaxed_Store(Smi::kZero);
+      .Relaxed_Store(Smi::zero());
 #endif
 }
 

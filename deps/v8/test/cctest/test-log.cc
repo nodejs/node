@@ -38,7 +38,6 @@
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
-#include "src/snapshot/natives.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
 #include "test/cctest/cctest.h"
@@ -171,7 +170,7 @@ class ScopedLoggerInitializer {
       // conditions will be triggered.
       if (address_column >= columns.size()) continue;
       uintptr_t address =
-          strtoll(columns.at(address_column).c_str(), nullptr, 16);
+          strtoull(columns.at(address_column).c_str(), nullptr, 16);
       if (address == 0) continue;
       if (!allow_duplicates) {
         auto match = map.find(address);

@@ -56,17 +56,52 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Generic& g) {
+std::ostream& operator<<(std::ostream& os, const GenericCallable& g) {
   os << "generic " << g.name() << "<";
-  PrintCommaSeparatedList(
-      os, g.generic_parameters(),
-      [](const Identifier* identifier) { return identifier->value; });
+  PrintCommaSeparatedList(os, g.generic_parameters(),
+                          [](const GenericParameter& identifier) {
+                            return identifier.name->value;
+                          });
   os << ">";
 
   return os;
 }
 
-TypeArgumentInference Generic::InferSpecializationTypes(
+base::Optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
+  if (upper_bound && !type->IsSubtypeOf(*upper_bound)) {
+    return {ToString("expected ", *type, " to be a subtype of ", *upper_bound)};
+  }
+  return base::nullopt;
+}
+
+base::Optional<std::string> FindConstraintViolation(
+    const std::vector<const Type*>& types,
+    const std::vector<TypeConstraint>& constraints) {
+  DCHECK_EQ(constraints.size(), types.size());
+  for (size_t i = 0; i < types.size(); ++i) {
+    if (auto violation = constraints[i].IsViolated(types[i])) {
+      return {"Could not instantiate generic, " + *violation + "."};
+    }
+  }
+  return base::nullopt;
+}
+
+std::vector<TypeConstraint> ComputeConstraints(
+    Scope* scope, const GenericParameters& parameters) {
+  CurrentScope::Scope scope_scope(scope);
+  std::vector<TypeConstraint> result;
+  for (const GenericParameter& parameter : parameters) {
+    if (parameter.constraint) {
+      result.push_back(TypeConstraint::SubtypeConstraint(
+          TypeVisitor::ComputeType(*parameter.constraint)));
+    } else {
+      result.push_back(TypeConstraint::Unconstrained());
+    }
+  }
+  return result;
+}
+
+TypeArgumentInference GenericCallable::InferSpecializationTypes(
     const TypeVector& explicit_specialization_types,
     const TypeVector& arguments) {
   size_t implicit_count = declaration()->parameters.implicit_count;
@@ -79,10 +114,16 @@ TypeArgumentInference Generic::InferSpecializationTypes(
   TypeArgumentInference inference(generic_parameters(),
                                   explicit_specialization_types,
                                   explicit_parameters, arguments);
+  if (!inference.HasFailed()) {
+    if (auto violation =
+            FindConstraintViolation(inference.GetResult(), Constraints())) {
+      inference.Fail(*violation);
+    }
+  }
   return inference;
 }
 
-base::Optional<Statement*> Generic::CallableBody() {
+base::Optional<Statement*> GenericCallable::CallableBody() {
   if (auto* decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
     return decl->body;
   } else if (auto* decl =

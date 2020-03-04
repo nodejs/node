@@ -10,7 +10,7 @@ namespace proxy {
   // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
   transitioning builtin
   ProxySetPrototypeOf(implicit context: Context)(
-      proxy: JSProxy, proto: Null | JSReceiver, doThrow: Boolean): JSAny {
+      proxy: JSProxy, proto: Null|JSReceiver, doThrow: Boolean): JSAny {
     PerformStackCheck();
     const kTrapName: constexpr string = 'setPrototypeOf';
     try {
@@ -46,14 +46,14 @@ namespace proxy {
 
       // 10. Let extensibleTarget be ? IsExtensible(target).
       // 11. If extensibleTarget is true, return true.
-      const extensibleTarget: Object = object::ObjectIsExtensible(target);
+      const extensibleTarget: Object = object::ObjectIsExtensibleImpl(target);
       assert(extensibleTarget == True || extensibleTarget == False);
       if (extensibleTarget == True) {
         return True;
       }
 
       // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
-      const targetProto = object::ObjectGetPrototypeOf(target);
+      const targetProto = object::ObjectGetPrototypeOfImpl(target);
 
       // 13. If SameValue(V, targetProto) is false, throw a TypeError
       // exception.
@@ -63,7 +63,7 @@ namespace proxy {
       }
       ThrowTypeError(kProxySetPrototypeOfNonExtensible);
     }
-    label TrapUndefined(target: JSAny, proto: JSReceiver | Null) {
+    label TrapUndefined(target: JSAny, proto: JSReceiver|Null) {
       // 7.a. Return ? target.[[SetPrototypeOf]]().
       if (doThrow == True) {
         return object::ObjectSetPrototypeOfThrow(target, proto);

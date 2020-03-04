@@ -93,7 +93,8 @@ class Sweeper {
   int RawSweep(
       Page* p, FreeListRebuildingMode free_list_mode,
       FreeSpaceTreatmentMode free_space_mode,
-      FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space);
+      FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space,
+      const base::MutexGuard& page_guard);
 
   // After calling this function sweeping is considered to be in progress
   // and the main thread can sweep lazily, but the background sweeper tasks
@@ -105,11 +106,10 @@ class Sweeper {
 
   Page* GetSweptPageSafe(PagedSpace* space);
 
-  void EnsurePageIsIterable(Page* page);
-
   void AddPageForIterability(Page* page);
   void StartIterabilityTasks();
   void EnsureIterabilityCompleted();
+  void MergeOldToNewRememberedSetsForSweptPages();
 
  private:
   class IncrementalSweeperTask;
@@ -147,8 +147,6 @@ class Sweeper {
   Page* GetSweepingPageSafe(AllocationSpace space);
 
   void PrepareToBeSweptPage(AllocationSpace space, Page* page);
-
-  void SweepOrWaitUntilSweepingCompleted(Page* page);
 
   void MakeIterable(Page* page);
 

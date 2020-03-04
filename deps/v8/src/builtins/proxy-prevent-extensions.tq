@@ -37,7 +37,7 @@ namespace proxy {
       //    8.a. Let extensibleTarget be ? IsExtensible(target).
       //    8.b If extensibleTarget is true, throw a TypeError exception.
       if (ToBoolean(trapResult)) {
-        const extensibleTarget: JSAny = object::ObjectIsExtensible(target);
+        const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
         assert(extensibleTarget == True || extensibleTarget == False);
         if (extensibleTarget == True) {
           ThrowTypeError(kProxyPreventExtensionsExtensible);

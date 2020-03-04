@@ -60,7 +60,7 @@ TrapId TrapIdOf(const Operator* const op) {
 }
 
 std::ostream& operator<<(std::ostream& os, BranchOperatorInfo info) {
-  return os << info.hint << "|" << info.is_safety_check;
+  return os << info.hint << ", " << info.is_safety_check;
 }
 
 const BranchOperatorInfo& BranchOperatorInfoOf(const Operator* const op) {
@@ -105,11 +105,8 @@ size_t hash_value(DeoptimizeParameters p) {
 }
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
-  os << p.kind() << ":" << p.reason() << ":" << p.is_safety_check();
-  if (p.feedback().IsValid()) {
-    os << "; " << p.feedback();
-  }
-  return os;
+  return os << p.kind() << ", " << p.reason() << ", " << p.is_safety_check()
+            << ", " << p.feedback();
 }
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
@@ -169,7 +166,7 @@ size_t hash_value(SelectParameters const& p) {
 
 
 std::ostream& operator<<(std::ostream& os, SelectParameters const& p) {
-  return os << p.representation() << "|" << p.hint();
+  return os << p.representation() << ", " << p.hint();
 }
 
 
@@ -222,13 +219,13 @@ size_t hash_value(ParameterInfo const& p) { return p.index(); }
 
 
 std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
-  if (i.debug_name()) os << i.debug_name() << '#';
   os << i.index();
+  if (i.debug_name()) os << ", debug name: " << i.debug_name();
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, ObjectStateInfo const& i) {
-  return os << "id:" << i.object_id() << "|size:" << i.size();
+  return os << "id:" << i.object_id() << ", size:" << i.size();
 }
 
 size_t hash_value(ObjectStateInfo const& p) {
@@ -236,7 +233,7 @@ size_t hash_value(ObjectStateInfo const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, TypedObjectStateInfo const& i) {
-  return os << "id:" << i.object_id() << "|" << i.machine_types();
+  return os << "id:" << i.object_id() << ", " << i.machine_types();
 }
 
 size_t hash_value(TypedObjectStateInfo const& p) {
@@ -260,7 +257,7 @@ size_t hash_value(RelocatablePtrConstantInfo const& p) {
 
 std::ostream& operator<<(std::ostream& os,
                          RelocatablePtrConstantInfo const& p) {
-  return os << p.value() << "|" << p.rmode() << "|" << p.type();
+  return os << p.value() << ", " << p.rmode() << ", " << p.type();
 }
 
 SparseInputMask::InputIterator::InputIterator(
@@ -360,7 +357,7 @@ size_t hash_value(TypedStateValueInfo const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, TypedStateValueInfo const& p) {
-  return os << p.machine_types() << "|" << p.sparse_input_mask();
+  return os << p.machine_types() << ", " << p.sparse_input_mask();
 }
 
 size_t hash_value(RegionObservability observability) {

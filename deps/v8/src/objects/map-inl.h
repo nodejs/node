@@ -145,11 +145,11 @@ bool Map::EquivalentToForNormalization(const Map other,
 }
 
 bool Map::IsUnboxedDoubleField(FieldIndex index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return IsUnboxedDoubleField(isolate, index);
 }
 
-bool Map::IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const {
+bool Map::IsUnboxedDoubleField(const Isolate* isolate, FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   if (!index.is_inobject()) return false;
   return !layout_descriptor(isolate).IsTagged(index.property_index());
@@ -626,7 +626,7 @@ void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
       CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor().IsConsistentWithMap(*this));
     DCHECK(visitor_id() == Map::GetVisitorId(*this));
 #endif
   }
@@ -645,7 +645,7 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
       CHECK(layout_descriptor().IsConsistentWithMap(*this));
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor().IsConsistentWithMap(*this));
 #endif
     set_visitor_id(Map::GetVisitorId(*this));
   }
@@ -730,8 +730,12 @@ Map Map::ElementsTransitionMap(Isolate* isolate) {
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
-ACCESSORS(Map, constructor_or_backpointer, Object,
-          kConstructorOrBackPointerOffset)
+ACCESSORS_CHECKED2(Map, constructor_or_backpointer, Object,
+                   kConstructorOrBackPointerOrNativeContextOffset,
+                   !IsContextMap(), value.IsNull() || !IsContextMap())
+ACCESSORS_CHECKED(Map, native_context, NativeContext,
+                  kConstructorOrBackPointerOrNativeContextOffset,
+                  IsContextMap())
 
 bool Map::IsPrototypeValidityCellValid() const {
   Object validity_cell = prototype_validity_cell();

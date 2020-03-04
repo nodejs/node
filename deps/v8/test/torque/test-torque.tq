@@ -465,7 +465,7 @@ namespace test {
     }
   }
 
-  type NumberOrFixedArray = Number | FixedArray;
+  type NumberOrFixedArray = Number|FixedArray;
   macro TypeswitchExample(implicit context: Context)(x: NumberOrFixedArray):
       int32 {
     let result: int32 = 0;

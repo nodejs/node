@@ -9,6 +9,7 @@
 #ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 #define V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 
+#include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-segmenter.h"

@@ -5,7 +5,7 @@
 namespace array {
   transitioning javascript builtin
   ArraySomeLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
     // All continuation points in the optimized some implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -26,7 +26,7 @@ namespace array {
 
   transitioning javascript builtin
   ArraySomeLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
       result: JSAny): JSAny {
     // All continuation points in the optimized some implementation are
@@ -110,7 +110,7 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.some
   transitioning javascript builtin
-  ArraySome(js-implicit context: Context, receiver: JSAny)(...arguments):
+  ArraySome(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.some');

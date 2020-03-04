@@ -8,8 +8,8 @@
 #include "include/v8.h"
 #include "src/utils/allocation.h"
 // TODO(bmeurer): Remove once FLAG_modify_field_representation_inplace is gone.
+#include "src/base/bit-field.h"
 #include "src/flags/flags.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -322,7 +322,7 @@ class PropertyDetails {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  using KindField = BitField<PropertyKind, 0, 1>;
+  using KindField = base::BitField<PropertyKind, 0, 1>;
   using LocationField = KindField::Next<PropertyLocation, 1>;
   using ConstnessField = LocationField::Next<PropertyConstness, 1>;
   using AttributesField = ConstnessField::Next<PropertyAttributes, 3>;

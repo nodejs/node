@@ -42,6 +42,12 @@ class ReadOnlyHeap final {
   // and it may be safely disposed of.
   void OnHeapTearDown();
 
+#ifdef V8_SHARED_RO_HEAP
+  static const ReadOnlyHeap* Instance();
+#endif
+
+  // Returns whether the address is within the read-only space.
+  V8_EXPORT_PRIVATE static bool Contains(Address address);
   // Returns whether the object resides in the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
   // Gets read-only roots from an appropriate root list: shared read-only root
@@ -64,8 +70,6 @@ class ReadOnlyHeap final {
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
  private:
-  using Checksum = std::pair<uint32_t, uint32_t>;
-
   // Creates a new read-only heap and attaches it to the provided isolate.
   static ReadOnlyHeap* CreateAndAttachToIsolate(Isolate* isolate);
   // Runs the read-only deserailizer and calls InitFromIsolate to complete
@@ -84,7 +88,7 @@ class ReadOnlyHeap final {
 #ifdef V8_SHARED_RO_HEAP
 #ifdef DEBUG
   // The checksum of the blob the read-only heap was deserialized from, if any.
-  base::Optional<Checksum> read_only_blob_checksum_;
+  base::Optional<uint32_t> read_only_blob_checksum_;
 #endif  // DEBUG
 
   Address read_only_roots_[kEntriesCount];

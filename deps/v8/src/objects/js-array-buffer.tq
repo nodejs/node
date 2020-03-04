@@ -1,0 +1,23 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class JSArrayBuffer extends JSObject {
+  byte_length: uintptr;
+  backing_store: RawPtr;
+}
+
+@abstract
+extern class JSArrayBufferView extends JSObject {
+  buffer: JSArrayBuffer;
+  byte_offset: uintptr;
+  byte_length: uintptr;
+}
+
+extern class JSTypedArray extends JSArrayBufferView {
+  length: uintptr;
+  external_pointer: RawPtr;
+  base_pointer: ByteArray|Smi;
+}
+
+extern class JSDataView extends JSArrayBufferView { data_pointer: RawPtr; }

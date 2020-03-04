@@ -65,7 +65,6 @@
 #include "src/profiler/cpu-profiler.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
-#include "src/wasm/wasm-js.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -165,9 +164,6 @@ UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
 }
-
-// Tests that Smi::kZero is set up properly.
-UNINITIALIZED_TEST(SmiZero) { CHECK_EQ(i::Smi::kZero, i::Smi::kZero); }
 
 THREADED_TEST(Handles) {
   v8::HandleScope scope(CcTest::isolate());
@@ -2554,25 +2550,23 @@ void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
   Local<Symbol> sym = Local<Symbol>::Cast(name);
-  if (sym->Name()->IsUndefined())
-    return;
-  SimpleAccessorGetter(Local<String>::Cast(sym->Name()), info);
+  if (sym->Description()->IsUndefined()) return;
+  SimpleAccessorGetter(Local<String>::Cast(sym->Description()), info);
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
   Local<Symbol> sym = Local<Symbol>::Cast(name);
-  if (sym->Name()->IsUndefined())
-    return;
-  SimpleAccessorSetter(Local<String>::Cast(sym->Name()), value, info);
+  if (sym->Description()->IsUndefined()) return;
+  SimpleAccessorSetter(Local<String>::Cast(sym->Description()), value, info);
 }
 
 void SymbolAccessorGetterReturnsDefault(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
   Local<Symbol> sym = Local<Symbol>::Cast(name);
-  if (sym->Name()->IsUndefined()) return;
+  if (sym->Description()->IsUndefined()) return;
   info.GetReturnValue().Set(info.Data());
 }
 
@@ -3201,7 +3195,8 @@ THREADED_TEST(SymbolProperties) {
   CHECK(!sym1->StrictEquals(sym2));
   CHECK(!sym2->StrictEquals(sym1));
 
-  CHECK(sym2->Name()->Equals(env.local(), v8_str("my-symbol")).FromJust());
+  CHECK(
+      sym2->Description()->Equals(env.local(), v8_str("my-symbol")).FromJust());
 
   v8::Local<v8::Value> sym_val = sym2;
   CHECK(sym_val->IsSymbol());
@@ -8899,7 +8894,7 @@ TEST(CompilationErrorUsingTryCatchHandler) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::TryCatch try_catch(env->GetIsolate());
-  v8_compile("This doesn't &*&@#$&*^ compile.");
+  CHECK(v8_try_compile("This doesn't &*&@#$&*^ compile.").IsEmpty());
   CHECK(*try_catch.Exception());
   CHECK(try_catch.HasCaught());
 }
@@ -9644,6 +9639,38 @@ TEST(DetachedAccesses) {
                        results->Get(env1.local(), i + 3).ToLocalChecked())
               .FromJust());
   }
+}
+
+
+TEST(DetachedWindow) {
+  LocalContext env1;
+  v8::HandleScope scope(env1->GetIsolate());
+
+  // Create second environment.
+  Local<ObjectTemplate> inner_global_template =
+      FunctionTemplate::New(env1->GetIsolate())->InstanceTemplate();
+  v8::Local<Context> env2 =
+      Context::New(env1->GetIsolate(), nullptr, inner_global_template);
+
+  Local<Value> foo = v8_str("foo");
+
+  // Set same security token for env1 and env2.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  {
+    v8::Context::Scope scope(env2);
+    CompileRun("function fun() { }");
+    CHECK(env1->Global()
+              ->Set(env1.local(), v8_str("fun"), CompileRun("fun"))
+              .FromJust());
+  }
+
+  env2->SetDetachedWindowReason(v8::Context::kDetachedWindowByNavigation);
+
+  CompileRun("fun()");
+  // This merely tests for not crashing, because currently
+  // Runtime_ReportDetachedWindowAccess does nothing.
 }
 
 
@@ -14027,7 +14054,7 @@ void CheckIsSymbolAt(v8::Isolate* isolate, v8::Local<v8::Array> properties,
           .ToLocalChecked();
   CHECK(value->IsSymbol());
   v8::String::Utf8Value symbol_name(isolate,
-                                    Local<Symbol>::Cast(value)->Name());
+                                    Local<Symbol>::Cast(value)->Description());
   if (strcmp(name, *symbol_name) != 0) {
     FATAL("properties[%u] was Symbol('%s') instead of Symbol('%s').", index,
           name, *symbol_name);
@@ -18815,14 +18842,28 @@ TEST(RegExp) {
   v8::Local<v8::Value> value(CompileRun("re.property"));
   CHECK_EQ(32, value->Int32Value(context.local()).FromJust());
 
-  v8::TryCatch try_catch(context->GetIsolate());
-  CHECK(v8::RegExp::New(context.local(), v8_str("foo["), v8::RegExp::kNone)
-            .IsEmpty());
-  CHECK(try_catch.HasCaught());
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("ex"), try_catch.Exception())
-            .FromJust());
-  ExpectTrue("ex instanceof SyntaxError");
+  {
+    v8::TryCatch try_catch(context->GetIsolate());
+    CHECK(v8::RegExp::New(context.local(), v8_str("foo["), v8::RegExp::kNone)
+              .IsEmpty());
+    CHECK(try_catch.HasCaught());
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("ex"), try_catch.Exception())
+              .FromJust());
+    ExpectTrue("ex instanceof SyntaxError");
+  }
+
+  // RegExp::Exec.
+  {
+    v8::Local<v8::RegExp> regexp =
+        v8::RegExp::New(context.local(), v8_str("a.c"), {}).ToLocalChecked();
+    v8::Local<v8::Object> result0 =
+        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    CHECK(result0->IsArray());
+    v8::Local<v8::Object> result1 =
+        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    CHECK(result1->IsNull());
+  }
 }
 
 
@@ -19274,20 +19315,34 @@ bool CodeGenerationDisallowed(Local<Context> context, Local<String> source) {
   return false;
 }
 
-v8::MaybeLocal<String> ModifyCodeGeneration(Local<Context> context,
-                                            Local<Value> source) {
-  // For testing purposes, deny all odd-length strings and replace '2' with '3'
-  String::Utf8Value utf8(context->GetIsolate(), source);
-  DCHECK(utf8.length());
-  if (utf8.length() == 0 || utf8.length() % 2 != 0)
-    return v8::MaybeLocal<String>();
+v8::ModifyCodeGenerationFromStringsResult ModifyCodeGeneration(
+    Local<Context> context, Local<Value> source) {
+  // Allow (passthrough, unmodified) all objects that are not strings.
+  if (!source->IsString()) {
+    return {/* codegen_allowed= */ true, v8::MaybeLocal<String>()};
+  }
 
+  String::Utf8Value utf8(context->GetIsolate(), source);
+  DCHECK_GT(utf8.length(), 0);
+
+  // Allow (unmodified) all strings that contain "44".
+  if (strstr(*utf8, "44") != nullptr) {
+    return {/* codegen_allowed= */ true, v8::MaybeLocal<String>()};
+  }
+
+  // Deny all odd-length strings.
+  if (utf8.length() == 0 || utf8.length() % 2 != 0) {
+    return {/* codegen_allowed= */ false, v8::MaybeLocal<String>()};
+  }
+
+  // Allow even-length strings and modify them by replacing all '2' with '3'.
   for (char* i = *utf8; *i != '\0'; i++) {
     if (*i == '2') *i = '3';
   }
-  return String::NewFromUtf8(context->GetIsolate(), *utf8,
-                             v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return {/* codegen_allowed= */ true,
+          String::NewFromUtf8(context->GetIsolate(), *utf8,
+                              v8::NewStringType::kNormal)
+              .ToLocalChecked()};
 }
 
 THREADED_TEST(AllowCodeGenFromStrings) {
@@ -19338,6 +19393,12 @@ TEST(ModifyCodeGenFromStrings) {
 
   result = CompileRun("var f = new Function('return 42;'); f()");
   CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("eval(43)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("var f = new Function('return 44;'); f();");
+  CHECK_EQ(44, result->Int32Value(context.local()).FromJust());
 
   // Test 'disallowed' cases.
   TryCatch try_catch(CcTest::isolate());
@@ -25861,124 +25922,6 @@ TEST(PersistentValueMap) {
   map.Set("key", value);
 }
 
-namespace {
-
-bool wasm_streaming_callback_got_called = false;
-bool wasm_streaming_data_got_collected = false;
-
-void WasmStreamingTestFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  CHECK(!wasm_streaming_data_got_collected);
-  wasm_streaming_data_got_collected = true;
-  i::GlobalHandles::Destroy(reinterpret_cast<i::Address*>(data.GetParameter()));
-}
-
-void WasmStreamingCallbackTestCallbackIsCalled(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(!wasm_streaming_callback_got_called);
-  wasm_streaming_callback_got_called = true;
-
-  i::Handle<i::Object> global_handle =
-      reinterpret_cast<i::Isolate*>(args.GetIsolate())
-          ->global_handles()
-          ->Create(*v8::Utils::OpenHandle(*args.Data()));
-  i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                             WasmStreamingTestFinalizer,
-                             v8::WeakCallbackType::kParameter);
-}
-
-void WasmStreamingCallbackTestOnBytesReceived(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-
-  // The first bytes of the WebAssembly magic word.
-  const uint8_t bytes[]{0x00, 0x61, 0x73};
-  streaming->OnBytesReceived(bytes, arraysize(bytes));
-}
-
-void WasmStreamingCallbackTestFinishWithSuccess(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  // The bytes of a minimal WebAssembly module.
-  const uint8_t bytes[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
-  streaming->OnBytesReceived(bytes, arraysize(bytes));
-  streaming->Finish();
-}
-
-void WasmStreamingCallbackTestFinishWithFailure(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  streaming->Finish();
-}
-
-void WasmStreamingCallbackTestAbortWithReject(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  streaming->Abort(v8::Object::New(args.GetIsolate()));
-}
-
-void WasmStreamingCallbackTestAbortNoReject(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  std::shared_ptr<v8::WasmStreaming> streaming =
-      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
-  streaming->Abort({});
-}
-
-void TestWasmStreaming(v8::WasmStreamingCallback callback,
-                       v8::Promise::PromiseState expected_state) {
-  CcTest::isolate()->SetWasmStreamingCallback(callback);
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  // Call {WebAssembly.compileStreaming} with {null} as parameter. The parameter
-  // is only really processed by the embedder, so for this test the value is
-  // irrelevant.
-  v8::Local<v8::Promise> promise = v8::Local<v8::Promise>::Cast(
-      CompileRun("WebAssembly.compileStreaming(null)"));
-
-  EmptyMessageQueues(isolate);
-  CHECK_EQ(expected_state, promise->State());
-}
-
-}  // namespace
-
-TEST(WasmStreamingCallback) {
-  TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
-                    v8::Promise::kPending);
-  CHECK(wasm_streaming_callback_got_called);
-  CcTest::CollectAllAvailableGarbage();
-  CHECK(wasm_streaming_data_got_collected);
-}
-
-TEST(WasmStreamingOnBytesReceived) {
-  TestWasmStreaming(WasmStreamingCallbackTestOnBytesReceived,
-                    v8::Promise::kPending);
-}
-
-TEST(WasmStreamingFinishWithSuccess) {
-  TestWasmStreaming(WasmStreamingCallbackTestFinishWithSuccess,
-                    v8::Promise::kFulfilled);
-}
-
-TEST(WasmStreamingFinishWithFailure) {
-  TestWasmStreaming(WasmStreamingCallbackTestFinishWithFailure,
-                    v8::Promise::kRejected);
-}
-
-TEST(WasmStreamingAbortWithReject) {
-  TestWasmStreaming(WasmStreamingCallbackTestAbortWithReject,
-                    v8::Promise::kRejected);
-}
-
-TEST(WasmStreamingAbortWithoutReject) {
-  TestWasmStreaming(WasmStreamingCallbackTestAbortNoReject,
-                    v8::Promise::kPending);
-}
-
 enum class AtomicsWaitCallbackAction {
   Interrupt,
   StopAndThrowInFirstCall,
@@ -26283,26 +26226,6 @@ TEST(WasmI64AtomicWaitCallback) {
 }  // namespace internal
 }  // namespace v8
 
-// TODO(mstarzinger): Move this into a test-api-wasm.cc file when this large
-// test file is being split up into chunks.
-TEST(WasmModuleObjectCompileFailure) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  {
-    v8::TryCatch try_catch(isolate);
-    uint8_t buffer[] = {0xDE, 0xAD, 0xBE, 0xEF};
-    v8::MemorySpan<const uint8_t> serialized_module;
-    v8::MemorySpan<const uint8_t> wire_bytes = {buffer, arraysize(buffer)};
-    v8::MaybeLocal<v8::WasmModuleObject> maybe_module =
-        v8::WasmModuleObject::DeserializeOrCompile(isolate, serialized_module,
-                                                   wire_bytes);
-    CHECK(maybe_module.IsEmpty());
-    CHECK(try_catch.HasCaught());
-  }
-}
-
 TEST(BigIntAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -26417,45 +26340,6 @@ TEST(BigIntAPI) {
   }
 }
 
-namespace {
-
-bool wasm_threads_enabled_value = false;
-
-bool MockWasmThreadsEnabledCallback(Local<Context>) {
-  return wasm_threads_enabled_value;
-}
-
-}  // namespace
-
-TEST(TestSetWasmThreadsEnabledCallback) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<Context> context = Context::New(CcTest::isolate());
-  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
-
-  // {Isolate::AreWasmThreadsEnabled} calls the callback set by the embedder if
-  // such a callback exists. Otherwise it returns
-  // {FLAG_experimental_wasm_threads}. First we test that the flag is returned
-  // correctly if no callback is set. Then we test that the flag is ignored if
-  // the callback is set.
-
-  i::FLAG_experimental_wasm_threads = false;
-  CHECK(!i_isolate->AreWasmThreadsEnabled(i_context));
-
-  i::FLAG_experimental_wasm_threads = true;
-  CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
-
-  isolate->SetWasmThreadsEnabledCallback(MockWasmThreadsEnabledCallback);
-  wasm_threads_enabled_value = false;
-  CHECK(!i_isolate->AreWasmThreadsEnabled(i_context));
-
-  wasm_threads_enabled_value = true;
-  i::FLAG_experimental_wasm_threads = false;
-  CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
-}
-
 TEST(TestGetUnwindState) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -26465,21 +26349,16 @@ TEST(TestGetUnwindState) {
   v8::MemoryRange builtins_range = unwind_state.embedded_code_range;
 
   // Check that each off-heap builtin is within the builtins code range.
-  if (i::FLAG_embedded_builtins) {
-    for (int id = 0; id < i::Builtins::builtin_count; id++) {
-      if (!i::Builtins::IsIsolateIndependent(id)) continue;
-      i::Code builtin = i_isolate->builtins()->builtin(id);
-      i::Address start = builtin.InstructionStart();
-      i::Address end = start + builtin.InstructionSize();
+  for (int id = 0; id < i::Builtins::builtin_count; id++) {
+    if (!i::Builtins::IsIsolateIndependent(id)) continue;
+    i::Code builtin = i_isolate->builtins()->builtin(id);
+    i::Address start = builtin.InstructionStart();
+    i::Address end = start + builtin.InstructionSize();
 
-      i::Address builtins_start =
-          reinterpret_cast<i::Address>(builtins_range.start);
-      CHECK(start >= builtins_start &&
-            end < builtins_start + builtins_range.length_in_bytes);
-    }
-  } else {
-    CHECK_EQ(nullptr, builtins_range.start);
-    CHECK_EQ(0, builtins_range.length_in_bytes);
+    i::Address builtins_start =
+        reinterpret_cast<i::Address>(builtins_range.start);
+    CHECK(start >= builtins_start &&
+          end < builtins_start + builtins_range.length_in_bytes);
   }
 
   v8::JSEntryStub js_entry_stub = unwind_state.js_entry_stub;

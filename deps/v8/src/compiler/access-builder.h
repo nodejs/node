@@ -268,6 +268,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFixedArraySlot(
       size_t index, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
+  // Provides access to ScopeInfo flags.
+  static FieldAccess ForScopeInfoFlags();
+
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
 

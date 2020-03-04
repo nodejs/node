@@ -68,7 +68,10 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
 
 void CSAGenerator::EmitInstruction(const Instruction& instruction,
                                    Stack<std::string>* stack) {
+#ifdef DEBUG
   EmitSourcePosition(instruction->pos);
+#endif
+
   switch (instruction.kind()) {
 #define ENUM_ITEM(T)          \
   case InstructionKind::k##T: \
@@ -239,7 +242,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
              "%GetAllocationBaseSize") {
     if (instruction.specialization_types.size() != 1) {
       ReportError(
-          "incorrect number of specialization classes for "
+          "incorrect number of type parameters for "
           "%GetAllocationBaseSize (should be one)");
     }
     const ClassType* class_type =
@@ -715,7 +718,7 @@ void CSAGenerator::EmitInstruction(
   stack->Push(offset_name);
 
   out_ << "    TNode<IntPtrT> " << offset_name << " = ca_.IntPtrConstant(";
-  out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
+  out_ << field.aggregate->name() << "::k"
        << CamelifyString(field.name_and_type.name) << "Offset";
   out_ << ");\n"
        << "    USE(" << stack->Top() << ");\n";

@@ -1125,12 +1125,22 @@ Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
   return Type::BigInt();
 }
 
+Type OperationTyper::BigIntSubtract(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
 Type OperationTyper::BigIntNegate(Type type) {
   if (type.IsNone()) return type;
   return Type::BigInt();
 }
 
 Type OperationTyper::SpeculativeBigIntAdd(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntSubtract(Type lhs, Type rhs) {
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
@@ -1249,6 +1259,9 @@ Type OperationTyper::CheckBounds(Type index, Type length) {
   Type mask = Type::Range(0.0, length.Max() - 1, zone());
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_->kSingletonZero, zone());
+  }
+  if (index.Maybe(Type::String())) {
+    index = Type::Union(index, cache_->kIntPtr, zone());
   }
   return Type::Intersect(index, mask, zone());
 }

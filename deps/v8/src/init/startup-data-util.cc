@@ -20,7 +20,6 @@ namespace internal {
 
 namespace {
 
-v8::StartupData g_natives;
 v8::StartupData g_snapshot;
 
 void ClearStartupData(v8::StartupData* data) {
@@ -34,13 +33,8 @@ void DeleteStartupData(v8::StartupData* data) {
 }
 
 void FreeStartupData() {
-  DeleteStartupData(&g_natives);
   DeleteStartupData(&g_snapshot);
 }
-
-// TODO(jgruber): Rename to FreeStartupData once natives support has been
-// removed (https://crbug.com/v8/7624).
-void FreeStartupDataSnapshotOnly() { DeleteStartupData(&g_snapshot); }
 
 void Load(const char* blob_file, v8::StartupData* startup_data,
           void (*setter_fn)(v8::StartupData*)) {
@@ -70,10 +64,8 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
   }
 }
 
-void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
-  Load(natives_blob, &g_natives, i::V8::SetNativesBlob);
+void LoadFromFile(const char* snapshot_blob) {
   Load(snapshot_blob, &g_snapshot, v8::V8::SetSnapshotDataBlob);
-
   atexit(&FreeStartupData);
 }
 
@@ -88,25 +80,15 @@ void InitializeExternalStartupData(const char* directory_path) {
     snapshot_name = "snapshot_blob_trusted.bin";
   }
 #endif
-  std::unique_ptr<char[]> natives =
-      base::RelativePath(directory_path, "natives_blob.bin");
   std::unique_ptr<char[]> snapshot =
       base::RelativePath(directory_path, snapshot_name);
-  LoadFromFiles(natives.get(), snapshot.get());
-#endif  // V8_USE_EXTERNAL_STARTUP_DATA
-}
-
-void InitializeExternalStartupData(const char* natives_blob,
-                                   const char* snapshot_blob) {
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  LoadFromFiles(natives_blob, snapshot_blob);
+  LoadFromFile(snapshot.get());
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 }
 
 void InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  Load(snapshot_blob, &g_snapshot, v8::V8::SetSnapshotDataBlob);
-  atexit(&FreeStartupDataSnapshotOnly);
+  LoadFromFile(snapshot_blob);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 }
 

@@ -35,6 +35,7 @@ namespace growable_fixed_array {
     }
 
     array: FixedArray;
+    // TODO(v8:4153): make capacity and length uintptr
     capacity: intptr;
     length: intptr;
   }

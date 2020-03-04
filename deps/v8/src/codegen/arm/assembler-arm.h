@@ -839,17 +839,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // All these APIs support D0 to D31 and Q0 to Q15.
   void vld1(NeonSize size, const NeonListOperand& dst,
             const NeonMemOperand& src);
+  void vld1r(NeonSize size, const NeonListOperand& dst,
+             const NeonMemOperand& src);
   void vst1(NeonSize size, const NeonListOperand& src,
             const NeonMemOperand& dst);
   // dt represents the narrower type
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
-  // dt represents the narrower type.
-  void vqmovn(NeonDataType dt, DwVfpRegister dst, QwNeonRegister src);
+  // dst_dt represents the narrower type, src_dt represents the src type.
+  void vqmovn(NeonDataType dst_dt, NeonDataType src_dt, DwVfpRegister dst,
+              QwNeonRegister src);
 
   // Only unconditional core <-> scalar moves are currently supported.
   void vmov(NeonDataType dt, DwVfpRegister dst, int index, Register src);
   void vmov(NeonDataType dt, Register dst, DwVfpRegister src, int index);
 
+  void vmov(QwNeonRegister dst, uint64_t imm);
   void vmov(QwNeonRegister dst, QwNeonRegister src);
   void vdup(NeonSize size, QwNeonRegister dst, Register src);
   void vdup(NeonSize size, QwNeonRegister dst, DwVfpRegister src, int index);
@@ -1198,6 +1202,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value

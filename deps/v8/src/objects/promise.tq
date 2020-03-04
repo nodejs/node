@@ -1,0 +1,68 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+extern class PromiseCapability extends Struct {
+  promise: JSReceiver|Undefined;
+  resolve: Object;
+  reject: Object;
+}
+
+// PromiseReaction constants
+type PromiseReactionType extends int31 constexpr 'PromiseReaction::Type';
+const kPromiseReactionFulfill: constexpr PromiseReactionType
+    generates 'PromiseReaction::kFulfill';
+const kPromiseReactionReject: constexpr PromiseReactionType
+    generates 'PromiseReaction::kReject';
+const kPromiseReactionSize:
+    constexpr int31 generates 'PromiseReaction::kSize';
+const kPromiseReactionFulfillHandlerOffset: constexpr int31
+    generates 'PromiseReaction::kFulfillHandlerOffset';
+const kPromiseReactionPromiseOrCapabilityOffset: constexpr int31
+    generates 'PromiseReaction::kPromiseOrCapabilityOffset';
+
+@generateCppClass
+extern class PromiseReaction extends Struct {
+  next: PromiseReaction|Zero;
+  reject_handler: Callable|Undefined;
+  fulfill_handler: Callable|Undefined;
+  // Either a JSPromise (in case of native promises), a PromiseCapability
+  // (general case), or undefined (in case of await).
+  promise_or_capability: JSPromise|PromiseCapability|Undefined;
+}
+
+// PromiseReactionJobTask constants
+const kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks: constexpr int31
+    generates 'PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks';
+const kPromiseReactionJobTaskHandlerOffset: constexpr int31
+    generates 'PromiseReactionJobTask::kHandlerOffset';
+const kPromiseReactionJobTaskPromiseOrCapabilityOffset: constexpr int31
+    generates 'PromiseReactionJobTask::kPromiseOrCapabilityOffset';
+
+@abstract
+@generateCppClass
+extern class PromiseReactionJobTask extends Microtask {
+  argument: Object;
+  context: Context;
+  handler: Callable|Undefined;
+  // Either a JSPromise (in case of native promises), a PromiseCapability
+  // (general case), or undefined (in case of await).
+  promise_or_capability: JSPromise|PromiseCapability|Undefined;
+}
+
+@generateCppClass
+extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {
+}
+
+@generateCppClass
+extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {
+}
+
+@generateCppClass
+extern class PromiseResolveThenableJobTask extends Microtask {
+  context: Context;
+  promise_to_resolve: JSPromise;
+  then: JSReceiver;
+  thenable: JSReceiver;
+}

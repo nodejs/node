@@ -117,7 +117,8 @@ class Scavenger {
 
   using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
-            CopiedList* copied_list, PromotionList* promotion_list,
+            Worklist<MemoryChunk*, 64>* empty_chunks, CopiedList* copied_list,
+            PromotionList* promotion_list,
             EphemeronTableList* ephemeron_table_list, int task_id);
 
   // Entry point for scavenging an old generation page. For scavenging single
@@ -206,6 +207,7 @@ class Scavenger {
 
   ScavengerCollector* const collector_;
   Heap* const heap_;
+  Worklist<MemoryChunk*, 64>::View empty_chunks_;
   PromotionList::View promotion_list_;
   CopiedList::View copied_list_;
   EphemeronTableList::View ephemeron_table_list_;

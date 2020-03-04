@@ -647,7 +647,7 @@ function print_memory(space = "all") {
       h.code_space_.allocation_info_.top_);
   }
   if (st.includes("all") || st.includes("large") || st.includes("lo")) {
-    print_memory_chunk_list("LargeObjectSpace",
+    print_memory_chunk_list("OldLargeObjectSpace",
       h.lo_space_.memory_chunk_list_.front_);
   }
   if (st.includes("all") || st.includes("newlarge") || st.includes("nlo")) {

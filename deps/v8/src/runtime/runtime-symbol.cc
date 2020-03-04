@@ -18,10 +18,20 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   DCHECK_GE(1, args.length());
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
   if (args.length() == 1) {
-    CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-    CHECK(name->IsString() || name->IsUndefined(isolate));
-    if (name->IsString()) symbol->set_name(*name);
+    CONVERT_ARG_HANDLE_CHECKED(Object, description, 0);
+    CHECK(description->IsString() || description->IsUndefined(isolate));
+    if (description->IsString())
+      symbol->set_description(String::cast(*description));
   }
+  return *symbol;
+}
+
+RUNTIME_FUNCTION(Runtime_CreatePrivateBrandSymbol) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
+  symbol->set_is_private_brand();
   return *symbol;
 }
 
@@ -39,8 +49,8 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
   IncrementalStringBuilder builder(isolate);
   builder.AppendCString("Symbol(");
-  if (symbol->name().IsString()) {
-    builder.AppendString(handle(String::cast(symbol->name()), isolate));
+  if (symbol->description().IsString()) {
+    builder.AppendString(handle(String::cast(symbol->description()), isolate));
   }
   builder.AppendCharacter(')');
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());

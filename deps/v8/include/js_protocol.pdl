@@ -224,11 +224,13 @@ domain Debugger
       # Id of the script to get source for.
       Runtime.ScriptId scriptId
     returns
-      # Script source.
+      # Script source (empty in case of Wasm bytecode).
       string scriptSource
+      # Wasm bytecode.
+      optional binary bytecode
 
-  # Returns bytecode for the WebAssembly script with given id.
-  command getWasmBytecode
+  # This command is deprecated. Use getScriptSource instead.
+  deprecated command getWasmBytecode
     parameters
       # Id of the Wasm script to get source for.
       Runtime.ScriptId scriptId
@@ -783,6 +785,14 @@ domain Profiler
       # Type profile entries for parameters and return values of the functions in the script.
       array of TypeProfileEntry entries
 
+  # Collected counter information.
+  experimental type CounterInfo extends object
+    properties
+      # Counter name.
+      string name
+      # Counter value.
+      integer value
+
   command disable
 
   command enable
@@ -839,6 +849,18 @@ domain Profiler
     returns
       # Type profile for all scripts since startTypeProfile() was turned on.
       array of ScriptTypeProfile result
+
+  # Enable run time call stats collection.
+  experimental command enableRuntimeCallStats
+
+  # Disable run time call stats collection.
+  experimental command disableRuntimeCallStats
+
+  # Retrieve run time call stats.
+  experimental command getRuntimeCallStats
+    returns
+      # Collected counter information.
+      array of CounterInfo result
 
   event consoleProfileFinished
     parameters
@@ -1257,6 +1279,8 @@ domain Runtime
       experimental optional TimeDelta timeout
       # Disable breakpoints during execution.
       experimental optional boolean disableBreaks
+      # Reserved flag for future REPL mode support. Setting this flag has currently no effect.
+      experimental optional boolean replMode
     returns
       # Evaluation result.
       RemoteObject result

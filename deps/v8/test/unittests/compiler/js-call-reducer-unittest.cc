@@ -37,7 +37,7 @@ class JSCallReducerTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph(), tick_counter());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(),
+    JSCallReducer reducer(&graph_reducer, &jsgraph, broker(), zone(),
                           JSCallReducer::kNoFlags, &deps_);
     return reducer.Reduce(node);
   }
@@ -115,9 +115,9 @@ class JSCallReducerTest : public TypedGraphTest {
     Handle<FeedbackVector> vector =
         FeedbackVector::New(isolate(), shared, closure_feedback_cell_array);
     FeedbackSource feedback(vector, FeedbackSlot(0));
-    return javascript()->Call(arity, CallFrequency(), feedback,
-                              ConvertReceiverMode::kAny,
-                              SpeculationMode::kAllowSpeculation);
+    return javascript()->Call(
+        arity, CallFrequency(), feedback, ConvertReceiverMode::kAny,
+        SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kRelated);
   }
 
  private:

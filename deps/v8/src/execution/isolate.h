@@ -1315,11 +1315,8 @@ class Isolate final : private HiddenFactory {
     return &partial_snapshot_cache_;
   }
 
-  // Off-heap builtins cannot embed constants within the code object itself,
-  // and thus need to load them from the root list.
   bool IsGeneratingEmbeddedBuiltins() const {
-    return FLAG_embedded_builtins &&
-           builtins_constants_table_builder() != nullptr;
+    return builtins_constants_table_builder() != nullptr;
   }
 
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {

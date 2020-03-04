@@ -268,14 +268,14 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
-        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kLiteral:
-        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
         vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
-        extra_value = Smi::kZero;
+        extra_value = Smi::zero();
         break;
       case FeedbackSlotKind::kCloneObject:
       case FeedbackSlotKind::kLoadProperty:
@@ -445,7 +445,7 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kCall: {
       SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
                   SKIP_WRITE_BARRIER);
-      SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
+      SetFeedbackExtra(Smi::zero(), SKIP_WRITE_BARRIER);
       break;
     }
     case FeedbackSlotKind::kInstanceOf: {
@@ -489,7 +489,7 @@ bool FeedbackNexus::Clear() {
       break;
 
     case FeedbackSlotKind::kLiteral:
-      SetFeedback(Smi::kZero, SKIP_WRITE_BARRIER);
+      SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER);
       feedback_updated = true;
       break;
 
@@ -764,11 +764,15 @@ void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
 void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
                                          Handle<Map> result_map) {
   Isolate* isolate = GetIsolate();
-  MaybeObject maybe_feedback = GetFeedback();
-  Handle<HeapObject> feedback(maybe_feedback->IsStrongOrWeak()
-                                  ? maybe_feedback->GetHeapObject()
-                                  : HeapObject(),
-                              isolate);
+  Handle<HeapObject> feedback;
+  {
+    MaybeObject maybe_feedback = GetFeedback();
+    if (maybe_feedback->IsStrongOrWeak()) {
+      feedback = handle(maybe_feedback->GetHeapObject(), isolate);
+    } else {
+      DCHECK(maybe_feedback->IsCleared());
+    }
+  }
   switch (ic_state()) {
     case UNINITIALIZED:
       // Cache the first map seen which meets the fast case requirements.
@@ -776,16 +780,15 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       SetFeedbackExtra(*result_map);
       break;
     case MONOMORPHIC:
-      if (maybe_feedback->IsCleared() || feedback.is_identical_to(source_map) ||
+      if (feedback.is_null() || feedback.is_identical_to(source_map) ||
           Map::cast(*feedback).is_deprecated()) {
-        // Remain in MONOMORPHIC state if previous feedback has been collected.
         SetFeedback(HeapObjectReference::Weak(*source_map));
         SetFeedbackExtra(*result_map);
       } else {
         // Transition to POLYMORPHIC.
         Handle<WeakFixedArray> array =
             EnsureArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
-        array->Set(0, maybe_feedback);
+        array->Set(0, HeapObjectReference::Weak(*feedback));
         array->Set(1, GetFeedbackExtra());
         array->Set(2, HeapObjectReference::Weak(*source_map));
         array->Set(3, MaybeObject::FromObject(*result_map));
@@ -798,9 +801,10 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
-        MaybeObject feedback = array->Get(i);
-        if (feedback->IsCleared()) break;
-        Handle<Map> cached_map(Map::cast(feedback->GetHeapObject()), isolate);
+        MaybeObject feedback_map = array->Get(i);
+        if (feedback_map->IsCleared()) break;
+        Handle<Map> cached_map(Map::cast(feedback_map->GetHeapObject()),
+                               isolate);
         if (cached_map.is_identical_to(source_map) ||
             cached_map->is_deprecated())
           break;
@@ -1105,14 +1109,6 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
     case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
     case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
-    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_Standard:
-    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_Standard:
     case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
@@ -1128,26 +1124,18 @@ KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
   DCHECK(BuiltinHasKeyedAccessStoreMode(builtin_index));
   switch (builtin_index) {
     case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
-    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
-    case Builtins::kKeyedStoreIC_Slow_Standard:
     case Builtins::kStoreFastElementIC_Standard:
     case Builtins::kElementsTransitionAndStore_Standard:
       return STANDARD_STORE;
     case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
       return STORE_AND_GROW_HANDLE_COW;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
     case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
       return STORE_IGNORE_OUT_OF_BOUNDS;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return STORE_HANDLE_COW;
@@ -1174,14 +1162,26 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     if (maybe_code_handler.object()->IsStoreHandler()) {
       Handle<StoreHandler> data_handler =
           Handle<StoreHandler>::cast(maybe_code_handler.object());
-      handler = handle(Code::cast(data_handler->smi_handler()),
-                       vector().GetIsolate());
+
+      if ((data_handler->smi_handler()).IsSmi()) {
+        // Decode the KeyedAccessStoreMode information from the Handler.
+        mode = StoreHandler::GetKeyedAccessStoreMode(
+            MaybeObject::FromObject(data_handler->smi_handler()));
+        if (mode != STANDARD_STORE) return mode;
+        continue;
+      } else {
+        handler = handle(Code::cast(data_handler->smi_handler()),
+                         vector().GetIsolate());
+      }
+
     } else if (maybe_code_handler.object()->IsSmi()) {
-      // Skip proxy handlers and the slow handler.
-      DCHECK(*(maybe_code_handler.object()) ==
-                 *StoreHandler::StoreProxy(GetIsolate()) ||
-             *(maybe_code_handler.object()) ==
-                 *StoreHandler::StoreSlow(GetIsolate()));
+      // Skip for Proxy Handlers.
+      if (*(maybe_code_handler.object()) ==
+          *StoreHandler::StoreProxy(GetIsolate()))
+        continue;
+      // Decode the KeyedAccessStoreMode information from the Handler.
+      mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
+      if (mode != STANDARD_STORE) return mode;
       continue;
     } else {
       // Element store without prototype chain check.
@@ -1278,8 +1278,8 @@ void FeedbackNexus::Collect(Handle<String> type, int position) {
 
   Handle<ArrayList> position_specific_types;
 
-  int entry = types->FindEntry(isolate, position);
-  if (entry == SimpleNumberDictionary::kNotFound) {
+  InternalIndex entry = types->FindEntry(isolate, position);
+  if (entry.is_not_found()) {
     position_specific_types = ArrayList::New(isolate, 1);
     types = SimpleNumberDictionary::Set(
         isolate, types, position,
@@ -1341,10 +1341,9 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
       SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
       isolate);
 
-  int entry = types->FindEntry(isolate, position);
-  if (entry == SimpleNumberDictionary::kNotFound) {
-    return types_for_position;
-  }
+  InternalIndex entry = types->FindEntry(isolate, position);
+  if (entry.is_not_found()) return types_for_position;
+
   DCHECK(types->ValueAt(entry).IsArrayList());
   Handle<ArrayList> position_specific_types =
       Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)), isolate);

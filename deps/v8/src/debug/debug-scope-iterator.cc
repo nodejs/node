@@ -10,6 +10,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -49,7 +50,9 @@ namespace internal {
 
 DebugScopeIterator::DebugScopeIterator(Isolate* isolate,
                                        FrameInspector* frame_inspector)
-    : iterator_(isolate, frame_inspector) {
+    : iterator_(
+          isolate, frame_inspector,
+          ::v8::internal::ScopeIterator::ReparseStrategy::kFunctionLiteral) {
   if (!Done() && ShouldIgnore()) Advance();
 }
 
@@ -140,7 +143,9 @@ bool DebugWasmScopeIterator::Done() {
 
 void DebugWasmScopeIterator::Advance() {
   DCHECK(!Done());
-  if (type_ == debug::ScopeIterator::ScopeTypeGlobal) {
+  // Local scope information is only available for interpreted frames currently.
+  if (type_ == debug::ScopeIterator::ScopeTypeGlobal &&
+      frame_->is_wasm_interpreter_entry()) {
     type_ = debug::ScopeIterator::ScopeTypeLocal;
   } else {
     // We use ScopeTypeWith type as marker for done.
@@ -155,15 +160,18 @@ v8::debug::ScopeIterator::ScopeType DebugWasmScopeIterator::GetType() {
 
 v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   DCHECK(!Done());
-  Handle<WasmDebugInfo> debug_info(
-      WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
   switch (type_) {
-    case debug::ScopeIterator::ScopeTypeGlobal:
-      return Utils::ToLocal(WasmDebugInfo::GetGlobalScopeObject(
-          debug_info, frame_->fp(), inlined_frame_index_));
-    case debug::ScopeIterator::ScopeTypeLocal:
+    case debug::ScopeIterator::ScopeTypeGlobal: {
+      Handle<WasmInstanceObject> instance =
+          FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
+      return Utils::ToLocal(wasm::GetGlobalScopeObject(instance));
+    }
+    case debug::ScopeIterator::ScopeTypeLocal: {
+      Handle<WasmDebugInfo> debug_info(
+          WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
       return Utils::ToLocal(WasmDebugInfo::GetLocalScopeObject(
           debug_info, frame_->fp(), inlined_frame_index_));
+    }
     default:
       return v8::Local<v8::Object>();
   }

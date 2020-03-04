@@ -242,8 +242,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
   ModuleResult result =
-      DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
-                       origin, isolate->counters(), allocator());
+      DecodeWasmModule(WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(),
+                       false, origin, isolate->counters(), allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -255,7 +255,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module =
-      CompileToNativeModule(isolate, kAsmjsWasmFeatures, thrower,
+      CompileToNativeModule(isolate, WasmFeatures::ForAsmjs(), thrower,
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
 
@@ -303,7 +303,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   if (!native_module) return {};
 
   Handle<Script> script =
-      CreateWasmScript(isolate, bytes, native_module->module()->source_map_url);
+      CreateWasmScript(isolate, bytes, native_module->module()->source_map_url,
+                       native_module->module()->name);
 
   // Create the module object.
   // TODO(clemensb): For the same module (same bytes / same hash), we should
@@ -426,7 +427,7 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
 void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   // Note we assume that "one-off" compilations can discard detected features.
-  WasmFeatures detected = kNoWasmFeatures;
+  WasmFeatures detected = WasmFeatures::None();
   WasmCompilationUnit::CompileWasmFunction(
       isolate, native_module, &detected,
       &native_module->module()->functions[function_index], tier);
@@ -442,7 +443,8 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   Handle<Script> script = CreateWasmScript(
-      isolate, wire_bytes, native_module->module()->source_map_url);
+      isolate, wire_bytes, native_module->module()->source_map_url,
+      native_module->module()->name);
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, native_module->module(), &export_wrappers);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
@@ -621,9 +623,10 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   }
 }
 
-void WasmEngine::LogCode(WasmCode* code) {
+void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
+  if (code_vec.empty()) return;
   base::MutexGuard guard(&mutex_);
-  NativeModule* native_module = code->native_module();
+  NativeModule* native_module = code_vec[0]->native_module();
   DCHECK_EQ(1, native_modules_.count(native_module));
   for (Isolate* isolate : native_modules_[native_module]->isolates) {
     DCHECK_EQ(1, isolates_.count(isolate));
@@ -638,8 +641,12 @@ void WasmEngine::LogCode(WasmCode* code) {
     if (info->code_to_log.empty()) {
       isolate->stack_guard()->RequestLogWasmCode();
     }
-    info->code_to_log.push_back(code);
-    code->IncRef();
+    info->code_to_log.insert(info->code_to_log.end(), code_vec.begin(),
+                             code_vec.end());
+    for (WasmCode* code : code_vec) {
+      DCHECK_EQ(native_module, code->native_module());
+      code->IncRef();
+    }
   }
 }
 
@@ -671,18 +678,11 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled,
-    std::shared_ptr<const WasmModule> module) {
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
-  return NewNativeModule(isolate, enabled, code_size_estimate,
-                         !wasm::NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
-                             FLAG_wasm_far_jump_table,
-                         std::move(module));
-}
-
-std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
-    bool can_request_more, std::shared_ptr<const WasmModule> module) {
+    std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
+  // TODO(clemensb): Remove --wasm-far-jump-table and {can_request_more}.
+  bool can_request_more =
+      !wasm::NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
+      FLAG_wasm_far_jump_table;
   std::shared_ptr<NativeModule> native_module =
       code_manager_.NewNativeModule(this, isolate, enabled, code_size_estimate,
                                     can_request_more, std::move(module));
@@ -959,20 +959,17 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::shared_ptr<WasmEngine>,
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
-  if (!FLAG_wasm_shared_engine) return;
   *GetSharedWasmEngine() = std::make_shared<WasmEngine>();
 }
 
 // static
 void WasmEngine::GlobalTearDown() {
-  if (!FLAG_wasm_shared_engine) return;
   GetSharedWasmEngine()->reset();
 }
 
 // static
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
-  if (FLAG_wasm_shared_engine) return *GetSharedWasmEngine();
-  return std::make_shared<WasmEngine>();
+  return *GetSharedWasmEngine();
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.

@@ -553,7 +553,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(receiver));
     case JS_REG_EXP_TYPE:
-      WriteJSRegExp(JSRegExp::cast(*receiver));
+      WriteJSRegExp(Handle<JSRegExp>::cast(receiver));
       return ThrowIfOutOfMemory();
     case JS_MAP_TYPE:
       return WriteJSMap(Handle<JSMap>::cast(receiver));
@@ -567,16 +567,17 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
     case WASM_MODULE_OBJECT_TYPE: {
-      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-      if (!FLAG_wasm_disable_structured_cloning || enabled_features.threads) {
+      auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+      if (!FLAG_wasm_disable_structured_cloning ||
+          enabled_features.has_threads()) {
         // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
       }
       break;
     }
     case WASM_MEMORY_OBJECT_TYPE: {
-      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-      if (enabled_features.threads) {
+      auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+      if (enabled_features.has_threads()) {
         return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
       }
       break;
@@ -791,10 +792,10 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
   return ThrowIfOutOfMemory();
 }
 
-void ValueSerializer::WriteJSRegExp(JSRegExp regexp) {
+void ValueSerializer::WriteJSRegExp(Handle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(handle(regexp.Pattern(), isolate_));
-  WriteVarint(static_cast<uint32_t>(regexp.GetFlags()));
+  WriteString(handle(regexp->Pattern(), isolate_));
+  WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
 }
 
 Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
@@ -1814,8 +1815,8 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
       !array_buffer_transfer_map_.ToHandle(&transfer_map)) {
     return MaybeHandle<JSArrayBuffer>();
   }
-  int index = transfer_map->FindEntry(isolate_, transfer_id);
-  if (index == SimpleNumberDictionary::kNotFound) {
+  InternalIndex index = transfer_map->FindEntry(isolate_, transfer_id);
+  if (index.is_not_found()) {
     return MaybeHandle<JSArrayBuffer>();
   }
   Handle<JSArrayBuffer> array_buffer(
@@ -1939,8 +1940,9 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
-  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
+  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+  if ((FLAG_wasm_disable_structured_cloning &&
+       !enabled_features.has_threads()) ||
       expect_inline_wasm()) {
     return MaybeHandle<JSObject>();
   }
@@ -1963,8 +1965,9 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
+  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+  if ((FLAG_wasm_disable_structured_cloning &&
+       !enabled_features.has_threads()) ||
       !expect_inline_wasm()) {
     return MaybeHandle<JSObject>();
   }
@@ -1999,7 +2002,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
     // TODO(titzer): are the current features appropriate for deserializing?
-    auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+    auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
     result = isolate_->wasm_engine()->SyncCompile(
         isolate_, enabled_features, &thrower,
         wasm::ModuleWireBytes(wire_bytes));
@@ -2014,8 +2017,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
 MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
 
-  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-  if (!enabled_features.threads) {
+  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+  if (!enabled_features.has_threads()) {
     return MaybeHandle<WasmMemoryObject>();
   }
 

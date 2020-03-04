@@ -6,7 +6,7 @@
 
 //#include "Values.h"
 
-#include "{{config.encoding_lib.header}}"
+#include "{{config.crdtp.dir}}/cbor.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -66,26 +66,26 @@ void escapeStringForJSONInternal(const Char* str, unsigned len,
 // to this constant.
 static constexpr int kStackLimitValues = 1000;
 
-using {{config.encoding_lib.namespace}}::Error;
-using {{config.encoding_lib.namespace}}::Status;
-using {{config.encoding_lib.namespace}}::span;
+using {{config.crdtp.namespace}}::Error;
+using {{config.crdtp.namespace}}::Status;
+using {{config.crdtp.namespace}}::span;
 namespace cbor {
-using {{config.encoding_lib.namespace}}::cbor::CBORTokenTag;
-using {{config.encoding_lib.namespace}}::cbor::CBORTokenizer;
-using {{config.encoding_lib.namespace}}::cbor::EncodeBinary;
-using {{config.encoding_lib.namespace}}::cbor::EncodeDouble;
-using {{config.encoding_lib.namespace}}::cbor::EncodeFalse;
-using {{config.encoding_lib.namespace}}::cbor::EncodeFromLatin1;
-using {{config.encoding_lib.namespace}}::cbor::EncodeFromUTF16;
-using {{config.encoding_lib.namespace}}::cbor::EncodeIndefiniteLengthArrayStart;
-using {{config.encoding_lib.namespace}}::cbor::EncodeIndefiniteLengthMapStart;
-using {{config.encoding_lib.namespace}}::cbor::EncodeInt32;
-using {{config.encoding_lib.namespace}}::cbor::EncodeNull;
-using {{config.encoding_lib.namespace}}::cbor::EncodeStop;
-using {{config.encoding_lib.namespace}}::cbor::EncodeString8;
-using {{config.encoding_lib.namespace}}::cbor::EncodeTrue;
-using {{config.encoding_lib.namespace}}::cbor::EnvelopeEncoder;
-using {{config.encoding_lib.namespace}}::cbor::InitialByteForEnvelope;
+using {{config.crdtp.namespace}}::cbor::CBORTokenTag;
+using {{config.crdtp.namespace}}::cbor::CBORTokenizer;
+using {{config.crdtp.namespace}}::cbor::EncodeBinary;
+using {{config.crdtp.namespace}}::cbor::EncodeDouble;
+using {{config.crdtp.namespace}}::cbor::EncodeFalse;
+using {{config.crdtp.namespace}}::cbor::EncodeFromLatin1;
+using {{config.crdtp.namespace}}::cbor::EncodeFromUTF16;
+using {{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthArrayStart;
+using {{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart;
+using {{config.crdtp.namespace}}::cbor::EncodeInt32;
+using {{config.crdtp.namespace}}::cbor::EncodeNull;
+using {{config.crdtp.namespace}}::cbor::EncodeStop;
+using {{config.crdtp.namespace}}::cbor::EncodeString8;
+using {{config.crdtp.namespace}}::cbor::EncodeTrue;
+using {{config.crdtp.namespace}}::cbor::EnvelopeEncoder;
+using {{config.crdtp.namespace}}::cbor::InitialByteForEnvelope;
 }  // namespace cbor
 
 // Below are three parsing routines for CBOR, which cover enough
@@ -281,7 +281,7 @@ void Value::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, nullValueString, 4);
 }
 
-void Value::writeBinary(std::vector<uint8_t>* bytes) const {
+void Value::AppendSerialized(std::vector<uint8_t>* bytes) const {
     DCHECK(m_type == TypeNull);
     bytes->push_back(cbor::EncodeNull());
 }
@@ -297,16 +297,6 @@ String Value::toJSONString() const
     StringUtil::builderReserve(result, 512);
     writeJSON(&result);
     return StringUtil::builderToString(result);
-}
-
-String Value::serializeToJSON() {
-    return toJSONString();
-}
-
-std::vector<uint8_t> Value::serializeToBinary() {
-    std::vector<uint8_t> bytes;
-    writeBinary(&bytes);
-    return bytes;
 }
 
 bool FundamentalValue::asBoolean(bool* output) const
@@ -357,7 +347,7 @@ void FundamentalValue::writeJSON(StringBuilder* output) const
     }
 }
 
-void FundamentalValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void FundamentalValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     switch (type()) {
     case TypeDouble:
         cbor::EncodeDouble(m_doubleValue, bytes);
@@ -426,7 +416,7 @@ void EncodeString(const String& s, std::vector<uint8_t>* out) {
 }
 }  // namespace
 
-void StringValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void StringValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
   EncodeString(m_stringValue, bytes);
 }
 
@@ -447,7 +437,7 @@ void BinaryValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppendQuotedString(*output, m_binaryValue.toBase64());
 }
 
-void BinaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void BinaryValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     cbor::EncodeBinary(span<uint8_t>(m_binaryValue.data(),
                                      m_binaryValue.size()), bytes);
 }
@@ -463,7 +453,11 @@ void SerializedValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, m_serializedJSON);
 }
 
-void SerializedValue::writeBinary(std::vector<uint8_t>* output) const
+std::vector<uint8_t> SerializedValue::TakeSerialized() && {
+    return std::move(m_serializedBinary);
+}
+
+void SerializedValue::AppendSerialized(std::vector<uint8_t>* output) const
 {
     DCHECK(type() == TypeSerialized);
     output->insert(output->end(), m_serializedBinary.begin(), m_serializedBinary.end());
@@ -611,7 +605,7 @@ void DictionaryValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, '}');
 }
 
-void DictionaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void DictionaryValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     cbor::EnvelopeEncoder encoder;
     encoder.EncodeStart(bytes);
     bytes->push_back(cbor::EncodeIndefiniteLengthMapStart());
@@ -620,7 +614,7 @@ void DictionaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
         Dictionary::const_iterator value = m_data.find(key);
         DCHECK(value != m_data.cend() && value->second);
         EncodeString(key, bytes);
-        value->second->writeBinary(bytes);
+        value->second->AppendSerialized(bytes);
     }
     bytes->push_back(cbor::EncodeStop());
     encoder.EncodeStop(bytes);
@@ -660,12 +654,12 @@ void ListValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, ']');
 }
 
-void ListValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void ListValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     cbor::EnvelopeEncoder encoder;
     encoder.EncodeStart(bytes);
     bytes->push_back(cbor::EncodeIndefiniteLengthArrayStart());
     for (size_t i = 0; i < m_data.size(); ++i) {
-        m_data[i]->writeBinary(bytes);
+        m_data[i]->AppendSerialized(bytes);
     }
     bytes->push_back(cbor::EncodeStop());
     encoder.EncodeStop(bytes);

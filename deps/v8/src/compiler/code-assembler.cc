@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+#include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
@@ -380,38 +381,72 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
       static_cast<int>(call_descriptor->JSParameterCount()))));
 }
 
-void CodeAssembler::Return(SloppyTNode<Object> value) {
-  // TODO(leszeks): This could also return a non-object, depending on the call
-  // descriptor. We should probably have multiple return overloads with
-  // different TNode types which DCHECK the call descriptor.
+void CodeAssembler::Return(TNode<Object> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
   return raw_assembler()->Return(value);
 }
 
-void CodeAssembler::Return(SloppyTNode<Object> value1,
-                           SloppyTNode<Object> value2) {
+void CodeAssembler::Return(TNode<Object> value1, TNode<Object> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
   return raw_assembler()->Return(value1, value2);
 }
 
-void CodeAssembler::Return(SloppyTNode<Object> value1,
-                           SloppyTNode<Object> value2,
-                           SloppyTNode<Object> value3) {
+void CodeAssembler::Return(TNode<Object> value1, TNode<Object> value2,
+                           TNode<Object> value3) {
+  DCHECK_EQ(3, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(2).IsTagged());
   return raw_assembler()->Return(value1, value2, value3);
 }
 
+void CodeAssembler::Return(TNode<Int32T> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(MachineType::Int32(),
+            raw_assembler()->call_descriptor()->GetReturnType(0));
+  return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(TNode<Uint32T> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(MachineType::Uint32(),
+            raw_assembler()->call_descriptor()->GetReturnType(0));
+  return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(TNode<WordT> value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(TNode<WordT> value1, TNode<WordT> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK_EQ(
+      MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(1).representation());
+  return raw_assembler()->Return(value1, value2);
+}
+
 void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
+  DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
-void CodeAssembler::ReturnIf(Node* condition, Node* value) {
+void CodeAssembler::ReturnIf(Node* condition, TNode<Object> value) {
   Label if_return(this), if_continue(this);
   Branch(condition, &if_return, &if_continue);
   Bind(&if_return);
   Return(value);
   Bind(&if_continue);
-}
-
-void CodeAssembler::ReturnRaw(Node* value) {
-  return raw_assembler()->Return(value);
 }
 
 void CodeAssembler::AbortCSAAssert(Node* message) {
@@ -504,7 +539,7 @@ TNode<IntPtrT> CodeAssembler::IntPtrDiv(TNode<IntPtrT> left,
       return IntPtrConstant(left_constant / right_constant);
     }
     if (base::bits::IsPowerOfTwo(right_constant)) {
-      return WordSar(left, WhichPowerOf2(right_constant));
+      return WordSar(left, base::bits::WhichPowerOfTwo(right_constant));
     }
   }
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrDiv(left, right));
@@ -539,11 +574,11 @@ TNode<WordT> CodeAssembler::IntPtrMul(SloppyTNode<WordT> left,
       return IntPtrConstant(left_constant * right_constant);
     }
     if (base::bits::IsPowerOfTwo(left_constant)) {
-      return WordShl(right, WhichPowerOf2(left_constant));
+      return WordShl(right, base::bits::WhichPowerOfTwo(left_constant));
     }
   } else if (is_right_constant) {
     if (base::bits::IsPowerOfTwo(right_constant)) {
-      return WordShl(left, WhichPowerOf2(right_constant));
+      return WordShl(left, base::bits::WhichPowerOfTwo(right_constant));
     }
   }
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrMul(left, right));
@@ -914,6 +949,14 @@ TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
   return ReinterpretCast<IntPtrT>(value);
 }
 
+TNode<IntPtrT> CodeAssembler::ChangeFloat64ToIntPtr(TNode<Float64T> value) {
+  if (raw_assembler()->machine()->Is64()) {
+    return ReinterpretCast<IntPtrT>(
+        raw_assembler()->ChangeFloat64ToInt64(value));
+  }
+  return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
+}
+
 TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
     SloppyTNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
@@ -1234,12 +1277,6 @@ TNode<Object> CodeAssembler::CallRuntimeImpl(
   int result_size = Runtime::FunctionForId(function)->result_size;
   TNode<Code> centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
-  return CallRuntimeWithCEntryImpl(function, centry, context, args);
-}
-
-TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
-    Runtime::FunctionId function, TNode<Code> centry, TNode<Object> context,
-    std::initializer_list<TNode<Object>> args) {
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
@@ -1273,12 +1310,6 @@ void CodeAssembler::TailCallRuntimeImpl(
   int result_size = Runtime::FunctionForId(function)->result_size;
   TNode<Code> centry =
       HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
-  return TailCallRuntimeWithCEntryImpl(function, arity, centry, context, args);
-}
-
-void CodeAssembler::TailCallRuntimeWithCEntryImpl(
-    Runtime::FunctionId function, TNode<Int32T> arity, TNode<Code> centry,
-    TNode<Object> context, std::initializer_list<TNode<Object>> args) {
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
@@ -1310,7 +1341,13 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
   int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
   int argc = input_count - implicit_nodes;
-  DCHECK_LE(descriptor.GetParameterCount(), argc);
+#ifdef DEBUG
+  if (descriptor.AllowVarArgs()) {
+    DCHECK_LE(descriptor.GetParameterCount(), argc);
+  } else {
+    DCHECK_EQ(descriptor.GetParameterCount(), argc);
+  }
+#endif
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);

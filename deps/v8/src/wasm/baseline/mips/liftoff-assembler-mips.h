@@ -44,24 +44,21 @@ constexpr int32_t kHighWordOffset = 4;
 #endif
 
 // fp-4 holds the stack marker, fp-8 is the instance parameter, first stack
-// slot is located at fp-16.
+// slot is located at fp-8-offset.
 constexpr int32_t kConstantStackSpace = 8;
-constexpr int32_t kFirstStackSlotOffset =
-    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
-inline int GetStackSlotOffset(uint32_t index) {
-  return kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+inline int GetStackSlotOffset(uint32_t offset) {
+  return kConstantStackSpace + offset;
 }
 
-inline MemOperand GetStackSlot(uint32_t index) {
-  return MemOperand(fp, -GetStackSlotOffset(index));
+inline MemOperand GetStackSlot(uint32_t offset) {
+  return MemOperand(fp, -GetStackSlotOffset(offset));
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+inline MemOperand GetHalfStackSlot(uint32_t offset, RegPairHalf half) {
   int32_t half_offset =
       half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
-  int32_t offset = index * LiftoffAssembler::kStackSlotSize + half_offset;
-  return MemOperand(fp, -kFirstStackSlotOffset - offset);
+  return MemOperand(fp, -kConstantStackSpace - offset + half_offset);
 }
 
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }
@@ -133,6 +130,18 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
     default:
       UNREACHABLE();
   }
+}
+
+inline Register EnsureNoAlias(Assembler* assm, Register reg,
+                              LiftoffRegister must_not_alias,
+                              UseScratchRegisterScope* temps) {
+  if (reg != must_not_alias.low_gp() && reg != must_not_alias.high_gp())
+    return reg;
+  Register tmp = temps->Acquire();
+  DCHECK_NE(must_not_alias.low_gp(), tmp);
+  DCHECK_NE(must_not_alias.high_gp(), tmp);
+  assm->movz(tmp, reg, zero_reg);
+  return tmp;
 }
 
 #if defined(V8_TARGET_BIG_ENDIAN)
@@ -273,9 +282,8 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset,
-                                              uint32_t stack_slots) {
-  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, uint32_t spill_size) {
+  uint32_t bytes = liftoff::kConstantStackSpace + spill_size;
   DCHECK_LE(bytes, kMaxInt);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
@@ -510,12 +518,12 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   liftoff::Load(this, dst, fp, offset, type);
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
+void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueType type) {
-  DCHECK_NE(dst_index, src_index);
+  DCHECK_NE(dst_offset, src_offset);
   LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
-  Fill(reg, src_index, type);
-  Spill(dst_index, reg, type);
+  Fill(reg, src_offset, type);
+  Spill(dst_offset, reg, type);
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
@@ -529,17 +537,17 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   TurboAssembler::Move(dst, src);
 }
 
-void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
+void LiftoffAssembler::Spill(uint32_t offset, LiftoffRegister reg,
                              ValueType type) {
-  RecordUsedSpillSlot(index);
-  MemOperand dst = liftoff::GetStackSlot(index);
+  RecordUsedSpillOffset(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
       sw(reg.gp(), dst);
       break;
     case kWasmI64:
-      sw(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
-      sw(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
+      sw(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
+      sw(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
     case kWasmF32:
       swc1(reg.fp(), dst);
@@ -552,9 +560,9 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  RecordUsedSpillSlot(index);
-  MemOperand dst = liftoff::GetStackSlot(index);
+void LiftoffAssembler::Spill(uint32_t offset, WasmValue value) {
+  RecordUsedSpillOffset(offset);
+  MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type()) {
     case kWasmI32: {
       LiftoffRegister tmp = GetUnusedRegister(kGpReg);
@@ -570,8 +578,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
       TurboAssembler::li(tmp.low_gp(), Operand(low_word));
       TurboAssembler::li(tmp.high_gp(), Operand(high_word));
 
-      sw(tmp.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
-      sw(tmp.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
+      sw(tmp.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
+      sw(tmp.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
     }
     default:
@@ -581,16 +589,16 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t offset,
                             ValueType type) {
-  MemOperand src = liftoff::GetStackSlot(index);
+  MemOperand src = liftoff::GetStackSlot(offset);
   switch (type) {
     case kWasmI32:
       lw(reg.gp(), src);
       break;
     case kWasmI64:
-      lw(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
-      lw(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
+      lw(reg.low_gp(), liftoff::GetHalfStackSlot(offset, kLowWord));
+      lw(reg.high_gp(), liftoff::GetHalfStackSlot(offset, kHighWord));
       break;
     case kWasmF32:
       lwc1(reg.fp(), src);
@@ -603,28 +611,33 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t offset,
                                    RegPairHalf half) {
-  lw(reg, liftoff::GetHalfStackSlot(index, half));
+  lw(reg, liftoff::GetHalfStackSlot(offset, half));
 }
 
 void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   DCHECK_LT(0, count);
   uint32_t last_stack_slot = index + count - 1;
-  RecordUsedSpillSlot(last_stack_slot);
+  RecordUsedSpillOffset(GetStackOffsetFromIndex(last_stack_slot));
 
   if (count <= 12) {
     // Special straight-line code for up to 12 slots. Generates one
     // instruction per slot (<=12 instructions total).
     for (uint32_t offset = 0; offset < count; ++offset) {
-      Sw(zero_reg, liftoff::GetStackSlot(index + offset));
+      Sw(zero_reg,
+         liftoff::GetStackSlot(GetStackOffsetFromIndex(index + offset)));
     }
   } else {
     // General case for bigger counts (12 instructions).
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
-    Addu(a0, fp, Operand(-liftoff::GetStackSlotOffset(last_stack_slot)));
-    Addu(a1, fp, Operand(-liftoff::GetStackSlotOffset(index) + kStackSlotSize));
+    Addu(a0, fp,
+         Operand(-liftoff::GetStackSlotOffset(
+             GetStackOffsetFromIndex(last_stack_slot))));
+    Addu(a1, fp,
+         Operand(-liftoff::GetStackSlotOffset(GetStackOffsetFromIndex(index)) +
+                 kStackSlotSize));
 
     Label loop;
     bind(&loop);
@@ -706,14 +719,12 @@ I32_BINOP_I(xor, Xor)
 
 #undef I32_BINOP_I
 
-bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   TurboAssembler::Clz(dst, src);
-  return true;
 }
 
-bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   TurboAssembler::Ctz(dst, src);
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
@@ -721,10 +732,10 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   return true;
 }
 
-#define I32_SHIFTOP(name, instruction)                                      \
-  void LiftoffAssembler::emit_i32_##name(                                   \
-      Register dst, Register src, Register amount, LiftoffRegList pinned) { \
-    instruction(dst, src, amount);                                          \
+#define I32_SHIFTOP(name, instruction)                               \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
+                                         Register amount) {          \
+    instruction(dst, src, amount);                                   \
   }
 #define I32_SHIFTOP_I(name, instruction)                             \
   I32_SHIFTOP(name, instruction##v)                                  \
@@ -734,8 +745,8 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
     instruction(dst, src, amount);                                   \
   }
 
-I32_SHIFTOP(shl, sllv)
-I32_SHIFTOP(sar, srav)
+I32_SHIFTOP_I(shl, sll)
+I32_SHIFTOP_I(sar, sra)
 I32_SHIFTOP_I(shr, srl)
 
 #undef I32_SHIFTOP
@@ -805,12 +816,9 @@ inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
     Register amount,
     void (TurboAssembler::*emit_shift)(Register, Register, Register, Register,
-                                       Register, Register, Register),
-    LiftoffRegList pinned) {
+                                       Register, Register, Register)) {
   Label move, done;
-  pinned.set(dst);
-  pinned.set(src);
-  pinned.set(amount);
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src, amount);
 
   // If some of destination registers are in use, get another, unused pair.
   // That way we prevent overwriting some input registers while shifting.
@@ -845,28 +853,112 @@ inline void Emit64BitShiftOperation(
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
+                                    Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::ShlPair, pinned);
+                                   &TurboAssembler::ShlPair);
+}
+
+void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.low_gp()} will still be needed after writing {dst.high_gp()} and
+  // {dst.low_gp()}.
+  Register src_low = liftoff::EnsureNoAlias(this, src.low_gp(), dst, &temps);
+  Register src_high = src.high_gp();
+  // {src.high_gp()} will still be needed after writing {dst.high_gp()}.
+  if (src_high == dst.high_gp()) {
+    mov(kScratchReg, src_high);
+    src_high = kScratchReg;
+  }
+  DCHECK_NE(dst.low_gp(), kScratchReg);
+  DCHECK_NE(dst.high_gp(), kScratchReg);
+
+  ShlPair(dst.low_gp(), dst.high_gp(), src_low, src_high, amount, kScratchReg);
 }
 
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
+                                    Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::SarPair, pinned);
+                                   &TurboAssembler::SarPair);
 }
 
-void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
-  liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::ShrPair, pinned);
-}
+void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.high_gp()} will still be needed after writing {dst.high_gp()} and
+  // {dst.low_gp()}.
+  Register src_high = liftoff::EnsureNoAlias(this, src.high_gp(), dst, &temps);
+  DCHECK_NE(dst.low_gp(), kScratchReg);
+  DCHECK_NE(dst.high_gp(), kScratchReg);
 
-void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    int amount) {
-  DCHECK(is_uint6(amount));
-  ShrPair(dst.high_gp(), dst.low_gp(), src.high_gp(), src.low_gp(), amount,
+  SarPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount,
           kScratchReg);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    Register amount) {
+  liftoff::Emit64BitShiftOperation(this, dst, src, amount,
+                                   &TurboAssembler::ShrPair);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.high_gp()} will still be needed after writing {dst.high_gp()} and
+  // {dst.low_gp()}.
+  Register src_high = liftoff::EnsureNoAlias(this, src.high_gp(), dst, &temps);
+  DCHECK_NE(dst.low_gp(), kScratchReg);
+  DCHECK_NE(dst.high_gp(), kScratchReg);
+
+  ShrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount,
+          kScratchReg);
+}
+
+void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
+  // return high == 0 ? 32 + CLZ32(low) : CLZ32(high);
+  Label done;
+  Label high_is_zero;
+  Branch(&high_is_zero, eq, src.high_gp(), Operand(zero_reg));
+
+  clz(dst.low_gp(), src.high_gp());
+  jmp(&done);
+
+  bind(&high_is_zero);
+  clz(dst.low_gp(), src.low_gp());
+  Addu(dst.low_gp(), dst.low_gp(), Operand(32));
+
+  bind(&done);
+  mov(dst.high_gp(), zero_reg);  // High word of result is always 0.
+}
+
+void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
+  // return low == 0 ? 32 + CTZ32(high) : CTZ32(low);
+  Label done;
+  Label low_is_zero;
+  Branch(&low_is_zero, eq, src.low_gp(), Operand(zero_reg));
+
+  Ctz(dst.low_gp(), src.low_gp());
+  jmp(&done);
+
+  bind(&low_is_zero);
+  Ctz(dst.low_gp(), src.high_gp());
+  Addu(dst.low_gp(), dst.low_gp(), Operand(32));
+
+  bind(&done);
+  mov(dst.high_gp(), zero_reg);  // High word of result is always 0.
+}
+
+bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  // Produce partial popcnts in the two dst registers.
+  Register src1 = src.high_gp() == dst.low_gp() ? src.high_gp() : src.low_gp();
+  Register src2 = src.high_gp() == dst.low_gp() ? src.low_gp() : src.high_gp();
+  TurboAssembler::Popcnt(dst.low_gp(), src1);
+  TurboAssembler::Popcnt(dst.high_gp(), src2);
+  // Now add the two into the lower dst reg and clear the higher dst reg.
+  addu(dst.low_gp(), dst.low_gp(), dst.high_gp());
+  mov(dst.high_gp(), zero_reg);
+  return true;
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
@@ -1527,11 +1619,11 @@ void LiftoffStackSlots::Construct() {
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
           asm_->lw(kScratchReg,
-                   liftoff::GetHalfStackSlot(slot.src_index_, kHighWord));
+                   liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));
           asm_->push(kScratchReg);
         }
         asm_->lw(kScratchReg,
-                 liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
+                 liftoff::GetHalfStackSlot(slot.src_offset_, slot.half_));
         asm_->push(kScratchReg);
         break;
       }

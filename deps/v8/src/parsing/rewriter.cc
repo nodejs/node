@@ -366,9 +366,8 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
   RuntimeCallTimerScope runtimeTimer(
       info->runtime_call_stats(),
-      info->on_background_thread()
-          ? RuntimeCallCounterId::kCompileBackgroundRewriteReturnResult
-          : RuntimeCallCounterId::kCompileRewriteReturnResult);
+      RuntimeCallCounterId::kCompileRewriteReturnResult,
+      RuntimeCallStats::kThreadSpecific);
 
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);

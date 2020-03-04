@@ -3,20 +3,14 @@
 // found in the LICENSE file.
 
 namespace torque_internal {
-  // TODO(gsps): Synthesize SizeOf<T> in the compiler
-
-  macro SizeOf<T: type>(): constexpr int31;
-  SizeOf<Object>(): constexpr int31 {
-    return kTaggedSize;
-  }
-  SizeOf<float64>(): constexpr int31 {
-    return kDoubleSize;
-  }
-
   // Unsafe is a marker that we require to be passed when calling internal APIs
   // that might lead to unsoundness when used incorrectly. Unsafe markers should
   // therefore not be instantiated anywhere outside of this namespace.
   struct Unsafe {}
+
+  // Size of a type in memory (on the heap). For class types, this is the size
+  // of the pointer, not of the instance.
+  intrinsic %SizeOf<T: type>(): constexpr int31;
 
   struct Reference<T: type> {
     const object: HeapObject;
@@ -36,7 +30,7 @@ namespace torque_internal {
     TryAtIndex(index: intptr):&T labels OutOfBounds {
       if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
         return UnsafeNewReference<T>(
-            this.object, this.offset + index * SizeOf<T>());
+            this.object, this.offset + index * %SizeOf<T>());
       } else {
         goto OutOfBounds;
       }
@@ -44,6 +38,10 @@ namespace torque_internal {
 
     AtIndex(index: intptr):&T {
       return this.TryAtIndex(index) otherwise unreachable;
+    }
+
+    AtIndex(index: uintptr):&T {
+      return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
     }
 
     AtIndex(index: constexpr int31):&T {
@@ -57,7 +55,7 @@ namespace torque_internal {
     }
 
     Iterator(): SliceIterator<T> {
-      const end = this.offset + this.length * SizeOf<T>();
+      const end = this.offset + this.length * %SizeOf<T>();
       return SliceIterator<T>{
         object: this.object,
         start: this.offset,
@@ -92,7 +90,7 @@ namespace torque_internal {
         goto NoMore;
       } else {
         const result = UnsafeNewReference<T>(this.object, this.start);
-        this.start += SizeOf<T>();
+        this.start += %SizeOf<T>();
         return result;
       }
     }
@@ -104,3 +102,45 @@ namespace torque_internal {
   }
 
 }  // namespace torque_internal
+
+// These intrinsics should never be called from Torque code. They're used
+// internally by the 'new' operator and only declared here because it's simpler
+// than building the definition from C++.
+intrinsic %GetAllocationBaseSize<Class : type extends HeapObject>(map: Map):
+    intptr;
+intrinsic %Allocate<Class : type extends HeapObject>(size: intptr): Class;
+intrinsic %GetStructMap(instanceKind: constexpr InstanceType): Map;
+
+intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
+    baseSize: intptr, indexSize: T, fieldSize: int32): intptr {
+  const convertedIndexSize = Convert<int32>(indexSize);
+  const variableSize: int32 =
+      TryInt32Mul(convertedIndexSize, fieldSize) otherwise unreachable;
+  const convertedVariableSize = Convert<intptr>(variableSize);
+  return TryIntPtrAdd(baseSize, convertedVariableSize) otherwise unreachable;
+}
+
+intrinsic
+%InitializeFieldsFromIterator<Container: type, Index: type, Iterator: type>(
+    c: Container, length: Index, i: Iterator) {
+  try {
+    let mutableIterator = i;
+    let current: Index = 0;
+    while (current < length) {
+      // TODO(danno): The indexed accessor on the container requires that the
+      // '[]=' operator be defined explicitly for the Container
+      // (e.g. FixedArray). We should change this to use slice references
+      // once they are implemented.
+      c[current++] = mutableIterator.Next() otherwise NoMore;
+    }
+  }
+  label NoMore deferred {
+    unreachable;
+  }
+}
+
+// %RawDownCast should *never* be used anywhere in Torque code except for
+// in Torque-based UnsafeCast operators preceeded by an appropriate
+// type assert()
+intrinsic %RawDownCast<To: type, From: type>(x: From): To;
+intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;

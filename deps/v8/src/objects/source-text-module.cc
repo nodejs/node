@@ -536,7 +536,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     // the name to undefined instead of a Cell.
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
-    for (int i = 0, n = requested_exports->Capacity(); i < n; ++i) {
+    for (InternalIndex i : requested_exports->IterateEntries()) {
       Object key;
       if (!requested_exports->ToKey(roots, i, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
@@ -624,6 +624,16 @@ MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
   // 9. If result is an abrupt completion, then
   Handle<Object> unused_result;
   if (!Evaluate(isolate, module).ToHandle(&unused_result)) {
+    // If the exception was a termination exception, rejecting the promise
+    // would resume execution, and our API contract is to return an empty
+    // handle. The module's status should be set to kErrored and the
+    // exception field should be set to `null`.
+    if (!isolate->is_catchable_by_javascript(isolate->pending_exception())) {
+      DCHECK_EQ(module->status(), kErrored);
+      DCHECK_EQ(module->exception(), *isolate->factory()->null_value());
+      return {};
+    }
+
     //  d. Perform ! Call(capability.[[Reject]], undefined,
     //                    «result.[[Value]]»).
     isolate->clear_pending_exception();
@@ -669,7 +679,14 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
       // iii. Set m.[[EvaluationError]] to result.
       descendant->RecordErrorUsingPendingException(isolate);
     }
-    DCHECK_EQ(module->exception(), isolate->pending_exception());
+
+#ifdef DEBUG
+    if (isolate->is_catchable_by_javascript(isolate->pending_exception())) {
+      CHECK_EQ(module->exception(), isolate->pending_exception());
+    } else {
+      CHECK_EQ(module->exception(), *isolate->factory()->null_value());
+    }
+#endif  // DEBUG
   } else {
     // 10. Otherwise,
     //  c. Assert: stack is empty.
@@ -770,6 +787,8 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
 void SourceTextModule::AsyncModuleExecutionRejected(
     Isolate* isolate, Handle<SourceTextModule> module,
     Handle<Object> exception) {
+  DCHECK(isolate->is_catchable_by_javascript(*exception));
+
   // 1. Assert: module.[[Status]] is "evaluated".
   CHECK(module->status() == kEvaluated || module->status() == kErrored);
 

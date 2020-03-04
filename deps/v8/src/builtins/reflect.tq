@@ -9,15 +9,17 @@ namespace reflect {
 
   // ES6 section 26.1.10 Reflect.isExtensible
   transitioning javascript builtin
-  ReflectIsExtensible(js-implicit context: Context)(object: JSAny): JSAny {
+  ReflectIsExtensible(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.isExtensible');
-    return object::ObjectIsExtensible(objectJSReceiver);
+    return object::ObjectIsExtensibleImpl(objectJSReceiver);
   }
 
   // ES6 section 26.1.12 Reflect.preventExtensions
   transitioning javascript builtin
-  ReflectPreventExtensions(js-implicit context: Context)(object: JSAny): JSAny {
+  ReflectPreventExtensions(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.preventExtensions');
     return object::ObjectPreventExtensionsDontThrow(objectJSReceiver);
@@ -25,7 +27,8 @@ namespace reflect {
 
   // ES6 section 26.1.8 Reflect.getPrototypeOf
   transitioning javascript builtin
-  ReflectGetPrototypeOf(js-implicit context: Context)(object: JSAny): JSAny {
+  ReflectGetPrototypeOf(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.getPrototypeOf');
     return object::JSReceiverGetPrototypeOf(objectJSReceiver);
@@ -33,11 +36,11 @@ namespace reflect {
 
   // ES6 section 26.1.14 Reflect.setPrototypeOf
   transitioning javascript builtin ReflectSetPrototypeOf(
-      js-implicit context: Context)(object: JSAny, proto: JSAny): JSAny {
+      js-implicit context: NativeContext)(object: JSAny, proto: JSAny): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.setPrototypeOf');
     typeswitch (proto) {
-      case (proto: JSReceiver | Null): {
+      case (proto: JSReceiver|Null): {
         return object::ObjectSetPrototypeOfDontThrow(objectJSReceiver, proto);
       }
       case (JSAny): {
@@ -57,7 +60,7 @@ namespace reflect {
 
   // ES6 section 26.1.6 Reflect.get
   transitioning javascript builtin
-  ReflectGet(js-implicit context: Context)(...arguments): JSAny {
+  ReflectGet(js-implicit context: NativeContext)(...arguments): JSAny {
     const length = arguments.length;
     const object: JSAny = length > 0 ? arguments[0] : Undefined;
     const objectJSReceiver = Cast<JSReceiver>(object)
@@ -71,9 +74,18 @@ namespace reflect {
 
   // ES6 section 26.1.4 Reflect.deleteProperty
   transitioning javascript builtin ReflectDeleteProperty(
-      js-implicit context: Context)(object: JSAny, key: JSAny): JSAny {
+      js-implicit context: NativeContext)(object: JSAny, key: JSAny): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.deleteProperty');
     return DeleteProperty(objectJSReceiver, key, kSloppy);
+  }
+
+  // ES section #sec-reflect.has
+  transitioning javascript builtin
+  ReflectHas(js-implicit context: NativeContext)(object: JSAny, key: JSAny):
+      JSAny {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.has');
+    return HasProperty(objectJSReceiver, key);
   }
 }  // namespace reflect

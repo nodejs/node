@@ -145,7 +145,7 @@ class CreateCommitMessage(Step):
     if bug_aggregate:
       # TODO(machenbach): Use proper gerrit footer for bug after switch to
       # gerrit. Keep BUG= for now for backwards-compatibility.
-      msg_pieces.append("BUG=%s\nLOG=N\n" % bug_aggregate)
+      msg_pieces.append("BUG=%s\n" % bug_aggregate)
 
     msg_pieces.append("NOTRY=true\nNOPRESUBMIT=true\nNOTREECHECKS=true\n")
 

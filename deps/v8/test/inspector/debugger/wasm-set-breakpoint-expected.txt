@@ -1,13 +1,13 @@
 Tests stepping through wasm scripts.
 Instantiating.
 Waiting for two wasm scripts (ignoring first non-wasm script).
-Source of script wasm://wasm/wasm-18214bfe/wasm-18214bfe-0:
+Source of script wasm://wasm/18214bfe/18214bfe-0:
 1: func $wasm_A
 2:   nop
 3:   nop
 4: end
 
-Source of script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1:
+Source of script wasm://wasm/18214bfe/18214bfe-1:
 1: func $wasm_B (param i32)
 2:   loop
 3:     local.get 0
@@ -22,12 +22,12 @@ Source of script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1:
 12:   end
 13: end
 
-Setting breakpoint on line 8 on script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1
-Setting breakpoint on line 7 on script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1
-Setting breakpoint on line 6 on script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1
-Setting breakpoint on line 5 on script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1
-Setting breakpoint on line 3 on script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1
-Setting breakpoint on line 4 on script wasm://wasm/wasm-18214bfe/wasm-18214bfe-1
+Setting breakpoint on line 8 on script wasm://wasm/18214bfe/18214bfe-1
+Setting breakpoint on line 7 on script wasm://wasm/18214bfe/18214bfe-1
+Setting breakpoint on line 6 on script wasm://wasm/18214bfe/18214bfe-1
+Setting breakpoint on line 5 on script wasm://wasm/18214bfe/18214bfe-1
+Setting breakpoint on line 3 on script wasm://wasm/18214bfe/18214bfe-1
+Setting breakpoint on line 4 on script wasm://wasm/18214bfe/18214bfe-1
 Calling main(4)
 Breaking on line 3
 Breaking on line 4

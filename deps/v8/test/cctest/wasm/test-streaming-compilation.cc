@@ -131,7 +131,7 @@ class StreamTester {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
     stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
-        i_isolate, kAllWasmFeatures, v8::Utils::OpenHandle(*context),
+        i_isolate, WasmFeatures::All(), v8::Utils::OpenHandle(*context),
         "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(&state_, &error_message_,
                                        &native_module_));
@@ -263,9 +263,10 @@ STREAM_TEST(TestAllBytesArriveAOTCompilerFinishesFirst) {
 
 size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
                          size_t size, size_t index) {
-  ModuleResult result = DecodeWasmModule(
-      kAllWasmFeatures, buffer, buffer + size, false, ModuleOrigin::kWasmOrigin,
-      isolate->counters(), isolate->wasm_engine()->allocator());
+  ModuleResult result =
+      DecodeWasmModule(WasmFeatures::All(), buffer, buffer + size, false,
+                       ModuleOrigin::kWasmOrigin, isolate->counters(),
+                       isolate->wasm_engine()->allocator());
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();

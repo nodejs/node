@@ -113,25 +113,26 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(
 
   TNode<BInt> rest_count =
       IntPtrOrSmiSub(info.argument_count, info.formal_parameter_count);
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Map> const array_map =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   GotoIf(IntPtrOrSmiLessThanOrEqual(rest_count, zero), &no_rest_parameters);
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
-      rest_count, &runtime, JSArray::kSize + FixedArray::kHeaderSize, mode);
+      rest_count, &runtime, JSArray::kHeaderSize + FixedArray::kHeaderSize,
+      mode);
 
   // Allocate the Rest JSArray and the elements together and fill in the
   // contents with the arguments above |formal_parameter_count|.
   result = ConstructParametersObjectFromArgs(
       array_map, info.frame, info.argument_count, info.formal_parameter_count,
-      rest_count, JSArray::kSize);
+      rest_count, JSArray::kHeaderSize);
   Goto(&done);
 
   BIND(&no_rest_parameters);
   {
     ArgumentsAllocationResult alloc_result =
-        AllocateArgumentsObject(array_map, zero, {}, JSArray::kSize);
+        AllocateArgumentsObject(array_map, zero, {}, JSArray::kHeaderSize);
     result = alloc_result.arguments_object;
     Goto(&done);
   }
@@ -160,7 +161,7 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(
       info.argument_count, &runtime,
       JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
 
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
   GotoIf(BIntEqual(info.argument_count, zero), &empty);
@@ -220,8 +221,8 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
         elements_allocated, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize * 2, mode);
 
-    TNode<NativeContext> const native_context = LoadNativeContext(context);
-    TNode<Map> const map = CAST(LoadContextElement(
+    const TNode<NativeContext> native_context = LoadNativeContext(context);
+    const TNode<Map> map = CAST(LoadContextElement(
         native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX));
     ArgumentsAllocationResult alloc_result =
         AllocateArgumentsObject(map, info.argument_count, parameter_map_size,
@@ -260,17 +261,24 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
     // Copy the parameter slots and the holes in the arguments.
     // We need to fill in mapped_count slots. They index the context,
     // where parameters are stored in reverse order, at
-    //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+argument_count-1
+    //   context_header_size .. context_header_size+argument_count-1
     // The mapped parameter thus need to get indices
-    //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
-    //       MIN_CONTEXT_SLOTS+argument_count-mapped_count
+    //   context_header_size+parameter_count-1 ..
+    //       context_header_size+argument_count-mapped_count
     // We loop from right to left.
     Comment("Fill in mapped parameters");
-    TVARIABLE(
-        BInt, context_index,
-        IntPtrOrSmiSub(IntPtrOrSmiAdd(BIntConstant(Context::MIN_CONTEXT_SLOTS),
-                                      info.formal_parameter_count),
-                       mapped_count));
+    STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS ==
+                  Context::MIN_CONTEXT_SLOTS + 1);
+    TNode<IntPtrT> flags = LoadAndUntagObjectField(LoadScopeInfo(context),
+                                                   ScopeInfo::kFlagsOffset);
+    TNode<BInt> context_header_size = IntPtrOrSmiAdd(
+        IntPtrToBInt(
+            Signed(DecodeWord<ScopeInfo::HasContextExtensionSlotField>(flags))),
+        BIntConstant(Context::MIN_CONTEXT_SLOTS));
+    TVARIABLE(BInt, context_index,
+              IntPtrOrSmiSub(IntPtrOrSmiAdd(context_header_size,
+                                            info.formal_parameter_count),
+                             mapped_count));
     TNode<Oddball> the_hole = TheHoleConstant();
     VariableList var_list2({&context_index}, zone());
     const int kParameterMapHeaderSize = FixedArray::OffsetOfElementAt(2);
@@ -301,7 +309,7 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
     GotoIfFixedArraySizeDoesntFitInNewSpace(
         info.argument_count, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
-    TNode<NativeContext> const native_context = LoadNativeContext(context);
+    const TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = CAST(LoadContextElement(
         native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
     result = ConstructParametersObjectFromArgs(
@@ -315,8 +323,8 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
   BIND(&empty);
   {
     Comment("Empty JSSloppyArgumentsObject");
-    TNode<NativeContext> const native_context = LoadNativeContext(context);
-    TNode<Map> const map = CAST(LoadContextElement(
+    const TNode<NativeContext> native_context = LoadNativeContext(context);
+    const TNode<Map> map = CAST(LoadContextElement(
         native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
     ArgumentsAllocationResult alloc_result =
         AllocateArgumentsObject(map, zero, {}, JSSloppyArgumentsObject::kSize);

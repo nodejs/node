@@ -129,29 +129,23 @@ class InternalResponse : public Serializable {
     PROTOCOL_DISALLOW_COPY(InternalResponse);
 public:
     static std::unique_ptr<Serializable> createResponse(int callId, std::unique_ptr<Serializable> params);
-    static std::unique_ptr<Serializable> createNotification(const String& notification, std::unique_ptr<Serializable> params = nullptr);
+    static std::unique_ptr<Serializable> createNotification(const char* method, std::unique_ptr<Serializable> params = nullptr);
     static std::unique_ptr<Serializable> createErrorResponse(int callId, DispatchResponse::ErrorCode code, const String& message);
 
-    String serializeToJSON() override;
-    std::vector<uint8_t> serializeToBinary() override;
+    void AppendSerialized(std::vector<uint8_t>* out) const override;
 
     ~InternalResponse() override {}
 
 private:
-    InternalResponse(int callId, const String& notification, std::unique_ptr<Serializable> params);
+    InternalResponse(int callId, const char* method, std::unique_ptr<Serializable> params);
 
     int m_callId;
-    String m_notification;
+    const char* m_method = nullptr;
     std::unique_ptr<Serializable> m_params;
 };
 
 class InternalRawNotification : public Serializable {
 public:
-    static std::unique_ptr<InternalRawNotification> fromJSON(String notification)
-    {
-        return std::unique_ptr<InternalRawNotification>(new InternalRawNotification(std::move(notification)));
-    }
-
     static std::unique_ptr<InternalRawNotification> fromBinary(std::vector<uint8_t> notification)
     {
         return std::unique_ptr<InternalRawNotification>(new InternalRawNotification(std::move(notification)));
@@ -159,23 +153,19 @@ public:
 
     ~InternalRawNotification() override {}
 
-    String serializeToJSON() override
-    {
-        return std::move(m_jsonNotification);
-    }
-
-    std::vector<uint8_t> serializeToBinary() override
-    {
+    std::vector<uint8_t> TakeSerialized() && override {
         return std::move(m_binaryNotification);
     }
 
+    void AppendSerialized(std::vector<uint8_t>* out) const override
+    {
+        out->insert(out->end(), m_binaryNotification.begin(), m_binaryNotification.end());
+    }
+
 private:
-  explicit InternalRawNotification(String notification)
-    : m_jsonNotification(std::move(notification)) { }
   explicit InternalRawNotification(std::vector<uint8_t> notification)
     : m_binaryNotification(std::move(notification)) { }
 
-  String m_jsonNotification;
   std::vector<uint8_t> m_binaryNotification;
 };
 

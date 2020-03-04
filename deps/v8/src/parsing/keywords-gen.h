@@ -154,7 +154,7 @@ static const struct PerfectKeywordHashTableEntry kPerfectKeywordHashTable[64] =
      {"", Token::IDENTIFIER}};
 
 inline Token::Value PerfectKeywordHash::GetToken(const char* str, int len) {
-  if (IsInRange(len, MIN_WORD_LENGTH, MAX_WORD_LENGTH)) {
+  if (base::IsInRange(len, MIN_WORD_LENGTH, MAX_WORD_LENGTH)) {
     unsigned int key = Hash(str, len) & 0x3f;
 
     DCHECK_LT(key, arraysize(kPerfectKeywordLengthTable));

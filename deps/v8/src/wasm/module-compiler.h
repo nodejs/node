@@ -59,7 +59,7 @@ WasmCode* CompileImportWrapper(
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes,
-    const std::string& source_map_url);
+    const std::string& source_map_url, WireBytesRef name);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
@@ -143,7 +143,8 @@ class AsyncCompileJob {
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
-  void CreateNativeModule(std::shared_ptr<const WasmModule> module);
+  void CreateNativeModule(std::shared_ptr<const WasmModule> module,
+                          size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
   void FinishCompile();
@@ -191,6 +192,7 @@ class AsyncCompileJob {
   const char* const api_method_name_;
   const WasmFeatures enabled_features_;
   const bool wasm_lazy_compilation_;
+  base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;

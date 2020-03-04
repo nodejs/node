@@ -371,22 +371,11 @@ class DeleteNodesCallback {
 ProfileTree::ProfileTree(Isolate* isolate)
     : next_node_id_(1),
       root_(new ProfileNode(this, CodeEntry::root_entry(), nullptr)),
-      isolate_(isolate),
-      next_function_id_(1) {}
+      isolate_(isolate) {}
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
   TraverseDepthFirst(&cb);
-}
-
-
-unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
-  CodeEntry* code_entry = node->entry();
-  auto map_entry = function_ids_.find(code_entry);
-  if (map_entry == function_ids_.end()) {
-    return function_ids_[code_entry] = next_function_id_++;
-  }
-  return function_ids_[code_entry];
 }
 
 ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
