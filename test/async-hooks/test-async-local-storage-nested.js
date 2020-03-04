@@ -4,19 +4,35 @@ const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
+const outer = {};
+const inner = {};
 
-setTimeout(() => {
-  asyncLocalStorage.run(new Map(), () => {
-    const asyncLocalStorage2 = new AsyncLocalStorage();
-    asyncLocalStorage2.run(new Map(), () => {
-      const store = asyncLocalStorage.getStore();
-      const store2 = asyncLocalStorage2.getStore();
-      store.set('hello', 'world');
-      store2.set('hello', 'foo');
-      setTimeout(() => {
-        assert.strictEqual(asyncLocalStorage.getStore().get('hello'), 'world');
-        assert.strictEqual(asyncLocalStorage2.getStore().get('hello'), 'foo');
-      }, 200);
-    });
+function testInner() {
+  assert.strictEqual(asyncLocalStorage.getStore(), outer);
+
+  asyncLocalStorage.run(inner, () => {
+    assert.strictEqual(asyncLocalStorage.getStore(), inner);
   });
-}, 100);
+  assert.strictEqual(asyncLocalStorage.getStore(), outer);
+
+  asyncLocalStorage.exit(() => {
+    assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+  });
+  assert.strictEqual(asyncLocalStorage.getStore(), outer);
+
+  asyncLocalStorage.runSyncAndReturn(inner, () => {
+    assert.strictEqual(asyncLocalStorage.getStore(), inner);
+  });
+  assert.strictEqual(asyncLocalStorage.getStore(), outer);
+
+  asyncLocalStorage.exitSyncAndReturn(() => {
+    assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+  });
+  assert.strictEqual(asyncLocalStorage.getStore(), outer);
+}
+
+asyncLocalStorage.run(outer, testInner);
+assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+
+asyncLocalStorage.runSyncAndReturn(outer, testInner);
+assert.strictEqual(asyncLocalStorage.getStore(), undefined);
