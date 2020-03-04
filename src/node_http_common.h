@@ -365,7 +365,7 @@ class NgRcBufPointer : public MemoryRetainer {
   operator bool() const { return buf_ != nullptr; }
   bool IsStatic() const { return T::is_static(buf_) != 0; }
   void SetInternalizable() { internalizable_ = true; }
-  bool IsInternalizable() { return internalizable_; }
+  bool IsInternalizable() const { return internalizable_; }
 
   static inline bool IsZeroLength(rcbuf_t* buf) {
     if (buf == nullptr)

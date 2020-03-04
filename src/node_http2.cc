@@ -2188,8 +2188,8 @@ bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
     return false;
   }
 
-  if (this->statistics_.first_header == 0)
-    this->statistics_.first_header = uv_hrtime();
+  if (statistics_.first_header == 0)
+    statistics_.first_header = uv_hrtime();
 
   current_headers_.push_back(std::move(header));
 
