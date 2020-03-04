@@ -33,6 +33,14 @@ process will block waiting for the pipe buffer to accept more data. This is
 identical to the behavior of pipes in the shell. Use the `{ stdio: 'ignore' }`
 option if the output will not be consumed.
 
+The command lookup will be performed using `options.env.PATH` environment
+variable if passed in `options` object, otherwise `process.env.PATH` will be
+used. To account for the fact that Windows environment variables are
+case-insensitive Node.js will lexicographically sort all `env` keys and choose
+the first one case-insensitively matching `PATH` to perform command lookup.
+This may lead to issues on Windows when passing objects to `env` option that
+have multiple variants of `PATH` variable.
+
 The [`child_process.spawn()`][] method spawns the child process asynchronously,
 without blocking the Node.js event loop. The [`child_process.spawnSync()`][]
 function provides equivalent functionality in a synchronous manner that blocks
