@@ -26,32 +26,32 @@
 
 // Besides returning ENOTSUP at runtime we do nothing if this define is missing.
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
-#include "util.h"
-#include "uv.h"
+# include "util.h"
+# include "uv.h"
 
-#include <fcntl.h>  // _O_RDWR
-#include <sys/types.h>
-#include <sys/mman.h>
-#if defined(__FreeBSD__)
-# include <sys/sysctl.h>
-# include <sys/user.h>
-#elif defined(__APPLE__)
-# include <mach/vm_map.h>
-#endif
-#include <unistd.h>  // readlink
+# include <fcntl.h>  // _O_RDWR
+# include <sys/types.h>
+# include <sys/mman.h>
+# if defined(__FreeBSD__)
+#   include <sys/sysctl.h>
+#   include <sys/user.h>
+# elif defined(__APPLE__)
+#   include <mach/vm_map.h>
+# endif
+# include <unistd.h>  // readlink
 
-#include <climits>  // PATH_MAX
-#include <clocale>
-#include <csignal>
-#include <cstdio>
-#include <cstdlib>
-#include <cstdint>
-#include <cstring>
-#include <string>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <vector>
+# include <climits>  // PATH_MAX
+# include <clocale>
+# include <csignal>
+# include <cstdio>
+# include <cstdlib>
+# include <cstdint>
+# include <cstring>
+# include <string>
+# include <fstream>
+# include <iostream>
+# include <sstream>
+# include <vector>
 
 // The functions in this file map the text segment of node into 2M pages.
 // The algorithm is simple
@@ -69,7 +69,7 @@
 // Use madvise with MADV_HUGEPAGE to use Anonymous 2M Pages
 // If successful copy the code there and unmap the original region.
 
-#if defined(__linux__)
+# if defined(__linux__)
 extern "C" {
 // This symbol must be declared weak because this file becomes part of all
 // Node.js targets (like node_mksnapshot, node_mkcodecache, and cctest) and
@@ -77,7 +77,7 @@ extern "C" {
 extern char __attribute__((weak)) __node_text_start;
 extern char __start_lpstub;
 }  // extern "C"
-#endif  // defined(__linux__)
+# endif  // defined(__linux__)
 
 #endif  // defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 namespace node {
@@ -118,7 +118,7 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
 struct text_region FindNodeTextRegion() {
   struct text_region nregion;
   nregion.found_text_region = false;
-#if defined(__linux__)
+# if defined(__linux__)
   std::ifstream ifs;
   std::string map_line;
   std::string permission;
@@ -176,7 +176,7 @@ struct text_region FindNodeTextRegion() {
   }
 
   ifs.close();
-#elif defined(__FreeBSD__)
+# elif defined(__FreeBSD__)
   std::string exename;
   {
     char selfexe[PATH_MAX];
@@ -232,7 +232,7 @@ struct text_region FindNodeTextRegion() {
     }
     start += cursz;
   }
-#elif defined(__APPLE__)
+# elif defined(__APPLE__)
   struct vm_region_submap_info_64 map;
   mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
   vm_address_t addr = 0UL;
@@ -266,11 +266,11 @@ struct text_region FindNodeTextRegion() {
       size = 0;
     }
   }
-#endif
+# endif
   return nregion;
 }
 
-#if defined(__linux__)
+# if defined(__linux__)
 bool IsTransparentHugePagesEnabled() {
   std::ifstream ifs;
 
@@ -288,7 +288,7 @@ bool IsTransparentHugePagesEnabled() {
 
   return always == "[always]" || madvise == "[madvise]";
 }
-#elif defined(__FreeBSD__)
+# elif defined(__FreeBSD__)
 static bool IsSuperPagesEnabled() {
   // It is enabled by default on amd64.
   unsigned int super_pages = 0;
@@ -300,7 +300,7 @@ static bool IsSuperPagesEnabled() {
                       0) != -1 &&
          super_pages >= 1;
 }
-#endif
+# endif
 
 }  // End of anonymous namespace
 
@@ -317,11 +317,11 @@ static bool IsSuperPagesEnabled() {
 // c. madvise with MADV_HUGEPAGE
 // d. If successful copy the code there and unmap the original region
 int
-#if !defined(__APPLE__)
+# if !defined(__APPLE__)
 __attribute__((__section__("lpstub")))
-#else
+# else
 __attribute__((__section__("__TEXT,__lpstub")))
-#endif
+# endif
 __attribute__((__aligned__(hps)))
 __attribute__((__noinline__))
 MoveTextRegionToLargePages(const text_region& r) {
@@ -342,7 +342,7 @@ MoveTextRegionToLargePages(const text_region& r) {
 
   memcpy(nmem, r.from, size);
 
-#if defined(__linux__)
+# if defined(__linux__)
 // We already know the original page is r-xp
 // (PROT_READ, PROT_EXEC, MAP_PRIVATE)
 // We want PROT_WRITE because we are writing into it.
@@ -366,7 +366,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     return -1;
   }
   memcpy(start, nmem, size);
-#elif defined(__FreeBSD__)
+# elif defined(__FreeBSD__)
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
@@ -376,7 +376,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     if (-1 == munmap(nmem, size)) PrintSystemError(errno);
     return -1;
   }
-#elif defined(__APPLE__)
+# elif defined(__APPLE__)
   // There is not enough room to reserve the mapping close
   // to the region address so we content to give a hint
   // without forcing the new address being closed to.
@@ -403,7 +403,7 @@ MoveTextRegionToLargePages(const text_region& r) {
     return -1;
   }
   memcpy(start, tmem, size);
-#endif
+# endif
 
   ret = mprotect(start, size, PROT_READ | PROT_EXEC);
   if (ret == -1) {
@@ -424,14 +424,14 @@ MoveTextRegionToLargePages(const text_region& r) {
 int MapStaticCodeToLargePages() {
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
   bool have_thp = false;
-#if defined(__linux__)
+# if defined(__linux__)
   have_thp = IsTransparentHugePagesEnabled();
-#elif defined(__FreeBSD__)
+# elif defined(__FreeBSD__)
   have_thp = IsSuperPagesEnabled();
-#elif defined(__APPLE__)
+# elif defined(__APPLE__)
   // pse-36 flag is present in recent mac x64 products.
   have_thp = true;
-#endif
+# endif
   if (!have_thp)
     return EACCES;
 
@@ -439,10 +439,10 @@ int MapStaticCodeToLargePages() {
   if (r.found_text_region == false)
     return ENOENT;
 
-#if defined(__FreeBSD__)
+# if defined(__FreeBSD__)
   if (r.from < reinterpret_cast<void*>(&MoveTextRegionToLargePages))
     return -1;
-#endif
+# endif
 
   return MoveTextRegionToLargePages(r);
 #else
