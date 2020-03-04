@@ -12,8 +12,16 @@ asyncLocalStorage.runSyncAndReturn(new Map(), () => {
     process.nextTick(() => {
       assert.strictEqual(asyncLocalStorage.getStore(), undefined);
     });
+
     asyncLocalStorage.disable();
     assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+
+    // Calls to exit() should not mess with enabled status
+    asyncLocalStorage.exit(() => {
+      assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+    });
+    assert.strictEqual(asyncLocalStorage.getStore(), undefined);
+
     process.nextTick(() => {
       assert.strictEqual(asyncLocalStorage.getStore(), undefined);
       asyncLocalStorage.runSyncAndReturn(new Map(), () => {
