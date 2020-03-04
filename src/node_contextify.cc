@@ -1224,15 +1224,18 @@ static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
                                                           args[1].As<Object>());
     CHECK_NOT_NULL(sandbox);
     context = sandbox->context();
-    if (context.IsEmpty()) {  // Not yet fully initilaized
+    if (context.IsEmpty()) {  // Not yet fully initialized
       return;
     }
   }
-  v8::Local<v8::Promise> promise;
-  if (!isolate->MeasureMemory(context, static_cast<v8::MeasureMemoryMode>(mode))
-           .ToLocal(&promise)) {
-    return;
-  }
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  std::unique_ptr<v8::MeasureMemoryDelegate> i =
+      v8::MeasureMemoryDelegate::Default(
+          isolate, context, resolver, static_cast<v8::MeasureMemoryMode>(mode));
+  CHECK_NOT_NULL(i);
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+
   args.GetReturnValue().Set(promise);
 }
 
