@@ -907,7 +907,7 @@ Validates the schema of a diagnostic report whose content is specified in
 
 ## Streams Module
 
-The `streams` module provides a helper functions for stream manipulation.
+The `streams` module provides helper functions for stream manipulation.
 
 ### `collectChildStreams(child[, waitFor])`
 
