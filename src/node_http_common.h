@@ -284,14 +284,8 @@ class NgRcBufPointer : public MemoryRetainer {
  public:
   typedef typename T::rcbuf_t rcbuf_t;
   typedef typename T::vector_t vector_t;
-  NgRcBufPointer() {}
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("buf", len(), "buf");
-  }
-
-  SET_MEMORY_INFO_NAME(NgRcBufPointer)
-  SET_SELF_SIZE(NgRcBufPointer)
+  NgRcBufPointer() = default;
 
   explicit NgRcBufPointer(rcbuf_t* buf) {
     reset(buf);
@@ -331,10 +325,7 @@ class NgRcBufPointer : public MemoryRetainer {
   }
 
   ~NgRcBufPointer() {
-    rcbuf_t* ptr = get();
-    if (ptr != nullptr) {
-      T::dec(ptr);
-    }
+    reset();
   }
 
   // Returns the underlying ngvec for this rcbuf
@@ -353,12 +344,20 @@ class NgRcBufPointer : public MemoryRetainer {
   }
 
   void reset(rcbuf_t* ptr = nullptr, bool internalizable = false) {
-    this->~NgRcBufPointer();
+    if (buf_ == ptr)
+      return;
+
+    if (buf_ != nullptr)
+      T::dec(buf_);
+
     buf_ = ptr;
-    if (ptr != nullptr)
+
+    if (ptr != nullptr) {
       T::inc(ptr);
-    internalizable_ = internalizable;
+      internalizable_ = internalizable;
+    }
   }
+
   rcbuf_t* get() const { return buf_; }
   rcbuf_t& operator*() const { return *get(); }
   rcbuf_t* operator->() const { return buf_; }
@@ -373,6 +372,13 @@ class NgRcBufPointer : public MemoryRetainer {
     vector_t b = T::get_vec(buf);
     return b.len == 0;
   }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackFieldWithSize("buf", len(), "buf");
+  }
+
+  SET_MEMORY_INFO_NAME(NgRcBufPointer)
+  SET_SELF_SIZE(NgRcBufPointer)
 
   class External : public v8::String::ExternalOneByteStringResource {
    public:

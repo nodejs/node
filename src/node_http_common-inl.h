@@ -11,24 +11,16 @@
 
 namespace node {
 
-using v8::Array;
-using v8::Eternal;
-using v8::MaybeLocal;
-using v8::Local;
-using v8::String;
-using v8::Uint32;
-using v8::Value;
-
 template <typename T>
-NgHeaders<T>::NgHeaders(Environment* env, Local<Array> headers) {
-  Local<Value> header_string =
+NgHeaders<T>::NgHeaders(Environment* env, v8::Local<v8::Array> headers) {
+  v8::Local<v8::Value> header_string =
       headers->Get(env->context(), 0).ToLocalChecked();
-  Local<Value> header_count =
+  v8::Local<v8::Value> header_count =
       headers->Get(env->context(), 1).ToLocalChecked();
   CHECK(header_count->IsUint32());
   CHECK(header_string->IsString());
-  count_ = header_count.As<Uint32>()->Value();
-  int header_string_len = header_string.As<String>()->Length();
+  count_ = header_count.As<v8::Uint32>()->Value();
+  int header_string_len = header_string.As<v8::String>()->Length();
 
   if (count_ == 0) {
     CHECK_EQ(header_string_len, 0);
@@ -45,12 +37,12 @@ NgHeaders<T>::NgHeaders(Environment* env, Local<Array> headers) {
   nv_t* const nva = reinterpret_cast<nv_t*>(start);
 
   CHECK_LE(header_contents + header_string_len, *buf_ + buf_.length());
-  CHECK_EQ(header_string.As<String>()->WriteOneByte(
+  CHECK_EQ(header_string.As<v8::String>()->WriteOneByte(
                env->isolate(),
                reinterpret_cast<uint8_t*>(header_contents),
                0,
                header_string_len,
-               String::NO_NULL_TERMINATION),
+               v8::String::NO_NULL_TERMINATION),
            header_string_len);
 
   size_t n = 0;
@@ -141,7 +133,7 @@ NgHeader<T>::NgHeader(NgHeader<T>&& other) noexcept
 }
 
 template <typename T>
-MaybeLocal<String> NgHeader<T>::GetName(
+v8::MaybeLocal<v8::String> NgHeader<T>::GetName(
     NgHeader<T>::allocator_t* allocator) const {
 
   // Not all instances will support using token id's for header names.
@@ -152,9 +144,9 @@ MaybeLocal<String> NgHeader<T>::GetName(
   // a statically defined name. We can safely internalize it here.
   if (header_name != nullptr) {
     auto& static_str_map = env_->isolate_data()->http_static_strs;
-    Eternal<String> eternal = static_str_map[header_name];
+    v8::Eternal<v8::String> eternal = static_str_map[header_name];
     if (eternal.IsEmpty()) {
-      Local<String> str = OneByteString(env_->isolate(), header_name);
+      v8::Local<v8::String> str = OneByteString(env_->isolate(), header_name);
       eternal.Set(env_->isolate(), str);
       return str;
     }
@@ -164,7 +156,7 @@ MaybeLocal<String> NgHeader<T>::GetName(
 }
 
 template <typename T>
-MaybeLocal<String> NgHeader<T>::GetValue(
+v8::MaybeLocal<v8::String> NgHeader<T>::GetValue(
     NgHeader<T>::allocator_t* allocator) const {
   return rcbufferpointer_t::External::New(allocator, value_);
 }
