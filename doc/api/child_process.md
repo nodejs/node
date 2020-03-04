@@ -37,7 +37,7 @@ The command lookup will be performed using `options.env.PATH` environment
 variable if passed in `options` object, otherwise `process.env.PATH` will be
 used. To account for the fact that Windows environment variables are
 case-insensitive Node.js will lexicographically sort all `env` keys and choose
-the first one case-insensitivety matching `'PATH'` to perform command lookup.
+the first one case-insensitively matching `'PATH'` to perform command lookup.
 This may lead to issues on Windows when passing objects to `env` option that
 have multiple variants of `PATH` variable.
 
