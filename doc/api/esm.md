@@ -344,7 +344,7 @@ Conditional exports provide a way to map to different paths depending on
 certain conditions. They are supported for both CommonJS and ES module imports.
 
 For example, a package that wants to provide different ES module exports for
-require() and import can be written:
+`require()` and `import` can be written:
 
 <!-- eslint-skip -->
 ```js
