@@ -12,12 +12,14 @@ def get_napi_version():
 
   f = open(napi_version_h)
 
-  regex = '^#define NAPI_VERSION'
+  regex = r'^#\s*define NAPI_VERSION'
 
   for line in f:
     if re.match(regex, line):
-      napi_version = line.split()[2]
-      return napi_version
+      for i in range(len(line.split())):
+        if re.match(r'^.*define', line.split()[i]):
+          napi_version = line.split()[i + 2]
+          return napi_version
 
   raise Exception('Could not find pattern matching %s' % regex)
 

@@ -12,12 +12,14 @@ def get_version():
 
   f = open(node_version_h)
 
-  regex = '^#define NODE_MODULE_VERSION [0-9]+'
+  regex = r'^#\s*define NODE_MODULE_VERSION [0-9]+'
 
   for line in f:
     if re.match(regex, line):
-      major = line.split()[2]
-      return major
+      for i in range(len(line.split())):
+        if re.match(r'^.*define', line.split()[i]):
+          major = line.split()[i + 2]
+          return major
 
   raise Exception('Could not find pattern matching %s' % regex)
 
