@@ -89,8 +89,8 @@ around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
 is part of the process and should be kept focused, helpful, and professional.
 
-Short, clipped responses—that provide neither additional context nor supporting
-detail—are not helpful or professional. To many, such responses are simply
+Short, clipped responses that provide neither additional context nor supporting
+detail are not helpful or professional. To many, such responses are simply
 annoying and unfriendly.
 
 Contributors are encouraged to help one another make forward progress as much
