@@ -486,11 +486,17 @@ process.on('SIGTERM', handle);
    the process hanging in an endless loop, since listeners attached using
    `process.on()` are called asynchronously and therefore unable to correct the
    underlying problem.
+* `0` can be sent to test for the existence of a process, it has no effect if
+   the process exists, but will throw an error if the process does not exist.
 
-Windows does not support sending signals, but Node.js offers some emulation
-with [`process.kill()`][], and [`subprocess.kill()`][]. Sending signal `0` can
-be used to test for the existence of a process. Sending `SIGINT`, `SIGTERM`,
-and `SIGKILL` cause the unconditional termination of the target process.
+Windows does not support signals so has no equivalent to termination by signal,
+but Node.js offers some emulation with [`process.kill()`][], and
+[`subprocess.kill()`][]:
+* Sending `SIGINT`, `SIGTERM`, and `SIGKILL` will cause the unconditional
+  termination of the target process, and afterwards, subprocess will report that
+  the process was terminated by signal.
+* Sending signal `0` can be used as a platform independent way to test for the
+  existence of a process.
 
 ## `process.abort()`
 <!-- YAML
