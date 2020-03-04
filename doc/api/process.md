@@ -190,7 +190,7 @@ rejection handler.
 
 There is no notion of a top level for a `Promise` chain at which rejections can
 always be handled. Being inherently asynchronous in nature, a `Promise`
-rejection can be handled at a future point in time — possibly much later than
+rejection can be handled at a future point in time, possibly much later than
 the event loop turn it takes for the `'unhandledRejection'` event to be emitted.
 
 Another way of stating this is that, unlike in synchronous code where there is
