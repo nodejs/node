@@ -449,14 +449,17 @@ over time. The delays will be reported in nanoseconds.
 
 When `resolution` is zero a precise time difference between IO poll end and IO
 poll start is entered into the histogram on every event-loop iteration. During
-standby (i.e., no event-loop activity) - no data is added to the histogram, as would be expected.
+standby (i.e., no event-loop activity) - no data is added to the histogram, as
+would be expected.
 
 When `resolution` is non-zero a timer is used to detect approximate event loop
 delay. This works because the execution of timers is tied specifically to the
 lifecycle of the libuv event loop. That is, a delay in the loop will cause a
 delay in the execution of the timer, and those delays are specifically what this
 API is intended to detect. Timer-based monitoring happens continuously and adds
-delay statistics to the histogram even during standby when the Node.js would not otherwise be consuming CPU. Since this approach just checks the loop state periodically, it can easily miss loops that had excessive delays.
+delay statistics to the histogram even during standby when the Node.js would not
+otherwise be consuming CPU. Since this approach just checks the loop state
+periodically, it can easily miss loops that had excessive delays.
 
 ```js
 const { monitorEventLoopDelay } = require('perf_hooks');
