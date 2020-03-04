@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#13.10.1">13.10.1</a><br/>
 <a href="#13.10.0">13.10.0</a><br/>
 <a href="#13.9.0">13.9.0</a><br/>
 <a href="#13.8.0">13.8.0</a><br/>
@@ -39,6 +40,35 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="13.10.1"></a>
+## 2020-03-04, Version 13.10.1 (Current), @MylesBorins
+
+### Notable Changes
+
+In Node.js 13.9.0 deps/zlib was switched to the chromium maintained implementation. This change
+had the unforseen consequence of breaking building from the tarballs we release as we were too
+aggressively removing `unneccessary files` from the `deps/zlib` folder. This release includes
+a patch that ensures that individuals will once again be able to build Node.js from source.
+
+### Commits
+
+* [[`723aa41d96`](https://github.com/nodejs/node/commit/723aa41d96)] - **build**: fix zlib tarball generation (Shelley Vohr) [#32094](https://github.com/nodejs/node/pull/32094)
+* [[`9c1ac50fc5`](https://github.com/nodejs/node/commit/9c1ac50fc5)] - **build**: fix building with ninja (Richard Lau) [#32071](https://github.com/nodejs/node/pull/32071)
+* [[`478450d6b3`](https://github.com/nodejs/node/commit/478450d6b3)] - **build**: add asan check in Github action (gengjiawen) [#31902](https://github.com/nodejs/node/pull/31902)
+* [[`0fc45f80b5`](https://github.com/nodejs/node/commit/0fc45f80b5)] - **crypto**: simplify exportKeyingMaterial (Tobias Nießen) [#31922](https://github.com/nodejs/node/pull/31922)
+* [[`4dc59b91a7`](https://github.com/nodejs/node/commit/4dc59b91a7)] - **dgram**: make UDPWrap more reusable (Anna Henningsen) [#31871](https://github.com/nodejs/node/pull/31871)
+* [[`4ed720e940`](https://github.com/nodejs/node/commit/4ed720e940)] - **doc**: visibility of Worker threads cli options (Harshitha KP) [#31380](https://github.com/nodejs/node/pull/31380)
+* [[`2518213a1b`](https://github.com/nodejs/node/commit/2518213a1b)] - **doc**: improve doc/markdown file organization coherence (ConorDavenport) [#31792](https://github.com/nodejs/node/pull/31792)
+* [[`ba3f7ff94d`](https://github.com/nodejs/node/commit/ba3f7ff94d)] - **doc**: update stream.pipeline() signature (vsemozhetbyt) [#31789](https://github.com/nodejs/node/pull/31789)
+* [[`3c8daa3aa0`](https://github.com/nodejs/node/commit/3c8daa3aa0)] - **events**: convert errorMonitor to a normal property (Gerhard Stoebich) [#31848](https://github.com/nodejs/node/pull/31848)
+* [[`6b44df2415`](https://github.com/nodejs/node/commit/6b44df2415)] - **perf,src**: add HistogramBase and internal/histogram.js (James M Snell) [#31988](https://github.com/nodejs/node/pull/31988)
+* [[`6a9cea9ed2`](https://github.com/nodejs/node/commit/6a9cea9ed2)] - **src**: pass resource object along with InternalMakeCallback (Anna Henningsen) [#32063](https://github.com/nodejs/node/pull/32063)
+* [[`70f046010c`](https://github.com/nodejs/node/commit/70f046010c)] - **src**: start the .text section with an asm symbol (Gabriel Schulhof) [#31981](https://github.com/nodejs/node/pull/31981)
+* [[`755da035ce`](https://github.com/nodejs/node/commit/755da035ce)] - **src**: add node\_crypto\_common and refactor (James M Snell) [#32016](https://github.com/nodejs/node/pull/32016)
+* [[`4d5318c164`](https://github.com/nodejs/node/commit/4d5318c164)] - **src**: improve handling of internal field counting (James M Snell) [#31960](https://github.com/nodejs/node/pull/31960)
+* [[`1539928ed9`](https://github.com/nodejs/node/commit/1539928ed9)] - **test**: add GC test for disabled AsyncLocalStorage (Andrey Pechkurov) [#31995](https://github.com/nodejs/node/pull/31995)
+* [[`be90817558`](https://github.com/nodejs/node/commit/be90817558)] - **test**: remove common.port from test-tls-securepair-client (Rich Trott) [#32024](https://github.com/nodejs/node/pull/32024)
 
 <a id="13.10.0"></a>
 ## 2020-03-04, Version 13.10.0 (Current), @codebytere
