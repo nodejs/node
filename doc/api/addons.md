@@ -805,10 +805,10 @@ Then, in `myobject.h`, the wrapper class inherits from `node::ObjectWrap`:
 ```cpp
 // myobject.h
 #ifndef MYOBJECT_H
-#define MYOBJECT_H
+# define MYOBJECT_H
 
-#include <node.h>
-#include <node_object_wrap.h>
+# include <node.h>
+# include <node_object_wrap.h>
 
 namespace demo {
 
@@ -1008,10 +1008,10 @@ JavaScript:
 ```cpp
 // myobject.h
 #ifndef MYOBJECT_H
-#define MYOBJECT_H
+# define MYOBJECT_H
 
-#include <node.h>
-#include <node_object_wrap.h>
+# include <node.h>
+# include <node_object_wrap.h>
 
 namespace demo {
 
@@ -1232,10 +1232,10 @@ after unwrapping the object.
 ```cpp
 // myobject.h
 #ifndef MYOBJECT_H
-#define MYOBJECT_H
+# define MYOBJECT_H
 
-#include <node.h>
-#include <node_object_wrap.h>
+# include <node.h>
+# include <node_object_wrap.h>
 
 namespace demo {
 
