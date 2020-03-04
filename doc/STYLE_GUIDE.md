@@ -25,12 +25,10 @@
   * Outside of the wrapping element if the wrapping element contains only a
     fragment of a clause.
 * Documents must start with a level-one heading.
-* Prefer affixing links to inlining links — prefer `[a link][]` to
-  `[a link](http://example.com)`.
+* Prefer affixing links (`[a link][]`) to inlining links
+  (`[a link](http://example.com)`).
 * When documenting APIs, update the YAML comment associated with the API as
   appropriate. This is especially true when introducing or deprecating an API.
-* Use [Em dashes][] ("—" or `Option+Shift+"-"` on macOS) surrounded by spaces,
-  as per [The New York Times Manual of Style and Usage][].
 * For code blocks:
   * Use language aware fences. ("```js")
   * Code need not be complete. Treat code blocks as an illustration or aid to
@@ -67,9 +65,7 @@
 
 See also API documentation structure overview in [doctools README][].
 
-[Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
 [serial commas]: https://en.wikipedia.org/wiki/Serial_comma
-[The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
 [plugin]: https://editorconfig.org/#download
 [doctools README]: ../tools/doc/README.md
