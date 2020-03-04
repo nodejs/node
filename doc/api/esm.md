@@ -353,7 +353,7 @@ require() and import can be written:
   "main": "./main-require.cjs",
   "exports": {
     "import": "./main-module.js",
-    "default": "./main-require.cjs"
+    "require": "./main-require.cjs"
   },
   "type": "module"
 }
@@ -362,15 +362,13 @@ require() and import can be written:
 The conditions supported in Node.js condition matching:
 
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
-   or ES module file. **This condition should always come last.**
+   or ES module file. _This condition should always come last._
 * `"import"` - matched when the package is loaded via `import` or
    `import()`. Can be any module format, this field does not set the type
    interpretation.
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file.
 * `"require"` - matched when the package is loaded via `require()`.
-  _Due to limited support in Node.js 13.x early versions it can be recommended
-  to avoid using this condition._
 
 Condition matching is applied in object order from first to last within the
 `"exports"` object. _The general rule is that conditions should be used
@@ -379,11 +377,6 @@ from most specific to least specific in object order._
 Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
 etc. could be defined in other runtimes or tools. Further restrictions,
 definitions or guidance on condition names may be provided in future.
-
-`"default"` is set to a CommonJS module in the example above since early
-versions of Node.js 13.x support `"default"` but not `"import"` or `"require"`
-conditions. If `"default"` did not resolve as CommonJS this would break the
-use of `require('pkg')` in these Node.js versions when it matches the default.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are explained further in [the dual mode packages section][].
@@ -494,7 +487,7 @@ CommonJS entry point for `require`.
   "main": "./index.cjs",
   "exports": {
     "import": "./wrapper.mjs",
-    "default": "./index.cjs"
+    "require": "./index.cjs"
   }
 }
 ```
@@ -574,7 +567,7 @@ CommonJS and ES module entry points directly:
   "main": "./index.cjs",
   "exports": {
     "import": "./index.mjs",
-    "default": "./index.cjs"
+    "require": "./index.cjs"
   }
 }
 ```
