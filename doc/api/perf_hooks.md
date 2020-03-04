@@ -456,7 +456,7 @@ delay. This works because the execution of timers is tied specifically to the
 lifecycle of the libuv event loop. That is, a delay in the loop will cause a
 delay in the execution of the timer, and those delays are specifically what this
 API is intended to detect. Timer-based monitoring happens continuously and adds
-delay statistics to the histogram even during standby.
+delay statistics to the histogram even during standby when the Node.js would not otherwise be consuming CPU. Since this approach just checks the loop state periodically, it can easily miss loops that had excessive delays.
 
 ```js
 const { monitorEventLoopDelay } = require('perf_hooks');
