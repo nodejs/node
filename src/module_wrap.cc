@@ -1423,8 +1423,8 @@ static MaybeLocal<Promise> ImportModuleDynamically(
 
   Local<PrimitiveArray> options = referrer->GetHostDefinedOptions();
   if (options->Length() != HostDefinedOptions::kLength) {
-    Local<Promise::Resolver> resolver =
-        Promise::Resolver::New(context).ToLocalChecked();
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver)) return {};
     resolver
         ->Reject(context,
                  v8::Exception::TypeError(FIXED_ONE_BYTE_STRING(
