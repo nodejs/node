@@ -61,7 +61,7 @@ module.exports = {
       }
     }
     const ltsRE = /Long Term Support/i;
-    const versionRE = /\* \[Node\.js ([0-9.]+)\][^-—]+[-—]\s*(.*)\r?\n/g;
+    const versionRE = /\* \[Node\.js ([0-9.]+)\]\S+ (.*)\r?\n/g;
     _versions = [];
     let match;
     while ((match = versionRE.exec(changelog)) != null) {

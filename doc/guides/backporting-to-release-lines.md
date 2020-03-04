@@ -75,7 +75,7 @@ replace that with the staging branch for the targeted release line.
 9. Open a pull request:
    1. Be sure to target the `v10.x-staging` branch in the pull request.
    1. Include the backport target in the pull request title in the following
-      format — `[v10.x backport] <commit title>`.
+      format: `[v10.x backport] <commit title>`.
       Example: `[v10.x backport] process: improve performance of nextTick`
    1. Check the checkbox labeled "Allow edits from maintainers".
    1. In the description add a reference to the original PR.
