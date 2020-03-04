@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 const http = require('http');
@@ -13,14 +12,14 @@ const NUM_CLIENTS = 10;
 // and data download. Make sure that individual clients
 // receive their respective data, with no conflicts.
 
-// Set up a server, that sends large buffers of data, filled
+// Set up a server that sends large buffers of data, filled
 // with cardinal numbers, increasing per request
 let index = 0;
 const server = http.createServer((q, r) => {
   // Send a large chunk as response, otherwise the data
-  // may be coalesced, and the callback in the client
-  // may be called only once, defeating the purpose of test
-  r.end((index++).toString().repeat(1024 * 1024));
+  // may be sent in a single chunk, and the callback in the
+  // client may be called only once, defeating the purpose of test
+  r.end((index++ % 10).toString().repeat(1024 * 1024));
 });
 
 server.listen(0, common.mustCall(() => {
@@ -33,15 +32,16 @@ server.listen(0, common.mustCall(() => {
 
         // Make ondata and onend non-closure
         // functions and fully dependent on ALS
+        res.setEncoding('utf8');
         res.on('data', ondata);
-        res.on('end', onend);
+        res.on('end', common.mustCall(onend));
       }));
       req.end();
     }));
   }
 }));
 
-// Accumulate the instantaneous data with the store data
+// Accumulate the current data chunk with the store data
 function ondata(d) {
   const store = cls.getStore();
   assert.notStrictEqual(store, undefined);
@@ -55,9 +55,8 @@ let endCount = 0;
 function onend() {
   const store = cls.getStore();
   assert.notStrictEqual(store, undefined);
-  const chunk = store.get('data');
-  const re = new RegExp(chunk[0], 'g');
-  assert.strictEqual(chunk.replace(re, '').length, 0);
+  const data = store.get('data');
+  assert.strictEqual(data, data[0].repeat(data.length));
   if (++endCount === NUM_CLIENTS) {
     server.close();
   }
