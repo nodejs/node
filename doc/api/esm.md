@@ -312,56 +312,6 @@ ECMAScript modules and versions that don't, for example:
 }
 ```
 
-#### Conditional Exports
-
-Conditional exports provide a way to map to different paths depending on
-certain conditions. They are supported for both CommonJS and ES module imports.
-
-For example, a package that wants to provide different ES module exports for
-Node.js and the browser can be written:
-
-<!-- eslint-skip -->
-```js
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "main": "./index.js",
-  "exports": {
-    "./feature": {
-      "import": "./feature-default.js",
-      "browser": "./feature-browser.js"
-    }
-  }
-}
-```
-
-When resolving the `"."` export, if no matching target is found, the `"main"`
-will be used as the final fallback.
-
-The conditions supported in Node.js condition matching:
-
-* `"default"` - the generic fallback that will always match. Can be a CommonJS
-   or ES module file.
-* `"import"` - matched when the package is loaded via `import` or
-   `import()`. Can be any module format, this field does not set the type
-   interpretation.
-* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
-   module file.
-* `"require"` - matched when the package is loaded via `require()`.
-
-Condition matching is applied in object order from first to last within the
-`"exports"` object.
-
-Using the `"require"` condition it is possible to define a package that will
-have a different exported value for CommonJS and ES modules, which can be a
-hazard in that it can result in having two separate instances of the same
-package in use in an application, which can cause a number of bugs.
-
-Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. could be defined in other runtimes or tools. Condition names must not start
-with `"."` or be numbers. Further restrictions, definitions or guidance on
-condition names may be provided in future.
-
 #### Exports Sugar
 
 If the `"."` export is the only export, the `"exports"` field provides sugar
@@ -388,48 +338,75 @@ can be written:
 }
 ```
 
-When using [Conditional Exports][], the rule is that all keys in the object
-mapping must not start with a `"."` otherwise they would be indistinguishable
-from exports subpaths.
+#### Conditional Exports
+
+Conditional exports provide a way to map to different paths depending on
+certain conditions. They are supported for both CommonJS and ES module imports.
+
+For example, a package that wants to provide different ES module exports for
+require() and import can be written:
+
+<!-- eslint-skip -->
+```js
+// ./node_modules/pkg/package.json
+{
+  "main": "./main-require.cjs",
+  "exports": {
+    "import": "./main-module.js",
+    "default": "./main-require.cjs"
+  },
+  "type": "module"
+}
+```
+
+The conditions supported in Node.js condition matching:
+
+* `"default"` - the generic fallback that will always match. Can be a CommonJS
+   or ES module file. **This condition should always come last.**
+* `"import"` - matched when the package is loaded via `import` or
+   `import()`. Can be any module format, this field does not set the type
+   interpretation.
+* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+   module file.
+* `"require"` - matched when the package is loaded via `require()`.
+  _Due to limited support in Node.js 13.x early versions it can be recommended
+  to avoid using this condition._
+
+Condition matching is applied in object order from first to last within the
+`"exports"` object. _The general rule is that conditions should be used
+from most specific to least specific in object order._
+
+Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
+etc. could be defined in other runtimes or tools. Further restrictions,
+definitions or guidance on condition names may be provided in future.
+
+`"default"` is set to a CommonJS module in the example above since early
+versions of Node.js 13.x support `"default"` but not `"import"` or `"require"`
+conditions. If `"default"` did not resolve as CommonJS this would break the
+use of `require('pkg')` in these Node.js versions when it matches the default.
+
+Using the `"import"` and `"require"` conditions can lead to some hazards,
+which are explained further in [the dual mode packages section][].
+
+Conditional exports can also be extended to exports subpaths, for example:
 
 <!-- eslint-skip -->
 ```js
 {
+  "main": "./main.js",
   "exports": {
-    ".": {
-      "import": "./main.js",
-      "require": "./main.cjs"
+    ".": "./main.js",
+    "./feature": {
+      "browser": "./feature-browser.js",
+      "default": "./feature.js"
     }
   }
 }
 ```
 
-can be written:
-
-<!-- eslint-skip -->
-```js
-{
-  "exports": {
-    "import": "./main.js",
-    "require": "./main.cjs"
-  }
-}
-```
-
-If writing any exports value that mixes up these two forms, an error will be
-thrown:
-
-<!-- eslint-skip -->
-```js
-{
-  // Throws on resolution!
-  "exports": {
-    "./feature": "./lib/feature.js",
-    "import": "./main.js",
-    "require": "./main.cjs"
-  }
-}
-```
+Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
+could provide different implementations between the browser and Node.js,
+given third-part tool support for a `"browser"` condition.
 
 ### Dual CommonJS/ES Module Packages
 
@@ -516,8 +493,8 @@ CommonJS entry point for `require`.
   "type": "module",
   "main": "./index.cjs",
   "exports": {
-    "require": "./index.cjs",
-    "import": "./wrapper.mjs"
+    "import": "./wrapper.mjs",
+    "default": "./index.cjs"
   }
 }
 ```
@@ -597,7 +574,7 @@ CommonJS and ES module entry points directly:
   "main": "./index.cjs",
   "exports": {
     "import": "./index.mjs",
-    "require": "./index.cjs"
+    "default": "./index.cjs"
   }
 }
 ```
@@ -1669,6 +1646,7 @@ success!
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
+[the dual mode packages section]: #esm_dual_commonjs_es_module_packages
 [transpiler loader example]: #esm_transpiler_loader
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Top-Level Await]: https://github.com/tc39/proposal-top-level-await
