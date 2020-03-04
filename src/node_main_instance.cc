@@ -6,11 +6,11 @@
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 #if defined(LEAK_SANITIZER)
-#include <sanitizer/lsan_interface.h>
+# include <sanitizer/lsan_interface.h>
 #endif
 
 #if HAVE_INSPECTOR
-#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+# include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
 namespace node {

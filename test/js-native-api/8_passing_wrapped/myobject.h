@@ -1,7 +1,7 @@
 #ifndef TEST_JS_NATIVE_API_8_PASSING_WRAPPED_MYOBJECT_H_
-#define TEST_JS_NATIVE_API_8_PASSING_WRAPPED_MYOBJECT_H_
+# define TEST_JS_NATIVE_API_8_PASSING_WRAPPED_MYOBJECT_H_
 
-#include <js_native_api.h>
+# include <js_native_api.h>
 
 class MyObject {
  public:

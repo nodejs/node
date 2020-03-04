@@ -20,20 +20,20 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_WATCHDOG_H_
-#define SRC_NODE_WATCHDOG_H_
+# define SRC_NODE_WATCHDOG_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <vector>
-#include "handle_wrap.h"
-#include "memory_tracker-inl.h"
-#include "node_mutex.h"
-#include "uv.h"
-#include "v8.h"
+#   include <vector>
+#   include "handle_wrap.h"
+#   include "memory_tracker-inl.h"
+#   include "node_mutex.h"
+#   include "uv.h"
+#   include "v8.h"
 
-#ifdef __POSIX__
-#include <pthread.h>
-#endif
+#   ifdef __POSIX__
+#     include <pthread.h>
+#   endif
 
 namespace node {
 
@@ -131,7 +131,7 @@ class SigintWatchdogHelper {
   std::vector<SigintWatchdogBase*> watchdogs_;
   bool has_pending_signal_;
 
-#ifdef __POSIX__
+#   ifdef __POSIX__
   pthread_t thread_;
   uv_sem_t sem_;
   bool has_running_thread_;
@@ -139,14 +139,14 @@ class SigintWatchdogHelper {
 
   static void* RunSigintWatchdog(void* arg);
   static void HandleSignal(int signum, siginfo_t* info, void* ucontext);
-#else
+#   else
   bool watchdog_disabled_;
   static BOOL WINAPI WinCtrlCHandlerRoutine(DWORD dwCtrlType);
-#endif
+#   endif
 };
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WATCHDOG_H_

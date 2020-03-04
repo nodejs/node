@@ -27,7 +27,7 @@
 #include "zlib.h"
 
 #if !defined(_MSC_VER)
-#include <unistd.h>
+# include <unistd.h>
 #endif
 
 #include <fcntl.h>
@@ -36,15 +36,15 @@
 
 
 #if HAVE_OPENSSL
-#include <openssl/ec.h>
-#include <openssl/ssl.h>
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif  // !OPENSSL_NO_ENGINE
+# include <openssl/ec.h>
+# include <openssl/ssl.h>
+# ifndef OPENSSL_NO_ENGINE
+#   include <openssl/engine.h>
+# endif  // !OPENSSL_NO_ENGINE
 #endif  // HAVE_OPENSSL
 
 #if defined(__POSIX__)
-#include <dlfcn.h>
+# include <dlfcn.h>
 #endif
 
 #include <cerrno>
@@ -761,39 +761,39 @@ void DefineSignalConstants(Local<Object> target) {
 
 void DefinePriorityConstants(Local<Object> target) {
 #ifdef UV_PRIORITY_LOW
-  #define PRIORITY_LOW UV_PRIORITY_LOW
+# define PRIORITY_LOW UV_PRIORITY_LOW
   NODE_DEFINE_CONSTANT(target, PRIORITY_LOW);
-  #undef PRIORITY_LOW
+# undef PRIORITY_LOW
 #endif
 
 #ifdef UV_PRIORITY_BELOW_NORMAL
-  #define PRIORITY_BELOW_NORMAL UV_PRIORITY_BELOW_NORMAL
+# define PRIORITY_BELOW_NORMAL UV_PRIORITY_BELOW_NORMAL
   NODE_DEFINE_CONSTANT(target, PRIORITY_BELOW_NORMAL);
-  #undef PRIORITY_BELOW_NORMAL
+# undef PRIORITY_BELOW_NORMAL
 #endif
 
 #ifdef UV_PRIORITY_NORMAL
-  #define PRIORITY_NORMAL UV_PRIORITY_NORMAL
+# define PRIORITY_NORMAL UV_PRIORITY_NORMAL
   NODE_DEFINE_CONSTANT(target, PRIORITY_NORMAL);
-  #undef PRIORITY_NORMAL
+# undef PRIORITY_NORMAL
 #endif
 
 #ifdef UV_PRIORITY_ABOVE_NORMAL
-  #define PRIORITY_ABOVE_NORMAL UV_PRIORITY_ABOVE_NORMAL
+# define PRIORITY_ABOVE_NORMAL UV_PRIORITY_ABOVE_NORMAL
   NODE_DEFINE_CONSTANT(target, PRIORITY_ABOVE_NORMAL);
-  #undef PRIORITY_ABOVE_NORMAL
+# undef PRIORITY_ABOVE_NORMAL
 #endif
 
 #ifdef UV_PRIORITY_HIGH
-  #define PRIORITY_HIGH UV_PRIORITY_HIGH
+# define PRIORITY_HIGH UV_PRIORITY_HIGH
   NODE_DEFINE_CONSTANT(target, PRIORITY_HIGH);
-  #undef PRIORITY_HIGH
+# undef PRIORITY_HIGH
 #endif
 
 #ifdef UV_PRIORITY_HIGHEST
-  #define PRIORITY_HIGHEST UV_PRIORITY_HIGHEST
+# define PRIORITY_HIGHEST UV_PRIORITY_HIGHEST
   NODE_DEFINE_CONSTANT(target, PRIORITY_HIGHEST);
-  #undef PRIORITY_HIGHEST
+# undef PRIORITY_HIGHEST
 #endif
 }
 
@@ -940,49 +940,49 @@ void DefineCryptoConstants(Local<Object> target) {
 
 #ifndef OPENSSL_NO_ENGINE
 
-#ifdef ENGINE_METHOD_RSA
+# ifdef ENGINE_METHOD_RSA
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RSA);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_DSA
+# ifdef ENGINE_METHOD_DSA
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_DH
+# ifdef ENGINE_METHOD_DH
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DH);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_RAND
+# ifdef ENGINE_METHOD_RAND
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_EC
+# ifdef ENGINE_METHOD_EC
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_EC);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_CIPHERS
+# ifdef ENGINE_METHOD_CIPHERS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_CIPHERS);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_DIGESTS
+# ifdef ENGINE_METHOD_DIGESTS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_PKEY_METHS
+# ifdef ENGINE_METHOD_PKEY_METHS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_METHS);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_PKEY_ASN1_METHS
+# ifdef ENGINE_METHOD_PKEY_ASN1_METHS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_ASN1_METHS);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_ALL
+# ifdef ENGINE_METHOD_ALL
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ALL);
-#endif
+# endif
 
-#ifdef ENGINE_METHOD_NONE
+# ifdef ENGINE_METHOD_NONE
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_NONE);
-#endif
+# endif
 
 #endif  // !OPENSSL_NO_ENGINE
 
@@ -1003,7 +1003,7 @@ void DefineCryptoConstants(Local<Object> target) {
 #endif
 
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-#define ALPN_ENABLED 1
+# define ALPN_ENABLED 1
     NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
 #endif
 
@@ -1243,24 +1243,24 @@ NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
 #endif
 
 #ifdef UV_FS_COPYFILE_EXCL
-  #define COPYFILE_EXCL UV_FS_COPYFILE_EXCL
+# define COPYFILE_EXCL UV_FS_COPYFILE_EXCL
   NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_EXCL);
   NODE_DEFINE_CONSTANT(target, COPYFILE_EXCL);
-  #undef COPYFILE_EXCL
+# undef COPYFILE_EXCL
 #endif
 
 #ifdef UV_FS_COPYFILE_FICLONE
-  #define COPYFILE_FICLONE UV_FS_COPYFILE_FICLONE
+# define COPYFILE_FICLONE UV_FS_COPYFILE_FICLONE
   NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_FICLONE);
   NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE);
-  #undef COPYFILE_FICLONE
+# undef COPYFILE_FICLONE
 #endif
 
 #ifdef UV_FS_COPYFILE_FICLONE_FORCE
-  #define COPYFILE_FICLONE_FORCE UV_FS_COPYFILE_FICLONE_FORCE
+# define COPYFILE_FICLONE_FORCE UV_FS_COPYFILE_FICLONE_FORCE
   NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_FICLONE_FORCE);
   NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE_FORCE);
-  #undef COPYFILE_FICLONE_FORCE
+# undef COPYFILE_FICLONE_FORCE
 #endif
 }
 

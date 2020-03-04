@@ -1,10 +1,10 @@
 #ifndef SRC_NODE_MEM_INL_H_
-#define SRC_NODE_MEM_INL_H_
+# define SRC_NODE_MEM_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_mem.h"
-#include "node_internals.h"
+#   include "node_mem.h"
+#   include "node_internals.h"
 
 namespace node {
 namespace mem {
@@ -107,6 +107,6 @@ void NgLibMemoryManager<Class, T>::StopTrackingMemory(void* ptr) {
 }  // namespace mem
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_MEM_INL_H_

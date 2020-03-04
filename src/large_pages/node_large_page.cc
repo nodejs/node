@@ -33,10 +33,10 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #if defined(__FreeBSD__)
-#include <sys/sysctl.h>
-#include <sys/user.h>
+# include <sys/sysctl.h>
+# include <sys/user.h>
 #elif defined(__APPLE__)
-#include <mach/vm_map.h>
+# include <mach/vm_map.h>
 #endif
 #include <unistd.h>  // readlink
 

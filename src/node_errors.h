@@ -1,14 +1,14 @@
 #ifndef SRC_NODE_ERRORS_H_
-#define SRC_NODE_ERRORS_H_
+# define SRC_NODE_ERRORS_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
-#include "v8.h"
+#   include "env.h"
+#   include "v8.h"
 
 // Use ostringstream to print exact-width integer types
 // because the format specifiers are not available on AIX.
-#include <sstream>
+#   include <sstream>
 
 namespace node {
 
@@ -31,7 +31,7 @@ void OnFatalError(const char* location, const char* message);
 // `node::ERR_INVALID_ARG_TYPE(isolate, "message")` returning
 // a `Local<Value>` containing the TypeError with proper code and message
 
-#define ERRORS_WITH_CODE(V)                                                  \
+#   define ERRORS_WITH_CODE(V)                                               \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                 \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
   V(ERR_BUFFER_TOO_LARGE, Error)                                             \
@@ -63,7 +63,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                              \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                               \
 
-#define V(code, type)                                                         \
+#   define V(code, type)                                                      \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
                                    const char* message)       {               \
     v8::Local<v8::String> js_code = OneByteString(isolate, #code);            \
@@ -82,11 +82,11 @@ void OnFatalError(const char* location, const char* message);
     THROW_ ## code(env->isolate(), message);                                  \
   }
   ERRORS_WITH_CODE(V)
-#undef V
+#   undef V
 
 // Errors with predefined static messages
 
-#define PREDEFINED_ERROR_MESSAGES(V)                                         \
+#   define PREDEFINED_ERROR_MESSAGES(V)                                      \
   V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                        \
     "Buffer is not available for the current Context")                       \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")              \
@@ -109,7 +109,7 @@ void OnFatalError(const char* location, const char* message);
     "Cannot serialize externalized SharedArrayBuffer")                       \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")  \
 
-#define V(code, message)                                                     \
+#   define V(code, message)                                                  \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
     return code(isolate, message);                                           \
   }                                                                          \
@@ -120,7 +120,7 @@ void OnFatalError(const char* location, const char* message);
     THROW_ ## code(env->isolate());                                          \
   }
   PREDEFINED_ERROR_MESSAGES(V)
-#undef V
+#   undef V
 
 // Errors with predefined non-static messages
 inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
@@ -147,14 +147,14 @@ inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
   return ERR_STRING_TOO_LONG(isolate, message);
 }
 
-#define THROW_AND_RETURN_IF_NOT_BUFFER(env, val, prefix)                     \
+#   define THROW_AND_RETURN_IF_NOT_BUFFER(env, val, prefix)                  \
   do {                                                                       \
     if (!Buffer::HasInstance(val))                                           \
       return node::THROW_ERR_INVALID_ARG_TYPE(env,                           \
                                               prefix " must be a buffer");   \
   } while (0)
 
-#define THROW_AND_RETURN_IF_NOT_STRING(env, val, prefix)                     \
+#   define THROW_AND_RETURN_IF_NOT_STRING(env, val, prefix)                  \
   do {                                                                       \
     if (!val->IsString())                                                    \
       return node::THROW_ERR_INVALID_ARG_TYPE(env,                           \
@@ -205,6 +205,6 @@ void DecorateErrorStack(Environment* env,
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_ERRORS_H_

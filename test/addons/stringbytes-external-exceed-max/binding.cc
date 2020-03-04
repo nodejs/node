@@ -7,8 +7,8 @@
 // used if there is not enough VM. Check for available space until
 // out-of-memory.  Don't allow more then some (large) proportion of it to be
 // used for the test strings, so Node & V8 have some space for allocations.
-#include <signal.h>
-#include <sys/vminfo.h>
+# include <signal.h>
+# include <sys/vminfo.h>
 
 static void* Allowed(size_t size) {
   blkcnt_t allowedBlocks = psdanger(SIGKILL);

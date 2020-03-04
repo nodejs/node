@@ -1,14 +1,14 @@
 // Bridges V8 Inspector generated code with the std::string used by the Node
 // Compare to V8 counterpart - deps/v8/src/inspector/string-util.h
 #ifndef SRC_INSPECTOR_NODE_STRING_H_
-#define SRC_INSPECTOR_NODE_STRING_H_
+# define SRC_INSPECTOR_NODE_STRING_H_
 
-#include "util.h"
-#include "v8-inspector.h"
+# include "util.h"
+# include "v8-inspector.h"
 
-#include <cstring>
-#include <sstream>
-#include <string>
+# include <cstring>
+# include <sstream>
+# include <string>
 
 namespace node {
 namespace inspector {

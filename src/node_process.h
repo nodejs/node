@@ -1,9 +1,9 @@
 #ifndef SRC_NODE_PROCESS_H_
-#define SRC_NODE_PROCESS_H_
+# define SRC_NODE_PROCESS_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "v8.h"
+#   include "v8.h"
 
 namespace node {
 
@@ -37,5 +37,5 @@ v8::MaybeLocal<v8::Object> CreateProcessObject(Environment* env);
 void PatchProcessObject(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_PROCESS_H_

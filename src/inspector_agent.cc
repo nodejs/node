@@ -21,8 +21,8 @@
 #include "libplatform/libplatform.h"
 
 #ifdef __POSIX__
-#include <pthread.h>
-#include <climits>  // PTHREAD_STACK_MIN
+# include <pthread.h>
+# include <climits>  // PTHREAD_STACK_MIN
 #endif  // __POSIX__
 
 #include <algorithm>
@@ -116,7 +116,7 @@ static int StartDebugSignalHandler() {
   CHECK_EQ(0, uv_sem_init(&start_io_thread_semaphore, 0));
   pthread_attr_t attr;
   CHECK_EQ(0, pthread_attr_init(&attr));
-#if defined(PTHREAD_STACK_MIN) && !defined(__FreeBSD__)
+# if defined(PTHREAD_STACK_MIN) && !defined(__FreeBSD__)
   // PTHREAD_STACK_MIN is 2 KB with musl libc, which is too small to safely
   // receive signals. PTHREAD_STACK_MIN + MINSIGSTKSZ is 8 KB on arm64, which
   // is the musl architecture with the biggest MINSIGSTKSZ so let's use that
@@ -127,7 +127,7 @@ static int StartDebugSignalHandler() {
   const size_t stack_size = std::max(static_cast<size_t>(4 * 8192),
                                      static_cast<size_t>(PTHREAD_STACK_MIN));
   CHECK_EQ(0, pthread_attr_setstacksize(&attr, stack_size));
-#endif  // defined(PTHREAD_STACK_MIN) && !defined(__FreeBSD__)
+# endif  // defined(PTHREAD_STACK_MIN) && !defined(__FreeBSD__)
   CHECK_EQ(0, pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED));
   sigset_t sigmask;
   // Mask all signals.

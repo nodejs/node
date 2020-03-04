@@ -120,10 +120,10 @@ MaybeLocal<Object> CreateProcessObject(Environment* env) {
       release, "sourceUrl", per_process::metadata.release.source_url);
   READONLY_STRING_PROPERTY(
       release, "headersUrl", per_process::metadata.release.headers_url);
-#ifdef _WIN32
+# ifdef _WIN32
   READONLY_STRING_PROPERTY(
       release, "libUrl", per_process::metadata.release.lib_url);
-#endif  // _WIN32
+# endif  // _WIN32
 #endif  // NODE_HAS_RELEASE_URLS
 
   // process._rawDebug: may be overwritten later in JS land, but should be

@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
-#define SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
+# define SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_crypto_clienthello.h"
-#include "util.h"
+#   include "node_crypto_clienthello.h"
+#   include "util.h"
 
 namespace node {
 namespace crypto {
@@ -86,6 +86,6 @@ inline bool ClientHelloParser::IsPaused() const {
 }  // namespace crypto
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_

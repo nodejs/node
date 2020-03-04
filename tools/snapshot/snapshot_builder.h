@@ -1,8 +1,8 @@
 #ifndef TOOLS_SNAPSHOT_SNAPSHOT_BUILDER_H_
-#define TOOLS_SNAPSHOT_SNAPSHOT_BUILDER_H_
+# define TOOLS_SNAPSHOT_SNAPSHOT_BUILDER_H_
 
-#include <string>
-#include <vector>
+# include <string>
+# include <vector>
 
 namespace node {
 class SnapshotBuilder {

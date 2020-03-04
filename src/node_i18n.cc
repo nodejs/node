@@ -44,43 +44,43 @@
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
-#include "base_object-inl.h"
-#include "node.h"
-#include "node_buffer.h"
-#include "node_errors.h"
-#include "node_internals.h"
-#include "util-inl.h"
-#include "v8.h"
+# include "base_object-inl.h"
+# include "node.h"
+# include "node_buffer.h"
+# include "node_errors.h"
+# include "node_internals.h"
+# include "util-inl.h"
+# include "v8.h"
 
-#include <unicode/utypes.h>
-#include <unicode/putil.h>
-#include <unicode/uchar.h>
-#include <unicode/uclean.h>
-#include <unicode/udata.h>
-#include <unicode/uidna.h>
-#include <unicode/ucnv.h>
-#include <unicode/utf8.h>
-#include <unicode/utf16.h>
-#include <unicode/timezone.h>
-#include <unicode/ulocdata.h>
-#include <unicode/uvernum.h>
-#include <unicode/uversion.h>
-#include <unicode/ustring.h>
+# include <unicode/utypes.h>
+# include <unicode/putil.h>
+# include <unicode/uchar.h>
+# include <unicode/uclean.h>
+# include <unicode/udata.h>
+# include <unicode/uidna.h>
+# include <unicode/ucnv.h>
+# include <unicode/utf8.h>
+# include <unicode/utf16.h>
+# include <unicode/timezone.h>
+# include <unicode/ulocdata.h>
+# include <unicode/uvernum.h>
+# include <unicode/uversion.h>
+# include <unicode/ustring.h>
 
-#ifdef NODE_HAVE_SMALL_ICU
+# ifdef NODE_HAVE_SMALL_ICU
 /* if this is defined, we have a 'secondary' entry point.
    compare following to utypes.h defs for U_ICUDATA_ENTRY_POINT */
-#define SMALL_ICUDATA_ENTRY_POINT \
+#   define SMALL_ICUDATA_ENTRY_POINT \
   SMALL_DEF2(U_ICU_VERSION_MAJOR_NUM, U_LIB_SUFFIX_C_NAME)
-#define SMALL_DEF2(major, suff) SMALL_DEF(major, suff)
-#ifndef U_LIB_SUFFIX_C_NAME
-#define SMALL_DEF(major, suff) icusmdt##major##_dat
-#else
-#define SMALL_DEF(major, suff) icusmdt##suff##major##_dat
-#endif
+#   define SMALL_DEF2(major, suff) SMALL_DEF(major, suff)
+#   ifndef U_LIB_SUFFIX_C_NAME
+#     define SMALL_DEF(major, suff) icusmdt##major##_dat
+#   else
+#     define SMALL_DEF(major, suff) icusmdt##suff##major##_dat
+#   endif
 
 extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
-#endif
+# endif
 
 namespace node {
 
@@ -531,12 +531,12 @@ void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
 bool InitializeICUDirectory(const std::string& path) {
   UErrorCode status = U_ZERO_ERROR;
   if (path.empty()) {
-#ifdef NODE_HAVE_SMALL_ICU
+# ifdef NODE_HAVE_SMALL_ICU
     // install the 'small' data.
     udata_setCommonData(&SMALL_ICUDATA_ENTRY_POINT, &status);
-#else  // !NODE_HAVE_SMALL_ICU
+# else  // !NODE_HAVE_SMALL_ICU
     // no small data, so nothing to do.
-#endif  // !NODE_HAVE_SMALL_ICU
+# endif  // !NODE_HAVE_SMALL_ICU
   } else {
     u_setDataDirectory(path.c_str());
     u_init(&status);

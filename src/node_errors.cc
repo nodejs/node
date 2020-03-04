@@ -5,7 +5,7 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #ifdef NODE_REPORT
-#include "node_report.h"
+# include "node_report.h"
 #endif
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
@@ -459,9 +459,9 @@ const char* errno_string(int errorno) {
 #endif
 
 #ifdef EWOULDBLOCK
-#if EAGAIN != EWOULDBLOCK
+# if EAGAIN != EWOULDBLOCK
     ERRNO_CASE(EWOULDBLOCK);
-#endif
+# endif
 #endif
 
 #ifdef EALREADY
@@ -629,9 +629,9 @@ const char* errno_string(int errorno) {
 #endif
 
 #ifdef ENOLCK
-#if ENOLINK != ENOLCK
+# if ENOLINK != ENOLCK
     ERRNO_CASE(ENOLCK);
-#endif
+# endif
 #endif
 
 #ifdef ENOMEM
@@ -671,9 +671,9 @@ const char* errno_string(int errorno) {
 #endif
 
 #ifdef ENOTEMPTY
-#if ENOTEMPTY != EEXIST
+# if ENOTEMPTY != EEXIST
     ERRNO_CASE(ENOTEMPTY);
-#endif
+# endif
 #endif
 
 #ifdef ENOTSOCK
@@ -683,9 +683,9 @@ const char* errno_string(int errorno) {
 #ifdef ENOTSUP
     ERRNO_CASE(ENOTSUP);
 #else
-#ifdef EOPNOTSUPP
+# ifdef EOPNOTSUPP
     ERRNO_CASE(EOPNOTSUPP);
-#endif
+# endif
 #endif
 
 #ifdef ENOTTY

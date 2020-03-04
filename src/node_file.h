@@ -1,12 +1,12 @@
 #ifndef SRC_NODE_FILE_H_
-#define SRC_NODE_FILE_H_
+# define SRC_NODE_FILE_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-#include "aliased_buffer.h"
-#include "stream_base.h"
-#include <iostream>
+#   include "node.h"
+#   include "aliased_buffer.h"
+#   include "stream_base.h"
+#   include <iostream>
 
 namespace node {
 namespace fs {
@@ -359,6 +359,6 @@ inline int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_FILE_H_

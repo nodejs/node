@@ -1,9 +1,9 @@
 #ifndef SRC_DIAGNOSTICFILENAME_INL_H_
-#define SRC_DIAGNOSTICFILENAME_INL_H_
+# define SRC_DIAGNOSTICFILENAME_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_internals.h"
+#   include "node_internals.h"
 namespace node {
 
 class Environment;
@@ -28,6 +28,6 @@ inline const char* DiagnosticFilename::operator*() const {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_DIAGNOSTICFILENAME_INL_H_

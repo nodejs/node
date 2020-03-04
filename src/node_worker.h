@@ -1,11 +1,11 @@
 #ifndef SRC_NODE_WORKER_H_
-#define SRC_NODE_WORKER_H_
+# define SRC_NODE_WORKER_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <unordered_map>
-#include "node_messaging.h"
-#include "uv.h"
+#   include <unordered_map>
+#   include "node_messaging.h"
+#   include "uv.h"
 
 namespace node {
 namespace worker {
@@ -76,9 +76,9 @@ class Worker : public AsyncWrap {
   bool start_profiler_idle_notifier_;
   uv_thread_t tid_;
 
-#if HAVE_INSPECTOR
+#   if HAVE_INSPECTOR
   std::unique_ptr<inspector::ParentInspectorHandle> inspector_parent_handle_;
-#endif
+#   endif
 
   // This mutex protects access to all variables listed below it.
   mutable Mutex mutex_;
@@ -135,7 +135,7 @@ bool Worker::RequestInterrupt(Fn&& cb) {
 }  // namespace worker
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 
 #endif  // SRC_NODE_WORKER_H_

@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_TTY_WRAP_H_
-#define SRC_TTY_WRAP_H_
+# define SRC_TTY_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "uv.h"
-#include "stream_wrap.h"
+#   include "uv.h"
+#   include "stream_wrap.h"
 
 namespace node {
 
@@ -59,6 +59,6 @@ class TTYWrap : public LibuvStreamWrap {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TTY_WRAP_H_

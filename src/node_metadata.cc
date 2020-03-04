@@ -10,14 +10,14 @@
 #include "zlib.h"
 
 #if HAVE_OPENSSL
-#include <openssl/opensslv.h>
+# include <openssl/opensslv.h>
 #endif  // HAVE_OPENSSL
 
 #ifdef NODE_HAVE_I18N_SUPPORT
-#include <unicode/timezone.h>
-#include <unicode/ulocdata.h>
-#include <unicode/uvernum.h>
-#include <unicode/uversion.h>
+# include <unicode/timezone.h>
+# include <unicode/ulocdata.h>
+# include <unicode/uvernum.h>
+# include <unicode/uversion.h>
 #endif  // NODE_HAVE_I18N_SUPPORT
 
 namespace node {
@@ -103,16 +103,16 @@ Metadata::Release::Release() : name(NODE_RELEASE) {
 #endif  // NODE_VERSION_IS_LTS
 
 #ifdef NODE_HAS_RELEASE_URLS
-#define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
-#define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
+# define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
+# define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
 
   source_url = NODE_RELEASE_URLFPFX ".tar.gz";
   headers_url = NODE_RELEASE_URLFPFX "-headers.tar.gz";
-#ifdef _WIN32
+# ifdef _WIN32
   lib_url = strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-" NODE_ARCH
                                                            "/node.lib"
                                      : NODE_RELEASE_URLPFX "win-x86/node.lib";
-#endif  // _WIN32
+# endif  // _WIN32
 
 #endif  // NODE_HAS_RELEASE_URLS
 }

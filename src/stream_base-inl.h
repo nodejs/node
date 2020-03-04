@@ -1,13 +1,13 @@
 #ifndef SRC_STREAM_BASE_INL_H_
-#define SRC_STREAM_BASE_INL_H_
+# define SRC_STREAM_BASE_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "stream_base.h"
+#   include "stream_base.h"
 
-#include "node.h"
-#include "env-inl.h"
-#include "v8.h"
+#   include "node.h"
+#   include "env-inl.h"
+#   include "v8.h"
 
 namespace node {
 
@@ -317,6 +317,6 @@ inline void StreamReq::ResetObject(v8::Local<v8::Object> obj) {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_BASE_INL_H_

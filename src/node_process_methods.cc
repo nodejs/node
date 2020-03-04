@@ -12,21 +12,21 @@
 #include <vector>
 
 #if HAVE_INSPECTOR
-#include "inspector_io.h"
+# include "inspector_io.h"
 #endif
 
 #include <climits>  // PATH_MAX
 #include <cstdio>
 
 #if defined(_MSC_VER)
-#include <direct.h>
-#include <io.h>
-#define umask _umask
+# include <direct.h>
+# include <io.h>
+# define umask _umask
 typedef int mode_t;
 #else
-#include <pthread.h>
-#include <sys/resource.h>  // getrlimit, setrlimit
-#include <termios.h>  // tcgetattr, tcsetattr
+# include <pthread.h>
+# include <sys/resource.h>  // getrlimit, setrlimit
+# include <termios.h>  // tcgetattr, tcsetattr
 #endif
 
 namespace node {

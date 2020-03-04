@@ -40,46 +40,48 @@
 #include "node_version.h"
 
 #if HAVE_OPENSSL
-#include "node_crypto.h"
+# include "node_crypto.h"
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-#include "node_i18n.h"
+# include "node_i18n.h"
 #endif
 
 #if HAVE_INSPECTOR
-#include "inspector_agent.h"
-#include "inspector_io.h"
+# include "inspector_agent.h"
+# include "inspector_io.h"
 #endif
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
-#include "node_dtrace.h"
+# include "node_dtrace.h"
 #endif
 
 #if NODE_USE_V8_PLATFORM
-#include "libplatform/libplatform.h"
+# include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
 #include "v8-profiler.h"
 
 #if HAVE_INSPECTOR
-#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+# include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
-#include "large_pages/node_large_page.h"
+#ifdef NODE_ENABLE_LARGE_CODE_PAGES
+# include "large_pages/node_large_page.h"
+#endif
 
 #ifdef NODE_REPORT
-#include "node_report.h"
+# include "node_report.h"
 #endif
 
 #if defined(__APPLE__) || defined(__linux__)
-#define NODE_USE_V8_WASM_TRAP_HANDLER 1
+# define NODE_USE_V8_WASM_TRAP_HANDLER 1
 #else
-#define NODE_USE_V8_WASM_TRAP_HANDLER 0
+# define NODE_USE_V8_WASM_TRAP_HANDLER 0
 #endif
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER
-#include <atomic>
-#include "v8-wasm-trap-handler-posix.h"
+# include <atomic>
+# include "v8-wasm-trap-handler-posix.h"
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
 
 // ========== global C headers ==========
@@ -88,24 +90,24 @@
 #include <sys/types.h>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-#include <unicode/uvernum.h>
-#include <unicode/utypes.h>
+# include <unicode/uvernum.h>
+# include <unicode/utypes.h>
 #endif
 
 
 #if defined(LEAK_SANITIZER)
-#include <sanitizer/lsan_interface.h>
+# include <sanitizer/lsan_interface.h>
 #endif
 
 #if defined(_MSC_VER)
-#include <direct.h>
-#include <io.h>
-#define STDIN_FILENO 0
+# include <direct.h>
+# include <io.h>
+# define STDIN_FILENO 0
 #else
-#include <pthread.h>
-#include <sys/resource.h>  // getrlimit, setrlimit
-#include <termios.h>       // tcgetattr, tcsetattr
-#include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
+# include <pthread.h>
+# include <sys/resource.h>  // getrlimit, setrlimit
+# include <termios.h>       // tcgetattr, tcsetattr
+# include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
 
 // ========== global C++ headers ==========
@@ -490,14 +492,14 @@ void RegisterSignalHandler(int signal,
                            sigaction_cb handler,
                            bool reset_handler) {
   CHECK_NOT_NULL(handler);
-#if NODE_USE_V8_WASM_TRAP_HANDLER
+# if NODE_USE_V8_WASM_TRAP_HANDLER
   if (signal == SIGSEGV) {
     CHECK(previous_sigsegv_action.is_lock_free());
     CHECK(!reset_handler);
     previous_sigsegv_action.store(handler);
     return;
   }
-#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+# endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_sigaction = handler;
@@ -520,12 +522,12 @@ static struct {
 
 inline void PlatformInit() {
 #ifdef __POSIX__
-#if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
   const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
-#endif  // HAVE_INSPECTOR
+# endif  // HAVE_INSPECTOR
 
   // Make sure file descriptors 0-2 are valid before we start logging anything.
   for (auto& s : stdio) {
@@ -542,12 +544,12 @@ inline void PlatformInit() {
       ABORT();
   }
 
-#if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   CHECK_EQ(err, 0);
-#endif  // HAVE_INSPECTOR
+# endif  // HAVE_INSPECTOR
 
   // TODO(addaleax): NODE_SHARED_MODE does not really make sense here.
-#ifndef NODE_SHARED_MODE
+# ifndef NODE_SHARED_MODE
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -561,7 +563,7 @@ inline void PlatformInit() {
     act.sa_handler = (nr == SIGPIPE || nr == SIGXFSZ) ? SIG_IGN : SIG_DFL;
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
-#endif  // !NODE_SHARED_MODE
+# endif  // !NODE_SHARED_MODE
 
   // Record the state of the stdio file descriptors so we can restore it
   // on exit.  Needs to happen before installing signal handlers because
@@ -587,7 +589,7 @@ inline void PlatformInit() {
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
 
-#if NODE_USE_V8_WASM_TRAP_HANDLER
+# if NODE_USE_V8_WASM_TRAP_HANDLER
   // Tell V8 to disable emitting WebAssembly
   // memory bounds checks. This means that we have
   // to catch the SIGSEGV in TrapWebAssemblyOrContinue
@@ -599,7 +601,7 @@ inline void PlatformInit() {
     CHECK_EQ(sigaction(SIGSEGV, &sa, nullptr), 0);
   }
   V8::EnableWebAssemblyTrapHandler(false);
-#endif  // NODE_USE_V8_WASM_TRAP_HANDLER
+# endif  // NODE_USE_V8_WASM_TRAP_HANDLER
 
   // Raise the open file descriptor limit.
   struct rlimit lim;
@@ -832,7 +834,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
     credentials::SafeGetenv("NODE_ICU_DATA",
                             &per_process::cli_options->icu_data_dir);
 
-#ifdef NODE_ICU_DEFAULT_DATA_DIR
+# ifdef NODE_ICU_DEFAULT_DATA_DIR
   // If neither the CLI option nor the environment variable was specified,
   // fall back to the configured default
   if (per_process::cli_options->icu_data_dir.empty()) {
@@ -848,7 +850,7 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
       per_process::cli_options->icu_data_dir = NODE_ICU_DEFAULT_DATA_DIR;
     }
   }
-#endif  // NODE_ICU_DEFAULT_DATA_DIR
+# endif  // NODE_ICU_DEFAULT_DATA_DIR
 
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
@@ -973,11 +975,11 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
     if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
       crypto::UseExtraCaCerts(extra_ca_certs);
   }
-#ifdef NODE_FIPS_MODE
+# ifdef NODE_FIPS_MODE
   // In the case of FIPS builds we should make sure
   // the random source is properly initialized first.
   OPENSSL_init();
-#endif  // NODE_FIPS_MODE
+# endif  // NODE_FIPS_MODE
   // V8 on Windows doesn't have a good source of entropy. Seed it from
   // OpenSSL's pool.
   V8::SetEntropySource(crypto::EntropySource);

@@ -1,46 +1,46 @@
 #ifndef SRC_JS_NATIVE_API_H_
-#define SRC_JS_NATIVE_API_H_
+# define SRC_JS_NATIVE_API_H_
 
 // This file needs to be compatible with C compilers.
-#include <stddef.h>   // NOLINT(modernize-deprecated-headers)
-#include <stdbool.h>  // NOLINT(modernize-deprecated-headers)
-#include "js_native_api_types.h"
+# include <stddef.h>   // NOLINT(modernize-deprecated-headers)
+# include <stdbool.h>  // NOLINT(modernize-deprecated-headers)
+# include "js_native_api_types.h"
 
 // Use INT_MAX, this should only be consumed by the pre-processor anyway.
-#define NAPI_VERSION_EXPERIMENTAL 2147483647
-#ifndef NAPI_VERSION
-#ifdef NAPI_EXPERIMENTAL
-#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
-#else
+# define NAPI_VERSION_EXPERIMENTAL 2147483647
+# ifndef NAPI_VERSION
+#   ifdef NAPI_EXPERIMENTAL
+#     define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
+#   else
 // The baseline version for N-API.
 // The NAPI_VERSION controls which version will be used by default when
 // compilling a native addon. If the addon developer specifically wants to use
 // functions available in a new version of N-API that is not yet ported in all
 // LTS versions, they can set NAPI_VERSION knowing that they have specifically
 // depended on that version.
-#define NAPI_VERSION 5
-#endif
-#endif
+#     define NAPI_VERSION 5
+#   endif
+# endif
 
 // If you need __declspec(dllimport), either include <node_api.h> instead, or
 // define NAPI_EXTERN as __declspec(dllimport) on the compiler's command line.
-#ifndef NAPI_EXTERN
-  #ifdef _WIN32
-    #define NAPI_EXTERN __declspec(dllexport)
-  #else
-    #define NAPI_EXTERN __attribute__((visibility("default")))
-  #endif
-#endif
+# ifndef NAPI_EXTERN
+#   ifdef _WIN32
+#     define NAPI_EXTERN __declspec(dllexport)
+#   else
+#     define NAPI_EXTERN __attribute__((visibility("default")))
+#   endif
+# endif
 
-#define NAPI_AUTO_LENGTH SIZE_MAX
+# define NAPI_AUTO_LENGTH SIZE_MAX
 
-#ifdef __cplusplus
-#define EXTERN_C_START extern "C" {
-#define EXTERN_C_END }
-#else
-#define EXTERN_C_START
-#define EXTERN_C_END
-#endif
+# ifdef __cplusplus
+#   define EXTERN_C_START extern "C" {
+#   define EXTERN_C_END }
+# else
+#   define EXTERN_C_START
+#   define EXTERN_C_END
+# endif
 
 EXTERN_C_START
 
@@ -453,7 +453,7 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
                                                     int64_t change_in_bytes,
                                                     int64_t* adjusted_value);
 
-#if NAPI_VERSION >= 5
+# if NAPI_VERSION >= 5
 
 // Dates
 NAPI_EXTERN napi_status napi_create_date(napi_env env,
@@ -476,9 +476,9 @@ NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
                                            void* finalize_hint,
                                            napi_ref* result);
 
-#endif  // NAPI_VERSION >= 5
+# endif  // NAPI_VERSION >= 5
 
-#ifdef NAPI_EXPERIMENTAL
+# ifdef NAPI_EXPERIMENTAL
 
 // BigInt
 NAPI_EXTERN napi_status napi_create_bigint_int64(napi_env env,
@@ -531,7 +531,7 @@ NAPI_EXTERN napi_status napi_detach_arraybuffer(napi_env env,
 NAPI_EXTERN napi_status napi_is_detached_arraybuffer(napi_env env,
                                                      napi_value value,
                                                      bool* result);
-#endif  // NAPI_EXPERIMENTAL
+# endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END
 

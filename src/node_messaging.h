@@ -1,11 +1,11 @@
 #ifndef SRC_NODE_MESSAGING_H_
-#define SRC_NODE_MESSAGING_H_
+# define SRC_NODE_MESSAGING_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
-#include "node_mutex.h"
-#include <list>
+#   include "env.h"
+#   include "node_mutex.h"
+#   include <list>
 
 namespace node {
 namespace worker {
@@ -220,7 +220,7 @@ v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
 }  // namespace worker
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 
 #endif  // SRC_NODE_MESSAGING_H_

@@ -42,7 +42,7 @@
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
 #ifndef OPENSSL_NO_ENGINE
-  #include <openssl/engine.h>
+# include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -100,9 +100,9 @@ using v8::Undefined;
 using v8::Value;
 
 #ifdef OPENSSL_NO_OCB
-  #define IS_OCB_MODE(mode) false
+# define IS_OCB_MODE(mode) false
 #else
-  #define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
+# define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
 #endif
 
 static const char* const root_certs[] = {

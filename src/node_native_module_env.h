@@ -1,9 +1,9 @@
 #ifndef SRC_NODE_NATIVE_MODULE_ENV_H_
-#define SRC_NODE_NATIVE_MODULE_ENV_H_
+# define SRC_NODE_NATIVE_MODULE_ENV_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_native_module.h"
+#   include "node_native_module.h"
 
 namespace node {
 class Environment;
@@ -60,6 +60,6 @@ class NativeModuleEnv {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_NATIVE_MODULE_ENV_H_

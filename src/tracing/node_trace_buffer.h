@@ -1,11 +1,11 @@
 #ifndef SRC_TRACING_NODE_TRACE_BUFFER_H_
-#define SRC_TRACING_NODE_TRACE_BUFFER_H_
+# define SRC_TRACING_NODE_TRACE_BUFFER_H_
 
-#include "tracing/agent.h"
-#include "node_mutex.h"
-#include "libplatform/v8-tracing.h"
+# include "tracing/agent.h"
+# include "node_mutex.h"
+# include "libplatform/v8-tracing.h"
 
-#include <atomic>
+# include <atomic>
 
 namespace node {
 namespace tracing {

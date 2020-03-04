@@ -20,9 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_CRYPTO_GROUPS_H_
-#define SRC_NODE_CRYPTO_GROUPS_H_
+# define SRC_NODE_CRYPTO_GROUPS_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 /*
     These modular groups were literally taken from:
@@ -398,7 +398,7 @@ typedef struct {
 } modp_group;
 
 static const modp_group modp_groups[] = {
-#define V(var) reinterpret_cast<const char*>(var)
+#   define V(var) reinterpret_cast<const char*>(var)
   { "modp1", V(group_modp1), sizeof(group_modp1), two_generator },
   { "modp2", V(group_modp2), sizeof(group_modp2), two_generator },
   { "modp5", V(group_modp5), sizeof(group_modp5), two_generator },
@@ -407,9 +407,9 @@ static const modp_group modp_groups[] = {
   { "modp16", V(group_modp16), sizeof(group_modp16), two_generator },
   { "modp17", V(group_modp17), sizeof(group_modp17), two_generator },
   { "modp18", V(group_modp18), sizeof(group_modp18), two_generator }
-#undef V
+#   undef V
 };
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_GROUPS_H_

@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_THREADPOOLWORK_INL_H_
-#define SRC_THREADPOOLWORK_INL_H_
+# define SRC_THREADPOOLWORK_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util-inl.h"
-#include "node_internals.h"
+#   include "util-inl.h"
+#   include "node_internals.h"
 
 namespace node {
 
@@ -52,6 +52,6 @@ int ThreadPoolWork::CancelWork() {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_THREADPOOLWORK_INL_H_

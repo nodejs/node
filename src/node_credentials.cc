@@ -3,12 +3,12 @@
 #include "util-inl.h"
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
-#include <grp.h>  // getgrnam()
-#include <pwd.h>  // getpwnam()
+# include <grp.h>  // getgrnam()
+# include <pwd.h>  // getpwnam()
 #endif            // NODE_IMPLEMENTS_POSIX_CREDENTIALS
 
 #if !defined(_MSC_VER)
-#include <unistd.h>  // setuid, getuid
+# include <unistd.h>  // setuid, getuid
 #endif
 
 namespace node {
@@ -133,7 +133,7 @@ static gid_t gid_by_name(const char* name) {
   return gid_not_found;
 }
 
-#if 0  // For future use.
+# if 0  // For future use.
 static const char* name_by_gid(gid_t gid) {
   struct group pwd;
   struct group* pp;
@@ -153,7 +153,7 @@ static const char* name_by_gid(gid_t gid) {
 
   return nullptr;
 }
-#endif
+# endif
 
 static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
   if (value->IsUint32()) {

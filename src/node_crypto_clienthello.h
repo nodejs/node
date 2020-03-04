@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_H_
-#define SRC_NODE_CRYPTO_CLIENTHELLO_H_
+# define SRC_NODE_CRYPTO_CLIENTHELLO_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <cstddef>  // size_t
-#include <cstdint>
+#   include <cstddef>  // size_t
+#   include <cstdint>
 
 namespace node {
 namespace crypto {
@@ -127,6 +127,6 @@ class ClientHelloParser {
 }  // namespace crypto
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_H_

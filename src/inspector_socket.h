@@ -1,13 +1,13 @@
 #ifndef SRC_INSPECTOR_SOCKET_H_
-#define SRC_INSPECTOR_SOCKET_H_
+# define SRC_INSPECTOR_SOCKET_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
-#include "uv.h"
+#   include "util.h"
+#   include "uv.h"
 
-#include <string>
-#include <vector>
+#   include <string>
+#   include <vector>
 
 namespace node {
 namespace inspector {
@@ -55,6 +55,6 @@ class InspectorSocket {
 }  // namespace inspector
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_SOCKET_H_

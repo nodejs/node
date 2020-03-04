@@ -12,7 +12,7 @@
 #include "v8.h"
 
 #ifdef _WIN32
-#include <windows.h>
+# include <windows.h>
 
 int wmain(int argc, wchar_t* argv[]) {
 #else   // UNIX

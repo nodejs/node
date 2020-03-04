@@ -36,7 +36,7 @@
 #include <unordered_set>
 
 #ifdef __POSIX__
-  #include <netdb.h>
+# include <netdb.h>
 #endif  // __POSIX__
 
 #if defined(__ANDROID__) || \
@@ -44,13 +44,13 @@
     defined(__OpenBSD__) || \
     defined(_MSC_VER)
 
-  #include <nameser.h>
+# include <nameser.h>
 #else
-  #include <arpa/nameser.h>
+# include <arpa/nameser.h>
 #endif
 
 #if defined(__OpenBSD__)
-  #define AI_V4MAPPED 0
+# define AI_V4MAPPED 0
 #endif
 
 namespace node {

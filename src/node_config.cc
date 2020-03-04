@@ -50,17 +50,17 @@ static void Initialize(Local<Object> target,
 
   READONLY_TRUE_PROPERTY(target, "hasIntl");
 
-#ifdef NODE_HAVE_SMALL_ICU
+# ifdef NODE_HAVE_SMALL_ICU
   READONLY_TRUE_PROPERTY(target, "hasSmallICU");
-#endif  // NODE_HAVE_SMALL_ICU
+# endif  // NODE_HAVE_SMALL_ICU
 
-#if NODE_USE_V8_PLATFORM
+# if NODE_USE_V8_PLATFORM
   READONLY_TRUE_PROPERTY(target, "hasTracing");
-#endif
+# endif
 
-#if !defined(NODE_WITHOUT_NODE_OPTIONS)
+# if !defined(NODE_WITHOUT_NODE_OPTIONS)
   READONLY_TRUE_PROPERTY(target, "hasNodeOptions");
-#endif
+# endif
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 

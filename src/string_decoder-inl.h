@@ -1,9 +1,9 @@
 #ifndef SRC_STRING_DECODER_INL_H_
-#define SRC_STRING_DECODER_INL_H_
+# define SRC_STRING_DECODER_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "string_decoder.h"
+#   include "string_decoder.h"
 
 namespace node {
 
@@ -32,6 +32,6 @@ char* StringDecoder::IncompleteCharacterBuffer() {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif   // SRC_STRING_DECODER_INL_H_

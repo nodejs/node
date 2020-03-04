@@ -1,9 +1,9 @@
 #ifndef _WIN32
-#include <node.h>
-#include <v8.h>
-#include <uv.h>
-#include <assert.h>
-#include <unistd.h>
+# include <node.h>
+# include <v8.h>
+# include <uv.h>
+# include <assert.h>
+# include <unistd.h>
 
 using v8::Boolean;
 using v8::FunctionCallbackInfo;

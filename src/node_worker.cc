@@ -9,7 +9,7 @@
 #include "async_wrap-inl.h"
 
 #if HAVE_INSPECTOR
-#include "inspector/worker_inspector.h"  // ParentInspectorHandle
+# include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
 
 #include <memory>

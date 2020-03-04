@@ -1,10 +1,10 @@
 #ifndef SRC_JS_STREAM_H_
-#define SRC_JS_STREAM_H_
+# define SRC_JS_STREAM_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "async_wrap.h"
-#include "stream_base.h"
+#   include "async_wrap.h"
+#   include "stream_base.h"
 
 namespace node {
 
@@ -47,6 +47,6 @@ class JSStream : public AsyncWrap, public StreamBase {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_JS_STREAM_H_

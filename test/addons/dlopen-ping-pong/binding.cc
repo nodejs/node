@@ -3,7 +3,7 @@
 
 #ifndef _WIN32
 
-#include <dlfcn.h>
+# include <dlfcn.h>
 
 extern "C"
 __attribute__((visibility("default")))

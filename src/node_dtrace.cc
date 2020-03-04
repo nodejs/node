@@ -22,24 +22,24 @@
 #include "node_dtrace.h"
 
 #ifdef HAVE_DTRACE
-#include "node_provider.h"
+# include "node_provider.h"
 #elif HAVE_ETW
-#include "node_win32_etw_provider-inl.h"
+# include "node_win32_etw_provider-inl.h"
 #else
-#define NODE_HTTP_SERVER_REQUEST(arg0, arg1)
-#define NODE_HTTP_SERVER_REQUEST_ENABLED() (0)
-#define NODE_HTTP_SERVER_RESPONSE(arg0)
-#define NODE_HTTP_SERVER_RESPONSE_ENABLED() (0)
-#define NODE_HTTP_CLIENT_REQUEST(arg0, arg1)
-#define NODE_HTTP_CLIENT_REQUEST_ENABLED() (0)
-#define NODE_HTTP_CLIENT_RESPONSE(arg0)
-#define NODE_HTTP_CLIENT_RESPONSE_ENABLED() (0)
-#define NODE_NET_SERVER_CONNECTION(arg0)
-#define NODE_NET_SERVER_CONNECTION_ENABLED() (0)
-#define NODE_NET_STREAM_END(arg0)
-#define NODE_NET_STREAM_END_ENABLED() (0)
-#define NODE_GC_START(arg0, arg1, arg2)
-#define NODE_GC_DONE(arg0, arg1, arg2)
+# define NODE_HTTP_SERVER_REQUEST(arg0, arg1)
+# define NODE_HTTP_SERVER_REQUEST_ENABLED() (0)
+# define NODE_HTTP_SERVER_RESPONSE(arg0)
+# define NODE_HTTP_SERVER_RESPONSE_ENABLED() (0)
+# define NODE_HTTP_CLIENT_REQUEST(arg0, arg1)
+# define NODE_HTTP_CLIENT_REQUEST_ENABLED() (0)
+# define NODE_HTTP_CLIENT_RESPONSE(arg0)
+# define NODE_HTTP_CLIENT_RESPONSE_ENABLED() (0)
+# define NODE_NET_SERVER_CONNECTION(arg0)
+# define NODE_NET_SERVER_CONNECTION_ENABLED() (0)
+# define NODE_NET_STREAM_END(arg0)
+# define NODE_NET_STREAM_END_ENABLED() (0)
+# define NODE_GC_START(arg0, arg1, arg2)
+# define NODE_GC_DONE(arg0, arg1, arg2)
 #endif
 
 #include "env-inl.h"
@@ -296,14 +296,14 @@ void InitializeDTrace(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
-  #define NODE_PROBE(name) env->SetMethod(target, #name, name);
+# define NODE_PROBE(name) env->SetMethod(target, #name, name);
   NODE_PROBE(DTRACE_NET_SERVER_CONNECTION)
   NODE_PROBE(DTRACE_NET_STREAM_END)
   NODE_PROBE(DTRACE_HTTP_SERVER_REQUEST)
   NODE_PROBE(DTRACE_HTTP_SERVER_RESPONSE)
   NODE_PROBE(DTRACE_HTTP_CLIENT_REQUEST)
   NODE_PROBE(DTRACE_HTTP_CLIENT_RESPONSE)
-  #undef NODE_PROBE
+# undef NODE_PROBE
 #endif
 }
 

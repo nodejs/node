@@ -1,9 +1,9 @@
 #ifndef SRC_NODE_DIR_H_
-#define SRC_NODE_DIR_H_
+# define SRC_NODE_DIR_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_file.h"
+#   include "node_file.h"
 
 namespace node {
 
@@ -47,6 +47,6 @@ class DirHandle : public AsyncWrap {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_DIR_H_

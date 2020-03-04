@@ -20,18 +20,18 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_ASYNC_WRAP_H_
-#define SRC_ASYNC_WRAP_H_
+# define SRC_ASYNC_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "base_object.h"
-#include "v8.h"
+#   include "base_object.h"
+#   include "v8.h"
 
-#include <cstdint>
+#   include <cstdint>
 
 namespace node {
 
-#define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                               \
+#   define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                            \
   V(NONE)                                                                     \
   V(DIRHANDLE)                                                                \
   V(DNSCHANNEL)                                                               \
@@ -74,25 +74,25 @@ namespace node {
   V(WRITEWRAP)                                                                \
   V(ZLIB)
 
-#if HAVE_OPENSSL
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
+#   if HAVE_OPENSSL
+#     define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                              \
   V(PBKDF2REQUEST)                                                            \
   V(KEYPAIRGENREQUEST)                                                        \
   V(RANDOMBYTESREQUEST)                                                       \
   V(SCRYPTREQUEST)                                                            \
   V(TLSWRAP)
-#else
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
-#endif  // HAVE_OPENSSL
+#   else
+#     define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
+#   endif  // HAVE_OPENSSL
 
-#if HAVE_INSPECTOR
-#define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)                                \
+#   if HAVE_INSPECTOR
+#     define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)                           \
   V(INSPECTORJSBINDING)
-#else
-#define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
-#endif  // HAVE_INSPECTOR
+#   else
+#     define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
+#   endif  // HAVE_INSPECTOR
 
-#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
+#   define NODE_ASYNC_PROVIDER_TYPES(V)                                       \
   NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                     \
   NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                         \
   NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
@@ -103,10 +103,10 @@ class DestroyParam;
 class AsyncWrap : public BaseObject {
  public:
   enum ProviderType {
-#define V(PROVIDER)                                                           \
+#   define V(PROVIDER)                                                        \
     PROVIDER_ ## PROVIDER,
     NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
+#   undef V
     PROVIDERS_LENGTH,
   };
 
@@ -222,6 +222,6 @@ class AsyncWrap : public BaseObject {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ASYNC_WRAP_H_

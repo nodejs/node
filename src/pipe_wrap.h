@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_PIPE_WRAP_H_
-#define SRC_PIPE_WRAP_H_
+# define SRC_PIPE_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "async_wrap.h"
-#include "connection_wrap.h"
+#   include "async_wrap.h"
+#   include "connection_wrap.h"
 
 namespace node {
 
@@ -63,16 +63,16 @@ class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
   static void Connect(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-#ifdef _WIN32
+#   ifdef _WIN32
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif
+#   endif
   static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_PIPE_WRAP_H_

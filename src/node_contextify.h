@@ -1,11 +1,11 @@
 #ifndef SRC_NODE_CONTEXTIFY_H_
-#define SRC_NODE_CONTEXTIFY_H_
+# define SRC_NODE_CONTEXTIFY_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "base_object-inl.h"
-#include "node_context_data.h"
-#include "node_errors.h"
+#   include "base_object-inl.h"
+#   include "node_context_data.h"
+#   include "node_errors.h"
 
 namespace node {
 namespace contextify {
@@ -156,6 +156,6 @@ class CompiledFnEntry final : public BaseObject {
 }  // namespace contextify
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CONTEXTIFY_H_

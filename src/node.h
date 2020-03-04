@@ -20,98 +20,98 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_H_
-#define SRC_NODE_H_
+# define SRC_NODE_H_
 
-#ifdef _WIN32
-  #ifndef BUILDING_NODE_EXTENSION
-    #define NODE_EXTERN __declspec(dllexport)
-  #else
-    #define NODE_EXTERN __declspec(dllimport)
-  #endif
-#else
-  #define NODE_EXTERN __attribute__((visibility("default")))
-#endif
+# ifdef _WIN32
+#   ifndef BUILDING_NODE_EXTENSION
+#     define NODE_EXTERN __declspec(dllexport)
+#   else
+#     define NODE_EXTERN __declspec(dllimport)
+#   endif
+# else
+#   define NODE_EXTERN __attribute__((visibility("default")))
+# endif
 
-#ifdef BUILDING_NODE_EXTENSION
-  #undef BUILDING_V8_SHARED
-  #undef BUILDING_UV_SHARED
-  #define USING_V8_SHARED 1
-  #define USING_UV_SHARED 1
-#endif
+# ifdef BUILDING_NODE_EXTENSION
+#   undef BUILDING_V8_SHARED
+#   undef BUILDING_UV_SHARED
+#   define USING_V8_SHARED 1
+#   define USING_UV_SHARED 1
+# endif
 
 // This should be defined in make system.
 // See issue https://github.com/nodejs/node-v0.x-archive/issues/1236
-#if defined(__MINGW32__) || defined(_MSC_VER)
-#ifndef _WIN32_WINNT
-  #define _WIN32_WINNT 0x0600  // Windows Server 2008
-#endif
+# if defined(__MINGW32__) || defined(_MSC_VER)
+#   ifndef _WIN32_WINNT
+#     define _WIN32_WINNT 0x0600  // Windows Server 2008
+#   endif
 
-#ifndef NOMINMAX
-  #define NOMINMAX
-#endif
+#   ifndef NOMINMAX
+#     define NOMINMAX
+#   endif
 
-#endif
+# endif
 
-#if defined(_MSC_VER)
-#define PATH_MAX MAX_PATH
-#endif
+# if defined(_MSC_VER)
+#   define PATH_MAX MAX_PATH
+# endif
 
-#ifdef _WIN32
-  #define SIGKILL 9
-#endif
+# ifdef _WIN32
+#   define SIGKILL 9
+# endif
 
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
-#include "v8.h"  // NOLINT(build/include_order)
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+# if (__GNUC__ >= 8) && !defined(__clang__)
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wcast-function-type"
+# endif
+# include "v8.h"  // NOLINT(build/include_order)
+# if (__GNUC__ >= 8) && !defined(__clang__)
+#   pragma GCC diagnostic pop
+# endif
 
-#include "v8-platform.h"  // NOLINT(build/include_order)
-#include "node_version.h"  // NODE_MODULE_VERSION
+# include "v8-platform.h"  // NOLINT(build/include_order)
+# include "node_version.h"  // NODE_MODULE_VERSION
 
-#include <memory>
+# include <memory>
 
 // We cannot use __POSIX__ in this header because that's only defined when
 // building Node.js.
-#ifndef _WIN32
-#include <signal.h>
-#endif  // _WIN32
+# ifndef _WIN32
+#   include <signal.h>
+# endif  // _WIN32
 
-#define NODE_MAKE_VERSION(major, minor, patch)                                \
+# define NODE_MAKE_VERSION(major, minor, patch)                               \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
 
-#ifdef __clang__
-  #define NODE_CLANG_AT_LEAST(major, minor, patch)                            \
+# ifdef __clang__
+#   define NODE_CLANG_AT_LEAST(major, minor, patch)                            \
   (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
       NODE_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
-#else
-  #define NODE_CLANG_AT_LEAST(major, minor, patch) (0)
-#endif
+# else
+#   define NODE_CLANG_AT_LEAST(major, minor, patch) (0)
+# endif
 
-#ifdef __GNUC__
-  #define NODE_GNUC_AT_LEAST(major, minor, patch)                             \
+# ifdef __GNUC__
+#   define NODE_GNUC_AT_LEAST(major, minor, patch)                             \
   (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
       NODE_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
-#else
-  #define NODE_GNUC_AT_LEAST(major, minor, patch) (0)
-#endif
+# else
+#   define NODE_GNUC_AT_LEAST(major, minor, patch) (0)
+# endif
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-  #define NODE_DEPRECATED(message, declarator) declarator
-#else  // NODE_WANT_INTERNALS
-  #if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-    #define NODE_DEPRECATED(message, declarator)                              \
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#   define NODE_DEPRECATED(message, declarator) declarator
+# else  // NODE_WANT_INTERNALS
+#   if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
+#     define NODE_DEPRECATED(message, declarator)                              \
     __attribute__((deprecated(message))) declarator
-  #elif defined(_MSC_VER)
-    #define NODE_DEPRECATED(message, declarator)                              \
+#   elif defined(_MSC_VER)
+#     define NODE_DEPRECATED(message, declarator)                              \
     __declspec(deprecated) declarator
-  #else
-    #define NODE_DEPRECATED(message, declarator) declarator
-  #endif
-#endif
+#   else
+#     define NODE_DEPRECATED(message, declarator) declarator
+#   endif
+# endif
 
 // Forward-declare libuv loop
 struct uv_loop_s;
@@ -194,23 +194,23 @@ NODE_DEPRECATED("Use MakeCallback(..., async_context)",
 
 }  // namespace node
 
-#include <cassert>
-#include <cstdint>
+# include <cassert>
+# include <cstdint>
 
-#ifndef NODE_STRINGIFY
-  #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
-  #define NODE_STRINGIFY_HELPER(n) #n
-#endif
+# ifndef NODE_STRINGIFY
+#   define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
+#   define NODE_STRINGIFY_HELPER(n) #n
+# endif
 
-#ifdef _WIN32
-#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
+# ifdef _WIN32
+#   if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
 typedef intptr_t ssize_t;
-  #define _SSIZE_T_
-  #define _SSIZE_T_DEFINED
-#endif
-#else  // !_WIN32
-  #include <sys/types.h>  // size_t, ssize_t
-#endif  // _WIN32
+#     define _SSIZE_T_
+#     define _SSIZE_T_DEFINED
+#   endif
+# else  // !_WIN32
+#   include <sys/types.h>  // size_t, ssize_t
+# endif  // _WIN32
 
 
 namespace node {
@@ -427,14 +427,14 @@ NODE_DEPRECATED("Use v8::Date::New() directly",
                              1000 * time)
                       .ToLocalChecked();
                 })
-#define NODE_UNIXTIME_V8 node::NODE_UNIXTIME_V8
+# define NODE_UNIXTIME_V8 node::NODE_UNIXTIME_V8
 NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
                 inline double NODE_V8_UNIXTIME(v8::Local<v8::Date> date) {
   return date->ValueOf() / 1000;
 })
-#define NODE_V8_UNIXTIME node::NODE_V8_UNIXTIME
+# define NODE_V8_UNIXTIME node::NODE_V8_UNIXTIME
 
-#define NODE_DEFINE_CONSTANT(target, constant)                                \
+# define NODE_DEFINE_CONSTANT(target, constant)                                \
   do {                                                                        \
     v8::Isolate* isolate = target->GetIsolate();                              \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
@@ -452,7 +452,7 @@ NODE_DEPRECATED("Use v8::Date::ValueOf() directly",
   }                                                                           \
   while (0)
 
-#define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                         \
+# define NODE_DEFINE_HIDDEN_CONSTANT(target, constant)                         \
   do {                                                                        \
     v8::Isolate* isolate = target->GetIsolate();                              \
     v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
@@ -502,7 +502,7 @@ inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
   fn->SetName(fn_name);
   recv->Set(context, fn_name, fn).Check();
 }
-#define NODE_SET_METHOD node::NODE_SET_METHOD
+# define NODE_SET_METHOD node::NODE_SET_METHOD
 
 // Used to be a macro, hence the uppercase name.
 // Not a template because it only makes sense for FunctionTemplates.
@@ -519,7 +519,7 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate> recv,
   t->SetClassName(fn_name);
   recv->PrototypeTemplate()->Set(fn_name, t);
 }
-#define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
+# define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
 // BINARY is a deprecated alias of LATIN1.
 enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER, LATIN1 = BINARY};
@@ -553,14 +553,14 @@ NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
                                 size_t buflen,
                                 v8::Local<v8::Value>,
                                 enum encoding encoding = LATIN1);
-#ifdef _WIN32
+# ifdef _WIN32
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     v8::Isolate* isolate,
     int errorno,
     const char* syscall = nullptr,
     const char* msg = "",
     const char* path = nullptr);
-#endif
+# endif
 
 const char* signo_string(int errorno);
 
@@ -594,32 +594,32 @@ struct node_module {
 
 extern "C" NODE_EXTERN void node_module_register(void* mod);
 
-#ifdef _WIN32
-  #define NODE_MODULE_EXPORT __declspec(dllexport)
-#else
-  #define NODE_MODULE_EXPORT __attribute__((visibility("default")))
-#endif
+# ifdef _WIN32
+#   define NODE_MODULE_EXPORT __declspec(dllexport)
+# else
+#   define NODE_MODULE_EXPORT __attribute__((visibility("default")))
+# endif
 
-#ifdef NODE_SHARED_MODE
-  #define NODE_CTOR_PREFIX
-#else
-  #define NODE_CTOR_PREFIX static
-#endif
+# ifdef NODE_SHARED_MODE
+#   define NODE_CTOR_PREFIX
+# else
+#   define NODE_CTOR_PREFIX static
+# endif
 
-#if defined(_MSC_VER)
-#pragma section(".CRT$XCU", read)
-#define NODE_C_CTOR(fn)                                               \
+# if defined(_MSC_VER)
+#   pragma section(".CRT$XCU", read)
+#   define NODE_C_CTOR(fn)                                               \
   NODE_CTOR_PREFIX void __cdecl fn(void);                             \
   __declspec(dllexport, allocate(".CRT$XCU"))                         \
       void (__cdecl*fn ## _)(void) = fn;                              \
   NODE_CTOR_PREFIX void __cdecl fn(void)
-#else
-#define NODE_C_CTOR(fn)                                               \
+# else
+#   define NODE_C_CTOR(fn)                                               \
   NODE_CTOR_PREFIX void fn(void) __attribute__((constructor));        \
   NODE_CTOR_PREFIX void fn(void)
-#endif
+# endif
 
-#define NODE_MODULE_X(modname, regfunc, priv, flags)                  \
+# define NODE_MODULE_X(modname, regfunc, priv, flags)                  \
   extern "C" {                                                        \
     static node::node_module _module =                                \
     {                                                                 \
@@ -638,7 +638,7 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
     }                                                                 \
   }
 
-#define NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, priv, flags)    \
+# define NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, priv, flags)    \
   extern "C" {                                                        \
     static node::node_module _module =                                \
     {                                                                 \
@@ -660,17 +660,17 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 // Usage: `NODE_MODULE(NODE_GYP_MODULE_NAME, InitializerFunction)`
 // If no NODE_MODULE is declared, Node.js looks for the well-known
 // symbol `node_register_module_v${NODE_MODULE_VERSION}`.
-#define NODE_MODULE(modname, regfunc)                                 \
+# define NODE_MODULE(modname, regfunc)                                 \
   NODE_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
-#define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
+# define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
   /* NOLINTNEXTLINE (readability/null_usage) */                       \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
 
 // Embedders can use this type of binding for statically linked native bindings.
 // It is used the same way addon bindings are used, except that linked bindings
 // can be accessed through `process._linkedBinding(modname)`.
-#define NODE_MODULE_LINKED(modname, regfunc)                               \
+# define NODE_MODULE_LINKED(modname, regfunc)                               \
   /* NOLINTNEXTLINE (readability/null_usage) */                            \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL,                      \
                               node::ModuleFlags::kLinked)
@@ -678,20 +678,20 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 /*
  * For backward compatibility in add-on modules.
  */
-#define NODE_MODULE_DECL /* nothing */
+# define NODE_MODULE_DECL /* nothing */
 
-#define NODE_MODULE_INITIALIZER_BASE node_register_module_v
+# define NODE_MODULE_INITIALIZER_BASE node_register_module_v
 
-#define NODE_MODULE_INITIALIZER_X(base, version)                      \
+# define NODE_MODULE_INITIALIZER_X(base, version)                      \
     NODE_MODULE_INITIALIZER_X_HELPER(base, version)
 
-#define NODE_MODULE_INITIALIZER_X_HELPER(base, version) base##version
+# define NODE_MODULE_INITIALIZER_X_HELPER(base, version) base##version
 
-#define NODE_MODULE_INITIALIZER                                       \
+# define NODE_MODULE_INITIALIZER                                       \
   NODE_MODULE_INITIALIZER_X(NODE_MODULE_INITIALIZER_BASE,             \
       NODE_MODULE_VERSION)
 
-#define NODE_MODULE_INIT()                                            \
+# define NODE_MODULE_INIT()                                            \
   extern "C" NODE_MODULE_EXPORT void                                  \
   NODE_MODULE_INITIALIZER(v8::Local<v8::Object> exports,              \
                           v8::Local<v8::Value> module,                \
@@ -904,7 +904,7 @@ class NODE_EXTERN AsyncResource {
   async_context async_context_;
 };
 
-#ifndef _WIN32
+# ifndef _WIN32
 // Register a signal handler without interrupting any handlers that node
 // itself needs. This does override handlers registered through
 // process.on('SIG...', function() { ... }). The `reset_handler` flag indicates
@@ -917,7 +917,7 @@ void RegisterSignalHandler(int signal,
                                            siginfo_t* info,
                                            void* ucontext),
                            bool reset_handler = false);
-#endif  // _WIN32
+# endif  // _WIN32
 
 }  // namespace node
 

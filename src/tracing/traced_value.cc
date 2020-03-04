@@ -5,8 +5,8 @@
 #include "tracing/traced_value.h"
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-#include <unicode/utf8.h>
-#include <unicode/utypes.h>
+# include <unicode/utf8.h>
+# include <unicode/utypes.h>
 #endif
 
 #include <cmath>
@@ -16,9 +16,9 @@
 
 #if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
-#define FPCLASSIFY_NAMESPACE
+# define FPCLASSIFY_NAMESPACE
 #else
-#define FPCLASSIFY_NAMESPACE std
+# define FPCLASSIFY_NAMESPACE std
 #endif
 
 namespace node {

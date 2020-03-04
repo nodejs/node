@@ -56,10 +56,10 @@ int GenDebugSymbols() {
       OffsetOf<ListNode<ReqWrapBase>, ReqWrap<uv_req_t>>(
           &ReqWrap<uv_req_t>::req_wrap_queue_);
 
-  #define V(Class, Member, Type, Accessor)                                    \
+#define V(Class, Member, Type, Accessor)                                    \
     NODEDBG_OFFSET(Class, Member, Type) = OffsetOf(&Accessor);
     NODE_OFFSET_POSTMORTEM_METADATA(V)
-  #undef V
+#undef V
 
   return 1;
 }

@@ -23,9 +23,9 @@
 #include <cstdio>
 
 #ifdef _WIN32
-#include <windows.h>
-#include <VersionHelpers.h>
-#include <WinError.h>
+# include <windows.h>
+# include <VersionHelpers.h>
+# include <WinError.h>
 
 int wmain(int argc, wchar_t* wargv[]) {
   if (!IsWindows7OrGreater()) {
@@ -73,19 +73,19 @@ int wmain(int argc, wchar_t* wargv[]) {
 }
 #else
 // UNIX
-#ifdef __linux__
-#include <elf.h>
-#ifdef __LP64__
-#define Elf_auxv_t Elf64_auxv_t
-#else
-#define Elf_auxv_t Elf32_auxv_t
-#endif  // __LP64__
+# ifdef __linux__
+#   include <elf.h>
+#   ifdef __LP64__
+#     define Elf_auxv_t Elf64_auxv_t
+#   else
+#     define Elf_auxv_t Elf32_auxv_t
+#   endif  // __LP64__
 extern char** environ;
-#endif  // __linux__
-#if defined(__POSIX__) && defined(NODE_SHARED_MODE)
-#include <string.h>
-#include <signal.h>
-#endif
+# endif  // __linux__
+# if defined(__POSIX__) && defined(NODE_SHARED_MODE)
+#   include <string.h>
+#   include <signal.h>
+# endif
 
 namespace node {
 namespace per_process {
@@ -94,7 +94,7 @@ extern bool linux_at_secure;
 }  // namespace node
 
 int main(int argc, char* argv[]) {
-#if defined(__POSIX__) && defined(NODE_SHARED_MODE)
+# if defined(__POSIX__) && defined(NODE_SHARED_MODE)
   // In node::PlatformInit(), we squash all signal handlers for non-shared lib
   // build. In order to run test cases against shared lib build, we also need
   // to do the same thing for shared lib build here, but only for SIGPIPE for
@@ -106,9 +106,9 @@ int main(int argc, char* argv[]) {
     act.sa_handler = SIG_IGN;
     sigaction(SIGPIPE, &act, nullptr);
   }
-#endif
+# endif
 
-#if defined(__linux__)
+# if defined(__linux__)
   char** envp = environ;
   while (*envp++ != nullptr) {}
   Elf_auxv_t* auxv = reinterpret_cast<Elf_auxv_t*>(envp);
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
       break;
     }
   }
-#endif
+# endif
   // Disable stdio buffering, it interacts poorly with printf()
   // calls elsewhere in the program (e.g., any logging from V8.)
   setvbuf(stdout, nullptr, _IONBF, 0);

@@ -20,20 +20,20 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_H_
-#define SRC_NODE_WIN32_ETW_PROVIDER_H_
+# define SRC_NODE_WIN32_ETW_PROVIDER_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_dtrace.h"
-#include <evntprov.h>
+#   include "node_dtrace.h"
+#   include <evntprov.h>
 
 namespace node {
 
-#if defined(_MSC_VER)
-  #define INLINE __forceinline
-#else
-  #define INLINE inline
-#endif
+#   if defined(_MSC_VER)
+#     define INLINE __forceinline
+#   else
+#     define INLINE inline
+#   endif
 
 typedef ULONG (NTAPI* EventRegisterFunc)(
   LPCGUID ProviderId,
@@ -94,6 +94,6 @@ INLINE bool NODE_V8SYMBOL_ENABLED();
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WIN32_ETW_PROVIDER_H_

@@ -627,14 +627,14 @@ AsyncWrap::~AsyncWrap() {
 
 void AsyncWrap::EmitTraceEventDestroy() {
   switch (provider_type()) {
-  #define V(PROVIDER)                                                         \
+#define V(PROVIDER)                                                         \
     case PROVIDER_ ## PROVIDER:                                               \
       TRACE_EVENT_NESTABLE_ASYNC_END0(                                        \
         TRACING_CATEGORY_NODE1(async_hooks),                                  \
         #PROVIDER, static_cast<int64_t>(get_async_id()));                     \
       break;
     NODE_ASYNC_PROVIDER_TYPES(V)
-  #undef V
+#undef V
     default:
       UNREACHABLE();
   }

@@ -20,23 +20,23 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_ENV_INL_H_
-#define SRC_ENV_INL_H_
+# define SRC_ENV_INL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "aliased_buffer.h"
-#include "env.h"
-#include "node.h"
-#include "util-inl.h"
-#include "uv.h"
-#include "v8.h"
-#include "node_perf_common.h"
-#include "node_context_data.h"
+#   include "aliased_buffer.h"
+#   include "env.h"
+#   include "node.h"
+#   include "util-inl.h"
+#   include "uv.h"
+#   include "v8.h"
+#   include "node_perf_common.h"
+#   include "node_context_data.h"
 
-#include <cstddef>
-#include <cstdint>
+#   include <cstddef>
+#   include <cstdint>
 
-#include <utility>
+#   include <utility>
 
 namespace node {
 
@@ -90,7 +90,7 @@ inline AsyncHooks::AsyncHooks()
   // Create all the provider strings that will be passed to JS. Place them in
   // an array so the array index matches the PROVIDER id offset. This way the
   // strings can be retrieved quickly.
-#define V(Provider)                                                           \
+#   define V(Provider)                                                        \
   providers_[AsyncWrap::PROVIDER_ ## Provider].Set(                           \
       env()->isolate(),                                                       \
       v8::String::NewFromOneByte(                                             \
@@ -99,7 +99,7 @@ inline AsyncHooks::AsyncHooks()
         v8::NewStringType::kInternalized,                                     \
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
+#   undef V
 }
 inline AliasedUint32Array& AsyncHooks::fields() {
   return fields_;
@@ -288,9 +288,9 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
   // Used by Environment::GetCurrent to know that we are on a node context.
   context->SetAlignedPointerInEmbedderData(
     ContextEmbedderIndex::kContextTag, Environment::kNodeContextTagPtr);
-#if HAVE_INSPECTOR
+#   if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
-#endif  // HAVE_INSPECTOR
+#   endif  // HAVE_INSPECTOR
 }
 
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
@@ -422,7 +422,7 @@ inline void Environment::TryLoadAddon(
   }
 }
 
-#if HAVE_INSPECTOR
+#   if HAVE_INSPECTOR
 inline bool Environment::is_in_inspector_console_call() const {
   return is_in_inspector_console_call_;
 }
@@ -430,7 +430,7 @@ inline bool Environment::is_in_inspector_console_call() const {
 inline void Environment::set_is_in_inspector_console_call(bool value) {
   is_in_inspector_console_call_ = value;
 }
-#endif
+#   endif
 
 inline AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
@@ -652,7 +652,7 @@ inline const std::string& Environment::exec_path() const {
   return exec_path_;
 }
 
-#if HAVE_INSPECTOR
+#   if HAVE_INSPECTOR
 inline void Environment::set_coverage_directory(const char* dir) {
   coverage_directory_ = std::string(dir);
 }
@@ -741,7 +741,7 @@ inline uint64_t Environment::heap_prof_interval() const {
   return heap_prof_interval_;
 }
 
-#endif  // HAVE_INSPECTOR
+#   endif  // HAVE_INSPECTOR
 
 inline
 std::shared_ptr<ExclusiveAccess<HostPort>> Environment::inspector_host_port() {
@@ -1273,10 +1273,10 @@ int64_t Environment::base_object_count() const {
   return base_object_count_;
 }
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#define V(TypeName, PropertyName)                                             \
+#   define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#   define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+#   define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#   define V(TypeName, PropertyName)                                          \
   inline                                                                      \
   v8::Local<TypeName> IsolateData::PropertyName(v8::Isolate* isolate) const { \
     /* Strings are immutable so casting away const-ness here is okay. */      \
@@ -1285,27 +1285,27 @@ int64_t Environment::base_object_count() const {
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
-#undef V
-#undef VS
-#undef VY
-#undef VP
+#   undef V
+#   undef VS
+#   undef VY
+#   undef VP
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#define V(TypeName, PropertyName)                                             \
+#   define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+#   define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+#   define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#   define V(TypeName, PropertyName)                                          \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return isolate_data()->PropertyName(isolate());                           \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
-#undef V
-#undef VS
-#undef VY
-#undef VP
+#   undef V
+#   undef VS
+#   undef VY
+#   undef VP
 
-#define V(PropertyName, TypeName)                                             \
+#   define V(PropertyName, TypeName)                                          \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
     return PersistentToLocal::Strong(PropertyName ## _);                      \
   }                                                                           \
@@ -1314,13 +1314,13 @@ int64_t Environment::base_object_count() const {
   }
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-#undef V
+#   undef V
 
   inline v8::Local<v8::Context> Environment::context() const {
     return PersistentToLocal::Strong(context_);
   }
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ENV_INL_H_

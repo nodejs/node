@@ -89,12 +89,12 @@ TEST_F(URLTest, ToFilePath) {
   T("file:///C:/Program%20Files/", "C:\\Program Files\\");
   T("file:///C:/a/b/c?query#fragment", "C:\\a\\b\\c");
   T("file://host/path/a/b/c?query#fragment", "\\\\host\\path\\a\\b\\c");
-#if defined(NODE_HAVE_I18N_SUPPORT)
+# if defined(NODE_HAVE_I18N_SUPPORT)
   T("file://xn--weird-prdj8vva.com/host/a", "\\\\wͪ͊eiͬ͋rd.com\\host\\a");
-#else
+# else
   T("file://xn--weird-prdj8vva.com/host/a",
     "\\\\xn--weird-prdj8vva.com\\host\\a");
-#endif
+# endif
   T("file:///C:/a%2Fb", "");
   T("file:///", "");
   T("file:///home", "");

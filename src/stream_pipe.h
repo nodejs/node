@@ -1,9 +1,9 @@
 #ifndef SRC_STREAM_PIPE_H_
-#define SRC_STREAM_PIPE_H_
+# define SRC_STREAM_PIPE_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "stream_base.h"
+#   include "stream_base.h"
 
 namespace node {
 
@@ -67,6 +67,6 @@ class StreamPipe : public AsyncWrap {
 
 }  // namespace node
 
-#endif
+# endif
 
 #endif  // SRC_STREAM_PIPE_H_

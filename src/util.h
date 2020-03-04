@@ -20,52 +20,52 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_UTIL_H_
-#define SRC_UTIL_H_
+# define SRC_UTIL_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-function-type"
-#endif
-#include "v8.h"
-#if (__GNUC__ >= 8) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+#   if (__GNUC__ >= 8) && !defined(__clang__)
+#     pragma GCC diagnostic push
+#     pragma GCC diagnostic ignored "-Wcast-function-type"
+#   endif
+#   include "v8.h"
+#   if (__GNUC__ >= 8) && !defined(__clang__)
+#     pragma GCC diagnostic pop
+#   endif
 
-#include <cassert>
-#include <climits>  // PATH_MAX
-#include <csignal>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#   include <cassert>
+#   include <climits>  // PATH_MAX
+#   include <csignal>
+#   include <cstddef>
+#   include <cstdio>
+#   include <cstdlib>
+#   include <cstring>
 
-#include <functional>  // std::function
-#include <limits>
-#include <set>
-#include <string>
-#include <array>
-#include <unordered_map>
-#include <utility>
+#   include <functional>  // std::function
+#   include <limits>
+#   include <set>
+#   include <string>
+#   include <array>
+#   include <unordered_map>
+#   include <utility>
 
-#ifdef __GNUC__
-#define MUST_USE_RESULT __attribute__((warn_unused_result))
-#else
-#define MUST_USE_RESULT
-#endif
+#   ifdef __GNUC__
+#     define MUST_USE_RESULT __attribute__((warn_unused_result))
+#   else
+#     define MUST_USE_RESULT
+#   endif
 
 namespace node {
 
 // Maybe remove kPathSeparator when cpp17 is ready
-#ifdef _WIN32
+#   ifdef _WIN32
     constexpr char kPathSeparator = '\\';
 /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
-#define PATH_MAX_BYTES (MAX_PATH * 4)
-#else
+#     define PATH_MAX_BYTES (MAX_PATH * 4)
+#   else
     constexpr char kPathSeparator = '/';
-#define PATH_MAX_BYTES (PATH_MAX)
-#endif
+#     define PATH_MAX_BYTES (PATH_MAX)
+#   endif
 
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
@@ -121,15 +121,15 @@ struct AssertionInfo {
 void DumpBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
-#ifdef _WIN32
-#define ABORT_NO_BACKTRACE() _exit(134)
-#else
-#define ABORT_NO_BACKTRACE() abort()
-#endif
+#   ifdef _WIN32
+#     define ABORT_NO_BACKTRACE() _exit(134)
+#   else
+#     define ABORT_NO_BACKTRACE() abort()
+#   endif
 
-#define ABORT() node::Abort()
+#   define ABORT() node::Abort()
 
-#define ERROR_AND_ABORT(expr)                                                 \
+#   define ERROR_AND_ABORT(expr)                                              \
   do {                                                                        \
     /* Make sure that this struct does not end up in inline code, but      */ \
     /* rather in a read-only data section when modifying this code.        */ \
@@ -139,62 +139,62 @@ void DumpBacktrace(FILE* fp);
     node::Assert(args);                                                       \
   } while (0)
 
-#ifdef __GNUC__
-#define LIKELY(expr) __builtin_expect(!!(expr), 1)
-#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
-#define PRETTY_FUNCTION_NAME __PRETTY_FUNCTION__
-#else
-#define LIKELY(expr) expr
-#define UNLIKELY(expr) expr
-#define PRETTY_FUNCTION_NAME ""
-#endif
+#   ifdef __GNUC__
+#     define LIKELY(expr) __builtin_expect(!!(expr), 1)
+#     define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+#     define PRETTY_FUNCTION_NAME __PRETTY_FUNCTION__
+#   else
+#     define LIKELY(expr) expr
+#     define UNLIKELY(expr) expr
+#     define PRETTY_FUNCTION_NAME ""
+#   endif
 
-#define STRINGIFY_(x) #x
-#define STRINGIFY(x) STRINGIFY_(x)
+#   define STRINGIFY_(x) #x
+#   define STRINGIFY(x) STRINGIFY_(x)
 
-#define CHECK(expr)                                                           \
+#   define CHECK(expr)                                                        \
   do {                                                                        \
     if (UNLIKELY(!(expr))) {                                                  \
       ERROR_AND_ABORT(expr);                                                  \
     }                                                                         \
   } while (0)
 
-#define CHECK_EQ(a, b) CHECK((a) == (b))
-#define CHECK_GE(a, b) CHECK((a) >= (b))
-#define CHECK_GT(a, b) CHECK((a) > (b))
-#define CHECK_LE(a, b) CHECK((a) <= (b))
-#define CHECK_LT(a, b) CHECK((a) < (b))
-#define CHECK_NE(a, b) CHECK((a) != (b))
-#define CHECK_NULL(val) CHECK((val) == nullptr)
-#define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
-#define CHECK_IMPLIES(a, b) CHECK(!(a) || (b))
+#   define CHECK_EQ(a, b) CHECK((a) == (b))
+#   define CHECK_GE(a, b) CHECK((a) >= (b))
+#   define CHECK_GT(a, b) CHECK((a) > (b))
+#   define CHECK_LE(a, b) CHECK((a) <= (b))
+#   define CHECK_LT(a, b) CHECK((a) < (b))
+#   define CHECK_NE(a, b) CHECK((a) != (b))
+#   define CHECK_NULL(val) CHECK((val) == nullptr)
+#   define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
+#   define CHECK_IMPLIES(a, b) CHECK(!(a) || (b))
 
-#ifdef DEBUG
-  #define DCHECK(expr) CHECK(expr)
-  #define DCHECK_EQ(a, b) CHECK((a) == (b))
-  #define DCHECK_GE(a, b) CHECK((a) >= (b))
-  #define DCHECK_GT(a, b) CHECK((a) > (b))
-  #define DCHECK_LE(a, b) CHECK((a) <= (b))
-  #define DCHECK_LT(a, b) CHECK((a) < (b))
-  #define DCHECK_NE(a, b) CHECK((a) != (b))
-  #define DCHECK_NULL(val) CHECK((val) == nullptr)
-  #define DCHECK_NOT_NULL(val) CHECK((val) != nullptr)
-  #define DCHECK_IMPLIES(a, b) CHECK(!(a) || (b))
-#else
-  #define DCHECK(expr)
-  #define DCHECK_EQ(a, b)
-  #define DCHECK_GE(a, b)
-  #define DCHECK_GT(a, b)
-  #define DCHECK_LE(a, b)
-  #define DCHECK_LT(a, b)
-  #define DCHECK_NE(a, b)
-  #define DCHECK_NULL(val)
-  #define DCHECK_NOT_NULL(val)
-  #define DCHECK_IMPLIES(a, b)
-#endif
+#   ifdef DEBUG
+#     define DCHECK(expr) CHECK(expr)
+#     define DCHECK_EQ(a, b) CHECK((a) == (b))
+#     define DCHECK_GE(a, b) CHECK((a) >= (b))
+#     define DCHECK_GT(a, b) CHECK((a) > (b))
+#     define DCHECK_LE(a, b) CHECK((a) <= (b))
+#     define DCHECK_LT(a, b) CHECK((a) < (b))
+#     define DCHECK_NE(a, b) CHECK((a) != (b))
+#     define DCHECK_NULL(val) CHECK((val) == nullptr)
+#     define DCHECK_NOT_NULL(val) CHECK((val) != nullptr)
+#     define DCHECK_IMPLIES(a, b) CHECK(!(a) || (b))
+#   else
+#     define DCHECK(expr)
+#     define DCHECK_EQ(a, b)
+#     define DCHECK_GE(a, b)
+#     define DCHECK_GT(a, b)
+#     define DCHECK_LE(a, b)
+#     define DCHECK_LT(a, b)
+#     define DCHECK_NE(a, b)
+#     define DCHECK_NULL(val)
+#     define DCHECK_NOT_NULL(val)
+#     define DCHECK_IMPLIES(a, b)
+#   endif
 
 
-#define UNREACHABLE(...)                                                      \
+#   define UNREACHABLE(...)                                                   \
   ERROR_AND_ABORT("Unreachable code reached" __VA_OPT__(": ") __VA_ARGS__)
 
 // ECMA262 20.1.2.6 Number.MAX_SAFE_INTEGER (2^53-1)
@@ -496,7 +496,7 @@ class BufferValue : public MaybeStackBuffer<char> {
   inline std::string ToString() const { return std::string(out(), length()); }
 };
 
-#define SPREAD_BUFFER_ARG(val, name)                                          \
+#   define SPREAD_BUFFER_ARG(val, name)                                       \
   CHECK((val)->IsArrayBufferView());                                          \
   v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
   std::shared_ptr<v8::BackingStore> name##_bs =                               \
@@ -641,14 +641,14 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 
 // These macros expects a `Isolate* isolate` and a `Local<Context> context`
 // to be in the scope.
-#define READONLY_PROPERTY(obj, name, value)                                    \
+#   define READONLY_PROPERTY(obj, name, value)                                 \
   do {                                                                         \
     obj->DefineOwnProperty(                                                    \
            context, FIXED_ONE_BYTE_STRING(isolate, name), value, v8::ReadOnly) \
         .Check();                                                              \
   } while (0)
 
-#define READONLY_DONT_ENUM_PROPERTY(obj, name, var)                            \
+#   define READONLY_DONT_ENUM_PROPERTY(obj, name, var)                         \
   do {                                                                         \
     obj->DefineOwnProperty(                                                    \
            context,                                                            \
@@ -658,17 +658,17 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
         .Check();                                                              \
   } while (0)
 
-#define READONLY_FALSE_PROPERTY(obj, name)                                     \
+#   define READONLY_FALSE_PROPERTY(obj, name)                                  \
   READONLY_PROPERTY(obj, name, v8::False(isolate))
 
-#define READONLY_TRUE_PROPERTY(obj, name)                                      \
+#   define READONLY_TRUE_PROPERTY(obj, name)                                   \
   READONLY_PROPERTY(obj, name, v8::True(isolate))
 
-#define READONLY_STRING_PROPERTY(obj, name, str)                               \
+#   define READONLY_STRING_PROPERTY(obj, name, str)                            \
   READONLY_PROPERTY(obj, name, ToV8Value(context, str).ToLocalChecked())
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
-#define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                    \
+#   define NODE_DEFINE_STRING_CONSTANT(target, name, constant)                 \
   do {                                                                         \
     v8::Isolate* isolate = target->GetIsolate();                               \
     v8::Local<v8::String> constant_name =                                      \
@@ -766,6 +766,6 @@ class PersistentToLocal {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_H_

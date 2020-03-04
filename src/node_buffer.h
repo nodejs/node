@@ -20,10 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_BUFFER_H_
-#define SRC_NODE_BUFFER_H_
+# define SRC_NODE_BUFFER_H_
 
-#include "node.h"
-#include "v8.h"
+# include "node.h"
+# include "v8.h"
 
 namespace node {
 

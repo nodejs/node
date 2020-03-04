@@ -1,12 +1,12 @@
 #ifndef SRC_BASE64_H_
-#define SRC_BASE64_H_
+# define SRC_BASE64_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
+#   include "util.h"
 
-#include <cstddef>
-#include <cstdint>
+#   include <cstddef>
+#   include <cstdint>
 
 namespace node {
 //// Base 64 ////
@@ -60,7 +60,7 @@ bool base64_decode_group_slow(char* const dst, const size_t dstlen,
                               size_t* const i, size_t* const k) {
   uint8_t hi;
   uint8_t lo;
-#define V(expr)                                                               \
+#   define V(expr)                                                            \
   for (;;) {                                                                  \
     const uint8_t c = src[*i];                                                \
     lo = unbase64(c);                                                         \
@@ -80,7 +80,7 @@ bool base64_decode_group_slow(char* const dst, const size_t dstlen,
   V(dst[(*k)++] = ((hi & 0x3F) << 2) | ((lo & 0x30) >> 4));
   V(dst[(*k)++] = ((hi & 0x0F) << 4) | ((lo & 0x3C) >> 2));
   V(dst[(*k)++] = ((hi & 0x03) << 6) | ((lo & 0x3F) >> 0));
-#undef V
+#   undef V
   return true;  // Continue decoding.
 }
 
@@ -192,6 +192,6 @@ static size_t base64_encode(const char* src,
 }  // namespace node
 
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_BASE64_H_

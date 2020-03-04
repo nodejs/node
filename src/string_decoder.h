@@ -1,9 +1,9 @@
 #ifndef SRC_STRING_DECODER_H_
-#define SRC_STRING_DECODER_H_
+# define SRC_STRING_DECODER_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
+#   include "node.h"
 
 namespace node {
 
@@ -45,6 +45,6 @@ class StringDecoder {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif   // SRC_STRING_DECODER_H_

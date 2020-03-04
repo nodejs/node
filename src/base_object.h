@@ -20,13 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_BASE_OBJECT_H_
-#define SRC_BASE_OBJECT_H_
+# define SRC_BASE_OBJECT_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "memory_tracker.h"
-#include "v8.h"
-#include <type_traits>  // std::remove_reference
+#   include "memory_tracker.h"
+#   include "v8.h"
+#   include <type_traits>  // std::remove_reference
 
 namespace node {
 
@@ -157,7 +157,7 @@ inline T* Unwrap(v8::Local<v8::Object> obj) {
 }
 
 
-#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                \
+#   define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                             \
   do {                                                                        \
     *ptr = static_cast<typename std::remove_reference<decltype(*ptr)>::type>( \
         BaseObject::FromJSObject(obj));                                       \
@@ -224,6 +224,6 @@ inline BaseObjectPtr<T> MakeDetachedBaseObject(Args&&... args);
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_BASE_OBJECT_H_

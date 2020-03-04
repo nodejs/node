@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_HANDLE_WRAP_H_
-#define SRC_HANDLE_WRAP_H_
+# define SRC_HANDLE_WRAP_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "async_wrap.h"
-#include "util.h"
-#include "uv.h"
-#include "v8.h"
+#   include "async_wrap.h"
+#   include "util.h"
+#   include "uv.h"
+#   include "v8.h"
 
 namespace node {
 
@@ -112,6 +112,6 @@ class HandleWrap : public AsyncWrap {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_HANDLE_WRAP_H_

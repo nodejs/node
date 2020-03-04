@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_CRYPTO_BIO_H_
-#define SRC_NODE_CRYPTO_BIO_H_
+# define SRC_NODE_CRYPTO_BIO_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_crypto.h"
-#include "openssl/bio.h"
-#include "util.h"
-#include "v8.h"
+#   include "node_crypto.h"
+#   include "openssl/bio.h"
+#   include "util.h"
+#   include "v8.h"
 
 namespace node {
 
@@ -190,6 +190,6 @@ class NodeBIO : public MemoryRetainer {
 }  // namespace crypto
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_BIO_H_

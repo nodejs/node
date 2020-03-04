@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 
 #ifndef SRC_STRING_SEARCH_H_
-#define SRC_STRING_SEARCH_H_
+# define SRC_STRING_SEARCH_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
+#   include "util.h"
 
-#include <cstring>
-#include <algorithm>
+#   include <cstring>
+#   include <algorithm>
 
 namespace node {
 namespace stringsearch {
@@ -179,9 +179,9 @@ inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
 // Falls back to a vanilla for loop on non-GNU systems such as Windows.
 inline const void* MemrchrFill(const void* haystack, uint8_t needle,
                                size_t haystack_len) {
-#ifdef _GNU_SOURCE
+#   ifdef _GNU_SOURCE
   return memrchr(haystack, needle, haystack_len);
-#else
+#   else
   const uint8_t* haystack8 = static_cast<const uint8_t*>(haystack);
   for (size_t i = haystack_len - 1; i != static_cast<size_t>(-1); i--) {
     if (haystack8[i] == needle) {
@@ -189,7 +189,7 @@ inline const void* MemrchrFill(const void* haystack, uint8_t needle,
     }
   }
   return nullptr;
-#endif
+#   endif
 }
 
 
@@ -614,6 +614,6 @@ size_t SearchString(const char* haystack, size_t haystack_length,
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STRING_SEARCH_H_

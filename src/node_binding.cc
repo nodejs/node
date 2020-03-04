@@ -6,33 +6,33 @@
 #include "util.h"
 
 #if HAVE_OPENSSL
-#define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
+# define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
 #else
-#define NODE_BUILTIN_OPENSSL_MODULES(V)
+# define NODE_BUILTIN_OPENSSL_MODULES(V)
 #endif
 
 #if NODE_HAVE_I18N_SUPPORT
-#define NODE_BUILTIN_ICU_MODULES(V) V(icu)
+# define NODE_BUILTIN_ICU_MODULES(V) V(icu)
 #else
-#define NODE_BUILTIN_ICU_MODULES(V)
+# define NODE_BUILTIN_ICU_MODULES(V)
 #endif
 
 #if NODE_REPORT
-#define NODE_BUILTIN_REPORT_MODULES(V) V(report)
+# define NODE_BUILTIN_REPORT_MODULES(V) V(report)
 #else
-#define NODE_BUILTIN_REPORT_MODULES(V)
+# define NODE_BUILTIN_REPORT_MODULES(V)
 #endif
 
 #if HAVE_INSPECTOR
-#define NODE_BUILTIN_PROFILER_MODULES(V) V(profiler)
+# define NODE_BUILTIN_PROFILER_MODULES(V) V(profiler)
 #else
-#define NODE_BUILTIN_PROFILER_MODULES(V)
+# define NODE_BUILTIN_PROFILER_MODULES(V)
 #endif
 
 #if HAVE_DTRACE || HAVE_ETW
-#define NODE_BUILTIN_DTRACE_MODULES(V) V(dtrace)
+# define NODE_BUILTIN_DTRACE_MODULES(V) V(dtrace)
 #else
-#define NODE_BUILTIN_DTRACE_MODULES(V)
+# define NODE_BUILTIN_DTRACE_MODULES(V)
 #endif
 
 // A list of built-in modules. In order to do module registration
@@ -209,10 +209,10 @@ void* wrapped_dlsym(void* handle, const char* symbol) {
   return dlsym(wrap->real_handle, symbol);
 }
 
-#define dlopen node::dlwrapper::wrapped_dlopen
-#define dlerror node::dlwrapper::wrapped_dlerror
-#define dlclose node::dlwrapper::wrapped_dlclose
-#define dlsym node::dlwrapper::wrapped_dlsym
+# define dlopen node::dlwrapper::wrapped_dlopen
+# define dlerror node::dlwrapper::wrapped_dlerror
+# define dlclose node::dlwrapper::wrapped_dlclose
+# define dlsym node::dlwrapper::wrapped_dlsym
 
 }  // namespace dlwrapper
 }  // namespace node

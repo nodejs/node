@@ -2,15 +2,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if !HAVE_INSPECTOR
-#error("This header can only be used when inspector is enabled")
-#endif
+# if !HAVE_INSPECTOR
+#   error("This header can only be used when inspector is enabled")
+# endif
 
-#include "node_options.h"
-#include "v8.h"
+# include "node_options.h"
+# include "v8.h"
 
-#include <cstddef>
-#include <memory>
+# include <cstddef>
+# include <memory>
 
 namespace v8_inspector {
 class StringView;

@@ -9,11 +9,11 @@
 #include "util.h"
 
 #ifdef _WIN32
-#include <Windows.h>
+# include <Windows.h>
 #else  // !_WIN32
-#include <sys/resource.h>
-#include <cxxabi.h>
-#include <dlfcn.h>
+# include <sys/resource.h>
+# include <cxxabi.h>
+# include <dlfcn.h>
 #endif
 
 #include <cstring>
@@ -615,21 +615,21 @@ static void PrintSystemInformation(JSONWriter* writer) {
     {"core_file_size_blocks", RLIMIT_CORE},
     {"data_seg_size_kbytes", RLIMIT_DATA},
     {"file_size_blocks", RLIMIT_FSIZE},
-#if !(defined(_AIX) || defined(__sun))
+# if !(defined(_AIX) || defined(__sun))
     {"max_locked_memory_bytes", RLIMIT_MEMLOCK},
-#endif
-#ifndef __sun
+# endif
+# ifndef __sun
     {"max_memory_size_kbytes", RLIMIT_RSS},
-#endif
+# endif
     {"open_files", RLIMIT_NOFILE},
     {"stack_size_bytes", RLIMIT_STACK},
     {"cpu_time_seconds", RLIMIT_CPU},
-#ifndef __sun
+# ifndef __sun
     {"max_user_processes", RLIMIT_NPROC},
-#endif
-#ifndef __OpenBSD__
+# endif
+# ifndef __OpenBSD__
     {"virtual_memory_kbytes", RLIMIT_AS}
-#endif
+# endif
   };
 
   writer->json_objectstart("userLimits");
@@ -695,9 +695,9 @@ static void PrintRelease(JSONWriter* writer) {
                         node::per_process::metadata.release.headers_url);
   writer->json_keyvalue("sourceUrl",
                         node::per_process::metadata.release.source_url);
-#ifdef _WIN32
+# ifdef _WIN32
   writer->json_keyvalue("libUrl", node::per_process::metadata.release.lib_url);
-#endif  // _WIN32
+# endif  // _WIN32
 #endif  // NODE_HAS_RELEASE_URLS
 
   writer->json_objectend();

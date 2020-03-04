@@ -2,60 +2,60 @@
 #include "env-inl.h"
 
 #ifdef __POSIX__
-#if defined(__linux__)
-#include <features.h>
-#endif
+# if defined(__linux__)
+#   include <features.h>
+# endif
 
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
+# ifdef __ANDROID__
+#   include <android/log.h>
+# endif
 
-#if defined(__linux__) && !defined(__GLIBC__) || \
+# if defined(__linux__) && !defined(__GLIBC__) || \
     defined(__UCLIBC__) || \
     defined(_AIX)
-#define HAVE_EXECINFO_H 0
-#else
-#define HAVE_EXECINFO_H 1
-#endif
+#   define HAVE_EXECINFO_H 0
+# else
+#   define HAVE_EXECINFO_H 1
+# endif
 
-#if HAVE_EXECINFO_H
-#include <cxxabi.h>
-#include <dlfcn.h>
-#include <execinfo.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <cstdio>
-#endif
+# if HAVE_EXECINFO_H
+#   include <cxxabi.h>
+#   include <dlfcn.h>
+#   include <execinfo.h>
+#   include <unistd.h>
+#   include <sys/mman.h>
+#   include <cstdio>
+# endif
 
 #endif  // __POSIX__
 
 #if defined(__linux__) || defined(__sun) || \
     defined(__FreeBSD__) || defined(__OpenBSD__) || \
     defined(__DragonFly__)
-#include <link.h>
+# include <link.h>
 #endif
 
 #ifdef __APPLE__
-#include <mach-o/dyld.h>  // _dyld_get_image_name()
+# include <mach-o/dyld.h>  // _dyld_get_image_name()
 #endif                    // __APPLE__
 
 #ifdef _AIX
-#include <sys/ldr.h>  // ld_info structure
+# include <sys/ldr.h>  // ld_info structure
 #endif                // _AIX
 
 #ifdef _WIN32
-#include <Lm.h>
-#include <Windows.h>
-#include <dbghelp.h>
-#include <process.h>
-#include <psapi.h>
-#include <tchar.h>
+# include <Lm.h>
+# include <Windows.h>
+# include <dbghelp.h>
+# include <process.h>
+# include <psapi.h>
+# include <tchar.h>
 #endif  // _WIN32
 
 namespace node {
 
 #ifdef __POSIX__
-#if HAVE_EXECINFO_H
+# if HAVE_EXECINFO_H
 class PosixSymbolDebuggingContext final : public NativeSymbolDebuggingContext {
  public:
   PosixSymbolDebuggingContext() : pagesize_(getpagesize()) { }
@@ -103,14 +103,14 @@ NativeSymbolDebuggingContext::New() {
   return std::make_unique<PosixSymbolDebuggingContext>();
 }
 
-#else  // HAVE_EXECINFO_H
+# else  // HAVE_EXECINFO_H
 
 std::unique_ptr<NativeSymbolDebuggingContext>
 NativeSymbolDebuggingContext::New() {
   return std::make_unique<NativeSymbolDebuggingContext>();
 }
 
-#endif  // HAVE_EXECINFO_H
+# endif  // HAVE_EXECINFO_H
 
 #else  // __POSIX__
 
@@ -147,9 +147,9 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     } else {
       // SymFromAddr failed
       const DWORD error = GetLastError();  // "eat" the error anyway
-#ifdef DEBUG
+# ifdef DEBUG
       fprintf(stderr, "SymFromAddr returned error : %lu\n", error);
-#endif
+# endif
     }
     // End MSDN code
 
@@ -182,9 +182,9 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     } else {
       // SymGetLineFromAddr64 failed
       const DWORD error = GetLastError();  // "eat" the error anyway
-#ifdef DEBUG
+# ifdef DEBUG
       fprintf(stderr, "SymGetLineFromAddr64 returned error : %lu\n", error);
-#endif
+# endif
     }
     // End MSDN code
 
@@ -205,9 +205,9 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
     } else {
       // UnDecorateSymbolName failed
       const DWORD error = GetLastError();  // "eat" the error anyway
-#ifdef DEBUG
+# ifdef DEBUG
       fprintf(stderr, "UnDecorateSymbolName returned error %lu\n", error);
-#endif
+# endif
     }
     return nullptr;
   }

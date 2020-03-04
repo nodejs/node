@@ -1,10 +1,10 @@
 #ifndef SRC_NODE_MUTEX_H_
-#define SRC_NODE_MUTEX_H_
+# define SRC_NODE_MUTEX_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
-#include "uv.h"
+#   include "util.h"
+#   include "uv.h"
 
 #include <memory>  // std::shared_ptr<T>
 #include <utility>  // std::forward<T>
@@ -242,6 +242,6 @@ MutexBase<Traits>::ScopedUnlock::~ScopedUnlock() {
 
 }  // namespace node
 
-#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_MUTEX_H_

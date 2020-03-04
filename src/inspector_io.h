@@ -2,17 +2,17 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if !HAVE_INSPECTOR
-#error("This header can only be used when inspector is enabled")
-#endif
+# if !HAVE_INSPECTOR
+#   error("This header can only be used when inspector is enabled")
+# endif
 
-#include "inspector_socket_server.h"
-#include "node_mutex.h"
+# include "inspector_socket_server.h"
+# include "node_mutex.h"
 
-#include "uv.h"
+# include "uv.h"
 
-#include <cstddef>
-#include <memory>
+# include <cstddef>
+# include <memory>
 
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.

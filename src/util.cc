@@ -31,17 +31,17 @@
 #include "uv.h"
 
 #ifdef _WIN32
-#include <io.h>  // _S_IREAD _S_IWRITE
-#include <time.h>
-#ifndef S_IRUSR
-#define S_IRUSR _S_IREAD
-#endif  // S_IRUSR
-#ifndef S_IWUSR
-#define S_IWUSR _S_IWRITE
-#endif  // S_IWUSR
+# include <io.h>  // _S_IREAD _S_IWRITE
+# include <time.h>
+# ifndef S_IRUSR
+#   define S_IRUSR _S_IREAD
+# endif  // S_IRUSR
+# ifndef S_IWUSR
+#   define S_IWUSR _S_IWRITE
+# endif  // S_IWUSR
 #else
-#include <sys/time.h>
-#include <sys/types.h>
+# include <sys/time.h>
+# include <sys/types.h>
 #endif
 
 #include <atomic>

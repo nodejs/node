@@ -705,9 +705,9 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 #ifdef NODE_HAVE_I18N_SUPPORT
   AddOption("--icu-data-dir",
             "set ICU data load path to dir (overrides NODE_ICU_DATA)"
-#ifndef NODE_HAVE_SMALL_ICU
+# ifndef NODE_HAVE_SMALL_ICU
             " (note: linked-in ICU data is present)\n"
-#endif
+# endif
             ,
             &PerProcessOptions::icu_data_dir,
             kAllowedInEnvironment);
@@ -725,17 +725,17 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
   AddOption("--use-openssl-ca",
             "use OpenSSL's default CA store"
-#if defined(NODE_OPENSSL_CERT_STORE)
+# if defined(NODE_OPENSSL_CERT_STORE)
             " (default)"
-#endif
+# endif
             ,
             &PerProcessOptions::use_openssl_ca,
             kAllowedInEnvironment);
   AddOption("--use-bundled-ca",
             "use bundled CA store"
-#if !defined(NODE_OPENSSL_CERT_STORE)
+# if !defined(NODE_OPENSSL_CERT_STORE)
             " (default)"
-#endif
+# endif
             ,
             &PerProcessOptions::use_bundled_ca,
             kAllowedInEnvironment);
@@ -747,7 +747,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::ssl_openssl_cert_store);
   Implies("--use-openssl-ca", "[ssl_openssl_cert_store]");
   ImpliesNot("--use-bundled-ca", "[ssl_openssl_cert_store]");
-#if NODE_FIPS_MODE
+# if NODE_FIPS_MODE
   AddOption("--enable-fips",
             "enable FIPS crypto at startup",
             &PerProcessOptions::enable_fips_crypto,
@@ -756,7 +756,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "force FIPS crypto (cannot be disabled)",
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvironment);
-#endif
+# endif
 #endif
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "

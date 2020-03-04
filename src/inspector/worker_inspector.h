@@ -1,14 +1,14 @@
 #ifndef SRC_INSPECTOR_WORKER_INSPECTOR_H_
-#define SRC_INSPECTOR_WORKER_INSPECTOR_H_
+# define SRC_INSPECTOR_WORKER_INSPECTOR_H_
 
-#if !HAVE_INSPECTOR
-#error("This header can only be used when inspector is enabled")
-#endif
+# if !HAVE_INSPECTOR
+#   error("This header can only be used when inspector is enabled")
+# endif
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
+# include <memory>
+# include <string>
+# include <unordered_map>
+# include <unordered_set>
 
 namespace node {
 namespace inspector {

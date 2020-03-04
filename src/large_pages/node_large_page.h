@@ -21,14 +21,14 @@
 // SPDX-License-Identifier: MIT
 
 #ifndef SRC_LARGE_PAGES_NODE_LARGE_PAGE_H_
-#define SRC_LARGE_PAGES_NODE_LARGE_PAGE_H_
+# define SRC_LARGE_PAGES_NODE_LARGE_PAGE_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 namespace node {
 int MapStaticCodeToLargePages();
 const char* LargePagesError(int status);
 }  // namespace node
 
-#endif  // NODE_WANT_INTERNALS
+# endif  // NODE_WANT_INTERNALS
 #endif  // SRC_LARGE_PAGES_NODE_LARGE_PAGE_H_
