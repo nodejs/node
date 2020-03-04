@@ -13,7 +13,7 @@ auto callback(
   void* env, const wasm::Val args[], wasm::Val results[]
 ) -> wasm::own<wasm::Trap> {
   assert(args[0].kind() == wasm::I32);
-  std::lock_guard<std::mutex>(*reinterpret_cast<std::mutex*>(env));
+  std::lock_guard<std::mutex> lock(*reinterpret_cast<std::mutex*>(env));
   std::cout << "Thread " << args[0].i32() << " running..." << std::endl;
   std::cout.flush();
   return nullptr;
