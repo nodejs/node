@@ -13,13 +13,14 @@
     'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
     'generate_bytecode_builtins_list_output': '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
     'torque_files': [
-      "<(V8_ROOT)/src/builtins/arguments.tq",
       "<(V8_ROOT)/src/builtins/array-copywithin.tq",
       "<(V8_ROOT)/src/builtins/array-every.tq",
       "<(V8_ROOT)/src/builtins/array-filter.tq",
       "<(V8_ROOT)/src/builtins/array-find.tq",
       "<(V8_ROOT)/src/builtins/array-findindex.tq",
       "<(V8_ROOT)/src/builtins/array-foreach.tq",
+      "<(V8_ROOT)/src/builtins/array-from.tq",
+      "<(V8_ROOT)/src/builtins/array-isarray.tq",
       "<(V8_ROOT)/src/builtins/array-join.tq",
       "<(V8_ROOT)/src/builtins/array-lastindexof.tq",
       "<(V8_ROOT)/src/builtins/array-map.tq",
@@ -36,16 +37,32 @@
       "<(V8_ROOT)/src/builtins/base.tq",
       "<(V8_ROOT)/src/builtins/bigint.tq",
       "<(V8_ROOT)/src/builtins/boolean.tq",
+      "<(V8_ROOT)/src/builtins/builtins-string.tq",
       "<(V8_ROOT)/src/builtins/collections.tq",
+      "<(V8_ROOT)/src/builtins/cast.tq",
+      "<(V8_ROOT)/src/builtins/convert.tq",
+      "<(V8_ROOT)/src/builtins/console.tq",
       "<(V8_ROOT)/src/builtins/data-view.tq",
-      "<(V8_ROOT)/src/builtins/extras-utils.tq",
       "<(V8_ROOT)/src/builtins/frames.tq",
+      "<(V8_ROOT)/src/builtins/frame-arguments.tq",
       "<(V8_ROOT)/src/builtins/growable-fixed-array.tq",
       "<(V8_ROOT)/src/builtins/internal-coverage.tq",
       "<(V8_ROOT)/src/builtins/iterator.tq",
       "<(V8_ROOT)/src/builtins/math.tq",
+      "<(V8_ROOT)/src/builtins/number.tq",
       "<(V8_ROOT)/src/builtins/object-fromentries.tq",
       "<(V8_ROOT)/src/builtins/object.tq",
+      "<(V8_ROOT)/src/builtins/promise-abstract-operations.tq",
+      "<(V8_ROOT)/src/builtins/promise-all.tq",
+      "<(V8_ROOT)/src/builtins/promise-all-element-closure.tq",
+      "<(V8_ROOT)/src/builtins/promise-constructor.tq",
+      "<(V8_ROOT)/src/builtins/promise-finally.tq",
+      "<(V8_ROOT)/src/builtins/promise-misc.tq",
+      "<(V8_ROOT)/src/builtins/promise-race.tq",
+      "<(V8_ROOT)/src/builtins/promise-reaction-job.tq",
+      "<(V8_ROOT)/src/builtins/promise-resolve.tq",
+      "<(V8_ROOT)/src/builtins/promise-then.tq",
+      "<(V8_ROOT)/src/builtins/promise-jobs.tq",
       "<(V8_ROOT)/src/builtins/proxy-constructor.tq",
       "<(V8_ROOT)/src/builtins/proxy-delete-property.tq",
       "<(V8_ROOT)/src/builtins/proxy-get-property.tq",
@@ -68,15 +85,17 @@
       "<(V8_ROOT)/src/builtins/regexp-split.tq",
       "<(V8_ROOT)/src/builtins/regexp-test.tq",
       "<(V8_ROOT)/src/builtins/regexp.tq",
-      "<(V8_ROOT)/src/builtins/string.tq",
       "<(V8_ROOT)/src/builtins/string-endswith.tq",
       "<(V8_ROOT)/src/builtins/string-html.tq",
       "<(V8_ROOT)/src/builtins/string-iterator.tq",
       "<(V8_ROOT)/src/builtins/string-pad.tq",
       "<(V8_ROOT)/src/builtins/string-repeat.tq",
+      "<(V8_ROOT)/src/builtins/string-replaceall.tq",
       "<(V8_ROOT)/src/builtins/string-slice.tq",
       "<(V8_ROOT)/src/builtins/string-startswith.tq",
       "<(V8_ROOT)/src/builtins/string-substring.tq",
+      "<(V8_ROOT)/src/builtins/string-substr.tq",
+      "<(V8_ROOT)/src/builtins/symbol.tq",
       "<(V8_ROOT)/src/builtins/torque-internal.tq",
       "<(V8_ROOT)/src/builtins/typed-array-createtypedarray.tq",
       "<(V8_ROOT)/src/builtins/typed-array-every.tq",
@@ -84,14 +103,72 @@
       "<(V8_ROOT)/src/builtins/typed-array-find.tq",
       "<(V8_ROOT)/src/builtins/typed-array-findindex.tq",
       "<(V8_ROOT)/src/builtins/typed-array-foreach.tq",
+      "<(V8_ROOT)/src/builtins/typed-array-from.tq",
+      "<(V8_ROOT)/src/builtins/typed-array-of.tq",
       "<(V8_ROOT)/src/builtins/typed-array-reduce.tq",
       "<(V8_ROOT)/src/builtins/typed-array-reduceright.tq",
+      "<(V8_ROOT)/src/builtins/typed-array-set.tq",
       "<(V8_ROOT)/src/builtins/typed-array-slice.tq",
       "<(V8_ROOT)/src/builtins/typed-array-some.tq",
+      "<(V8_ROOT)/src/builtins/typed-array-sort.tq",
       "<(V8_ROOT)/src/builtins/typed-array-subarray.tq",
       "<(V8_ROOT)/src/builtins/typed-array.tq",
-      "<(V8_ROOT)/third_party/v8/builtins/array-sort.tq",
+      "<(V8_ROOT)/src/ic/handler-configuration.tq",
+      "<(V8_ROOT)/src/objects/allocation-site.tq",
+      "<(V8_ROOT)/src/objects/api-callbacks.tq",
+      "<(V8_ROOT)/src/objects/arguments.tq",
+      "<(V8_ROOT)/src/objects/cell.tq",
+      "<(V8_ROOT)/src/objects/code.tq",
+      "<(V8_ROOT)/src/objects/contexts.tq",
+      "<(V8_ROOT)/src/objects/data-handler.tq",
+      "<(V8_ROOT)/src/objects/debug-objects.tq",
+      "<(V8_ROOT)/src/objects/descriptor-array.tq",
+      "<(V8_ROOT)/src/objects/embedder-data-array.tq",
+      "<(V8_ROOT)/src/objects/feedback-cell.tq",
+      "<(V8_ROOT)/src/objects/feedback-vector.tq",
+      "<(V8_ROOT)/src/objects/fixed-array.tq",
+      "<(V8_ROOT)/src/objects/foreign.tq",
+      "<(V8_ROOT)/src/objects/free-space.tq",
+      "<(V8_ROOT)/src/objects/heap-number.tq",
+      "<(V8_ROOT)/src/objects/heap-object.tq",
+      "<(V8_ROOT)/src/objects/js-array-buffer.tq",
+      "<(V8_ROOT)/src/objects/js-array.tq",
+      "<(V8_ROOT)/src/objects/js-collection-iterator.tq",
+      "<(V8_ROOT)/src/objects/js-collection.tq",
+      "<(V8_ROOT)/src/objects/js-generator.tq",
+      "<(V8_ROOT)/src/objects/js-objects.tq",
+      "<(V8_ROOT)/src/objects/js-promise.tq",
+      "<(V8_ROOT)/src/objects/js-proxy.tq",
+      "<(V8_ROOT)/src/objects/js-regexp-string-iterator.tq",
+      "<(V8_ROOT)/src/objects/js-regexp.tq",
+      "<(V8_ROOT)/src/objects/js-weak-refs.tq",
+      "<(V8_ROOT)/src/objects/literal-objects.tq",
+      "<(V8_ROOT)/src/objects/map.tq",
+      "<(V8_ROOT)/src/objects/microtask.tq",
+      "<(V8_ROOT)/src/objects/module.tq",
+      "<(V8_ROOT)/src/objects/name.tq",
+      "<(V8_ROOT)/src/objects/oddball.tq",
+      "<(V8_ROOT)/src/objects/ordered-hash-table.tq",
+      "<(V8_ROOT)/src/objects/primitive-heap-object.tq",
+      "<(V8_ROOT)/src/objects/promise.tq",
+      "<(V8_ROOT)/src/objects/property-array.tq",
+      "<(V8_ROOT)/src/objects/property-cell.tq",
+      "<(V8_ROOT)/src/objects/property-descriptor-object.tq",
+      "<(V8_ROOT)/src/objects/prototype-info.tq",
+      "<(V8_ROOT)/src/objects/regexp-match-info.tq",
+      "<(V8_ROOT)/src/objects/scope-info.tq",
+      "<(V8_ROOT)/src/objects/script.tq",
+      "<(V8_ROOT)/src/objects/shared-function-info.tq",
+      "<(V8_ROOT)/src/objects/source-text-module.tq",
+      "<(V8_ROOT)/src/objects/stack-frame-info.tq",
+      "<(V8_ROOT)/src/objects/string.tq",
+      "<(V8_ROOT)/src/objects/struct.tq",
+      "<(V8_ROOT)/src/objects/synthetic-module.tq",
+      "<(V8_ROOT)/src/objects/template-objects.tq",
+      "<(V8_ROOT)/src/objects/template.tq",
+      "<(V8_ROOT)/src/wasm/wasm-objects.tq",
       "<(V8_ROOT)/test/torque/test-torque.tq",
+      "<(V8_ROOT)/third_party/v8/builtins/array-sort.tq",
     ],
     'torque_output_root': '<(SHARED_INTERMEDIATE_DIR)/torque-output-root',
     'torque_files_replaced': ['<!@pymod_do_main(ForEachReplace ".tq" "-tq-csa" <@(torque_files))'],
@@ -141,11 +218,13 @@
             '<@(torque_files)',
           ],
           'outputs': [
+            '<(torque_output_root)/torque-generated/bit-fields-tq.h',
             '<(torque_output_root)/torque-generated/builtin-definitions-tq.h',
             '<(torque_output_root)/torque-generated/interface-descriptors-tq.inc',
             '<(torque_output_root)/torque-generated/field-offsets-tq.h',
             '<(torque_output_root)/torque-generated/class-verifiers-tq.cc',
             '<(torque_output_root)/torque-generated/class-verifiers-tq.h',
+            '<(torque_output_root)/torque-generated/enum-verifiers-tq.cc',
             '<(torque_output_root)/torque-generated/objects-printer-tq.cc',
             '<(torque_output_root)/torque-generated/class-definitions-tq.cc',
             '<(torque_output_root)/torque-generated/class-definitions-tq-inl.h',
@@ -202,9 +281,11 @@
       ],
       'direct_dependent_settings': {
         'sources': [
+          '<(torque_output_root)/torque-generated/csa-types-tq.h',
+          '<(torque_output_root)/torque-generated/enum-verifiers-tq.cc',
           '<(torque_output_root)/torque-generated/exported-macros-assembler-tq.cc',
           '<(torque_output_root)/torque-generated/exported-macros-assembler-tq.h',
-          '<(torque_output_root)/torque-generated/csa-types-tq.h',
+          '<(V8_ROOT)/src/torque/runtime-support.h',
           '<@(torque_outputs)',
         ],
       }
@@ -274,17 +355,6 @@
         },
       ],
     },  # generate_bytecode_builtins_list
-
-    {
-      # This rule delegates to either v8_snapshot or v8_nosnapshot depending on
-      # the current variables.
-      # The intention is to make the 'calling' rules a bit simpler.
-      'target_name': 'v8_maybe_snapshot',
-      'type': 'none',
-      'toolsets': ['target'],
-      'hard_dependency': 1,
-      'dependencies': ['v8_base', 'v8_snapshot'],
-    },  # v8_maybe_snapshot
     {
       'target_name': 'v8_init',
       'type': 'static_library',
@@ -418,7 +488,6 @@
       ],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-deserialize.cc',
-        './extras-libraries.cc',
       ],
       'xcode_settings': {
         # V8 7.4 over macOS10.11 compatibility
@@ -439,27 +508,19 @@
               '--target_os=<(OS)',
               '--target_arch=<(v8_target_arch)',
               '--startup_src', '<(INTERMEDIATE_DIR)/snapshot.cc',
+              '--embedded_variant', 'Default',
+              '--embedded_src', '<(INTERMEDIATE_DIR)/embedded.S',
             ],
           },
           'inputs': [
             '<(mksnapshot_exec)',
           ],
-          'outputs': ["<(INTERMEDIATE_DIR)/snapshot.cc"],
+          'outputs': [
+            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            '<(INTERMEDIATE_DIR)/embedded.S',
+          ],
           'process_outputs_as_sources': 1,
           'conditions': [
-            ['v8_enable_embedded_builtins', {
-              # In this case we use `embedded_variant "Default"`
-              # and `suffix = ''` for the template `embedded${suffix}.S`.
-              'outputs': ['<(INTERMEDIATE_DIR)/embedded.S'],
-              'variables': {
-                'mksnapshot_flags': [
-                  '--embedded_variant', 'Default',
-                  '--embedded_src', '<(INTERMEDIATE_DIR)/embedded.S',
-                ],
-              },
-            }, {
-               'outputs': ['<(V8_ROOT)/src/snapshot/embedded/embedded-empty.cc']
-             }],
             ['v8_random_seed', {
               'variables': {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
@@ -500,31 +561,6 @@
         },
       ],
     },  # v8_snapshot
-    {
-      'target_name': 'v8_nosnapshot',
-      'type': 'static_library',
-      'dependencies': [
-        # 'js2c_extras',  # Disabled for Node.js
-        'generate_bytecode_builtins_list',
-        'run_torque',
-        'v8_maybe_icu',
-      ],
-      'sources': [
-        './extras-libraries.cc',
-        '<(V8_ROOT)/src/snapshot/embedded/embedded-empty.cc',
-        '<(V8_ROOT)/src/snapshot/snapshot-empty.cc',
-      ],
-      'conditions': [
-        ['want_separate_host_toolset', {
-          'toolsets': ['host', 'target'],
-        }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-          ],
-        }],
-      ]
-    },  # v8_nosnapshot
     {
       'target_name': 'v8_version',
       'type': 'none',
@@ -674,6 +710,7 @@
         'generate_bytecode_builtins_list',
         'run_torque',
         'v8_maybe_icu',
+        'v8_zlib',
       ],
       'includes': ['inspector.gypi'],
       'direct_dependent_settings': {
@@ -708,7 +745,7 @@
           'conditions': [
             # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
             # based on Darwin and thus POSIX-compliant to a similar degree.
-            ['OS=="linux" or OS=="mac" or OS=="ios"', {
+            ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
               'sources': [
                 '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_linux.*?sources \+= ")',
               ],
@@ -1205,49 +1242,6 @@
         '<(V8_ROOT)/src/libsampler/sampler.h'
       ],
     },  # v8_libsampler
-
-    # {
-    #   'target_name': 'fuzzer_support',
-    #   'type': 'static_library',
-    #   'conditions': [
-    #     ['want_separate_host_toolset', {
-    #       'toolsets': ['host', 'target'],
-    #     }],
-    #   ],
-    #   'dependencies': [
-    #     'v8',
-    #     'v8_libbase',
-    #     'v8_libplatform',
-    #     'v8_maybe_icu',
-    #   ],
-    #   'sources': [
-    #     "<(V8_ROOT)/test/fuzzer/fuzzer-support.cc",
-    #     "<(V8_ROOT)/test/fuzzer/fuzzer-support.h",
-    #   ],
-    # },  # fuzzer_support
-
-    # {
-    #   'target_name': 'wee8',
-    #   'type': 'static_library',
-    #   'dependencies': [
-    #     'v8_base',
-    #     'v8_libbase',
-    #     'v8_libplatform',
-    #     'v8_libsampler',
-    #     'v8_maybe_snapshot',
-    #     # 'build/win:default_exe_manifest',
-    #   ],
-    #   'sources': [
-    #     "<(V8_ROOT)/src/wasm/c-api.cc",
-    #     "<(V8_ROOT)/third_party/wasm-api/wasm.h",
-    #     "<(V8_ROOT)/third_party/wasm-api/wasm.hh",
-    #   ],
-    # }, # wee8
-
-    # ###############################################################################
-    # # Executablesicu_path
-    # #
-
     {
       'target_name': 'bytecode_builtins_list_generator',
       'type': 'executable',
@@ -1280,9 +1274,8 @@
         'v8_init',
         'v8_libbase',
         'v8_libplatform',
-        'v8_nosnapshot',
-        # "build/win:default_exe_manifest",
         'v8_maybe_icu',
+        # "build/win:default_exe_manifest",
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"mksnapshot.*?sources = ")',
@@ -1414,7 +1407,7 @@
       'hard_dependency': 1,
       'toolsets': ['target'],
       'dependencies': [
-        'v8_maybe_snapshot'
+        'v8_snapshot',
       ],
       'conditions': [
         ['component=="shared_library"', {
@@ -1482,7 +1475,6 @@
               'v8_enable_verify_predictable=<(v8_enable_verify_predictable)',
               'v8_target_cpu=<(v8_target_arch)',
               'v8_use_siphash=<(v8_use_siphash)',
-              'v8_enable_embedded_builtins=<(v8_enable_embedded_builtins)',
               'v8_enable_verify_csa=<(v8_enable_verify_csa)',
               'v8_enable_lite_mode=<(v8_enable_lite_mode)',
               'v8_enable_pointer_compression=<(v8_enable_pointer_compression)',
@@ -1602,5 +1594,24 @@
         'sources': ['<(SHARED_INTERMEDIATE_DIR)/debug-support.cc', ],
       },
     },  # postmortem-metadata
+
+    {
+      'target_name': 'v8_zlib',
+      'type': 'static_library',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+        ['OS=="win"', {
+          'defines': ['X86_WINDOWS'],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [ '<(V8_ROOT)/third_party/zlib' ],
+      },
+      'defines': [ 'ZLIB_IMPLEMENTATION' ],
+      'include_dirs': [ '<(V8_ROOT)/third_party/zlib' ],
+      'sources': [ '<(V8_ROOT)/third_party/zlib/adler32.c' ],
+    },  # v8_zlib
   ],
 }
