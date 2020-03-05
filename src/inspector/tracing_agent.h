@@ -1,9 +1,9 @@
 #ifndef SRC_INSPECTOR_TRACING_AGENT_H_
-# define SRC_INSPECTOR_TRACING_AGENT_H_
+#define SRC_INSPECTOR_TRACING_AGENT_H_
 
-# include "node/inspector/protocol/NodeTracing.h"
-# include "tracing/agent.h"
-# include "v8.h"
+#include "node/inspector/protocol/NodeTracing.h"
+#include "tracing/agent.h"
+#include "v8.h"
 
 
 namespace node {

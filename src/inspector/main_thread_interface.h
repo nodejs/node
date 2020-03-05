@@ -1,17 +1,17 @@
 #ifndef SRC_INSPECTOR_MAIN_THREAD_INTERFACE_H_
-# define SRC_INSPECTOR_MAIN_THREAD_INTERFACE_H_
+#define SRC_INSPECTOR_MAIN_THREAD_INTERFACE_H_
 
-# if !HAVE_INSPECTOR
-#   error("This header can only be used when inspector is enabled")
-# endif
+#if !HAVE_INSPECTOR
+# error("This header can only be used when inspector is enabled")
+#endif
 
-# include "inspector_agent.h"
-# include "node_mutex.h"
+#include "inspector_agent.h"
+#include "node_mutex.h"
 
-# include <atomic>
-# include <deque>
-# include <memory>
-# include <unordered_map>
+#include <atomic>
+#include <deque>
+#include <memory>
+#include <unordered_map>
 
 namespace v8_inspector {
 class StringBuffer;

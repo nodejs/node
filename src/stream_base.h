@@ -1,13 +1,13 @@
 #ifndef SRC_STREAM_BASE_H_
-# define SRC_STREAM_BASE_H_
+#define SRC_STREAM_BASE_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "async_wrap-inl.h"
-#   include "node.h"
-#   include "util.h"
+# include "async_wrap-inl.h"
+# include "node.h"
+# include "util.h"
 
-#   include "v8.h"
+# include "v8.h"
 
 namespace node {
 
@@ -425,6 +425,6 @@ class SimpleWriteWrap : public WriteWrap, public OtherBase {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_BASE_H_

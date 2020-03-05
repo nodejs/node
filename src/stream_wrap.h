@@ -20,13 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_STREAM_WRAP_H_
-# define SRC_STREAM_WRAP_H_
+#define SRC_STREAM_WRAP_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "stream_base.h"
-#   include "handle_wrap.h"
-#   include "v8.h"
+# include "stream_base.h"
+# include "handle_wrap.h"
+# include "v8.h"
 
 namespace node {
 
@@ -91,9 +91,9 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
 
  protected:
   inline void set_fd(int fd) {
-#   ifdef _WIN32
+# ifdef _WIN32
     fd_ = fd;
-#   endif
+# endif
   }
 
 
@@ -111,7 +111,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
 
   uv_stream_t* const stream_;
 
-#   ifdef _WIN32
+# ifdef _WIN32
   // We don't always have an FD that we could look up on the stream_
   // object itself on Windows. However, for some cases, we open handles
   // using FDs; In that case, we can store and provide the value.
@@ -119,12 +119,12 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   // where multiple handles refer to the same stdio FDs (in particular,
   // a possible IPC channel and a regular process.std??? stream).
   int fd_ = -1;
-#   endif
+# endif
 };
 
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_WRAP_H_

@@ -1,16 +1,16 @@
 #ifndef SRC_NODE_CRYPTO_COMMON_H_
-# define SRC_NODE_CRYPTO_COMMON_H_
+#define SRC_NODE_CRYPTO_COMMON_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "env.h"
-#   include "node_crypto.h"
-#   include "v8.h"
-#   include <openssl/ssl.h>
-#   include <openssl/x509v3.h>
+# include "env.h"
+# include "node_crypto.h"
+# include "v8.h"
+# include <openssl/ssl.h>
+# include <openssl/x509v3.h>
 
-#   include <string>
-#   include <unordered_map>
+# include <string>
+# include <unordered_map>
 
 namespace node {
 namespace crypto {
@@ -134,6 +134,6 @@ v8::MaybeLocal<v8::Object> X509ToObject(
 }  // namespace crypto
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_COMMON_H_

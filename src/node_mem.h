@@ -1,9 +1,9 @@
 #ifndef SRC_NODE_MEM_H_
-# define SRC_NODE_MEM_H_
+#define SRC_NODE_MEM_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include <cstddef>
+# include <cstddef>
 
 namespace node {
 namespace mem {
@@ -36,6 +36,6 @@ class NgLibMemoryManager {
 }  // namespace mem
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_MEM_H_

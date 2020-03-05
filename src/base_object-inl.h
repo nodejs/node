@@ -20,22 +20,22 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_BASE_OBJECT_INL_H_
-# define SRC_BASE_OBJECT_INL_H_
+#define SRC_BASE_OBJECT_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "base_object.h"
-#   include "env-inl.h"
-#   include "util.h"
+# include "base_object.h"
+# include "env-inl.h"
+# include "util.h"
 
-#   if (__GNUC__ >= 8) && !defined(__clang__)
-#     pragma GCC diagnostic push
-#     pragma GCC diagnostic ignored "-Wcast-function-type"
-#   endif
-#   include "v8.h"
-#   if (__GNUC__ >= 8) && !defined(__clang__)
-#     pragma GCC diagnostic pop
-#   endif
+# if (__GNUC__ >= 8) && !defined(__clang__)
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wcast-function-type"
+# endif
+# include "v8.h"
+# if (__GNUC__ >= 8) && !defined(__clang__)
+#   pragma GCC diagnostic pop
+# endif
 
 namespace node {
 
@@ -348,6 +348,6 @@ BaseObjectPtr<T> MakeDetachedBaseObject(Args&&... args) {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_BASE_OBJECT_INL_H_

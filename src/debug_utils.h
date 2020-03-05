@@ -1,24 +1,24 @@
 #ifndef SRC_DEBUG_UTILS_H_
-# define SRC_DEBUG_UTILS_H_
+#define SRC_DEBUG_UTILS_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "async_wrap.h"
-#   include "env.h"
+# include "async_wrap.h"
+# include "env.h"
 
-#   include <sstream>
-#   include <string>
+# include <sstream>
+# include <string>
 
 // Use FORCE_INLINE on functions that have a debug-category-enabled check first
 // and then ideally only a single function call following it, to maintain
 // performance for the common case (no debugging used).
-#   ifdef __GNUC__
-#     define FORCE_INLINE __attribute__((always_inline))
-#     define COLD_NOINLINE __attribute__((cold, noinline))
-#   else
-#     define FORCE_INLINE
-#     define COLD_NOINLINE
-#   endif
+# ifdef __GNUC__
+#   define FORCE_INLINE __attribute__((always_inline))
+#   define COLD_NOINLINE __attribute__((cold, noinline))
+# else
+#   define FORCE_INLINE
+#   define COLD_NOINLINE
+# endif
 
 namespace node {
 
@@ -137,6 +137,6 @@ void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_DEBUG_UTILS_H_

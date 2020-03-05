@@ -1,15 +1,15 @@
 #ifndef SRC_JS_NATIVE_API_TYPES_H_
-# define SRC_JS_NATIVE_API_TYPES_H_
+#define SRC_JS_NATIVE_API_TYPES_H_
 
 // This file needs to be compatible with C compilers.
 // This is a public include file, and these includes have essentially
 // became part of it's API.
-# include <stddef.h>  // NOLINT(modernize-deprecated-headers)
-# include <stdint.h>  // NOLINT(modernize-deprecated-headers)
+#include <stddef.h>  // NOLINT(modernize-deprecated-headers)
+#include <stdint.h>  // NOLINT(modernize-deprecated-headers)
 
-# if !defined __cplusplus || (defined(_MSC_VER) && _MSC_VER < 1900)
+#if !defined __cplusplus || (defined(_MSC_VER) && _MSC_VER < 1900)
     typedef uint16_t char16_t;
-# endif
+#endif
 
 // JSVM API types are all opaque pointers for ABI stability
 // typedef undefined structs instead of void* for compile time type safety
@@ -115,7 +115,7 @@ typedef struct {
   napi_status error_code;
 } napi_extended_error_info;
 
-# ifdef NAPI_EXPERIMENTAL
+#ifdef NAPI_EXPERIMENTAL
 typedef enum {
   napi_key_include_prototypes,
   napi_key_own_only
@@ -134,6 +134,6 @@ typedef enum {
   napi_key_keep_numbers,
   napi_key_numbers_to_strings
 } napi_key_conversion;
-# endif
+#endif
 
 #endif  // SRC_JS_NATIVE_API_TYPES_H_

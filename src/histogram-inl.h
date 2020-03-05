@@ -1,11 +1,11 @@
 #ifndef SRC_HISTOGRAM_INL_H_
-# define SRC_HISTOGRAM_INL_H_
+#define SRC_HISTOGRAM_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "histogram.h"
-#   include "base_object-inl.h"
-#   include "node_internals.h"
+# include "histogram.h"
+# include "base_object-inl.h"
+# include "node_internals.h"
 
 namespace node {
 
@@ -78,6 +78,6 @@ void HistogramBase::ResetState() {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_HISTOGRAM_INL_H_

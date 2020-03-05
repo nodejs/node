@@ -1,11 +1,11 @@
 #ifndef SRC_ALIASED_BUFFER_H_
-# define SRC_ALIASED_BUFFER_H_
+#define SRC_ALIASED_BUFFER_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include <cinttypes>
-#   include "util.h"
-#   include "v8.h"
+# include <cinttypes>
+# include "util.h"
+# include "v8.h"
 
 namespace node {
 
@@ -257,6 +257,6 @@ typedef AliasedBufferBase<double, v8::Float64Array> AliasedFloat64Array;
 typedef AliasedBufferBase<uint64_t, v8::BigUint64Array> AliasedBigUint64Array;
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ALIASED_BUFFER_H_

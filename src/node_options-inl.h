@@ -1,11 +1,11 @@
 #ifndef SRC_NODE_OPTIONS_INL_H_
-# define SRC_NODE_OPTIONS_INL_H_
+#define SRC_NODE_OPTIONS_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include <cstdlib>
-#   include "node_options.h"
-#   include "util.h"
+# include <cstdlib>
+# include "node_options.h"
+# include "util.h"
 
 namespace node {
 
@@ -436,6 +436,6 @@ void OptionsParser<Options>::Parse(
 }  // namespace options_parser
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_OPTIONS_INL_H_

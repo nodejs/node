@@ -1,11 +1,11 @@
 #ifndef SRC_NODE_WASI_H_
-# define SRC_NODE_WASI_H_
+#define SRC_NODE_WASI_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "base_object.h"
-#   include "node_mem.h"
-#   include "uvwasi.h"
+# include "base_object.h"
+# include "node_mem.h"
+# include "uvwasi.h"
 
 namespace node {
 namespace wasi {
@@ -103,6 +103,6 @@ class WASI : public BaseObject,
 }  // namespace wasi
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WASI_H_

@@ -1,11 +1,11 @@
 #ifndef SRC_REQ_WRAP_INL_H_
-# define SRC_REQ_WRAP_INL_H_
+#define SRC_REQ_WRAP_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "req_wrap.h"
-#   include "async_wrap-inl.h"
-#   include "uv.h"
+# include "req_wrap.h"
+# include "async_wrap-inl.h"
+# include "uv.h"
 
 namespace node {
 
@@ -165,6 +165,6 @@ int ReqWrap<T>::Dispatch(LibuvFunction fn, Args... args) {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_REQ_WRAP_INL_H_

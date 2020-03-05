@@ -1,8 +1,8 @@
 #ifndef TOOLS_CODE_CACHE_CACHE_BUILDER_H_
-# define TOOLS_CODE_CACHE_CACHE_BUILDER_H_
+#define TOOLS_CODE_CACHE_CACHE_BUILDER_H_
 
-# include <string>
-# include "v8.h"
+#include <string>
+#include "v8.h"
 
 namespace node {
 namespace native_module {

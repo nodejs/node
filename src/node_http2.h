@@ -1,20 +1,20 @@
 #ifndef SRC_NODE_HTTP2_H_
-# define SRC_NODE_HTTP2_H_
+#define SRC_NODE_HTTP2_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 // FIXME(joyeecheung): nghttp2.h needs stdint.h to compile on Windows
-#   include <cstdint>
-#   include "nghttp2/nghttp2.h"
+# include <cstdint>
+# include "nghttp2/nghttp2.h"
 
-#   include "node_http2_state.h"
-#   include "node_mem.h"
-#   include "node_perf.h"
-#   include "stream_base-inl.h"
-#   include "string_bytes.h"
+# include "node_http2_state.h"
+# include "node_mem.h"
+# include "node_perf.h"
+# include "stream_base-inl.h"
+# include "string_bytes.h"
 
-#   include <algorithm>
-#   include <queue>
+# include <algorithm>
+# include <queue>
 
 namespace node {
 namespace http2 {
@@ -30,28 +30,28 @@ using performance::PerformanceEntry;
 // may send in order to prevent abuse. The current default cap is 10. The
 // user may set a different limit using a per Http2Session configuration
 // option.
-#   define DEFAULT_MAX_PINGS 10
+# define DEFAULT_MAX_PINGS 10
 
 // Also strictly limit the number of outstanding SETTINGS frames a user sends
-#   define DEFAULT_MAX_SETTINGS 10
+# define DEFAULT_MAX_SETTINGS 10
 
 // Default maximum total memory cap for Http2Session.
-#   define DEFAULT_MAX_SESSION_MEMORY 1e7
+# define DEFAULT_MAX_SESSION_MEMORY 1e7
 
 // These are the standard HTTP/2 defaults as specified by the RFC
-#   define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
-#   define DEFAULT_SETTINGS_ENABLE_PUSH 1
-#   define DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS 0xffffffffu
-#   define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
-#   define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
-#   define DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE 65535
-#   define DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL 0
-#   define MAX_MAX_FRAME_SIZE 16777215
-#   define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
-#   define MAX_INITIAL_WINDOW_SIZE 2147483647
+# define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
+# define DEFAULT_SETTINGS_ENABLE_PUSH 1
+# define DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS 0xffffffffu
+# define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
+# define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
+# define DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE 65535
+# define DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL 0
+# define MAX_MAX_FRAME_SIZE 16777215
+# define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
+# define MAX_INITIAL_WINDOW_SIZE 2147483647
 
-#   define MAX_MAX_HEADER_LIST_SIZE 16777215u
-#   define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
+# define MAX_MAX_HEADER_LIST_SIZE 16777215u
+# define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
 
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
@@ -111,7 +111,7 @@ struct nghttp2_header : public MemoryRetainer {
 // to a fixed number of known supported HTTP methods. These constants, therefore
 // are provided strictly as a convenience to users and are exposed via the
 // require('http2').constants object.
-#   define HTTP_KNOWN_METHODS(V)                                              \
+# define HTTP_KNOWN_METHODS(V)                                                \
   V(ACL, "ACL")                                                               \
   V(BASELINE_CONTROL, "BASELINE-CONTROL")                                     \
   V(BIND, "BIND")                                                             \
@@ -154,7 +154,7 @@ struct nghttp2_header : public MemoryRetainer {
 
 // These are provided strictly as a convenience to users and are exposed via the
 // require('http2').constants objects
-#   define HTTP_KNOWN_HEADERS(V)                                              \
+# define HTTP_KNOWN_HEADERS(V)                                                \
   V(STATUS, ":status")                                                        \
   V(METHOD, ":method")                                                        \
   V(AUTHORITY, ":authority")                                                  \
@@ -234,16 +234,16 @@ struct nghttp2_header : public MemoryRetainer {
 
 enum http_known_headers {
   HTTP_KNOWN_HEADER_MIN,
-#   define V(name, value) HTTP_HEADER_##name,
+# define V(name, value) HTTP_HEADER_##name,
   HTTP_KNOWN_HEADERS(V)
-#   undef V
+# undef V
   HTTP_KNOWN_HEADER_MAX
 };
 
 // While some of these codes are used within the HTTP/2 implementation in
 // core, they are provided strictly as a convenience to users and are exposed
 // via the require('http2').constants object.
-#   define HTTP_STATUS_CODES(V)                                               \
+# define HTTP_STATUS_CODES(V)                                                 \
   V(CONTINUE, 100)                                                            \
   V(SWITCHING_PROTOCOLS, 101)                                                 \
   V(PROCESSING, 102)                                                          \
@@ -309,9 +309,9 @@ enum http_known_headers {
   V(NETWORK_AUTHENTICATION_REQUIRED, 511)
 
 enum http_status_codes {
-#   define V(name, code) HTTP_STATUS_##name = code,
+# define V(name, code) HTTP_STATUS_##name = code,
   HTTP_STATUS_CODES(V)
-#   undef V
+# undef V
 };
 
 // The Padding Strategy determines the method by which extra padding is
@@ -1303,6 +1303,6 @@ class Origins {
 }  // namespace http2
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_HTTP2_H_

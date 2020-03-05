@@ -1,13 +1,13 @@
 
 #ifndef SRC_NODE_UNION_BYTES_H_
-# define SRC_NODE_UNION_BYTES_H_
+#define SRC_NODE_UNION_BYTES_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 // A union of const uint8_t* or const uint16_t* data that can be
 // turned into external v8::String when given an isolate.
 
-#   include "v8.h"
+# include "v8.h"
 
 namespace node {
 
@@ -98,6 +98,6 @@ class UnionBytes {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_UNION_BYTES_H_

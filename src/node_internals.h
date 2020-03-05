@@ -20,29 +20,29 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_INTERNALS_H_
-# define SRC_NODE_INTERNALS_H_
+#define SRC_NODE_INTERNALS_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "env.h"
-#   include "node.h"
-#   include "node_binding.h"
-#   include "node_mutex.h"
-#   include "tracing/trace_event.h"
-#   include "util.h"
-#   include "uv.h"
-#   include "v8.h"
+# include "env.h"
+# include "node.h"
+# include "node_binding.h"
+# include "node_mutex.h"
+# include "tracing/trace_event.h"
+# include "util.h"
+# include "uv.h"
+# include "v8.h"
 
-#   include <cstdint>
-#   include <cstdlib>
+# include <cstdint>
+# include <cstdlib>
 
-#   include <string>
-#   include <vector>
+# include <string>
+# include <vector>
 
 // Custom constants used by both node_constants.cc and node_zlib.cc
-#   define Z_MIN_WINDOWBITS 8
-#   define Z_MAX_WINDOWBITS 15
-#   define Z_DEFAULT_WINDOWBITS 15
+# define Z_MIN_WINDOWBITS 8
+# define Z_MAX_WINDOWBITS 15
+# define Z_DEFAULT_WINDOWBITS 15
 
 struct sockaddr;
 
@@ -91,9 +91,9 @@ void PrintCaughtException(v8::Isolate* isolate,
                           const v8::TryCatch& try_catch);
 
 void ResetStdio();  // Safe to call more than once and from signal handlers.
-#   ifdef __POSIX__
+# ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
-#   endif
+# endif
 
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
@@ -243,15 +243,15 @@ class InternalCallbackScope {
 class DebugSealHandleScope {
  public:
   explicit inline DebugSealHandleScope(v8::Isolate* isolate)
-#   ifdef DEBUG
+# ifdef DEBUG
     : actual_scope_(isolate)
-#   endif
+# endif
   {}
 
  private:
-#   ifdef DEBUG
+# ifdef DEBUG
   v8::SealHandleScope actual_scope_;
-#   endif
+# endif
 };
 
 class ThreadPoolWork {
@@ -274,20 +274,20 @@ class ThreadPoolWork {
   uv_work_t work_req_;
 };
 
-#   define TRACING_CATEGORY_NODE "node"
-#   define TRACING_CATEGORY_NODE1(one)                                        \
+# define TRACING_CATEGORY_NODE "node"
+# define TRACING_CATEGORY_NODE1(one)                                          \
     TRACING_CATEGORY_NODE ","                                                 \
     TRACING_CATEGORY_NODE "." #one
-#   define TRACING_CATEGORY_NODE2(one, two)                                   \
+# define TRACING_CATEGORY_NODE2(one, two)                                     \
     TRACING_CATEGORY_NODE ","                                                 \
     TRACING_CATEGORY_NODE "." #one ","                                        \
     TRACING_CATEGORY_NODE "." #one "." #two
 
 // Functions defined in node.cc that are exposed via the bootstrapper object
 
-#   if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-#     define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
-#   endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
+# if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
+#   define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
+# endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
 bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
@@ -319,23 +319,23 @@ void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
 
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
 namespace profiler {
 void StartProfilers(Environment* env);
 }
-#   endif  // HAVE_INSPECTOR
+# endif  // HAVE_INSPECTOR
 
-#   ifdef __POSIX__
+# ifdef __POSIX__
 static constexpr unsigned kMaxSignal = 32;
-#   endif
+# endif
 
 bool HasSignalJSHandler(int signum);
 
-#   ifdef _WIN32
+# ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
-#   else  // UNIX, OSX
+# else  // UNIX, OSX
 typedef struct tm TIME_TYPE;
-#   endif
+# endif
 
 double GetCurrentTimeInMicroseconds();
 int WriteFileSync(const char* path, uv_buf_t buf);
@@ -395,6 +395,6 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_INTERNALS_H_

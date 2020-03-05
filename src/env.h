@@ -20,34 +20,34 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_ENV_H_
-# define SRC_ENV_H_
+#define SRC_ENV_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "aliased_buffer.h"
-#   if HAVE_INSPECTOR
-#     include "inspector_agent.h"
-#     include "inspector_profiler.h"
-#   endif
-#   include "handle_wrap.h"
-#   include "node.h"
-#   include "node_binding.h"
-#   include "node_http2_state.h"
-#   include "node_main_instance.h"
-#   include "node_options.h"
-#   include "req_wrap.h"
-#   include "util.h"
-#   include "uv.h"
-#   include "v8.h"
+# include "aliased_buffer.h"
+# if HAVE_INSPECTOR
+#   include "inspector_agent.h"
+#   include "inspector_profiler.h"
+# endif
+# include "handle_wrap.h"
+# include "node.h"
+# include "node_binding.h"
+# include "node_http2_state.h"
+# include "node_main_instance.h"
+# include "node_options.h"
+# include "req_wrap.h"
+# include "util.h"
+# include "uv.h"
+# include "v8.h"
 
-#   include <array>
-#   include <atomic>
-#   include <cstdint>
-#   include <functional>
-#   include <list>
-#   include <unordered_map>
-#   include <unordered_set>
-#   include <vector>
+# include <array>
+# include <atomic>
+# include <cstdint>
+# include <functional>
+# include <list>
+# include <unordered_map>
+# include <unordered_set>
+# include <vector>
 
 struct nghttp2_rcbuf;
 
@@ -70,7 +70,7 @@ namespace tracing {
 class AgentWriterHandle;
 }
 
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
 namespace profiler {
 class V8CoverageConnection;
 class V8CpuProfilerConnection;
@@ -80,7 +80,7 @@ class V8HeapProfilerConnection;
 namespace inspector {
 class ParentInspectorHandle;
 }
-#   endif  // HAVE_INSPECTOR
+# endif  // HAVE_INSPECTOR
 
 namespace worker {
 class Worker;
@@ -149,7 +149,7 @@ constexpr size_t kFsStatsBufferLength =
 // Private symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only and have a
 // "node:" prefix to avoid name clashes with third-party code.
-#   define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                           \
+# define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                           \
   V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
   V(arraybuffer_untransferable_private_symbol, "node:untransferableBuffer")   \
   V(arrow_message_private_symbol, "node:arrowMessage")                        \
@@ -160,7 +160,7 @@ constexpr size_t kFsStatsBufferLength =
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
-#   define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                    \
+# define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                    \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
   V(oninit_symbol, "oninit")                                                   \
@@ -169,7 +169,7 @@ constexpr size_t kFsStatsBufferLength =
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
-#   define PER_ISOLATE_STRING_PROPERTIES(V)                                    \
+# define PER_ISOLATE_STRING_PROPERTIES(V)                                    \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
   V(args_string, "args")                                                       \
@@ -397,7 +397,7 @@ constexpr size_t kFsStatsBufferLength =
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
-#   define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                          \
+# define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                          \
   V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
@@ -426,7 +426,7 @@ constexpr size_t kFsStatsBufferLength =
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)
 
-#   define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                             \
+# define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                             \
   V(as_callback_data, v8::Object)                                              \
   V(async_hooks_after_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                 \
@@ -497,18 +497,18 @@ class IsolateData : public MemoryRetainer {
   inline v8::ArrayBuffer::Allocator* allocator() const;
   inline NodeArrayBufferAllocator* node_allocator() const;
 
-#   define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#   define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#   define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#   define V(TypeName, PropertyName)                                          \
+# define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+# define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+# define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+# define V(TypeName, PropertyName)                                          \
   inline v8::Local<TypeName> PropertyName(v8::Isolate* isolate) const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
-#   undef V
-#   undef VY
-#   undef VS
-#   undef VP
+# undef V
+# undef VY
+# undef VS
+# undef VP
 
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
   inline v8::Isolate* isolate() const;
@@ -521,18 +521,18 @@ class IsolateData : public MemoryRetainer {
   void DeserializeProperties(const std::vector<size_t>* indexes);
   void CreateProperties();
 
-#   define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#   define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#   define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#   define V(TypeName, PropertyName)                                          \
+# define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+# define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+# define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+# define V(TypeName, PropertyName)                                          \
   v8::Eternal<TypeName> PropertyName ## _;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
-#   undef V
-#   undef VY
-#   undef VS
-#   undef VP
+# undef V
+# undef VY
+# undef VS
+# undef VP
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
@@ -552,16 +552,16 @@ struct ContextInfo {
 
 // Listing the AsyncWrap provider types first enables us to cast directly
 // from a provider type to a debug category.
-#   define DEBUG_CATEGORY_NAMES(V)                                             \
+# define DEBUG_CATEGORY_NAMES(V)                                             \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
   V(INSPECTOR_SERVER)                                                          \
   V(INSPECTOR_PROFILER)                                                        \
   V(WASI)
 
 enum class DebugCategory {
-#   define V(name) name,
+# define V(name) name,
   DEBUG_CATEGORY_NAMES(V)
-#   undef V
+# undef V
   CATEGORY_COUNT
 };
 
@@ -850,12 +850,12 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
   // the ownership if transferred into the Environment.
   int InitializeInspector(
       std::unique_ptr<inspector::ParentInspectorHandle> parent_handle);
-#   endif
+# endif
 
   v8::MaybeLocal<v8::Value> BootstrapInternalLoaders();
   v8::MaybeLocal<v8::Value> BootstrapNode();
@@ -1144,36 +1144,36 @@ class Environment : public MemoryRetainer {
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
-#   define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#   define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#   define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#   define V(TypeName, PropertyName)                                          \
+# define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
+# define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
+# define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+# define V(TypeName, PropertyName)                                          \
   inline v8::Local<TypeName> PropertyName() const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
-#   undef V
-#   undef VS
-#   undef VY
-#   undef VP
+# undef V
+# undef VS
+# undef VY
+# undef VP
 
-#   define V(PropertyName, TypeName)                                          \
+# define V(PropertyName, TypeName)                                          \
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-#   undef V
+# undef V
 
   inline v8::Local<v8::Context> context() const;
 
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {
     return inspector_agent_.get();
   }
 
   inline bool is_in_inspector_console_call() const;
   inline void set_is_in_inspector_console_call(bool value);
-#   endif
+# endif
 
   typedef ListHead<HandleWrap, &HandleWrap::handle_wrap_queue_> HandleWrapQueue;
   typedef ListHead<ReqWrapBase, &ReqWrapBase::req_wrap_queue_> ReqWrapQueue;
@@ -1240,7 +1240,7 @@ class Environment : public MemoryRetainer {
 
   inline int32_t stack_trace_limit() const { return 10; }
 
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   void set_coverage_connection(
       std::unique_ptr<profiler::V8CoverageConnection> connection);
   profiler::V8CoverageConnection* coverage_connection();
@@ -1274,7 +1274,7 @@ class Environment : public MemoryRetainer {
   inline void set_heap_prof_interval(uint64_t interval);
   inline uint64_t heap_prof_interval() const;
 
-#   endif  // HAVE_INSPECTOR
+# endif  // HAVE_INSPECTOR
 
  private:
   template <typename Fn>
@@ -1308,7 +1308,7 @@ class Environment : public MemoryRetainer {
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
 
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;
   std::unique_ptr<profiler::V8CpuProfilerConnection> cpu_profiler_connection_;
   std::string coverage_directory_;
@@ -1319,7 +1319,7 @@ class Environment : public MemoryRetainer {
   std::string heap_prof_dir_;
   std::string heap_prof_name_;
   uint64_t heap_prof_interval_;
-#   endif  // HAVE_INSPECTOR
+# endif  // HAVE_INSPECTOR
 
   std::shared_ptr<EnvironmentOptions> options_;
   // options_ contains debug options parsed from CLI arguments,
@@ -1361,10 +1361,10 @@ class Environment : public MemoryRetainer {
   static void* const kNodeContextTagPtr;
   static int const kNodeContextTag;
 
-#   if HAVE_INSPECTOR
+# if HAVE_INSPECTOR
   std::unique_ptr<inspector::Agent> inspector_agent_;
   bool is_in_inspector_console_call_ = false;
-#   endif
+# endif
 
   // handle_wrap_queue_ and req_wrap_queue_ needs to be at a fixed offset from
   // the start of the class because it is used by
@@ -1478,16 +1478,16 @@ class Environment : public MemoryRetainer {
   template <typename T>
   void ForEachBaseObject(T&& iterator);
 
-#   define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
+# define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
-#   undef V
+# undef V
 
   v8::Global<v8::Context> context_;
 };
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ENV_H_

@@ -1,5 +1,5 @@
 #ifndef SRC_JS_NATIVE_API_V8_INTERNALS_H_
-# define SRC_JS_NATIVE_API_V8_INTERNALS_H_
+#define SRC_JS_NATIVE_API_V8_INTERNALS_H_
 
 // The V8 implementation of N-API, including `js_native_api_v8.h` uses certain
 // idioms which require definition here. For example, it uses a variant of
@@ -13,17 +13,17 @@
 // are bridged to remove references to the `node` namespace. `node_version.h`,
 // included below, defines `NAPI_VERSION`.
 
-# include "node_version.h"
-# include "env.h"
-# include "node_internals.h"
+#include "node_version.h"
+#include "env.h"
+#include "node_internals.h"
 
-# define NAPI_ARRAYSIZE(array) \
+#define NAPI_ARRAYSIZE(array) \
   node::arraysize((array))
 
-# define NAPI_FIXED_ONE_BYTE_STRING(isolate, string) \
+#define NAPI_FIXED_ONE_BYTE_STRING(isolate, string) \
   node::FIXED_ONE_BYTE_STRING((isolate), (string))
 
-# define NAPI_PRIVATE_KEY(context, suffix) \
+#define NAPI_PRIVATE_KEY(context, suffix) \
   (node::Environment::GetCurrent((context))->napi_ ## suffix())
 
 namespace v8impl {

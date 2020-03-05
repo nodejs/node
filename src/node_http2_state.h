@@ -1,9 +1,9 @@
 #ifndef SRC_NODE_HTTP2_STATE_H_
-# define SRC_NODE_HTTP2_STATE_H_
+#define SRC_NODE_HTTP2_STATE_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "aliased_buffer.h"
+# include "aliased_buffer.h"
 
 namespace node {
 namespace http2 {
@@ -139,6 +139,6 @@ class Http2State {
 }  // namespace http2
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_HTTP2_STATE_H_

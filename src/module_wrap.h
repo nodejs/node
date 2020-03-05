@@ -1,12 +1,12 @@
 #ifndef SRC_MODULE_WRAP_H_
-# define SRC_MODULE_WRAP_H_
+#define SRC_MODULE_WRAP_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include <unordered_map>
-#   include <string>
-#   include <vector>
-#   include "base_object.h"
+# include <unordered_map>
+# include <string>
+# include <vector>
+# include "base_object.h"
 
 namespace node {
 
@@ -96,6 +96,6 @@ class ModuleWrap : public BaseObject {
 }  // namespace loader
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_MODULE_WRAP_H_

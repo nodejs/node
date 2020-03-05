@@ -1,15 +1,15 @@
 #ifndef SRC_NODE_NATIVE_MODULE_H_
-# define SRC_NODE_NATIVE_MODULE_H_
+#define SRC_NODE_NATIVE_MODULE_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include <map>
-#   include <memory>
-#   include <set>
-#   include <string>
-#   include "node_mutex.h"
-#   include "node_union_bytes.h"
-#   include "v8.h"
+# include <map>
+# include <memory>
+# include <set>
+# include <string>
+# include "node_mutex.h"
+# include "node_union_bytes.h"
+# include "v8.h"
 
 // Forward declare test fixture for `friend` declaration.
 class PerProcessTest;
@@ -94,6 +94,6 @@ class NativeModuleLoader {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_NATIVE_MODULE_H_

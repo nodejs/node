@@ -20,19 +20,19 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_TLS_WRAP_H_
-# define SRC_TLS_WRAP_H_
+#define SRC_TLS_WRAP_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "node_crypto.h"  // SSLWrap
+# include "node_crypto.h"  // SSLWrap
 
-#   include "async_wrap.h"
-#   include "stream_wrap.h"
-#   include "v8.h"
+# include "async_wrap.h"
+# include "stream_wrap.h"
+# include "v8.h"
 
-#   include <openssl/ssl.h>
+# include <openssl/ssl.h>
 
-#   include <string>
+# include <string>
 
 namespace node {
 
@@ -169,7 +169,7 @@ class TLSWrap : public AsyncWrap,
   static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
-#   ifndef OPENSSL_NO_PSK
+# ifndef OPENSSL_NO_PSK
   static void SetPskIdentityHint(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnablePskCallback(
@@ -184,7 +184,7 @@ class TLSWrap : public AsyncWrap,
                                         unsigned int max_identity_len,
                                         unsigned char* psk,
                                         unsigned int max_psk_len);
-#   endif
+# endif
 
   crypto::SecureContext* sc_;
   // BIO buffers hold encrypted data.
@@ -216,6 +216,6 @@ class TLSWrap : public AsyncWrap,
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TLS_WRAP_H_

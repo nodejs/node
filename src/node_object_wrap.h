@@ -20,10 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_NODE_OBJECT_WRAP_H_
-# define SRC_NODE_OBJECT_WRAP_H_
+#define SRC_NODE_OBJECT_WRAP_H_
 
-# include "v8.h"
-# include <cassert>
+#include "v8.h"
+#include <cassert>
 
 
 namespace node {

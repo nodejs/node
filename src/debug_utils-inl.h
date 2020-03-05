@@ -1,11 +1,11 @@
 #ifndef SRC_DEBUG_UTILS_INL_H_
-# define SRC_DEBUG_UTILS_INL_H_
+#define SRC_DEBUG_UTILS_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "debug_utils.h"
+# include "debug_utils.h"
 
-#   include <type_traits>
+# include <type_traits>
 
 namespace node {
 
@@ -92,6 +92,6 @@ void COLD_NOINLINE FPrintF(FILE* file, const char* format, Args&&... args) {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_DEBUG_UTILS_INL_H_

@@ -20,16 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_STRING_BYTES_H_
-# define SRC_STRING_BYTES_H_
+#define SRC_STRING_BYTES_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 // Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
-#   include "v8.h"
-#   include "env-inl.h"
+# include "v8.h"
+# include "env-inl.h"
 
-#   include <string>
+# include <string>
 
 namespace node {
 
@@ -117,6 +117,6 @@ class StringBytes {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STRING_BYTES_H_

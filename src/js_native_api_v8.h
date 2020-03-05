@@ -1,10 +1,10 @@
 #ifndef SRC_JS_NATIVE_API_V8_H_
-# define SRC_JS_NATIVE_API_V8_H_
+#define SRC_JS_NATIVE_API_V8_H_
 
 // This file needs to be compatible with C compilers.
-# include <string.h>  // NOLINT(modernize-deprecated-headers)
-# include "js_native_api_types.h"
-# include "js_native_api_v8_internals.h"
+#include <string.h>  // NOLINT(modernize-deprecated-headers)
+#include "js_native_api_types.h"
+#include "js_native_api_v8_internals.h"
 
 static napi_status napi_clear_last_error(napi_env env);
 
@@ -136,28 +136,28 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
   return error_code;
 }
 
-# define RETURN_STATUS_IF_FALSE(env, condition, status)                  \
+#define RETURN_STATUS_IF_FALSE(env, condition, status)                  \
   do {                                                                  \
     if (!(condition)) {                                                 \
       return napi_set_last_error((env), (status));                      \
     }                                                                   \
   } while (0)
 
-# define CHECK_ENV(env)          \
+#define CHECK_ENV(env)          \
   do {                          \
     if ((env) == nullptr) {     \
       return napi_invalid_arg;  \
     }                           \
   } while (0)
 
-# define CHECK_ARG(env, arg) \
+#define CHECK_ARG(env, arg) \
   RETURN_STATUS_IF_FALSE((env), ((arg) != nullptr), napi_invalid_arg)
 
-# define CHECK_MAYBE_EMPTY(env, maybe, status) \
+#define CHECK_MAYBE_EMPTY(env, maybe, status) \
   RETURN_STATUS_IF_FALSE((env), !((maybe).IsEmpty()), (status))
 
 // NAPI_PREAMBLE is not wrapped in do..while: try_catch must have function scope
-# define NAPI_PREAMBLE(env)                                          \
+#define NAPI_PREAMBLE(env)                                          \
   CHECK_ENV((env));                                                 \
   RETURN_STATUS_IF_FALSE((env),                                     \
       (env)->last_exception.IsEmpty() && (env)->can_call_into_js(), \
@@ -165,7 +165,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
   napi_clear_last_error((env));                                     \
   v8impl::TryCatch try_catch((env))
 
-# define CHECK_TO_TYPE(env, type, context, result, src, status)                \
+#define CHECK_TO_TYPE(env, type, context, result, src, status)                \
   do {                                                                        \
     CHECK_ARG((env), (src));                                                  \
     auto maybe = v8impl::V8LocalValueFromJsValue((src))->To##type((context)); \
@@ -173,7 +173,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     (result) = maybe.ToLocalChecked();                                        \
   } while (0)
 
-# define CHECK_TO_FUNCTION(env, result, src)                                 \
+#define CHECK_TO_FUNCTION(env, result, src)                                 \
   do {                                                                      \
     CHECK_ARG((env), (src));                                                \
     v8::Local<v8::Value> v8value = v8impl::V8LocalValueFromJsValue((src));  \
@@ -181,17 +181,17 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     (result) = v8value.As<v8::Function>();                                  \
   } while (0)
 
-# define CHECK_TO_OBJECT(env, context, result, src) \
+#define CHECK_TO_OBJECT(env, context, result, src) \
   CHECK_TO_TYPE((env), Object, (context), (result), (src), napi_object_expected)
 
-# define CHECK_TO_STRING(env, context, result, src) \
+#define CHECK_TO_STRING(env, context, result, src) \
   CHECK_TO_TYPE((env), String, (context), (result), (src), napi_string_expected)
 
-# define GET_RETURN_STATUS(env)      \
+#define GET_RETURN_STATUS(env)      \
   (!try_catch.HasCaught() ? napi_ok \
                          : napi_set_last_error((env), napi_pending_exception))
 
-# define THROW_RANGE_ERROR_IF_FALSE(env, condition, error, message) \
+#define THROW_RANGE_ERROR_IF_FALSE(env, condition, error, message) \
   do {                                                             \
     if (!(condition)) {                                            \
       napi_throw_range_error((env), (error), (message));           \
@@ -199,7 +199,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                              \
   } while (0)
 
-# define RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env, condition, status)          \
+#define RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env, condition, status)          \
   do {                                                                         \
     if (!(condition)) {                                                        \
       return napi_set_last_error(                                              \
@@ -207,7 +207,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                                          \
   } while (0)
 
-# define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                   \
+#define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                   \
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsEmpty()), (status))
 
 namespace v8impl {

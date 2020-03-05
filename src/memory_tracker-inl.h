@@ -1,9 +1,9 @@
 #ifndef SRC_MEMORY_TRACKER_INL_H_
-# define SRC_MEMORY_TRACKER_INL_H_
+#define SRC_MEMORY_TRACKER_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "memory_tracker.h"
+# include "memory_tracker.h"
 
 namespace node {
 
@@ -350,6 +350,6 @@ void MemoryTracker::PopNode() {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_MEMORY_TRACKER_INL_H_

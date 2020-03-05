@@ -1,16 +1,16 @@
 #ifndef TEST_CCTEST_NODE_TEST_FIXTURE_H_
-# define TEST_CCTEST_NODE_TEST_FIXTURE_H_
+#define TEST_CCTEST_NODE_TEST_FIXTURE_H_
 
-# include <cstdlib>
-# include <memory>
-# include "gtest/gtest.h"
-# include "node.h"
-# include "node_platform.h"
-# include "node_internals.h"
-# include "env-inl.h"
-# include "util-inl.h"
-# include "v8.h"
-# include "libplatform/libplatform.h"
+#include <cstdlib>
+#include <memory>
+#include "gtest/gtest.h"
+#include "node.h"
+#include "node_platform.h"
+#include "node_internals.h"
+#include "env-inl.h"
+#include "util-inl.h"
+#include "v8.h"
+#include "libplatform/libplatform.h"
 
 struct Argv {
  public:

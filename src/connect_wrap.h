@@ -1,10 +1,10 @@
 #ifndef SRC_CONNECT_WRAP_H_
-# define SRC_CONNECT_WRAP_H_
+#define SRC_CONNECT_WRAP_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "req_wrap-inl.h"
-#   include "async_wrap.h"
+# include "req_wrap-inl.h"
+# include "async_wrap.h"
 
 namespace node {
 
@@ -21,6 +21,6 @@ class ConnectWrap : public ReqWrap<uv_connect_t> {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_CONNECT_WRAP_H_

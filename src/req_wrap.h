@@ -1,11 +1,11 @@
 #ifndef SRC_REQ_WRAP_H_
-# define SRC_REQ_WRAP_H_
+#define SRC_REQ_WRAP_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "async_wrap.h"
-#   include "util.h"
-#   include "v8.h"
+# include "async_wrap.h"
+# include "util.h"
+# include "v8.h"
 
 namespace node {
 
@@ -72,6 +72,6 @@ class ReqWrap : public AsyncWrap, public ReqWrapBase {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_REQ_WRAP_H_

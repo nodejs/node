@@ -20,13 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_ASYNC_WRAP_INL_H_
-# define SRC_ASYNC_WRAP_INL_H_
+#define SRC_ASYNC_WRAP_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "async_wrap.h"
-#   include "base_object-inl.h"
-#   include "node_internals.h"
+# include "async_wrap.h"
+# include "base_object-inl.h"
+# include "node_internals.h"
 
 namespace node {
 
@@ -90,6 +90,6 @@ inline AsyncHooks::DefaultTriggerAsyncIdScope ::DefaultTriggerAsyncIdScope(
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ASYNC_WRAP_INL_H_

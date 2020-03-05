@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 
 #ifndef SRC_TRACING_TRACED_VALUE_H_
-# define SRC_TRACING_TRACED_VALUE_H_
+#define SRC_TRACING_TRACED_VALUE_H_
 
-# include "node.h"
-# include "util.h"
-# include "v8.h"
+#include "node.h"
+#include "util.h"
+#include "v8.h"
 
-# include <cstddef>
-# include <memory>
-# include <string>
+#include <cstddef>
+#include <memory>
+#include <string>
 
 namespace node {
 namespace tracing {

@@ -1,19 +1,19 @@
 #ifndef SRC_INSPECTOR_SOCKET_SERVER_H_
-# define SRC_INSPECTOR_SOCKET_SERVER_H_
+#define SRC_INSPECTOR_SOCKET_SERVER_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include "inspector_agent.h"
-#   include "inspector_socket.h"
-#   include "uv.h"
+# include "inspector_agent.h"
+# include "inspector_socket.h"
+# include "uv.h"
 
-#   include <map>
-#   include <string>
-#   include <vector>
+# include <map>
+# include <string>
+# include <vector>
 
-#   if !HAVE_INSPECTOR
-#     error("This header can only be used when inspector is enabled")
-#   endif
+# if !HAVE_INSPECTOR
+#   error("This header can only be used when inspector is enabled")
+# endif
 
 namespace node {
 namespace inspector {
@@ -105,6 +105,6 @@ class InspectorSocketServer {
 }  // namespace inspector
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_INSPECTOR_SOCKET_SERVER_H_

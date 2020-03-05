@@ -20,39 +20,39 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef SRC_UTIL_INL_H_
-# define SRC_UTIL_INL_H_
+#define SRC_UTIL_INL_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   include <cmath>
-#   include <cstring>
-#   include "util.h"
+# include <cmath>
+# include <cstring>
+# include "util.h"
 
 // These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
 // To avoid warnings, undefine them before redefining them.
-#   ifdef BSWAP_2
-#     undef BSWAP_2
-#   endif
-#   ifdef BSWAP_4
-#     undef BSWAP_4
-#   endif
-#   ifdef BSWAP_8
-#     undef BSWAP_8
-#   endif
+# ifdef BSWAP_2
+#   undef BSWAP_2
+# endif
+# ifdef BSWAP_4
+#   undef BSWAP_4
+# endif
+# ifdef BSWAP_8
+#   undef BSWAP_8
+# endif
 
-#   if defined(_MSC_VER)
-#     include <intrin.h>
-#     define BSWAP_2(x) _byteswap_ushort(x)
-#     define BSWAP_4(x) _byteswap_ulong(x)
-#     define BSWAP_8(x) _byteswap_uint64(x)
-#   else
-#     define BSWAP_2(x) ((x) << 8) | ((x) >> 8)
-#     define BSWAP_4(x)                                                       \
+# if defined(_MSC_VER)
+#   include <intrin.h>
+#   define BSWAP_2(x) _byteswap_ushort(x)
+#   define BSWAP_4(x) _byteswap_ulong(x)
+#   define BSWAP_8(x) _byteswap_uint64(x)
+# else
+#   define BSWAP_2(x) ((x) << 8) | ((x) >> 8)
+#   define BSWAP_4(x)                                                         \
   (((x) & 0xFF) << 24) |                                                      \
   (((x) & 0xFF00) << 8) |                                                     \
   (((x) >> 8) & 0xFF00) |                                                     \
   (((x) >> 24) & 0xFF)
-#     define BSWAP_8(x)                                                       \
+#   define BSWAP_8(x)                                                         \
   (((x) & 0xFF00000000000000ull) >> 56) |                                     \
   (((x) & 0x00FF000000000000ull) >> 40) |                                     \
   (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
@@ -61,7 +61,7 @@
   (((x) & 0x0000000000FF0000ull) << 24) |                                     \
   (((x) & 0x000000000000FF00ull) << 40) |                                     \
   (((x) & 0x00000000000000FFull) << 56)
-#   endif
+# endif
 
 namespace node {
 
@@ -207,7 +207,7 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
 void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
 
-#   if defined(_MSC_VER)
+# if defined(_MSC_VER)
   int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint16_t);
   if (align == 0) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
@@ -218,7 +218,7 @@ void SwapBytes16(char* data, size_t nbytes) {
     }
     return;
   }
-#   endif
+# endif
 
   uint16_t temp;
   for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
@@ -231,7 +231,7 @@ void SwapBytes16(char* data, size_t nbytes) {
 void SwapBytes32(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 4, 0);
 
-#   if defined(_MSC_VER)
+# if defined(_MSC_VER)
   int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint32_t);
   // MSVC has no strict aliasing, and is able to highly optimize this case.
   if (align == 0) {
@@ -242,7 +242,7 @@ void SwapBytes32(char* data, size_t nbytes) {
     }
     return;
   }
-#   endif
+# endif
 
   uint32_t temp;
   for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
@@ -255,7 +255,7 @@ void SwapBytes32(char* data, size_t nbytes) {
 void SwapBytes64(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 8, 0);
 
-#   if defined(_MSC_VER)
+# if defined(_MSC_VER)
   int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint64_t);
   if (align == 0) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
@@ -266,7 +266,7 @@ void SwapBytes64(char* data, size_t nbytes) {
     }
     return;
   }
-#   endif
+# endif
 
   uint64_t temp;
   for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
@@ -535,6 +535,6 @@ inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_INL_H_

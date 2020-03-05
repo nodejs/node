@@ -1,16 +1,16 @@
 #ifndef SRC_NODE_BINDING_H_
-# define SRC_NODE_BINDING_H_
+#define SRC_NODE_BINDING_H_
 
-# if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#   if defined(__POSIX__)
-#     include <dlfcn.h>
-#   endif
+# if defined(__POSIX__)
+#   include <dlfcn.h>
+# endif
 
-#   include "node.h"
-#   define NAPI_EXPERIMENTAL
-#   include "node_api.h"
-#   include "uv.h"
+# include "node.h"
+# define NAPI_EXPERIMENTAL
+# include "node_api.h"
+# include "uv.h"
 
 enum {
   NM_F_BUILTIN = 1 << 0,  // Unused.
@@ -24,7 +24,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
               static_cast<int>(node::ModuleFlags::kLinked),
               "NM_F_LINKED != node::ModuleFlags::kLinked");
 
-#   define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)        \
+# define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
   static node::node_module _module = {                                         \
       NODE_MODULE_VERSION,                                                     \
       flags,                                                                   \
@@ -44,7 +44,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
 
 namespace node {
 
-#   define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                \
+# define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                \
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
 // Globals per process
@@ -55,11 +55,11 @@ namespace binding {
 
 class DLib {
  public:
-#   ifdef __POSIX__
+# ifdef __POSIX__
   static const int kDefaultFlags = RTLD_LAZY;
-#   else
+# else
   static const int kDefaultFlags = 0;
-#   endif
+# endif
 
   DLib(const char* filename, int flags);
 
@@ -73,9 +73,9 @@ class DLib {
   const int flags_;
   std::string errmsg_;
   void* handle_;
-#   ifndef __POSIX__
+# ifndef __POSIX__
   uv_lib_t lib_;
-#   endif
+# endif
   bool has_entry_in_global_handle_map_ = false;
 
   DLib(const DLib&) = delete;
@@ -95,5 +95,5 @@ void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node
 
-# endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_BINDING_H_
