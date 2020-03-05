@@ -50,7 +50,7 @@ async function testSingle(resolution, callback) {
 
     // We are generous
     assert(histogram.max >= 0.75 * nsSleep,
-      `${histogram.max} must be greater or equal to ${0.75 * nsSleep}`);
+           `${histogram.max} must be greater or equal to ${0.75 * nsSleep}`);
   }
 
   histogram.disable();
