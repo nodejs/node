@@ -109,9 +109,6 @@
     # Enable fast mksnapshot runs.
     'v8_enable_fast_mksnapshot%': 0,
 
-    # Enable embedded builtins.
-    'v8_enable_embedded_builtins%': 1,
-
     # Enable the registration of unwinding info for Windows/x64 and ARM64.
     'v8_win64_unwinding_info%': 1,
 
@@ -129,7 +126,7 @@
 
     # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
     'v8_enable_pointer_compression%': 0,
-    'v8_enable_31bit_smis_on_64bit_arch%': 0,
+    'v8_enable_31bit_smis_on_64bit_arch%': 1,
 
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
@@ -148,6 +145,9 @@
 
     # Sets -dV8_CONCURRENT_MARKING
     'v8_enable_concurrent_marking%': 1,
+
+    # Sets -dV8_ARRAY_BUFFER_EXTENSION
+    'v8_enable_array_buffer_extension%': 0,
 
     # Enables various testing features.
     'v8_enable_test_features%': 0,
@@ -295,14 +295,14 @@
       ['v8_enable_concurrent_marking==1', {
         'defines': ['V8_CONCURRENT_MARKING',],
       }],
+      ['v8_enable_array_buffer_extension==1', {
+        'defines': ['V8_ARRAY_BUFFER_EXTENSION',],
+      }],
       ['v8_enable_lazy_source_positions==1', {
         'defines': ['V8_ENABLE_LAZY_SOURCE_POSITIONS',],
       }],
       ['v8_check_microtasks_scopes_consistency==1', {
         'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
-      }],
-      ['v8_enable_embedded_builtins==1', {
-        'defines': ['V8_EMBEDDED_BUILTINS',],
       }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
@@ -327,6 +327,7 @@
       }],
     ],  # conditions
     'defines': [
+      'V8_EMBEDDED_BUILTINS',
       'V8_GYP_BUILD',
       'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=<(v8_typed_array_max_size_in_heap)',
     ],  # defines
