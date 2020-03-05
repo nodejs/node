@@ -989,9 +989,8 @@ static X509_STORE* NewRootCertStore() {
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (root_cert_store == nullptr) {
+  if (root_cert_store == nullptr)
     root_cert_store = NewRootCertStore();
-  }
 
   stack_st_X509_OBJECT* objs = X509_STORE_get0_objects(root_cert_store);
   int num_objs = sk_X509_OBJECT_num(objs);
@@ -1005,9 +1004,8 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
       X509* cert = X509_OBJECT_get0_X509(obj);
 
       Local<Value> value;
-      if (!X509ToPEM(env, cert).ToLocal(&value)) {
+      if (!X509ToPEM(env, cert).ToLocal(&value))
         return;
-      }
 
       result.push_back(value);
     }
@@ -2692,6 +2690,21 @@ static inline Local<Value> BIOToStringOrBuffer(Environment* env,
     // DER is binary, return it as a buffer.
     return Buffer::Copy(env, bptr->data, bptr->length).ToLocalChecked();
   }
+}
+
+static MaybeLocal<Value> X509ToPEM(Environment* env, X509* cert) {
+  BIOPointer bio(BIO_new(BIO_s_mem()));
+  if (!bio) {
+    ThrowCryptoError(env, ERR_get_error(), "BIO_new");
+    return MaybeLocal<Value>();
+  }
+
+  if (PEM_write_bio_X509(bio.get(), cert) == 0) {
+    ThrowCryptoError(env, ERR_get_error(), "PEM_write_bio_X509");
+    return MaybeLocal<Value>();
+  }
+
+  return BIOToStringOrBuffer(env, bio.get(), kKeyFormatPEM);
 }
 
 static bool WritePublicKeyInner(EVP_PKEY* pkey,

@@ -968,16 +968,6 @@ MaybeLocal<Value> GetPeerCert(
   return result;
 }
 
-MaybeLocal<Value> X509ToPEM(Environment* env, X509* cert) {
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-
-  if (PEM_write_bio_X509(bio.get(), cert) == 0) {
-    return Undefined(env->isolate());
-  }
-
-  return ToV8Value(env, bio);
-}
-
 MaybeLocal<Object> X509ToObject(Environment* env, X509* cert) {
   EscapableHandleScope scope(env->isolate());
   Local<Context> context = env->context();

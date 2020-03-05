@@ -785,6 +785,8 @@ void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
                       const char* message = nullptr);
 
+static v8::MaybeLocal<v8::Value> X509ToPEM(Environment* env, X509* cert);
+
 template <typename T>
 inline T* MallocOpenSSL(size_t count) {
   void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
