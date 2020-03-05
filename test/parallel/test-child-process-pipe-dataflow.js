@@ -3,6 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const spawn = require('child_process').spawn;
 const tmpdir = require('../common/tmpdir');
 
@@ -19,14 +20,15 @@ const MB = KB * KB;
 {
   tmpdir.refresh();
   const file = path.resolve(tmpdir.path, 'data.txt');
-  const buf = Buffer.alloc(MB).fill('x');
+  let buf = Buffer.alloc(MB).fill('x');
 
   // Most OS commands that deal with data, attach special
   // meanings to new line - for example, line buffering.
   // So cut the buffer into lines at some points, forcing
   // data flow to be split in the stream.
+  const eol_len = os.EOL.length;
   for (let i = 0; i < KB; i++)
-    buf[i * KB] = 10;
+    buf = buf.fill(os.EOL, i * KB, (i * KB + eol_len));
   fs.writeFileSync(file, buf.toString());
 
   cat = spawn('cat', [file]);
