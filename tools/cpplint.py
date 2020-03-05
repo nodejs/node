@@ -4667,7 +4667,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
     if definepos != -1: # If there is a define in the line
       # If there is >1 space between define and identifier
       if not Match(r'^.*(define|defined) {1}\S', line):
-        if not Match(r'^.*defined\(', line): 
+        if not Match(r'^.*defined\(', line):
           error(filename, linenum, 'whitespace/tab', 2,\
                 'Use one whitespace between define and identifier')
         if Match(r'^.*defined {1}\(', line):
@@ -4677,7 +4677,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
     undefpos = line.find('undef')
     if undefpos != -1:
       # If there is >1 space between undef and identifier
-      if not Match(r'^.*undef {1}\S', line):  
+      if not Match(r'^.*undef {1}\S', line):
         error(filename, linenum, 'whitespace/tab', 2,\
               'Use one whitespace between undef and identifier')
 
@@ -4694,9 +4694,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
         blockindentlevel = 1
       nextlinenum = linenum + 1
       nestinglevel = 0 # Tracks how many nested if statements there are
-      #print('new loop')
       while endflag == 0: # While the if statement is still open
-        #print(nextlinenum, nestinglevel)  
         nextline = clean_lines.elided[nextlinenum]
         # If there is a top level elif/else/endif statement
         if Match(r'^#\s*(elif|else|endif)', nextline) and nestinglevel == 0:
@@ -4707,7 +4705,7 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
           except:
             # If there is a # at the start of the line with no indentation
             nextlineindentlevel = 1
-          # Top level elif/else/endif statements should not be indented  
+          # Top level elif/else/endif statements should not be indented
           if (nextlineindentlevel != blockindentlevel):
             error(filename, nextlinenum, 'whitespace/tab', 2,\
                   'Else/elif/endif statements should be indented the same distance as their corresponding if/ifdef/ifndef statement')
