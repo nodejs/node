@@ -148,7 +148,7 @@ function generateOverflowWasmFromAsmJs() {
   }
   assertInstanceof(e, RangeError, 'RangeError should have been thrown');
   checkTopFunctionsOnCallsites(e, [
-    ['f', 133, 13],  // --
+    ['f', 133,  3],  // --
     ['f', 135, 12],  // --
     ['f', 135, 12],  // --
     ['f', 135, 12]   // --

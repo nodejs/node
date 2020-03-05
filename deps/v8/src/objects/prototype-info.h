@@ -30,6 +30,8 @@ class PrototypeInfo : public Struct {
   // this prototype, or Smi(0) if uninitialized.
   DECL_ACCESSORS(prototype_users, Object)
 
+  DECL_ACCESSORS(prototype_chain_enum_cache, Object)
+
   // [object_create_map]: A field caching the map for Object.create(prototype).
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
                                         Handle<Map> map);

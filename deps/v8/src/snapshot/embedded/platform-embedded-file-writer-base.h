@@ -63,7 +63,7 @@ class PlatformEmbeddedFileWriterBase {
   virtual void DeclareLabel(const char* name) = 0;
 
   virtual void SourceInfo(int fileid, const char* filename, int line) = 0;
-  virtual void DeclareFunctionBegin(const char* name) = 0;
+  virtual void DeclareFunctionBegin(const char* name, uint32_t size) = 0;
   virtual void DeclareFunctionEnd(const char* name) = 0;
 
   // Returns the number of printed characters.

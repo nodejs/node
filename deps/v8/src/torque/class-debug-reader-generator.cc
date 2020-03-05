@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-const char* tq_object_override_decls =
+constexpr char kTqObjectOverrideDecls[] =
     R"(  std::vector<std::unique_ptr<ObjectProperty>> GetProperties(
       d::MemoryAccessor accessor) const override;
   const char* GetName() const override;
@@ -18,9 +18,404 @@ const char* tq_object_override_decls =
   bool IsSuperclassOf(const TqObject* other) const override;
 )";
 
+constexpr char kObjectClassListDefinition[] = R"(
+const d::ClassList kObjectClassList {
+  sizeof(kObjectClassNames) / sizeof(const char*),
+  kObjectClassNames,
+};
+)";
+
 namespace {
+enum TypeStorage {
+  kAsStoredInHeap,
+  kUncompressed,
+};
+
+// An iterator for use in ValueTypeFieldsRange.
+class ValueTypeFieldIterator {
+ public:
+  ValueTypeFieldIterator(const Type* type, size_t index)
+      : type_(type), index_(index) {}
+  struct Result {
+    NameAndType name_and_type;
+    SourcePosition pos;
+    size_t offset_bytes;
+    int num_bits;
+    int shift_bits;
+  };
+  const Result operator*() const {
+    if (const StructType* struct_type = StructType::DynamicCast(type_)) {
+      const auto& field = struct_type->fields()[index_];
+      return {field.name_and_type, field.pos, *field.offset, 0, 0};
+    }
+    if (const BitFieldStructType* bit_field_struct_type =
+            BitFieldStructType::DynamicCast(type_)) {
+      const auto& field = bit_field_struct_type->fields()[index_];
+      return {field.name_and_type, field.pos, 0, field.num_bits, field.offset};
+    }
+    UNREACHABLE();
+  }
+  ValueTypeFieldIterator& operator++() {
+    ++index_;
+    return *this;
+  }
+  bool operator==(const ValueTypeFieldIterator& other) const {
+    return type_ == other.type_ && index_ == other.index_;
+  }
+  bool operator!=(const ValueTypeFieldIterator& other) const {
+    return !(*this == other);
+  }
+
+ private:
+  const Type* type_;
+  size_t index_;
+};
+
+// A way to iterate over the fields of structs or bitfield structs. For other
+// types, the iterators returned from begin() and end() are immediately equal.
+class ValueTypeFieldsRange {
+ public:
+  explicit ValueTypeFieldsRange(const Type* type) : type_(type) {}
+  ValueTypeFieldIterator begin() { return {type_, 0}; }
+  ValueTypeFieldIterator end() {
+    size_t index = 0;
+    const StructType* struct_type = StructType::DynamicCast(type_);
+    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
+      index = struct_type->fields().size();
+    }
+    if (const BitFieldStructType* bit_field_struct_type =
+            BitFieldStructType::DynamicCast(type_)) {
+      index = bit_field_struct_type->fields().size();
+    }
+    return {type_, index};
+  }
+
+ private:
+  const Type* type_;
+};
+
+// A convenient way to keep track of several different ways that we might need
+// to represent a field's type in the generated C++.
+class DebugFieldType {
+ public:
+  explicit DebugFieldType(const Field& field)
+      : name_and_type_(field.name_and_type), pos_(field.pos) {}
+  DebugFieldType(const NameAndType& name_and_type, const SourcePosition& pos)
+      : name_and_type_(name_and_type), pos_(pos) {}
+
+  bool IsTagged() const {
+    return name_and_type_.type->IsSubtypeOf(TypeOracle::GetTaggedType());
+  }
+
+  // Returns the type that should be used for this field's value within code
+  // that is compiled as part of the debug helper library. In particular, this
+  // simplifies any tagged type to a plain uintptr_t because the debug helper
+  // compiles without most of the V8 runtime code.
+  std::string GetValueType(TypeStorage storage) const {
+    if (IsTagged()) {
+      return storage == kAsStoredInHeap ? "i::Tagged_t" : "uintptr_t";
+    }
+    // Note that we need constexpr names to resolve correctly in the global
+    // namespace, because we're passing them as strings to a debugging
+    // extension. We can verify this during build of the debug helper, because
+    // we use this type for a local variable below, and generate this code in
+    // a disjoint namespace. However, we can't emit a useful error at this
+    // point. Instead we'll emit a comment that might be helpful.
+    return GetOriginalType(storage) +
+           " /*Failing? Ensure constexpr type name is fully qualified and "
+           "necessary #includes are in debug-helper-internal.h*/";
+  }
+
+  // Returns the type that should be used to represent a field's type to
+  // debugging tools that have full V8 symbols. The types returned from this
+  // method are fully qualified and may refer to object types that are not
+  // included in the compilation of the debug helper library.
+  std::string GetOriginalType(TypeStorage storage) const {
+    if (name_and_type_.type->IsStructType()) {
+      // There's no meaningful type we could use here, because the V8 symbols
+      // don't have any definition of a C++ struct matching this struct type.
+      return "";
+    }
+    if (IsTagged()) {
+      if (storage == kAsStoredInHeap &&
+          TargetArchitecture::ArePointersCompressed()) {
+        return "v8::internal::TaggedValue";
+      }
+      base::Optional<const ClassType*> field_class_type =
+          name_and_type_.type->ClassSupertype();
+      return "v8::internal::" +
+             (field_class_type.has_value()
+                  ? (*field_class_type)->GetGeneratedTNodeTypeName()
+                  : "Object");
+    }
+    return name_and_type_.type->GetConstexprGeneratedTypeName();
+  }
+
+  // Returns the field's size in bytes.
+  size_t GetSize() const {
+    auto opt_size = SizeOf(name_and_type_.type);
+    if (!opt_size.has_value()) {
+      Error("Size required for type ", name_and_type_.type->ToString())
+          .Position(pos_);
+      return 0;
+    }
+    return std::get<0>(*opt_size);
+  }
+
+  // Returns the name of the function for getting this field's address.
+  std::string GetAddressGetter() {
+    return "Get" + CamelifyString(name_and_type_.name) + "Address";
+  }
+
+ private:
+  NameAndType name_and_type_;
+  SourcePosition pos_;
+};
+
+// Emits a function to get the address of a field within a class, based on the
+// member variable {address_}, which is a tagged pointer. Example
+// implementation:
+//
+// uintptr_t TqFixedArray::GetObjectsAddress() const {
+//   return address_ - i::kHeapObjectTag + 16;
+// }
+void GenerateFieldAddressAccessor(const Field& field,
+                                  const std::string& class_name,
+                                  std::ostream& h_contents,
+                                  std::ostream& cc_contents) {
+  DebugFieldType debug_field_type(field);
+
+  const std::string address_getter = debug_field_type.GetAddressGetter();
+
+  h_contents << "  uintptr_t " << address_getter << "() const;\n";
+  cc_contents << "\nuintptr_t Tq" << class_name << "::" << address_getter
+              << "() const {\n";
+  cc_contents << "  return address_ - i::kHeapObjectTag + " << *field.offset
+              << ";\n";
+  cc_contents << "}\n";
+}
+
+// Emits a function to get the value of a field, or the value from an indexed
+// position within an array field, based on the member variable {address_},
+// which is a tagged pointer, and the parameter {accessor}, a function pointer
+// that allows for fetching memory from the debuggee. The returned result
+// includes both a "validity", indicating whether the memory could be fetched,
+// and the fetched value. If the field contains tagged data, then these
+// functions call EnsureDecompressed to expand compressed data. Example:
+//
+// Value<uintptr_t> TqMap::GetPrototypeValue(d::MemoryAccessor accessor) const {
+//   i::Tagged_t value{};
+//   d::MemoryAccessResult validity = accessor(
+//       GetPrototypeAddress(),
+//       reinterpret_cast<uint8_t*>(&value),
+//       sizeof(value));
+//   return {validity, EnsureDecompressed(value, address_)};
+// }
+//
+// For array fields, an offset parameter is included. Example:
+//
+// Value<uintptr_t> TqFixedArray::GetObjectsValue(d::MemoryAccessor accessor,
+//                                                size_t offset) const {
+//   i::Tagged_t value{};
+//   d::MemoryAccessResult validity = accessor(
+//       GetObjectsAddress() + offset * sizeof(value),
+//       reinterpret_cast<uint8_t*>(&value),
+//       sizeof(value));
+//   return {validity, EnsureDecompressed(value, address_)};
+// }
+void GenerateFieldValueAccessor(const Field& field,
+                                const std::string& class_name,
+                                std::ostream& h_contents,
+                                std::ostream& cc_contents) {
+  // Currently not implemented for struct fields.
+  if (field.name_and_type.type->IsStructType()) return;
+
+  DebugFieldType debug_field_type(field);
+
+  const std::string address_getter = debug_field_type.GetAddressGetter();
+  const std::string field_getter =
+      "Get" + CamelifyString(field.name_and_type.name) + "Value";
+
+  std::string index_param;
+  std::string index_offset;
+  if (field.index) {
+    index_param = ", size_t offset";
+    index_offset = " + offset * sizeof(value)";
+  }
+
+  if (!field.name_and_type.type->IsStructType()) {
+    std::string field_value_type = debug_field_type.GetValueType(kUncompressed);
+    h_contents << "  Value<" << field_value_type << "> " << field_getter
+               << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
+    cc_contents << "\nValue<" << field_value_type << "> Tq" << class_name
+                << "::" << field_getter << "(d::MemoryAccessor accessor"
+                << index_param << ") const {\n";
+    cc_contents << "  " << debug_field_type.GetValueType(kAsStoredInHeap)
+                << " value{};\n";
+    cc_contents << "  d::MemoryAccessResult validity = accessor("
+                << address_getter << "()" << index_offset
+                << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
+    cc_contents << "  return {validity, "
+                << (debug_field_type.IsTagged()
+                        ? "EnsureDecompressed(value, address_)"
+                        : "value")
+                << "};\n";
+    cc_contents << "}\n";
+  }
+}
+
+// Emits a portion of the member function GetProperties that is responsible for
+// adding data about the current field to a result vector called "result".
+// Example output:
+//
+// std::vector<std::unique_ptr<StructProperty>> prototype_struct_field_list;
+// result.push_back(std::make_unique<ObjectProperty>(
+//     "prototype",                                     // Field name
+//     "v8::internal::HeapObject",                      // Field type
+//     "v8::internal::HeapObject",                      // Decompressed type
+//     GetPrototypeAddress(),                           // Field address
+//     1,                                               // Number of values
+//     8,                                               // Size of value
+//     std::move(prototype_struct_field_list),          // Struct fields
+//     d::PropertyKind::kSingle));                      // Field kind
+//
+// In builds with pointer compression enabled, the field type for tagged values
+// is "v8::internal::TaggedValue" (a four-byte class) and the decompressed type
+// is a normal Object subclass that describes the expanded eight-byte type.
+//
+// If the field is an array, then its length is fetched from the debuggee. This
+// could fail if the debuggee has incomplete memory, so the "validity" from that
+// fetch is used to determine the result PropertyKind, which will say whether
+// the array's length is known.
+//
+// If the field's type is a struct, then a local variable is created and filled
+// with descriptions of each of the struct's fields. The type and decompressed
+// type in the ObjectProperty are set to the empty string, to indicate to the
+// caller that the struct fields vector should be used instead.
+//
+// The following example is an array of structs, so it uses both of the optional
+// components described above:
+//
+// std::vector<std::unique_ptr<StructProperty>> descriptors_struct_field_list;
+// descriptors_struct_field_list.push_back(std::make_unique<StructProperty>(
+//     "key",                                // Struct field name
+//     "v8::internal::PrimitiveHeapObject",  // Struct field type
+//     "v8::internal::PrimitiveHeapObject",  // Struct field decompressed type
+//     0,                                    // Byte offset within struct data
+//     0,                                    // Bitfield size (0=not a bitfield)
+//     0));                                  // Bitfield shift
+// // The line above is repeated for other struct fields. Omitted here.
+// Value<uint16_t> indexed_field_count =
+//     GetNumberOfAllDescriptorsValue(accessor);  // Fetch the array length.
+// result.push_back(std::make_unique<ObjectProperty>(
+//     "descriptors",                                 // Field name
+//     "",                                            // Field type
+//     "",                                            // Decompressed type
+//     GetDescriptorsAddress(),                       // Field address
+//     indexed_field_count.value,                     // Number of values
+//     24,                                            // Size of value
+//     std::move(descriptors_struct_field_list),      // Struct fields
+//     GetArrayKind(indexed_field_count.validity)));  // Field kind
+void GenerateGetPropsChunkForField(const Field& field,
+                                   base::Optional<NameAndType> array_length,
+                                   std::ostream& get_props_impl) {
+  DebugFieldType debug_field_type(field);
+
+  // If the current field is a struct or bitfield struct, create a vector
+  // describing its fields. Otherwise this vector will be empty.
+  std::string struct_field_list =
+      field.name_and_type.name + "_struct_field_list";
+  get_props_impl << "  std::vector<std::unique_ptr<StructProperty>> "
+                 << struct_field_list << ";\n";
+  for (const auto& struct_field :
+       ValueTypeFieldsRange(field.name_and_type.type)) {
+    DebugFieldType struct_field_type(struct_field.name_and_type,
+                                     struct_field.pos);
+    get_props_impl << "  " << struct_field_list
+                   << ".push_back(std::make_unique<StructProperty>(\""
+                   << struct_field.name_and_type.name << "\", \""
+                   << struct_field_type.GetOriginalType(kAsStoredInHeap)
+                   << "\", \""
+                   << struct_field_type.GetOriginalType(kUncompressed) << "\", "
+                   << struct_field.offset_bytes << ", " << struct_field.num_bits
+                   << ", " << struct_field.shift_bits << "));\n";
+  }
+  struct_field_list = "std::move(" + struct_field_list + ")";
+
+  // The number of values and property kind for non-indexed properties:
+  std::string count_value = "1";
+  std::string property_kind = "d::PropertyKind::kSingle";
+
+  // If the field is indexed, emit a fetch of the array length, and change
+  // count_value and property_kind to be the correct values for an array.
+  if (array_length) {
+    const Type* index_type = array_length->type;
+    std::string index_type_name;
+    if (index_type == TypeOracle::GetSmiType()) {
+      index_type_name = "uintptr_t";
+      count_value =
+          "i::PlatformSmiTagging::SmiToInt(indexed_field_count.value)";
+    } else if (!index_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      index_type_name = index_type->GetConstexprGeneratedTypeName();
+      count_value = "indexed_field_count.value";
+    } else {
+      Error("Unsupported index type: ", index_type);
+      return;
+    }
+    get_props_impl << "  Value<" << index_type_name
+                   << "> indexed_field_count = Get"
+                   << CamelifyString(array_length->name)
+                   << "Value(accessor);\n";
+    property_kind = "GetArrayKind(indexed_field_count.validity)";
+  }
+
+  get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
+                 << field.name_and_type.name << "\", \""
+                 << debug_field_type.GetOriginalType(kAsStoredInHeap)
+                 << "\", \"" << debug_field_type.GetOriginalType(kUncompressed)
+                 << "\", " << debug_field_type.GetAddressGetter() << "(), "
+                 << count_value << ", " << debug_field_type.GetSize() << ", "
+                 << struct_field_list << ", " << property_kind << "));\n";
+}
+
+// For any Torque-defined class Foo, this function generates a class TqFoo which
+// allows for convenient inspection of objects of type Foo in a crash dump or
+// time travel session (where we can't just run the object printer). The
+// generated class looks something like this:
+//
+// class TqFoo : public TqParentOfFoo {
+//  public:
+//   // {address} is an uncompressed tagged pointer.
+//   inline TqFoo(uintptr_t address) : TqParentOfFoo(address) {}
+//
+//   // Creates and returns a list of this object's properties.
+//   std::vector<std::unique_ptr<ObjectProperty>> GetProperties(
+//       d::MemoryAccessor accessor) const override;
+//
+//   // Returns the name of this class, "v8::internal::Foo".
+//   const char* GetName() const override;
+//
+//   // Visitor pattern; implementation just calls visitor->VisitFoo(this).
+//   void Visit(TqObjectVisitor* visitor) const override;
+//
+//   // Returns whether Foo is a superclass of the other object's type.
+//   bool IsSuperclassOf(const TqObject* other) const override;
+//
+//   // Field accessors omitted here (see other comments above).
+// };
+//
+// Four output streams are written:
+//
+// h_contents:  A header file which gets the class definition above.
+// cc_contents: A cc file which gets implementations of that class's members.
+// visitor:     A stream that is accumulating the definition of the class
+//              TqObjectVisitor. Each class Foo gets its own virtual method
+//              VisitFoo in TqObjectVisitor.
+// class_names: A stream that is accumulating a list of strings including fully-
+//              qualified names for every Torque-defined class type.
 void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
                               std::ostream& cc_contents, std::ostream& visitor,
+                              std::ostream& class_names,
                               std::unordered_set<const ClassType*>* done) {
   // Make sure each class only gets generated once.
   if (!done->insert(&type).second) return;
@@ -30,7 +425,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   // been emitted yet, go handle it first.
   if (super_type != nullptr) {
     GenerateClassDebugReader(*super_type, h_contents, cc_contents, visitor,
-                             done);
+                             class_names, done);
   }
 
   // Classes with undefined layout don't grant any particular value here and may
@@ -44,7 +439,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   h_contents << " public:\n";
   h_contents << "  inline Tq" << name << "(uintptr_t address) : Tq"
              << super_name << "(address) {}\n";
-  h_contents << tq_object_override_decls;
+  h_contents << kTqObjectOverrideDecls;
 
   cc_contents << "\nconst char* Tq" << name << "::GetName() const {\n";
   cc_contents << "  return \"v8::internal::" << name << "\";\n";
@@ -62,130 +457,45 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
       << name << "*>(other) != nullptr;\n";
   cc_contents << "}\n";
 
+  // By default, the visitor method for this class just calls the visitor method
+  // for this class's parent. This allows custom visitors to only override a few
+  // classes they care about without needing to know about the entire hierarchy.
   visitor << "  virtual void Visit" << name << "(const Tq" << name
           << "* object) {\n";
   visitor << "    Visit" << super_name << "(object);\n";
   visitor << "  }\n";
 
+  class_names << "  \"v8::internal::" << name << "\",\n";
+
   std::stringstream get_props_impl;
 
   for (const Field& field : type.fields()) {
-    const Type* field_type = field.name_and_type.type;
-    if (field_type == TypeOracle::GetVoidType()) continue;
-    const std::string& field_name = field.name_and_type.name;
-    bool is_field_tagged = field_type->IsSubtypeOf(TypeOracle::GetTaggedType());
-    base::Optional<const ClassType*> field_class_type =
-        field_type->ClassSupertype();
-    size_t field_size = 0;
-    std::string field_size_string;
-    std::tie(field_size, field_size_string) = field.GetFieldSizeInformation();
-
-    std::string field_value_type;
-    std::string field_value_type_compressed;
-    std::string field_cc_type;
-    std::string field_cc_type_compressed;
-    if (is_field_tagged) {
-      field_value_type = "uintptr_t";
-      field_value_type_compressed = "i::Tagged_t";
-      field_cc_type = "v8::internal::" +
-                      (field_class_type.has_value()
-                           ? (*field_class_type)->GetGeneratedTNodeTypeName()
-                           : "Object");
-      field_cc_type_compressed =
-          COMPRESS_POINTERS_BOOL ? "v8::internal::TaggedValue" : field_cc_type;
-    } else {
-      const Type* constexpr_version = field_type->ConstexprVersion();
-      if (constexpr_version == nullptr) {
-        Error("Type '", field_type->ToString(),
-              "' requires a constexpr representation");
-        continue;
-      }
-      field_cc_type = constexpr_version->GetGeneratedTypeName();
-      field_cc_type_compressed = field_cc_type;
-      // Note that we need constexpr names to resolve correctly in the global
-      // namespace, because we're passing them as strings to a debugging
-      // extension. We can verify this during build of the debug helper, because
-      // we use this type for a local variable below, and generate this code in
-      // a disjoint namespace. However, we can't emit a useful error at this
-      // point. Instead we'll emit a comment that might be helpful.
-      field_value_type =
-          field_cc_type +
-          " /*Failing? Ensure constexpr type name is fully qualified and "
-          "necessary #includes are in debug-helper-internal.h*/";
-      field_value_type_compressed = field_value_type;
+    if (field.name_and_type.type == TypeOracle::GetVoidType()) continue;
+    if (!field.offset.has_value()) {
+      // Fields with dynamic offset are currently unsupported.
+      continue;
     }
-
-    const std::string field_getter =
-        "Get" + CamelifyString(field_name) + "Value";
-    const std::string address_getter =
-        "Get" + CamelifyString(field_name) + "Address";
-
-    std::string indexed_field_info;
-    std::string index_param;
-    std::string index_offset;
+    GenerateFieldAddressAccessor(field, name, h_contents, cc_contents);
+    GenerateFieldValueAccessor(field, name, h_contents, cc_contents);
+    base::Optional<NameAndType> array_length;
     if (field.index) {
-      const Type* index_type = field.index->type;
-      std::string index_type_name;
-      std::string index_value;
-      if (index_type == TypeOracle::GetSmiType()) {
-        index_type_name = "uintptr_t";
-        index_value =
-            "i::PlatformSmiTagging::SmiToInt(indexed_field_count.value)";
-      } else if (!index_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        const Type* constexpr_index = index_type->ConstexprVersion();
-        if (constexpr_index == nullptr) {
-          Error("Type '", index_type->ToString(),
-                "' requires a constexpr representation");
-          continue;
-        }
-        index_type_name = constexpr_index->GetGeneratedTypeName();
-        index_value = "indexed_field_count.value";
-      } else {
-        Error("Unsupported index type: ", index_type);
+      array_length = ExtractSimpleFieldArraySize(type, *field.index);
+      if (!array_length) {
+        // Unsupported complex array length, skipping this field.
         continue;
       }
-      get_props_impl << "  Value<" << index_type_name
-                     << "> indexed_field_count = Get"
-                     << CamelifyString(field.index->name)
-                     << "Value(accessor);\n";
-      indexed_field_info =
-          ", " + index_value + ", GetArrayKind(indexed_field_count.validity)";
-      index_param = ", size_t offset";
-      index_offset = " + offset * sizeof(value)";
     }
-    get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
-                   << field_name << "\", \"" << field_cc_type_compressed
-                   << "\", \"" << field_cc_type << "\", " << address_getter
-                   << "()" << indexed_field_info << "));\n";
-
-    h_contents << "  uintptr_t " << address_getter << "() const;\n";
-    h_contents << "  Value<" << field_value_type << "> " << field_getter
-               << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
-    cc_contents << "\nuintptr_t Tq" << name << "::" << address_getter
-                << "() const {\n";
-    cc_contents << "  return address_ - i::kHeapObjectTag + " << field.offset
-                << ";\n";
-    cc_contents << "}\n";
-    cc_contents << "\nValue<" << field_value_type << "> Tq" << name
-                << "::" << field_getter << "(d::MemoryAccessor accessor"
-                << index_param << ") const {\n";
-    cc_contents << "  " << field_value_type_compressed << " value{};\n";
-    cc_contents << "  d::MemoryAccessResult validity = accessor("
-                << address_getter << "()" << index_offset
-                << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
-    cc_contents << "  return {validity, "
-                << (is_field_tagged ? "EnsureDecompressed(value, address_)"
-                                    : "value")
-                << "};\n";
-    cc_contents << "}\n";
+    GenerateGetPropsChunkForField(field, array_length, get_props_impl);
   }
 
   h_contents << "};\n";
 
   cc_contents << "\nstd::vector<std::unique_ptr<ObjectProperty>> Tq" << name
               << "::GetProperties(d::MemoryAccessor accessor) const {\n";
+  // Start by getting the fields from the parent class.
   cc_contents << "  std::vector<std::unique_ptr<ObjectProperty>> result = Tq"
               << super_name << "::GetProperties(accessor);\n";
+  // Then add the fields from this class.
   cc_contents << get_props_impl.str();
   cc_contents << "  return result;\n";
   cc_contents << "}\n";
@@ -226,14 +536,22 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     visitor << " public:\n";
     visitor << "  virtual void VisitObject(const TqObject* object) {}\n";
 
+    std::stringstream class_names;
+
     std::unordered_set<const ClassType*> done;
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      GenerateClassDebugReader(*type, h_contents, cc_contents, visitor, &done);
+      GenerateClassDebugReader(*type, h_contents, cc_contents, visitor,
+                               class_names, &done);
     }
 
     visitor << "};\n";
     h_contents << visitor.str();
+
+    cc_contents << "\nconst char* kObjectClassNames[] {\n";
+    cc_contents << class_names.str();
+    cc_contents << "};\n";
+    cc_contents << kObjectClassListDefinition;
   }
   WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());

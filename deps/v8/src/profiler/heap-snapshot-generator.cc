@@ -181,7 +181,9 @@ const char* HeapEntry::TypeAsString() {
   }
 }
 
-HeapSnapshot::HeapSnapshot(HeapProfiler* profiler) : profiler_(profiler) {
+HeapSnapshot::HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots)
+    : profiler_(profiler),
+      treat_global_objects_as_roots_(global_objects_as_roots) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
   STATIC_ASSERT((kSystemPointerSize == 4 && sizeof(HeapGraphEdge) == 12) ||
@@ -878,7 +880,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                          JSGlobalObject::kNativeContextOffset);
     SetInternalReference(entry, "global_proxy", global_obj.global_proxy(),
                          JSGlobalObject::kGlobalProxyOffset);
-    STATIC_ASSERT(JSGlobalObject::kSize - JSObject::kHeaderSize ==
+    STATIC_ASSERT(JSGlobalObject::kHeaderSize - JSObject::kHeaderSize ==
                   2 * kTaggedSize);
   } else if (obj.IsJSArrayBufferView()) {
     JSArrayBufferView view = JSArrayBufferView::cast(obj);
@@ -913,7 +915,8 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String string) {
 }
 
 void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol symbol) {
-  SetInternalReference(entry, "name", symbol.name(), Symbol::kNameOffset);
+  SetInternalReference(entry, "name", symbol.description(),
+                       Symbol::kDescriptionOffset);
 }
 
 void V8HeapExplorer::ExtractJSCollectionReferences(HeapEntry* entry,
@@ -930,7 +933,7 @@ void V8HeapExplorer::ExtractJSWeakCollectionReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     HeapEntry* entry, EphemeronHashTable table) {
-  for (int i = 0, capacity = table.Capacity(); i < capacity; ++i) {
+  for (InternalIndex i : table.IterateEntries()) {
     int key_index = EphemeronHashTable::EntryToIndex(i) +
                     EphemeronHashTable::kEntryKeyIndex;
     int value_index = EphemeronHashTable::EntryToValueIndex(i);
@@ -941,11 +944,16 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
                      table.OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     HeapEntry* value_entry = GetEntry(value);
-    if (key_entry && value_entry) {
-      const char* edge_name =
-          names_->GetFormatted("key %s in WeakMap", key_entry->name());
+    HeapEntry* table_entry = GetEntry(table);
+    if (key_entry && value_entry && !key.IsUndefined()) {
+      const char* edge_name = names_->GetFormatted(
+          "part of key (%s @%u) -> value (%s @%u) pair in WeakMap (table @%u)",
+          key_entry->name(), key_entry->id(), value_entry->name(),
+          value_entry->id(), table_entry->id());
       key_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
                                             value_entry, names_);
+      table_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
+                                              edge_name, value_entry, names_);
     }
   }
 }
@@ -989,12 +997,11 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
       FixedArray::OffsetOfElementAt(Context::SCOPE_INFO_INDEX));
   SetInternalReference(entry, "previous", context.get(Context::PREVIOUS_INDEX),
                        FixedArray::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-  SetInternalReference(entry, "extension",
-                       context.get(Context::EXTENSION_INDEX),
-                       FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
-  SetInternalReference(
-      entry, "native_context", context.get(Context::NATIVE_CONTEXT_INDEX),
-      FixedArray::OffsetOfElementAt(Context::NATIVE_CONTEXT_INDEX));
+  if (context.has_extension()) {
+    SetInternalReference(
+        entry, "extension", context.get(Context::EXTENSION_INDEX),
+        FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
+  }
 
   if (context.IsNativeContext()) {
     TagObject(context.normalized_map_cache(), "(context norm. map cache)");
@@ -1041,8 +1048,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
       TagObject(transitions, "(transition array)");
       SetInternalReference(entry, "transitions", transitions,
                            Map::kTransitionsOrPrototypeInfoOffset);
-    } else if (raw_transitions_or_prototype_info.IsTuple3() ||
-               raw_transitions_or_prototype_info.IsFixedArray()) {
+    } else if (raw_transitions_or_prototype_info.IsFixedArray()) {
       TagObject(raw_transitions_or_prototype_info, "(transition)");
       SetInternalReference(entry, "transition",
                            raw_transitions_or_prototype_info,
@@ -1064,19 +1070,26 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
     SetInternalReference(entry, "layout_descriptor", map.layout_descriptor(),
                          Map::kLayoutDescriptorOffset);
   }
-  Object constructor_or_backpointer = map.constructor_or_backpointer();
-  if (constructor_or_backpointer.IsMap()) {
-    TagObject(constructor_or_backpointer, "(back pointer)");
-    SetInternalReference(entry, "back_pointer", constructor_or_backpointer,
-                         Map::kConstructorOrBackPointerOffset);
-  } else if (constructor_or_backpointer.IsFunctionTemplateInfo()) {
-    TagObject(constructor_or_backpointer, "(constructor function data)");
-    SetInternalReference(entry, "constructor_function_data",
-                         constructor_or_backpointer,
-                         Map::kConstructorOrBackPointerOffset);
+  if (map.IsContextMap()) {
+    Object native_context = map.native_context();
+    TagObject(native_context, "(native context)");
+    SetInternalReference(entry, "native_context", native_context,
+                         Map::kConstructorOrBackPointerOrNativeContextOffset);
   } else {
-    SetInternalReference(entry, "constructor", constructor_or_backpointer,
-                         Map::kConstructorOrBackPointerOffset);
+    Object constructor_or_backpointer = map.constructor_or_backpointer();
+    if (constructor_or_backpointer.IsMap()) {
+      TagObject(constructor_or_backpointer, "(back pointer)");
+      SetInternalReference(entry, "back_pointer", constructor_or_backpointer,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    } else if (constructor_or_backpointer.IsFunctionTemplateInfo()) {
+      TagObject(constructor_or_backpointer, "(constructor function data)");
+      SetInternalReference(entry, "constructor_function_data",
+                           constructor_or_backpointer,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    } else {
+      SetInternalReference(entry, "constructor", constructor_or_backpointer,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    }
   }
   TagObject(map.dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", map.dependent_code(),
@@ -1333,9 +1346,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     // We assume that global objects can only have slow properties.
     GlobalDictionary dictionary =
         JSGlobalObject::cast(js_obj).global_dictionary();
-    int length = dictionary.Capacity();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < length; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       if (!dictionary.IsKey(roots, dictionary.KeyAt(i))) continue;
       PropertyCell cell = dictionary.CellAt(i);
       Name name = cell.name();
@@ -1345,9 +1357,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     }
   } else {
     NameDictionary dictionary = js_obj.property_dictionary();
-    int length = dictionary.Capacity();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < length; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);
       if (!dictionary.IsKey(roots, k)) continue;
       Object value = dictionary.ValueAt(i);
@@ -1388,8 +1399,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
     }
   } else if (js_obj.HasDictionaryElements()) {
     NumberDictionary dictionary = js_obj.element_dictionary();
-    int length = dictionary.Capacity();
-    for (int i = 0; i < length; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);
       if (!dictionary.IsKey(roots, k)) continue;
       DCHECK(k.IsNumber());
@@ -1711,7 +1721,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 
   // For full heap snapshots we do not emit user roots but rather rely on
   // regular GC roots to retain objects.
-  if (FLAG_raw_heap_snapshots) return;
+  if (!snapshot_->treat_global_objects_as_roots()) return;
 
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are

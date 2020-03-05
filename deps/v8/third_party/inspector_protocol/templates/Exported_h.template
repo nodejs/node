@@ -20,8 +20,8 @@ namespace {{namespace}} {
 #define {{"_".join(config.protocol.namespace)}}_exported_api_h
 class {{config.exported.export_macro}} Exported {
 public:
-    virtual {{config.exported.string_out}} toJSONString() const = 0;
-    virtual void writeBinary(std::vector<uint8_t>* out) const = 0;
+    virtual void AppendSerialized(std::vector<uint8_t>* out) const = 0;
+
     virtual ~Exported() { }
 };
 #endif // !defined({{"_".join(config.protocol.namespace)}}_exported_api_h)
@@ -61,7 +61,6 @@ namespace {{param.name | to_title_case}}Enum {
 
 class {{config.exported.export_macro}} {{type.id}} : public Exported {
 public:
-    static std::unique_ptr<protocol::{{domain.domain}}::API::{{type.id}}> fromJSONString(const {{config.exported.string_in}}& json);
     static std::unique_ptr<protocol::{{domain.domain}}::API::{{type.id}}> fromBinary(const uint8_t* data, size_t length);
 };
   {% endfor %}

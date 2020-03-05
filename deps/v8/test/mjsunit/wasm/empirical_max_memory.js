@@ -6,10 +6,10 @@
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-let k1MiB = 1 * 1024 * 1024;
 let k1GiB = 1 * 1024 * 1024 * 1024;
 let k4GiB = 4 * k1GiB;
-let kMaxMemory = 2 * k1GiB - kPageSize; // TODO(titzer): raise this to 4GiB
+// TODO(4153): Raise this to 4GiB, but only on 64-bit platforms.
+let kMaxMemory = 2 * k1GiB - kPageSize;
 
 (function Test() {
   var memory;
@@ -36,20 +36,19 @@ let kMaxMemory = 2 * k1GiB - kPageSize; // TODO(titzer): raise this to 4GiB
 
   function probe(a, f) {
     print("------------------------");
-    let stride = kPageSize;
+    let stride = kPageSize * 32;  // Don't check every page to save time.
     let max = kMaxMemory;
     for (let i = 0; i < max; i += stride) {
       a.store(i, f(i));
     }
     for (let i = 0; i < max; i += stride) {
-      //    print(`${i} = ${f(i)}`);
       assertEquals(f(i), a.load(i));
     }
   }
 
   try {
     let kPages = kMaxMemory / kPageSize;
-    memory = new WebAssembly.Memory({initial: kPages, maximum: kPages});
+    memory = new WebAssembly.Memory({ initial: kPages, maximum: kPages });
   } catch (e) {
     print("OOM: sorry, best effort max memory size test.");
     return;

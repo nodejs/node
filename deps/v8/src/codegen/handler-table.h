@@ -5,9 +5,9 @@
 #ifndef V8_CODEGEN_HANDLER_TABLE_H_
 #define V8_CODEGEN_HANDLER_TABLE_H_
 
+#include "src/base/bit-field.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -43,6 +43,10 @@ class V8_EXPORT_PRIVATE HandlerTable {
     ASYNC_AWAIT,  // The exception will be caught and cause a promise rejection
                   // in the desugaring of an async function, so special
                   // async/await handling in the debugger can take place.
+    UNCAUGHT_ASYNC_AWAIT,  // The exception will be caught and cause a promise
+                           // rejection in the desugaring of an async REPL
+                           // script. The corresponding message object needs to
+                           // be kept alive on the Isolate though.
   };
 
   enum EncodingMode { kRangeBasedEncoding, kReturnAddressBasedEncoding };
@@ -129,8 +133,8 @@ class V8_EXPORT_PRIVATE HandlerTable {
   static const int kReturnEntrySize = 2;
 
   // Encoding of the {handler} field.
-  using HandlerPredictionField = BitField<CatchPrediction, 0, 3>;
-  using HandlerOffsetField = BitField<int, 3, 29>;
+  using HandlerPredictionField = base::BitField<CatchPrediction, 0, 3>;
+  using HandlerOffsetField = base::BitField<int, 3, 29>;
 };
 
 }  // namespace internal

@@ -250,13 +250,13 @@ std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
       break;
     case 9:
       if ((input[7] == '+' || input[7] == '-') &&
-          IsInRange(input[8], '0', '9')) {
+          base::IsInRange(input[8], '0', '9')) {
         return ret + input[7] + input[8];
       }
       break;
     case 10:
       if ((input[7] == '+' || input[7] == '-') && (input[8] == '1') &&
-          IsInRange(input[9], '0', '4')) {
+          base::IsInRange(input[9], '0', '4')) {
         return ret + input[7] + input[8] + input[9];
       }
       break;
@@ -267,18 +267,18 @@ std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
 // Locale independenty version of isalpha for ascii range. This will return
 // false if the ch is alpha but not in ascii range.
 bool IsAsciiAlpha(char ch) {
-  return IsInRange(ch, 'A', 'Z') || IsInRange(ch, 'a', 'z');
+  return base::IsInRange(ch, 'A', 'Z') || base::IsInRange(ch, 'a', 'z');
 }
 
 // Locale independent toupper for ascii range. This will not return İ (dotted I)
 // for i under Turkish locale while std::toupper may.
 char LocaleIndependentAsciiToUpper(char ch) {
-  return (IsInRange(ch, 'a', 'z')) ? (ch - 'a' + 'A') : ch;
+  return (base::IsInRange(ch, 'a', 'z')) ? (ch - 'a' + 'A') : ch;
 }
 
 // Locale independent tolower for ascii range.
 char LocaleIndependentAsciiToLower(char ch) {
-  return (IsInRange(ch, 'A', 'Z')) ? (ch - 'A' + 'a') : ch;
+  return (base::IsInRange(ch, 'A', 'Z')) ? (ch - 'A' + 'a') : ch;
 }
 
 // Returns titlecased location, bueNos_airES -> Buenos_Aires
@@ -383,14 +383,10 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   Handle<Object> resolved_obj;
 
+  Handle<String> locale = Handle<String>(date_time_format->locale(), isolate);
   CHECK(!date_time_format->icu_locale().is_null());
   CHECK_NOT_NULL(date_time_format->icu_locale().raw());
   icu::Locale* icu_locale = date_time_format->icu_locale().raw();
-  Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(*icu_locale);
-  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSObject>());
-  std::string locale_str = maybe_locale_str.FromJust();
-  Handle<String> locale =
-      factory->NewStringFromAsciiChecked(locale_str.c_str());
 
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format().raw();
@@ -928,9 +924,54 @@ icu::Calendar* CreateCalendar(Isolate* isolate, const icu::Locale& icu_locale,
   return calendar_cache.Pointer()->CreateCalendar(icu_locale, tz);
 }
 
+icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
+                                             Intl::HourCycle hc) {
+  char16_t replacement;
+  switch (hc) {
+    case Intl::HourCycle::kUndefined:
+      return pattern;
+    case Intl::HourCycle::kH11:
+      replacement = 'K';
+      break;
+    case Intl::HourCycle::kH12:
+      replacement = 'h';
+      break;
+    case Intl::HourCycle::kH23:
+      replacement = 'H';
+      break;
+    case Intl::HourCycle::kH24:
+      replacement = 'k';
+      break;
+  }
+  bool replace = true;
+  icu::UnicodeString result;
+  for (int32_t i = 0; i < pattern.length(); i++) {
+    char16_t ch = pattern.charAt(i);
+    switch (ch) {
+      case '\'':
+        replace = !replace;
+        result.append(ch);
+        break;
+      case 'H':
+        V8_FALLTHROUGH;
+      case 'h':
+        V8_FALLTHROUGH;
+      case 'K':
+        V8_FALLTHROUGH;
+      case 'k':
+        result.append(replace ? replacement : ch);
+        break;
+      default:
+        result.append(ch);
+        break;
+    }
+  }
+  return result;
+}
+
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator* generator) {
+    icu::DateTimePatternGenerator* generator, Intl::HourCycle hc) {
   // See https://github.com/tc39/ecma402/issues/225 . The best pattern
   // generation needs to be done in the base locale according to the
   // current spec however odd it may be. See also crbug.com/826549 .
@@ -945,6 +986,7 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
   UErrorCode status = U_ZERO_ERROR;
   pattern = generator->getBestPattern(skeleton, UDATPG_MATCH_HOUR_FIELD_LENGTH,
                                       status);
+  pattern = ReplaceHourCycleInPattern(pattern, hc);
   CHECK(U_SUCCESS(status));
 
   // Make formatter from skeleton. Calendar and numbering system are added
@@ -962,7 +1004,8 @@ class DateFormatCache {
  public:
   icu::SimpleDateFormat* Create(const icu::Locale& icu_locale,
                                 const icu::UnicodeString& skeleton,
-                                icu::DateTimePatternGenerator* generator) {
+                                icu::DateTimePatternGenerator* generator,
+                                Intl::HourCycle hc) {
     std::string key;
     skeleton.toUTF8String<std::string>(key);
     key += ":";
@@ -978,7 +1021,7 @@ class DateFormatCache {
       map_.clear();
     }
     std::unique_ptr<icu::SimpleDateFormat> instance(
-        CreateICUDateFormat(icu_locale, skeleton, generator));
+        CreateICUDateFormat(icu_locale, skeleton, generator, hc));
     if (instance.get() == nullptr) return nullptr;
     map_[key] = std::move(instance);
     return static_cast<icu::SimpleDateFormat*>(map_[key]->clone());
@@ -991,11 +1034,11 @@ class DateFormatCache {
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator* generator) {
+    icu::DateTimePatternGenerator* generator, Intl::HourCycle hc) {
   static base::LazyInstance<DateFormatCache>::type cache =
       LAZY_INSTANCE_INITIALIZER;
   return std::unique_ptr<icu::SimpleDateFormat>(
-      cache.Pointer()->Create(icu_locale, skeleton, generator));
+      cache.Pointer()->Create(icu_locale, skeleton, generator, hc));
 }
 
 icu::UnicodeString SkeletonFromDateFormat(
@@ -1196,7 +1239,7 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
   }
 
   return CreateICUDateFormatFromCache(icu_locale, ReplaceSkeleton(skeleton, hc),
-                                      generator);
+                                      generator, hc);
 }
 
 class DateTimePatternGeneratorCache {
@@ -1327,6 +1370,27 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   DCHECK(!icu_locale.isBogus());
 
   UErrorCode status = U_ZERO_ERROR;
+  if (calendar_str != nullptr) {
+    auto ca_extension_it = r.extensions.find("ca");
+    if (ca_extension_it != r.extensions.end() &&
+        ca_extension_it->second != calendar_str.get()) {
+      icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
+  }
+  if (numbering_system_str != nullptr) {
+    auto nu_extension_it = r.extensions.find("nu");
+    if (nu_extension_it != r.extensions.end() &&
+        nu_extension_it->second != numbering_system_str.get()) {
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
+  }
+
+  // Need to keep a copy of icu_locale which not changing "ca", "nu", "hc"
+  // by option.
+  icu::Locale resolved_locale(icu_locale);
+
   if (calendar_str != nullptr &&
       Intl::IsValidCalendar(icu_locale, calendar_str.get())) {
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
@@ -1512,12 +1576,12 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
     icu::UnicodeString skeleton_ustr(skeleton.c_str());
     icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
-                                                   generator.get());
+                                                   generator.get(), hc);
     if (icu_date_format.get() == nullptr) {
       // Remove extensions and try again.
       icu_locale = icu::Locale(icu_locale.getBaseName());
       icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
-                                                     generator.get());
+                                                     generator.get(), hc);
       if (icu_date_format.get() == nullptr) {
         FATAL("Failed to create ICU date format, are ICU data files missing?");
       }
@@ -1555,11 +1619,16 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       if (hc != Intl::ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
         UErrorCode status = U_ZERO_ERROR;
-        icu_locale.setUnicodeKeywordValue("hc", nullptr, status);
+        resolved_locale.setUnicodeKeywordValue("hc", nullptr, status);
         CHECK(U_SUCCESS(status));
       }
     }
   }
+
+  Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(resolved_locale);
+  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSDateTimeFormat>());
+  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
+      maybe_locale_str.FromJust().c_str());
 
   Handle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
@@ -1587,6 +1656,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       (time_style == DateTimeStyle::kUndefined)) {
     date_time_format->set_hour_cycle(hc);
   }
+  date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
@@ -1874,7 +1944,6 @@ MaybeHandle<T> FormatRangeCommon(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
                     T);
   }
-  icu::DateInterval interval(x, y);
 
   icu::DateIntervalFormat* format =
       LazyCreateDateIntervalFormat(isolate, date_time_format);
@@ -1883,8 +1952,19 @@ MaybeHandle<T> FormatRangeCommon(
   }
 
   UErrorCode status = U_ZERO_ERROR;
+
+  icu::SimpleDateFormat* date_format =
+      date_time_format->icu_simple_date_format().raw();
+  const icu::Calendar* calendar = date_format->getCalendar();
+  std::unique_ptr<icu::Calendar> c1(calendar->clone());
+  std::unique_ptr<icu::Calendar> c2(calendar->clone());
+  c1->setTime(x, status);
+  c2->setTime(y, status);
+  // We need to format by Calendar because we need the Gregorian change
+  // adjustment already in the SimpleDateFormat to set the correct value of date
+  // older than Oct 15, 1582.
   icu::FormattedDateInterval formatted =
-      format->formatToValue(interval, status);
+      format->formatToValue(*c1, *c2, status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }

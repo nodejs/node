@@ -20,6 +20,18 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
     : public NON_EXPORTED_BASE(TaskRunner) {
  public:
   using TimeFunction = double (*)();
+  class RunTaskScope {
+   public:
+    explicit RunTaskScope(
+        std::shared_ptr<DefaultForegroundTaskRunner> task_runner);
+    ~RunTaskScope();
+
+   private:
+    RunTaskScope(const RunTaskScope&) = delete;
+    RunTaskScope& operator=(const RunTaskScope&) = delete;
+
+    std::shared_ptr<DefaultForegroundTaskRunner> task_runner_;
+  };
 
   DefaultForegroundTaskRunner(IdleTaskSupport idle_task_support,
                               TimeFunction time_function);
@@ -46,18 +58,31 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
   bool NonNestableTasksEnabled() const override;
 
  private:
-  // The same as PostTask, but the lock is already held by the caller. The
-  // {guard} parameter should make sure that the caller is holding the lock.
-  void PostTaskLocked(std::unique_ptr<Task> task, const base::MutexGuard&);
+  enum Nestability { kNestable, kNonNestable };
+
+  // The same as PostTask or PostNonNestableTask, but the lock is already held
+  // by the caller. The {guard} parameter should make sure that the caller is
+  // holding the lock.
+  void PostTaskLocked(std::unique_ptr<Task> task, Nestability nestability,
+                      const base::MutexGuard&);
 
   // A caller of this function has to hold {lock_}. The {guard} parameter should
   // make sure that the caller is holding the lock.
   std::unique_ptr<Task> PopTaskFromDelayedQueueLocked(const base::MutexGuard&);
 
+  // A non-nestable task is poppable only if the task runner is not nested,
+  // i.e. if a task is not being run from within a task. A nestable task is
+  // always poppable.
+  bool HasPoppableTaskInQueue() const;
+
   bool terminated_ = false;
   base::Mutex lock_;
   base::ConditionVariable event_loop_control_;
-  std::queue<std::unique_ptr<Task>> task_queue_;
+  int nesting_depth_ = 0;
+
+  using TaskQueueEntry = std::pair<Nestability, std::unique_ptr<Task>>;
+  std::deque<TaskQueueEntry> task_queue_;
+
   IdleTaskSupport idle_task_support_;
   std::queue<std::unique_ptr<IdleTask>> idle_task_queue_;
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Test spreading of large holey arrays, which are supposedly allocated in
-// LargeObjectSpace. Holes should be replaced with undefined.
+// OldLargeObjectSpace. Holes should be replaced with undefined.
 
 var arr = new Array(2e5);
 

@@ -4,6 +4,7 @@
 # Use of this source code is governed by a BSD-style license that can be found
 # in the LICENSE file.
 
+from __future__ import print_function
 import argparse
 import io
 import sys
@@ -34,10 +35,10 @@ if __name__ == "__main__":
         section_name_bs = fin.read(section_name_length)
         if section_name_bs == "compilationHints":
           num_hints, bs = read_varuintN(fin)
-          print "Custom section compilationHints with", num_hints, "hints:"
+          print("Custom section compilationHints with ", num_hints, "hints:")
           for i in range(num_hints):
             hint, bs = read_uint8(fin)
-            print i, hex(hint)
+            print(i, " ", hex(hint))
         else:
           remaining_length = payload_length \
               - len(section_name_length_bs) \

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_lastindexof {
-  macro LoadWithHoleCheck<Elements: type>(
+namespace array {
+  macro LoadWithHoleCheck<Elements : type extends FixedArrayBase>(
       elements: FixedArrayBase, index: Smi): JSAny
       labels IfHole;
 
@@ -20,12 +20,11 @@ namespace array_lastindexof {
       elements: FixedArrayBase, index: Smi): JSAny
       labels IfHole {
     const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-    const element: float64 = LoadDoubleWithHoleCheck(elements, index)
-        otherwise IfHole;
+    const element: float64 = elements.floats[index].Value() otherwise IfHole;
     return AllocateHeapNumberWithValue(element);
   }
 
-  macro FastArrayLastIndexOf<Elements: type>(
+  macro FastArrayLastIndexOf<Elements : type extends FixedArrayBase>(
       context: Context, array: JSArray, from: Smi, searchElement: JSAny): Smi {
     const elements: FixedArrayBase = array.elements;
     let k: Smi = from;
@@ -64,7 +63,7 @@ namespace array_lastindexof {
     //    else let n be len - 1.
     const n: Number = arguments.length < 2 ?
         length - 1 :
-        ToInteger_Inline(context, arguments[1], kTruncateMinusZero);
+        ToInteger_Inline(arguments[1], kTruncateMinusZero);
 
     // 5. If n >= 0, then.
     let k: Number = SmiConstant(0);
@@ -131,7 +130,8 @@ namespace array_lastindexof {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
   transitioning javascript builtin ArrayPrototypeLastIndexOf(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 

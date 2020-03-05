@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 
 import os
+import random
 import subprocess
 import sys
 import unittest
@@ -33,18 +34,18 @@ class ConfigTest(unittest.TestCase):
 
     When experiment distribution changes this test might change, too.
     """
-    class Rng(object):
-      def random(self):
-        return 0.5
     self.assertEqual(
         [
-          '--first-config=ignition_no_ic',
-          '--second-config=ignition_turbo',
+          '--first-config=ignition',
+          '--second-config=ignition_turbo_opt',
           '--second-d8=d8',
           '--second-config-extra-flags=--stress-scavenge=100',
           '--second-config-extra-flags=--no-regexp-tier-up',
+          '--second-config-extra-flags=--no-enable-ssse3',
+          '--second-config-extra-flags=--no-enable-bmi2',
+          '--second-config-extra-flags=--no-enable-lzcnt',
         ],
-        v8_fuzz_config.Config('foo', Rng(), 42).choose_foozzie_flags(),
+        v8_fuzz_config.Config('foo', random.Random(42)).choose_foozzie_flags(),
     )
 
 
@@ -119,12 +120,12 @@ def cut_verbose_output(stdout):
   return '\n'.join(stdout.split('\n')[4:])
 
 
-def run_foozzie(first_d8, second_d8, *extra_flags):
+def run_foozzie(second_d8_dir, *extra_flags):
   return subprocess.check_output([
     sys.executable, FOOZZIE,
     '--random-seed', '12345',
-    '--first-d8', os.path.join(TEST_DATA, first_d8),
-    '--second-d8', os.path.join(TEST_DATA, second_d8),
+    '--first-d8', os.path.join(TEST_DATA, 'baseline', 'd8.py'),
+    '--second-d8', os.path.join(TEST_DATA, second_d8_dir, 'd8.py'),
     '--first-config', 'ignition',
     '--second-config', 'ignition_turbo',
     os.path.join(TEST_DATA, 'fuzz-123.js'),
@@ -132,15 +133,26 @@ def run_foozzie(first_d8, second_d8, *extra_flags):
 
 
 class SystemTest(unittest.TestCase):
+  """This tests the whole correctness-fuzzing harness with fake build
+  artifacts.
+
+  Overview of fakes:
+    baseline: Example foozzie output including a syntax error.
+    build1: Difference to baseline is a stack trace differece expected to
+            be suppressed.
+    build2: Difference to baseline is a non-suppressed output difference
+            causing the script to fail.
+    build3: As build1 but with an architecture difference as well.
+  """
   def testSyntaxErrorDiffPass(self):
-    stdout = run_foozzie('test_d8_1.py', 'test_d8_2.py', '--skip-sanity-checks')
+    stdout = run_foozzie('build1', '--skip-sanity-checks')
     self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
 
   def testDifferentOutputFail(self):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
       expected_output = f.read()
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('test_d8_1.py', 'test_d8_3.py', '--skip-sanity-checks',
+      run_foozzie('build2', '--skip-sanity-checks',
                   '--first-config-extra-flags=--flag1',
                   '--first-config-extra-flags=--flag2=0',
                   '--second-config-extra-flags=--flag3')
@@ -152,10 +164,23 @@ class SystemTest(unittest.TestCase):
     with open(os.path.join(TEST_DATA, 'sanity_check_output.txt')) as f:
       expected_output = f.read()
     with self.assertRaises(subprocess.CalledProcessError) as ctx:
-      run_foozzie('test_d8_1.py', 'test_d8_3.py')
+      run_foozzie('build2')
     e = ctx.exception
     self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertEquals(expected_output, e.output)
+
+  def testDifferentArch(self):
+    """Test that the architecture-specific mocks are passed to both runs when
+    we use executables with different architectures.
+    """
+    # Build 3 simulates x86, while the baseline is x64.
+    stdout = run_foozzie('build3', '--skip-sanity-checks')
+    lines = stdout.split('\n')
+    # TODO(machenbach): Don't depend on the command-lines being printed in
+    # particular lines.
+    self.assertIn('v8_mock_archs.js', lines[1])
+    self.assertIn('v8_mock_archs.js', lines[3])
+
 
 if __name__ == '__main__':
   unittest.main()

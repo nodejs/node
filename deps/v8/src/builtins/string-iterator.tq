@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_iterator {
+namespace string {
 
   macro NewJSStringIterator(implicit context: Context)(
       string: String, nextIndex: Smi): JSStringIterator {
@@ -17,7 +17,7 @@ namespace string_iterator {
 
   // ES6 #sec-string.prototype-@@iterator
   transitioning javascript builtin StringPrototypeIterator(
-      js-implicit context: Context, receiver: JSAny)(): JSStringIterator {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSStringIterator {
     const name: String =
         ToThisString(receiver, 'String.prototype[Symbol.iterator]');
     const index: Smi = 0;
@@ -26,10 +26,10 @@ namespace string_iterator {
 
   // ES6 #sec-%stringiteratorprototype%.next
   transitioning javascript builtin StringIteratorPrototypeNext(
-      js-implicit context: Context, receiver: JSAny)(): JSObject {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSObject {
     const iterator = Cast<JSStringIterator>(receiver) otherwise ThrowTypeError(
-        kIncompatibleMethodReceiver, 'String Iterator.prototype.next',
-        receiver);
+        MessageTemplate::kIncompatibleMethodReceiver,
+        'String Iterator.prototype.next', receiver);
     const string = iterator.string;
     const position: intptr = SmiUntag(iterator.index);
     const length: intptr = string.length_intptr;
@@ -37,7 +37,7 @@ namespace string_iterator {
       return AllocateJSIteratorResult(Undefined, True);
     }
     // Move to next codepoint.
-    const encoding = UTF16;
+    const encoding = UnicodeEncoding::UTF16;
     const ch = string::LoadSurrogatePairAt(string, length, position, encoding);
     const value: String = string::StringFromSingleUTF16EncodedCodePoint(ch);
     iterator.index = SmiTag(position + value.length_intptr);

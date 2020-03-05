@@ -803,7 +803,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
                                    &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
         isolate);
-    if (*cached_answer != Smi::kZero) {
+    if (*cached_answer != Smi::zero()) {
       // The cache FixedArray is a COW-array and can therefore be reused.
       Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
           Handle<FixedArray>::cast(cached_answer));
@@ -1055,15 +1055,15 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const std::function<Object(int)>& f_get_capture) {
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
-  const int capture_count = capture_map->length() >> 1;
-  for (int i = 0; i < capture_count; i++) {
+  const int named_capture_count = capture_map->length() >> 1;
+  for (int i = 0; i < named_capture_count; i++) {
     const int name_ix = i * 2;
     const int index_ix = i * 2 + 1;
 
     Handle<String> capture_name(String::cast(capture_map->get(name_ix)),
                                 isolate);
     const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
-    DCHECK(1 <= capture_ix && capture_ix <= capture_count);
+    DCHECK_GE(capture_ix, 1);  // Explicit groups start at index 1.
 
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
     DCHECK(capture_value->IsUndefined(isolate) || capture_value->IsString());
@@ -1301,7 +1301,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     }
 
     if (match_indices_obj->IsNull(isolate)) {
-      if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
+      if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
       return string;
     }
 
@@ -1443,7 +1443,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   }
 
   if (match_indices_obj->IsNull(isolate)) {
-    if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
+    if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
     return *subject;
   }
 

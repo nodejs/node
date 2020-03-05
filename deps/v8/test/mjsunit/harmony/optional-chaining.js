@@ -101,6 +101,7 @@ shouldThrowSyntaxError('function foo() { new?.target; }');
 
 shouldThrowSyntaxError('function tag() {} tag?.``;');
 shouldThrowSyntaxError('const o = { tag() {} }; o?.tag``;');
+shouldThrowSyntaxError('class A { #foo = "hi"; constructor() { this?.#foo; } }')
 
 const o2 = {
   count: 0,

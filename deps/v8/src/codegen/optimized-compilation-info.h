@@ -44,28 +44,28 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
   enum Flag {
-    kAccessorInliningEnabled = 1 << 0,
-    kFunctionContextSpecializing = 1 << 1,
-    kInliningEnabled = 1 << 2,
-    kDisableFutureOptimization = 1 << 3,
-    kSplittingEnabled = 1 << 4,
-    kSourcePositionsEnabled = 1 << 5,
-    kBailoutOnUninitialized = 1 << 6,
-    kLoopPeelingEnabled = 1 << 7,
-    kUntrustedCodeMitigations = 1 << 8,
-    kSwitchJumpTableEnabled = 1 << 9,
-    kCalledWithCodeStartRegister = 1 << 10,
-    kPoisonRegisterArguments = 1 << 11,
-    kAllocationFoldingEnabled = 1 << 12,
-    kAnalyzeEnvironmentLiveness = 1 << 13,
-    kTraceTurboJson = 1 << 14,
-    kTraceTurboGraph = 1 << 15,
-    kTraceTurboScheduled = 1 << 16,
-    kTraceTurboAllocation = 1 << 17,
-    kTraceHeapBroker = 1 << 18,
-    kWasmRuntimeExceptionSupport = 1 << 19,
-    kTurboControlFlowAwareAllocation = 1 << 20,
-    kTurboPreprocessRanges = 1 << 21
+    kFunctionContextSpecializing = 1 << 0,
+    kInliningEnabled = 1 << 1,
+    kDisableFutureOptimization = 1 << 2,
+    kSplittingEnabled = 1 << 3,
+    kSourcePositionsEnabled = 1 << 4,
+    kBailoutOnUninitialized = 1 << 5,
+    kLoopPeelingEnabled = 1 << 6,
+    kUntrustedCodeMitigations = 1 << 7,
+    kSwitchJumpTableEnabled = 1 << 8,
+    kCalledWithCodeStartRegister = 1 << 9,
+    kPoisonRegisterArguments = 1 << 10,
+    kAllocationFoldingEnabled = 1 << 11,
+    kAnalyzeEnvironmentLiveness = 1 << 12,
+    kTraceTurboJson = 1 << 13,
+    kTraceTurboGraph = 1 << 14,
+    kTraceTurboScheduled = 1 << 15,
+    kTraceTurboAllocation = 1 << 16,
+    kTraceHeapBroker = 1 << 17,
+    kWasmRuntimeExceptionSupport = 1 << 18,
+    kTurboControlFlowAwareAllocation = 1 << 19,
+    kTurboPreprocessRanges = 1 << 20,
+    kConcurrentInlining = 1 << 21,
   };
 
   // Construct a compilation info for optimized compilation.
@@ -94,6 +94,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Flags used by optimized compilation.
 
+  void MarkAsConcurrentInlining() { SetFlag(kConcurrentInlining); }
+  bool is_concurrent_inlining() const { return GetFlag(kConcurrentInlining); }
+
   void MarkAsTurboControlFlowAwareAllocation() {
     SetFlag(kTurboControlFlowAwareAllocation);
   }
@@ -111,11 +114,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   }
   bool is_function_context_specializing() const {
     return GetFlag(kFunctionContextSpecializing);
-  }
-
-  void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }
-  bool is_accessor_inlining_enabled() const {
-    return GetFlag(kAccessorInliningEnabled);
   }
 
   void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
@@ -283,8 +281,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void set_trace_turbo_filename(std::unique_ptr<char[]> filename) {
     trace_turbo_filename_ = std::move(filename);
   }
-
-  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
 
   TickCounter& tick_counter() { return tick_counter_; }
 

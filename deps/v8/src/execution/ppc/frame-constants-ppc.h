@@ -17,21 +17,6 @@ class EntryFrameConstants : public AllStatic {
       -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 };
 
-class ExitFrameConstants : public TypedFrameConstants {
- public:
-  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-
-  // The caller fields are below the frame pointer on the stack.
-  static constexpr int kCallerFPOffset = 0 * kPointerSize;
-  // The calling JS function is below FP.
-  static constexpr int kCallerPCOffset = 1 * kPointerSize;
-
-  // FP-relative displacement of the caller's SP.  It points just
-  // below the saved PC.
-  static constexpr int kCallerSPDisplacement = 2 * kPointerSize;
-};
-
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs = 7;
@@ -43,20 +28,6 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
       TypedFrameConstants::kFixedFrameSizeFromFp +
       kNumberOfSavedGpParamRegs * kPointerSize +
       kNumberOfSavedFpParamRegs * kDoubleSize;
-};
-
-class JavaScriptFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static constexpr int kLocal0Offset =
-      StandardFrameConstants::kExpressionsOffset;
-  static constexpr int kLastParameterOffset = +2 * kPointerSize;
-  static constexpr int kFunctionOffset =
-      StandardFrameConstants::kFunctionOffset;
-
-  // Caller SP-relative.
-  static constexpr int kParam0Offset = -2 * kPointerSize;
-  static constexpr int kReceiverOffset = -1 * kPointerSize;
 };
 
 }  // namespace internal

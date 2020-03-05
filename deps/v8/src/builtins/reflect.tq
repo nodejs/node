@@ -3,45 +3,48 @@
 // found in the LICENSE file.
 
 namespace reflect {
-
-  const kCalledOnNonObject: constexpr MessageTemplate
-  generates 'MessageTemplate::kCalledOnNonObject';
-
   // ES6 section 26.1.10 Reflect.isExtensible
   transitioning javascript builtin
-  ReflectIsExtensible(js-implicit context: Context)(object: JSAny): JSAny {
+  ReflectIsExtensible(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
-        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.isExtensible');
-    return object::ObjectIsExtensible(objectJSReceiver);
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.isExtensible');
+    return object::ObjectIsExtensibleImpl(objectJSReceiver);
   }
 
   // ES6 section 26.1.12 Reflect.preventExtensions
   transitioning javascript builtin
-  ReflectPreventExtensions(js-implicit context: Context)(object: JSAny): JSAny {
+  ReflectPreventExtensions(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
-        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.preventExtensions');
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.preventExtensions');
     return object::ObjectPreventExtensionsDontThrow(objectJSReceiver);
   }
 
   // ES6 section 26.1.8 Reflect.getPrototypeOf
   transitioning javascript builtin
-  ReflectGetPrototypeOf(js-implicit context: Context)(object: JSAny): JSAny {
+  ReflectGetPrototypeOf(js-implicit context: NativeContext)(object: JSAny):
+      JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
-        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.getPrototypeOf');
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.getPrototypeOf');
     return object::JSReceiverGetPrototypeOf(objectJSReceiver);
   }
 
   // ES6 section 26.1.14 Reflect.setPrototypeOf
   transitioning javascript builtin ReflectSetPrototypeOf(
-      js-implicit context: Context)(object: JSAny, proto: JSAny): JSAny {
+      js-implicit context: NativeContext)(object: JSAny, proto: JSAny): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
-        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.setPrototypeOf');
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.setPrototypeOf');
     typeswitch (proto) {
-      case (proto: JSReceiver | Null): {
+      case (proto: JSReceiver|Null): {
         return object::ObjectSetPrototypeOfDontThrow(objectJSReceiver, proto);
       }
       case (JSAny): {
-        ThrowTypeError(kProtoObjectOrNull, proto);
+        ThrowTypeError(MessageTemplate::kProtoObjectOrNull, proto);
       }
     }
   }
@@ -57,11 +60,12 @@ namespace reflect {
 
   // ES6 section 26.1.6 Reflect.get
   transitioning javascript builtin
-  ReflectGet(js-implicit context: Context)(...arguments): JSAny {
+  ReflectGet(js-implicit context: NativeContext)(...arguments): JSAny {
     const length = arguments.length;
     const object: JSAny = length > 0 ? arguments[0] : Undefined;
     const objectJSReceiver = Cast<JSReceiver>(object)
-        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.get');
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.get');
     const propertyKey: JSAny = length > 1 ? arguments[1] : Undefined;
     const name: AnyName = ToName(propertyKey);
     const receiver: JSAny = length > 2 ? arguments[2] : objectJSReceiver;
@@ -71,9 +75,20 @@ namespace reflect {
 
   // ES6 section 26.1.4 Reflect.deleteProperty
   transitioning javascript builtin ReflectDeleteProperty(
-      js-implicit context: Context)(object: JSAny, key: JSAny): JSAny {
+      js-implicit context: NativeContext)(object: JSAny, key: JSAny): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
-        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.deleteProperty');
-    return DeleteProperty(objectJSReceiver, key, kSloppy);
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.deleteProperty');
+    return DeleteProperty(objectJSReceiver, key, LanguageMode::kSloppy);
+  }
+
+  // ES section #sec-reflect.has
+  transitioning javascript builtin
+  ReflectHas(js-implicit context: NativeContext)(object: JSAny, key: JSAny):
+      JSAny {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Reflect.has');
+    return HasProperty(objectJSReceiver, key);
   }
 }  // namespace reflect

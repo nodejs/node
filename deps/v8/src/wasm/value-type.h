@@ -16,6 +16,9 @@ class Signature;
 
 namespace wasm {
 
+// Type for holding simd values, defined in wasm-value.h.
+class Simd128;
+
 // Type lattice: For any two types connected by a line, the type at the bottom
 // is a subtype of the other type.
 //
@@ -40,28 +43,33 @@ enum ValueType : uint8_t {
   kWasmBottom,
 };
 
+#define FOREACH_WASMVALUE_CTYPES(V) \
+  V(kWasmI32, int32_t)              \
+  V(kWasmI64, int64_t)              \
+  V(kWasmF32, float)                \
+  V(kWasmF64, double)               \
+  V(kWasmS128, Simd128)
+
 using FunctionSig = Signature<ValueType>;
 
 inline size_t hash_value(ValueType type) { return static_cast<size_t>(type); }
 
-// TODO(clemensb): Compute memtype and size from ValueType once we have c++14
-// constexpr support.
 #define FOREACH_LOAD_TYPE(V) \
-  V(I32, , Int32, 2)         \
-  V(I32, 8S, Int8, 0)        \
-  V(I32, 8U, Uint8, 0)       \
-  V(I32, 16S, Int16, 1)      \
-  V(I32, 16U, Uint16, 1)     \
-  V(I64, , Int64, 3)         \
-  V(I64, 8S, Int8, 0)        \
-  V(I64, 8U, Uint8, 0)       \
-  V(I64, 16S, Int16, 1)      \
-  V(I64, 16U, Uint16, 1)     \
-  V(I64, 32S, Int32, 2)      \
-  V(I64, 32U, Uint32, 2)     \
-  V(F32, , Float32, 2)       \
-  V(F64, , Float64, 3)       \
-  V(S128, , Simd128, 4)
+  V(I32, , Int32)            \
+  V(I32, 8S, Int8)           \
+  V(I32, 8U, Uint8)          \
+  V(I32, 16S, Int16)         \
+  V(I32, 16U, Uint16)        \
+  V(I64, , Int64)            \
+  V(I64, 8S, Int8)           \
+  V(I64, 8U, Uint8)          \
+  V(I64, 16S, Int16)         \
+  V(I64, 16U, Uint16)        \
+  V(I64, 32S, Int32)         \
+  V(I64, 32U, Uint32)        \
+  V(F32, , Float32)          \
+  V(F64, , Float64)          \
+  V(S128, , Simd128)
 
 class LoadType {
  public:
@@ -91,6 +99,8 @@ class LoadType {
         return kF32Load;
       case kWasmF64:
         return kF64Load;
+      case kWasmS128:
+        return kS128Load;
       default:
         UNREACHABLE();
     }
@@ -100,7 +110,10 @@ class LoadType {
   const LoadTypeValue val_;
 
   static constexpr uint8_t kLoadSizeLog2[] = {
-#define LOAD_SIZE(_, __, ___, size) size,
+  // MSVC wants a static_cast here.
+#define LOAD_SIZE(_, __, memtype) \
+  static_cast<uint8_t>(           \
+      ElementSizeLog2Of(MachineType::memtype().representation())),
       FOREACH_LOAD_TYPE(LOAD_SIZE)
 #undef LOAD_SIZE
   };
@@ -112,23 +125,23 @@ class LoadType {
   };
 
   static constexpr MachineType kMemType[] = {
-#define MEMTYPE(_, __, memtype, ___) MachineType::memtype(),
+#define MEMTYPE(_, __, memtype) MachineType::memtype(),
       FOREACH_LOAD_TYPE(MEMTYPE)
 #undef MEMTYPE
   };
 };
 
 #define FOREACH_STORE_TYPE(V) \
-  V(I32, , Word32, 2)         \
-  V(I32, 8, Word8, 0)         \
-  V(I32, 16, Word16, 1)       \
-  V(I64, , Word64, 3)         \
-  V(I64, 8, Word8, 0)         \
-  V(I64, 16, Word16, 1)       \
-  V(I64, 32, Word32, 2)       \
-  V(F32, , Float32, 2)        \
-  V(F64, , Float64, 3)        \
-  V(S128, , Simd128, 4)
+  V(I32, , Word32)            \
+  V(I32, 8, Word8)            \
+  V(I32, 16, Word16)          \
+  V(I64, , Word64)            \
+  V(I64, 8, Word8)            \
+  V(I64, 16, Word16)          \
+  V(I64, 32, Word32)          \
+  V(F32, , Float32)           \
+  V(F64, , Float64)           \
+  V(S128, , Simd128)
 
 class StoreType {
  public:
@@ -158,6 +171,8 @@ class StoreType {
         return kF32Store;
       case kWasmF64:
         return kF64Store;
+      case kWasmS128:
+        return kS128Store;
       default:
         UNREACHABLE();
     }
@@ -167,7 +182,9 @@ class StoreType {
   const StoreTypeValue val_;
 
   static constexpr uint8_t kStoreSizeLog2[] = {
-#define STORE_SIZE(_, __, ___, size) size,
+  // MSVC wants a static_cast here.
+#define STORE_SIZE(_, __, memrep) \
+  static_cast<uint8_t>(ElementSizeLog2Of(MachineRepresentation::k##memrep)),
       FOREACH_STORE_TYPE(STORE_SIZE)
 #undef STORE_SIZE
   };
@@ -179,7 +196,7 @@ class StoreType {
   };
 
   static constexpr MachineRepresentation kMemRep[] = {
-#define MEMREP(_, __, memrep, ___) MachineRepresentation::k##memrep,
+#define MEMREP(_, __, memrep) MachineRepresentation::k##memrep,
       FOREACH_STORE_TYPE(MEMREP)
 #undef MEMREP
   };
@@ -194,14 +211,12 @@ class V8_EXPORT_PRIVATE ValueTypes {
            (expected == kWasmAnyRef && actual == kWasmFuncRef) ||
            (expected == kWasmAnyRef && actual == kWasmExnRef) ||
            (expected == kWasmFuncRef && actual == kWasmNullRef) ||
-           // TODO(mstarzinger): For now we treat "nullref" as a sub-type of
-           // "exnref", which is correct but might change. See here:
-           // https://github.com/WebAssembly/exception-handling/issues/55
            (expected == kWasmExnRef && actual == kWasmNullRef);
   }
 
   static inline bool IsReferenceType(ValueType type) {
-    return type == kWasmAnyRef || type == kWasmFuncRef || type == kWasmExnRef;
+    return type == kWasmAnyRef || type == kWasmFuncRef ||
+           type == kWasmNullRef || type == kWasmExnRef;
   }
 
   static inline ValueType CommonSubType(ValueType a, ValueType b) {
@@ -231,9 +246,11 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 16;
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return kSystemPointerSize;
-      default:
+      case kWasmStmt:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -250,9 +267,11 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 4;
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return kSystemPointerSizeLog2;
-      default:
+      case kWasmStmt:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -275,11 +294,13 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalAnyRef;
       case kWasmFuncRef:
         return kLocalFuncRef;
+      case kWasmNullRef:
+        return kLocalNullRef;
       case kWasmExnRef:
         return kLocalExnRef;
       case kWasmStmt:
         return kLocalVoid;
-      default:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -296,13 +317,14 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineType::Float64();
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return MachineType::TaggedPointer();
       case kWasmS128:
         return MachineType::Simd128();
       case kWasmStmt:
         return MachineType::None();
-      default:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -326,7 +348,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineRepresentation::kSimd128;
       case kWasmStmt:
         return MachineRepresentation::kNone;
-      default:
+      case kWasmBottom:
         UNREACHABLE();
     }
   }
@@ -370,10 +392,11 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 's';
       case kWasmStmt:
         return 'v';
+      case kWasmNullRef:
+        return 'n';
+      case kWasmExnRef:
       case kWasmBottom:
         return '*';
-      default:
-        return '?';
     }
   }
 
@@ -401,8 +424,6 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return "<stmt>";
       case kWasmBottom:
         return "<bot>";
-      default:
-        return "<unknown>";
     }
   }
 

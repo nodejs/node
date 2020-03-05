@@ -65,6 +65,8 @@ namespace internal {
   T(ConstructorClassField, "Classes may not have a field named 'constructor'") \
   T(ConstructorNonCallable,                                                    \
     "Class constructor % cannot be invoked without 'new'")                     \
+  T(AnonymousConstructorNonCallable,                                           \
+    "Class constructors cannot be invoked without 'new'")                      \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
   T(ConstructorNotReceiver, "The .constructor property is not an object")      \
   T(CurrencyCode, "Currency code is required with currency style.")            \
@@ -111,8 +113,6 @@ namespace internal {
   T(MapperFunctionNonCallable, "flatMap mapper function is not callable")      \
   T(MethodCalledOnWrongObject,                                                 \
     "Method % called on a non-object or on a wrong type of object.")           \
-  T(MethodInvokedOnNullOrUndefined,                                            \
-    "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
@@ -270,6 +270,8 @@ namespace internal {
     "Cannot supply flags when constructing one RegExp from another")           \
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
+  T(RegExpGlobalInvokedOnNonGlobal,                                            \
+    "% called with a non-global RegExp argument")                              \
   T(RelativeDateTimeFormatterBadParameters,                                    \
     "Incorrect RelativeDateTimeFormatter provided")                            \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
@@ -288,6 +290,9 @@ namespace internal {
   T(StrictReadOnlyProperty,                                                    \
     "Cannot assign to read only property '%' of % '%'")                        \
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
+  T(StringMatchAllNullOrUndefinedFlags,                                        \
+    "The .flags property of the argument to String.prototype.matchAll cannot " \
+    "be null or undefined")                                                    \
   T(SymbolIteratorInvalid,                                                     \
     "Result of the Symbol.iterator method is not an object")                   \
   T(SymbolAsyncIteratorInvalid,                                                \

@@ -206,7 +206,7 @@ void ControlEquivalence::DFSPop(DFSStack& stack, Node* node) {
 
 void ControlEquivalence::BracketListDelete(BracketList& blist, Node* to,
                                            DFSDirection direction) {
-  // TODO(mstarzinger): Optimize this to avoid linear search.
+  // TODO(turbofan): Optimize this to avoid linear search.
   for (BracketList::iterator i = blist.begin(); i != blist.end(); /*nop*/) {
     if (i->to == to && i->direction != direction) {
       TRACE("  BList erased: {%d->%d}\n", i->from->id(), i->to->id());

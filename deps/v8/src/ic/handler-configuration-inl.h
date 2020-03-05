@@ -137,8 +137,10 @@ Handle<Smi> StoreHandler::StoreInterceptor(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate) {
-  int config = KindBits::encode(kSlow);
+Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate,
+                                    KeyedAccessStoreMode store_mode) {
+  int config =
+      KindBits::encode(kSlow) | KeyedAccessStoreModeBits::encode(store_mode);
   return handle(Smi::FromInt(config), isolate);
 }
 

@@ -28,6 +28,7 @@ enum ValueTypeCode : uint8_t {
   kLocalS128 = 0x7b,
   kLocalFuncRef = 0x70,
   kLocalAnyRef = 0x6f,
+  kLocalNullRef = 0x6e,
   kLocalExnRef = 0x68,
 };
 // Binary encoding of other types.

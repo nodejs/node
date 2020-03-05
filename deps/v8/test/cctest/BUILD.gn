@@ -145,6 +145,7 @@ v8_source_set("cctest_sources") {
     "heap/test-iterators.cc",
     "heap/test-lab.cc",
     "heap/test-mark-compact.cc",
+    "heap/test-memory-measurement.cc",
     "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
     "heap/test-unmapper.cc",
@@ -182,6 +183,7 @@ v8_source_set("cctest_sources") {
     "test-api-interceptors.cc",
     "test-api-stack-traces.cc",
     "test-api-typed-array.cc",
+    "test-api-wasm.cc",
     "test-api.cc",
     "test-api.h",
     "test-array-list.cc",
@@ -192,6 +194,7 @@ v8_source_set("cctest_sources") {
     "test-bit-vector.cc",
     "test-circular-queue.cc",
     "test-code-layout.cc",
+    "test-code-pages.cc",
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
     "test-constantpool.cc",
@@ -257,6 +260,7 @@ v8_source_set("cctest_sources") {
     "test-types.cc",
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
+    "test-unwinder-code-pages.cc",
     "test-unwinder.cc",
     "test-usecounters.cc",
     "test-utils.cc",
@@ -269,8 +273,10 @@ v8_source_set("cctest_sources") {
     "unicode-helpers.cc",
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
+    "wasm/test-compilation-cache.cc",
     "wasm/test-grow-memory.cc",
     "wasm/test-jump-table-assembler.cc",
+    "wasm/test-liftoff-inspection.cc",
     "wasm/test-run-wasm-64.cc",
     "wasm/test-run-wasm-asmjs.cc",
     "wasm/test-run-wasm-atomics.cc",
@@ -281,6 +287,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",
     "wasm/test-run-wasm-sign-extension.cc",
+    "wasm/test-run-wasm-simd-liftoff.cc",
     "wasm/test-run-wasm-simd.cc",
     "wasm/test-run-wasm.cc",
     "wasm/test-streaming-compilation.cc",
@@ -296,16 +303,6 @@ v8_source_set("cctest_sources") {
     "wasm/wasm-run-utils.cc",
     "wasm/wasm-run-utils.h",
   ]
-
-  if (use_jumbo_build) {
-    jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): figure out the jumbo issues with these source
-      # files, and include them in jumbo compilation units.
-      "interpreter/bytecode-expectations-printer.cc",
-      "interpreter/test-bytecode-generator.cc",
-      "test-api.cc",
-    ]
-  }
 
   if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###

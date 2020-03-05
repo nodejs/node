@@ -43,7 +43,7 @@ namespace regexp {
     // the given regexp is non-sticky to avoid invalid results. See
     // crbug.com/v8/6706.
 
-    if (FastFlagGetter(regexp, kSticky)) {
+    if (FastFlagGetter(regexp, Flag::kSticky)) {
       return runtime::RegExpSplit(regexp, string, sanitizedLimit);
     }
 
@@ -54,11 +54,13 @@ namespace regexp {
   // ES#sec-regexp.prototype-@@split
   // RegExp.prototype [ @@split ] ( string, limit )
   transitioning javascript builtin RegExpPrototypeSplit(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     ThrowIfNotJSReceiver(
-        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@split');
+        receiver, MessageTemplate::kIncompatibleMethodReceiver,
+        'RegExp.prototype.@@split');
     const receiver = UnsafeCast<JSReceiver>(receiver);
-    const string: String = ToString_Inline(context, arguments[0]);
+    const string: String = ToString_Inline(arguments[0]);
     const limit = arguments[1];
 
     // Strict: Reads the flags property.

@@ -52,7 +52,7 @@ DEFAULT_TARGETS = ["d8"]
 # Tests that run-tests.py would run by default that can be run with
 # BUILD_TARGETS_TESTS.
 DEFAULT_TESTS = ["cctest", "debugger", "intl", "message", "mjsunit",
-                 "preparser", "unittests"]
+                 "unittests"]
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
 ACTIONS = {
@@ -83,10 +83,11 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
               "message": "d8",
               "mjsunit": "d8",
               "mozilla": "d8",
-              "preparser": "d8",
               "test262": "d8",
               "unittests": "unittests",
               "wasm-api-tests": "wasm_api_tests",
+              "wasm-js": "d8",
+              "wasm-spec-tests": "d8",
               "webkit": "d8"}
 
 OUTDIR = "out"
@@ -340,10 +341,12 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
-    # Specifying a single unit test looks like "unittests/Foo.Bar".
-    if argstring.startswith("unittests/"):
+    # Specifying a single unit test looks like "unittests/Foo.Bar", test262
+    # tests have names like "S15.4.4.7_A4_T1", don't split these.
+    if argstring.startswith("unittests/") or argstring.startswith("test262/"):
       words = [argstring]
     else:
+      # Assume it's a word like "x64.release" -> split at the dot.
       words = argstring.split('.')
     if len(words) == 1:
       word = words[0]

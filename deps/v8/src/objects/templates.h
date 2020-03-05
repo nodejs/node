@@ -166,7 +166,7 @@ class ObjectTemplateInfo
   inline ObjectTemplateInfo GetParent(Isolate* isolate);
 
  private:
-  using IsImmutablePrototype = BitField<bool, 0, 1>;
+  using IsImmutablePrototype = base::BitField<bool, 0, 1>;
   using EmbedderFieldCount = IsImmutablePrototype::Next<int, 29>;
 
   TQ_OBJECT_CONSTRUCTORS(ObjectTemplateInfo)

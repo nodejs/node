@@ -41,11 +41,12 @@ class PropertyCell : public HeapObject {
   // As a result the old cell could be invalidated and/or dependent code could
   // be deoptimized. Returns the prepared property cell.
   static Handle<PropertyCell> PrepareForValue(
-      Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
-      Handle<Object> value, PropertyDetails details);
+      Isolate* isolate, Handle<GlobalDictionary> dictionary,
+      InternalIndex entry, Handle<Object> value, PropertyDetails details);
 
   static Handle<PropertyCell> InvalidateEntry(
-      Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry);
+      Isolate* isolate, Handle<GlobalDictionary> dictionary,
+      InternalIndex entry);
 
   static void SetValueWithInvalidation(Isolate* isolate, const char* cell_name,
                                        Handle<PropertyCell> cell,

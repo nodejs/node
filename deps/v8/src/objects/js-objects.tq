@@ -1,0 +1,192 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// JSReceiver corresponds to objects in the JS sense.
+@abstract
+@highestInstanceTypeWithinParentClassRange
+extern class JSReceiver extends HeapObject {
+  properties_or_hash: FixedArrayBase|PropertyArray|Smi;
+}
+
+type Constructor extends JSReceiver;
+
+@generateCppClass
+@apiExposedInstanceTypeValue(0x421)
+@highestInstanceTypeWithinParentClassRange
+extern class JSObject extends JSReceiver {
+  // [elements]: The elements (properties with names that are integers).
+  //
+  // Elements can be in two general modes: fast and slow. Each mode
+  // corresponds to a set of object representations of elements that
+  // have something in common.
+  //
+  // In the fast mode elements is a FixedArray and so each element can be
+  // quickly accessed. The elements array can have one of several maps in this
+  // mode: fixed_array_map, fixed_double_array_map,
+  // sloppy_arguments_elements_map or fixed_cow_array_map (for copy-on-write
+  // arrays). In the latter case the elements array may be shared by a few
+  // objects and so before writing to any element the array must be copied. Use
+  // EnsureWritableFastElements in this case.
+  //
+  // In the slow mode the elements is either a NumberDictionary or a
+  // FixedArray parameter map for a (sloppy) arguments object.
+  elements: FixedArrayBase;
+}
+
+macro NewJSObject(implicit context: Context)(): JSObject {
+  const objectFunction: JSFunction = GetObjectFunction();
+  const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
+      otherwise unreachable;
+  return AllocateJSObjectFromMap(map);
+}
+
+@abstract
+@generateCppClass
+@lowestInstanceTypeWithinParentClassRange
+extern class JSCustomElementsObject extends JSObject {
+}
+
+@abstract
+@generateCppClass
+@lowestInstanceTypeWithinParentClassRange
+extern class JSSpecialObject extends JSCustomElementsObject {
+}
+
+@highestInstanceTypeWithinParentClassRange
+extern class JSFunction extends JSFunctionOrBoundFunction {
+  shared_function_info: SharedFunctionInfo;
+  context: Context;
+  feedback_cell: FeedbackCell;
+  weak code: Code;
+
+  // Space for the following field may or may not be allocated.
+  @noVerifier weak prototype_or_initial_map: JSReceiver|Map;
+}
+
+type JSFunctionWithPrototypeSlot extends JSFunction;
+
+macro GetDerivedMap(implicit context: Context)(
+    target: JSFunction, newTarget: JSReceiver): Map {
+  try {
+    const constructor =
+        Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
+    assert(IsConstructor(constructor));
+    const map =
+        Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
+    if (LoadConstructorOrBackPointer(map) != target) {
+      goto SlowPath;
+    }
+
+    return map;
+  }
+  label SlowPath {
+    return runtime::GetDerivedMap(context, target, newTarget);
+  }
+}
+
+macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
+    JSObject {
+  let properties: EmptyFixedArray|NameDictionary = kEmptyFixedArray;
+  if (IsDictionaryMap(map)) {
+    properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+  }
+  return AllocateJSObjectFromMap(
+      map, properties, kEmptyFixedArray, AllocationFlag::kNone,
+      SlackTrackingMode::kWithSlackTracking);
+}
+
+@generateCppClass
+extern class JSGlobalProxy extends JSSpecialObject {
+  // [native_context]: the owner native context of this global proxy object.
+  // It is null value if this object is not used by any context.
+  native_context: Object;
+}
+
+extern class JSGlobalObject extends JSSpecialObject {
+  native_context: NativeContext;
+  global_proxy: JSGlobalProxy;
+}
+
+@generateCppClass
+extern class JSPrimitiveWrapper extends JSCustomElementsObject {
+  value: JSAny;
+}
+
+extern class JSMessageObject extends JSObject {
+  // Tagged fields.
+  message_type: Smi;
+  arguments: Object;
+  script: Script;
+  stack_frames: Object;
+  shared_info: SharedFunctionInfo|Undefined;
+
+  // Raw data fields.
+  // TODO(ishell): store as int32 instead of Smi.
+  bytecode_offset: Smi;
+  start_position: Smi;
+  end_position: Smi;
+  error_level: Smi;
+}
+
+@abstract
+@generateCppClass
+@highestInstanceTypeWithinParentClassRange
+extern class JSFunctionOrBoundFunction extends JSObject {
+}
+
+@generateCppClass
+extern class JSBoundFunction extends JSFunctionOrBoundFunction {
+  // The wrapped function object.
+  bound_target_function: Callable;
+  // The value that is always passed as the this value when calling the wrapped
+  // function.
+  bound_this: JSAny|SourceTextModule;
+  // A list of values whose elements are used as the first arguments to any call
+  // to the wrapped function.
+  bound_arguments: FixedArray;
+}
+
+@generateCppClass
+extern class JSDate extends JSObject {
+  // If one component is NaN, all of them are, indicating a NaN time value.
+
+  // The time value.
+  value: NumberOrUndefined;
+
+  // Cached values:
+  year: Undefined|Smi|NaN;
+  month: Undefined|Smi|NaN;
+  day: Undefined|Smi|NaN;
+  weekday: Undefined|Smi|NaN;
+  hour: Undefined|Smi|NaN;
+  min: Undefined|Smi|NaN;
+  sec: Undefined|Smi|NaN;
+
+  // Sample of the date cache stamp at the moment when chached fields were
+  // cached.
+  cache_stamp: Undefined|Smi|NaN;
+}
+
+@generateCppClass
+extern class JSAsyncFromSyncIterator extends JSObject {
+  sync_iterator: JSReceiver;
+  // The "next" method is loaded during GetIterator, and is not reloaded for
+  // subsequent "next" invocations.
+  next: Object;
+}
+
+@generateCppClass
+extern class JSStringIterator extends JSObject {
+  // The [[IteratedString]] slot.
+  string: String;
+  // The [[StringIteratorNextIndex]] slot.
+  index: Smi;
+}
+
+extern macro AllocateJSObjectFromMap(Map): JSObject;
+extern macro AllocateJSObjectFromMap(
+    Map, NameDictionary | EmptyFixedArray | PropertyArray): JSObject;
+extern macro AllocateJSObjectFromMap(
+    Map, NameDictionary | EmptyFixedArray | PropertyArray, FixedArray,
+    constexpr AllocationFlag, constexpr SlackTrackingMode): JSObject;

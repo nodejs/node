@@ -145,6 +145,10 @@ class V8_EXPORT_PRIVATE EmbedderStackStateScope final {
       : local_tracer_(local_tracer),
         old_stack_state_(local_tracer_->embedder_stack_state_) {
     local_tracer_->embedder_stack_state_ = stack_state;
+    if (EmbedderHeapTracer::EmbedderStackState::kEmpty == stack_state) {
+      if (local_tracer->remote_tracer())
+        local_tracer->remote_tracer()->NotifyEmptyEmbedderStack();
+    }
   }
 
   ~EmbedderStackStateScope() {

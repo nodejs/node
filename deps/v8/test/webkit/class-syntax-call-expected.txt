@@ -8,9 +8,9 @@ PASS A() threw exception TypeError: Class constructor A cannot be invoked withou
 PASS new B did not throw exception.
 PASS B() threw exception TypeError: Class constructor B cannot be invoked without 'new'.
 PASS new (class { constructor() {} })() did not throw exception.
-PASS (class { constructor() {} })() threw exception TypeError: Class constructor  cannot be invoked without 'new'.
+PASS (class { constructor() {} })() threw exception TypeError: Class constructors cannot be invoked without 'new'.
 PASS new (class extends null { constructor() { super() } })() threw exception TypeError: Super constructor null of anonymous class is not a constructor.
-PASS (class extends null { constructor() { super() } })() threw exception TypeError: Class constructor  cannot be invoked without 'new'.
+PASS (class extends null { constructor() { super() } })() threw exception TypeError: Class constructors cannot be invoked without 'new'.
 PASS successfullyParsed is true
 
 TEST COMPLETE

@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 [
+##############################################################################
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
@@ -24,10 +25,6 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
-
 ['system == windows and asan', {
   # BUG(893437).
   'Torque*': [SKIP],
@@ -44,5 +41,11 @@
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
 }],  # tsan == True
+
+##############################################################################
+['not pointer_compression', {
+  # Tests are irrelevant without pointer compression
+  'DecompressionOptimizerTest.*': [SKIP],
+}], # not pointer_compression
 
 ]

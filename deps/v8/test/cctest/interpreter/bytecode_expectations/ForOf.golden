@@ -11,12 +11,14 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 158
+bytecode array length: 165
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(4),
                 B(GetIterator), R(4), U8(1), U8(3),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
                 B(LdaNamedProperty), R(3), U8(1), U8(5),
                 B(Star), R(2),
@@ -58,7 +60,7 @@ bytecodes: [
                 B(Mov), R(context), R(10),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(11),
                 B(LdaConstant), U8(5),
                 B(Star), R(12),
@@ -94,8 +96,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [25, 68, 76],
-  [100, 133, 135],
+  [32, 75, 83],
+  [107, 140, 142],
 ]
 
 ---
@@ -105,12 +107,14 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 166
+bytecode array length: 173
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   68 S> */ B(GetIterator), R(0), U8(0), U8(2),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(4),
                 B(LdaNamedProperty), R(4), U8(1), U8(4),
                 B(Star), R(3),
@@ -154,7 +158,7 @@ bytecodes: [
                 B(Mov), R(context), R(11),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(12),
                 B(LdaConstant), U8(5),
                 B(Star), R(13),
@@ -194,8 +198,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [23, 70, 78],
-  [102, 135, 137],
+  [30, 77, 85],
+  [109, 142, 144],
 ]
 
 ---
@@ -207,12 +211,14 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 174
+bytecode array length: 181
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(4),
                 B(GetIterator), R(4), U8(1), U8(3),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
                 B(LdaNamedProperty), R(3), U8(1), U8(5),
                 B(Star), R(2),
@@ -261,7 +267,7 @@ bytecodes: [
                 B(Mov), R(context), R(10),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(11),
                 B(LdaConstant), U8(5),
                 B(Star), R(12),
@@ -297,8 +303,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [25, 84, 92],
-  [116, 149, 151],
+  [32, 91, 99],
+  [123, 156, 158],
 ]
 
 ---
@@ -308,7 +314,7 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 180
+bytecode array length: 187
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
@@ -316,6 +322,8 @@ bytecodes: [
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star), R(3),
                 B(GetIterator), R(3), U8(2), U8(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(2),
                 B(LdaNamedProperty), R(2), U8(2), U8(6),
                 B(Star), R(1),
@@ -361,7 +369,7 @@ bytecodes: [
                 B(Mov), R(context), R(10),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(11),
                 B(LdaConstant), U8(7),
                 B(Star), R(12),
@@ -403,7 +411,7 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [31, 84, 92],
-  [116, 149, 151],
+  [38, 91, 99],
+  [123, 156, 158],
 ]
 

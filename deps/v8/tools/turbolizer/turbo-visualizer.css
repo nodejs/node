@@ -5,7 +5,7 @@
   transition-timing-function: ease;
 }
 
-.collapse-pane {
+.show-hide-pane {
   background: #A0A0A0;
   bottom: 0;
   position: absolute;
@@ -155,9 +155,10 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /*height: 99vh;
-    width: 99vw;*/
   overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
 }
 
 p {
@@ -318,7 +319,7 @@ ul.noindent {
 }
 
 input:hover,
-.collapse-pane:hover input {
+.show-hide-pane:hover input {
   opacity: 1;
   cursor: pointer;
 }
@@ -334,23 +335,20 @@ input:hover,
 
 
 #left {
-  float: left;
   user-select: none;
 }
 
 #middle {
-  float: left;
   background-color: #F8F8F8;
   user-select: none;
-}
-
-#right {
-  float: right;
+  flex: 1;
 }
 
 .viewpane {
   height: 100vh;
   background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
 }
 
 .multiview {
@@ -358,11 +356,11 @@ input:hover,
 }
 
 
-#disassembly-collapse {
+#show-hide-disassembly {
   right: 0;
 }
 
-#source-collapse {
+#show-hide-source {
   left: 0;
 }
 
@@ -371,19 +369,14 @@ input:hover,
   height: 100%;
 }
 
-.toolbox-anchor {
-  height: 0px;
-}
-
 .graph-toolbox {
   position: relative;
   border-bottom: 2px solid #eee8d5;
   z-index: 5;
-  background: rgba(100%, 100%, 100%, 0.7);
+  background: rgba(100%, 100%, 100%);
   box-sizing: border-box;
   padding: 3px;
-  margin-left: 4px;
-  margin-right: 4px;
+  overflow-x: hidden;
 }
 
 .disassembly-toolbox {
@@ -431,27 +424,15 @@ text {
 }
 
 .resizer {
-  position: absolute;
   z-index: 10;
-  width: 4px;
-  height: 100%;
+  width: 10px;
+  height: 100vh;
   background: #a0a0a0;
   cursor: pointer;
 }
 
-.resizer.snapped {
-  width: 12px;
-}
-
-.resizer.snapped:hover {
-  width: 12px;
-  margin-left: 0px;
-}
-
 .resizer:hover,
 .resizer.dragged {
-  width: 10px;
-  margin-left: -4px;
   background: orange;
 }
 
@@ -511,12 +492,10 @@ text {
 
 #sequence {
   font-family: monospace;
-  margin-top: 50px;
 }
 
 #schedule {
   font-family: monospace;
-  margin-top: 50px;
 }
 
 .schedule-block {
@@ -695,6 +674,10 @@ text {
 .temps {
   padding-left: .5ex;
   outline: 1px dotted grey;
+}
+
+.last-tab {
+  display: none !important;
 }
 
 ul.disassembly-list .block-id {

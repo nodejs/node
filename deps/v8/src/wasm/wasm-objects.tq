@@ -1,0 +1,95 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class WasmInstanceObject extends JSObject;
+
+extern class WasmExportedFunctionData extends Struct {
+  wrapper_code: Code;
+  instance: WasmInstanceObject;
+  jump_table_offset: Smi;
+  function_index: Smi;
+  // The remaining fields are for fast calling from C++. The contract is
+  // that they are lazily populated, and either all will be present or none.
+  c_wrapper_code: Object;
+  wasm_call_target: Smi|Foreign;
+  packed_args_size: Smi;
+}
+
+extern class WasmJSFunctionData extends Struct {
+  callable: JSReceiver;
+  wrapper_code: Code;
+  serialized_return_count: Smi;
+  serialized_parameter_count: Smi;
+  serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
+}
+
+extern class WasmCapiFunctionData extends Struct {
+  call_target: RawPtr;
+  embedder_data: Foreign;  // Managed<wasm::FuncData>
+  wrapper_code: Code;
+  serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
+}
+
+extern class WasmIndirectFunctionTable extends Struct {
+  size: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  sig_ids: RawPtr;
+  targets: RawPtr;
+  managed_native_allocations: Foreign|Undefined;
+  refs: FixedArray;
+}
+
+extern class WasmDebugInfo extends Struct {
+  instance: WasmInstanceObject;
+  interpreter_handle: Foreign|Undefined;
+  interpreter_reference_stack: Cell;
+  c_wasm_entries: FixedArray|Undefined;
+  c_wasm_entry_map: Foreign|Undefined;  // Managed<wasm::SignatureMap>
+}
+
+@generateCppClass
+extern class WasmExceptionTag extends Struct {
+  index: Smi;
+}
+
+extern class WasmModuleObject extends JSObject {
+  native_module: Foreign;
+  export_wrappers: FixedArray;
+  script: Script;
+}
+
+extern class WasmTableObject extends JSObject {
+  entries: FixedArray;
+  current_length: Smi;
+  maximum_length: Smi|HeapNumber|Undefined;
+  dispatch_tables: FixedArray;
+  raw_type: Smi;
+}
+
+extern class WasmMemoryObject extends JSObject {
+  array_buffer: JSArrayBuffer;
+  maximum_pages: Smi;
+  instances: WeakArrayList|Undefined;
+}
+
+extern class WasmGlobalObject extends JSObject {
+  untagged_buffer: JSArrayBuffer|Undefined;
+  tagged_buffer: FixedArray|Undefined;
+  offset: Smi;
+  flags: Smi;
+}
+
+extern class WasmExceptionObject extends JSObject {
+  serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
+  exception_tag: HeapObject;
+}
+
+type WasmExportedFunction extends JSFunction;
+
+extern class AsmWasmData extends Struct {
+  managed_native_module: Foreign;  // Managed<wasm::NativeModule>
+  export_wrappers: FixedArray;
+  uses_bitset: HeapNumber;
+}

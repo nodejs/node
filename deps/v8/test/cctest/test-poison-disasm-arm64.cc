@@ -29,6 +29,7 @@ TEST(DisasmPoisonMonomorphicLoad) {
 
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_untrusted_code_mitigations = true;
+  i::FLAG_debug_code = false;
 
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -78,6 +79,7 @@ TEST(DisasmPoisonPolymorphicLoad) {
 
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_untrusted_code_mitigations = true;
+  i::FLAG_debug_code = false;
 
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

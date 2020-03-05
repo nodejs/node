@@ -6,8 +6,8 @@
 #define V8_COMPILER_JS_OPERATOR_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
@@ -85,8 +85,8 @@ class ConstructForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  using ArityField = BitField<size_t, 0, 16>;
-  using StartIndexField = BitField<uint32_t, 16, 16>;
+  using ArityField = base::BitField<size_t, 0, 16>;
+  using StartIndexField = base::BitField<uint32_t, 16, 16>;
 
   uint32_t const bit_field_;
 };
@@ -147,8 +147,8 @@ class CallForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  using ArityField = BitField<size_t, 0, 15>;
-  using StartIndexField = BitField<uint32_t, 15, 15>;
+  using ArityField = base::BitField<size_t, 0, 15>;
+  using StartIndexField = base::BitField<uint32_t, 15, 15>;
 
   uint32_t const bit_field_;
 };
@@ -165,12 +165,20 @@ class CallParameters final {
   CallParameters(size_t arity, CallFrequency const& frequency,
                  FeedbackSource const& feedback,
                  ConvertReceiverMode convert_mode,
-                 SpeculationMode speculation_mode)
+                 SpeculationMode speculation_mode,
+                 CallFeedbackRelation feedback_relation)
       : bit_field_(ArityField::encode(arity) |
+                   CallFeedbackRelationField::encode(feedback_relation) |
                    SpeculationModeField::encode(speculation_mode) |
                    ConvertReceiverModeField::encode(convert_mode)),
         frequency_(frequency),
-        feedback_(feedback) {}
+        feedback_(feedback) {
+    // CallFeedbackRelation is ignored if the feedback slot is invalid.
+    DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
+                   feedback.IsValid());
+    DCHECK_IMPLIES(!feedback.IsValid(),
+                   feedback_relation == CallFeedbackRelation::kUnrelated);
+  }
 
   size_t arity() const { return ArityField::decode(bit_field_); }
   CallFrequency const& frequency() const { return frequency_; }
@@ -181,6 +189,10 @@ class CallParameters final {
 
   SpeculationMode speculation_mode() const {
     return SpeculationModeField::decode(bit_field_);
+  }
+
+  CallFeedbackRelation feedback_relation() const {
+    return CallFeedbackRelationField::decode(bit_field_);
   }
 
   bool operator==(CallParameters const& that) const {
@@ -197,9 +209,10 @@ class CallParameters final {
                               feedback_hash(p.feedback_));
   }
 
-  using ArityField = BitField<size_t, 0, 28>;
-  using SpeculationModeField = BitField<SpeculationMode, 28, 1>;
-  using ConvertReceiverModeField = BitField<ConvertReceiverMode, 29, 2>;
+  using ArityField = base::BitField<size_t, 0, 27>;
+  using CallFeedbackRelationField = base::BitField<CallFeedbackRelation, 27, 1>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 28, 1>;
+  using ConvertReceiverModeField = base::BitField<ConvertReceiverMode, 29, 2>;
 
   uint32_t const bit_field_;
   CallFrequency const frequency_;
@@ -815,12 +828,19 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       size_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
-  const Operator* CallWithArrayLike(CallFrequency const& frequency);
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation feedback_relation =
+          CallFeedbackRelation::kUnrelated);
+  const Operator* CallWithArrayLike(
+      CallFrequency const& frequency,
+      const FeedbackSource& feedback = FeedbackSource{},
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kRelated);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource(),
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kRelated);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
@@ -862,6 +882,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                               const Handle<Name>& name,
                               const FeedbackSource& feedback);
 
+  const Operator* HasContextExtension(size_t depth);
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
 
@@ -894,7 +915,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* GeneratorRestoreRegister(int index);
   const Operator* GeneratorRestoreInputOrDebugPos();
 
-  const Operator* StackCheck();
+  const Operator* StackCheck(StackCheckKind kind);
   const Operator* Debugger();
 
   const Operator* FulfillPromise();

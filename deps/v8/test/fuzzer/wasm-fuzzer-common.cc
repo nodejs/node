@@ -120,7 +120,7 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
@@ -306,7 +306,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   // Compile with Turbofan here. Liftoff will be tested later.
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This

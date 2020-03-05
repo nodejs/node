@@ -97,6 +97,8 @@ Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
 Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
+Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
+                                       Atomic32 old_value, Atomic32 new_value);
 
 void SeqCst_MemoryFence();
 void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value);
@@ -120,9 +122,10 @@ Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
 Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
                                 Atomic64 old_value,
                                 Atomic64 new_value);
-Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
-                                Atomic64 old_value,
+Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
                                 Atomic64 new_value);
+Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
+                                       Atomic64 old_value, Atomic64 new_value);
 void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value);
 void Release_Store(volatile Atomic64* ptr, Atomic64 value);
 Atomic64 Relaxed_Load(volatile const Atomic64* ptr);

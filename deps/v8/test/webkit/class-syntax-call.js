@@ -31,8 +31,8 @@ shouldThrow('A()', '"TypeError: Class constructor A cannot be invoked without \'
 shouldNotThrow('new B');
 shouldThrow('B()', '"TypeError: Class constructor B cannot be invoked without \'new\'"');
 shouldNotThrow('new (class { constructor() {} })()');
-shouldThrow('(class { constructor() {} })()', '"TypeError: Class constructor  cannot be invoked without \'new\'"');
+shouldThrow('(class { constructor() {} })()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
 shouldThrow('new (class extends null { constructor() { super() } })()', '"TypeError: Super constructor null of anonymous class is not a constructor"');
-shouldThrow('(class extends null { constructor() { super() } })()', '"TypeError: Class constructor  cannot be invoked without \'new\'"');
+shouldThrow('(class extends null { constructor() { super() } })()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
 
 var successfullyParsed = true;

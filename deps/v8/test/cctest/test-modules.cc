@@ -258,48 +258,48 @@ TEST(ModuleEvaluationError1) {
               .FromJust());
     CHECK_EQ(Module::kInstantiated, module->GetStatus());
 
-    MaybeLocal<Value> result_1;
     {
       v8::TryCatch inner_try_catch(isolate);
-      result_1 = module->Evaluate(env.local());
-      CHECK_EQ(Module::kErrored, module->GetStatus());
-      Local<Value> exception = module->GetException();
-      CHECK(exception->StrictEquals(v8_str("boom")));
-      ExpectInt32("Object.x", 1);
-      CHECK(inner_try_catch.HasCaught());
-      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    }
-
-    MaybeLocal<Value> result_2;
-    {
-      v8::TryCatch inner_try_catch(isolate);
-      result_2 = module->Evaluate(env.local());
+      MaybeLocal<Value> result = module->Evaluate(env.local());
       CHECK_EQ(Module::kErrored, module->GetStatus());
       Local<Value> exception = module->GetException();
       CHECK(exception->StrictEquals(v8_str("boom")));
       ExpectInt32("Object.x", 1);
 
       if (i::FLAG_harmony_top_level_await) {
-        // With top level await we do not rethrow the exception.
+        // With top level await, we do not throw and errored evaluation returns
+        // a rejected promise with the exception.
         CHECK(!inner_try_catch.HasCaught());
+        Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+        CHECK_EQ(promise->State(), v8::Promise::kRejected);
+        CHECK_EQ(promise->Result(), module->GetException());
       } else {
         CHECK(inner_try_catch.HasCaught());
         CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+        CHECK(result.IsEmpty());
       }
     }
-    if (i::FLAG_harmony_top_level_await) {
-      // With top level await, errored evaluation returns a rejected promise
-      // with the exception.
-      Local<Promise> promise_1 =
-          Local<Promise>::Cast(result_1.ToLocalChecked());
-      Local<Promise> promise_2 =
-          Local<Promise>::Cast(result_2.ToLocalChecked());
-      CHECK_EQ(promise_1->State(), v8::Promise::kRejected);
-      CHECK_EQ(promise_2->State(), v8::Promise::kRejected);
-      CHECK_EQ(promise_1->Result(), module->GetException());
-      CHECK_EQ(promise_2->Result(), module->GetException());
-    } else {
-      CHECK(result_1.IsEmpty() && result_2.IsEmpty());
+
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      MaybeLocal<Value> result = module->Evaluate(env.local());
+      CHECK_EQ(Module::kErrored, module->GetStatus());
+      Local<Value> exception = module->GetException();
+      CHECK(exception->StrictEquals(v8_str("boom")));
+      ExpectInt32("Object.x", 1);
+
+      if (i::FLAG_harmony_top_level_await) {
+        // With top level await, we do not throw and errored evaluation returns
+        // a rejected promise with the exception.
+        CHECK(!inner_try_catch.HasCaught());
+        Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+        CHECK_EQ(promise->State(), v8::Promise::kRejected);
+        CHECK_EQ(promise->Result(), module->GetException());
+      } else {
+        CHECK(inner_try_catch.HasCaught());
+        CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+        CHECK(result.IsEmpty());
+      }
     }
 
     CHECK(!try_catch.HasCaught());
@@ -342,15 +342,25 @@ TEST(ModuleEvaluationError2) {
               .FromJust());
     CHECK_EQ(Module::kInstantiated, failure_module->GetStatus());
 
-    MaybeLocal<Value> result_1;
     {
       v8::TryCatch inner_try_catch(isolate);
-      result_1 = failure_module->Evaluate(env.local());
+      MaybeLocal<Value> result = failure_module->Evaluate(env.local());
       CHECK_EQ(Module::kErrored, failure_module->GetStatus());
       Local<Value> exception = failure_module->GetException();
       CHECK(exception->StrictEquals(v8_str("boom")));
-      CHECK(inner_try_catch.HasCaught());
-      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+
+      if (i::FLAG_harmony_top_level_await) {
+        // With top level await, we do not throw and errored evaluation returns
+        // a rejected promise with the exception.
+        CHECK(!inner_try_catch.HasCaught());
+        Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+        CHECK_EQ(promise->State(), v8::Promise::kRejected);
+        CHECK_EQ(promise->Result(), failure_module->GetException());
+      } else {
+        CHECK(inner_try_catch.HasCaught());
+        CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+        CHECK(result.IsEmpty());
+      }
     }
 
     Local<String> dependent_text =
@@ -367,37 +377,26 @@ TEST(ModuleEvaluationError2) {
               .FromJust());
     CHECK_EQ(Module::kInstantiated, dependent_module->GetStatus());
 
-    MaybeLocal<Value> result_2;
     {
       v8::TryCatch inner_try_catch(isolate);
-      result_2 = dependent_module->Evaluate(env.local());
+      MaybeLocal<Value> result = dependent_module->Evaluate(env.local());
       CHECK_EQ(Module::kErrored, dependent_module->GetStatus());
       Local<Value> exception = dependent_module->GetException();
       CHECK(exception->StrictEquals(v8_str("boom")));
       CHECK_EQ(exception, failure_module->GetException());
 
       if (i::FLAG_harmony_top_level_await) {
-        // With top level await we do not rethrow the exception.
+        // With top level await, we do not throw and errored evaluation returns
+        // a rejected promise with the exception.
         CHECK(!inner_try_catch.HasCaught());
+        Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+        CHECK_EQ(promise->State(), v8::Promise::kRejected);
+        CHECK_EQ(promise->Result(), failure_module->GetException());
       } else {
         CHECK(inner_try_catch.HasCaught());
         CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+        CHECK(result.IsEmpty());
       }
-    }
-
-    if (i::FLAG_harmony_top_level_await) {
-      // With top level await, errored evaluation returns a rejected promise
-      // with the exception.
-      Local<Promise> promise_1 =
-          Local<Promise>::Cast(result_1.ToLocalChecked());
-      Local<Promise> promise_2 =
-          Local<Promise>::Cast(result_2.ToLocalChecked());
-      CHECK_EQ(promise_1->State(), v8::Promise::kRejected);
-      CHECK_EQ(promise_2->State(), v8::Promise::kRejected);
-      CHECK_EQ(promise_1->Result(), failure_module->GetException());
-      CHECK_EQ(promise_2->Result(), failure_module->GetException());
-    } else {
-      CHECK(result_1.IsEmpty() && result_2.IsEmpty());
     }
 
     CHECK(!try_catch.HasCaught());
@@ -884,6 +883,101 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
   i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
+}
+
+TEST(TerminateExecutionTopLevelAwaitSync) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  env.local()
+      ->Global()
+      ->Set(env.local(), v8_str("terminate"),
+            v8::Function::New(env.local(),
+                              [](const v8::FunctionCallbackInfo<Value>& info) {
+                                info.GetIsolate()->TerminateExecution();
+                              })
+                .ToLocalChecked())
+      .ToChecked();
+
+  Local<String> source_text = v8_str("terminate(); while (true) {}");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+
+  CHECK(module->Evaluate(env.local()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.HasTerminated());
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
+  CHECK_EQ(module->GetException(), v8::Null(isolate));
+
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+}
+
+TEST(TerminateExecutionTopLevelAwaitAsync) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  env.local()
+      ->Global()
+      ->Set(env.local(), v8_str("terminate"),
+            v8::Function::New(env.local(),
+                              [](const v8::FunctionCallbackInfo<Value>& info) {
+                                info.GetIsolate()->TerminateExecution();
+                              })
+                .ToLocalChecked())
+      .ToChecked();
+
+  Local<Promise::Resolver> eval_promise =
+      Promise::Resolver::New(env.local()).ToLocalChecked();
+  env.local()
+      ->Global()
+      ->Set(env.local(), v8_str("evalPromise"), eval_promise)
+      .ToChecked();
+
+  Local<String> source_text =
+      v8_str("await evalPromise; terminate(); while (true) {}");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+
+  Local<Promise> promise =
+      Local<Promise>::Cast(module->Evaluate(env.local()).ToLocalChecked());
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+  CHECK_EQ(promise->State(), Promise::PromiseState::kPending);
+  CHECK(!try_catch.HasCaught());
+  CHECK(!try_catch.HasTerminated());
+
+  eval_promise->Resolve(env.local(), v8::Undefined(isolate)).ToChecked();
+
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.HasTerminated());
+  CHECK_EQ(promise->State(), Promise::PromiseState::kPending);
+
+  // The termination exception doesn't trigger the module's
+  // catch handler, so the module isn't transitioned to kErrored.
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
 }
 
 }  // anonymous namespace

@@ -41,9 +41,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   ~Deserializer() override;
 
   void SetRehashability(bool v) { can_rehash_ = v; }
-  std::pair<uint32_t, uint32_t> GetChecksum() const {
-    return source_.GetChecksum();
-  }
+  uint32_t GetChecksum() const { return source_.GetChecksum(); }
 
  protected:
   // Create a deserializer from a snapshot byte source.
@@ -78,6 +76,10 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
     attached_objects_.push_back(attached_object);
   }
 
+  void CheckNoArrayBufferBackingStores() {
+    CHECK_EQ(new_off_heap_array_buffers().size(), 0);
+  }
+
   Isolate* isolate() const { return isolate_; }
   SnapshotByteSource* source() { return &source_; }
   const std::vector<AllocationSite>& new_allocation_sites() const {
@@ -98,6 +100,14 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
   const std::vector<Handle<Script>>& new_scripts() const {
     return new_scripts_;
+  }
+
+  const std::vector<Handle<JSArrayBuffer>>& new_off_heap_array_buffers() const {
+    return new_off_heap_array_buffers_;
+  }
+
+  std::shared_ptr<BackingStore> backing_store(size_t i) {
+    return backing_stores_[i];
   }
 
   DeserializerAllocator* allocator() { return &allocator_; }
@@ -174,6 +184,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   std::vector<CallHandlerInfo> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
+  std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
 
   DeserializerAllocator allocator_;

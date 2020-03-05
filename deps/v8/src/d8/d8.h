@@ -268,13 +268,13 @@ class ShellOptions {
   bool omit_quit = false;
   bool wait_for_wasm = true;
   bool stress_opt = false;
-  bool stress_deopt = false;
   int stress_runs = 1;
   bool interactive_shell = false;
   bool test_shell = false;
   bool expected_to_throw = false;
   bool mock_arraybuffer_allocator = false;
   size_t mock_arraybuffer_allocator_limit = 0;
+  bool multi_mapped_mock_allocator = false;
   bool enable_inspector = false;
   int num_isolates = 1;
   v8::ScriptCompiler::CompileOptions compile_options =
@@ -297,6 +297,8 @@ class ShellOptions {
   bool stress_delay_tasks = false;
   std::vector<const char*> arguments;
   bool include_arguments = true;
+  bool cpu_profiler = false;
+  bool cpu_profiler_print = false;
 };
 
 class Shell : public i::AllStatic {
@@ -316,6 +318,8 @@ class Shell : public i::AllStatic {
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
+  static void ReportException(Isolate* isolate, Local<Message> message,
+                              Local<Value> exception);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);

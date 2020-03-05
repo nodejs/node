@@ -321,8 +321,8 @@ void HandleDocumentSymbolRequest(DocumentSymbolRequest request,
       symbol.set_name(builtin->ReadableName());
       symbol.set_kind(SymbolKind::kFunction);
       symbol.location().SetTo(builtin->Position());
-    } else if (symbol->IsGeneric()) {
-      Generic* generic = Generic::cast(symbol);
+    } else if (symbol->IsGenericCallable()) {
+      GenericCallable* generic = GenericCallable::cast(symbol);
       SymbolInformation symbol = response.add_result();
       symbol.set_name(generic->name());
       symbol.set_kind(SymbolKind::kFunction);

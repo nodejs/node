@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "{{config.bindings_lib.header}}"
+#include "{{config.crdtp.dir}}/glue.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -57,8 +57,8 @@ template <typename T>
 using Array = typename detail::ArrayTypedef<T>::type;
 
 namespace detail {
-using {{config.bindings_lib.namespace}}::glue::detail::PtrMaybe;
-using {{config.bindings_lib.namespace}}::glue::detail::ValueMaybe;
+using {{config.crdtp.namespace}}::glue::detail::PtrMaybe;
+using {{config.crdtp.namespace}}::glue::detail::ValueMaybe;
 
 template <typename T>
 struct MaybeTypedef { typedef PtrMaybe<T> type; };

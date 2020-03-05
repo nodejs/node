@@ -51,6 +51,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
       if (object->IsUndefined(roots)) break;
     }
     DeserializeDeferredObjects();
+    CheckNoArrayBufferBackingStores();
   }
 
   if (FLAG_rehash_snapshot && can_rehash()) {

@@ -37,9 +37,8 @@ class iterator_range {
 
   iterator_range() : begin_(), end_() {}
   template <typename ForwardIterator1, typename ForwardIterator2>
-  iterator_range(ForwardIterator1&& begin, ForwardIterator2&& end)
-      : begin_(std::forward<ForwardIterator1>(begin)),
-        end_(std::forward<ForwardIterator2>(end)) {}
+  iterator_range(ForwardIterator1 begin, ForwardIterator2 end)
+      : begin_(begin), end_(end) {}
 
   iterator begin() { return begin_; }
   iterator end() { return end_; }
@@ -60,9 +59,8 @@ class iterator_range {
 };
 
 template <typename ForwardIterator>
-auto make_iterator_range(ForwardIterator&& begin, ForwardIterator&& end) {
-  return iterator_range<ForwardIterator>{std::forward<ForwardIterator>(begin),
-                                         std::forward<ForwardIterator>(end)};
+auto make_iterator_range(ForwardIterator begin, ForwardIterator end) {
+  return iterator_range<ForwardIterator>{begin, end};
 }
 
 // {Reversed} returns a container adapter usable in a range-based "for"

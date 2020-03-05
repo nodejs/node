@@ -51,7 +51,6 @@ class Managed : public Foreign {
  public:
   Managed() : Foreign() {}
   explicit Managed(Address ptr) : Foreign(ptr) {}
-  Managed* operator->() { return this; }
 
   // Get a raw pointer to the C++ object.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }

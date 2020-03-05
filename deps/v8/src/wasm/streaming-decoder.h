@@ -37,7 +37,8 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // Process the start of the code section. Returns true if the processing
   // finished successfully and the decoding should continue.
   virtual bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
-                                        std::shared_ptr<WireBytesStorage>) = 0;
+                                        std::shared_ptr<WireBytesStorage>,
+                                        int code_section_length) = 0;
 
   // Process a function body. Returns true if the processing finished
   // successfully and the decoding should continue.
@@ -88,6 +89,11 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module);
+
+  Vector<const char> url() { return VectorOf(url_); }
+  void SetUrl(Vector<const char> url) {
+    url_.assign(url.begin(), url.length());
+  }
 
  private:
   // TODO(ahaas): Put the whole private state of the StreamingDecoder into the
@@ -228,13 +234,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   }
 
   void StartCodeSection(int num_functions,
-                        std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
+                        std::shared_ptr<WireBytesStorage> wire_bytes_storage,
+                        int code_section_length) {
     if (!ok()) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
     // not the start offset of a buffer. Therefore we need the -1 here.
-    if (!processor_->ProcessCodeSectionHeader(num_functions,
-                                              module_offset() - 1,
-                                              std::move(wire_bytes_storage))) {
+    if (!processor_->ProcessCodeSectionHeader(
+            num_functions, module_offset() - 1, std::move(wire_bytes_storage),
+            code_section_length)) {
       Fail();
     }
   }
@@ -264,6 +271,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
+  std::string url_;
 
   // Caching support.
   ModuleCompiledCallback module_compiled_callback_ = nullptr;

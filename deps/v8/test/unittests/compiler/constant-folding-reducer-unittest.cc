@@ -63,7 +63,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
  public:
   ConstantFoldingReducerTest()
       : TypedGraphTest(3),
-        broker_(isolate(), zone(), FLAG_trace_heap_broker),
+        broker_(isolate(), zone(), FLAG_trace_heap_broker, false),
         simplified_(zone()),
         deps_(&broker_, zone()) {}
   ~ConstantFoldingReducerTest() override = default;

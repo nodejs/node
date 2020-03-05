@@ -15,7 +15,7 @@ namespace internal {
 
 namespace wasm {
 
-struct WasmFeatures;
+class WasmFeatures;
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
@@ -220,15 +220,14 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32ReinterpretF32, 0xbc, i_f) \
   V(I64ReinterpretF64, 0xbd, l_d) \
   V(F32ReinterpretI32, 0xbe, f_i) \
-  V(F64ReinterpretI64, 0xbf, d_l)
+  V(F64ReinterpretI64, 0xbf, d_l) \
+  V(I32SExtendI8, 0xc0, i_i)      \
+  V(I32SExtendI16, 0xc1, i_i)     \
+  V(I64SExtendI8, 0xc2, l_l)      \
+  V(I64SExtendI16, 0xc3, l_l)     \
+  V(I64SExtendI32, 0xc4, l_l)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) \
-  V(I32SExtendI8, 0xc0, i_i)               \
-  V(I32SExtendI16, 0xc1, i_i)              \
-  V(I64SExtendI8, 0xc2, l_l)               \
-  V(I64SExtendI16, 0xc3, l_l)              \
-  V(I64SExtendI32, 0xc4, l_l)              \
-  V(RefIsNull, 0xd1, i_r)
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefIsNull, 0xd1, i_r)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
@@ -421,6 +420,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4SConvertI32x4, 0xfdaf, s_s)     \
   V(F32x4UConvertI32x4, 0xfdb0, s_s)     \
   V(S8x16Swizzle, 0xfdc0, s_ss)          \
+  V(S8x16LoadSplat, 0xfdc2, s_i)         \
+  V(S16x8LoadSplat, 0xfdc3, s_i)         \
+  V(S32x4LoadSplat, 0xfdc4, s_i)         \
+  V(S64x2LoadSplat, 0xfdc5, s_i)         \
   V(I8x16SConvertI16x8, 0xfdc6, s_ss)    \
   V(I8x16UConvertI16x8, 0xfdc7, s_ss)    \
   V(I16x8SConvertI32x4, 0xfdc8, s_ss)    \
@@ -433,6 +436,15 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4SConvertI16x8High, 0xfdcf, s_s) \
   V(I32x4UConvertI16x8Low, 0xfdd0, s_s)  \
   V(I32x4UConvertI16x8High, 0xfdd1, s_s) \
+  V(I16x8Load8x8S, 0xfdd2, s_s)          \
+  V(I16x8Load8x8U, 0xfdd3, s_s)          \
+  V(I32x4Load16x4S, 0xfdd4, s_s)         \
+  V(I32x4Load16x4U, 0xfdd5, s_s)         \
+  V(I64x2Load32x2S, 0xfdd6, s_s)         \
+  V(I64x2Load32x2U, 0xfdd7, s_s)         \
+  V(S128AndNot, 0xfdd8, s_ss)            \
+  V(I8x16RoundingAverageU, 0xfdd9, s_ss) \
+  V(I16x8RoundingAverageU, 0xfdda, s_ss) \
   V(I16x8AddHoriz, 0xfdbd, s_ss)         \
   V(I32x4AddHoriz, 0xfdbe, s_ss)         \
   V(F32x4AddHoriz, 0xfdbf, s_ss)         \
@@ -657,7 +669,6 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static FunctionSig* AsmjsSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
   static bool IsControlOpcode(WasmOpcode opcode);
-  static bool IsSignExtensionOpcode(WasmOpcode opcode);
   static bool IsAnyRefOpcode(WasmOpcode opcode);
   static bool IsThrowingOpcode(WasmOpcode opcode);
   // Check whether the given opcode always jumps, i.e. all instructions after

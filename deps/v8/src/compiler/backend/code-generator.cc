@@ -10,6 +10,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/string-constants.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
@@ -48,7 +49,7 @@ CodeGenerator::CodeGenerator(
     int start_source_position, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     int32_t builtin_index, size_t max_unoptimized_frame_height,
-    std::unique_ptr<AssemblerBuffer> buffer)
+    size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> buffer)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -68,6 +69,7 @@ CodeGenerator::CodeGenerator(
       deoptimization_literals_(zone()),
       translations_(zone()),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
+      max_pushed_argument_count_(max_pushed_argument_count),
       caller_registers_saved_(false),
       jump_tables_(nullptr),
       ools_(nullptr),
@@ -92,9 +94,7 @@ CodeGenerator::CodeGenerator(
       code_kind == Code::WASM_TO_CAPI_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
       code_kind == Code::WASM_INTERPRETER_ENTRY ||
-      code_kind == Code::JS_TO_WASM_FUNCTION ||
-      (Builtins::IsBuiltinId(builtin_index) &&
-       Builtins::IsWasmRuntimeStub(builtin_index))) {
+      code_kind == Code::JS_TO_WASM_FUNCTION) {
     tasm_.set_abort_hard(true);
   }
   tasm_.set_builtin_index(builtin_index);
@@ -113,6 +113,41 @@ void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   FinishFrame(frame);
   frame_access_state_ = new (zone()) FrameAccessState(frame);
+}
+
+bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
+                                                  uint32_t* offset) {
+  DCHECK_EQ(instr->arch_opcode(), kArchStackPointerGreaterThan);
+
+  StackCheckKind kind =
+      static_cast<StackCheckKind>(MiscField::decode(instr->opcode()));
+  if (kind != StackCheckKind::kJSFunctionEntry) return false;
+
+  uint32_t stack_check_offset = *offset = GetStackCheckOffset();
+  return stack_check_offset > kStackLimitSlackForDeoptimizationInBytes;
+}
+
+uint32_t CodeGenerator::GetStackCheckOffset() {
+  if (!frame_access_state()->has_frame()) {
+    DCHECK_EQ(max_unoptimized_frame_height_, 0);
+    DCHECK_EQ(max_pushed_argument_count_, 0);
+    return 0;
+  }
+
+  int32_t optimized_frame_height =
+      frame()->GetTotalFrameSlotCount() * kSystemPointerSize;
+  DCHECK(is_int32(max_unoptimized_frame_height_));
+  int32_t signed_max_unoptimized_frame_height =
+      static_cast<int32_t>(max_unoptimized_frame_height_);
+
+  // The offset is either the delta between the optimized frames and the
+  // interpreted frame, or the maximal number of bytes pushed to the stack
+  // while preparing for function calls, whichever is bigger.
+  uint32_t frame_height_delta = static_cast<uint32_t>(std::max(
+      signed_max_unoptimized_frame_height - optimized_frame_height, 0));
+  uint32_t max_pushed_argument_bytes =
+      static_cast<uint32_t>(max_pushed_argument_count_ * kSystemPointerSize);
+  return std::max(frame_height_delta, max_pushed_argument_bytes);
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
@@ -852,13 +887,14 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());
   } else {
-    data->SetSharedFunctionInfo(Smi::kZero);
+    data->SetSharedFunctionInfo(Smi::zero());
   }
 
   Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
       static_cast<int>(deoptimization_literals_.size()), AllocationType::kOld);
   for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
     Handle<Object> object = deoptimization_literals_[i].Reify(isolate());
+    CHECK(!object.is_null());
     literals->set(i, *object);
   }
   data->SetLiteralArray(*literals);
@@ -1218,7 +1254,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
       case Constant::kCompressedHeapObject:
-        DCHECK_EQ(MachineRepresentation::kCompressed, type.representation());
+        DCHECK_EQ(MachineType::AnyTagged(), type);
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
       case Constant::kDelayedStringConstant:

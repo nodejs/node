@@ -4,17 +4,11 @@ Calling instantiate function for module A.
 Waiting for wasm script to be parsed.
 Got wasm script!
 Setting breakpoint in line 1:
-func $func
-  #nop
-end
-
+Script wasm://wasm/1871020e byte offset 33: Wasm opcode 0x1
 Calling instantiate function for module B.
 Calling main function on module B.
-Paused at 1:2.
-func $func
-  #nop
-end
-
+Paused at 0:33.
+Script wasm://wasm/1871020e byte offset 33: Wasm opcode 0x1
 Getting current stack trace via "new Error().stack".
 Error
     at v8://test/getStack:1:1

@@ -21,6 +21,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-inspector.h"
+#include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
@@ -31,6 +32,7 @@
 #include "src/d8/d8-platforms.h"
 #include "src/d8/d8.h"
 #include "src/debug/debug-interface.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/init/v8.h"
@@ -42,8 +44,8 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
+#include "src/profiler/profile-generator.h"
 #include "src/sanitizer/msan.h"
-#include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -56,6 +58,10 @@
 #ifdef V8_INTL_SUPPORT
 #include "unicode/locid.h"
 #endif  // V8_INTL_SUPPORT
+
+#ifdef V8_OS_LINUX
+#include <sys/mman.h>  // For MultiMappedAllocator.
+#endif
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
@@ -129,19 +135,12 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
  private:
   static constexpr size_t kVMThreshold = 65536;
-  static constexpr size_t kTwoGB = 2u * 1024u * 1024u * 1024u;
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-    // TODO(titzer): allocations should fail if >= 2gb because array buffers
-    // store their lengths as a SMI internally.
-    if (length >= kTwoGB) return nullptr;
-
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    // Rounding up could go over the limit.
-    if (allocated >= kTwoGB) return nullptr;
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
                             PageAllocator::kReadWrite);
   }
@@ -208,6 +207,101 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
  private:
   std::atomic<size_t> space_left_;
 };
+
+#ifdef V8_OS_LINUX
+
+// This is a mock allocator variant that provides a huge virtual allocation
+// backed by a small real allocation that is repeatedly mapped. If you create an
+// array on memory allocated by this allocator, you will observe that elements
+// will alias each other as if their indices were modulo-divided by the real
+// allocation length.
+// The purpose is to allow stability-testing of huge (typed) arrays without
+// actually consuming huge amounts of physical memory.
+// This is currently only available on Linux because it relies on {mremap}.
+class MultiMappedAllocator : public ArrayBufferAllocatorBase {
+ protected:
+  void* Allocate(size_t length) override {
+    if (length < kChunkSize) {
+      return ArrayBufferAllocatorBase::Allocate(length);
+    }
+    // We use mmap, which initializes pages to zero anyway.
+    return AllocateUninitialized(length);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    if (length < kChunkSize) {
+      return ArrayBufferAllocatorBase::AllocateUninitialized(length);
+    }
+    size_t rounded_length = RoundUp(length, kChunkSize);
+    int prot = PROT_READ | PROT_WRITE;
+    // We have to specify MAP_SHARED to make {mremap} below do what we want.
+    int flags = MAP_SHARED | MAP_ANONYMOUS;
+    void* real_alloc = mmap(nullptr, kChunkSize, prot, flags, -1, 0);
+    if (reinterpret_cast<intptr_t>(real_alloc) == -1) {
+      // If we ran into some limit (physical or virtual memory, or number
+      // of mappings, etc), return {nullptr}, which callers can handle.
+      if (errno == ENOMEM) {
+        return nullptr;
+      }
+      // Other errors may be bugs which we want to learn about.
+      FATAL("mmap (real) failed with error %d: %s", errno, strerror(errno));
+    }
+    void* virtual_alloc =
+        mmap(nullptr, rounded_length, prot, flags | MAP_NORESERVE, -1, 0);
+    if (reinterpret_cast<intptr_t>(virtual_alloc) == -1) {
+      if (errno == ENOMEM) {
+        // Undo earlier, successful mappings.
+        munmap(real_alloc, kChunkSize);
+        return nullptr;
+      }
+      FATAL("mmap (virtual) failed with error %d: %s", errno, strerror(errno));
+    }
+    i::Address virtual_base = reinterpret_cast<i::Address>(virtual_alloc);
+    i::Address virtual_end = virtual_base + rounded_length;
+    for (i::Address to_map = virtual_base; to_map < virtual_end;
+         to_map += kChunkSize) {
+      // Specifying 0 as the "old size" causes the existing map entry to not
+      // get deleted, which is important so that we can remap it again in the
+      // next iteration of this loop.
+      void* result =
+          mremap(real_alloc, 0, kChunkSize, MREMAP_MAYMOVE | MREMAP_FIXED,
+                 reinterpret_cast<void*>(to_map));
+      if (reinterpret_cast<intptr_t>(result) == -1) {
+        if (errno == ENOMEM) {
+          // Undo earlier, successful mappings.
+          munmap(real_alloc, kChunkSize);
+          munmap(virtual_alloc, (to_map - virtual_base));
+          return nullptr;
+        }
+        FATAL("mremap failed with error %d: %s", errno, strerror(errno));
+      }
+    }
+    base::MutexGuard lock_guard(&regions_mutex_);
+    regions_[virtual_alloc] = real_alloc;
+    return virtual_alloc;
+  }
+
+  void Free(void* data, size_t length) override {
+    if (length < kChunkSize) {
+      return ArrayBufferAllocatorBase::Free(data, length);
+    }
+    base::MutexGuard lock_guard(&regions_mutex_);
+    void* real_alloc = regions_[data];
+    munmap(real_alloc, kChunkSize);
+    size_t rounded_length = RoundUp(length, kChunkSize);
+    munmap(data, rounded_length);
+    regions_.erase(data);
+  }
+
+ private:
+  // Aiming for a "Huge Page" (2M on Linux x64) to go easy on the TLB.
+  static constexpr size_t kChunkSize = 2 * 1024 * 1024;
+
+  std::unordered_map<void*, void*> regions_;
+  base::Mutex regions_mutex_;
+};
+
+#endif  // V8_OS_LINUX
 
 v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
@@ -455,10 +549,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     parse_info.set_allow_lazy_parsing();
     parse_info.set_language_mode(
         i::construct_language_mode(i::FLAG_use_strict));
-    parse_info.set_script(
-        parse_info.CreateScript(i_isolate, str, options.compile_options));
 
-    if (!i::parsing::ParseProgram(&parse_info, i_isolate)) {
+    i::Handle<i::Script> script =
+        parse_info.CreateScript(i_isolate, str, options.compile_options);
+    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
       fprintf(stderr, "Failed parsing\n");
       return false;
     }
@@ -467,7 +561,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
+  try_catch.SetVerbose(report_exceptions == kReportExceptions);
 
   MaybeLocal<Value> maybe_result;
   bool success = true;
@@ -518,8 +612,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
     Local<Script> script;
     if (!maybe_script.ToLocal(&script)) {
-      // Print errors that happened during compilation.
-      if (report_exceptions) ReportException(isolate, &try_catch);
       return false;
     }
 
@@ -546,11 +638,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
-    // Print errors that happened during execution.
-    if (report_exceptions) ReportException(isolate, &try_catch);
     return false;
   }
-  DCHECK(!try_catch.HasCaught());
+  // It's possible that a FinalizationGroup cleanup task threw an error.
+  if (try_catch.HasCaught()) success = false;
   if (print_result) {
     if (options.test_shell) {
       if (!result->IsUndefined()) {
@@ -942,8 +1033,11 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
+  // Use a non-verbose TryCatch and report exceptions manually using
+  // Shell::ReportException, because some errors (such as file errors) are
+  // thrown without entering JS and thus do not trigger
+  // isolate->ReportPendingMessages().
   TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
 
   Local<Module> root_module;
 
@@ -963,7 +1057,6 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
-    // Print errors that happened during execution.
     ReportException(isolate, &try_catch);
     return false;
   }
@@ -1113,9 +1206,13 @@ void Shell::PerformanceMeasureMemory(
       mode = v8::MeasureMemoryMode::kDetailed;
     }
   }
-  v8::MaybeLocal<v8::Promise> result =
-      args.GetIsolate()->MeasureMemory(context, mode);
-  args.GetReturnValue().Set(result.FromMaybe(v8::Local<v8::Promise>()));
+  Local<v8::Promise::Resolver> promise_resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  args.GetIsolate()->MeasureMemory(
+      v8::MeasureMemoryDelegate::Default(isolate, context, promise_resolver,
+                                         mode),
+      v8::MeasureMemoryExecution::kEager);
+  args.GetReturnValue().Set(promise_resolver->GetPromise());
 }
 
 // Realm.current() returns the index of the currently active realm.
@@ -1367,7 +1464,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<String> str_obj;
 
     if (arg->IsSymbol()) {
-      arg = Local<Symbol>::Cast(arg)->Name();
+      arg = Local<Symbol>::Cast(arg)->Description();
     }
     if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
@@ -1659,7 +1756,8 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                 .ToLocalChecked());
 }
 
-void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
+void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
+                            Local<v8::Value> exception_obj) {
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   bool enter_context = context.IsEmpty();
@@ -1672,18 +1770,17 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     return *value ? *value : "<string conversion failed>";
   };
 
-  v8::String::Utf8Value exception(isolate, try_catch->Exception());
+  v8::String::Utf8Value exception(isolate, exception_obj);
   const char* exception_string = ToCString(exception);
-  Local<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
     printf("%s\n", exception_string);
   } else if (message->GetScriptOrigin().Options().IsWasm()) {
     // Print wasm-function[(function index)]:(offset): (message).
-    int function_index = message->GetLineNumber(context).FromJust() - 1;
+    int function_index = message->GetWasmFunctionIndex();
     int offset = message->GetStartColumn(context).FromJust();
-    printf("wasm-function[%d]:%d: %s\n", function_index, offset,
+    printf("wasm-function[%d]:0x%x: %s\n", function_index, offset,
            exception_string);
   } else {
     // Print (filename):(line number): (message).
@@ -1711,7 +1808,8 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     }
   }
   Local<Value> stack_trace_string;
-  if (try_catch->StackTrace(context).ToLocal(&stack_trace_string) &&
+  if (v8::TryCatch::StackTrace(context, exception_obj)
+          .ToLocal(&stack_trace_string) &&
       stack_trace_string->IsString()) {
     v8::String::Utf8Value stack_trace(isolate,
                                       Local<String>::Cast(stack_trace_string));
@@ -1719,6 +1817,10 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   }
   printf("\n");
   if (enter_context) context->Exit();
+}
+
+void Shell::ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
+  ReportException(isolate, try_catch->Message(), try_catch->Exception());
 }
 
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
@@ -2022,12 +2124,7 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
-static void PrintNonErrorsMessageCallback(Local<Message> message,
-                                          Local<Value> error) {
-  // Nothing to do here for errors, exceptions thrown up to the shell will be
-  // reported
-  // separately by {Shell::ReportException} after they are caught.
-  // Do print other kinds of messages.
+static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
   switch (message->ErrorLevel()) {
     case v8::Isolate::kMessageWarning:
     case v8::Isolate::kMessageLog:
@@ -2037,7 +2134,7 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
     }
 
     case v8::Isolate::kMessageError: {
-      // Ignore errors, printed elsewhere.
+      Shell::ReportException(message->GetIsolate(), message, error);
       return;
     }
 
@@ -2068,7 +2165,7 @@ void Shell::Initialize(Isolate* isolate) {
   }
   // Disable default message reporting.
   isolate->AddMessageListenerWithErrorLevel(
-      PrintNonErrorsMessageCallback,
+      PrintMessageCallback,
       v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
           v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
           v8::Isolate::kMessageLog);
@@ -2082,7 +2179,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
   DCHECK(!context.IsEmpty());
-  if (i::FLAG_perf_prof_annotate_wasm) {
+  if (i::FLAG_perf_prof_annotate_wasm || i::FLAG_vtune_prof_annotate_wasm) {
     isolate->SetWasmLoadSourceMapCallback(ReadFile);
   }
   InitializeModuleEmbedderData(context);
@@ -2318,23 +2415,6 @@ static char* ReadChars(const char* name, int* size_out) {
   return chars;
 }
 
-struct DataAndPersistent {
-  uint8_t* data;
-  int byte_length;
-  Global<ArrayBuffer> handle;
-};
-
-static void ReadBufferWeakCallback(
-    const v8::WeakCallbackInfo<DataAndPersistent>& data) {
-  int byte_length = data.GetParameter()->byte_length;
-  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(byte_length));
-
-  delete[] data.GetParameter()->data;
-  data.GetParameter()->handle.Reset();
-  delete data.GetParameter();
-}
-
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   static_assert(sizeof(char) == sizeof(uint8_t),
                 "char and uint8_t should both have 1 byte");
@@ -2346,19 +2426,20 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  DataAndPersistent* data = new DataAndPersistent;
-  data->data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
-  if (data->data == nullptr) {
-    delete data;
+  uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
+  if (data == nullptr) {
     Throw(isolate, "Error reading file");
     return;
   }
-  data->byte_length = length;
-  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data->data, length);
-  data->handle.Reset(isolate, buffer);
-  data->handle.SetWeak(data, ReadBufferWeakCallback,
-                       v8::WeakCallbackType::kParameter);
-  isolate->AdjustAmountOfExternalAllocatedMemory(length);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      ArrayBuffer::NewBackingStore(
+          data, length,
+          [](void* data, size_t length, void*) {
+            delete[] reinterpret_cast<uint8_t*>(data);
+          },
+          nullptr);
+  Local<v8::ArrayBuffer> buffer =
+      ArrayBuffer::New(isolate, std::move(backing_store));
 
   args.GetReturnValue().Set(buffer);
 }
@@ -2515,13 +2596,13 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     if (!callback->IsFunction()) return;
 
     v8::TryCatch try_catch(isolate_);
+    try_catch.SetVerbose(true);
     is_paused = true;
 
     while (is_paused) {
       USE(Local<Function>::Cast(callback)->Call(context, Undefined(isolate_), 0,
                                                 {}));
       if (try_catch.HasCaught()) {
-        Shell::ReportException(isolate_, &try_catch);
         is_paused = false;
       }
     }
@@ -2872,6 +2953,7 @@ void Worker::ExecuteInThread() {
                 break;
               }
               v8::TryCatch try_catch(isolate);
+              try_catch.SetVerbose(true);
               HandleScope scope(isolate);
               Local<Value> value;
               if (Shell::DeserializeValue(isolate, std::move(data))
@@ -2880,9 +2962,6 @@ void Worker::ExecuteInThread() {
                 MaybeLocal<Value> result =
                     onmessage_fun->Call(context, global, 1, argv);
                 USE(result);
-              }
-              if (try_catch.HasCaught()) {
-                Shell::ReportException(isolate, &try_catch);
               }
             }
           }
@@ -2941,9 +3020,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-deopt") == 0) {
-      options.stress_deopt = true;
-      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-background-compile") == 0) {
       options.stress_background_compile = true;
       argv[i] = nullptr;
@@ -2955,7 +3031,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
-      options.stress_deopt = false;
     } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
       logfile_per_isolate = true;
       argv[i] = nullptr;
@@ -3065,6 +3140,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
       options.stress_delay_tasks = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cpu-profiler") == 0) {
+      options.cpu_profiler = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cpu-profiler-print") == 0) {
+      options.cpu_profiler = true;
+      options.cpu_profiler_print = true;
+      argv[i] = nullptr;
     }
   }
 
@@ -3072,6 +3154,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
   options.mock_arraybuffer_allocator_limit =
       i::FLAG_mock_arraybuffer_allocator_limit;
+#if V8_OS_LINUX
+  options.multi_mapped_mock_allocator = i::FLAG_multi_mapped_mock_allocator;
+#endif
 
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
@@ -3181,7 +3266,6 @@ bool RunSetTimeoutCallback(Isolate* isolate, bool* did_run) {
   try_catch.SetVerbose(true);
   Context::Scope context_scope(context);
   if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
-    Shell::ReportException(isolate, &try_catch);
     return false;
   }
   *did_run = true;
@@ -3198,7 +3282,6 @@ bool RunCleanupFinalizationGroupCallback(Isolate* isolate, bool* did_run) {
     TryCatch try_catch(isolate);
     try_catch.SetVerbose(true);
     if (FinalizationGroup::Cleanup(fg).IsNothing()) {
-      Shell::ReportException(isolate, &try_catch);
       return false;
     }
   }
@@ -3395,9 +3478,6 @@ class Serializer : public ValueSerializer::Delegate {
       }
 
       auto backing_store = array_buffer->GetBackingStore();
-      if (!array_buffer->IsExternal()) {
-        array_buffer->Externalize(backing_store);
-      }
       data_->backing_stores_.push_back(std::move(backing_store));
       array_buffer->Detach();
     }
@@ -3466,6 +3546,52 @@ class Deserializer : public ValueDeserializer::Delegate {
   std::unique_ptr<SerializationData> data_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
+};
+
+class D8Testing {
+ public:
+  /**
+   * Get the number of runs of a given test that is required to get the full
+   * stress coverage.
+   */
+  static int GetStressRuns() {
+    if (internal::FLAG_stress_runs != 0) return internal::FLAG_stress_runs;
+#ifdef DEBUG
+    // In debug mode the code runs much slower so stressing will only make two
+    // runs.
+    return 2;
+#else
+    return 5;
+#endif
+  }
+
+  /**
+   * Indicate the number of the run which is about to start. The value of run
+   * should be between 0 and one less than the result from GetStressRuns()
+   */
+  static void PrepareStressRun(int run) {
+    static const char* kLazyOptimizations =
+        "--prepare-always-opt "
+        "--max-inlined-bytecode-size=999999 "
+        "--max-inlined-bytecode-size-cumulative=999999 "
+        "--noalways-opt";
+    static const char* kForcedOptimizations = "--always-opt";
+
+    if (run == GetStressRuns() - 1) {
+      V8::SetFlagsFromString(kForcedOptimizations);
+    } else {
+      V8::SetFlagsFromString(kLazyOptimizations);
+    }
+  }
+
+  /**
+   * Force deoptimization of all functions.
+   */
+  static void DeoptimizeAll(Isolate* isolate) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::HandleScope scope(i_isolate);
+    i::Deoptimizer::DeoptimizeAll(i_isolate);
+  }
 };
 
 std::unique_ptr<SerializationData> Shell::SerializeValue(
@@ -3602,12 +3728,19 @@ int Shell::Main(int argc, char* argv[]) {
       memory_limit >= options.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
+#if V8_OS_LINUX
+  MultiMappedAllocator multi_mapped_mock_allocator;
+#endif  // V8_OS_LINUX
   if (options.mock_arraybuffer_allocator) {
     if (memory_limit) {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator_with_limit;
     } else {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
     }
+#if V8_OS_LINUX
+  } else if (options.multi_mapped_mock_allocator) {
+    Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
+#endif  // V8_OS_LINUX
   } else {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }
@@ -3664,19 +3797,24 @@ int Shell::Main(int argc, char* argv[]) {
       tracing_controller->StartTracing(trace_config);
     }
 
-    if (options.stress_opt || options.stress_deopt) {
-      Testing::SetStressRunType(options.stress_opt ? Testing::kStressTypeOpt
-                                                   : Testing::kStressTypeDeopt);
-      options.stress_runs = Testing::GetStressRuns();
+    CpuProfiler* cpu_profiler;
+    if (options.cpu_profiler) {
+      cpu_profiler = CpuProfiler::New(isolate);
+      CpuProfilingOptions profile_options;
+      cpu_profiler->StartProfiling(String::Empty(isolate), profile_options);
+    }
+
+    if (options.stress_opt) {
+      options.stress_runs = D8Testing::GetStressRuns();
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
         printf("============ Stress %d/%d ============\n", i + 1,
                options.stress_runs);
-        Testing::PrepareStressRun(i);
+        D8Testing::PrepareStressRun(i);
         bool last_run = i == options.stress_runs - 1;
         result = RunMain(isolate, argc, argv, last_run);
       }
       printf("======== Full Deoptimization =======\n");
-      Testing::DeoptimizeAll(isolate);
+      D8Testing::DeoptimizeAll(isolate);
     } else if (i::FLAG_stress_runs > 0) {
       options.stress_runs = i::FLAG_stress_runs;
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
@@ -3736,6 +3874,18 @@ int Shell::Main(int argc, char* argv[]) {
     if (i::FLAG_trace_ignition_dispatches &&
         i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
       WriteIgnitionDispatchCountersFile(isolate);
+    }
+
+    if (options.cpu_profiler) {
+      CpuProfile* profile = cpu_profiler->StopProfiling(String::Empty(isolate));
+      if (options.cpu_profiler_print) {
+        const internal::ProfileNode* root =
+            reinterpret_cast<const internal::ProfileNode*>(
+                profile->GetTopDownRoot());
+        root->Print(0);
+      }
+      profile->Delete();
+      cpu_profiler->Dispose();
     }
 
     // Shut down contexts and collect garbage.

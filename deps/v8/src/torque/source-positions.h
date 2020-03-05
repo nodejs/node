@@ -38,6 +38,9 @@ struct LineAndColumn {
   bool operator==(const LineAndColumn& other) const {
     return line == other.line && column == other.column;
   }
+  bool operator!=(const LineAndColumn& other) const {
+    return !(*this == other);
+  }
 };
 
 struct SourcePosition {
@@ -66,6 +69,7 @@ struct SourcePosition {
   bool operator==(const SourcePosition& pos) const {
     return source == pos.source && start == pos.start && end == pos.end;
   }
+  bool operator!=(const SourcePosition& pos) const { return !(*this == pos); }
 };
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);

@@ -2,50 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_substring {
-
-  extern macro StringBuiltinsAssembler::SubString(String, intptr, intptr):
-      String;
-
-  transitioning macro ToSmiBetweenZeroAnd(implicit context: Context)(
-      value: JSAny, limit: Smi): Smi {
-    const valueInt: Number =
-        ToInteger_Inline(context, value, kTruncateMinusZero);
-    typeswitch (valueInt) {
-      case (valueSmi: Smi): {
-        if (SmiAbove(valueSmi, limit)) {
-          return valueSmi < 0 ? 0 : limit;
-        }
-        return valueSmi;
-      }
-      // {value} is a heap number - in this case, it is definitely out of
-      // bounds.
-      case (hn: HeapNumber): {
-        const valueFloat: float64 = LoadHeapNumberValue(hn);
-        return valueFloat < 0. ? 0 : limit;
-      }
-    }
-  }
+namespace string {
 
   // ES6 #sec-string.prototype.substring
   transitioning javascript builtin StringPrototypeSubstring(
-      js-implicit context: Context, receiver: JSAny)(...arguments): String {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): String {
     // Check that {receiver} is coercible to Object and convert it to a String.
     const string: String = ToThisString(receiver, 'String.prototype.substring');
-    const length = string.length_smi;
+    const length: uintptr = string.length_uintptr;
 
     // Conversion and bounds-checks for {start}.
-    let start: Smi = ToSmiBetweenZeroAnd(arguments[0], length);
+    const arg0 = arguments[0];
+    let start: uintptr =
+        arg0 != Undefined ? ClampToIndexRange(arg0, length) : 0;
 
     // Conversion and bounds-checks for {end}.
-    let end: Smi = arguments[1] == Undefined ?
-        length :
-        ToSmiBetweenZeroAnd(arguments[1], length);
+    const arg1 = arguments[1];
+    let end: uintptr =
+        arg1 != Undefined ? ClampToIndexRange(arg1, length) : length;
     if (end < start) {
-      const tmp: Smi = end;
+      const tmp: uintptr = end;
       end = start;
       start = tmp;
     }
-    return SubString(string, SmiUntag(start), SmiUntag(end));
+    return SubString(string, start, end);
   }
 }

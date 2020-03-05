@@ -162,7 +162,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   bool isolate_independent_code = false;
   // Enables the use of isolate-independent builtins through an off-heap
   // trampoline. (macro assembler feature).
-  bool inline_offheap_trampolines = FLAG_embedded_builtins;
+  bool inline_offheap_trampolines = true;
   // On some platforms, all code is within a given range in the process,
   // and the start of this range is configured here.
   Address code_range_start = 0;
@@ -175,8 +175,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
 
-  static AssemblerOptions Default(
-      Isolate* isolate, bool explicitly_support_serialization = false);
+  static AssemblerOptions Default(Isolate* isolate);
 };
 
 class AssemblerBuffer {
@@ -271,7 +270,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  static const int kMinimalBufferSize = 4 * KB;
+  // The minimum buffer size. Should be at least two times the platform-specific
+  // {Assembler::kGap}.
+  static constexpr int kMinimalBufferSize = 128;
+
+  // The default buffer size used if we do not know the final size of the
+  // generated code.
+  static constexpr int kDefaultBufferSize = 4 * KB;
 
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the

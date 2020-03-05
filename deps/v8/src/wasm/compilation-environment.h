@@ -72,7 +72,7 @@ struct CompilationEnv {
                                : 0),
         max_memory_size((module && module->has_maximum_pages
                              ? module->maximum_pages
-                             : kV8MaxWasmMemoryPages) *
+                             : max_mem_pages()) *
                         uint64_t{kWasmPageSize}),
         enabled_features(enabled_features),
         lower_simd(lower_simd) {}
@@ -93,10 +93,7 @@ enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedTopTierCompilation,
   kFailedCompilation,
-
-  // Marker:
-  // After an event >= kFirstFinalEvent, no further events are generated.
-  kFirstFinalEvent = kFinishedTopTierCompilation
+  kFinishedRecompilation
 };
 
 // The implementation of {CompilationState} lives in module-compiler.cc.
@@ -121,6 +118,7 @@ class CompilationState {
   bool failed() const;
   V8_EXPORT_PRIVATE bool baseline_compilation_finished() const;
   V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
+  V8_EXPORT_PRIVATE bool recompilation_finished() const;
 
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.

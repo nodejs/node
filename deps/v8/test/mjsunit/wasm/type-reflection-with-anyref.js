@@ -41,6 +41,38 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
 
+(function TestFunctionGlobalGetAndSet() {
+  let builder = new WasmModuleBuilder();
+  let fun1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
+  let fun2 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 9);
+  builder.addGlobal(kWasmAnyFunc, true).exportAs("f");
+  builder.addFunction('get_global', kSig_a_v)
+      .addBody([
+        kExprGlobalGet, 0,
+      ])
+      .exportFunc();
+  builder.addFunction('set_global', kSig_v_a)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprGlobalSet, 0,
+      ])
+      .exportFunc();
+  let instance = builder.instantiate();
+
+  // Test getting and setting "funcref" global via WebAssembly.
+  assertEquals(null, instance.exports.get_global());
+  instance.exports.set_global(fun1);
+  assertEquals(fun1, instance.exports.get_global());
+
+  // Test getting and setting "funcref" global via JavaScript.
+  assertEquals(fun1, instance.exports.f.value);
+  instance.exports.f.value = fun2;
+  assertEquals(fun2, instance.exports.f.value);
+
+  // Test the full round-trip of an "funcref" global.
+  assertEquals(fun2, instance.exports.get_global());
+})();
+
 // This is an extension of "type-reflection.js/TestFunctionTableSetAndCall" to
 // multiple table indexes. If --experimental-wasm-anyref is enabled by default
 // this test case can supersede the other one.

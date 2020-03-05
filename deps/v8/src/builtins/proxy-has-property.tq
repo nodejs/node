@@ -51,7 +51,7 @@ namespace proxy {
       tail HasProperty(target, name);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, 'has');
+      ThrowTypeError(MessageTemplate::kProxyRevoked, 'has');
     }
   }
 }

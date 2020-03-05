@@ -4,6 +4,7 @@
 
 #include "src/libplatform/default-worker-threads-task-runner.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "include/v8-platform.h"
@@ -272,26 +273,6 @@ TEST(DefaultWorkerThreadsTaskRunnerUnittest, NoIdleTasks) {
 
   ASSERT_FALSE(runner.IdleTasksEnabled());
   runner.Terminate();
-}
-
-TEST(DefaultWorkerThreadsTaskRunnerUnittest, RunsTasksOnCurrentThread) {
-  DefaultWorkerThreadsTaskRunner runner(1, RealTime);
-
-  base::Semaphore semaphore(0);
-
-  EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
-
-  std::unique_ptr<TestTask> task1 = std::make_unique<TestTask>([&] {
-    EXPECT_TRUE(runner.RunsTasksOnCurrentThread());
-    semaphore.Signal();
-  });
-  runner.PostTask(std::move(task1));
-
-  semaphore.Wait();
-  EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
-
-  runner.Terminate();
-  EXPECT_FALSE(runner.RunsTasksOnCurrentThread());
 }
 
 }  // namespace platform

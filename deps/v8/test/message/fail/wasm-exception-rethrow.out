@@ -1,4 +1,4 @@
-wasm-function[0]:5: RuntimeError: wasm exception
+wasm-function[0]:0x32: RuntimeError: wasm exception
 RuntimeError: wasm exception
     at rethrow0 (wasm-function[0]:0x32)
     at *%(basename)s:21:18

@@ -68,7 +68,10 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
 
 void CSAGenerator::EmitInstruction(const Instruction& instruction,
                                    Stack<std::string>* stack) {
+#ifdef DEBUG
   EmitSourcePosition(instruction->pos);
+#endif
+
   switch (instruction.kind()) {
 #define ENUM_ITEM(T)          \
   case InstructionKind::k##T: \
@@ -195,14 +198,22 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     if (parameter_types.size() != 1) {
       ReportError("%RawDownCast must take a single parameter");
     }
-    if (!return_type->IsSubtypeOf(parameter_types[0])) {
+    const Type* original_type = parameter_types[0];
+    bool is_subtype =
+        return_type->IsSubtypeOf(original_type) ||
+        (original_type == TypeOracle::GetUninitializedHeapObjectType() &&
+         return_type->IsSubtypeOf(TypeOracle::GetHeapObjectType()));
+    if (!is_subtype) {
       ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
-                  *parameter_types[0]);
+                  *original_type);
     }
-    if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      if (return_type->GetGeneratedTNodeTypeName() !=
-          parameter_types[0]->GetGeneratedTNodeTypeName()) {
+    if (return_type->GetGeneratedTNodeTypeName() !=
+        original_type->GetGeneratedTNodeTypeName()) {
+      if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
         out_ << "TORQUE_CAST";
+      } else {
+        out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
+             << ">";
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
@@ -230,34 +241,18 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out_ << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out_ << "ca_.Int32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
+      out_ << "ca_.Uint32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
+      out_ << "ca_.BoolConstant";
     } else {
       std::stringstream s;
       s << "%FromConstexpr does not support return type " << *return_type;
       ReportError(s.str());
     }
-  } else if (instruction.intrinsic->ExternalName() ==
-             "%GetAllocationBaseSize") {
-    if (instruction.specialization_types.size() != 1) {
-      ReportError(
-          "incorrect number of specialization classes for "
-          "%GetAllocationBaseSize (should be one)");
-    }
-    const ClassType* class_type =
-        ClassType::cast(instruction.specialization_types[0]);
-    // Special case classes that may not always have a fixed size (e.g.
-    // JSObjects). Their size must be fetched from the map.
-    if (class_type != TypeOracle::GetJSObjectType()) {
-      out_ << "CodeStubAssembler(state_).IntPtrConstant((";
-      args[0] = std::to_string(class_type->size());
-    } else {
-      out_ << "CodeStubAssembler(state_).TimesTaggedSize(CodeStubAssembler("
-              "state_).LoadMapInstanceSizeInWords(";
-    }
-  } else if (instruction.intrinsic->ExternalName() == "%Allocate") {
-    out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
-         << ">(CodeStubAssembler(state_).Allocate";
-  } else if (instruction.intrinsic->ExternalName() == "%GetStructMap") {
-    out_ << "CodeStubAssembler(state_).GetStructMap";
+    // Wrap the raw constexpr value in a static_cast to ensure that
+    // enums get properly casted to their backing integral value.
+    out_ << "(CastToUnderlyingTypeIfEnum";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -265,21 +260,13 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
   out_ << "(";
   PrintCommaSeparatedList(out_, args);
-  if (instruction.intrinsic->ExternalName() == "%Allocate") out_ << ")";
-  if (instruction.intrinsic->ExternalName() == "%GetAllocationBaseSize")
-    out_ << "))";
+  if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
+    out_ << ")";
+  }
   if (return_type->IsStructType()) {
     out_ << ").Flatten();\n";
   } else {
     out_ << ");\n";
-  }
-  if (instruction.intrinsic->ExternalName() == "%Allocate") {
-    out_ << "    CodeStubAssembler(state_).InitializeFieldsWithRoot("
-         << results[0] << ", ";
-    out_ << "CodeStubAssembler(state_).IntPtrConstant("
-         << std::to_string(ClassType::cast(return_type)->size()) << "), ";
-    PrintCommaSeparatedList(out_, args);
-    out_ << ", RootIndex::kUndefinedValue);\n";
   }
 }
 
@@ -701,26 +688,6 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
                   ">(" + stack->Top() + ")");
 }
 
-void CSAGenerator::EmitInstruction(
-    const CreateFieldReferenceInstruction& instruction,
-    Stack<std::string>* stack) {
-  base::Optional<const ClassType*> class_type =
-      instruction.type->ClassSupertype();
-  if (!class_type.has_value()) {
-    ReportError("Cannot create field reference of type ", instruction.type,
-                " which does not inherit from a class type");
-  }
-  const Field& field = class_type.value()->LookupField(instruction.field_name);
-  std::string offset_name = FreshNodeName();
-  stack->Push(offset_name);
-
-  out_ << "    TNode<IntPtrT> " << offset_name << " = ca_.IntPtrConstant(";
-  out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
-       << CamelifyString(field.name_and_type.name) << "Offset";
-  out_ << ");\n"
-       << "    USE(" << stack->Top() << ");\n";
-}
-
 void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
   std::string result_name = FreshNodeName();
@@ -742,9 +709,72 @@ void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
 
-  out_ << "    CodeStubAssembler(state_).StoreReference(CodeStubAssembler::"
+  out_ << "    CodeStubAssembler(state_).StoreReference<"
+       << instruction.type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler::"
           "Reference{"
        << object << ", " << offset << "}, " << value << ");\n";
+}
+
+namespace {
+std::string GetBitFieldSpecialization(const BitFieldStructType* container,
+                                      const BitField& field) {
+  std::string suffix = field.num_bits == 1 ? "Bit" : "Bits";
+  return "TorqueGenerated" + container->name() +
+         "Fields::" + CamelifyString(field.name_and_type.name) + suffix;
+}
+}  // namespace
+
+void CSAGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::string result_name = FreshNodeName();
+
+  std::string bit_field_struct = stack->Pop();
+  stack->Push(result_name);
+
+  const BitFieldStructType* source_type = instruction.bit_field_struct_type;
+  const Type* result_type = instruction.bit_field.name_and_type.type;
+  bool source_uintptr = source_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  bool result_uintptr = result_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  std::string source_word_type = source_uintptr ? "WordT" : "Word32T";
+  std::string decoder =
+      source_uintptr
+          ? (result_uintptr ? "DecodeWord" : "DecodeWord32FromWord")
+          : (result_uintptr ? "DecodeWordFromWord32" : "DecodeWord32");
+
+  out_ << "    " << result_type->GetGeneratedTypeName() << result_name
+       << " = ca_.UncheckedCast<" << result_type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler(state_)." << decoder << "<"
+       << GetBitFieldSpecialization(source_type, instruction.bit_field)
+       << ">(ca_.UncheckedCast<" << source_word_type << ">(" << bit_field_struct
+       << ")));\n";
+}
+
+void CSAGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::string result_name = FreshNodeName();
+
+  std::string value = stack->Pop();
+  std::string bit_field_struct = stack->Pop();
+  stack->Push(result_name);
+
+  const BitFieldStructType* struct_type = instruction.bit_field_struct_type;
+  const Type* field_type = instruction.bit_field.name_and_type.type;
+  bool struct_uintptr = struct_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  bool field_uintptr = field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
+  std::string struct_word_type = struct_uintptr ? "WordT" : "Word32T";
+  std::string field_word_type = field_uintptr ? "UintPtrT" : "Uint32T";
+  std::string encoder =
+      struct_uintptr ? (field_uintptr ? "UpdateWord" : "UpdateWord32InWord")
+                     : (field_uintptr ? "UpdateWordInWord32" : "UpdateWord32");
+
+  out_ << "    " << struct_type->GetGeneratedTypeName() << result_name
+       << " = ca_.UncheckedCast<" << struct_type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler(state_)." << encoder << "<"
+       << GetBitFieldSpecialization(struct_type, instruction.bit_field)
+       << ">(ca_.UncheckedCast<" << struct_word_type << ">(" << bit_field_struct
+       << "), ca_.UncheckedCast<" << field_word_type << ">(" << value
+       << ")));\n";
 }
 
 // static

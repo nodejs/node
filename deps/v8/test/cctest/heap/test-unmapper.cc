@@ -32,10 +32,6 @@ class MockPlatformForUnmapper : public TestPlatform {
     worker_tasks_.clear();
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    task_ = task;
-  }
-
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     worker_tasks_.push_back(std::move(task));
   }

@@ -12,12 +12,14 @@
 
 // Mock maximum typed-array length and limit to 1MiB.
 (function () {
-  var mock = function(arrayType) {
-    var handler = {
+  // Math.min might be manipulated in test cases.
+  let min = Math.min;
+  let mock = function(arrayType) {
+    let handler = {
       construct: function(target, args) {
         for (let i = 0; i < args.length; i++) {
           if (typeof args[i] != "object") {
-            args[i] = Math.min(1048576, args[i]);
+            args[i] = min(1048576, args[i]);
           }
         }
         return new (
@@ -28,6 +30,7 @@
   }
 
   ArrayBuffer = mock(ArrayBuffer);
+  SharedArrayBuffer = mock(SharedArrayBuffer);
   Int8Array = mock(Int8Array);
   Uint8Array = mock(Uint8Array);
   Uint8ClampedArray = mock(Uint8ClampedArray);
@@ -43,7 +46,7 @@
 
 // Mock typed array set function and limit maximum offset to 1MiB.
 (function () {
-  var typedArrayTypes = [
+  let typedArrayTypes = [
     Int8Array,
     Uint8Array,
     Uint8ClampedArray,

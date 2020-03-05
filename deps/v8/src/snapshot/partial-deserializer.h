@@ -33,6 +33,8 @@ class V8_EXPORT_PRIVATE PartialDeserializer final : public Deserializer {
 
   void DeserializeEmbedderFields(
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+
+  void SetupOffHeapArrayBufferBackingStores();
 };
 
 }  // namespace internal

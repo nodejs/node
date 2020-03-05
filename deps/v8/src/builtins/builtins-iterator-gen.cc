@@ -18,29 +18,26 @@ namespace internal {
 using IteratorRecord = TorqueStructIteratorRecord;
 using compiler::Node;
 
-TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
-                                                           Node* object) {
+TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(
+    TNode<Context> context, TNode<Object> object) {
   return GetProperty(context, object, factory()->iterator_symbol());
 }
 
-IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
-                                                      Node* object,
-                                                      Label* if_exception,
-                                                      Variable* exception) {
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(
+    SloppyTNode<Context> context, SloppyTNode<Object> object,
+    Label* if_exception, TVariable<Object>* exception) {
   TNode<Object> method = GetIteratorMethod(context, object);
   return GetIterator(context, object, method, if_exception, exception);
 }
 
-IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
-                                                      Node* object,
-                                                      Node* method,
-                                                      Label* if_exception,
-                                                      Variable* exception) {
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(
+    TNode<Context> context, TNode<Object> object, TNode<Object> method,
+    Label* if_exception, TVariable<Object>* exception) {
   GotoIfException(method, if_exception, exception);
 
   Label if_not_callable(this, Label::kDeferred), if_callable(this);
   GotoIf(TaggedIsSmi(method), &if_not_callable);
-  Branch(IsCallable(method), &if_callable, &if_not_callable);
+  Branch(IsCallable(CAST(method)), &if_callable, &if_not_callable);
 
   BIND(&if_not_callable);
   {
@@ -53,12 +50,12 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   BIND(&if_callable);
   {
     Callable callable = CodeFactory::Call(isolate());
-    Node* iterator = CallJS(callable, context, method, object);
+    TNode<Object> iterator = CallJS(callable, context, method, object);
     GotoIfException(iterator, if_exception, exception);
 
     Label get_next(this), if_notobject(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(iterator), &if_notobject);
-    Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
+    Branch(IsJSReceiver(CAST(iterator)), &get_next, &if_notobject);
 
     BIND(&if_notobject);
     {
@@ -69,7 +66,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
     }
 
     BIND(&get_next);
-    TNode<Object> const next =
+    const TNode<Object> next =
         GetProperty(context, iterator, factory()->next_string());
     GotoIfException(next, if_exception, exception);
 
@@ -81,17 +78,19 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
 TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
     base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
-    Variable* exception) {
+    TVariable<Object>* exception) {
   DCHECK_NOT_NULL(if_done);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   Callable callable = CodeFactory::Call(isolate());
-  Node* result = CallJS(callable, context, iterator.next, iterator.object);
+  TNode<Object> result =
+      CallJS(callable, context, iterator.next, iterator.object);
   GotoIfException(result, if_exception, exception);
 
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
   GotoIf(TaggedIsSmi(result), &if_notobject);
-  TNode<Map> result_map = LoadMap(result);
+  TNode<HeapObject> heap_object_result = CAST(result);
+  TNode<Map> result_map = LoadMap(heap_object_result);
 
   if (fast_iterator_result_map) {
     // Fast iterator result case:
@@ -102,7 +101,8 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
-    TNode<Object> done = LoadObjectField(result, JSIteratorResult::kDoneOffset);
+    TNode<Object> done =
+        LoadObjectField(heap_object_result, JSIteratorResult::kDoneOffset);
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
 
     BIND(&if_generic);
@@ -115,7 +115,8 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
-    TNode<Object> done = GetProperty(context, result, factory()->done_string());
+    TNode<Object> done =
+        GetProperty(context, heap_object_result, factory()->done_string());
     GotoIfException(done, if_exception, exception);
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
   }
@@ -129,13 +130,13 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   }
 
   BIND(&return_result);
-  return CAST(result);
+  return CAST(heap_object_result);
 }
 
 TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
     TNode<Context> context, TNode<JSReceiver> result,
     base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
-    Variable* exception) {
+    TVariable<Object>* exception) {
   Label exit(this);
   TVARIABLE(Object, var_value);
   if (fast_iterator_result_map) {
@@ -163,8 +164,8 @@ TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
 }
 
 void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    Node* context, const IteratorRecord& iterator, Label* if_exception,
-    Variable* exception) {
+    TNode<Context> context, const IteratorRecord& iterator, Label* if_exception,
+    TVariable<Object>* exception) {
   // Perform ES #sec-iteratorclose when an exception occurs. This simpler
   // algorithm does not include redundant steps which are never reachable from
   // the spec IteratorClose algorithm.
@@ -183,7 +184,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   {
     // Let innerResult be Call(return, iterator, « »).
     // If an exception occurs, the original exception remains bound
-    Node* inner_result =
+    TNode<Object> inner_result =
         CallJS(CodeFactory::Call(isolate()), context, method, iterator.object);
     GotoIfException(inner_result, if_exception, nullptr);
 
@@ -193,7 +194,8 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
 }
 
 void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    Node* context, const IteratorRecord& iterator, TNode<Object> exception) {
+    TNode<Context> context, const IteratorRecord& iterator,
+    TNode<Object> exception) {
   Label rethrow(this, Label::kDeferred);
   TVARIABLE(Object, exception_variable, exception);
   IteratorCloseOnException(context, iterator, &rethrow, &exception_variable);
@@ -211,9 +213,9 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
   // 2. Let values be a new empty List.
   GrowableFixedArray values(state());
 
-  Variable* vars[] = {values.var_array(), values.var_length(),
-                      values.var_capacity()};
-  Label loop_start(this, 3, vars), done(this);
+  Label loop_start(
+      this, {values.var_array(), values.var_length(), values.var_capacity()}),
+      done(this);
   Goto(&loop_start);
   // 3. Let next be true.
   // 4. Repeat, while next is not false
@@ -252,9 +254,9 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
 
   GrowableFixedArray values(state());
 
-  Variable* vars[] = {values.var_array(), values.var_length(),
-                      values.var_capacity()};
-  Label loop_start(this, 3, vars), compare_length(this), done(this);
+  Label loop_start(
+      this, {values.var_array(), values.var_length(), values.var_capacity()}),
+      compare_length(this), done(this);
   Goto(&loop_start);
   BIND(&loop_start);
   {
@@ -289,8 +291,8 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 
   // 3. Let list be a new empty List.
 
-  Variable* vars[] = {list.var_array(), list.var_length(), list.var_capacity()};
-  Label loop_start(this, 3, vars);
+  Label loop_start(this,
+                   {list.var_array(), list.var_length(), list.var_capacity()});
   Goto(&loop_start);
   // 4. Let next be true.
   // 5. Repeat, while next is not false
@@ -366,7 +368,7 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
 
 void IteratorBuiltinsAssembler::FastIterableToList(
     TNode<Context> context, TNode<Object> iterable,
-    TVariable<Object>* var_result, Label* slow) {
+    TVariable<JSArray>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
 
   GotoIfNot(
@@ -375,8 +377,8 @@ void IteratorBuiltinsAssembler::FastIterableToList(
       &check_string);
 
   // Fast path for fast JSArray.
-  *var_result =
-      CallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable);
+  *var_result = CAST(
+      CallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable));
   Goto(&done);
 
   BIND(&check_string);
@@ -387,12 +389,12 @@ void IteratorBuiltinsAssembler::FastIterableToList(
         iterable, context, &string_maybe_fast_call, &check_map);
 
     BIND(&string_maybe_fast_call);
-    TNode<IntPtrT> const length = LoadStringLengthAsWord(CAST(iterable));
+    const TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(iterable));
     // Use string length as conservative approximation of number of codepoints.
     GotoIf(
         IntPtrGreaterThan(length, IntPtrConstant(JSArray::kMaxFastArrayLength)),
         slow);
-    *var_result = CallBuiltin(Builtins::kStringToList, context, iterable);
+    *var_result = CAST(CallBuiltin(Builtins::kStringToList, context, iterable));
     Goto(&done);
   }
 
@@ -403,7 +405,8 @@ void IteratorBuiltinsAssembler::FastIterableToList(
         state(), iterable, context, &map_fast_call, &check_set);
 
     BIND(&map_fast_call);
-    *var_result = CallBuiltin(Builtins::kMapIteratorToList, context, iterable);
+    *var_result =
+        CAST(CallBuiltin(Builtins::kMapIteratorToList, context, iterable));
     Goto(&done);
   }
 
@@ -415,11 +418,18 @@ void IteratorBuiltinsAssembler::FastIterableToList(
 
     BIND(&set_fast_call);
     *var_result =
-        CallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable);
+        CAST(CallBuiltin(Builtins::kSetOrSetIteratorToList, context, iterable));
     Goto(&done);
   }
 
   BIND(&done);
+}
+
+TNode<JSArray> IteratorBuiltinsAssembler::FastIterableToList(
+    TNode<Context> context, TNode<Object> iterable, Label* slow) {
+  TVARIABLE(JSArray, var_fast_result);
+  FastIterableToList(context, iterable, &var_fast_result, slow);
+  return var_fast_result.value();
 }
 
 // This builtin loads the property Symbol.iterator as the iterator, and has fast
@@ -441,7 +451,7 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
 
   GotoIfForceSlowPath(&slow_path);
 
-  TVARIABLE(Object, var_result);
+  TVARIABLE(JSArray, var_result);
   FastIterableToList(context, iterable, &var_result, &slow_path);
   Return(var_result.value());
 

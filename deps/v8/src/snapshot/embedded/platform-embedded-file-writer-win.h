@@ -33,7 +33,7 @@ class PlatformEmbeddedFileWriterWin : public PlatformEmbeddedFileWriterBase {
   void DeclareLabel(const char* name) override;
 
   void SourceInfo(int fileid, const char* filename, int line) override;
-  void DeclareFunctionBegin(const char* name) override;
+  void DeclareFunctionBegin(const char* name, uint32_t size) override;
   void DeclareFunctionEnd(const char* name) override;
 
   int HexLiteral(uint64_t value) override;

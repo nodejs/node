@@ -168,9 +168,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_arguments);
   {
     TNode<JSArgumentsObject> js_arguments = CAST(arguments_list);
-    // Try to extract the elements from an JSArgumentsObjectWithLength.
-    TNode<Object> length = LoadObjectField(
-        js_arguments, JSArgumentsObjectWithLength::kLengthOffset);
+    // Try to extract the elements from a JSArgumentsObject with standard map.
+    TNode<Object> length = LoadJSArgumentsObjectLength(context, js_arguments);
     TNode<FixedArrayBase> elements = LoadElements(js_arguments);
     TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(TaggedEqual(length, elements_length), &if_runtime);
@@ -412,8 +411,9 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       // {var_template} variable), and see if that is a HeapObject.
       // If it's a Smi then it is non-instance prototype on some
       // initial map, which cannot be the case for API instances.
-      TNode<Object> constructor = LoadObjectField(
-          var_template.value(), Map::kConstructorOrBackPointerOffset);
+      TNode<Object> constructor =
+          LoadObjectField(var_template.value(),
+                          Map::kConstructorOrBackPointerOrNativeContextOffset);
       GotoIf(TaggedIsSmi(constructor), &holder_next);
 
       // Now there are three cases for {constructor} that we care
@@ -511,9 +511,9 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     TNode<Map> receiver_map = LoadMap(receiver);
     Label receiver_needs_access_check(this, Label::kDeferred),
         receiver_done(this);
-    GotoIfNot(
-        IsSetWord32<Map::IsAccessCheckNeededBit>(LoadMapBitField(receiver_map)),
-        &receiver_done);
+    GotoIfNot(IsSetWord32<Map::Bits1::IsAccessCheckNeededBit>(
+                  LoadMapBitField(receiver_map)),
+              &receiver_done);
     TNode<IntPtrT> function_template_info_flags = LoadAndUntagObjectField(
         function_template_info, FunctionTemplateInfo::kFlagOffset);
     Branch(IsSetWord(function_template_info_flags,

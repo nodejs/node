@@ -10,19 +10,17 @@ top level: yes
 snippet: "
   var a = 1;
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 20
 bytecodes: [
+  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
-                B(LdaZero),
-                B(Star), R(2),
-                B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(3),
-  /*    0 E> */ B(StackCheck),
+                B(Mov), R(closure), R(2),
+                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
   /*    8 S> */ B(LdaSmi), I8(1),
-  /*    8 E> */ B(StaGlobal), U8(1), U8(2),
+  /*    8 E> */ B(StaGlobal), U8(1), U8(0),
                 B(LdaUndefined),
   /*   11 S> */ B(Return),
 ]
@@ -37,17 +35,15 @@ handlers: [
 snippet: "
   function f() {}
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 18
+bytecode array length: 15
 bytecodes: [
+  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(0),
-                B(LdaZero),
-                B(Star), R(1),
-                B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(3),
-  /*    0 E> */ B(StackCheck),
+                B(Mov), R(closure), R(1),
+                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(2),
                 B(LdaUndefined),
   /*   16 S> */ B(Return),
 ]
@@ -62,21 +58,19 @@ snippet: "
   var a = 1;
   a=2;
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 26
 bytecodes: [
+  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
-                B(LdaZero),
-                B(Star), R(2),
-                B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(3),
-  /*    0 E> */ B(StackCheck),
+                B(Mov), R(closure), R(2),
+                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
   /*    8 S> */ B(LdaSmi), I8(1),
-  /*    8 E> */ B(StaGlobal), U8(1), U8(2),
+  /*    8 E> */ B(StaGlobal), U8(1), U8(0),
   /*   11 S> */ B(LdaSmi), I8(2),
-  /*   12 E> */ B(StaGlobal), U8(1), U8(2),
+  /*   12 E> */ B(StaGlobal), U8(1), U8(0),
                 B(Star), R(0),
   /*   16 S> */ B(Return),
 ]
@@ -92,17 +86,15 @@ snippet: "
   function f() {}
   f();
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 24
 bytecodes: [
+  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
-                B(LdaZero),
-                B(Star), R(2),
-                B(Mov), R(closure), R(3),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(3),
-  /*    0 E> */ B(StackCheck),
+                B(Mov), R(closure), R(2),
+                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
   /*   16 S> */ B(LdaGlobal), U8(1), U8(0),
                 B(Star), R(1),
   /*   16 E> */ B(CallUndefinedReceiver0), R(1), U8(2),

@@ -235,7 +235,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  Jump(target, RelocInfo::NONE);
+  PatchAndJump(target);
   return true;
 }
 

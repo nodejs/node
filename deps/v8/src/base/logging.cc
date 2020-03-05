@@ -23,11 +23,12 @@ void (*g_print_stack_trace)() = nullptr;
 
 void (*g_dcheck_function)(const char*, int, const char*) = DefaultDcheckHandler;
 
-void PrettyPrintChar(std::ostream& os, int ch) {
+std::string PrettyPrintChar(int ch) {
+  std::ostringstream oss;
   switch (ch) {
 #define CHAR_PRINT_CASE(ch) \
   case ch:                  \
-    os << #ch;              \
+    oss << #ch;             \
     break;
 
     CHAR_PRINT_CASE('\0')
@@ -43,13 +44,12 @@ void PrettyPrintChar(std::ostream& os, int ch) {
 #undef CHAR_PRINT_CASE
     default:
       if (std::isprint(ch)) {
-        os << '\'' << ch << '\'';
+        oss << '\'' << ch << '\'';
       } else {
-        auto flags = os.flags(std::ios_base::hex);
-        os << "\\x" << static_cast<unsigned int>(ch);
-        os.flags(flags);
+        oss << std::hex << "\\x" << static_cast<unsigned int>(ch);
       }
   }
+  return oss.str();
 }
 
 void DefaultDcheckHandler(const char* file, int line, const char* message) {
@@ -73,18 +73,18 @@ void SetDcheckFunction(void (*dcheck_function)(const char*, int, const char*)) {
 
 // Define specialization to pretty print characters (escaping non-printable
 // characters) and to print c strings as pointers instead of strings.
-#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                                \
-  template <>                                                                \
-  void PrintCheckOperand<type>(std::ostream & os, type ch) {                 \
-    PrettyPrintChar(os, ch);                                                 \
-  }                                                                          \
-  template <>                                                                \
-  void PrintCheckOperand<type*>(std::ostream & os, type * cstr) {            \
-    os << static_cast<void*>(cstr);                                          \
-  }                                                                          \
-  template <>                                                                \
-  void PrintCheckOperand<const type*>(std::ostream & os, const type* cstr) { \
-    os << static_cast<const void*>(cstr);                                    \
+#define DEFINE_PRINT_CHECK_OPERAND_CHAR(type)                    \
+  template <>                                                    \
+  std::string PrintCheckOperand<type>(type ch) {                 \
+    return PrettyPrintChar(ch);                                  \
+  }                                                              \
+  template <>                                                    \
+  std::string PrintCheckOperand<type*>(type * cstr) {            \
+    return PrintCheckOperand<void*>(cstr);                       \
+  }                                                              \
+  template <>                                                    \
+  std::string PrintCheckOperand<const type*>(const type* cstr) { \
+    return PrintCheckOperand<const void*>(cstr);                 \
   }
 
 DEFINE_PRINT_CHECK_OPERAND_CHAR(char)
@@ -96,7 +96,7 @@ DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
 #define DEFINE_MAKE_CHECK_OP_STRING(type)                           \
   template std::string* MakeCheckOpString<type, type>(type, type,   \
                                                       char const*); \
-  template void PrintCheckOperand<type>(std::ostream&, type);
+  template std::string PrintCheckOperand<type>(type);
 DEFINE_MAKE_CHECK_OP_STRING(int)
 DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
@@ -105,21 +105,6 @@ DEFINE_MAKE_CHECK_OP_STRING(unsigned long)       // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(unsigned long long)  // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(void const*)
 #undef DEFINE_MAKE_CHECK_OP_STRING
-
-
-// Explicit instantiations for floating point checks.
-#define DEFINE_CHECK_OP_IMPL(NAME)                                            \
-  template std::string* Check##NAME##Impl<float, float>(float lhs, float rhs, \
-                                                        char const* msg);     \
-  template std::string* Check##NAME##Impl<double, double>(                    \
-      double lhs, double rhs, char const* msg);
-DEFINE_CHECK_OP_IMPL(EQ)
-DEFINE_CHECK_OP_IMPL(NE)
-DEFINE_CHECK_OP_IMPL(LE)
-DEFINE_CHECK_OP_IMPL(LT)
-DEFINE_CHECK_OP_IMPL(GE)
-DEFINE_CHECK_OP_IMPL(GT)
-#undef DEFINE_CHECK_OP_IMPL
 
 }  // namespace base
 }  // namespace v8

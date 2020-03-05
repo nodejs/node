@@ -89,6 +89,15 @@ inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
   return old_value;
 }
 
+inline Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
+                                              Atomic32 old_value,
+                                              Atomic32 new_value) {
+  atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_acq_rel, std::memory_order_acquire);
+  return old_value;
+}
+
 inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
   std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
                              std::memory_order_relaxed);
@@ -172,6 +181,15 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
   std::atomic_compare_exchange_strong_explicit(
       helper::to_std_atomic(ptr), &old_value, new_value,
       std::memory_order_release, std::memory_order_relaxed);
+  return old_value;
+}
+
+inline Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
+                                              Atomic64 old_value,
+                                              Atomic64 new_value) {
+  std::atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_acq_rel, std::memory_order_acquire);
   return old_value;
 }
 

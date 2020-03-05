@@ -1,0 +1,44 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class ScopeInfo extends FixedArray;
+
+const kScopeInfoFlagsIndex:
+    constexpr int32 generates 'ScopeInfo::Fields::kFlags';
+
+operator '.flags' macro LoadScopeInfoFlags(implicit context: Context)(
+    scopeInfo: ScopeInfo): ScopeFlags {
+  return Convert<ScopeFlags>(
+      UnsafeCast<Smi>(scopeInfo.objects[kScopeInfoFlagsIndex]));
+}
+
+type ScopeType extends uint32 constexpr 'ScopeType';
+type VariableAllocationInfo extends uint32
+constexpr 'VariableAllocationInfo';
+
+// Properties of scopes.
+bitfield struct ScopeFlags extends uint32 {
+  scope_type: ScopeType: 4 bit;
+  sloppy_eval_can_extend_vars: bool: 1 bit;
+  language_mode: LanguageMode: 1 bit;
+  declaration_scope: bool: 1 bit;
+  receiver_variable: VariableAllocationInfo: 2 bit;
+  has_class_brand: bool: 1 bit;
+  has_saved_class_variable_index: bool: 1 bit;
+  has_new_target: bool: 1 bit;
+  // TODO(cbruni): Combine with function variable field when only storing the
+  // function name.
+  function_variable: VariableAllocationInfo: 2 bit;
+  has_inferred_function_name: bool: 1 bit;
+  is_asm_module: bool: 1 bit;
+  has_simple_parameters: bool: 1 bit;
+  function_kind: FunctionKind: 5 bit;
+  has_outer_scope_info: bool: 1 bit;
+  is_debug_evaluate_scope: bool: 1 bit;
+  force_context_allocation: bool: 1 bit;
+  private_name_lookup_skips_outer_class: bool: 1 bit;
+  has_context_extension_slot: bool: 1 bit;
+  is_repl_mode_scope: bool: 1 bit;
+  has_locals_black_list: bool: 1 bit;
+}

@@ -19,12 +19,7 @@ V8_INLINE Tagged_t CompressTagged(Address tagged) {
   return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
 }
 
-// Calculates isolate root value from any on-heap address.
-template <typename TOnHeapAddress>
-V8_INLINE Address GetIsolateRoot(TOnHeapAddress on_heap_addr);
-
-template <>
-V8_INLINE Address GetIsolateRoot<Address>(Address on_heap_addr) {
+V8_INLINE Address GetIsolateRoot(Address on_heap_addr) {
   // We subtract 1 here in order to let the compiler generate addition of 32-bit
   // signed constant instead of 64-bit constant (the problem is that 2Gb looks
   // like a negative 32-bit value). It's correct because we will never use
@@ -32,8 +27,7 @@ V8_INLINE Address GetIsolateRoot<Address>(Address on_heap_addr) {
   return RoundDown<kPtrComprIsolateRootAlignment>(on_heap_addr);
 }
 
-template <>
-V8_INLINE Address GetIsolateRoot<Isolate*>(Isolate* isolate) {
+V8_INLINE Address GetIsolateRoot(const Isolate* isolate) {
   Address isolate_root = isolate->isolate_root();
 #ifdef V8_COMPRESS_POINTERS
   isolate_root = reinterpret_cast<Address>(V8_ASSUME_ALIGNED(

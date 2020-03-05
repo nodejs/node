@@ -942,46 +942,6 @@ TEST(MemoryWithOOBEmptyDataSegment) {
   Cleanup();
 }
 
-TEST(AtomicOpDisassembly) {
-  {
-    EXPERIMENTAL_FLAG_SCOPE(threads);
-    TestSignatures sigs;
-    Isolate* isolate = CcTest::InitIsolateOnce();
-    v8::internal::AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
-
-    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-    builder->SetHasSharedMemory();
-    builder->SetMaxMemorySize(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    ExportAsMain(f);
-    byte code[] = {
-        WASM_ATOMICS_STORE_OP(kExprI32AtomicStore, WASM_ZERO, WASM_GET_LOCAL(0),
-                              MachineRepresentation::kWord32),
-        WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_ZERO,
-                             MachineRepresentation::kWord32)};
-    EMIT_CODE_WITH_END(f, code);
-
-    HandleScope scope(isolate);
-    ZoneBuffer buffer(&zone);
-    builder->WriteTo(&buffer);
-    testing::SetupIsolateForWasmModule(isolate);
-
-    ErrorThrower thrower(isolate, "Test");
-    auto enabled_features = WasmFeaturesFromIsolate(isolate);
-    Handle<WasmModuleObject> module_object =
-        isolate->wasm_engine()
-            ->SyncCompile(isolate, enabled_features, &thrower,
-                          ModuleWireBytes(buffer.begin(), buffer.end()))
-            .ToHandleChecked();
-    NativeModule* native_module = module_object->native_module();
-    ModuleWireBytes wire_bytes(native_module->wire_bytes());
-
-    DisassembleWasmFunction(native_module->module(), wire_bytes, 0);
-  }
-  Cleanup();
-}
-
 #undef EMIT_CODE_WITH_END
 
 }  // namespace test_run_wasm_module

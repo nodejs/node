@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/base/memory.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/code-reference.h"
@@ -291,23 +292,26 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
     if (constants > 0) {
-      SNPrintF(decode_buffer, "%08x       constant",
-               *reinterpret_cast<int32_t*>(pc));
+      SNPrintF(
+          decode_buffer, "%08x       constant",
+          base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)));
       constants--;
       pc += 4;
     } else {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
-        SNPrintF(decode_buffer,
-                 "%08x       constant pool begin (num_const = %d)",
-                 *reinterpret_cast<int32_t*>(pc), num_const);
+        SNPrintF(
+            decode_buffer, "%08x       constant pool begin (num_const = %d)",
+            base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)),
+            num_const);
         constants = num_const;
         pc += 4;
       } else if (it != nullptr && !it->done() &&
                  it->rinfo()->pc() == reinterpret_cast<Address>(pc) &&
                  it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
-        byte* ptr = *reinterpret_cast<byte**>(pc);
+        byte* ptr =
+            base::ReadUnalignedValue<byte*>(reinterpret_cast<Address>(pc));
         SNPrintF(decode_buffer, "%08" V8PRIxPTR "      jump table entry %4zu",
                  reinterpret_cast<intptr_t>(ptr),
                  static_cast<size_t>(ptr - begin));

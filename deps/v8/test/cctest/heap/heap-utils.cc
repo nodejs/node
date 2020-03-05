@@ -121,32 +121,24 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   return handles;
 }
 
-void AllocateAllButNBytes(v8::internal::NewSpace* space, int extra_bytes,
-                          std::vector<Handle<FixedArray>>* out_handles) {
+bool FillCurrentPage(v8::internal::NewSpace* space,
+                     std::vector<Handle<FixedArray>>* out_handles) {
+  return heap::FillCurrentPageButNBytes(space, 0, out_handles);
+}
+
+bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
+                              std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
-  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
+  // We cannot rely on `space->limit()` to point to the end of the current page
+  // in the case where inline allocations are disabled, it actually points to
+  // the current allocation pointer.
+  DCHECK_IMPLIES(space->heap()->inline_allocation_disabled(),
+                 space->limit() == space->top());
+  int space_remaining =
+      static_cast<int>(space->to_space().page_high() - space->top());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
-  if (new_linear_size == 0) return;
-  std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
-      space->heap(), new_linear_size, i::AllocationType::kYoung);
-  if (out_handles != nullptr) {
-    out_handles->insert(out_handles->end(), handles.begin(), handles.end());
-  }
-}
-
-void FillCurrentPage(v8::internal::NewSpace* space,
-                     std::vector<Handle<FixedArray>>* out_handles) {
-  heap::AllocateAllButNBytes(space, 0, out_handles);
-}
-
-bool FillUpOnePage(v8::internal::NewSpace* space,
-                   std::vector<Handle<FixedArray>>* out_handles) {
-  PauseAllocationObserversScope pause_observers(space->heap());
-  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
-  if (space_remaining == 0) return false;
+  if (new_linear_size == 0) return false;
   std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
       space->heap(), space_remaining, i::AllocationType::kYoung);
   if (out_handles != nullptr) {
@@ -157,8 +149,7 @@ bool FillUpOnePage(v8::internal::NewSpace* space,
 
 void SimulateFullSpace(v8::internal::NewSpace* space,
                        std::vector<Handle<FixedArray>>* out_handles) {
-  heap::FillCurrentPage(space, out_handles);
-  while (heap::FillUpOnePage(space, out_handles) || space->AddFreshPage()) {
+  while (heap::FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
   }
 }
 

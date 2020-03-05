@@ -44,39 +44,42 @@ ADDITIONAL_FLAGS = [
   (0.1, '--regexp-interpret-all'),
   (0.1, '--regexp-tier-up-ticks=10'),
   (0.1, '--regexp-tier-up-ticks=100'),
+  (0.1, '--turbo-instruction-scheduling'),
+  (0.1, '--turbo-stress-instruction-scheduling'),
+  (0.1, '--no-enable-sse3'),
+  (0.1, '--no-enable-ssse3'),
+  (0.1, '--no-enable-sse4_1'),
+  (0.1, '--no-enable-sse4_2'),
+  (0.1, '--no-enable-sahf'),
+  (0.1, '--no-enable-avx'),
+  (0.1, '--no-enable-fma3'),
+  (0.1, '--no-enable-bmi1'),
+  (0.1, '--no-enable-bmi2'),
+  (0.1, '--no-enable-lzcnt'),
+  (0.1, '--no-enable-popcnt'),
 ]
 
 class Config(object):
-  def __init__(self, name, rng=None, random_seed=None):
+  def __init__(self, name, rng=None):
     """
     Args:
       name: Name of the used fuzzer.
       rng: Random number generator for generating experiments.
       random_seed: Random-seed used for d8 throughout one fuzz session.
-      TODO(machenbach): Remove random_seed after a grace period of a couple of
-      days. We only have it to keep bisection stable. Afterwards we can just
-      use rng.
     """
     self.name = name
     self.rng = rng or random.Random()
-    self.random_seed = random_seed
 
   def choose_foozzie_flags(self):
     """Randomly chooses a configuration from FOOZZIE_EXPERIMENTS.
 
     Returns: List of flags to pass to v8_foozzie.py fuzz harness.
     """
-    # TODO(machenbach): Temporarily use same RNG state for all test cases in one
-    # fuzz session. See also TODO above.
-    if self.random_seed is not None:
-      flags_rng = random.Random(self.random_seed)
-    else:
-      flags_rng = random.Random()
 
     # Add additional flags to second config based on experiment percentages.
     extra_flags = []
     for p, flag in ADDITIONAL_FLAGS:
-      if flags_rng.random() < p:
+      if self.rng.random() < p:
         extra_flags.append('--second-config-extra-flags=%s' % flag)
 
     # Calculate flags determining the experiment.

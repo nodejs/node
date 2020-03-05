@@ -51,6 +51,7 @@ class JSAsyncGeneratorObject;
 class JSCollator;
 class JSCollection;
 class JSDateTimeFormat;
+class JSDisplayNames;
 class JSListFormat;
 class JSLocale;
 class JSNumberFormat;
@@ -106,6 +107,7 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
 enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };
 
 class AccessCheckNeeded;
+class BigIntBase;
 class BigIntWrapper;
 class ClassBoilerplate;
 class BooleanWrapper;
@@ -185,6 +187,7 @@ class CodeAssemblerVariable;
 template <class T>
 class TypedCodeAssemblerVariable;
 class CodeAssemblerState;
+class JSGraph;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
@@ -246,6 +249,10 @@ class CodeAssemblerParameterizedLabel;
   V(Float64Min, Float64T, Float64T, Float64T)                           \
   V(Float64InsertLowWord32, Float64T, Float64T, Word32T)                \
   V(Float64InsertHighWord32, Float64T, Float64T, Word32T)               \
+  V(IntPtrAdd, WordT, WordT, WordT)                                     \
+  V(IntPtrSub, WordT, WordT, WordT)                                     \
+  V(IntPtrMul, WordT, WordT, WordT)                                     \
+  V(IntPtrDiv, IntPtrT, IntPtrT, IntPtrT)                               \
   V(IntPtrAddWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
   V(IntPtrSubWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT, IntPtrT) \
   V(Int32Add, Word32T, Word32T, Word32T)                                \
@@ -256,9 +263,27 @@ class CodeAssemblerParameterizedLabel;
   V(Int32MulWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T, Int32T)     \
   V(Int32Div, Int32T, Int32T, Int32T)                                   \
   V(Int32Mod, Int32T, Int32T, Int32T)                                   \
+  V(WordOr, WordT, WordT, WordT)                                        \
+  V(WordAnd, WordT, WordT, WordT)                                       \
+  V(WordXor, WordT, WordT, WordT)                                       \
   V(WordRor, WordT, WordT, IntegralT)                                   \
+  V(WordShl, WordT, WordT, IntegralT)                                   \
+  V(WordShr, WordT, WordT, IntegralT)                                   \
+  V(WordSar, WordT, WordT, IntegralT)                                   \
+  V(Word32Or, Word32T, Word32T, Word32T)                                \
+  V(Word32And, Word32T, Word32T, Word32T)                               \
+  V(Word32Xor, Word32T, Word32T, Word32T)                               \
   V(Word32Ror, Word32T, Word32T, Word32T)                               \
-  V(Word64Ror, Word64T, Word64T, Word64T)
+  V(Word32Shl, Word32T, Word32T, Word32T)                               \
+  V(Word32Shr, Word32T, Word32T, Word32T)                               \
+  V(Word32Sar, Word32T, Word32T, Word32T)                               \
+  V(Word64And, Word64T, Word64T, Word64T)                               \
+  V(Word64Or, Word64T, Word64T, Word64T)                                \
+  V(Word64Xor, Word64T, Word64T, Word64T)                               \
+  V(Word64Ror, Word64T, Word64T, Word64T)                               \
+  V(Word64Shl, Word64T, Word64T, Word64T)                               \
+  V(Word64Shr, Word64T, Word64T, Word64T)                               \
+  V(Word64Sar, Word64T, Word64T, Word64T)
 
 TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
 
@@ -302,7 +327,6 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(ChangeInt32ToInt64, Int64T, Int32T)                        \
   V(ChangeUint32ToFloat64, Float64T, Word32T)                  \
   V(ChangeUint32ToUint64, Uint64T, Word32T)                    \
-  V(ChangeTaggedToCompressed, TaggedT, AnyTaggedT)             \
   V(BitcastInt32ToFloat32, Float32T, Word32T)                  \
   V(BitcastFloat32ToInt32, Uint32T, Float32T)                  \
   V(RoundFloat64ToInt32, Int32T, Float64T)                     \
@@ -537,15 +561,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Parameter(int value);
 
   TNode<Context> GetJSContextParameter();
-  void Return(SloppyTNode<Object> value);
-  void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2);
-  void Return(SloppyTNode<Object> value1, SloppyTNode<Object> value2,
-              SloppyTNode<Object> value3);
+  void Return(TNode<Object> value);
+  void Return(TNode<Object> value1, TNode<Object> value2);
+  void Return(TNode<Object> value1, TNode<Object> value2, TNode<Object> value3);
+  void Return(TNode<Int32T> value);
+  void Return(TNode<Uint32T> value);
+  void Return(TNode<WordT> value);
+  void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 
-  void ReturnIf(Node* condition, Node* value);
-
-  void ReturnRaw(Node* value);
+  void ReturnIf(Node* condition, TNode<Object> value);
 
   void AbortCSAAssert(Node* message);
   void DebugBreak();
@@ -822,10 +847,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         Int32Mul(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
-  TNode<WordT> IntPtrAdd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<IntPtrT> IntPtrDiv(TNode<IntPtrT> left, TNode<IntPtrT> right);
-  TNode<WordT> IntPtrSub(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<WordT> IntPtrMul(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<IntPtrT> IntPtrAdd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return Signed(
         IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
@@ -869,37 +890,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Word32T> Word32Shr(SloppyTNode<Word32T> value, int shift);
   TNode<Word32T> Word32Sar(SloppyTNode<Word32T> value, int shift);
 
-  TNode<WordT> WordOr(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<WordT> WordAnd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<WordT> WordXor(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<WordT> WordShl(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
-  TNode<WordT> WordShr(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
-  TNode<WordT> WordSar(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
-  TNode<Word32T> Word32Or(SloppyTNode<Word32T> left,
-                          SloppyTNode<Word32T> right);
-  TNode<Word32T> Word32And(SloppyTNode<Word32T> left,
-                           SloppyTNode<Word32T> right);
-  TNode<Word32T> Word32Xor(SloppyTNode<Word32T> left,
-                           SloppyTNode<Word32T> right);
-  TNode<Word32T> Word32Shl(SloppyTNode<Word32T> left,
-                           SloppyTNode<Word32T> right);
-  TNode<Word32T> Word32Shr(SloppyTNode<Word32T> left,
-                           SloppyTNode<Word32T> right);
-  TNode<Word32T> Word32Sar(SloppyTNode<Word32T> left,
-                           SloppyTNode<Word32T> right);
-  TNode<Word64T> Word64Or(SloppyTNode<Word64T> left,
-                          SloppyTNode<Word64T> right);
-  TNode<Word64T> Word64And(SloppyTNode<Word64T> left,
-                           SloppyTNode<Word64T> right);
-  TNode<Word64T> Word64Xor(SloppyTNode<Word64T> left,
-                           SloppyTNode<Word64T> right);
-  TNode<Word64T> Word64Shl(SloppyTNode<Word64T> left,
-                           SloppyTNode<Word64T> right);
-  TNode<Word64T> Word64Shr(SloppyTNode<Word64T> left,
-                           SloppyTNode<Word64T> right);
-  TNode<Word64T> Word64Sar(SloppyTNode<Word64T> left,
-                           SloppyTNode<Word64T> right);
-
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
   TNode<ResType> name(SloppyTNode<ArgType> a);
@@ -914,6 +904,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
   // Assumes that the double can be exactly represented as an int.
+  TNode<IntPtrT> ChangeFloat64ToIntPtr(TNode<Float64T> value);
   TNode<UintPtrT> ChangeFloat64ToUintPtr(SloppyTNode<Float64T> value);
   // Same in the opposite direction.
   TNode<Float64T> ChangeUintPtrToFloat64(TNode<UintPtrT> value);
@@ -951,14 +942,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   template <class... TArgs>
-  TNode<Object> CallRuntimeWithCEntry(Runtime::FunctionId function,
-                                      TNode<Code> centry,
-                                      SloppyTNode<Object> context,
-                                      TArgs... args) {
-    return CallRuntimeWithCEntryImpl(function, centry, context, {args...});
-  }
-
-  template <class... TArgs>
   void TailCallRuntime(Runtime::FunctionId function,
                        SloppyTNode<Object> context, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
@@ -972,17 +955,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                        SloppyTNode<Object> context, TArgs... args) {
     return TailCallRuntimeImpl(function, arity, context,
                                {implicit_cast<SloppyTNode<Object>>(args)...});
-  }
-
-  template <class... TArgs>
-  void TailCallRuntimeWithCEntry(Runtime::FunctionId function,
-                                 TNode<Code> centry, TNode<Object> context,
-                                 TArgs... args) {
-    int argc = sizeof...(args);
-    TNode<Int32T> arity = Int32Constant(argc);
-    return TailCallRuntimeWithCEntryImpl(
-        function, arity, centry, context,
-        {implicit_cast<SloppyTNode<Object>>(args)...});
   }
 
   //
@@ -1175,18 +1147,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                 TNode<Object> context,
                                 std::initializer_list<TNode<Object>> args);
 
-  TNode<Object> CallRuntimeWithCEntryImpl(
-      Runtime::FunctionId function, TNode<Code> centry, TNode<Object> context,
-      std::initializer_list<TNode<Object>> args);
-
   void TailCallRuntimeImpl(Runtime::FunctionId function, TNode<Int32T> arity,
                            TNode<Object> context,
                            std::initializer_list<TNode<Object>> args);
-
-  void TailCallRuntimeWithCEntryImpl(Runtime::FunctionId function,
-                                     TNode<Int32T> arity, TNode<Code> centry,
-                                     TNode<Object> context,
-                                     std::initializer_list<TNode<Object>> args);
 
   void TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
                         TNode<Code> target, TNode<Object> context,
@@ -1207,6 +1170,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Uint32T> Unsigned(TNode<Uint32T> x);
 
   RawMachineAssembler* raw_assembler() const;
+  JSGraph* jsgraph() const;
 
   // Calls respective callback registered in the state.
   void CallPrologue();
@@ -1461,6 +1425,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   std::vector<CodeAssemblerExceptionHandlerLabel*> exception_handler_labels_;
   using VariableId = uint32_t;
   VariableId next_variable_id_ = 0;
+  JSGraph* jsgraph_;
 
   VariableId NextVariableId() { return next_variable_id_++; }
 

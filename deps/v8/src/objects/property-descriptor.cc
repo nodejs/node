@@ -22,7 +22,7 @@ namespace {
 // Returns false if an exception was thrown.
 bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
                           Handle<Object>* value) {
-  LookupIterator it(receiver, name, receiver);
+  LookupIterator it(receiver->GetIsolate(), receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
   // 5. ReturnIfAbrupt(hasEnumerable).
@@ -112,7 +112,8 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
 
 void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
                         Handle<Object> value) {
-  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(object->GetIsolate(), object, name, object,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
   CHECK(result.IsJust() && result.FromJust());
 }
@@ -340,8 +341,8 @@ void PropertyDescriptor::CompletePropertyDescriptor(Isolate* isolate,
 
 Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
     Isolate* isolate) {
-  Handle<PropertyDescriptorObject> obj = Handle<PropertyDescriptorObject>::cast(
-      isolate->factory()->NewFixedArray(PropertyDescriptorObject::kLength));
+  Handle<PropertyDescriptorObject> obj =
+      isolate->factory()->NewPropertyDescriptorObject();
 
   int flags =
       PropertyDescriptorObject::IsEnumerableBit::encode(enumerable_) |
@@ -354,14 +355,11 @@ Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
       PropertyDescriptorObject::HasGetBit::encode(has_get()) |
       PropertyDescriptorObject::HasSetBit::encode(has_set());
 
-  obj->set(PropertyDescriptorObject::kFlagsIndex, Smi::FromInt(flags));
+  obj->set_flags(Smi::FromInt(flags));
 
-  obj->set(PropertyDescriptorObject::kValueIndex,
-           has_value() ? *value_ : ReadOnlyRoots(isolate).the_hole_value());
-  obj->set(PropertyDescriptorObject::kGetIndex,
-           has_get() ? *get_ : ReadOnlyRoots(isolate).the_hole_value());
-  obj->set(PropertyDescriptorObject::kSetIndex,
-           has_set() ? *set_ : ReadOnlyRoots(isolate).the_hole_value());
+  if (has_value()) obj->set_value(*value_);
+  if (has_get()) obj->set_get(*get_);
+  if (has_set()) obj->set_set(*set_);
 
   return obj;
 }

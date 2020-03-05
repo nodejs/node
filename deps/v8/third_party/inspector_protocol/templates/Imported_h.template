@@ -29,14 +29,10 @@ public:
         return std::unique_ptr<ImportedValue>(new ImportedValue(value));
     }
 
-    void writeJSON(StringBuilder* output) const override {
-        auto json = m_exported->toJSONString();
-        String local_json = ({{config.imported.from_imported_string % "std::move(json)"}});
-        StringUtil::builderAppend(*output, local_json);
+    void AppendSerialized(std::vector<uint8_t>* output) const override {
+        m_exported->AppendSerialized(output);
     }
-    void writeBinary(std::vector<uint8_t>* output) const override {
-        m_exported->writeBinary(output);
-    }
+
     std::unique_ptr<Value> clone() const override {
         return std::unique_ptr<Value>(new ImportedValue(m_exported));
     }
@@ -61,7 +57,7 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
         }
 
         std::vector<uint8_t> binary;
-        value->writeBinary(&binary);
+        value->AppendSerialized(&binary);
         auto result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(binary.data(), binary.size());
         if (!result)
             errors->addError("cannot parse");
@@ -71,11 +67,6 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
     static std::unique_ptr<protocol::Value> toValue(const {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}* exported)
     {
         return ImportedValue::fromExported(exported);
-    }
-
-    static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}>& value)
-    {
-        return toValue(value.get());
     }
 };
 

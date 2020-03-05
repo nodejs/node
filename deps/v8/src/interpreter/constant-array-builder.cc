@@ -376,7 +376,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
       // TODO(leszeks): There's probably a better value we could use here.
       return isolate->factory()->the_hole_value();
     case Tag::kRawString:
-      return raw_string_->string();
+      return raw_string_->string().get<Factory>();
     case Tag::kHeapNumber:
       return isolate->factory()->NewNumber<AllocationType::kOld>(heap_number_);
     case Tag::kBigInt:

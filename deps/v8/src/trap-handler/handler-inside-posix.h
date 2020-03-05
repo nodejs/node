@@ -12,12 +12,12 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_FREEBSD
 constexpr int kOobSignal = SIGSEGV;
 #elif V8_OS_MACOSX
 constexpr int kOobSignal = SIGBUS;
 #else
-#error Posix trap handlers are only supported on Linux and MacOSX.
+#error Posix trap handlers are only supported on Linux, MacOSX and FreeBSD.
 #endif
 
 void HandleSignal(int signum, siginfo_t* info, void* context);

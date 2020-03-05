@@ -271,7 +271,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      size_t* max_unoptimized_frame_height,
+      size_t* max_unoptimized_frame_height, size_t* max_pushed_argument_count,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -346,6 +346,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                     size_t input_count,
                                     InstructionOperand* inputs,
                                     FlagsContinuation* cont);
+  Instruction* EmitWithContinuation(
+      InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
+      size_t input_count, InstructionOperand* inputs, size_t temp_count,
+      InstructionOperand* temps, FlagsContinuation* cont);
 
   // ===========================================================================
   // ===== Architecture-independent deoptimization exit emission methods. ======
@@ -559,8 +563,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kCallCodeImmediate = 1u << 0,
     kCallAddressImmediate = 1u << 1,
     kCallTail = 1u << 2,
-    kCallFixedTargetRegister = 1u << 3,
-    kAllowCallThroughSlot = 1u << 4
+    kCallFixedTargetRegister = 1u << 3
   };
   using CallBufferFlags = base::Flags<CallBufferFlag>;
 
@@ -574,6 +577,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                             int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
   int GetTempsCountForTailCallFromJSFunction();
+
+  void UpdateMaxPushedArgumentCount(size_t count);
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
   size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
@@ -613,6 +618,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(Node* node, Node* value, InstructionCode opcode);
+  void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
@@ -766,6 +772,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   ZoneVector<Instruction*> instructions_;
   InstructionOperandVector continuation_inputs_;
   InstructionOperandVector continuation_outputs_;
+  InstructionOperandVector continuation_temps_;
   BoolVector defined_;
   BoolVector used_;
   IntVector effect_level_;
@@ -783,9 +790,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
 
-  // Store the maximal unoptimized frame height. Later used to apply an offset
-  // to stack checks.
+  // Store the maximal unoptimized frame height and an maximal number of pushed
+  // arguments (for calls). Later used to apply an offset to stack checks.
   size_t* max_unoptimized_frame_height_;
+  size_t* max_pushed_argument_count_;
 };
 
 }  // namespace compiler

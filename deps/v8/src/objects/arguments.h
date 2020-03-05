@@ -21,55 +21,38 @@ class JSArgumentsObject
     : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {
  public:
   DECL_VERIFIER(JSArgumentsObject)
+  DECL_PRINTER(JSArgumentsObject)
   TQ_OBJECT_CONSTRUCTORS(JSArgumentsObject)
 };
 
-// Common superclass for JSSloppyArgumentsObject and JSStrictArgumentsObject.
-// Note that the instance type {JS_ARGUMENTS_OBJECT_TYPE} does _not_ guarantee
-// the below layout, the in-object properties might have transitioned to
-// dictionary mode already. Only use the below layout with the specific initial
-// maps.
-class JSArgumentsObjectWithLength : public JSArgumentsObject {
- public:
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize,
-      TORQUE_GENERATED_JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
-
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-
-  DECL_VERIFIER(JSArgumentsObjectWithLength)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObjectWithLength);
-};
-
-// JSSloppyArgumentsObject is just a JSObject with specific initial map.
-// This initial map adds in-object properties for "length" and "callee".
-class JSSloppyArgumentsObject : public JSArgumentsObjectWithLength {
+// JSSloppyArgumentsObject is just a JSArgumentsObject with specific initial
+// map. This initial map adds in-object properties for "length" and "callee".
+class JSSloppyArgumentsObject : public JSArgumentsObject {
  public:
   DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArgumentsObjectWithLength::kSize,
+      JSArgumentsObject::kHeaderSize,
       TORQUE_GENERATED_JS_SLOPPY_ARGUMENTS_OBJECT_FIELDS)
 
   // Indices of in-object properties.
+  static const int kLengthIndex = 0;
   static const int kCalleeIndex = kLengthIndex + 1;
-
-  inline static bool GetSloppyArgumentsLength(Isolate* isolate,
-                                              Handle<JSObject> object,
-                                              int* out);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
 };
 
-// JSStrictArgumentsObject is just a JSObject with specific initial map.
-// This initial map adds an in-object property for "length".
-class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
+// JSStrictArgumentsObject is just a JSArgumentsObject with specific initial
+// map. This initial map adds an in-object property for "length".
+class JSStrictArgumentsObject : public JSArgumentsObject {
  public:
   // Layout description.
-  static const int kSize = JSArgumentsObjectWithLength::kSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSArgumentsObject::kHeaderSize,
+      TORQUE_GENERATED_JS_STRICT_ARGUMENTS_OBJECT_FIELDS)
+
+  // Indices of in-object properties.
+  static const int kLengthIndex = 0;
+  STATIC_ASSERT(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);

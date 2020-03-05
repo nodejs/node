@@ -144,11 +144,6 @@ enum class SerializationTag : uint8_t {
   kArrayBufferView = 'V',
   // Shared array buffer. transferID:uint32_t
   kSharedArrayBuffer = 'u',
-  // Compiled WebAssembly module. encodingType:(one-byte tag).
-  // If encodingType == 'y' (raw bytes):
-  //  wasmWireByteLength:uint32_t, then raw data
-  //  compiledDataLength:uint32_t, then raw data
-  kWasmModule = 'W',
   // A wasm module object transfer. next value is its index.
   kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
@@ -208,10 +203,6 @@ enum class ArrayBufferViewTag : uint8_t {
   kBigInt64Array = 'q',
   kBigUint64Array = 'Q',
   kDataView = '?',
-};
-
-enum class WasmEncodingTag : uint8_t {
-  kRawBytes = 'y',
 };
 
 // Sub-tags only meaningful for error serialization.
@@ -553,7 +544,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(receiver));
     case JS_REG_EXP_TYPE:
-      WriteJSRegExp(JSRegExp::cast(*receiver));
+      WriteJSRegExp(Handle<JSRegExp>::cast(receiver));
       return ThrowIfOutOfMemory();
     case JS_MAP_TYPE:
       return WriteJSMap(Handle<JSMap>::cast(receiver));
@@ -566,17 +557,11 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
-    case WASM_MODULE_OBJECT_TYPE: {
-      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-      if (!FLAG_wasm_disable_structured_cloning || enabled_features.threads) {
-        // Only write WebAssembly modules if not disabled by a flag.
-        return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
-      }
-      break;
-    }
+    case WASM_MODULE_OBJECT_TYPE:
+      return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
     case WASM_MEMORY_OBJECT_TYPE: {
-      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-      if (enabled_features.threads) {
+      auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+      if (enabled_features.has_threads()) {
         return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
       }
       break;
@@ -791,10 +776,10 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
   return ThrowIfOutOfMemory();
 }
 
-void ValueSerializer::WriteJSRegExp(JSRegExp regexp) {
+void ValueSerializer::WriteJSRegExp(Handle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(handle(regexp.Pattern(), isolate_));
-  WriteVarint(static_cast<uint32_t>(regexp.GetFlags()));
+  WriteString(handle(regexp->Pattern(), isolate_));
+  WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
 }
 
 Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
@@ -931,22 +916,26 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
 
   WriteTag(SerializationTag::kError);
 
-  Handle<HeapObject> prototype;
-  if (!JSObject::GetPrototype(isolate_, error).ToHandle(&prototype)) {
+  Handle<Object> name_object;
+  if (!JSObject::GetProperty(isolate_, error, "name").ToHandle(&name_object)) {
+    return Nothing<bool>();
+  }
+  Handle<String> name;
+  if (!Object::ToString(isolate_, name_object).ToHandle(&name)) {
     return Nothing<bool>();
   }
 
-  if (*prototype == isolate_->eval_error_function()->prototype()) {
+  if (name->IsOneByteEqualTo(CStrVector("EvalError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (*prototype == isolate_->range_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("RangeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (*prototype == isolate_->reference_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("ReferenceError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (*prototype == isolate_->syntax_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("SyntaxError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (*prototype == isolate_->type_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("TypeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (*prototype == isolate_->uri_error_function()->prototype()) {
+  } else if (name->IsOneByteEqualTo(CStrVector("URIError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so
@@ -977,42 +966,22 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
 }
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
-  if (delegate_ != nullptr) {
-    // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
-    Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
-        reinterpret_cast<v8::Isolate*>(isolate_),
-        v8::Local<v8::WasmModuleObject>::Cast(
-            Utils::ToLocal(Handle<JSObject>::cast(object))));
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
-    uint32_t id = 0;
-    if (transfer_id.To(&id)) {
-      WriteTag(SerializationTag::kWasmModuleTransfer);
-      WriteVarint<uint32_t>(id);
-      return Just(true);
-    }
+  if (delegate_ == nullptr) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+    return Nothing<bool>();
   }
 
-  WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
-  WriteTag(SerializationTag::kWasmModule);
-  WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
-
-  wasm::NativeModule* native_module = object->native_module();
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
-  WriteVarint<uint32_t>(static_cast<uint32_t>(wire_bytes.size()));
-  uint8_t* destination;
-  if (ReserveRawBytes(wire_bytes.size()).To(&destination)) {
-    memcpy(destination, wire_bytes.begin(), wire_bytes.size());
-  }
-
-  wasm::WasmSerializer wasm_serializer(native_module);
-  size_t module_size = wasm_serializer.GetSerializedNativeModuleSize();
-  CHECK_GE(std::numeric_limits<uint32_t>::max(), module_size);
-  WriteVarint<uint32_t>(static_cast<uint32_t>(module_size));
-  uint8_t* module_buffer;
-  if (ReserveRawBytes(module_size).To(&module_buffer)) {
-    if (!wasm_serializer.SerializeNativeModule({module_buffer, module_size})) {
-      return Nothing<bool>();
-    }
+  // TODO(titzer): introduce a Utils::ToLocal for WasmModuleObject.
+  Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
+      reinterpret_cast<v8::Isolate*>(isolate_),
+      v8::Local<v8::WasmModuleObject>::Cast(
+          Utils::ToLocal(Handle<JSObject>::cast(object))));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  uint32_t id = 0;
+  if (transfer_id.To(&id)) {
+    WriteTag(SerializationTag::kWasmModuleTransfer);
+    WriteVarint<uint32_t>(id);
+    return Just(true);
   }
   return ThrowIfOutOfMemory();
 }
@@ -1055,10 +1024,8 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
   for (int i = 0; i < length; i++) {
     Handle<Object> key(keys->get(i), isolate_);
 
-    bool success;
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate_, object, key, &success, LookupIterator::OWN);
-    DCHECK(success);
+    LookupIterator::Key lookup_key(isolate_, key);
+    LookupIterator it(isolate_, object, lookup_key, LookupIterator::OWN);
     Handle<Object> value;
     if (!Object::GetProperty(&it).ToHandle(&value)) return Nothing<uint32_t>();
 
@@ -1356,8 +1323,6 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kError:
       return ReadJSError();
-    case SerializationTag::kWasmModule:
-      return ReadWasmModule();
     case SerializationTag::kWasmModuleTransfer:
       return ReadWasmModuleTransfer();
     case SerializationTag::kWasmMemoryTransfer:
@@ -1814,8 +1779,8 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
       !array_buffer_transfer_map_.ToHandle(&transfer_map)) {
     return MaybeHandle<JSArrayBuffer>();
   }
-  int index = transfer_map->FindEntry(isolate_, transfer_id);
-  if (index == SimpleNumberDictionary::kNotFound) {
+  InternalIndex index = transfer_map->FindEntry(isolate_, transfer_id);
+  if (index.is_not_found()) {
     return MaybeHandle<JSArrayBuffer>();
   }
   Handle<JSArrayBuffer> array_buffer(
@@ -1939,12 +1904,6 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
-  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
-      expect_inline_wasm()) {
-    return MaybeHandle<JSObject>();
-  }
-
   uint32_t transfer_id = 0;
   Local<Value> module_value;
   if (!ReadVarint<uint32_t>().To(&transfer_id) || delegate_ == nullptr ||
@@ -1962,60 +1921,11 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
   return module;
 }
 
-MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-  if ((FLAG_wasm_disable_structured_cloning && !enabled_features.threads) ||
-      !expect_inline_wasm()) {
-    return MaybeHandle<JSObject>();
-  }
-
-  Vector<const uint8_t> encoding_tag;
-  if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
-      encoding_tag[0] != static_cast<uint8_t>(WasmEncodingTag::kRawBytes)) {
-    return MaybeHandle<JSObject>();
-  }
-
-  // Extract the data from the buffer: wasm wire bytes, followed by V8 compiled
-  // script data.
-  static_assert(sizeof(int) <= sizeof(uint32_t),
-                "max int must fit in uint32_t");
-  const uint32_t max_valid_size = std::numeric_limits<int>::max();
-  uint32_t wire_bytes_length = 0;
-  Vector<const uint8_t> wire_bytes;
-  uint32_t compiled_bytes_length = 0;
-  Vector<const uint8_t> compiled_bytes;
-  if (!ReadVarint<uint32_t>().To(&wire_bytes_length) ||
-      wire_bytes_length > max_valid_size ||
-      !ReadRawBytes(wire_bytes_length).To(&wire_bytes) ||
-      !ReadVarint<uint32_t>().To(&compiled_bytes_length) ||
-      compiled_bytes_length > max_valid_size ||
-      !ReadRawBytes(compiled_bytes_length).To(&compiled_bytes)) {
-    return MaybeHandle<JSObject>();
-  }
-
-  // Try to deserialize the compiled module first.
-  MaybeHandle<WasmModuleObject> result =
-      wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes);
-  if (result.is_null()) {
-    wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    // TODO(titzer): are the current features appropriate for deserializing?
-    auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-    result = isolate_->wasm_engine()->SyncCompile(
-        isolate_, enabled_features, &thrower,
-        wasm::ModuleWireBytes(wire_bytes));
-  }
-  uint32_t id = next_id_++;
-  if (!result.is_null()) {
-    AddObjectWithID(id, result.ToHandleChecked());
-  }
-  return result;
-}
-
 MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
 
-  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
-  if (!enabled_features.threads) {
+  auto enabled_features = wasm::WasmFeatures::FromIsolate(isolate_);
+  if (!enabled_features.has_threads()) {
     return MaybeHandle<WasmMemoryObject>();
   }
 
@@ -2170,10 +2080,10 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       CommitProperties(object, map, properties);
       num_properties = static_cast<uint32_t>(properties.size());
 
-      bool success;
-      LookupIterator it = LookupIterator::PropertyOrElement(
-          isolate_, object, key, &success, LookupIterator::OWN);
-      if (!success || it.state() != LookupIterator::NOT_FOUND ||
+      // We checked earlier that IsValidObjectKey(key).
+      LookupIterator::Key lookup_key(isolate_, key);
+      LookupIterator it(isolate_, object, lookup_key, LookupIterator::OWN);
+      if (it.state() != LookupIterator::NOT_FOUND ||
           JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
               .is_null()) {
         return Nothing<uint32_t>();
@@ -2204,10 +2114,10 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     Handle<Object> value;
     if (!ReadObject().ToHandle(&value)) return Nothing<uint32_t>();
 
-    bool success;
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate_, object, key, &success, LookupIterator::OWN);
-    if (!success || it.state() != LookupIterator::NOT_FOUND ||
+    // We checked earlier that IsValidObjectKey(key).
+    LookupIterator::Key lookup_key(isolate_, key);
+    LookupIterator it(isolate_, object, lookup_key, LookupIterator::OWN);
+    if (it.state() != LookupIterator::NOT_FOUND ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
       return Nothing<uint32_t>();
@@ -2251,10 +2161,9 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
     Handle<Object> key = data[i];
     if (!IsValidObjectKey(key)) return Nothing<bool>();
     Handle<Object> value = data[i + 1];
-    bool success;
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate, object, key, &success, LookupIterator::OWN);
-    if (!success || it.state() != LookupIterator::NOT_FOUND ||
+    LookupIterator::Key lookup_key(isolate, key);
+    LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+    if (it.state() != LookupIterator::NOT_FOUND ||
         JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE)
             .is_null()) {
       return Nothing<bool>();

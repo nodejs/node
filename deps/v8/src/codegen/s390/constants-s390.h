@@ -1549,21 +1549,24 @@ using SixByteInstr = uint64_t;
   V(risbhg, RISBHG,                                                            \
     0xEC5D) /* type = RIE_F ROTATE THEN INSERT SELECTED BITS HIGH (64)  */
 
-#define S390_VRX_OPCODE_LIST(V)                                             \
-  V(vleb, VLEB, 0xE700) /* type = VRX   VECTOR LOAD ELEMENT (8)  */         \
-  V(vleh, VLEH, 0xE701) /* type = VRX   VECTOR LOAD ELEMENT (16)  */        \
-  V(vleg, VLEG, 0xE702) /* type = VRX   VECTOR LOAD ELEMENT (64)  */        \
-  V(vlef, VLEF, 0xE703) /* type = VRX   VECTOR LOAD ELEMENT (32)  */        \
-  V(vllez, VLLEZ,                                                           \
-    0xE704) /* type = VRX   VECTOR LOAD LOGICAL ELEMENT AND ZERO  */        \
-  V(vlrep, VLREP, 0xE705) /* type = VRX   VECTOR LOAD AND REPLICATE  */     \
-  V(vl, VL, 0xE706)       /* type = VRX   VECTOR LOAD  */                   \
-  V(vlbb, VLBB, 0xE707)   /* type = VRX   VECTOR LOAD TO BLOCK BOUNDARY  */ \
-  V(vsteb, VSTEB, 0xE708) /* type = VRX   VECTOR STORE ELEMENT (8)  */      \
-  V(vsteh, VSTEH, 0xE709) /* type = VRX   VECTOR STORE ELEMENT (16)  */     \
-  V(vsteg, VSTEG, 0xE70A) /* type = VRX   VECTOR STORE ELEMENT (64)  */     \
-  V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */     \
-  V(vst, VST, 0xE70E)     /* type = VRX   VECTOR STORE  */
+#define S390_VRX_OPCODE_LIST(V)                                               \
+  V(vleb, VLEB, 0xE700) /* type = VRX   VECTOR LOAD ELEMENT (8)  */           \
+  V(vleh, VLEH, 0xE701) /* type = VRX   VECTOR LOAD ELEMENT (16)  */          \
+  V(vleg, VLEG, 0xE702) /* type = VRX   VECTOR LOAD ELEMENT (64)  */          \
+  V(vlef, VLEF, 0xE703) /* type = VRX   VECTOR LOAD ELEMENT (32)  */          \
+  V(vllez, VLLEZ,                                                             \
+    0xE704) /* type = VRX   VECTOR LOAD LOGICAL ELEMENT AND ZERO  */          \
+  V(vlrep, VLREP, 0xE705) /* type = VRX   VECTOR LOAD AND REPLICATE  */       \
+  V(vl, VL, 0xE706)       /* type = VRX   VECTOR LOAD  */                     \
+  V(vlbb, VLBB, 0xE707)   /* type = VRX   VECTOR LOAD TO BLOCK BOUNDARY  */   \
+  V(vsteb, VSTEB, 0xE708) /* type = VRX   VECTOR STORE ELEMENT (8)  */        \
+  V(vsteh, VSTEH, 0xE709) /* type = VRX   VECTOR STORE ELEMENT (16)  */       \
+  V(vsteg, VSTEG, 0xE70A) /* type = VRX   VECTOR STORE ELEMENT (64)  */       \
+  V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */       \
+  V(vst, VST, 0xE70E)     /* type = VRX   VECTOR STORE  */                    \
+  V(vlbr, VLBR, 0xE606) /* type = VRX   VECTOR LOAD BYTE REVERSED ELEMENTS */ \
+  V(vstbr, VSTBR, 0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS \
+                           */
 
 #define S390_RIE_G_OPCODE_LIST(V)                                             \
   V(lochi, LOCHI,                                                             \

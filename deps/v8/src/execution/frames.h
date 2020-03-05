@@ -210,6 +210,7 @@ class StackFrame {
     Type type = this->type();
     return type == WASM_COMPILED || type == WASM_INTERPRETER_ENTRY;
   }
+  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
 
   // Accessors.
   Address sp() const { return state_.sp; }
@@ -949,10 +950,12 @@ class WasmCompiledFrame : public StandardFrame {
 
   // Accessors.
   WasmInstanceObject wasm_instance() const;
+  wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script script() const override;
   int position() const override;
+  Object context() const override;
   bool at_to_number_conversion() const;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
@@ -1001,6 +1004,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   Code unchecked_code() const override;
 
   // Accessors.
+  int NumberOfActiveFrames() const;
   WasmDebugInfo debug_info() const;
   WasmInstanceObject wasm_instance() const;
 

@@ -24,6 +24,7 @@
 .#*
 .*.sw?
 .ccls-cache
+.clangd
 .cpplint-cache
 .cproject
 .gclient_entries
@@ -99,6 +100,7 @@ compile_commands.json
 gccauses
 gcsuspects
 gtags.files
+jit-*.dump
 node_modules
 tags
 turbo*.cfg
@@ -108,3 +110,7 @@ v8.ignition_dispatches_table.json
 
 !/third_party/jinja2
 !/third_party/markupsafe
+!/third_party/zlib
+/third_party/zlib/contrib/bench
+/third_party/zlib/contrib/tests
+/third_party/zlib/google/test

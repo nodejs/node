@@ -1,0 +1,56 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+@generateCppClass
+extern class TemplateInfo extends Struct {
+  tag: Object;
+  serial_number: Object;
+  number_of_properties: Smi;
+  property_list: Object;
+  property_accessors: Object;
+}
+
+@generateCppClass
+extern class FunctionTemplateRareData extends Struct {
+  // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
+  prototype_template: Object;
+  prototype_provider_template: Object;
+  parent_template: Object;
+  named_property_handler: Object;
+  indexed_property_handler: Object;
+  instance_template: Object;
+  instance_call_handler: Object;
+  access_check_info: Object;
+}
+
+@generateCppClass
+extern class FunctionTemplateInfo extends TemplateInfo {
+  // Handler invoked when calling an instance of this FunctionTemplateInfo.
+  // Either CallHandlerInfo or Undefined.
+  call_code: Object;
+  class_name: Object;
+  // If the signature is a FunctionTemplateInfo it is used to check whether the
+  // receiver calling the associated JSFunction is a compatible receiver, i.e.
+  // it is an instance of the signature FunctionTemplateInfo or any of the
+  // receiver's prototypes are.
+  signature: Object;
+  // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
+  // FunctionTemplateRareData will be stored here. Until then this contains
+  // undefined.
+  rare_data: HeapObject;
+  shared_function_info: Object;
+  flag: Smi;
+  length: Smi;
+  // Either the_hole or a private symbol. Used to cache the result on
+  // the receiver under the the cached_property_name when this
+  // FunctionTemplateInfo is used as a getter.
+  cached_property_name: Object;
+}
+
+@generateCppClass
+extern class ObjectTemplateInfo extends TemplateInfo {
+  constructor: Object;
+  data: Object;
+}

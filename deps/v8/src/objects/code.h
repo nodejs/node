@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/base/bit-field.h"
 #include "src/codegen/handler-table.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
@@ -87,8 +88,7 @@ class Code : public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [source_position_table]: ByteArray for the source positions table or
-  // SourcePositionTableWithFrameCache.
+  // [source_position_table]: ByteArray for the source positions table.
   DECL_ACCESSORS(source_position_table, Object)
   inline ByteArray SourcePositionTable() const;
   inline ByteArray SourcePositionTableIfCollected() const;
@@ -370,7 +370,11 @@ class Code : public HeapObject {
 
   static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
 
-  // Return true if the function is inlined in the code.
+  // Returns false if this is an embedded builtin Code object that's in
+  // read_only_space and hence doesn't have execute permissions.
+  inline bool IsExecutable();
+
+  // Returns true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo sfi);
 
   class OptimizedCodeIterator;
@@ -430,7 +434,7 @@ class Code : public HeapObject {
 
   class BodyDescriptor;
 
-  // Flags layout.  BitField<type, shift, size>.
+  // Flags layout.  base::BitField<type, shift, size>.
 #define CODE_FLAGS_BIT_FIELDS(V, _)    \
   V(HasUnwindingInfoField, bool, 1, _) \
   V(KindField, Kind, 5, _)             \
@@ -574,9 +578,6 @@ class AbstractCode : public HeapObject {
   // Return the source position table.
   inline ByteArray source_position_table();
 
-  inline Object stack_frame_cache();
-  static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                 Handle<SimpleNumberDictionary> cache);
   void DropStackFrameCache();
 
   // Returns the size of instructions and the metadata.
@@ -708,8 +709,8 @@ class DependentCode : public WeakFixedArray {
 
   inline int flags();
   inline void set_flags(int flags);
-  using GroupField = BitField<int, 0, 3>;
-  using CountField = BitField<int, 3, 27>;
+  using GroupField = base::BitField<int, 0, 3>;
+  using CountField = base::BitField<int, 3, 27>;
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
   OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
@@ -780,7 +781,6 @@ class BytecodeArray : public FixedArrayBase {
   // * empty_byte_array (for bytecode generated for functions that will never
   // have source positions, e.g. native functions).
   // * ByteArray (when source positions have been collected for the bytecode)
-  // * SourcePositionTableWithFrameCache (as above but with a frame cache)
   // * exception (when an error occurred while explicitly collecting source
   // positions for pre-existing bytecode).
   DECL_ACCESSORS(source_position_table, Object)
@@ -794,7 +794,6 @@ class BytecodeArray : public FixedArrayBase {
   inline ByteArray SourcePositionTableIfCollected() const;
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;
-  inline void ClearFrameCacheFromSourcePositionTable();
 
   // Indicates that an attempt was made to collect source positions, but that it
   // failed most likely due to stack exhaustion. When in this state
@@ -831,7 +830,6 @@ class BytecodeArray : public FixedArrayBase {
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)
-  static constexpr int kHeaderSize = kSize;
 
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.
@@ -935,13 +933,6 @@ class DeoptimizationData : public FixedArray {
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
   OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
-};
-
-class SourcePositionTableWithFrameCache
-    : public TorqueGeneratedSourcePositionTableWithFrameCache<
-          SourcePositionTableWithFrameCache, Struct> {
- public:
-  TQ_OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache)
 };
 
 }  // namespace internal

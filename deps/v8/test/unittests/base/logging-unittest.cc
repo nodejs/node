@@ -74,19 +74,32 @@ TEST(LoggingTest, CompareAgainstStaticConstPointer) {
   DCHECK_##name(lhs, rhs)
 
 namespace {
-std::string FailureMessage(const char* msg, const char* debug_msg) {
-  std::string regexp(msg);
-#ifdef DEBUG
-  regexp.append(" (").append(debug_msg).append(")");
-#endif
+std::string SanitizeRegexp(std::string msg) {
   size_t last_pos = 0;
   do {
-    size_t pos = regexp.find_first_of("(){}+*", last_pos);
+    size_t pos = msg.find_first_of("(){}+*", last_pos);
     if (pos == std::string::npos) break;
-    regexp.insert(pos, "\\");
+    msg.insert(pos, "\\");
     last_pos = pos + 2;
   } while (true);
-  return regexp;
+  return msg;
+}
+
+std::string FailureMessage(const char* msg, const char* lhs, const char* rhs) {
+  std::string full_msg(msg);
+#ifdef DEBUG
+  full_msg.append(" (").append(lhs).append(" vs. ").append(rhs);
+#endif
+  return SanitizeRegexp(std::move(full_msg));
+}
+
+std::string LongFailureMessage(const char* msg, const char* lhs,
+                               const char* rhs) {
+  std::string full_msg(msg);
+#ifdef DEBUG
+  full_msg.append("\n   ").append(lhs).append("\n vs.\n   ").append(rhs);
+#endif
+  return SanitizeRegexp(std::move(full_msg));
 }
 }  // namespace
 
@@ -107,7 +120,7 @@ TEST(LoggingTest, CompareWithDifferentSignedness) {
   // Check that the values are output correctly on error.
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_GT(i32, u64); })(),
-      FailureMessage("Check failed: i32 > u64", "10 vs. 40"));
+      FailureMessage("Check failed: i32 > u64", "10", "40"));
 }
 
 TEST(LoggingTest, CompareWithReferenceType) {
@@ -125,7 +138,7 @@ TEST(LoggingTest, CompareWithReferenceType) {
   // Check that the values are output correctly on error.
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_GT(*&i32, u64); })(),
-      FailureMessage("Check failed: *&i32 > u64", "10 vs. 40"));
+      FailureMessage("Check failed: *&i32 > u64", "10", "40"));
 }
 
 enum TestEnum1 { ONE, TWO };
@@ -172,27 +185,27 @@ TEST(LoggingTest, CompareClassTypes) {
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_NE(TestClass1{}, TestClass1{}); })(),
       FailureMessage("Check failed: TestClass1{} != TestClass1{}",
-                     "<unprintable> vs. <unprintable>"));
+                     "<unprintable>", "<unprintable>"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_LT(TestClass2{4}, TestClass2{3}); })(),
       FailureMessage("Check failed: TestClass2{4} < TestClass2{3}",
-                     "TestClass2(4) vs. TestClass2(3)"));
+                     "TestClass2(4)", "TestClass2(3)"));
 }
 
 TEST(LoggingDeathTest, OutputEnumValues) {
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_EQ(ONE, TWO); })(),
-      FailureMessage("Check failed: ONE == TWO", "0 vs. 1"));
+      FailureMessage("Check failed: ONE == TWO", "0", "1"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_NE(BAR, 2 + 3); })(),
-      FailureMessage("Check failed: BAR != 2 + 3", "5 vs. 5"));
+      FailureMessage("Check failed: BAR != 2 + 3", "5", "5"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_EQ(TestEnum3::A, TestEnum3::B); })(),
-      FailureMessage("Check failed: TestEnum3::A == TestEnum3::B", "0 vs. 1"));
+      FailureMessage("Check failed: TestEnum3::A == TestEnum3::B", "0", "1"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_GE(TestEnum4::FIRST, TestEnum4::SECOND); })(),
-      FailureMessage("Check failed: TestEnum4::FIRST >= TestEnum4::SECOND",
-                     "0 vs. 1"));
+      FailureMessage("Check failed: TestEnum4::FIRST >= TestEnum4::SECOND", "0",
+                     "1"));
 }
 
 enum TestEnum5 { TEST_A, TEST_B };
@@ -207,11 +220,31 @@ void operator<<(std::ostream& str, TestEnum6 val) {
 TEST(LoggingDeathTest, OutputEnumWithOutputOperator) {
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_EQ(TEST_A, TEST_B); })(),
-      FailureMessage("Check failed: TEST_A == TEST_B", "A vs. B"));
+      FailureMessage("Check failed: TEST_A == TEST_B", "A", "B"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_GE(TestEnum6::TEST_C, TestEnum6::TEST_D); })(),
       FailureMessage("Check failed: TestEnum6::TEST_C >= TestEnum6::TEST_D",
-                     "C vs. D"));
+                     "C", "D"));
+}
+
+TEST(LoggingDeathTest, OutputLongValues) {
+  constexpr size_t kMaxInlineLength = 50;  // see logging.h
+  std::string str1;
+  while (str1.length() < kMaxInlineLength) {
+    str1.push_back('a' + (str1.length() % 26));
+  }
+  std::string str2("abc");
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(str1, str2); })(),
+      FailureMessage("Check failed: str1 == str2",
+                     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx",
+                     "abc"));
+  str1.push_back('X');
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(str1, str2); })(),
+      LongFailureMessage("Check failed: str1 == str2",
+                         "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxX",
+                         "abc"));
 }
 
 TEST(LoggingDeathTest, FatalKills) {

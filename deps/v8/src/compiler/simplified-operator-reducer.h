@@ -37,8 +37,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceReferenceEqual(Node* node);
-
   Reduction Change(Node* node, const Operator* op, Node* a);
   Reduction ReplaceBoolean(bool value);
   Reduction ReplaceFloat64(double value);

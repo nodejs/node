@@ -9,7 +9,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   <title>V8 Turbolizer</title>
   <link rel="stylesheet" href="turbo-visualizer.css">
   <link rel="stylesheet" href="tabs.css">
-  <link rel="stylesheet" href="prettify.css">
   <link rel="icon" type="image/png" href="turbolizer.png">
 </head>
 
@@ -25,11 +24,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   </div>
   <div id="resizer-right" class="resizer"></div>
   <div id="right" class="content"></div>
-  <div id="source-collapse" class="collapse-pane">
+  <div id="show-hide-source" class="show-hide-pane">
     <input id="source-expand" type="image" title="show source" src="right-arrow.png" class="button-input invisible">
     <input id="source-shrink" type="image" title="hide source" src="left-arrow.png" class="button-input">
   </div>
-  <div id="disassembly-collapse" class="collapse-pane">
+  <div id="show-hide-disassembly" class="show-hide-pane">
     <input id="disassembly-expand" type="image" title="show disassembly" src="left-arrow.png" class="button-input invisible">
     <input id="disassembly-shrink" type="image" title="hide disassembly" src="right-arrow.png" class="button-input">
   </div>
@@ -40,7 +39,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       </text>
     </svg>
   </div>
-  <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
   <script src="build/turbolizer.js"></script>
 </body>
 </html>

@@ -39,14 +39,14 @@ namespace proxy {
 
       // 9. Let extensibleTarget be ? IsExtensible(target).
       // 10. If extensibleTarget is true, return handlerProto.
-      const extensibleTarget: JSAny = object::ObjectIsExtensible(target);
+      const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
       assert(extensibleTarget == True || extensibleTarget == False);
       if (extensibleTarget == True) {
         return handlerProto;
       }
 
       // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
-      const targetProto = object::ObjectGetPrototypeOf(target);
+      const targetProto = object::ObjectGetPrototypeOfImpl(target);
 
       // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError
       // exception.
@@ -54,17 +54,17 @@ namespace proxy {
       if (SameValue(targetProto, handlerProto)) {
         return handlerProto;
       }
-      ThrowTypeError(kProxyGetPrototypeOfNonExtensible);
+      ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfNonExtensible);
     }
     label TrapUndefined(target: JSAny) {
       // 6.a. Return ? target.[[GetPrototypeOf]]().
-      return object::ObjectGetPrototypeOf(target);
+      return object::ObjectGetPrototypeOfImpl(target);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
     label ThrowProxyGetPrototypeOfInvalid deferred {
-      ThrowTypeError(kProxyGetPrototypeOfInvalid);
+      ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid);
     }
   }
 }

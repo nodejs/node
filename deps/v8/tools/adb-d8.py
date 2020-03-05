@@ -61,7 +61,7 @@ def CreateFileHandlerClass(root_dirs, verbose):
 
 
 def TransferD8ToDevice(adb, build_dir, device_d8_dir, verbose):
-  files_to_copy = ["d8", "natives_blob.bin", "snapshot_blob.bin"]
+  files_to_copy = ["d8", "snapshot_blob.bin"]
 
   # Pipe the output of md5sum from the local computer to the device, checking
   # the md5 hashes on the device.

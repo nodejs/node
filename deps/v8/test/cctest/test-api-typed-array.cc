@@ -359,15 +359,12 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
                           int64_t high) {
   const int kElementCount = 50;
 
-  i::ScopedVector<ElementType> backing_store(kElementCount + 2);
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<ArrayBufferType> ab =
-      ArrayBufferType::New(isolate, backing_store.begin(),
-                           (kElementCount + 2) * sizeof(ElementType));
+      ArrayBufferType::New(isolate, (kElementCount + 2) * sizeof(ElementType));
   Local<TypedArray> ta =
       TypedArray::New(ab, 2 * sizeof(ElementType), kElementCount);
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(ta);
@@ -376,7 +373,8 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   CHECK_EQ(kElementCount * sizeof(ElementType), ta->ByteLength());
   CHECK(ab->Equals(env.local(), ta->Buffer()).FromJust());
 
-  ElementType* data = backing_store.begin() + 2;
+  ElementType* data =
+      reinterpret_cast<ElementType*>(ab->GetBackingStore()->Data()) + 2;
   for (int i = 0; i < kElementCount; i++) {
     data[i] = static_cast<ElementType>(i);
   }
@@ -435,14 +433,11 @@ THREADED_TEST(Uint8ClampedArray) {
 THREADED_TEST(DataView) {
   const int kSize = 50;
 
-  i::ScopedVector<uint8_t> backing_store(kSize + 2);
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  Local<v8::ArrayBuffer> ab =
-      v8::ArrayBuffer::New(isolate, backing_store.begin(), 2 + kSize);
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 2 + kSize);
   Local<v8::DataView> dv = v8::DataView::New(ab, 2, kSize);
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(2u, dv->ByteOffset());
@@ -508,14 +503,12 @@ THREADED_TEST(SharedDataView) {
   i::FLAG_harmony_sharedarraybuffer = true;
   const int kSize = 50;
 
-  i::ScopedVector<uint8_t> backing_store(kSize + 2);
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::SharedArrayBuffer> ab =
-      v8::SharedArrayBuffer::New(isolate, backing_store.begin(), 2 + kSize);
+      v8::SharedArrayBuffer::New(isolate, 2 + kSize);
   Local<v8::DataView> dv = v8::DataView::New(ab, 2, kSize);
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(2u, dv->ByteOffset());

@@ -13,7 +13,7 @@ let {session, contextGroup, Protocol} =
 
     let builder = new WasmModuleBuilder();
     builder.addImportedGlobal('m', 'global', kWasmAnyRef, false);
-    builder.addFunction('func', kSig_v_v)
+    let func = builder.addFunction('func', kSig_v_v)
         .addBody([
           kExprGlobalGet, 0,  //
           kExprDrop,          //
@@ -47,7 +47,7 @@ let {session, contextGroup, Protocol} =
 
     InspectorTest.log('Setting breakpoint in wasm.');
     await Protocol.Debugger.setBreakpoint(
-        {location: {scriptId, lineNumber: 2}});
+        {location: {scriptId, lineNumber: 0, columnNumber: func.body_offset}});
 
     InspectorTest.log('Running main.');
     Protocol.Runtime.evaluate({expression: 'instance.exports.main()'});

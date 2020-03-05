@@ -103,27 +103,16 @@ def GetClangCommandFromNinjaForFilename(v8_root, filename):
   # Header files can't be built. Instead, try to match a header file to its
   # corresponding source file.
   if filename.endswith('.h'):
-    alternates = ['.cc', '.cpp']
-    for alt_extension in alternates:
-      alt_name = filename[:-2] + alt_extension
-      if os.path.exists(alt_name):
-        filename = alt_name
+    base = filename[:-6] if filename.endswith('-inl.h') else filename[:-2]
+    for alternate in [base + e for e in ['.cc', '.cpp']]:
+      if os.path.exists(alternate):
+        filename = alternate
         break
     else:
-      if filename.endswith('-inl.h'):
-        for alt_extension in alternates:
-          alt_name = filename[:-6] + alt_extension
-          if os.path.exists(alt_name):
-            filename = alt_name
-            break;
-        else:
-          # If this is a standalone -inl.h file with no source, the best we can
-          # do is try to use the default flags.
-          return v8_flags
-      else:
-        # If this is a standalone .h file with no source, the best we can do is
-        # try to use the default flags.
-        return v8_flags
+      # If this is a standalone .h file with no source, we ask ninja for the
+      # compile flags of some generic cc file ('src/utils/utils.cc'). This
+      # should contain most/all of the interesting flags for other targets too.
+      filename = os.path.join(v8_root, 'src', 'utils', 'utils.cc')
 
   sys.path.append(os.path.join(v8_root, 'tools', 'ninja'))
   from ninja_output import GetNinjaOutputDirectory

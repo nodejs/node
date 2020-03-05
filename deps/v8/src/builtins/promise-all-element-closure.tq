@@ -1,0 +1,189 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise.h'
+#include 'src/builtins/builtins-promise-gen.h'
+#include 'src/objects/property-array.h'
+
+namespace promise {
+
+  struct PromiseAllWrapResultAsFulfilledFunctor {
+    macro Call(_nativeContext: NativeContext, value: JSAny): JSAny {
+      return value;
+    }
+  }
+
+  struct PromiseAllSettledWrapResultAsFulfilledFunctor {
+    transitioning
+    macro Call(implicit context: Context)(
+        nativeContext: NativeContext, value: JSAny): JSAny {
+      // TODO(gsathya): Optimize the creation using a cached map to
+      // prevent transitions here.
+      // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
+      const objectFunction = UnsafeCast<JSFunction>(
+          nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+      const objectFunctionMap =
+          UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
+      const obj = AllocateJSObjectFromMap(objectFunctionMap);
+
+      // 10. Perform ! CreateDataProperty(obj, "status", "fulfilled").
+      FastCreateDataProperty(
+          obj, StringConstant('status'), StringConstant('fulfilled'));
+
+      // 11. Perform ! CreateDataProperty(obj, "value", x).
+      FastCreateDataProperty(obj, StringConstant('value'), value);
+      return obj;
+    }
+  }
+
+  struct PromiseAllSettledWrapResultAsRejectedFunctor {
+    transitioning
+    macro Call(implicit context: Context)(
+        nativeContext: NativeContext, value: JSAny): JSAny {
+      // TODO(gsathya): Optimize the creation using a cached map to
+      // prevent transitions here.
+      // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
+      const objectFunction = UnsafeCast<JSFunction>(
+          nativeContext[NativeContextSlot::OBJECT_FUNCTION_INDEX]);
+      const objectFunctionMap =
+          UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
+      const obj = AllocateJSObjectFromMap(objectFunctionMap);
+
+      // 10. Perform ! CreateDataProperty(obj, "status", "rejected").
+      FastCreateDataProperty(
+          obj, StringConstant('status'), StringConstant('rejected'));
+
+      // 11. Perform ! CreateDataProperty(obj, "reason", x).
+      FastCreateDataProperty(obj, StringConstant('reason'), value);
+      return obj;
+    }
+  }
+
+  extern macro LoadJSReceiverIdentityHash(Object): intptr labels IfNoHash;
+
+  extern enum PromiseAllResolveElementContextSlots extends int31
+  constexpr 'PromiseBuiltins::PromiseAllResolveElementContextSlots' {
+    kPromiseAllResolveElementRemainingSlot,
+    kPromiseAllResolveElementCapabilitySlot,
+    kPromiseAllResolveElementValuesArraySlot,
+    kPromiseAllResolveElementLength
+  }
+  extern operator '[]=' macro StoreContextElement(
+      Context, constexpr PromiseAllResolveElementContextSlots, Object): void;
+  extern operator '[]' macro LoadContextElement(
+      Context, constexpr PromiseAllResolveElementContextSlots): Object;
+
+  const kPropertyArrayNoHashSentinel: constexpr int31
+  generates 'PropertyArray::kNoHashSentinel';
+
+  const kPropertyArrayHashFieldMax: constexpr int31
+  generates 'PropertyArray::HashField::kMax';
+
+  transitioning macro PromiseAllResolveElementClosure<F: type>(
+      implicit context:
+          Context)(value: JSAny, function: JSFunction, wrapResultFunctor: F):
+      JSAny {
+    // We use the {function}s context as the marker to remember whether this
+    // resolve element closure was already called. It points to the resolve
+    // element context (which is a FunctionContext) until it was called the
+    // first time, in which case we make it point to the native context here
+    // to mark this resolve element closure as done.
+    if (IsNativeContext(context)) deferred {
+        return Undefined;
+      }
+
+    assert(
+        context.length ==
+        PromiseAllResolveElementContextSlots::kPromiseAllResolveElementLength);
+    const nativeContext = LoadNativeContext(context);
+    function.context = nativeContext;
+
+    // Update the value depending on whether Promise.all or
+    // Promise.allSettled is called.
+    const updatedValue = wrapResultFunctor.Call(nativeContext, value);
+
+    // Determine the index from the {function}.
+    assert(kPropertyArrayNoHashSentinel == 0);
+    const identityHash =
+        LoadJSReceiverIdentityHash(function) otherwise unreachable;
+    assert(identityHash > 0);
+    const index = identityHash - 1;
+
+    // Check if we need to grow the [[ValuesArray]] to store {value} at {index}.
+    const valuesArray = UnsafeCast<JSArray>(
+        context[PromiseAllResolveElementContextSlots::
+                    kPromiseAllResolveElementValuesArraySlot]);
+    const elements = UnsafeCast<FixedArray>(valuesArray.elements);
+    const valuesLength = Convert<intptr>(valuesArray.length);
+    if (index < valuesLength) {
+      // The {index} is in bounds of the {values_array},
+      // just store the {value} and continue.
+      elements.objects[index] = updatedValue;
+    } else {
+      // Check if we need to grow the backing store.
+      const newLength = index + 1;
+      const elementsLength = elements.length_intptr;
+      if (index < elementsLength) {
+        // The {index} is within bounds of the {elements} backing store, so
+        // just store the {value} and update the "length" of the {values_array}.
+        valuesArray.length = Convert<Smi>(newLength);
+        elements.objects[index] = updatedValue;
+      } else
+        deferred {
+          // We need to grow the backing store to fit the {index} as well.
+          const newElementsLength = IntPtrMin(
+              CalculateNewElementsCapacity(newLength),
+              kPropertyArrayHashFieldMax + 1);
+          assert(index < newElementsLength);
+          assert(elementsLength < newElementsLength);
+          const newElements =
+              ExtractFixedArray(elements, 0, elementsLength, newElementsLength);
+          newElements.objects[index] = updatedValue;
+
+          // Update backing store and "length" on {values_array}.
+          valuesArray.elements = newElements;
+          valuesArray.length = Convert<Smi>(newLength);
+        }
+    }
+    let remainingElementsCount =
+        UnsafeCast<Smi>(context[PromiseAllResolveElementContextSlots::
+                                    kPromiseAllResolveElementRemainingSlot]);
+    remainingElementsCount = remainingElementsCount - 1;
+    context[PromiseAllResolveElementContextSlots::
+                kPromiseAllResolveElementRemainingSlot] =
+        remainingElementsCount;
+    if (remainingElementsCount == 0) {
+      const capability = UnsafeCast<PromiseCapability>(
+          context[PromiseAllResolveElementContextSlots::
+                      kPromiseAllResolveElementCapabilitySlot]);
+      const resolve = UnsafeCast<JSAny>(capability.resolve);
+      Call(context, resolve, Undefined, valuesArray);
+    }
+    return Undefined;
+  }
+
+  transitioning javascript builtin
+  PromiseAllResolveElementClosure(
+      js-implicit context: Context, receiver: JSAny,
+      target: JSFunction)(value: JSAny): JSAny {
+    return PromiseAllResolveElementClosure(
+        value, target, PromiseAllWrapResultAsFulfilledFunctor{});
+  }
+
+  transitioning javascript builtin
+  PromiseAllSettledResolveElementClosure(
+      js-implicit context: Context, receiver: JSAny,
+      target: JSFunction)(value: JSAny): JSAny {
+    return PromiseAllResolveElementClosure(
+        value, target, PromiseAllSettledWrapResultAsFulfilledFunctor{});
+  }
+
+  transitioning javascript builtin
+  PromiseAllSettledRejectElementClosure(
+      js-implicit context: Context, receiver: JSAny,
+      target: JSFunction)(value: JSAny): JSAny {
+    return PromiseAllResolveElementClosure(
+        value, target, PromiseAllSettledWrapResultAsRejectedFunctor{});
+  }
+}

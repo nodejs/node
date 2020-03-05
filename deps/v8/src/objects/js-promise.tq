@@ -1,0 +1,41 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// JSPromise constants
+const kJSPromiseStatusMask: constexpr int31
+    generates 'JSPromise::kStatusMask';
+const kJSPromiseStatusShift: constexpr int31
+    generates 'JSPromise::kStatusShift';
+const kJSPromiseHasHandlerMask: constexpr int31
+    generates 'JSPromise::kHasHandlerMask';
+
+@generateCppClass
+extern class JSPromise extends JSObject {
+  macro Status(): PromiseState {
+    StaticAssert(kJSPromiseStatusShift == 0);
+    const status: int32 = Convert<int32>(this.flags) & kJSPromiseStatusMask;
+    return Convert<PromiseState>(status);
+  }
+
+  macro SetStatus(status: constexpr PromiseState): void {
+    assert(this.Status() == PromiseState::kPending);
+    assert(status != PromiseState::kPending);
+
+    const mask: Smi = SmiConstant(status);
+    this.flags = this.flags | mask;
+  }
+
+  macro HasHandler(): bool {
+    return (this.flags & kJSPromiseHasHandlerMask) != 0;
+  }
+
+  macro SetHasHandler(): void {
+    this.flags |= kJSPromiseHasHandlerMask;
+  }
+
+  // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
+  // not settled yet, otherwise the result.
+  reactions_or_result: Zero|PromiseReaction|JSAny;
+  flags: Smi;
+}

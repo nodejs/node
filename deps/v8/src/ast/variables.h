@@ -33,7 +33,7 @@ class Variable final : public ZoneObject {
                    InitializationFlagField::encode(initialization_flag) |
                    VariableModeField::encode(mode) |
                    IsUsedField::encode(false) |
-                   ForceContextAllocationField::encode(false) |
+                   ForceContextAllocationBit::encode(false) |
                    ForceHoleInitializationField::encode(false) |
                    LocationField::encode(VariableLocation::UNALLOCATED) |
                    VariableKindField::encode(kind) |
@@ -57,7 +57,7 @@ class Variable final : public ZoneObject {
   // parameter initializers.
   void set_scope(Scope* scope) { scope_ = scope; }
 
-  Handle<String> name() const { return name_->string(); }
+  Handle<String> name() const { return name_->string().get<Factory>(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return VariableModeField::decode(bit_field_); }
   void set_mode(VariableMode mode) {
@@ -72,12 +72,12 @@ class Variable final : public ZoneObject {
   bool is_static() const { return is_static_flag() == IsStaticFlag::kStatic; }
 
   bool has_forced_context_allocation() const {
-    return ForceContextAllocationField::decode(bit_field_);
+    return ForceContextAllocationBit::decode(bit_field_);
   }
   void ForceContextAllocation() {
     DCHECK(IsUnallocated() || IsContextSlot() || IsLookupSlot() ||
            location() == VariableLocation::MODULE);
-    bit_field_ = ForceContextAllocationField::update(bit_field_, true);
+    bit_field_ = ForceContextAllocationBit::update(bit_field_, true);
   }
   bool is_used() { return IsUsedField::decode(bit_field_); }
   void set_is_used() { bit_field_ = IsUsedField::update(bit_field_, true); }
@@ -120,6 +120,9 @@ class Variable final : public ZoneObject {
   bool IsContextSlot() const { return location() == VariableLocation::CONTEXT; }
   bool IsLookupSlot() const { return location() == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
+
+  // True for 'let' variables declared in the script scope of a REPL script.
+  bool IsReplGlobalLet() const;
 
   bool is_dynamic() const { return IsDynamicVariableMode(mode()); }
 
@@ -235,6 +238,9 @@ class Variable final : public ZoneObject {
                                       : kNeedsInitialization;
   }
 
+  // Rewrites the VariableLocation of repl script scope 'lets' to REPL_GLOBAL.
+  void RewriteLocationForRepl();
+
   using List = base::ThreadedList<Variable>;
 
  private:
@@ -255,11 +261,11 @@ class Variable final : public ZoneObject {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
   }
 
-  using VariableModeField = BitField16<VariableMode, 0, 4>;
+  using VariableModeField = base::BitField16<VariableMode, 0, 4>;
   using VariableKindField = VariableModeField::Next<VariableKind, 3>;
   using LocationField = VariableKindField::Next<VariableLocation, 3>;
-  using ForceContextAllocationField = LocationField::Next<bool, 1>;
-  using IsUsedField = ForceContextAllocationField::Next<bool, 1>;
+  using ForceContextAllocationBit = LocationField::Next<bool, 1>;
+  using IsUsedField = ForceContextAllocationBit::Next<bool, 1>;
   using InitializationFlagField = IsUsedField::Next<InitializationFlag, 1>;
   using ForceHoleInitializationField = InitializationFlagField::Next<bool, 1>;
   using MaybeAssignedFlagField =

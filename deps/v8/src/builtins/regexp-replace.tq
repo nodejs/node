@@ -10,7 +10,7 @@ namespace regexp {
   SubString(implicit context: Context)(String, Smi, Smi): String;
 
   extern runtime RegExpExecMultiple(implicit context: Context)(
-      JSRegExp, String, RegExpMatchInfo, JSArray): Null | JSArray;
+      JSRegExp, String, RegExpMatchInfo, JSArray): Null|JSArray;
   extern transitioning runtime
   RegExpReplaceRT(Context, JSReceiver, String, Object): String;
   extern transitioning runtime
@@ -50,7 +50,7 @@ namespace regexp {
         case (elString: String): {
           const replacementObj: JSAny =
               Call(context, replaceFn, Undefined, elString, matchStart, string);
-          const replacement: String = ToString_Inline(context, replacementObj);
+          const replacement: String = ToString_Inline(replacementObj);
           matchesElements.objects[i] = replacement;
           matchStart += elString.length_smi;
         }
@@ -75,7 +75,7 @@ namespace regexp {
 
       // Overwrite the i'th element in the results with the string
       // we got back from the callback function.
-      matchesElements.objects[i] = ToString_Inline(context, replacementObj);
+      matchesElements.objects[i] = ToString_Inline(replacementObj);
     }
   }
 
@@ -84,12 +84,12 @@ namespace regexp {
       regexp: FastJSRegExp, string: String, replaceFn: Callable): String {
     regexp.lastIndex = 0;
 
-    const kInitialCapacity: Smi = 16;
+    const kInitialCapacity: intptr = 16;
     const kInitialLength: Smi = 0;
-    const result: Null | JSArray = RegExpExecMultiple(
+    const result: Null|JSArray = RegExpExecMultiple(
         regexp, string, GetRegExpLastMatchInfo(),
         AllocateJSArray(
-            PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
+            ElementsKind::PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
             kInitialCapacity, kInitialLength));
 
     regexp.lastIndex = 0;
@@ -121,7 +121,7 @@ namespace regexp {
   }
 
   transitioning macro RegExpReplaceFastString(implicit context: Context)(
-      regexp: FastJSRegExp, string: String, replaceString: String): String {
+      regexp: JSRegExp, string: String, replaceString: String): String {
     // The fast path is reached only if {receiver} is an unmodified JSRegExp
     // instance, {replace_value} is non-callable, and ToString({replace_value})
     // does not contain '$', i.e. we're doing a simple string replacement.
@@ -129,16 +129,17 @@ namespace regexp {
     let lastMatchEnd: Smi = 0;
     let unicode: bool = false;
     const replaceLength: Smi = replaceString.length_smi;
-    const global: bool = regexp.global;
+    const fastRegexp = UnsafeCast<FastJSRegExp>(regexp);
+    const global: bool = fastRegexp.global;
 
     if (global) {
-      unicode = regexp.unicode;
-      regexp.lastIndex = 0;
+      unicode = fastRegexp.unicode;
+      fastRegexp.lastIndex = 0;
     }
 
     while (true) {
       const match: RegExpMatchInfo =
-          regexp::RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
+          RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
           otherwise break;
       const matchStart: Smi = match.GetStartOfCapture(0);
       const matchEnd: Smi = match.GetEndOfCapture(0);
@@ -155,8 +156,19 @@ namespace regexp {
 
       // If match is the empty string, we have to increment lastIndex.
       if (matchEnd == matchStart) {
-        regexp.lastIndex =
-            AdvanceStringIndexFast(string, regexp.lastIndex, unicode);
+        typeswitch (regexp) {
+          case (fastRegexp: FastJSRegExp): {
+            fastRegexp.lastIndex =
+                AdvanceStringIndexFast(string, fastRegexp.lastIndex, unicode);
+          }
+          case (Object): {
+            const lastIndex: JSAny = SlowLoadLastIndex(regexp);
+            const thisIndex: Number = ToLength_Inline(lastIndex);
+            const nextIndex: Number =
+                AdvanceStringIndexSlow(string, thisIndex, unicode);
+            SlowStoreLastIndex(regexp, nextIndex);
+          }
+        }
       }
     }
 
@@ -178,7 +190,7 @@ namespace regexp {
       }
       case (JSAny): {
         const stableRegexp: JSRegExp = regexp;
-        const replaceString: String = ToString_Inline(context, replaceValue);
+        const replaceString: String = ToString_Inline(replaceValue);
 
         try {
           // ToString(replaceValue) could potentially change the shape of the
@@ -199,8 +211,12 @@ namespace regexp {
     }
   }
 
+  const kRegExpReplaceCalledOnSlowRegExp: constexpr int31
+  generates 'v8::Isolate::kRegExpReplaceCalledOnSlowRegExp';
+
   transitioning javascript builtin RegExpPrototypeReplace(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const methodName: constexpr string = 'RegExp.prototype.@@replace';
 
     // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
@@ -227,10 +243,11 @@ namespace regexp {
     // Let rx be the this value.
     // If Type(rx) is not Object, throw a TypeError exception.
     const rx = Cast<JSReceiver>(receiver)
-        otherwise ThrowTypeError(kIncompatibleMethodReceiver, methodName);
+        otherwise ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, methodName);
 
     // Let S be ? ToString(string).
-    const s = ToString_Inline(context, string);
+    const s = ToString_Inline(string);
 
     // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
     try {
@@ -238,6 +255,8 @@ namespace regexp {
       return RegExpReplace(fastRx, s, replaceValue);
     }
     label Runtime deferred {
+      IncrementUseCounter(
+          context, SmiConstant(kRegExpReplaceCalledOnSlowRegExp));
       return RegExpReplaceRT(context, rx, s, replaceValue);
     }
   }

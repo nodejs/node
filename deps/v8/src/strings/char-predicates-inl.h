@@ -5,7 +5,9 @@
 #ifndef V8_STRINGS_CHAR_PREDICATES_INL_H_
 #define V8_STRINGS_CHAR_PREDICATES_INL_H_
 
+#include "src/base/bounds.h"
 #include "src/strings/char-predicates.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -24,26 +26,26 @@ inline constexpr bool IsAsciiIdentifier(uc32 c) {
 }
 
 inline constexpr bool IsAlphaNumeric(uc32 c) {
-  return IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c);
+  return base::IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c);
 }
 
 inline constexpr bool IsDecimalDigit(uc32 c) {
   // ECMA-262, 3rd, 7.8.3 (p 16)
-  return IsInRange(c, '0', '9');
+  return base::IsInRange(c, '0', '9');
 }
 
 inline constexpr bool IsHexDigit(uc32 c) {
   // ECMA-262, 3rd, 7.6 (p 15)
-  return IsDecimalDigit(c) || IsInRange(AsciiAlphaToLower(c), 'a', 'f');
+  return IsDecimalDigit(c) || base::IsInRange(AsciiAlphaToLower(c), 'a', 'f');
 }
 
 inline constexpr bool IsOctalDigit(uc32 c) {
   // ECMA-262, 6th, 7.8.3
-  return IsInRange(c, '0', '7');
+  return base::IsInRange(c, '0', '7');
 }
 
 inline constexpr bool IsNonOctalDecimalDigit(uc32 c) {
-  return IsInRange(c, '8', '9');
+  return base::IsInRange(c, '8', '9');
 }
 
 inline constexpr bool IsBinaryDigit(uc32 c) {
@@ -51,9 +53,13 @@ inline constexpr bool IsBinaryDigit(uc32 c) {
   return c == '0' || c == '1';
 }
 
-inline constexpr bool IsAsciiLower(uc32 c) { return IsInRange(c, 'a', 'z'); }
+inline constexpr bool IsAsciiLower(uc32 c) {
+  return base::IsInRange(c, 'a', 'z');
+}
 
-inline constexpr bool IsAsciiUpper(uc32 c) { return IsInRange(c, 'A', 'Z'); }
+inline constexpr bool IsAsciiUpper(uc32 c) {
+  return base::IsInRange(c, 'A', 'Z');
+}
 
 inline constexpr uc32 ToAsciiUpper(uc32 c) {
   return c & ~(IsAsciiLower(c) << 5);
@@ -64,7 +70,7 @@ inline constexpr uc32 ToAsciiLower(uc32 c) {
 }
 
 inline constexpr bool IsRegExpWord(uc16 c) {
-  return IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c) ||
+  return base::IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c) ||
          (c == '_');
 }
 
@@ -97,28 +103,28 @@ const constexpr uint8_t kAsciiCharFlags[128] = {
 };
 
 bool IsIdentifierStart(uc32 c) {
-  if (!IsInRange(c, 0, 127)) return IsIdentifierStartSlow(c);
+  if (!base::IsInRange(c, 0, 127)) return IsIdentifierStartSlow(c);
   DCHECK_EQ(IsIdentifierStartSlow(c),
             static_cast<bool>(kAsciiCharFlags[c] & kIsIdentifierStart));
   return kAsciiCharFlags[c] & kIsIdentifierStart;
 }
 
 bool IsIdentifierPart(uc32 c) {
-  if (!IsInRange(c, 0, 127)) return IsIdentifierPartSlow(c);
+  if (!base::IsInRange(c, 0, 127)) return IsIdentifierPartSlow(c);
   DCHECK_EQ(IsIdentifierPartSlow(c),
             static_cast<bool>(kAsciiCharFlags[c] & kIsIdentifierPart));
   return kAsciiCharFlags[c] & kIsIdentifierPart;
 }
 
 bool IsWhiteSpace(uc32 c) {
-  if (!IsInRange(c, 0, 127)) return IsWhiteSpaceSlow(c);
+  if (!base::IsInRange(c, 0, 127)) return IsWhiteSpaceSlow(c);
   DCHECK_EQ(IsWhiteSpaceSlow(c),
             static_cast<bool>(kAsciiCharFlags[c] & kIsWhiteSpace));
   return kAsciiCharFlags[c] & kIsWhiteSpace;
 }
 
 bool IsWhiteSpaceOrLineTerminator(uc32 c) {
-  if (!IsInRange(c, 0, 127)) return IsWhiteSpaceOrLineTerminatorSlow(c);
+  if (!base::IsInRange(c, 0, 127)) return IsWhiteSpaceOrLineTerminatorSlow(c);
   DCHECK_EQ(
       IsWhiteSpaceOrLineTerminatorSlow(c),
       static_cast<bool>(kAsciiCharFlags[c] & kIsWhiteSpaceOrLineTerminator));

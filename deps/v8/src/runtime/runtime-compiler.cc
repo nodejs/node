@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
-  return Smi::kZero;
+  return Smi::zero();
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
@@ -188,6 +188,12 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
   // Keep track of whether we've succeeded in optimizing.
   if (function->shared().optimization_disabled()) return false;
+  // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
+  // bytecode array. So, it might be possible to mark closure in one native
+  // context and optimize a closure from a different native context. So check if
+  // there is a feedback vector before OSRing. We don't expect this to happen
+  // often.
+  if (!function->has_feedback_vector()) return false;
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been

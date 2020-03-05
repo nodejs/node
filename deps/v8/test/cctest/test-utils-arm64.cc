@@ -289,9 +289,9 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
     if (reg_list & (1ULL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
       // We should never write into sp here.
-      CHECK(!xn.Is(sp));
+      CHECK_NE(xn, sp);
       if (!xn.IsZero()) {
-        if (!first.IsValid()) {
+        if (!first.is_valid()) {
           // This is the first register we've hit, so construct the literal.
           __ Mov(xn, value);
           first = xn;
@@ -311,7 +311,7 @@ void ClobberFP(MacroAssembler* masm, RegList reg_list, double const value) {
   for (unsigned i = 0; i < kNumberOfVRegisters; i++) {
     if (reg_list & (1ULL << i)) {
       VRegister dn = VRegister::Create(i, kDRegSizeInBits);
-      if (!first.IsValid()) {
+      if (!first.is_valid()) {
         // This is the first register we've hit, so construct the literal.
         __ Fmov(dn, value);
         first = dn;

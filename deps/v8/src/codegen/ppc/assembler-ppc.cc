@@ -123,6 +123,11 @@ void CpuFeatures::PrintTarget() {
 
 void CpuFeatures::PrintFeatures() {
   printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
+  printf("FPR_GPR_MOV=%d\n", CpuFeatures::IsSupported(FPR_GPR_MOV));
+  printf("LWSYNC=%d\n", CpuFeatures::IsSupported(LWSYNC));
+  printf("ISELECT=%d\n", CpuFeatures::IsSupported(ISELECT));
+  printf("VSX=%d\n", CpuFeatures::IsSupported(VSX));
+  printf("MODULO=%d\n", CpuFeatures::IsSupported(MODULO));
 }
 
 Register ToRegister(int num) {

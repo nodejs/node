@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_findindex {
+namespace array {
   transitioning javascript builtin
   ArrayFindIndexLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
     // All continuation points in the optimized findIndex implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -25,7 +25,7 @@ namespace array_findindex {
 
   transitioning javascript builtin
   ArrayFindIndexLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       _callback: JSAny, _thisArg: JSAny, _initialK: JSAny, _length: JSAny,
       _result: JSAny): JSAny {
     // This deopt continuation point is never actually called, it just
@@ -39,7 +39,7 @@ namespace array_findindex {
   // before iteration continues.
   transitioning javascript builtin
   ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
       foundValue: JSAny, isFound: JSAny): JSAny {
     // All continuation points in the optimized findIndex implementation are
@@ -118,7 +118,7 @@ namespace array_findindex {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.findIndex
   transitioning javascript builtin
-  ArrayPrototypeFindIndex(js-implicit context: Context, receiver: JSAny)(
+  ArrayPrototypeFindIndex(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.findIndex');
@@ -150,7 +150,7 @@ namespace array_findindex {
       }
     }
     label NotCallableError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

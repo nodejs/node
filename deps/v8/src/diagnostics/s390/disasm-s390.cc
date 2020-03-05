@@ -827,6 +827,13 @@ bool Decoder::DecodeGeneric(Instruction* instr) {
     S390_VRR_E_OPCODE_LIST(DECODE_VRR_E_INSTRUCTIONS)
 #undef DECODE_VRR_E_INSTRUCTIONS
 
+#define DECODE_VRR_F_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'r1,'r2");                          \
+    break;
+    S390_VRR_F_OPCODE_LIST(DECODE_VRR_F_INSTRUCTIONS)
+#undef DECODE_VRR_F_INSTRUCTIONS
+
 #define DECODE_VRX_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name:                                              \
     Format(instr, #name "\t'f1,'d1('r2d,'r3),'m4");              \

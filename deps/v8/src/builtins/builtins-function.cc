@@ -93,17 +93,6 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     function->shared().set_name_should_print_as_anonymous(true);
   }
 
-  // The spec says that we have to wrap code created via the function
-  // constructor in e.g. 'function anonymous(' as above, including with extra
-  // line breaks. Ths is confusing when reporting stack traces from the eval'd
-  // code as the line number of the error is always reported with 2 extra line
-  // breaks e.g. line 1 is reported as line 3. We fix this up here by setting
-  // line_offset which is read by stack trace code.
-  Handle<Script> script(Script::cast(function->shared().script()), isolate);
-  if (script->line_offset() == 0) {
-    script->set_line_offset(-2);
-  }
-
   // If new.target is equal to target then the function created
   // is already correctly setup and nothing else should be done
   // here. But if new.target is not equal to target then we are
@@ -211,8 +200,9 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
       isolate, function,
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
 
-  LookupIterator length_lookup(target, isolate->factory()->length_string(),
-                               target, LookupIterator::OWN);
+  LookupIterator length_lookup(isolate, target,
+                               isolate->factory()->length_string(), target,
+                               LookupIterator::OWN);
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
@@ -220,7 +210,7 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   if (!target->IsJSFunction() ||
       length_lookup.state() != LookupIterator::ACCESSOR ||
       !length_lookup.GetAccessors()->IsAccessorInfo()) {
-    Handle<Object> length(Smi::kZero, isolate);
+    Handle<Object> length(Smi::zero(), isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
     if (attributes.IsNothing()) return ReadOnlyRoots(isolate).exception();
@@ -233,7 +223,8 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
             0.0, DoubleToInteger(target_length->Number()) - argv.length()));
       }
     }
-    LookupIterator it(function, isolate->factory()->length_string(), function);
+    LookupIterator it(isolate, function, isolate->factory()->length_string(),
+                      function);
     DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 JSObject::DefineOwnPropertyIgnoreAttributes(
@@ -244,7 +235,8 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   // If the target's name is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
-  LookupIterator name_lookup(target, isolate->factory()->name_string(), target);
+  LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
+                             target);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors()->IsAccessorInfo() ||

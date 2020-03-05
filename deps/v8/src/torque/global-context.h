@@ -45,9 +45,9 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static const GlobalClassList& GetClasses() { return Get().classes_; }
 
   static void AddCppInclude(std::string include_path) {
-    Get().cpp_includes_.push_back(std::move(include_path));
+    Get().cpp_includes_.insert(std::move(include_path));
   }
-  static const std::vector<std::string>& CppIncludes() {
+  static const std::set<std::string>& CppIncludes() {
     return Get().cpp_includes_;
   }
 
@@ -64,7 +64,9 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().force_assert_statements_;
   }
   static Ast* ast() { return &Get().ast_; }
-  static size_t FreshId() { return Get().fresh_id_++; }
+  static std::string MakeUniqueName(const std::string& base) {
+    return base + "_" + std::to_string(Get().fresh_ids_[base]++);
+  }
 
   struct PerFileStreams {
     std::stringstream csa_headerfile;
@@ -80,10 +82,10 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
-  std::vector<std::string> cpp_includes_;
+  std::set<std::string> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   GlobalClassList classes_;
-  size_t fresh_id_ = 0;
+  std::map<std::string, size_t> fresh_ids_;
 
   friend class LanguageServerData;
 };
@@ -97,12 +99,14 @@ class TargetArchitecture : public ContextualClass<TargetArchitecture> {
  public:
   explicit TargetArchitecture(bool force_32bit);
 
-  static int TaggedSize() { return Get().tagged_size_; }
-  static int RawPtrSize() { return Get().raw_ptr_size_; }
+  static size_t TaggedSize() { return Get().tagged_size_; }
+  static size_t RawPtrSize() { return Get().raw_ptr_size_; }
+  static size_t MaxHeapAlignment() { return TaggedSize(); }
+  static bool ArePointersCompressed() { return TaggedSize() < RawPtrSize(); }
 
  private:
-  const int tagged_size_;
-  const int raw_ptr_size_;
+  const size_t tagged_size_;
+  const size_t raw_ptr_size_;
 };
 
 }  // namespace torque

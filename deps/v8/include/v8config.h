@@ -290,9 +290,9 @@
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 # define V8_HAS_COMPUTED_GOTO 1
 
-# if __cplusplus >= 201402L
-#  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
-# endif
+// Whether constexpr has full C++14 semantics, in particular that non-constexpr
+// code is allowed as long as it's not executed for any constexpr instantiation.
+# define V8_HAS_CXX14_CONSTEXPR 1
 
 #elif defined(__GNUC__)
 
@@ -311,22 +311,26 @@
 // always_inline is available in gcc 4.0 but not very reliable until 4.4.
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
-# define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
-# define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
-# define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
-# define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
-    (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
+# define V8_HAS_ATTRIBUTE_ALWAYS_INLINE 1
+# define V8_HAS_ATTRIBUTE_NOINLINE 1
+# define V8_HAS_ATTRIBUTE_UNUSED 1
+# define V8_HAS_ATTRIBUTE_VISIBILITY 1
+# define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT (!V8_CC_INTEL)
 
-# define V8_HAS_BUILTIN_ASSUME_ALIGNED (V8_GNUC_PREREQ(4, 7, 0))
-# define V8_HAS_BUILTIN_CLZ (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_BUILTIN_CTZ (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_BUILTIN_EXPECT (V8_GNUC_PREREQ(2, 96, 0))
-# define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
-# define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
+# define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
+# define V8_HAS_BUILTIN_CLZ 1
+# define V8_HAS_BUILTIN_CTZ 1
+# define V8_HAS_BUILTIN_EXPECT 1
+# define V8_HAS_BUILTIN_FRAME_ADDRESS 1
+# define V8_HAS_BUILTIN_POPCOUNT 1
 
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
-#define V8_HAS_COMPUTED_GOTO (V8_GNUC_PREREQ(2, 0, 0))
+#define V8_HAS_COMPUTED_GOTO 1
+
+// Whether constexpr has full C++14 semantics, in particular that non-constexpr
+// code is allowed as long as it's not executed for any constexpr instantiation.
+// GCC only supports this since version 6.
+# define V8_HAS_CXX14_CONSTEXPR (V8_GNUC_PREREQ(6, 0, 0))
 
 #endif
 
@@ -374,12 +378,11 @@
 
 
 // A macro used to tell the compiler to never inline a particular function.
-// Don't bother for debug builds.
 // Use like:
 //   V8_NOINLINE int GetMinusOne() { return -1; }
-#if !defined(DEBUG) && V8_HAS_ATTRIBUTE_NOINLINE
+#if V8_HAS_ATTRIBUTE_NOINLINE
 # define V8_NOINLINE __attribute__((noinline))
-#elif !defined(DEBUG) && V8_HAS_DECLSPEC_NOINLINE
+#elif V8_HAS_DECLSPEC_NOINLINE
 # define V8_NOINLINE __declspec(noinline)
 #else
 # define V8_NOINLINE /* NOT SUPPORTED */

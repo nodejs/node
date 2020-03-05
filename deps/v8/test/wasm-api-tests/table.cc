@@ -44,7 +44,7 @@ TEST_F(WasmCapiTest, Table) {
   ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32};
   FunctionSig call_sig(1, 2, reps);
   byte call_code[] = {
-      WASM_CALL_INDIRECT1(sig_i_i_index, WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))};
+      WASM_CALL_INDIRECT(sig_i_i_index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
   AddExportedFunction(CStrVector("call_indirect"), call_code, sizeof(call_code),
                       &call_sig);
   byte f_code[] = {WASM_GET_LOCAL(0)};

@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
+#include "src/handles/factory-handles.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -126,6 +127,7 @@ class Handle final : public HandleBase {
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
+  // NOLINTNEXTLINE
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   V8_INLINE ObjectRef operator->() const { return ObjectRef{**this}; }
@@ -172,6 +174,119 @@ class Handle final : public HandleBase {
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle);
+
+// ----------------------------------------------------------------------------
+// A fake Handle that simply wraps an object reference. This is used for
+// off-thread Objects, where we want a class that behaves like Handle for the
+// purposes of operator->, casting, etc., but isn't a GC root and doesn't
+// require access to the Isolate.
+template <typename T>
+class OffThreadHandle {
+ public:
+  OffThreadHandle() = default;
+
+  template <typename U>
+  explicit OffThreadHandle(U obj) : obj_(obj) {}
+
+  // Constructor for handling automatic up casting. We rely on the compiler
+  // making sure that the assignment to obj_ is legitimate.
+  template <typename U>
+  // NOLINTNEXTLINE
+  OffThreadHandle<T>(OffThreadHandle<U> other) : obj_(*other) {}
+
+  T operator*() const { return obj_; }
+  T* operator->() { return &obj_; }
+  const T* operator->() const { return &obj_; }
+
+  template <typename U>
+  static OffThreadHandle<T> cast(OffThreadHandle<U> other) {
+    return OffThreadHandle<T>(T::cast(*other));
+  }
+
+  bool is_null() const {
+    // TODO(leszeks): This will only work for HeapObjects, figure out a way to
+    // make is_null work for Object and Smi too.
+    return obj_.is_null();
+  }
+
+  bool ToHandle(OffThreadHandle<T>* out) {
+    if (is_null()) return false;
+
+    *out = *this;
+    return true;
+  }
+  OffThreadHandle<T> ToHandleChecked() {
+    DCHECK(!is_null());
+    return *this;
+  }
+
+ private:
+  T obj_;
+};
+
+// A helper class which wraps an normal or off-thread handle, and returns one
+// or the other depending on the factory type.
+template <typename T>
+class HandleOrOffThreadHandle {
+ public:
+  HandleOrOffThreadHandle() = default;
+
+  template <typename U>
+  HandleOrOffThreadHandle(Handle<U> handle)  // NOLINT
+      : value_(bit_cast<Address>(static_cast<Handle<T>>(handle).location())) {
+#ifdef DEBUG
+    which_ = kHandle;
+#endif
+  }
+
+  template <typename U>
+  HandleOrOffThreadHandle(OffThreadHandle<U> handle)  // NOLINT
+      : value_(static_cast<OffThreadHandle<T>>(handle)->ptr()) {
+#ifdef DEBUG
+    which_ = kOffThreadHandle;
+#endif
+  }
+
+  // To minimize the impact of these handles on main-thread callers, we allow
+  // them to implicitly convert to Handles.
+  template <typename U>
+  operator Handle<U>() {
+    return get<class Factory>();
+  }
+
+  template <typename FactoryType>
+  inline FactoryHandle<FactoryType, T> get() {
+    return get_for(Tag<FactoryType>());
+  }
+
+  inline bool is_null() const { return value_ == 0; }
+
+#ifdef DEBUG
+  inline bool is_initialized() { return which_ != kUninitialized; }
+#endif
+
+ private:
+  // Tagged overloads because we can't specialize the above getter
+  // without also specializing the class.
+  template <typename FactoryType>
+  struct Tag {};
+
+  V8_INLINE Handle<T> get_for(Tag<class Factory>) {
+    DCHECK_NE(which_, kOffThreadHandle);
+    return Handle<T>(reinterpret_cast<Address*>(value_));
+  }
+  V8_INLINE OffThreadHandle<T> get_for(Tag<class OffThreadFactory>) {
+    DCHECK_NE(which_, kHandle);
+    return OffThreadHandle<T>(T::unchecked_cast(Object(value_)));
+  }
+
+  // Either handle.location() or off_thread_handle->ptr().
+  Address value_;
+
+#ifdef DEBUG
+  enum { kUninitialized, kHandle, kOffThreadHandle } which_;
+#endif
+};
 
 // ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.

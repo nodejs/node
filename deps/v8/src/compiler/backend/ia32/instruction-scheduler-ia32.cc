@@ -114,6 +114,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F64x2Ne:
     case kIA32F64x2Lt:
     case kIA32F64x2Le:
+    case kIA32I64x2SplatI32Pair:
+    case kIA32I64x2ReplaceLaneI32Pair:
+    case kIA32I64x2Neg:
+    case kIA32I64x2Shl:
+    case kIA32I64x2ShrS:
+    case kIA32I64x2Add:
+    case kIA32I64x2Sub:
+    case kIA32I64x2Mul:
+    case kIA32I64x2ShrU:
     case kSSEF32x4Splat:
     case kAVXF32x4Splat:
     case kSSEF32x4ExtractLane:
@@ -201,7 +210,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEI32x4GeU:
     case kAVXI32x4GeU:
     case kIA32I16x8Splat:
-    case kIA32I16x8ExtractLane:
+    case kIA32I16x8ExtractLaneU:
+    case kIA32I16x8ExtractLaneS:
     case kSSEI16x8ReplaceLane:
     case kAVXI16x8ReplaceLane:
     case kIA32I16x8SConvertI8x16Low:
@@ -255,8 +265,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8GtU:
     case kSSEI16x8GeU:
     case kAVXI16x8GeU:
+    case kIA32I16x8RoundingAverageU:
     case kIA32I8x16Splat:
-    case kIA32I8x16ExtractLane:
+    case kIA32I8x16ExtractLaneU:
+    case kIA32I8x16ExtractLaneS:
     case kSSEI8x16ReplaceLane:
     case kAVXI8x16ReplaceLane:
     case kSSEI8x16SConvertI16x8:
@@ -302,6 +314,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI8x16GtU:
     case kSSEI8x16GeU:
     case kAVXI8x16GeU:
+    case kIA32I8x16RoundingAverageU:
     case kIA32S128Zero:
     case kSSES128Not:
     case kAVXS128Not:
@@ -313,6 +326,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS128Xor:
     case kSSES128Select:
     case kAVXS128Select:
+    case kIA32S128AndNot:
     case kIA32S8x16Swizzle:
     case kIA32S8x16Shuffle:
     case kIA32S32x4Swizzle:
@@ -375,7 +389,17 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Movss:
     case kIA32Movsd:
     case kIA32Movdqu:
-      // Moves are used for memory load/store operations.
+    // Moves are used for memory load/store operations.
+    case kIA32S8x16LoadSplat:
+    case kIA32S16x8LoadSplat:
+    case kIA32S32x4LoadSplat:
+    case kIA32S64x2LoadSplat:
+    case kIA32I16x8Load8x8S:
+    case kIA32I16x8Load8x8U:
+    case kIA32I32x4Load16x4S:
+    case kIA32I32x4Load16x4U:
+    case kIA32I64x2Load32x2S:
+    case kIA32I64x2Load32x2U:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
     case kIA32Peek:

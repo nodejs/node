@@ -11,9 +11,7 @@ namespace platform {
 
 DefaultWorkerThreadsTaskRunner::DefaultWorkerThreadsTaskRunner(
     uint32_t thread_pool_size, TimeFunction time_function)
-    : queue_(time_function),
-      time_function_(time_function),
-      thread_pool_size_(thread_pool_size) {
+    : queue_(time_function), time_function_(time_function) {
   for (uint32_t i = 0; i < thread_pool_size; ++i) {
     thread_pool_.push_back(std::make_unique<WorkerThread>(this));
   }
@@ -25,20 +23,12 @@ double DefaultWorkerThreadsTaskRunner::MonotonicallyIncreasingTime() {
   return time_function_();
 }
 
-bool DefaultWorkerThreadsTaskRunner::RunsTasksOnCurrentThread() const {
-  USE(thread_pool_size_);
-  DCHECK_EQ(thread_pool_size_, 1);
-  return single_worker_thread_id_.load(std::memory_order_relaxed) ==
-         base::OS::GetCurrentThreadId();
-}
-
 void DefaultWorkerThreadsTaskRunner::Terminate() {
   base::MutexGuard guard(&lock_);
   terminated_ = true;
   queue_.Terminate();
   // Clearing the thread pool lets all worker threads join.
   thread_pool_.clear();
-  single_worker_thread_id_.store(0, std::memory_order_relaxed);
 }
 
 void DefaultWorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
@@ -79,8 +69,6 @@ DefaultWorkerThreadsTaskRunner::WorkerThread::WorkerThread(
 DefaultWorkerThreadsTaskRunner::WorkerThread::~WorkerThread() { Join(); }
 
 void DefaultWorkerThreadsTaskRunner::WorkerThread::Run() {
-  runner_->single_worker_thread_id_.store(base::OS::GetCurrentThreadId(),
-                                          std::memory_order_relaxed);
   while (std::unique_ptr<Task> task = runner_->GetNext()) {
     task->Run();
   }

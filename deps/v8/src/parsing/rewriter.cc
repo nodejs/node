@@ -360,15 +360,10 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-
   RuntimeCallTimerScope runtimeTimer(
       info->runtime_call_stats(),
-      info->on_background_thread()
-          ? RuntimeCallCounterId::kCompileBackgroundRewriteReturnResult
-          : RuntimeCallCounterId::kCompileRewriteReturnResult);
+      RuntimeCallCounterId::kCompileRewriteReturnResult,
+      RuntimeCallStats::kThreadSpecific);
 
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
@@ -376,12 +371,22 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   DCHECK_NOT_NULL(scope);
   DCHECK_EQ(scope, scope->GetClosureScope());
 
+  if (scope->is_repl_mode_scope()) return true;
   if (!(scope->is_script_scope() || scope->is_eval_scope() ||
         scope->is_module_scope())) {
     return true;
   }
 
   ZonePtrList<Statement>* body = function->body();
+  return RewriteBody(info, scope, body).has_value();
+}
+
+base::Optional<VariableProxy*> Rewriter::RewriteBody(
+    ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
@@ -393,17 +398,19 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
     if (processor.result_assigned()) {
       int pos = kNoSourcePosition;
-      Expression* result_value =
+      VariableProxy* result_value =
           processor.factory()->NewVariableProxy(result, pos);
-      Statement* result_statement =
-          processor.factory()->NewReturnStatement(result_value, pos);
-      body->Add(result_statement, info->zone());
+      if (!info->is_repl_mode()) {
+        Statement* result_statement =
+            processor.factory()->NewReturnStatement(result_value, pos);
+        body->Add(result_statement, info->zone());
+      }
+      return result_value;
     }
 
-    if (processor.HasStackOverflow()) return false;
+    if (processor.HasStackOverflow()) return base::nullopt;
   }
-
-  return true;
+  return nullptr;
 }
 
 }  // namespace internal

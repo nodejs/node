@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_filter {
+namespace array {
   transitioning javascript builtin
   ArrayFilterLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
       length: JSAny, initialTo: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
@@ -29,7 +29,7 @@ namespace array_filter {
 
   transitioning javascript builtin
   ArrayFilterLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
       length: JSAny, valueK: JSAny, initialTo: JSAny, result: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
@@ -141,13 +141,13 @@ namespace array_filter {
     const o = Cast<FastJSArray>(receiver) otherwise Slow;
     const newMap: Map =
         LoadJSArrayElementsMap(o.map.elements_kind, LoadNativeContext(context));
-    return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, len, len);
+    return AllocateJSArray(ElementsKind::PACKED_SMI_ELEMENTS, newMap, len, len);
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.filter
   transitioning javascript builtin
-  ArrayFilter(js-implicit context: Context, receiver: JSAny)(...arguments):
-      JSAny {
+  ArrayFilter(js-implicit context: NativeContext, receiver: JSAny)(
+      ...arguments): JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.filter');
 
@@ -196,7 +196,7 @@ namespace array_filter {
           o, callbackfn, thisArg, output, o, k, len, to);
     }
     label TypeError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

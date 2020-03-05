@@ -30,7 +30,7 @@ let {session, contextGroup, Protocol} = InspectorTest.start("Test collecting typ
   await session.logTypeProfile(typeProfiles.result.result[0],
     source);
 
-  Protocol.Profiler.stoptTypeProfile();
+  Protocol.Profiler.stopTypeProfile();
   Protocol.Profiler.disable();
   await Protocol.Runtime.disable();
   InspectorTest.completeTest();

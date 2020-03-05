@@ -65,6 +65,10 @@ V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(Address data);
 
 V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void word64_rol_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void word64_ror_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
 void memory_copy_wrapper(Address dst, Address src, uint32_t size);

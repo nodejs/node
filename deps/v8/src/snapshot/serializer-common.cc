@@ -8,6 +8,7 @@
 #include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "third_party/zlib/zlib.h"
 
 namespace v8 {
 namespace internal {
@@ -115,7 +116,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
   std::vector<Object>* cache = isolate->partial_snapshot_cache();
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
-    if (cache->size() <= i) cache->push_back(Smi::kZero);
+    if (cache->size() <= i) cache->push_back(Smi::zero());
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
@@ -143,6 +144,17 @@ void SerializerDeserializer::RestoreExternalReferenceRedirectors(
     Foreign::cast(info.js_callback())
         .set_foreign_address(info.redirected_callback());
   }
+}
+
+V8_EXPORT_PRIVATE extern uint32_t Checksum(Vector<const byte> payload) {
+#ifdef MEMORY_SANITIZER
+  // Computing the checksum includes padding bytes for objects like strings.
+  // Mark every object as initialized in the code serializer.
+  MSAN_MEMORY_IS_INITIALIZED(payload.begin(), payload.length());
+#endif  // MEMORY_SANITIZER
+  // Priming the adler32 call so it can see what CPU features are available.
+  adler32(0, NULL, 0);
+  return static_cast<uint32_t>(adler32(0, payload.begin(), payload.length()));
 }
 
 }  // namespace internal

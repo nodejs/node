@@ -33,6 +33,7 @@ class NodeOriginTable;
 class Operator;
 class SourcePositionTable;
 class WasmDecorator;
+class WasmGraphAssembler;
 enum class TrapId : uint32_t;
 struct Int64LoweringSpecialCase;
 }  // namespace compiler
@@ -43,7 +44,8 @@ struct DecodeStruct;
 using TFNode = compiler::Node;
 using TFGraph = compiler::MachineGraph;
 class WasmCode;
-struct WasmFeatures;
+class WasmFeatures;
+enum class LoadTransformationKind : uint8_t;
 }  // namespace wasm
 
 namespace compiler {
@@ -65,9 +67,7 @@ enum class WasmImportCallKind : uint8_t {
   kWasmToCapi,                     // fast WASM->C-API call
   kWasmToWasm,                     // fast WASM->WASM call
   kJSFunctionArityMatch,           // fast WASM->JS call
-  kJSFunctionArityMatchSloppy,     // fast WASM->JS call, sloppy receiver
   kJSFunctionArityMismatch,        // WASM->JS, needs adapter frame
-  kJSFunctionArityMismatchSloppy,  // WASM->JS, needs adapter frame, sloppy
   // Math functions imported from JavaScript that are intrinsified
   kFirstMathIntrinsic,
   kF64Acos = kFirstMathIntrinsic,
@@ -98,11 +98,8 @@ enum class WasmImportCallKind : uint8_t {
   kUseCallBuiltin
 };
 
-// TODO(wasm): There should be only one import kind for sloppy and strict in
-// order to reduce wrapper cache misses. The mode can be checked at runtime
-// instead.
 constexpr WasmImportCallKind kDefaultImportCallKind =
-    WasmImportCallKind::kJSFunctionArityMatchSloppy;
+    WasmImportCallKind::kJSFunctionArityMatch;
 
 // Resolves which import call wrapper is required for the given JS callable.
 // Returns the kind of wrapper need and the ultimate target callable. Note that
@@ -179,6 +176,8 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
 
+  V8_EXPORT_PRIVATE ~WasmGraphBuilder();
+
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.
   //-----------------------------------------------------------------------
@@ -221,19 +220,9 @@ class WasmGraphBuilder {
   void AppendToMerge(Node* merge, Node* from);
   void AppendToPhi(Node* phi, Node* from);
 
-  void StackCheck(wasm::WasmCodePosition position, Node** effect = nullptr,
-                  Node** control = nullptr);
+  void StackCheck(wasm::WasmCodePosition);
 
   void PatchInStackCheckIfNeeded();
-
-  // TODO(v8:8977, v8:7703): move this somewhere? This should be where it
-  // can be used in many places (e.g graph assembler, wasm compiler).
-  // Adds a decompression node if pointer compression is enabled and the type
-  // loaded is a compressed one. To be used after loads.
-  Node* InsertDecompressionIfNeeded(MachineType type, Node* value);
-  // Adds a compression node if pointer compression is enabled and the
-  // representation to be stored is a compressed one. To be used before stores.
-  Node* InsertCompressionIfNeeded(MachineRepresentation rep, Node* value);
 
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
@@ -294,6 +283,10 @@ class WasmGraphBuilder {
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
+  Node* LoadTransform(MachineType memtype,
+                      wasm::LoadTransformationKind transform, Node* index,
+                      uint32_t offset, uint32_t alignment,
+                      wasm::WasmCodePosition position);
   Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint32_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,
                  wasm::ValueType type);
@@ -303,26 +296,15 @@ class WasmGraphBuilder {
     this->instance_node_ = instance_node;
   }
 
-  Node* Control() {
-    DCHECK_NOT_NULL(*control_);
-    return *control_;
+  Node* effect();
+  Node* control();
+  Node* SetEffect(Node* node);
+  Node* SetControl(Node* node);
+  void SetEffectControl(Node* effect, Node* control);
+  Node* SetEffectControl(Node* effect_and_control) {
+    SetEffectControl(effect_and_control, effect_and_control);
+    return effect_and_control;
   }
-  Node* Effect() {
-    DCHECK_NOT_NULL(*effect_);
-    return *effect_;
-  }
-  Node* SetControl(Node* node) {
-    *control_ = node;
-    return node;
-  }
-  Node* SetEffect(Node* node) {
-    *effect_ = node;
-    return node;
-  }
-
-  void set_control_ptr(Node** control) { this->control_ = control; }
-
-  void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
   Node* GetImportedMutableGlobals();
 
@@ -379,12 +361,6 @@ class WasmGraphBuilder {
                  wasm::WasmCodePosition position);
   Node* AtomicFence();
 
-  // Returns a pointer to the dropped_data_segments array. Traps if the data
-  // segment is active or has been dropped.
-  Node* CheckDataSegmentIsPassiveAndNotDropped(uint32_t data_segment_index,
-                                               wasm::WasmCodePosition position);
-  Node* CheckElemSegmentIsPassiveAndNotDropped(uint32_t elem_segment_index,
-                                               wasm::WasmCodePosition position);
   Node* MemoryInit(uint32_t data_segment_index, Node* dst, Node* src,
                    Node* size, wasm::WasmCodePosition position);
   Node* MemoryCopy(Node* dst, Node* src, Node* size,
@@ -404,8 +380,6 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
-  const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
-
   wasm::UseTrapHandler use_trap_handler() const {
     return env_ ? env_->use_trap_handler : wasm::kNoTrapHandler;
   }
@@ -419,33 +393,6 @@ class WasmGraphBuilder {
   void RemoveBytecodePositionDecorator();
 
  protected:
-  Zone* const zone_;
-  MachineGraph* const mcgraph_;
-  wasm::CompilationEnv* const env_;
-
-  Node** control_ = nullptr;
-  Node** effect_ = nullptr;
-  WasmInstanceCacheNodes* instance_cache_ = nullptr;
-
-  SetOncePointer<Node> instance_node_;
-  SetOncePointer<Node> globals_start_;
-  SetOncePointer<Node> imported_mutable_globals_;
-  SetOncePointer<Node> stack_check_code_node_;
-  SetOncePointer<Node> isolate_root_node_;
-  SetOncePointer<const Operator> stack_check_call_operator_;
-
-  bool has_simd_ = false;
-  bool needs_stack_check_ = false;
-  const bool untrusted_code_mitigations_ = true;
-
-  wasm::FunctionSig* const sig_;
-
-  compiler::WasmDecorator* decorator_ = nullptr;
-
-  compiler::SourcePositionTable* const source_position_table_ = nullptr;
-
-  std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
-
   Node* NoContextConstant();
 
   Node* BuildLoadIsolateRoot();
@@ -601,9 +548,34 @@ class WasmGraphBuilder {
                            int parameter_count);
 
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
-                                      Node** parameters, int parameter_count,
-                                      Node** effect, Node* control);
+                                      Node** parameters, int parameter_count);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
+
+  std::unique_ptr<WasmGraphAssembler> gasm_;
+  Zone* const zone_;
+  MachineGraph* const mcgraph_;
+  wasm::CompilationEnv* const env_;
+
+  WasmInstanceCacheNodes* instance_cache_ = nullptr;
+
+  SetOncePointer<Node> instance_node_;
+  SetOncePointer<Node> globals_start_;
+  SetOncePointer<Node> imported_mutable_globals_;
+  SetOncePointer<Node> stack_check_code_node_;
+  SetOncePointer<Node> isolate_root_node_;
+  SetOncePointer<const Operator> stack_check_call_operator_;
+
+  bool has_simd_ = false;
+  bool needs_stack_check_ = false;
+  const bool untrusted_code_mitigations_ = true;
+
+  wasm::FunctionSig* const sig_;
+
+  compiler::WasmDecorator* decorator_ = nullptr;
+
+  compiler::SourcePositionTable* const source_position_table_ = nullptr;
+
+  std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
 };
 
 enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };

@@ -5,7 +5,7 @@
 namespace array {
   transitioning javascript builtin
   ArrayReduceRightPreLoopEagerDeoptContinuation(
-      js-implicit context: Context,
+      js-implicit context: NativeContext,
       receiver: JSAny)(callback: JSAny, length: JSAny): JSAny {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -17,17 +17,18 @@ namespace array {
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
     const numberLength = Cast<Number>(length) otherwise unreachable;
+    const initialK = numberLength - 1;
 
-    // Simulate starting the loop at 0, but ensuring that the accumulator is
-    // the hole. The continuation stub will search for the initial non-hole
-    // element, rightly throwing an exception if not found.
+    // Simulate starting the loop at {length - 1}, but ensuring that the
+    // accumulator is the hole. The continuation stub will search for the
+    // last non-hole element, rightly throwing an exception if not found.
     return ArrayReduceRightLoopContinuation(
-        jsreceiver, callbackfn, TheHole, jsreceiver, 0, numberLength);
+        jsreceiver, callbackfn, TheHole, jsreceiver, initialK, numberLength);
   }
 
   transitioning javascript builtin
   ArrayReduceRightLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, initialK: JSAny, length: JSAny,
       accumulator: JSAny): JSAny {
     // All continuation points in the optimized every implementation are
@@ -48,7 +49,7 @@ namespace array {
 
   transitioning javascript builtin
   ArrayReduceRightLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, initialK: JSAny, length: JSAny, result: JSAny): JSAny {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -67,7 +68,7 @@ namespace array {
   transitioning builtin ArrayReduceRightLoopContinuation(implicit context:
                                                              Context)(
       _receiver: JSReceiver, callbackfn: Callable,
-      initialAccumulator: JSAny | TheHole, o: JSReceiver, initialK: Number,
+      initialAccumulator: JSAny|TheHole, o: JSReceiver, initialK: Number,
       _length: Number): JSAny {
     let accumulator = initialAccumulator;
 
@@ -108,7 +109,8 @@ namespace array {
     // this means kPresent is false.
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
+        ThrowTypeError(
+            MessageTemplate::kReduceNoInitial, 'Array.prototype.reduceRight');
       }
       case (accumulator: JSAny): {
         return accumulator;
@@ -118,8 +120,8 @@ namespace array {
 
   transitioning macro FastArrayReduceRight(implicit context: Context)(
       o: JSReceiver, len: Number, callbackfn: Callable,
-      initialAccumulator: JSAny | TheHole): JSAny
-      labels Bailout(Number, JSAny | TheHole) {
+      initialAccumulator: JSAny|TheHole): JSAny
+      labels Bailout(Number, JSAny|TheHole) {
     let accumulator = initialAccumulator;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1, accumulator);
     const fastO = Cast<FastJSArrayForRead>(o)
@@ -147,7 +149,8 @@ namespace array {
     }
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
+        ThrowTypeError(
+            MessageTemplate::kReduceNoInitial, 'Array.prototype.reduceRight');
       }
       case (accumulator: JSAny): {
         return accumulator;
@@ -157,8 +160,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reduceRight
   transitioning javascript builtin
-  ArrayReduceRight(js-implicit context: Context, receiver: JSAny)(...arguments):
-      JSAny {
+  ArrayReduceRight(js-implicit context: NativeContext, receiver: JSAny)(
+      ...arguments): JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.reduceRight');
 
@@ -178,20 +181,20 @@ namespace array {
       // exception. (This case is handled at the end of
       // ArrayReduceRightLoopContinuation).
 
-      const initialValue: JSAny | TheHole =
+      const initialValue: JSAny|TheHole =
           arguments.length > 1 ? arguments[1] : TheHole;
 
       try {
         return FastArrayReduceRight(o, len, callbackfn, initialValue)
             otherwise Bailout;
       }
-      label Bailout(value: Number, accumulator: JSAny | TheHole) {
+      label Bailout(value: Number, accumulator: JSAny|TheHole) {
         return ArrayReduceRightLoopContinuation(
             o, callbackfn, accumulator, o, value, len);
       }
     }
     label NoCallableError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

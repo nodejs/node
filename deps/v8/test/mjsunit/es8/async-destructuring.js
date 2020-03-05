@@ -329,23 +329,23 @@ function assertEqualsAsync(expected, run, msg) {
   var x = 1;
 
   async function f1(y = eval("var x = 2")) { with ({}) { return x; } }
-  assertEqualsAsync(1, () => f1());
+  assertEqualsAsync(2, () => f1());
   async function f2(y = eval("var x = 2"), z = x) { return z; }
-  assertEqualsAsync(1, () => f2());
+  assertEqualsAsync(2, () => f2());
   assertEqualsAsync(1, () => f2(0));
   async function f3(y = eval("var x = 2"), z = eval("x")) { return z; }
-  assertEqualsAsync(1, () => f3());
+  assertEqualsAsync(2, () => f3());
   assertEqualsAsync(1, () => f3(0));
   async function f8(y = (eval("var x = 2"), x)) { return y; }
   assertEqualsAsync(2, () => f8());
   assertEqualsAsync(0, () => f8(0));
 
   async function f11(z = eval("var y = 2")) { return y; }
-  assertThrowsAsync(f11, ReferenceError);
-  async function f12(z = eval("var y = 2"), b = y) {}
-  assertThrowsAsync(f12, ReferenceError);
-  async function f13(z = eval("var y = 2"), b = eval("y")) {}
-  assertThrowsAsync(f13, ReferenceError);
+  assertEqualsAsync(2, () => f11());
+  async function f12(z = eval("var y = 2"), b = y) { return b; }
+  assertEqualsAsync(2, () => f12());
+  async function f13(z = eval("var y = 2"), b = eval("y")) { return b; }
+  assertEqualsAsync(2, () => f13());
 
   async function f21(f = () => x) { eval("var x = 2"); return f() }
   assertEqualsAsync(1, () => f21());
@@ -355,23 +355,23 @@ function assertEqualsAsync(expected, run, msg) {
   assertEqualsAsync(3, () => f22(() => 3));
 
   var g1 = async (y = eval("var x = 2")) => { with ({}) { return x; } };
-  assertEqualsAsync(1, () => g1());
+  assertEqualsAsync(2, () => g1());
   var g2 = async (y = eval("var x = 2"), z = x) => { return z; };
-  assertEqualsAsync(1, () => g2());
+  assertEqualsAsync(2, () => g2());
   assertEqualsAsync(1, () => g2(0));
   var g3 = async (y = eval("var x = 2"), z = eval("x")) => { return z; };
-  assertEqualsAsync(1, () => g3());
+  assertEqualsAsync(2, () => g3());
   assertEqualsAsync(1, () => g3(0));
   var g8 = async (y = (eval("var x = 2"), x)) => { return y; };
   assertEqualsAsync(2, () => g8());
   assertEqualsAsync(0, () => g8(0));
 
   var g11 = async (z = eval("var y = 2")) => { return y; };
-  assertThrowsAsync(g11, ReferenceError);
-  var g12 = async (z = eval("var y = 2"), b = y) => {};
-  assertThrowsAsync(g12, ReferenceError);
-  var g13 = async (z = eval("var y = 2"), b = eval("y")) => {};
-  assertThrowsAsync(g13, ReferenceError);
+  assertEqualsAsync(2, () => g11());
+  var g12 = async (z = eval("var y = 2"), b = y) => { return b; };
+  assertEqualsAsync(2, () => g12());
+  var g13 = async (z = eval("var y = 2"), b = eval("y")) => { return b; };
+  assertEqualsAsync(2, () => g13());
 
   var g21 = async (f = () => x) => { eval("var x = 2"); return f() };
   assertEqualsAsync(1, () => g21());

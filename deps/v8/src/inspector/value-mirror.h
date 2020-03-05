@@ -23,6 +23,8 @@ enum class WrapMode;
 struct PrivatePropertyMirror {
   String16 name;
   std::unique_ptr<ValueMirror> value;
+  std::unique_ptr<ValueMirror> getter;
+  std::unique_ptr<ValueMirror> setter;
 };
 
 struct InternalPropertyMirror {

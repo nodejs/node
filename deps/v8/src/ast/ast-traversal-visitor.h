@@ -396,14 +396,6 @@ void AstTraversalVisitor<Subclass>::VisitProperty(Property* expr) {
 }
 
 template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitResolvedProperty(
-    ResolvedProperty* expr) {
-  PROCESS_EXPRESSION(expr);
-  RECURSE_EXPRESSION(VisitVariableProxy(expr->object()));
-  RECURSE_EXPRESSION(VisitVariableProxy(expr->property()));
-}
-
-template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitCall(Call* expr) {
   PROCESS_EXPRESSION(expr);
   RECURSE_EXPRESSION(Visit(expr->expression()));

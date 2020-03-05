@@ -29,7 +29,7 @@ uint32_t GetInitialMemSize(const WasmModule* module) {
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
                                                 const ModuleWireBytes& bytes) {
-  auto enabled_features = WasmFeaturesFromIsolate(isolate);
+  auto enabled_features = WasmFeatures::FromIsolate(isolate);
   MaybeHandle<WasmModuleObject> module = isolate->wasm_engine()->SyncCompile(
       isolate, enabled_features, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
@@ -50,7 +50,7 @@ std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
     const byte* module_end, ModuleOrigin origin, bool verify_functions) {
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
-  auto enabled_features = WasmFeaturesFromIsolate(isolate);
+  auto enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decoding_result = DecodeWasmModule(
       enabled_features, module_start, module_end, verify_functions, origin,
       isolate->counters(), isolate->wasm_engine()->allocator());
@@ -103,11 +103,14 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
         break;
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
         break;
-      default:
+      case kWasmStmt:
+      case kWasmBottom:
+      case kWasmS128:
         UNREACHABLE();
     }
   }

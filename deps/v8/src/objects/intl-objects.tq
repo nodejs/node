@@ -4,21 +4,28 @@
 
 #include 'src/objects/js-break-iterator.h'
 #include 'src/objects/js-collator.h'
+#include 'src/objects/js-date-time-format.h'
+#include 'src/objects/js-display-names.h'
+#include 'src/objects/js-list-format.h'
+#include 'src/objects/js-locale.h'
 #include 'src/objects/js-number-format.h'
 #include 'src/objects/js-objects.h'
 #include 'src/objects/js-plural-rules.h'
 #include 'src/objects/js-relative-time-format.h'
-#include 'src/objects/js-date-time-format.h'
-#include 'src/objects/js-list-format.h'
-#include 'src/objects/js-locale.h'
 #include 'src/objects/js-segment-iterator.h'
 #include 'src/objects/js-segmenter.h'
 
 extern class JSDateTimeFormat extends JSObject {
+  locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>
   icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
   icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
-  bound_format: JSFunction | Undefined;
+  bound_format: JSFunction|Undefined;
+  flags: Smi;
+}
+
+extern class JSDisplayNames extends JSObject {
+  internal: Foreign;  // Managed<DisplayNamesInternal>
   flags: Smi;
 }
 
@@ -30,9 +37,10 @@ extern class JSListFormat extends JSObject {
 
 extern class JSNumberFormat extends JSObject {
   locale: String;
+  numberingSystem: String;
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
-  bound_format: JSFunction | Undefined;
+  bound_format: JSFunction|Undefined;
   flags: Smi;
 }
 
@@ -46,6 +54,7 @@ extern class JSPluralRules extends JSObject {
 
 extern class JSRelativeTimeFormat extends JSObject {
   locale: String;
+  numberingSystem: String;
   icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
   flags: Smi;
 }
@@ -70,15 +79,15 @@ extern class JSV8BreakIterator extends JSObject {
   locale: String;
   break_iterator: Foreign;  // Managed<icu::BreakIterator>;
   unicode_string: Foreign;  // Managed<icu::UnicodeString>;
-  bound_adopt_text: Undefined | JSFunction;
-  bound_first: Undefined | JSFunction;
-  bound_next: Undefined | JSFunction;
-  bound_current: Undefined | JSFunction;
-  bound_break_type: Undefined | JSFunction;
+  bound_adopt_text: Undefined|JSFunction;
+  bound_first: Undefined|JSFunction;
+  bound_next: Undefined|JSFunction;
+  bound_current: Undefined|JSFunction;
+  bound_break_type: Undefined|JSFunction;
   break_iterator_type: Smi;
 }
 
 extern class JSCollator extends JSObject {
   icu_collator: Foreign;  // Managed<icu::Collator>
-  bound_compare: Undefined | JSFunction;
+  bound_compare: Undefined|JSFunction;
 }

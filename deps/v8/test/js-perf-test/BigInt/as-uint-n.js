@@ -6,6 +6,8 @@
 
 load('bigint-util.js');
 
+let random_bigints = [];
+
 // This dummy ensures that the feedback for benchmark.run() in the Measure
 // function from base.js is not monomorphic, thereby preventing the benchmarks
 // below from being inlined. This ensures consistent behavior and comparable

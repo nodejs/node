@@ -92,7 +92,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 115
+bytecode array length: 122
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -115,10 +115,12 @@ bytecodes: [
   /*  101 S> */ B(CreateArrayLiteral), U8(5), U8(1), U8(37),
                 B(Star), R(6),
                 B(GetIterator), R(6), U8(2), U8(4),
+                B(Mov), R(4), R(1),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(5),
                 B(LdaNamedProperty), R(5), U8(6), U8(6),
                 B(Star), R(4),
-                B(Mov), R(0), R(1),
                 B(CallProperty0), R(4), R(5), U8(15),
                 B(Star), R(6),
                 B(JumpIfJSReceiver), U8(7),

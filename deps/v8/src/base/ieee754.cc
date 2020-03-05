@@ -49,117 +49,60 @@ namespace {
  * endianness at run time.
  */
 
-/*
- * A union which permits us to convert between a double and two 32 bit
- * ints.
- * TODO(jkummerow): This is undefined behavior. Use bit_cast instead.
- */
-
-#if V8_TARGET_LITTLE_ENDIAN
-
-union ieee_double_shape_type {
-  double value;
-  struct {
-    uint32_t lsw;
-    uint32_t msw;
-  } parts;
-  struct {
-    uint64_t w;
-  } xparts;
-};
-
-#else
-
-union ieee_double_shape_type {
-  double value;
-  struct {
-    uint32_t msw;
-    uint32_t lsw;
-  } parts;
-  struct {
-    uint64_t w;
-  } xparts;
-};
-
-#endif
-
 /* Get two 32 bit ints from a double.  */
 
-#define EXTRACT_WORDS(ix0, ix1, d) \
-  do {                             \
-    ieee_double_shape_type ew_u;   \
-    ew_u.value = (d);              \
-    (ix0) = ew_u.parts.msw;        \
-    (ix1) = ew_u.parts.lsw;        \
-  } while (false)
-
-/* Get a 64-bit int from a double. */
-#define EXTRACT_WORD64(ix, d)    \
-  do {                           \
-    ieee_double_shape_type ew_u; \
-    ew_u.value = (d);            \
-    (ix) = ew_u.xparts.w;        \
+#define EXTRACT_WORDS(ix0, ix1, d)         \
+  do {                                     \
+    uint64_t bits = bit_cast<uint64_t>(d); \
+    (ix0) = bits >> 32;                    \
+    (ix1) = bits & 0xFFFFFFFFu;            \
   } while (false)
 
 /* Get the more significant 32 bit int from a double.  */
 
-#define GET_HIGH_WORD(i, d)      \
-  do {                           \
-    ieee_double_shape_type gh_u; \
-    gh_u.value = (d);            \
-    (i) = gh_u.parts.msw;        \
+#define GET_HIGH_WORD(i, d)                \
+  do {                                     \
+    uint64_t bits = bit_cast<uint64_t>(d); \
+    (i) = bits >> 32;                      \
   } while (false)
 
 /* Get the less significant 32 bit int from a double.  */
 
-#define GET_LOW_WORD(i, d)       \
-  do {                           \
-    ieee_double_shape_type gl_u; \
-    gl_u.value = (d);            \
-    (i) = gl_u.parts.lsw;        \
+#define GET_LOW_WORD(i, d)                 \
+  do {                                     \
+    uint64_t bits = bit_cast<uint64_t>(d); \
+    (i) = bits & 0xFFFFFFFFu;              \
   } while (false)
 
 /* Set a double from two 32 bit ints.  */
 
-#define INSERT_WORDS(d, ix0, ix1) \
-  do {                            \
-    ieee_double_shape_type iw_u;  \
-    iw_u.parts.msw = (ix0);       \
-    iw_u.parts.lsw = (ix1);       \
-    (d) = iw_u.value;             \
-  } while (false)
-
-/* Set a double from a 64-bit int. */
-#define INSERT_WORD64(d, ix)     \
-  do {                           \
-    ieee_double_shape_type iw_u; \
-    iw_u.xparts.w = (ix);        \
-    (d) = iw_u.value;            \
+#define INSERT_WORDS(d, ix0, ix1)             \
+  do {                                        \
+    uint64_t bits = 0;                        \
+    bits |= static_cast<uint64_t>(ix0) << 32; \
+    bits |= static_cast<uint32_t>(ix1);       \
+    (d) = bit_cast<double>(bits);             \
   } while (false)
 
 /* Set the more significant 32 bits of a double from an int.  */
 
-#define SET_HIGH_WORD(d, v)      \
-  do {                           \
-    ieee_double_shape_type sh_u; \
-    sh_u.value = (d);            \
-    sh_u.parts.msw = (v);        \
-    (d) = sh_u.value;            \
+#define SET_HIGH_WORD(d, v)                          \
+  do {                                               \
+    uint64_t bits = bit_cast<uint64_t>(d);           \
+    bits &= V8_2PART_UINT64_C(0x00000000, FFFFFFFF); \
+    bits |= static_cast<uint64_t>(v) << 32;          \
+    (d) = bit_cast<double>(bits);                    \
   } while (false)
 
 /* Set the less significant 32 bits of a double from an int.  */
 
-#define SET_LOW_WORD(d, v)       \
-  do {                           \
-    ieee_double_shape_type sl_u; \
-    sl_u.value = (d);            \
-    sl_u.parts.lsw = (v);        \
-    (d) = sl_u.value;            \
+#define SET_LOW_WORD(d, v)                           \
+  do {                                               \
+    uint64_t bits = bit_cast<uint64_t>(d);           \
+    bits &= V8_2PART_UINT64_C(0xFFFFFFFF, 00000000); \
+    bits |= static_cast<uint32_t>(v);                \
+    (d) = bit_cast<double>(bits);                    \
   } while (false)
-
-/* Support macro. */
-
-#define STRICT_ASSIGN(type, lval, rval) ((lval) = (rval))
 
 int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;
 double __kernel_cos(double x, double y) V8_WARN_UNUSED_RESULT;
@@ -1559,7 +1502,7 @@ double exp(double x) {
       hi = x - t * ln2HI[0]; /* t*ln2HI is exact here */
       lo = t * ln2LO[0];
     }
-    STRICT_ASSIGN(double, x, hi - lo);
+    x = hi - lo;
   } else if (hx < 0x3E300000) {         /* when |x|<2**-28 */
     if (huge + x > one) return one + x; /* trigger inexact */
   } else {
@@ -1878,7 +1821,7 @@ double log1p(double x) {
   if (hx >= 0x7FF00000) return x + x;
   if (k != 0) {
     if (hx < 0x43400000) {
-      STRICT_ASSIGN(double, u, 1.0 + x);
+      u = 1.0 + x;
       GET_HIGH_WORD(hu, u);
       k = (hu >> 20) - 1023;
       c = (k > 0) ? 1.0 - (u - x) : x - (u - 1.0); /* correction term */
@@ -2326,7 +2269,7 @@ double expm1(double x) {
       hi = x - t * ln2_hi; /* t*ln2_hi is exact here */
       lo = t * ln2_lo;
     }
-    STRICT_ASSIGN(double, x, hi - lo);
+    x = hi - lo;
     c = (hi - x) - lo;
   } else if (hx < 0x3C900000) { /* when |x|<2**-54, return x */
     t = huge + x;               /* return x with inexact flags when x!=0 */
@@ -2396,10 +2339,6 @@ double cbrt(double x) {
       P4 = 0.145996192886612446982;                /* 0x3FC2B000, 0xD4E4EDD7 */
 
   int32_t hx;
-  union {
-    double value;
-    uint64_t bits;
-  } u;
   double r, s, t = 0.0, w;
   uint32_t sign;
   uint32_t high, low;
@@ -2457,9 +2396,9 @@ double cbrt(double x) {
    * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
    * before the final error is larger than 0.667 ulps.
    */
-  u.value = t;
-  u.bits = (u.bits + 0x80000000) & 0xFFFFFFFFC0000000ULL;
-  t = u.value;
+  uint64_t bits = bit_cast<uint64_t>(t);
+  bits = (bits + 0x80000000) & 0xFFFFFFFFC0000000ULL;
+  t = bit_cast<double>(bits);
 
   /* one step Newton iteration to 53 bits with error < 0.667 ulps */
   s = t * t;             /* t*t is exact */
@@ -3070,14 +3009,11 @@ double tanh(double x) {
 }
 
 #undef EXTRACT_WORDS
-#undef EXTRACT_WORD64
 #undef GET_HIGH_WORD
 #undef GET_LOW_WORD
 #undef INSERT_WORDS
-#undef INSERT_WORD64
 #undef SET_HIGH_WORD
 #undef SET_LOW_WORD
-#undef STRICT_ASSIGN
 
 }  // namespace ieee754
 }  // namespace base

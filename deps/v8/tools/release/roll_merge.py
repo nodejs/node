@@ -129,7 +129,7 @@ class CreateCommitMessage(Step):
         bugs.extend(s.strip() for s in bug.split(","))
     bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
     if bug_aggregate:
-      msg_pieces.append("BUG=%s\nLOG=N\n" % bug_aggregate)
+      msg_pieces.append("BUG=%s\n" % bug_aggregate)
 
     self["new_commit_msg"] = "".join(msg_pieces)
 

@@ -15,7 +15,7 @@ Evaluating 'let a = 239;'
         columnNumber : 0
         exception : {
             className : SyntaxError
-            description : SyntaxError: Identifier 'a' has already been declared     at <anonymous>:1:1
+            description : SyntaxError: Identifier 'a' has already been declared
             objectId : <objectId>
             subtype : error
             type : object
@@ -27,7 +27,7 @@ Evaluating 'let a = 239;'
     }
     result : {
         className : SyntaxError
-        description : SyntaxError: Identifier 'a' has already been declared     at <anonymous>:1:1
+        description : SyntaxError: Identifier 'a' has already been declared
         objectId : <objectId>
         subtype : error
         type : object

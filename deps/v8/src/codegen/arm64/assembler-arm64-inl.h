@@ -44,13 +44,13 @@ inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
 }
 
 inline bool CPURegister::IsZero() const {
-  DCHECK(IsValid());
-  return IsRegister() && (reg_code_ == kZeroRegCode);
+  DCHECK(is_valid());
+  return IsRegister() && (code() == kZeroRegCode);
 }
 
 inline bool CPURegister::IsSP() const {
-  DCHECK(IsValid());
-  return IsRegister() && (reg_code_ == kSPRegInternalCode);
+  DCHECK(is_valid());
+  return IsRegister() && (code() == kSPRegInternalCode);
 }
 
 inline void CPURegList::Combine(const CPURegList& other) {
@@ -82,13 +82,13 @@ inline void CPURegList::Remove(const CPURegister& other1,
 }
 
 inline void CPURegList::Combine(int code) {
-  DCHECK(CPURegister::Create(code, size_, type_).IsValid());
+  DCHECK(CPURegister::Create(code, size_, type_).is_valid());
   list_ |= (1ULL << code);
-  DCHECK(IsValid());
+  DCHECK(is_valid());
 }
 
 inline void CPURegList::Remove(int code) {
-  DCHECK(CPURegister::Create(code, size_, type_).IsValid());
+  DCHECK(CPURegister::Create(code, size_, type_).is_valid());
   list_ &= ~(1ULL << code);
 }
 
@@ -142,52 +142,52 @@ inline VRegister VRegister::VRegFromCode(unsigned code) {
 
 inline Register CPURegister::W() const {
   DCHECK(IsRegister());
-  return Register::WRegFromCode(reg_code_);
+  return Register::WRegFromCode(code());
 }
 
 inline Register CPURegister::Reg() const {
   DCHECK(IsRegister());
-  return Register::Create(reg_code_, reg_size_);
+  return Register::Create(code(), reg_size_);
 }
 
 inline VRegister CPURegister::VReg() const {
   DCHECK(IsVRegister());
-  return VRegister::Create(reg_code_, reg_size_);
+  return VRegister::Create(code(), reg_size_);
 }
 
 inline Register CPURegister::X() const {
   DCHECK(IsRegister());
-  return Register::XRegFromCode(reg_code_);
+  return Register::XRegFromCode(code());
 }
 
 inline VRegister CPURegister::V() const {
   DCHECK(IsVRegister());
-  return VRegister::VRegFromCode(reg_code_);
+  return VRegister::VRegFromCode(code());
 }
 
 inline VRegister CPURegister::B() const {
   DCHECK(IsVRegister());
-  return VRegister::BRegFromCode(reg_code_);
+  return VRegister::BRegFromCode(code());
 }
 
 inline VRegister CPURegister::H() const {
   DCHECK(IsVRegister());
-  return VRegister::HRegFromCode(reg_code_);
+  return VRegister::HRegFromCode(code());
 }
 
 inline VRegister CPURegister::S() const {
   DCHECK(IsVRegister());
-  return VRegister::SRegFromCode(reg_code_);
+  return VRegister::SRegFromCode(code());
 }
 
 inline VRegister CPURegister::D() const {
   DCHECK(IsVRegister());
-  return VRegister::DRegFromCode(reg_code_);
+  return VRegister::DRegFromCode(code());
 }
 
 inline VRegister CPURegister::Q() const {
   DCHECK(IsVRegister());
-  return VRegister::QRegFromCode(reg_code_);
+  return VRegister::QRegFromCode(code());
 }
 
 // Immediate.
@@ -261,7 +261,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
       shift_(NO_SHIFT),
       extend_(extend),
       shift_amount_(shift_amount) {
-  DCHECK(reg.IsValid());
+  DCHECK(reg.is_valid());
   DCHECK_LE(shift_amount, 4);
   DCHECK(!reg.IsSP());
 
@@ -270,7 +270,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
 }
 
 bool Operand::IsHeapObjectRequest() const {
-  DCHECK_IMPLIES(heap_object_request_.has_value(), reg_.Is(NoReg));
+  DCHECK_IMPLIES(heap_object_request_.has_value(), reg_ == NoReg);
   DCHECK_IMPLIES(heap_object_request_.has_value(),
                  immediate_.rmode() == RelocInfo::FULL_EMBEDDED_OBJECT ||
                      immediate_.rmode() == RelocInfo::CODE_TARGET);
@@ -283,15 +283,15 @@ HeapObjectRequest Operand::heap_object_request() const {
 }
 
 bool Operand::IsImmediate() const {
-  return reg_.Is(NoReg) && !IsHeapObjectRequest();
+  return reg_ == NoReg && !IsHeapObjectRequest();
 }
 
 bool Operand::IsShiftedRegister() const {
-  return reg_.IsValid() && (shift_ != NO_SHIFT);
+  return reg_.is_valid() && (shift_ != NO_SHIFT);
 }
 
 bool Operand::IsExtendedRegister() const {
-  return reg_.IsValid() && (extend_ != NO_EXTEND);
+  return reg_.is_valid() && (extend_ != NO_EXTEND);
 }
 
 bool Operand::IsZero() const {
@@ -452,11 +452,11 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
 }
 
 bool MemOperand::IsImmediateOffset() const {
-  return (addrmode_ == Offset) && regoffset_.Is(NoReg);
+  return (addrmode_ == Offset) && regoffset_ == NoReg;
 }
 
 bool MemOperand::IsRegisterOffset() const {
-  return (addrmode_ == Offset) && !regoffset_.Is(NoReg);
+  return (addrmode_ == Offset) && regoffset_ != NoReg;
 }
 
 bool MemOperand::IsPreIndex() const { return addrmode_ == PreIndex; }
@@ -476,14 +476,7 @@ Operand MemOperand::OffsetAsOperand() const {
   }
 }
 
-void Assembler::Unreachable() {
-#ifdef USE_SIMULATOR
-  debug("UNREACHABLE", __LINE__, BREAK);
-#else
-  // Crash by branching to 0. lr now points near the fault.
-  Emit(BLR | Rn(xzr));
-#endif
-}
+void Assembler::Unreachable() { debug("UNREACHABLE", __LINE__, BREAK); }
 
 Address Assembler::target_pointer_address_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
@@ -782,7 +775,7 @@ void RelocInfo::WipeOut() {
 }
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
-  DCHECK(rt.IsValid());
+  DCHECK(rt.is_valid());
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x : LDR_w;
   } else {
@@ -804,7 +797,7 @@ LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
 }
 
 LoadStoreOp Assembler::StoreOpFor(const CPURegister& rt) {
-  DCHECK(rt.IsValid());
+  DCHECK(rt.is_valid());
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STR_x : STR_w;
   } else {
@@ -1013,7 +1006,8 @@ Instr Assembler::ImmLS(int imm9) {
 }
 
 Instr Assembler::ImmLSPair(int imm7, unsigned size) {
-  DCHECK_EQ((imm7 >> size) << size, imm7);
+  DCHECK_EQ(imm7,
+            static_cast<int>(static_cast<uint32_t>(imm7 >> size) << size));
   int scaled_imm7 = imm7 >> size;
   DCHECK(is_int7(scaled_imm7));
   return truncate_to_int7(scaled_imm7) << ImmLSPair_offset;

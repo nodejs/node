@@ -66,16 +66,19 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   DCHECK(it.frame()->is_interpreted());
   InterpretedFrame* interpreted_frame =
       reinterpret_cast<InterpretedFrame*>(it.frame());
-  SharedFunctionInfo shared = interpreted_frame->function().shared();
-  BytecodeArray bytecode_array = shared.GetBytecodeArray();
-  int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-  Bytecode bytecode = Bytecodes::FromByte(bytecode_array.get(bytecode_offset));
 
   bool side_effect_check_failed = false;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
     side_effect_check_failed =
         !isolate->debug()->PerformSideEffectCheckAtBytecode(interpreted_frame);
   }
+
+  // Make sure to only access these objects after the side effect check, as the
+  // check can allocate on failure.
+  SharedFunctionInfo shared = interpreted_frame->function().shared();
+  BytecodeArray bytecode_array = shared.GetBytecodeArray();
+  int bytecode_offset = interpreted_frame->GetBytecodeOffset();
+  Bytecode bytecode = Bytecodes::FromByte(bytecode_array.get(bytecode_offset));
 
   if (Bytecodes::Returns(bytecode)) {
     // If we are returning (or suspending), reset the bytecode array on the
@@ -308,14 +311,14 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  if (!args[0].IsJSGeneratorObject()) return Smi::kZero;
+  if (!args[0].IsJSGeneratorObject()) return Smi::zero();
 
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, gen, 0);
 
   // Only inspect suspended generator scopes.
   if (!gen->is_suspended()) {
-    return Smi::kZero;
+    return Smi::zero();
   }
 
   // Count the visible scopes.
@@ -844,10 +847,8 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   // Track the embedded blob size as well.
   {
     int embedded_blob_size = 0;
-    if (FLAG_embedded_builtins) {
-      i::EmbeddedData d = i::EmbeddedData::FromBlob();
-      embedded_blob_size = static_cast<int>(d.size());
-    }
+    i::EmbeddedData d = i::EmbeddedData::FromBlob();
+    embedded_blob_size = static_cast<int>(d.size());
     PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
   }
 

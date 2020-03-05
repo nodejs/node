@@ -2,4 +2,7 @@ specific_include_rules = {
   "mksnapshot\.cc": [
     "+include/libplatform/libplatform.h",
   ],
+  "serializer-common.cc": [
+    "+third_party/zlib",
+  ],
 }

@@ -1,0 +1,14 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+@apiExposedInstanceTypeValue(0x43)
+@highestInstanceTypeWithinParentClassRange
+extern class Oddball extends PrimitiveHeapObject {
+  to_number_raw: float64;
+  to_string: String;
+  to_number: Number;
+  type_of: String;
+  kind: Smi;
+}

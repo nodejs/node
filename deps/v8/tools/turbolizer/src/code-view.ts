@@ -2,6 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+interface PR {
+  prettyPrint(_: unknown, el: HTMLElement): void;
+}
+
+declare global {
+  const PR: PR;
+}
+
 import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver";
 import { SelectionBroker } from "../src/selection-broker";
 import { View } from "../src/view";

@@ -19,6 +19,7 @@ except ImportError:
   from Queue import Empty  # Python 2
 
 from . import command
+from . import utils
 
 
 def setup_testing():
@@ -243,6 +244,13 @@ class Pool():
     """
     self.abort_now = True
 
+  def _terminate_processes(self):
+    for p in self.processes:
+      if utils.IsWindows():
+        command.taskkill_windows(p, verbose=True, force=False)
+      else:
+        os.kill(p.pid, signal.SIGTERM)
+
   def _terminate(self):
     """Terminates execution and cleans up the queues.
 
@@ -267,8 +275,7 @@ class Pool():
       self.work_queue.put("STOP")
 
     if self.abort_now:
-      for p in self.processes:
-        os.kill(p.pid, signal.SIGTERM)
+      self._terminate_processes()
 
     self.notify("Joining workers")
     for p in self.processes:

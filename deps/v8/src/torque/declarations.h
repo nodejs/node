@@ -56,12 +56,13 @@ class Declarations {
     return d;
   }
 
-  static std::vector<Declarable*> LookupGlobalScope(const std::string& name);
+  static std::vector<Declarable*> LookupGlobalScope(const QualifiedName& name);
 
   static const TypeAlias* LookupTypeAlias(const QualifiedName& name);
   static const Type* LookupType(const QualifiedName& name);
   static const Type* LookupType(const Identifier* identifier);
-  static const Type* LookupGlobalType(const std::string& name);
+  static base::Optional<const Type*> TryLookupType(const QualifiedName& name);
+  static const Type* LookupGlobalType(const QualifiedName& name);
 
   static Builtin* FindSomeInternalBuiltinWithType(
       const BuiltinPointerType* type);
@@ -72,12 +73,12 @@ class Declarations {
                                const TypeVector& types);
   static base::Optional<Builtin*> TryLookupBuiltin(const QualifiedName& name);
 
-  static std::vector<Generic*> LookupGeneric(const std::string& name);
-  static Generic* LookupUniqueGeneric(const QualifiedName& name);
+  static std::vector<GenericCallable*> LookupGeneric(const std::string& name);
+  static GenericCallable* LookupUniqueGeneric(const QualifiedName& name);
 
-  static GenericStructType* LookupUniqueGenericStructType(
-      const QualifiedName& name);
-  static base::Optional<GenericStructType*> TryLookupGenericStructType(
+  static GenericType* LookupUniqueGenericType(const QualifiedName& name);
+  static GenericType* LookupGlobalUniqueGenericType(const std::string& name);
+  static base::Optional<GenericType*> TryLookupGenericType(
       const QualifiedName& name);
 
   static Namespace* DeclareNamespace(const std::string& name);
@@ -128,10 +129,10 @@ class Declarations {
                                                      const Type* type,
                                                      Expression* body);
 
-  static Generic* DeclareGeneric(const std::string& name,
-                                 GenericDeclaration* generic);
-  static GenericStructType* DeclareGenericStructType(const std::string& name,
-                                                     StructDeclaration* decl);
+  static GenericCallable* DeclareGenericCallable(
+      const std::string& name, GenericCallableDeclaration* ast_node);
+  static GenericType* DeclareGenericType(const std::string& name,
+                                         GenericTypeDeclaration* ast_node);
 
   template <class T>
   static T* Declare(const std::string& name, T* d) {

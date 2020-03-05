@@ -111,8 +111,8 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Instantiate(isolate, prop_data, name), Object);
 
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator::Key key(isolate, name);
+  LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
 
 #ifdef DEBUG
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
@@ -300,8 +300,8 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(
       (serial_number <= TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     SimpleNumberDictionary slow_cache =
         native_context->slow_template_instantiations_cache();
-    int entry = slow_cache.FindEntry(isolate, serial_number);
-    if (entry != SimpleNumberDictionary::kNotFound) {
+    InternalIndex entry = slow_cache.FindEntry(isolate, serial_number);
+    if (entry.is_found()) {
       return handle(JSObject::cast(slow_cache.ValueAt(entry)), isolate);
     }
   }
@@ -348,8 +348,8 @@ void UncacheTemplateInstantiation(Isolate* isolate,
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> cache =
         handle(native_context->slow_template_instantiations_cache(), isolate);
-    int entry = cache->FindEntry(isolate, serial_number);
-    DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
+    InternalIndex entry = cache->FindEntry(isolate, serial_number);
+    DCHECK(entry.is_found());
     cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
     native_context->set_slow_template_instantiations_cache(*cache);
   }
@@ -439,15 +439,14 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
 namespace {
 MaybeHandle<Object> GetInstancePrototype(Isolate* isolate,
-                                         Object function_template) {
+                                         Handle<Object> function_template) {
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
   HandleScope scope(isolate);
   Handle<JSFunction> parent_instance;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, parent_instance,
       InstantiateFunction(
-          isolate,
-          handle(FunctionTemplateInfo::cast(function_template), isolate)),
+          isolate, Handle<FunctionTemplateInfo>::cast(function_template)),
       JSFunction);
   Handle<Object> instance_prototype;
   // TODO(cbruni): decide what to do here.
@@ -474,10 +473,11 @@ MaybeHandle<JSFunction> InstantiateFunction(
   }
   Handle<Object> prototype;
   if (!data->remove_prototype()) {
-    Object prototype_templ = data->GetPrototypeTemplate();
-    if (prototype_templ.IsUndefined(isolate)) {
-      Object protoype_provider_templ = data->GetPrototypeProviderTemplate();
-      if (protoype_provider_templ.IsUndefined(isolate)) {
+    Handle<Object> prototype_templ(data->GetPrototypeTemplate(), isolate);
+    if (prototype_templ->IsUndefined(isolate)) {
+      Handle<Object> protoype_provider_templ(
+          data->GetPrototypeProviderTemplate(), isolate);
+      if (protoype_provider_templ->IsUndefined(isolate)) {
         prototype = isolate->factory()->NewJSObject(isolate->object_function());
       } else {
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -487,14 +487,13 @@ MaybeHandle<JSFunction> InstantiateFunction(
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype,
-          InstantiateObject(
-              isolate,
-              handle(ObjectTemplateInfo::cast(prototype_templ), isolate),
-              Handle<JSReceiver>(), true),
+          InstantiateObject(isolate,
+                            Handle<ObjectTemplateInfo>::cast(prototype_templ),
+                            Handle<JSReceiver>(), true),
           JSFunction);
     }
-    Object parent = data->GetParentTemplate();
-    if (!parent.IsUndefined(isolate)) {
+    Handle<Object> parent(data->GetParentTemplate(), isolate);
+    if (!parent->IsUndefined(isolate)) {
       Handle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
                                  GetInstancePrototype(isolate, parent),

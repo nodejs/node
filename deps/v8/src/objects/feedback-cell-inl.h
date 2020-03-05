@@ -26,9 +26,21 @@ void FeedbackCell::clear_padding() {
          FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
 }
 
-void FeedbackCell::reset() {
-  set_value(GetReadOnlyRoots().undefined_value());
+void FeedbackCell::reset_feedback_vector(
+    base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
+                                      HeapObject target)>>
+        gc_notify_updated_slot) {
   set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
+  if (value().IsUndefined() || value().IsClosureFeedbackCellArray()) return;
+
+  CHECK(value().IsFeedbackVector());
+  ClosureFeedbackCellArray closure_feedback_cell_array =
+      FeedbackVector::cast(value()).closure_feedback_cell_array();
+  set_value(closure_feedback_cell_array);
+  if (gc_notify_updated_slot) {
+    (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
+                              closure_feedback_cell_array);
+  }
 }
 
 }  // namespace internal

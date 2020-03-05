@@ -22,6 +22,7 @@ Handle<String> StringConstantBase::AllocateStringConstant(
   switch (kind()) {
     case StringConstantKind::kStringLiteral: {
       result = static_cast<const StringLiteral*>(this)->str();
+      CHECK(!result.is_null());
       break;
     }
     case StringConstantKind::kNumberToStringConstant: {
@@ -29,6 +30,7 @@ Handle<String> StringConstantBase::AllocateStringConstant(
       Handle<Object> num_obj =
           isolate->factory()->NewNumber(num_constant->num());
       result = isolate->factory()->NumberToString(num_obj);
+      CHECK(!result.is_null());
       break;
     }
     case StringConstantKind::kStringCons: {

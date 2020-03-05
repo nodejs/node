@@ -4,17 +4,15 @@
 
 namespace string {
   macro TryFastStringCompareSequence(
-      string: String, searchStr: String, start: Number,
-      searchLength: Smi): Boolean labels Slow {
+      string: String, searchStr: String, start: uintptr,
+      searchLength: uintptr): Boolean labels Slow {
     const directString = Cast<DirectString>(string) otherwise Slow;
     const directSearchStr = Cast<DirectString>(searchStr) otherwise Slow;
-    const stringIndexSmi: Smi = Cast<Smi>(start) otherwise Slow;
 
-    let searchIndex: intptr = 0;
-    let stringIndex = Convert<intptr>(stringIndexSmi);
-    const searchLengthInteger = Convert<intptr>(searchLength);
+    let searchIndex: uintptr = 0;
+    let stringIndex: uintptr = start;
 
-    while (searchIndex < searchLengthInteger) {
+    while (searchIndex < searchLength) {
       if (StringCharCodeAt(directSearchStr, searchIndex) !=
           StringCharCodeAt(directString, stringIndex)) {
         return False;
@@ -28,46 +26,42 @@ namespace string {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
   transitioning javascript builtin StringPrototypeEndsWith(
-      js-implicit context: Context, receiver: JSAny)(...arguments): Boolean {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): Boolean {
     const searchString: JSAny = arguments[0];
     const endPosition: JSAny = arguments[1];
     const kBuiltinName: constexpr string = 'String.prototype.endsWith';
 
     // 1. Let O be ? RequireObjectCoercible(this value).
-    const object: JSAny = RequireObjectCoercible(receiver, kBuiltinName);
-
     // 2. Let S be ? ToString(O).
-    const string: String = ToString_Inline(context, object);
+    const string: String = ToThisString(receiver, kBuiltinName);
 
     // 3. Let isRegExp be ? IsRegExp(searchString).
     // 4. If isRegExp is true, throw a TypeError exception.
     if (regexp::IsRegExp(searchString)) {
-      ThrowTypeError(kFirstArgumentNotRegExp, kBuiltinName);
+      ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
     }
 
     // 5. Let searchStr be ? ToString(searchString).
-    const searchStr: String = ToString_Inline(context, searchString);
+    const searchStr: String = ToString_Inline(searchString);
 
     // 6. Let len be the length of S.
-    const len: Number = string.length_smi;
+    const len: uintptr = string.length_uintptr;
 
     // 7. If endPosition is undefined, let pos be len,
     // else let pos be ? ToInteger(endPosition).
-    const pos: Number = (endPosition == Undefined) ?
-        len :
-        ToInteger_Inline(context, endPosition);
-
     // 8. Let end be min(max(pos, 0), len).
-    const end: Number = NumberMin(NumberMax(pos, 0), len);
+    const end: uintptr =
+        (endPosition != Undefined) ? ClampToIndexRange(endPosition, len) : len;
 
     // 9. Let searchLength be the length of searchStr.
-    const searchLength: Smi = searchStr.length_smi;
+    const searchLength: uintptr = searchStr.length_uintptr;
 
     // 10. Let start be end - searchLength.
-    const start = end - searchLength;
+    const start: uintptr = end - searchLength;
 
     // 11. If start is less than 0, return false.
-    if (start < 0) return False;
+    if (Signed(start) < 0) return False;
 
     // 12. If the sequence of code units of S starting at start of length
     // searchLength is the same as the full code unit sequence of searchStr,
@@ -80,7 +74,8 @@ namespace string {
     }
     label Slow {
       // Slow Path: If either of the string is indirect, bail into runtime.
-      return StringCompareSequence(context, string, searchStr, start);
+      return StringCompareSequence(
+          context, string, searchStr, Convert<Number>(start));
     }
   }
 }

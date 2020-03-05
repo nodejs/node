@@ -3,9 +3,15 @@
 // found in the LICENSE file.
 
 namespace boolean {
+  transitioning macro ThisBooleanValue(implicit context: Context)(
+      receiver: JSAny, method: constexpr string): Boolean {
+    return UnsafeCast<Boolean>(
+        ToThisValue(receiver, PrimitiveType::kBoolean, method));
+  }
+
   javascript builtin
   BooleanConstructor(
-      js-implicit context: Context, receiver: JSAny, newTarget: JSAny,
+      js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
       target: JSFunction)(...arguments): JSAny {
     const value = SelectBooleanConstant(ToBoolean(arguments[0]));
 
@@ -19,5 +25,21 @@ namespace boolean {
         UnsafeCast<JSPrimitiveWrapper>(AllocateFastOrSlowJSObjectFromMap(map));
     obj.value = value;
     return obj;
+  }
+
+  // ES #sec-boolean.prototype.tostring
+  transitioning javascript builtin BooleanPrototypeToString(
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+    // 1. Let b be ? thisBooleanValue(this value).
+    const b = ThisBooleanValue(receiver, 'Boolean.prototype.toString');
+    // 2. If b is true, return "true"; else return "false".
+    return b.to_string;
+  }
+
+  // ES #sec-boolean.prototype.valueof
+  transitioning javascript builtin BooleanPrototypeValueOf(
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+    // 1. Return ? thisBooleanValue(this value).
+    return ThisBooleanValue(receiver, 'Boolean.prototype.valueOf');
   }
 }

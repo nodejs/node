@@ -286,8 +286,8 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
           ->SyncCompileTranslatedAsmJs(
               isolate, &thrower,
               wasm::ModuleWireBytes(module_->begin(), module_->end()),
-              Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()),
-              uses_bitset, shared_info->language_mode())
+              VectorOf(*asm_offsets_), uses_bitset,
+              shared_info->language_mode())
           .ToHandleChecked();
   DCHECK(!thrower.error());
   compile_time_ = compile_timer.Elapsed().InMillisecondsF();
@@ -295,7 +295,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
   compilation_info()->SetAsmWasmData(result);
 
   RecordHistograms(isolate);
-  ReportCompilationSuccess(parse_info()->script(),
+  ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
                            compilation_info()->literal()->position(),
                            translate_time_, compile_time_, module_->size());
   return SUCCEEDED;
@@ -361,7 +361,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<WasmModuleObject> module =
       wasm_engine->FinalizeTranslatedAsmJs(isolate, wasm_data, script);
 
-  // TODO(mstarzinger): The position currently points to the module definition
+  // TODO(asmjs): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
   int position = shared->StartPosition();
 
@@ -410,9 +410,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   }
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
-  MaybeHandle<Object> maybe_module_object =
+  MaybeHandle<WasmInstanceObject> maybe_instance =
       wasm_engine->SyncInstantiate(isolate, &thrower, module, foreign, memory);
-  if (maybe_module_object.is_null()) {
+  if (maybe_instance.is_null()) {
     // An exception caused by the module start function will be set as pending
     // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
@@ -427,7 +427,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
-  Handle<Object> module_object = maybe_module_object.ToHandleChecked();
+  Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
 
   ReportInstantiationSuccess(script, position,
                              instantiate_timer.Elapsed().InMillisecondsF());
@@ -435,7 +435,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
   MaybeHandle<Object> single_function =
-      Object::GetProperty(isolate, module_object, single_function_name);
+      Object::GetProperty(isolate, instance, single_function_name);
   if (!single_function.is_null() &&
       !single_function.ToHandleChecked()->IsUndefined(isolate)) {
     return single_function;
@@ -443,7 +443,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   Handle<String> exports_name =
       isolate->factory()->InternalizeUtf8String("exports");
-  return Object::GetProperty(isolate, module_object, exports_name);
+  return Object::GetProperty(isolate, instance, exports_name);
 }
 
 }  // namespace internal

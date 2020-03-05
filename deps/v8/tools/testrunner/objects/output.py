@@ -66,6 +66,10 @@ class Output(object):
   def IsSuccess(self):
     return not self.HasCrashed() and not self.HasTimedOut()
 
+  @property
+  def exit_code_string(self):
+    return "%d [%02X]" % (self.exit_code, self.exit_code & 0xffffffff)
+
 
 class _NullOutput(Output):
   """Useful to signal that the binary has not been run."""

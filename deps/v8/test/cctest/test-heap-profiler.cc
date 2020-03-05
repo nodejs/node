@@ -839,13 +839,24 @@ TEST(HeapSnapshotEphemeron) {
   const v8::HeapGraphNode* key = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "key");
   CHECK(key);
+  const v8::HeapGraphNode* weakmap = GetProperty(
+      env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "wm");
+  CHECK(weakmap);
+  const v8::HeapGraphNode* weakmap_table = GetProperty(
+      env->GetIsolate(), weakmap, v8::HeapGraphEdge::kInternal, "table");
+  CHECK(weakmap_table);
   bool success = false;
   for (int i = 0, count = key->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* edge = key->GetChild(i);
     const v8::HeapGraphNode* child = edge->GetToNode();
     if (!strcmp("ValueClass", GetName(child))) {
       v8::String::Utf8Value edge_name(CcTest::isolate(), edge->GetName());
-      CHECK(EndsWith(*edge_name, " / key KeyClass in WeakMap"));
+      std::stringstream end_of_label;
+      end_of_label << "/ part of key (KeyClass @" << key->GetId()
+                   << ") -> value (ValueClass @" << child->GetId()
+                   << ") pair in WeakMap (table @" << weakmap_table->GetId()
+                   << ")";
+      CHECK(EndsWith(*edge_name, end_of_label.str().c_str()));
       success = true;
       break;
     }
@@ -2580,7 +2591,7 @@ TEST(ManyLocalsInSharedContext) {
       env->GetIsolate(), ok_object, v8::HeapGraphEdge::kInternal, "context");
   CHECK(context_object);
   // Check the objects are not duplicated in the context.
-  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_SLOTS + num_objects - 1,
+  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
@@ -2712,7 +2723,7 @@ TEST(CheckCodeNames) {
   CHECK(ValidateSnapshot(snapshot));
 
   const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(KeyedLoadIC_Slow builtin)"};
+                                 "::(KeyedLoadIC_PolymorphicName builtin)"};
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
@@ -3027,16 +3038,12 @@ TEST(ArrayBufferSharedBackingStore) {
 
   v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
   CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
-  CHECK(!ab->IsExternal());
-  v8::ArrayBuffer::Contents ab_contents = ab->Externalize();
-  CHECK(ab->IsExternal());
+  std::shared_ptr<v8::BackingStore> backing_store = ab->GetBackingStore();
 
-  CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
-  void* data = ab_contents.Data();
+  CHECK_EQ(1024, static_cast<int>(backing_store->ByteLength()));
+  void* data = backing_store->Data();
   CHECK_NOT_NULL(data);
-  v8::Local<v8::ArrayBuffer> ab2 =
-      v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
-  CHECK(ab2->IsExternal());
+  v8::Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, backing_store);
   env->Global()->Set(env.local(), v8_str("ab1"), ab).FromJust();
   env->Global()->Set(env.local(), v8_str("ab2"), ab2).FromJust();
 
@@ -3062,8 +3069,6 @@ TEST(ArrayBufferSharedBackingStore) {
   CHECK(ab2_data);
   CHECK_EQ(ab1_data, ab2_data);
   CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
-  ab_contents.Deleter()(ab_contents.Data(), ab_contents.ByteLength(),
-                        ab_contents.DeleterData());
 }
 
 

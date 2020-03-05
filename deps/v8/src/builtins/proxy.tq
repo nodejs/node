@@ -25,31 +25,6 @@ namespace proxy {
   extern transitioning macro ProxiesCodeStubAssembler::CheckHasTrapResult(
       implicit context: Context)(JSReceiver, JSProxy, Name);
 
-  const kProxyNonObject: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyNonObject';
-  const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
-  const kProxyRevoked: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyRevoked';
-  const kProxyTrapReturnedFalsishFor: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyTrapReturnedFalsishFor';
-  const kProxyPrivate: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyPrivate';
-  const kProxyIsExtensibleInconsistent: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyIsExtensibleInconsistent';
-  const kProxyPreventExtensionsExtensible: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyPreventExtensionsExtensible';
-  const kProxyTrapReturnedFalsish: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyTrapReturnedFalsish';
-  const kProxyGetPrototypeOfInvalid: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyGetPrototypeOfInvalid';
-  const kProxyGetPrototypeOfNonExtensible: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyGetPrototypeOfNonExtensible';
-  const kProxySetPrototypeOfNonExtensible: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxySetPrototypeOfNonExtensible';
-  const kProxyDeletePropertyNonExtensible: constexpr MessageTemplate
-  generates 'MessageTemplate::kProxyDeletePropertyNonExtensible';
-
   const kProxyGet: constexpr int31
   generates 'JSProxy::AccessKind::kGet';
   const kProxySet: constexpr int31

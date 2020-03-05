@@ -38,14 +38,6 @@ enum CategoryGroupEnabledFlags {
 // and will not be copied. Use this macro to force a const char* to be copied.
 #define TRACE_STR_COPY(str) v8::internal::tracing::TraceStringWithCopy(str)
 
-// By default, uint64 ID argument values are not mangled with the Process ID in
-// TRACE_EVENT_ASYNC macros. Use this macro to force Process ID mangling.
-#define TRACE_ID_MANGLE(id) v8::internal::tracing::TraceID::ForceMangle(id)
-
-// By default, pointers are mangled with the Process ID in TRACE_EVENT_ASYNC
-// macros. Use this macro to prevent Process ID mangling.
-#define TRACE_ID_DONT_MANGLE(id) v8::internal::tracing::TraceID::DontMangle(id)
-
 // By default, trace IDs are eventually converted to a single 64-bit number. Use
 // this macro to add a scope string.
 #define TRACE_ID_WITH_SCOPE(scope, id) \
@@ -303,9 +295,7 @@ class TraceEventHelper {
   V8_EXPORT_PRIVATE static v8::TracingController* GetTracingController();
 };
 
-// TraceID encapsulates an ID that can either be an integer or pointer. Pointers
-// are by default mangled with the Process ID so that they are unlikely to
-// collide when the same pointer is used on different processes.
+// TraceID encapsulates an ID that can either be an integer or pointer.
 class TraceID {
  public:
   class WithScope {
@@ -320,59 +310,8 @@ class TraceID {
     uint64_t raw_id_;
   };
 
-  class DontMangle {
-   public:
-    explicit DontMangle(const void* raw_id)
-        : raw_id_(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(raw_id))) {}
-    explicit DontMangle(uint64_t raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned int raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(uint16_t raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(unsigned char raw_id) : raw_id_(raw_id) {}
-    explicit DontMangle(int64_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(int raw_id) : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(int16_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(signed char raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit DontMangle(WithScope scoped_id)
-        : scope_(scoped_id.scope()), raw_id_(scoped_id.raw_id()) {}
-    const char* scope() const { return scope_; }
-    uint64_t raw_id() const { return raw_id_; }
-
-   private:
-    const char* scope_ = nullptr;
-    uint64_t raw_id_;
-  };
-
-  class ForceMangle {
-   public:
-    explicit ForceMangle(uint64_t raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned int raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(uint16_t raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(unsigned char raw_id) : raw_id_(raw_id) {}
-    explicit ForceMangle(int64_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit ForceMangle(int raw_id) : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit ForceMangle(int16_t raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    explicit ForceMangle(signed char raw_id)
-        : raw_id_(static_cast<uint64_t>(raw_id)) {}
-    uint64_t raw_id() const { return raw_id_; }
-
-   private:
-    uint64_t raw_id_;
-  };
-
   TraceID(const void* raw_id, unsigned int* flags)
-      : raw_id_(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(raw_id))) {
-    *flags |= TRACE_EVENT_FLAG_MANGLE_ID;
-  }
-  TraceID(ForceMangle raw_id, unsigned int* flags) : raw_id_(raw_id.raw_id()) {
-    *flags |= TRACE_EVENT_FLAG_MANGLE_ID;
-  }
-  TraceID(DontMangle maybe_scoped_id, unsigned int* flags)
-      : scope_(maybe_scoped_id.scope()), raw_id_(maybe_scoped_id.raw_id()) {}
+      : raw_id_(static_cast<uint64_t>(reinterpret_cast<uintptr_t>(raw_id))) {}
   TraceID(uint64_t raw_id, unsigned int* flags) : raw_id_(raw_id) {
     (void)flags;
   }
@@ -410,16 +349,6 @@ class TraceID {
  private:
   const char* scope_ = nullptr;
   uint64_t raw_id_;
-};
-
-// Simple union to store various types as uint64_t.
-union TraceValueUnion {
-  bool as_bool;
-  uint64_t as_uint;
-  int64_t as_int;
-  double as_double;
-  const void* as_pointer;
-  const char* as_string;
 };
 
 // Simple container for const char* that should be copied instead of retained.
@@ -479,42 +408,32 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
 // Define SetTraceValue for each allowed type. It stores the type and
 // value in the return arguments. This allows this API to avoid declaring any
 // structures so that it is portable to third_party libraries.
-#define INTERNAL_DECLARE_SET_TRACE_VALUE(actual_type, union_member,         \
-                                         value_type_id)                     \
-  static V8_INLINE void SetTraceValue(actual_type arg, unsigned char* type, \
-                                      uint64_t* value) {                    \
-    TraceValueUnion type_value;                                             \
-    type_value.union_member = arg;                                          \
-    *type = value_type_id;                                                  \
-    *value = type_value.as_uint;                                            \
-  }
-// Simpler form for int types that can be safely casted.
-#define INTERNAL_DECLARE_SET_TRACE_VALUE_INT(actual_type, value_type_id)    \
-  static V8_INLINE void SetTraceValue(actual_type arg, unsigned char* type, \
-                                      uint64_t* value) {                    \
-    *type = value_type_id;                                                  \
-    *value = static_cast<uint64_t>(arg);                                    \
-  }
+// This is the base implementation for integer types (including bool) and enums.
+template <typename T>
+static V8_INLINE typename std::enable_if<
+    std::is_integral<T>::value || std::is_enum<T>::value, void>::type
+SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
+  *type = std::is_same<T, bool>::value
+              ? TRACE_VALUE_TYPE_BOOL
+              : std::is_signed<T>::value ? TRACE_VALUE_TYPE_INT
+                                         : TRACE_VALUE_TYPE_UINT;
+  *value = static_cast<uint64_t>(arg);
+}
 
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(uint64_t, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(unsigned int, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(uint16_t, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(unsigned char, TRACE_VALUE_TYPE_UINT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(int64_t, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(int, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(int16_t, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE_INT(signed char, TRACE_VALUE_TYPE_INT)
-INTERNAL_DECLARE_SET_TRACE_VALUE(bool, as_bool, TRACE_VALUE_TYPE_BOOL)
-INTERNAL_DECLARE_SET_TRACE_VALUE(double, as_double, TRACE_VALUE_TYPE_DOUBLE)
-INTERNAL_DECLARE_SET_TRACE_VALUE(const void*, as_pointer,
-                                 TRACE_VALUE_TYPE_POINTER)
-INTERNAL_DECLARE_SET_TRACE_VALUE(const char*, as_string,
-                                 TRACE_VALUE_TYPE_STRING)
-INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&, as_string,
+#define INTERNAL_DECLARE_SET_TRACE_VALUE(actual_type, value_type_id)        \
+  static V8_INLINE void SetTraceValue(actual_type arg, unsigned char* type, \
+                                      uint64_t* value) {                    \
+    *type = value_type_id;                                                  \
+    *value = 0;                                                             \
+    STATIC_ASSERT(sizeof(arg) <= sizeof(*value));                           \
+    memcpy(value, &arg, sizeof(arg));                                       \
+  }
+INTERNAL_DECLARE_SET_TRACE_VALUE(double, TRACE_VALUE_TYPE_DOUBLE)
+INTERNAL_DECLARE_SET_TRACE_VALUE(const void*, TRACE_VALUE_TYPE_POINTER)
+INTERNAL_DECLARE_SET_TRACE_VALUE(const char*, TRACE_VALUE_TYPE_STRING)
+INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&,
                                  TRACE_VALUE_TYPE_COPY_STRING)
-
 #undef INTERNAL_DECLARE_SET_TRACE_VALUE
-#undef INTERNAL_DECLARE_SET_TRACE_VALUE_INT
 
 static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
                                     unsigned char* type, uint64_t* value) {

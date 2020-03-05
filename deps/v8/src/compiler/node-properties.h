@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/compiler/node.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/types.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-handle-set.h"
@@ -32,22 +33,59 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static int FirstFrameStateIndex(Node* node) { return PastContextIndex(node); }
   static int FirstEffectIndex(Node* node) { return PastFrameStateIndex(node); }
   static int FirstControlIndex(Node* node) { return PastEffectIndex(node); }
-  static int PastValueIndex(Node* node);
-  static int PastContextIndex(Node* node);
-  static int PastFrameStateIndex(Node* node);
-  static int PastEffectIndex(Node* node);
-  static int PastControlIndex(Node* node);
 
+  static int PastValueIndex(Node* node) {
+    return FirstValueIndex(node) + node->op()->ValueInputCount();
+  }
+
+  static int PastContextIndex(Node* node) {
+    return FirstContextIndex(node) +
+           OperatorProperties::GetContextInputCount(node->op());
+  }
+
+  static int PastFrameStateIndex(Node* node) {
+    return FirstFrameStateIndex(node) +
+           OperatorProperties::GetFrameStateInputCount(node->op());
+  }
+
+  static int PastEffectIndex(Node* node) {
+    return FirstEffectIndex(node) + node->op()->EffectInputCount();
+  }
+
+  static int PastControlIndex(Node* node) {
+    return FirstControlIndex(node) + node->op()->ControlInputCount();
+  }
 
   // ---------------------------------------------------------------------------
   // Input accessors.
 
-  static Node* GetValueInput(Node* node, int index);
-  static Node* GetContextInput(Node* node);
-  static Node* GetFrameStateInput(Node* node);
-  static Node* GetEffectInput(Node* node, int index = 0);
-  static Node* GetControlInput(Node* node, int index = 0);
+  static Node* GetValueInput(Node* node, int index) {
+    CHECK_LE(0, index);
+    CHECK_LT(index, node->op()->ValueInputCount());
+    return node->InputAt(FirstValueIndex(node) + index);
+  }
 
+  static Node* GetContextInput(Node* node) {
+    CHECK(OperatorProperties::HasContextInput(node->op()));
+    return node->InputAt(FirstContextIndex(node));
+  }
+
+  static Node* GetFrameStateInput(Node* node) {
+    CHECK(OperatorProperties::HasFrameStateInput(node->op()));
+    return node->InputAt(FirstFrameStateIndex(node));
+  }
+
+  static Node* GetEffectInput(Node* node, int index = 0) {
+    CHECK_LE(0, index);
+    CHECK_LT(index, node->op()->EffectInputCount());
+    return node->InputAt(FirstEffectIndex(node) + index);
+  }
+
+  static Node* GetControlInput(Node* node, int index = 0) {
+    CHECK_LE(0, index);
+    CHECK_LT(index, node->op()->ControlInputCount());
+    return node->InputAt(FirstControlIndex(node) + index);
+  }
 
   // ---------------------------------------------------------------------------
   // Edge kinds.
@@ -57,7 +95,6 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static bool IsFrameStateEdge(Edge edge);
   static bool IsEffectEdge(Edge edge);
   static bool IsControlEdge(Edge edge);
-
 
   // ---------------------------------------------------------------------------
   // Miscellaneous predicates.

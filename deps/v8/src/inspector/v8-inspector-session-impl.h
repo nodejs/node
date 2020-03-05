@@ -92,6 +92,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8InspectorSession::Inspectable* inspectedObject(unsigned num);
   static const unsigned kInspectedObjectBufferSize = 5;
 
+  void triggerPreciseCoverageDeltaUpdate(const StringView& occassion) override;
+
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
                          V8Inspector::Channel*, const StringView& state);
@@ -103,7 +105,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   void sendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
   void fallThrough(int callId, const String16& method,
-                   const protocol::ProtocolMessage& message) override;
+                   v8_crdtp::span<uint8_t> message) override;
   void flushProtocolNotifications() override;
 
   std::unique_ptr<StringBuffer> serializeForFrontend(

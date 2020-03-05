@@ -50,6 +50,10 @@ void BasicBlock::AddPredecessor(BasicBlock* predecessor) {
   predecessors_.push_back(predecessor);
 }
 
+void BasicBlock::RemovePredecessor(size_t index) {
+  predecessors_.erase(predecessors_.begin() + index);
+}
+
 void BasicBlock::AddNode(Node* node) { nodes_.push_back(node); }
 
 void BasicBlock::set_control(Control control) { control_ = control; }
@@ -73,6 +77,19 @@ void BasicBlock::set_loop_end(BasicBlock* loop_end) { loop_end_ = loop_end; }
 
 void BasicBlock::set_loop_header(BasicBlock* loop_header) {
   loop_header_ = loop_header;
+}
+
+void BasicBlock::TrimNodes(iterator new_end) { nodes_.erase(new_end, end()); }
+
+void BasicBlock::ResetRPOInfo() {
+  loop_number_ = -1;
+  rpo_number_ = -1;
+  dominator_depth_ = -1;
+  dominator_ = nullptr;
+  rpo_next_ = nullptr;
+  loop_header_ = nullptr;
+  loop_end_ = nullptr;
+  loop_depth_ = 0;
 }
 
 // static

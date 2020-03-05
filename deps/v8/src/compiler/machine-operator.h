@@ -9,6 +9,7 @@
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/zone/zone.h"
 
@@ -48,6 +49,46 @@ using LoadRepresentation = MachineType;
 
 V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
+
+enum class LoadKind {
+  kNormal,
+  kUnaligned,
+  kProtected,
+};
+
+size_t hash_value(LoadKind);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadKind);
+
+enum class LoadTransformation {
+  kS8x16LoadSplat,
+  kS16x8LoadSplat,
+  kS32x4LoadSplat,
+  kS64x2LoadSplat,
+  kI16x8Load8x8S,
+  kI16x8Load8x8U,
+  kI32x4Load16x4S,
+  kI32x4Load16x4U,
+  kI64x2Load32x2S,
+  kI64x2Load32x2U,
+};
+
+size_t hash_value(LoadTransformation);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadTransformation);
+
+struct LoadTransformParameters {
+  LoadKind kind;
+  LoadTransformation transformation;
+};
+
+size_t hash_value(LoadTransformParameters);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           LoadTransformParameters);
+
+V8_EXPORT_PRIVATE LoadTransformParameters const& LoadTransformParametersOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
@@ -112,8 +153,33 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
 
 MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE const uint8_t* S8x16ShuffleOf(Operator const* op)
-    V8_WARN_UNUSED_RESULT;
+class S8x16ShuffleParameter {
+ public:
+  explicit S8x16ShuffleParameter(const uint8_t shuffle[16]) {
+    std::copy(shuffle, shuffle + 16, shuffle_.begin());
+  }
+  const std::array<uint8_t, 16>& shuffle() const { return shuffle_; }
+  const uint8_t* data() const { return shuffle_.data(); }
+  uint8_t operator[](int x) const { return shuffle_[x]; }
+
+ private:
+  std::array<uint8_t, 16> shuffle_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(S8x16ShuffleParameter const& lhs,
+                                  S8x16ShuffleParameter const& rhs);
+bool operator!=(S8x16ShuffleParameter const& lhs,
+                S8x16ShuffleParameter const& rhs);
+
+size_t hash_value(S8x16ShuffleParameter const& p);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           S8x16ShuffleParameter const&);
+
+V8_EXPORT_PRIVATE S8x16ShuffleParameter const& S8x16ShuffleParameterOf(
+    Operator const* op) V8_WARN_UNUSED_RESULT;
+
+StackCheckKind StackCheckKindOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -320,12 +386,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a word as a Smi.
   const Operator* BitcastWordToTaggedSigned();
 
-  // This operator reinterprets the bits of a word32 as a Compressed Smi.
-  const Operator* BitcastWord32ToCompressedSigned();
-
-  // This operator reinterprets the bits of a Compressed Smi as a word32.
-  const Operator* BitcastCompressedSignedToWord32();
-
   // JavaScript float64 to int32/uint32 truncation.
   const Operator* TruncateFloat64ToWord32();
 
@@ -348,16 +408,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* TryTruncateFloat32ToUint64();
   const Operator* TryTruncateFloat64ToUint64();
   const Operator* ChangeInt32ToFloat64();
+  const Operator* BitcastWord32ToWord64();
   const Operator* ChangeInt32ToInt64();
   const Operator* ChangeInt64ToFloat64();
   const Operator* ChangeUint32ToFloat64();
   const Operator* ChangeUint32ToUint64();
-  const Operator* ChangeTaggedToCompressed();
-  const Operator* ChangeTaggedPointerToCompressedPointer();
-  const Operator* ChangeTaggedSignedToCompressedSigned();
-  const Operator* ChangeCompressedToTagged();
-  const Operator* ChangeCompressedPointerToTaggedPointer();
-  const Operator* ChangeCompressedSignedToTaggedSigned();
 
   // These operators truncate or round numbers, both changing the representation
   // of the number and mapping multiple input values onto the same output value.
@@ -524,8 +579,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Qfms();
 
   const Operator* I64x2Splat();
+  const Operator* I64x2SplatI32Pair();
   const Operator* I64x2ExtractLane(int32_t);
   const Operator* I64x2ReplaceLane(int32_t);
+  const Operator* I64x2ReplaceLaneI32Pair(int32_t);
   const Operator* I64x2Neg();
   const Operator* I64x2Shl();
   const Operator* I64x2ShrS();
@@ -574,7 +631,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4GeU();
 
   const Operator* I16x8Splat();
-  const Operator* I16x8ExtractLane(int32_t);
+  const Operator* I16x8ExtractLaneU(int32_t);
+  const Operator* I16x8ExtractLaneS(int32_t);
   const Operator* I16x8ReplaceLane(int32_t);
   const Operator* I16x8SConvertI8x16Low();
   const Operator* I16x8SConvertI8x16High();
@@ -605,9 +663,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8MaxU();
   const Operator* I16x8GtU();
   const Operator* I16x8GeU();
+  const Operator* I16x8RoundingAverageU();
 
   const Operator* I8x16Splat();
-  const Operator* I8x16ExtractLane(int32_t);
+  const Operator* I8x16ExtractLaneU(int32_t);
+  const Operator* I8x16ExtractLaneS(int32_t);
   const Operator* I8x16ReplaceLane(int32_t);
   const Operator* I8x16Neg();
   const Operator* I8x16Shl();
@@ -633,6 +693,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16MaxU();
   const Operator* I8x16GtU();
   const Operator* I8x16GeU();
+  const Operator* I8x16RoundingAverageU();
 
   const Operator* S128Load();
   const Operator* S128Store();
@@ -643,6 +704,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128Xor();
   const Operator* S128Not();
   const Operator* S128Select();
+  const Operator* S128AndNot();
 
   const Operator* S8x16Swizzle();
   const Operator* S8x16Shuffle(const uint8_t shuffle[16]);
@@ -660,6 +722,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Load(LoadRepresentation rep);
   const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
+
+  const Operator* LoadTransform(LoadKind kind, LoadTransformation transform);
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
@@ -683,8 +747,14 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
 
-  // Compares: stack_pointer > value.
-  const Operator* StackPointerGreaterThan();
+  // Compares: stack_pointer [- offset] > value. The offset is optionally
+  // applied for kFunctionEntry stack checks.
+  const Operator* StackPointerGreaterThan(StackCheckKind kind);
+
+  // Loads the offset that should be applied to the current stack
+  // pointer before a stack check. Used as input to the
+  // Runtime::kStackGuardWithGap call.
+  const Operator* LoadStackCheckOffset();
 
   // Memory barrier.
   const Operator* MemBarrier();

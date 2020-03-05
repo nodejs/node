@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 
-#include "src/objects/fixed-array.h"
-#include "src/objects/objects.h"
+#include "src/base/bit-field.h"
+#include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,7 +14,9 @@
 namespace v8 {
 namespace internal {
 
-class PropertyDescriptorObject : public FixedArray {
+class PropertyDescriptorObject
+    : public TorqueGeneratedPropertyDescriptorObject<PropertyDescriptorObject,
+                                                     Struct> {
  public:
 #define FLAGS_BIT_FIELDS(V, _)      \
   V(IsEnumerableBit, bool, 1, _)    \
@@ -30,10 +32,6 @@ class PropertyDescriptorObject : public FixedArray {
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
-  enum { kFlagsIndex, kValueIndex, kGetIndex, kSetIndex, kLength };
-
-  DECL_CAST(PropertyDescriptorObject)
-
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |
       HasSetBit::kMask;
@@ -47,16 +45,7 @@ class PropertyDescriptorObject : public FixedArray {
                               HasWritableBit::kMask | HasValueBit::kMask |
                               HasGetBit::kMask | HasSetBit::kMask;
 
-  static const int kValueOffset =
-      FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kValueIndex);
-  static const int kFlagsOffset =
-      FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kFlagsIndex);
-  static const int kGetOffset =
-      FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kGetIndex);
-  static const int kSetOffset =
-      FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kSetIndex);
-
-  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArray);
+  TQ_OBJECT_CONSTRUCTORS(PropertyDescriptorObject)
 };
 
 }  // namespace internal

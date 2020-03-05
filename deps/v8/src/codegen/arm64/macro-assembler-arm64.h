@@ -83,12 +83,6 @@ inline MemOperand FieldMemOperand(Register object, int offset);
 // ----------------------------------------------------------------------------
 // MacroAssembler
 
-#if defined(V8_OS_WIN)
-// This offset is originated from PushCalleeSavedRegisters.
-static constexpr int kFramePointerOffsetInPushCalleeSavedRegisters =
-    10 * kSystemPointerSize;
-#endif  // V8_OS_WIN
-
 enum BranchType {
   // Copies of architectural conditions.
   // The associated conditions can be used in place of those, the code will
@@ -566,17 +560,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Isb();
   inline void Csdb();
 
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
-
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
-  // is trashed.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
+  // Both |callee_args_count| and |caller_args_count| do not include
+  // receiver. |callee_args_count| is not modified. |caller_args_count| is
+  // trashed.
+  void PrepareForTailCall(Register callee_args_count,
+                          Register caller_args_count, Register scratch0,
                           Register scratch1);
 
   inline void SmiUntag(Register dst, Register src);
@@ -599,8 +589,37 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   inline void Debug(const char* message, uint32_t code, Instr params = BREAK);
 
+  void Trap() override;
+
   // Print a message to stderr and abort execution.
   void Abort(AbortReason reason);
+
+  // Like printf, but print at run-time from generated code.
+  //
+  // The caller must ensure that arguments for floating-point placeholders
+  // (such as %e, %f or %g) are VRegisters, and that arguments for integer
+  // placeholders are Registers.
+  //
+  // Format placeholders that refer to more than one argument, or to a specific
+  // argument, are not supported. This includes formats like "%1$d" or "%.*d".
+  //
+  // This function automatically preserves caller-saved registers so that
+  // calling code can use Printf at any point without having to worry about
+  // corruption. The preservation mechanism generates a lot of code. If this is
+  // a problem, preserve the important registers manually and then call
+  // PrintfNoPreserve. Callee-saved registers are not used by Printf, and are
+  // implicitly preserved.
+  void Printf(const char* format, CPURegister arg0 = NoCPUReg,
+              CPURegister arg1 = NoCPUReg, CPURegister arg2 = NoCPUReg,
+              CPURegister arg3 = NoCPUReg);
+
+  // Like Printf, but don't preserve any caller-saved registers, not even 'lr'.
+  //
+  // The return code from the system printf call will be returned in x0.
+  void PrintfNoPreserve(const char* format, const CPURegister& arg0 = NoCPUReg,
+                        const CPURegister& arg1 = NoCPUReg,
+                        const CPURegister& arg2 = NoCPUReg,
+                        const CPURegister& arg3 = NoCPUReg);
 
   // Remaining instructions are simple pass-through calls to the assembler.
   inline void Asr(const Register& rd, const Register& rn, unsigned shift);
@@ -1200,6 +1219,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                Label* done);
 
   inline void Mrs(const Register& rt, SystemRegister sysreg);
+  inline void Msr(SystemRegister sysreg, const Register& rt);
 
   // Generates function prologue code.
   void Prologue();
@@ -1268,15 +1288,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
-  void DecompressTaggedSigned(const Register& destination,
-                              const Register& source);
   void DecompressTaggedPointer(const Register& destination,
                                const MemOperand& field_operand);
   void DecompressTaggedPointer(const Register& destination,
                                const Register& source);
   void DecompressAnyTagged(const Register& destination,
                            const MemOperand& field_operand);
-  void DecompressAnyTagged(const Register& destination, const Register& source);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1436,7 +1453,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   inline void Ldnp(const CPURegister& rt, const CPURegister& rt2,
                    const MemOperand& src);
   inline void Movk(const Register& rd, uint64_t imm, int shift = -1);
-  inline void Msr(SystemRegister sysreg, const Register& rt);
   inline void Nop() { nop(); }
   void Mvni(const VRegister& vd, const int imm8, Shift shift = LSL,
             const int shift_amount = 0) {
@@ -1656,18 +1672,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // side effects.
   inline void InlineData(uint64_t data);
 
-  // Insert an instrumentation enable marker into the instruction stream.
-  inline void EnableInstrumentation();
-
-  // Insert an instrumentation disable marker into the instruction stream.
-  inline void DisableInstrumentation();
-
-  // Insert an instrumentation event marker into the instruction stream. These
-  // will be picked up by the instrumentation system to annotate an instruction
-  // profile. The argument marker_name must be a printable two character string;
-  // it will be encoded in the event marker.
-  inline void AnnotateInstrumentation(const char* marker_name);
-
   // Preserve the callee-saved registers (as defined by AAPCS64).
   //
   // Higher-numbered registers are pushed before lower-numbered registers, and
@@ -1766,23 +1770,24 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // 'actual' must use an immediate or x0.
   // 'expected' must use an immediate or x2.
   // 'call_kind' must be x5.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      InvokeFlag flag, bool* definitely_mismatches);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   // On function call, call into the debugger.
   void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
+                               Register expected_parameter_count,
+                               Register actual_parameter_count);
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
   // Invoke the JavaScript function in the given register.
   // Changes the current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
-  void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeFlag flag);
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // ---- Code generation helpers ----
 
@@ -1878,6 +1883,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, const Register& scratch,
                       const Register& scratch2);
 
+  void LoadMap(Register dst, Register object);
+
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
@@ -1923,33 +1930,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       AbortReason reason = AbortReason::kRegisterDidNotMatchExpectedRoot);
 
   void LoadNativeContextSlot(int index, Register dst);
-
-  // Like printf, but print at run-time from generated code.
-  //
-  // The caller must ensure that arguments for floating-point placeholders
-  // (such as %e, %f or %g) are VRegisters, and that arguments for integer
-  // placeholders are Registers.
-  //
-  // Format placeholders that refer to more than one argument, or to a specific
-  // argument, are not supported. This includes formats like "%1$d" or "%.*d".
-  //
-  // This function automatically preserves caller-saved registers so that
-  // calling code can use Printf at any point without having to worry about
-  // corruption. The preservation mechanism generates a lot of code. If this is
-  // a problem, preserve the important registers manually and then call
-  // PrintfNoPreserve. Callee-saved registers are not used by Printf, and are
-  // implicitly preserved.
-  void Printf(const char* format, CPURegister arg0 = NoCPUReg,
-              CPURegister arg1 = NoCPUReg, CPURegister arg2 = NoCPUReg,
-              CPURegister arg3 = NoCPUReg);
-
-  // Like Printf, but don't preserve any caller-saved registers, not even 'lr'.
-  //
-  // The return code from the system printf call will be returned in x0.
-  void PrintfNoPreserve(const char* format, const CPURegister& arg0 = NoCPUReg,
-                        const CPURegister& arg1 = NoCPUReg,
-                        const CPURegister& arg2 = NoCPUReg,
-                        const CPURegister& arg3 = NoCPUReg);
 
   // Far branches resolving.
   //
@@ -2080,9 +2060,6 @@ class UseScratchRegisterScope {
   RegList old_available_;    // kRegister
   RegList old_availablefp_;  // kVRegister
 };
-
-MemOperand ContextMemOperand(Register context, int index = 0);
-MemOperand NativeContextMemOperand();
 
 }  // namespace internal
 }  // namespace v8

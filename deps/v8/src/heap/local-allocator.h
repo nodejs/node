@@ -19,18 +19,17 @@ class LocalAllocator {
   static const int kLabSize = 32 * KB;
   static const int kMaxLabObjectSize = 8 * KB;
 
-  explicit LocalAllocator(Heap* heap)
+  explicit LocalAllocator(Heap* heap, LocalSpaceKind local_space_kind)
       : heap_(heap),
         new_space_(heap->new_space()),
-        compaction_spaces_(heap),
+        compaction_spaces_(heap, local_space_kind),
         new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
         lab_allocation_will_fail_(false) {}
 
   // Needs to be called from the main thread to finalize this LocalAllocator.
   void Finalize() {
-    heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
-    heap_->code_space()->MergeCompactionSpace(
-        compaction_spaces_.Get(CODE_SPACE));
+    heap_->old_space()->MergeLocalSpace(compaction_spaces_.Get(OLD_SPACE));
+    heap_->code_space()->MergeLocalSpace(compaction_spaces_.Get(CODE_SPACE));
     // Give back remaining LAB space if this LocalAllocator's new space LAB
     // sits right next to new space allocation top.
     const LinearAllocationArea info = new_space_lab_.Close();

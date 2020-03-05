@@ -282,7 +282,9 @@ int CurrencyDigits(const icu::UnicodeString& currency) {
   return U_SUCCESS(status) ? fraction_digits : 2;
 }
 
-bool IsAToZ(char ch) { return IsInRange(AsciiAlphaToLower(ch), 'a', 'z'); }
+bool IsAToZ(char ch) {
+  return base::IsInRange(AsciiAlphaToLower(ch), 'a', 'z');
+}
 
 // ecma402/#sec-iswellformedcurrencycode
 bool IsWellFormedCurrencyCode(const std::string& currency) {
@@ -654,12 +656,8 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
   Handle<String> locale = Handle<String>(number_format->locale(), isolate);
-
-  std::unique_ptr<char[]> locale_str = locale->ToCString();
-  icu::Locale icu_locale = Intl::CreateICULocale(locale_str.get());
-
-  std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
-
+  Handle<String> numberingSystem =
+      Handle<String>(number_format->numberingSystem(), isolate);
   // 5. For each row of Table 4, except the header row, in table order, do
   // Table 4: Resolved Options of NumberFormat Instances
   //  Internal Slot                    Property
@@ -678,13 +676,10 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                                        factory->locale_string(), locale,
                                        Just(kDontThrow))
             .FromJust());
-  if (!numbering_system.empty()) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->numberingSystem_string(),
-              factory->NewStringFromAsciiChecked(numbering_system.c_str()),
-              Just(kDontThrow))
-              .FromJust());
-  }
+  CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                       factory->numberingSystem_string(),
+                                       numberingSystem, Just(kDontThrow))
+            .FromJust());
   JSNumberFormat::Style style = number_format->style();
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->style_string(),
@@ -866,23 +861,37 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
 
+  icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
-  if (numbering_system_str != nullptr &&
-      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-    r.icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(),
-                                        status);
-    CHECK(U_SUCCESS(status));
-    r.locale = Intl::ToLanguageTag(r.icu_locale).FromJust();
+  if (numbering_system_str != nullptr) {
+    auto nu_extension_it = r.extensions.find("nu");
+    if (nu_extension_it != r.extensions.end() &&
+        nu_extension_it->second != numbering_system_str.get()) {
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
   }
 
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
-  Handle<String> locale_str =
-      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(icu_locale);
+  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSNumberFormat>());
+  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
+      maybe_locale_str.FromJust().c_str());
+
+  if (numbering_system_str != nullptr &&
+      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
+    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+    CHECK(U_SUCCESS(status));
+  }
+
+  Handle<String> numberingSystem_str =
+      isolate->factory()->NewStringFromAsciiChecked(
+          Intl::GetNumberingSystem(icu_locale).c_str());
 
   // 11. Let dataLocale be r.[[dataLocale]].
 
   icu::number::LocalizedNumberFormatter icu_number_formatter =
-      icu::number::NumberFormatter::withLocale(r.icu_locale)
+      icu::number::NumberFormatter::withLocale(icu_locale)
           .roundingMode(UNUM_ROUND_HALFUP);
 
   // 12. Let style be ? GetOption(options, "style", "string",  « "decimal",
@@ -1178,6 +1187,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   number_format->set_flags(0);
   number_format->set_style(style);
   number_format->set_locale(*locale_str);
+  number_format->set_numberingSystem(*numberingSystem_str);
 
   number_format->set_icu_number_formatter(*managed_number_formatter);
   number_format->set_bound_format(*factory->undefined_value());

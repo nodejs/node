@@ -141,3 +141,149 @@ for_in_string_prototype();
     assertEquals(['prop2', 'prop1'], Accumulate(derived2));
   }
 })();
+
+(function for_in_prototype_itself_change() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = {prop2: 2, prop3: 3};
+
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', 'prop', 'prop1'], Accumulate(derived1));
+  }
+
+  prototype1.prop3 = 3;
+  let derived2 = {prop4: 4, prop5: 5};
+  Object.setPrototypeOf(derived2, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop4', 'prop5', 'prop', 'prop1', 'prop3'], Accumulate(derived2));
+  }
+})();
+
+(function for_in_prototype_change_property() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = {prop2: 2, prop3: 3};
+
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', 'prop', 'prop1'], Accumulate(derived1));
+  }
+
+  prototype1.__proto__ = {prop4: 4, prop5: 5};
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', 'prop', 'prop1', 'prop4', 'prop5'], Accumulate(derived1));
+  }
+
+  derived1.__proto__ = {prop6: 6, prop7: 7};
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', 'prop6', 'prop7'], Accumulate(derived1));
+  }
+})();
+
+(function for_in_prototype_change_element() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = {prop2: 2, prop3: 3};
+
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', 'prop', 'prop1'], Accumulate(derived1));
+  }
+
+  prototype1[0] = 4;
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', '0', 'prop', 'prop1'], Accumulate(derived1));
+  }
+
+  derived1.__proto__ = {1: 1, 3: 3};
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', '1', '3'], Accumulate(derived1));
+  }
+})();
+
+(function for_in_non_enumerable1() {
+  let prototype1 = {prop: 0};
+  let derived1 = Object.create(prototype1, {
+    prop1: {enumerable: false, configurable: true, value: 1},
+  });
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop'], Accumulate(derived1));
+  }
+
+  let derived2 = {prop2: 2};
+  Object.setPrototypeOf(derived2, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop'], Accumulate(derived2));
+  }
+})();
+
+(function for_in_non_enumerable2() {
+  let prototype1 = {prop: 0};
+  let derived1 = {prop1: 1};
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop1', 'prop'], Accumulate(derived1));
+  }
+
+  let derived2 = Object.create(prototype1, {
+    prop: {enumerable: false, configurable: true, value: 0},
+    prop2: {enumerable: true, configurable: true, value: 2}
+  });
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2'], Accumulate(derived2));
+  }
+})();
+
+(function for_in_same_key1() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = {prop: 0, prop2: 1};
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop', 'prop2', 'prop1'], Accumulate(derived1));
+  }
+
+  let derived2 = {prop3: 3, prop4: 4};
+  Object.setPrototypeOf(derived2, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop3', 'prop4', 'prop', 'prop1'], Accumulate(derived2));
+  }
+})();
+
+(function for_in_same_key2() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = {prop2: 2, prop3: 3};
+  Object.setPrototypeOf(derived1, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop3', 'prop', 'prop1'], Accumulate(derived1));
+  }
+
+  let derived2 = {prop: 0, prop4: 4};
+  Object.setPrototypeOf(derived2, prototype1);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop', 'prop4', 'prop1'], Accumulate(derived2));
+  }
+})();
+
+(function for_in_redefine_property() {
+  Object.prototype.prop = 0;
+  let object1 = {prop1: 1, prop2: 2};
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop1', 'prop2', 'prop'], Accumulate(object1));
+  }
+
+  let object2 = {prop3: 3, prop4: 4};
+  Object.defineProperty(object2,
+    'prop', {enumerable: false, configurable: true, value: 0});
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop3', 'prop4'], Accumulate(object2));
+  }
+})();
+
+(function for_in_empty_property() {
+  let prototype1 = {prop: 0};
+  let derived1 = Object.create(prototype1, {
+    prop: {enumerable: false, configurable: true, value: 0}
+  });
+  for (let i = 0; i < 3; i++) {
+    assertEquals([], Accumulate(derived1));
+  }
+})();

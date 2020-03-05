@@ -13,13 +13,13 @@ frame size: 1
 parameter count: 1
 bytecode array length: 15
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
-  /*   30 E> */ B(StackCheck),
+                B(StaCurrentContextSlot), U8(2),
   /*   42 S> */ B(LdaSmi), I8(10),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
                 B(LdaUndefined),
   /*   72 S> */ B(Return),
 ]
@@ -37,14 +37,14 @@ frame size: 1
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
-  /*   30 E> */ B(StackCheck),
+                B(StaCurrentContextSlot), U8(2),
   /*   42 S> */ B(LdaSmi), I8(10),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   72 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
+  /*   72 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
   /*   81 S> */ B(Return),
 ]
 constant pool: [
@@ -61,18 +61,18 @@ frame size: 2
 parameter count: 1
 bytecode array length: 25
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
-  /*   30 E> */ B(StackCheck),
+                B(StaCurrentContextSlot), U8(2),
   /*   42 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
-                B(LdaCurrentContextSlot), U8(4),
+                B(LdaCurrentContextSlot), U8(2),
   /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(1),
                 B(Ldar), R(1),
-                B(StaCurrentContextSlot), U8(4),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
+                B(StaCurrentContextSlot), U8(2),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
                 B(LdaUndefined),
   /*   78 S> */ B(Return),
 ]
@@ -91,15 +91,15 @@ frame size: 1
 parameter count: 1
 bytecode array length: 19
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
-  /*   30 E> */ B(StackCheck),
+                B(StaCurrentContextSlot), U8(2),
   /*   42 S> */ B(LdaSmi), I8(10),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
   /*   46 S> */ B(LdaSmi), I8(20),
-  /*   48 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   48 E> */ B(StaCurrentContextSlot), U8(2),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]

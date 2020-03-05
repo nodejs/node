@@ -104,15 +104,15 @@ frame size: 1
 parameter count: 1
 bytecode array length: 23
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
-  /*   42 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   42 E> */ B(StaCurrentContextSlot), U8(2),
   /*   45 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
-  /*   75 S> */ B(LdaCurrentContextSlot), U8(4),
+  /*   75 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(BitwiseOrSmi), I8(24), U8(0),
-  /*   77 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   77 E> */ B(StaCurrentContextSlot), U8(2),
                 B(LdaUndefined),
   /*   84 S> */ B(Return),
 ]

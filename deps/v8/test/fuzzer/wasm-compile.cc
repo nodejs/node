@@ -179,6 +179,13 @@ class WasmGenerator {
       case kExprF64LoadMem:
       case kExprI64StoreMem:
       case kExprF64StoreMem:
+      case kExprI64AtomicStore:
+      case kExprI64AtomicLoad:
+      case kExprI64AtomicAdd:
+      case kExprI64AtomicSub:
+      case kExprI64AtomicAnd:
+      case kExprI64AtomicOr:
+      case kExprI64AtomicXor:
         return 3;
       case kExprI32LoadMem:
       case kExprI64LoadMem32S:
@@ -187,6 +194,20 @@ class WasmGenerator {
       case kExprI32StoreMem:
       case kExprI64StoreMem32:
       case kExprF32StoreMem:
+      case kExprI32AtomicStore:
+      case kExprI64AtomicStore32U:
+      case kExprI32AtomicLoad:
+      case kExprI64AtomicLoad32U:
+      case kExprI32AtomicAdd:
+      case kExprI32AtomicSub:
+      case kExprI32AtomicAnd:
+      case kExprI32AtomicOr:
+      case kExprI32AtomicXor:
+      case kExprI64AtomicAdd32U:
+      case kExprI64AtomicSub32U:
+      case kExprI64AtomicAnd32U:
+      case kExprI64AtomicOr32U:
+      case kExprI64AtomicXor32U:
         return 2;
       case kExprI32LoadMem16S:
       case kExprI32LoadMem16U:
@@ -194,6 +215,20 @@ class WasmGenerator {
       case kExprI64LoadMem16U:
       case kExprI32StoreMem16:
       case kExprI64StoreMem16:
+      case kExprI32AtomicStore16U:
+      case kExprI64AtomicStore16U:
+      case kExprI32AtomicLoad16U:
+      case kExprI64AtomicLoad16U:
+      case kExprI32AtomicAdd16U:
+      case kExprI32AtomicSub16U:
+      case kExprI32AtomicAnd16U:
+      case kExprI32AtomicOr16U:
+      case kExprI32AtomicXor16U:
+      case kExprI64AtomicAdd16U:
+      case kExprI64AtomicSub16U:
+      case kExprI64AtomicAnd16U:
+      case kExprI64AtomicOr16U:
+      case kExprI64AtomicXor16U:
         return 1;
       case kExprI32LoadMem8S:
       case kExprI32LoadMem8U:
@@ -201,6 +236,20 @@ class WasmGenerator {
       case kExprI64LoadMem8U:
       case kExprI32StoreMem8:
       case kExprI64StoreMem8:
+      case kExprI32AtomicStore8U:
+      case kExprI64AtomicStore8U:
+      case kExprI32AtomicLoad8U:
+      case kExprI64AtomicLoad8U:
+      case kExprI32AtomicAdd8U:
+      case kExprI32AtomicSub8U:
+      case kExprI32AtomicAnd8U:
+      case kExprI32AtomicOr8U:
+      case kExprI32AtomicXor8U:
+      case kExprI64AtomicAdd8U:
+      case kExprI64AtomicSub8U:
+      case kExprI64AtomicAnd8U:
+      case kExprI64AtomicOr8U:
+      case kExprI64AtomicXor8U:
         return 0;
       default:
         return 0;
@@ -215,7 +264,24 @@ class WasmGenerator {
     // Generate the index and the arguments, if any.
     Generate<kWasmI32, arg_types...>(data);
 
-    builder_->Emit(memory_op);
+    if ((memory_op & 0xfe00) == 0xfe00) {
+      // This is an atomic-load or atomic-store.
+      builder_->EmitWithPrefix(memory_op);
+    } else {
+      builder_->Emit(memory_op);
+    }
+    builder_->EmitU32V(align);
+    builder_->EmitU32V(offset);
+  }
+
+  template <WasmOpcode Op, ValueType... Args>
+  void atomic_op(DataRange* data) {
+    const uint8_t align = data->get<uint8_t>() % (max_alignment(Op) + 1);
+    const uint32_t offset = data->get<uint32_t>();
+
+    Generate<Args...>(data);
+    builder_->EmitWithPrefix(Op);
+
     builder_->EmitU32V(align);
     builder_->EmitU32V(offset);
   }
@@ -413,15 +479,15 @@ class WasmGenerator {
 
   void grow_memory(DataRange* data);
 
-  using generate_fn = void (WasmGenerator::*const)(DataRange*);
+  using GenerateFn = void (WasmGenerator::*const)(DataRange*);
 
   template <size_t N>
-  void GenerateOneOf(generate_fn (&alternates)[N], DataRange* data) {
+  void GenerateOneOf(GenerateFn (&alternatives)[N], DataRange* data) {
     static_assert(N < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
+                  "Too many alternatives. Use a bigger type if needed.");
     const auto which = data->get<uint8_t>();
 
-    generate_fn alternate = alternates[which % N];
+    GenerateFn alternate = alternatives[which % N];
     (this->*alternate)(data);
   }
 
@@ -492,7 +558,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() == 0) return;
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt,
@@ -513,6 +579,13 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange* data) {
       &WasmGenerator::memop<kExprI64StoreMem32, kWasmI64>,
       &WasmGenerator::memop<kExprF32StoreMem, kWasmF32>,
       &WasmGenerator::memop<kExprF64StoreMem, kWasmF64>,
+      &WasmGenerator::memop<kExprI32AtomicStore, kWasmI32>,
+      &WasmGenerator::memop<kExprI32AtomicStore8U, kWasmI32>,
+      &WasmGenerator::memop<kExprI32AtomicStore16U, kWasmI32>,
+      &WasmGenerator::memop<kExprI64AtomicStore, kWasmI64>,
+      &WasmGenerator::memop<kExprI64AtomicStore8U, kWasmI64>,
+      &WasmGenerator::memop<kExprI64AtomicStore16U, kWasmI64>,
+      &WasmGenerator::memop<kExprI64AtomicStore32U, kWasmI64>,
 
       &WasmGenerator::drop,
 
@@ -521,7 +594,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange* data) {
       &WasmGenerator::set_local,
       &WasmGenerator::set_global};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -532,7 +605,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::i32_const<1>,
       &WasmGenerator::i32_const<2>,
       &WasmGenerator::i32_const<3>,
@@ -607,6 +680,25 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
       &WasmGenerator::memop<kExprI32LoadMem8U>,
       &WasmGenerator::memop<kExprI32LoadMem16S>,
       &WasmGenerator::memop<kExprI32LoadMem16U>,
+      &WasmGenerator::memop<kExprI32AtomicLoad>,
+      &WasmGenerator::memop<kExprI32AtomicLoad8U>,
+      &WasmGenerator::memop<kExprI32AtomicLoad16U>,
+
+      &WasmGenerator::atomic_op<kExprI32AtomicAdd, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicSub, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicAnd, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicOr, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicXor, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicAdd8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicSub8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicAnd8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicOr8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicXor8U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicAdd16U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicSub16U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicAnd16U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicOr16U, kWasmI32, kWasmI32>,
+      &WasmGenerator::atomic_op<kExprI32AtomicXor16U, kWasmI32, kWasmI32>,
 
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,
@@ -619,7 +711,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
 
       &WasmGenerator::call<kWasmI32>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -630,7 +722,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::i64_const<1>,
       &WasmGenerator::i64_const<2>,
       &WasmGenerator::i64_const<3>,
@@ -678,6 +770,31 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
       &WasmGenerator::memop<kExprI64LoadMem16U>,
       &WasmGenerator::memop<kExprI64LoadMem32S>,
       &WasmGenerator::memop<kExprI64LoadMem32U>,
+      &WasmGenerator::memop<kExprI64AtomicLoad>,
+      &WasmGenerator::memop<kExprI64AtomicLoad8U>,
+      &WasmGenerator::memop<kExprI64AtomicLoad16U>,
+      &WasmGenerator::memop<kExprI64AtomicLoad32U>,
+
+      &WasmGenerator::atomic_op<kExprI64AtomicAdd, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicSub, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAnd, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicOr, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicXor, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAdd8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicSub8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAnd8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicOr8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicXor8U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAdd16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicSub16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAnd16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicOr16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicXor16U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAdd32U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicSub32U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicAnd32U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicOr32U, kWasmI32, kWasmI64>,
+      &WasmGenerator::atomic_op<kExprI64AtomicXor32U, kWasmI32, kWasmI64>,
 
       &WasmGenerator::get_local<kWasmI64>,
       &WasmGenerator::tee_local<kWasmI64>,
@@ -687,7 +804,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
 
       &WasmGenerator::call<kWasmI64>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -698,14 +815,32 @@ void WasmGenerator::Generate<kWasmF32>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kWasmF32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF32>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF32, kWasmStmt>,
 
+      &WasmGenerator::op<kExprF32Abs, kWasmF32>,
+      &WasmGenerator::op<kExprF32Neg, kWasmF32>,
+      &WasmGenerator::op<kExprF32Ceil, kWasmF32>,
+      &WasmGenerator::op<kExprF32Floor, kWasmF32>,
+      &WasmGenerator::op<kExprF32Trunc, kWasmF32>,
+      &WasmGenerator::op<kExprF32NearestInt, kWasmF32>,
+      &WasmGenerator::op<kExprF32Sqrt, kWasmF32>,
       &WasmGenerator::op<kExprF32Add, kWasmF32, kWasmF32>,
       &WasmGenerator::op<kExprF32Sub, kWasmF32, kWasmF32>,
       &WasmGenerator::op<kExprF32Mul, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Div, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Min, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Max, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32CopySign, kWasmF32, kWasmF32>,
+
+      &WasmGenerator::op<kExprF32SConvertI32, kWasmI32>,
+      &WasmGenerator::op<kExprF32UConvertI32, kWasmI32>,
+      &WasmGenerator::op<kExprF32SConvertI64, kWasmI64>,
+      &WasmGenerator::op<kExprF32UConvertI64, kWasmI64>,
+      &WasmGenerator::op<kExprF32ConvertF64, kWasmF64>,
+      &WasmGenerator::op<kExprF32ReinterpretI32, kWasmI32>,
 
       &WasmGenerator::block<kWasmF32>,
       &WasmGenerator::loop<kWasmF32>,
@@ -722,7 +857,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange* data) {
 
       &WasmGenerator::call<kWasmF32>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -733,14 +868,32 @@ void WasmGenerator::Generate<kWasmF64>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kWasmF64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF64>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF64, kWasmStmt>,
 
+      &WasmGenerator::op<kExprF64Abs, kWasmF64>,
+      &WasmGenerator::op<kExprF64Neg, kWasmF64>,
+      &WasmGenerator::op<kExprF64Ceil, kWasmF64>,
+      &WasmGenerator::op<kExprF64Floor, kWasmF64>,
+      &WasmGenerator::op<kExprF64Trunc, kWasmF64>,
+      &WasmGenerator::op<kExprF64NearestInt, kWasmF64>,
+      &WasmGenerator::op<kExprF64Sqrt, kWasmF64>,
       &WasmGenerator::op<kExprF64Add, kWasmF64, kWasmF64>,
       &WasmGenerator::op<kExprF64Sub, kWasmF64, kWasmF64>,
       &WasmGenerator::op<kExprF64Mul, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Div, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Min, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Max, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64CopySign, kWasmF64, kWasmF64>,
+
+      &WasmGenerator::op<kExprF64SConvertI32, kWasmI32>,
+      &WasmGenerator::op<kExprF64UConvertI32, kWasmI32>,
+      &WasmGenerator::op<kExprF64SConvertI64, kWasmI64>,
+      &WasmGenerator::op<kExprF64UConvertI64, kWasmI64>,
+      &WasmGenerator::op<kExprF64ConvertF32, kWasmF32>,
+      &WasmGenerator::op<kExprF64ReinterpretI64, kWasmI64>,
 
       &WasmGenerator::block<kWasmF64>,
       &WasmGenerator::loop<kWasmF64>,
@@ -757,7 +910,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange* data) {
 
       &WasmGenerator::call<kWasmF64>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 void WasmGenerator::grow_memory(DataRange* data) {
@@ -850,6 +1003,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     builder.SetMaxMemorySize(32);
+    // We enable shared memory to be able to test atomics.
+    builder.SetHasSharedMemory();
     builder.WriteTo(buffer);
 
     *num_args = 3;

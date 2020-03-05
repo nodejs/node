@@ -13,7 +13,7 @@ const func_a_idx =
     builder.addFunction('wasm_A', kSig_v_v).addBody([kExprNop, kExprNop]).index;
 
 // wasm_B calls wasm_A <param0> times.
-builder.addFunction('wasm_B', kSig_v_i)
+const func_b = builder.addFunction('wasm_B', kSig_v_i)
     .addBody([
       // clang-format off
       kExprLoop, kWasmStmt,               // while
@@ -51,18 +51,21 @@ const evalWithUrl = (code, url) =>
         .evaluate({'expression': code + '\n//# sourceURL=v8://test/' + url})
         .then(getResult);
 
-function setBreakpoint(line, script) {
+function setBreakpoint(offset, script) {
   InspectorTest.log(
-      'Setting breakpoint on line ' + line + ' on script ' + script.url);
+      'Setting breakpoint at offset ' + offset + ' on script ' + script.url);
   return Protocol.Debugger
       .setBreakpoint(
-          {'location': {'scriptId': script.scriptId, 'lineNumber': line}})
+          {'location': {'scriptId': script.scriptId, 'lineNumber': 0, 'columnNumber': offset}})
       .then(getResult);
 }
 
 Protocol.Debugger.onPaused(pause_msg => {
   let loc = pause_msg.params.callFrames[0].location;
-  InspectorTest.log('Breaking on line ' + loc.lineNumber);
+  if (loc.lineNumber != 0) {
+    InspectorTest.log('Unexpected line number: ' + loc.lineNumber);
+  }
+  InspectorTest.log('Breaking on byte offset ' + loc.columnNumber);
   Protocol.Debugger.resume();
 });
 
@@ -74,19 +77,11 @@ Protocol.Debugger.onPaused(pause_msg => {
       JSON.stringify(module_bytes) + ');';
   evalWithUrl(instantiate_code, 'instantiate');
   InspectorTest.log(
-      'Waiting for two wasm scripts (ignoring first non-wasm script).');
-  const [, {params: wasm_script_a}, {params: wasm_script_b}] =
-      await Protocol.Debugger.onceScriptParsed(3);
-  for (script of [wasm_script_a, wasm_script_b]) {
-    InspectorTest.log('Source of script ' + script.url + ':');
-    let src_msg =
-        await Protocol.Debugger.getScriptSource({scriptId: script.scriptId});
-    let lines = getResult(src_msg).scriptSource.replace(/\s+$/, '').split('\n');
-    InspectorTest.log(
-        lines.map((line, nr) => (nr + 1) + ': ' + line).join('\n') + '\n');
-  }
-  for (line of [8, 7, 6, 5, 3, 4]) {
-    await setBreakpoint(line, wasm_script_b);
+      'Waiting for wasm script (ignoring first non-wasm script).');
+  // Ignore javascript and full module wasm script, get scripts for functions.
+  const [, {params: wasm_script}] = await Protocol.Debugger.onceScriptParsed(2);
+  for (offset of [11, 10, 8, 6, 2, 4]) {
+    await setBreakpoint(func_b.body_offset + offset, wasm_script);
   }
   InspectorTest.log('Calling main(4)');
   await evalWithUrl('instance.exports.main(4)', 'runWasm');

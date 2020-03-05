@@ -48,13 +48,15 @@ void VerifyAllocatedGaps(const Instruction* instr, const char* caller_info) {
 
 RegisterAllocatorVerifier::RegisterAllocatorVerifier(
     Zone* zone, const RegisterConfiguration* config,
-    const InstructionSequence* sequence)
+    const InstructionSequence* sequence, const Frame* frame)
     : zone_(zone),
       config_(config),
       sequence_(sequence),
       constraints_(zone),
       assessments_(zone),
-      outstanding_assessments_(zone) {
+      outstanding_assessments_(zone),
+      spill_slot_delta_(frame->GetTotalFrameSlotCount() -
+                        frame->GetSpillSlotCount()) {
   constraints_.reserve(sequence->instructions().size());
   // TODO(dcarney): model unique constraints.
   // Construct OperandConstraints for all InstructionOperands, eliminating
@@ -286,11 +288,20 @@ void BlockAssessments::PerformParallelMoves(const ParallelMove* moves) {
     // The LHS of a parallel move should not have been assigned in this
     // parallel move.
     CHECK(map_for_moves_.find(move->destination()) == map_for_moves_.end());
+    // The RHS of a parallel move should not be a stale reference.
+    CHECK(!IsStaleReferenceStackSlot(move->source()));
     // Copy the assessment to the destination.
     map_for_moves_[move->destination()] = it->second;
   }
   for (auto pair : map_for_moves_) {
-    map_[pair.first] = pair.second;
+    // Re-insert the existing key for the new assignment so that it has the
+    // correct representation (which is ignored by the canonicalizing map
+    // comparator).
+    InstructionOperand op = pair.first;
+    map_.erase(op);
+    map_.insert(pair);
+    // Destination is no longer a stale reference.
+    stale_ref_stack_slots().erase(op);
   }
   map_for_moves_.clear();
 }
@@ -302,6 +313,41 @@ void BlockAssessments::DropRegisters() {
     InstructionOperand op = current->first;
     if (op.IsAnyRegister()) map().erase(current);
   }
+}
+
+void BlockAssessments::CheckReferenceMap(const ReferenceMap* reference_map) {
+  // First mark all existing reference stack spill slots as stale.
+  for (auto pair : map()) {
+    InstructionOperand op = pair.first;
+    if (op.IsStackSlot()) {
+      const LocationOperand* loc_op = LocationOperand::cast(&op);
+      // Only mark arguments that are spill slots as stale, the reference map
+      // doesn't track arguments or fixed stack slots, which are implicitly
+      // tracked by the GC.
+      if (CanBeTaggedOrCompressedPointer(loc_op->representation()) &&
+          loc_op->index() >= spill_slot_delta()) {
+        stale_ref_stack_slots().insert(op);
+      }
+    }
+  }
+
+  // Now remove any stack spill slots in the reference map from the list of
+  // stale slots.
+  for (auto ref_map_operand : reference_map->reference_operands()) {
+    if (ref_map_operand.IsStackSlot()) {
+      auto pair = map().find(ref_map_operand);
+      CHECK(pair != map().end());
+      stale_ref_stack_slots().erase(pair->first);
+    }
+  }
+}
+
+bool BlockAssessments::IsStaleReferenceStackSlot(InstructionOperand op) {
+  if (!op.IsStackSlot()) return false;
+
+  const LocationOperand* loc_op = LocationOperand::cast(&op);
+  return CanBeTaggedOrCompressedPointer(loc_op->representation()) &&
+         stale_ref_stack_slots().find(op) != stale_ref_stack_slots().end();
 }
 
 void BlockAssessments::Print() const {
@@ -317,6 +363,9 @@ void BlockAssessments::Print() const {
     } else {
       os << "P";
     }
+    if (stale_ref_stack_slots().find(op) != stale_ref_stack_slots().end()) {
+      os << " (stale reference)";
+    }
     os << std::endl;
   }
   os << std::endl;
@@ -326,7 +375,8 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
     const InstructionBlock* block) {
   RpoNumber current_block_id = block->rpo_number();
 
-  BlockAssessments* ret = new (zone()) BlockAssessments(zone());
+  BlockAssessments* ret =
+      new (zone()) BlockAssessments(zone(), spill_slot_delta());
   if (block->PredecessorCount() == 0) {
     // TODO(mtrofin): the following check should hold, however, in certain
     // unit tests it is invalidated by the last block. Investigate and
@@ -360,6 +410,12 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
               operand, new (zone()) PendingAssessment(zone(), block, operand)));
         }
       }
+
+      // Any references stack slots that became stale in predecessors will be
+      // stale here.
+      ret->stale_ref_stack_slots().insert(
+          pred_assessments->stale_ref_stack_slots().begin(),
+          pred_assessments->stale_ref_stack_slots().end());
     }
   }
   return ret;
@@ -463,6 +519,9 @@ void RegisterAllocatorVerifier::ValidateUse(
   CHECK(iterator != current_assessments->map().end());
   Assessment* assessment = iterator->second;
 
+  // The operand shouldn't be a stale reference stack slot.
+  CHECK(!current_assessments->IsStaleReferenceStackSlot(op));
+
   switch (assessment->kind()) {
     case Final:
       CHECK_EQ(FinalAssessment::cast(assessment)->virtual_register(),
@@ -510,6 +569,9 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
       if (instr->IsCall()) {
         block_assessments->DropRegisters();
       }
+      if (instr->HasReferenceMap()) {
+        block_assessments->CheckReferenceMap(instr->reference_map());
+      }
       for (size_t i = 0; i < instr->OutputCount(); ++i, ++count) {
         int virtual_register = op_constraints[count].virtual_register_;
         block_assessments->AddDefinition(*instr->OutputAt(i), virtual_register);
@@ -536,6 +598,9 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
       int vreg = pair.second;
       auto found_op = block_assessments->map().find(op);
       CHECK(found_op != block_assessments->map().end());
+      // This block is a jump back to the loop header, ensure that the op hasn't
+      // become a stale reference during the blocks in the loop.
+      CHECK(!block_assessments->IsStaleReferenceStackSlot(op));
       switch (found_op->second->kind()) {
         case Final:
           CHECK_EQ(FinalAssessment::cast(found_op->second)->virtual_register(),

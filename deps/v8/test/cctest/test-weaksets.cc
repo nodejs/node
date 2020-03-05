@@ -48,7 +48,7 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kSize);
+  Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kHeaderSize);
   Handle<JSObject> weakset_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakSet> weakset(JSWeakSet::cast(*weakset_obj), isolate);
   // Do not leak handles for the hash table, it would make entries strong.

@@ -80,15 +80,13 @@ class ZoneForwardList;
   V(AllocationSite)                            \
   V(ArrayList)                                 \
   V(BigInt)                                    \
+  V(BigIntBase)                                \
   V(BigIntWrapper)                             \
   V(ObjectBoilerplateDescription)              \
   V(Boolean)                                   \
   V(BooleanWrapper)                            \
-  V(BreakPoint)                                \
-  V(BreakPointInfo)                            \
   V(ByteArray)                                 \
   V(BytecodeArray)                             \
-  V(CachedTemplateObject)                      \
   V(CallHandlerInfo)                           \
   V(Callable)                                  \
   V(Cell)                                      \
@@ -127,7 +125,6 @@ class ZoneForwardList;
   V(HeapNumber)                                \
   V(InternalizedString)                        \
   V(JSArgumentsObject)                         \
-  V(JSArgumentsObjectWithLength)               \
   V(JSArray)                                   \
   V(JSArrayBuffer)                             \
   V(JSArrayBufferView)                         \
@@ -160,12 +157,9 @@ class ZoneForwardList;
   V(JSProxy)                                   \
   V(JSReceiver)                                \
   V(JSRegExp)                                  \
-  V(JSRegExpResult)                            \
-  V(JSRegExpResultIndices)                     \
   V(JSRegExpStringIterator)                    \
   V(JSSet)                                     \
   V(JSSetIterator)                             \
-  V(JSSloppyArgumentsObject)                   \
   V(JSSpecialObject)                           \
   V(JSStringIterator)                          \
   V(JSTypedArray)                              \
@@ -196,7 +190,6 @@ class ZoneForwardList;
   V(PromiseReactionJobTask)                    \
   V(PropertyArray)                             \
   V(PropertyCell)                              \
-  V(PropertyDescriptorObject)                  \
   V(RegExpMatchInfo)                           \
   V(ScopeInfo)                                 \
   V(ScriptContextTable)                        \
@@ -248,6 +241,7 @@ class ZoneForwardList;
   V(JSV8BreakIterator)                    \
   V(JSCollator)                           \
   V(JSDateTimeFormat)                     \
+  V(JSDisplayNames)                       \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSNumberFormat)                       \
@@ -264,9 +258,26 @@ class ZoneForwardList;
 // Logical sub-types of heap objects that don't correspond to a C++ class but
 // represent some specialization in terms of additional constraints.
 #define HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V) \
+  V(AwaitContext)                            \
+  V(BlockContext)                            \
   V(CallableApiObject)                       \
   V(CallableJSProxy)                         \
-  V(NonNullForeign)
+  V(CatchContext)                            \
+  V(DebugEvaluateContext)                    \
+  V(EvalContext)                             \
+  V(FreeSpaceOrFiller)                       \
+  V(FunctionContext)                         \
+  V(JSApiObject)                             \
+  V(JSMapKeyIterator)                        \
+  V(JSMapKeyValueIterator)                   \
+  V(JSMapValueIterator)                      \
+  V(JSSetKeyValueIterator)                   \
+  V(JSSetValueIterator)                      \
+  V(JSSpecialApiObject)                      \
+  V(ModuleContext)                           \
+  V(NonNullForeign)                          \
+  V(ScriptContext)                           \
+  V(WithContext)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

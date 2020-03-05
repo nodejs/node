@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 // TODO(jkummerow): Consider forward-declaring instead.
+#include "src/base/bit-field.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -65,21 +66,22 @@ class DescriptorArray : public HeapObject {
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(InternalIndex descriptor_number) const;
-  inline Name GetKey(Isolate* isolate, InternalIndex descriptor_number) const;
+  inline Name GetKey(const Isolate* isolate,
+                     InternalIndex descriptor_number) const;
   inline Object GetStrongValue(InternalIndex descriptor_number);
-  inline Object GetStrongValue(Isolate* isolate,
+  inline Object GetStrongValue(const Isolate* isolate,
                                InternalIndex descriptor_number);
   inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(Isolate* isolate,
+  inline MaybeObject GetValue(const Isolate* isolate,
                               InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
   inline FieldType GetFieldType(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(Isolate* isolate,
+  inline FieldType GetFieldType(const Isolate* isolate,
                                 InternalIndex descriptor_number);
 
   inline Name GetSortedKey(int descriptor_number);
-  inline Name GetSortedKey(Isolate* isolate, int descriptor_number);
+  inline Name GetSortedKey(const Isolate* isolate, int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
 
   // Accessor for complete descriptor.
@@ -154,7 +156,7 @@ class DescriptorArray : public HeapObject {
     return OffsetOfDescriptorAt(number_of_all_descriptors);
   }
   static constexpr int OffsetOfDescriptorAt(int descriptor) {
-    return kHeaderSize + descriptor * kEntrySize * kTaggedSize;
+    return kDescriptorsOffset + descriptor * kEntrySize * kTaggedSize;
   }
   inline ObjectSlot GetFirstPointerSlot();
   inline ObjectSlot GetDescriptorSlot(int descriptor);
@@ -163,6 +165,8 @@ class DescriptorArray : public HeapObject {
                 "Weak fields follow strong fields.");
   static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
                 "Weak fields extend up to the end of the header.");
+  static_assert(kDescriptorsOffset == kHeaderSize,
+                "Variable-size array follows header.");
   // We use this visitor to also visitor to also visit the enum_cache, which is
   // the only tagged field in the header, and placed at the end of the header.
   using BodyDescriptor = FlexibleWeakBodyDescriptor<kStartOfStrongFieldsOffset>;

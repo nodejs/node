@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_copywithin {
+namespace array {
   macro ConvertToRelativeIndex(index: Number, length: Number): Number {
     return index < 0 ? Max(index + length, 0) : Min(index, length);
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
   transitioning javascript builtin ArrayPrototypeCopyWithin(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -17,14 +18,14 @@ namespace array_copywithin {
     const length: Number = GetLengthProperty(object);
 
     // 3. Let relativeTarget be ? ToInteger(target).
-    const relativeTarget: Number = ToInteger_Inline(context, arguments[0]);
+    const relativeTarget: Number = ToInteger_Inline(arguments[0]);
 
     // 4. If relativeTarget < 0, let to be max((len + relativeTarget), 0);
     //    else let to be min(relativeTarget, len).
     let to: Number = ConvertToRelativeIndex(relativeTarget, length);
 
     // 5. Let relativeStart be ? ToInteger(start).
-    const relativeStart: Number = ToInteger_Inline(context, arguments[1]);
+    const relativeStart: Number = ToInteger_Inline(arguments[1]);
 
     // 6. If relativeStart < 0, let from be max((len + relativeStart), 0);
     //    else let from be min(relativeStart, len).
@@ -34,7 +35,7 @@ namespace array_copywithin {
     //    else let relativeEnd be ? ToInteger(end).
     let relativeEnd: Number = length;
     if (arguments[2] != Undefined) {
-      relativeEnd = ToInteger_Inline(context, arguments[2]);
+      relativeEnd = ToInteger_Inline(arguments[2]);
     }
 
     // 8. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
@@ -74,7 +75,7 @@ namespace array_copywithin {
         SetProperty(object, to, fromVal);
       } else {
         // i. Perform ? DeletePropertyOrThrow(O, toKey).
-        DeleteProperty(object, to, kStrict);
+        DeleteProperty(object, to, LanguageMode::kStrict);
       }
 
       // f. Let from be from + direction.

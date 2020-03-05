@@ -242,6 +242,10 @@ class SequentialUnmapperTest : public TestWithIsolate {
     TestWithIsolate::TearDownTestCase();
     i::FLAG_concurrent_sweeping = old_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
+
+    // Restore the original v8::PageAllocator and delete the tracking one.
+    CHECK_EQ(tracking_page_allocator_,
+             SetPlatformPageAllocatorForTesting(old_page_allocator_));
     delete tracking_page_allocator_;
     tracking_page_allocator_ = nullptr;
   }

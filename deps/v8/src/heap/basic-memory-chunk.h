@@ -112,6 +112,8 @@ class BasicMemoryChunk {
   size_t size() const { return size_; }
   void set_size(size_t size) { size_ = size; }
 
+  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
+
   Address area_start() const { return area_start_; }
 
   Address area_end() const { return area_end_; }
@@ -167,18 +169,13 @@ class BasicMemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  V8_EXPORT_PRIVATE static bool HasHeaderSentinel(Address slot_addr);
-
   void ReleaseMarkingBitmap();
 
   static const intptr_t kSizeOffset = 0;
   static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
   static const intptr_t kMarkBitmapOffset = kFlagsOffset + kUIntptrSize;
   static const intptr_t kHeapOffset = kMarkBitmapOffset + kSystemPointerSize;
-  static const intptr_t kHeaderSentinelOffset =
-      kHeapOffset + kSystemPointerSize;
-  static const intptr_t kAreaStartOffset =
-      kHeaderSentinelOffset + kSystemPointerSize;
+  static const intptr_t kAreaStartOffset = kHeapOffset + kSystemPointerSize;
   static const intptr_t kAreaEndOffset = kAreaStartOffset + kSystemPointerSize;
   static const intptr_t kOldToNewSlotSetOffset =
       kAreaEndOffset + kSystemPointerSize;
@@ -188,7 +185,6 @@ class BasicMemoryChunk {
       + kUIntptrSize            // uintptr_t flags_
       + kSystemPointerSize      // Bitmap* marking_bitmap_
       + kSystemPointerSize      // Heap* heap_
-      + kSystemPointerSize      // Address header_sentinel_
       + kSystemPointerSize      // Address area_start_
       + kSystemPointerSize      // Address area_end_
       + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES;  // SlotSet* array
@@ -206,12 +202,6 @@ class BasicMemoryChunk {
   // is the default it needs to live here because MemoryChunk is not standard
   // layout under C++11.
   Heap* heap_;
-
-  // This is used to distinguish the memory chunk header from the interior of a
-  // large page. The memory chunk header stores here an impossible tagged
-  // pointer: the tagger pointer of the page start. A field in a large object is
-  // guaranteed to not contain such a pointer.
-  Address header_sentinel_;
 
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
@@ -237,8 +227,6 @@ class BasicMemoryChunkValidator {
                 offsetof(BasicMemoryChunk, marking_bitmap_));
   STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
                 offsetof(BasicMemoryChunk, heap_));
-  STATIC_ASSERT(BasicMemoryChunk::kHeaderSentinelOffset ==
-                offsetof(BasicMemoryChunk, header_sentinel_));
   STATIC_ASSERT(BasicMemoryChunk::kOldToNewSlotSetOffset ==
                 offsetof(BasicMemoryChunk, slot_set_));
 };

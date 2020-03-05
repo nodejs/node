@@ -9,7 +9,7 @@
   'proposals/reference-types/limits': [SKIP],
   # TODO(v8:9673): Enable these spec tests once they exist, and the out-dated
   # tests have been removed.
-  'proposals/JS-BigInt-integration/*': [SKIP],
+  'proposals/JS-BigInt-integration/module/params-long': [FAIL],
 }], # ALWAYS
 
 ['arch == s390 or arch == s390x or system == aix', {
@@ -23,10 +23,5 @@
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   '*': [SKIP],
 }], # lite_mode or variant == jitless
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ]

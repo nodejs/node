@@ -34,14 +34,15 @@ CAST_ACCESSOR(JSFinalizationGroup)
 
 void JSFinalizationGroup::Register(
     Handle<JSFinalizationGroup> finalization_group, Handle<JSReceiver> target,
-    Handle<Object> holdings, Handle<Object> key, Isolate* isolate) {
+    Handle<Object> holdings, Handle<Object> unregister_token,
+    Isolate* isolate) {
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell();
   weak_cell->set_finalization_group(*finalization_group);
   weak_cell->set_target(*target);
   weak_cell->set_holdings(*holdings);
   weak_cell->set_prev(ReadOnlyRoots(isolate).undefined_value());
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
-  weak_cell->set_key(*key);
+  weak_cell->set_unregister_token(*unregister_token);
   weak_cell->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
   weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
 
@@ -52,24 +53,27 @@ void JSFinalizationGroup::Register(
   }
   finalization_group->set_active_cells(*weak_cell);
 
-  if (!key->IsUndefined(isolate)) {
-    Handle<ObjectHashTable> key_map;
+  if (!unregister_token->IsUndefined(isolate)) {
+    Handle<SimpleNumberDictionary> key_map;
     if (finalization_group->key_map().IsUndefined(isolate)) {
-      key_map = ObjectHashTable::New(isolate, 1);
+      key_map = SimpleNumberDictionary::New(isolate, 1);
     } else {
-      key_map =
-          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
+      key_map = handle(
+          SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
     }
 
-    Object value = key_map->Lookup(key);
-    if (value.IsWeakCell()) {
+    // Unregister tokens are held weakly as objects are often their own
+    // unregister token. To avoid using an ephemeron map, the map for token
+    // lookup is keyed on the token's identity hash instead of the token itself.
+    uint32_t key = unregister_token->GetOrCreateHash(isolate).value();
+    InternalIndex entry = key_map->FindEntry(isolate, key);
+    if (entry.is_found()) {
+      Object value = key_map->ValueAt(entry);
       WeakCell existing_weak_cell = WeakCell::cast(value);
       existing_weak_cell.set_key_list_prev(*weak_cell);
       weak_cell->set_key_list_next(existing_weak_cell);
-    } else {
-      DCHECK(value.IsTheHole(isolate));
     }
-    key_map = ObjectHashTable::Put(key_map, key, weak_cell);
+    key_map = SimpleNumberDictionary::Set(isolate, key_map, key, weak_cell);
     finalization_group->set_key_map(*key_map);
   }
 }
@@ -80,26 +84,89 @@ bool JSFinalizationGroup::Unregister(
   // Iterate through the doubly linked list of WeakCells associated with the
   // key. Each WeakCell will be in the "active_cells" or "cleared_cells" list of
   // its FinalizationGroup; remove it from there.
-  if (!finalization_group->key_map().IsUndefined(isolate)) {
-    Handle<ObjectHashTable> key_map =
-        handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
-    Object value = key_map->Lookup(unregister_token);
-    HeapObject undefined = ReadOnlyRoots(isolate).undefined_value();
-    while (value.IsWeakCell()) {
-      WeakCell weak_cell = WeakCell::cast(value);
-      weak_cell.RemoveFromFinalizationGroupCells(isolate);
-      value = weak_cell.key_list_next();
-      weak_cell.set_key_list_prev(undefined);
-      weak_cell.set_key_list_next(undefined);
-    }
-    bool was_present;
-    key_map = ObjectHashTable::Remove(isolate, key_map, unregister_token,
-                                      &was_present);
-    finalization_group->set_key_map(*key_map);
-    return was_present;
+  return finalization_group->RemoveUnregisterToken(
+      *unregister_token, isolate,
+      [isolate](WeakCell matched_cell) {
+        matched_cell.RemoveFromFinalizationGroupCells(isolate);
+      },
+      [](HeapObject, ObjectSlot, Object) {});
+}
+
+template <typename MatchCallback, typename GCNotifyUpdatedSlotCallback>
+bool JSFinalizationGroup::RemoveUnregisterToken(
+    JSReceiver unregister_token, Isolate* isolate, MatchCallback match_callback,
+    GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
+  // This method is called from both FinalizationGroup#unregister and for
+  // removing weakly-held dead unregister tokens. The latter is during GC so
+  // this function cannot GC.
+  DisallowHeapAllocation no_gc;
+  if (key_map().IsUndefined(isolate)) {
+    return false;
   }
 
-  return false;
+  SimpleNumberDictionary key_map =
+      SimpleNumberDictionary::cast(this->key_map());
+  // If the token doesn't have a hash, it was not used as a key inside any hash
+  // tables.
+  Object hash = unregister_token.GetHash();
+  if (hash.IsUndefined(isolate)) {
+    return false;
+  }
+  uint32_t key = Smi::ToInt(hash);
+  InternalIndex entry = key_map.FindEntry(isolate, key);
+  if (entry.is_not_found()) {
+    return false;
+  }
+
+  Object value = key_map.ValueAt(entry);
+  bool was_present = false;
+  HeapObject undefined = ReadOnlyRoots(isolate).undefined_value();
+  HeapObject new_key_list_head = undefined;
+  HeapObject new_key_list_prev = undefined;
+  // Compute a new key list that doesn't have unregister_token. Because
+  // unregister tokens are held weakly, key_map is keyed using the tokens'
+  // identity hashes, and identity hashes may collide.
+  while (!value.IsUndefined(isolate)) {
+    WeakCell weak_cell = WeakCell::cast(value);
+    DCHECK(!ObjectInYoungGeneration(weak_cell));
+    value = weak_cell.key_list_next();
+    if (weak_cell.unregister_token() == unregister_token) {
+      // weak_cell has the same unregister token; remove it from the key list.
+      match_callback(weak_cell);
+      weak_cell.set_key_list_prev(undefined);
+      weak_cell.set_key_list_next(undefined);
+      was_present = true;
+    } else {
+      // weak_cell has a different unregister token with the same key (hash
+      // collision); fix up the list.
+      weak_cell.set_key_list_prev(new_key_list_prev);
+      gc_notify_updated_slot(weak_cell,
+                             weak_cell.RawField(WeakCell::kKeyListPrevOffset),
+                             new_key_list_prev);
+      weak_cell.set_key_list_next(undefined);
+      if (new_key_list_prev.IsUndefined(isolate)) {
+        new_key_list_head = weak_cell;
+      } else {
+        DCHECK(new_key_list_head.IsWeakCell());
+        WeakCell prev_cell = WeakCell::cast(new_key_list_prev);
+        prev_cell.set_key_list_next(weak_cell);
+        gc_notify_updated_slot(prev_cell,
+                               prev_cell.RawField(WeakCell::kKeyListNextOffset),
+                               weak_cell);
+      }
+      new_key_list_prev = weak_cell;
+    }
+  }
+  if (new_key_list_head.IsUndefined(isolate)) {
+    DCHECK(was_present);
+    key_map.ClearEntry(isolate, entry);
+    key_map.ElementRemoved();
+  } else {
+    key_map.ValueAtPut(entry, new_key_list_head);
+    gc_notify_updated_slot(key_map, key_map.RawFieldOfValueAt(entry),
+                           new_key_list_head);
+  }
+  return was_present;
 }
 
 bool JSFinalizationGroup::NeedsCleanup() const {
@@ -133,31 +200,32 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
   }
 
   // Also remove the WeakCell from the key_map (if it's there).
-  if (!weak_cell->key().IsUndefined(isolate)) {
-    if (weak_cell->key_list_prev().IsUndefined(isolate) &&
-        weak_cell->key_list_next().IsUndefined(isolate)) {
-      // weak_cell is the only one associated with its key; remove the key
-      // from the hash table.
-      Handle<ObjectHashTable> key_map =
-          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
-      Handle<Object> key = handle(weak_cell->key(), isolate);
-      bool was_present;
-      key_map = ObjectHashTable::Remove(isolate, key_map, key, &was_present);
-      DCHECK(was_present);
-      finalization_group->set_key_map(*key_map);
-    } else if (weak_cell->key_list_prev().IsUndefined()) {
-      // weak_cell is the list head for its key; we need to change the value of
-      // the key in the hash table.
-      Handle<ObjectHashTable> key_map =
-          handle(ObjectHashTable::cast(finalization_group->key_map()), isolate);
-      Handle<Object> key = handle(weak_cell->key(), isolate);
-      Handle<WeakCell> next =
-          handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
-      DCHECK_EQ(next->key_list_prev(), *weak_cell);
-      next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
-      weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
-      key_map = ObjectHashTable::Put(key_map, key, next);
-      finalization_group->set_key_map(*key_map);
+  if (!weak_cell->unregister_token().IsUndefined(isolate)) {
+    if (weak_cell->key_list_prev().IsUndefined(isolate)) {
+      Handle<SimpleNumberDictionary> key_map = handle(
+          SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
+      Handle<Object> unregister_token =
+          handle(weak_cell->unregister_token(), isolate);
+      uint32_t key = Smi::ToInt(unregister_token->GetHash());
+      InternalIndex entry = key_map->FindEntry(isolate, key);
+
+      if (weak_cell->key_list_next().IsUndefined(isolate)) {
+        // weak_cell is the only one associated with its key; remove the key
+        // from the hash table.
+        DCHECK(entry.is_found());
+        key_map = SimpleNumberDictionary::DeleteEntry(isolate, key_map, entry);
+        finalization_group->set_key_map(*key_map);
+      } else {
+        // weak_cell is the list head for its key; we need to change the value
+        // of the key in the hash table.
+        Handle<WeakCell> next =
+            handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
+        DCHECK_EQ(next->key_list_prev(), *weak_cell);
+        next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+        weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
+        key_map = SimpleNumberDictionary::Set(isolate, key_map, key, next);
+        finalization_group->set_key_map(*key_map);
+      }
     } else {
       // weak_cell is somewhere in the middle of its key list.
       WeakCell prev = WeakCell::cast(weak_cell->key_list_prev());
@@ -172,10 +240,9 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
   return weak_cell->holdings();
 }
 
-void WeakCell::Nullify(
-    Isolate* isolate,
-    std::function<void(HeapObject object, ObjectSlot slot, Object target)>
-        gc_notify_updated_slot) {
+template <typename GCNotifyUpdatedSlotCallback>
+void WeakCell::Nullify(Isolate* isolate,
+                       GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // Remove from the WeakCell from the "active_cells" list of its
   // JSFinalizationGroup and insert it into the "cleared_cells" list. This is
   // only called for WeakCells which haven't been unregistered yet, so they will

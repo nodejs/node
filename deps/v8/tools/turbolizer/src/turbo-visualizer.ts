@@ -18,7 +18,7 @@ window.onload = function () {
   let sourceViews: Array<CodeView> = [];
   let selectionBroker: SelectionBroker = null;
   let sourceResolver: SourceResolver = null;
-  const resizer = new Resizer(panesUpdatedCallback, 100);
+  const resizer = new Resizer(panesUpdatedCallback, 75);
   const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
   const sourceTabs = new Tabs(sourceTabsContainer);
   sourceTabs.addTab("&#x2b;").classList.add("last-tab", "persistent-tab");

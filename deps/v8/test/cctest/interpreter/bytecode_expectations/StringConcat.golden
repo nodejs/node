@@ -172,9 +172,9 @@ frame size: 4
 parameter count: 1
 bytecode array length: 42
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(2),
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
   /*   53 S> */ B(LdaSmi), I8(2),

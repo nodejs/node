@@ -726,7 +726,6 @@ class MetaBuildWrapper(object):
         return ret
 
     android = 'target_os="android"' in vals['gn_args']
-    fuchsia = 'target_os="fuchsia"' in vals['gn_args']
     for target in swarming_targets:
       if android:
         # Android targets may be either android_apk or executable. The former
@@ -736,11 +735,6 @@ class MetaBuildWrapper(object):
         runtime_deps_targets = [
             target + '.runtime_deps',
             'obj/%s.stamp.runtime_deps' % label.replace(':', '/')]
-      elif fuchsia:
-        # Only emit a runtime deps file for the group() target on Fuchsia.
-        label = isolate_map[target]['label']
-        runtime_deps_targets = [
-          'obj/%s.stamp.runtime_deps' % label.replace(':', '/')]
       elif (isolate_map[target]['type'] == 'script' or
             isolate_map[target].get('label_type') == 'group'):
         # For script targets, the build target is usually a group,

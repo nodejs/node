@@ -32,17 +32,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
-  enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
-
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
-#ifdef V8_CONCURRENT_MARKING
-  using MarkingState = IncrementalMarkingState;
-#else
-  using MarkingState = MajorNonAtomicMarkingState;
-#endif  // V8_CONCURRENT_MARKING
-  using AtomicMarkingState = MajorAtomicMarkingState;
-  using NonAtomicMarkingState = MajorNonAtomicMarkingState;
+  using MarkingState = MarkCompactCollector::MarkingState;
+  using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
+  using NonAtomicMarkingState = MarkCompactCollector::NonAtomicMarkingState;
 
   class PauseBlackAllocationScope {
    public:
@@ -92,9 +86,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
 #endif
 
-  IncrementalMarking(Heap* heap,
-                     MarkCompactCollector::MarkingWorklist* marking_worklist,
-                     WeakObjects* weak_objects);
+  IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
   MarkingState* marking_state() { return &marking_state_; }
 
@@ -204,12 +196,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   template <typename TSlot>
   V8_INLINE void RecordWrite(HeapObject obj, TSlot slot,
                              typename TSlot::TObject value);
-  void RevisitObject(HeapObject obj);
-  // Ensures that all descriptors int range [0, number_of_own_descripts)
-  // are visited.
-  void VisitDescriptors(HeapObject host, DescriptorArray array,
-                        int number_of_own_descriptors);
-
   void RecordWriteSlow(HeapObject obj, HeapObjectSlot slot, HeapObject value);
   void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject value);
 
@@ -240,8 +226,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     }
   }
 
-  MarkCompactCollector::MarkingWorklist* marking_worklist() const {
-    return marking_worklist_;
+  MarkingWorklists* marking_worklists() const {
+    return collector_->marking_worklists();
   }
 
   void Deactivate();
@@ -285,13 +271,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
-  V8_INLINE intptr_t ProcessMarkingWorklist(
-      intptr_t bytes_to_process,
-      ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
-
-  // Visits the object and returns its size.
-  V8_INLINE int VisitObject(Map map, HeapObject obj);
-
   // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
   // time.
   void ScheduleBytesToMarkBasedOnTime(double time_ms);
@@ -323,7 +302,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   }
 
   Heap* const heap_;
-  MarkCompactCollector::MarkingWorklist* const marking_worklist_;
+  MarkCompactCollector* const collector_;
   WeakObjects* weak_objects_;
 
   double start_time_ms_;

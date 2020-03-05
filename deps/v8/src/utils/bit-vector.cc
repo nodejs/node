@@ -25,31 +25,14 @@ void BitVector::Print() {
 }
 #endif
 
-void BitVector::Iterator::Advance() {
-  current_++;
-  uintptr_t val = current_value_;
-  while (val == 0) {
-    current_index_++;
-    if (Done()) return;
-    DCHECK(!target_->is_inline());
-    val = target_->data_.ptr_[current_index_];
-    current_ = current_index_ << kDataBitShift;
-  }
-  val = SkipZeroBytes(val);
-  val = SkipZeroBits(val);
-  current_value_ = val >> 1;
-}
-
 int BitVector::Count() const {
-  if (data_length_ == 0) {
-    return base::bits::CountPopulation(data_.inline_);
-  } else {
-    int count = 0;
-    for (int i = 0; i < data_length_; i++) {
-      count += base::bits::CountPopulation(data_.ptr_[i]);
-    }
-    return count;
+  if (is_inline()) return base::bits::CountPopulation(data_.inline_);
+
+  int count = 0;
+  for (int i = 0; i < data_length_; i++) {
+    count += base::bits::CountPopulation(data_.ptr_[i]);
   }
+  return count;
 }
 
 }  // namespace internal

@@ -250,6 +250,10 @@ class AsmJsParser {
     return scanner_.Token() == token;
   }
 
+  inline bool PeekForZero() {
+    return (scanner_.IsUnsigned() && scanner_.AsUnsigned() == 0);
+  }
+
   inline bool Check(AsmJsScanner::token_t token) {
     if (scanner_.Token() == token) {
       scanner_.Next();

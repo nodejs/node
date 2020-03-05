@@ -5,30 +5,32 @@
 #ifndef V8_COMPILER_SELECT_LOWERING_H_
 #define V8_COMPILER_SELECT_LOWERING_H_
 
-#include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class JSGraphAssembler;
+
 // Lowers Select nodes to diamonds.
 class SelectLowering final : public Reducer {
  public:
-  SelectLowering(JSGraph* jsgraph, Zone* zone);
+  SelectLowering(JSGraphAssembler* graph_assembler, Graph* graph);
   ~SelectLowering() override;
 
   const char* reducer_name() const override { return "SelectLowering"; }
 
   Reduction Reduce(Node* node) override;
 
-  Node* LowerSelect(Node* node);
-
  private:
-  GraphAssembler* gasm() { return &graph_assembler_; }
-  Node* start() { return start_; }
+  Reduction LowerSelect(Node* node);
 
-  GraphAssembler graph_assembler_;
+  JSGraphAssembler* gasm() const { return graph_assembler_; }
+  Node* start() const { return start_; }
+
+  JSGraphAssembler* graph_assembler_;
   Node* start_;
 };
 

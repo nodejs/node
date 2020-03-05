@@ -27,8 +27,8 @@ namespace internal {
 namespace {
 
 // Each byte is encoded as MoreBit | ValueBits.
-using MoreBit = BitField8<bool, 7, 1>;
-using ValueBits = BitField8<unsigned, 0, 7>;
+using MoreBit = base::BitField8<bool, 7, 1>;
+using ValueBits = base::BitField8<unsigned, 0, 7>;
 
 // Helper: Add the offsets from 'other' to 'value'. Also set is_statement.
 void AddAndSetEntry(PositionTableEntry* value,

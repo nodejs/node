@@ -21,7 +21,7 @@ namespace string {
     if (arguments.length == 0) {
       return receiverString;
     }
-    const maxLength: Number = ToLength_Inline(context, arguments[0]);
+    const maxLength: Number = ToLength_Inline(arguments[0]);
     assert(IsNumberNormalized(maxLength));
 
     typeswitch (maxLength) {
@@ -40,7 +40,7 @@ namespace string {
     if (arguments.length != 1) {
       const fill = arguments[1];
       if (fill != Undefined) {
-        fillString = ToString_Inline(context, fill);
+        fillString = ToString_Inline(fill);
         fillLength = fillString.length_intptr;
         if (fillLength == 0) {
           return receiverString;
@@ -95,7 +95,7 @@ namespace string {
 
   // ES6 #sec-string.prototype.padstart
   transitioning javascript builtin
-  StringPrototypePadStart(js-implicit context: Context, receiver: JSAny)(
+  StringPrototypePadStart(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): String {
     const methodName: constexpr string = 'String.prototype.padStart';
     return StringPad(receiver, arguments, methodName, kStringPadStart);
@@ -103,7 +103,7 @@ namespace string {
 
   // ES6 #sec-string.prototype.padend
   transitioning javascript builtin
-  StringPrototypePadEnd(js-implicit context: Context, receiver: JSAny)(
+  StringPrototypePadEnd(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): String {
     const methodName: constexpr string = 'String.prototype.padEnd';
     return StringPad(receiver, arguments, methodName, kStringPadEnd);

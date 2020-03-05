@@ -71,7 +71,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   Label context_check;
   __ LoadP(r3, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ JumpIfSmi(r3, &context_check);
-  __ LoadP(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ LoadP(r2, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ LoadImmP(r3, Operand(static_cast<int>(deopt_kind)));
   // r4: bailout id already loaded.

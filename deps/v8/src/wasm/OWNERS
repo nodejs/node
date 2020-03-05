@@ -3,8 +3,9 @@ bbudge@chromium.org
 binji@chromium.org
 clemensb@chromium.org
 gdeepti@chromium.org
-mstarzinger@chromium.org
-titzer@chromium.org
+jkummerow@chromium.org
+thibaudm@chromium.org
+zhin@chromium.org
 
 per-file wasm-js.*=adamk@chromium.org
 

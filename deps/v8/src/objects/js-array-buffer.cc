@@ -41,13 +41,18 @@ void JSArrayBuffer::Setup(SharedFlag shared,
   set_is_shared(shared == SharedFlag::kShared);
   set_is_detachable(shared != SharedFlag::kShared);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
-    SetEmbedderField(i, Smi::kZero);
+    SetEmbedderField(i, Smi::zero());
   }
+  set_extension(nullptr);
   if (!backing_store) {
     set_backing_store(nullptr);
     set_byte_length(0);
   } else {
     Attach(std::move(backing_store));
+  }
+  if (shared == SharedFlag::kShared) {
+    GetIsolate()->CountUsage(
+        v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
   }
 }
 
@@ -58,7 +63,13 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   set_byte_length(backing_store->byte_length());
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
-  GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    Heap* heap = GetIsolate()->heap();
+    EnsureExtension(heap);
+    extension()->set_backing_store(std::move(backing_store));
+  } else {
+    GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
+  }
 }
 
 void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
@@ -73,7 +84,12 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
 
   Isolate* const isolate = GetIsolate();
   if (backing_store()) {
-    auto backing_store = isolate->heap()->UnregisterBackingStore(*this);
+    std::shared_ptr<BackingStore> backing_store;
+    if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+      backing_store = RemoveExtension();
+    } else {
+      backing_store = isolate->heap()->UnregisterBackingStore(*this);
+    }
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
@@ -89,7 +105,54 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
-  return GetIsolate()->heap()->LookupBackingStore(*this);
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+    if (!extension()) return nullptr;
+    return extension()->backing_store();
+  } else {
+    return GetIsolate()->heap()->LookupBackingStore(*this);
+  }
+}
+
+ArrayBufferExtension* JSArrayBuffer::EnsureExtension(Heap* heap) {
+  DCHECK(V8_ARRAY_BUFFER_EXTENSION_BOOL);
+  if (extension() != nullptr) return extension();
+
+  ArrayBufferExtension* extension =
+      new ArrayBufferExtension(std::shared_ptr<BackingStore>());
+  set_extension(extension);
+  heap->AppendArrayBufferExtension(*this, extension);
+  return extension;
+}
+
+std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
+  ArrayBufferExtension* extension = this->extension();
+  DCHECK_NOT_NULL(extension);
+  auto result = extension->RemoveBackingStore();
+  // Remove pointer to extension such that the next GC will free it
+  // automatically.
+  set_extension(nullptr);
+  return result;
+}
+
+void JSArrayBuffer::MarkExtension() {
+  ArrayBufferExtension* extension = this->extension();
+  if (extension) {
+    extension->Mark();
+  }
+}
+
+void JSArrayBuffer::YoungMarkExtension() {
+  ArrayBufferExtension* extension = this->extension();
+  if (extension) {
+    extension->YoungMark();
+  }
+}
+
+void JSArrayBuffer::YoungMarkExtensionPromoted() {
+  ArrayBufferExtension* extension = this->extension();
+  if (extension) {
+    extension->YoungMarkPromoted();
+  }
 }
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
@@ -152,9 +215,9 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
       // 3b i. If IsInteger(numericIndex) is false, return false.
       // 3b ii. If numericIndex = -0, return false.
       // 3b iii. If numericIndex < 0, return false.
-      // FIXME: the standard allows up to 2^53 elements.
-      uint32_t index;
-      if (numeric_index->IsMinusZero() || !numeric_index->ToUint32(&index)) {
+      size_t index;
+      if (numeric_index->IsMinusZero() ||
+          !numeric_index->ToIntegerIndex(&index)) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
@@ -190,10 +253,11 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
         if (!desc->has_enumerable()) desc->set_enumerable(true);
         if (!desc->has_writable()) desc->set_writable(true);
         Handle<Object> value = desc->value();
-        RETURN_ON_EXCEPTION_VALUE(isolate,
-                                  SetOwnElementIgnoreAttributes(
-                                      o, index, value, desc->ToAttributes()),
-                                  Nothing<bool>());
+        LookupIterator it(isolate, o, index, LookupIterator::OWN);
+        RETURN_ON_EXCEPTION_VALUE(
+            isolate,
+            DefineOwnPropertyIgnoreAttributes(&it, value, desc->ToAttributes()),
+            Nothing<bool>());
       }
       // 3b xi. Return true.
       return Just(true);

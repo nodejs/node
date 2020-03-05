@@ -325,8 +325,19 @@ WebInspector.SourceMap.prototype = {
 
         // Fix the sign.
         var negative = result & 1;
-        result >>= 1;
-        return negative ? -result : result;
+        // Use unsigned right shift, so that the 32nd bit is properly shifted
+        // to the 31st, and the 32nd becomes unset.
+        result >>>= 1;
+        if (negate) {
+          // We need to OR 0x80000000 here to ensure the 32nd bit (the sign bit
+          // in a 32bit int) is always set for negative numbers. If `result`
+          // were 1, (meaning `negate` is true and all other bits were zeros),
+          // `result` would now be 0. But -0 doesn't flip the 32nd bit as
+          // intended. All other numbers will successfully set the 32nd bit
+          // without issue, so doing this is a noop for them.
+          return -result | 0x80000000;
+        }
+        return result;
     },
 
     _VLQ_BASE_SHIFT: 5,

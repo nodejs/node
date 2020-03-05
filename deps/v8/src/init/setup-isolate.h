@@ -15,10 +15,6 @@ class Code;
 class Heap;
 class Isolate;
 
-namespace interpreter {
-class Interpreter;
-}  // namespace interpreter
-
 // This class is an abstraction layer around initialization of components
 // that are either deserialized from the snapshot or generated from scratch.
 // Currently this includes builtins and interpreter bytecode handlers.

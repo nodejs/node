@@ -87,9 +87,8 @@ class SnapshotByteSource final {
   int position() { return position_; }
   void set_position(int position) { position_ = position; }
 
-  std::pair<uint32_t, uint32_t> GetChecksum() const {
-    Checksum checksum(Vector<const byte>(data_, length_));
-    return {checksum.a(), checksum.b()};
+  uint32_t GetChecksum() const {
+    return Checksum(Vector<const byte>(data_, length_));
   }
 
  private:

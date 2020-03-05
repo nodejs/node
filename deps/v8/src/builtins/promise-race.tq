@@ -1,0 +1,131 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace promise {
+
+  extern macro PromiseForwardingHandlerSymbolConstant(): Symbol;
+  const kPromiseForwardingHandlerSymbol: Symbol =
+      PromiseForwardingHandlerSymbolConstant();
+  extern macro PromiseHandledBySymbolConstant(): Symbol;
+  const kPromiseHandledBySymbol: Symbol = PromiseHandledBySymbolConstant();
+  extern macro ResolveStringConstant(): String;
+  const kResolveString: String = ResolveStringConstant();
+  extern macro SetPropertyStrict(Context, Object, Object, Object): Object;
+  extern macro IsPromiseResolveProtectorCellInvalid(): bool;
+
+  macro IsPromiseResolveLookupChainIntact(implicit context: Context)(
+      nativeContext: NativeContext, constructor: JSReceiver): bool {
+    if (IsForceSlowPath()) return false;
+    const promiseFun = UnsafeCast<JSFunction>(
+        nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+    return promiseFun == constructor && !IsPromiseResolveProtectorCellInvalid();
+  }
+
+  // https://tc39.es/ecma262/#sec-promise.race
+  transitioning javascript builtin
+  PromiseRace(js-implicit context: Context, receiver: JSAny)(iterable: JSAny):
+      JSAny {
+    const receiver = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, 'Promise.race');
+
+    // Let promiseCapability be ? NewPromiseCapability(C).
+    // Don't fire debugEvent so that forwarding the rejection through all does
+    // not trigger redundant ExceptionEvents
+    const capability = NewPromiseCapability(receiver, False);
+    const resolve = capability.resolve;
+    const reject = capability.reject;
+    const promise = capability.promise;
+
+    // For catch prediction, don't treat the .then calls as handling it;
+    // instead, recurse outwards.
+    if (IsDebugActive()) deferred {
+        SetPropertyStrict(
+            context, reject, kPromiseForwardingHandlerSymbol, True);
+      }
+
+    try {
+      // Let iterator be GetIterator(iterable).
+      // IfAbruptRejectPromise(iterator, promiseCapability).
+      let i: iterator::IteratorRecord;
+      try {
+        i = iterator::GetIterator(iterable);
+      } catch (e) deferred {
+        goto Reject(e);
+      }
+
+      // Let result be PerformPromiseRace(iteratorRecord, C, promiseCapability).
+      try {
+        // We can skip the "resolve" lookup on {constructor} if it's the
+        // Promise constructor and the Promise.resolve protector is intact,
+        // as that guards the lookup path for the "resolve" property on the
+        // Promise constructor.
+        const nativeContext = LoadNativeContext(context);
+        let promiseResolveFunction: JSAny = Undefined;
+        if (!IsPromiseResolveLookupChainIntact(nativeContext, receiver))
+          deferred {
+            // 3. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
+            const resolve = GetProperty(receiver, kResolveString);
+
+            // 4. If IsCallable(_promiseResolve_) is *false*, throw a
+            // *TypeError* exception.
+            promiseResolveFunction = Cast<Callable>(resolve)
+                otherwise ThrowTypeError(
+                MessageTemplate::kCalledNonCallable, 'resolve');
+          }
+
+        const fastIteratorResultMap = UnsafeCast<Map>(
+            nativeContext[NativeContextSlot::ITERATOR_RESULT_MAP_INDEX]);
+        while (true) {
+          let nextValue: JSAny;
+          try {
+            // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
+            // If next is an abrupt completion, set iteratorRecord.[[Done]] to
+            // true. ReturnIfAbrupt(next).
+            const next: JSReceiver = iterator::IteratorStep(
+                i, fastIteratorResultMap) otherwise return promise;
+
+            // Let nextValue be IteratorValue(next).
+            // If nextValue is an abrupt completion, set iteratorRecord.[[Done]]
+            // to true.
+            // ReturnIfAbrupt(nextValue).
+            nextValue = iterator::IteratorValue(next, fastIteratorResultMap);
+          } catch (e) {
+            goto Reject(e);
+          }
+          // Let nextPromise be ? Call(constructor, _promiseResolve_, «
+          // nextValue »).
+          const nextPromise = CallResolve(
+              UnsafeCast<Constructor>(receiver), promiseResolveFunction,
+              nextValue);
+
+          // Perform ? Invoke(nextPromise, "then", « resolveElement,
+          //                  resultCapability.[[Reject]] »).
+          const then = GetProperty(nextPromise, kThenString);
+          const thenResult = Call(
+              context, then, nextPromise, UnsafeCast<JSAny>(resolve),
+              UnsafeCast<JSAny>(reject));
+
+          // For catch prediction, mark that rejections here are semantically
+          // handled by the combined Promise.
+          if (IsDebugActive() && !Is<JSPromise>(promise)) deferred {
+              SetPropertyStrict(
+                  context, thenResult, kPromiseHandledBySymbol, promise);
+            }
+        }
+      } catch (e) deferred {
+        iterator::IteratorCloseOnException(i, e) otherwise Reject;
+      }
+    }
+    label Reject(exception: Object) deferred {
+      Call(
+          context, UnsafeCast<JSAny>(reject), Undefined,
+          UnsafeCast<JSAny>(exception));
+      return promise;
+    }
+    unreachable;
+  }
+}

@@ -447,7 +447,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Generate BytecodeArray.
   scope.SetScriptScopeInfo(factory->NewScopeInfo(1));
-  ast_factory.Internalize(isolate());
+  ast_factory.Internalize(isolate()->factory());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
            builder.total_register_count() * kSystemPointerSize);
@@ -493,7 +493,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 #undef CHECK_BYTECODE_PRESENT
 }
 
-
 TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   for (int locals = 0; locals < 5; locals++) {
     for (int temps = 0; temps < 3; temps++) {
@@ -520,7 +519,6 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
   }
 }
 
-
 TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
   int index = 1;
 
@@ -532,7 +530,6 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
   CHECK_EQ(actual_index, index);
 }
 
-
 TEST_F(BytecodeArrayBuilderTest, Parameters) {
   BytecodeArrayBuilder builder(zone(), 10, 0);
 
@@ -540,7 +537,6 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
   Register param8(builder.Parameter(8));
   CHECK_EQ(param8.index() - receiver.index(), 9);
 }
-
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
   BytecodeArrayBuilder builder(zone(), 1, 0);
@@ -564,7 +560,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .LoadLiteral(nan)
       .Return();
 
-  ast_factory.Internalize(isolate());
+  ast_factory.Internalize(isolate()->factory());
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
   EXPECT_EQ(4, array->constant_pool().length());
@@ -694,7 +690,6 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
            Smi::FromInt(kFarJumpDistance - 20));
   iterator.Advance();
 }
-
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeArrayBuilder builder(zone(), 1, 1);

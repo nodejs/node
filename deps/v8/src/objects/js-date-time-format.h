@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 
+#include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
@@ -133,6 +134,7 @@ class JSDateTimeFormat : public JSObject {
   STATIC_ASSERT(DateTimeStyle::kMedium <= TimeStyleBits::kMax);
   STATIC_ASSERT(DateTimeStyle::kShort <= TimeStyleBits::kMax);
 
+  DECL_ACCESSORS(locale, String)
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)

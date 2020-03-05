@@ -362,12 +362,12 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements.set(i, value, mode);
   }
   if (i < length) {
-    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::kZero, length - i);
+    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::zero(), length - i);
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {
     Object element = elements.get(j);
-    DCHECK(element == Smi::kZero ||
+    DCHECK(element == Smi::zero() ||
            (element.IsString() && String::cast(element).LooksValid()));
   }
 #endif

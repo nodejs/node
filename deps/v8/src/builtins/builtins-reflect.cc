@@ -113,8 +113,9 @@ BUILTIN(ReflectSet) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Object::ToName(isolate, key));
 
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, receiver, name, Handle<JSReceiver>::cast(target));
+  LookupIterator::Key lookup_key(isolate, name);
+  LookupIterator it(isolate, receiver, lookup_key,
+                    Handle<JSReceiver>::cast(target));
   Maybe<bool> result = Object::SetSuperProperty(
       &it, value, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kDontThrow));
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());

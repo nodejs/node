@@ -1,0 +1,75 @@
+// Copyright 2019 the V8 project authors. All rights reserved. Use of this
+// source code is governed by a BSD-style license that can be found in the
+// LICENSE file.
+
+namespace runtime {
+  extern transitioning runtime
+  DoubleToStringWithRadix(implicit context: Context)(Number, Number): String;
+}  // namespace runtime
+
+namespace number {
+  extern macro NaNStringConstant(): String;
+  extern macro ZeroStringConstant(): String;
+  extern macro InfinityStringConstant(): String;
+  extern macro MinusInfinityStringConstant(): String;
+
+  const kAsciiZero: constexpr int32 = 48;        // '0' (ascii)
+  const kAsciiLowerCaseA: constexpr int32 = 97;  // 'a' (ascii)
+
+  transitioning macro ThisNumberValue(implicit context: Context)(
+      receiver: JSAny, method: constexpr string): Number {
+    return UnsafeCast<Number>(
+        ToThisValue(receiver, PrimitiveType::kNumber, method));
+  }
+
+  // https://tc39.github.io/ecma262/#sec-number.prototype.tostring
+  transitioning javascript builtin NumberPrototypeToString(
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): String {
+    // 1. Let x be ? thisNumberValue(this value).
+    const x = ThisNumberValue(receiver, 'Number.prototype.toString');
+
+    // 2. If radix is not present, let radixNumber be 10.
+    // 3. Else if radix is undefined, let radixNumber be 10.
+    // 4. Else, let radixNumber be ? ToInteger(radix).
+    const radix: JSAny = arguments[0];
+    const radixNumber: Number =
+        radix == Undefined ? 10 : ToInteger_Inline(radix, kTruncateMinusZero);
+
+    // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
+    if (radixNumber < 2 || radixNumber > 36) {
+      ThrowRangeError(MessageTemplate::kToRadixFormatRange);
+    }
+
+    // 6. If radixNumber = 10, return ! ToString(x).
+    if (radixNumber == 10) {
+      return NumberToString(x);
+    }
+
+    // 7. Return the String representation of this Number
+    //    value using the radix specified by radixNumber.
+
+    // Fast case where the result is a one character string.
+    if (TaggedIsPositiveSmi(x) && x < radixNumber) {
+      let charCode = Convert<int32>(UnsafeCast<Smi>(x));
+      if (charCode < 10) {
+        charCode += kAsciiZero;
+      } else {
+        charCode = charCode - 10 + kAsciiLowerCaseA;
+      }
+      return StringFromSingleCharCode(charCode);
+    }
+
+    if (x == -0) {
+      return ZeroStringConstant();
+    } else if (NumberIsNaN(x)) {
+      return NaNStringConstant();
+    } else if (x == V8_INFINITY) {
+      return InfinityStringConstant();
+    } else if (x == MINUS_V8_INFINITY) {
+      return MinusInfinityStringConstant();
+    }
+
+    return runtime::DoubleToStringWithRadix(x, radixNumber);
+  }
+}

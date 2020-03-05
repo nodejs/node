@@ -1,0 +1,26 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generatePrint
+@generateCppClass
+extern class EnumCache extends Struct {
+  keys: FixedArray;
+  indices: FixedArray;
+}
+
+@export
+struct DescriptorEntry {
+  key: Name|Undefined;
+  details: Smi|Undefined;
+  value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
+}
+
+extern class DescriptorArray extends HeapObject {
+  number_of_all_descriptors: uint16;
+  number_of_descriptors: uint16;
+  raw_number_of_marked_descriptors: uint16;
+  filler16_bits: uint16;
+  enum_cache: EnumCache;
+  descriptors[number_of_all_descriptors]: DescriptorEntry;
+}

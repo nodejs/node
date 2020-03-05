@@ -66,14 +66,14 @@ class AllocationSite : public Struct {
   bool IsNested();
 
   // transition_info bitfields, for constructed array transition info.
-  using ElementsKindBits = BitField<ElementsKind, 0, 5>;
-  using DoNotInlineBit = BitField<bool, 5, 1>;
+  using ElementsKindBits = base::BitField<ElementsKind, 0, 5>;
+  using DoNotInlineBit = base::BitField<bool, 5, 1>;
   // Unused bits 6-30.
 
   // Bitfields for pretenure_data
-  using MementoFoundCountBits = BitField<int, 0, 26>;
-  using PretenureDecisionBits = BitField<PretenureDecision, 26, 3>;
-  using DeoptDependentCodeBit = BitField<bool, 29, 1>;
+  using MementoFoundCountBits = base::BitField<int, 0, 26>;
+  using PretenureDecisionBits = base::BitField<PretenureDecision, 26, 3>;
+  using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
   STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
   // Increments the mementos found counter and returns true when the first

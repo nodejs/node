@@ -17,14 +17,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  // Create and initialize a RegExp object.
-  TNode<Object> RegExpCreate(TNode<Context> context,
-                             TNode<Context> native_context,
-                             TNode<Object> regexp_string, TNode<String> flags);
-
-  TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
-                             TNode<Object> regexp_string, TNode<String> flags);
-
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
 
@@ -35,7 +27,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // and input string.
   TNode<JSRegExpResult> AllocateRegExpResult(
       TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-      TNode<String> input, TNode<RegExpMatchInfo> match_info,
+      TNode<String> input, TNode<JSRegExp> regexp, TNode<Number> last_index,
       TNode<FixedArray>* elements_out = nullptr);
 
   TNode<Object> FastLoadLastIndexBeforeSmiCheck(TNode<JSRegExp> regexp);
@@ -43,15 +35,11 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
     return CAST(FastLoadLastIndexBeforeSmiCheck(regexp));
   }
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
-  TNode<Object> LoadLastIndex(TNode<Context> context, TNode<Object> regexp,
-                              bool is_fastpath);
 
   void FastStoreLastIndex(TNode<JSRegExp> regexp, TNode<Smi> value);
   void SlowStoreLastIndex(SloppyTNode<Context> context,
                           SloppyTNode<Object> regexp,
                           SloppyTNode<Object> value);
-  void StoreLastIndex(TNode<Context> context, TNode<Object> regexp,
-                      TNode<Number> value, bool is_fastpath);
 
   // Loads {var_string_start} and {var_string_end} with the corresponding
   // offsets into the given {string_data}.
@@ -70,23 +58,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                        TNode<RegExpMatchInfo> match_info);
 
   TNode<JSRegExpResult> ConstructNewResultFromMatchInfo(
-      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-      TNode<RegExpMatchInfo> match_info, TNode<String> string);
-
-  TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResult(
-      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-      TNode<String> string, Label* if_didnotmatch, const bool is_fastpath);
-  TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResultFast(
-      TNode<Context> context, TNode<JSRegExp> maybe_regexp,
-      TNode<String> string, Label* if_didnotmatch);
-
-  TNode<HeapObject> RegExpPrototypeExecBody(TNode<Context> context,
-                                            TNode<JSReceiver> maybe_regexp,
-                                            TNode<String> string,
-                                            const bool is_fastpath);
-
-  TNode<BoolT> IsReceiverInitialRegExpPrototype(SloppyTNode<Context> context,
-                                                SloppyTNode<Object> receiver);
+      TNode<Context> context, TNode<JSRegExp> regexp,
+      TNode<RegExpMatchInfo> match_info, TNode<String> string,
+      TNode<Number> last_index);
 
   // Fast path check logic.
   //
@@ -142,13 +116,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<BoolT> IsFastRegExpNoPrototype(TNode<Context> context,
                                        TNode<Object> object, TNode<Map> map);
 
-  // For debugging only. Uses a slow GetProperty call to fetch object.exec.
-  TNode<BoolT> IsFastRegExpWithOriginalExec(TNode<Context> context,
-                                            TNode<JSRegExp> object);
-
-  void BranchIfFastRegExpResult(const TNode<Context> context,
-                                const TNode<Object> object,
-                                Label* if_isunmodified, Label* if_ismodified);
+  void BranchIfRegExpResult(const TNode<Context> context,
+                            const TNode<Object> object, Label* if_isunmodified,
+                            Label* if_ismodified);
 
   TNode<String> FlagsGetter(TNode<Context> context, TNode<Object> regexp,
                             const bool is_fastpath);
@@ -185,15 +155,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
     return CAST(AdvanceStringIndex(string, index, is_unicode, false));
   }
 
-  TNode<Object> RegExpPrototypeMatchBody(TNode<Context> context,
-                                         TNode<Object> regexp,
-                                         TNode<String> const string,
-                                         const bool is_fastpath);
-
   TNode<JSArray> RegExpPrototypeSplitBody(TNode<Context> context,
                                           TNode<JSRegExp> regexp,
-                                          TNode<String> const string,
-                                          TNode<Smi> const limit);
+                                          const TNode<String> string,
+                                          const TNode<Smi> limit);
 };
 
 class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {

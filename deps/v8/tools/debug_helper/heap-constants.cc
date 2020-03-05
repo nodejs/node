@@ -49,7 +49,7 @@ std::string FindKnownObject(uintptr_t address,
   return result;
 }
 
-KnownInstanceType FindKnownMapInstanceType(
+KnownInstanceType FindKnownMapInstanceTypes(
     uintptr_t address, const d::HeapAddresses& heap_addresses) {
   uintptr_t containing_page = address & ~i::kPageAlignmentMask;
   uintptr_t offset_in_page = address & i::kPageAlignmentMask;

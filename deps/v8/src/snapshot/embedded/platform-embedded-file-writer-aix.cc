@@ -82,7 +82,9 @@ void PlatformEmbeddedFileWriterAIX::SourceInfo(int fileid, const char* filename,
   fprintf(fp_, ".xline %d, \"%s\"\n", line, filename);
 }
 
-void PlatformEmbeddedFileWriterAIX::DeclareFunctionBegin(const char* name) {
+// TODO(mmarchini): investigate emitting size annotations for AIX
+void PlatformEmbeddedFileWriterAIX::DeclareFunctionBegin(const char* name,
+                                                         uint32_t size) {
   Newline();
   DeclareSymbolGlobal(name);
   fprintf(fp_, ".csect %s[DS]\n", name);  // function descriptor

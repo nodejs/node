@@ -33,6 +33,7 @@
 #include <cmath>
 #include <unordered_set>
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -68,7 +69,8 @@ class InjectedScript::ProtocolPromiseHandler {
   static bool add(V8InspectorSessionImpl* session,
                   v8::Local<v8::Context> context, v8::Local<v8::Value> value,
                   int executionContextId, const String16& objectGroup,
-                  WrapMode wrapMode, EvaluateCallback* callback) {
+                  WrapMode wrapMode, bool replMode,
+                  EvaluateCallback* callback) {
     v8::Local<v8::Promise::Resolver> resolver;
     if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) {
       callback->sendFailure(Response::InternalError());
@@ -79,24 +81,25 @@ class InjectedScript::ProtocolPromiseHandler {
       return false;
     }
 
-    v8::Local<v8::Promise> promise = resolver->GetPromise();
+    v8::MaybeLocal<v8::Promise> originalPromise =
+        value->IsPromise() ? v8::Local<v8::Promise>::Cast(value)
+                           : v8::MaybeLocal<v8::Promise>();
     V8InspectorImpl* inspector = session->inspector();
     ProtocolPromiseHandler* handler = new ProtocolPromiseHandler(
-        session, executionContextId, objectGroup, wrapMode, callback);
+        session, executionContextId, objectGroup, wrapMode, replMode, callback,
+        originalPromise);
     v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
     v8::Local<v8::Function> thenCallbackFunction =
         v8::Function::New(context, thenCallback, wrapper, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
-    if (promise->Then(context, thenCallbackFunction).IsEmpty()) {
-      callback->sendFailure(Response::InternalError());
-      return false;
-    }
     v8::Local<v8::Function> catchCallbackFunction =
         v8::Function::New(context, catchCallback, wrapper, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
-    if (promise->Catch(context, catchCallbackFunction).IsEmpty()) {
+    v8::Local<v8::Promise> promise = resolver->GetPromise();
+    if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
+            .IsEmpty()) {
       callback->sendFailure(Response::InternalError());
       return false;
     }
@@ -104,6 +107,13 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
  private:
+  static v8::Local<v8::String> GetDotReplResultString(v8::Isolate* isolate) {
+    // TODO(szuend): Cache the string in a v8::Persistent handle.
+    return v8::String::NewFromOneByte(
+               isolate, reinterpret_cast<const uint8_t*>(".repl_result"))
+        .ToLocalChecked();
+  }
+
   static void thenCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ProtocolPromiseHandler* handler = static_cast<ProtocolPromiseHandler*>(
         info.Data().As<v8::External>()->Value());
@@ -130,23 +140,32 @@ class InjectedScript::ProtocolPromiseHandler {
 
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
-                         WrapMode wrapMode, EvaluateCallback* callback)
+                         WrapMode wrapMode, bool replMode,
+                         EvaluateCallback* callback,
+                         v8::MaybeLocal<v8::Promise> maybeEvaluationResult)
       : m_inspector(session->inspector()),
         m_sessionId(session->sessionId()),
         m_contextGroupId(session->contextGroupId()),
         m_executionContextId(executionContextId),
         m_objectGroup(objectGroup),
         m_wrapMode(wrapMode),
+        m_replMode(replMode),
         m_callback(std::move(callback)),
         m_wrapper(m_inspector->isolate(),
                   v8::External::New(m_inspector->isolate(), this)) {
     m_wrapper.SetWeak(this, cleanup, v8::WeakCallbackType::kParameter);
+    v8::Local<v8::Promise> promise;
+    if (maybeEvaluationResult.ToLocal(&promise)) {
+      m_evaluationResult =
+          v8::Global<v8::Promise>(m_inspector->isolate(), promise);
+    }
   }
 
   static void cleanup(
       const v8::WeakCallbackInfo<ProtocolPromiseHandler>& data) {
     if (!data.GetParameter()->m_wrapper.IsEmpty()) {
       data.GetParameter()->m_wrapper.Reset();
+      data.GetParameter()->m_evaluationResult.Reset();
       data.SetSecondPassCallback(cleanup);
     } else {
       data.GetParameter()->sendPromiseCollected();
@@ -154,19 +173,40 @@ class InjectedScript::ProtocolPromiseHandler {
     }
   }
 
-  void thenCallback(v8::Local<v8::Value> result) {
+  void thenCallback(v8::Local<v8::Value> value) {
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
     InjectedScript::ContextScope scope(session, m_executionContextId);
     Response response = scope.initialize();
     if (!response.isSuccess()) return;
-    if (m_objectGroup == "console") {
-      scope.injectedScript()->setLastEvaluationResult(result);
-    }
+
     std::unique_ptr<EvaluateCallback> callback =
         scope.injectedScript()->takeEvaluateCallback(m_callback);
     if (!callback) return;
+
+    // In REPL mode the result is additionally wrapped in an object.
+    // The evaluation result can be found at ".repl_result".
+    v8::Local<v8::Value> result = value;
+    if (m_replMode) {
+      v8::Local<v8::Object> object;
+      if (!result->ToObject(scope.context()).ToLocal(&object)) {
+        callback->sendFailure(response);
+        return;
+      }
+
+      v8::Local<v8::String> name =
+          GetDotReplResultString(m_inspector->isolate());
+      if (!object->Get(scope.context(), name).ToLocal(&result)) {
+        callback->sendFailure(response);
+        return;
+      }
+    }
+
+    if (m_objectGroup == "console") {
+      scope.injectedScript()->setLastEvaluationResult(result);
+    }
+
     std::unique_ptr<protocol::Runtime::RemoteObject> wrappedValue;
     response = scope.injectedScript()->wrapObject(result, m_objectGroup,
                                                   m_wrapMode, &wrappedValue);
@@ -195,14 +235,40 @@ class InjectedScript::ProtocolPromiseHandler {
       callback->sendFailure(response);
       return;
     }
-    String16 message;
-    std::unique_ptr<V8StackTraceImpl> stack;
     v8::Isolate* isolate = session->inspector()->isolate();
+
+    v8::MaybeLocal<v8::Message> maybeMessage =
+        m_evaluationResult.IsEmpty()
+            ? v8::MaybeLocal<v8::Message>()
+            : v8::debug::GetMessageFromPromise(m_evaluationResult.Get(isolate));
+    v8::Local<v8::Message> message;
+    // In case a MessageObject was attached to the rejected promise, we
+    // construct the exception details from the message object. Otherwise
+    // we try to capture a fresh stack trace.
+    if (maybeMessage.ToLocal(&message)) {
+      v8::Local<v8::Value> exception = result;
+      protocol::detail::PtrMaybe<protocol::Runtime::ExceptionDetails>
+          exceptionDetails;
+      response = scope.injectedScript()->createExceptionDetails(
+          message, exception, m_objectGroup, &exceptionDetails);
+      if (!response.isSuccess()) {
+        callback->sendFailure(response);
+        return;
+      }
+
+      callback->sendSuccess(std::move(wrappedValue),
+                            std::move(exceptionDetails));
+      return;
+    }
+
+    String16 messageString;
+    std::unique_ptr<V8StackTraceImpl> stack;
     if (result->IsNativeError()) {
-      message = " " + toProtocolString(
-                          isolate,
-                          result->ToDetailString(isolate->GetCurrentContext())
-                              .ToLocalChecked());
+      messageString =
+          " " +
+          toProtocolString(isolate,
+                           result->ToDetailString(isolate->GetCurrentContext())
+                               .ToLocalChecked());
       v8::Local<v8::StackTrace> stackTrace = v8::debug::GetDetailedStackTrace(
           isolate, v8::Local<v8::Object>::Cast(result));
       if (!stackTrace.IsEmpty()) {
@@ -212,10 +278,18 @@ class InjectedScript::ProtocolPromiseHandler {
     if (!stack) {
       stack = m_inspector->debugger()->captureStackTrace(true);
     }
+
+    // REPL mode implicitly handles the script like an async function.
+    // Do not prepend the '(in promise)' prefix for these exceptions since that
+    // would be confusing for the user. The stringified error is part of the
+    // exception and does not need to be added in REPL mode, otherwise it would
+    // be printed twice.
+    String16 exceptionDetailsText =
+        m_replMode ? "Uncaught" : "Uncaught (in promise)" + messageString;
     std::unique_ptr<protocol::Runtime::ExceptionDetails> exceptionDetails =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_inspector->nextExceptionId())
-            .setText("Uncaught (in promise)" + message)
+            .setText(exceptionDetailsText)
             .setLineNumber(stack && !stack->isEmpty() ? stack->topLineNumber()
                                                       : 0)
             .setColumnNumber(
@@ -254,8 +328,10 @@ class InjectedScript::ProtocolPromiseHandler {
   int m_executionContextId;
   String16 m_objectGroup;
   WrapMode m_wrapMode;
+  bool m_replMode;
   EvaluateCallback* m_callback;
   v8::Global<v8::External> m_wrapper;
+  v8::Global<v8::Promise> m_evaluationResult;
 };
 
 InjectedScript::InjectedScript(InspectedContext* context, int sessionId)
@@ -393,22 +469,53 @@ Response InjectedScript::getInternalAndPrivateProperties(
                            .setValue(std::move(remoteObject))
                            .build());
   }
+
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
-      ValueMirror::getPrivateProperties(m_context->context(), value_obj);
+      ValueMirror::getPrivateProperties(context, value_obj);
   for (const auto& privateProperty : privatePropertyWrappers) {
+    std::unique_ptr<PrivatePropertyDescriptor> descriptor =
+        PrivatePropertyDescriptor::create()
+            .setName(privateProperty.name)
+            .build();
+
     std::unique_ptr<RemoteObject> remoteObject;
-    Response response = privateProperty.value->buildRemoteObject(
-        m_context->context(), WrapMode::kNoPreview, &remoteObject);
-    if (!response.isSuccess()) return response;
-    response = bindRemoteObjectIfNeeded(sessionId, context,
-                                        privateProperty.value->v8Value(),
-                                        groupName, remoteObject.get());
-    if (!response.isSuccess()) return response;
-    (*privateProperties)
-        ->emplace_back(PrivatePropertyDescriptor::create()
-                           .setName(privateProperty.name)
-                           .setValue(std::move(remoteObject))
-                           .build());
+    Response response;
+    DCHECK((privateProperty.getter || privateProperty.setter) ^
+           (!!privateProperty.value));
+    if (privateProperty.value) {
+      response = privateProperty.value->buildRemoteObject(
+          context, WrapMode::kNoPreview, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          privateProperty.value->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setValue(std::move(remoteObject));
+    }
+
+    if (privateProperty.getter) {
+      response = privateProperty.getter->buildRemoteObject(
+          context, WrapMode::kNoPreview, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          privateProperty.getter->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setGet(std::move(remoteObject));
+    }
+
+    if (privateProperty.setter) {
+      response = privateProperty.setter->buildRemoteObject(
+          context, WrapMode::kNoPreview, &remoteObject);
+      if (!response.isSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          privateProperty.setter->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.isSuccess()) return response;
+      descriptor->setSet(std::move(remoteObject));
+    }
+
+    (*privateProperties)->emplace_back(std::move(descriptor));
   }
   return Response::OK();
 }
@@ -533,7 +640,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 
 void InjectedScript::addPromiseCallback(
     V8InspectorSessionImpl* session, v8::MaybeLocal<v8::Value> value,
-    const String16& objectGroup, WrapMode wrapMode,
+    const String16& objectGroup, WrapMode wrapMode, bool replMode,
     std::unique_ptr<EvaluateCallback> callback) {
   if (value.IsEmpty()) {
     callback->sendFailure(Response::InternalError());
@@ -541,9 +648,10 @@ void InjectedScript::addPromiseCallback(
   }
   v8::MicrotasksScope microtasksScope(m_context->isolate(),
                                       v8::MicrotasksScope::kRunMicrotasks);
-  if (ProtocolPromiseHandler::add(
-          session, m_context->context(), value.ToLocalChecked(),
-          m_context->contextId(), objectGroup, wrapMode, callback.get())) {
+  if (ProtocolPromiseHandler::add(session, m_context->context(),
+                                  value.ToLocalChecked(),
+                                  m_context->contextId(), objectGroup, wrapMode,
+                                  replMode, callback.get())) {
     m_evaluateCallbacks.insert(callback.release());
   }
 }
@@ -621,7 +729,14 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value;
     if (callArgument->hasValue()) {
-      value = "(" + callArgument->getValue(nullptr)->toJSONString() + ")";
+      std::vector<uint8_t> cbor =
+          std::move(*callArgument->getValue(nullptr)).TakeSerialized();
+      std::vector<uint8_t> json;
+      v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+      value =
+          "(" +
+          String16(reinterpret_cast<const char*>(json.data()), json.size()) +
+          ")";
     } else {
       String16 unserializableValue = callArgument->getUnserializableValue("");
       // Protect against potential identifier resolution for NaN and Infinity.
@@ -664,6 +779,13 @@ Response InjectedScript::createExceptionDetails(
   if (!tryCatch.HasCaught()) return Response::InternalError();
   v8::Local<v8::Message> message = tryCatch.Message();
   v8::Local<v8::Value> exception = tryCatch.Exception();
+  return createExceptionDetails(message, exception, objectGroup, result);
+}
+
+Response InjectedScript::createExceptionDetails(
+    v8::Local<v8::Message> message, v8::Local<v8::Value> exception,
+    const String16& objectGroup,
+    Maybe<protocol::Runtime::ExceptionDetails>* result) {
   String16 messageText =
       message.IsEmpty()
           ? String16()

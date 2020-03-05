@@ -43,8 +43,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   explicit ParseInfo(AccountingAllocator* zone_allocator);
   explicit ParseInfo(Isolate*);
   ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
-  ParseInfo(Isolate* isolate, Handle<Script> script);
-  ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  ParseInfo(Isolate* isolate, Script script);
+  ParseInfo(Isolate* isolate, SharedFunctionInfo shared);
 
   // Creates a new parse info based on parent top-level |outer_parse_info| for
   // function |literal|.
@@ -56,6 +56,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   Handle<Script> CreateScript(Isolate* isolate, Handle<String> source,
                               ScriptOriginOptions origin_options,
+                              REPLMode repl_mode = REPLMode::kNo,
                               NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
@@ -85,8 +86,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kCoverageEnabled, coverage_enabled, set_coverage_enabled)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
-  FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
-                set_on_background_thread)
   FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
@@ -112,6 +111,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_allow_harmony_nullish)
   FLAG_ACCESSOR(kAllowHarmonyTopLevelAwait, allow_harmony_top_level_await,
                 set_allow_harmony_top_level_await)
+  FLAG_ACCESSOR(kREPLMode, is_repl_mode, set_repl_mode)
 
 #undef FLAG_ACCESSOR
 
@@ -256,11 +256,15 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
+  void SetFlagsFromScript(Isolate* isolate, Script script);
+
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Handle<Script> script() const { return script_; }
-  void set_script(Handle<Script> script);
+  Handle<FixedArray> wrapped_arguments() const { return wrapped_arguments_; }
+  void set_wrapped_arguments(Handle<FixedArray> wrapped_arguments) {
+    wrapped_arguments_ = wrapped_arguments;
+  }
 
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
@@ -281,7 +285,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
-  void SetScriptForToplevelCompile(Isolate* isolate, Handle<Script> script);
+  void SetFlagsForToplevelCompileFromScript(Isolate* isolate, Script script);
 
   // Set function info flags based on those in either FunctionLiteral or
   // SharedFunctionInfo |function|
@@ -291,37 +295,37 @@ class V8_EXPORT_PRIVATE ParseInfo {
   // Various configuration flags for parsing.
   enum Flag : uint32_t {
     // ---------- Input flags ---------------------------
-    kToplevel = 1 << 0,
-    kEager = 1 << 1,
-    kEval = 1 << 2,
-    kStrictMode = 1 << 3,
-    kNative = 1 << 4,
-    kParseRestriction = 1 << 5,
-    kModule = 1 << 6,
-    kAllowLazyParsing = 1 << 7,
-    kLazyCompile = 1 << 8,
-    kCollectTypeProfile = 1 << 9,
-    kCoverageEnabled = 1 << 10,
-    kBlockCoverageEnabled = 1 << 11,
-    kIsAsmWasmBroken = 1 << 12,
-    kOnBackgroundThread = 1 << 13,
-    kAllowEvalCache = 1 << 14,
-    kRequiresInstanceMembersInitializer = 1 << 15,
-    kContainsAsmModule = 1 << 16,
-    kMightAlwaysOpt = 1 << 17,
-    kAllowLazyCompile = 1 << 18,
-    kAllowNativeSyntax = 1 << 19,
-    kAllowHarmonyPublicFields = 1 << 20,
-    kAllowHarmonyStaticFields = 1 << 21,
-    kAllowHarmonyDynamicImport = 1 << 22,
-    kAllowHarmonyImportMeta = 1 << 23,
-    kAllowHarmonyOptionalChaining = 1 << 24,
-    kAllowHarmonyPrivateFields = 1 << 25,
-    kAllowHarmonyPrivateMethods = 1 << 26,
-    kIsOneshotIIFE = 1 << 27,
-    kCollectSourcePositions = 1 << 28,
-    kAllowHarmonyNullish = 1 << 29,
-    kAllowHarmonyTopLevelAwait = 1 << 30,
+    kToplevel = 1u << 0,
+    kEager = 1u << 1,
+    kEval = 1u << 2,
+    kStrictMode = 1u << 3,
+    kNative = 1u << 4,
+    kParseRestriction = 1u << 5,
+    kModule = 1u << 6,
+    kAllowLazyParsing = 1u << 7,
+    kLazyCompile = 1u << 8,
+    kCollectTypeProfile = 1u << 9,
+    kCoverageEnabled = 1u << 10,
+    kBlockCoverageEnabled = 1u << 11,
+    kIsAsmWasmBroken = 1u << 12,
+    kAllowEvalCache = 1u << 13,
+    kRequiresInstanceMembersInitializer = 1u << 14,
+    kContainsAsmModule = 1u << 15,
+    kMightAlwaysOpt = 1u << 16,
+    kAllowLazyCompile = 1u << 17,
+    kAllowNativeSyntax = 1u << 18,
+    kAllowHarmonyPublicFields = 1u << 19,
+    kAllowHarmonyStaticFields = 1u << 20,
+    kAllowHarmonyDynamicImport = 1u << 21,
+    kAllowHarmonyImportMeta = 1u << 22,
+    kAllowHarmonyOptionalChaining = 1u << 23,
+    kAllowHarmonyPrivateFields = 1u << 24,
+    kAllowHarmonyPrivateMethods = 1u << 25,
+    kIsOneshotIIFE = 1u << 26,
+    kCollectSourcePositions = 1u << 27,
+    kAllowHarmonyNullish = 1u << 28,
+    kAllowHarmonyTopLevelAwait = 1u << 29,
+    kREPLMode = 1u << 30,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -341,7 +345,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int max_function_literal_id_;
 
   // TODO(titzer): Move handles out of ParseInfo.
-  Handle<Script> script_;
+  Handle<FixedArray> wrapped_arguments_;
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------

@@ -6,9 +6,6 @@
 
 namespace regexp {
 
-  extern transitioning macro RegExpBuiltinsAssembler::RegExpCreate(
-      implicit context: Context)(Context, Object, String): Object;
-
   extern transitioning macro
   RegExpMatchAllAssembler::CreateRegExpStringIterator(
       NativeContext, Object, String, bool, bool): JSAny;
@@ -19,11 +16,12 @@ namespace regexp {
     // 1. Let R be the this value.
     // 2. If Type(R) is not Object, throw a TypeError exception.
     ThrowIfNotJSReceiver(
-        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@matchAll');
+        receiver, MessageTemplate::kIncompatibleMethodReceiver,
+        'RegExp.prototype.@@matchAll');
     const receiver = UnsafeCast<JSReceiver>(receiver);
 
     // 3. Let S be ? ToString(O).
-    const string: String = ToString_Inline(context, string);
+    const string: String = ToString_Inline(string);
 
     let matcher: Object;
     let global: bool;
@@ -52,29 +50,27 @@ namespace regexp {
 
         // 9. If flags contains "g", let global be true.
         // 10. Else, let global be false.
-        global = FastFlagGetter(matcherRegExp, kGlobal);
+        global = FastFlagGetter(matcherRegExp, Flag::kGlobal);
 
         // 11. If flags contains "u", let fullUnicode be true.
         // 12. Else, let fullUnicode be false.
-        unicode = FastFlagGetter(matcherRegExp, kUnicode);
+        unicode = FastFlagGetter(matcherRegExp, Flag::kUnicode);
       }
       case (Object): {
         // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
-        const regexpFun =
-            UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+        const regexpFun = LoadRegExpFunction(nativeContext);
         const speciesConstructor =
             UnsafeCast<Constructor>(SpeciesConstructor(receiver, regexpFun));
 
         // 5. Let flags be ? ToString(? Get(R, "flags")).
         const flags = GetProperty(receiver, 'flags');
-        const flagsString = ToString_Inline(context, flags);
+        const flagsString = ToString_Inline(flags);
 
         // 6. Let matcher be ? Construct(C, « R, flags »).
         matcher = Construct(speciesConstructor, receiver, flagsString);
 
         // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-        const lastIndex: Number =
-            ToLength_Inline(context, SlowLoadLastIndex(receiver));
+        const lastIndex: Number = ToLength_Inline(SlowLoadLastIndex(receiver));
 
         // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
         SlowStoreLastIndex(UnsafeCast<JSReceiver>(matcher), lastIndex);
@@ -103,9 +99,9 @@ namespace regexp {
   // https://tc39.github.io/proposal-string-matchall/
   // RegExp.prototype [ @@matchAll ] ( string )
   transitioning javascript builtin RegExpPrototypeMatchAll(
-      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
-    const nativeContext: NativeContext = LoadNativeContext(context);
-    return RegExpPrototypeMatchAllImpl(nativeContext, receiver, string);
+      js-implicit context: NativeContext,
+      receiver: JSAny)(string: JSAny): JSAny {
+    return RegExpPrototypeMatchAllImpl(context, receiver, string);
   }
 
   const kJSRegExpStringIteratorDone:
@@ -134,14 +130,10 @@ namespace regexp {
     iterator.flags = newFlags;
   }
 
-  extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-      implicit context: Context)(JSReceiver, RegExpMatchInfo, String):
-      JSRegExpResult;
-
   // https://tc39.github.io/proposal-string-matchall/
   // %RegExpStringIteratorPrototype%.next ( )
   transitioning javascript builtin RegExpStringIteratorPrototypeNext(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     // 1. Let O be the this value.
     // 2. If Type(O) is not Object, throw a TypeError exception.
     // 3. If O does not have all of the internal slots of a RegExp String
@@ -149,7 +141,8 @@ namespace regexp {
     const methodName: constexpr string =
         '%RegExpStringIterator%.prototype.next';
     const receiver = Cast<JSRegExpStringIterator>(receiver) otherwise
-    ThrowTypeError(kIncompatibleMethodReceiver, methodName, receiver);
+    ThrowTypeError(
+        MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
 
     try {
       // 4. If O.[[Done]] is true, then
@@ -170,12 +163,14 @@ namespace regexp {
       let isFastRegExp: bool = false;
       try {
         if (IsFastRegExpPermissive(iteratingRegExp)) {
+          const regexp = UnsafeCast<JSRegExp>(iteratingRegExp);
+          const lastIndex = LoadLastIndexAsLength(regexp, true);
           const matchIndices: RegExpMatchInfo =
               RegExpPrototypeExecBodyWithoutResultFast(
-                  UnsafeCast<JSRegExp>(iteratingRegExp), iteratingString)
+                  regexp, iteratingString, lastIndex)
               otherwise IfNoMatch;
           match = ConstructNewResultFromMatchInfo(
-              iteratingRegExp, matchIndices, iteratingString);
+              regexp, matchIndices, iteratingString, lastIndex);
           isFastRegExp = true;
         } else {
           match = RegExpExec(iteratingRegExp, iteratingString);
@@ -196,7 +191,7 @@ namespace regexp {
         assert(HasGlobalFlag(flags));
         if (isFastRegExp) {
           // i. Let matchStr be ? ToString(? Get(match, "0")).
-          const match = UnsafeCast<FastJSRegExpResult>(match);
+          const match = UnsafeCast<JSRegExpResult>(match);
           const resultFixedArray = UnsafeCast<FixedArray>(match.elements);
           const matchStr = UnsafeCast<String>(resultFixedArray.objects[0]);
 
@@ -223,13 +218,12 @@ namespace regexp {
         assert(!isFastRegExp);
         // i. Let matchStr be ? ToString(? Get(match, "0")).
         const match = UnsafeCast<JSAny>(match);
-        const matchStr =
-            ToString_Inline(context, GetProperty(match, SmiConstant(0)));
+        const matchStr = ToString_Inline(GetProperty(match, SmiConstant(0)));
 
         if (matchStr == kEmptyString) {
           // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).
           const lastIndex: JSAny = SlowLoadLastIndex(iteratingRegExp);
-          const thisIndex: Number = ToLength_Inline(context, lastIndex);
+          const thisIndex: Number = ToLength_Inline(lastIndex);
 
           // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex,
           // fullUnicode).

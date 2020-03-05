@@ -85,43 +85,45 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_is_oneshot_iife(function->is_oneshot_iife());
 }
 
-ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
+ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
     : ParseInfo(isolate, isolate->allocator()) {
   // Do not support re-parsing top-level function of a wrapped script.
   // TODO(yangguo): consider whether we need a top-level function in a
   //                wrapped script at all.
-  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script()).is_wrapped());
+  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared.script()).is_wrapped());
 
   set_allow_lazy_parsing(true);
-  set_asm_wasm_broken(shared->is_asm_wasm_broken());
+  set_asm_wasm_broken(shared.is_asm_wasm_broken());
 
-  set_start_position(shared->StartPosition());
-  set_end_position(shared->EndPosition());
-  function_literal_id_ = shared->function_literal_id();
-  SetFunctionInfo(shared);
+  set_start_position(shared.StartPosition());
+  set_end_position(shared.EndPosition());
+  function_literal_id_ = shared.function_literal_id();
+  SetFunctionInfo(&shared);
 
-  Handle<Script> script(Script::cast(shared->script()), isolate);
-  set_script(script);
+  Script script = Script::cast(shared.script());
+  SetFlagsFromScript(isolate, script);
 
-  if (shared->HasOuterScopeInfo()) {
-    set_outer_scope_info(handle(shared->GetOuterScopeInfo(), isolate));
+  if (shared.HasOuterScopeInfo()) {
+    set_outer_scope_info(handle(shared.GetOuterScopeInfo(), isolate));
   }
+
+  set_repl_mode(shared.is_repl_mode());
 
   // CollectTypeProfile uses its own feedback slots. If we have existing
   // FeedbackMetadata, we can only collect type profile if the feedback vector
   // has the appropriate slots.
   set_collect_type_profile(
       isolate->is_collecting_type_profile() &&
-      (shared->HasFeedbackMetadata()
-           ? shared->feedback_metadata().HasTypeProfileSlot()
-           : script->IsUserJavaScript()));
+      (shared.HasFeedbackMetadata()
+           ? shared.feedback_metadata().HasTypeProfileSlot()
+           : script.IsUserJavaScript()));
 }
 
-ParseInfo::ParseInfo(Isolate* isolate, Handle<Script> script)
+ParseInfo::ParseInfo(Isolate* isolate, Script script)
     : ParseInfo(isolate, isolate->allocator()) {
-  SetScriptForToplevelCompile(isolate, script);
+  SetFlagsForToplevelCompileFromScript(isolate, script);
   set_collect_type_profile(isolate->is_collecting_type_profile() &&
-                           script->IsUserJavaScript());
+                           script.IsUserJavaScript());
 }
 
 // static
@@ -165,6 +167,7 @@ DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
                                        ScriptOriginOptions origin_options,
+                                       REPLMode repl_mode,
                                        NativesFlag natives) {
   // Create a script object describing the script to be compiled.
   Handle<Script> script;
@@ -187,8 +190,9 @@ Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
       break;
   }
   script->set_origin_options(origin_options);
+  script->set_is_repl_mode(repl_mode == REPLMode::kYes);
 
-  SetScriptForToplevelCompile(isolate, script);
+  SetFlagsForToplevelCompileFromScript(isolate, *script);
   return script;
 }
 
@@ -213,29 +217,34 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
-void ParseInfo::SetScriptForToplevelCompile(Isolate* isolate,
-                                            Handle<Script> script) {
-  set_script(script);
+void ParseInfo::SetFlagsForToplevelCompileFromScript(Isolate* isolate,
+                                                     Script script) {
+  SetFlagsFromScript(isolate, script);
   set_allow_lazy_parsing();
   set_toplevel();
   set_collect_type_profile(isolate->is_collecting_type_profile() &&
-                           script->IsUserJavaScript());
-  if (script->is_wrapped()) {
+                           script.IsUserJavaScript());
+  set_repl_mode(script.is_repl_mode());
+
+  if (script.is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
 }
 
-void ParseInfo::set_script(Handle<Script> script) {
-  script_ = script;
-  DCHECK(script_id_ == -1 || script_id_ == script->id());
-  script_id_ = script->id();
+void ParseInfo::SetFlagsFromScript(Isolate* isolate, Script script) {
+  DCHECK(script_id_ == -1 || script_id_ == script.id());
+  script_id_ = script.id();
 
-  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
-  set_module(script->origin_options().IsModule());
+  set_eval(script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_module(script.origin_options().IsModule());
   DCHECK(!(is_eval() && is_module()));
 
-  if (block_coverage_enabled() && script->IsUserJavaScript()) {
+  if (block_coverage_enabled() && script.IsUserJavaScript()) {
     AllocateSourceRangeMap();
+  }
+
+  if (script.is_wrapped()) {
+    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
   }
 }
 

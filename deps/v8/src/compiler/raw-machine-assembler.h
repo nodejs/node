@@ -128,37 +128,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Memory Operations.
-  std::pair<MachineType, const Operator*> InsertDecompressionIfNeeded(
-      MachineType type) {
-    const Operator* decompress_op = nullptr;
-    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
-      switch (type.representation()) {
-        case MachineRepresentation::kTaggedPointer:
-          type = MachineType::CompressedPointer();
-          decompress_op = machine()->ChangeCompressedPointerToTaggedPointer();
-          break;
-        case MachineRepresentation::kTaggedSigned:
-          type = MachineType::CompressedSigned();
-          decompress_op = machine()->ChangeCompressedSignedToTaggedSigned();
-          break;
-        case MachineRepresentation::kTagged:
-          type = MachineType::AnyCompressed();
-          decompress_op = machine()->ChangeCompressedToTagged();
-          break;
-        default:
-          break;
-      }
-    }
-    return std::make_pair(type, decompress_op);
-  }
   Node* Load(MachineType type, Node* base,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return Load(type, base, IntPtrConstant(0), needs_poisoning);
   }
   Node* Load(MachineType type, Node* base, Node* index,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    const Operator* decompress_op;
-    std::tie(type, decompress_op) = InsertDecompressionIfNeeded(type);
     const Operator* op = machine()->Load(type);
     CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
     if (needs_poisoning == LoadSensitivity::kCritical &&
@@ -167,69 +142,34 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     }
 
     Node* load = AddNode(op, base, index);
-    if (decompress_op != nullptr) {
-      load = AddNode(decompress_op, load);
-    }
     return load;
   }
   Node* LoadFromObject(
       MachineType type, Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    const Operator* decompress_op;
-    std::tie(type, decompress_op) = InsertDecompressionIfNeeded(type);
     CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
     ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
     Node* load = AddNode(simplified()->LoadFromObject(access), base, offset);
-    if (decompress_op != nullptr) {
-      load = AddNode(decompress_op, load);
-    }
     return load;
   }
 
-  std::pair<MachineRepresentation, Node*> InsertCompressionIfNeeded(
-      MachineRepresentation rep, Node* value) {
-    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
-      switch (rep) {
-        case MachineRepresentation::kTaggedPointer:
-          rep = MachineRepresentation::kCompressedPointer;
-          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
-                          value);
-          break;
-        case MachineRepresentation::kTaggedSigned:
-          rep = MachineRepresentation::kCompressedSigned;
-          value =
-              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
-          break;
-        case MachineRepresentation::kTagged:
-          rep = MachineRepresentation::kCompressed;
-          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
-          break;
-        default:
-          break;
-      }
-    }
-    return std::make_pair(rep, value);
-  }
   Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
     return Store(rep, base, IntPtrConstant(0), value, write_barrier);
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
-    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
   }
   void StoreToObject(MachineRepresentation rep, Node* object, Node* offset,
                      Node* value, WriteBarrierKind write_barrier) {
-    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     ObjectAccess access = {MachineType::TypeForRepresentation(rep),
                            write_barrier};
     AddNode(simplified()->StoreToObject(access), object, offset, value);
   }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
-    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),
@@ -237,11 +177,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
             object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value) {
-    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
-      DCHECK(AccessBuilder::ForMap().machine_type.IsCompressedPointer());
-      value =
-          AddNode(machine()->ChangeTaggedPointerToCompressedPointer(), value);
-    }
     AddNode(simplified()->StoreField(AccessBuilder::ForMap()), object, value);
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
@@ -579,7 +514,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
   Node* StackPointerGreaterThan(Node* value) {
-    return AddNode(machine()->StackPointerGreaterThan(), value);
+    return AddNode(
+        machine()->StackPointerGreaterThan(StackCheckKind::kCodeStubAssembler),
+        value);
   }
 
 #define INTPTR_BINOP(prefix, name)                           \
@@ -801,24 +738,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* ChangeUint32ToUint64(Node* a) {
     return AddNode(machine()->ChangeUint32ToUint64(), a);
-  }
-  Node* ChangeTaggedToCompressed(Node* a) {
-    return AddNode(machine()->ChangeTaggedToCompressed(), a);
-  }
-  Node* ChangeTaggedPointerToCompressedPointer(Node* a) {
-    return AddNode(machine()->ChangeTaggedPointerToCompressedPointer(), a);
-  }
-  Node* ChangeTaggedSignedToCompressedSigned(Node* a) {
-    return AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), a);
-  }
-  Node* ChangeCompressedToTagged(Node* a) {
-    return AddNode(machine()->ChangeCompressedToTagged(), a);
-  }
-  Node* ChangeCompressedPointerToTaggedPointer(Node* a) {
-    return AddNode(machine()->ChangeCompressedPointerToTaggedPointer(), a);
-  }
-  Node* ChangeCompressedSignedToTaggedSigned(Node* a) {
-    return AddNode(machine()->ChangeCompressedSignedToTaggedSigned(), a);
   }
   Node* TruncateFloat64ToFloat32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToFloat32(), a);

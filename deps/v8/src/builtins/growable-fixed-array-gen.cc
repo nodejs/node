@@ -9,9 +9,9 @@
 namespace v8 {
 namespace internal {
 
-void GrowableFixedArray::Push(TNode<Object> const value) {
-  TNode<IntPtrT> const length = var_length_.value();
-  TNode<IntPtrT> const capacity = var_capacity_.value();
+void GrowableFixedArray::Push(const TNode<Object> value) {
+  const TNode<IntPtrT> length = var_length_.value();
+  const TNode<IntPtrT> capacity = var_capacity_.value();
 
   Label grow(this), store(this);
   Branch(IntPtrEqual(capacity, length), &grow, &store);
@@ -26,25 +26,25 @@ void GrowableFixedArray::Push(TNode<Object> const value) {
 
   BIND(&store);
   {
-    TNode<FixedArray> const array = var_array_.value();
+    const TNode<FixedArray> array = var_array_.value();
     UnsafeStoreFixedArrayElement(array, length, value);
 
     var_length_ = IntPtrAdd(length, IntPtrConstant(1));
   }
 }
 
-TNode<JSArray> GrowableFixedArray::ToJSArray(TNode<Context> const context) {
+TNode<JSArray> GrowableFixedArray::ToJSArray(const TNode<Context> context) {
   const ElementsKind kind = PACKED_ELEMENTS;
 
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Map> const array_map = LoadJSArrayElementsMap(kind, native_context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
   // Shrink to fit if necessary.
   {
     Label next(this);
 
-    TNode<IntPtrT> const length = var_length_.value();
-    TNode<IntPtrT> const capacity = var_capacity_.value();
+    const TNode<IntPtrT> length = var_length_.value();
+    const TNode<IntPtrT> capacity = var_capacity_.value();
 
     GotoIf(WordEqual(length, capacity), &next);
 
@@ -55,8 +55,8 @@ TNode<JSArray> GrowableFixedArray::ToJSArray(TNode<Context> const context) {
     BIND(&next);
   }
 
-  TNode<Smi> const result_length = SmiTag(length());
-  TNode<JSArray> const result =
+  const TNode<Smi> result_length = SmiTag(length());
+  const TNode<JSArray> result =
       AllocateJSArray(array_map, var_array_.value(), result_length);
   return result;
 }
@@ -69,7 +69,7 @@ TNode<IntPtrT> GrowableFixedArray::NewCapacity(
   // Growth rate is analog to JSObject::NewElementsCapacity:
   // new_capacity = (current_capacity + (current_capacity >> 1)) + 16.
 
-  TNode<IntPtrT> const new_capacity =
+  const TNode<IntPtrT> new_capacity =
       IntPtrAdd(IntPtrAdd(current_capacity, WordShr(current_capacity, 1)),
                 IntPtrConstant(16));
 
@@ -77,12 +77,12 @@ TNode<IntPtrT> GrowableFixedArray::NewCapacity(
 }
 
 TNode<FixedArray> GrowableFixedArray::ResizeFixedArray(
-    TNode<IntPtrT> const element_count, TNode<IntPtrT> const new_capacity) {
+    const TNode<IntPtrT> element_count, const TNode<IntPtrT> new_capacity) {
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(element_count, IntPtrConstant(0)));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_capacity, IntPtrConstant(0)));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_capacity, element_count));
 
-  TNode<FixedArray> const from_array = var_array_.value();
+  const TNode<FixedArray> from_array = var_array_.value();
 
   CodeStubAssembler::ExtractFixedArrayFlags flags;
   flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;

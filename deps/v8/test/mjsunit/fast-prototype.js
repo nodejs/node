@@ -91,7 +91,7 @@ function test(use_new, add_first, set__proto__) {
 }
 %EnsureFeedbackVectorForFunction(test);
 
-// TODO(mstarzinger): This test fails easily if gc happens at the wrong time.
+// This test fails easily if gc happens at the wrong time.
 gc();
 
 function test_fast_prototype() {

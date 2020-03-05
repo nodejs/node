@@ -12,6 +12,7 @@
 #include <limits>
 #include <string>
 
+#include "../../third_party/inspector_protocol/crdtp/cbor.h"
 #include "src/base/platform/platform.h"
 #include "src/inspector/v8-string-conversions.h"
 #include "src/numbers/conversions.h"
@@ -229,3 +230,13 @@ std::string String16::utf8() const {
 }
 
 }  // namespace v8_inspector
+
+namespace v8_crdtp {
+void SerializerTraits<v8_inspector::String16>::Serialize(
+    const v8_inspector::String16& str, std::vector<uint8_t>* out) {
+  cbor::EncodeFromUTF16(
+      span<uint16_t>(reinterpret_cast<const uint16_t*>(str.characters16()),
+                     str.length()),
+      out);
+}
+}  // namespace v8_crdtp

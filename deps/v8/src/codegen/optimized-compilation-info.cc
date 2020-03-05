@@ -132,10 +132,6 @@ void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
 void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
   if (bailout_reason_ == BailoutReason::kNoReason) {
-    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                         "V8.AbortOptimization", TRACE_EVENT_SCOPE_THREAD,
-                         "reason", GetBailoutReason(reason), "function",
-                         shared_info()->TraceIDRef());
     bailout_reason_ = reason;
   }
   SetFlag(kDisableFutureOptimization);
@@ -144,10 +140,6 @@ void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {
 void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
   if (GetFlag(kDisableFutureOptimization)) return;
-  TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                       "V8.RetryOptimization", TRACE_EVENT_SCOPE_THREAD,
-                       "reason", GetBailoutReason(reason), "function",
-                       shared_info()->TraceIDRef());
   bailout_reason_ = reason;
 }
 
@@ -249,34 +241,6 @@ OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(
   position.position = pos;
   // initialized when generating the deoptimization literals
   position.inlined_function_id = DeoptimizationData::kNotInlinedIndex;
-}
-
-std::unique_ptr<v8::tracing::TracedValue>
-OptimizedCompilationInfo::ToTracedValue() {
-  auto value = v8::tracing::TracedValue::Create();
-  value->SetBoolean("osr", is_osr());
-  value->SetBoolean("functionContextSpecialized",
-                    is_function_context_specializing());
-  if (has_shared_info()) {
-    value->SetValue("function", shared_info()->TraceIDRef());
-  }
-  if (bailout_reason() != BailoutReason::kNoReason) {
-    value->SetString("bailoutReason", GetBailoutReason(bailout_reason()));
-    value->SetBoolean("disableFutureOptimization",
-                      is_disable_future_optimization());
-  } else {
-    value->SetInteger("optimizationId", optimization_id());
-    value->BeginArray("inlinedFunctions");
-    for (auto const& inlined_function : inlined_functions()) {
-      value->BeginDictionary();
-      value->SetValue("function", inlined_function.shared_info->TraceIDRef());
-      // TODO(bmeurer): Also include the source position from the
-      // {inlined_function} here as dedicated "sourcePosition" field.
-      value->EndDictionary();
-    }
-    value->EndArray();
-  }
-  return value;
 }
 
 }  // namespace internal

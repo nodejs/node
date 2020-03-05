@@ -295,7 +295,7 @@ void BytecodeExpectationsPrinter::PrintConstant(
     *stream << i::HeapObject::cast(*constant).map().instance_type();
     if (constant->IsHeapNumber()) {
       *stream << " [";
-      i::HeapNumber::cast(*constant).HeapNumberPrint(*stream);
+      i::HeapNumber::cast(*constant).HeapNumberShortPrint(*stream);
       *stream << "]";
     } else if (constant->IsString()) {
       *stream << " [";

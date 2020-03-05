@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_map {
+namespace array {
   transitioning javascript builtin
   ArrayMapLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
       length: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
@@ -28,7 +28,7 @@ namespace array_map {
 
   transitioning javascript builtin
   ArrayMapLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
       length: JSAny, result: JSAny): JSAny {
     // All continuation points in the optimized filter implementation are
@@ -91,19 +91,19 @@ namespace array_map {
   }
 
   struct Vector {
-    ReportSkippedElement() {
+    macro ReportSkippedElement() {
       this.skippedElements = true;
     }
 
-    CreateJSArray(implicit context: Context)(validLength: Smi): JSArray {
+    macro CreateJSArray(implicit context: Context)(validLength: Smi): JSArray {
       const length: Smi = this.fixedArray.length;
       assert(validLength <= length);
-      let kind: ElementsKind = PACKED_SMI_ELEMENTS;
+      let kind: ElementsKind = ElementsKind::PACKED_SMI_ELEMENTS;
       if (!this.onlySmis) {
         if (this.onlyNumbers) {
-          kind = PACKED_DOUBLE_ELEMENTS;
+          kind = ElementsKind::PACKED_DOUBLE_ELEMENTS;
         } else {
-          kind = PACKED_ELEMENTS;
+          kind = ElementsKind::PACKED_ELEMENTS;
         }
       }
 
@@ -124,13 +124,13 @@ namespace array_map {
         // First, initialize the elements field before allocation to prevent
         // heap corruption.
         const elements: FixedDoubleArray = AllocateFixedDoubleArrayWithHoles(
-            SmiUntag(length), kAllowLargeObjectAllocation);
+            SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation);
         a = NewJSArray(map, this.fixedArray);
         for (let i: Smi = 0; i < validLength; i++) {
           typeswitch (
               UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
             case (n: Number): {
-              elements.floats[i] = Convert<float64>(n);
+              elements.floats[i] = Convert<float64_or_hole>(n);
             }
             case (TheHole): {
             }
@@ -147,7 +147,7 @@ namespace array_map {
       return a;
     }
 
-    StoreResult(implicit context: Context)(index: Smi, result: JSAny) {
+    macro StoreResult(implicit context: Context)(index: Smi, result: JSAny) {
       typeswitch (result) {
         case (s: Smi): {
           this.fixedArray.objects[index] = s;
@@ -173,7 +173,7 @@ namespace array_map {
   macro NewVector(implicit context: Context)(length: Smi): Vector {
     const fixedArray = length > 0 ?
         AllocateFixedArrayWithHoles(
-            SmiUntag(length), kAllowLargeObjectAllocation) :
+            SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation) :
         kEmptyFixedArray;
     return Vector{
       fixedArray,
@@ -224,7 +224,8 @@ namespace array_map {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.map
   transitioning javascript builtin
-  ArrayMap(js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+  ArrayMap(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
+      JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.map');
 
@@ -266,7 +267,7 @@ namespace array_map {
       return ArrayMapLoopContinuation(o, callbackfn, thisArg, array, o, k, len);
     }
     label TypeError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

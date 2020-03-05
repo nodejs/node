@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_reverse {
-  macro LoadElement<ElementsAccessor: type, T: type>(
+namespace array {
+  macro LoadElement<ElementsAccessor : type extends ElementsKind, T: type>(
       elements: FixedArrayBase, index: Smi): T;
 
   LoadElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
@@ -24,11 +24,10 @@ namespace array_reverse {
     const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     // This macro is only used for PACKED_DOUBLE, loading the hole should
     // be impossible.
-    return LoadDoubleWithHoleCheck(elements, index)
-        otherwise unreachable;
+    return elements.floats[index].Value() otherwise unreachable;
   }
 
-  macro StoreElement<ElementsAccessor: type, T: type>(
+  macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(
       implicit context:
           Context)(elements: FixedArrayBase, index: Smi, value: T);
 
@@ -124,10 +123,10 @@ namespace array_reverse {
         SetProperty(object, lower, upperValue);
 
         // ii. Perform ? DeletePropertyOrThrow(O, upperP).
-        DeleteProperty(object, upper, kStrict);
+        DeleteProperty(object, upper, LanguageMode::kStrict);
       } else if (lowerExists == True && upperExists == False) {
         // i. Perform ? DeletePropertyOrThrow(O, lowerP).
-        DeleteProperty(object, lower, kStrict);
+        DeleteProperty(object, lower, LanguageMode::kStrict);
 
         // ii. Perform ? Set(O, upperP, lowerValue, true).
         SetProperty(object, upper, lowerValue);
@@ -147,15 +146,15 @@ namespace array_reverse {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
     const kind: ElementsKind = array.map.elements_kind;
-    if (kind == PACKED_SMI_ELEMENTS) {
+    if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
       array::EnsureWriteableFastElements(array);
       FastPackedArrayReverse<array::FastPackedSmiElements, Smi>(
           array.elements, array.length);
-    } else if (kind == PACKED_ELEMENTS) {
+    } else if (kind == ElementsKind::PACKED_ELEMENTS) {
       array::EnsureWriteableFastElements(array);
       FastPackedArrayReverse<array::FastPackedObjectElements, JSAny>(
           array.elements, array.length);
-    } else if (kind == PACKED_DOUBLE_ELEMENTS) {
+    } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
       FastPackedArrayReverse<array::FastPackedDoubleElements, float64>(
           array.elements, array.length);
     } else {
@@ -165,7 +164,8 @@ namespace array_reverse {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reverse
   transitioning javascript builtin ArrayPrototypeReverse(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     try {
       TryFastPackedArrayReverse(receiver) otherwise Baseline;
       return receiver;

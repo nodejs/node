@@ -17,4 +17,7 @@ tools/gcmole/gcmole-test.cc:128:14: warning: Possible problem with evaluation or
 tools/gcmole/gcmole-test.cc:130:14: warning: Possible problem with evaluation order.
   so_handle->Method(*base->VirtualCauseGC(obj1, isolate));
              ^
-6 warnings generated.
+tools/gcmole/gcmole-test.cc:151:14: warning: Possible problem with evaluation order.
+  so_handle->Method(*SomeClass::StaticCauseGC(obj1, isolate));
+             ^
+7 warnings generated.

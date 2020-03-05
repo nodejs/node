@@ -31,6 +31,7 @@ namespace wasm {
 #define CASE_I16x8_OP(name, str) CASE_OP(I16x8##name, "i16x8." str)
 #define CASE_I8x16_OP(name, str) CASE_OP(I8x16##name, "i8x16." str)
 #define CASE_S128_OP(name, str) CASE_OP(S128##name, "s128." str)
+#define CASE_S64x2_OP(name, str) CASE_OP(S64x2##name, "s64x2." str)
 #define CASE_S32x4_OP(name, str) CASE_OP(S32x4##name, "s32x4." str)
 #define CASE_S16x8_OP(name, str) CASE_OP(S16x8##name, "s16x8." str)
 #define CASE_S8x16_OP(name, str) CASE_OP(S8x16##name, "s8x16." str)
@@ -306,6 +307,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Xor, "xor")
     CASE_S128_OP(Not, "not")
     CASE_S128_OP(Select, "select")
+    CASE_S128_OP(AndNot, "andnot")
     CASE_S8x16_OP(Swizzle, "swizzle")
     CASE_S8x16_OP(Shuffle, "shuffle")
     CASE_S1x2_OP(AnyTrue, "any_true")
@@ -320,6 +322,20 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(Qfms, "qfms")
     CASE_F32x4_OP(Qfma, "qfma")
     CASE_F32x4_OP(Qfms, "qfms")
+
+    CASE_S8x16_OP(LoadSplat, "load_splat")
+    CASE_S16x8_OP(LoadSplat, "load_splat")
+    CASE_S32x4_OP(LoadSplat, "load_splat")
+    CASE_S64x2_OP(LoadSplat, "load_splat")
+    CASE_I16x8_OP(Load8x8S, "load8x8_s")
+    CASE_I16x8_OP(Load8x8U, "load8x8_u")
+    CASE_I32x4_OP(Load16x4S, "load16x4_s")
+    CASE_I32x4_OP(Load16x4U, "load16x4_u")
+    CASE_I64x2_OP(Load32x2S, "load32x2_s")
+    CASE_I64x2_OP(Load32x2U, "load32x2_u")
+
+    CASE_I8x16_OP(RoundingAverageU, "avgr_u")
+    CASE_I16x8_OP(RoundingAverageU, "avgr_u")
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
@@ -353,6 +369,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_I16x8_OP
 #undef CASE_I8x16_OP
 #undef CASE_S128_OP
+#undef CASE_S64x2_OP
 #undef CASE_S32x4_OP
 #undef CASE_S16x8_OP
 #undef CASE_S8x16_OP
@@ -408,19 +425,6 @@ bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
   }
 }
 
-bool WasmOpcodes::IsSignExtensionOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-    case kExprI32SExtendI8:
-    case kExprI32SExtendI16:
-    case kExprI64SExtendI8:
-    case kExprI64SExtendI16:
-    case kExprI64SExtendI32:
-      return true;
-    default:
-      return false;
-  }
-}
-
 bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:
@@ -460,11 +464,11 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 
 bool IsJSCompatibleSignature(const FunctionSig* sig,
                              const WasmFeatures& enabled_features) {
-  if (!enabled_features.mv && sig->return_count() > 1) {
+  if (!enabled_features.has_mv() && sig->return_count() > 1) {
     return false;
   }
   for (auto type : sig->all()) {
-    if (!enabled_features.bigint && type == kWasmI64) {
+    if (!enabled_features.has_bigint() && type == kWasmI64) {
       return false;
     }
 
@@ -495,64 +499,49 @@ constexpr const FunctionSig* kCachedSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
 #undef DECLARE_SIG_ENTRY
 
-// gcc 4.7 - 4.9 has a bug which causes the constexpr attribute to get lost when
-// passing functions (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892). Hence
-// encapsulate these constexpr functions in functors.
-// TODO(clemensb): Remove this once we require gcc >= 5.0.
-
-struct GetShortOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetShortOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
     return FOREACH_SIMPLE_OPCODE(CASE) FOREACH_SIMPLE_PROTOTYPE_OPCODE(CASE)
         kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
-struct GetAsmJsOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
     return FOREACH_ASMJS_COMPAT_OPCODE(CASE) kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
-struct GetSimdOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
         kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
-struct GetAtomicOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_ATOMIC_OPCODE(CASE) FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE)
         kSigEnum_None;
 #undef CASE
 }
-};
 
-struct GetNumericOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_NUMERIC_OPCODE(CASE) kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
 constexpr std::array<WasmOpcodeSig, 256> kShortSigTable =
-    base::make_array<256>(GetShortOpcodeSigIndex{});
+    base::make_array<256>(GetShortOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
-    base::make_array<256>(GetAsmJsOpcodeSigIndex{});
+    base::make_array<256>(GetAsmJsOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
-    base::make_array<256>(GetSimdOpcodeSigIndex{});
+    base::make_array<256>(GetSimdOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
-    base::make_array<256>(GetAtomicOpcodeSigIndex{});
+    base::make_array<256>(GetAtomicOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
-    base::make_array<256>(GetNumericOpcodeSigIndex{});
+    base::make_array<256>(GetNumericOpcodeSigIndex);
 
 }  // namespace
 

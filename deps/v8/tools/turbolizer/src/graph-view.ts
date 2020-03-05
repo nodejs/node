@@ -71,7 +71,6 @@ export class GraphView extends PhaseView {
     // Listen for key events. Note that the focus handler seems
     // to be important even if it does nothing.
     svg
-      .attr("focusable", false)
       .on("focus", e => { })
       .on("keydown", e => { view.svgKeyDown(); });
 
@@ -385,6 +384,7 @@ export class GraphView extends PhaseView {
     graph.layoutGraph();
     graph.updateGraphVisibility();
     graph.viewWholeGraph();
+    graph.focusOnSvg();
   }
 
   showAllAction(view: GraphView) {
@@ -396,6 +396,7 @@ export class GraphView extends PhaseView {
     });
     view.updateGraphVisibility();
     view.viewWholeGraph();
+    view.focusOnSvg();
   }
 
   showControlAction(view: GraphView) {
@@ -407,6 +408,7 @@ export class GraphView extends PhaseView {
     });
     view.updateGraphVisibility();
     view.viewWholeGraph();
+    view.focusOnSvg();
   }
 
   toggleHideDead(view: GraphView) {
@@ -418,6 +420,7 @@ export class GraphView extends PhaseView {
     }
     const element = document.getElementById('toggle-hide-dead');
     element.classList.toggle('button-input-toggled', view.state.hideDead);
+    view.focusOnSvg();
   }
 
   hideDead() {
@@ -446,6 +449,7 @@ export class GraphView extends PhaseView {
       }
     }
     view.updateGraphVisibility();
+    view.focusOnSvg();
   }
 
   hideSelectedAction(view: GraphView) {
@@ -455,14 +459,17 @@ export class GraphView extends PhaseView {
       }
     }
     view.selectionHandler.clear();
+    view.focusOnSvg();
   }
 
   zoomSelectionAction(view: GraphView) {
     view.viewSelection();
+    view.focusOnSvg();
   }
 
   toggleTypesAction(view: GraphView) {
     view.toggleTypes();
+    view.focusOnSvg();
   }
 
   searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent, onlyVisible: boolean) {
@@ -493,8 +500,13 @@ export class GraphView extends PhaseView {
       this.updateGraphVisibility();
       searchBar.blur();
       this.viewSelection();
+      this.focusOnSvg();
     }
     e.stopPropagation();
+  }
+
+  focusOnSvg() {
+    (document.getElementById("graph").childNodes[0] as HTMLElement).focus();
   }
 
   svgKeyDown() {
@@ -587,12 +599,28 @@ export class GraphView extends PhaseView {
           eventHandled = false;
         }
         break;
-      case 83:
-        // 's'
+      case 80:
+        // 'p'
         view.selectOrigins();
         break;
       default:
         eventHandled = false;
+        break;
+      case 83:
+        // 's'
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
+          this.hideSelectedAction(this);
+        } else {
+          eventHandled = false;
+        }
+        break;
+      case 85:
+        // 'u'
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
+          this.hideUnselectedAction(this);
+        } else {
+          eventHandled = false;
+        }
         break;
     }
     if (eventHandled) {
@@ -915,11 +943,10 @@ export class GraphView extends PhaseView {
     const dy = maxY - minY;
     const x = (minX + maxX) / 2;
     const y = (minY + maxY) / 2;
-    const scale = Math.min(width / (1.1 * dx), height / (1.1 * dy));
+    const scale = Math.min(width / dx, height / dy) * 0.9;
     this.svg
-      .transition().duration(300).call(this.panZoom.translateTo, x, y)
-      .transition().duration(300).call(this.panZoom.scaleTo, scale)
-      .transition().duration(300).call(this.panZoom.translateTo, x, y);
+      .transition().duration(120).call(this.panZoom.scaleTo, scale)
+      .transition().duration(120).call(this.panZoom.translateTo, x, y);
   }
 
   viewWholeGraph() {

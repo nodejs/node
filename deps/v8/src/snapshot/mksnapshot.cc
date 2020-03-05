@@ -14,7 +14,6 @@
 #include "src/flags/flags.h"
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
-#include "src/snapshot/natives.h"
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
@@ -255,29 +254,27 @@ int main(int argc, char** argv) {
 
       MaybeSetCounterFunction(isolate);
 
-      if (i::FLAG_embedded_builtins) {
-        // Set code range such that relative jumps for builtins to
-        // builtin calls in the snapshot are possible.
-        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-        size_t code_range_size_mb =
-            i::kMaximalCodeRangeSize == 0
-                ? i::kMaxPCRelativeCodeRangeInMB
-                : std::min(i::kMaximalCodeRangeSize / i::MB,
-                           i::kMaxPCRelativeCodeRangeInMB);
-        v8::ResourceConstraints constraints;
-        constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
-        i_isolate->heap()->ConfigureHeap(constraints);
-        // The isolate contains data from builtin compilation that needs
-        // to be written out if builtins are embedded.
-        i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
-      }
+      // Set code range such that relative jumps for builtins to
+      // builtin calls in the snapshot are possible.
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      size_t code_range_size_mb =
+          i::kMaximalCodeRangeSize == 0
+              ? i::kMaxPCRelativeCodeRangeInMB
+              : std::min(i::kMaximalCodeRangeSize / i::MB,
+                         i::kMaxPCRelativeCodeRangeInMB);
+      v8::ResourceConstraints constraints;
+      constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
+      i_isolate->heap()->ConfigureHeap(constraints);
+      // The isolate contains data from builtin compilation that needs
+      // to be written out if builtins are embedded.
+      i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
+
       blob = CreateSnapshotDataBlob(isolate, embed_script.get());
-      if (i::FLAG_embedded_builtins) {
-        // At this point, the Isolate has been torn down but the embedded blob
-        // is still alive (we called DisableEmbeddedBlobRefcounting above).
-        // That's fine as far as the embedded file writer is concerned.
-        WriteEmbeddedFile(&embedded_writer);
-      }
+
+      // At this point, the Isolate has been torn down but the embedded blob
+      // is still alive (we called DisableEmbeddedBlobRefcounting above).
+      // That's fine as far as the embedded file writer is concerned.
+      WriteEmbeddedFile(&embedded_writer);
     }
 
     if (warmup_script) {

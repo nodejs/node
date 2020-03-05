@@ -64,8 +64,9 @@ void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver) {
-  HeapSnapshot* result = new HeapSnapshot(this);
+    v8::HeapProfiler::ObjectNameResolver* resolver,
+    bool treat_global_objects_as_roots) {
+  HeapSnapshot* result = new HeapSnapshot(this, treat_global_objects_as_roots);
   {
     HeapSnapshotGenerator generator(result, control, resolver, heap());
     if (!generator.GenerateSnapshot()) {

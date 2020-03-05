@@ -33,13 +33,14 @@ namespace proxy {
       const trapResult = ToBoolean(Call(context, trap, handler, target));
 
       // 8. Let targetResult be ? IsExtensible(target).
-      const targetResult: bool = ToBoolean(object::ObjectIsExtensible(target));
+      const targetResult: bool =
+          ToBoolean(object::ObjectIsExtensibleImpl(target));
 
       // 9. If SameValue(booleanTrapResult, targetResult) is false, throw a
       // TypeError exception.
       if (trapResult != targetResult) {
         ThrowTypeError(
-            kProxyIsExtensibleInconsistent,
+            MessageTemplate::kProxyIsExtensibleInconsistent,
             SelectBooleanConstant(targetResult));
       }
       // 10. Return booleanTrapResult.
@@ -47,10 +48,10 @@ namespace proxy {
     }
     label TrapUndefined(target: JSAny) {
       // 6.a. Return ? IsExtensible(target).
-      return object::ObjectIsExtensible(target);
+      return object::ObjectIsExtensibleImpl(target);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }

@@ -18,15 +18,12 @@ namespace v8_inspector {
 
 class AsyncStackTrace;
 class V8Debugger;
-class WasmTranslation;
 struct V8StackTraceId;
 
 class StackFrame {
  public:
   explicit StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> frame);
   ~StackFrame() = default;
-
-  void translate(WasmTranslation* wasmTranslation);
 
   const String16& functionName() const;
   const String16& scriptId() const;

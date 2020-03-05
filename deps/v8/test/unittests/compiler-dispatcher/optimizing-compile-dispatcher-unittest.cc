@@ -42,7 +42,7 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
   // OptimiziedCompilationJob implementation.
   Status PrepareJobImpl(Isolate* isolate) override { UNREACHABLE(); }
 
-  Status ExecuteJobImpl() override {
+  Status ExecuteJobImpl(RuntimeCallStats* stats) override {
     blocking_.SetValue(true);
     semaphore_.Wait();
     blocking_.SetValue(false);

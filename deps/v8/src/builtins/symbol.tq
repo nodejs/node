@@ -1,0 +1,49 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace symbol {
+  extern runtime SymbolDescriptiveString(implicit context: Context)(Symbol):
+      String;
+
+  transitioning macro ThisSymbolValue(implicit context: Context)(
+      receiver: JSAny, method: constexpr string): Symbol {
+    return UnsafeCast<Symbol>(
+        ToThisValue(receiver, PrimitiveType::kSymbol, method));
+  }
+
+  // ES #sec-symbol.prototype.description
+  transitioning javascript builtin SymbolPrototypeDescriptionGetter(
+      js-implicit context: NativeContext, receiver: JSAny)(): String|Undefined {
+    // 1. Let s be the this value.
+    // 2. Let sym be ? thisSymbolValue(s).
+    const sym: Symbol =
+        ThisSymbolValue(receiver, 'Symbol.prototype.description');
+    // 3. Return sym.[[Description]].
+    return sym.description;
+  }
+
+  // ES6 #sec-symbol.prototype-@@toprimitive
+  transitioning javascript builtin SymbolPrototypeToPrimitive(
+      js-implicit context: NativeContext,
+      receiver: JSAny)(_hint: JSAny): JSAny {
+    // 1. Return ? thisSymbolValue(this value).
+    return ThisSymbolValue(receiver, 'Symbol.prototype [ @@toPrimitive ]');
+  }
+
+  // ES6 #sec-symbol.prototype.tostring
+  transitioning javascript builtin SymbolPrototypeToString(
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+    // 1. Let sym be ? thisSymbolValue(this value).
+    const sym: Symbol = ThisSymbolValue(receiver, 'Symbol.prototype.toString');
+    // 2. Return SymbolDescriptiveString(sym).
+    return SymbolDescriptiveString(sym);
+  }
+
+  // ES6 #sec-symbol.prototype.valueof
+  transitioning javascript builtin SymbolPrototypeValueOf(
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+    // 1. Return ? thisSymbolValue(this value).
+    return ThisSymbolValue(receiver, 'Symbol.prototype.valueOf');
+  }
+}

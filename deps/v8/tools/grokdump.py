@@ -616,8 +616,12 @@ class MinidumpReader(object):
 
   def __init__(self, options, minidump_name):
     self.minidump_name = minidump_name
-    self.minidump_file = open(minidump_name, "r")
-    self.minidump = mmap.mmap(self.minidump_file.fileno(), 0, mmap.MAP_PRIVATE)
+    if sys.platform == 'win32':
+      self.minidump_file = open(minidump_name, "a+")
+      self.minidump = mmap.mmap(self.minidump_file.fileno(), 0)
+    else:
+      self.minidump_file = open(minidump_name, "r")
+      self.minidump = mmap.mmap(self.minidump_file.fileno(), 0, mmap.MAP_PRIVATE)
     self.header = MINIDUMP_HEADER.Read(self.minidump, 0)
     if self.header.signature != MinidumpReader._HEADER_MAGIC:
       print("Warning: Unsupported minidump header magic!", file=sys.stderr)

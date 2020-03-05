@@ -287,6 +287,8 @@ FUNCTION_REFERENCE(wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
 FUNCTION_REFERENCE(wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
 FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
+FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
+FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
 
@@ -504,16 +506,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
   return ExternalReference(isolate->regexp_stack()->limit_address_address());
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_memory_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->memory_address_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->memory_size_address());
-}
-
 ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
     Isolate* isolate) {
   return ExternalReference(
@@ -636,9 +628,9 @@ static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
 FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
                    JSReceiverCreateIdentityHash)
 
-static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
   DisallowHeapAllocation no_gc;
-  return ComputeSeededHash(key, HashSeed(isolate));
+  return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
@@ -649,6 +641,7 @@ FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
 FUNCTION_REFERENCE(try_internalize_string_function,
                    StringTable::LookupStringIfExists_NoAllocate)
+FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
                                            Address smi_y) {

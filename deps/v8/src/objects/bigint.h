@@ -41,10 +41,6 @@ class BigIntBase : public PrimitiveHeapObject {
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
-  static inline BigIntBase unchecked_cast(Object o) {
-    return bit_cast<BigIntBase>(o);
-  }
-
   // The maximum kMaxLengthBits that the current implementation supports
   // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
   // Since we want a platform independent limit, choose a nice round number
@@ -57,7 +53,7 @@ class BigIntBase : public PrimitiveHeapObject {
   // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
-  using SignBits = BitField<bool, 0, 1>;
+  using SignBits = base::BitField<bool, 0, 1>;
   using LengthBits = SignBits::Next<int, kLengthFieldBits>;
   STATIC_ASSERT(LengthBits::kLastUsedBit < 32);
 
@@ -75,6 +71,10 @@ class BigIntBase : public PrimitiveHeapObject {
   static constexpr bool HasOptionalPadding() {
     return FIELD_SIZE(kOptionalPaddingOffset) > 0;
   }
+
+  DECL_CAST(BigIntBase)
+  DECL_VERIFIER(BigIntBase)
+  DECL_PRINTER(BigIntBase)
 
  private:
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
@@ -101,9 +101,6 @@ class BigIntBase : public PrimitiveHeapObject {
   }
 
   bool is_zero() const { return length() == 0; }
-
-  // Only serves to make macros happy; other code should use IsBigInt.
-  bool IsBigIntBase() const { return true; }
 
   OBJECT_CONSTRUCTORS(BigIntBase, PrimitiveHeapObject);
 };
@@ -217,8 +214,6 @@ class BigInt : public BigIntBase {
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
   DECL_CAST(BigInt)
-  DECL_VERIFIER(BigInt)
-  DECL_PRINTER(BigInt)
   void BigIntShortPrint(std::ostream& os);
 
   inline static int SizeFor(int length) {

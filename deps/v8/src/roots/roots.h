@@ -17,6 +17,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
+class OffThreadFactory;
 template <typename T>
 class Handle;
 class Heap;
@@ -54,12 +55,12 @@ class Symbol;
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, code_map, CodeMap)                                                    \
-  V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, cell_map, CellMap)                                                    \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
+  V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
   /* TODO(mythria): Once lazy feedback lands, check if feedback vector map */  \
   /* is still a popular map */                                                 \
   V(Map, feedback_vector_map, FeedbackVectorMap)                               \
@@ -73,18 +74,8 @@ class Symbol;
   V(Oddball, termination_exception, TerminationException)                      \
   V(Oddball, optimized_out, OptimizedOut)                                      \
   V(Oddball, stale_register, StaleRegister)                                    \
-  /* Context maps */                                                           \
-  V(Map, native_context_map, NativeContextMap)                                 \
-  V(Map, module_context_map, ModuleContextMap)                                 \
-  V(Map, eval_context_map, EvalContextMap)                                     \
-  V(Map, script_context_map, ScriptContextMap)                                 \
-  V(Map, await_context_map, AwaitContextMap)                                   \
-  V(Map, block_context_map, BlockContextMap)                                   \
-  V(Map, catch_context_map, CatchContextMap)                                   \
-  V(Map, with_context_map, WithContextMap)                                     \
-  V(Map, debug_evaluate_context_map, DebugEvaluateContextMap)                  \
-  V(Map, script_context_table_map, ScriptContextTableMap)                      \
   /* Maps */                                                                   \
+  V(Map, script_context_table_map, ScriptContextTableMap)                      \
   V(Map, closure_feedback_cell_array_map, ClosureFeedbackCellArrayMap)         \
   V(Map, feedback_metadata_map, FeedbackMetadataArrayMap)                      \
   V(Map, array_list_map, ArrayListMap)                                         \
@@ -129,11 +120,9 @@ class Symbol;
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
   /* String maps */                                                            \
-  V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
   V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, cons_string_map, ConsStringMap)                                       \
-  V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
   V(Map, thin_string_map, ThinStringMap)                                       \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
@@ -201,6 +190,7 @@ class Symbol;
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \
+  V(ScopeInfo, native_scope_info, NativeScopeInfo)                             \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)
 
@@ -490,6 +480,7 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(OffThreadFactory* factory);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   V8_INLINE class Type name() const;         \

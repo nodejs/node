@@ -76,7 +76,7 @@ class FreeStoreAllocationPolicy {
 void* AllocWithRetry(size_t size);
 
 V8_EXPORT_PRIVATE void* AlignedAlloc(size_t size, size_t alignment);
-void AlignedFree(void* ptr);
+V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
@@ -148,17 +148,18 @@ inline bool SetPermissions(v8::PageAllocator* page_allocator, Address address,
 V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 
 // Represents and controls an area of reserved memory.
-class V8_EXPORT_PRIVATE VirtualMemory final {
+class VirtualMemory final {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.
-  VirtualMemory() = default;
+  V8_EXPORT_PRIVATE VirtualMemory();
 
   // Reserves virtual memory containing an area of the given size that is
   // aligned per |alignment| rounded up to the |page_allocator|'s allocate page
   // size. The |size| must be aligned with |page_allocator|'s commit page size.
   // This may not be at the position returned by address().
-  VirtualMemory(v8::PageAllocator* page_allocator, size_t size, void* hint,
-                size_t alignment = 1);
+  V8_EXPORT_PRIVATE VirtualMemory(v8::PageAllocator* page_allocator,
+                                  size_t size, void* hint,
+                                  size_t alignment = 1);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -171,7 +172,7 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.
-  ~VirtualMemory();
+  V8_EXPORT_PRIVATE ~VirtualMemory();
 
   // Move constructor.
   VirtualMemory(VirtualMemory&& other) V8_NOEXCEPT { *this = std::move(other); }
@@ -189,7 +190,7 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   bool IsReserved() const { return region_.begin() != kNullAddress; }
 
   // Initialize or resets an embedded VirtualMemory object.
-  void Reset();
+  V8_EXPORT_PRIVATE void Reset();
 
   v8::PageAllocator* page_allocator() { return page_allocator_; }
 
@@ -217,14 +218,14 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 
   // Sets permissions according to the access argument. address and size must be
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
-  bool SetPermissions(Address address, size_t size,
-                      PageAllocator::Permission access);
+  V8_EXPORT_PRIVATE bool SetPermissions(Address address, size_t size,
+                                        PageAllocator::Permission access);
 
   // Releases memory after |free_start|. Returns the number of bytes released.
-  size_t Release(Address free_start);
+  V8_EXPORT_PRIVATE size_t Release(Address free_start);
 
   // Frees all memory.
-  void Free();
+  V8_EXPORT_PRIVATE void Free();
 
   bool InVM(Address address, size_t size) {
     return region_.contains(address, size);

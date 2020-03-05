@@ -34,6 +34,7 @@
 #include "unicode/decimfmt.h"
 #include "unicode/formattedvalue.h"
 #include "unicode/localebuilder.h"
+#include "unicode/localematcher.h"
 #include "unicode/locid.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numberformatter.h"
@@ -88,7 +89,7 @@ inline constexpr uint16_t ToLatin1Lower(uint16_t ch) {
 
 // Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF.
 inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
-#if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
   DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
 #endif
   return ch &
@@ -1440,12 +1441,114 @@ std::vector<std::string> LookupSupportedLocales(
   return subset;
 }
 
+icu::LocaleMatcher BuildLocaleMatcher(
+    Isolate* isolate, const std::set<std::string>& available_locales,
+    UErrorCode* status) {
+  icu::Locale default_locale =
+      icu::Locale::forLanguageTag(DefaultLocale(isolate), *status);
+  CHECK(U_SUCCESS(*status));
+  icu::LocaleMatcher::Builder builder;
+  builder.setDefaultLocale(&default_locale);
+  for (auto it = available_locales.begin(); it != available_locales.end();
+       ++it) {
+    builder.addSupportedLocale(
+        icu::Locale::forLanguageTag(it->c_str(), *status));
+  }
+
+  return builder.build(*status);
+}
+
+class Iterator : public icu::Locale::Iterator {
+ public:
+  Iterator(std::vector<std::string>::const_iterator begin,
+           std::vector<std::string>::const_iterator end)
+      : iter_(begin), end_(end) {}
+  virtual ~Iterator() {}
+
+  UBool hasNext() const override { return iter_ != end_; }
+
+  const icu::Locale& next() override {
+    UErrorCode status = U_ZERO_ERROR;
+    locale_ = icu::Locale::forLanguageTag(iter_->c_str(), status);
+    CHECK(U_SUCCESS(status));
+    ++iter_;
+    return locale_;
+  }
+
+ private:
+  std::vector<std::string>::const_iterator iter_;
+  std::vector<std::string>::const_iterator end_;
+  icu::Locale locale_;
+};
+
+// ecma402/#sec-bestfitmatcher
+// The BestFitMatcher abstract operation compares requestedLocales, which must
+// be a List as returned by CanonicalizeLocaleList, against the locales in
+// availableLocales and determines the best available language to meet the
+// request. The algorithm is implementation dependent, but should produce
+// results that a typical user of the requested locales would perceive
+// as at least as good as those produced by the LookupMatcher abstract
+// operation. Options specified through Unicode locale extension sequences must
+// be ignored by the algorithm. Information about such subsequences is returned
+// separately. The abstract operation returns a record with a [[locale]] field,
+// whose value is the language tag of the selected locale, which must be an
+// element of availableLocales. If the language tag of the request locale that
+// led to the selected locale contained a Unicode locale extension sequence,
+// then the returned record also contains an [[extension]] field whose value is
+// the first Unicode locale extension sequence within the request locale
+// language tag.
+std::string BestFitMatcher(Isolate* isolate,
+                           const std::set<std::string>& available_locales,
+                           const std::vector<std::string>& requested_locales) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::LocaleMatcher matcher =
+      BuildLocaleMatcher(isolate, available_locales, &status);
+  CHECK(U_SUCCESS(status));
+
+  Iterator iter(requested_locales.cbegin(), requested_locales.cend());
+  std::string bestfit =
+      matcher.getBestMatch(iter, status)->toLanguageTag<std::string>(status);
+  if (U_FAILURE(status)) {
+    return DefaultLocale(isolate);
+  }
+  // We need to return the extensions with it.
+  for (auto it = requested_locales.begin(); it != requested_locales.end();
+       ++it) {
+    if (it->find(bestfit) == 0) {
+      return *it;
+    }
+  }
+  return bestfit;
+}
+
 // ECMA 402 9.2.8 BestFitSupportedLocales(availableLocales, requestedLocales)
 // https://tc39.github.io/ecma402/#sec-bestfitsupportedlocales
 std::vector<std::string> BestFitSupportedLocales(
-    const std::set<std::string>& available_locales,
+    Isolate* isolate, const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales) {
-  return LookupSupportedLocales(available_locales, requested_locales);
+  UErrorCode status = U_ZERO_ERROR;
+  icu::LocaleMatcher matcher =
+      BuildLocaleMatcher(isolate, available_locales, &status);
+  CHECK(U_SUCCESS(status));
+
+  std::string default_locale = DefaultLocale(isolate);
+  std::vector<std::string> result;
+  for (auto it = requested_locales.cbegin(); it != requested_locales.cend();
+       it++) {
+    if (*it == default_locale) {
+      result.push_back(*it);
+    } else {
+      status = U_ZERO_ERROR;
+      icu::Locale desired = icu::Locale::forLanguageTag(it->c_str(), status);
+      std::string bestfit = matcher.getBestMatch(desired, status)
+                                ->toLanguageTag<std::string>(status);
+      // We need to return the extensions with it.
+      if (U_SUCCESS(status) && it->find(bestfit) == 0) {
+        result.push_back(*it);
+      }
+    }
+  }
+  return result;
 }
 
 // ecma262 #sec-createarrayfromlist
@@ -1469,6 +1572,10 @@ Handle<JSArray> CreateArrayFromList(Isolate* isolate,
   // 5. Return array.
   return array;
 }
+
+// To mitigate the risk of bestfit locale matcher, we first check in without
+// turnning it on.
+static bool implement_bestfit = false;
 
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
@@ -1499,14 +1606,13 @@ MaybeHandle<JSObject> SupportedLocales(
   // 3. If matcher is "best fit", then
   //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
   //       requestedLocales).
-  if (matcher == Intl::MatcherOption::kBestFit) {
+  if (matcher == Intl::MatcherOption::kBestFit && implement_bestfit) {
     supported_locales =
-        BestFitSupportedLocales(available_locales, requested_locales);
+        BestFitSupportedLocales(isolate, available_locales, requested_locales);
   } else {
     // 4. Else,
     //    a. Let supportedLocales be LookupSupportedLocales(availableLocales,
     //       requestedLocales).
-    DCHECK_EQ(matcher, Intl::MatcherOption::kLookup);
     supported_locales =
         LookupSupportedLocales(available_locales, requested_locales);
   }
@@ -1585,6 +1691,11 @@ bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
 
 bool Intl::IsWellFormedCalendar(const std::string& value) {
   return JSLocale::Is38AlphaNumList(value);
+}
+
+// ecma402/#sec-iswellformedcurrencycode
+bool Intl::IsWellFormedCurrency(const std::string& currency) {
+  return JSLocale::Is3Alpha(currency);
 }
 
 bool Intl::IsValidCalendar(const icu::Locale& locale,
@@ -1751,10 +1862,9 @@ Intl::ResolvedLocale Intl::ResolveLocale(
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
     const std::set<std::string>& relevant_extension_keys) {
   std::string locale;
-  if (matcher == Intl::MatcherOption::kLookup) {
-    locale = LookupMatcher(isolate, available_locales, requested_locales);
-  } else if (matcher == Intl::MatcherOption::kBestFit) {
-    // TODO(intl): Implement better lookup algorithm.
+  if (matcher == Intl::MatcherOption::kBestFit && implement_bestfit) {
+    locale = BestFitMatcher(isolate, available_locales, requested_locales);
+  } else {
     locale = LookupMatcher(isolate, available_locales, requested_locales);
   }
 
@@ -1977,8 +2087,8 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
                                                   const char* method) {
   return Intl::GetStringOption<Intl::MatcherOption>(
       isolate, options, "localeMatcher", method, {"best fit", "lookup"},
-      {Intl::MatcherOption::kLookup, Intl::MatcherOption::kBestFit},
-      Intl::MatcherOption::kLookup);
+      {Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
+      Intl::MatcherOption::kBestFit);
 }
 
 Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,

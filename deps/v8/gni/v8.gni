@@ -2,10 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/jumbo.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
-import("//build/split_static_library.gni")
+import("split_static_library.gni")
 
 declare_args() {
   # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
@@ -31,8 +30,8 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
-  # Enables raw heap snapshots containing internals. Used for debugging memory
-  # on platform and embedder level.
+  # This flag is deprecated and is now available through the inspector interface
+  # as an argument to profiler's method `takeHeapSnapshot`.
   v8_enable_raw_heap_snapshots = false
 
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
@@ -70,8 +69,7 @@ if (v8_use_multi_snapshots) {
   # Silently disable multi snapshots if they're incompatible with the current
   # build configuration. This allows us to set v8_use_multi_snapshots=true on
   # all bots, and e.g. no-snapshot bots will automatically do the right thing.
-  v8_use_multi_snapshots =
-      v8_use_external_startup_data && !build_with_chromium && !use_jumbo_build
+  v8_use_multi_snapshots = v8_use_external_startup_data && !build_with_chromium
 }
 
 if (v8_enable_backtrace == "") {
@@ -138,11 +136,11 @@ if (!build_with_chromium && is_clang) {
 template("v8_source_set") {
   if (defined(invoker.split_count) && invoker.split_count > 1 &&
       defined(v8_static_library) && v8_static_library && is_win) {
-    link_target_type = "jumbo_split_static_library"
+    link_target_type = "split_static_library"
   } else if (defined(v8_static_library) && v8_static_library) {
-    link_target_type = "jumbo_static_library"
+    link_target_type = "static_library"
   } else {
-    link_target_type = "jumbo_source_set"
+    link_target_type = "source_set"
   }
   target(link_target_type, target_name) {
     forward_variables_from(invoker,
@@ -161,7 +159,7 @@ template("v8_source_set") {
 }
 
 template("v8_header_set") {
-  jumbo_source_set(target_name) {
+  source_set(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
     configs -= v8_remove_configs
     configs += v8_add_configs

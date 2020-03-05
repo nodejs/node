@@ -344,3 +344,9 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   assertEquals(memory.grow(1), 1);
   assertInstanceof(memory.buffer, SharedArrayBuffer);
 })();
+
+(function TestSharedMemoryGrowByZero() {
+  const memory = new WebAssembly.Memory({
+    "initial": 1, "maximum": 2, "shared": true });
+  assertEquals(memory.grow(0), 1);
+})();

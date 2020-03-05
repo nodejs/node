@@ -122,7 +122,7 @@ class JSArray : public JSObject {
   static const uint32_t kMinJoinStackSize = 2;
 
   static const int kInitialMaxFastElementArray =
-      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kSize -
+      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kHeaderSize -
        AllocationMemento::kSize) >>
       kDoubleSizeLog2;
 

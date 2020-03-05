@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_NAME_H_
 #define V8_OBJECTS_NAME_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -38,20 +40,20 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // We optimize this by setting a flag on the object's map when such
   // symbol properties are added, so we can optimize lookups on objects
   // that don't have the flag.
-  inline bool IsInterestingSymbol() const;
-  inline bool IsInterestingSymbol(Isolate* isolate) const;
+  DECL_GETTER(IsInterestingSymbol, bool)
 
   // If the name is private, it can only name own properties.
-  inline bool IsPrivate() const;
-  inline bool IsPrivate(Isolate* isolate) const;
+  DECL_GETTER(IsPrivate, bool)
 
   // If the name is a private name, it should behave like a private
   // symbol but also throw on property access miss.
-  inline bool IsPrivateName() const;
-  inline bool IsPrivateName(Isolate* isolate) const;
+  DECL_GETTER(IsPrivateName, bool)
 
-  inline bool IsUniqueName() const;
-  inline bool IsUniqueName(Isolate* isolate) const;
+  // If the name is a private brand, it should behave like a private name
+  // symbol but is filtered out when generating list of private fields.
+  DECL_GETTER(IsPrivateBrand, bool)
+
+  DECL_GETTER(IsUniqueName, bool)
 
   static inline bool ContainsCachedArrayIndex(uint32_t hash);
 
@@ -89,14 +91,13 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
-  // Maximum number of characters that might be parsed into a size_t:
-  // 10 characters per 32 bits of size_t width.
-  // We choose this as large as possible (rather than MAX_SAFE_INTEGER range)
-  // because TypedArray accesses will treat all string keys that are
-  // canonical representations of numbers in the range [MAX_SAFE_INTEGER ..
-  // size_t::max] as out-of-bounds accesses, and we can handle those in the
-  // fast path if we tag them as such (see kIsNotIntegerIndexMask).
-  static const int kMaxIntegerIndexSize = 10 * (sizeof(size_t) / 4);
+  // Maximum number of characters in a string that can possibly be an
+  // "integer index" in the spec sense, i.e. a canonical representation of a
+  // number in the range up to MAX_SAFE_INTEGER. We parse these into a size_t,
+  // so the size of that type also factors in as a limit: 10 characters per
+  // 32 bits of size_t width.
+  static const int kMaxIntegerIndexSize =
+      std::min(16, int{10 * (sizeof(size_t) / 4)});
 
   // For strings which are array indexes the hash value has the string length
   // mixed into the hash, mainly to avoid a hash value of zero which would be
@@ -109,10 +110,10 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   using ArrayIndexValueBits =
-      BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
+      base::BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
   using ArrayIndexLengthBits =
-      BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
-               kArrayIndexLengthBits>;
+      base::BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
+                     kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
@@ -138,7 +139,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 };
 
 // ES6 symbols.
-class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
+class Symbol : public TorqueGeneratedSymbol<Symbol, Name>,
+               public TorqueGeneratedSymbolFlagsFields {
  public:
   // [is_private]: Whether this is a private symbol.  Private symbols can only
   // be used to designate own properties of objects.
@@ -168,22 +170,19 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   inline bool is_private_name() const;
   inline void set_is_private_name();
 
+  // [is_private_name]: Whether this is a brand symbol.  Brand symbols are
+  // private name symbols that are used for validating access to
+  // private methods and storing information about the private methods.
+  //
+  // This also sets the is_private bit.
+  inline bool is_private_brand() const;
+  inline void set_is_private_brand();
+
   // Dispatched behavior.
   DECL_PRINTER(Symbol)
   DECL_VERIFIER(Symbol)
 
-// Flags layout.
-#define FLAGS_BIT_FIELDS(V, _)            \
-  V(IsPrivateBit, bool, 1, _)             \
-  V(IsWellKnownSymbolBit, bool, 1, _)     \
-  V(IsInPublicSymbolTableBit, bool, 1, _) \
-  V(IsInterestingSymbolBit, bool, 1, _)   \
-  V(IsPrivateNameBit, bool, 1, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
-
-  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
+  using BodyDescriptor = FixedBodyDescriptor<kDescriptionOffset, kSize, kSize>;
 
   void SymbolShortPrint(std::ostream& os);
 

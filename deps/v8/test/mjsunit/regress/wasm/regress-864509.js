@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --liftoff --no-wasm-tier-up --no-future --wasm-tier-mask-for-testing=2
+// Flags: --liftoff --no-wasm-tier-up --wasm-tier-mask-for-testing=2
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 

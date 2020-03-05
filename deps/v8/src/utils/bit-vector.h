@@ -5,6 +5,7 @@
 #ifndef V8_UTILS_BIT_VECTOR_H_
 #define V8_UTILS_BIT_VECTOR_H_
 
+#include "src/base/bits.h"
 #include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
@@ -34,7 +35,27 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     ~Iterator() = default;
 
     bool Done() const { return current_index_ >= target_->data_length_; }
-    V8_EXPORT_PRIVATE void Advance();
+
+    V8_EXPORT_PRIVATE inline void Advance() {
+      current_++;
+
+      // Skip zeroed words.
+      while (current_value_ == 0) {
+        current_index_++;
+        if (Done()) return;
+        DCHECK(!target_->is_inline());
+        current_value_ = target_->data_.ptr_[current_index_];
+        current_ = current_index_ << kDataBitShift;
+      }
+
+      // Skip zeroed bits.
+      uintptr_t trailing_zeros = base::bits::CountTrailingZeros(current_value_);
+      current_ += trailing_zeros;
+      current_value_ >>= trailing_zeros;
+
+      // Get current_value ready for next advance.
+      current_value_ >>= 1;
+    }
 
     int Current() const {
       DCHECK(!Done());
@@ -42,21 +63,6 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     }
 
    private:
-    uintptr_t SkipZeroBytes(uintptr_t val) {
-      while ((val & 0xFF) == 0) {
-        val >>= 8;
-        current_ += 8;
-      }
-      return val;
-    }
-    uintptr_t SkipZeroBits(uintptr_t val) {
-      while ((val & 0x1) == 0) {
-        val >>= 1;
-        current_++;
-      }
-      return val;
-    }
-
     BitVector* target_;
     int current_index_;
     uintptr_t current_value_;
@@ -66,8 +72,8 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   };
 
   static const int kDataLengthForInline = 1;
-  static const int kDataBits = kSystemPointerSize * 8;
-  static const int kDataBitShift = kSystemPointerSize == 8 ? 6 : 5;
+  static const int kDataBits = kBitsPerSystemPointer;
+  static const int kDataBitShift = kBitsPerSystemPointerLog2;
   static const uintptr_t kOne = 1;  // This saves some static_casts.
 
   BitVector() : length_(0), data_length_(kDataLengthForInline), data_(0) {}

@@ -166,9 +166,6 @@ namespace compiler {
   V(Arm64LdrDecompressAnyTagged)            \
   V(Arm64Str)                               \
   V(Arm64StrCompressTagged)                 \
-  V(Arm64DecompressSigned)                  \
-  V(Arm64DecompressPointer)                 \
-  V(Arm64DecompressAny)                     \
   V(Arm64DmbIsh)                            \
   V(Arm64DsbIsb)                            \
   V(Arm64F64x2Splat)                        \
@@ -256,7 +253,8 @@ namespace compiler {
   V(Arm64I32x4GtU)                          \
   V(Arm64I32x4GeU)                          \
   V(Arm64I16x8Splat)                        \
-  V(Arm64I16x8ExtractLane)                  \
+  V(Arm64I16x8ExtractLaneU)                 \
+  V(Arm64I16x8ExtractLaneS)                 \
   V(Arm64I16x8ReplaceLane)                  \
   V(Arm64I16x8SConvertI8x16Low)             \
   V(Arm64I16x8SConvertI8x16High)            \
@@ -286,8 +284,10 @@ namespace compiler {
   V(Arm64I16x8MaxU)                         \
   V(Arm64I16x8GtU)                          \
   V(Arm64I16x8GeU)                          \
+  V(Arm64I16x8RoundingAverageU)             \
   V(Arm64I8x16Splat)                        \
-  V(Arm64I8x16ExtractLane)                  \
+  V(Arm64I8x16ExtractLaneU)                 \
+  V(Arm64I8x16ExtractLaneS)                 \
   V(Arm64I8x16ReplaceLane)                  \
   V(Arm64I8x16Neg)                          \
   V(Arm64I8x16Shl)                          \
@@ -312,6 +312,7 @@ namespace compiler {
   V(Arm64I8x16MaxU)                         \
   V(Arm64I8x16GtU)                          \
   V(Arm64I8x16GeU)                          \
+  V(Arm64I8x16RoundingAverageU)             \
   V(Arm64S128Zero)                          \
   V(Arm64S128Dup)                           \
   V(Arm64S128And)                           \
@@ -319,6 +320,7 @@ namespace compiler {
   V(Arm64S128Xor)                           \
   V(Arm64S128Not)                           \
   V(Arm64S128Select)                        \
+  V(Arm64S128AndNot)                        \
   V(Arm64S32x4ZipLeft)                      \
   V(Arm64S32x4ZipRight)                     \
   V(Arm64S32x4UnzipLeft)                    \
@@ -355,6 +357,16 @@ namespace compiler {
   V(Arm64S1x8AllTrue)                       \
   V(Arm64S1x16AnyTrue)                      \
   V(Arm64S1x16AllTrue)                      \
+  V(Arm64S8x16LoadSplat)                    \
+  V(Arm64S16x8LoadSplat)                    \
+  V(Arm64S32x4LoadSplat)                    \
+  V(Arm64S64x2LoadSplat)                    \
+  V(Arm64I16x8Load8x8S)                     \
+  V(Arm64I16x8Load8x8U)                     \
+  V(Arm64I32x4Load16x4S)                    \
+  V(Arm64I32x4Load16x4U)                    \
+  V(Arm64I64x2Load32x2S)                    \
+  V(Arm64I64x2Load32x2U)                    \
   V(Arm64Word64AtomicLoadUint8)             \
   V(Arm64Word64AtomicLoadUint16)            \
   V(Arm64Word64AtomicLoadUint32)            \
