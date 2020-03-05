@@ -916,7 +916,7 @@ const { promisify } = require('util');
   const dst = new PassThrough({ autoDestroy: false });
   pipeline(src, dst, common.mustCall(() => {
     assert.strictEqual(src.destroyed, true);
-    assert.strictEqual(dst.destroyed, true);
+    assert.strictEqual(dst.destroyed, false);
   }));
   src.end();
 }
@@ -937,4 +937,50 @@ const { promisify } = require('util');
   r.push('asd');
   r.push(null);
   r.emit('close');
+}
+
+{
+  const server = http.createServer((req, res) => {
+  });
+
+  server.listen(0, () => {
+    const req = http.request({
+      port: server.address().port
+    });
+
+    const body = new PassThrough();
+    pipeline(
+      body,
+      req,
+      common.mustCall((err) => {
+        assert(!err);
+        assert(!req.res);
+        assert(!req.aborted);
+        req.abort();
+        server.close();
+      })
+    );
+    body.end();
+  });
+}
+
+{
+  const src = new PassThrough();
+  const dst = new PassThrough();
+  pipeline(src, dst, common.mustCall((err) => {
+    assert(!err);
+    assert.strictEqual(dst.destroyed, false);
+  }));
+  src.end();
+}
+
+{
+  const src = new PassThrough();
+  const dst = new PassThrough();
+  dst.readable = false;
+  pipeline(src, dst, common.mustCall((err) => {
+    assert(!err);
+    assert.strictEqual(dst.destroyed, true);
+  }));
+  src.end();
 }
