@@ -4652,6 +4652,17 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
         error(filename, linenum, 'whitespace/tab', 2,\
           'Do not indent the # symbol')
 
+    # Don't indent header guards
+    if Match(r'^#\s*(ifndef|define)\s*(SRC|TEST|TOOLS)_', line) or\
+       Match(r'^#\s*if\s*defined\(NODE_WANT_INTERNALS', line):
+      try:
+        tokens = re.findall(r'^#\s+', line)
+        tokens[0] # Force the except
+        error(filename, linenum, 'whitespace/tab', 2,\
+          'Do not indent header guards')
+      except:
+        pass
+
     definepos = line.find('define')
     if definepos != -1: # If there is a define in the line
       # If there is >1 space between define and identifier
@@ -4667,12 +4678,13 @@ def CheckPreprocessorDirectives(filename, clean_lines, linenum, error):
     if undefpos != -1:
       # If there is >1 space between undef and identifier
       if not Match(r'^.*undef {1}\S', line):  
-        error(filename, linenum, 'whitespace/tab', 2, 
+        error(filename, linenum, 'whitespace/tab', 2,\
               'Use one whitespace between undef and identifier')
 
     # Start of an if/ifdef/ifndef block
     if (Match(r'^#\s*(if|ifdef|ifndef)', line) and not\
-        Match(r'^#\s*(endif|elif)', line)):
+        Match(r'^#\s*(endif|elif)', line) and not\
+        Match(r'#\s*ifndef\s*(SRC|TEST|TOOLS|MYOBJECT)_', line)): # Don't indent header guards
       endflag = 0 # Set True when the if statement has been closed
       # Get the indent level of the top level if statement
       try:
