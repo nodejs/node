@@ -986,36 +986,6 @@ static X509_STORE* NewRootCertStore() {
 }
 
 
-void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (root_cert_store == nullptr)
-    root_cert_store = NewRootCertStore();
-
-  stack_st_X509_OBJECT* objs = X509_STORE_get0_objects(root_cert_store);
-  int num_objs = sk_X509_OBJECT_num(objs);
-
-  std::vector<Local<Value>> result;
-  result.reserve(num_objs);
-
-  for (int i = 0; i < num_objs; i++) {
-    X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
-    if (X509_OBJECT_get_type(obj) == X509_LU_X509) {
-      X509* cert = X509_OBJECT_get0_X509(obj);
-
-      Local<Value> value;
-      if (!X509ToPEM(env, cert).ToLocal(&value))
-        return;
-
-      result.push_back(value);
-    }
-  }
-
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), result.data(), result.size()));
-}
-
-
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -6684,6 +6654,36 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
       Encode(env->isolate(), cert.get(), strlen(cert.get()), BUFFER);
 
   args.GetReturnValue().Set(outString);
+}
+
+
+void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (root_cert_store == nullptr)
+    root_cert_store = NewRootCertStore();
+
+  stack_st_X509_OBJECT* objs = X509_STORE_get0_objects(root_cert_store);
+  int num_objs = sk_X509_OBJECT_num(objs);
+
+  std::vector<Local<Value>> result;
+  result.reserve(num_objs);
+
+  for (int i = 0; i < num_objs; i++) {
+    X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
+    if (X509_OBJECT_get_type(obj) == X509_LU_X509) {
+      X509* cert = X509_OBJECT_get0_X509(obj);
+
+      Local<Value> value;
+      if (!X509ToPEM(env, cert).ToLocal(&value))
+        return;
+
+      result.push_back(value);
+    }
+  }
+
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), result.data(), result.size()));
 }
 
 
