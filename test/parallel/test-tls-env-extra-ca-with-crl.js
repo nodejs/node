@@ -1,6 +1,5 @@
-// Certs in NODE_EXTRA_CA_CERTS are used for TLS peer validation
-
 'use strict';
+
 const common = require('../common');
 
 if (!common.hasCrypto)
@@ -18,9 +17,11 @@ if (process.env.CHILD) {
     checkServerIdentity: common.mustCall(),
     crl: fixtures.readKey('ca2-crl.pem')
   };
-  const client = tls.connect(copts, common.mustCall(function() {
+
+  const client = tls.connect(copts, common.mustCall(() => {
     client.end('hi');
   }));
+
   return;
 }
 
@@ -29,17 +30,17 @@ const options = {
   cert: fixtures.readKey('agent3-cert.pem')
 };
 
-const server = tls.createServer(options, common.mustCall(function(s) {
-  s.end('bye');
+const server = tls.createServer(options, common.mustCall((socket) => {
+  socket.end('bye');
   server.close();
-})).listen(0, common.mustCall(function() {
+})).listen(0, common.mustCall(() => {
   const env = Object.assign({}, process.env, {
     CHILD: 'yes',
-    PORT: this.address().port,
+    PORT: server.address().port,
     NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'ca2-cert.pem')
   });
 
-  fork(__filename, { env }).on('exit', common.mustCall(function(status) {
+  fork(__filename, { env }).on('exit', common.mustCall((status) => {
     // Client did not succeed in connecting
     assert.strictEqual(status, 0);
   }));

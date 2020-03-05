@@ -1028,9 +1028,8 @@ static X509_STORE* NewRootCertStore() {
 
 
 X509_STORE* CloneRootCertStore() {
-  if (root_cert_store == nullptr) {
+  if (root_cert_store == nullptr)
     return NewRootCertStore();
-  }
 
   X509_STORE* store_clone = X509_STORE_new();
   X509_STORE_set1_param(store_clone, X509_STORE_get0_param(root_cert_store));
