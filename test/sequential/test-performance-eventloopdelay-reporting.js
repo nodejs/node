@@ -12,16 +12,15 @@ const { sleep } = require('internal/util');
 const ASYNC_SCHEDULERS = [
   (cb) => setTimeout(cb, common.platformTimeout(10)),
   (cb) => {
-    const server = net.createServer((s) => {
+    const server = net.createServer(common.mustCall((s) => {
       s.destroy();
       server.close();
 
       cb();
-    });
+    }));
     server.listen(0, () => {
-      const { port, address: host } = server.address();
-      net.connect(port, host, () => {
-      });
+      const { port } = server.address();
+      net.connect(port, common.mustCall(() => {}));
     });
   },
 ];
