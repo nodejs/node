@@ -2871,10 +2871,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Calculates array index for given dictionary entry and entry field.
   // See Dictionary::EntryToIndex().
   template <typename Dictionary>
-  V8_EXPORT_PRIVATE TNode<IntPtrT> EntryToIndex(TNode<IntPtrT> entry,
-                                                int field_index);
+  TNode<IntPtrT> EntryToIndex(TNode<IntPtrT> entry, int field_index);
   template <typename Dictionary>
-  V8_EXPORT_PRIVATE TNode<IntPtrT> EntryToIndex(TNode<IntPtrT> entry) {
+  TNode<IntPtrT> EntryToIndex(TNode<IntPtrT> entry) {
     return EntryToIndex<Dictionary>(entry, Dictionary::kEntryKeyIndex);
   }
 

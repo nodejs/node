@@ -37,7 +37,7 @@ class StringTableKey {
   int length_;
 };
 
-class StringTableShape : public BaseShape<StringTableKey*> {
+class V8_EXPORT_PRIVATE StringTableShape : public BaseShape<StringTableKey*> {
  public:
   static inline bool IsMatch(Key key, Object value);
 
@@ -59,12 +59,12 @@ class SeqOneByteString;
 //
 // No special elements in the prefix and the element size is 1
 // because only the string itself (the key) needs to be stored.
-class StringTable : public HashTable<StringTable, StringTableShape> {
+class V8_EXPORT_PRIVATE StringTable
+    : public HashTable<StringTable, StringTableShape> {
  public:
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
-  V8_EXPORT_PRIVATE static Handle<String> LookupString(Isolate* isolate,
-                                                       Handle<String> key);
+  static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
   template <typename StringTableKey>
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
   static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
@@ -77,8 +77,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either an internalized string, or a Smi
   // sentinel.
-  V8_EXPORT_PRIVATE static Address LookupStringIfExists_NoAllocate(
-      Isolate* isolate, Address raw_string);
+  static Address LookupStringIfExists_NoAllocate(Isolate* isolate,
+                                                 Address raw_string);
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 

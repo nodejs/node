@@ -71,11 +71,11 @@ void Utf8Decoder::Decode(Char* out, const Vector<const uint8_t>& data) {
   if (t != unibrow::Utf8::kBufferEmpty) *out = static_cast<Char>(t);
 }
 
-template void Utf8Decoder::Decode(uint8_t* out,
-                                  const Vector<const uint8_t>& data);
+template V8_EXPORT_PRIVATE void Utf8Decoder::Decode(
+    uint8_t* out, const Vector<const uint8_t>& data);
 
-template void Utf8Decoder::Decode(uint16_t* out,
-                                  const Vector<const uint8_t>& data);
+template V8_EXPORT_PRIVATE void Utf8Decoder::Decode(
+    uint16_t* out, const Vector<const uint8_t>& data);
 
 }  // namespace internal
 }  // namespace v8

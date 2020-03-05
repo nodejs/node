@@ -7829,12 +7829,12 @@ TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByDescriptorEntry(
       DescriptorArray::ToValueIndex(0) * kTaggedSize);
 }
 
-template TNode<IntPtrT> CodeStubAssembler::EntryToIndex<NameDictionary>(
-    TNode<IntPtrT>, int);
-template TNode<IntPtrT> CodeStubAssembler::EntryToIndex<GlobalDictionary>(
-    TNode<IntPtrT>, int);
-template TNode<IntPtrT> CodeStubAssembler::EntryToIndex<NumberDictionary>(
-    TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+CodeStubAssembler::EntryToIndex<NameDictionary>(TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+CodeStubAssembler::EntryToIndex<GlobalDictionary>(TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+CodeStubAssembler::EntryToIndex<NumberDictionary>(TNode<IntPtrT>, int);
 
 // This must be kept in sync with HashTableBase::ComputeCapacity().
 TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(

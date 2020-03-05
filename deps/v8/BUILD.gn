@@ -746,6 +746,10 @@ config("toolchain") {
     ]
   }
 
+  if (!is_clang && is_win) {
+    cflags += [ "/wd4506" ]  # Benign "no definition for inline function"
+  }
+
   if (!is_clang && !is_win) {
     cflags += [
       # Disable gcc warnings for optimizations based on the assumption that

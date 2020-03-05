@@ -57,7 +57,7 @@ namespace internal {
 // information by subclasses.
 
 template <typename KeyT>
-class BaseShape {
+class V8_EXPORT_PRIVATE BaseShape {
  public:
   using Key = KeyT;
   static inline RootIndex GetMapRootIndex();
