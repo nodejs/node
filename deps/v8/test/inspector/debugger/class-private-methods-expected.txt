@@ -1,0 +1,205 @@
+Test private class methods
+
+Running test: testScopesPaused
+privateProperties on the base class instance
+[
+    [0] : {
+        name : #inc
+        value : {
+            className : Function
+            description : #inc() { this.#field++; return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        name : #writeOnly
+        set : {
+            className : Function
+            description : set #writeOnly(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [2] : {
+        get : {
+            className : Function
+            description : get #readOnly() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #readOnly
+    }
+    [3] : {
+        get : {
+            className : Function
+            description : get #accessor() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #accessor
+        set : {
+            className : Function
+            description : set #accessor(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [4] : {
+        name : #field
+        value : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+]
+Evaluating private methods
+{
+    result : {
+        description : 3
+        type : number
+        value : 3
+    }
+}
+Evaluating private methods
+{
+    result : {
+        description : 4
+        type : number
+        value : 4
+    }
+}
+Evaluating private accessors
+{
+    result : {
+        description : 5
+        type : number
+        value : 5
+    }
+}
+Evaluating read-only accessor
+{
+    result : {
+        description : 5
+        type : number
+        value : 5
+    }
+}
+Evaluating write-only accessor
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+privateProperties on the subclass instance
+[
+    [0] : {
+        name : #inc
+        value : {
+            className : Function
+            description : #inc() { this.#field++; return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        name : #writeOnly
+        set : {
+            className : Function
+            description : set #writeOnly(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [2] : {
+        get : {
+            className : Function
+            description : get #readOnly() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #readOnly
+    }
+    [3] : {
+        get : {
+            className : Function
+            description : get #accessor() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #accessor
+        set : {
+            className : Function
+            description : set #accessor(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [4] : {
+        name : #field
+        value : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+    [5] : {
+        name : #subclassMethod
+        value : {
+            className : Function
+            description : #subclassMethod() { return 'subclassMethod'; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [6] : {
+        name : #inc
+        value : {
+            className : Function
+            description : #inc() { return 'subclass #inc'; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+]
+Evaluating private methods in the base class from the subclass
+{
+    exceptionDetails : {
+        columnNumber : 4
+        exception : {
+            className : SyntaxError
+            description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:16:7)     at run (<anonymous>:30:5)     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+        exceptionId : <exceptionId>
+        lineNumber : 0
+        scriptId : <scriptId>
+        text : Uncaught
+    }
+    result : {
+        className : SyntaxError
+        description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:16:7)     at run (<anonymous>:30:5)     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+Evaluating private method in the subclass from the subclass
+{
+    result : {
+        type : string
+        value : subclassMethod
+    }
+}
+Evaluating private method shadowing the base class method
+{
+    result : {
+        type : string
+        value : subclass #inc
+    }
+}

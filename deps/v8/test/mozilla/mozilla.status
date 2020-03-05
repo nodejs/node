@@ -332,7 +332,6 @@
 
   # Test that depends on timer resolution. Fails every now and then
   # if we're unlucky enough to get a context switch at a bad time.
-  # TODO(mstarzinger): Switch off TF on windows due to timeouts.
   'js1_5/extensions/regress-363258': [PASS, FAIL, ['system == windows', NO_VARIANTS]],
 
 
@@ -1011,9 +1010,12 @@
 
   #BUG(3837): Crashes due to C stack overflow.
   'js1_5/extensions/regress-355497': [SKIP],
-  # Slow test
-  'js1_5/Regress/regress-80981': [PASS, SLOW],
 }],  # 'arch == arm and simulator_run'
+
+['arch == arm64', {
+  # BUG(v8:9863)
+  'js1_5/Regress/regress-80981': [SKIP],
+}], # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
 
@@ -1037,9 +1039,6 @@
 
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
-
-  # Slow without pointer compression
-  'js1_5/Regress/regress-80981': [PASS, ['not pointer_compression', SLOW]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['system == android', {
@@ -1063,10 +1062,5 @@
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ]

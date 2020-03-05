@@ -14,7 +14,6 @@
 #include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
-#include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -412,36 +411,20 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
-  Heap* heap = serializer_->isolate()->heap();
   // For external strings with known resources, we replace the resource field
   // with the encoded external reference, which we restore upon deserialize.
-  // for native native source code strings, we replace the resource field
-  // with the native source id.
   // For the rest we serialize them to look like ordinary sequential strings.
-  if (object_.map() != ReadOnlyRoots(heap).native_source_string_map()) {
-    ExternalString string = ExternalString::cast(object_);
-    Address resource = string.resource_as_address();
-    ExternalReferenceEncoder::Value reference;
-    if (serializer_->external_reference_encoder_.TryEncode(resource).To(
-            &reference)) {
-      DCHECK(reference.is_from_api());
-      string.set_uint32_as_resource(reference.index());
-      SerializeObject();
-      string.set_address_as_resource(resource);
-    } else {
-      SerializeExternalStringAsSequentialString();
-    }
-  } else {
-    ExternalOneByteString string = ExternalOneByteString::cast(object_);
-    DCHECK(string.is_uncached());
-    const NativesExternalStringResource* resource =
-        reinterpret_cast<const NativesExternalStringResource*>(
-            string.resource());
-    // Replace the resource field with the type and index of the native source.
-    string.set_resource(resource->EncodeForSerialization());
+  ExternalString string = ExternalString::cast(object_);
+  Address resource = string.resource_as_address();
+  ExternalReferenceEncoder::Value reference;
+  if (serializer_->external_reference_encoder_.TryEncode(resource).To(
+          &reference)) {
+    DCHECK(reference.is_from_api());
+    string.set_uint32_as_resource(reference.index());
     SerializeObject();
-    // Restore the resource field.
-    string.set_resource(resource);
+    string.set_address_as_resource(resource);
+  } else {
+    SerializeExternalStringAsSequentialString();
   }
 }
 
@@ -450,7 +433,6 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // an imaginary sequential string with the same content.
   ReadOnlyRoots roots(serializer_->isolate());
   DCHECK(object_.IsExternalString());
-  DCHECK(object_.map() != roots.native_source_string_map());
   ExternalString string = ExternalString::cast(object_);
   int length = string.length();
   Map map;
@@ -561,7 +543,7 @@ void Serializer::ObjectSerializer::Serialize() {
   }
 
   // We don't expect fillers.
-  DCHECK(!object_.IsFiller());
+  DCHECK(!object_.IsFreeSpaceOrFiller());
 
   if (object_.IsScript()) {
     // Clear cached line ends.
@@ -572,25 +554,42 @@ void Serializer::ObjectSerializer::Serialize() {
   SerializeObject();
 }
 
-void Serializer::ObjectSerializer::SerializeObject() {
-  int size = object_.Size();
-  Map map = object_.map();
-  SnapshotSpace space;
-  if (ReadOnlyHeap::Contains(object_)) {
-    space = SnapshotSpace::kReadOnlyHeap;
+namespace {
+SnapshotSpace GetSnapshotSpace(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    if (third_party_heap::Heap::InCodeSpace(object.address())) {
+      return SnapshotSpace::kCode;
+    } else if (ReadOnlyHeap::Contains(object)) {
+      return SnapshotSpace::kReadOnlyHeap;
+    } else if (object.Size() > kMaxRegularHeapObjectSize) {
+      return SnapshotSpace::kLargeObject;
+    } else if (object.IsMap()) {
+      return SnapshotSpace::kMap;
+    } else {
+      return SnapshotSpace::kNew;  // avoid new/young distinction in TPH
+    }
+  } else if (ReadOnlyHeap::Contains(object)) {
+    return SnapshotSpace::kReadOnlyHeap;
   } else {
     AllocationSpace heap_space =
-        MemoryChunk::FromHeapObject(object_)->owner_identity();
+        MemoryChunk::FromHeapObject(object)->owner_identity();
     // Large code objects are not supported and cannot be expressed by
     // SnapshotSpace.
     DCHECK_NE(heap_space, CODE_LO_SPACE);
     // Young generation large objects are tenured.
     if (heap_space == NEW_LO_SPACE) {
-      space = SnapshotSpace::kLargeObject;
+      return SnapshotSpace::kLargeObject;
     } else {
-      space = static_cast<SnapshotSpace>(heap_space);
+      return static_cast<SnapshotSpace>(heap_space);
     }
   }
+}
+}  // namespace
+
+void Serializer::ObjectSerializer::SerializeObject() {
+  int size = object_.Size();
+  Map map = object_.map();
+  SnapshotSpace space = GetSnapshotSpace(object_);
   SerializePrologue(space, size, map);
 
   // Serialize the rest of the object.
@@ -661,6 +660,8 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
                                                  MaybeObjectSlot start,
                                                  MaybeObjectSlot end) {
+  DisallowHeapAllocation no_gc;
+
   MaybeObjectSlot current = start;
   while (current < end) {
     while (current < end && (*current)->IsSmi()) {
@@ -765,7 +766,6 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
-  DCHECK(FLAG_embedded_builtins);
   STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
 
   Address addr = rinfo->target_off_heap_target();

@@ -10,6 +10,8 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
 #include "src/utils/utils.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -24,6 +26,7 @@ template <typename T>
 class MaybeHandle;
 class SourceTextModuleInfo;
 class Scope;
+class StringSet;
 class Zone;
 
 // ScopeInfo represents information about different scopes of a source
@@ -33,7 +36,7 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public FixedArray {
+class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
  public:
   DECL_CAST(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
@@ -55,12 +58,15 @@ class ScopeInfo : public FixedArray {
 
   // Return the number of context slots for code if a context is allocated. This
   // number consists of three parts:
-  //  1. Size of fixed header for every context: Context::MIN_CONTEXT_SLOTS
+  //  1. Size of header for every context.
   //  2. One context slot per context allocated local.
   //  3. One context slot for the function name if it is context allocated.
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
+  int ContextHeaderLength() const;
+
+  bool HasContextExtensionSlot() const;
 
   // Does this scope declare a "this" binding?
   bool HasReceiver() const;
@@ -190,9 +196,23 @@ class ScopeInfo : public FixedArray {
   // Return the outer ScopeInfo if present.
   ScopeInfo OuterScopeInfo() const;
 
+  bool is_script_scope() const;
+
+  // Returns true if this ScopeInfo has a black list attached containing
+  // stack allocated local variables.
+  V8_EXPORT_PRIVATE bool HasLocalsBlackList() const;
+  // Returns a list of stack-allocated locals of parent scopes.
+  // Used during local debug-evalute to decide whether a context lookup
+  // can continue upwards after checking this scope.
+  V8_EXPORT_PRIVATE StringSet LocalsBlackList() const;
+
   // Returns true if this ScopeInfo was created for a scope that skips the
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
+
+  // REPL mode scopes allow re-declaraction of let variables. They come from
+  // debug evaluate but are different to IsDebugEvaluateScope().
+  bool IsReplModeScope() const;
 
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
@@ -204,7 +224,15 @@ class ScopeInfo : public FixedArray {
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
+  static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
+
+  // Creates a copy of a {ScopeInfo} but with the provided locals blacklist
+  // attached. Does nothing if the original {ScopeInfo} already has a field
+  // for a blacklist reserved.
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> RecreateWithBlackList(
+      Isolate* isolate, Handle<ScopeInfo> original,
+      Handle<StringSet> blacklist);
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static ScopeInfo Empty(Isolate* isolate);
@@ -233,36 +261,10 @@ class ScopeInfo : public FixedArray {
         kVariablePartIndex
   };
 
-  // Used for the function name variable for named function expressions, and for
-  // the receiver.
-  enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
+  static const int kFlagsOffset = OffsetOfElementAt(Fields::kFlags);
 
-  // Properties of scopes.
-  using ScopeTypeField = BitField<ScopeType, 0, 4>;
-  using SloppyEvalCanExtendVarsField = ScopeTypeField::Next<bool, 1>;
-  STATIC_ASSERT(LanguageModeSize == 2);
-  using LanguageModeField = SloppyEvalCanExtendVarsField::Next<LanguageMode, 1>;
-  using DeclarationScopeField = LanguageModeField::Next<bool, 1>;
-  using ReceiverVariableField =
-      DeclarationScopeField::Next<VariableAllocationInfo, 2>;
-  using HasClassBrandField = ReceiverVariableField::Next<bool, 1>;
-  using HasSavedClassVariableIndexField = HasClassBrandField::Next<bool, 1>;
-  using HasNewTargetField = HasSavedClassVariableIndexField::Next<bool, 1>;
-  using FunctionVariableField =
-      HasNewTargetField::Next<VariableAllocationInfo, 2>;
-  // TODO(cbruni): Combine with function variable field when only storing the
-  // function name.
-  using HasInferredFunctionNameField = FunctionVariableField::Next<bool, 1>;
-  using IsAsmModuleField = HasInferredFunctionNameField::Next<bool, 1>;
-  using HasSimpleParametersField = IsAsmModuleField::Next<bool, 1>;
-  using FunctionKindField = HasSimpleParametersField::Next<FunctionKind, 5>;
-  using HasOuterScopeInfoField = FunctionKindField::Next<bool, 1>;
-  using IsDebugEvaluateScopeField = HasOuterScopeInfoField::Next<bool, 1>;
-  using ForceContextAllocationField = IsDebugEvaluateScopeField::Next<bool, 1>;
-  using PrivateNameLookupSkipsOuterClassField =
-      ForceContextAllocationField::Next<bool, 1>;
-
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
+  STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
+  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
 
  private:
   // The layout of the variable part of a ScopeInfo is as follows:
@@ -296,10 +298,13 @@ class ScopeInfo : public FixedArray {
   //    the scope belongs to a function or script.
   // 8. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 9. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
-  //    For a module scope, this part contains the SourceTextModuleInfo, the
-  //    number of MODULE-allocated variables, and the metadata of those
-  //    variables.  For non-module scopes it is empty.
+  // 9. LocalsBlackList: List of stack allocated local variables. Used by
+  //    debug evaluate to properly abort variable lookup when a name clashes
+  //    with a stack allocated local that can't be materialized.
+  // 10. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
+  //     For a module scope, this part contains the SourceTextModuleInfo, the
+  //     number of MODULE-allocated variables, and the metadata of those
+  //     variables.  For non-module scopes it is empty.
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int SavedClassVariableInfoIndex() const;
@@ -308,13 +313,16 @@ class ScopeInfo : public FixedArray {
   int InferredFunctionNameIndex() const;
   int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
+  V8_EXPORT_PRIVATE int LocalsBlackListIndex() const;
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
 
   static bool NeedsPositionInfo(ScopeType type);
+
+  enum class BootstrappingType { kScript, kFunction, kNative };
   static Handle<ScopeInfo> CreateForBootstrapping(Isolate* isolate,
-                                                  ScopeType type);
+                                                  BootstrappingType type);
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
@@ -332,21 +340,20 @@ class ScopeInfo : public FixedArray {
   static const int kPositionInfoEntries = 2;
 
   // Properties of variables.
-  using VariableModeField = BitField<VariableMode, 0, 4>;
+  using VariableModeField = base::BitField<VariableMode, 0, 4>;
   using InitFlagField = VariableModeField::Next<InitializationFlag, 1>;
   using MaybeAssignedFlagField = InitFlagField::Next<MaybeAssignedFlag, 1>;
   using ParameterNumberField = MaybeAssignedFlagField::Next<uint32_t, 16>;
   using IsStaticFlagField = ParameterNumberField::Next<IsStaticFlag, 1>;
 
   friend class ScopeIterator;
-  friend std::ostream& operator<<(std::ostream& os,
-                                  ScopeInfo::VariableAllocationInfo var);
+  friend std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
   OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray);
+  FRIEND_TEST(TestWithNativeContext, RecreateScopeInfoWithLocalsBlacklistWorks);
 };
 
-std::ostream& operator<<(std::ostream& os,
-                         ScopeInfo::VariableAllocationInfo var);
+std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var);
 
 }  // namespace internal
 }  // namespace v8

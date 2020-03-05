@@ -85,7 +85,7 @@ Handle<CachedTemplateObject> CachedTemplateObject::New(
   DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
   Factory* factory = isolate->factory();
   Handle<CachedTemplateObject> result = Handle<CachedTemplateObject>::cast(
-      factory->NewStruct(TUPLE3_TYPE, AllocationType::kOld));
+      factory->NewStruct(CACHED_TEMPLATE_OBJECT_TYPE, AllocationType::kOld));
   result->set_slot_id(slot_id);
   result->set_template_object(*template_object);
   result->set_next(*next);

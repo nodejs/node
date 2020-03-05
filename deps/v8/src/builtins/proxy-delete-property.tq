@@ -10,7 +10,7 @@ namespace proxy {
   // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-delete-p
   transitioning builtin
   ProxyDeleteProperty(implicit context: Context)(
-      proxy: JSProxy, name: PropertyKey, languageMode: LanguageMode): JSAny {
+      proxy: JSProxy, name: PropertyKey, languageMode: LanguageModeSmi): JSAny {
     const kTrapName: constexpr string = 'deleteProperty';
     // Handle deeply nested proxy.
     PerformStackCheck();
@@ -41,8 +41,10 @@ namespace proxy {
 
       // 9. If booleanTrapResult is false, return false.
       if (!ToBoolean(trapResult)) {
-        if (languageMode == SmiConstant(kStrict)) {
-          ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName, name);
+        const strictValue: LanguageModeSmi = LanguageMode::kStrict;
+        if (languageMode == strictValue) {
+          ThrowTypeError(
+              MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName, name);
         }
         return False;
       }
@@ -63,7 +65,7 @@ namespace proxy {
       return DeleteProperty(target, name, languageMode);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }

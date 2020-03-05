@@ -1,0 +1,82 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+@generateCppClass
+@reserveBitsInInstanceType(6)
+extern class String extends Name {
+  length: int32;
+}
+
+@generateCppClass
+extern class ConsString extends String {
+  first: String;
+  second: String;
+}
+
+@abstract
+extern class ExternalString extends String {
+  resource: RawPtr;
+  resource_data: RawPtr;
+}
+
+extern class ExternalOneByteString extends ExternalString {}
+extern class ExternalTwoByteString extends ExternalString {}
+
+@generateCppClass
+extern class InternalizedString extends String {
+}
+
+// TODO(v8:8983): Add declaration for variable-sized region.
+@abstract
+@generateCppClass
+extern class SeqString extends String {
+}
+@generateCppClass
+extern class SeqOneByteString extends SeqString {
+  chars[length]: char8;
+}
+@generateCppClass
+extern class SeqTwoByteString extends SeqString {
+  chars[length]: char16;
+}
+
+@generateCppClass
+extern class SlicedString extends String {
+  parent: String;
+  offset: Smi;
+}
+
+@generateCppClass
+extern class ThinString extends String {
+  actual: String;
+}
+
+// A direct string can be accessed directly through CSA without going into the
+// C++ runtime. See also: ToDirectStringAssembler.
+type DirectString extends String;
+
+@export
+macro AllocateSeqOneByteString(length: uint32): String {
+  assert(length <= kStringMaxLength);
+  if (length == 0) return kEmptyString;
+  return new SeqOneByteString{
+    map: kOneByteStringMap,
+    hash_field: kNameEmptyHashField,
+    length: Signed(length),
+    chars: ...UninitializedIterator {}
+  };
+}
+
+@export
+macro AllocateSeqTwoByteString(length: uint32): String {
+  assert(length <= kStringMaxLength);
+  if (length == 0) return kEmptyString;
+  return new SeqTwoByteString{
+    map: kStringMap,
+    hash_field: kNameEmptyHashField,
+    length: Signed(length),
+    chars: ...UninitializedIterator {}
+  };
+}

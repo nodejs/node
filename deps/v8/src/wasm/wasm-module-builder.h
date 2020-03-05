@@ -122,6 +122,7 @@ class ZoneBuffer : public ZoneObject {
 
   size_t offset() const { return static_cast<size_t>(pos_ - buffer_); }
   size_t size() const { return static_cast<size_t>(pos_ - buffer_); }
+  const byte* data() const { return buffer_; }
   const byte* begin() const { return buffer_; }
   const byte* end() const { return pos_; }
 
@@ -162,6 +163,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitU32V(uint32_t val);
   void EmitCode(const byte* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
+  void EmitWithPrefix(WasmOpcode opcode);
   void EmitGetLocal(uint32_t index);
   void EmitSetLocal(uint32_t index);
   void EmitTeeLocal(uint32_t index);

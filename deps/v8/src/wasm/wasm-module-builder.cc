@@ -88,6 +88,12 @@ void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
 
 void WasmFunctionBuilder::Emit(WasmOpcode opcode) { body_.write_u8(opcode); }
 
+void WasmFunctionBuilder::EmitWithPrefix(WasmOpcode opcode) {
+  DCHECK_NE(0, opcode & 0xff00);
+  body_.write_u8(opcode >> 8);
+  body_.write_u8(opcode);
+}
+
 void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
   body_.write_u8(opcode);
   body_.write_u8(immediate);
@@ -705,8 +711,6 @@ void WasmModuleBuilder::WriteAsmJsOffsetTable(ZoneBuffer* buffer) const {
   for (auto* function : functions_) {
     function->WriteAsmWasmOffsetTable(buffer);
   }
-  // Append a 0 to indicate that this is an encoded table.
-  buffer->write_u8(0);
 }
 }  // namespace wasm
 }  // namespace internal

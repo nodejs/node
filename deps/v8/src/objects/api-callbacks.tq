@@ -1,0 +1,41 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+extern class CallHandlerInfo extends Struct {
+  callback: NonNullForeign|Undefined|Zero;
+  js_callback: NonNullForeign|Undefined|Zero;
+  data: Object;
+}
+
+@generateCppClass
+extern class InterceptorInfo extends Struct {
+  getter: NonNullForeign|Zero|Undefined;
+  setter: NonNullForeign|Zero|Undefined;
+  query: NonNullForeign|Zero|Undefined;
+  descriptor: NonNullForeign|Zero|Undefined;
+  deleter: NonNullForeign|Zero|Undefined;
+  enumerator: NonNullForeign|Zero|Undefined;
+  definer: NonNullForeign|Zero|Undefined;
+  data: Object;
+  flags: Smi;
+}
+
+@generateCppClass
+extern class AccessCheckInfo extends Struct {
+  callback: Foreign|Zero|Undefined;
+  named_interceptor: InterceptorInfo|Zero|Undefined;
+  indexed_interceptor: InterceptorInfo|Zero|Undefined;
+  data: Object;
+}
+
+extern class AccessorInfo extends Struct {
+  name: Object;
+  flags: Smi;
+  expected_receiver_type: Object;
+  setter: NonNullForeign|Zero;
+  getter: NonNullForeign|Zero;
+  js_getter: NonNullForeign|Zero;
+  data: Object;
+}

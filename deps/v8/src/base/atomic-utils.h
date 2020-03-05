@@ -104,6 +104,16 @@ class AsAtomicImpl {
         cast_helper<T>::to_storage_type(new_value)));
   }
 
+  template <typename T>
+  static T AcquireRelease_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::AcquireRelease_CompareAndSwap(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
+        cast_helper<T>::to_storage_type(new_value)));
+  }
+
   // Atomically sets bits selected by the mask to the given value.
   // Returns false if the bits are already set as needed.
   template <typename T>

@@ -67,7 +67,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<Uint32T> BytecodeOperandIntrinsicId(int operand_index);
   // Accumulator.
   TNode<Object> GetAccumulator();
-  void SetAccumulator(SloppyTNode<Object> value);
+  void SetAccumulator(TNode<Object> value);
 
   // Context.
   TNode<Context> GetContext();

@@ -80,8 +80,8 @@ class Module : public HeapObject {
   static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
                                                       Handle<Module> module);
 
-// Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_MODULE_FIELDS)
 
   using BodyDescriptor =

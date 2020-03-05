@@ -247,8 +247,4 @@ export abstract class TextView extends PhaseView {
   }
 
   public onresize(): void {}
-
-  isScrollable() {
-    return true;
-  }
 }

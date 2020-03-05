@@ -16,7 +16,7 @@ namespace internal {
 
 Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgumentString(
     Isolate* isolate) const {
-  if (arg_ != nullptr) return arg_->string();
+  if (arg_ != nullptr) return arg_->string().get<Factory>();
   if (char_arg_ != nullptr) {
     return isolate->factory()
         ->NewStringFromUtf8(CStrVector(char_arg_))
@@ -83,7 +83,7 @@ void PendingCompilationErrorHandler::ReportErrors(
   } else {
     DCHECK(has_pending_error());
     // Internalize ast values for throwing the pending error.
-    ast_value_factory->Internalize(isolate);
+    ast_value_factory->Internalize(isolate->factory());
     ThrowPendingError(isolate, script);
   }
 }
@@ -97,37 +97,9 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
-  Handle<Object> error =
+  Handle<JSObject> error =
       factory->NewSyntaxError(error_details_.message(), argument);
-
-  if (!error->IsJSObject()) {
-    isolate->Throw(*error, &location);
-    return;
-  }
-
-  Handle<JSObject> jserror = Handle<JSObject>::cast(error);
-
-  Handle<Name> key_start_pos = factory->error_start_pos_symbol();
-  Object::SetProperty(isolate, jserror, key_start_pos,
-                      handle(Smi::FromInt(location.start_pos()), isolate),
-                      StoreOrigin::kMaybeKeyed,
-                      Just(ShouldThrow::kThrowOnError))
-      .Check();
-
-  Handle<Name> key_end_pos = factory->error_end_pos_symbol();
-  Object::SetProperty(isolate, jserror, key_end_pos,
-                      handle(Smi::FromInt(location.end_pos()), isolate),
-                      StoreOrigin::kMaybeKeyed,
-                      Just(ShouldThrow::kThrowOnError))
-      .Check();
-
-  Handle<Name> key_script = factory->error_script_symbol();
-  Object::SetProperty(isolate, jserror, key_script, script,
-                      StoreOrigin::kMaybeKeyed,
-                      Just(ShouldThrow::kThrowOnError))
-      .Check();
-
-  isolate->Throw(*error, &location);
+  isolate->ThrowAt(error, &location);
 }
 
 Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(

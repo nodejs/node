@@ -133,15 +133,11 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
     // Stack inspection and modification.
     pc_t GetBreakpointPc();
-    // TODO(clemensb): Make this uint32_t.
     int GetFrameCount();
     // The InterpretedFrame is only valid as long as the Thread is paused.
     FramePtr GetFrame(int index);
     WasmValue GetReturnValue(int index = 0);
     TrapReason GetTrapReason();
-
-    uint32_t GetGlobalCount();
-    WasmValue GetGlobalValue(uint32_t index);
 
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
@@ -183,6 +179,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   void Run();
   void Pause();
+
+  // Prepare {function} for stepping in from Javascript.
+  void PrepareStepIn(const WasmFunction* function);
 
   // Set a breakpoint at {pc} in {function} to be {enabled}. Returns the
   // previous state of the breakpoint at {pc}.

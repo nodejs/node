@@ -148,6 +148,8 @@ namespace compiler {
   V(S390_LoadReverse16RR)                   \
   V(S390_LoadReverse32RR)                   \
   V(S390_LoadReverse64RR)                   \
+  V(S390_LoadReverseSimd128RR)              \
+  V(S390_LoadReverseSimd128)                \
   V(S390_LoadReverse16)                     \
   V(S390_LoadReverse32)                     \
   V(S390_LoadReverse64)                     \
@@ -161,11 +163,9 @@ namespace compiler {
   V(S390_StoreReverse16)                    \
   V(S390_StoreReverse32)                    \
   V(S390_StoreReverse64)                    \
+  V(S390_StoreReverseSimd128)               \
   V(S390_StoreFloat32)                      \
   V(S390_StoreDouble)                       \
-  V(S390_DecompressSigned)                  \
-  V(S390_DecompressPointer)                 \
-  V(S390_DecompressAny)                     \
   V(S390_CompressSigned)                    \
   V(S390_CompressPointer)                   \
   V(S390_CompressAny)                       \
@@ -196,7 +196,100 @@ namespace compiler {
   V(S390_Word64AtomicXorUint8)              \
   V(S390_Word64AtomicXorUint16)             \
   V(S390_Word64AtomicXorUint32)             \
-  V(S390_Word64AtomicXorUint64)
+  V(S390_Word64AtomicXorUint64)             \
+  V(S390_F32x4Splat)                        \
+  V(S390_F32x4ExtractLane)                  \
+  V(S390_F32x4ReplaceLane)                  \
+  V(S390_F32x4Add)                          \
+  V(S390_F32x4AddHoriz)                     \
+  V(S390_F32x4Sub)                          \
+  V(S390_F32x4Mul)                          \
+  V(S390_F32x4Eq)                           \
+  V(S390_F32x4Ne)                           \
+  V(S390_F32x4Lt)                           \
+  V(S390_F32x4Le)                           \
+  V(S390_F32x4Abs)                          \
+  V(S390_F32x4Neg)                          \
+  V(S390_F32x4RecipApprox)                  \
+  V(S390_F32x4RecipSqrtApprox)              \
+  V(S390_I32x4Splat)                        \
+  V(S390_I32x4ExtractLane)                  \
+  V(S390_I32x4ReplaceLane)                  \
+  V(S390_I32x4Add)                          \
+  V(S390_I32x4AddHoriz)                     \
+  V(S390_I32x4Sub)                          \
+  V(S390_I32x4Mul)                          \
+  V(S390_I32x4MinS)                         \
+  V(S390_I32x4MinU)                         \
+  V(S390_I32x4MaxS)                         \
+  V(S390_I32x4MaxU)                         \
+  V(S390_I32x4Eq)                           \
+  V(S390_I32x4Ne)                           \
+  V(S390_I32x4GtS)                          \
+  V(S390_I32x4GeS)                          \
+  V(S390_I32x4GtU)                          \
+  V(S390_I32x4GeU)                          \
+  V(S390_I32x4Neg)                          \
+  V(S390_I16x8Splat)                        \
+  V(S390_I32x4Shl)                          \
+  V(S390_I32x4ShrS)                         \
+  V(S390_I32x4ShrU)                         \
+  V(S390_I16x8ExtractLaneU)                 \
+  V(S390_I16x8ExtractLaneS)                 \
+  V(S390_I16x8ReplaceLane)                  \
+  V(S390_I16x8Add)                          \
+  V(S390_I16x8AddHoriz)                     \
+  V(S390_I16x8Sub)                          \
+  V(S390_I16x8Mul)                          \
+  V(S390_I16x8MinS)                         \
+  V(S390_I16x8MinU)                         \
+  V(S390_I16x8MaxS)                         \
+  V(S390_I16x8MaxU)                         \
+  V(S390_I16x8Eq)                           \
+  V(S390_I16x8Ne)                           \
+  V(S390_I16x8GtS)                          \
+  V(S390_I16x8GeS)                          \
+  V(S390_I16x8GtU)                          \
+  V(S390_I16x8GeU)                          \
+  V(S390_I16x8Shl)                          \
+  V(S390_I16x8ShrS)                         \
+  V(S390_I16x8ShrU)                         \
+  V(S390_I16x8Neg)                          \
+  V(S390_I8x16Splat)                        \
+  V(S390_I8x16ExtractLaneU)                 \
+  V(S390_I8x16ExtractLaneS)                 \
+  V(S390_I8x16ReplaceLane)                  \
+  V(S390_I8x16Add)                          \
+  V(S390_I8x16Sub)                          \
+  V(S390_I8x16Mul)                          \
+  V(S390_I8x16MinS)                         \
+  V(S390_I8x16MinU)                         \
+  V(S390_I8x16MaxS)                         \
+  V(S390_I8x16MaxU)                         \
+  V(S390_I8x16Eq)                           \
+  V(S390_I8x16Ne)                           \
+  V(S390_I8x16GtS)                          \
+  V(S390_I8x16GeS)                          \
+  V(S390_I8x16GtU)                          \
+  V(S390_I8x16GeU)                          \
+  V(S390_I8x16Shl)                          \
+  V(S390_I8x16ShrS)                         \
+  V(S390_I8x16ShrU)                         \
+  V(S390_I8x16Neg)                          \
+  V(S390_S1x4AnyTrue)                       \
+  V(S390_S1x8AnyTrue)                       \
+  V(S390_S1x16AnyTrue)                      \
+  V(S390_S1x4AllTrue)                       \
+  V(S390_S1x8AllTrue)                       \
+  V(S390_S1x16AllTrue)                      \
+  V(S390_S128And)                           \
+  V(S390_S128Or)                            \
+  V(S390_S128Xor)                           \
+  V(S390_S128Zero)                          \
+  V(S390_S128Not)                           \
+  V(S390_S128Select)                        \
+  V(S390_StoreSimd128)                      \
+  V(S390_LoadSimd128)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

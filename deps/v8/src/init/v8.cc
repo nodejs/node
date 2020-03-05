@@ -23,7 +23,6 @@
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/wasm/wasm-engine.h"
@@ -148,14 +147,6 @@ v8::Platform* V8::GetCurrentPlatform() {
 void V8::SetPlatformForTesting(v8::Platform* platform) {
   base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(&platform_),
                       reinterpret_cast<base::AtomicWord>(platform));
-}
-
-void V8::SetNativesBlob(StartupData* natives_blob) {
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  base::CallOnce(&init_natives_once, &SetNativesFromFile, natives_blob);
-#else
-  UNREACHABLE();
-#endif
 }
 
 void V8::SetSnapshotBlob(StartupData* snapshot_blob) {

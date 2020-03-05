@@ -285,10 +285,6 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
       result = wrap->promiseResolve_function()->Call(context, rcv, 1, args);
     }
   }
-
-  if (try_catch.HasCaught()) {
-    Shell::ReportException(hooks->isolate_, &try_catch);
-  }
 }
 
 }  // namespace v8

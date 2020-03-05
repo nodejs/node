@@ -37,11 +37,11 @@
   'fail/modules-skip*': [SKIP],
 }],  # ALWAYS
 
-# Liftoff is currently only sufficiently implemented on x64 and ia32.
+# Liftoff is currently only sufficiently implemented on x64, ia32, arm, arm64.
 # TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
-['arch != x64 and arch != ia32', {
+['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm-trace-memory-liftoff': [SKIP],
-}], # arch != x64 and arch != ia32
+}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ['variant == code_serializer', {
   # TODO(yangguo): Code serializer output is incompatible with all message
@@ -63,10 +63,5 @@
   # Test output requires --validate-asm, which is disabled in jitless mode.
   'asm-*': [SKIP],
 }], # lite_mode or variant == jitless
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ]

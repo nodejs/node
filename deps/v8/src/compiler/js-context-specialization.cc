@@ -160,18 +160,6 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // This will hold the final value, if we can figure it out.
   base::Optional<ObjectRef> maybe_value;
   maybe_value = concrete.get(static_cast<int>(access.index()));
-  if (maybe_value.has_value() && !maybe_value->IsSmi()) {
-    // Even though the context slot is immutable, the context might have escaped
-    // before the function to which it belongs has initialized the slot.
-    // We must be conservative and check if the value in the slot is currently
-    // the hole or undefined. Only if it is neither of these, can we be sure
-    // that it won't change anymore.
-    OddballType oddball_type = maybe_value->AsHeapObject().map().oddball_type();
-    if (oddball_type == OddballType::kUndefined ||
-        oddball_type == OddballType::kHole) {
-      maybe_value.reset();
-    }
-  }
 
   if (!maybe_value.has_value()) {
     TRACE_BROKER_MISSING(broker(), "slot value " << access.index()
@@ -180,10 +168,20 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete), depth);
   }
 
+  if (!maybe_value->IsSmi()) {
+    // Even though the context slot is immutable, the context might have escaped
+    // before the function to which it belongs has initialized the slot.
+    // We must be conservative and check if the value in the slot is currently
+    // the hole or undefined. Only if it is neither of these, can we be sure
+    // that it won't change anymore.
+    OddballType oddball_type = maybe_value->AsHeapObject().map().oddball_type();
+    if (oddball_type == OddballType::kUndefined ||
+        oddball_type == OddballType::kHole) {
+      return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete), depth);
+    }
+  }
+
   // Success. The context load can be replaced with the constant.
-  // TODO(titzer): record the specialization for sharing code across
-  // multiple contexts that have the same value in the corresponding context
-  // slot.
   Node* constant = jsgraph_->Constant(*maybe_value);
   ReplaceWithValue(node, constant);
   return Replace(constant);

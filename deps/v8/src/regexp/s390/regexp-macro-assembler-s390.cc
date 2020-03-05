@@ -164,6 +164,19 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerS390::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    __ LoadP(r2, MemOperand(frame_pointer(), kBacktrackCount), r0);
+    __ AddP(r2, r2, Operand(1));
+    __ StoreP(r2, MemOperand(frame_pointer(), kBacktrackCount), r0);
+    __ CmpLogicalP(r2, Operand(backtrack_limit()));
+    __ bne(&next);
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(r2);
   __ AddP(r2, code_pointer());
@@ -659,10 +672,14 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   // from generated code.
   __ LoadRR(frame_pointer(), sp);
   __ lay(sp, MemOperand(sp, -10 * kSystemPointerSize));
+  STATIC_ASSERT(kSuccessfulCaptures == kInputString - kSystemPointerSize);
   __ mov(r1, Operand::Zero());  // success counter
+  STATIC_ASSERT(kStringStartMinusOne ==
+                kSuccessfulCaptures - kSystemPointerSize);
   __ LoadRR(r0, r1);            // offset of location
   __ StoreMultipleP(r0, r9, MemOperand(sp, 0));
-
+  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  __ Push(r1);  // The backtrack counter.
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
   Label stack_ok;
@@ -940,7 +957,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
                           .set_self_reference(masm_->CodeObject())
                           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
+          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
   return Handle<HeapObject>::cast(code);
 }
 

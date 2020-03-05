@@ -1,0 +1,18 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class FeedbackVector extends HeapObject {
+  shared_function_info: SharedFunctionInfo;
+  optimized_code_weak_or_smi: Weak<Code>|Smi;
+  closure_feedback_cell_array: FixedArray;
+  length: int32;
+  invocation_count: int32;
+  profiler_ticks: int32;
+  // TODO(v8:9287) The padding is not necessary on platforms with 4 bytes
+  // tagged pointers, we should make it conditional; however, platform-specific
+  // interacts badly with GCMole, so we need to address that first.
+  padding: uint32;
+}
+
+extern class FeedbackMetadata extends HeapObject;

@@ -133,15 +133,25 @@ struct OperandAsKeyLess {
 class BlockAssessments : public ZoneObject {
  public:
   using OperandMap = ZoneMap<InstructionOperand, Assessment*, OperandAsKeyLess>;
-  explicit BlockAssessments(Zone* zone)
-      : map_(zone), map_for_moves_(zone), zone_(zone) {}
-  void Drop(InstructionOperand operand) { map_.erase(operand); }
+  using OperandSet = ZoneSet<InstructionOperand, OperandAsKeyLess>;
+  explicit BlockAssessments(Zone* zone, int spill_slot_delta)
+      : map_(zone),
+        map_for_moves_(zone),
+        stale_ref_stack_slots_(zone),
+        spill_slot_delta_(spill_slot_delta),
+        zone_(zone) {}
+  void Drop(InstructionOperand operand) {
+    map_.erase(operand);
+    stale_ref_stack_slots_.erase(operand);
+  }
   void DropRegisters();
   void AddDefinition(InstructionOperand operand, int virtual_register) {
     auto existent = map_.find(operand);
     if (existent != map_.end()) {
       // Drop the assignment
       map_.erase(existent);
+      // Destination operand is no longer a stale reference.
+      stale_ref_stack_slots_.erase(operand);
     }
     map_.insert(
         std::make_pair(operand, new (zone_) FinalAssessment(virtual_register)));
@@ -151,17 +161,32 @@ class BlockAssessments : public ZoneObject {
   void PerformParallelMoves(const ParallelMove* moves);
   void CopyFrom(const BlockAssessments* other) {
     CHECK(map_.empty());
+    CHECK(stale_ref_stack_slots_.empty());
     CHECK_NOT_NULL(other);
     map_.insert(other->map_.begin(), other->map_.end());
+    stale_ref_stack_slots_.insert(other->stale_ref_stack_slots_.begin(),
+                                  other->stale_ref_stack_slots_.end());
   }
+  void CheckReferenceMap(const ReferenceMap* reference_map);
+  bool IsStaleReferenceStackSlot(InstructionOperand op);
 
   OperandMap& map() { return map_; }
   const OperandMap& map() const { return map_; }
+
+  OperandSet& stale_ref_stack_slots() { return stale_ref_stack_slots_; }
+  const OperandSet& stale_ref_stack_slots() const {
+    return stale_ref_stack_slots_;
+  }
+
+  int spill_slot_delta() const { return spill_slot_delta_; }
+
   void Print() const;
 
  private:
   OperandMap map_;
   OperandMap map_for_moves_;
+  OperandSet stale_ref_stack_slots_;
+  int spill_slot_delta_;
   Zone* zone_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockAssessments);
@@ -170,7 +195,8 @@ class BlockAssessments : public ZoneObject {
 class RegisterAllocatorVerifier final : public ZoneObject {
  public:
   RegisterAllocatorVerifier(Zone* zone, const RegisterConfiguration* config,
-                            const InstructionSequence* sequence);
+                            const InstructionSequence* sequence,
+                            const Frame* frame);
 
   void VerifyAssignment(const char* caller_info);
   void VerifyGapMoves();
@@ -234,6 +260,7 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   const RegisterConfiguration* config() { return config_; }
   const InstructionSequence* sequence() const { return sequence_; }
   Constraints* constraints() { return &constraints_; }
+  int spill_slot_delta() const { return spill_slot_delta_; }
 
   static void VerifyInput(const OperandConstraint& constraint);
   static void VerifyTemp(const OperandConstraint& constraint);
@@ -260,6 +287,7 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   Constraints constraints_;
   ZoneMap<RpoNumber, BlockAssessments*> assessments_;
   ZoneMap<RpoNumber, DelayedAssessments*> outstanding_assessments_;
+  int spill_slot_delta_;
   // TODO(chromium:725559): remove after we understand this bug's root cause.
   const char* caller_info_ = nullptr;
 

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 
@@ -13,6 +14,8 @@
 
 namespace v8 {
 namespace internal {
+
+class ArrayBufferExtension;
 
 class JSArrayBuffer : public JSObject {
  public:
@@ -30,7 +33,10 @@ class JSArrayBuffer : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
-  DECL_ACCESSORS(backing_store, void*)
+  DECL_PRIMITIVE_ACCESSORS(backing_store, void*)
+
+  // [extension]: extension object used for GC
+  DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
 
   // For non-wasm, allocation_length and allocation_base are byte_length and
   // backing_store, respectively.
@@ -99,6 +105,18 @@ class JSArrayBuffer : public JSObject {
   // or a zero-length array buffer).
   std::shared_ptr<BackingStore> GetBackingStore();
 
+  // Allocates an ArrayBufferExtension for this array buffer, unless it is
+  // already associated with an extension.
+  ArrayBufferExtension* EnsureExtension(Heap* heap);
+
+  // Frees the associated ArrayBufferExtension and returns its backing store.
+  std::shared_ptr<BackingStore> RemoveExtension();
+
+  // Marks ArrayBufferExtension
+  void MarkExtension();
+  void YoungMarkExtension();
+  void YoungMarkExtensionPromoted();
+
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
@@ -109,6 +127,8 @@ class JSArrayBuffer : public JSObject {
   /* Raw data fields. */                                                    \
   V(kByteLengthOffset, kUIntptrSize)                                        \
   V(kBackingStoreOffset, kSystemPointerSize)                                \
+  V(kExtensionOffset,                                                       \
+    (V8_ARRAY_BUFFER_EXTENSION_BOOL ? kSystemPointerSize : 0))              \
   V(kBitFieldOffset, kInt32Size)                                            \
   /* Pads header size to be a multiple of kTaggedSize. */                   \
   V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
@@ -125,6 +145,71 @@ class JSArrayBuffer : public JSObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(JSArrayBuffer, JSObject);
+
+ private:
+  inline ArrayBufferExtension** extension_location() const;
+};
+
+// Each JSArrayBuffer (with a backing store) has a corresponding native-heap
+// allocated ArrayBufferExtension for GC purposes and storing the backing store.
+// When marking a JSArrayBuffer, the GC also marks the native
+// extension-object. The GC periodically iterates all extensions concurrently
+// and frees unmarked ones.
+// https://docs.google.com/document/d/1-ZrLdlFX1nXT3z-FAgLbKal1gI8Auiaya_My-a0UJ28/edit
+class ArrayBufferExtension : public Malloced {
+  enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
+
+  std::atomic<bool> marked_;
+  std::atomic<GcState> young_gc_state_;
+  std::shared_ptr<BackingStore> backing_store_;
+  ArrayBufferExtension* next_;
+
+  GcState young_gc_state() {
+    return young_gc_state_.load(std::memory_order_relaxed);
+  }
+
+  void set_young_gc_state(GcState value) {
+    young_gc_state_.store(value, std::memory_order_relaxed);
+  }
+
+ public:
+  ArrayBufferExtension()
+      : marked_(false),
+        young_gc_state_(GcState::Dead),
+        backing_store_(std::shared_ptr<BackingStore>()),
+        next_(nullptr) {}
+  explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
+      : marked_(false),
+        young_gc_state_(GcState::Dead),
+        backing_store_(backing_store),
+        next_(nullptr) {}
+
+  void Mark() { marked_.store(true, std::memory_order_relaxed); }
+  void Unmark() { marked_.store(false, std::memory_order_relaxed); }
+  bool IsMarked() { return marked_.load(std::memory_order_relaxed); }
+
+  void YoungMark() { set_young_gc_state(GcState::Copied); }
+  void YoungMarkPromoted() { set_young_gc_state(GcState::Promoted); }
+  void YoungUnmark() { set_young_gc_state(GcState::Dead); }
+  bool IsYoungMarked() { return young_gc_state() != GcState::Dead; }
+
+  bool IsYoungPromoted() { return young_gc_state() == GcState::Promoted; }
+
+  std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
+  BackingStore* backing_store_raw() { return backing_store_.get(); }
+
+  std::shared_ptr<BackingStore> RemoveBackingStore() {
+    return std::move(backing_store_);
+  }
+
+  void set_backing_store(std::shared_ptr<BackingStore> backing_store) {
+    backing_store_ = std::move(backing_store);
+  }
+
+  void reset_backing_store() { backing_store_.reset(); }
+
+  ArrayBufferExtension* next() { return next_; }
+  void set_next(ArrayBufferExtension* extension) { next_ = extension; }
 };
 
 class JSArrayBufferView : public JSObject {
@@ -204,7 +289,7 @@ class JSTypedArray : public JSArrayBufferView {
   // as Tagged_t value and an |external_pointer| value.
   // For full-pointer mode the compensation value is zero.
   static inline Address ExternalPointerCompensationForOnHeapArray(
-      Isolate* isolate);
+      const Isolate* isolate);
 
   // Subtracts external pointer compensation from the external pointer value.
   inline void RemoveExternalPointerCompensationForSerialization();

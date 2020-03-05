@@ -59,7 +59,7 @@ enum RegisterCode {
 
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
-  bool is_byte_register() const { return reg_code_ <= 3; }
+  bool is_byte_register() const { return code() <= 3; }
 
  private:
   friend class RegisterBase<Register, kRegAfterLast>;
@@ -71,7 +71,7 @@ static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
+  constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr Register no_reg = Register::no_reg();
@@ -99,7 +99,7 @@ using DoubleRegister = XMMRegister;
 using Simd128Register = XMMRegister;
 
 #define DEFINE_REGISTER(R) \
-  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
+  constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
@@ -109,10 +109,9 @@ constexpr int kNumRegs = 8;
 
 // Caller-saved registers
 constexpr RegList kJSCallerSaved =
-    Register::ListOf<eax, ecx, edx,
-                     ebx,  // used as a caller-saved register in JavaScript code
-                     edi   // callee function
-                     >();
+    Register::ListOf(eax, ecx, edx,
+                     ebx,   // used as caller-saved register in JavaScript code
+                     edi);  // callee function
 
 constexpr int kNumJSCallerSaved = 5;
 

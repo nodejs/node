@@ -109,9 +109,10 @@ TEST(LocalEmbedderHeapTracer, EnterFinalPauseDefaultStackStateUnkown) {
   local_tracer.EnterFinalPause();
 }
 
-TEST(LocalEmbedderHeapTracer, EnterFinalPauseStackStateIsForwarded) {
+TEST_F(LocalEmbedderHeapTracerWithIsolate,
+       EnterFinalPauseStackStateIsForwarded) {
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
-  LocalEmbedderHeapTracer local_tracer(nullptr);
+  LocalEmbedderHeapTracer local_tracer(isolate());
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.SetEmbedderStackStateForNextFinalization(
       EmbedderHeapTracer::kEmpty);
@@ -119,9 +120,9 @@ TEST(LocalEmbedderHeapTracer, EnterFinalPauseStackStateIsForwarded) {
   local_tracer.EnterFinalPause();
 }
 
-TEST(LocalEmbedderHeapTracer, TemporaryEmbedderStackState) {
+TEST_F(LocalEmbedderHeapTracerWithIsolate, TemporaryEmbedderStackState) {
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
-  LocalEmbedderHeapTracer local_tracer(nullptr);
+  LocalEmbedderHeapTracer local_tracer(isolate());
   local_tracer.SetRemoteTracer(&remote_tracer);
   // Default is unknown, see above.
   {
@@ -131,9 +132,10 @@ TEST(LocalEmbedderHeapTracer, TemporaryEmbedderStackState) {
   }
 }
 
-TEST(LocalEmbedderHeapTracer, TemporaryEmbedderStackStateRestores) {
+TEST_F(LocalEmbedderHeapTracerWithIsolate,
+       TemporaryEmbedderStackStateRestores) {
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
-  LocalEmbedderHeapTracer local_tracer(nullptr);
+  LocalEmbedderHeapTracer local_tracer(isolate());
   local_tracer.SetRemoteTracer(&remote_tracer);
   // Default is unknown, see above.
   {
@@ -149,9 +151,9 @@ TEST(LocalEmbedderHeapTracer, TemporaryEmbedderStackStateRestores) {
   }
 }
 
-TEST(LocalEmbedderHeapTracer, EnterFinalPauseStackStateResets) {
+TEST_F(LocalEmbedderHeapTracerWithIsolate, EnterFinalPauseStackStateResets) {
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
-  LocalEmbedderHeapTracer local_tracer(nullptr);
+  LocalEmbedderHeapTracer local_tracer(isolate());
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.SetEmbedderStackStateForNextFinalization(
       EmbedderHeapTracer::kEmpty);

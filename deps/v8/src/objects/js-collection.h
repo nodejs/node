@@ -102,7 +102,7 @@ class JSWeakCollection
   // Visit the whole object.
   using BodyDescriptor = BodyDescriptorImpl;
 
-  static const int kSizeOfAllWeakCollections = kHeaderSize;
+  static const int kHeaderSizeOfAllWeakCollections = kHeaderSize;
 
   TQ_OBJECT_CONSTRUCTORS(JSWeakCollection)
 };
@@ -114,7 +114,7 @@ class JSWeakMap : public TorqueGeneratedJSWeakMap<JSWeakMap, JSWeakCollection> {
   DECL_PRINTER(JSWeakMap)
   DECL_VERIFIER(JSWeakMap)
 
-  STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
+  STATIC_ASSERT(kHeaderSize == kHeaderSizeOfAllWeakCollections);
   TQ_OBJECT_CONSTRUCTORS(JSWeakMap)
 };
 
@@ -125,7 +125,7 @@ class JSWeakSet : public TorqueGeneratedJSWeakSet<JSWeakSet, JSWeakCollection> {
   DECL_PRINTER(JSWeakSet)
   DECL_VERIFIER(JSWeakSet)
 
-  STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
+  STATIC_ASSERT(kHeaderSize == kHeaderSizeOfAllWeakCollections);
   TQ_OBJECT_CONSTRUCTORS(JSWeakSet)
 };
 

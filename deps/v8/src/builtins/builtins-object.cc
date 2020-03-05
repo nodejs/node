@@ -105,13 +105,14 @@ Object ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
                             Handle<Object> key, AccessorComponent component) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
                                      Object::ToObject(isolate, object));
+  // TODO(jkummerow/verwaest): LookupIterator::Key(..., bool*) performs a
+  // functionally equivalent conversion, but handles element indices slightly
+  // differently. Does one of the approaches have a performance advantage?
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
                                      Object::ToPropertyKey(isolate, key));
-  bool success = false;
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, key, &success,
-      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  DCHECK(success);
+  LookupIterator::Key lookup_key(isolate, key);
+  LookupIterator it(isolate, object, lookup_key,
+                    LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
 
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {

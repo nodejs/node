@@ -142,8 +142,8 @@ class RelocInfo {
     return COMPRESS_POINTERS_BOOL && mode == COMPRESSED_EMBEDDED_OBJECT;
   }
   static constexpr bool IsEmbeddedObjectMode(Mode mode) {
-    return IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
-                     LAST_EMBEDDED_OBJECT_RELOC_MODE);
+    return base::IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
+                           LAST_EMBEDDED_OBJECT_RELOC_MODE);
   }
   static constexpr bool IsRuntimeEntry(Mode mode) {
     return mode == RUNTIME_ENTRY;

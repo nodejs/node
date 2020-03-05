@@ -12,9 +12,6 @@
   'cpu-profiler/coverage-block': [PASS, ['lite_mode == True', SKIP]],
   'cpu-profiler/coverage': [PASS, ['lite_mode == True', SKIP]],
 
-  # Bad OOM timing on noembed builds (https://crbug.com/v8/8494).
-  'debugger/pause-on-oom': [PASS, ['embedded_builtins == False', SKIP]],
-
   # https://crbug.com/v8/9029
   'debugger/script-on-after-compile-snapshot': [SKIP],
 }],  # ALWAYS
@@ -71,20 +68,21 @@
 }],  # variant == no_wasm_traps
 
 ##############################################################################
+['arch == ppc or arch == ppc64', {
+  # Liftoff needs to be enabled before running these tests.
+  'debugger/wasm-scope-info-liftoff': [SKIP],
+  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+}],  # 'arch == ppc or arch == ppc64'
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debugger/set-script-source-stack-padding': [SKIP],
+  # Liftoff needs to be enabled before running these tests.
+  'debugger/wasm-scope-info-liftoff': [SKIP],
+  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
-['no_snap == True', {
-  # https://crbug.com/v8/8521
-  'debugger/pause-on-oom': [SKIP],
-}],
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ]

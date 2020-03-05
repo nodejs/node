@@ -290,12 +290,6 @@ void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
   stack->Poke(stack->AboveTop() - 1, destination_type);
 }
 
-void CreateFieldReferenceInstruction::TypeInstruction(
-    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
-  ExpectSubtype(stack->Top(), type);
-  stack->Push(TypeOracle::GetIntPtrType());
-}
-
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
@@ -309,6 +303,19 @@ void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
   ExpectSubtype(stack->Pop(), type);
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
   ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
+}
+
+void LoadBitFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                              ControlFlowGraph* cfg) const {
+  ExpectType(bit_field_struct_type, stack->Pop());
+  stack->Push(bit_field.name_and_type.type);
+}
+
+void StoreBitFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                               ControlFlowGraph* cfg) const {
+  ExpectSubtype(bit_field.name_and_type.type, stack->Pop());
+  ExpectType(bit_field_struct_type, stack->Pop());
+  stack->Push(bit_field_struct_type);
 }
 
 bool CallRuntimeInstruction::IsBlockTerminator() const {

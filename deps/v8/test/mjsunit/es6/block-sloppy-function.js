@@ -496,6 +496,32 @@
   assertEquals(4, f());
 })();
 
+(function noHoistingIfLetOutsideSimpleCatch() {
+  assertThrows(()=>f, ReferenceError);
+
+  let f = 2;
+
+  assertEquals(2, f);
+
+  try {
+    throw 0;
+  } catch (f) {
+    {
+      assertEquals(4, f());
+
+      function f() {
+        return 4;
+      }
+
+      assertEquals(4, f());
+    }
+
+    assertEquals(0, f);
+  }
+
+  assertEquals(2, f);
+})();
+
 (function noHoistingThroughComplexCatch() {
   try {
     throw 0;

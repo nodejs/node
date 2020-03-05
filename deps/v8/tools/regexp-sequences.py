@@ -24,7 +24,7 @@ def parse(file, seqlen):
                   r'(:?\.|\()(?P<char>\.|\w)(:?\.|\)), bc = (?P<bc>\w+), .*')
   total = 0
   bc_cnt = [None] * seqlen
-  for i in xrange(seqlen):
+  for i in range(seqlen):
     bc_cnt[i] = {}
   last = [None] * seqlen
   with open(file) as f:
@@ -32,14 +32,14 @@ def parse(file, seqlen):
     while l:
       l = l.strip()
       if l.startswith("Start bytecode interpreter"):
-        for i in xrange(seqlen):
+        for i in range(seqlen):
           last[i] = collections.deque(maxlen=i+1)
 
       match = rx.search(l)
       if match:
         total += 1
         bc = match.group('bc')
-        for i in xrange(seqlen):
+        for i in range(seqlen):
           last[i].append(bc)
           key = ' --> '.join(last[i])
           bc_cnt[i][key] = bc_cnt[i].get(key,0) + 1
@@ -57,7 +57,7 @@ def print_most_common(d, seqlen, total):
 def main(argv):
   max_seq = 7
   bc_cnt, total = parse(argv[1],max_seq)
-  for i in xrange(max_seq):
+  for i in range(max_seq):
     print()
     print("Most common of length {}".format(i+1))
     print()

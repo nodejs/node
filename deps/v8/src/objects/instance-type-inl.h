@@ -19,24 +19,42 @@ namespace InstanceTypeChecker {
 // Define type checkers for classes with single instance type.
 INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER)
 
-#define STRUCT_INSTANCE_TYPE_CHECKER(TYPE, Name, name) \
-  INSTANCE_TYPE_CHECKER(Name, TYPE)
-STRUCT_LIST(STRUCT_INSTANCE_TYPE_CHECKER)
-#undef STRUCT_INSTANCE_TYPE_CHECKER
+// Checks if value is in range [lower_limit, higher_limit] using a single
+// branch. Assumes that the input instance type is valid.
+template <InstanceType lower_limit, InstanceType upper_limit>
+struct InstanceRangeChecker {
+  static constexpr bool Check(InstanceType value) {
+    return base::IsInRange(value, lower_limit, upper_limit);
+  }
+};
+template <InstanceType upper_limit>
+struct InstanceRangeChecker<FIRST_TYPE, upper_limit> {
+  static constexpr bool Check(InstanceType value) {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK_LE(FIRST_TYPE, value);
+#endif
+    return value <= upper_limit;
+  }
+};
+template <InstanceType lower_limit>
+struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
+  static constexpr bool Check(InstanceType value) {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK_GE(LAST_TYPE, value);
+#endif
+    return value >= lower_limit;
+  }
+};
 
 // Define type checkers for classes with ranges of instance types.
-#define INSTANCE_TYPE_CHECKER_RANGE(type, first_instance_type,                \
-                                    last_instance_type)                       \
-  V8_INLINE bool Is##type(InstanceType instance_type) {                       \
-    return IsInRange(instance_type, first_instance_type, last_instance_type); \
+#define INSTANCE_TYPE_CHECKER_RANGE(type, first_instance_type,             \
+                                    last_instance_type)                    \
+  V8_INLINE bool Is##type(InstanceType instance_type) {                    \
+    return InstanceRangeChecker<first_instance_type,                       \
+                                last_instance_type>::Check(instance_type); \
   }
 INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 #undef INSTANCE_TYPE_CHECKER_RANGE
-
-V8_INLINE bool IsFixedArrayBase(InstanceType instance_type) {
-  return IsFixedArray(instance_type) || IsFixedDoubleArray(instance_type) ||
-         IsByteArray(instance_type) || IsBytecodeArray(instance_type);
-}
 
 V8_INLINE bool IsHeapObject(InstanceType instance_type) { return true; }
 
@@ -46,14 +64,9 @@ V8_INLINE bool IsInternalizedString(InstanceType instance_type) {
          (kStringTag | kInternalizedTag);
 }
 
-V8_INLINE bool IsJSObject(InstanceType instance_type) {
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
-  return instance_type >= FIRST_JS_OBJECT_TYPE;
-}
-
-V8_INLINE bool IsJSReceiver(InstanceType instance_type) {
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  return instance_type >= FIRST_JS_RECEIVER_TYPE;
+V8_INLINE bool IsExternalString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kExternalStringTag;
 }
 
 }  // namespace InstanceTypeChecker

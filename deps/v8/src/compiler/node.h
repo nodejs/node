@@ -63,28 +63,19 @@ class V8_EXPORT_PRIVATE Node final {
 
 #ifdef DEBUG
   void Verify();
-#define BOUNDS_CHECK(index)                                                   \
-  do {                                                                        \
-    if (index < 0 || index >= InputCount()) {                                 \
-      FATAL("Node #%d:%s->InputAt(%d) out of bounds", id(), op()->mnemonic(), \
-            index);                                                           \
-    }                                                                         \
-  } while (false)
 #else
-  // No bounds checks or verification in release mode.
   inline void Verify() {}
-#define BOUNDS_CHECK(index) \
-  do {                      \
-  } while (false)
 #endif
 
   Node* InputAt(int index) const {
-    BOUNDS_CHECK(index);
+    CHECK_LE(0, index);
+    CHECK_LT(index, InputCount());
     return *GetInputPtrConst(index);
   }
 
   void ReplaceInput(int index, Node* new_to) {
-    BOUNDS_CHECK(index);
+    CHECK_LE(0, index);
+    CHECK_LT(index, InputCount());
     Node** input_ptr = GetInputPtr(index);
     Node* old_to = *input_ptr;
     if (old_to != new_to) {
@@ -94,8 +85,6 @@ class V8_EXPORT_PRIVATE Node final {
       if (new_to) new_to->AppendUse(use);
     }
   }
-
-#undef BOUNDS_CHECK
 
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);
@@ -150,9 +139,7 @@ class V8_EXPORT_PRIVATE Node final {
   Uses uses() { return Uses(this); }
 
   // Returns true if {owner} is the only user of {this} node.
-  bool OwnedBy(Node* owner) const {
-    return first_use_ && first_use_->from() == owner && !first_use_->next;
-  }
+  bool OwnedBy(Node const* owner) const;
 
   // Returns true if {owner1} and {owner2} are the only users of {this} node.
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
@@ -200,8 +187,8 @@ class V8_EXPORT_PRIVATE Node final {
                              : reinterpret_cast<OutOfLineInputs*>(start)->node_;
     }
 
-    using InlineField = BitField<bool, 0, 1>;
-    using InputIndexField = BitField<unsigned, 1, 31>;
+    using InlineField = base::BitField<bool, 0, 1>;
+    using InputIndexField = base::BitField<unsigned, 1, 31>;
   };
 
   //============================================================================
@@ -285,9 +272,9 @@ class V8_EXPORT_PRIVATE Node final {
 
   void ClearInputs(int start, int count);
 
-  using IdField = BitField<NodeId, 0, 24>;
-  using InlineCountField = BitField<unsigned, 24, 4>;
-  using InlineCapacityField = BitField<unsigned, 28, 4>;
+  using IdField = base::BitField<NodeId, 0, 24>;
+  using InlineCountField = base::BitField<unsigned, 24, 4>;
+  using InlineCapacityField = base::BitField<unsigned, 28, 4>;
   static const int kOutlineMarker = InlineCountField::kMax;
   static const int kMaxInlineCapacity = InlineCapacityField::kMax - 1;
 

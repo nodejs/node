@@ -33,7 +33,7 @@ namespace object {
   }
 
   transitioning javascript builtin
-  ObjectFromEntries(js-implicit context: Context, receiver: JSAny)(
+  ObjectFromEntries(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): JSAny {
     const iterable: JSAny = arguments[0];
     try {
@@ -62,7 +62,7 @@ namespace object {
       }
     }
     label Throw deferred {
-      ThrowTypeError(kNotIterable);
+      ThrowTypeError(MessageTemplate::kNotIterable);
     }
   }
 }  // namespace object

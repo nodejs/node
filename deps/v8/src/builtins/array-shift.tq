@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_shift {
+namespace array {
   extern builtin ArrayShift(Context, JSFunction, JSAny, int32): JSAny;
 
   macro TryFastArrayShift(implicit context: Context)(receiver: JSAny): JSAny
@@ -76,7 +76,7 @@ namespace array_shift {
         SetProperty(object, to, fromValue);
       } else {
         // i. Perform ? DeletePropertyOrThrow(O, to).
-        DeleteProperty(object, to, kStrict);
+        DeleteProperty(object, to, LanguageMode::kStrict);
       }
 
       // f. Increase k by 1.
@@ -84,7 +84,7 @@ namespace array_shift {
     }
 
     // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(len - 1)).
-    DeleteProperty(object, length - 1, kStrict);
+    DeleteProperty(object, length - 1, LanguageMode::kStrict);
 
     // 8. Perform ? Set(O, "length", len - 1, true).
     SetProperty(object, kLengthString, length - 1);
@@ -95,7 +95,8 @@ namespace array_shift {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.shift
   transitioning javascript builtin ArrayPrototypeShift(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     try {
       return TryFastArrayShift(receiver) otherwise Slow, Runtime;
     }

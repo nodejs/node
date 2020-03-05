@@ -62,6 +62,13 @@ inline AtomicWord Release_CompareAndSwap(volatile AtomicWord* ptr,
       reinterpret_cast<volatile Atomic32*>(ptr), old_value, new_value);
 }
 
+inline AtomicWord AcquireRelease_CompareAndSwap(volatile AtomicWord* ptr,
+                                                AtomicWord old_value,
+                                                AtomicWord new_value) {
+  return v8::base::AcquireRelease_CompareAndSwap(
+      reinterpret_cast<volatile Atomic32*>(ptr), old_value, new_value);
+}
+
 inline void Relaxed_Store(volatile AtomicWord* ptr, AtomicWord value) {
   Relaxed_Store(reinterpret_cast<volatile Atomic32*>(ptr), value);
 }

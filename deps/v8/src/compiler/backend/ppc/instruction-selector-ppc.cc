@@ -198,7 +198,6 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kPPC_LoadWord64;
       mode = kInt16Imm_4ByteAligned;
       break;
-    case MachineRepresentation::kCompressedSigned:   // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
@@ -322,7 +321,6 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
-      case MachineRepresentation::kCompressedSigned:   // Fall through.
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
@@ -550,11 +548,31 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
 
 void InstructionSelector::VisitStackPointerGreaterThan(
     Node* node, FlagsContinuation* cont) {
-  Node* const value = node->InputAt(0);
-  InstructionCode opcode = kArchStackPointerGreaterThan;
+  StackCheckKind kind = StackCheckKindOf(node->op());
+  InstructionCode opcode =
+      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
 
   PPCOperandGenerator g(this);
-  EmitWithContinuation(opcode, g.UseRegister(value), cont);
+
+  // No outputs.
+  InstructionOperand* const outputs = nullptr;
+  const int output_count = 0;
+
+  // Applying an offset to this stack check requires a temp register. Offsets
+  // are only applied to the first stack check. If applying an offset, we must
+  // ensure the input and temp registers do not alias, thus kUniqueRegister.
+  InstructionOperand temps[] = {g.TempRegister()};
+  const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
+  const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
+                                 ? OperandGenerator::kUniqueRegister
+                                 : OperandGenerator::kRegister;
+
+  Node* const value = node->InputAt(0);
+  InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
+  static constexpr int input_count = arraysize(inputs);
+
+  EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
+                       temp_count, temps, cont);
 }
 
 #if V8_TARGET_ARCH_PPC64
@@ -1119,6 +1137,12 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
 }
 
+void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
+  DCHECK(SmiValuesAre31Bits());
+  DCHECK(COMPRESS_POINTERS_BOOL);
+  EmitIdentity(node);
+}
+
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
   VisitRR(this, kPPC_ExtendSignWord32, node);
@@ -1142,34 +1166,6 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
   VisitRR(this, kPPC_Uint32ToUint64, node);
-}
-
-void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
-    Node* node) {
-  UNIMPLEMENTED();
-}
-
-void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
-    Node* node) {
-  UNIMPLEMENTED();
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
@@ -2092,9 +2088,20 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
-void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }
+#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
+    UNIMPLEMENTED();                                                     \
+  }
+SIMD_VISIT_EXTRACT_LANE(F64x2, )
+SIMD_VISIT_EXTRACT_LANE(F32x4, )
+SIMD_VISIT_EXTRACT_LANE(I32x4, )
+SIMD_VISIT_EXTRACT_LANE(I16x8, U)
+SIMD_VISIT_EXTRACT_LANE(I16x8, S)
+SIMD_VISIT_EXTRACT_LANE(I8x16, U)
+SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+#undef SIMD_VISIT_EXTRACT_LANE
 
-void InstructionSelector::VisitI32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2133,8 +2140,6 @@ void InstructionSelector::VisitI32x4GtU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4GeU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2188,11 +2193,17 @@ void InstructionSelector::VisitI16x8GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI16x8GeU(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitI16x8RoundingAverageU(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitI8x16RoundingAverageU(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitI8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2244,6 +2255,8 @@ void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitS128AndNot(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Eq(Node* node) { UNIMPLEMENTED(); }
@@ -2255,8 +2268,6 @@ void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Splat(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitF32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
@@ -2397,6 +2408,54 @@ void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Neg(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Sqrt(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Add(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Sub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Mul(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Eq(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Ne(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Lt(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2Sub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI64x2Mul(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

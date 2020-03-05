@@ -4,6 +4,7 @@
 
 #include <limits>
 
+#include "src/base/bounds.h"
 #include "src/utils/utils.h"
 #include "testing/gtest-support.h"
 
@@ -134,8 +135,8 @@ TYPED_TEST(UtilsTest, PassesFilterTest) {
 
 TEST(UtilsTest, IsInBounds) {
 // for column consistency and terseness
-#define INB(x, y, z) EXPECT_TRUE(IsInBounds(x, y, z))
-#define OOB(x, y, z) EXPECT_FALSE(IsInBounds(x, y, z))
+#define INB(x, y, z) EXPECT_TRUE(base::IsInBounds(x, y, z))
+#define OOB(x, y, z) EXPECT_FALSE(base::IsInBounds(x, y, z))
   INB(0, 0, 1);
   INB(0, 1, 1);
   INB(1, 0, 1);

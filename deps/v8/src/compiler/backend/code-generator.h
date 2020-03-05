@@ -59,7 +59,7 @@ class DeoptimizationLiteral {
   DeoptimizationLiteral() : object_(), number_(0), string_(nullptr) {}
   explicit DeoptimizationLiteral(Handle<Object> object)
       : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
-    DCHECK(!object_.is_null());
+    CHECK(!object_.is_null());
   }
   explicit DeoptimizationLiteral(double number)
       : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
@@ -109,16 +109,14 @@ struct TurbolizerInstructionStartInfo {
 // Generates native code for a sequence of instructions.
 class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
-  explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                         InstructionSequence* instructions,
-                         OptimizedCompilationInfo* info, Isolate* isolate,
-                         base::Optional<OsrHelper> osr_helper,
-                         int start_source_position,
-                         JumpOptimizationInfo* jump_opt,
-                         PoisoningMitigationLevel poisoning_level,
-                         const AssemblerOptions& options, int32_t builtin_index,
-                         size_t max_unoptimized_frame_height,
-                         std::unique_ptr<AssemblerBuffer> = {});
+  explicit CodeGenerator(
+      Zone* codegen_zone, Frame* frame, Linkage* linkage,
+      InstructionSequence* instructions, OptimizedCompilationInfo* info,
+      Isolate* isolate, base::Optional<OsrHelper> osr_helper,
+      int start_source_position, JumpOptimizationInfo* jump_opt,
+      PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
+      int32_t builtin_index, size_t max_unoptimized_frame_height,
+      size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> = {});
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -170,6 +168,15 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   }
 
   static constexpr int kBinarySearchSwitchMinimalCases = 4;
+
+  // Returns true if an offset should be applied to the given stack check. There
+  // are two reasons that this could happen:
+  // 1. The optimized frame is smaller than the corresponding deoptimized frames
+  //    and an offset must be applied in order to be able to deopt safely.
+  // 2. The current function pushes a large number of arguments to the stack.
+  //    These are not accounted for by the initial frame setup.
+  bool ShouldApplyOffsetToStackCheck(Instruction* instr, uint32_t* offset);
+  uint32_t GetStackCheckOffset();
 
  private:
   GapResolver* resolver() { return &resolver_; }
@@ -425,9 +432,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   int handler_table_offset_ = 0;
   int last_lazy_deopt_pc_ = 0;
 
-  // The maximal combined height of all frames produced upon deoptimization.
-  // Applied as an offset to the first stack check of an optimized function.
+  // The maximal combined height of all frames produced upon deoptimization, and
+  // the maximal number of pushed arguments for function calls. Applied as an
+  // offset to the first stack check of an optimized function.
   const size_t max_unoptimized_frame_height_;
+  const size_t max_pushed_argument_count_;
 
   // kArchCallCFunction could be reached either:
   //   kArchCallCFunction;

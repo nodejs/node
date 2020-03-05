@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-max-mem-pages=49152
+// Save some memory on Linux; other platforms ignore this flag.
+// Flags: --multi-mapped-mock-allocator
 
 // This test makes sure things don't break once we support >2GB wasm memories.
 load("test/mjsunit/wasm/wasm-module-builder.js");

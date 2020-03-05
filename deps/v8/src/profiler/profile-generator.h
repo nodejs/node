@@ -208,12 +208,12 @@ class CodeEntry {
   V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
       CodeEntry, RootEntryCreateTrait>::type kRootEntry;
 
-  using TagField = BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = BitField<Builtins::Name, 8, 22>;
+  using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
+  using BuiltinIdField = base::BitField<Builtins::Name, 8, 22>;
   static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
                 "builtin_count exceeds size of bitfield");
-  using UsedField = BitField<bool, 30, 1>;
-  using SharedCrossOriginField = BitField<bool, 31, 1>;
+  using UsedField = base::BitField<bool, 30, 1>;
+  using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
   uint32_t bit_field_;
   const char* name_;
@@ -284,7 +284,6 @@ class V8_EXPORT_PRIVATE ProfileNode {
   unsigned self_ticks() const { return self_ticks_; }
   const std::vector<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
-  unsigned function_id() const;
   ProfileNode* parent() const { return parent_; }
   int line_number() const {
     return line_number_ != 0 ? line_number_ : entry_->line_number();
@@ -302,7 +301,7 @@ class V8_EXPORT_PRIVATE ProfileNode {
   }
   Isolate* isolate() const;
 
-  void Print(int indent);
+  void Print(int indent) const;
 
  private:
   struct Equals {
@@ -354,7 +353,6 @@ class V8_EXPORT_PRIVATE ProfileTree {
       ContextFilter* context_filter = nullptr);
   ProfileNode* root() const { return root_; }
   unsigned next_node_id() { return next_node_id_++; }
-  unsigned GetFunctionId(const ProfileNode* node);
 
   void Print() {
     root_->Print(0);
@@ -377,9 +375,6 @@ class V8_EXPORT_PRIVATE ProfileTree {
   unsigned next_node_id_;
   ProfileNode* root_;
   Isolate* isolate_;
-
-  unsigned next_function_id_;
-  std::unordered_map<CodeEntry*, unsigned> function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };

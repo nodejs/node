@@ -25,22 +25,24 @@ class GeneratorBuiltinsAssembler : public CodeStubAssembler {
   // the body of resume is factored out below, and shared by JSGeneratorObject
   // prototype methods as well as AsyncModuleEvaluate. The only difference
   // between AsyncModuleEvaluate and JSGeneratorObject::PrototypeNext is
-  // the expected reciever.
-  void InnerResume(CodeStubArguments* args, Node* receiver, Node* value,
-                   Node* context, JSGeneratorObject::ResumeMode resume_mode,
+  // the expected receiver.
+  void InnerResume(CodeStubArguments* args, TNode<JSGeneratorObject> receiver,
+                   TNode<Object> value, TNode<Context> context,
+                   JSGeneratorObject::ResumeMode resume_mode,
                    char const* const method_name);
-  void GeneratorPrototypeResume(CodeStubArguments* args, Node* receiver,
-                                Node* value, Node* context,
+  void GeneratorPrototypeResume(CodeStubArguments* args, TNode<Object> receiver,
+                                TNode<Object> value, TNode<Context> context,
                                 JSGeneratorObject::ResumeMode resume_mode,
                                 char const* const method_name);
 };
 
 void GeneratorBuiltinsAssembler::InnerResume(
-    CodeStubArguments* args, Node* receiver, Node* value, Node* context,
+    CodeStubArguments* args, TNode<JSGeneratorObject> receiver,
+    TNode<Object> value, TNode<Context> context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
   // Check if the {receiver} is running or already closed.
   TNode<Smi> receiver_continuation =
-      CAST(LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset));
+      LoadObjectField<Smi>(receiver, JSGeneratorObject::kContinuationOffset);
   Label if_receiverisclosed(this, Label::kDeferred),
       if_receiverisrunning(this, Label::kDeferred);
   TNode<Smi> closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
@@ -54,7 +56,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
                                  SmiConstant(resume_mode));
 
   // Resume the {receiver} using our trampoline.
-  VARIABLE(var_exception, MachineRepresentation::kTagged, UndefinedConstant());
+  TVARIABLE(Object, var_exception);
   Label if_exception(this, Label::kDeferred), if_final_return(this);
   TNode<Object> result = CallStub(CodeFactory::ResumeGenerator(isolate()),
                                   context, value, receiver);
@@ -64,7 +66,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
   // If the generator is not suspended (i.e., its state is 'executing'),
   // close it and wrap the return value in IteratorResult.
   TNode<Smi> result_continuation =
-      CAST(LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset));
+      LoadObjectField<Smi>(receiver, JSGeneratorObject::kContinuationOffset);
 
   // The generator function should not close the generator by itself, let's
   // check it is indeed not closed yet.
@@ -88,7 +90,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
   BIND(&if_receiverisclosed);
   {
     // The {receiver} is closed already.
-    Node* result = nullptr;
+    TNode<Object> result;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
         result = CallBuiltin(Builtins::kCreateIterResultObject, context,
@@ -118,12 +120,14 @@ void GeneratorBuiltinsAssembler::InnerResume(
 }
 
 void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
-    CodeStubArguments* args, Node* receiver, Node* value, Node* context,
-    JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
+    CodeStubArguments* args, TNode<Object> receiver, TNode<Object> value,
+    TNode<Context> context, JSGeneratorObject::ResumeMode resume_mode,
+    char const* const method_name) {
   // Check if the {receiver} is actually a JSGeneratorObject.
   ThrowIfNotInstanceType(context, receiver, JS_GENERATOR_OBJECT_TYPE,
                          method_name);
-  InnerResume(args, receiver, value, context, resume_mode, method_name);
+  TNode<JSGeneratorObject> generator = CAST(receiver);
+  InnerResume(args, generator, value, context, resume_mode, method_name);
 }
 
 TF_BUILTIN(AsyncModuleEvaluate, GeneratorBuiltinsAssembler) {
@@ -142,7 +146,8 @@ TF_BUILTIN(AsyncModuleEvaluate, GeneratorBuiltinsAssembler) {
   char const* const method_name = "[AsyncModule].evaluate";
   ThrowIfNotInstanceType(context, receiver, JS_ASYNC_FUNCTION_OBJECT_TYPE,
                          method_name);
-  InnerResume(&args, receiver, value, context, JSGeneratorObject::kNext,
+  TNode<JSAsyncFunctionObject> async_function = CAST(receiver);
+  InnerResume(&args, async_function, value, context, JSGeneratorObject::kNext,
               method_name);
 }
 

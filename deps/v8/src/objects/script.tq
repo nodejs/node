@@ -1,0 +1,21 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class Script extends Struct {
+  source: Object;
+  name: Object;
+  line_offset: Smi;
+  column_offset: Smi;
+  context: Object;
+  script_type: Smi;
+  line_ends: Object;
+  id: Smi;
+  eval_from_shared_or_wrapped_arguments: Object;
+  eval_from_position: Smi|Foreign;  // Smi or Managed<wasm::NativeModule>
+  shared_function_infos: Object;
+  flags: Smi;
+  source_url: Object;
+  source_mapping_url: Object;
+  host_defined_options: Object;
+}

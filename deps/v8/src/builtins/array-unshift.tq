@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_unshift {
+namespace array {
   extern builtin ArrayUnshift(Context, JSFunction, JSAny, int32): JSAny;
 
   transitioning macro GenericArrayUnshift(
@@ -20,7 +20,7 @@ namespace array_unshift {
     if (argCount > 0) {
       // a. If len + argCount > 2**53 - 1, throw a TypeError exception.
       if (length + argCount > kMaxSafeInteger) {
-        ThrowTypeError(kInvalidArrayLength);
+        ThrowTypeError(MessageTemplate::kInvalidArrayLength);
       }
 
       // b. Let k be len.
@@ -46,7 +46,7 @@ namespace array_unshift {
           SetProperty(object, to, fromValue);
         } else {
           // 1. Perform ? DeletePropertyOrThrow(O, to).
-          DeleteProperty(object, to, kStrict);
+          DeleteProperty(object, to, LanguageMode::kStrict);
         }
 
         // vi. Decrease k by 1.
@@ -78,7 +78,8 @@ namespace array_unshift {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.unshift
   transitioning javascript builtin ArrayPrototypeUnshift(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     try {
       const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
       array::EnsureWriteableFastElements(array);

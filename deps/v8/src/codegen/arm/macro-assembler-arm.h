@@ -223,11 +223,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // Both |callee_args_count| and |caller_args_count| do not include
+  // receiver. |callee_args_count| is not modified. |caller_args_count|
   // is trashed.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
+  void PrepareForTailCall(Register callee_args_count,
+                          Register caller_args_count, Register scratch0,
                           Register scratch1);
 
   // There are two ways of passing double arguments on ARM, depending on
@@ -252,6 +252,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void MovFromFloatParameter(DwVfpRegister dst);
   void MovFromFloatResult(DwVfpRegister dst);
+
+  void Trap() override;
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug-code to enable.
@@ -284,10 +286,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Call(Register target, Condition cond = al);
@@ -440,10 +438,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ExtractLane(Register dst, QwNeonRegister src, NeonDataType dt, int lane);
   void ExtractLane(Register dst, DwVfpRegister src, NeonDataType dt, int lane);
   void ExtractLane(SwVfpRegister dst, QwNeonRegister src, int lane);
+  void ExtractLane(DwVfpRegister dst, QwNeonRegister src, int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src, Register src_lane,
                    NeonDataType dt, int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                    SwVfpRegister src_lane, int lane);
+  void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                   DwVfpRegister src_lane, int lane);
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi);
@@ -620,6 +621,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, Register argument_count,
                       bool argument_count_is_length = false);
 
+  void LoadMap(Register destination, Register object);
+
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
@@ -630,21 +633,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
 
   // On function call, call into the debugger.
   void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
+                               Register expected_parameter_count,
+                               Register actual_parameter_count);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeFlag flag);
 
-  void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // Frame restart support
   void MaybeDropFrames();
@@ -791,9 +795,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
@@ -804,17 +808,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
-
-// -----------------------------------------------------------------------------
-// Static helper functions.
-
-inline MemOperand ContextMemOperand(Register context, int index = 0) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-inline MemOperand NativeContextMemOperand() {
-  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
-}
 
 #define ACCESS_MASM(masm) masm->
 

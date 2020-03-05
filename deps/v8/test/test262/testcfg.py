@@ -48,6 +48,8 @@ FEATURE_FLAGS = {
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'Intl.DateTimeFormat-fractionalSecondDigits': '--harmony-intl-dateformat-fractional-second-digits',
+  'Intl.DisplayNames': '--harmony-intl-displaynames',
+  'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Promise.allSettled': '--harmony-promise-all-settled',
@@ -61,6 +63,7 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-match-indices',
   'class-methods-private': '--harmony-private-methods',
   'class-static-methods-private': '--harmony-private-methods',
+  'coalesce-expression': '--harmony-nullish',
 }
 
 SKIPPED_FEATURES = set([])

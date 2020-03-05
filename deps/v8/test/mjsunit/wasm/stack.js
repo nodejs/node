@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --expose-wasm --no-force-slow-path
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -23,7 +23,7 @@ function verifyStack(frames, expected) {
     assertContains(exp[4], frames[i].getFileName(), "["+i+"].getFileName()");
     var toString;
     if (exp[0]) {
-      toString = "wasm-function[" + exp[2] + "]:" + exp[5];
+      toString = "wasm-function[" + exp[6] + "]:" + exp[5];
       if (exp[1] !== null) toString = exp[1] + " (" + toString + ")";
     } else {
       toString = exp[4] + ":" + exp[2] + ":";
@@ -88,9 +88,9 @@ Error.prepareStackTrace = function(error, frames) {
   module.exports.main();
 
   verifyStack(stack, [
-      // isWasm           function   line  pos        file  offset
+      // isWasm           function   line  pos        file  offset funcIndex
       [   false,           "STACK",    38,   0, "stack.js"],
-      [    true,            "main",     1,   1,       null, '0x86'],
+      [    true,            "main",     0,   1,       null, '0x86',        1],
       [   false, "testStackFrames",    88,   0, "stack.js"],
       [   false,              null,    97,   0, "stack.js"]
   ]);
@@ -103,8 +103,8 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
-        // isWasm               function   line  pos        file  offset
-        [    true,    "exec_unreachable",    2,    1,       null, '0x8b'],
+        // isWasm               function   line  pos        file  offset funcIndex
+        [    true,    "exec_unreachable",    0,    1,       null, '0x8b',        2],
         [   false, "testWasmUnreachable",  101,    0, "stack.js"],
         [   false,                  null,  112,    0, "stack.js"]
     ]);
@@ -118,9 +118,9 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
-        // isWasm                  function   line  pos        file  offset
-        [    true,                     null,     3,   3,       null, '0x91'],
-        [    true, "call_mem_out_of_bounds",     4,   1,       null, '0x97'],
+        // isWasm                  function   line  pos        file  offset funcIndex
+        [    true,                     null,     0,   3,       null, '0x91',        3],
+        [    true, "call_mem_out_of_bounds",     0,   1,       null, '0x97',        4],
         [   false, "testWasmMemOutOfBounds",   116,   0, "stack.js"],
         [   false,                     null,   128,   0, "stack.js"]
     ]);
@@ -147,11 +147,11 @@ Error.prepareStackTrace = function(error, frames) {
     assertEquals("Maximum call stack size exceeded", e.message, "trap reason");
     assertTrue(e.stack.length >= 4, "expected at least 4 stack entries");
     verifyStack(e.stack.splice(0, 4), [
-        // isWasm     function  line  pos  file  offset
-        [    true, "recursion",    0,   0, null, '0x34'],
-        [    true, "recursion",    0,   3, null, '0x37'],
-        [    true, "recursion",    0,   3, null, '0x37'],
-        [    true, "recursion",    0,   3, null, '0x37']
+        // isWasm     function  line  pos  file  offset funcIndex
+        [    true, "recursion",    0,   0, null, '0x34',        0],
+        [    true, "recursion",    0,   3, null, '0x37',        0],
+        [    true, "recursion",    0,   3, null, '0x37',        0],
+        [    true, "recursion",    0,   3, null, '0x37',        0]
     ]);
   }
 })();
@@ -175,10 +175,10 @@ Error.prepareStackTrace = function(error, frames) {
     assertEquals('unreachable', e.message, 'trap reason');
     let hexOffset = '0x' + (unreachable_pos + 0x25).toString(16);
     verifyStack(e.stack, [
-      // isWasm, function, line, pos, file, offset
-      [true, 'main', 0, unreachable_pos + 1, null, hexOffset],  // -
-      [false, 'testBigOffset', 172, 0, 'stack.js'],             //-
-      [false, null, 184, 0, 'stack.js']
+      // isWasm         function line                  pos        file     offset funcIndex
+      [    true,          'main',   0, unreachable_pos + 1,       null, hexOffset,        0],
+      [   false, 'testBigOffset', 172,                   0, 'stack.js'],
+      [   false,            null, 184,                   0, 'stack.js']
     ]);
   }
 })();

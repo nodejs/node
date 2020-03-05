@@ -114,6 +114,13 @@ class XdataEncoder {
  */
 static const int kMaxFunctionLength = ((1 << 18) - 1) << 2;
 
+struct FrameOffsets {
+  FrameOffsets();
+  bool IsDefault() const;
+  int fp_to_saved_caller_fp;
+  int fp_to_caller_sp;
+};
+
 /**
  * Returns a vector of bytes that contains the Win ARM64 unwind data used for
  * all V8 builtin functions.
@@ -123,18 +130,20 @@ static const int kMaxFunctionLength = ((1 << 18) - 1) << 2;
  *                this is necessary to encode unwind data for Windows stack
  *                unwinder to find correct caller's fp.
  */
-std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(uint32_t func_len,
-                                                     int32_t fp_adjustment);
+std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(
+    uint32_t func_len, FrameOffsets fp_adjustment);
 class BuiltinUnwindInfo {
  public:
   BuiltinUnwindInfo() : is_leaf_function_(true) {}
   explicit BuiltinUnwindInfo(const std::vector<int>& fp_offsets,
-                             const std::vector<int>& fp_adjustments)
+                             const std::vector<FrameOffsets>& fp_adjustments)
       : is_leaf_function_(false),
         fp_offsets_(fp_offsets),
         fp_adjustments_(fp_adjustments) {}
 
-  const std::vector<int>& fp_adjustments() const { return fp_adjustments_; }
+  const std::vector<FrameOffsets>& fp_adjustments() const {
+    return fp_adjustments_;
+  }
 
   bool is_leaf_function() const { return is_leaf_function_; }
   const std::vector<int>& fp_offsets() const { return fp_offsets_; }
@@ -142,18 +151,16 @@ class BuiltinUnwindInfo {
  private:
   bool is_leaf_function_;
   std::vector<int> fp_offsets_;
-  std::vector<int> fp_adjustments_;
+  std::vector<FrameOffsets> fp_adjustments_;
 };
 
 class XdataEncoder {
  public:
   explicit XdataEncoder(const Assembler& assembler)
-      : assembler_(assembler),
-        current_frame_code_offset_(-1),
-        current_frame_adjustment_(0) {}
+      : assembler_(assembler), current_frame_code_offset_(-1) {}
 
   void onSaveFpLr();
-  void onFramePointerAdjustment(int bytes);
+  void onFramePointerAdjustment(int fp_to_saved_caller_fp, int fp_to_caller_sp);
 
   BuiltinUnwindInfo unwinding_info() const {
     return BuiltinUnwindInfo(fp_offsets_, fp_adjustments_);
@@ -163,8 +170,8 @@ class XdataEncoder {
   const Assembler& assembler_;
   std::vector<int> fp_offsets_;
   int current_frame_code_offset_;
-  int current_frame_adjustment_;
-  std::vector<int> fp_adjustments_;
+  FrameOffsets current_frame_adjustment_;
+  std::vector<FrameOffsets> fp_adjustments_;
 };
 
 #endif

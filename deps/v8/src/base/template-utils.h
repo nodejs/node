@@ -6,6 +6,7 @@
 #define V8_BASE_TEMPLATE_UTILS_H_
 
 #include <array>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
@@ -80,6 +81,21 @@ template <typename T>
 struct is_same<T> : public std::true_type {};
 template <typename T, typename... Ts>
 struct is_same<T, T, Ts...> : public is_same<T, Ts...> {};
+
+// Returns true, iff all values (implicitly converted to bool) are trueish.
+template <typename... Args>
+constexpr bool all(Args... rest) {
+  return fold(std::logical_and<>{}, true, rest...);
+}
+
+template <class... Ts>
+struct make_void {
+  using type = void;
+};
+// Corresponds to C++17's std::void_t.
+// Used for SFINAE based on type errors.
+template <class... Ts>
+using void_t = typename make_void<Ts...>::type;
 
 }  // namespace base
 }  // namespace v8

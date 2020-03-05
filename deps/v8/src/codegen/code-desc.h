@@ -69,7 +69,7 @@ class CodeDesc {
   int reloc_size = 0;
 
   // Unwinding information.
-  // TODO(jgruber,mstarzinger): Pack this into the inlined metadata section.
+  // TODO(jgruber): Pack this into the inlined metadata section.
 
   byte* unwinding_info = nullptr;
   int unwinding_info_size = 0;

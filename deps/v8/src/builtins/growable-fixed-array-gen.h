@@ -30,17 +30,17 @@ class GrowableFixedArray : public CodeStubAssembler {
   TVariable<IntPtrT>* var_length() { return &var_length_; }
   TVariable<IntPtrT>* var_capacity() { return &var_capacity_; }
 
-  void Push(TNode<Object> const value);
+  void Push(const TNode<Object> value);
 
-  TNode<JSArray> ToJSArray(TNode<Context> const context);
+  TNode<JSArray> ToJSArray(const TNode<Context> context);
 
  private:
   TNode<IntPtrT> NewCapacity(TNode<IntPtrT> current_capacity);
 
   // Creates a new array with {new_capacity} and copies the first
   // {element_count} elements from the current array.
-  TNode<FixedArray> ResizeFixedArray(TNode<IntPtrT> const element_count,
-                                     TNode<IntPtrT> const new_capacity);
+  TNode<FixedArray> ResizeFixedArray(const TNode<IntPtrT> element_count,
+                                     const TNode<IntPtrT> new_capacity);
 
  private:
   TVariable<FixedArray> var_array_;

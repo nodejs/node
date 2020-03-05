@@ -16,6 +16,18 @@ namespace internal {
 //
 //  slot      Entry frame
 //       +---------------------+-----------------------
+// -20   | saved register d15  |
+// ...   |        ...          |
+// -13   | saved register d8   |
+//       |- - - - - - - - - - -|
+// -12   |   saved lr (x30)    |
+//       |- - - - - - - - - - -|
+// -11   |   saved fp (x29)    |
+//       |- - - - - - - - - - -|
+// -10   | saved register x28  |
+// ...   |        ...          |
+//  -1   | saved register x19  |
+//       |- - - - - - - - - - -|
 //   0   |  bad frame pointer  |  <-- frame ptr
 //       |   (0xFFF.. FF)      |
 //       |- - - - - - - - - - -|
@@ -39,15 +51,26 @@ class EntryFrameConstants : public AllStatic {
   // Isolate::c_entry_fp onto the stack.
   static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
   static constexpr int kFixedFrameSize = 6 * kSystemPointerSize;
-};
 
-class ExitFrameConstants : public TypedFrameConstants {
- public:
-  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-  static constexpr int kLastExitFrameField = kSPOffset;
+  // The following constants are defined so we can static-assert their values
+  // near the relevant JSEntry assembly code, not because they're actually very
+  // useful.
+  static constexpr int kCalleeSavedRegisterBytesPushedBeforeFpLrPair =
+      8 * kSystemPointerSize;
+  static constexpr int kCalleeSavedRegisterBytesPushedAfterFpLrPair =
+      10 * kSystemPointerSize;
+  static constexpr int kOffsetToCalleeSavedRegisters = 1 * kSystemPointerSize;
 
-  static constexpr int kConstantPoolOffset = 0;  // Not used
+  // These offsets refer to the immediate caller (a native frame), not to the
+  // previous JS exit frame like kCallerFPOffset above.
+  static constexpr int kDirectCallerFPOffset =
+      kCalleeSavedRegisterBytesPushedAfterFpLrPair +
+      kOffsetToCalleeSavedRegisters;
+  static constexpr int kDirectCallerPCOffset =
+      kDirectCallerFPOffset + 1 * kSystemPointerSize;
+  static constexpr int kDirectCallerSPOffset =
+      kDirectCallerPCOffset + 1 * kSystemPointerSize +
+      kCalleeSavedRegisterBytesPushedBeforeFpLrPair;
 };
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
@@ -62,20 +85,6 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
       RoundUp<16>(TypedFrameConstants::kFixedFrameSizeFromFp) +
       kNumberOfSavedGpParamRegs * kSystemPointerSize +
       kNumberOfSavedFpParamRegs * kDoubleSize;
-};
-
-class JavaScriptFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static constexpr int kLocal0Offset =
-      StandardFrameConstants::kExpressionsOffset;
-
-  // There are two words on the stack (saved fp and saved lr) between fp and
-  // the arguments.
-  static constexpr int kLastParameterOffset = 2 * kSystemPointerSize;
-
-  static constexpr int kFunctionOffset =
-      StandardFrameConstants::kFunctionOffset;
 };
 
 }  // namespace internal

@@ -57,6 +57,8 @@ class Oddball : public TorqueGeneratedOddball<Oddball, PrimitiveHeapObject> {
   STATIC_ASSERT(kNull == Internals::kNullOddballKind);
   STATIC_ASSERT(kUndefined == Internals::kUndefinedOddballKind);
 
+  DECL_PRINTER(Oddball)
+
   TQ_OBJECT_CONSTRUCTORS(Oddball)
 };
 

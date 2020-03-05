@@ -11,9 +11,6 @@
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
 
-  # BUG (v8:9721)
-  'debug/es6/generators-relocation': [FAIL],
-
   # Issue 3641: The new 'then' semantics suppress some exceptions.
   # These tests may be changed or removed when 'chain' is deprecated.
   'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
@@ -39,7 +36,7 @@
 
 ##############################################################################
 ['variant == stress', {
-  # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
+  # TODO(turbofan): Functions with eval or debugger now get optimized
   # with Turbofan, which has issues with the debugger issues.
   'debug/debug-evaluate-locals': [FAIL],
 
@@ -131,18 +128,24 @@
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'debug/wasm/*': [SKIP],
   'regress/regress-crbug-840288': [SKIP],
+  'regress/regress-crbug-1032042': [SKIP],
   'wasm-*': [SKIP],
 }], # lite_mode or variant == jitless
-
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
 
 ##############################################################################
 ['variant == turboprop', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
 }],  # variant == turboprop
+
+##############################################################################
+# Liftoff needs to be enabled before running these tests.
+['arch in (s390, s390x, ppc, ppc64)', {
+  'regress/regress-crbug-1032042': [SKIP],
+  'regress/regress-crbug-840288': [SKIP],
+  'debug/wasm/debug-step-into-wasm': [SKIP],
+  'debug/wasm/asm-debug': [SKIP],
+  'debug/wasm/frame-inspection': [SKIP],
+}],
 
 ]

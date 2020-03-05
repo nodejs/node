@@ -9,8 +9,9 @@
 
 #include "src/codegen/code-desc.h"
 
-#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM) && \
-    !defined(V8_TARGET_ARCH_ARM64)
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM) &&     \
+    !defined(V8_TARGET_ARCH_ARM64) && !defined(V8_TARGET_ARCH_S390X) && \
+    !defined(V8_TARGET_ARCH_PPC64)
 
 // Placeholders for unsupported architectures.
 
@@ -303,36 +304,48 @@ void EhFrameWriter::SetBaseAddressRegisterAndOffset(Register base_register,
   base_register_ = base_register;
 }
 
-void EhFrameWriter::RecordRegisterSavedToStack(int register_code, int offset) {
+void EhFrameWriter::RecordRegisterSavedToStack(int dwarf_register_code,
+                                               int offset) {
   DCHECK_EQ(writer_state_, InternalState::kInitialized);
   DCHECK_EQ(offset % EhFrameConstants::kDataAlignmentFactor, 0);
   int factored_offset = offset / EhFrameConstants::kDataAlignmentFactor;
   if (factored_offset >= 0) {
-    DCHECK_LE(register_code, EhFrameConstants::kSavedRegisterMask);
+    DCHECK_LE(dwarf_register_code, EhFrameConstants::kSavedRegisterMask);
     WriteByte((EhFrameConstants::kSavedRegisterTag
                << EhFrameConstants::kSavedRegisterMaskSize) |
-              (register_code & EhFrameConstants::kSavedRegisterMask));
+              (dwarf_register_code & EhFrameConstants::kSavedRegisterMask));
     WriteULeb128(factored_offset);
   } else {
     WriteOpcode(EhFrameConstants::DwarfOpcodes::kOffsetExtendedSf);
-    WriteULeb128(register_code);
+    WriteULeb128(dwarf_register_code);
     WriteSLeb128(factored_offset);
   }
 }
 
 void EhFrameWriter::RecordRegisterNotModified(Register name) {
+  RecordRegisterNotModified(RegisterToDwarfCode(name));
+}
+
+void EhFrameWriter::RecordRegisterNotModified(int dwarf_register_code) {
   DCHECK_EQ(writer_state_, InternalState::kInitialized);
   WriteOpcode(EhFrameConstants::DwarfOpcodes::kSameValue);
-  WriteULeb128(RegisterToDwarfCode(name));
+  WriteULeb128(dwarf_register_code);
 }
 
 void EhFrameWriter::RecordRegisterFollowsInitialRule(Register name) {
+  RecordRegisterFollowsInitialRule(RegisterToDwarfCode(name));
+}
+
+void EhFrameWriter::RecordRegisterFollowsInitialRule(int dwarf_register_code) {
   DCHECK_EQ(writer_state_, InternalState::kInitialized);
-  int code = RegisterToDwarfCode(name);
-  DCHECK_LE(code, EhFrameConstants::kFollowInitialRuleMask);
-  WriteByte((EhFrameConstants::kFollowInitialRuleTag
-             << EhFrameConstants::kFollowInitialRuleMaskSize) |
-            (code & EhFrameConstants::kFollowInitialRuleMask));
+  if (dwarf_register_code <= EhFrameConstants::kFollowInitialRuleMask) {
+    WriteByte((EhFrameConstants::kFollowInitialRuleTag
+               << EhFrameConstants::kFollowInitialRuleMaskSize) |
+              (dwarf_register_code & EhFrameConstants::kFollowInitialRuleMask));
+  } else {
+    WriteOpcode(EhFrameConstants::DwarfOpcodes::kRestoreExtended);
+    WriteULeb128(dwarf_register_code);
+  }
 }
 
 void EhFrameWriter::Finish(int code_size) {

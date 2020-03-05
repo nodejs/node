@@ -30,6 +30,8 @@ var objects = [
     this,
     true, false, null, undefined,
     1, -1, 1.1, -2.2, -0, 0,
+    9007199254740991.0, 9007199254740991.0 + 10,
+    -9007199254740992.0, -9007199254740992.0 - 10,
     Infinity, -Infinity, NaN,
     "aasdfasdfasdfasdf", "a"+"b",
     {}, {1:1}, {a:1}, {1:1, 2:2}, Object.create(null),

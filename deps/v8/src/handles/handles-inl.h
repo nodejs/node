@@ -38,6 +38,31 @@ V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
   return Handle<T>(object, isolate);
 }
 
+// Convenience overloads for cases where we want to either create a Handle or an
+// OffThreadHandle, depending on whether we have a Factory or an
+// OffThreadFactory.
+template <typename T>
+V8_INLINE Handle<T> handle(T object, Factory* factory) {
+  return factory->MakeHandle<T>(object);
+}
+template <typename T>
+V8_INLINE OffThreadHandle<T> handle(T object, OffThreadFactory* factory) {
+  // Convienently, we don't actually need the factory to create this handle.
+  return OffThreadHandle<T>(object);
+}
+
+// Similar convenience overloads for when we already have a Handle, but want
+// either a Handle or an OffThreadHandle.
+template <typename T>
+V8_INLINE Handle<T> handle(Handle<T> handle, Factory* factory) {
+  return handle;
+}
+template <typename T>
+V8_INLINE OffThreadHandle<T> handle(Handle<T> handle,
+                                    OffThreadFactory* factory) {
+  return OffThreadHandle<T>(*handle);
+}
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);

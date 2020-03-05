@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/bit-field.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -161,12 +162,11 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-class BreakPointInfo : public Tuple2 {
+class BreakPointInfo
+    : public TorqueGeneratedBreakPointInfo<BreakPointInfo, Struct> {
  public:
   // The position in the source for the break position.
   DECL_INT_ACCESSORS(source_position)
-  // List of related JavaScript break points.
-  DECL_ACCESSORS(break_points, Object)
 
   // Removes a break point.
   static void ClearBreakPoint(Isolate* isolate, Handle<BreakPointInfo> info,
@@ -177,17 +177,16 @@ class BreakPointInfo : public Tuple2 {
   // Check if break point info has this break point.
   static bool HasBreakPoint(Isolate* isolate, Handle<BreakPointInfo> info,
                             Handle<BreakPoint> break_point);
+  // Check if break point info has break point with this id.
+  static MaybeHandle<BreakPoint> GetBreakPointById(Isolate* isolate,
+                                                   Handle<BreakPointInfo> info,
+                                                   int breakpoint_id);
   // Get the number of break points for this code offset.
   int GetBreakPointCount(Isolate* isolate);
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
-  DECL_CAST(BreakPointInfo)
-
-  static const int kSourcePositionOffset = kValue1Offset;
-  static const int kBreakPointsOffset = kValue2Offset;
-
-  OBJECT_CONSTRUCTORS(BreakPointInfo, Tuple2);
+  TQ_OBJECT_CONSTRUCTORS(BreakPointInfo)
 };
 
 // Holds information related to block code coverage.
@@ -235,17 +234,11 @@ class CoverageInfo : public FixedArray {
 };
 
 // Holds breakpoint related information. This object is used by inspector.
-class BreakPoint : public Tuple2 {
+class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
  public:
   DECL_INT_ACCESSORS(id)
-  DECL_ACCESSORS(condition, String)
 
-  DECL_CAST(BreakPoint)
-
-  static const int kIdOffset = kValue1Offset;
-  static const int kConditionOffset = kValue2Offset;
-
-  OBJECT_CONSTRUCTORS(BreakPoint, Tuple2);
+  TQ_OBJECT_CONSTRUCTORS(BreakPoint)
 };
 
 }  // namespace internal

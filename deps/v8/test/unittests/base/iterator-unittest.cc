@@ -20,7 +20,6 @@ TEST(IteratorTest, IteratorRangeEmpty) {
   EXPECT_EQ(0, r.size());
 }
 
-
 TEST(IteratorTest, IteratorRangeArray) {
   int array[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
   base::iterator_range<int*> r1(&array[0], &array[10]);
@@ -40,7 +39,6 @@ TEST(IteratorTest, IteratorRangeArray) {
   }
 }
 
-
 TEST(IteratorTest, IteratorRangeDeque) {
   using C = std::deque<int>;
   C c;
@@ -57,5 +55,18 @@ TEST(IteratorTest, IteratorRangeDeque) {
   EXPECT_EQ(2, std::count(r.begin(), r.end(), 2));
 }
 
+TEST(IteratorTest, IteratorTypeDeduction) {
+  base::iterator_range<char*> r;
+  auto r2 = make_iterator_range(r.begin(), r.end());
+  EXPECT_EQ(r2.begin(), r.begin());
+  EXPECT_EQ(r2.end(), r2.end());
+  auto I = r.begin(), E = r.end();
+  // Check that this compiles and does the correct thing even if the iterators
+  // are lvalues:
+  auto r3 = make_iterator_range(I, E);
+  EXPECT_TRUE((std::is_same<decltype(r2), decltype(r3)>::value));
+  EXPECT_EQ(r3.begin(), r.begin());
+  EXPECT_EQ(r3.end(), r2.end());
+}
 }  // namespace base
 }  // namespace v8

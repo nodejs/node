@@ -46,7 +46,8 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
   static Result MatchInternal(Isolate* isolate, ByteArray code_array,
                               String subject_string, int* registers,
                               int registers_length, int start_position,
-                              RegExp::CallOrigin call_origin);
+                              RegExp::CallOrigin call_origin,
+                              uint32_t backtrack_limit);
 
  private:
   static Result Match(Isolate* isolate, JSRegExp regexp, String subject_string,

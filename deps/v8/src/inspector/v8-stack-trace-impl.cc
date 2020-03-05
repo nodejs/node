@@ -6,9 +6,9 @@
 
 #include <algorithm>
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
-#include "src/inspector/wasm-translation.h"
 
 namespace v8_inspector {
 
@@ -150,8 +150,10 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   dict->setString(kId, String16::fromInteger64(id));
   dict->setString(kDebuggerId, V8DebuggerId(debugger_id).toString());
   dict->setBoolean(kShouldPause, should_pause);
-  String16 json = dict->toJSONString();
-  return StringBufferImpl::adopt(json);
+  std::vector<uint8_t> json;
+  std::vector<uint8_t> cbor = std::move(*dict).TakeSerialized();
+  v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+  return StringBufferFrom(std::move(json));
 }
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
@@ -165,11 +167,6 @@ StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
                             v8Frame->GetScriptNameOrSourceURL()) {
   DCHECK_NE(v8::Message::kNoLineNumberInfo, m_lineNumber + 1);
   DCHECK_NE(v8::Message::kNoColumnInfo, m_columnNumber + 1);
-}
-
-void StackFrame::translate(WasmTranslation* wasmTranslation) {
-  wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-      &m_scriptId, &m_lineNumber, &m_columnNumber);
 }
 
 const String16& StackFrame::functionName() const { return m_functionName; }
@@ -342,8 +339,7 @@ std::unique_ptr<StringBuffer> V8StackTraceImpl::toString() const {
     stackTrace.append(String16::fromInteger(frame.columnNumber() + 1));
     stackTrace.append(')');
   }
-  String16 string = stackTrace.toString();
-  return StringBufferImpl::adopt(string);
+  return StringBufferFrom(stackTrace.toString());
 }
 
 bool V8StackTraceImpl::isEqualIgnoringTopFrame(

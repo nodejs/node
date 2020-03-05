@@ -39,25 +39,90 @@ struct AsmJsOffsetEntry {
   int source_position_call;
   int source_position_number_conversion;
 };
-using AsmJsOffsets = std::vector<std::vector<AsmJsOffsetEntry>>;
+struct AsmJsOffsetFunctionEntries {
+  int start_offset;
+  int end_offset;
+  std::vector<AsmJsOffsetEntry> entries;
+};
+struct AsmJsOffsets {
+  std::vector<AsmJsOffsetFunctionEntries> functions;
+};
 using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
-struct LocalName {
-  int local_index;
-  WireBytesRef name;
-  LocalName(int local_index, WireBytesRef name)
-      : local_index(local_index), name(name) {}
+class LocalName {
+ public:
+  LocalName(int index, WireBytesRef name) : index_(index), name_(name) {}
+
+  int index() const { return index_; }
+  WireBytesRef name() const { return name_; }
+
+  struct IndexLess {
+    bool operator()(const LocalName& a, const LocalName& b) const {
+      return a.index() < b.index();
+    }
+  };
+
+ private:
+  int index_;
+  WireBytesRef name_;
 };
-struct LocalNamesPerFunction {
-  int function_index;
-  int max_local_index = -1;
-  std::vector<LocalName> names;
-  explicit LocalNamesPerFunction(int function_index)
-      : function_index(function_index) {}
+
+class LocalNamesPerFunction {
+ public:
+  // For performance reasons, {LocalNamesPerFunction} should not be copied.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LocalNamesPerFunction);
+
+  LocalNamesPerFunction(int function_index, std::vector<LocalName> names)
+      : function_index_(function_index), names_(std::move(names)) {
+    DCHECK(
+        std::is_sorted(names_.begin(), names_.end(), LocalName::IndexLess{}));
+  }
+
+  int function_index() const { return function_index_; }
+
+  WireBytesRef GetName(int local_index) {
+    auto it =
+        std::lower_bound(names_.begin(), names_.end(),
+                         LocalName{local_index, {}}, LocalName::IndexLess{});
+    if (it == names_.end()) return {};
+    if (it->index() != local_index) return {};
+    return it->name();
+  }
+
+  struct FunctionIndexLess {
+    bool operator()(const LocalNamesPerFunction& a,
+                    const LocalNamesPerFunction& b) const {
+      return a.function_index() < b.function_index();
+    }
+  };
+
+ private:
+  int function_index_;
+  std::vector<LocalName> names_;
 };
-struct LocalNames {
-  int max_function_index = -1;
-  std::vector<LocalNamesPerFunction> names;
+
+class LocalNames {
+ public:
+  // For performance reasons, {LocalNames} should not be copied.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LocalNames);
+
+  explicit LocalNames(std::vector<LocalNamesPerFunction> functions)
+      : functions_(std::move(functions)) {
+    DCHECK(std::is_sorted(functions_.begin(), functions_.end(),
+                          LocalNamesPerFunction::FunctionIndexLess{}));
+  }
+
+  WireBytesRef GetName(int function_index, int local_index) {
+    auto it = std::lower_bound(functions_.begin(), functions_.end(),
+                               LocalNamesPerFunction{function_index, {}},
+                               LocalNamesPerFunction::FunctionIndexLess{});
+    if (it == functions_.end()) return {};
+    if (it->function_index() != function_index) return {};
+    return it->GetName(local_index);
+  }
+
+ private:
+  std::vector<LocalNamesPerFunction> functions_;
 };
 
 // Decodes the bytes of a wasm module between {module_start} and {module_end}.
@@ -93,11 +158,7 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 
 // Extracts the mapping from wasm byte offset to asm.js source position per
 // function.
-// Returns a vector of vectors with <byte_offset, source_position> entries, or
-// failure if the wasm bytes are detected as invalid. Note that this validation
-// is not complete.
-AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
-                                      const byte* module_end);
+AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
 
 // Decode the function names from the name section.
 // Returns the result as an unordered map. Only names with valid utf8 encoding
@@ -106,11 +167,10 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
                          std::unordered_map<uint32_t, WireBytesRef>* names);
 
 // Decode the local names assignment from the name section.
-// Stores the result in the given {LocalNames} structure. The result will be
-// empty if no name section is present. On encountering an error in the name
-// section, returns all information decoded up to the first error.
-void DecodeLocalNames(const byte* module_start, const byte* module_end,
-                      LocalNames* result);
+// The result will be empty if no name section is present. On encountering an
+// error in the name section, returns all information decoded up to the first
+// error.
+LocalNames DecodeLocalNames(Vector<const uint8_t> module_bytes);
 
 class ModuleDecoderImpl;
 

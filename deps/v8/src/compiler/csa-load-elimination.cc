@@ -67,7 +67,7 @@ namespace CsaLoadEliminationHelpers {
 
 bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
   if (r1 == r2) return true;
-  return IsAnyCompressedTagged(r1) && IsAnyCompressedTagged(r2);
+  return IsAnyTagged(r1) && IsAnyTagged(r2);
 }
 
 bool ObjectMayAlias(Node* a, Node* b) {

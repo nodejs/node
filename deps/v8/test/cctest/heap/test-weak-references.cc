@@ -19,8 +19,8 @@ namespace heap {
 Handle<LoadHandler> CreateLoadHandlerForTest(
     Factory* factory, AllocationType allocation = AllocationType::kYoung) {
   Handle<LoadHandler> result = factory->NewLoadHandler(1, allocation);
-  result->set_smi_handler(Smi::kZero);
-  result->set_validity_cell(Smi::kZero);
+  result->set_smi_handler(Smi::zero());
+  result->set_validity_cell(Smi::zero());
   result->set_data1(MaybeObject::FromSmi(Smi::zero()));
   return result;
 }
@@ -37,7 +37,8 @@ TEST(WeakReferencesBasic) {
   MaybeObject code_object = lh->data1();
   CHECK(code_object->IsSmi());
   CcTest::CollectAllGarbage();
-  CHECK(Heap::InYoungGeneration(*lh));
+  CHECK(FLAG_always_promote_young_mc ? !Heap::InYoungGeneration(*lh)
+                                     : Heap::InYoungGeneration(*lh));
   CHECK_EQ(code_object, lh->data1());
 
   {

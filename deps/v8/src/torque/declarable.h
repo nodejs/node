@@ -50,8 +50,8 @@ class Declarable {
     kBuiltin,
     kRuntimeFunction,
     kIntrinsic,
-    kGeneric,
-    kGenericStructType,
+    kGenericCallable,
+    kGenericType,
     kTypeAlias,
     kExternConstant,
     kNamespaceConstant
@@ -65,8 +65,8 @@ class Declarable {
   bool IsIntrinsic() const { return kind() == kIntrinsic; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
-  bool IsGeneric() const { return kind() == kGeneric; }
-  bool IsGenericStructType() const { return kind() == kGenericStructType; }
+  bool IsGenericCallable() const { return kind() == kGenericCallable; }
+  bool IsGenericType() const { return kind() == kGenericType; }
   bool IsTypeAlias() const { return kind() == kTypeAlias; }
   bool IsExternConstant() const { return kind() == kExternConstant; }
   bool IsNamespaceConstant() const { return kind() == kNamespaceConstant; }
@@ -133,6 +133,30 @@ class Declarable {
     return static_cast<const x*>(declarable);                 \
   }
 
+// Information about what code caused a specialization to exist. This is used
+// for error reporting.
+struct SpecializationRequester {
+  // The position of the expression that caused this specialization.
+  SourcePosition position;
+  // The Scope which contains the expression that caused this specialization.
+  // It may in turn also be within a specialization, which allows us to print
+  // the stack of requesters when an error occurs.
+  Scope* scope;
+  // The name of the specialization.
+  std::string name;
+
+  static SpecializationRequester None() {
+    return {SourcePosition::Invalid(), nullptr, ""};
+  }
+
+  bool IsNone() const {
+    return position == SourcePosition::Invalid() && scope == nullptr &&
+           name == "";
+  }
+  SpecializationRequester(SourcePosition position, Scope* scope,
+                          std::string name);
+};
+
 class Scope : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Scope, scope)
@@ -174,8 +198,20 @@ class Scope : public Declarable {
     return declarable;
   }
 
+  const SpecializationRequester& GetSpecializationRequester() const {
+    return requester_;
+  }
+  void SetSpecializationRequester(const SpecializationRequester& requester) {
+    requester_ = requester;
+  }
+
  private:
   std::unordered_map<std::string, std::vector<Declarable*>> declarations_;
+
+  // If this Scope was created for specializing a generic type or callable,
+  // then {requester_} refers to the place that caused the specialization so we
+  // can construct useful error messages.
+  SpecializationRequester requester_ = SpecializationRequester::None();
 };
 
 class Namespace : public Scope {
@@ -446,19 +482,46 @@ class Intrinsic : public Callable {
   }
 };
 
-template <class T>
-class SpecializationMap {
+class TypeConstraint {
+ public:
+  base::Optional<std::string> IsViolated(const Type*) const;
+
+  static TypeConstraint Unconstrained() { return {}; }
+  static TypeConstraint SubtypeConstraint(const Type* upper_bound) {
+    TypeConstraint result;
+    result.upper_bound = {upper_bound};
+    return result;
+  }
+
  private:
-  using Map = std::unordered_map<TypeVector, T*, base::hash<TypeVector>>;
+  base::Optional<const Type*> upper_bound;
+};
+
+base::Optional<std::string> FindConstraintViolation(
+    const std::vector<const Type*>& types,
+    const std::vector<TypeConstraint>& constraints);
+
+std::vector<TypeConstraint> ComputeConstraints(
+    Scope* scope, const GenericParameters& parameters);
+
+template <class SpecializationType, class DeclarationType>
+class GenericDeclarable : public Declarable {
+ private:
+  using Map = std::unordered_map<TypeVector, SpecializationType,
+                                 base::hash<TypeVector>>;
 
  public:
-  SpecializationMap() {}
-
-  void Add(const TypeVector& type_arguments, T* specialization) {
+  void AddSpecialization(const TypeVector& type_arguments,
+                         SpecializationType specialization) {
     DCHECK_EQ(0, specializations_.count(type_arguments));
+    if (auto violation =
+            FindConstraintViolation(type_arguments, Constraints())) {
+      Error(*violation).Throw();
+    }
     specializations_[type_arguments] = specialization;
   }
-  base::Optional<T*> Get(const TypeVector& type_arguments) const {
+  base::Optional<SpecializationType> GetSpecialization(
+      const TypeVector& type_arguments) const {
     auto it = specializations_.find(type_arguments);
     if (it != specializations_.end()) return it->second;
     return base::nullopt;
@@ -468,22 +531,38 @@ class SpecializationMap {
   iterator begin() const { return specializations_.begin(); }
   iterator end() const { return specializations_.end(); }
 
- private:
-  Map specializations_;
-};
-
-class Generic : public Declarable {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
-
   const std::string& name() const { return name_; }
-  CallableDeclaration* declaration() const {
-    return generic_declaration_->declaration;
-  }
-  const std::vector<Identifier*> generic_parameters() const {
+  auto declaration() const { return generic_declaration_->declaration; }
+  const GenericParameters& generic_parameters() const {
     return generic_declaration_->generic_parameters;
   }
-  SpecializationMap<Callable>& specializations() { return specializations_; }
+
+  const std::vector<TypeConstraint>& Constraints() {
+    if (!constraints_)
+      constraints_ = {ComputeConstraints(ParentScope(), generic_parameters())};
+    return *constraints_;
+  }
+
+ protected:
+  GenericDeclarable(Declarable::Kind kind, const std::string& name,
+                    DeclarationType generic_declaration)
+      : Declarable(kind),
+        name_(name),
+        generic_declaration_(generic_declaration) {
+    DCHECK(!generic_declaration->generic_parameters.empty());
+  }
+
+ private:
+  std::string name_;
+  DeclarationType generic_declaration_;
+  Map specializations_;
+  base::Optional<std::vector<TypeConstraint>> constraints_;
+};
+
+class GenericCallable
+    : public GenericDeclarable<Callable*, GenericCallableDeclaration*> {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(GenericCallable, generic_callable)
 
   base::Optional<Statement*> CallableBody();
 
@@ -493,40 +572,23 @@ class Generic : public Declarable {
 
  private:
   friend class Declarations;
-  Generic(const std::string& name, GenericDeclaration* generic_declaration)
-      : Declarable(Declarable::kGeneric),
-        name_(name),
-        generic_declaration_(generic_declaration) {}
-
-  std::string name_;
-  GenericDeclaration* generic_declaration_;
-  SpecializationMap<Callable> specializations_;
+  GenericCallable(const std::string& name,
+                  GenericCallableDeclaration* generic_declaration)
+      : GenericDeclarable<Callable*, GenericCallableDeclaration*>(
+            Declarable::kGenericCallable, name, generic_declaration) {}
 };
 
-class GenericStructType : public Declarable {
+class GenericType
+    : public GenericDeclarable<const Type*, GenericTypeDeclaration*> {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(GenericStructType, generic_type)
-  const std::string& name() const { return name_; }
-  StructDeclaration* declaration() const { return declaration_; }
-  const std::vector<Identifier*>& generic_parameters() const {
-    return declaration_->generic_parameters;
-  }
-  SpecializationMap<const StructType>& specializations() {
-    return specializations_;
-  }
+  DECLARE_DECLARABLE_BOILERPLATE(GenericType, generic_type)
 
  private:
   friend class Declarations;
-  GenericStructType(const std::string& name, StructDeclaration* declaration)
-      : Declarable(Declarable::kGenericStructType),
-        name_(name),
-        declaration_(declaration) {
-    DCHECK_GT(declaration->generic_parameters.size(), 0);
-  }
-
-  std::string name_;
-  StructDeclaration* declaration_;
-  SpecializationMap<const StructType> specializations_;
+  GenericType(const std::string& name,
+              GenericTypeDeclaration* generic_declaration)
+      : GenericDeclarable<const Type*, GenericTypeDeclaration*>(
+            Declarable::kGenericType, name, generic_declaration) {}
 };
 
 class TypeAlias : public Declarable {
@@ -572,7 +634,7 @@ class TypeAlias : public Declarable {
 std::ostream& operator<<(std::ostream& os, const Callable& m);
 std::ostream& operator<<(std::ostream& os, const Builtin& b);
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
-std::ostream& operator<<(std::ostream& os, const Generic& g);
+std::ostream& operator<<(std::ostream& os, const GenericCallable& g);
 
 #undef DECLARE_DECLARABLE_BOILERPLATE
 

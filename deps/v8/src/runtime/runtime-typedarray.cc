@@ -42,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   CHECK(TryNumberToSize(*length_obj, &length));
 
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, length);
+  return accessor->CopyElements(source, target, length, 0);
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   DCHECK(!array->WasDetached());
 
   size_t length = array->length();
-  if (length <= 1) return *array;
+  DCHECK_LT(1, length);
 
   // In case of a SAB, the data is copied into temporary memory, as
   // std::sort might crash in case the underlying data is concurrently
@@ -95,14 +95,20 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   const bool copy_data = buffer->is_shared();
 
   Handle<ByteArray> array_copy;
+  std::vector<uint8_t> offheap_copy;
+  void* data_copy_ptr = nullptr;
   if (copy_data) {
     const size_t bytes = array->byte_length();
-    // TODO(szuend): Re-check this approach once support for larger typed
-    //               arrays has landed.
-    CHECK_LE(bytes, INT_MAX);
-    array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
-    std::memcpy(static_cast<void*>(array_copy->GetDataStartAddress()),
-                static_cast<void*>(array->DataPtr()), bytes);
+    if (bytes <= static_cast<unsigned>(
+                     ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
+      array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
+      data_copy_ptr = array_copy->GetDataStartAddress();
+    } else {
+      // Allocate copy in C++ heap.
+      offheap_copy.resize(bytes);
+      data_copy_ptr = &offheap_copy[0];
+    }
+    std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
   }
 
   DisallowHeapAllocation no_gc;
@@ -110,10 +116,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \
   case kExternal##Type##Array: {                                           \
-    ctype* data =                                                          \
-        copy_data                                                          \
-            ? reinterpret_cast<ctype*>(array_copy->GetDataStartAddress())  \
-            : static_cast<ctype*>(array->DataPtr());                       \
+    ctype* data = copy_data ? reinterpret_cast<ctype*>(data_copy_ptr)      \
+                            : static_cast<ctype*>(array->DataPtr());       \
     if (kExternal##Type##Array == kExternalFloat64Array ||                 \
         kExternal##Type##Array == kExternalFloat32Array) {                 \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
@@ -140,58 +144,31 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   }
 
   if (copy_data) {
-    DCHECK(!array_copy.is_null());
+    DCHECK_NOT_NULL(data_copy_ptr);
+    DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
     const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(array->DataPtr()),
-                static_cast<void*>(array_copy->GetDataStartAddress()), bytes);
+    std::memcpy(static_cast<void*>(array->DataPtr()), data_copy_ptr, bytes);
   }
 
   return *array;
 }
 
-// 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )
 RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   HandleScope scope(isolate);
-  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
-  Handle<Object> obj = args.at(1);
-  Handle<Smi> offset = args.at<Smi>(2);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 3);
 
-  DCHECK(!target->WasDetached());  // Checked in TypedArrayPrototypeSet.
-  DCHECK(!obj->IsJSTypedArray());  // Should be handled by CSA.
-  DCHECK_LE(0, offset->value());
+  size_t length;
+  CHECK(TryNumberToSize(*length_obj, &length));
 
-  const uint32_t uint_offset = static_cast<uint32_t>(offset->value());
+  size_t offset;
+  CHECK(TryNumberToSize(*offset_obj, &offset));
 
-  if (obj->IsNumber()) {
-    // For number as a first argument, throw TypeError
-    // instead of silently ignoring the call, so that
-    // users know they did something wrong.
-    // (Consistent with Firefox and Blink/WebKit)
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kInvalidArgument));
-  }
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj,
-                                     Object::ToObject(isolate, obj));
-
-  Handle<Object> len;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, len,
-      Object::GetProperty(isolate, obj, isolate->factory()->length_string()));
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
-                                     Object::ToLength(isolate, len));
-
-  if (uint_offset + len->Number() > target->length()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
-  }
-
-  uint32_t int_l;
-  CHECK(DoubleToUint32IfEqualToSelf(len->Number(), &int_l));
-
-  Handle<JSReceiver> source = Handle<JSReceiver>::cast(obj);
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, int_l, uint_offset);
+  return accessor->CopyElements(source, target, length, offset);
 }
 
 }  // namespace internal

@@ -125,8 +125,10 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  return isolate->wasm_engine()->NewNativeModule(
-      isolate, wasm::kAllWasmFeatures, code_size, false, std::move(module));
+  auto native_module = isolate->wasm_engine()->NewNativeModule(
+      isolate, wasm::WasmFeatures::All(), std::move(module), code_size);
+  native_module->SetWireBytes({});
+  return native_module;
 }
 
 void TestReturnMultipleValues(MachineType type) {

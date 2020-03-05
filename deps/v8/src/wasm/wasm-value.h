@@ -32,11 +32,8 @@ FOREACH_SIMD_TYPE(DEFINE_SIMD_TYPE)
 
 class Simd128 {
  public:
-  Simd128() : val_() {
-    for (size_t i = 0; i < 16; i++) {
-      val_[i] = 0;
-    }
-  }
+  Simd128() = default;
+
 #define DEFINE_SIMD_TYPE_SPECIFIC_METHODS(cType, sType, name, size)          \
   explicit Simd128(sType val) {                                              \
     base::WriteUnalignedValue<sType>(reinterpret_cast<Address>(val_), val);  \
@@ -48,7 +45,7 @@ class Simd128 {
 #undef DEFINE_SIMD_TYPE_SPECIFIC_METHODS
 
  private:
-  uint8_t val_[16];
+  uint8_t val_[16] = {0};
 };
 
 // Macro for defining WasmValue methods for different types.

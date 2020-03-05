@@ -57,7 +57,9 @@ class HeapNumber : public PrimitiveHeapObject {
   static const int kNonMantissaBitsInTopWord = 12;
 
   DECL_CAST(HeapNumber)
-  V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
+  DECL_VERIFIER(HeapNumber)
+  DECL_PRINTER(HeapNumber)
+  V8_EXPORT_PRIVATE void HeapNumberShortPrint(std::ostream& os);
 
   OBJECT_CONSTRUCTORS(HeapNumber, PrimitiveHeapObject);
 };

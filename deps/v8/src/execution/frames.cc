@@ -455,7 +455,10 @@ void SafeStackFrameIterator::Advance() {
       last_callback_scope = external_callback_scope_;
       external_callback_scope_ = external_callback_scope_->previous();
     }
-    if (frame_->is_java_script() || frame_->is_wasm()) break;
+    if (frame_->is_java_script() || frame_->is_wasm() ||
+        frame_->is_wasm_to_js()) {
+      break;
+    }
     if (frame_->is_exit() || frame_->is_builtin_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
@@ -489,7 +492,8 @@ Code StackFrame::LookupCode() const {
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address, Code holder) {
   Address pc = *pc_address;
-  DCHECK(holder.GetHeap()->GcSafeCodeContains(holder, pc));
+  DCHECK(ReadOnlyHeap::Contains(holder) ||
+         holder.GetHeap()->GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder.InstructionStart());
   Object code = holder;
   v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code));
@@ -1316,7 +1320,7 @@ Object JavaScriptBuiltinContinuationFrame::context() const {
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
   Address exception_argument_slot =
-      fp() + JavaScriptFrameConstants::kLastParameterOffset +
+      fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
       kSystemPointerSize;  // Skip over return value slot.
 
   // Only allow setting exception if previous value was the hole.
@@ -1413,11 +1417,9 @@ WASM_SUMMARY_DISPATCH(int, byte_offset)
 #undef WASM_SUMMARY_DISPATCH
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
-  Handle<WasmModuleObject> module_object(wasm_instance()->module_object(),
-                                         isolate());
-  return WasmModuleObject::GetSourcePosition(module_object, function_index(),
-                                             byte_offset(),
-                                             at_to_number_conversion());
+  const wasm::WasmModule* module = wasm_instance()->module_object().module();
+  return GetSourcePosition(module, function_index(), byte_offset(),
+                           at_to_number_conversion());
 }
 
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
@@ -1899,6 +1901,10 @@ WasmInstanceObject WasmCompiledFrame::wasm_instance() const {
   return WasmInstanceObject::cast(instance);
 }
 
+wasm::NativeModule* WasmCompiledFrame::native_module() const {
+  return module_object().native_module();
+}
+
 WasmModuleObject WasmCompiledFrame::module_object() const {
   return wasm_instance().module_object();
 }
@@ -1911,6 +1917,10 @@ Script WasmCompiledFrame::script() const { return module_object().script(); }
 
 int WasmCompiledFrame::position() const {
   return FrameSummary::GetSingle(this).SourcePosition();
+}
+
+Object WasmCompiledFrame::context() const {
+  return wasm_instance().native_context();
 }
 
 void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
@@ -1982,6 +1992,11 @@ void WasmInterpreterEntryFrame::Summarize(
 }
 
 Code WasmInterpreterEntryFrame::unchecked_code() const { return Code(); }
+
+int WasmInterpreterEntryFrame::NumberOfActiveFrames() const {
+  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  return instance->debug_info().NumberOfActiveFrames(fp());
+}
 
 WasmInstanceObject WasmInterpreterEntryFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;

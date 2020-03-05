@@ -39,6 +39,10 @@ function TestInt64LoweredOperations() {
   assertEquals(14n, BigInt.asUintN(32, 8n + 6n));
   assertEquals(813n, BigInt.asUintN(10, 1013n + -200n));
   assertEquals(15n, BigInt.asUintN(4, -319n + 302n));
+  assertEquals(32n, BigInt.asUintN(64, (2n ** 100n + 64n) - 32n));
+  assertEquals(2n ** 64n - 32n, BigInt.asUintN(64, 32n - (2n ** 100n + 64n)));
+  assertEquals(11n, BigInt.asUintN(4, 800n - 789n));
+  assertEquals(5n, BigInt.asUintN(4, 789n - 800n));
 
   for (let i = 0; i < 2; ++i) {
     let x = 32n; // x = 32n
@@ -46,7 +50,7 @@ function TestInt64LoweredOperations() {
       x = BigInt.asUintN(64, x + 3n); // x = 35n
       const y = x + -8n + x; // x = 35n, y = 62n
       x = BigInt.asUintN(6, y + x); // x = 33n, y = 62n
-      x = -9n + y + -x; // x = 20n
+      x = -9n + y - x; // x = 20n
       x = BigInt.asUintN(10000 * i, x); // x = 20n
     } else {
       x = x + 400n; // x = 432n
@@ -71,6 +75,7 @@ function TestInt64LoweredOperations() {
 function OptimizeAndTest(fn) {
   %PrepareFunctionForOptimization(fn);
   %PrepareFunctionForOptimization(assertEquals);
+  %PrepareFunctionForOptimization(deepEquals);
   fn();
   fn();
   %OptimizeFunctionOnNextCall(fn);

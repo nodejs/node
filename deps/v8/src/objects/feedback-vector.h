@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
@@ -233,9 +234,9 @@ class FeedbackVector : public HeapObject {
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackSlot ToSlot(int index);
   inline MaybeObject Get(FeedbackSlot slot) const;
-  inline MaybeObject Get(Isolate* isolate, FeedbackSlot slot) const;
+  inline MaybeObject Get(const Isolate* isolate, FeedbackSlot slot) const;
   inline MaybeObject get(int index) const;
-  inline MaybeObject get(Isolate* isolate, int index) const;
+  inline MaybeObject get(const Isolate* isolate, int index) const;
   inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set(int index, MaybeObject value,
@@ -312,8 +313,6 @@ class FeedbackVector : public HeapObject {
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_FEEDBACK_VECTOR_FIELDS)
-
-  static const int kHeaderSize = kSize;
 
   static_assert(kSize % kObjectAlignment == 0,
                 "Header must be padded for alignment");
@@ -554,8 +553,8 @@ class FeedbackMetadata : public HeapObject {
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
   using VectorICComputer =
-      BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
-                     kInt32Size * kBitsPerByte, uint32_t>;
+      base::BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
+                           kInt32Size * kBitsPerByte, uint32_t>;
 
   OBJECT_CONSTRUCTORS(FeedbackMetadata, HeapObject);
 };
@@ -699,8 +698,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
 
-  using SpeculationModeField = BitField<SpeculationMode, 0, 1>;
-  using CallCountField = BitField<uint32_t, 1, 31>;
+  using SpeculationModeField = base::BitField<SpeculationMode, 0, 1>;
+  using CallCountField = base::BitField<uint32_t, 1, 31>;
 
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;

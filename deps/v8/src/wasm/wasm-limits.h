@@ -28,7 +28,7 @@ constexpr size_t kV8MaxWasmExceptions = 1000000;
 constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
 constexpr size_t kV8MaxWasmDataSegments = 100000;
 // Don't use this limit directly, but use the value of {max_mem_pages()}.
-constexpr size_t kV8MaxWasmMemoryPages = 32767;  // = ~ 2 GiB
+constexpr size_t kV8MaxWasmMemoryPages = 65536;  // = 4 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 7654321;
@@ -58,7 +58,7 @@ constexpr uint64_t kWasmMaxHeapOffset =
 // Defined in wasm-engine.cc.
 // TODO(wasm): Make this size_t for wasm64. Currently the --wasm-max-mem-pages
 // flag is only uint32_t.
-uint32_t max_mem_pages();
+V8_EXPORT_PRIVATE uint32_t max_mem_pages();
 uint32_t max_table_init_entries();
 
 inline uint64_t max_mem_bytes() {

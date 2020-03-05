@@ -158,7 +158,7 @@ def dcheck_stop_handler(event):
   count = 0
   # limit stack scanning since they're usually shallow and otherwise stack
   # overflows can be very slow.
-  while frame is not None and count < 5:
+  while frame is not None and count < 7:
     count += 1
     if frame.name() == 'V8_Dcheck':
       frame_message = gdb.lookup_symbol('message', frame.block())[0]

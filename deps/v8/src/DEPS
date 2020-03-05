@@ -16,6 +16,8 @@ include_rules = [
   "+src/heap/heap-inl.h",
   "+src/heap/heap-write-barrier-inl.h",
   "+src/heap/heap-write-barrier.h",
+  "+src/heap/off-thread-factory-inl.h",
+  "+src/heap/off-thread-factory.h",
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",
   "-src/inspector",

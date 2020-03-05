@@ -33,9 +33,9 @@ CodeCommentsIterator::CodeCommentsIterator(Address code_comments_start,
       code_comments_size_(code_comments_size),
       current_entry_(code_comments_start + kOffsetToFirstCommentEntry) {
   DCHECK_NE(kNullAddress, code_comments_start);
-  DCHECK_IMPLIES(
-      code_comments_size,
-      code_comments_size == *reinterpret_cast<uint32_t*>(code_comments_start_));
+  DCHECK_IMPLIES(code_comments_size,
+                 code_comments_size ==
+                     base::ReadUnalignedValue<uint32_t>(code_comments_start_));
 }
 
 uint32_t CodeCommentsIterator::size() const { return code_comments_size_; }

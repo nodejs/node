@@ -21,16 +21,10 @@ namespace {
 
 bool CanAllocate(const Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
-    case IrOpcode::kChangeCompressedToTagged:
-    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
-    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-    case IrOpcode::kChangeTaggedToCompressed:
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
     case IrOpcode::kComment:
-    case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
@@ -44,6 +38,8 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
+    case IrOpcode::kStackPointerGreaterThan:
+    case IrOpcode::kStaticAssert:
     // TODO(tebbi): Store nodes might do a bump-pointer allocation.
     //              We should introduce a special bump-pointer store node to
     //              differentiate that.
@@ -54,9 +50,8 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
-    case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kUnreachable:
-    case IrOpcode::kStaticAssert:
+    case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kWord32AtomicAdd:
     case IrOpcode::kWord32AtomicAnd:
     case IrOpcode::kWord32AtomicCompareExchange:
@@ -184,8 +179,10 @@ MemoryOptimizer::MemoryOptimizer(
     JSGraph* jsgraph, Zone* zone, PoisoningMitigationLevel poisoning_level,
     MemoryLowering::AllocationFolding allocation_folding,
     const char* function_debug_name, TickCounter* tick_counter)
-    : memory_lowering_(jsgraph, zone, poisoning_level, allocation_folding,
-                       WriteBarrierAssertFailed, function_debug_name),
+    : graph_assembler_(jsgraph, zone),
+      memory_lowering_(jsgraph, zone, &graph_assembler_, poisoning_level,
+                       allocation_folding, WriteBarrierAssertFailed,
+                       function_debug_name),
       jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
@@ -242,21 +239,6 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
 
 bool MemoryOptimizer::AllocationTypeNeedsUpdateToOld(Node* const node,
                                                      const Edge edge) {
-  if (COMPRESS_POINTERS_BOOL && IrOpcode::IsCompressOpcode(node->opcode())) {
-    // In Pointer Compression we might have a Compress node between an
-    // AllocateRaw and the value used as input. This case is trickier since we
-    // have to check all of the Compress node edges to test for a StoreField.
-    for (Edge const new_edge : node->use_edges()) {
-      if (AllocationTypeNeedsUpdateToOld(new_edge.from(), new_edge)) {
-        return true;
-      }
-    }
-
-    // If we arrived here, we tested all the edges of the Compress node and
-    // didn't find it necessary to update the AllocationType.
-    return false;
-  }
-
   // Test to see if we need to update the AllocationType.
   if (node->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
     Node* parent = node->InputAt(0);
@@ -284,14 +266,6 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
         Node* child = user->InputAt(1);
-        // In Pointer Compression we might have a Compress node between an
-        // AllocateRaw and the value used as input. If so, we need to update
-        // child to point to the StoreField.
-        if (COMPRESS_POINTERS_BOOL &&
-            IrOpcode::IsCompressOpcode(child->opcode())) {
-          child = child->InputAt(0);
-        }
-
         if (child->opcode() == IrOpcode::kAllocateRaw &&
             AllocationTypeOf(child->op()) == AllocationType::kYoung) {
           NodeProperties::ChangeOp(child, node->op());
@@ -310,8 +284,17 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
     }
   }
 
-  memory_lowering()->ReduceAllocateRaw(
+  Reduction reduction = memory_lowering()->ReduceAllocateRaw(
       node, allocation_type, allocation.allow_large_objects(), &state);
+  CHECK(reduction.Changed() && reduction.replacement() != node);
+
+  // Replace all uses of node and kill the node to make sure we don't leave
+  // dangling dead uses.
+  NodeProperties::ReplaceUses(node, reduction.replacement(),
+                              graph_assembler_.effect(),
+                              graph_assembler_.control());
+  node->Kill();
+
   EnqueueUses(state->effect(), state);
 }
 

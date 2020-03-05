@@ -15,6 +15,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "{{config.crdtp.dir}}/cbor.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -128,29 +129,6 @@ std::unique_ptr<base::Value> toBaseValue(Value* value, int depth) {
   return nullptr;
 }
 
-// static
-std::unique_ptr<Value> StringUtil::parseMessage(
-    const std::string& message, bool binary) {
-  if (binary) {
-    return Value::parseBinary(
-        reinterpret_cast<const uint8_t*>(message.data()),
-        message.length());
-  }
-  std::unique_ptr<base::Value> value = base::JSONReader::ReadDeprecated(message);
-  return toProtocolValue(value.get(), 1000);
-}
-
-// static
-ProtocolMessage StringUtil::jsonToMessage(String message) {
-  return message;
-}
-
-// static
-ProtocolMessage StringUtil::binaryToMessage(std::vector<uint8_t> message) {
-  // TODO(pfeldman): figure out what to do with this copy.
-  return std::string(reinterpret_cast<const char*>(message.data()), message.size());
-}
-
 StringBuilder::StringBuilder() {}
 
 StringBuilder::~StringBuilder() {}
@@ -165,16 +143,6 @@ void StringBuilder::append(char c) {
 
 void StringBuilder::append(const char* characters, size_t length) {
   string_.append(characters, length);
-}
-
-// static
-void StringUtil::builderAppendQuotedString(StringBuilder& builder,
-                                           const String& str) {
-  builder.append('"');
-  base::string16 str16 = base::UTF8ToUTF16(str);
-  escapeWideStringForJSON(reinterpret_cast<const uint16_t*>(&str16[0]),
-                          str16.length(), &builder);
-  builder.append('"');
 }
 
 std::string StringBuilder::toString() {
@@ -198,6 +166,10 @@ Binary::Binary() : bytes_(new base::RefCountedBytes) {}
 Binary::Binary(const Binary& binary) : bytes_(binary.bytes_) {}
 Binary::Binary(scoped_refptr<base::RefCountedMemory> bytes) : bytes_(bytes) {}
 Binary::~Binary() {}
+
+void Binary::AppendSerialized(std::vector<uint8_t>* out) const {
+  crdtp::cbor::EncodeBinary(crdtp::span<uint8_t>(data(), size()), out);
+}
 
 String Binary::toBase64() const {
   std::string encoded;

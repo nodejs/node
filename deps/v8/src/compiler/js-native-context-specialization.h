@@ -46,8 +46,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Flags that control the mode of operation.
   enum Flag {
     kNoFlags = 0u,
-    kAccessorInliningEnabled = 1u << 0,
-    kBailoutOnUninitialized = 1u << 1
+    kBailoutOnUninitialized = 1u << 0,
   };
   using Flags = base::Flags<Flag>;
 
@@ -79,7 +78,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSPromiseResolve(Node* node);
   Reduction ReduceJSResolvePromise(Node* node);
-  Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
@@ -203,12 +201,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
                              Node* control);
 
-  // Attach a pair of success and exception paths on a given control path.
-  // The exception is joined to the Merge+Phi+EffectPhi nodes while the success
-  // path is returned.
-  Node* AppendExceptionHandling(Node* effect, Node* control, Node* merge,
-                                Node* phi, Node* effect_phi);
-
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
@@ -258,6 +250,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
+  bool should_disallow_heap_access() const;
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;

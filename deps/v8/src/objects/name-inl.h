@@ -28,6 +28,18 @@ BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
                     Symbol::IsInterestingSymbolBit)
 
+bool Symbol::is_private_brand() const {
+  bool value = Symbol::IsPrivateBrandBit::decode(flags());
+  DCHECK_IMPLIES(value, is_private());
+  return value;
+}
+
+void Symbol::set_is_private_brand() {
+  set_flags(Symbol::IsPrivateBit::update(flags(), true));
+  set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
+  set_flags(Symbol::IsPrivateBrandBit::update(flags(), true));
+}
+
 bool Symbol::is_private_name() const {
   bool value = Symbol::IsPrivateNameBit::decode(flags());
   DCHECK_IMPLIES(value, is_private());
@@ -95,6 +107,13 @@ DEF_GETTER(Name, IsPrivateName, bool) {
       this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
+}
+
+DEF_GETTER(Name, IsPrivateBrand, bool) {
+  bool is_private_brand =
+      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_brand();
+  DCHECK_IMPLIES(is_private_brand, IsPrivateName());
+  return is_private_brand;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {

@@ -50,7 +50,7 @@ Handle<Object> Factory::NewNumberFromSize(size_t value) {
     return Handle<Object>(Smi::FromIntptr(static_cast<intptr_t>(value)),
                           isolate());
   }
-  return NewNumber(static_cast<double>(value));
+  return NewHeapNumber(static_cast<double>(value));
 }
 
 Handle<Object> Factory::NewNumberFromInt64(int64_t value) {
@@ -59,7 +59,7 @@ Handle<Object> Factory::NewNumberFromInt64(int64_t value) {
       Smi::IsValid(static_cast<int32_t>(value))) {
     return Handle<Object>(Smi::FromInt(static_cast<int32_t>(value)), isolate());
   }
-  return NewNumber(static_cast<double>(value));
+  return NewHeapNumber(static_cast<double>(value));
 }
 
 template <AllocationType allocation>
@@ -101,22 +101,12 @@ Handle<Object> Factory::NewURIError() {
                   MessageTemplate::kURIMalformed);
 }
 
-Handle<String> Factory::Uint32ToString(uint32_t value, bool check_cache) {
-  Handle<String> result;
-  int32_t int32v = static_cast<int32_t>(value);
-  if (int32v >= 0 && Smi::IsValid(int32v)) {
-    result = NumberToString(Smi::FromInt(int32v), check_cache);
-  } else {
-    result = NumberToString(NewNumberFromUint(value), check_cache);
-  }
-
-  if (result->length() <= String::kMaxArrayIndexSize &&
-      result->hash_field() == String::kEmptyHashField) {
-    uint32_t field = StringHasher::MakeArrayIndexHash(value, result->length());
-    result->set_hash_field(field);
-  }
-  return result;
+template <typename T>
+inline MaybeHandle<T> Factory::Throw(Handle<Object> exception) {
+  return isolate()->Throw<T>(exception);
 }
+
+ReadOnlyRoots Factory::read_only_roots() { return ReadOnlyRoots(isolate()); }
 
 }  // namespace internal
 }  // namespace v8

@@ -19,8 +19,8 @@ class BitVector;  // forward declaration
 
 namespace wasm {
 
+class WasmFeatures;
 struct WasmModule;  // forward declaration of module interface.
-struct WasmFeatures;
 
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {

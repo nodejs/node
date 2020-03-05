@@ -175,6 +175,7 @@
   V(JSGetSuperConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
+  V(JSHasContextExtension)    \
   V(JSLoadContext)            \
   V(JSStoreContext)           \
   V(JSCreateFunctionContext)  \
@@ -233,7 +234,6 @@
 
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_CHANGE_OP_LIST(V) \
-  V(ChangeCompressedSignedToInt32)   \
   V(ChangeTaggedSignedToInt32)       \
   V(ChangeTaggedSignedToInt64)       \
   V(ChangeTaggedToInt32)             \
@@ -241,9 +241,6 @@
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
   V(ChangeTaggedToTaggedSigned)      \
-  V(ChangeCompressedToTaggedSigned)  \
-  V(ChangeTaggedToCompressedSigned)  \
-  V(ChangeInt31ToCompressedSigned)   \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeInt64ToTagged)             \
@@ -268,7 +265,6 @@
   V(CheckedUint32Div)                 \
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
-  V(CheckedInt32ToCompressedSigned)   \
   V(CheckedInt32ToTaggedSigned)       \
   V(CheckedInt64ToInt32)              \
   V(CheckedInt64ToTaggedSigned)       \
@@ -282,15 +278,12 @@
   V(CheckedFloat64ToInt64)            \
   V(CheckedTaggedSignedToInt32)       \
   V(CheckedTaggedToInt32)             \
+  V(CheckedTaggedToArrayIndex)        \
   V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)     \
-  V(CheckedCompressedToTaggedSigned)  \
-  V(CheckedCompressedToTaggedPointer) \
-  V(CheckedTaggedToCompressedSigned)  \
-  V(CheckedTaggedToCompressedPointer)
+  V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
@@ -325,7 +318,9 @@
   V(NumberMin)                          \
   V(NumberPow)
 
-#define SIMPLIFIED_BIGINT_BINOP_LIST(V) V(BigIntAdd)
+#define SIMPLIFIED_BIGINT_BINOP_LIST(V) \
+  V(BigIntAdd)                          \
+  V(BigIntSubtract)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
@@ -482,7 +477,10 @@
   V(AssertType)                         \
   V(DateNow)
 
-#define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) V(SpeculativeBigIntAdd)
+#define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
+  V(SpeculativeBigIntAdd)                           \
+  V(SpeculativeBigIntSubtract)
+
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) V(SpeculativeBigIntNegate)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
@@ -650,102 +648,96 @@
   V(Word64AtomicExchange)            \
   V(Word64AtomicCompareExchange)
 
-#define MACHINE_OP_LIST(V)                  \
-  MACHINE_UNOP_32_LIST(V)                   \
-  MACHINE_BINOP_32_LIST(V)                  \
-  MACHINE_BINOP_64_LIST(V)                  \
-  MACHINE_COMPARE_BINOP_LIST(V)             \
-  MACHINE_FLOAT32_BINOP_LIST(V)             \
-  MACHINE_FLOAT32_UNOP_LIST(V)              \
-  MACHINE_FLOAT64_BINOP_LIST(V)             \
-  MACHINE_FLOAT64_UNOP_LIST(V)              \
-  MACHINE_ATOMIC_OP_LIST(V)                 \
-  V(AbortCSAAssert)                         \
-  V(DebugBreak)                             \
-  V(Comment)                                \
-  V(Load)                                   \
-  V(PoisonedLoad)                           \
-  V(Store)                                  \
-  V(StackSlot)                              \
-  V(Word32Popcnt)                           \
-  V(Word64Popcnt)                           \
-  V(Word64Clz)                              \
-  V(Word64Ctz)                              \
-  V(Word64ReverseBits)                      \
-  V(Word64ReverseBytes)                     \
-  V(Simd128ReverseBytes)                    \
-  V(Int64AbsWithOverflow)                   \
-  V(BitcastTaggedToWord)                    \
-  V(BitcastTaggedToWordForTagAndSmiBits)    \
-  V(BitcastWordToTagged)                    \
-  V(BitcastWordToTaggedSigned)              \
-  V(BitcastWord32ToCompressedSigned)        \
-  V(BitcastCompressedSignedToWord32)        \
-  V(TruncateFloat64ToWord32)                \
-  V(ChangeFloat32ToFloat64)                 \
-  V(ChangeFloat64ToInt32)                   \
-  V(ChangeFloat64ToInt64)                   \
-  V(ChangeFloat64ToUint32)                  \
-  V(ChangeFloat64ToUint64)                  \
-  V(Float64SilenceNaN)                      \
-  V(TruncateFloat64ToInt64)                 \
-  V(TruncateFloat64ToUint32)                \
-  V(TruncateFloat32ToInt32)                 \
-  V(TruncateFloat32ToUint32)                \
-  V(TryTruncateFloat32ToInt64)              \
-  V(TryTruncateFloat64ToInt64)              \
-  V(TryTruncateFloat32ToUint64)             \
-  V(TryTruncateFloat64ToUint64)             \
-  V(ChangeInt32ToFloat64)                   \
-  V(ChangeInt32ToInt64)                     \
-  V(ChangeInt64ToFloat64)                   \
-  V(ChangeUint32ToFloat64)                  \
-  V(ChangeUint32ToUint64)                   \
-  V(ChangeTaggedToCompressed)               \
-  V(ChangeTaggedPointerToCompressedPointer) \
-  V(ChangeTaggedSignedToCompressedSigned)   \
-  V(ChangeCompressedToTagged)               \
-  V(ChangeCompressedPointerToTaggedPointer) \
-  V(ChangeCompressedSignedToTaggedSigned)   \
-  V(TruncateFloat64ToFloat32)               \
-  V(TruncateInt64ToInt32)                   \
-  V(RoundFloat64ToInt32)                    \
-  V(RoundInt32ToFloat32)                    \
-  V(RoundInt64ToFloat32)                    \
-  V(RoundInt64ToFloat64)                    \
-  V(RoundUint32ToFloat32)                   \
-  V(RoundUint64ToFloat32)                   \
-  V(RoundUint64ToFloat64)                   \
-  V(BitcastFloat32ToInt32)                  \
-  V(BitcastFloat64ToInt64)                  \
-  V(BitcastInt32ToFloat32)                  \
-  V(BitcastInt64ToFloat64)                  \
-  V(Float64ExtractLowWord32)                \
-  V(Float64ExtractHighWord32)               \
-  V(Float64InsertLowWord32)                 \
-  V(Float64InsertHighWord32)                \
-  V(TaggedPoisonOnSpeculation)              \
-  V(Word32PoisonOnSpeculation)              \
-  V(Word64PoisonOnSpeculation)              \
-  V(LoadFramePointer)                       \
-  V(LoadParentFramePointer)                 \
-  V(UnalignedLoad)                          \
-  V(UnalignedStore)                         \
-  V(Int32PairAdd)                           \
-  V(Int32PairSub)                           \
-  V(Int32PairMul)                           \
-  V(Word32PairShl)                          \
-  V(Word32PairShr)                          \
-  V(Word32PairSar)                          \
-  V(ProtectedLoad)                          \
-  V(ProtectedStore)                         \
-  V(MemoryBarrier)                          \
-  V(SignExtendWord8ToInt32)                 \
-  V(SignExtendWord16ToInt32)                \
-  V(SignExtendWord8ToInt64)                 \
-  V(SignExtendWord16ToInt64)                \
-  V(SignExtendWord32ToInt64)                \
-  V(UnsafePointerAdd)                       \
+#define MACHINE_OP_LIST(V)               \
+  MACHINE_UNOP_32_LIST(V)                \
+  MACHINE_BINOP_32_LIST(V)               \
+  MACHINE_BINOP_64_LIST(V)               \
+  MACHINE_COMPARE_BINOP_LIST(V)          \
+  MACHINE_FLOAT32_BINOP_LIST(V)          \
+  MACHINE_FLOAT32_UNOP_LIST(V)           \
+  MACHINE_FLOAT64_BINOP_LIST(V)          \
+  MACHINE_FLOAT64_UNOP_LIST(V)           \
+  MACHINE_ATOMIC_OP_LIST(V)              \
+  V(AbortCSAAssert)                      \
+  V(DebugBreak)                          \
+  V(Comment)                             \
+  V(Load)                                \
+  V(PoisonedLoad)                        \
+  V(Store)                               \
+  V(StackSlot)                           \
+  V(Word32Popcnt)                        \
+  V(Word64Popcnt)                        \
+  V(Word64Clz)                           \
+  V(Word64Ctz)                           \
+  V(Word64ReverseBits)                   \
+  V(Word64ReverseBytes)                  \
+  V(Simd128ReverseBytes)                 \
+  V(Int64AbsWithOverflow)                \
+  V(BitcastTaggedToWord)                 \
+  V(BitcastTaggedToWordForTagAndSmiBits) \
+  V(BitcastWordToTagged)                 \
+  V(BitcastWordToTaggedSigned)           \
+  V(TruncateFloat64ToWord32)             \
+  V(ChangeFloat32ToFloat64)              \
+  V(ChangeFloat64ToInt32)                \
+  V(ChangeFloat64ToInt64)                \
+  V(ChangeFloat64ToUint32)               \
+  V(ChangeFloat64ToUint64)               \
+  V(Float64SilenceNaN)                   \
+  V(TruncateFloat64ToInt64)              \
+  V(TruncateFloat64ToUint32)             \
+  V(TruncateFloat32ToInt32)              \
+  V(TruncateFloat32ToUint32)             \
+  V(TryTruncateFloat32ToInt64)           \
+  V(TryTruncateFloat64ToInt64)           \
+  V(TryTruncateFloat32ToUint64)          \
+  V(TryTruncateFloat64ToUint64)          \
+  V(ChangeInt32ToFloat64)                \
+  V(BitcastWord32ToWord64)               \
+  V(ChangeInt32ToInt64)                  \
+  V(ChangeInt64ToFloat64)                \
+  V(ChangeUint32ToFloat64)               \
+  V(ChangeUint32ToUint64)                \
+  V(TruncateFloat64ToFloat32)            \
+  V(TruncateInt64ToInt32)                \
+  V(RoundFloat64ToInt32)                 \
+  V(RoundInt32ToFloat32)                 \
+  V(RoundInt64ToFloat32)                 \
+  V(RoundInt64ToFloat64)                 \
+  V(RoundUint32ToFloat32)                \
+  V(RoundUint64ToFloat32)                \
+  V(RoundUint64ToFloat64)                \
+  V(BitcastFloat32ToInt32)               \
+  V(BitcastFloat64ToInt64)               \
+  V(BitcastInt32ToFloat32)               \
+  V(BitcastInt64ToFloat64)               \
+  V(Float64ExtractLowWord32)             \
+  V(Float64ExtractHighWord32)            \
+  V(Float64InsertLowWord32)              \
+  V(Float64InsertHighWord32)             \
+  V(TaggedPoisonOnSpeculation)           \
+  V(Word32PoisonOnSpeculation)           \
+  V(Word64PoisonOnSpeculation)           \
+  V(LoadStackCheckOffset)                \
+  V(LoadFramePointer)                    \
+  V(LoadParentFramePointer)              \
+  V(UnalignedLoad)                       \
+  V(UnalignedStore)                      \
+  V(Int32PairAdd)                        \
+  V(Int32PairSub)                        \
+  V(Int32PairMul)                        \
+  V(Word32PairShl)                       \
+  V(Word32PairShr)                       \
+  V(Word32PairSar)                       \
+  V(ProtectedLoad)                       \
+  V(ProtectedStore)                      \
+  V(MemoryBarrier)                       \
+  V(SignExtendWord8ToInt32)              \
+  V(SignExtendWord16ToInt32)             \
+  V(SignExtendWord8ToInt64)              \
+  V(SignExtendWord16ToInt64)             \
+  V(SignExtendWord32ToInt64)             \
+  V(UnsafePointerAdd)                    \
   V(StackPointerGreaterThan)
 
 #define MACHINE_SIMD_OP_LIST(V) \
@@ -793,8 +785,10 @@
   V(F32x4Qfma)                  \
   V(F32x4Qfms)                  \
   V(I64x2Splat)                 \
+  V(I64x2SplatI32Pair)          \
   V(I64x2ExtractLane)           \
   V(I64x2ReplaceLane)           \
+  V(I64x2ReplaceLaneI32Pair)    \
   V(I64x2Neg)                   \
   V(I64x2Shl)                   \
   V(I64x2ShrS)                  \
@@ -844,7 +838,8 @@
   V(I32x4GtU)                   \
   V(I32x4GeU)                   \
   V(I16x8Splat)                 \
-  V(I16x8ExtractLane)           \
+  V(I16x8ExtractLaneU)          \
+  V(I16x8ExtractLaneS)          \
   V(I16x8ReplaceLane)           \
   V(I16x8SConvertI8x16Low)      \
   V(I16x8SConvertI8x16High)     \
@@ -878,8 +873,10 @@
   V(I16x8LeU)                   \
   V(I16x8GtU)                   \
   V(I16x8GeU)                   \
+  V(I16x8RoundingAverageU)      \
   V(I8x16Splat)                 \
-  V(I8x16ExtractLane)           \
+  V(I8x16ExtractLaneU)          \
+  V(I8x16ExtractLaneS)          \
   V(I8x16ReplaceLane)           \
   V(I8x16SConvertI16x8)         \
   V(I8x16Neg)                   \
@@ -908,6 +905,7 @@
   V(I8x16LeU)                   \
   V(I8x16GtU)                   \
   V(I8x16GeU)                   \
+  V(I8x16RoundingAverageU)      \
   V(S128Load)                   \
   V(S128Store)                  \
   V(S128Zero)                   \
@@ -916,6 +914,7 @@
   V(S128Or)                     \
   V(S128Xor)                    \
   V(S128Select)                 \
+  V(S128AndNot)                 \
   V(S8x16Swizzle)               \
   V(S8x16Shuffle)               \
   V(S1x2AnyTrue)                \
@@ -925,7 +924,8 @@
   V(S1x8AnyTrue)                \
   V(S1x8AllTrue)                \
   V(S1x16AnyTrue)               \
-  V(S1x16AllTrue)
+  V(S1x16AllTrue)               \
+  V(LoadTransform)
 
 #define VALUE_OP_LIST(V)  \
   COMMON_OP_LIST(V)       \
@@ -1009,18 +1009,6 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||
            (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
-  }
-
-  // Returns true if opcode for decompress operator.
-  static bool IsDecompressOpcode(Value value) {
-    return kChangeCompressedToTagged <= value &&
-           value <= kChangeCompressedSignedToTaggedSigned;
-  }
-
-  // Returns true if opcode for compress operator.
-  static bool IsCompressOpcode(Value value) {
-    return kChangeTaggedToCompressed <= value &&
-           value <= kChangeTaggedSignedToCompressedSigned;
   }
 
   static bool IsContextChainExtendingOpcode(Value value) {

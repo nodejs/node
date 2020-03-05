@@ -8,6 +8,9 @@
 
 #include {{format_include(config.protocol.package, "Protocol")}}
 
+#include "{{config.crdtp.dir}}/cbor.h"
+#include "{{config.crdtp.dir}}/serializer_traits.h"
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
@@ -92,33 +95,24 @@ std::unique_ptr<protocol::DictionaryValue> {{type.id}}::toValue() const
     return result;
 }
 
+void {{type.id}}::AppendSerialized(std::vector<uint8_t>* out) const {
+    {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
+    envelope_encoder.EncodeStart(out);
+    out->push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
+    {% for property in type.properties %}
+      {% set property_field = "m_" + property.name %}
+      {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{property.name}}"), {{property_field}}, out);
+    {% endfor %}
+    out->push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
+    envelope_encoder.EncodeStop(out);
+}
+
 std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
 {
     ErrorSupport errors;
     return fromValue(toValue().get(), &errors);
 }
     {% if protocol.is_exported(domain.domain, type.id) %}
-
-{{config.exported.string_out}} {{type.id}}::toJSONString() const
-{
-    String json = toValue()->serializeToJSON();
-    return {{config.exported.to_string_out % "json"}};
-}
-
-void {{type.id}}::writeBinary(std::vector<uint8_t>* out) const
-{
-    toValue()->writeBinary(out);
-}
-
-// static
-std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const {{config.exported.string_in}}& json)
-{
-    ErrorSupport errors;
-    std::unique_ptr<Value> value = StringUtil::parseJSON(json);
-    if (!value)
-        return nullptr;
-    return protocol::{{domain.domain}}::{{type.id}}::fromValue(value.get(), &errors);
-}
 
 // static
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* data, size_t length)
@@ -203,11 +197,6 @@ void Frontend::flush()
     m_frontendChannel->flushProtocolNotifications();
 }
 
-void Frontend::sendRawJSONNotification(String notification)
-{
-    m_frontendChannel->sendProtocolNotification(InternalRawNotification::fromJSON(std::move(notification)));
-}
-
 void Frontend::sendRawCBORNotification(std::vector<uint8_t> notification)
 {
     m_frontendChannel->sendProtocolNotification(InternalRawNotification::fromBinary(std::move(notification)));
@@ -231,11 +220,11 @@ public:
     }
     ~DispatcherImpl() override { }
     bool canDispatch(const String& method) override;
-    void dispatch(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
+    void dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
     std::unordered_map<String, String>& redirects() { return m_redirects; }
 
 protected:
-    using CallHandler = void (DispatcherImpl::*)(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
+    using CallHandler = void (DispatcherImpl::*)(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
     using DispatchMap = std::unordered_map<String, CallHandler>;
     DispatchMap m_dispatchMap;
     std::unordered_map<String, String> m_redirects;
@@ -243,7 +232,7 @@ protected:
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
     {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
-    void {{command.name}}(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
+    void {{command.name}}(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
   {% endfor %}
 
     Backend* m_backend;
@@ -253,7 +242,7 @@ bool DispatcherImpl::canDispatch(const String& method) {
     return m_dispatchMap.find(method) != m_dispatchMap.end();
 }
 
-void DispatcherImpl::dispatch(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<protocol::DictionaryValue> messageObject)
+void DispatcherImpl::dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<protocol::DictionaryValue> messageObject)
 {
     std::unordered_map<String, CallHandler>::iterator it = m_dispatchMap.find(method);
     DCHECK(it != m_dispatchMap.end());
@@ -269,7 +258,7 @@ void DispatcherImpl::dispatch(int callId, const String& method, const ProtocolMe
 
 class {{command_name_title}}CallbackImpl : public Backend::{{command_name_title}}Callback, public DispatcherBase::Callback {
 public:
-    {{command_name_title}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, const String& method, const ProtocolMessage& message)
+    {{command_name_title}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message)
         : DispatcherBase::Callback(std::move(backendImpl), callId, method, message) { }
 
     void sendSuccess(
@@ -307,7 +296,7 @@ public:
 };
     {% endif %}
 
-void DispatcherImpl::{{command.name}}(int callId, const String& method, const ProtocolMessage& message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
+void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
 {
     {% if "parameters" in command %}
     // Prepare input parameters.

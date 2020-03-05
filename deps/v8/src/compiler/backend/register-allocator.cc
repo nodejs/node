@@ -78,7 +78,6 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       // TODO(ishell): kTaggedSize once half size locations are supported.
@@ -3394,6 +3393,18 @@ RpoNumber LinearScanAllocator::ChooseOneOfTwoPredecessorStates(
              : current_block->predecessors()[1];
 }
 
+bool LinearScanAllocator::CheckConflict(MachineRepresentation rep, int reg,
+                                        RangeWithRegisterSet* to_be_live) {
+  for (RangeWithRegister range_with_reg : *to_be_live) {
+    if (data()->config()->AreAliases(range_with_reg.range->representation(),
+                                     range_with_reg.expected_register, rep,
+                                     reg)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void LinearScanAllocator::ComputeStateFromManyPredecessors(
     InstructionBlock* current_block, RangeWithRegisterSet* to_be_live) {
   struct Vote {
@@ -3441,24 +3452,33 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
                             std::function<bool(TopLevelLiveRange*)> filter,
                             RangeWithRegisterSet* to_be_live,
                             bool* taken_registers) {
+    bool check_aliasing = !kSimpleFPAliasing && check_fp_aliasing();
     for (const auto& val : counts) {
       if (!filter(val.first)) continue;
       if (val.second.count >= majority) {
         int register_max = 0;
         int reg = kUnassignedRegister;
-        for (int idx = 0; idx < RegisterConfiguration::kMaxRegisters; idx++) {
+        bool conflict = false;
+        int num_regs = num_registers();
+        int num_codes = num_allocatable_registers();
+        const int* codes = allocatable_register_codes();
+        MachineRepresentation rep = val.first->representation();
+        if (check_aliasing && (rep == MachineRepresentation::kFloat32 ||
+                               rep == MachineRepresentation::kSimd128))
+          GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
+        for (int idx = 0; idx < num_regs; idx++) {
           int uses = val.second.used_registers[idx];
           if (uses == 0) continue;
-          if (uses > register_max) {
+          if (uses > register_max || (conflict && uses == register_max)) {
             reg = idx;
-            register_max = val.second.used_registers[idx];
-          } else if (taken_registers[reg] && uses == register_max) {
-            reg = idx;
+            register_max = uses;
+            conflict = check_aliasing ? CheckConflict(rep, reg, to_be_live)
+                                      : taken_registers[reg];
           }
         }
-        if (taken_registers[reg]) {
+        if (conflict) {
           reg = kUnassignedRegister;
-        } else {
+        } else if (!check_aliasing) {
           taken_registers[reg] = true;
         }
         to_be_live->emplace(val.first, reg);
@@ -3857,10 +3877,6 @@ void LinearScanAllocator::AllocateRegisters() {
             SpillNotLiveRanges(&to_be_live, next_block_boundary, spill_mode);
             ReloadLiveRanges(to_be_live, next_block_boundary);
           }
-
-          // TODO(herhut) Check removal.
-          // Now forward to current position
-          ForwardStateTo(next_block_boundary);
         }
         // Update block information
         last_block = current_block->rpo_number();
@@ -4243,7 +4259,7 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
   // set before the call. Hence, the argument registers always get ignored,
   // as their available time is shorter.
   int reg = (hint_reg == kUnassignedRegister) ? codes[0] : hint_reg;
-  int current_free = -1;
+  int current_free = free_until_pos[reg].ToInstructionIndex();
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
     // Prefer registers that have no fixed uses to avoid blocking later hints.

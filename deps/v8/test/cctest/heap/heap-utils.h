@@ -42,17 +42,14 @@ std::vector<Handle<FixedArray>> CreatePadding(
     Heap* heap, int padding_size, AllocationType allocation,
     int object_size = kMaxRegularHeapObjectSize);
 
-void AllocateAllButNBytes(
+bool FillCurrentPage(v8::internal::NewSpace* space,
+                     std::vector<Handle<FixedArray>>* out_handles = nullptr);
+
+bool FillCurrentPageButNBytes(
     v8::internal::NewSpace* space, int extra_bytes,
     std::vector<Handle<FixedArray>>* out_handles = nullptr);
 
-void FillCurrentPage(v8::internal::NewSpace* space,
-                     std::vector<Handle<FixedArray>>* out_handles = nullptr);
-
 // Helper function that simulates a full new-space in the heap.
-bool FillUpOnePage(v8::internal::NewSpace* space,
-                   std::vector<Handle<FixedArray>>* out_handles = nullptr);
-
 void SimulateFullSpace(v8::internal::NewSpace* space,
                        std::vector<Handle<FixedArray>>* out_handles = nullptr);
 

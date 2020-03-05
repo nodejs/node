@@ -167,7 +167,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::ParameterDeclarationParsingScope<ParserTypes<Parser>>;
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(
-      ParseInfo*, Isolate*, parsing::ReportErrorsAndStatisticsMode stats_mode);
+      ParseInfo*, Handle<Script>, Isolate*,
+      parsing::ReportErrorsAndStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
       parsing::ReportErrorsAndStatisticsMode stats_mode);
@@ -208,7 +209,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void PrepareGeneratorVariables();
 
   // Returns nullptr if parsing failed.
-  FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* ParseProgram(Isolate* isolate, Handle<Script> script,
+                                ParseInfo* info);
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
                                  Handle<SharedFunctionInfo> shared_info);
@@ -224,6 +226,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseWrapped(Isolate* isolate, ParseInfo* info,
                     ScopedPtrList<Statement>* body, DeclarationScope* scope,
                     Zone* zone);
+
+  void ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
+                        DeclarationScope* scope);
+  Expression* WrapREPLResult(Expression* value);
 
   ZonePtrList<const AstRawString>* PrepareWrappedArguments(Isolate* isolate,
                                                            ParseInfo* info,
@@ -351,8 +357,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return scope()->GetDeclarationScope()->has_checked_syntax();
   }
 
-  // PatternRewriter and associated methods defined in pattern-rewriter.cc.
-  friend class PatternRewriter;
   void InitializeVariables(
       ScopedPtrList<Statement>* statements, VariableKind kind,
       const DeclarationParsingResult::Declaration* declaration);
@@ -428,7 +432,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters);
-  Block* BuildRejectPromiseOnException(Block* block);
+  Block* BuildRejectPromiseOnException(Block* block,
+                                       REPLMode repl_mode = REPLMode::kNo);
 
   void ParseFunction(
       ScopedPtrList<Statement>* body, const AstRawString* function_name,
@@ -510,7 +515,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
-                                Expression* return_value);
+                                Expression* return_value,
+                                REPLMode repl_mode = REPLMode::kNo);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos);

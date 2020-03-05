@@ -562,14 +562,17 @@ void GCTracer::PrintNVP() const {
           "heap.external.epilogue=%.2f "
           "heap.external_weak_global_handles=%.2f "
           "fast_promote=%.2f "
+          "complete.sweep_array_buffers=%.2f "
           "scavenge=%.2f "
           "scavenge.process_array_buffers=%.2f "
+          "scavenge.free_remembered_set=%.2f "
           "scavenge.roots=%.2f "
           "scavenge.weak=%.2f "
           "scavenge.weak_global_handles.identify=%.2f "
           "scavenge.weak_global_handles.process=%.2f "
           "scavenge.parallel=%.2f "
           "scavenge.update_refs=%.2f "
+          "scavenge.sweep_array_buffers=%.2f "
           "background.scavenge.parallel=%.2f "
           "background.array_buffer_free=%.2f "
           "background.store_buffer=%.2f "
@@ -601,9 +604,11 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
+          current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
           current_.scopes[Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS],
+          current_.scopes[Scope::SCAVENGER_FREE_REMEMBERED_SET],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
           current_
@@ -612,6 +617,7 @@ void GCTracer::PrintNVP() const {
               .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_UPDATE_REFS],
+          current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
           current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
           current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
@@ -710,6 +716,7 @@ void GCTracer::PrintNVP() const {
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
           "clear.weak_references=%.1f "
+          "complete.sweep_array_buffers=%.1f "
           "epilogue=%.1f "
           "evacuate=%.1f "
           "evacuate.candidates=%.1f "
@@ -724,6 +731,7 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.slots.map_space=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
+          "finish.sweep_array_buffers=%.1f "
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
           "mark.roots=%.1f "
@@ -749,6 +757,7 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.layout_change=%.1f "
           "incremental.start=%.1f "
+          "incremental.sweep_array_buffers=%.1f "
           "incremental.sweeping=%.1f "
           "incremental.embedder_prologue=%.1f "
           "incremental.embedder_tracing=%.1f "
@@ -801,6 +810,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
           current_.scopes[Scope::MC_CLEAR_WEAK_REFERENCES],
+          current_.scopes[Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::MC_EPILOGUE],
           current_.scopes[Scope::MC_EVACUATE],
           current_.scopes[Scope::MC_EVACUATE_CANDIDATES],
@@ -814,7 +824,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
-          current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
+          current_.scopes[Scope::MC_FINISH],
+          current_.scopes[Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS],
+          current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_MAIN],
@@ -838,6 +850,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE],
           current_.scopes[Scope::MC_INCREMENTAL_START],
+          current_.scopes[Scope::MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING],

@@ -747,21 +747,21 @@ class CollectFunctionLiterals final
   std::vector<FunctionLiteral*>* literals_;
 };
 
-bool ParseScript(Isolate* isolate, ParseInfo* parse_info, bool compile_as_well,
-                 std::vector<FunctionLiteral*>* literals,
+bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
+                 bool compile_as_well, std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
   parse_info->set_eager();
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   Handle<SharedFunctionInfo> shared;
   bool success = false;
   if (compile_as_well) {
-    success =
-        Compiler::CompileForLiveEdit(parse_info, isolate).ToHandle(&shared);
+    success = Compiler::CompileForLiveEdit(parse_info, script, isolate)
+                  .ToHandle(&shared);
   } else {
-    success = parsing::ParseProgram(parse_info, isolate);
+    success = parsing::ParseProgram(parse_info, script, isolate);
     if (success) {
       success = Compiler::Analyze(parse_info);
-      parse_info->ast_value_factory()->Internalize(isolate);
+      parse_info->ast_value_factory()->Internalize(isolate->factory());
     }
   }
   if (!success) {
@@ -1058,15 +1058,17 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     return;
   }
 
-  ParseInfo parse_info(isolate, script);
+  ParseInfo parse_info(isolate, *script);
   std::vector<FunctionLiteral*> literals;
-  if (!ParseScript(isolate, &parse_info, false, &literals, result)) return;
+  if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
+    return;
 
   Handle<Script> new_script = isolate->factory()->CloneScript(script);
   new_script->set_source(*new_source);
   std::vector<FunctionLiteral*> new_literals;
-  ParseInfo new_parse_info(isolate, new_script);
-  if (!ParseScript(isolate, &new_parse_info, true, &new_literals, result)) {
+  ParseInfo new_parse_info(isolate, *new_script);
+  if (!ParseScript(isolate, new_script, &new_parse_info, true, &new_literals,
+                   result)) {
     return;
   }
 

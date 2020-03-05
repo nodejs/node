@@ -8,39 +8,40 @@ namespace typed_array {
   // Naming convention from elements.cc. We have a similar intent but implement
   // fastpaths using generics instead of using a class hierarchy for elements
   // kinds specific implementations.
-  type Uint8Elements;
-  type Int8Elements;
-  type Uint16Elements;
-  type Int16Elements;
-  type Uint32Elements;
-  type Int32Elements;
-  type Float32Elements;
-  type Float64Elements;
-  type Uint8ClampedElements;
-  type BigUint64Elements;
-  type BigInt64Elements;
+  type Uint8Elements extends ElementsKind;
+  type Int8Elements extends ElementsKind;
+  type Uint16Elements extends ElementsKind;
+  type Int16Elements extends ElementsKind;
+  type Uint32Elements extends ElementsKind;
+  type Int32Elements extends ElementsKind;
+  type Float32Elements extends ElementsKind;
+  type Float64Elements extends ElementsKind;
+  type Uint8ClampedElements extends ElementsKind;
+  type BigUint64Elements extends ElementsKind;
+  type BigInt64Elements extends ElementsKind;
 
+  @export
   struct TypedArrayElementsInfo {
     // Calculates the number of bytes required for specified number of elements.
-    CalculateByteLength(lengthSmi: PositiveSmi): uintptr labels IfInvalid {
-      const length = Convert<uintptr>(lengthSmi);
+    macro CalculateByteLength(length: uintptr): uintptr labels IfInvalid {
+      if (length > kTypedArrayMaxLength) goto IfInvalid;
+      const maxArrayLength = kArrayBufferMaxByteLength >>> this.sizeLog2;
+      if (length > maxArrayLength) goto IfInvalid;
       const byteLength = length << this.sizeLog2;
-      // If an overflow ocurred, the byte length exceeds
-      // JSArrayBuffer::kMaxByteLength and is invalid.
-      if (byteLength >>> this.sizeLog2 != length) goto IfInvalid;
       return byteLength;
     }
 
     // Calculates the maximum number of elements supported by a specified number
     // of bytes.
-    CalculateLength(byteLength: uintptr): PositiveSmi labels IfInvalid {
-      return Convert<PositiveSmi>(byteLength >>> this.sizeLog2)
-          otherwise IfInvalid;
+    macro CalculateLength(byteLength: uintptr): uintptr labels IfInvalid {
+      const length = byteLength >>> this.sizeLog2;
+      if (length > kTypedArrayMaxLength) goto IfInvalid;
+      return length;
     }
 
     // Determines if `bytes` (byte offset or length) cannot be evenly divided by
     // element size.
-    IsUnaligned(bytes: uintptr): bool {
+    macro IsUnaligned(bytes: uintptr): bool {
       // Exploits the fact the element size is a power of 2. Determining whether
       // there is remainder (not aligned) can be achieved efficiently with bit
       // masking. Shift is safe as sizeLog2 can be 3 at most (see
@@ -51,7 +52,8 @@ namespace typed_array {
     sizeLog2: uintptr;
     kind: ElementsKind;
   }
-  extern runtime TypedArraySortFast(Context, JSAny): JSTypedArray;
+  extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
+      void;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, JSAny, constexpr string): JSTypedArray;
 
@@ -67,15 +69,95 @@ namespace typed_array {
       JSTypedArray): TypedArrayElementsInfo;
   extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
       TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::IsUint8ElementsKind(ElementsKind):
+      bool;
   extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
-      RawPtr, Smi, constexpr ElementsKind): Numeric;
+      RawPtr, uintptr, constexpr ElementsKind): Numeric;
+  extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
+      Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
   extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, Smi, JSAny, constexpr ElementsKind);
+      Context, JSTypedArray, uintptr, JSAny,
+      constexpr ElementsKind) labels IfDetached;
 
-  type LoadFn = builtin(Context, JSTypedArray, Smi) => JSAny;
-  type StoreFn = builtin(Context, JSTypedArray, Smi, JSAny) => JSAny;
+  type LoadNumericFn = builtin(Context, JSTypedArray, uintptr) => Numeric;
+  type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) => Smi;
+  type StoreJSAnyFn = builtin(Context, JSTypedArray, uintptr, JSAny) => Smi;
+
+  // The result codes returned by StoreNumericFn and StoreJSAnyFn builtins.
+  const kStoreSucceded: Smi = 0;
+  const kStoreFailureArrayDetached: Smi = 1;
+
+  struct TypedArrayAccessor {
+    macro LoadNumeric(
+        context: Context, array: JSTypedArray, index: uintptr): Numeric {
+      const loadfn: LoadNumericFn = this.loadNumericFn;
+      return loadfn(context, array, index);
+    }
+
+    macro StoreNumeric(
+        context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
+      const storefn: StoreNumericFn = this.storeNumericFn;
+      const result = storefn(context, array, index, value);
+      assert(result == kStoreSucceded);
+    }
+
+    macro StoreJSAny(
+        context: Context, array: JSTypedArray, index: uintptr, value: JSAny)
+        labels IfDetached {
+      const storefn: StoreJSAnyFn = this.storeJSAnyFn;
+      const result = storefn(context, array, index, value);
+      if (result == kStoreFailureArrayDetached) {
+        goto IfDetached;
+      }
+      assert(result == kStoreSucceded);
+    }
+
+    loadNumericFn: LoadNumericFn;
+    storeNumericFn: StoreNumericFn;
+    storeJSAnyFn: StoreJSAnyFn;
+  }
+
+  macro GetTypedArrayAccessor<T : type extends ElementsKind>():
+      TypedArrayAccessor {
+    const loadNumericFn = LoadTypedElement<T>;
+    const storeNumericFn = StoreTypedElementNumeric<T>;
+    const storeJSAnyFn = StoreTypedElementJSAny<T>;
+    return TypedArrayAccessor{loadNumericFn, storeNumericFn, storeJSAnyFn};
+  }
+
+  macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
+    if (IsElementsKindGreaterThan(
+            elementsKind, ElementsKind::UINT32_ELEMENTS)) {
+      if (elementsKind == ElementsKind::INT32_ELEMENTS) {
+        return GetTypedArrayAccessor<Int32Elements>();
+      } else if (elementsKind == ElementsKind::FLOAT32_ELEMENTS) {
+        return GetTypedArrayAccessor<Float32Elements>();
+      } else if (elementsKind == ElementsKind::FLOAT64_ELEMENTS) {
+        return GetTypedArrayAccessor<Float64Elements>();
+      } else if (elementsKind == ElementsKind::UINT8_CLAMPED_ELEMENTS) {
+        return GetTypedArrayAccessor<Uint8ClampedElements>();
+      } else if (elementsKind == ElementsKind::BIGUINT64_ELEMENTS) {
+        return GetTypedArrayAccessor<BigUint64Elements>();
+      } else if (elementsKind == ElementsKind::BIGINT64_ELEMENTS) {
+        return GetTypedArrayAccessor<BigInt64Elements>();
+      }
+    } else {
+      if (elementsKind == ElementsKind::UINT8_ELEMENTS) {
+        return GetTypedArrayAccessor<Uint8Elements>();
+      } else if (elementsKind == ElementsKind::INT8_ELEMENTS) {
+        return GetTypedArrayAccessor<Int8Elements>();
+      } else if (elementsKind == ElementsKind::UINT16_ELEMENTS) {
+        return GetTypedArrayAccessor<Uint16Elements>();
+      } else if (elementsKind == ElementsKind::INT16_ELEMENTS) {
+        return GetTypedArrayAccessor<Int16Elements>();
+      } else if (elementsKind == ElementsKind::UINT32_ELEMENTS) {
+        return GetTypedArrayAccessor<Uint32Elements>();
+      }
+    }
+    unreachable;
+  }
 
   extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
       JSTypedArray, ByteArray, uintptr): void;
@@ -92,292 +174,102 @@ namespace typed_array {
   }
 
   struct AttachedJSTypedArrayWitness {
-    Get(): AttachedJSTypedArray {
+    macro Get(): AttachedJSTypedArray {
       return this.unstable;
     }
 
-    GetStable(): JSTypedArray {
+    macro GetStable(): JSTypedArray {
       return this.stable;
     }
 
-    Recheck() labels Detached {
+    macro Recheck() labels Detached {
       if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
       this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
     }
 
-    Load(implicit context: Context)(k: Smi): JSAny {
-      const lf: LoadFn = this.loadfn;
+    macro Load(implicit context: Context)(k: uintptr): JSAny {
+      const lf: LoadNumericFn = this.loadfn;
       return lf(context, this.unstable, k);
     }
 
     stable: JSTypedArray;
     unstable: AttachedJSTypedArray;
-    loadfn: LoadFn;
+    loadfn: LoadNumericFn;
   }
 
   macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
       AttachedJSTypedArrayWitness {
     const kind = array.elements_kind;
+    const accessor: TypedArrayAccessor = GetTypedArrayAccessor(kind);
     return AttachedJSTypedArrayWitness{
       stable: array,
       unstable: array,
-      loadfn: GetLoadFnForElementsKind(kind)
+      loadfn: accessor.loadNumericFn
     };
   }
 
-  macro GetLoadFnForElementsKind(elementsKind: ElementsKind): LoadFn {
-    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
-      if (elementsKind == INT32_ELEMENTS) {
-        return LoadFixedElement<Int32Elements>;
-      } else if (elementsKind == FLOAT32_ELEMENTS) {
-        return LoadFixedElement<Float32Elements>;
-      } else if (elementsKind == FLOAT64_ELEMENTS) {
-        return LoadFixedElement<Float64Elements>;
-      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        return LoadFixedElement<Uint8ClampedElements>;
-      } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        return LoadFixedElement<BigUint64Elements>;
-      } else if (elementsKind == BIGINT64_ELEMENTS) {
-        return LoadFixedElement<BigInt64Elements>;
-      } else {
-        unreachable;
-      }
-    } else {
-      if (elementsKind == UINT8_ELEMENTS) {
-        return LoadFixedElement<Uint8Elements>;
-      } else if (elementsKind == INT8_ELEMENTS) {
-        return LoadFixedElement<Int8Elements>;
-      } else if (elementsKind == UINT16_ELEMENTS) {
-        return LoadFixedElement<Uint16Elements>;
-      } else if (elementsKind == INT16_ELEMENTS) {
-        return LoadFixedElement<Int16Elements>;
-      } else if (elementsKind == UINT32_ELEMENTS) {
-        return LoadFixedElement<Uint32Elements>;
-      } else {
-        unreachable;
-      }
-    }
-  }
-
-  macro KindForArrayType<T: type>(): constexpr ElementsKind;
+  macro KindForArrayType<T : type extends ElementsKind>():
+      constexpr ElementsKind;
   KindForArrayType<Uint8Elements>(): constexpr ElementsKind {
-    return UINT8_ELEMENTS;
+    return ElementsKind::UINT8_ELEMENTS;
   }
   KindForArrayType<Int8Elements>(): constexpr ElementsKind {
-    return INT8_ELEMENTS;
+    return ElementsKind::INT8_ELEMENTS;
   }
   KindForArrayType<Uint16Elements>(): constexpr ElementsKind {
-    return UINT16_ELEMENTS;
+    return ElementsKind::UINT16_ELEMENTS;
   }
   KindForArrayType<Int16Elements>(): constexpr ElementsKind {
-    return INT16_ELEMENTS;
+    return ElementsKind::INT16_ELEMENTS;
   }
   KindForArrayType<Uint32Elements>(): constexpr ElementsKind {
-    return UINT32_ELEMENTS;
+    return ElementsKind::UINT32_ELEMENTS;
   }
   KindForArrayType<Int32Elements>(): constexpr ElementsKind {
-    return INT32_ELEMENTS;
+    return ElementsKind::INT32_ELEMENTS;
   }
   KindForArrayType<Float32Elements>(): constexpr ElementsKind {
-    return FLOAT32_ELEMENTS;
+    return ElementsKind::FLOAT32_ELEMENTS;
   }
   KindForArrayType<Float64Elements>(): constexpr ElementsKind {
-    return FLOAT64_ELEMENTS;
+    return ElementsKind::FLOAT64_ELEMENTS;
   }
   KindForArrayType<Uint8ClampedElements>(): constexpr ElementsKind {
-    return UINT8_CLAMPED_ELEMENTS;
+    return ElementsKind::UINT8_CLAMPED_ELEMENTS;
   }
   KindForArrayType<BigUint64Elements>(): constexpr ElementsKind {
-    return BIGUINT64_ELEMENTS;
+    return ElementsKind::BIGUINT64_ELEMENTS;
   }
   KindForArrayType<BigInt64Elements>(): constexpr ElementsKind {
-    return BIGINT64_ELEMENTS;
+    return ElementsKind::BIGINT64_ELEMENTS;
   }
 
-  builtin LoadFixedElement<T: type>(
-      _context: Context, array: JSTypedArray, index: Smi): JSAny {
+  builtin LoadTypedElement<T : type extends ElementsKind>(
+      _context: Context, array: JSTypedArray, index: uintptr): Numeric {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>());
   }
 
-  builtin StoreFixedElement<T: type>(
-      context: Context, typedArray: JSTypedArray, index: Smi,
-      value: JSAny): JSAny {
-    typed_array::StoreJSTypedArrayElementFromTagged(
+  builtin StoreTypedElementNumeric<T : type extends ElementsKind>(
+      context: Context, typedArray: JSTypedArray, index: uintptr,
+      value: Numeric): Smi {
+    StoreJSTypedArrayElementFromNumeric(
         context, typedArray, index, value, KindForArrayType<T>());
-    return Undefined;
+    return kStoreSucceded;
   }
 
-  transitioning macro CallCompare(
-      implicit context: Context, array: JSTypedArray,
-      comparefn: Callable)(a: JSAny, b: JSAny): Number {
-    // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
-    const v: Number =
-        ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
-
-    // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (IsDetachedBuffer(array.buffer)) {
-      ThrowTypeError(kDetachedOperation, '%TypedArray%.prototype.sort');
+  // Returns True on sucess or False if the typedArrays was detached.
+  builtin StoreTypedElementJSAny<T : type extends ElementsKind>(
+      context: Context, typedArray: JSTypedArray, index: uintptr,
+      value: JSAny): Smi {
+    try {
+      StoreJSTypedArrayElementFromTagged(
+          context, typedArray, index, value, KindForArrayType<T>())
+          otherwise IfDetached;
     }
-
-    // c. If v is NaN, return +0.
-    if (NumberIsNaN(v)) return 0;
-
-    // d. return v.
-    return v;
-  }
-
-  // Merges two sorted runs [from, middle) and [middle, to)
-  // from "source" into "target".
-  transitioning macro
-  TypedArrayMerge(
-      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
-      source: FixedArray, from: Smi, middle: Smi, to: Smi, target: FixedArray) {
-    let left: Smi = from;
-    let right: Smi = middle;
-
-    for (let targetIndex: Smi = from; targetIndex < to; ++targetIndex) {
-      if (left < middle && right >= to) {
-        // If the left run has elements, but the right does not, we take
-        // from the left.
-        target.objects[targetIndex] = source.objects[left++];
-      } else if (left < middle) {
-        // If both have elements, we need to compare.
-        const leftElement = UnsafeCast<JSAny>(source.objects[left]);
-        const rightElement = UnsafeCast<JSAny>(source.objects[right]);
-        if (CallCompare(leftElement, rightElement) <= 0) {
-          target.objects[targetIndex] = leftElement;
-          left++;
-        } else {
-          target.objects[targetIndex] = rightElement;
-          right++;
-        }
-      } else {
-        // No elements on the left, but the right does, so we take
-        // from the right.
-        assert(left == middle);
-        target.objects[targetIndex] = source.objects[right++];
-      }
+    label IfDetached {
+      return kStoreFailureArrayDetached;
     }
-  }
-
-  transitioning builtin
-  TypedArrayMergeSort(
-      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
-      source: FixedArray, from: Smi, to: Smi, target: FixedArray): JSAny {
-    assert(to - from > 1);
-    const middle: Smi = from + ((to - from) >> 1);
-
-    // On the next recursion step source becomes target and vice versa.
-    // This saves the copy of the relevant range from the original
-    // array into a work array on each recursion step.
-    if (middle - from > 1) TypedArrayMergeSort(target, from, middle, source);
-    if (to - middle > 1) TypedArrayMergeSort(target, middle, to, source);
-
-    TypedArrayMerge(source, from, middle, to, target);
-
-    return Undefined;
-  }
-
-  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
-  transitioning javascript builtin TypedArrayPrototypeSort(
-      js-implicit context: Context,
-      receiver: JSAny)(...arguments): JSTypedArray {
-    // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
-    //    throw a TypeError exception.
-    const comparefnObj: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
-    if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
-      ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
-    }
-
-    // 2. Let obj be the this value.
-    const obj: JSAny = receiver;
-
-    // 3. Let buffer be ? ValidateTypedArray(obj).
-    //    ValidateTypedArray currently returns the array, not the ViewBuffer.
-    const array: JSTypedArray =
-        ValidateTypedArray(context, obj, '%TypedArray%.prototype.sort');
-
-    // Default sorting is done in C++ using std::sort
-    if (comparefnObj == Undefined) {
-      return TypedArraySortFast(context, obj);
-    }
-
-    // 4. Let len be obj.[[ArrayLength]].
-    // TODO(v8:4153): Support huge TypedArrays here.
-    const len = Cast<Smi>(Convert<Number>(array.length)) otherwise unreachable;
-
-    // Arrays of length 1 or less are considered sorted.
-    if (len < 2) return array;
-
-    const comparefn: Callable =
-        Cast<Callable>(comparefnObj) otherwise unreachable;
-    let loadfn: LoadFn;
-    let storefn: StoreFn;
-
-    const elementsKind: ElementsKind = array.elements_kind;
-
-    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
-      if (elementsKind == INT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Int32Elements>;
-        storefn = StoreFixedElement<Int32Elements>;
-      } else if (elementsKind == FLOAT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Float32Elements>;
-        storefn = StoreFixedElement<Float32Elements>;
-      } else if (elementsKind == FLOAT64_ELEMENTS) {
-        loadfn = LoadFixedElement<Float64Elements>;
-        storefn = StoreFixedElement<Float64Elements>;
-      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint8ClampedElements>;
-        storefn = StoreFixedElement<Uint8ClampedElements>;
-      } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        loadfn = LoadFixedElement<BigUint64Elements>;
-        storefn = StoreFixedElement<BigUint64Elements>;
-      } else if (elementsKind == BIGINT64_ELEMENTS) {
-        loadfn = LoadFixedElement<BigInt64Elements>;
-        storefn = StoreFixedElement<BigInt64Elements>;
-      } else {
-        unreachable;
-      }
-    } else {
-      if (elementsKind == UINT8_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint8Elements>;
-        storefn = StoreFixedElement<Uint8Elements>;
-      } else if (elementsKind == INT8_ELEMENTS) {
-        loadfn = LoadFixedElement<Int8Elements>;
-        storefn = StoreFixedElement<Int8Elements>;
-      } else if (elementsKind == UINT16_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint16Elements>;
-        storefn = StoreFixedElement<Uint16Elements>;
-      } else if (elementsKind == INT16_ELEMENTS) {
-        loadfn = LoadFixedElement<Int16Elements>;
-        storefn = StoreFixedElement<Int16Elements>;
-      } else if (elementsKind == UINT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint32Elements>;
-        storefn = StoreFixedElement<Uint32Elements>;
-      } else {
-        unreachable;
-      }
-    }
-
-    // Prepare the two work arrays. All numbers are converted to tagged
-    // objects first, and merge sorted between the two FixedArrays.
-    // The result is then written back into the JSTypedArray.
-    const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
-    const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
-
-    for (let i: Smi = 0; i < len; ++i) {
-      const element: JSAny = loadfn(context, array, i);
-      work1.objects[i] = element;
-      work2.objects[i] = element;
-    }
-
-    TypedArrayMergeSort(work2, 0, len, work1);
-
-    // work1 contains the sorted numbers. Write them back.
-    for (let i: Smi = 0; i < len; ++i)
-      storefn(context, array, i, UnsafeCast<JSAny>(work1.objects[i]));
-
-    return array;
+    return kStoreSucceded;
   }
 }

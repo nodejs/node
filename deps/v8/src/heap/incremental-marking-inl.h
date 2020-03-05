@@ -66,7 +66,7 @@ void IncrementalMarking::RecordWrite(HeapObject obj, TSlot slot,
 
 bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklist()->Push(obj);
+    marking_worklists()->Push(obj);
     return true;
   }
   return false;

@@ -21,22 +21,21 @@ namespace internal {
 
 namespace {
 
-using ScopeSloppyEvalCanExtendVarsField = BitField8<bool, 0, 1>;
-using InnerScopeCallsEvalField =
-    ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
+using ScopeSloppyEvalCanExtendVarsBit = base::BitField8<bool, 0, 1>;
+using InnerScopeCallsEvalField = ScopeSloppyEvalCanExtendVarsBit::Next<bool, 1>;
 using NeedsPrivateNameContextChainRecalcField =
     InnerScopeCallsEvalField::Next<bool, 1>;
 using ShouldSaveClassVariableIndexField =
     NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
 
-using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
+using VariableMaybeAssignedField = base::BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
 
-using HasDataField = BitField<bool, 0, 1>;
+using HasDataField = base::BitField<bool, 0, 1>;
 using LengthEqualsParametersField = HasDataField::Next<bool, 1>;
 using NumberOfParametersField = LengthEqualsParametersField::Next<uint16_t, 16>;
 
-using LanguageField = BitField8<LanguageMode, 0, 1>;
+using LanguageField = base::BitField8<LanguageMode, 0, 1>;
 using UsesSuperField = LanguageField::Next<bool, 1>;
 STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
@@ -357,7 +356,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
 #endif
 
   uint8_t eval_and_private_recalc =
-      ScopeSloppyEvalCanExtendVarsField::encode(
+      ScopeSloppyEvalCanExtendVarsBit::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
       InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval()) |
@@ -612,7 +611,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
 
   CHECK(scope_data_->HasRemainingBytes(ByteData::kUint8Size));
   uint32_t scope_data_flags = scope_data_->ReadUint8();
-  if (ScopeSloppyEvalCanExtendVarsField::decode(scope_data_flags)) {
+  if (ScopeSloppyEvalCanExtendVarsBit::decode(scope_data_flags)) {
     scope->RecordEvalCall();
   }
   if (InnerScopeCallsEvalField::decode(scope_data_flags)) {

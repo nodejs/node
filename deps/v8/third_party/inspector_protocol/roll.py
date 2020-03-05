@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2019 The Chromium Authors. All rights reserved.
+# Copcright 2019 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -18,12 +18,28 @@ FILES_TO_SYNC = [
     'code_generator.py',
     'concatenate_protocols.py',
     'convert_protocol_to_json.py',
-    'encoding/encoding.h',
-    'encoding/encoding.cc',
-    'encoding/encoding_test.cc',
-    'bindings/bindings.h',
-    'bindings/bindings.cc',
-    'bindings/bindings_test.cc',
+    'crdtp/cbor.cc',
+    'crdtp/cbor.h',
+    'crdtp/cbor_test.cc',
+    'crdtp/glue.h',
+    'crdtp/glue_test.cc',
+    'crdtp/json.cc',
+    'crdtp/json.h',
+    'crdtp/json_platform.h',
+    'crdtp/json_test.cc',
+    'crdtp/parser_handler.h',
+    'crdtp/serializable.h',
+    'crdtp/serializable.cc',
+    'crdtp/serializable_test.cc',
+    'crdtp/serializer_traits.h',
+    'crdtp/serializer_traits_test.cc',
+    'crdtp/span.h',
+    'crdtp/span_test.cc',
+    'crdtp/status.cc',
+    'crdtp/status.h',
+    'crdtp/status_test.cc',
+    'crdtp/status_test_support.cc',
+    'crdtp/status_test_support.h',
     'inspector_protocol.gni',
     'inspector_protocol.gypi',
     'lib/*',
@@ -140,18 +156,13 @@ def main(argv):
   print('You said --force ... as you wish, modifying the destination.')
   for f in to_add + to_copy:
     contents = open(os.path.join(src_dir, f)).read()
+    contents = contents.replace('CRDTP_EXPORT ', '')
     contents = contents.replace(
-        'INSPECTOR_PROTOCOL_ENCODING_ENCODING_H_',
-        'V8_INSPECTOR_PROTOCOL_ENCODING_ENCODING_H_')
+        'CRDTP_',
+        'V8_CRDTP_')
     contents = contents.replace(
-        'namespace inspector_protocol_encoding',
-        'namespace v8_inspector_protocol_encoding')
-    contents = contents.replace(
-        'INSPECTOR_PROTOCOL_BINDINGS_BINDINGS_H_',
-        'V8_INSPECTOR_PROTOCOL_BINDINGS_BINDINGS_H_')
-    contents = contents.replace(
-        'namespace inspector_protocol_bindings',
-        'namespace v8_inspector_protocol_bindings')
+        'namespace crdtp',
+        'namespace v8_crdtp')
     open(os.path.join(dest_dir, f), 'w').write(contents)
     shutil.copymode(os.path.join(src_dir, f), os.path.join(dest_dir, f))
   for f in to_delete:

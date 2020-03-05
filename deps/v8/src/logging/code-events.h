@@ -72,34 +72,40 @@ class CodeEventListener {
 
   virtual ~CodeEventListener() = default;
 
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                               const char* comment) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                               Name name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                               SharedFunctionInfo shared, Name source) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                               SharedFunctionInfo shared, Name source, int line,
+  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                               const char* name) = 0;
+  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                               Handle<Name> name) = 0;
+  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                               Handle<SharedFunctionInfo> shared,
+                               Handle<Name> script_name) = 0;
+  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                               Handle<SharedFunctionInfo> shared,
+                               Handle<Name> script_name, int line,
                                int column) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name) = 0;
-  virtual void CallbackEvent(Name name, Address entry_point) = 0;
-  virtual void GetterCallbackEvent(Name name, Address entry_point) = 0;
-  virtual void SetterCallbackEvent(Name name, Address entry_point) = 0;
-  virtual void RegExpCodeCreateEvent(AbstractCode code, String source) = 0;
+
+  virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
+  virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
+  virtual void SetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
+  virtual void RegExpCodeCreateEvent(Handle<AbstractCode> code,
+                                     Handle<String> source) = 0;
+  // Not handlified as this happens during GC. No allocation allowed.
   virtual void CodeMoveEvent(AbstractCode from, AbstractCode to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
-  virtual void CodeDisableOptEvent(AbstractCode code,
-                                   SharedFunctionInfo shared) = 0;
-  virtual void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
-                              int fp_to_sp_delta) = 0;
+  virtual void CodeDisableOptEvent(Handle<AbstractCode> code,
+                                   Handle<SharedFunctionInfo> shared) = 0;
+  virtual void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
+                              Address pc, int fp_to_sp_delta) = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
 };
 
-class CodeEventDispatcher {
+// Dispatches code events to a set of registered listeners.
+class CodeEventDispatcher : public CodeEventListener {
  public:
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
@@ -122,61 +128,98 @@ class CodeEventDispatcher {
     return false;
   }
 
-#define CODE_EVENT_DISPATCH(code)  \
-  base::MutexGuard guard(&mutex_); \
-  for (auto it = listeners_.begin(); it != listeners_.end(); ++it) (*it)->code
+  void DispatchEventToListeners(
+      std::function<void(CodeEventListener*)> callback) {
+    base::MutexGuard guard(&mutex_);
+    for (CodeEventListener* listener : listeners_) {
+      callback(listener);
+    }
+  }
 
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       const char* comment) {
-    CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, comment));
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       const char* comment) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeCreateEvent(tag, code, comment);
+    });
   }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code, Name name) {
-    CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<Name> name) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeCreateEvent(tag, code, name);
+    });
   }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo shared, Name name) {
-    CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, shared, name));
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<SharedFunctionInfo> shared,
+                       Handle<Name> name) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeCreateEvent(tag, code, shared, name);
+    });
   }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
-                       SharedFunctionInfo shared, Name source, int line,
-                       int column) {
-    CODE_EVENT_DISPATCH(
-        CodeCreateEvent(tag, code, shared, source, line, column));
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<SharedFunctionInfo> shared, Handle<Name> source,
+                       int line, int column) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeCreateEvent(tag, code, shared, source, line, column);
+    });
   }
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name) {
-    CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
+                       wasm::WasmName name) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeCreateEvent(tag, code, name);
+    });
   }
-  void CallbackEvent(Name name, Address entry_point) {
-    CODE_EVENT_DISPATCH(CallbackEvent(name, entry_point));
+  void CallbackEvent(Handle<Name> name, Address entry_point) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CallbackEvent(name, entry_point);
+    });
   }
-  void GetterCallbackEvent(Name name, Address entry_point) {
-    CODE_EVENT_DISPATCH(GetterCallbackEvent(name, entry_point));
+  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->GetterCallbackEvent(name, entry_point);
+    });
   }
-  void SetterCallbackEvent(Name name, Address entry_point) {
-    CODE_EVENT_DISPATCH(SetterCallbackEvent(name, entry_point));
+  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->SetterCallbackEvent(name, entry_point);
+    });
   }
-  void RegExpCodeCreateEvent(AbstractCode code, String source) {
-    CODE_EVENT_DISPATCH(RegExpCodeCreateEvent(code, source));
+  void RegExpCodeCreateEvent(Handle<AbstractCode> code,
+                             Handle<String> source) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->RegExpCodeCreateEvent(code, source);
+    });
   }
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) {
-    CODE_EVENT_DISPATCH(CodeMoveEvent(from, to));
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeMoveEvent(from, to);
+    });
   }
-  void SharedFunctionInfoMoveEvent(Address from, Address to) {
-    CODE_EVENT_DISPATCH(SharedFunctionInfoMoveEvent(from, to));
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->SharedFunctionInfoMoveEvent(from, to);
+    });
   }
-  void NativeContextMoveEvent(Address from, Address to) {
-    CODE_EVENT_DISPATCH(NativeContextMoveEvent(from, to));
+  void NativeContextMoveEvent(Address from, Address to) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->NativeContextMoveEvent(from, to);
+    });
   }
-  void CodeMovingGCEvent() { CODE_EVENT_DISPATCH(CodeMovingGCEvent()); }
-  void CodeDisableOptEvent(AbstractCode code, SharedFunctionInfo shared) {
-    CODE_EVENT_DISPATCH(CodeDisableOptEvent(code, shared));
+  void CodeMovingGCEvent() override {
+    DispatchEventToListeners(
+        [](CodeEventListener* listener) { listener->CodeMovingGCEvent(); });
   }
-  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta) {
-    CODE_EVENT_DISPATCH(CodeDeoptEvent(code, kind, pc, fp_to_sp_delta));
+  void CodeDisableOptEvent(Handle<AbstractCode> code,
+                           Handle<SharedFunctionInfo> shared) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeDisableOptEvent(code, shared);
+    });
   }
-#undef CODE_EVENT_DISPATCH
+  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+                      int fp_to_sp_delta) override {
+    DispatchEventToListeners([=](CodeEventListener* listener) {
+      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta);
+    });
+  }
 
  private:
   std::unordered_set<CodeEventListener*> listeners_;

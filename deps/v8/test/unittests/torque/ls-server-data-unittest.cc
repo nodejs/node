@@ -79,6 +79,10 @@ TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
   EXPECT_FALSE(LanguageServerData::FindDefinition(test_id, {0, 0}));
 }
 
+// TODO(almuthanna): This test was skipped because it causes a crash when it is
+// ran on Fuchsia. This issue should be solved later on
+// Ticket: https://crbug.com/1028617
+#if !defined(V8_TARGET_OS_FUCHSIA)
 TEST(LanguageServer, GotoLabelDefinitionInSignature) {
   const std::string source =
       "type void;\n"
@@ -99,6 +103,7 @@ TEST(LanguageServer, GotoLabelDefinitionInSignature) {
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {5, 19}, {5, 26}}));
 }
+#endif
 
 TEST(LanguageServer, GotoLabelDefinitionInTryBlock) {
   const std::string source =
@@ -122,6 +127,10 @@ TEST(LanguageServer, GotoLabelDefinitionInTryBlock) {
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
 }
 
+// TODO(almuthanna): This test was skipped because it causes a crash when it is
+// ran on Fuchsia. This issue should be solved later on
+// Ticket: https://crbug.com/1028617
+#if !defined(V8_TARGET_OS_FUCHSIA)
 TEST(LanguageServer, GotoDefinitionClassSuperType) {
   const std::string source =
       "type void;\n"
@@ -138,6 +147,7 @@ TEST(LanguageServer, GotoDefinitionClassSuperType) {
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 11}}));
 }
+#endif
 
 TEST(LanguageServer, GotoLabelDefinitionInSignatureGotoStmt) {
   const std::string source =

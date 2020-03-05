@@ -100,14 +100,8 @@ public:
     {% endfor %}
 
     std::unique_ptr<protocol::DictionaryValue> toValue() const;
-    String serializeToJSON() override { return toValue()->serializeToJSON(); }
-    std::vector<uint8_t> serializeToBinary() override { return toValue()->serializeToBinary(); }
-    String toJSON() const { return toValue()->toJSONString(); }
+    void AppendSerialized(std::vector<uint8_t>* out) const override;
     std::unique_ptr<{{type.id}}> clone() const;
-    {% if protocol.is_exported(domain.domain, type.id) %}
-    {{config.exported.string_out}} toJSONString() const override;
-    void writeBinary(std::vector<uint8_t>* out) const override;
-    {% endif %}
 
     template<int STATE>
     class {{type.id}}Builder {
@@ -269,7 +263,6 @@ public:
   {% endfor %}
 
     void flush();
-    void sendRawJSONNotification(String);
     void sendRawCBORNotification(std::vector<uint8_t>);
 private:
     FrontendChannel* m_frontendChannel;

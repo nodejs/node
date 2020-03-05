@@ -14,45 +14,78 @@
 namespace v8 {
 namespace internal {
 
+TEST(PossiblyEmptyBucketsTest, WordsForBuckets) {
+  EXPECT_EQ(
+      PossiblyEmptyBuckets::WordsForBuckets(PossiblyEmptyBuckets::kBitsPerWord),
+      1U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                PossiblyEmptyBuckets::kBitsPerWord - 1),
+            1U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                PossiblyEmptyBuckets::kBitsPerWord + 1),
+            2U);
+
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                5 * PossiblyEmptyBuckets::kBitsPerWord - 1),
+            5U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                5 * PossiblyEmptyBuckets::kBitsPerWord),
+            5U);
+  EXPECT_EQ(PossiblyEmptyBuckets::WordsForBuckets(
+                5 * PossiblyEmptyBuckets::kBitsPerWord + 1),
+            6U);
+}
+
+TEST(SlotSet, BucketsForSize) {
+  EXPECT_EQ(static_cast<size_t>(SlotSet::kBucketsRegularPage),
+            SlotSet::BucketsForSize(Page::kPageSize));
+
+  EXPECT_EQ(static_cast<size_t>(SlotSet::kBucketsRegularPage) * 2,
+            SlotSet::BucketsForSize(Page::kPageSize * 2));
+}
+
 TEST(SlotSet, InsertAndLookup1) {
-  SlotSet set;
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
-    EXPECT_FALSE(set.Lookup(i));
+    EXPECT_FALSE(set->Lookup(i));
   }
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
-    set.Insert<AccessMode::ATOMIC>(i);
+    set->Insert<AccessMode::ATOMIC>(i);
   }
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
-    EXPECT_TRUE(set.Lookup(i));
+    EXPECT_TRUE(set->Lookup(i));
   }
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
 }
 
 TEST(SlotSet, InsertAndLookup2) {
-  SlotSet set;
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      set.Insert<AccessMode::ATOMIC>(i);
+      set->Insert<AccessMode::ATOMIC>(i);
     }
   }
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      EXPECT_TRUE(set.Lookup(i));
+      EXPECT_TRUE(set->Lookup(i));
     } else {
-      EXPECT_FALSE(set.Lookup(i));
+      EXPECT_FALSE(set->Lookup(i));
     }
   }
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
 }
 
 TEST(SlotSet, Iterate) {
-  SlotSet set;
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
+
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      set.Insert<AccessMode::ATOMIC>(i);
+      set->Insert<AccessMode::ATOMIC>(i);
     }
   }
 
-  set.Iterate(
-      kNullAddress,
+  set->Iterate(
+      kNullAddress, SlotSet::kBucketsRegularPage,
       [](MaybeObjectSlot slot) {
         if (slot.address() % 3 == 0) {
           return KEEP_SLOT;
@@ -64,56 +97,76 @@ TEST(SlotSet, Iterate) {
 
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 21 == 0) {
-      EXPECT_TRUE(set.Lookup(i));
+      EXPECT_TRUE(set->Lookup(i));
     } else {
-      EXPECT_FALSE(set.Lookup(i));
+      EXPECT_FALSE(set->Lookup(i));
     }
   }
+
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
 }
 
 TEST(SlotSet, Remove) {
-  SlotSet set;
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
+
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      set.Insert<AccessMode::ATOMIC>(i);
+      set->Insert<AccessMode::ATOMIC>(i);
     }
   }
 
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 3 != 0) {
-      set.Remove(i);
+      set->Remove(i);
     }
   }
 
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 21 == 0) {
-      EXPECT_TRUE(set.Lookup(i));
+      EXPECT_TRUE(set->Lookup(i));
     } else {
-      EXPECT_FALSE(set.Lookup(i));
+      EXPECT_FALSE(set->Lookup(i));
     }
   }
+
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
+}
+
+TEST(PossiblyEmptyBuckets, ContainsAndInsert) {
+  static const int kBuckets = 100;
+  PossiblyEmptyBuckets possibly_empty_buckets;
+  possibly_empty_buckets.Insert(0, kBuckets);
+  int last = sizeof(uintptr_t) * kBitsPerByte - 2;
+  possibly_empty_buckets.Insert(last, kBuckets);
+  EXPECT_TRUE(possibly_empty_buckets.Contains(0));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last));
+  possibly_empty_buckets.Insert(last + 1, kBuckets);
+  EXPECT_TRUE(possibly_empty_buckets.Contains(0));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last));
+  EXPECT_TRUE(possibly_empty_buckets.Contains(last + 1));
 }
 
 void CheckRemoveRangeOn(uint32_t start, uint32_t end) {
-  SlotSet set;
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
   uint32_t first = start == 0 ? 0 : start - kTaggedSize;
   uint32_t last = end == Page::kPageSize ? end - kTaggedSize : end;
   for (const auto mode :
        {SlotSet::FREE_EMPTY_BUCKETS, SlotSet::KEEP_EMPTY_BUCKETS}) {
     for (uint32_t i = first; i <= last; i += kTaggedSize) {
-      set.Insert<AccessMode::ATOMIC>(i);
+      set->Insert<AccessMode::ATOMIC>(i);
     }
-    set.RemoveRange(start, end, mode);
+    set->RemoveRange(start, end, SlotSet::kBucketsRegularPage, mode);
     if (first != start) {
-      EXPECT_TRUE(set.Lookup(first));
+      EXPECT_TRUE(set->Lookup(first));
     }
     if (last == end) {
-      EXPECT_TRUE(set.Lookup(last));
+      EXPECT_TRUE(set->Lookup(last));
     }
     for (uint32_t i = start; i < end; i += kTaggedSize) {
-      EXPECT_FALSE(set.Lookup(i));
+      EXPECT_FALSE(set->Lookup(i));
     }
   }
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
 }
 
 TEST(SlotSet, RemoveRange) {
@@ -132,15 +185,16 @@ TEST(SlotSet, RemoveRange) {
       }
     }
   }
-  SlotSet set;
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
   for (const auto mode :
        {SlotSet::FREE_EMPTY_BUCKETS, SlotSet::KEEP_EMPTY_BUCKETS}) {
-    set.Insert<AccessMode::ATOMIC>(Page::kPageSize / 2);
-    set.RemoveRange(0, Page::kPageSize, mode);
+    set->Insert<AccessMode::ATOMIC>(Page::kPageSize / 2);
+    set->RemoveRange(0, Page::kPageSize, SlotSet::kBucketsRegularPage, mode);
     for (uint32_t i = 0; i < Page::kPageSize; i += kTaggedSize) {
-      EXPECT_FALSE(set.Lookup(i));
+      EXPECT_FALSE(set->Lookup(i));
     }
   }
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
 }
 
 TEST(TypedSlotSet, Iterate) {

@@ -108,8 +108,7 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_continueToLocationBreakpointId(kNoBreakpointId),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
-      m_pauseOnExceptionsState(v8::debug::NoBreakOnException),
-      m_wasmTranslation(isolate) {}
+      m_pauseOnExceptionsState(v8::debug::NoBreakOnException) {}
 
 V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
@@ -147,7 +146,6 @@ void V8Debugger::disable() {
   m_taskWithScheduledBreakPauseRequested = false;
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
-  m_wasmTranslation.Clear();
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,
                                          m_originalHeapLimit);
@@ -297,7 +295,7 @@ bool V8Debugger::asyncStepOutOfFunction(int targetContextGroupId,
                                         bool onlyAtReturn) {
   v8::HandleScope handleScope(m_isolate);
   auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
-  DCHECK(!iterator->Done());
+  CHECK(!iterator->Done());
   bool atReturn = !iterator->GetReturnValue().IsEmpty();
   iterator->Advance();
   // Synchronous stack has more then one frame.
@@ -514,22 +512,17 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
 
   v8::Isolate* isolate = m_isolate;
   V8InspectorClient* client = m_inspector->client();
-  WasmTranslation& wasmTranslation = m_wasmTranslation;
 
   m_inspector->forEachSession(
       m_inspector->contextGroupId(contextId),
-      [isolate, &script, has_compile_error, is_live_edited, client,
-       &wasmTranslation](V8InspectorSessionImpl* session) {
+      [isolate, &script, has_compile_error, is_live_edited,
+       client](V8InspectorSessionImpl* session) {
         auto agent = session->debuggerAgent();
         if (!agent->enabled()) return;
-        if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
-          wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
-        } else {
-          agent->didParseSource(
-              V8DebuggerScript::Create(isolate, script, is_live_edited, agent,
-                                       client),
-              !has_compile_error);
-        }
+        agent->didParseSource(
+            V8DebuggerScript::Create(isolate, script, is_live_edited, agent,
+                                     client),
+            !has_compile_error);
       });
 }
 
@@ -1008,7 +1001,6 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_currentExternalParent.clear();
   m_currentTasks.clear();
 
-  m_framesCache.clear();
   m_allAsyncStacks.clear();
   m_asyncStacksCount = 0;
 }
@@ -1066,28 +1058,12 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
       ++it;
     }
   }
-  cleanupExpiredWeakPointers(m_framesCache);
 }
 
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
     v8::Local<v8::StackFrame> v8Frame) {
-  auto it = m_framesCache.end();
-  int frameId = 0;
-  if (m_maxAsyncCallStackDepth) {
-    frameId = v8::debug::GetStackFrameId(v8Frame);
-    it = m_framesCache.find(frameId);
-  }
-  if (it != m_framesCache.end() && !it->second.expired()) {
-    return std::shared_ptr<StackFrame>(it->second);
-  }
-  std::shared_ptr<StackFrame> frame(new StackFrame(isolate(), v8Frame));
-  // TODO(clemensb): Figure out a way to do this translation only right before
-  // sending the stack trace over wire.
-  if (v8Frame->IsWasm()) frame->translate(&m_wasmTranslation);
-  if (m_maxAsyncCallStackDepth) {
-    m_framesCache[frameId] = frame;
-  }
-  return frame;
+  CHECK(!v8Frame.IsEmpty());
+  return std::make_shared<StackFrame>(isolate(), v8Frame);
 }
 
 void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {

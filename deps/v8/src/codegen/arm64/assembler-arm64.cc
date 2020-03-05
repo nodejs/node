@@ -216,7 +216,7 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
       number_of_valid_fpregs++;
       unique_fpregs |= regs[i].bit();
     } else {
-      DCHECK(!regs[i].IsValid());
+      DCHECK(!regs[i].is_valid());
     }
   }
 
@@ -236,44 +236,44 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
                         const CPURegister& reg3, const CPURegister& reg4,
                         const CPURegister& reg5, const CPURegister& reg6,
                         const CPURegister& reg7, const CPURegister& reg8) {
-  DCHECK(reg1.IsValid());
+  DCHECK(reg1.is_valid());
   bool match = true;
-  match &= !reg2.IsValid() || reg2.IsSameSizeAndType(reg1);
-  match &= !reg3.IsValid() || reg3.IsSameSizeAndType(reg1);
-  match &= !reg4.IsValid() || reg4.IsSameSizeAndType(reg1);
-  match &= !reg5.IsValid() || reg5.IsSameSizeAndType(reg1);
-  match &= !reg6.IsValid() || reg6.IsSameSizeAndType(reg1);
-  match &= !reg7.IsValid() || reg7.IsSameSizeAndType(reg1);
-  match &= !reg8.IsValid() || reg8.IsSameSizeAndType(reg1);
+  match &= !reg2.is_valid() || reg2.IsSameSizeAndType(reg1);
+  match &= !reg3.is_valid() || reg3.IsSameSizeAndType(reg1);
+  match &= !reg4.is_valid() || reg4.IsSameSizeAndType(reg1);
+  match &= !reg5.is_valid() || reg5.IsSameSizeAndType(reg1);
+  match &= !reg6.is_valid() || reg6.IsSameSizeAndType(reg1);
+  match &= !reg7.is_valid() || reg7.IsSameSizeAndType(reg1);
+  match &= !reg8.is_valid() || reg8.IsSameSizeAndType(reg1);
   return match;
 }
 
 bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
                    const VRegister& reg3, const VRegister& reg4) {
-  DCHECK(reg1.IsValid());
-  return (!reg2.IsValid() || reg2.IsSameFormat(reg1)) &&
-         (!reg3.IsValid() || reg3.IsSameFormat(reg1)) &&
-         (!reg4.IsValid() || reg4.IsSameFormat(reg1));
+  DCHECK(reg1.is_valid());
+  return (!reg2.is_valid() || reg2.IsSameFormat(reg1)) &&
+         (!reg3.is_valid() || reg3.IsSameFormat(reg1)) &&
+         (!reg4.is_valid() || reg4.IsSameFormat(reg1));
 }
 
 bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
                     const VRegister& reg3, const VRegister& reg4) {
-  DCHECK(reg1.IsValid());
-  if (!reg2.IsValid()) {
-    DCHECK(!reg3.IsValid() && !reg4.IsValid());
+  DCHECK(reg1.is_valid());
+  if (!reg2.is_valid()) {
+    DCHECK(!reg3.is_valid() && !reg4.is_valid());
     return true;
   } else if (reg2.code() != ((reg1.code() + 1) % kNumberOfVRegisters)) {
     return false;
   }
 
-  if (!reg3.IsValid()) {
-    DCHECK(!reg4.IsValid());
+  if (!reg3.is_valid()) {
+    DCHECK(!reg4.is_valid());
     return true;
   } else if (reg3.code() != ((reg2.code() + 1) % kNumberOfVRegisters)) {
     return false;
   }
 
-  if (!reg4.IsValid()) {
+  if (!reg4.is_valid()) {
     return true;
   } else if (reg4.code() != ((reg3.code() + 1) % kNumberOfVRegisters)) {
     return false;
@@ -299,7 +299,7 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
   DCHECK_LE(access_size_log2, 3);
   // Step one: check that they share the same base, that the mode is Offset
   // and that the offset is a multiple of access size.
-  if (!operandA.base().Is(operandB.base()) || (operandA.addrmode() != Offset) ||
+  if (operandA.base() != operandB.base() || (operandA.addrmode() != Offset) ||
       (operandB.addrmode() != Offset) ||
       ((operandA.offset() & ((1 << access_size_log2) - 1)) != 0)) {
     return kNotPair;
@@ -752,7 +752,7 @@ void Assembler::blr(const Register& xn) {
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
   // through the constant pool. It should not be emitted.
-  DCHECK(!xn.Is(xzr));
+  DCHECK_NE(xn, xzr);
   Emit(BLR | Rn(xn));
 }
 
@@ -1209,7 +1209,7 @@ void Assembler::ldpsw(const Register& rt, const Register& rt2,
 void Assembler::LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                               const MemOperand& addr, LoadStorePairOp op) {
   // 'rt' and 'rt2' can only be aliased for stores.
-  DCHECK(((op & LoadStorePairLBit) == 0) || !rt.Is(rt2));
+  DCHECK(((op & LoadStorePairLBit) == 0) || rt != rt2);
   DCHECK(AreSameSizeAndType(rt, rt2));
   DCHECK(IsImmLSPair(addr.offset(), CalcLSPairDataSize(op)));
   int offset = static_cast<int>(addr.offset());
@@ -1222,8 +1222,8 @@ void Assembler::LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
     addrmodeop = LoadStorePairOffsetFixed;
   } else {
     // Pre-index and post-index modes.
-    DCHECK(!rt.Is(addr.base()));
-    DCHECK(!rt2.Is(addr.base()));
+    DCHECK_NE(rt, addr.base());
+    DCHECK_NE(rt2, addr.base());
     DCHECK_NE(addr.offset(), 0);
     if (addr.IsPreIndex()) {
       addrmodeop = LoadStorePairPreIndexFixed;
@@ -1337,7 +1337,7 @@ void Assembler::stlr(const Register& rt, const Register& rn) {
 void Assembler::stlxr(const Register& rs, const Register& rt,
                       const Register& rn) {
   DCHECK(rn.Is64Bits());
-  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  DCHECK(rs != rt && rs != rn);
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
   Emit(op | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
@@ -1365,7 +1365,7 @@ void Assembler::stlxrb(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  DCHECK(rs != rt && rs != rn);
   Emit(STLXR_b | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -1392,7 +1392,7 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -2282,7 +2282,7 @@ void Assembler::LoadStoreStructVerify(const VRegister& vt,
       default:
         UNREACHABLE();
     }
-    DCHECK(!addr.regoffset().Is(NoReg) || addr.offset() == offset);
+    DCHECK(addr.regoffset() != NoReg || addr.offset() == offset);
   }
 #else
   USE(vt);
@@ -3654,7 +3654,6 @@ void Assembler::EmitStringData(const char* string) {
 }
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
-#ifdef USE_SIMULATOR
   if (options().enable_simulator_code) {
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
@@ -3676,12 +3675,6 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
 
     return;
   }
-  // Fall through if Serializer is enabled.
-#else
-  // Make sure we haven't dynamically enabled simulator code when there is no
-  // simulator built in.
-  DCHECK(!options().enable_simulator_code);
-#endif
 
   if (params & BREAK) {
     brk(0);
@@ -3947,7 +3940,7 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
          ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
   } else {
     // Pre-index and post-index modes.
-    DCHECK(!rt.Is(addr.base()));
+    DCHECK_NE(rt, addr.base());
     if (IsImmLSUnscaled(addr.offset())) {
       int offset = static_cast<int>(addr.offset());
       if (addr.IsPreIndex()) {

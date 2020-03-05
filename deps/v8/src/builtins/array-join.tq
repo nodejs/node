@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_join {
-  type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => JSAny;
+namespace array {
+  type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
   // string.
@@ -11,21 +11,21 @@ namespace array_join {
   ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
       FixedArray, intptr, String, String): String;
 
-  transitioning builtin LoadJoinElement<T: type>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
-    return GetProperty(receiver, k);
+  transitioning builtin LoadJoinElement<T : type extends ElementsKind>(
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
+    return GetProperty(receiver, Convert<Number>(k));
   }
 
   transitioning LoadJoinElement<array::DictionaryElements>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const dict: NumberDictionary = UnsafeCast<NumberDictionary>(array.elements);
     try {
-      return BasicLoadNumberDictionaryElement(dict, Signed(Convert<uintptr>(k)))
+      return BasicLoadNumberDictionaryElement(dict, Signed(k))
           otherwise IfNoData, IfHole;
     }
     label IfNoData deferred {
-      return GetProperty(receiver, k);
+      return GetProperty(receiver, Convert<Number>(k));
     }
     label IfHole {
       return kEmptyString;
@@ -33,30 +33,29 @@ namespace array_join {
   }
 
   LoadJoinElement<array::FastSmiOrObjectElements>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
-    const element: Object = fixedArray.objects[UnsafeCast<Smi>(k)];
+    const element: Object = fixedArray.objects[k];
     return element == TheHole ? kEmptyString : UnsafeCast<JSAny>(element);
   }
 
   LoadJoinElement<array::FastDoubleElements>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
         UnsafeCast<FixedDoubleArray>(array.elements);
-    const element: float64 = LoadDoubleWithHoleCheck(
-        fixedDoubleArray, UnsafeCast<Smi>(k)) otherwise return kEmptyString;
+    const element: float64 =
+        fixedDoubleArray.floats[k].Value() otherwise return kEmptyString;
     return AllocateHeapNumberWithValue(element);
   }
 
-  builtin LoadJoinTypedElement<T: type>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+  builtin LoadJoinTypedElement<T : type extends ElementsKind>(
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
     assert(!IsDetachedBuffer(typedArray.buffer));
     return typed_array::LoadFixedTypedArrayElementAsTagged(
-        typedArray.data_ptr, UnsafeCast<Smi>(k),
-        typed_array::KindForArrayType<T>());
+        typedArray.data_ptr, k, typed_array::KindForArrayType<T>());
   }
 
   transitioning builtin ConvertToLocaleString(
@@ -75,10 +74,10 @@ namespace array_join {
       } else {
         result = Call(context, callable, element, locales, options);
       }
-      return ToString_Inline(context, result);
+      return ToString_Inline(result);
     }
     label TypeError {
-      ThrowTypeError(kCalledNonCallable, prop);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, prop);
     }
   }
 
@@ -137,7 +136,7 @@ namespace array_join {
         const newLength: intptr = CalculateNewElementsCapacity(length);
         assert(index < newLength);
         const newfixedArray: FixedArray =
-            ExtractFixedArray(fixedArray, 0, length, newLength, kFixedArrays);
+            ExtractFixedArray(fixedArray, 0, length, newLength);
         newfixedArray.objects[index] = element;
         return newfixedArray;
       }
@@ -148,7 +147,7 @@ namespace array_join {
   // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
   // Buffer.AddSeparators().
   struct Buffer {
-    Add(implicit context: Context)(
+    macro Add(implicit context: Context)(
         str: String, nofSeparators: intptr, separatorLength: intptr) {
       // Add separators if necessary (at the beginning or more than one)
       const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
@@ -162,7 +161,7 @@ namespace array_join {
           IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
     }
 
-    AddSeparators(implicit context: Context)(
+    macro AddSeparators(implicit context: Context)(
         nofSeparators: intptr, separatorLength: intptr, write: bool) {
       if (nofSeparators == 0 || separatorLength == 0) return;
 
@@ -283,7 +282,7 @@ namespace array_join {
       }
 
       // b. Let element be ? Get(O, ! ToString(k)).
-      const element: JSAny = loadFn(context, receiver, Convert<Number>(k++));
+      const element: JSAny = loadFn(context, receiver, k++);
 
       // c. If element is undefined or null, let next be the empty String;
       //    otherwise, let next be ? ToString(element).
@@ -336,11 +335,12 @@ namespace array_join {
       if (!IsPrototypeInitialArrayPrototype(map)) goto IfSlowPath;
       if (IsNoElementsProtectorCellInvalid()) goto IfSlowPath;
 
-      if (IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)) {
+      if (IsElementsKindLessThanOrEqual(kind, ElementsKind::HOLEY_ELEMENTS)) {
         loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
-      } else if (IsElementsKindLessThanOrEqual(kind, HOLEY_DOUBLE_ELEMENTS)) {
+      } else if (IsElementsKindLessThanOrEqual(
+                     kind, ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
         loadFn = LoadJoinElement<array::FastDoubleElements>;
-      } else if (kind == DICTIONARY_ELEMENTS)
+      } else if (kind == ElementsKind::DICTIONARY_ELEMENTS)
         deferred {
           const dict: NumberDictionary =
               UnsafeCast<NumberDictionary>(array.elements);
@@ -377,32 +377,32 @@ namespace array_join {
     const kind: ElementsKind = map.elements_kind;
     let loadFn: LoadJoinElementFn;
 
-    if (IsElementsKindGreaterThan(kind, UINT32_ELEMENTS)) {
-      if (kind == INT32_ELEMENTS) {
+    if (IsElementsKindGreaterThan(kind, ElementsKind::UINT32_ELEMENTS)) {
+      if (kind == ElementsKind::INT32_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
-      } else if (kind == FLOAT32_ELEMENTS) {
+      } else if (kind == ElementsKind::FLOAT32_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
-      } else if (kind == FLOAT64_ELEMENTS) {
+      } else if (kind == ElementsKind::FLOAT64_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Float64Elements>;
-      } else if (kind == UINT8_CLAMPED_ELEMENTS) {
+      } else if (kind == ElementsKind::UINT8_CLAMPED_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint8ClampedElements>;
-      } else if (kind == BIGUINT64_ELEMENTS) {
+      } else if (kind == ElementsKind::BIGUINT64_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
-      } else if (kind == BIGINT64_ELEMENTS) {
+      } else if (kind == ElementsKind::BIGINT64_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
       } else {
         unreachable;
       }
     } else {
-      if (kind == UINT8_ELEMENTS) {
+      if (kind == ElementsKind::UINT8_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint8Elements>;
-      } else if (kind == INT8_ELEMENTS) {
+      } else if (kind == ElementsKind::INT8_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Int8Elements>;
-      } else if (kind == UINT16_ELEMENTS) {
+      } else if (kind == ElementsKind::UINT16_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint16Elements>;
-      } else if (kind == INT16_ELEMENTS) {
+      } else if (kind == ElementsKind::INT16_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Int16Elements>;
-      } else if (kind == UINT32_ELEMENTS) {
+      } else if (kind == ElementsKind::UINT32_ELEMENTS) {
         loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
       } else {
         unreachable;
@@ -422,8 +422,8 @@ namespace array_join {
   macro LoadJoinStack(implicit context: Context)(): FixedArray
       labels IfUninitialized {
     const nativeContext: NativeContext = LoadNativeContext(context);
-    const stack: HeapObject =
-        UnsafeCast<HeapObject>(nativeContext[ARRAY_JOIN_STACK_INDEX]);
+    const stack: HeapObject = UnsafeCast<HeapObject>(
+        nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX]);
     if (stack == Undefined) goto IfUninitialized;
     assert(IsFixedArray(stack));
     return UnsafeCast<FixedArray>(stack);
@@ -431,7 +431,7 @@ namespace array_join {
 
   macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
     const nativeContext: NativeContext = LoadNativeContext(context);
-    nativeContext[ARRAY_JOIN_STACK_INDEX] = stack;
+    nativeContext[NativeContextSlot::ARRAY_JOIN_STACK_INDEX] = stack;
   }
 
   // Adds a receiver to the stack. The FixedArray will automatically grow to
@@ -476,7 +476,7 @@ namespace array_join {
     }
     label IfUninitialized {
       const stack: FixedArray =
-          AllocateFixedArrayWithHoles(kMinJoinStackSize, kNone);
+          AllocateFixedArrayWithHoles(kMinJoinStackSize, AllocationFlag::kNone);
       stack.objects[0] = receiver;
       SetJoinStack(stack);
     }
@@ -493,8 +493,8 @@ namespace array_join {
         // Shrink the Join Stack if the stack will be empty and is larger than
         // the minimum size.
         if (i == 0 && len > kMinJoinStackSize) deferred {
-            const newStack: FixedArray =
-                AllocateFixedArrayWithHoles(kMinJoinStackSize, kNone);
+            const newStack: FixedArray = AllocateFixedArrayWithHoles(
+                kMinJoinStackSize, AllocationFlag::kNone);
             SetJoinStack(newStack);
           }
         else {
@@ -529,8 +529,7 @@ namespace array_join {
       sepObj: JSAny, locales: JSAny, options: JSAny): JSAny {
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
-    const sep: String =
-        sepObj == Undefined ? ',' : ToString_Inline(context, sepObj);
+    const sep: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
 
     // If the receiver is not empty and not already being joined, continue with
     // the normal join algorithm.
@@ -551,7 +550,7 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
   transitioning javascript builtin
-  ArrayPrototypeJoin(js-implicit context: Context, receiver: JSAny)(
+  ArrayPrototypeJoin(js-implicit context: NativeContext, receiver: JSAny)(
       ...arguments): JSAny {
     const separator: JSAny = arguments[0];
 
@@ -563,7 +562,8 @@ namespace array_join {
 
     // Only handle valid array lengths. Although the spec allows larger
     // values, this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1)
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         false, o, len, separator, Undefined, Undefined);
@@ -571,7 +571,8 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
   transitioning javascript builtin ArrayPrototypeToLocaleString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const locales: JSAny = arguments[0];
     const options: JSAny = arguments[1];
 
@@ -583,7 +584,8 @@ namespace array_join {
 
     // Only handle valid array lengths. Although the spec allows larger
     // values, this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1)
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         true, o, len, ',', locales, options);
@@ -591,7 +593,8 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tostring
   transitioning javascript builtin ArrayPrototypeToString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     // 1. Let array be ? ToObject(this value).
     const array: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -612,7 +615,8 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
   transitioning javascript builtin TypedArrayPrototypeJoin(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const separator: JSAny = arguments[0];
 
     // Spec: ValidateTypedArray is applied to the this value prior to evaluating
@@ -627,7 +631,8 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
   transitioning javascript builtin TypedArrayPrototypeToLocaleString(
-      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(...arguments): JSAny {
     const locales: JSAny = arguments[0];
     const options: JSAny = arguments[1];
 

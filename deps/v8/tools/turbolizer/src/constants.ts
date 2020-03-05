@@ -14,8 +14,6 @@ export const GENERATED_PANE_ID = 'right';
 export const DISASSEMBLY_PANE_ID = 'disassembly';
 export const DISASSEMBLY_COLLAPSE_ID = 'disassembly-shrink';
 export const DISASSEMBLY_EXPAND_ID = 'disassembly-expand';
-export const COLLAPSE_PANE_BUTTON_VISIBLE = 'button-input';
-export const COLLAPSE_PANE_BUTTON_INVISIBLE = 'button-input-invisible';
 export const UNICODE_BLOCK = '&#9611;';
 export const PROF_COLS = [
   { perc: 0, col: { r: 255, g: 255, b: 255 } },

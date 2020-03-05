@@ -479,7 +479,8 @@ class RunnableConfig(GraphConfig):
         cmd_prefix=cmd_prefix,
         shell=os.path.join(shell_dir, self.binary),
         args=self.GetCommandFlags(extra_flags=extra_flags),
-        timeout=self.timeout or 60)
+        timeout=self.timeout or 60,
+        handle_sigterm=True)
 
   def ProcessOutput(self, output, result_tracker, count):
     """Processes test run output and updates result tracker.

@@ -157,15 +157,15 @@ consts_misc = [
         'value': 'DICTIONARY_ELEMENTS' },
 
     { 'name': 'bit_field2_elements_kind_mask',
-        'value': 'Map::ElementsKindBits::kMask' },
+        'value': 'Map::Bits2::ElementsKindBits::kMask' },
     { 'name': 'bit_field2_elements_kind_shift',
-        'value': 'Map::ElementsKindBits::kShift' },
+        'value': 'Map::Bits2::ElementsKindBits::kShift' },
     { 'name': 'bit_field3_is_dictionary_map_shift',
-        'value': 'Map::IsDictionaryMapBit::kShift' },
+        'value': 'Map::Bits3::IsDictionaryMapBit::kShift' },
     { 'name': 'bit_field3_number_of_own_descriptors_mask',
-        'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
+        'value': 'Map::Bits3::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
-        'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
+        'value': 'Map::Bits3::NumberOfOwnDescriptorsBits::kShift' },
     { 'name': 'class_Map__instance_descriptors_offset',
         'value': 'Map::kInstanceDescriptorsOffset' },
 
@@ -176,9 +176,9 @@ consts_misc = [
     { 'name': 'off_fp_constant_pool',
         'value': 'StandardFrameConstants::kConstantPoolOffset' },
     { 'name': 'off_fp_function',
-        'value': 'JavaScriptFrameConstants::kFunctionOffset' },
+        'value': 'StandardFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
-        'value': 'JavaScriptFrameConstants::kLastParameterOffset' },
+        'value': 'StandardFrameConstants::kFixedFrameSizeAboveFp' },
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },
@@ -194,12 +194,8 @@ consts_misc = [
 
     { 'name': 'context_idx_scope_info',
         'value': 'Context::SCOPE_INFO_INDEX' },
-    { 'name': 'context_idx_native',
-        'value': 'Context::NATIVE_CONTEXT_INDEX' },
     { 'name': 'context_idx_prev',
         'value': 'Context::PREVIOUS_INDEX' },
-    { 'name': 'context_idx_ext',
-        'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
     { 'name': 'native_context_embedder_data_offset',
@@ -230,15 +226,6 @@ consts_misc = [
 
     { 'name': 'class_SharedFunctionInfo__function_data__Object',
         'value': 'SharedFunctionInfo::kFunctionDataOffset' },
-
-    { 'name': 'class_ConsString__first_offset__int',
-        'value': 'ConsString::kFirstOffset' },
-    { 'name': 'class_ConsString__second_offset__int',
-        'value': 'ConsString::kSecondOffset' },
-    { 'name': 'class_SlicedString__offset_offset__int',
-        'value': 'SlicedString::kOffsetOffset' },
-    { 'name': 'class_ThinString__actual_offset__int',
-        'value': 'ThinString::kActualOffset' },
 ];
 
 #
@@ -276,7 +263,6 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
-    'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
@@ -288,6 +274,11 @@ extras_accessors = [
     'Code, instruction_size, int, kInstructionSizeOffset',
     'String, length, int32_t, kLengthOffset',
     'DescriptorArray, header_size, uintptr_t, kHeaderSize',
+    'ConsString, first, String, kFirstOffset',
+    'ConsString, second, String, kSecondOffset',
+    'SlicedString, offset, SMI, kOffsetOffset',
+    'ThinString, actual, String, kActualOffset',
+    'Symbol, name, Object, kDescriptionOffset',
 ];
 
 #

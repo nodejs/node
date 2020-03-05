@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "../../third_party/inspector_protocol/crdtp/serializer_traits.h"
 #include "src/base/compiler-specific.h"
 
 namespace v8_inspector {
@@ -163,5 +164,14 @@ struct hash<v8_inspector::String16> {
 }  // namespace std
 
 #endif  // !defined(__APPLE__) || defined(_LIBCPP_VERSION)
+
+// See third_party/inspector_protocol/crdtp/serializer_traits.h.
+namespace v8_crdtp {
+template <>
+struct SerializerTraits<v8_inspector::String16> {
+  static void Serialize(const v8_inspector::String16& str,
+                        std::vector<uint8_t>* out);
+};
+}  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_16_H_

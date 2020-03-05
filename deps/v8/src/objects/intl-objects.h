@@ -21,7 +21,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 64
+#define V8_MINIMUM_ICU_VERSION 65
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
@@ -276,6 +276,9 @@ class Intl {
 
   // Check the calendar is well formed.
   static bool IsWellFormedCalendar(const std::string& value);
+
+  // Check the currency is well formed.
+  static bool IsWellFormedCurrency(const std::string& value);
 
   struct ResolvedLocale {
     std::string locale;

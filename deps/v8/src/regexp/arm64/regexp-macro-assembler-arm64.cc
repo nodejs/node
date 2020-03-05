@@ -187,6 +187,21 @@ void RegExpMacroAssemblerARM64::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerARM64::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.AcquireW();
+    __ Ldr(scratch, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Add(scratch, scratch, 1);
+    __ Str(scratch, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Cmp(scratch, Operand(backtrack_limit()));
+    __ B(ne, &next);
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   Pop(w10);
   __ Add(x10, code_pointer(), Operand(w10, UXTW));
   __ Br(x10);
@@ -738,13 +753,15 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Mov(output_array(), x4);
 
   // Set the number of registers we will need to allocate, that is:
-  //   - success_counter (X register)
+  //   - kSuccessCounter / success_counter (X register)
+  //   - kBacktrackCount (X register)
   //   - (num_registers_ - kNumCachedRegisters) (W registers)
   int num_wreg_to_allocate = num_registers_ - kNumCachedRegisters;
   // Do not allocate registers on the stack if they can all be cached.
   if (num_wreg_to_allocate < 0) { num_wreg_to_allocate = 0; }
-  // Make room for the success_counter.
-  num_wreg_to_allocate += 2;
+  // Make room for the success_counter and kBacktrackCount. Each X (64-bit)
+  // register is equivalent to two W (32-bit) registers.
+  num_wreg_to_allocate += 2 + 2;
 
   // Make sure the stack alignment will be respected.
   int alignment = masm_->ActivationFrameAlignment();
@@ -785,8 +802,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Allocate space on stack.
   __ Claim(num_wreg_to_allocate, kWRegSize);
 
-  // Initialize success_counter with 0.
+  // Initialize success_counter and kBacktrackCount with 0.
   __ Str(wzr, MemOperand(frame_pointer(), kSuccessCounter));
+  __ Str(wzr, MemOperand(frame_pointer(), kBacktrackCount));
 
   // Find negative length (offset of start relative to end).
   __ Sub(x10, input_start(), input_end());
@@ -1079,7 +1097,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
                           .set_self_reference(masm_->CodeObject())
                           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
+          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
   return Handle<HeapObject>::cast(code);
 }
 
@@ -1394,7 +1412,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
 
-  if (FLAG_embedded_builtins) {
+  {
     UseScratchRegisterScope temps(masm_);
     Register scratch = temps.AcquireX();
 
@@ -1404,10 +1422,6 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
 
     __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     __ Call(scratch);
-  } else {
-    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
-    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
-    __ Call(code, RelocInfo::CODE_TARGET);
   }
 
   // The input string may have been moved in memory, we need to reload it.
@@ -1479,7 +1493,7 @@ void RegExpMacroAssemblerARM64::CheckStackLimit() {
 
 void RegExpMacroAssemblerARM64::Push(Register source) {
   DCHECK(source.Is32Bits());
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK_NE(source, backtrack_stackpointer());
   __ Str(source,
          MemOperand(backtrack_stackpointer(),
                     -static_cast<int>(kWRegSize),
@@ -1489,7 +1503,7 @@ void RegExpMacroAssemblerARM64::Push(Register source) {
 
 void RegExpMacroAssemblerARM64::Pop(Register target) {
   DCHECK(target.Is32Bits());
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK_NE(target, backtrack_stackpointer());
   __ Ldr(target,
          MemOperand(backtrack_stackpointer(), kWRegSize, PostIndex));
 }
@@ -1546,7 +1560,7 @@ void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
       break;
     case CACHED_LSW: {
       Register cached_register = GetCachedRegister(register_index);
-      if (!source.Is(cached_register.W())) {
+      if (source != cached_register.W()) {
         __ Bfi(cached_register, source.X(), 0, kWRegSizeInBits);
       }
       break;

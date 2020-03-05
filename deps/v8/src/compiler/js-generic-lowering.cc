@@ -378,6 +378,10 @@ void JSGenericLowering::LowerJSOrdinaryHasInstance(Node* node) {
   ReplaceWithStubCall(node, callable, flags);
 }
 
+void JSGenericLowering::LowerJSHasContextExtension(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSLoadContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
@@ -844,6 +848,15 @@ void JSGenericLowering::LowerJSGeneratorRestoreRegister(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+namespace {
+
+StackCheckKind StackCheckKindOfJSStackCheck(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSStackCheck);
+  return OpParameter<StackCheckKind>(op);
+}
+
+}  // namespace
+
 void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -854,7 +867,9 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
                            ExternalReference::address_of_jslimit(isolate())),
                        jsgraph()->IntPtrConstant(0), effect, control);
 
-  Node* check = graph()->NewNode(machine()->StackPointerGreaterThan(), limit);
+  StackCheckKind stack_check_kind = StackCheckKindOfJSStackCheck(node->op());
+  Node* check = effect = graph()->NewNode(
+      machine()->StackPointerGreaterThan(stack_check_kind), limit, effect);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
@@ -890,8 +905,17 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
     }
   }
 
-  // Turn the stack check into a runtime call.
-  ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
+  // Turn the stack check into a runtime call. At function entry, the runtime
+  // function takes an offset argument which is subtracted from the stack
+  // pointer prior to the stack check (i.e. the check is `sp - offset >=
+  // limit`).
+  if (stack_check_kind == StackCheckKind::kJSFunctionEntry) {
+    node->InsertInput(zone(), 0,
+                      graph()->NewNode(machine()->LoadStackCheckOffset()));
+    ReplaceWithRuntimeCall(node, Runtime::kStackGuardWithGap);
+  } else {
+    ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
+  }
 }
 
 void JSGenericLowering::LowerJSDebugger(Node* node) {

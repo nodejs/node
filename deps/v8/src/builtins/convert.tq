@@ -1,0 +1,272 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
+macro FromConstexpr<To: type, From: type>(o: From): To;
+FromConstexpr<int31, constexpr int31>(i: constexpr int31): int31 {
+  return %FromConstexpr<int31>(i);
+}
+FromConstexpr<int32, constexpr int31>(i: constexpr int31): int32 {
+  return %FromConstexpr<int32>(i);
+}
+FromConstexpr<int32, constexpr int32>(i: constexpr int32): int32 {
+  return %FromConstexpr<int32>(i);
+}
+FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<intptr, constexpr int32>(i: constexpr int32): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<intptr, constexpr intptr>(i: constexpr intptr): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<uintptr, constexpr uintptr>(i: constexpr uintptr): uintptr {
+  return %FromConstexpr<uintptr>(i);
+}
+FromConstexpr<Smi, constexpr int31>(i: constexpr int31): Smi {
+  return %FromConstexpr<Smi>(i);
+}
+FromConstexpr<PositiveSmi, constexpr int31>(i: constexpr int31): PositiveSmi {
+  assert(i >= 0);
+  return %FromConstexpr<PositiveSmi>(i);
+}
+FromConstexpr<String, constexpr string>(s: constexpr string): String {
+  return %FromConstexpr<String>(s);
+}
+FromConstexpr<Number, constexpr uint32>(i: constexpr uint32): Number {
+  return %FromConstexpr<Number>(i);
+}
+FromConstexpr<Number, constexpr int32>(i: constexpr int32): Number {
+  return %FromConstexpr<Number>(i);
+}
+FromConstexpr<Number, constexpr float64>(f: constexpr float64): Number {
+  return %FromConstexpr<Number>(f);
+}
+FromConstexpr<Number, constexpr int31>(i: constexpr int31): Number {
+  return %FromConstexpr<Number>(i);
+}
+FromConstexpr<uint8, constexpr int31>(i: constexpr int31): uint8 {
+  const i: uint32 = i;
+  StaticAssert(i <= 255);
+  return %RawDownCast<uint8>(i);
+}
+FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
+  return SmiConstant(s);
+}
+FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
+  return SmiConstant(s);
+}
+FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
+  return Unsigned(Int32Constant(i));
+}
+FromConstexpr<uint32, constexpr uint32>(i: constexpr uint32): uint32 {
+  return Unsigned(%FromConstexpr<int32>(i));
+}
+FromConstexpr<uintptr, constexpr int31>(i: constexpr int31): uintptr {
+  return ChangeUint32ToWord(i);
+}
+FromConstexpr<float64, constexpr int31>(i: constexpr int31): float64 {
+  return Float64Constant(i);
+}
+FromConstexpr<float64, constexpr float64>(i: constexpr float64): float64 {
+  return Float64Constant(i);
+}
+FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
+  return BoolConstant(b);
+}
+FromConstexpr<Object, constexpr string>(s: constexpr string): Object {
+  return StringConstant(s);
+}
+FromConstexpr<JSAny, constexpr string>(s: constexpr string): JSAny {
+  return StringConstant(s);
+}
+FromConstexpr<ContextSlot, constexpr ContextSlot>(c: constexpr ContextSlot):
+    ContextSlot {
+  return IntPtrConstant(c);
+}
+FromConstexpr<LanguageModeSmi, constexpr LanguageMode>(
+    c: constexpr LanguageMode): LanguageModeSmi {
+  return %RawDownCast<LanguageModeSmi>(SmiConstant(c));
+}
+
+macro Convert<To: type, From: type>(i: From): To {
+  return i;
+}
+
+macro Convert<To: type, From: type>(i: From): To labels Overflow {
+  return i;
+}
+
+extern macro ConvertElementsKindToInt(ElementsKind): int32;
+Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
+  return ConvertElementsKindToInt(elementsKind);
+}
+Convert<Number, int32>(i: int32): Number {
+  return ChangeInt32ToTagged(i);
+}
+Convert<intptr, int32>(i: int32): intptr {
+  return ChangeInt32ToIntPtr(i);
+}
+Convert<intptr, uint32>(i: uint32): intptr {
+  return Signed(ChangeUint32ToWord(i));
+}
+Convert<Smi, int32>(i: int32): Smi {
+  return SmiFromInt32(i);
+}
+Convert<Number, uint32>(ui: uint32): Number {
+  return ChangeUint32ToTagged(ui);
+}
+Convert<Smi, uint32>(ui: uint32): Smi {
+  return SmiFromUint32(ui);
+}
+Convert<uintptr, uint32>(ui: uint32): uintptr {
+  return ChangeUint32ToWord(ui);
+}
+Convert<intptr, uint16>(ui: uint16): intptr {
+  return Signed(ChangeUint32ToWord(ui));
+}
+Convert<intptr, uint8>(ui: uint8): intptr {
+  return Signed(ChangeUint32ToWord(ui));
+}
+Convert<uint8, intptr>(i: intptr): uint8 {
+  return %RawDownCast<uint8>(Unsigned(TruncateIntPtrToInt32(i)) & 0xFF);
+}
+Convert<int32, uint8>(i: uint8): int32 {
+  return Signed(Convert<uint32>(i));
+}
+Convert<int32, uint16>(i: uint16): int32 {
+  return Signed(Convert<uint32>(i));
+}
+Convert<int32, uint31>(i: uint31): int32 {
+  return Signed(Convert<uint32>(i));
+}
+Convert<int32, intptr>(i: intptr): int32 {
+  return TruncateIntPtrToInt32(i);
+}
+Convert<int32, Number>(n: Number): int32 {
+  typeswitch (n) {
+    case (s: Smi): {
+      return Convert<int32>(s);
+    }
+    case (h: HeapNumber): {
+      return TruncateHeapNumberValueToWord32(h);
+    }
+  }
+}
+
+Convert<Smi, intptr>(i: intptr): Smi {
+  return SmiTag(i);
+}
+Convert<uint32, uintptr>(ui: uintptr): uint32 {
+  return Unsigned(TruncateIntPtrToInt32(Signed(ui)));
+}
+Convert<intptr, Smi>(s: Smi): intptr {
+  return SmiUntag(s);
+}
+Convert<uintptr, PositiveSmi>(ps: PositiveSmi): uintptr {
+  return Unsigned(SmiUntag(ps));
+}
+Convert<intptr, uintptr>(ui: uintptr): intptr {
+  const i = Signed(ui);
+  assert(i >= 0);
+  return i;
+}
+Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi {
+  assert(IsValidPositiveSmi(i));
+  return %RawDownCast<PositiveSmi>(SmiTag(i));
+}
+Convert<PositiveSmi, uintptr>(ui: uintptr): PositiveSmi labels IfOverflow {
+  if (ui > kSmiMaxValue) deferred {
+      goto IfOverflow;
+    }
+  return %RawDownCast<PositiveSmi>(SmiTag(Signed(ui)));
+}
+Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi labels IfOverflow {
+  if (IsValidPositiveSmi(i)) {
+    return %RawDownCast<PositiveSmi>(SmiTag(i));
+  } else
+    deferred {
+      goto IfOverflow;
+    }
+}
+Convert<int32, Smi>(s: Smi): int32 {
+  return SmiToInt32(s);
+}
+Convert<float64, HeapNumber>(h: HeapNumber): float64 {
+  return LoadHeapNumberValue(h);
+}
+Convert<float64, Number>(n: Number): float64 {
+  return ChangeNumberToFloat64(n);
+}
+Convert<uintptr, Number>(n: Number): uintptr {
+  return ChangeUintPtrNumberToUintPtr(n);
+}
+Convert<float64, float32>(f: float32): float64 {
+  return ChangeFloat32ToFloat64(f);
+}
+Convert<float64_or_hole, float64>(f: float64): float64_or_hole {
+  return float64_or_hole{is_hole: false, value: f};
+}
+Convert<float64_or_hole, Number>(n: Number): float64_or_hole {
+  return Convert<float64_or_hole>(Convert<float64>(n));
+}
+Convert<float32, float64>(f: float64): float32 {
+  return TruncateFloat64ToFloat32(f);
+}
+Convert<float32, Number>(n: Number): float32 {
+  return Convert<float32>(ChangeNumberToFloat64(n));
+}
+Convert<Number, float64>(d: float64): Number {
+  return ChangeFloat64ToTagged(d);
+}
+Convert<float64, uintptr>(ui: uintptr): float64 {
+  return ChangeUintPtrToFloat64(ui);
+}
+Convert<Number, uintptr>(ui: uintptr): Number {
+  return ChangeUintPtrToTagged(ui);
+}
+Convert<Number, intptr>(i: intptr): Number {
+  return ChangeUintPtrToTagged(Unsigned(i));
+}
+Convert<uintptr, float64>(d: float64): uintptr {
+  return ChangeFloat64ToUintPtr(d);
+}
+Convert<uintptr, intptr>(i: intptr): uintptr {
+  return Unsigned(i);
+}
+Convert<uintptr, RawPtr>(r: RawPtr): uintptr {
+  return Unsigned(r);
+}
+Convert<intptr, RawPtr>(r: RawPtr): intptr {
+  return Signed(r);
+}
+Convert<intptr, Number>(n: Number): intptr {
+  return ChangeFloat64ToIntPtr(ChangeNumberToFloat64(n));
+}
+Convert<bint, int32>(v: int32): bint {
+  return IntPtrToBInt(Convert<intptr>(v));
+}
+extern macro IntPtrToBInt(intptr): bint;
+Convert<bint, intptr>(v: intptr): bint {
+  return IntPtrToBInt(v);
+}
+extern macro BIntToIntPtr(bint): intptr;
+Convert<intptr, bint>(v: bint): intptr {
+  return BIntToIntPtr(v);
+}
+extern macro SmiToBInt(Smi): bint;
+Convert<bint, Smi>(v: Smi): bint {
+  return SmiToBInt(v);
+}
+extern macro BIntToSmi(bint): Smi;
+Convert<Smi, bint>(v: bint): Smi {
+  return BIntToSmi(v);
+}
+Convert<PromiseState, int32>(s: int32): PromiseState {
+  return %RawDownCast<PromiseState>(s);
+}
+Convert<ScopeFlags, Smi>(s: Smi): ScopeFlags {
+  return %RawDownCast<ScopeFlags>(Unsigned(SmiToInt32(s)));
+}

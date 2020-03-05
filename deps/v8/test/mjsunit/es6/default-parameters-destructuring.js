@@ -7,16 +7,16 @@
   var x = 1;
 
   function f41({[eval("var x = 2; 'a'")]: w}, z = x) { return z; }
-  assertEquals(1, f41({}));
-  assertEquals(1, f41({a: 0}));
+  assertEquals(2, f41({}));
+  assertEquals(2, f41({a: 0}));
   function f42({[eval("var x = 2; 'a'")]: w}, z = eval("x")) { return z; }
-  assertEquals(1, f42({}));
-  assertEquals(1, f42({a: 0}));
+  assertEquals(2, f42({}));
+  assertEquals(2, f42({a: 0}));
   function f43({a: w = eval("var x = 2")}, z = x) { return z; }
-  assertEquals(1, f43({}));
+  assertEquals(2, f43({}));
   assertEquals(1, f43({a: 0}));
   function f44({a: w = eval("var x = 2")}, z = eval("x")) { return z; }
-  assertEquals(1, f44({}));
+  assertEquals(2, f44({}));
   assertEquals(1, f44({a: 0}));
 
   function f5({a = eval("var x = 2"), b = x}) { return b; }
@@ -39,16 +39,16 @@
   assertEquals(1, f74({a: 0}));
 
   var g41 = ({[eval("var x = 2; 'a'")]: w}, z = x) => { return z; };
-  assertEquals(1, g41({}));
-  assertEquals(1, g41({a: 0}));
+  assertEquals(2, g41({}));
+  assertEquals(2, g41({a: 0}));
   var g42 = ({[eval("var x = 2; 'a'")]: w}, z = eval("x")) => { return z; };
-  assertEquals(1, g42({}));
-  assertEquals(1, g42({a: 0}));
+  assertEquals(2, g42({}));
+  assertEquals(2, g42({a: 0}));
   var g43 = ({a: w = eval("var x = 2")}, z = x) => { return z; };
-  assertEquals(1, g43({}));
+  assertEquals(2, g43({}));
   assertEquals(1, g43({a: 0}));
   var g44 = ({a: w = eval("var x = 2")}, z = eval("x")) => { return z; };
-  assertEquals(1, g44({}));
+  assertEquals(2, g44({}));
   assertEquals(1, g44({a: 0}));
 
   var g5 = ({a = eval("var x = 2"), b = x}) => { return b; };

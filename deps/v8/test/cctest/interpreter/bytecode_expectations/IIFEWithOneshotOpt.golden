@@ -23,9 +23,9 @@ frame size: 3
 parameter count: 1
 bytecode array length: 40
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(CreateEmptyObjectLiteral),
   /*   31 E> */ B(StaGlobal), U8(0), U8(0),
   /*   45 S> */ B(LdaGlobal), U8(0), U8(2),
@@ -67,9 +67,9 @@ frame size: 3
 parameter count: 1
 bytecode array length: 69
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(CreateEmptyObjectLiteral),
   /*   31 E> */ B(StaGlobal), U8(0), U8(0),
   /*   50 S> */ B(LdaZero),
@@ -126,9 +126,9 @@ frame size: 3
 parameter count: 1
 bytecode array length: 70
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(CreateEmptyObjectLiteral),
   /*   31 E> */ B(StaGlobal), U8(0), U8(0),
   /*   45 S> */ B(LdaSmi), I8(4),
@@ -185,9 +185,9 @@ frame size: 3
 parameter count: 1
 bytecode array length: 70
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(CreateEmptyObjectLiteral),
   /*   31 E> */ B(StaGlobal), U8(0), U8(0),
   /*   45 S> */ B(LdaSmi), I8(4),
@@ -246,9 +246,9 @@ frame size: 4
 parameter count: 1
 bytecode array length: 71
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(LdaConstant), U8(0),
                 B(Star), R(2),
                 B(LdaSmi), I8(41),
@@ -299,9 +299,9 @@ frame size: 5
 parameter count: 1
 bytecode array length: 24
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(LdaConstant), U8(0),
                 B(Star), R(3),
                 B(LdaSmi), I8(4),
@@ -332,9 +332,9 @@ frame size: 5
 parameter count: 1
 bytecode array length: 24
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(LdaConstant), U8(0),
                 B(Star), R(3),
                 B(LdaSmi), I8(37),
@@ -376,9 +376,9 @@ frame size: 8
 parameter count: 1
 bytecode array length: 137
 bytecodes: [
+  /*  237 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*  237 E> */ B(StackCheck),
   /*  255 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(0),
                 B(Star), R(1),
   /*  255 E> */ B(CallNoFeedback), R(1), R(this), U8(1),
@@ -471,9 +471,9 @@ frame size: 8
 parameter count: 1
 bytecode array length: 140
 bytecodes: [
+  /*  189 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*  189 E> */ B(StackCheck),
   /*  202 S> */ B(LdaUndefined),
                 B(Star), R(2),
                 B(LdaGlobal), U8(0), U8(0),
@@ -569,9 +569,9 @@ frame size: 2
 parameter count: 1
 bytecode array length: 43
 bytecodes: [
+  /*   79 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   79 E> */ B(StackCheck),
   /*   93 S> */ B(CreateEmptyObjectLiteral),
   /*   95 E> */ B(StaGlobal), U8(0), U8(0),
   /*  111 S> */ B(LdaGlobal), U8(0), U8(2),
@@ -618,9 +618,9 @@ frame size: 2
 parameter count: 1
 bytecode array length: 43
 bytecodes: [
+  /*   76 E> */ B(StackCheck),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   76 E> */ B(StackCheck),
   /*   92 S> */ B(CreateEmptyObjectLiteral),
   /*   94 E> */ B(StaGlobal), U8(0), U8(0),
   /*  112 S> */ B(LdaGlobal), U8(0), U8(2),
@@ -753,14 +753,14 @@ frame size: 3
 parameter count: 2
 bytecode array length: 27
 bytecodes: [
+  /*   46 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlot), U8(4),
+                B(StaCurrentContextSlot), U8(2),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   46 E> */ B(StackCheck),
-  /*   53 S> */ B(LdaCurrentContextSlot), U8(4),
+  /*   53 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
   /*   57 E> */ B(StaNamedPropertyNoFeedback), R(2), U8(1), U8(0),
@@ -786,14 +786,14 @@ frame size: 3
 parameter count: 2
 bytecode array length: 27
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlot), U8(4),
+                B(StaCurrentContextSlot), U8(2),
                 B(CreateMappedArguments),
                 B(Star), R(0),
-  /*   30 E> */ B(StackCheck),
-  /*   37 S> */ B(LdaCurrentContextSlot), U8(4),
+  /*   37 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(Star), R(2),
                 B(LdaSmi), I8(3),
   /*   41 E> */ B(StaNamedPropertyNoFeedback), R(2), U8(1), U8(0),

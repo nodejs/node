@@ -10,6 +10,18 @@
 namespace v8 {
 namespace platform {
 
+DefaultForegroundTaskRunner::RunTaskScope::RunTaskScope(
+    std::shared_ptr<DefaultForegroundTaskRunner> task_runner)
+    : task_runner_(task_runner) {
+  DCHECK_GE(task_runner->nesting_depth_, 0);
+  task_runner->nesting_depth_++;
+}
+
+DefaultForegroundTaskRunner::RunTaskScope::~RunTaskScope() {
+  DCHECK_GT(task_runner_->nesting_depth_, 0);
+  task_runner_->nesting_depth_--;
+}
+
 DefaultForegroundTaskRunner::DefaultForegroundTaskRunner(
     IdleTaskSupport idle_task_support, TimeFunction time_function)
     : idle_task_support_(idle_task_support), time_function_(time_function) {}
@@ -19,21 +31,22 @@ void DefaultForegroundTaskRunner::Terminate() {
   terminated_ = true;
 
   // Drain the task queues.
-  while (!task_queue_.empty()) task_queue_.pop();
+  while (!task_queue_.empty()) task_queue_.pop_front();
   while (!delayed_task_queue_.empty()) delayed_task_queue_.pop();
   while (!idle_task_queue_.empty()) idle_task_queue_.pop();
 }
 
 void DefaultForegroundTaskRunner::PostTaskLocked(std::unique_ptr<Task> task,
+                                                 Nestability nestability,
                                                  const base::MutexGuard&) {
   if (terminated_) return;
-  task_queue_.push(std::move(task));
+  task_queue_.push_back(std::make_pair(nestability, std::move(task)));
   event_loop_control_.NotifyOne();
 }
 
 void DefaultForegroundTaskRunner::PostTask(std::unique_ptr<Task> task) {
   base::MutexGuard guard(&lock_);
-  PostTaskLocked(std::move(task), guard);
+  PostTaskLocked(std::move(task), kNestable, guard);
 }
 
 double DefaultForegroundTaskRunner::MonotonicallyIncreasingTime() {
@@ -62,12 +75,20 @@ bool DefaultForegroundTaskRunner::IdleTasksEnabled() {
 
 void DefaultForegroundTaskRunner::PostNonNestableTask(
     std::unique_ptr<Task> task) {
-  // Default platform does not nest tasks.
-  PostTask(std::move(task));
+  base::MutexGuard guard(&lock_);
+  PostTaskLocked(std::move(task), kNonNestable, guard);
 }
 
 bool DefaultForegroundTaskRunner::NonNestableTasksEnabled() const {
   return true;
+}
+
+bool DefaultForegroundTaskRunner::HasPoppableTaskInQueue() const {
+  if (nesting_depth_ == 0) return !task_queue_.empty();
+  for (auto it = task_queue_.cbegin(); it != task_queue_.cend(); it++) {
+    if (it->first == kNestable) return true;
+  }
+  return false;
 }
 
 std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue(
@@ -76,17 +97,24 @@ std::unique_ptr<Task> DefaultForegroundTaskRunner::PopTaskFromQueue(
   // Move delayed tasks that hit their deadline to the main queue.
   std::unique_ptr<Task> task = PopTaskFromDelayedQueueLocked(guard);
   while (task) {
-    PostTaskLocked(std::move(task), guard);
+    PostTaskLocked(std::move(task), kNestable, guard);
     task = PopTaskFromDelayedQueueLocked(guard);
   }
 
-  while (task_queue_.empty()) {
+  while (!HasPoppableTaskInQueue()) {
     if (wait_for_work == MessageLoopBehavior::kDoNotWait) return {};
     WaitForTaskLocked(guard);
   }
 
-  task = std::move(task_queue_.front());
-  task_queue_.pop();
+  auto it = task_queue_.begin();
+  for (; it != task_queue_.end(); it++) {
+    // When the task queue is nested (i.e. popping a task from the queue from
+    // within a task), only nestable tasks may run. Otherwise, any task may run.
+    if (nesting_depth_ == 0 || it->first == kNestable) break;
+  }
+  DCHECK(it != task_queue_.end());
+  task = std::move(it->second);
+  task_queue_.erase(it);
 
   return task;
 }

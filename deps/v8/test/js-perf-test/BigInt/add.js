@@ -56,6 +56,7 @@ function SetUpTestAddTypeError() {
   initial_sum = 42n;
 }
 
+
 function TestAddTypeError() {
   let sum = initial_sum;
   for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
@@ -72,6 +73,7 @@ function TestAddTypeError() {
 function SetUpTestAddZero() {
   initial_sum = 42n;
 }
+
 
 function TestAddZero() {
   let sum = initial_sum;
@@ -91,6 +93,7 @@ function SetUpTestAddSameSign(bits) {
   a = SmallRandomBigIntWithBits(bits);
 }
 
+
 function TestAddSameSign() {
   let sum = initial_sum;
 
@@ -108,6 +111,7 @@ function SetUpTestAddDifferentSign(bits) {
   initial_sum = MaxBigIntWithBits(bits);
   a = -SmallRandomBigIntWithBits(bits);
 }
+
 
 function TestAddDifferentSign() {
   let sum = initial_sum;
@@ -130,6 +134,7 @@ function SetUpTestAddRandom() {
     random_bigints.push(Math.random() < 0.5 ? -bigint : bigint);
   }
 }
+
 
 function TestAddRandom() {
   let sum = 0n;

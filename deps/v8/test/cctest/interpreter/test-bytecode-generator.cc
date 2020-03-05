@@ -59,14 +59,13 @@ namespace interpreter {
 #define REPEAT_64_UNIQUE_VARS() REPEAT_32_UNIQUE_VARS() REPEAT_32_UNIQUE_VARS()
 #define REPEAT_128_UNIQUE_VARS() REPEAT_64_UNIQUE_VARS() REPEAT_64_UNIQUE_VARS()
 
-#define REPEAT_250_UNIQUE_VARS() \
+#define REPEAT_252_UNIQUE_VARS() \
   REPEAT_128_UNIQUE_VARS()       \
   REPEAT_64_UNIQUE_VARS()        \
   REPEAT_32_UNIQUE_VARS()        \
   REPEAT_16_UNIQUE_VARS()        \
   REPEAT_8_UNIQUE_VARS()         \
-  UNIQUE_VAR()                   \
-  UNIQUE_VAR()
+  REPEAT_4_UNIQUE_VARS()
 
 #define REPEAT_2_LOAD_UNIQUE_PROPERTY() \
   LOAD_UNIQUE_PROPERTY() LOAD_UNIQUE_PROPERTY()
@@ -1736,10 +1735,10 @@ TEST(CallNew) {
 }
 
 TEST(ContextVariables) {
-  // The wide check below relies on MIN_CONTEXT_SLOTS + 3 + 249 == 256, if this
+  // The wide check below relies on MIN_CONTEXT_SLOTS + 3 + 250 == 256, if this
   // ever changes, the REPEAT_XXX should be changed to output the correct number
   // of unique variables to trigger the wide slot load / store.
-  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS + 3 + 249 == 256);
+  STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS + 3 + 250 == 256);
 
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
@@ -1757,7 +1756,7 @@ TEST(ContextVariables) {
     "{ let b = 2; return function() { a + b; }; }\n",
 
     "'use strict';\n"
-    REPEAT_250_UNIQUE_VARS()
+    REPEAT_252_UNIQUE_VARS()
     "eval();\n"
     "var b = 100;\n"
     "return b\n",
@@ -2822,6 +2821,14 @@ TEST(PrivateMethodAccess) {
       "}\n"
       "\n"
       "var test = C;\n"
+      "new test;\n",
+
+      "class D {\n"
+      "  #d() { return 1; }\n"
+      "  constructor() { (() => this)().#d(); }\n"
+      "}\n"
+      "\n"
+      "var test = D;\n"
       "new test;\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -3548,7 +3555,7 @@ TEST(TemplateLiterals) {
 #undef REPEAT_32_UNIQUE_VARS
 #undef REPEAT_64_UNIQUE_VARS
 #undef REPEAT_128_UNIQUE_VARS
-#undef REPEAT_250_UNIQUE_VARS
+#undef REPEAT_252_UNIQUE_VARS
 #undef LOAD_UNIQUE_PROPERTY
 #undef REPEAT_2_LOAD_UNIQUE_PROPERTY
 #undef REPEAT_4_LOAD_UNIQUE_PROPERTY

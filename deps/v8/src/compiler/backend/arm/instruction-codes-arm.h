@@ -128,6 +128,22 @@ namespace compiler {
   V(ArmPeek)                       \
   V(ArmDmbIsh)                     \
   V(ArmDsbIsb)                     \
+  V(ArmF64x2Splat)                 \
+  V(ArmF64x2ExtractLane)           \
+  V(ArmF64x2ReplaceLane)           \
+  V(ArmF64x2Abs)                   \
+  V(ArmF64x2Neg)                   \
+  V(ArmF64x2Sqrt)                  \
+  V(ArmF64x2Add)                   \
+  V(ArmF64x2Sub)                   \
+  V(ArmF64x2Mul)                   \
+  V(ArmF64x2Div)                   \
+  V(ArmF64x2Min)                   \
+  V(ArmF64x2Max)                   \
+  V(ArmF64x2Eq)                    \
+  V(ArmF64x2Ne)                    \
+  V(ArmF64x2Lt)                    \
+  V(ArmF64x2Le)                    \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \
@@ -149,6 +165,15 @@ namespace compiler {
   V(ArmF32x4Ne)                    \
   V(ArmF32x4Lt)                    \
   V(ArmF32x4Le)                    \
+  V(ArmI64x2SplatI32Pair)          \
+  V(ArmI64x2ReplaceLaneI32Pair)    \
+  V(ArmI64x2Neg)                   \
+  V(ArmI64x2Shl)                   \
+  V(ArmI64x2ShrS)                  \
+  V(ArmI64x2Add)                   \
+  V(ArmI64x2Sub)                   \
+  V(ArmI64x2Mul)                   \
+  V(ArmI64x2ShrU)                  \
   V(ArmI32x4Splat)                 \
   V(ArmI32x4ExtractLane)           \
   V(ArmI32x4ReplaceLane)           \
@@ -177,7 +202,7 @@ namespace compiler {
   V(ArmI32x4GtU)                   \
   V(ArmI32x4GeU)                   \
   V(ArmI16x8Splat)                 \
-  V(ArmI16x8ExtractLane)           \
+  V(ArmI16x8ExtractLaneS)          \
   V(ArmI16x8ReplaceLane)           \
   V(ArmI16x8SConvertI8x16Low)      \
   V(ArmI16x8SConvertI8x16High)     \
@@ -197,6 +222,7 @@ namespace compiler {
   V(ArmI16x8Ne)                    \
   V(ArmI16x8GtS)                   \
   V(ArmI16x8GeS)                   \
+  V(ArmI16x8ExtractLaneU)          \
   V(ArmI16x8UConvertI8x16Low)      \
   V(ArmI16x8UConvertI8x16High)     \
   V(ArmI16x8ShrU)                  \
@@ -207,8 +233,9 @@ namespace compiler {
   V(ArmI16x8MaxU)                  \
   V(ArmI16x8GtU)                   \
   V(ArmI16x8GeU)                   \
+  V(ArmI16x8RoundingAverageU)      \
   V(ArmI8x16Splat)                 \
-  V(ArmI8x16ExtractLane)           \
+  V(ArmI8x16ExtractLaneS)          \
   V(ArmI8x16ReplaceLane)           \
   V(ArmI8x16Neg)                   \
   V(ArmI8x16Shl)                   \
@@ -225,6 +252,7 @@ namespace compiler {
   V(ArmI8x16Ne)                    \
   V(ArmI8x16GtS)                   \
   V(ArmI8x16GeS)                   \
+  V(ArmI8x16ExtractLaneU)          \
   V(ArmI8x16ShrU)                  \
   V(ArmI8x16UConvertI16x8)         \
   V(ArmI8x16AddSaturateU)          \
@@ -233,6 +261,7 @@ namespace compiler {
   V(ArmI8x16MaxU)                  \
   V(ArmI8x16GtU)                   \
   V(ArmI8x16GeU)                   \
+  V(ArmI8x16RoundingAverageU)      \
   V(ArmS128Zero)                   \
   V(ArmS128Dup)                    \
   V(ArmS128And)                    \
@@ -240,6 +269,7 @@ namespace compiler {
   V(ArmS128Xor)                    \
   V(ArmS128Not)                    \
   V(ArmS128Select)                 \
+  V(ArmS128AndNot)                 \
   V(ArmS32x4ZipLeft)               \
   V(ArmS32x4ZipRight)              \
   V(ArmS32x4UnzipLeft)             \
@@ -260,6 +290,7 @@ namespace compiler {
   V(ArmS8x16TransposeLeft)         \
   V(ArmS8x16TransposeRight)        \
   V(ArmS8x16Concat)                \
+  V(ArmS8x16Swizzle)               \
   V(ArmS8x16Shuffle)               \
   V(ArmS32x2Reverse)               \
   V(ArmS16x4Reverse)               \
@@ -273,6 +304,16 @@ namespace compiler {
   V(ArmS1x8AllTrue)                \
   V(ArmS1x16AnyTrue)               \
   V(ArmS1x16AllTrue)               \
+  V(ArmS8x16LoadSplat)             \
+  V(ArmS16x8LoadSplat)             \
+  V(ArmS32x4LoadSplat)             \
+  V(ArmS64x2LoadSplat)             \
+  V(ArmI16x8Load8x8S)              \
+  V(ArmI16x8Load8x8U)              \
+  V(ArmI32x4Load16x4S)             \
+  V(ArmI32x4Load16x4U)             \
+  V(ArmI64x2Load32x2S)             \
+  V(ArmI64x2Load32x2U)             \
   V(ArmWord32AtomicPairLoad)       \
   V(ArmWord32AtomicPairStore)      \
   V(ArmWord32AtomicPairAdd)        \
@@ -299,7 +340,8 @@ namespace compiler {
   V(Operand2_R_ASR_R) /* %r0 ASR %r1 */ \
   V(Operand2_R_LSL_R) /* %r0 LSL %r1 */ \
   V(Operand2_R_LSR_R) /* %r0 LSR %r1 */ \
-  V(Operand2_R_ROR_R) /* %r0 ROR %r1 */
+  V(Operand2_R_ROR_R) /* %r0 ROR %r1 */ \
+  V(Root)             /* [%rr + K] */
 
 }  // namespace compiler
 }  // namespace internal

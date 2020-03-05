@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --max-old-space-size=1600 --nostress-incremental-marking
+// Flags: --max-old-space-size=2000 --nostress-incremental-marking
 
 // This test uses a lot of memory and fails with flaky OOM when run
 // with --stress-incremental-marking on TSAN.

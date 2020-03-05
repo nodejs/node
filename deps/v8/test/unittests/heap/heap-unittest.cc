@@ -23,20 +23,23 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
+  const size_t hlm = i::Heap::kHeapLimitMultiplier;
   ASSERT_EQ(3 * 512u * pm * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * pm * MB));
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * hlm * MB));
   ASSERT_EQ(3 * 2048u * pm * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(256u * pm * MB));
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(256u * hlm * MB));
   ASSERT_EQ(3 * 4096u * pm * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(512u * pm * MB));
-  ASSERT_EQ(3 * 8192u * pm * KB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(1024u * pm * MB));
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(512u * hlm * MB));
+  ASSERT_EQ(
+      3 * 8192u * pm * KB,
+      i::Heap::YoungGenerationSizeFromOldGenerationSize(1024u * hlm * MB));
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
+  const size_t hlm = i::Heap::kHeapLimitMultiplier;
   size_t old, young;
 
   i::Heap::GenerationSizesFromHeapSize(1 * KB, &young, &old);
@@ -48,45 +51,46 @@ TEST(Heap, GenerationSizesFromHeapSize) {
   ASSERT_EQ(1 * KB, old);
   ASSERT_EQ(3 * 512u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(128 * pm * MB + 3 * 512 * pm * KB,
+  i::Heap::GenerationSizesFromHeapSize(128 * hlm * MB + 3 * 512 * pm * KB,
                                        &young, &old);
-  ASSERT_EQ(128u * pm * MB, old);
+  ASSERT_EQ(128u * hlm * MB, old);
   ASSERT_EQ(3 * 512u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(256u * pm * MB + 3 * 2048 * pm * KB,
+  i::Heap::GenerationSizesFromHeapSize(256u * hlm * MB + 3 * 2048 * pm * KB,
                                        &young, &old);
-  ASSERT_EQ(256u * pm * MB, old);
+  ASSERT_EQ(256u * hlm * MB, old);
   ASSERT_EQ(3 * 2048u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(512u * pm * MB + 3 * 4096 * pm * KB,
+  i::Heap::GenerationSizesFromHeapSize(512u * hlm * MB + 3 * 4096 * pm * KB,
                                        &young, &old);
-  ASSERT_EQ(512u * pm * MB, old);
+  ASSERT_EQ(512u * hlm * MB, old);
   ASSERT_EQ(3 * 4096u * pm * KB, young);
 
-  i::Heap::GenerationSizesFromHeapSize(1024u * pm * MB + 3 * 8192 * pm * KB,
+  i::Heap::GenerationSizesFromHeapSize(1024u * hlm * MB + 3 * 8192 * pm * KB,
                                        &young, &old);
-  ASSERT_EQ(1024u * pm * MB, old);
+  ASSERT_EQ(1024u * hlm * MB, old);
   ASSERT_EQ(3 * 8192u * pm * KB, young);
 }
 
 TEST(Heap, HeapSizeFromPhysicalMemory) {
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t pm = i::Heap::kPointerMultiplier;
+  const size_t hlm = i::Heap::kHeapLimitMultiplier;
 
   // The expected value is old_generation_size + 3 * semi_space_size.
-  ASSERT_EQ(128 * pm * MB + 3 * 512 * pm * KB,
+  ASSERT_EQ(128 * hlm * MB + 3 * 512 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(0u));
-  ASSERT_EQ(128 * pm * MB + 3 * 512 * pm * KB,
+  ASSERT_EQ(128 * hlm * MB + 3 * 512 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
-  ASSERT_EQ(256 * pm * MB + 3 * 2048 * pm * KB,
+  ASSERT_EQ(256 * hlm * MB + 3 * 2048 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(1024u * MB));
-  ASSERT_EQ(512 * pm * MB + 3 * 4096 * pm * KB,
+  ASSERT_EQ(512 * hlm * MB + 3 * 4096 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(2048u * MB));
   ASSERT_EQ(
-      1024 * pm * MB + 3 * 8192 * pm * KB,
+      1024 * hlm * MB + 3 * 8192 * pm * KB,
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4096u) * MB));
   ASSERT_EQ(
-      1024 * pm * MB + 3 * 8192 * pm * KB,
+      1024 * hlm * MB + 3 * 8192 * pm * KB,
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8192u) * MB));
 }
 

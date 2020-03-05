@@ -11,15 +11,20 @@
 //#include "Forward.h"
 //#include "Values.h"
 
+#include "{{config.crdtp.dir}}/serializable.h"
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
 
-class {{config.lib.export_macro}} Object {
+class {{config.lib.export_macro}} Object : public {{config.crdtp.namespace}}::Serializable {
 public:
     static std::unique_ptr<Object> fromValue(protocol::Value*, ErrorSupport*);
     explicit Object(std::unique_ptr<protocol::DictionaryValue>);
     ~Object();
+
+    // Implements Serializable.
+    void AppendSerialized(std::vector<uint8_t>* out) const override;
 
     std::unique_ptr<protocol::DictionaryValue> toValue() const;
     std::unique_ptr<Object> clone() const;

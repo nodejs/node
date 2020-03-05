@@ -11,39 +11,42 @@ namespace internal {
 
 // ES #sec-isfinite-number
 TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
-  VARIABLE(var_num, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_num);
   Label loop(this, &var_num);
-  var_num.Bind(Parameter(Descriptor::kNumber));
+  var_num = CAST(Parameter(Descriptor::kNumber));
   Goto(&loop);
   BIND(&loop);
   {
-    Node* num = var_num.value();
+    TNode<Object> num = var_num.value();
 
     // Check if {num} is a Smi or a HeapObject.
     GotoIf(TaggedIsSmi(num), &return_true);
+    TNode<HeapObject> num_heap_object = CAST(num);
 
-    // Check if {num} is a HeapNumber.
+    // Check if {num_heap_object} is a HeapNumber.
     Label if_numisheapnumber(this),
         if_numisnotheapnumber(this, Label::kDeferred);
-    Branch(IsHeapNumber(num), &if_numisheapnumber, &if_numisnotheapnumber);
+    Branch(IsHeapNumber(num_heap_object), &if_numisheapnumber,
+           &if_numisnotheapnumber);
 
     BIND(&if_numisheapnumber);
     {
-      // Check if {num} contains a finite, non-NaN value.
-      TNode<Float64T> num_value = LoadHeapNumberValue(num);
+      // Check if {num_heap_object} contains a finite, non-NaN value.
+      TNode<Float64T> num_value = LoadHeapNumberValue(num_heap_object);
       BranchIfFloat64IsNaN(Float64Sub(num_value, num_value), &return_false,
                            &return_true);
     }
 
     BIND(&if_numisnotheapnumber);
     {
-      // Need to convert {num} to a Number first.
-      var_num.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, num));
+      // Need to convert {num_heap_object} to a Number first.
+      var_num =
+          CallBuiltin(Builtins::kNonNumberToNumber, context, num_heap_object);
       Goto(&loop);
     }
   }
@@ -57,38 +60,41 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
 
 // ES6 #sec-isnan-number
 TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
-  VARIABLE(var_num, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_num);
   Label loop(this, &var_num);
-  var_num.Bind(Parameter(Descriptor::kNumber));
+  var_num = CAST(Parameter(Descriptor::kNumber));
   Goto(&loop);
   BIND(&loop);
   {
-    Node* num = var_num.value();
+    TNode<Object> num = var_num.value();
 
     // Check if {num} is a Smi or a HeapObject.
     GotoIf(TaggedIsSmi(num), &return_false);
+    TNode<HeapObject> num_heap_object = CAST(num);
 
-    // Check if {num} is a HeapNumber.
+    // Check if {num_heap_object} is a HeapNumber.
     Label if_numisheapnumber(this),
         if_numisnotheapnumber(this, Label::kDeferred);
-    Branch(IsHeapNumber(num), &if_numisheapnumber, &if_numisnotheapnumber);
+    Branch(IsHeapNumber(num_heap_object), &if_numisheapnumber,
+           &if_numisnotheapnumber);
 
     BIND(&if_numisheapnumber);
     {
-      // Check if {num} contains a NaN.
-      TNode<Float64T> num_value = LoadHeapNumberValue(num);
+      // Check if {num_heap_object} contains a NaN.
+      TNode<Float64T> num_value = LoadHeapNumberValue(num_heap_object);
       BranchIfFloat64IsNaN(num_value, &return_true, &return_false);
     }
 
     BIND(&if_numisnotheapnumber);
     {
-      // Need to convert {num} to a Number first.
-      var_num.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, num));
+      // Need to convert {num_heap_object} to a Number first.
+      var_num =
+          CallBuiltin(Builtins::kNonNumberToNumber, context, num_heap_object);
       Goto(&loop);
     }
   }

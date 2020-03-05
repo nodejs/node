@@ -15,16 +15,16 @@ namespace testing {
 // externalized in a test.
 struct ManuallyExternalizedBuffer {
   Handle<JSArrayBuffer> buffer_;
-  v8::ArrayBuffer::Contents contents_;
+  std::shared_ptr<v8::BackingStore> backing_store_;
 
   explicit ManuallyExternalizedBuffer(Handle<JSArrayBuffer> buffer)
       : buffer_(buffer),
-        contents_(v8::Utils::ToLocal(buffer_)->Externalize()) {}
+        backing_store_(v8::Utils::ToLocal(buffer_)->GetBackingStore()) {}
   ~ManuallyExternalizedBuffer() {
-    contents_.Deleter()(contents_.Data(), contents_.ByteLength(),
-                        contents_.DeleterData());
+    // Nothing to be done. The reference to the backing store will be
+    // dropped automatically.
   }
-  void* backing_store() { return contents_.Data(); }
+  void* backing_store() { return backing_store_->Data(); }
 };
 
 }  // namespace testing

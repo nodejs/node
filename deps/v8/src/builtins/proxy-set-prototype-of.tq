@@ -10,7 +10,7 @@ namespace proxy {
   // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
   transitioning builtin
   ProxySetPrototypeOf(implicit context: Context)(
-      proxy: JSProxy, proto: Null | JSReceiver, doThrow: Boolean): JSAny {
+      proxy: JSProxy, proto: Null|JSReceiver, doThrow: Boolean): JSAny {
     PerformStackCheck();
     const kTrapName: constexpr string = 'setPrototypeOf';
     try {
@@ -39,21 +39,22 @@ namespace proxy {
       // 9. If booleanTrapResult is false, return false.
       if (!ToBoolean(trapResult)) {
         if (doThrow == True) {
-          ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName);
+          ThrowTypeError(
+              MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName);
         }
         return False;
       }
 
       // 10. Let extensibleTarget be ? IsExtensible(target).
       // 11. If extensibleTarget is true, return true.
-      const extensibleTarget: Object = object::ObjectIsExtensible(target);
+      const extensibleTarget: Object = object::ObjectIsExtensibleImpl(target);
       assert(extensibleTarget == True || extensibleTarget == False);
       if (extensibleTarget == True) {
         return True;
       }
 
       // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
-      const targetProto = object::ObjectGetPrototypeOf(target);
+      const targetProto = object::ObjectGetPrototypeOfImpl(target);
 
       // 13. If SameValue(V, targetProto) is false, throw a TypeError
       // exception.
@@ -61,9 +62,9 @@ namespace proxy {
       if (SameValue(proto, targetProto)) {
         return True;
       }
-      ThrowTypeError(kProxySetPrototypeOfNonExtensible);
+      ThrowTypeError(MessageTemplate::kProxySetPrototypeOfNonExtensible);
     }
-    label TrapUndefined(target: JSAny, proto: JSReceiver | Null) {
+    label TrapUndefined(target: JSAny, proto: JSReceiver|Null) {
       // 7.a. Return ? target.[[SetPrototypeOf]]().
       if (doThrow == True) {
         return object::ObjectSetPrototypeOfThrow(target, proto);
@@ -71,7 +72,7 @@ namespace proxy {
       return object::ObjectSetPrototypeOfDontThrow(target, proto);
     }
     label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(kProxyRevoked, kTrapName);
+      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
     }
   }
 }

@@ -191,7 +191,8 @@ class PerfTest(unittest.TestCase):
         cmd_prefix=[],
         shell=shell,
         args=list(args),
-        timeout=kwargs.get('timeout', 60))
+        timeout=kwargs.get('timeout', 60),
+        handle_sigterm=True)
 
   def _VerifyMockMultiple(self, *args, **kwargs):
     self.assertEqual(len(args), len(command.Command.call_args_list))
@@ -200,7 +201,8 @@ class PerfTest(unittest.TestCase):
         'cmd_prefix': [],
         'shell': os.path.join(os.path.dirname(BASE_DIR), arg[0]),
         'args': list(arg[1:]),
-        'timeout': kwargs.get('timeout', 60)
+        'timeout': kwargs.get('timeout', 60),
+        'handle_sigterm': True,
       }
       self.assertTupleEqual((expected, ), actual)
 

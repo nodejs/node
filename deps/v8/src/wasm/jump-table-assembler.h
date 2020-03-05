@@ -202,13 +202,13 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   static constexpr int kFarJumpTableSlotSize = 7 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 12 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS
-  static constexpr int kJumpTableLineSize = 6 * kInstrSize;
-  static constexpr int kJumpTableSlotSize = 4 * kInstrSize;
+  static constexpr int kJumpTableLineSize = 8 * kInstrSize;
+  static constexpr int kJumpTableSlotSize = 8 * kInstrSize;
   static constexpr int kFarJumpTableSlotSize = 4 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 6 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kJumpTableLineSize = 8 * kInstrSize;
-  static constexpr int kJumpTableSlotSize = 6 * kInstrSize;
+  static constexpr int kJumpTableSlotSize = 8 * kInstrSize;
   static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 8 * kInstrSize;
 #else

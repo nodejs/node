@@ -102,7 +102,7 @@ Simulator* Simulator::current(Isolate* isolate) {
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
-    if (FLAG_trace_sim || FLAG_log_instruction_stats || FLAG_debug_sim) {
+    if (FLAG_trace_sim || FLAG_debug_sim) {
       sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
     } else {
       sim = new Decoder<Simulator>();
@@ -310,12 +310,6 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
     decoder_->InsertVisitorBefore(print_disasm_, this);
     log_parameters_ = LOG_ALL;
   }
-
-  if (FLAG_log_instruction_stats) {
-    instrument_ =
-        new Instrument(FLAG_log_instruction_file, FLAG_log_instruction_period);
-    decoder_->AppendVisitor(instrument_);
-  }
 }
 
 Simulator::Simulator()
@@ -324,7 +318,7 @@ Simulator::Simulator()
       log_parameters_(NO_PARAM),
       isolate_(nullptr) {
   Init(stdout);
-  CHECK(!FLAG_trace_sim && !FLAG_log_instruction_stats);
+  CHECK(!FLAG_trace_sim);
 }
 
 void Simulator::Init(FILE* stream) {
@@ -372,9 +366,6 @@ void Simulator::ResetState() {
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveProcessor(&global_monitor_processor_);
   delete[] reinterpret_cast<byte*>(stack_);
-  if (FLAG_log_instruction_stats) {
-    delete instrument_;
-  }
   delete disassembler_decoder_;
   delete print_disasm_;
   DeleteArray(last_debugger_input_);

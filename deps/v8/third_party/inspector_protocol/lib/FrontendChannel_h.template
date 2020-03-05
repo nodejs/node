@@ -7,29 +7,22 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_FrontendChannel_h
 #define {{"_".join(config.protocol.namespace)}}_FrontendChannel_h
 
+#include "{{config.crdtp.dir}}/serializable.h"
+#include "{{config.crdtp.dir}}/span.h"
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
 
-class {{config.lib.export_macro}} Serializable {
-public:
-    ProtocolMessage serialize(bool binary) {
-      if (binary)
-        return StringUtil::binaryToMessage(serializeToBinary());
-      else
-        return StringUtil::jsonToMessage(serializeToJSON());
-    }
-    virtual String serializeToJSON() = 0;
-    virtual std::vector<uint8_t> serializeToBinary() = 0;
-    virtual ~Serializable() = default;
-};
+using {{config.crdtp.namespace}}::Serializable;
 
 class {{config.lib.export_macro}} FrontendChannel {
 public:
     virtual ~FrontendChannel() { }
     virtual void sendProtocolResponse(int callId, std::unique_ptr<Serializable> message) = 0;
     virtual void sendProtocolNotification(std::unique_ptr<Serializable> message) = 0;
-    virtual void fallThrough(int callId, const String& method, const ProtocolMessage& message) = 0;
+
+    virtual void fallThrough(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message) = 0;
     virtual void flushProtocolNotifications() = 0;
 };
 

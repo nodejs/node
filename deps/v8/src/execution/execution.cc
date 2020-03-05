@@ -40,7 +40,7 @@ struct InvokeParams {
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object>* argv,
       Execution::MessageHandling message_handling,
-      MaybeHandle<Object>* exception_out);
+      MaybeHandle<Object>* exception_out, bool reschedule_terminate);
 
   static InvokeParams SetUpForRunMicrotasks(Isolate* isolate,
                                             MicrotaskQueue* microtask_queue,
@@ -59,6 +59,7 @@ struct InvokeParams {
 
   bool is_construct;
   Execution::Target execution_target;
+  bool reschedule_terminate;
 };
 
 // static
@@ -77,6 +78,7 @@ InvokeParams InvokeParams::SetUpForNew(Isolate* isolate,
   params.exception_out = nullptr;
   params.is_construct = true;
   params.execution_target = Execution::Target::kCallable;
+  params.reschedule_terminate = true;
   return params;
 }
 
@@ -96,6 +98,7 @@ InvokeParams InvokeParams::SetUpForCall(Isolate* isolate,
   params.exception_out = nullptr;
   params.is_construct = false;
   params.execution_target = Execution::Target::kCallable;
+  params.reschedule_terminate = true;
   return params;
 }
 
@@ -103,7 +106,7 @@ InvokeParams InvokeParams::SetUpForCall(Isolate* isolate,
 InvokeParams InvokeParams::SetUpForTryCall(
     Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
     int argc, Handle<Object>* argv, Execution::MessageHandling message_handling,
-    MaybeHandle<Object>* exception_out) {
+    MaybeHandle<Object>* exception_out, bool reschedule_terminate) {
   InvokeParams params;
   params.target = callable;
   params.receiver = NormalizeReceiver(isolate, receiver);
@@ -115,6 +118,7 @@ InvokeParams InvokeParams::SetUpForTryCall(
   params.exception_out = exception_out;
   params.is_construct = false;
   params.execution_target = Execution::Target::kCallable;
+  params.reschedule_terminate = reschedule_terminate;
   return params;
 }
 
@@ -134,6 +138,7 @@ InvokeParams InvokeParams::SetUpForRunMicrotasks(
   params.exception_out = exception_out;
   params.is_construct = false;
   params.execution_target = Execution::Target::kRunMicrotasks;
+  params.reschedule_terminate = true;
   return params;
 }
 
@@ -150,6 +155,91 @@ Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
     return BUILTIN_CODE(isolate, JSRunMicrotasksEntry);
   }
   UNREACHABLE();
+}
+
+MaybeHandle<Context> NewScriptContext(Isolate* isolate,
+                                      Handle<JSFunction> function) {
+  // Creating a script context is a side effect, so abort if that's not
+  // allowed.
+  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
+    isolate->Throw(*isolate->factory()->NewEvalError(
+        MessageTemplate::kNoSideEffectDebugEvaluate));
+    return MaybeHandle<Context>();
+  }
+  SaveAndSwitchContext save(isolate, function->context());
+  SharedFunctionInfo sfi = function->shared();
+  Handle<Script> script(Script::cast(sfi.script()), isolate);
+  Handle<ScopeInfo> scope_info(sfi.scope_info(), isolate);
+  Handle<NativeContext> native_context(NativeContext::cast(function->context()),
+                                       isolate);
+  Handle<JSGlobalObject> global_object(native_context->global_object(),
+                                       isolate);
+  Handle<ScriptContextTable> script_context(
+      native_context->script_context_table(), isolate);
+
+  // Find name clashes.
+  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
+    Handle<String> name(scope_info->ContextLocalName(var), isolate);
+    VariableMode mode = scope_info->ContextLocalMode(var);
+    ScriptContextTable::LookupResult lookup;
+    if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
+      if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
+        Handle<Context> context = ScriptContextTable::GetContext(
+            isolate, script_context, lookup.context_index);
+        // If we are trying to re-declare a REPL-mode let as a let, allow it.
+        if (!(mode == VariableMode::kLet && lookup.mode == VariableMode::kLet &&
+              scope_info->IsReplModeScope() &&
+              context->scope_info().IsReplModeScope())) {
+          // ES#sec-globaldeclarationinstantiation 5.b:
+          // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
+          // exception.
+          MessageLocation location(script, 0, 1);
+          isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                               MessageTemplate::kVarRedeclaration, name),
+                           &location);
+          return MaybeHandle<Context>();
+        }
+      }
+    }
+
+    if (IsLexicalVariableMode(mode)) {
+      LookupIterator it(isolate, global_object, name, global_object,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
+      Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+      // Can't fail since the we looking up own properties on the global object
+      // skipping interceptors.
+      CHECK(!maybe.IsNothing());
+      if ((maybe.FromJust() & DONT_DELETE) != 0) {
+        // ES#sec-globaldeclarationinstantiation 5.a:
+        // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
+        // exception.
+        // ES#sec-globaldeclarationinstantiation 5.d:
+        // If hasRestrictedGlobal is true, throw a SyntaxError exception.
+        MessageLocation location(script, 0, 1);
+        isolate->ThrowAt(isolate->factory()->NewSyntaxError(
+                             MessageTemplate::kVarRedeclaration, name),
+                         &location);
+        return MaybeHandle<Context>();
+      }
+
+      JSGlobalObject::InvalidatePropertyCell(global_object, name);
+    }
+  }
+
+  Handle<Context> result =
+      isolate->factory()->NewScriptContext(native_context, scope_info);
+
+  int header = scope_info->ContextHeaderLength();
+  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
+    if (scope_info->ContextLocalInitFlag(var) == kNeedsInitialization) {
+      result->set(header + var, ReadOnlyRoots(isolate).the_hole_value());
+    }
+  }
+
+  Handle<ScriptContextTable> new_script_context_table =
+      ScriptContextTable::Extend(script_context, result);
+  native_context->set_script_context_table(*new_script_context_table);
+  return result;
 }
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
@@ -200,6 +290,22 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
         isolate->clear_pending_message();
       }
       return value;
+    }
+
+    // Set up a ScriptContext when running scripts that need it.
+    if (function->shared().needs_script_context()) {
+      Handle<Context> context;
+      if (!NewScriptContext(isolate, function).ToHandle(&context)) {
+        if (params.message_handling == Execution::MessageHandling::kReport) {
+          isolate->ReportPendingMessages();
+        }
+        return MaybeHandle<Object>();
+      }
+
+      // We mutate the context if we allocate a script context. This is
+      // guaranteed to only happen once in a native context since scripts will
+      // always produce name clashes with themselves.
+      function->set_context(*context);
     }
   }
 
@@ -336,15 +442,17 @@ MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
           DCHECK(isolate->external_caught_exception());
           *params.exception_out = v8::Utils::OpenHandle(*catcher.Exception());
         }
-      }
-      if (params.message_handling == Execution::MessageHandling::kReport) {
-        isolate->OptionalRescheduleException(true);
+        if (params.message_handling == Execution::MessageHandling::kReport) {
+          isolate->OptionalRescheduleException(true);
+        }
       }
     }
   }
 
-  // Re-request terminate execution interrupt to trigger later.
-  if (is_termination) isolate->stack_guard()->RequestTerminateExecution();
+  if (is_termination && params.reschedule_terminate) {
+    // Reschedule terminate execution exception.
+    isolate->OptionalRescheduleException(false);
+  }
 
   return maybe_result;
 }
@@ -384,16 +492,14 @@ MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
 }
 
 // static
-MaybeHandle<Object> Execution::TryCall(Isolate* isolate,
-                                       Handle<Object> callable,
-                                       Handle<Object> receiver, int argc,
-                                       Handle<Object> argv[],
-                                       MessageHandling message_handling,
-                                       MaybeHandle<Object>* exception_out) {
+MaybeHandle<Object> Execution::TryCall(
+    Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
+    int argc, Handle<Object> argv[], MessageHandling message_handling,
+    MaybeHandle<Object>* exception_out, bool reschedule_terminate) {
   return InvokeWithTryCatch(
-      isolate,
-      InvokeParams::SetUpForTryCall(isolate, callable, receiver, argc, argv,
-                                    message_handling, exception_out));
+      isolate, InvokeParams::SetUpForTryCall(
+                   isolate, callable, receiver, argc, argv, message_handling,
+                   exception_out, reschedule_terminate));
 }
 
 // static

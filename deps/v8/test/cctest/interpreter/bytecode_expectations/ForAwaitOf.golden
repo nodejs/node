@@ -18,12 +18,12 @@ frame size: 19
 parameter count: 1
 bytecode array length: 321
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star), R(7),
@@ -93,7 +93,7 @@ bytecodes: [
                 B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(16),
                 B(LdaConstant), U8(9),
                 B(Star), R(17),
@@ -145,7 +145,7 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(4),
                 B(PushContext), R(5),
-                B(LdaImmutableCurrentContextSlot), U8(4),
+                B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(7),
                 B(LdaTrue),
                 B(Star), R(8),
@@ -154,8 +154,8 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  Smi [96],
-  Smi [225],
+  Smi [95],
+  Smi [224],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -183,12 +183,12 @@ frame size: 19
 parameter count: 1
 bytecode array length: 342
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star), R(7),
@@ -260,7 +260,7 @@ bytecodes: [
                 B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(16),
                 B(LdaConstant), U8(9),
                 B(Star), R(17),
@@ -318,7 +318,7 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(4),
                 B(PushContext), R(5),
-                B(LdaImmutableCurrentContextSlot), U8(4),
+                B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(7),
                 B(LdaTrue),
                 B(Star), R(8),
@@ -327,8 +327,8 @@ bytecodes: [
   /*   68 S> */ B(Return),
 ]
 constant pool: [
-  Smi [96],
-  Smi [229],
+  Smi [95],
+  Smi [228],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -361,12 +361,12 @@ frame size: 19
 parameter count: 1
 bytecode array length: 337
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star), R(7),
@@ -443,7 +443,7 @@ bytecodes: [
                 B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(16),
                 B(LdaConstant), U8(9),
                 B(Star), R(17),
@@ -495,7 +495,7 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(4),
                 B(PushContext), R(5),
-                B(LdaImmutableCurrentContextSlot), U8(4),
+                B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(7),
                 B(LdaTrue),
                 B(Star), R(8),
@@ -504,8 +504,8 @@ bytecodes: [
   /*  114 S> */ B(Return),
 ]
 constant pool: [
-  Smi [96],
-  Smi [241],
+  Smi [95],
+  Smi [240],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -532,19 +532,21 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 246
+bytecode array length: 253
 bytecodes: [
+  /*   16 E> */ B(StackCheck),
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(2), U8(2),
                 B(Star), R(0),
-  /*   16 E> */ B(StackCheck),
                 B(Mov), R(context), R(2),
   /*   31 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
   /*   68 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star), R(5),
                 B(GetIterator), R(5), U8(2), U8(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(4),
                 B(LdaNamedProperty), R(4), U8(2), U8(6),
                 B(Star), R(3),
@@ -590,7 +592,7 @@ bytecodes: [
                 B(Mov), R(context), R(12),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(159),
+                B(Wide), B(LdaSmi), I16(160),
                 B(Star), R(13),
                 B(LdaConstant), U8(7),
                 B(Star), R(14),
@@ -634,7 +636,7 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(2),
                 B(PushContext), R(3),
-                B(LdaImmutableCurrentContextSlot), U8(4),
+                B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(5),
                 B(LdaFalse),
                 B(Star), R(6),
@@ -656,8 +658,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 218, 218],
-  [46, 99, 107],
-  [131, 164, 166],
+  [16, 225, 225],
+  [53, 106, 114],
+  [138, 171, 173],
 ]
 

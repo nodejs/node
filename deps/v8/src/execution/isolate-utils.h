@@ -14,7 +14,7 @@ namespace internal {
 // value is intended to be used only as a hoisted computation of isolate root
 // inside trivial accessors for optmizing value decompression.
 // When pointer compression is disabled this function always returns nullptr.
-V8_INLINE Isolate* GetIsolateForPtrCompr(HeapObject object);
+V8_INLINE const Isolate* GetIsolateForPtrCompr(HeapObject object);
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object);
 

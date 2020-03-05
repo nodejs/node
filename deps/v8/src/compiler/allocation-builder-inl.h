@@ -15,7 +15,8 @@ namespace internal {
 namespace compiler {
 
 void AllocationBuilder::AllocateContext(int variadic_part_length, MapRef map) {
-  DCHECK(IsInRange(map.instance_type(), FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE));
+  DCHECK(base::IsInRange(map.instance_type(), FIRST_CONTEXT_TYPE,
+                         LAST_CONTEXT_TYPE));
   DCHECK_NE(NATIVE_CONTEXT_TYPE, map.instance_type());
   int size = Context::SizeFor(variadic_part_length);
   Allocate(size, AllocationType::kYoung, Type::OtherInternal());

@@ -96,13 +96,13 @@ frame size: 11
 parameter count: 1
 bytecode array length: 84
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(2),
                 B(PushContext), R(1),
-  /*   30 E> */ B(StackCheck),
   /*   43 S> */ B(LdaConstant), U8(1),
-  /*   43 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   43 E> */ B(StaCurrentContextSlot), U8(2),
   /*   57 S> */ B(LdaConstant), U8(2),
-  /*   57 E> */ B(StaCurrentContextSlot), U8(5),
+  /*   57 E> */ B(StaCurrentContextSlot), U8(3),
                 B(CreateBlockContext), U8(3),
                 B(PushContext), R(2),
                 B(LdaTheHole),
@@ -111,11 +111,11 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaConstant), U8(4),
                 B(Star), R(4),
-  /*   75 S> */ B(LdaImmutableContextSlot), R(2), U8(4), U8(0),
+  /*   75 S> */ B(LdaImmutableContextSlot), R(2), U8(2), U8(0),
                 B(ToName), R(7),
                 B(CreateClosure), U8(6), U8(1), U8(2),
                 B(Star), R(8),
-  /*  106 S> */ B(LdaImmutableContextSlot), R(2), U8(5), U8(0),
+  /*  106 S> */ B(LdaImmutableContextSlot), R(2), U8(3), U8(0),
                 B(ToName), R(9),
                 B(LdaConstant), U8(7),
                 B(TestEqualStrict), R(9), U8(0),
@@ -155,11 +155,11 @@ frame size: 7
 parameter count: 1
 bytecode array length: 49
 bytecodes: [
+  /*   30 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
-  /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(LdaZero),
-  /*   46 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   46 E> */ B(StaCurrentContextSlot), U8(2),
                 B(CreateBlockContext), U8(1),
                 B(PushContext), R(2),
                 B(LdaTheHole),

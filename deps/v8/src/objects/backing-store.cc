@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/objects/backing-store.h"
+
+#include <cstring>
+
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
@@ -37,7 +40,10 @@ constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
 
 constexpr uint64_t kOneGiB = 1024 * 1024 * 1024;
 constexpr uint64_t kNegativeGuardSize = 2 * kOneGiB;
+
+#if V8_TARGET_ARCH_64_BIT
 constexpr uint64_t kFullGuardSize = 10 * kOneGiB;
+#endif
 
 std::atomic<uint64_t> reserved_address_space_{0};
 
@@ -55,6 +61,7 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
+#if V8_TARGET_ARCH_64_BIT
 base::AddressRegion GetGuardedRegion(void* buffer_start, size_t byte_length) {
   // Guard regions always look like this:
   // |xxx(2GiB)xxx|.......(4GiB)..xxxxx|xxxxxx(4GiB)xxxxxx|
@@ -68,6 +75,29 @@ base::AddressRegion GetGuardedRegion(void* buffer_start, size_t byte_length) {
   return base::AddressRegion(start - (2 * kOneGiB),
                              static_cast<size_t>(kFullGuardSize));
 }
+#endif
+
+base::AddressRegion GetRegion(bool has_guard_regions, void* buffer_start,
+                              size_t byte_length, size_t byte_capacity) {
+#if V8_TARGET_ARCH_64_BIT
+  if (has_guard_regions) return GetGuardedRegion(buffer_start, byte_length);
+#else
+  DCHECK(!has_guard_regions);
+#endif
+
+  return base::AddressRegion(reinterpret_cast<Address>(buffer_start),
+                             byte_capacity);
+}
+
+size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity) {
+#if V8_TARGET_ARCH_64_BIT
+  if (has_guard_regions) return kFullGuardSize;
+#else
+  DCHECK(!has_guard_regions);
+#endif
+
+  return byte_capacity;
+}
 
 void RecordStatus(Isolate* isolate, AllocationStatus status) {
   isolate->counters()->wasm_memory_allocation_result()->AddSample(
@@ -76,10 +106,19 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
 #if DEBUG
-  // Double check memory is zero-initialized.
+  // Double check memory is zero-initialized. Despite being DEBUG-only,
+  // this function is somewhat optimized for the benefit of test suite
+  // execution times (some tests allocate several gigabytes).
   const byte* bytes = reinterpret_cast<const byte*>(start);
-  for (size_t i = 0; i < byte_length; i++) {
+  const size_t kBaseCase = 32;
+  for (size_t i = 0; i < kBaseCase && i < byte_length; i++) {
     DCHECK_EQ(0, bytes[i]);
+  }
+  // Having checked the first kBaseCase bytes to be zero, we can now use
+  // {memcmp} to compare the range against itself shifted by that amount,
+  // thereby inductively checking the remaining bytes.
+  if (byte_length > kBaseCase) {
+    DCHECK_EQ(0, memcmp(bytes, bytes + kBaseCase, byte_length - kBaseCase));
   }
 #endif
 }
@@ -140,18 +179,16 @@ BackingStore::~BackingStore() {
     }
 
     // Wasm memories are always allocated through the page allocator.
-    auto region =
-        has_guard_regions_
-            ? GetGuardedRegion(buffer_start_, byte_length_)
-            : base::AddressRegion(reinterpret_cast<Address>(buffer_start_),
-                                  byte_capacity_);
+    auto region = GetRegion(has_guard_regions_, buffer_start_, byte_length_,
+                            byte_capacity_);
+
     bool pages_were_freed =
         region.size() == 0 /* no need to free any pages */ ||
         FreePages(GetPlatformPageAllocator(),
                   reinterpret_cast<void*>(region.begin()), region.size());
     CHECK(pages_were_freed);
-    BackingStore::ReleaseReservation(has_guard_regions_ ? kFullGuardSize
-                                                        : byte_capacity_);
+    BackingStore::ReleaseReservation(
+        GetReservationSize(has_guard_regions_, byte_capacity_));
     Clear();
     return;
   }
@@ -279,8 +316,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
   size_t engine_max_pages = wasm::max_mem_pages();
   size_t byte_capacity =
       std::min(engine_max_pages, maximum_pages) * wasm::kWasmPageSize;
-  size_t reservation_size =
-      guards ? static_cast<size_t>(kFullGuardSize) : byte_capacity;
+  size_t reservation_size = GetReservationSize(guards, byte_capacity);
 
   //--------------------------------------------------------------------------
   // 1. Enforce maximum address space reservation per engine.
@@ -518,7 +554,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  0,        // capacity
                                  shared,   // shared
                                  false,    // is_wasm_memory
-                                 false,    // free_on_destruct
+                                 true,     // free_on_destruct
                                  false,    // has_guard_regions
                                  false);   // custom_deleter
 
@@ -696,11 +732,9 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
     std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
 
-    if (old_buffer->byte_length() != backing_store->byte_length()) {
-      Handle<JSArrayBuffer> new_buffer =
-          isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
-      memory_object->update_instances(isolate, new_buffer);
-    }
+    Handle<JSArrayBuffer> new_buffer =
+        isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
+    memory_object->update_instances(isolate, new_buffer);
   }
 }
 

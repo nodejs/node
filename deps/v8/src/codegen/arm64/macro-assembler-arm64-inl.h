@@ -12,7 +12,6 @@
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/assembler-arm64.h"
-#include "src/codegen/arm64/instrument-arm64.h"
 #include "src/codegen/macro-assembler.h"
 
 namespace v8 {
@@ -390,7 +389,7 @@ void TurboAssembler::CmovX(const Register& rd, const Register& rn,
   DCHECK(!rd.IsSP());
   DCHECK(rd.Is64Bits() && rn.Is64Bits());
   DCHECK((cond != al) && (cond != nv));
-  if (!rd.is(rn)) {
+  if (rd != rn) {
     csel(rd, rn, rd, cond);
   }
 }
@@ -596,7 +595,7 @@ void TurboAssembler::Fmov(VRegister fd, VRegister fn) {
   // registers. fmov(s0, s0) is not a no-op because it clears the top word of
   // d0. Technically, fmov(d0, d0) is not a no-op either because it clears the
   // top of q0, but VRegister does not currently support Q registers.
-  if (!fd.Is(fn) || !fd.Is64Bits()) {
+  if (fd != fn || !fd.Is64Bits()) {
     fmov(fd, fn);
   }
 }
@@ -771,7 +770,7 @@ void TurboAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
   mrs(rt, sysreg);
 }
 
-void MacroAssembler::Msr(SystemRegister sysreg, const Register& rt) {
+void TurboAssembler::Msr(SystemRegister sysreg, const Register& rt) {
   DCHECK(allow_macro_instructions());
   msr(sysreg, rt);
 }
@@ -1250,27 +1249,6 @@ void MacroAssembler::InlineData(uint64_t data) {
   DCHECK(is_uint16(data));
   InstructionAccurateScope scope(this, 1);
   movz(xzr, data);
-}
-
-void MacroAssembler::EnableInstrumentation() {
-  InstructionAccurateScope scope(this, 1);
-  movn(xzr, InstrumentStateEnable);
-}
-
-void MacroAssembler::DisableInstrumentation() {
-  InstructionAccurateScope scope(this, 1);
-  movn(xzr, InstrumentStateDisable);
-}
-
-void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
-  DCHECK_EQ(strlen(marker_name), 2);
-
-  // We allow only printable characters in the marker names. Unprintable
-  // characters are reserved for controlling features of the instrumentation.
-  DCHECK(isprint(marker_name[0]) && isprint(marker_name[1]));
-
-  InstructionAccurateScope scope(this, 1);
-  movn(xzr, (marker_name[1] << 8) | marker_name[0]);
 }
 
 }  // namespace internal

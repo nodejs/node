@@ -781,9 +781,7 @@ struct implement<Ref> {
   using type = RefImpl<Ref, i::JSReceiver>;
 };
 
-Ref::~Ref() {
-  delete impl(this);
-}
+Ref::~Ref() { delete impl(this); }
 
 void Ref::operator delete(void* p) {}
 
@@ -895,7 +893,7 @@ own<Frame> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
                                       isolate);
   i::Handle<i::WasmInstanceObject> instance =
       i::StackTraceFrame::GetWasmInstance(frame);
-  uint32_t func_index = i::StackTraceFrame::GetLineNumber(frame);
+  uint32_t func_index = i::StackTraceFrame::GetWasmFunctionIndex(frame);
   size_t func_offset = i::StackTraceFrame::GetFunctionOffset(frame);
   size_t module_offset = i::StackTraceFrame::GetColumnNumber(frame);
   return own<Frame>(seal<Frame>(new (std::nothrow) FrameImpl(
@@ -972,7 +970,7 @@ auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
   i::wasm::ModuleWireBytes bytes(
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
   i::Isolate* isolate = impl(store_abs)->i_isolate();
-  i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
   return isolate->wasm_engine()->SyncValidate(isolate, features, bytes);
 }
 
@@ -982,7 +980,7 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   i::HandleScope scope(isolate);
   i::wasm::ModuleWireBytes bytes(
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
-  i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
   i::wasm::ErrorThrower thrower(isolate, "ignored");
   i::Handle<i::WasmModuleObject> module;
   if (!isolate->wasm_engine()
@@ -1069,7 +1067,7 @@ auto Module::deserialize(Store* store_abs, const vec<byte_t>& serialized)
   if (!i::wasm::DeserializeNativeModule(
            isolate,
            {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
-           {reinterpret_cast<const uint8_t*>(ptr), data_size})
+           {reinterpret_cast<const uint8_t*>(ptr), data_size}, {})
            .ToHandle(&module_obj)) {
     return nullptr;
   }
@@ -1414,6 +1412,7 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
         break;
       case i::wasm::kWasmAnyRef:
       case i::wasm::kWasmFuncRef:
+      case i::wasm::kWasmNullRef:
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
       case i::wasm::kWasmExnRef:
@@ -1445,9 +1444,11 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(packer->Pop<double>());
         break;
       case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmFuncRef: {
+      case i::wasm::kWasmFuncRef:
+      case i::wasm::kWasmNullRef: {
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
+        DCHECK_IMPLIES(type == i::wasm::kWasmNullRef, obj->IsNull());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
@@ -1561,7 +1562,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
   FuncData* self =
-      i::Managed<FuncData>::cast(i::Object(host_data_foreign))->raw();
+      i::Managed<FuncData>::cast(i::Object(host_data_foreign)).raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
@@ -1765,7 +1766,8 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       i_type = i::wasm::kWasmFuncRef;
       break;
     case ANYREF:
-      DCHECK(i::wasm::WasmFeaturesFromFlags().anyref);  // See Engine::make().
+      // See Engine::make().
+      DCHECK(i::wasm::WasmFeatures::FromFlags().has_anyref());
       i_type = i::wasm::kWasmAnyRef;
       break;
     default:
@@ -1823,7 +1825,7 @@ auto Table::type() const -> own<TableType> {
 
 auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
-  if (index >= table->current_length()) return own<Ref>();
+  if (index >= static_cast<size_t>(table->current_length())) return own<Ref>();
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
@@ -1836,7 +1838,7 @@ auto Table::get(size_t index) const -> own<Ref> {
 
 auto Table::set(size_t index, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
-  if (index >= table->current_length()) return false;
+  if (index >= static_cast<size_t>(table->current_length())) return false;
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
@@ -1977,7 +1979,7 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
     if (thrower.error()) {
       *trap = implement<Trap>::type::make(
           store, GetProperException(isolate, thrower.Reify()));
-      DCHECK(!thrower.error());  // Reify() called Reset().
+      DCHECK(!thrower.error());                   // Reify() called Reset().
       DCHECK(!isolate->has_pending_exception());  // Hasn't been thrown yet.
       return own<Instance>();
     } else if (isolate->has_pending_exception()) {

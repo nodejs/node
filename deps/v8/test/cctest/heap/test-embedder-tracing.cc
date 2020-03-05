@@ -56,8 +56,12 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
                                embedder_fields.begin(), embedder_fields.end());
   }
 
-  void AddReferenceForTracing(v8::TracedGlobal<v8::Object>* global) {
+  void AddReferenceForTracing(v8::TracedGlobal<v8::Value>* global) {
     to_register_with_v8_.push_back(global);
+  }
+
+  void AddReferenceForTracing(v8::TracedReference<v8::Value>* ref) {
+    to_register_with_v8_references_.push_back(ref);
   }
 
   bool AdvanceTracing(double deadline_in_ms) final {
@@ -65,6 +69,10 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
       RegisterEmbedderReference(global->As<v8::Data>());
     }
     to_register_with_v8_.clear();
+    for (auto ref : to_register_with_v8_references_) {
+      RegisterEmbedderReference(ref->As<v8::Data>());
+    }
+    to_register_with_v8_references_.clear();
     return true;
   }
 
@@ -78,7 +86,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
     }
   }
 
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRegisteredFromV8(void* first_field) const {
@@ -98,7 +106,8 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
 
  private:
   std::vector<std::pair<void*, void*>> registered_from_v8_;
-  std::vector<v8::TracedGlobal<v8::Object>*> to_register_with_v8_;
+  std::vector<v8::TracedGlobal<v8::Value>*> to_register_with_v8_;
+  std::vector<v8::TracedReference<v8::Value>*> to_register_with_v8_references_;
   bool consider_traced_global_as_root_ = true;
   TracePrologueBehavior prologue_behavior_ = TracePrologueBehavior::kNoop;
   v8::Global<v8::Array> array_;
@@ -138,10 +147,10 @@ TEST(EmbedderRegisteringV8Reference) {
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
 
-  v8::TracedGlobal<v8::Object> g;
+  v8::TracedGlobal<v8::Value> g;
   {
     v8::HandleScope inner_scope(isolate);
-    v8::Local<v8::Object> o =
+    v8::Local<v8::Value> o =
         v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
     g.Reset(isolate, o);
   }
@@ -520,6 +529,74 @@ TEST(TracedGlobalWrapperClassId) {
   CHECK_EQ(17, traced.WrapperClassId());
 }
 
+TEST(TracedReferenceHandlesMarking) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::TracedReference<v8::Value> live;
+  v8::TracedReference<v8::Value> dead;
+  live.Reset(isolate, v8::Undefined(isolate));
+  dead.Reset(isolate, v8::Undefined(isolate));
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  {
+    TestEmbedderHeapTracer tracer;
+    heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+    tracer.AddReferenceForTracing(&live);
+    const size_t initial_count = global_handles->handles_count();
+    InvokeMarkSweep();
+    const size_t final_count = global_handles->handles_count();
+    // Handles are black allocated, so the first GC does not collect them.
+    CHECK_EQ(initial_count, final_count);
+  }
+
+  {
+    TestEmbedderHeapTracer tracer;
+    heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+    tracer.AddReferenceForTracing(&live);
+    const size_t initial_count = global_handles->handles_count();
+    InvokeMarkSweep();
+    const size_t final_count = global_handles->handles_count();
+    CHECK_EQ(initial_count, final_count + 1);
+  }
+}
+
+TEST(TracedReferenceHandlesDoNotLeak) {
+  // TracedReference handles are not cleared by the destructor of the embedder
+  // object. To avoid leaks we need to mark these handles during GC.
+  // This test checks that unmarked handles do not leak.
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::TracedReference<v8::Value> ref;
+  ref.Reset(isolate, v8::Undefined(isolate));
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  const size_t initial_count = global_handles->handles_count();
+  // We need two GCs because handles are black allocated.
+  InvokeMarkSweep();
+  InvokeMarkSweep();
+  const size_t final_count = global_handles->handles_count();
+  CHECK_EQ(initial_count, final_count + 1);
+}
+
+TEST(TracedGlobalHandlesAreRetained) {
+  // TracedGlobal handles are cleared by the destructor of the embedder object.
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::TracedGlobal<v8::Value> global;
+  global.Reset(isolate, v8::Undefined(isolate));
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+  const size_t initial_count = global_handles->handles_count();
+  // We need two GCs because handles are black allocated.
+  InvokeMarkSweep();
+  InvokeMarkSweep();
+  const size_t final_count = global_handles->handles_count();
+  CHECK_EQ(initial_count, final_count);
+}
+
 namespace {
 
 class TracedGlobalVisitor final
@@ -704,7 +781,7 @@ class EmptyEmbedderHeapTracer : public v8::EmbedderHeapTracer {
   bool AdvanceTracing(double deadline_in_ms) final { return true; }
   bool IsTracingDone() final { return true; }
   void TracePrologue(EmbedderHeapTracer::TraceFlags) final {}
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 };
 
@@ -719,12 +796,6 @@ class EmbedderHeapTracerDestructorNonTracingClearing final
 
   bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) final {
     return handle.WrapperClassId() != class_id_to_optimize_;
-  }
-
-  void ResetHandleInNonTracingGC(
-      const v8::TracedGlobal<v8::Value>& handle) final {
-    // Not called when used with handles that have destructors.
-    CHECK(false);
   }
 
  private:
@@ -834,6 +905,402 @@ TEST(TracedGlobalNoDestructorReclaimedOnScavenge) {
   non_optimized_handle->Reset();
   delete non_optimized_handle;
   CHECK_EQ(initial_count, global_handles->handles_count());
+}
+
+namespace {
+
+template <typename T>
+V8_NOINLINE void OnStackTest(TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  T stack_ref;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    stack_ref.Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+}
+
+V8_NOINLINE void CreateTracedReferenceInDeepStack(
+    v8::Isolate* isolate, v8::Global<v8::Object>* observer) {
+  v8::TracedReference<v8::Value> stack_ref;
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+      isolate->GetCurrentContext(), nullptr, nullptr));
+  stack_ref.Reset(isolate, object);
+  observer->Reset(isolate, object);
+  observer->SetWeak();
+}
+
+V8_NOINLINE void TracedReferenceNotifyEmptyStackTest(
+    TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  CreateTracedReferenceInDeepStack(isolate, &observer);
+  CHECK(!observer.IsEmpty());
+  tracer->NotifyEmptyEmbedderStack();
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+}
+
+enum class Operation {
+  kCopy,
+  kMove,
+};
+
+template <typename T>
+void PerformOperation(Operation op, T* lhs, T* rhs) {
+  switch (op) {
+    case Operation::kMove:
+      *lhs = std::move(*rhs);
+      break;
+    case Operation::kCopy:
+      *lhs = *rhs;
+      rhs->Reset();
+      break;
+  }
+}
+
+enum class TargetHandling {
+  kNonInitialized,
+  kInitializedYoungGen,
+  kInitializedOldGen
+};
+
+template <typename T>
+V8_NOINLINE void StackToHeapTest(TestEmbedderHeapTracer* tracer, Operation op,
+                                 TargetHandling target_handling) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  T stack_handle;
+  T* heap_handle = new T();
+  if (target_handling != TargetHandling::kNonInitialized) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
+      heap::InvokeScavenge();
+      heap::InvokeScavenge();
+      CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    }
+    heap_handle->Reset(isolate, to_object);
+  }
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    stack_handle.Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  tracer->AddReferenceForTracing(heap_handle);
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  tracer->AddReferenceForTracing(heap_handle);
+  PerformOperation(op, heap_handle, &stack_handle);
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+  delete heap_handle;
+}
+
+template <typename T>
+V8_NOINLINE void HeapToStackTest(TestEmbedderHeapTracer* tracer, Operation op,
+                                 TargetHandling target_handling) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  T stack_handle;
+  T* heap_handle = new T();
+  if (target_handling != TargetHandling::kNonInitialized) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
+      heap::InvokeScavenge();
+      heap::InvokeScavenge();
+      CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    }
+    stack_handle.Reset(isolate, to_object);
+  }
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    heap_handle->Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  tracer->AddReferenceForTracing(heap_handle);
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  PerformOperation(op, &stack_handle, heap_handle);
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  stack_handle.Reset();
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+  delete heap_handle;
+}
+
+template <typename T>
+V8_NOINLINE void StackToStackTest(TestEmbedderHeapTracer* tracer, Operation op,
+                                  TargetHandling target_handling) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  T stack_handle1;
+  T stack_handle2;
+  if (target_handling != TargetHandling::kNonInitialized) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    CHECK(i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    if (target_handling == TargetHandling::kInitializedOldGen) {
+      heap::InvokeScavenge();
+      heap::InvokeScavenge();
+      CHECK(!i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+    }
+    stack_handle2.Reset(isolate, to_object);
+  }
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), nullptr, nullptr));
+    stack_handle1.Reset(isolate, object);
+    observer.Reset(isolate, object);
+    observer.SetWeak();
+  }
+  CHECK(!observer.IsEmpty());
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  PerformOperation(op, &stack_handle2, &stack_handle1);
+  heap::InvokeMarkSweep();
+  CHECK(!observer.IsEmpty());
+  stack_handle2.Reset();
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+}
+
+template <typename T>
+V8_NOINLINE void TracedReferenceCleanedTest(TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+      isolate->GetCurrentContext(), nullptr, nullptr));
+  const size_t before =
+      CcTest::i_isolate()->global_handles()->NumberOfOnStackHandlesForTesting();
+  for (int i = 0; i < 100; i++) {
+    T stack_handle;
+    stack_handle.Reset(isolate, object);
+  }
+  CHECK_EQ(before + 1, CcTest::i_isolate()
+                           ->global_handles()
+                           ->NumberOfOnStackHandlesForTesting());
+}
+
+V8_NOINLINE void TracedGlobalDestructorTest(TestEmbedderHeapTracer* tracer) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> observer;
+  {
+    v8::TracedGlobal<v8::Value> stack_handle;
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+          isolate->GetCurrentContext(), nullptr, nullptr));
+      stack_handle.Reset(isolate, object);
+      observer.Reset(isolate, object);
+      observer.SetWeak();
+    }
+    CHECK(!observer.IsEmpty());
+    heap::InvokeMarkSweep();
+    CHECK(!observer.IsEmpty());
+  }
+  heap::InvokeMarkSweep();
+  CHECK(observer.IsEmpty());
+}
+
+}  // namespace
+
+TEST(TracedReferenceOnStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  OnStackTest<v8::TracedReference<v8::Value>>(&tracer);
+}
+
+TEST(TracedGlobalOnStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  OnStackTest<v8::TracedGlobal<v8::Value>>(&tracer);
+}
+
+TEST(TracedReferenceCleaned) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceCleanedTest<v8::TracedReference<v8::Value>>(&tracer);
+}
+
+TEST(TracedGlobalCleaned) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceCleanedTest<v8::TracedGlobal<v8::Value>>(&tracer);
+}
+
+TEST(TracedReferenceMove) {
+  using ReferenceType = v8::TracedReference<v8::Value>;
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedOldGen);
+}
+
+TEST(TracedReferenceCopy) {
+  using ReferenceType = v8::TracedReference<v8::Value>;
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedOldGen);
+}
+
+TEST(TracedGlobalMove) {
+  using ReferenceType = v8::TracedGlobal<v8::Value>;
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kMove,
+                                  TargetHandling::kInitializedOldGen);
+}
+
+TEST(TracedGlobalCopy) {
+  using ReferenceType = v8::TracedGlobal<v8::Value>;
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  StackToHeapTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kNonInitialized);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedYoungGen);
+  HeapToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                 TargetHandling::kInitializedOldGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kNonInitialized);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedYoungGen);
+  StackToStackTest<ReferenceType>(&tracer, Operation::kCopy,
+                                  TargetHandling::kInitializedOldGen);
+}
+
+TEST(TracedGlobalDestructor) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedGlobalDestructorTest(&tracer);
+}
+
+TEST(NotifyEmptyStack) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(CcTest::isolate(),
+                                                      &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceNotifyEmptyStackTest(&tracer);
 }
 
 }  // namespace heap

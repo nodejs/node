@@ -41,6 +41,8 @@ bool PrototypeInfo::HasObjectCreateMap() {
 
 ACCESSORS(PrototypeInfo, module_namespace, Object, kJsModuleNamespaceOffset)
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
+ACCESSORS(PrototypeInfo, prototype_chain_enum_cache, Object,
+          kPrototypeChainEnumCacheOffset)
 WEAK_ACCESSORS(PrototypeInfo, object_create_map, kObjectCreateMapOffset)
 SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)

@@ -141,6 +141,7 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
   std::unique_ptr<Task> task = task_runner->PopTaskFromQueue(wait_for_work);
   if (!task) return failed_result;
 
+  DefaultForegroundTaskRunner::RunTaskScope scope(task_runner);
   task->Run();
   return true;
 }
@@ -163,6 +164,7 @@ void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
   while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
     std::unique_ptr<IdleTask> task = task_runner->PopTaskFromIdleQueue();
     if (!task) return;
+    DefaultForegroundTaskRunner::RunTaskScope scope(task_runner);
     task->Run(deadline_in_seconds);
   }
 }
@@ -191,23 +193,6 @@ void DefaultPlatform::CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
   EnsureBackgroundTaskRunnerInitialized();
   worker_threads_task_runner_->PostDelayedTask(std::move(task),
                                                delay_in_seconds);
-}
-
-void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
-  GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<Task>(task));
-}
-
-void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
-                                                    Task* task,
-                                                    double delay_in_seconds) {
-  GetForegroundTaskRunner(isolate)->PostDelayedTask(std::unique_ptr<Task>(task),
-                                                    delay_in_seconds);
-}
-
-void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
-                                                 IdleTask* task) {
-  GetForegroundTaskRunner(isolate)->PostIdleTask(
-      std::unique_ptr<IdleTask>(task));
 }
 
 bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {

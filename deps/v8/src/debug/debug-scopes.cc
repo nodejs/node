@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                             ScopeIterator::Option option)
+                             ReparseStrategy strategy)
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
@@ -37,7 +37,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   // We should not instantiate a ScopeIterator for wasm frames.
   DCHECK_NE(Script::TYPE_WASM, frame_inspector->GetScript()->type());
 
-  TryParseAndRetrieveScopes(option);
+  TryParseAndRetrieveScopes(strategy);
 }
 
 ScopeIterator::~ScopeIterator() { delete info_; }
@@ -72,7 +72,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       context_(generator->context(), isolate),
       script_(Script::cast(function_->shared().script()), isolate) {
   CHECK(function_->shared().IsSubjectToDebugging());
-  TryParseAndRetrieveScopes(DEFAULT);
+  TryParseAndRetrieveScopes(ReparseStrategy::kFunctionLiteral);
 }
 
 void ScopeIterator::Restart() {
@@ -195,7 +195,7 @@ class ScopeChainRetriever {
 
 }  // namespace
 
-void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
+void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Catch the case when the debugger stops in an internal function.
   Handle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   Handle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
@@ -233,9 +233,17 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   }
 
   // Reparse the code and analyze the scopes.
+  // Depending on the choosen strategy, the whole script or just
+  // the closure is re-parsed for function scopes.
   Handle<Script> script(Script::cast(shared_info->script()), isolate_);
-  info_ = new ParseInfo(isolate_, script);
-  info_->set_eager();
+  if (scope_info->scope_type() == FUNCTION_SCOPE &&
+      strategy == ReparseStrategy::kFunctionLiteral) {
+    info_ = new ParseInfo(isolate_, *shared_info);
+  } else {
+    info_ = new ParseInfo(isolate_, *script);
+    info_->set_eager();
+  }
+
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
     info_->set_eval();
     if (!context_->IsNativeContext()) {
@@ -253,7 +261,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
 
   if (parsing::ParseAny(info_, shared_info, isolate_) &&
       Rewriter::Rewrite(info_)) {
-    info_->ast_value_factory()->Internalize(isolate_);
+    info_->ast_value_factory()->Internalize(isolate_->factory());
     DeclarationScope* literal_scope = info_->literal()->scope();
 
     ScopeChainRetriever scope_chain_retriever(literal_scope, function_,
@@ -292,7 +300,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
 }
 
 void ScopeIterator::UnwrapEvaluationContext() {
-  if (!context_->IsDebugEvaluateContext()) return;
+  if (context_->is_null() || !context_->IsDebugEvaluateContext()) return;
   Context current = *context_;
   do {
     Object wrapped = current.get(Context::WRAPPED_CONTEXT_INDEX);
@@ -434,7 +442,6 @@ void ScopeIterator::Next() {
 
   UnwrapEvaluationContext();
 }
-
 
 // Return the type of the current scope.
 ScopeIterator::ScopeType ScopeIterator::Type() const {
@@ -722,7 +729,7 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
   for (int i = 0; i < scope_info->ContextLocalCount(); ++i) {
     Handle<String> name(scope_info->ContextLocalName(i), isolate_);
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
-    int context_index = Context::MIN_CONTEXT_SLOTS + i;
+    int context_index = scope_info->ContextHeaderLength() + i;
     Handle<Object> value(context->get(context_index), isolate_);
     // Reflect variables under TDZ as undefined in scope object.
     if (value->IsTheHole(isolate_)) continue;
@@ -771,6 +778,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         UNREACHABLE();
         break;
 
+      case VariableLocation::REPL_GLOBAL:
+        // REPL declared variables are ignored for now.
       case VariableLocation::UNALLOCATED:
         continue;
 
@@ -929,6 +938,10 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
                  *variable_name == ReadOnlyRoots(isolate_).arguments_string());
           return false;
 
+        case VariableLocation::REPL_GLOBAL:
+          // Assignments to REPL declared variables are ignored for now.
+          return false;
+
         case VariableLocation::PARAMETER: {
           if (var->is_this()) return false;
           if (frame_inspector_ == nullptr) {
@@ -992,7 +1005,7 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
   DCHECK(context_->extension_object().IsJSContextExtensionObject());
   Handle<JSObject> ext(context_->extension_object(), isolate_);
   LookupIterator it(isolate_, ext, variable_name, LookupIterator::OWN);
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
+  Maybe<bool> maybe = JSReceiver::HasProperty(&it);
   DCHECK(maybe.IsJust());
   if (!maybe.FromJust()) return false;
 

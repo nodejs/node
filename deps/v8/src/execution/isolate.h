@@ -676,6 +676,10 @@ class Isolate final : private HiddenFactory {
     return &thread_local_top()->js_entry_sp_;
   }
 
+  V8_EXPORT_PRIVATE std::vector<MemoryRange>* GetCodePages() const;
+
+  V8_EXPORT_PRIVATE void SetCodePages(std::vector<MemoryRange>* new_code_pages);
+
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
   inline Handle<JSGlobalObject> global_object();
@@ -767,6 +771,8 @@ class Isolate final : private HiddenFactory {
     Throw(*exception, location);
     return MaybeHandle<T>();
   }
+
+  void ThrowAt(Handle<JSObject> exception, MessageLocation* location);
 
   void set_console_delegate(debug::ConsoleDelegate* delegate) {
     console_delegate_ = delegate;
@@ -1315,11 +1321,8 @@ class Isolate final : private HiddenFactory {
     return &partial_snapshot_cache_;
   }
 
-  // Off-heap builtins cannot embed constants within the code object itself,
-  // and thus need to load them from the root list.
   bool IsGeneratingEmbeddedBuiltins() const {
-    return FLAG_embedded_builtins &&
-           builtins_constants_table_builder() != nullptr;
+    return builtins_constants_table_builder() != nullptr;
   }
 
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
@@ -1337,8 +1340,8 @@ class Isolate final : private HiddenFactory {
 
   // These always return the same result as static methods above, but don't
   // access the global atomic variable (and thus *might be* slightly faster).
-  const uint8_t* embedded_blob() const;
-  uint32_t embedded_blob_size() const;
+  V8_EXPORT_PRIVATE const uint8_t* embedded_blob() const;
+  V8_EXPORT_PRIVATE uint32_t embedded_blob_size() const;
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1487,6 +1490,10 @@ class Isolate final : private HiddenFactory {
   // before such a mode change to ensure that this cannot happen.
   V8_EXPORT_PRIVATE void CollectSourcePositionsForAllBytecodeArrays();
 
+  void AddCodeMemoryChunk(MemoryChunk* chunk);
+  void RemoveCodeMemoryChunk(MemoryChunk* chunk);
+  V8_EXPORT_PRIVATE void AddCodeRange(Address begin, size_t length_in_bytes);
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -1495,6 +1502,9 @@ class Isolate final : private HiddenFactory {
                               StartupDeserializer* startup_deserializer);
 
   void CheckIsolateLayout();
+
+  void InitializeCodeRanges();
+  void AddCodeMemoryRange(MemoryRange range);
 
   class ThreadDataTable {
    public:
@@ -1809,6 +1819,12 @@ class Isolate final : private HiddenFactory {
   // know if this is the case, so I'm preserving it for now.
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
+
+  // A signal-safe vector of heap pages containing code. Used with the
+  // v8::Unwinder API.
+  std::atomic<std::vector<MemoryRange>*> code_pages_{nullptr};
+  std::vector<MemoryRange> code_pages_buffer1_;
+  std::vector<MemoryRange> code_pages_buffer2_;
 
   // Enables the host application to provide a mechanism for recording a
   // predefined set of data as crash keys to be used in postmortem debugging

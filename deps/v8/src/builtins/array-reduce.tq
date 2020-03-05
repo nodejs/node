@@ -5,7 +5,7 @@
 namespace array {
   transitioning javascript builtin
   ArrayReducePreLoopEagerDeoptContinuation(
-      js-implicit context: Context,
+      js-implicit context: NativeContext,
       receiver: JSAny)(callback: JSAny, length: JSAny): JSAny {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -27,7 +27,7 @@ namespace array {
 
   transitioning javascript builtin
   ArrayReduceLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, initialK: JSAny, length: JSAny,
       accumulator: JSAny): JSAny {
     // All continuation points in the optimized every implementation are
@@ -48,7 +48,7 @@ namespace array {
 
   transitioning javascript builtin
   ArrayReduceLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: JSAny)(
+      js-implicit context: NativeContext, receiver: JSAny)(
       callback: JSAny, initialK: JSAny, length: JSAny, result: JSAny): JSAny {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -66,7 +66,7 @@ namespace array {
 
   transitioning builtin ArrayReduceLoopContinuation(implicit context: Context)(
       _receiver: JSReceiver, callbackfn: Callable,
-      initialAccumulator: JSAny | TheHole, o: JSReceiver, initialK: Number,
+      initialAccumulator: JSAny|TheHole, o: JSReceiver, initialK: Number,
       length: Number): JSAny {
     let accumulator = initialAccumulator;
 
@@ -107,7 +107,8 @@ namespace array {
     // this means kPresent is false.
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduce');
+        ThrowTypeError(
+            MessageTemplate::kReduceNoInitial, 'Array.prototype.reduce');
       }
       case (accumulator: JSAny): {
         return accumulator;
@@ -117,8 +118,8 @@ namespace array {
 
   transitioning macro FastArrayReduce(implicit context: Context)(
       o: JSReceiver, len: Number, callbackfn: Callable,
-      initialAccumulator: JSAny | TheHole): JSAny
-      labels Bailout(Number, JSAny | TheHole) {
+      initialAccumulator: JSAny|TheHole): JSAny
+      labels Bailout(Number, JSAny|TheHole) {
     const k = 0;
     let accumulator = initialAccumulator;
     Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
@@ -147,7 +148,8 @@ namespace array {
     }
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduce');
+        ThrowTypeError(
+            MessageTemplate::kReduceNoInitial, 'Array.prototype.reduce');
       }
       case (accumulator: JSAny): {
         return accumulator;
@@ -157,8 +159,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reduce
   transitioning javascript builtin
-  ArrayReduce(js-implicit context: Context, receiver: JSAny)(...arguments):
-      JSAny {
+  ArrayReduce(js-implicit context: NativeContext, receiver: JSAny)(
+      ...arguments): JSAny {
     try {
       RequireObjectCoercible(receiver, 'Array.prototype.reduce');
 
@@ -178,20 +180,20 @@ namespace array {
       // exception. (This case is handled at the end of
       // ArrayReduceLoopContinuation).
 
-      const initialValue: JSAny | TheHole =
+      const initialValue: JSAny|TheHole =
           arguments.length > 1 ? arguments[1] : TheHole;
 
       try {
         return FastArrayReduce(o, len, callbackfn, initialValue)
             otherwise Bailout;
       }
-      label Bailout(value: Number, accumulator: JSAny | TheHole) {
+      label Bailout(value: Number, accumulator: JSAny|TheHole) {
         return ArrayReduceLoopContinuation(
             o, callbackfn, accumulator, o, value, len);
       }
     }
     label NoCallableError deferred {
-      ThrowTypeError(kCalledNonCallable, arguments[0]);
+      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
     }
   }
 }

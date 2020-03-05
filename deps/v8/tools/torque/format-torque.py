@@ -24,14 +24,6 @@ def preprocess(input):
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*deferred\s*{', r' if /*cAsEdEfF*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*{', r' if /*cA*/ \1 {', input)
 
-  # Add extra space around | operators to fix union types later.
-  while True:
-    old = input
-    input = re.sub(r'(\w+\s*)\|(\s*\w+)',
-        r'\1|/**/\2', input)
-    if old == input:
-      break;
-
   input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
       r'_GeNeRaTeS00_/*\1@*/', input)
   input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*',
@@ -76,13 +68,6 @@ def postprocess(output):
       r"@export", output)
   output = re.sub(r'jS_iMpLiCiT_',
       r"js-implicit ", output)
-
-  while True:
-    old = output
-    output = re.sub(r'(\w+)\s{0,1}\|\s{0,1}/\*\*/(\s*\w+)',
-        r'\1 |\2', output)
-    if old == output:
-      break;
 
   output = re.sub(kPercentEscape, r'%', output)
 

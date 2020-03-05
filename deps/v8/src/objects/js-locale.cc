@@ -179,6 +179,10 @@ bool JSLocale::Is38AlphaNumList(const std::string& value) {
          JSLocale::Is38AlphaNumList(value.substr(found + 1));
 }
 
+bool JSLocale::Is3Alpha(const std::string& value) {
+  return IsAlpha(value, 3, 3);
+}
+
 // TODO(ftang) Replace the following check w/ icu::LocaleBuilder
 // once ICU64 land in March 2019.
 bool JSLocale::StartsWithUnicodeLanguageId(const std::string& value) {

@@ -18,6 +18,15 @@ function assertArrayBuffer(val, expected) {
   }
 }
 
+function isConstructor(value) {
+  var p = new Proxy(value, { construct: () => ({}) });
+  try {
+    return new p, true;
+  } catch(e) {
+    return false;
+  }
+}
+
 let emptyModuleBinary = (() => {
   var builder = new WasmModuleBuilder();
   return new Int8Array(builder.toBuffer());
@@ -77,6 +86,7 @@ let CompileError = WebAssembly.CompileError;
 assertEq(CompileError, compileErrorDesc.value);
 assertEq(CompileError.length, 1);
 assertEq(CompileError.name, 'CompileError');
+assertTrue(isConstructor(CompileError));
 let compileError = new CompileError;
 assertTrue(compileError instanceof CompileError);
 assertTrue(compileError instanceof Error);
@@ -95,6 +105,7 @@ let RuntimeError = WebAssembly.RuntimeError;
 assertEq(RuntimeError, runtimeErrorDesc.value);
 assertEq(RuntimeError.length, 1);
 assertEq(RuntimeError.name, 'RuntimeError');
+assertTrue(isConstructor(RuntimeError));
 let runtimeError = new RuntimeError;
 assertTrue(runtimeError instanceof RuntimeError);
 assertTrue(runtimeError instanceof Error);
@@ -112,6 +123,7 @@ let LinkError = WebAssembly.LinkError;
 assertEq(LinkError, linkErrorDesc.value);
 assertEq(LinkError.length, 1);
 assertEq(LinkError.name, 'LinkError');
+assertTrue(isConstructor(LinkError));
 let linkError = new LinkError;
 assertTrue(linkError instanceof LinkError);
 assertTrue(linkError instanceof Error);
@@ -131,6 +143,7 @@ let Module = WebAssembly.Module;
 assertEq(Module, moduleDesc.value);
 assertEq(Module.length, 1);
 assertEq(Module.name, 'Module');
+assertTrue(isConstructor(Module));
 assertThrows(
     () => Module(), TypeError, /must be invoked with 'new'/);
 assertThrows(
@@ -184,6 +197,7 @@ assertTrue(moduleImportsDesc.configurable);
 // 'WebAssembly.Module.imports' method
 let moduleImports = moduleImportsDesc.value;
 assertEq(moduleImports.length, 1);
+assertFalse(isConstructor(moduleImports));
 assertThrows(
     () => moduleImports(), TypeError, /Argument 0 must be a WebAssembly.Module/);
 assertThrows(
@@ -231,6 +245,7 @@ assertTrue(moduleExportsDesc.configurable);
 // 'WebAssembly.Module.exports' method
 let moduleExports = moduleExportsDesc.value;
 assertEq(moduleExports.length, 1);
+assertFalse(isConstructor(moduleExports));
 assertThrows(
     () => moduleExports(), TypeError, /Argument 0 must be a WebAssembly.Module/);
 assertThrows(
@@ -274,8 +289,10 @@ assertTrue(moduleCustomSectionsDesc.writable);
 assertTrue(moduleCustomSectionsDesc.enumerable);
 assertTrue(moduleCustomSectionsDesc.configurable);
 
+// 'WebAssembly.Module.customSections' method
 let moduleCustomSections = moduleCustomSectionsDesc.value;
 assertEq(moduleCustomSections.length, 2);
+assertFalse(isConstructor(moduleCustomSections));
 assertThrows(
     () => moduleCustomSections(), TypeError, /Argument 0 must be a WebAssembly.Module/);
 assertThrows(
@@ -334,7 +351,7 @@ let Instance = WebAssembly.Instance;
 assertEq(Instance, instanceDesc.value);
 assertEq(Instance.length, 1);
 assertEq(Instance.name, 'Instance');
-
+assertTrue(isConstructor(Instance));
 assertThrows(
     () => Instance(), TypeError, /must be invoked with 'new'/);
 assertThrows(
@@ -380,6 +397,10 @@ assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
 let instanceExportsDesc =
     Object.getOwnPropertyDescriptor(instanceProto, 'exports');
 assertEq(typeof instanceExportsDesc.get, 'function');
+assertEq(instanceExportsDesc.get.name, 'get exports');
+assertEq(instanceExportsDesc.get.length, 0);
+assertFalse(isConstructor(instanceExportsDesc.get));
+assertFalse('prototype' in instanceExportsDesc.get);
 assertEq(instanceExportsDesc.set, undefined);
 assertTrue(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
@@ -410,6 +431,7 @@ let Memory = WebAssembly.Memory;
 assertEq(Memory, memoryDesc.value);
 assertEq(Memory.length, 1);
 assertEq(Memory.name, 'Memory');
+assertTrue(isConstructor(Memory));
 assertThrows(
     () => Memory(), TypeError, /must be invoked with 'new'/);
 assertThrows(
@@ -456,6 +478,10 @@ assertEq(Object.getPrototypeOf(mem1), memoryProto);
 // 'WebAssembly.Memory.prototype.buffer' accessor property
 let bufferDesc = Object.getOwnPropertyDescriptor(memoryProto, 'buffer');
 assertEq(typeof bufferDesc.get, 'function');
+assertEq(bufferDesc.get.name, 'get buffer');
+assertEq(bufferDesc.get.length, 0);
+assertFalse(isConstructor(bufferDesc.get));
+assertFalse('prototype' in bufferDesc.get);
 assertEq(bufferDesc.set, undefined);
 assertTrue(bufferDesc.enumerable);
 assertTrue(bufferDesc.configurable);
@@ -476,9 +502,9 @@ assertTrue(memGrowDesc.enumerable);
 assertTrue(memGrowDesc.configurable);
 
 // 'WebAssembly.Memory.prototype.grow' method
-
 let memGrow = memGrowDesc.value;
 assertEq(memGrow.length, 1);
+assertFalse(isConstructor(memGrow));
 assertThrows(
     () => memGrow.call(), TypeError, /Receiver is not a WebAssembly.Memory/);
 assertThrows(
@@ -550,6 +576,7 @@ let Table = WebAssembly.Table;
 assertEq(Table, tableDesc.value);
 assertEq(Table.length, 1);
 assertEq(Table.name, 'Table');
+assertTrue(isConstructor(Table));
 assertThrows(
     () => Table(), TypeError, /must be invoked with 'new'/);
 assertThrows(
@@ -608,6 +635,10 @@ assertEq(Object.getPrototypeOf(tbl1), tableProto);
 // 'WebAssembly.Table.prototype.length' accessor data property
 let lengthDesc = Object.getOwnPropertyDescriptor(tableProto, 'length');
 assertEq(typeof lengthDesc.get, 'function');
+assertEq(lengthDesc.get.name, 'get length');
+assertEq(lengthDesc.get.length, 0);
+assertFalse(isConstructor(lengthDesc.get));
+assertFalse('prototype' in lengthDesc.get);
 assertEq(lengthDesc.set, undefined);
 assertTrue(lengthDesc.enumerable);
 assertTrue(lengthDesc.configurable);
@@ -631,6 +662,7 @@ assertTrue(getDesc.configurable);
 // 'WebAssembly.Table.prototype.get' method
 let get = getDesc.value;
 assertEq(get.length, 1);
+assertFalse(isConstructor(get));
 assertThrows(
     () => get.call(), TypeError, /Receiver is not a WebAssembly.Table/);
 assertThrows(
@@ -660,6 +692,7 @@ assertTrue(setDesc.configurable);
 // 'WebAssembly.Table.prototype.set' method
 let set = setDesc.value;
 assertEq(set.length, 2);
+assertFalse(isConstructor(set));
 assertThrows(
     () => set.call(), TypeError, /Receiver is not a WebAssembly.Table/);
 assertThrows(
@@ -714,6 +747,7 @@ assertTrue(tblGrowDesc.configurable);
 // 'WebAssembly.Table.prototype.grow' method
 let tblGrow = tblGrowDesc.value;
 assertEq(tblGrow.length, 1);
+assertFalse(isConstructor(tblGrow));
 assertThrows(
     () => tblGrow.call(), TypeError, /Receiver is not a WebAssembly.Table/);
 assertThrows(
@@ -760,6 +794,7 @@ let compile = WebAssembly.compile;
 assertEq(compile, compileDesc.value);
 assertEq(compile.length, 1);
 assertEq(compile.name, 'compile');
+assertFalse(isConstructor(compile));
 function assertCompileError(args, err, msg) {
   assertThrowsAsync(compile(...args), err /* TODO , msg */);
 }
@@ -802,6 +837,7 @@ let instantiate = WebAssembly.instantiate;
 assertEq(instantiate, instantiateDesc.value);
 assertEq(instantiate.length, 1);
 assertEq(instantiate.name, 'instantiate');
+assertFalse(isConstructor(instantiate));
 function assertInstantiateError(args, err, msg) {
   assertThrowsAsync(instantiate(...args), err /* TODO , msg */);
 }
@@ -912,4 +948,18 @@ assertInstantiateSuccess(
                /Can't set the value/);
   assertThrows(() => new WebAssembly.Global({ value: "i64" }, 1n), TypeError,
                /Can't set the value/);
+})();
+
+(function TestAccessorFunctions() {
+  function testAccessorFunction(obj, prop, accessor) {
+    var desc = Object.getOwnPropertyDescriptor(obj, prop);
+    assertSame('function', typeof desc[accessor]);
+    assertFalse(desc[accessor].hasOwnProperty('prototype'));
+    assertFalse(isConstructor(desc[accessor]));
+  }
+  testAccessorFunction(WebAssembly.Global.prototype, "value", "get");
+  testAccessorFunction(WebAssembly.Global.prototype, "value", "set");
+  testAccessorFunction(WebAssembly.Instance.prototype, "exports", "get");
+  testAccessorFunction(WebAssembly.Memory.prototype, "buffer", "get");
+  testAccessorFunction(WebAssembly.Table.prototype, "length", "get");
 })();

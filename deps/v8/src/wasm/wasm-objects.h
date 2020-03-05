@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/bit-field.h"
 #include "src/base/bits.h"
 #include "src/codegen/signature.h"
 #include "src/debug/debug.h"
@@ -27,7 +28,8 @@ class NativeModule;
 class SignatureMap;
 class WasmCode;
 struct WasmException;
-struct WasmFeatures;
+class WasmFeatures;
+struct WasmGlobal;
 class WasmInterpreter;
 struct WasmModule;
 class WasmValue;
@@ -118,6 +120,8 @@ class ImportedFunctionEntry {
   int const index_;
 };
 
+enum InternalizeString : bool { kInternalize = true, kNoInternalize = false };
+
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
  public:
@@ -126,7 +130,6 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(script, Script)
-  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   inline wasm::NativeModule* native_module() const;
   inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
       const;
@@ -152,29 +155,8 @@ class WasmModuleObject : public JSObject {
       Handle<Script> script, Handle<FixedArray> export_wrappers,
       size_t code_size_estimate);
 
-  // TODO(mstarzinger): The below breakpoint handling methods taking a {Script}
-  // instead of a {WasmModuleObject} as first argument should be moved onto a
-  // separate {WasmScript} class, implementation move to wasm-debug.cc then.
-
-  // Set a breakpoint on the given byte position inside the given module.
-  // This will affect all live and future instances of the module.
-  // The passed position might be modified to point to the next breakable
-  // location inside the same function.
-  // If it points outside a function, or behind the last breakable location,
-  // this function returns false and does not set any breakpoint.
-  V8_EXPORT_PRIVATE static bool SetBreakPoint(Handle<Script>, int* position,
-                                              Handle<BreakPoint> break_point);
-
-  // Remove a previously set breakpoint at the given byte position inside the
-  // given module. If this breakpoint is not found this function returns false.
-  V8_EXPORT_PRIVATE static bool ClearBreakPoint(Handle<Script>, int position,
-                                                Handle<BreakPoint> break_point);
-
   // Check whether this module was generated from asm.js source.
   inline bool is_asm_js();
-
-  static void SetBreakpointsOnNewInstance(Handle<Script>,
-                                          Handle<WasmInstanceObject>);
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeHandle<String> GetModuleNameOrNull(Isolate*,
@@ -199,40 +181,17 @@ class WasmModuleObject : public JSObject {
   // Does not allocate, hence gc-safe.
   Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
 
-  // Get the source position from a given function index and byte offset,
-  // for either asm.js or pure Wasm modules.
-  static int GetSourcePosition(Handle<WasmModuleObject>, uint32_t func_index,
-                               uint32_t byte_offset,
-                               bool is_at_number_conversion);
-
-  // Extract a portion of the wire bytes as UTF-8 string.
-  // Returns a null handle if the respective bytes do not form a valid UTF-8
-  // string.
-  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Handle<WasmModuleObject>, wasm::WireBytesRef ref);
-  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate* isolate, Vector<const uint8_t> wire_byte,
-      wasm::WireBytesRef ref);
-
-  // Get a list of all possible breakpoints within a given range of this module.
-  V8_EXPORT_PRIVATE static bool GetPossibleBreakpoints(
-      wasm::NativeModule* native_module, const debug::Location& start,
-      const debug::Location& end, std::vector<debug::BreakLocation>* locations);
-
-  // Return an empty handle if no breakpoint is hit at that location, or a
-  // FixedArray with all hit breakpoint objects.
-  static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*, Handle<Script>,
-                                                  int position);
+  // Extract a portion of the wire bytes as UTF-8 string, optionally
+  // internalized. (Prefer to internalize early if the string will be used for a
+  // property lookup anyway.)
+  static Handle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate*, Handle<WasmModuleObject>, wasm::WireBytesRef,
+      InternalizeString);
+  static Handle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate*, Vector<const uint8_t> wire_byte, wasm::WireBytesRef,
+      InternalizeString);
 
   OBJECT_CONSTRUCTORS(WasmModuleObject, JSObject);
-
- private:
-  // Helper functions that update the breakpoint info list.
-  static void AddBreakpointToInfo(Handle<Script>, int position,
-                                  Handle<BreakPoint> break_point);
-
-  static bool RemoveBreakpointFromInfo(Handle<Script>, int position,
-                                       Handle<BreakPoint> break_point);
 };
 
 // Representation of a WebAssembly.Table JavaScript-level object.
@@ -240,7 +199,10 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
+  // The entries array is at least as big as {current_length()}, but might be
+  // bigger to make future growth more efficient.
   DECL_ACCESSORS(entries, FixedArray)
+  DECL_INT_ACCESSORS(current_length)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
@@ -253,7 +215,6 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_TABLE_OBJECT_FIELDS)
 
-  inline uint32_t current_length();
   inline wasm::ValueType type();
 
   static int Grow(Isolate* isolate, Handle<WasmTableObject> table,
@@ -283,7 +244,7 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   static void Fill(Isolate* isolate, Handle<WasmTableObject> table,
                    uint32_t start, Handle<Object> entry, uint32_t count);
 
-  // TODO(mstarzinger): Unify these three methods into one.
+  // TODO(wasm): Unify these three methods into one.
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int entry_index, wasm::FunctionSig* sig,
@@ -401,6 +362,7 @@ class WasmGlobalObject : public JSObject {
   inline void SetF32(float value);
   inline void SetF64(double value);
   inline void SetAnyRef(Handle<Object> value);
+  inline bool SetNullRef(Handle<Object> value);
   inline bool SetFuncRef(Isolate* isolate, Handle<Object> value);
 
  private:
@@ -447,7 +409,6 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
   DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
-  DECL_PRIMITIVE_ACCESSORS(dropped_data_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -494,14 +455,12 @@ class WasmInstanceObject : public JSObject {
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
-  V(kDroppedDataSegmentsOffset, kSystemPointerSize)                       \
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
-  /* Header size. */                                                      \
-  V(kSize, 0)
+  V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 WASM_INSTANCE_OBJECT_FIELDS)
-  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
+  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
   // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
   // fields (external pointers, doubles and BigInt data) are only kTaggedSize
   // aligned so checking for alignments of fields bigger than kTaggedSize
@@ -596,6 +555,20 @@ class WasmInstanceObject : public JSObject {
                                             Handle<WasmInstanceObject> instance,
                                             int table_index, int entry_index,
                                             Handle<WasmJSFunction> js_function);
+
+  // Get a raw pointer to the location where the given global is stored.
+  // {global} must not be a reference type.
+  static uint8_t* GetGlobalStorage(Handle<WasmInstanceObject>,
+                                   const wasm::WasmGlobal&);
+
+  // Get the FixedArray and the index in that FixedArray for the given global,
+  // which must be a reference type.
+  static std::pair<Handle<FixedArray>, uint32_t> GetGlobalBufferAndIndex(
+      Handle<WasmInstanceObject>, const wasm::WasmGlobal&);
+
+  // Get the value of a global in the given instance.
+  static wasm::WasmValue GetGlobalValue(Handle<WasmInstanceObject>,
+                                        const wasm::WasmGlobal&);
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
@@ -825,13 +798,14 @@ class WasmJSFunctionData : public Struct {
   OBJECT_CONSTRUCTORS(WasmJSFunctionData, Struct);
 };
 
+// Debug info used for wasm debugging in the interpreter. For Liftoff debugging,
+// all information is held off-heap in {wasm::DebugInfo}.
 class WasmDebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object)  // Foreign or undefined
   DECL_ACCESSORS(interpreter_reference_stack, Cell)
-  DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
@@ -853,6 +827,10 @@ class WasmDebugInfo : public Struct {
   // Use for testing only.
   V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
       Handle<WasmInstanceObject>);
+
+  // Prepare WasmDebugInfo for stepping in the given function.
+  V8_EXPORT_PRIVATE static void PrepareStepIn(Handle<WasmDebugInfo>,
+                                              int func_index);
 
   // Set a breakpoint in the given function at the given byte offset within that
   // function. This will redirect all future calls to this function to the
@@ -888,6 +866,8 @@ class WasmDebugInfo : public Struct {
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
       Address frame_pointer);
 
+  int NumberOfActiveFrames(Address frame_pointer);
+
   V8_EXPORT_PRIVATE
   std::unique_ptr<wasm::InterpretedFrame, wasm::InterpretedFrameDeleter>
   GetInterpretedFrame(Address frame_pointer, int frame_index);
@@ -895,16 +875,8 @@ class WasmDebugInfo : public Struct {
   // Returns the number of calls / function frames executed in the interpreter.
   V8_EXPORT_PRIVATE uint64_t NumInterpretedCalls();
 
-  // Get scope details for a specific interpreted frame.
-  // Both of these methods return a JSArrays (for the global scope and local
-  // scope respectively) of size {ScopeIterator::kScopeDetailsSize} and layout
-  // as described in debug-scopes.h.
-  //   - The global scope contains information about globals and the memory.
-  //   - The local scope contains information about parameters, locals, and
-  //     stack values.
-  static Handle<JSObject> GetGlobalScopeObject(Handle<WasmDebugInfo>,
-                                               Address frame_pointer,
-                                               int frame_index);
+  // Get local scope details for a specific interpreted frame. It contains
+  // information about parameters, locals, and stack values.
   static Handle<JSObject> GetLocalScopeObject(Handle<WasmDebugInfo>,
                                               Address frame_pointer,
                                               int frame_index);
@@ -913,6 +885,62 @@ class WasmDebugInfo : public Struct {
                                                       wasm::FunctionSig*);
 
   OBJECT_CONSTRUCTORS(WasmDebugInfo, Struct);
+};
+
+class WasmScript : public AllStatic {
+ public:
+  // Set a breakpoint on the given byte position inside the given module.
+  // This will affect all live and future instances of the module.
+  // The passed position might be modified to point to the next breakable
+  // location inside the same function.
+  // If it points outside a function, or behind the last breakable location,
+  // this function returns false and does not set any breakpoint.
+  V8_EXPORT_PRIVATE static bool SetBreakPoint(Handle<Script>, int* position,
+                                              Handle<BreakPoint> break_point);
+
+  // Set a breakpoint on first breakable position of the given function index
+  // inside the given module. This will affect all live and future instances of
+  // the module.
+  V8_EXPORT_PRIVATE static bool SetBreakPointOnFirstBreakableForFunction(
+      Handle<Script>, int function_index, Handle<BreakPoint> break_point);
+
+  // Set a breakpoint at the breakable offset of the given function index
+  // inside the given module. This will affect all live and future instances of
+  // the module.
+  V8_EXPORT_PRIVATE static bool SetBreakPointForFunction(
+      Handle<Script>, int function_index, int breakable_offset,
+      Handle<BreakPoint> break_point);
+
+  // Remove a previously set breakpoint at the given byte position inside the
+  // given module. If this breakpoint is not found this function returns false.
+  V8_EXPORT_PRIVATE static bool ClearBreakPoint(Handle<Script>, int position,
+                                                Handle<BreakPoint> break_point);
+
+  // Remove a previously set breakpoint by id. If this breakpoint is not found,
+  // returns false.
+  V8_EXPORT_PRIVATE static bool ClearBreakPointById(Handle<Script>,
+                                                    int breakpoint_id);
+
+  static void SetBreakpointsOnNewInstance(Handle<Script>,
+                                          Handle<WasmInstanceObject>);
+
+  // Get a list of all possible breakpoints within a given range of this module.
+  V8_EXPORT_PRIVATE static bool GetPossibleBreakpoints(
+      wasm::NativeModule* native_module, const debug::Location& start,
+      const debug::Location& end, std::vector<debug::BreakLocation>* locations);
+
+  // Return an empty handle if no breakpoint is hit at that location, or a
+  // FixedArray with all hit breakpoint objects.
+  static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*, Handle<Script>,
+                                                  int position);
+
+ private:
+  // Helper functions that update the breakpoint info list.
+  static void AddBreakpointToInfo(Handle<Script>, int position,
+                                  Handle<BreakPoint> break_point);
+
+  static bool RemoveBreakpointFromInfo(Handle<Script>, int position,
+                                       Handle<BreakPoint> break_point);
 };
 
 // Tags provide an object identity for each exception defined in a wasm module
@@ -935,16 +963,16 @@ class WasmExceptionTag
   TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
 };
 
+// Data annotated to the asm.js Module function. Used for later instantiation of
+// that function.
 class AsmWasmData : public Struct {
  public:
   static Handle<AsmWasmData> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
-      Handle<HeapNumber> uses_bitset);
+      Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset);
 
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS(export_wrappers, FixedArray)
-  DECL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_ACCESSORS(uses_bitset, HeapNumber)
 
   DECL_CAST(AsmWasmData)

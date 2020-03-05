@@ -29,7 +29,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
   DCHECK_NOT_NULL(isolate);
 #ifdef V8_SHARED_RO_HEAP
   bool call_once_ran = false;
-  base::Optional<Checksum> des_checksum;
+  base::Optional<uint32_t> des_checksum;
 #ifdef DEBUG
   if (des != nullptr) des_checksum = des->GetChecksum();
 #endif  // DEBUG
@@ -50,7 +50,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
   USE(call_once_ran);
   USE(des_checksum);
 #ifdef DEBUG
-  const base::Optional<Checksum> last_checksum =
+  const base::Optional<uint32_t> last_checksum =
       shared_ro_heap_->read_only_blob_checksum_;
   if (last_checksum || des_checksum) {
     // The read-only heap was set up from a snapshot. Make sure it's the always
@@ -97,6 +97,7 @@ ReadOnlyHeap* ReadOnlyHeap::CreateAndAttachToIsolate(Isolate* isolate) {
 
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(!init_complete_);
+  read_only_space_->ShrinkImmortalImmovablePages();
 #ifdef V8_SHARED_RO_HEAP
   void* const isolate_ro_roots = reinterpret_cast<void*>(
       isolate->roots_table().read_only_roots_begin().address());
@@ -119,6 +120,11 @@ void ReadOnlyHeap::OnHeapTearDown() {
 #endif
 }
 
+#ifdef V8_SHARED_RO_HEAP
+// static
+const ReadOnlyHeap* ReadOnlyHeap::Instance() { return shared_ro_heap_; }
+#endif
+
 // static
 void ReadOnlyHeap::ClearSharedHeapForTest() {
 #ifdef V8_SHARED_RO_HEAP
@@ -131,12 +137,23 @@ void ReadOnlyHeap::ClearSharedHeapForTest() {
 }
 
 // static
+bool ReadOnlyHeap::Contains(Address address) {
+  return MemoryChunk::FromAddress(address)->InReadOnlySpace();
+}
+
+// static
 bool ReadOnlyHeap::Contains(HeapObject object) {
-  return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    // read only includes both TPH and the snapshot, so need both checks
+    return third_party_heap::Heap::InReadOnlySpace(object.address()) ||
+           MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+  } else {
+    return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+  }
 }
 
 Object* ReadOnlyHeap::ExtendReadOnlyObjectCache() {
-  read_only_object_cache_.push_back(Smi::kZero);
+  read_only_object_cache_.push_back(Smi::zero());
   return &read_only_object_cache_.back();
 }
 
@@ -154,10 +171,17 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap)
 
 ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space)
     : ro_space_(ro_space),
-      current_page_(ro_space->first_page()),
-      current_addr_(current_page_->area_start()) {}
+      current_page_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ? nullptr
+                                                    : ro_space->first_page()),
+      current_addr_(V8_ENABLE_THIRD_PARTY_HEAP_BOOL
+                        ? Address()
+                        : current_page_->area_start()) {}
 
 HeapObject ReadOnlyHeapObjectIterator::Next() {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return HeapObject();  // Unsupported
+  }
+
   if (current_page_ == nullptr) {
     return HeapObject();
   }
@@ -182,7 +206,7 @@ HeapObject ReadOnlyHeapObjectIterator::Next() {
     const int object_size = object.Size();
     current_addr_ += object_size;
 
-    if (object.IsFiller()) {
+    if (object.IsFreeSpaceOrFiller()) {
       continue;
     }
 

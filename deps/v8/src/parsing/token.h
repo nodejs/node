@@ -5,9 +5,10 @@
 #ifndef V8_PARSING_TOKEN_H_
 #define V8_PARSING_TOKEN_H_
 
+#include "src/base/bit-field.h"
+#include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -217,7 +218,7 @@ class V8_EXPORT_PRIVATE Token {
     return name_[token];
   }
 
-  using IsKeywordBits = BitField8<bool, 0, 1>;
+  using IsKeywordBits = base::BitField8<bool, 0, 1>;
   using IsPropertyNameBits = IsKeywordBits::Next<bool, 1>;
 
   // Predicates
@@ -233,81 +234,85 @@ class V8_EXPORT_PRIVATE Token {
                                           LanguageMode language_mode,
                                           bool is_generator,
                                           bool disallow_await) {
-    if (V8_LIKELY(IsInRange(token, IDENTIFIER, ASYNC))) return true;
+    if (V8_LIKELY(base::IsInRange(token, IDENTIFIER, ASYNC))) return true;
     if (token == AWAIT) return !disallow_await;
     if (token == YIELD) return !is_generator && is_sloppy(language_mode);
     return IsStrictReservedWord(token) && is_sloppy(language_mode);
   }
 
   static bool IsCallable(Value token) {
-    return IsInRange(token, SUPER, ESCAPED_STRICT_RESERVED_WORD);
+    return base::IsInRange(token, SUPER, ESCAPED_STRICT_RESERVED_WORD);
   }
 
   static bool IsAutoSemicolon(Value token) {
-    return IsInRange(token, SEMICOLON, EOS);
+    return base::IsInRange(token, SEMICOLON, EOS);
   }
 
   static bool IsAnyIdentifier(Value token) {
-    return IsInRange(token, IDENTIFIER, ESCAPED_STRICT_RESERVED_WORD);
+    return base::IsInRange(token, IDENTIFIER, ESCAPED_STRICT_RESERVED_WORD);
   }
 
   static bool IsStrictReservedWord(Value token) {
-    return IsInRange(token, YIELD, ESCAPED_STRICT_RESERVED_WORD);
+    return base::IsInRange(token, YIELD, ESCAPED_STRICT_RESERVED_WORD);
   }
 
   static bool IsLiteral(Value token) {
-    return IsInRange(token, NULL_LITERAL, STRING);
+    return base::IsInRange(token, NULL_LITERAL, STRING);
   }
 
   static bool IsTemplate(Value token) {
-    return IsInRange(token, TEMPLATE_SPAN, TEMPLATE_TAIL);
+    return base::IsInRange(token, TEMPLATE_SPAN, TEMPLATE_TAIL);
   }
 
   static bool IsMember(Value token) {
-    return IsInRange(token, TEMPLATE_SPAN, LBRACK);
+    return base::IsInRange(token, TEMPLATE_SPAN, LBRACK);
   }
 
   static bool IsProperty(Value token) {
-    return IsInRange(token, PERIOD, LBRACK);
+    return base::IsInRange(token, PERIOD, LBRACK);
   }
 
   static bool IsPropertyOrCall(Value token) {
-    return IsInRange(token, TEMPLATE_SPAN, LPAREN);
+    return base::IsInRange(token, TEMPLATE_SPAN, LPAREN);
   }
 
   static bool IsArrowOrAssignmentOp(Value token) {
-    return IsInRange(token, ARROW, ASSIGN_SUB);
+    return base::IsInRange(token, ARROW, ASSIGN_SUB);
   }
 
   static bool IsAssignmentOp(Value token) {
-    return IsInRange(token, INIT, ASSIGN_SUB);
+    return base::IsInRange(token, INIT, ASSIGN_SUB);
   }
 
-  static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, SUB); }
+  static bool IsBinaryOp(Value op) { return base::IsInRange(op, COMMA, SUB); }
 
-  static bool IsCompareOp(Value op) { return IsInRange(op, EQ, IN); }
+  static bool IsCompareOp(Value op) { return base::IsInRange(op, EQ, IN); }
 
   static bool IsOrderedRelationalCompareOp(Value op) {
-    return IsInRange(op, LT, GTE);
+    return base::IsInRange(op, LT, GTE);
   }
 
-  static bool IsEqualityOp(Value op) { return IsInRange(op, EQ, EQ_STRICT); }
+  static bool IsEqualityOp(Value op) {
+    return base::IsInRange(op, EQ, EQ_STRICT);
+  }
 
   static Value BinaryOpForAssignment(Value op) {
-    DCHECK(IsInRange(op, ASSIGN_BIT_OR, ASSIGN_SUB));
+    DCHECK(base::IsInRange(op, ASSIGN_BIT_OR, ASSIGN_SUB));
     Value result = static_cast<Value>(op - ASSIGN_BIT_OR + BIT_OR);
     DCHECK(IsBinaryOp(result));
     return result;
   }
 
   static bool IsBitOp(Value op) {
-    return IsInRange(op, BIT_OR, SHR) || op == BIT_NOT;
+    return base::IsInRange(op, BIT_OR, SHR) || op == BIT_NOT;
   }
 
-  static bool IsUnaryOp(Value op) { return IsInRange(op, ADD, VOID); }
-  static bool IsCountOp(Value op) { return IsInRange(op, INC, DEC); }
-  static bool IsUnaryOrCountOp(Value op) { return IsInRange(op, ADD, DEC); }
-  static bool IsShiftOp(Value op) { return IsInRange(op, SHL, SHR); }
+  static bool IsUnaryOp(Value op) { return base::IsInRange(op, ADD, VOID); }
+  static bool IsCountOp(Value op) { return base::IsInRange(op, INC, DEC); }
+  static bool IsUnaryOrCountOp(Value op) {
+    return base::IsInRange(op, ADD, DEC);
+  }
+  static bool IsShiftOp(Value op) { return base::IsInRange(op, SHL, SHR); }
 
   // Returns a string corresponding to the JS token string
   // (.e., "<" for the token LT) or nullptr if the token doesn't

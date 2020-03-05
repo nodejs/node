@@ -61,7 +61,7 @@ class PreParserIdentifier {
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const {
     STATIC_ASSERT(kEvalIdentifier + 1 == kArgumentsIdentifier);
-    return IsInRange(type_, kEvalIdentifier, kArgumentsIdentifier);
+    return base::IsInRange(type_, kEvalIdentifier, kArgumentsIdentifier);
   }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
@@ -226,8 +226,8 @@ class PreParserExpression {
 
   bool IsPattern() const {
     STATIC_ASSERT(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
-    return IsInRange(TypeField::decode(code_), kObjectLiteralExpression,
-                     kArrayLiteralExpression);
+    return base::IsInRange(TypeField::decode(code_), kObjectLiteralExpression,
+                           kArrayLiteralExpression);
   }
 
   bool IsStringLiteral() const {
@@ -345,7 +345,7 @@ class PreParserExpression {
       : code_(expression_code) {}
 
   // The first three bits are for the Type.
-  using TypeField = BitField<Type, 0, 3>;
+  using TypeField = base::BitField<Type, 0, 3>;
 
   // The high order bit applies only to nodes which would inherit from the
   // Expression ASTNode --- This is by necessity, due to the fact that

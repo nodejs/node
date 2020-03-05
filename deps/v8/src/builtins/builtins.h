@@ -95,6 +95,7 @@ class Builtins {
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Name name);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
+  static bool HasJSLinkage(int index);
 
   static int GetStackParameterCount(Name name);
 
@@ -135,14 +136,9 @@ class Builtins {
     return kAllBuiltinsAreIsolateIndependent;
   }
 
-  // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
-  // through near jumps, their code is completely copied into a fresh off-heap
-  // area.
-  static bool IsWasmRuntimeStub(int index);
-
-  // Updates the table of builtin entry points based on the current contents of
-  // the builtins table.
-  static void UpdateBuiltinEntryTable(Isolate* isolate);
+  // Initializes the table of builtin entry points based on the current contents
+  // of the builtins table.
+  static void InitializeBuiltinEntryTable(Isolate* isolate);
 
   // Emits a CodeCreateEvent for every builtin.
   static void EmitCodeCreateEvents(Isolate* isolate);
@@ -172,13 +168,20 @@ class Builtins {
   // Creates a trampoline code object that jumps to the given off-heap entry.
   // The result should not be used directly, but only from the related Factory
   // function.
-  static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
-                                                   Address off_heap_entry,
-                                                   int32_t kind_specific_flags);
+  // TODO(delphick): Come up with a better name since it may not generate an
+  // executable trampoline.
+  static Handle<Code> GenerateOffHeapTrampolineFor(
+      Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
+      bool generate_jump_to_instruction_stream);
 
   // Generate the RelocInfo ByteArray that would be generated for an offheap
   // trampoline.
   static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
+
+  // Only builtins with JS linkage should ever need to be called via their
+  // trampoline Code object. The remaining builtins have non-executable Code
+  // objects.
+  static bool CodeObjectIsExecutable(int builtin_index);
 
   static bool IsJSEntryVariant(int builtin_index) {
     switch (builtin_index) {

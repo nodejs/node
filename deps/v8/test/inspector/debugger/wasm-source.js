@@ -51,30 +51,37 @@ contextGroup.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
 
 Protocol.Debugger.enable();
 Protocol.Debugger.onPaused(handleDebuggerPaused);
-InspectorTest.log('Check that inspector gets disassembled wasm code');
+InspectorTest.log('Check that inspector gets wasm bytecode');
 Protocol.Runtime.evaluate({'expression': 'testFunction(module_bytes)'});
 
-function handleDebuggerPaused(message) {
+async function handleDebuggerPaused(message) {
   InspectorTest.log('Paused on debugger!');
   var frames = message.params.callFrames;
   InspectorTest.log('Number of frames: ' + frames.length);
-  function dumpSourceLine(frameId, sourceMessage) {
+  async function dumpSourceLine(frameId, sourceMessage) {
     if (sourceMessage.error) InspectorTest.logObject(sourceMessage);
     var text = sourceMessage.result.scriptSource;
     var lineNr = frames[frameId].location.lineNumber;
-    var line = text.split('\n')[lineNr];
-    InspectorTest.log('[' + frameId + '] ' + line);
+    if (text) {
+      var line = text.split('\n')[lineNr];
+      InspectorTest.log('[' + frameId + '] ' + line);
+    } else {
+      if (lineNr != 0) {
+        InspectorTest.log('Unexpected line number in wasm: ' + lineNr);
+      }
+      let byteOffset = frames[frameId].location.columnNumber;
+      let data = InspectorTest.decodeBase64(sourceMessage.result.bytecode);
+      // Print a byte, which can be compared to the expected wasm opcode.
+      InspectorTest.log('[' + frameId + '] Wasm offset ' + byteOffset
+                        + ': 0x' + data[byteOffset].toString(16));
+    }
   }
-  function next(frameId) {
-    if (frameId == frames.length) return Promise.resolve();
-    return Protocol.Debugger
-        .getScriptSource({scriptId: frames[frameId].location.scriptId})
-        .then(dumpSourceLine.bind(null, frameId))
-        .then(() => next(frameId + 1));
+
+  for (let frameId = 0; frameId < frames.length; frameId++) {
+    result = await Protocol.Debugger
+        .getScriptSource({scriptId: frames[frameId].location.scriptId});
+    await dumpSourceLine(frameId, result);
   }
-  function finished() {
-    InspectorTest.log('Finished.');
-    InspectorTest.completeTest();
-  }
-  next(0).then(finished);
+  InspectorTest.log('Finished.');
+  InspectorTest.completeTest();
 }

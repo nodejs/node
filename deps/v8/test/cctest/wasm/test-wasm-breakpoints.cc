@@ -21,12 +21,29 @@ namespace wasm {
 
 namespace {
 
+debug::Location TranslateLocation(WasmRunnerBase* runner,
+                                  const debug::Location& loc) {
+  // Convert locations from {func_index, offset_in_func} to
+  // {0, offset_in_module}.
+  int func_index = loc.GetLineNumber();
+  int func_offset = runner->builder().GetFunctionAt(func_index)->code.offset();
+  int offset = loc.GetColumnNumber() + func_offset;
+  return {0, offset};
+}
+
 void CheckLocations(
-    NativeModule* native_module, debug::Location start, debug::Location end,
+    WasmRunnerBase* runner, NativeModule* native_module, debug::Location start,
+    debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
-  bool success = WasmModuleObject::GetPossibleBreakpoints(native_module, start,
-                                                          end, &locations);
+  std::vector<debug::Location> expected_locations;
+  for (auto loc : expected_locations_init) {
+    expected_locations.push_back(TranslateLocation(runner, loc));
+  }
+
+  bool success = WasmScript::GetPossibleBreakpoints(
+      native_module, TranslateLocation(runner, start),
+      TranslateLocation(runner, end), &locations);
   CHECK(success);
 
   printf("got %d locations: ", static_cast<int>(locations.size()));
@@ -36,7 +53,6 @@ void CheckLocations(
   }
   printf("\n");
 
-  std::vector<debug::Location> expected_locations(expected_locations_init);
   CHECK_EQ(expected_locations.size(), locations.size());
   for (size_t i = 0, e = locations.size(); i != e; ++i) {
     CHECK_EQ(expected_locations[i].GetLineNumber(),
@@ -46,11 +62,12 @@ void CheckLocations(
   }
 }
 
-void CheckLocationsFail(NativeModule* native_module, debug::Location start,
-                        debug::Location end) {
+void CheckLocationsFail(WasmRunnerBase* runner, NativeModule* native_module,
+                        debug::Location start, debug::Location end) {
   std::vector<debug::BreakLocation> locations;
-  bool success = WasmModuleObject::GetPossibleBreakpoints(native_module, start,
-                                                          end, &locations);
+  bool success = WasmScript::GetPossibleBreakpoints(
+      native_module, TranslateLocation(runner, start),
+      TranslateLocation(runner, end), &locations);
   CHECK(!success);
 }
 
@@ -133,7 +150,7 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
   Handle<BreakPoint> break_point =
       runner->main_isolate()->factory()->NewBreakPoint(
           break_index++, runner->main_isolate()->factory()->empty_string());
-  CHECK(WasmModuleObject::SetBreakPoint(script, &code_offset, break_point));
+  CHECK(WasmScript::SetBreakPoint(script, &code_offset, break_point));
   int set_byte_offset = code_offset - func_offset;
   CHECK_EQ(expected_set_byte_offset, set_byte_offset);
   // Also set breakpoint on the debug info of the instance directly, since the
@@ -153,7 +170,7 @@ void ClearBreakpoint(WasmRunnerBase* runner, int function_index,
   Handle<WasmInstanceObject> instance = runner->builder().instance_object();
   Handle<Script> script(instance->module_object().script(),
                         runner->main_isolate());
-  CHECK(WasmModuleObject::ClearBreakPoint(script, code_offset, break_point));
+  CHECK(WasmScript::ClearBreakPoint(script, code_offset, break_point));
   // Also clear breakpoint on the debug info of the instance directly, since the
   // instance chain is not setup properly in tests.
   Handle<WasmDebugInfo> debug_info =
@@ -263,6 +280,13 @@ std::vector<WasmValue> wasmVec(Args... args) {
   return std::vector<WasmValue>{arr.begin(), arr.end()};
 }
 
+int GetIntReturnValue(MaybeHandle<Object> retval) {
+  CHECK(!retval.is_null());
+  int result;
+  CHECK(retval.ToHandleChecked()->ToInt32(&result));
+  return result;
+}
+
 }  // namespace
 
 WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
@@ -275,21 +299,21 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
-  CheckLocations(native_module, {0, 0}, {1, 0},
+  CheckLocations(&runner, native_module, {0, 0}, {0, 10},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
   // Check a range ending at an instruction.
-  CheckLocations(native_module, {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(&runner, native_module, {0, 2}, {0, 4}, {{0, 2}});
   // Check a range ending one behind an instruction.
-  CheckLocations(native_module, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(&runner, native_module, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
   // Check a range starting at an instruction.
-  CheckLocations(native_module, {0, 7}, {0, 8}, {{0, 7}});
+  CheckLocations(&runner, native_module, {0, 7}, {0, 8}, {{0, 7}});
   // Check from an instruction to beginning of next function.
-  CheckLocations(native_module, {0, 7}, {1, 0}, {{0, 7}});
+  CheckLocations(&runner, native_module, {0, 7}, {0, 10}, {{0, 7}});
   // Check from end of one function (no valid instruction position) to beginning
   // of next function. Must be empty, but not fail.
-  CheckLocations(native_module, {0, 8}, {1, 0}, {});
+  CheckLocations(&runner, native_module, {0, 8}, {0, 10}, {});
   // Check from one after the end of the function. Must fail.
-  CheckLocationsFail(native_module, {0, 9}, {1, 0});
+  CheckLocationsFail(&runner, native_module, {0, 9}, {0, 10});
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
@@ -307,10 +331,25 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
+}
+
+WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
+  WasmRunner<int> runner(execution_tier);
+  Isolate* isolate = runner.main_isolate();
+
+  BUILD(runner, WASM_RETURN1(WASM_I32V_2(1024)));
+
+  Handle<JSFunction> main_fun_wrapper =
+      runner.builder().WrapCode(runner.function_index());
+  SetBreakpoint(&runner, runner.function_index(), 2, 4);
+
+  BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
+
+  Handle<Object> global(isolate->context().global_object(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  CHECK_EQ(1024, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
@@ -334,10 +373,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
@@ -453,10 +489,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
@@ -484,10 +517,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
@@ -517,10 +547,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
-  CHECK(!retval.is_null());
-  int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
-  CHECK_EQ(14, result);
+  CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
 }  // namespace wasm

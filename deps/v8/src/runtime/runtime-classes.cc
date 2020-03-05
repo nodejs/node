@@ -17,6 +17,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
 #include "src/runtime/runtime.h"
@@ -38,6 +39,11 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   Handle<String> name(constructor->shared().Name(), isolate);
+  if (name->length() == 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kAnonymousConstructorNonCallable));
+  }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
@@ -215,8 +221,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
       Handle<Dictionary>::cast(isolate->factory()->CopyFixedArrayWithMap(
           dictionary_template, dictionary_map));
   // Clone all AccessorPairs in the dictionary.
-  int capacity = dictionary->Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object value = dictionary->ValueAt(i);
     if (value.IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
@@ -235,9 +240,8 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
   Handle<Name> name_string = isolate->factory()->name_string();
 
   // Replace all indices with proper methods.
-  int capacity = dictionary->Capacity();
   ReadOnlyRoots roots(isolate);
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object maybe_key = dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
     if (install_name_accessor && *install_name_accessor &&
@@ -282,6 +286,26 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
     }
   }
   return true;
+}
+
+void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+                      Handle<NameDictionary> properties_dictionary) {
+  ReadOnlyRoots roots(isolate);
+  for (InternalIndex i : properties_dictionary->IterateEntries()) {
+    Object maybe_key = properties_dictionary->KeyAt(i);
+    if (!NameDictionary::IsKey(roots, maybe_key)) continue;
+    Handle<Name> name(Name::cast(maybe_key), isolate);
+    LookupIterator::UpdateProtector(isolate, receiver, name);
+  }
+}
+
+void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+                      Handle<DescriptorArray> properties_template) {
+  int nof_descriptors = properties_template->number_of_descriptors();
+  for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
+    Handle<Name> name(properties_template->GetKey(i), isolate);
+    LookupIterator::UpdateProtector(isolate, receiver, name);
+  }
 }
 
 bool AddDescriptorsByTemplate(
@@ -370,6 +394,8 @@ bool AddDescriptorsByTemplate(
     }
   }
 
+  UpdateProtectors(isolate, receiver, descriptors_template);
+
   map->InitializeDescriptors(isolate, *descriptors,
                              LayoutDescriptor::FastPointerLayout());
   if (elements_dictionary->NumberOfElements() > 0) {
@@ -417,7 +443,7 @@ bool AddDescriptorsByTemplate(
 
     ValueKind value_kind = ComputedEntryFlags::ValueKindBits::decode(flags);
     int key_index = ComputedEntryFlags::KeyIndexBits::decode(flags);
-    Object value = Smi::FromInt(key_index + 1);  // Value follows name.
+    Smi value = Smi::FromInt(key_index + 1);  // Value follows name.
 
     Handle<Object> key = args.at<Object>(key_index);
     DCHECK(key->IsName());
@@ -449,6 +475,8 @@ bool AddDescriptorsByTemplate(
         isolate->factory()->function_name_accessor(), details);
     CHECK_EQ(*dict, *properties_dictionary);
   }
+
+  UpdateProtectors(isolate, receiver, properties_dictionary);
 
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
@@ -662,9 +690,10 @@ namespace {
 
 enum class SuperMode { kLoad, kStore };
 
-MaybeHandle<JSReceiver> GetSuperHolder(
-    Isolate* isolate, Handle<Object> receiver, Handle<JSObject> home_object,
-    SuperMode mode, MaybeHandle<Name> maybe_name, uint32_t index) {
+MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
+                                       Handle<JSObject> home_object,
+                                       SuperMode mode,
+                                       LookupIterator::Key* key) {
   if (home_object->IsAccessCheckNeeded() &&
       !isolate->MayAccess(handle(isolate->context(), isolate), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
@@ -677,10 +706,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(
     MessageTemplate message = mode == SuperMode::kLoad
                                   ? MessageTemplate::kNonObjectPropertyLoad
                                   : MessageTemplate::kNonObjectPropertyStore;
-    Handle<Name> name;
-    if (!maybe_name.ToHandle(&name)) {
-      name = isolate->factory()->Uint32ToString(index);
-    }
+    Handle<Name> name = key->GetName(isolate);
     THROW_NEW_ERROR(isolate, NewTypeError(message, name, proto), JSReceiver);
   }
   return Handle<JSReceiver>::cast(proto);
@@ -688,29 +714,12 @@ MaybeHandle<JSReceiver> GetSuperHolder(
 
 MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
                                   Handle<JSObject> home_object,
-                                  Handle<Name> name) {
+                                  LookupIterator::Key* key) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
-      GetSuperHolder(isolate, receiver, home_object, SuperMode::kLoad, name, 0),
-      Object);
-  LookupIterator it(receiver, name, holder);
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it), Object);
-  return result;
-}
-
-MaybeHandle<Object> LoadElementFromSuper(Isolate* isolate,
-                                         Handle<Object> receiver,
-                                         Handle<JSObject> home_object,
-                                         uint32_t index) {
-  Handle<JSReceiver> holder;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, holder,
-      GetSuperHolder(isolate, receiver, home_object, SuperMode::kLoad,
-                     MaybeHandle<Name>(), index),
-      Object);
-  LookupIterator it(isolate, receiver, index, holder);
+      GetSuperHolder(isolate, home_object, SuperMode::kLoad, key), Object);
+  LookupIterator it(isolate, receiver, *key, holder);
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it), Object);
   return result;
@@ -725,8 +734,10 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
 
+  LookupIterator::Key key(isolate, name);
+
   RETURN_RESULT_OR_FAILURE(isolate,
-                           LoadFromSuper(isolate, receiver, home_object, name));
+                           LoadFromSuper(isolate, receiver, home_object, &key));
 }
 
 
@@ -735,55 +746,30 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  // TODO(ishell): To improve performance, consider performing the to-string
+  // conversion of {key} before calling into the runtime.
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
 
-  uint32_t index = 0;
+  bool success;
+  LookupIterator::Key lookup_key(isolate, key, &success);
+  if (!success) return ReadOnlyRoots(isolate).exception();
 
-  if (key->ToArrayIndex(&index)) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, LoadElementFromSuper(isolate, receiver, home_object, index));
-  }
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Object::ToName(isolate, key));
-  // TODO(verwaest): Unify using LookupIterator.
-  if (name->AsArrayIndex(&index)) {
-    RETURN_RESULT_OR_FAILURE(
-        isolate, LoadElementFromSuper(isolate, receiver, home_object, index));
-  }
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           LoadFromSuper(isolate, receiver, home_object, name));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, LoadFromSuper(isolate, receiver, home_object, &lookup_key));
 }
 
 namespace {
 
 MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                                 Handle<Object> receiver, Handle<Name> name,
-                                 Handle<Object> value) {
-  Handle<JSReceiver> holder;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, holder,
-                             GetSuperHolder(isolate, receiver, home_object,
-                                            SuperMode::kStore, name, 0),
-                             Object);
-  LookupIterator it(receiver, name, holder);
-  MAYBE_RETURN(Object::SetSuperProperty(&it, value, StoreOrigin::kNamed),
-               MaybeHandle<Object>());
-  return value;
-}
-
-MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
-                                        Handle<JSObject> home_object,
-                                        Handle<Object> receiver, uint32_t index,
-                                        Handle<Object> value) {
+                                 Handle<Object> receiver,
+                                 LookupIterator::Key* key, Handle<Object> value,
+                                 StoreOrigin store_origin) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
-      GetSuperHolder(isolate, receiver, home_object, SuperMode::kStore,
-                     MaybeHandle<Name>(), index),
-      Object);
-  LookupIterator it(isolate, receiver, index, holder);
-  MAYBE_RETURN(Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed),
+      GetSuperHolder(isolate, home_object, SuperMode::kStore, key), Object);
+  LookupIterator it(isolate, receiver, *key, holder);
+  MAYBE_RETURN(Object::SetSuperProperty(&it, value, store_origin),
                MaybeHandle<Object>());
   return value;
 }
@@ -798,28 +784,11 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
+  LookupIterator::Key key(isolate, name);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, name, value));
-}
-
-static MaybeHandle<Object> StoreKeyedToSuper(Isolate* isolate,
-                                             Handle<JSObject> home_object,
-                                             Handle<Object> receiver,
-                                             Handle<Object> key,
-                                             Handle<Object> value) {
-  uint32_t index = 0;
-
-  if (key->ToArrayIndex(&index)) {
-    return StoreElementToSuper(isolate, home_object, receiver, index, value);
-  }
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-  // TODO(verwaest): Unify using LookupIterator.
-  if (name->AsArrayIndex(&index)) {
-    return StoreElementToSuper(isolate, home_object, receiver, index, value);
-  }
-  return StoreToSuper(isolate, home_object, receiver, name, value);
+      isolate, StoreToSuper(isolate, home_object, receiver, &key, value,
+                            StoreOrigin::kNamed));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
@@ -827,11 +796,18 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  // TODO(ishell): To improve performance, consider performing the to-string
+  // conversion of {key} before calling into the runtime.
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
+  bool success;
+  LookupIterator::Key lookup_key(isolate, key, &success);
+  if (!success) return ReadOnlyRoots(isolate).exception();
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value));
+      isolate, StoreToSuper(isolate, home_object, receiver, &lookup_key, value,
+                            StoreOrigin::kMaybeKeyed));
 }
 
 }  // namespace internal

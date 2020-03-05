@@ -382,7 +382,7 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
     return None, arguments
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
-    r'Copyright [\d-]*20[0-1][0-9] the V8 project authors. All rights reserved.')
+    r'Copyright [\d-]*20[0-2][0-9] the V8 project authors. All rights reserved.')
 
 class SourceProcessor(SourceFileProcessor):
   """

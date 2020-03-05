@@ -27,8 +27,8 @@
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
+#include "src/base/bit-field.h"
 #include "src/compiler/write-barrier-kind.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -63,101 +63,105 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
 
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
-#define COMMON_ARCH_OPCODE_LIST(V)        \
-  V(ArchCallCodeObject)                   \
-  V(ArchTailCallCodeObjectFromJSFunction) \
-  V(ArchTailCallCodeObject)               \
-  V(ArchCallJSFunction)                   \
-  V(ArchTailCallAddress)                  \
-  V(ArchPrepareCallCFunction)             \
-  V(ArchSaveCallerRegisters)              \
-  V(ArchRestoreCallerRegisters)           \
-  V(ArchCallCFunction)                    \
-  V(ArchPrepareTailCall)                  \
-  V(ArchCallWasmFunction)                 \
-  V(ArchTailCallWasm)                     \
-  V(ArchCallBuiltinPointer)               \
-  V(ArchJmp)                              \
-  V(ArchBinarySearchSwitch)               \
-  V(ArchLookupSwitch)                     \
-  V(ArchTableSwitch)                      \
-  V(ArchNop)                              \
-  V(ArchAbortCSAAssert)                   \
-  V(ArchDebugBreak)                       \
-  V(ArchComment)                          \
-  V(ArchThrowTerminator)                  \
-  V(ArchDeoptimize)                       \
-  V(ArchRet)                              \
-  V(ArchFramePointer)                     \
-  V(ArchParentFramePointer)               \
-  V(ArchTruncateDoubleToI)                \
-  V(ArchStoreWithWriteBarrier)            \
-  V(ArchStackSlot)                        \
-  V(ArchWordPoisonOnSpeculation)          \
-  V(ArchStackPointerGreaterThan)          \
-  V(Word32AtomicLoadInt8)                 \
-  V(Word32AtomicLoadUint8)                \
-  V(Word32AtomicLoadInt16)                \
-  V(Word32AtomicLoadUint16)               \
-  V(Word32AtomicLoadWord32)               \
-  V(Word32AtomicStoreWord8)               \
-  V(Word32AtomicStoreWord16)              \
-  V(Word32AtomicStoreWord32)              \
-  V(Word32AtomicExchangeInt8)             \
-  V(Word32AtomicExchangeUint8)            \
-  V(Word32AtomicExchangeInt16)            \
-  V(Word32AtomicExchangeUint16)           \
-  V(Word32AtomicExchangeWord32)           \
-  V(Word32AtomicCompareExchangeInt8)      \
-  V(Word32AtomicCompareExchangeUint8)     \
-  V(Word32AtomicCompareExchangeInt16)     \
-  V(Word32AtomicCompareExchangeUint16)    \
-  V(Word32AtomicCompareExchangeWord32)    \
-  V(Word32AtomicAddInt8)                  \
-  V(Word32AtomicAddUint8)                 \
-  V(Word32AtomicAddInt16)                 \
-  V(Word32AtomicAddUint16)                \
-  V(Word32AtomicAddWord32)                \
-  V(Word32AtomicSubInt8)                  \
-  V(Word32AtomicSubUint8)                 \
-  V(Word32AtomicSubInt16)                 \
-  V(Word32AtomicSubUint16)                \
-  V(Word32AtomicSubWord32)                \
-  V(Word32AtomicAndInt8)                  \
-  V(Word32AtomicAndUint8)                 \
-  V(Word32AtomicAndInt16)                 \
-  V(Word32AtomicAndUint16)                \
-  V(Word32AtomicAndWord32)                \
-  V(Word32AtomicOrInt8)                   \
-  V(Word32AtomicOrUint8)                  \
-  V(Word32AtomicOrInt16)                  \
-  V(Word32AtomicOrUint16)                 \
-  V(Word32AtomicOrWord32)                 \
-  V(Word32AtomicXorInt8)                  \
-  V(Word32AtomicXorUint8)                 \
-  V(Word32AtomicXorInt16)                 \
-  V(Word32AtomicXorUint16)                \
-  V(Word32AtomicXorWord32)                \
-  V(Ieee754Float64Acos)                   \
-  V(Ieee754Float64Acosh)                  \
-  V(Ieee754Float64Asin)                   \
-  V(Ieee754Float64Asinh)                  \
-  V(Ieee754Float64Atan)                   \
-  V(Ieee754Float64Atanh)                  \
-  V(Ieee754Float64Atan2)                  \
-  V(Ieee754Float64Cbrt)                   \
-  V(Ieee754Float64Cos)                    \
-  V(Ieee754Float64Cosh)                   \
-  V(Ieee754Float64Exp)                    \
-  V(Ieee754Float64Expm1)                  \
-  V(Ieee754Float64Log)                    \
-  V(Ieee754Float64Log1p)                  \
-  V(Ieee754Float64Log10)                  \
-  V(Ieee754Float64Log2)                   \
-  V(Ieee754Float64Pow)                    \
-  V(Ieee754Float64Sin)                    \
-  V(Ieee754Float64Sinh)                   \
-  V(Ieee754Float64Tan)                    \
+#define COMMON_ARCH_OPCODE_LIST(V)                                     \
+  /* Tail call opcodes are grouped together to make IsTailCall fast */ \
+  V(ArchTailCallCodeObjectFromJSFunction)                              \
+  V(ArchTailCallCodeObject)                                            \
+  V(ArchTailCallAddress)                                               \
+  V(ArchTailCallWasm)                                                  \
+  /* Update IsTailCall if further TailCall opcodes are added */        \
+                                                                       \
+  V(ArchCallCodeObject)                                                \
+  V(ArchCallJSFunction)                                                \
+  V(ArchPrepareCallCFunction)                                          \
+  V(ArchSaveCallerRegisters)                                           \
+  V(ArchRestoreCallerRegisters)                                        \
+  V(ArchCallCFunction)                                                 \
+  V(ArchPrepareTailCall)                                               \
+  V(ArchCallWasmFunction)                                              \
+  V(ArchCallBuiltinPointer)                                            \
+  V(ArchJmp)                                                           \
+  V(ArchBinarySearchSwitch)                                            \
+  V(ArchLookupSwitch)                                                  \
+  V(ArchTableSwitch)                                                   \
+  V(ArchNop)                                                           \
+  V(ArchAbortCSAAssert)                                                \
+  V(ArchDebugBreak)                                                    \
+  V(ArchComment)                                                       \
+  V(ArchThrowTerminator)                                               \
+  V(ArchDeoptimize)                                                    \
+  V(ArchRet)                                                           \
+  V(ArchFramePointer)                                                  \
+  V(ArchParentFramePointer)                                            \
+  V(ArchTruncateDoubleToI)                                             \
+  V(ArchStoreWithWriteBarrier)                                         \
+  V(ArchStackSlot)                                                     \
+  V(ArchWordPoisonOnSpeculation)                                       \
+  V(ArchStackPointerGreaterThan)                                       \
+  V(ArchStackCheckOffset)                                              \
+  V(Word32AtomicLoadInt8)                                              \
+  V(Word32AtomicLoadUint8)                                             \
+  V(Word32AtomicLoadInt16)                                             \
+  V(Word32AtomicLoadUint16)                                            \
+  V(Word32AtomicLoadWord32)                                            \
+  V(Word32AtomicStoreWord8)                                            \
+  V(Word32AtomicStoreWord16)                                           \
+  V(Word32AtomicStoreWord32)                                           \
+  V(Word32AtomicExchangeInt8)                                          \
+  V(Word32AtomicExchangeUint8)                                         \
+  V(Word32AtomicExchangeInt16)                                         \
+  V(Word32AtomicExchangeUint16)                                        \
+  V(Word32AtomicExchangeWord32)                                        \
+  V(Word32AtomicCompareExchangeInt8)                                   \
+  V(Word32AtomicCompareExchangeUint8)                                  \
+  V(Word32AtomicCompareExchangeInt16)                                  \
+  V(Word32AtomicCompareExchangeUint16)                                 \
+  V(Word32AtomicCompareExchangeWord32)                                 \
+  V(Word32AtomicAddInt8)                                               \
+  V(Word32AtomicAddUint8)                                              \
+  V(Word32AtomicAddInt16)                                              \
+  V(Word32AtomicAddUint16)                                             \
+  V(Word32AtomicAddWord32)                                             \
+  V(Word32AtomicSubInt8)                                               \
+  V(Word32AtomicSubUint8)                                              \
+  V(Word32AtomicSubInt16)                                              \
+  V(Word32AtomicSubUint16)                                             \
+  V(Word32AtomicSubWord32)                                             \
+  V(Word32AtomicAndInt8)                                               \
+  V(Word32AtomicAndUint8)                                              \
+  V(Word32AtomicAndInt16)                                              \
+  V(Word32AtomicAndUint16)                                             \
+  V(Word32AtomicAndWord32)                                             \
+  V(Word32AtomicOrInt8)                                                \
+  V(Word32AtomicOrUint8)                                               \
+  V(Word32AtomicOrInt16)                                               \
+  V(Word32AtomicOrUint16)                                              \
+  V(Word32AtomicOrWord32)                                              \
+  V(Word32AtomicXorInt8)                                               \
+  V(Word32AtomicXorUint8)                                              \
+  V(Word32AtomicXorInt16)                                              \
+  V(Word32AtomicXorUint16)                                             \
+  V(Word32AtomicXorWord32)                                             \
+  V(Ieee754Float64Acos)                                                \
+  V(Ieee754Float64Acosh)                                               \
+  V(Ieee754Float64Asin)                                                \
+  V(Ieee754Float64Asinh)                                               \
+  V(Ieee754Float64Atan)                                                \
+  V(Ieee754Float64Atanh)                                               \
+  V(Ieee754Float64Atan2)                                               \
+  V(Ieee754Float64Cbrt)                                                \
+  V(Ieee754Float64Cos)                                                 \
+  V(Ieee754Float64Cosh)                                                \
+  V(Ieee754Float64Exp)                                                 \
+  V(Ieee754Float64Expm1)                                               \
+  V(Ieee754Float64Log)                                                 \
+  V(Ieee754Float64Log1p)                                               \
+  V(Ieee754Float64Log10)                                               \
+  V(Ieee754Float64Log2)                                                \
+  V(Ieee754Float64Pow)                                                 \
+  V(Ieee754Float64Sin)                                                 \
+  V(Ieee754Float64Sinh)                                                \
+  V(Ieee754Float64Tan)                                                 \
   V(Ieee754Float64Tanh)
 
 #define ARCH_OPCODE_LIST(V)  \
@@ -260,17 +264,17 @@ enum MemoryAccessMode {
 // what code to emit for an instruction in the code generator. It is not
 // interesting to the register allocator, as the inputs and flags on the
 // instructions specify everything of interest.
-using InstructionCode = int32_t;
+using InstructionCode = uint32_t;
 
 // Helpers for encoding / decoding InstructionCode into the fields needed
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-using ArchOpcodeField = BitField<ArchOpcode, 0, 9>;
-using AddressingModeField = BitField<AddressingMode, 9, 5>;
-using FlagsModeField = BitField<FlagsMode, 14, 3>;
-using FlagsConditionField = BitField<FlagsCondition, 17, 5>;
-using MiscField = BitField<int, 22, 10>;
+using ArchOpcodeField = base::BitField<ArchOpcode, 0, 9>;
+using AddressingModeField = base::BitField<AddressingMode, 9, 5>;
+using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
+using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
+using MiscField = base::BitField<int, 22, 10>;
 
 }  // namespace compiler
 }  // namespace internal

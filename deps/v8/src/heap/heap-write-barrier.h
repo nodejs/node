@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class ArrayBufferExtension;
 class Code;
 class FixedArray;
 class Heap;
@@ -22,10 +23,12 @@ class EphemeronHashTable;
 
 // Combined write barriers.
 void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value);
+void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value);
 void WriteBarrierForCode(Code host);
 
 // Generational write barrier.
 void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object value);
+void GenerationalBarrier(HeapObject object, ObjectSlot slot, HeapObject value);
 void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
                          MaybeObject value);
 void GenerationalEphemeronKeyBarrier(EphemeronHashTable table, ObjectSlot slot,
@@ -34,8 +37,12 @@ void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
 // Marking write barrier.
 void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value);
+void MarkingBarrier(HeapObject object, ObjectSlot slot, HeapObject value);
 void MarkingBarrier(HeapObject object, MaybeObjectSlot slot, MaybeObject value);
 void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
+
+void MarkingBarrierForArrayBufferExtension(HeapObject object,
+                                           ArrayBufferExtension* extension);
 
 void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,
                                       HeapObject descriptor_array,

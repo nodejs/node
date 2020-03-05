@@ -4,8 +4,10 @@
 
 #include "src/codegen/handler-table.h"
 
+#include <algorithm>
 #include <iomanip>
 
+#include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/objects-inl.h"
@@ -187,15 +189,39 @@ int HandlerTable::LookupRange(int pc_offset, int* data_out,
   return innermost_handler;
 }
 
-// TODO(turbofan): Make sure table is sorted and use binary search.
 int HandlerTable::LookupReturn(int pc_offset) {
-  for (int i = 0; i < NumberOfReturnEntries(); ++i) {
-    int return_offset = GetReturnOffset(i);
-    if (pc_offset == return_offset) {
-      return GetReturnHandler(i);
+  // We only implement the methods needed by the standard libraries we care
+  // about. This is not technically a full random access iterator by the spec.
+  struct Iterator : base::iterator<std::random_access_iterator_tag, int> {
+    Iterator(HandlerTable* tbl, int idx) : table(tbl), index(idx) {}
+    value_type operator*() const { return table->GetReturnOffset(index); }
+    bool operator!=(const Iterator& other) const { return !(*this == other); }
+    bool operator==(const Iterator& other) const {
+      return index == other.index;
     }
-  }
-  return -1;
+    Iterator& operator++() {
+      index++;
+      return *this;
+    }
+    Iterator& operator--() {
+      index--;
+      return *this;
+    }
+    Iterator& operator+=(difference_type offset) {
+      index += offset;
+      return *this;
+    }
+    difference_type operator-(const Iterator& other) const {
+      return index - other.index;
+    }
+    HandlerTable* table;
+    int index;
+  };
+  Iterator begin{this, 0}, end{this, NumberOfReturnEntries()};
+  SLOW_DCHECK(std::is_sorted(begin, end));  // Must be sorted.
+  Iterator result = std::lower_bound(begin, end, pc_offset);
+  bool exact_match = result != end && *result == pc_offset;
+  return exact_match ? GetReturnHandler(result.index) : -1;
 }
 
 #ifdef ENABLE_DISASSEMBLER

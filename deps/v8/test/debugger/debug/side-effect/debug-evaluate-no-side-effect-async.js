@@ -31,7 +31,6 @@ function listener(event, exec_state, event_data, data) {
     fail("new Promise()");
     fail("generator()");
     fail("g.next()");
-    fail("async()");
     fail("Promise.resolve()");
     fail("Promise.reject()");
     fail("p.then(() => {})");
@@ -39,8 +38,15 @@ function listener(event, exec_state, event_data, data) {
     fail("p.finally(() => {})");
     fail("Promise.all([p, p])");
     fail("Promise.race([p, p])");
-    fail("(async function() {})()");
     fail("(async function() { await 1; })()");
+
+    // Calling (but not awaiting) non-side-effecting async functions
+    // should be fine.
+    function succeed(source) {
+      exec_state.frame(0).evaluate(source, true);
+    }
+    succeed("async()");
+    succeed("(async function() {})()");
   } catch (e) {
     exception = e;
     print(e, e.stack);

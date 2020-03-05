@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-inline Isolate* GetIsolateForPtrCompr(HeapObject object) {
+inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
 #ifdef V8_COMPRESS_POINTERS
   return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
 #else
@@ -23,27 +23,32 @@ inline Isolate* GetIsolateForPtrCompr(HeapObject object) {
 }
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
-#ifdef V8_COMPRESS_POINTERS
+#if defined V8_COMPRESS_POINTERS || defined V8_ENABLE_THIRD_PARTY_HEAP
   return GetIsolateFromWritableObject(object)->heap();
 #else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->GetHeap();
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_COMPRESS_POINTERS || V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+  return Heap::GetIsolateFromWritableObject(object);
+#elif defined V8_COMPRESS_POINTERS
   Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
   DCHECK_NOT_NULL(isolate);
   return isolate;
 #else
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+  *isolate = Heap::GetIsolateFromWritableObject(object);
+  return true;
+#elif defined V8_COMPRESS_POINTERS
   *isolate = GetIsolateFromWritableObject(object);
   return true;
 #else
@@ -55,7 +60,7 @@ V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
   }
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
-#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
 }  // namespace internal

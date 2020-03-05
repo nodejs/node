@@ -37,27 +37,46 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
 
   AddAttachedObject(global_proxy);
 
-  DisallowHeapAllocation no_gc;
-  // Keep track of the code space start and end pointers in case new
-  // code objects were unserialized
-  CodeSpace* code_space = isolate->heap()->code_space();
-  Address start_address = code_space->top();
-  Object root;
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(&root));
-  DeserializeDeferredObjects();
-  DeserializeEmbedderFields(embedder_fields_deserializer);
+  Handle<Object> result;
+  {
+    DisallowHeapAllocation no_gc;
+    // Keep track of the code space start and end pointers in case new
+    // code objects were unserialized
+    CodeSpace* code_space = isolate->heap()->code_space();
+    Address start_address = code_space->top();
+    Object root;
+    VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+                     FullObjectSlot(&root));
+    DeserializeDeferredObjects();
+    DeserializeEmbedderFields(embedder_fields_deserializer);
 
-  allocator()->RegisterDeserializedObjectsForBlackAllocation();
+    allocator()->RegisterDeserializedObjectsForBlackAllocation();
 
-  // There's no code deserialized here. If this assert fires then that's
-  // changed and logging should be added to notify the profiler et al of the
-  // new code, which also has to be flushed from instruction cache.
-  CHECK_EQ(start_address, code_space->top());
+    // There's no code deserialized here. If this assert fires then that's
+    // changed and logging should be added to notify the profiler et al of the
+    // new code, which also has to be flushed from instruction cache.
+    CHECK_EQ(start_address, code_space->top());
 
-  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
-  LogNewMapEvents();
+    if (FLAG_rehash_snapshot && can_rehash()) Rehash();
+    LogNewMapEvents();
 
-  return Handle<Object>(root, isolate);
+    result = handle(root, isolate);
+  }
+
+  SetupOffHeapArrayBufferBackingStores();
+
+  return result;
+}
+
+void PartialDeserializer::SetupOffHeapArrayBufferBackingStores() {
+  for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
+    // Serializer writes backing store ref in |backing_store| field.
+    size_t store_index = reinterpret_cast<size_t>(buffer->backing_store());
+    auto bs = backing_store(store_index);
+    SharedFlag shared =
+        bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
+    buffer->Setup(shared, bs);
+  }
 }
 
 void PartialDeserializer::DeserializeEmbedderFields(

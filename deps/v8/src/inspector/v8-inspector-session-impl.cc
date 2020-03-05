@@ -4,6 +4,8 @@
 
 #include "src/inspector/v8-inspector-session-impl.h"
 
+#include "../../third_party/inspector_protocol/crdtp/cbor.h"
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
@@ -17,23 +19,25 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
-#include "src/inspector/v8-inspector-protocol-encoding.h"
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-schema-agent-impl.h"
 
 namespace v8_inspector {
 namespace {
-using ::v8_inspector_protocol_encoding::span;
-using ::v8_inspector_protocol_encoding::SpanFrom;
-using IPEStatus = ::v8_inspector_protocol_encoding::Status;
+using v8_crdtp::span;
+using v8_crdtp::SpanFrom;
+using v8_crdtp::Status;
+using v8_crdtp::cbor::CheckCBORMessage;
+using v8_crdtp::json::ConvertCBORToJSON;
+using v8_crdtp::json::ConvertJSONToCBOR;
 
 bool IsCBORMessage(const StringView& msg) {
   return msg.is8Bit() && msg.length() >= 2 && msg.characters8()[0] == 0xd8 &&
          msg.characters8()[1] == 0x5a;
 }
 
-IPEStatus ConvertToCBOR(const StringView& state, std::vector<uint8_t>* cbor) {
+Status ConvertToCBOR(const StringView& state, std::vector<uint8_t>* cbor) {
   return state.is8Bit()
              ? ConvertJSONToCBOR(
                    span<uint8_t>(state.characters8(), state.length()), cbor)
@@ -163,16 +167,21 @@ protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
     std::unique_ptr<protocol::Serializable> message) {
-  std::vector<uint8_t> cbor = message->serializeToBinary();
-  if (use_binary_protocol_)
-    return std::unique_ptr<StringBuffer>(
-        new BinaryStringBuffer(std::move(cbor)));
+  std::vector<uint8_t> cbor = std::move(*message).TakeSerialized();
+  DCHECK(CheckCBORMessage(SpanFrom(cbor)).ok());
+  if (use_binary_protocol_) return StringBufferFrom(std::move(cbor));
   std::vector<uint8_t> json;
-  IPEStatus status = ConvertCBORToJSON(SpanFrom(cbor), &json);
+  Status status = ConvertCBORToJSON(SpanFrom(cbor), &json);
   DCHECK(status.ok());
   USE(status);
+  // TODO(johannes): It should be OK to make a StringBuffer from |json|
+  // directly, since it's 7 Bit US-ASCII with anything else escaped.
+  // However it appears that the Node.js tests (or perhaps even production)
+  // assume that the StringBuffer is 16 Bit. It probably accesses
+  // characters16() somehwere without checking is8Bit. Until it's fixed
+  // we take a detour via String16 which makes the StringBuffer 16 bit.
   String16 string16(reinterpret_cast<const char*>(json.data()), json.size());
-  return StringBufferImpl::adopt(string16);
+  return StringBufferFrom(std::move(string16));
 }
 
 void V8InspectorSessionImpl::sendProtocolResponse(
@@ -185,9 +194,8 @@ void V8InspectorSessionImpl::sendProtocolNotification(
   m_channel->sendNotification(serializeForFrontend(std::move(message)));
 }
 
-void V8InspectorSessionImpl::fallThrough(
-    int callId, const String16& method,
-    const protocol::ProtocolMessage& message) {
+void V8InspectorSessionImpl::fallThrough(int callId, const String16& method,
+                                         v8_crdtp::span<uint8_t> message) {
   // There's no other layer to handle the command.
   UNREACHABLE();
 }
@@ -252,13 +260,11 @@ bool V8InspectorSessionImpl::unwrapObject(
   Response response = unwrapObject(toString16(objectId), object, context,
                                    objectGroup ? &objectGroupString : nullptr);
   if (!response.isSuccess()) {
-    if (error) {
-      String16 errorMessage = response.errorMessage();
-      *error = StringBufferImpl::adopt(errorMessage);
-    }
+    if (error) *error = StringBufferFrom(response.errorMessage());
     return false;
   }
-  if (objectGroup) *objectGroup = StringBufferImpl::adopt(objectGroupString);
+  if (objectGroup)
+    *objectGroup = StringBufferFrom(std::move(objectGroupString));
   return true;
 }
 
@@ -332,8 +338,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
-  using ::v8_inspector_protocol_encoding::span;
-  using ::v8_inspector_protocol_encoding::SpanFrom;
+  using v8_crdtp::span;
+  using v8_crdtp::SpanFrom;
   span<uint8_t> cbor;
   std::vector<uint8_t> converted_cbor;
   if (IsCBORMessage(message)) {
@@ -361,14 +367,12 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
     // Pass empty string instead of the actual message to save on a conversion.
     // We're allowed to do so because fall-through is not implemented.
     m_dispatcher.dispatch(callId, method, std::move(parsed_message),
-                          protocol::ProtocolMessage());
+                          v8_crdtp::span<uint8_t>());
   }
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {
-  std::vector<uint8_t> out;
-  m_state->writeBinary(&out);
-  return out;
+  return std::move(*m_state).TakeSerialized();
 }
 
 std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
@@ -460,6 +464,11 @@ V8InspectorSessionImpl::searchInTextByLines(const StringView& text,
   for (size_t i = 0; i < matches.size(); ++i)
     result.push_back(std::move(matches[i]));
   return result;
+}
+
+void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
+    const StringView& occassion) {
+  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occassion));
 }
 
 }  // namespace v8_inspector

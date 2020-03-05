@@ -155,20 +155,21 @@ FeedbackSlot FeedbackVector::ToSlot(int index) {
 }
 
 MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return Get(isolate, slot);
 }
 
-MaybeObject FeedbackVector::Get(Isolate* isolate, FeedbackSlot slot) const {
+MaybeObject FeedbackVector::Get(const Isolate* isolate,
+                                FeedbackSlot slot) const {
   return get(isolate, GetIndex(slot));
 }
 
 MaybeObject FeedbackVector::get(int index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-MaybeObject FeedbackVector::get(Isolate* isolate, int index) const {
+MaybeObject FeedbackVector::get(const Isolate* isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = OffsetOfElementAt(index);
   return RELAXED_READ_WEAK_FIELD(*this, offset);

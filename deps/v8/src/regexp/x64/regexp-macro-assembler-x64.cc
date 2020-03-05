@@ -151,6 +151,17 @@ void RegExpMacroAssemblerX64::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerX64::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    __ incq(Operand(rbp, kBacktrackCount));
+    __ cmpq(Operand(rbp, kBacktrackCount), Immediate(backtrack_limit()));
+    __ j(not_equal, &next);
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(rbx);
   __ addq(rbx, code_object_pointer());
@@ -713,8 +724,14 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ pushq(rbx);  // Callee-save
 #endif
 
+  STATIC_ASSERT(kSuccessfulCaptures ==
+                kLastCalleeSaveRegister - kSystemPointerSize);
   __ Push(Immediate(0));  // Number of successful matches in a global regexp.
+  STATIC_ASSERT(kStringStartMinusOne ==
+                kSuccessfulCaptures - kSystemPointerSize);
   __ Push(Immediate(0));  // Make room for "string start - 1" constant.
+  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  __ Push(Immediate(0));  // The backtrack counter.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -997,7 +1014,8 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, Code::REGEXP)
                           .set_self_reference(masm_.CodeObject())
                           .Build();
-  PROFILE(isolate, RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
+  PROFILE(isolate,
+          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
   return Handle<HeapObject>::cast(code);
 }
 

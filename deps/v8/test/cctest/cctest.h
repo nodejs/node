@@ -169,6 +169,11 @@ class CcTest {
   static v8::Local<v8::Context> NewContext(
       CcTestExtensionFlags extension_flags,
       v8::Isolate* isolate = CcTest::isolate());
+  static v8::Local<v8::Context> NewContext(
+      std::initializer_list<CcTestExtensionId> extensions,
+      v8::Isolate* isolate = CcTest::isolate()) {
+    return NewContext(CcTestExtensionFlags{extensions}, isolate);
+  }
 
   static void TearDown();
 
@@ -373,18 +378,23 @@ static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
 
 static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
   v8::Local<v8::Script> result;
-  if (v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x)
-          .ToLocal(&result)) {
-    return result;
-  }
-  return v8::Local<v8::Script>();
+  CHECK(v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x)
+            .ToLocal(&result));
+  return result;
 }
-
 
 static inline v8::Local<v8::Script> v8_compile(const char* x) {
   return v8_compile(v8_str(x));
 }
 
+static inline v8::MaybeLocal<v8::Script> v8_try_compile(
+    v8::Local<v8::String> x) {
+  return v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x);
+}
+
+static inline v8::MaybeLocal<v8::Script> v8_try_compile(const char* x) {
+  return v8_try_compile(v8_str(x));
+}
 
 static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
@@ -697,29 +707,12 @@ class TestPlatform : public v8::Platform {
     old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
-                                     double delay_in_seconds) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
   double MonotonicallyIncreasingTime() override {
     return old_platform_->MonotonicallyIncreasingTime();
   }
 
   double CurrentClockTimeMillis() override {
     return old_platform_->CurrentClockTimeMillis();
-  }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  v8::IdleTask* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override {

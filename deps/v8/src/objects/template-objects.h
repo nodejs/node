@@ -17,23 +17,16 @@ namespace internal {
 // CachedTemplateObject is a tuple used to cache a TemplateObject that has been
 // created. All the CachedTemplateObject's for a given SharedFunctionInfo form a
 // linked list via the next fields.
-class CachedTemplateObject final : public Tuple3 {
+class CachedTemplateObject final
+    : public TorqueGeneratedCachedTemplateObject<CachedTemplateObject, Struct> {
  public:
   DECL_INT_ACCESSORS(slot_id)
-  DECL_ACCESSORS(template_object, JSArray)
-  DECL_ACCESSORS(next, HeapObject)
 
   static Handle<CachedTemplateObject> New(Isolate* isolate, int slot_id,
                                           Handle<JSArray> template_object,
                                           Handle<HeapObject> next);
 
-  DECL_CAST(CachedTemplateObject)
-
-  static constexpr int kSlotIdOffset = kValue1Offset;
-  static constexpr int kTemplateObjectOffset = kValue2Offset;
-  static constexpr int kNextOffset = kValue3Offset;
-
-  OBJECT_CONSTRUCTORS(CachedTemplateObject, Tuple3);
+  TQ_OBJECT_CONSTRUCTORS(CachedTemplateObject)
 };
 
 // TemplateObjectDescription is a tuple of raw strings and cooked strings for

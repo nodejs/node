@@ -25,7 +25,7 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "callee");
   CodeStubAssembler assembler(tester.state());
   int param_count = static_cast<int>(call_descriptor->StackParameterCount());
-  Node* sum = __ IntPtrConstant(0);
+  TNode<IntPtrT> sum = __ IntPtrConstant(0);
   for (int i = 0; i < param_count; ++i) {
     TNode<IntPtrT> product =
         __ Signed(__ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1)));
@@ -70,7 +70,7 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
   } else {
     Node* result = tester.raw_assembler_for_testing()->CallN(
         callee_descriptor, param_count + 1, params.data());
-    __ Return(result);
+    __ Return(__ UncheckedCast<IntPtrT>(result));
   }
   return tester.GenerateCodeCloseAndEscape();
 }

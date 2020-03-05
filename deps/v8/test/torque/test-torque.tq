@@ -4,7 +4,9 @@
 
 namespace test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
-    if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+    if constexpr (
+        (kind == ElementsKind::UINT8_ELEMENTS) ||
+        (kind == ElementsKind::UINT16_ELEMENTS)) {
       return true;
     } else {
       return false;
@@ -12,7 +14,9 @@ namespace test {
   }
 
   macro ElementsKindTestHelper2(kind: constexpr ElementsKind): constexpr bool {
-    return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
+    return (
+        (kind == ElementsKind::UINT8_ELEMENTS) ||
+        (kind == ElementsKind::UINT16_ELEMENTS));
   }
 
   macro LabelTestHelper1(): never
@@ -32,22 +36,27 @@ namespace test {
 
   @export
   macro TestConstexpr1() {
-    check(FromConstexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        IsFastElementsKind(ElementsKind::PACKED_SMI_ELEMENTS)));
   }
 
   @export
   macro TestConstexprIf() {
-    check(ElementsKindTestHelper1(UINT8_ELEMENTS));
-    check(ElementsKindTestHelper1(UINT16_ELEMENTS));
-    check(!ElementsKindTestHelper1(UINT32_ELEMENTS));
+    check(ElementsKindTestHelper1(ElementsKind::UINT8_ELEMENTS));
+    check(ElementsKindTestHelper1(ElementsKind::UINT16_ELEMENTS));
+    check(!ElementsKindTestHelper1(ElementsKind::UINT32_ELEMENTS));
   }
 
   @export
   macro TestConstexprReturn() {
-    check(FromConstexpr<bool>(ElementsKindTestHelper2(UINT8_ELEMENTS)));
-    check(FromConstexpr<bool>(ElementsKindTestHelper2(UINT16_ELEMENTS)));
-    check(!FromConstexpr<bool>(ElementsKindTestHelper2(UINT32_ELEMENTS)));
-    check(FromConstexpr<bool>(!ElementsKindTestHelper2(UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        ElementsKindTestHelper2(ElementsKind::UINT8_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        ElementsKindTestHelper2(ElementsKind::UINT16_ELEMENTS)));
+    check(!FromConstexpr<bool>(
+        ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(
+        !ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
   }
 
   @export
@@ -465,7 +474,7 @@ namespace test {
     }
   }
 
-  type NumberOrFixedArray = Number | FixedArray;
+  type NumberOrFixedArray = Number|FixedArray;
   macro TypeswitchExample(implicit context: Context)(x: NumberOrFixedArray):
       int32 {
     let result: int32 = 0;
@@ -633,7 +642,7 @@ namespace test {
   macro TestCatch1(implicit context: Context)(): Smi {
     let r: Smi = 0;
     try {
-      ThrowTypeError(kInvalidArrayLength);
+      ThrowTypeError(MessageTemplate::kInvalidArrayLength);
     } catch (_e) {
       r = 1;
       return r;
@@ -642,7 +651,7 @@ namespace test {
 
   @export
   macro TestCatch2Wrapper(implicit context: Context)(): never {
-    ThrowTypeError(kInvalidArrayLength);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
   @export
@@ -659,7 +668,7 @@ namespace test {
   @export
   macro TestCatch3WrapperWithLabel(implicit context: Context)():
       never labels _Abort {
-    ThrowTypeError(kInvalidArrayLength);
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
   @export
@@ -727,10 +736,10 @@ namespace test {
   }
 
   struct TestInner {
-    SetX(newValue: int32) {
+    macro SetX(newValue: int32) {
       this.x = newValue;
     }
-    GetX(): int32 {
+    macro GetX(): int32 {
       return this.x;
     }
     x: int32;
@@ -759,7 +768,7 @@ namespace test {
   }
 
   class InternalClass extends Struct {
-    Flip() labels NotASmi {
+    macro Flip() labels NotASmi {
       const tmp = Cast<Smi>(this.b) otherwise NotASmi;
       this.b = this.a;
       this.a = tmp;
@@ -781,10 +790,10 @@ namespace test {
   }
 
   struct StructWithConst {
-    TestMethod1(): int32 {
+    macro TestMethod1(): int32 {
       return this.b;
     }
-    TestMethod2(): Object {
+    macro TestMethod2(): Object {
       return this.a;
     }
     a: Object;
@@ -802,8 +811,16 @@ namespace test {
     check(x.TestMethod2() == Null);
   }
 
+  @export
+  macro TestParentFrameArguments(implicit context: Context)() {
+    const parentFrame = LoadParentFramePointer();
+    const castFrame = Cast<StandardFrame>(parentFrame) otherwise unreachable;
+    const arguments = GetFrameArguments(castFrame, 1);
+    ArgumentsIterator{arguments, current: 0};
+  }
+
   struct TestIterator {
-    Next(): Object labels NoMore {
+    macro Next(): Object labels NoMore {
       if (this.count-- == 0) goto NoMore;
       return TheHole;
     }
@@ -817,7 +834,7 @@ namespace test {
   }
 
   class SmiPair extends Struct {
-    GetA():&Smi {
+    macro GetA():&Smi {
       return & this.a;
     }
     a: Smi;
@@ -888,8 +905,7 @@ namespace test {
     let it = slice.Iterator();
     let count: Smi = 0;
     while (true) {
-      let ref = it.Next() otherwise break;
-      const value = UnsafeCast<Smi>(* ref);
+      const value = UnsafeCast<Smi>(it.Next() otherwise break);
       check(value == count + 7);
       count++;
     }
@@ -1028,4 +1044,80 @@ namespace test {
     }
   }
 
+  bitfield struct TestBitFieldStruct extends uint8 {
+    a: bool: 1 bit;
+    b: uint16: 3 bit;
+    c: uint32: 3 bit;
+    d: bool: 1 bit;
+  }
+
+  @export
+  macro TestBitFieldLoad(
+      val: TestBitFieldStruct, expectedA: bool, expectedB: uint16,
+      expectedC: uint32, expectedD: bool) {
+    check(val.a == expectedA);
+    check(val.b == expectedB);
+    check(val.c == expectedC);
+    check(val.d == expectedD);
+  }
+
+  @export
+  macro TestBitFieldStore(val: TestBitFieldStruct) {
+    let val: TestBitFieldStruct = val;  // Get a mutable local copy.
+    const a: bool = val.a;
+    const b: uint16 = val.b;
+    let c: uint32 = val.c;
+    const d: bool = val.d;
+
+    val.a = !a;
+    TestBitFieldLoad(val, !a, b, c, d);
+
+    c = Unsigned(7 - Signed(val.c));
+    val.c = c;
+    TestBitFieldLoad(val, !a, b, c, d);
+
+    val.d = val.b == val.c;
+    TestBitFieldLoad(val, !a, b, c, b == c);
+  }
+
+  // Some other bitfield structs, to verify getting uintptr values out of word32
+  // structs and vice versa.
+  bitfield struct TestBitFieldStruct2 extends uint32 {
+    a: uintptr: 5 bit;
+    b: uintptr: 6 bit;
+  }
+  bitfield struct TestBitFieldStruct3 extends uintptr {
+    c: bool: 1 bit;
+    d: uint32: 9 bit;
+    e: uintptr: 17 bit;
+  }
+
+  @export
+  macro TestBitFieldUintptrOps(
+      val2: TestBitFieldStruct2, val3: TestBitFieldStruct3) {
+    let val2: TestBitFieldStruct2 = val2;  // Get a mutable local copy.
+    let val3: TestBitFieldStruct3 = val3;  // Get a mutable local copy.
+
+    // Caller is expected to provide these exact values, so we can verify
+    // reading values before starting to write anything.
+    check(val2.a == 3);
+    check(val2.b == 61);
+    check(val3.c);
+    check(val3.d == 500);
+    check(val3.e == 0x1cc);
+
+    val2.b = 16;
+    check(val2.a == 3);
+    check(val2.b == 16);
+
+    val2.b++;
+    check(val2.a == 3);
+    check(val2.b == 17);
+
+    val3.d = 99;
+    val3.e = 1234;
+    check(val3.c);
+    check(val3.d == 99);
+    check(val3.e == 1234);
+  }
 }

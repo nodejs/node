@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, Isolate* isolate,
+bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
                   ReportErrorsAndStatisticsMode mode) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
@@ -26,7 +26,7 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate,
   VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
-  Handle<String> source(String::cast(info->script()->source()), isolate);
+  Handle<String> source(String::cast(script->source()), isolate);
   isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source));
@@ -38,7 +38,7 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate,
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
 
-  result = parser.ParseProgram(isolate, info);
+  result = parser.ParseProgram(isolate, script, info);
   info->set_literal(result);
   if (result) {
     info->set_language_mode(info->literal()->language_mode());
@@ -49,10 +49,10 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate,
 
   if (mode == ReportErrorsAndStatisticsMode::kYes) {
     if (result == nullptr) {
-      info->pending_error_handler()->ReportErrors(isolate, info->script(),
+      info->pending_error_handler()->ReportErrors(isolate, script,
                                                   info->ast_value_factory());
     }
-    parser.UpdateStatistics(isolate, info->script());
+    parser.UpdateStatistics(isolate, script);
   }
   return (result != nullptr);
 }
@@ -64,7 +64,8 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   DCHECK_NULL(info->literal());
 
   // Create a character stream for the parser.
-  Handle<String> source(String::cast(info->script()->source()), isolate);
+  Handle<Script> script(Script::cast(shared_info->script()), isolate);
+  Handle<String> source(String::cast(script->source()), isolate);
   isolate->counters()->total_parse_size()->Increment(source->length());
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source, shared_info->StartPosition(),
@@ -82,7 +83,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   result = parser.ParseFunction(isolate, info, shared_info);
   info->set_literal(result);
   if (result) {
-    info->ast_value_factory()->Internalize(isolate);
+    info->ast_value_factory()->Internalize(isolate->factory());
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
@@ -90,10 +91,10 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 
   if (mode == ReportErrorsAndStatisticsMode::kYes) {
     if (result == nullptr) {
-      info->pending_error_handler()->ReportErrors(isolate, info->script(),
+      info->pending_error_handler()->ReportErrors(isolate, script,
                                                   info->ast_value_factory());
     }
-    parser.UpdateStatistics(isolate, info->script());
+    parser.UpdateStatistics(isolate, script);
   }
   return (result != nullptr);
 }
@@ -101,8 +102,11 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
-  return info->is_toplevel() ? ParseProgram(info, isolate, mode)
-                             : ParseFunction(info, shared_info, isolate, mode);
+  return info->is_toplevel()
+             ? ParseProgram(
+                   info, handle(Script::cast(shared_info->script()), isolate),
+                   isolate, mode)
+             : ParseFunction(info, shared_info, isolate, mode);
 }
 
 }  // namespace parsing

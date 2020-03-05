@@ -20,8 +20,8 @@ class WasmGraphBuilder;
 namespace wasm {
 
 struct FunctionBody;
+class WasmFeatures;
 struct WasmModule;
-struct WasmFeatures;
 
 V8_EXPORT_PRIVATE DecodeResult
 BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,

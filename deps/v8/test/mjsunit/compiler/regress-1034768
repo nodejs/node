@@ -1,0 +1,24 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Flags: --allow-natives-syntax --max-serializer-nesting=4
+function f1() {
+  return 1;
+}
+
+function f2() { return f1(); }
+function f3() { return f2(); }
+function f4() { return f3(); }
+function f5() { return f4(); }
+
+%PrepareFunctionForOptimization(f1);
+%PrepareFunctionForOptimization(f2);
+%PrepareFunctionForOptimization(f3);
+%PrepareFunctionForOptimization(f4);
+%PrepareFunctionForOptimization(f5);
+
+f5();
+f5();
+%OptimizeFunctionOnNextCall(f5);
+f5();

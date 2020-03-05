@@ -8,6 +8,7 @@
 // change the isolate in terms of callbacks allow_code_gen_callback and
 // allow_wasm_code_gen_callback.
 
+#include "src/api/api-inl.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -59,13 +60,37 @@ void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
 
 bool TestModule(Isolate* isolate, v8::MemorySpan<const uint8_t> wire_bytes) {
   HandleScope scope(isolate);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Local<v8::Context> context =
+      Utils::ToLocal(Handle<Context>::cast(isolate->native_context()));
 
-  v8::MemorySpan<const uint8_t> serialized_module;
-  MaybeLocal<v8::WasmModuleObject> module =
-      v8::WasmModuleObject::DeserializeOrCompile(
-          reinterpret_cast<v8::Isolate*>(isolate), serialized_module,
-          wire_bytes);
-  return !module.IsEmpty();
+  // Get the "WebAssembly.Module" function.
+  auto get_property = [context, v8_isolate](
+                          v8::Local<v8::Object> obj,
+                          const char* property_name) -> v8::Local<v8::Object> {
+    auto name = v8::String::NewFromUtf8(v8_isolate, property_name,
+                                        NewStringType::kInternalized)
+                    .ToLocalChecked();
+    return obj->Get(context, name).ToLocalChecked().As<v8::Object>();
+  };
+  auto wasm_class = get_property(context->Global(), "WebAssembly");
+  auto module_class = get_property(wasm_class, "Module");
+
+  // Create an arraybuffer with the wire bytes.
+  v8::Local<v8::ArrayBuffer> buf =
+      v8::ArrayBuffer::New(v8_isolate, wire_bytes.size());
+  memcpy(static_cast<uint8_t*>(buf->GetBackingStore()->Data()),
+         wire_bytes.data(), wire_bytes.size());
+
+  // Now call the "WebAssembly.Module" function with the array buffer. Return
+  // true if this succeeded, false otherwise.
+  v8::TryCatch try_catch(v8_isolate);
+  v8::Local<v8::Value> args[] = {buf};
+  MaybeLocal<Value> module_object =
+      module_class->CallAsConstructor(context, arraysize(args), args);
+
+  CHECK_EQ(try_catch.HasCaught(), module_object.IsEmpty());
+  return !module_object.IsEmpty();
 }
 
 }  // namespace
@@ -78,7 +103,6 @@ TEST(PropertiesOfCodegenCallbacks) {
   v8::MemorySpan<const uint8_t> wire_bytes = {buffer.begin(), buffer.size()};
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
-  testing::SetupIsolateForWasmModule(isolate);
 
   for (TestValue codegen : AllTestValues) {
     for (TestValue wasm_codegen : AllTestValues) {
@@ -92,6 +116,15 @@ TEST(PropertiesOfCodegenCallbacks) {
       CcTest::CollectAllAvailableGarbage();
     }
   }
+}
+
+TEST(WasmModuleObjectCompileFailure) {
+  const uint8_t wire_bytes_arr[] = {0xDE, 0xAD, 0xBE, 0xEF};
+  v8::MemorySpan<const uint8_t> wire_bytes = {wire_bytes_arr,
+                                              arraysize(wire_bytes_arr)};
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  CHECK(!TestModule(isolate, wire_bytes));
 }
 
 }  // namespace wasm

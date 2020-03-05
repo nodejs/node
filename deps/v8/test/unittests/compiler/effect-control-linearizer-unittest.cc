@@ -85,9 +85,9 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   schedule.AddReturn(start, ret);
 
   // Run the state effect introducer.
-  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
-                         node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
+  LinearizeEffectControl(
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
+      MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kDiscard);
 
   EXPECT_THAT(load,
               IsLoadField(AccessBuilder::ForHeapNumberValue(), heap_number,
@@ -147,9 +147,9 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   schedule.AddReturn(mblock, ret);
 
   // Run the state effect introducer.
-  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
-                         node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
+  LinearizeEffectControl(
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
+      MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kDiscard);
 
   // The effect input to the return should be an effect phi with the
   // newly introduced effectful change operators.
@@ -214,9 +214,9 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   schedule.AddReturn(rblock, ret);
 
   // Run the state effect introducer.
-  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
-                         node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
+  LinearizeEffectControl(
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
+      MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kDiscard);
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
   EXPECT_THAT(load, IsLoadField(AccessBuilder::ForHeapNumberValue(),
@@ -277,9 +277,9 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
   schedule.AddNode(mblock, merge);
   schedule.AddNode(mblock, graph()->end());
 
-  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
-                         node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
+  LinearizeEffectControl(
+      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
+      MaskArrayIndexEnable::kDoNotMaskArrayIndex, MaintainSchedule::kDiscard);
 
   Capture<Node *> branch1_capture, branch2_capture;
   EXPECT_THAT(

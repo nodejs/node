@@ -20,6 +20,7 @@
 #include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
+#include "src/objects/js-display-names-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-number-format-inl.h"
@@ -386,6 +387,45 @@ Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate,
                            T::New(isolate, map, locales, options, method));
 }
 }  // namespace
+
+// Intl.DisplayNames
+
+BUILTIN(DisplayNamesConstructor) {
+  HandleScope scope(isolate);
+
+  return DisallowCallConstructor<JSDisplayNames>(
+      args, isolate, v8::Isolate::UseCounterFeature::kDisplayNames,
+      "Intl.DisplayNames");
+}
+
+BUILTIN(DisplayNamesPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSDisplayNames, holder,
+                 "Intl.DisplayNames.prototype.resolvedOptions");
+  return *JSDisplayNames::ResolvedOptions(isolate, holder);
+}
+
+BUILTIN(DisplayNamesSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::SupportedLocalesOf(
+                   isolate, "Intl.DisplayNames.supportedLocalesOf",
+                   JSDisplayNames::GetAvailableLocales(), locales, options));
+}
+
+BUILTIN(DisplayNamesPrototypeOf) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSDisplayNames, holder, "Intl.DisplayNames.prototype.of");
+  Handle<Object> code_obj = args.atOrUndefined(isolate, 1);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSDisplayNames::Of(isolate, holder, code_obj));
+}
+
+// Intl.NumberFormat
 
 BUILTIN(NumberFormatConstructor) {
   HandleScope scope(isolate);

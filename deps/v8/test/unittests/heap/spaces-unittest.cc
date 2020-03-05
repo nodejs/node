@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/spaces.h"
+#include <memory>
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/spaces-inl.h"
 #include "test/unittests/test-utils.h"
 
@@ -19,7 +23,8 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   EXPECT_TRUE(old_space != nullptr);
 
   CompactionSpace* compaction_space =
-      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
+                          LocalSpaceKind::kCompactionSpaceForMarkCompact);
   EXPECT_TRUE(compaction_space != nullptr);
 
   for (Page* p : *old_space) {
@@ -45,11 +50,233 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   int pages_in_old_space = old_space->CountTotalPages();
   int pages_in_compaction_space = compaction_space->CountTotalPages();
   EXPECT_EQ(kExpectedPages, pages_in_compaction_space);
-  old_space->MergeCompactionSpace(compaction_space);
+  old_space->MergeLocalSpace(compaction_space);
   EXPECT_EQ(pages_in_old_space + pages_in_compaction_space,
             old_space->CountTotalPages());
 
   delete compaction_space;
+}
+
+class OffThreadAllocationThread final : public base::Thread {
+ public:
+  explicit OffThreadAllocationThread(Heap* heap)
+      : Thread(Options("OffThreadAllocationThread")), heap_(heap) {}
+  void Run() override {
+    off_thread_space_ = std::make_unique<OffThreadSpace>(heap_);
+    EXPECT_TRUE(off_thread_space_ != nullptr);
+
+    // Cannot loop until "Available()" since we initially have 0 bytes available
+    // and would thus neither grow, nor be able to allocate an object.
+    const int kNumObjects = 10;
+    const int kNumObjectsPerPage =
+        off_thread_space_->AreaSize() / kMaxRegularHeapObjectSize;
+    const int kExpectedPages =
+        (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
+    for (int i = 0; i < kNumObjects; i++) {
+      HeapObject object =
+          off_thread_space_->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+              .ToObjectChecked();
+      heap_->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize,
+                                  ClearRecordedSlots::kNo);
+    }
+    int pages_in_off_thread_space = off_thread_space_->CountTotalPages();
+    EXPECT_EQ(kExpectedPages, pages_in_off_thread_space);
+  }
+
+  OffThreadSpace* space() { return off_thread_space_.get(); }
+
+ private:
+  Heap* heap_;
+  std::unique_ptr<OffThreadSpace> off_thread_space_;
+};
+
+TEST_F(SpacesTest, OffThreadSpaceAllocate) {
+  Heap* heap = i_isolate()->heap();
+
+  static const int kNumThreads = 10;
+  std::unique_ptr<OffThreadAllocationThread> threads[10];
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i] = std::make_unique<OffThreadAllocationThread>(heap);
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    CHECK(threads[i]->Start());
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i]->Join();
+  }
+}
+
+TEST_F(SpacesTest, OffThreadSpaceMerge) {
+  Heap* heap = i_isolate()->heap();
+  OldSpace* old_space = heap->old_space();
+  EXPECT_TRUE(old_space != nullptr);
+
+  static const int kNumThreads = 10;
+  std::unique_ptr<OffThreadAllocationThread> threads[10];
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i] = std::make_unique<OffThreadAllocationThread>(heap);
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    CHECK(threads[i]->Start());
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i]->Join();
+  }
+
+  int pages_in_old_space = old_space->CountTotalPages();
+
+  int expected_merged_pages = 0;
+  for (int i = 0; i < kNumThreads; ++i) {
+    int pages_in_off_thread_space = threads[i]->space()->CountTotalPages();
+
+    old_space->MergeLocalSpace(threads[i]->space());
+    expected_merged_pages += pages_in_off_thread_space;
+  }
+
+  EXPECT_EQ(pages_in_old_space + expected_merged_pages,
+            old_space->CountTotalPages());
+}
+
+TEST_F(SpacesTest, OffThreadSpaceMergeDuringIncrementalMarking) {
+  Heap* heap = i_isolate()->heap();
+  OldSpace* old_space = heap->old_space();
+  EXPECT_TRUE(old_space != nullptr);
+
+  static const int kNumThreads = 10;
+  std::unique_ptr<OffThreadAllocationThread> threads[10];
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i] = std::make_unique<OffThreadAllocationThread>(heap);
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    CHECK(threads[i]->Start());
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i]->Join();
+  }
+
+  heap->StartIncrementalMarking(Heap::kNoGCFlags,
+                                GarbageCollectionReason::kTesting);
+
+  int pages_in_old_space = old_space->CountTotalPages();
+
+  int expected_merged_pages = 0;
+  for (int i = 0; i < kNumThreads; ++i) {
+    int pages_in_off_thread_space = threads[i]->space()->CountTotalPages();
+
+    old_space->MergeLocalSpace(threads[i]->space());
+    expected_merged_pages += pages_in_off_thread_space;
+  }
+
+  heap->FinalizeIncrementalMarkingAtomically(GarbageCollectionReason::kTesting);
+
+  EXPECT_EQ(pages_in_old_space + expected_merged_pages,
+            old_space->CountTotalPages());
+}
+
+class LargeOffThreadAllocationThread final : public base::Thread {
+ public:
+  explicit LargeOffThreadAllocationThread(Heap* heap)
+      : Thread(Options("LargeOffThreadAllocationThread")), heap_(heap) {}
+  void Run() override {
+    off_thread_lo_space_ = std::make_unique<OffThreadLargeObjectSpace>(heap_);
+    EXPECT_TRUE(off_thread_lo_space_ != nullptr);
+
+    const int kNumObjects = 10;
+    const int kExpectedPages = kNumObjects;
+    for (int i = 0; i < kNumObjects; i++) {
+      HeapObject object =
+          off_thread_lo_space_
+              ->AllocateRaw(kMaxRegularHeapObjectSize + kTaggedSize)
+              .ToObjectChecked();
+      heap_->CreateFillerObjectAt(object.address(),
+                                  kMaxRegularHeapObjectSize + kTaggedSize,
+                                  ClearRecordedSlots::kNo);
+    }
+    int pages_in_off_thread_space = off_thread_lo_space_->PageCount();
+    EXPECT_EQ(kExpectedPages, pages_in_off_thread_space);
+  }
+
+  OffThreadLargeObjectSpace* space() { return off_thread_lo_space_.get(); }
+
+ private:
+  Heap* heap_;
+  std::unique_ptr<OffThreadLargeObjectSpace> off_thread_lo_space_;
+};
+
+TEST_F(SpacesTest, OffThreadLargeObjectSpaceAllocate) {
+  Heap* heap = i_isolate()->heap();
+
+  static const int kNumThreads = 10;
+  std::unique_ptr<LargeOffThreadAllocationThread> threads[10];
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i] = std::make_unique<LargeOffThreadAllocationThread>(heap);
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    CHECK(threads[i]->Start());
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i]->Join();
+  }
+}
+
+TEST_F(SpacesTest, OffThreadLargeObjectSpaceMerge) {
+  Heap* heap = i_isolate()->heap();
+  OldLargeObjectSpace* lo_space = heap->lo_space();
+  EXPECT_TRUE(lo_space != nullptr);
+
+  static const int kNumThreads = 10;
+  std::unique_ptr<LargeOffThreadAllocationThread> threads[10];
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i] = std::make_unique<LargeOffThreadAllocationThread>(heap);
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    CHECK(threads[i]->Start());
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i]->Join();
+  }
+
+  int pages_in_old_space = lo_space->PageCount();
+
+  int expected_merged_pages = 0;
+  for (int i = 0; i < kNumThreads; ++i) {
+    int pages_in_off_thread_space = threads[i]->space()->PageCount();
+
+    lo_space->MergeOffThreadSpace(threads[i]->space());
+    expected_merged_pages += pages_in_off_thread_space;
+  }
+
+  EXPECT_EQ(pages_in_old_space + expected_merged_pages, lo_space->PageCount());
+}
+
+TEST_F(SpacesTest, OffThreadLargeObjectSpaceMergeDuringIncrementalMarking) {
+  Heap* heap = i_isolate()->heap();
+  OldLargeObjectSpace* lo_space = heap->lo_space();
+  EXPECT_TRUE(lo_space != nullptr);
+
+  static const int kNumThreads = 10;
+  std::unique_ptr<LargeOffThreadAllocationThread> threads[10];
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i] = std::make_unique<LargeOffThreadAllocationThread>(heap);
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    CHECK(threads[i]->Start());
+  }
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads[i]->Join();
+  }
+
+  int pages_in_old_space = lo_space->PageCount();
+
+  int expected_merged_pages = 0;
+  for (int i = 0; i < kNumThreads; ++i) {
+    int pages_in_off_thread_space = threads[i]->space()->PageCount();
+
+    lo_space->MergeOffThreadSpace(threads[i]->space());
+    expected_merged_pages += pages_in_off_thread_space;
+  }
+
+  EXPECT_EQ(pages_in_old_space + expected_merged_pages, lo_space->PageCount());
 }
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {

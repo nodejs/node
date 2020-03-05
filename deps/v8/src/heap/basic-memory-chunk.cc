@@ -27,21 +27,10 @@ STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
 
 BasicMemoryChunk::BasicMemoryChunk(size_t size, Address area_start,
                                    Address area_end) {
-  const Address base = reinterpret_cast<Address>(this);
   size_ = size;
   marking_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
-  header_sentinel_ = HeapObject::FromAddress(base).ptr();
-  DCHECK(HasHeaderSentinel(area_start));
   area_start_ = area_start;
   area_end_ = area_end;
-}
-
-// static
-bool BasicMemoryChunk::HasHeaderSentinel(Address slot_addr) {
-  Address base = BaseAddress(slot_addr);
-  if (slot_addr < base + kHeaderSize) return false;
-  return HeapObject::FromAddress(base) ==
-         ObjectSlot(base + kHeaderSentinelOffset).Relaxed_Load();
 }
 
 void BasicMemoryChunk::ReleaseMarkingBitmap() {

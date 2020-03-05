@@ -34,6 +34,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/heap/off-thread-factory.h"
 #include "src/numbers/conversions.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
@@ -52,10 +53,12 @@ class AstRawString final : public ZoneObject {
                          : literal_bytes_.length() / 2;
   }
   bool AsArrayIndex(uint32_t* index) const;
+  bool IsIntegerIndex() const;
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
-  void Internalize(Isolate* isolate);
+  void Internalize(Factory* factory);
+  void Internalize(OffThreadFactory* factory);
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -67,10 +70,9 @@ class AstRawString final : public ZoneObject {
   uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }
 
   // This function can be called after internalizing.
-  V8_INLINE Handle<String> string() const {
-    DCHECK_NOT_NULL(string_);
+  V8_INLINE HandleOrOffThreadHandle<String> string() const {
     DCHECK(has_string_);
-    return Handle<String>(string_);
+    return string_;
   }
 
  private:
@@ -95,20 +97,18 @@ class AstRawString final : public ZoneObject {
     return &next_;
   }
 
-  void set_string(Handle<String> string) {
+  void set_string(HandleOrOffThreadHandle<String> string) {
     DCHECK(!string.is_null());
     DCHECK(!has_string_);
-    string_ = string.location();
+    string_ = string;
 #ifdef DEBUG
     has_string_ = true;
 #endif
   }
 
-  // {string_} is stored as Address* instead of a Handle<String> so it can be
-  // stored in a union with {next_}.
   union {
     AstRawString* next_;
-    Address* string_;
+    HandleOrOffThreadHandle<String> string_;
   };
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
@@ -143,11 +143,13 @@ class AstConsString final : public ZoneObject {
     return segment_.string == nullptr;
   }
 
-  void Internalize(Isolate* isolate);
+  template <typename Factory>
+  void Internalize(Factory* factory);
 
-  V8_INLINE Handle<String> string() const {
-    DCHECK_NOT_NULL(string_);
-    return Handle<String>(string_);
+  // This function can be called after internalizing.
+  V8_INLINE HandleOrOffThreadHandle<String> string() const {
+    DCHECK(has_string_);
+    return string_;
   }
 
   std::forward_list<const AstRawString*> ToRawStrings() const;
@@ -160,12 +162,20 @@ class AstConsString final : public ZoneObject {
   AstConsString* next() const { return next_; }
   AstConsString** next_location() { return &next_; }
 
+  void set_string(HandleOrOffThreadHandle<String> string) {
+    DCHECK(!string.is_null());
+    DCHECK(!has_string_);
+    string_ = string;
+#ifdef DEBUG
+    has_string_ = true;
+#endif
+  }
+
   // {string_} is stored as Address* instead of a Handle<String> so it can be
   // stored in a union with {next_}.
-  void set_string(Handle<String> string) { string_ = string.location(); }
   union {
     AstConsString* next_;
-    Address* string_;
+    HandleOrOffThreadHandle<String> string_;
   };
 
   struct Segment {
@@ -173,6 +183,13 @@ class AstConsString final : public ZoneObject {
     AstConsString::Segment* next;
   };
   Segment segment_;
+
+#ifdef DEBUG
+  // (Debug-only:) Verify the object life-cylce: Some functions may only be
+  // called after internalization (that is, after a v8::internal::String has
+  // been set); some only before.
+  bool has_string_ = false;
+#endif
 };
 
 enum class AstSymbol : uint8_t { kHomeObjectSymbol };
@@ -209,9 +226,8 @@ class AstBigInt {
   F(dot_default, ".default")                    \
   F(dot_for, ".for")                            \
   F(dot_generator_object, ".generator_object")  \
-  F(dot_iterator, ".iterator")                  \
-  F(dot_promise, ".promise")                    \
   F(dot_result, ".result")                      \
+  F(dot_repl_result, ".repl_result")            \
   F(dot_switch_tag, ".switch_tag")              \
   F(dot_catch, ".catch")                        \
   F(empty, "")                                  \
@@ -313,7 +329,8 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
                                                  const AstRawString* str2);
 
-  V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
+  template <typename Factory>
+  void Internalize(Factory* factory);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \
@@ -368,6 +385,15 @@ class AstValueFactory {
 
   uint64_t hash_seed_;
 };
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Factory>(Factory*
+                                                                      factory);
+
+extern template EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) void AstValueFactory::
+    Internalize<OffThreadFactory>(OffThreadFactory* factory);
+
 }  // namespace internal
 }  // namespace v8
 

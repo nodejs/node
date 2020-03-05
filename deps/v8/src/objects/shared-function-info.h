@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/bit-field.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
@@ -16,17 +17,15 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
+#include "src/roots/roots.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
+#include "torque-generated/bit-fields-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
-
-namespace tracing {
-class TracedValue;
-}
 
 namespace internal {
 
@@ -100,9 +99,8 @@ class PreparseData
 class UncompiledData
     : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  inline static void Initialize(
-      UncompiledData data, String inferred_name, int start_position,
-      int end_position,
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -137,9 +135,9 @@ class UncompiledDataWithPreparseData
  public:
   DECL_PRINTER(UncompiledDataWithPreparseData)
 
-  inline static void Initialize(
-      UncompiledDataWithPreparseData data, String inferred_name,
-      int start_position, int end_position, PreparseData scope_data,
+  inline void Init(
+      String inferred_name, int start_position, int end_position,
+      PreparseData scope_data,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -169,12 +167,20 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObject {
+class SharedFunctionInfo : public HeapObject,
+                           public TorqueGeneratedSharedFunctionInfoFlagsFields {
  public:
   NEVER_READ_ONLY_SPACE
 
-  V8_EXPORT_PRIVATE static constexpr Object const kNoSharedNameSentinel =
-      Smi::kZero;
+  // This initializes the SharedFunctionInfo after allocation. It must
+  // initialize all fields, and leave the SharedFunctionInfo in a state where
+  // it is safe for the GC to visit it.
+  //
+  // Important: This function MUST not allocate.
+  void Init(ReadOnlyRoots roots, int unique_id);
+
+  V8_EXPORT_PRIVATE static constexpr Smi const kNoSharedNameSentinel =
+      Smi::zero();
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String Name() const;
@@ -196,9 +202,10 @@ class SharedFunctionInfo : public HeapObject {
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
-  V8_EXPORT_PRIVATE static void SetScript(
-      Handle<SharedFunctionInfo> shared, Handle<HeapObject> script_object,
-      int function_literal_id, bool reset_preparsed_scope_data = true);
+  V8_EXPORT_PRIVATE void SetScript(ReadOnlyRoots roots,
+                                   HeapObject script_object,
+                                   int function_literal_id,
+                                   bool reset_preparsed_scope_data = true);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -215,6 +222,9 @@ class SharedFunctionInfo : public HeapObject {
   // Set scope_info without moving the existing name onto the ScopeInfo.
   inline void set_raw_scope_info(ScopeInfo scope_info,
                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline bool is_script() const;
+  inline bool needs_script_context() const;
 
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
@@ -368,6 +378,9 @@ class SharedFunctionInfo : public HeapObject {
   inline HeapObject script() const;
   inline void set_script(HeapObject script);
 
+  // True if the underlying script was parsed and compiled in REPL mode.
+  inline bool is_repl_mode() const;
+
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
   inline DebugInfo GetDebugInfo() const;
@@ -490,10 +503,10 @@ class SharedFunctionInfo : public HeapObject {
   // - internal break points
   // - coverage and type profile
   // - error stack trace
-  inline bool IsSubjectToDebugging();
+  inline bool IsSubjectToDebugging() const;
 
   // Whether this function is defined in user-provided JavaScript code.
-  inline bool IsUserJavaScript();
+  inline bool IsUserJavaScript() const;
 
   // True if one can flush compiled code from this function, in such a way that
   // it can later be re-compiled.
@@ -517,8 +530,19 @@ class SharedFunctionInfo : public HeapObject {
   // Hence it takes the mode as an argument.
   inline bool ShouldFlushBytecode(BytecodeFlushMode mode);
 
-  // Check whether or not this function is inlineable.
-  bool IsInlineable();
+  enum Inlineability {
+    kIsInlineable,
+    // Different reasons for not being inlineable:
+    kHasNoScript,
+    kNeedsBinaryCoverage,
+    kHasOptimizationDisabled,
+    kIsBuiltin,
+    kIsNotUserCode,
+    kHasNoBytecode,
+    kExceedsBytecodeLimit,
+    kMayContainBreakPoints,
+  };
+  Inlineability GetInlineability() const;
 
   // Source size of this function.
   int SourceSize();
@@ -529,7 +553,8 @@ class SharedFunctionInfo : public HeapObject {
   inline bool has_simple_parameters();
 
   // Initialize a SharedFunctionInfo from a parsed function literal.
-  static void InitFromFunctionLiteral(Handle<SharedFunctionInfo> shared_info,
+  static void InitFromFunctionLiteral(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
 
   // Updates the expected number of properties based on estimate from parser.
@@ -545,7 +570,7 @@ class SharedFunctionInfo : public HeapObject {
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
-  bool AreSourcePositionsAvailable() const;
+  V8_EXPORT_PRIVATE bool AreSourcePositionsAvailable() const;
 
   // Hash based on function literal id and script id.
   V8_EXPORT_PRIVATE uint32_t Hash();
@@ -565,22 +590,6 @@ class SharedFunctionInfo : public HeapObject {
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
-
-  // Returns the SharedFunctionInfo in a format tracing can support.
-  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue(
-      FunctionLiteral* literal);
-
-  // The tracing scope for SharedFunctionInfo objects.
-  static const char* kTraceScope;
-
-  // Returns the unique TraceID for this SharedFunctionInfo (within the
-  // kTraceScope, works only for functions that have a Script and start/end
-  // position).
-  uint64_t TraceID(FunctionLiteral* literal = nullptr) const;
-
-  // Returns the unique trace ID reference for this SharedFunctionInfo
-  // (based on the |TraceID()| above).
-  std::unique_ptr<v8::tracing::TracedValue> TraceIDRef() const;
 
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
@@ -614,31 +623,6 @@ class SharedFunctionInfo : public HeapObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   class BodyDescriptor;
-
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)                               \
-  /* Have FunctionKind first to make it cheaper to access */ \
-  V(FunctionKindBits, FunctionKind, 5, _)                    \
-  V(IsNativeBit, bool, 1, _)                                 \
-  V(IsStrictBit, bool, 1, _)                                 \
-  V(FunctionSyntaxKindBits, FunctionSyntaxKind, 3, _)        \
-  V(IsClassConstructorBit, bool, 1, _)                       \
-  V(HasDuplicateParametersBit, bool, 1, _)                   \
-  V(AllowLazyCompilationBit, bool, 1, _)                     \
-  V(NeedsHomeObjectBit, bool, 1, _)                          \
-  V(IsAsmWasmBrokenBit, bool, 1, _)                          \
-  V(FunctionMapIndexBits, int, 5, _)                         \
-  V(DisabledOptimizationReasonBits, BailoutReason, 4, _)     \
-  V(RequiresInstanceMembersInitializer, bool, 1, _)          \
-  V(ConstructAsBuiltinBit, bool, 1, _)                       \
-  V(NameShouldPrintAsAnonymousBit, bool, 1, _)               \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)                \
-  V(IsTopLevelBit, bool, 1, _)                               \
-  V(IsOneshotIIFEOrPropertiesAreFinalBit, bool, 1, _)        \
-  V(IsSafeToSkipArgumentsAdaptorBit, bool, 1, _)             \
-  V(PrivateNameLookupSkipsOuterClassBit, bool, 1, _)
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
   STATIC_ASSERT(BailoutReason::kLastErrorMessage <=

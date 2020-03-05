@@ -16,14 +16,12 @@ namespace {
 struct InstanceTypeTree {
   explicit InstanceTypeTree(const ClassType* type)
       : type(type),
-        parent(nullptr),
         start(INT_MAX),
         end(INT_MIN),
         value(-1),
         num_values(0),
         num_own_values(0) {}
   const ClassType* type;
-  InstanceTypeTree* parent;
   std::vector<std::unique_ptr<InstanceTypeTree>> children;
   int start;  // Start of range for this and subclasses, or INT_MAX.
   int end;    // End of range for this and subclasses, or INT_MIN.
@@ -84,9 +82,7 @@ void PropagateInstanceTypeConstraints(InstanceTypeTree* root) {
   }
   const InstanceTypeConstraints& constraints =
       root->type->GetInstanceTypeConstraints();
-  if ((!root->type->IsAbstract() ||
-       root->type->IsInstantiatedAbstractClass()) &&
-      !root->type->HasSameInstanceTypeAsParent()) {
+  if (!root->type->IsAbstract() && !root->type->HasSameInstanceTypeAsParent()) {
     root->num_own_values = 1;
   }
   root->num_values += root->num_own_values;
@@ -290,8 +286,26 @@ std::unique_ptr<InstanceTypeTree> AssignInstanceTypes() {
 //   ranges are indented for readability.
 // - values: This list is just instance type names, like V(ODDBALL_TYPE). It
 //   does not include any FIRST_* and LAST_* range markers.
+// - fully_defined_single_instance_types: This list is pairs of class name and
+//   instance type, for classes which have defined layouts and a single
+//   corresponding instance type.
+// - only_declared_single_instance_types: This list is pairs of class name and
+//   instance type, for classes which have a single corresponding instance type
+//   and do not have layout definitions in Torque.
+// - fully_defined_range_instance_types: This list is triples of class name,
+//   first instance type, and last instance type, for classes which have defined
+//   layouts and multiple corresponding instance types.
+// - only_declared_range_instance_types: This list is triples of class name,
+//   first instance type, and last instance type, for classes which have
+//   multiple corresponding instance types and do not have layout definitions in
+//   Torque.
 void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
-                        std::ostream& values, const std::string& indent) {
+                        std::ostream& values,
+                        std::ostream& fully_defined_single_instance_types,
+                        std::ostream& only_declared_single_instance_types,
+                        std::ostream& fully_defined_range_instance_types,
+                        std::ostream& only_declared_range_instance_types,
+                        const std::string& indent) {
   std::string type_name =
       CapifyStringWithUnderscores(root->type->name()) + "_TYPE";
   std::string inner_indent = indent;
@@ -305,16 +319,39 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
     definitions << inner_indent << "V(" << type_name << ", " << root->value
                 << ") \\\n";
     values << "  V(" << type_name << ") \\\n";
+    if (root->num_values == 1) {
+      std::ostream& single_instance_types =
+          root->type->HasUndefinedLayout()
+              ? only_declared_single_instance_types
+              : fully_defined_single_instance_types;
+      single_instance_types << "  V(" << root->type->name() << ", " << type_name
+                            << ") \\\n";
+    }
   }
   for (auto& child : root->children) {
-    PrintInstanceTypes(child.get(), definitions, values, inner_indent);
+    PrintInstanceTypes(
+        child.get(), definitions, values, fully_defined_single_instance_types,
+        only_declared_single_instance_types, fully_defined_range_instance_types,
+        only_declared_range_instance_types, inner_indent);
   }
-  // We can't emit LAST_STRING_TYPE because it's not a valid flags combination.
-  // So if the class type has multiple own values, which only happens when using
-  // ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE, then omit the end marker.
-  if (root->num_values > 1 && root->num_own_values <= 1) {
-    definitions << indent << "V(LAST_" << type_name << ", " << root->end
-                << ") \\\n";
+  if (root->num_values > 1) {
+    // We can't emit LAST_STRING_TYPE because it's not a valid flags
+    // combination. So if the class type has multiple own values, which only
+    // happens when using ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE, then omit
+    // the end marker.
+    if (root->num_own_values <= 1) {
+      definitions << indent << "V(LAST_" << type_name << ", " << root->end
+                  << ") \\\n";
+    }
+
+    // Only output the instance type range for things other than the root type.
+    if (root->type->GetSuperClass() != nullptr) {
+      std::ostream& range_instance_types =
+          root->type->HasUndefinedLayout() ? only_declared_range_instance_types
+                                           : fully_defined_range_instance_types;
+      range_instance_types << "  V(" << root->type->name() << ", FIRST_"
+                           << type_name << ", LAST_" << type_name << ") \\\n";
+    }
   }
 }
 
@@ -332,16 +369,52 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << "#define TORQUE_ASSIGNED_INSTANCE_TYPES(V) \\\n";
     std::unique_ptr<InstanceTypeTree> instance_types = AssignInstanceTypes();
     std::stringstream values_list;
+    std::stringstream fully_defined_single_instance_types;
+    std::stringstream only_declared_single_instance_types;
+    std::stringstream fully_defined_range_instance_types;
+    std::stringstream only_declared_range_instance_types;
     if (instance_types != nullptr) {
-      PrintInstanceTypes(instance_types.get(), header, values_list, "  ");
+      PrintInstanceTypes(instance_types.get(), header, values_list,
+                         fully_defined_single_instance_types,
+                         only_declared_single_instance_types,
+                         fully_defined_range_instance_types,
+                         only_declared_range_instance_types, "  ");
     }
-    header << "\n\n";
+    header << "\n";
 
-    header << "// Instance types for all classes except for those that use "
-              "InstanceType as flags.\n";
+    header << "// Instance types for all classes except for those that use\n";
+    header << "// InstanceType as flags.\n";
     header << "#define TORQUE_ASSIGNED_INSTANCE_TYPE_LIST(V) \\\n";
     header << values_list.str();
-    header << "\n\n";
+    header << "\n";
+
+    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that have\n";
+    header << "// full Torque definitions.\n";
+    header << "#define TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V) \\\n";
+    header << fully_defined_single_instance_types.str();
+    header << "\n";
+
+    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that are\n";
+    header << "// declared but not defined in Torque. These classes may\n";
+    header << "// correspond with actual C++ classes, but they are not\n";
+    header << "// guaranteed to.\n";
+    header << "#define TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(V) \\\n";
+    header << only_declared_single_instance_types.str();
+    header << "\n";
+
+    header << "// Triples of (ClassName, FIRST_TYPE, LAST_TYPE) for classes\n";
+    header << "// that have full Torque definitions.\n";
+    header << "#define TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(V) \\\n";
+    header << fully_defined_range_instance_types.str();
+    header << "\n";
+
+    header << "// Triples of (ClassName, FIRST_TYPE, LAST_TYPE) for classes\n";
+    header << "// that are declared but not defined in Torque. These classes\n";
+    header << "// may correspond with actual C++ classes, but they are not\n";
+    header << "// guaranteed to.\n";
+    header << "#define TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V) \\\n";
+    header << only_declared_range_instance_types.str();
+    header << "\n";
 
     header << "// Instance types for Torque-internal classes.\n";
     header << "#define TORQUE_INTERNAL_INSTANCE_TYPES(V) \\\n";
@@ -352,7 +425,7 @@ void ImplementationVisitor::GenerateInstanceTypes(
           CapifyStringWithUnderscores(type->name()) + "_TYPE";
       header << "  V(" << type_name << ") \\\n";
     }
-    header << "\n\n";
+    header << "\n";
 
     header << "// Struct list entries for Torque-internal classes.\n";
     header << "#define TORQUE_STRUCT_LIST_GENERATOR(V, _) \\\n";

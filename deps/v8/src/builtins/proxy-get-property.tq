@@ -27,7 +27,7 @@ namespace proxy {
     let handler: JSReceiver;
     typeswitch (proxy.handler) {
       case (Null): {
-        ThrowTypeError(kProxyRevoked, 'get');
+        ThrowTypeError(MessageTemplate::kProxyRevoked, 'get');
       }
       case (h: JSReceiver): {
         handler = h;

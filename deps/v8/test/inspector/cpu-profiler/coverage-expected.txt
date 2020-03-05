@@ -6,6 +6,7 @@ Running test: testPreciseCountBaseline
     result : {
         result : [
         ]
+        timestamp : <timestamp>
     }
 }
 {
@@ -13,6 +14,7 @@ Running test: testPreciseCountBaseline
     result : {
         result : [
         ]
+        timestamp : <timestamp>
     }
 }
 
@@ -99,6 +101,7 @@ Running test: testPreciseCountCoverage
                 url : 
             }
         ]
+        timestamp : <timestamp>
     }
 }
 {
@@ -106,6 +109,7 @@ Running test: testPreciseCountCoverage
     result : {
         result : [
         ]
+        timestamp : <timestamp>
     }
 }
 
@@ -505,6 +509,7 @@ Running test: testEnablePreciseCountCoverageAtPause
                 url : 
             }
         ]
+        timestamp : <timestamp>
     }
 }
 
@@ -574,6 +579,7 @@ Running test: testPreciseBinaryCoverage
                 url : testPreciseBinaryCoverage
             }
         ]
+        timestamp : <timestamp>
     }
 }
 {
@@ -660,6 +666,7 @@ Running test: testPreciseBinaryCoverage
                 url : 
             }
         ]
+        timestamp : <timestamp>
     }
 }
 
@@ -669,6 +676,7 @@ Running test: testPreciseEmptyScriptCoverageEntries
     result : {
         result : [
         ]
+        timestamp : <timestamp>
     }
 }
 
@@ -769,6 +777,7 @@ Running test: testPreciseCountCoveragePartial
                 url : testPreciseCountCoveragePartial
             }
         ]
+        timestamp : <timestamp>
     }
 }
 {
@@ -821,5 +830,6 @@ Running test: testPreciseCountCoveragePartial
                 url : 
             }
         ]
+        timestamp : <timestamp>
     }
 }

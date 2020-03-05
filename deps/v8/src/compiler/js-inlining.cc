@@ -268,7 +268,6 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 
 namespace {
 
-// TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
   DisallowHeapAllocation no_gc;
   return !shared_info.construct_as_builtin() &&
@@ -414,13 +413,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   NodeProperties::IsExceptionalCall(node, &exception_target);
 
   // JSInliningHeuristic has already filtered candidates without a BytecodeArray
-  // by calling SharedFunctionInfoRef::IsInlineable. For the ones passing the
-  // IsInlineable check, the broker holds a reference to the bytecode array,
-  // which prevents it from getting flushed.  Therefore, the following check
-  // should always hold true.
+  // based on SharedFunctionInfoRef::GetInlineability. For the inlineable ones
+  // (kIsInlineable), the broker holds a reference to the bytecode array, which
+  // prevents it from getting flushed.  Therefore, the following check should
+  // always hold true.
   CHECK(shared_info->is_compiled());
 
-  if (!FLAG_concurrent_inlining && info_->is_source_positions_enabled()) {
+  if (!broker()->is_concurrent_inlining() &&
+      info_->is_source_positions_enabled()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(),
                                                        shared_info->object());
   }
@@ -431,7 +431,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the target's feedback vector and its context.
   Node* context;
   FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
-  CHECK(shared_info->IsSerializedForCompilation(feedback_vector));
+  CHECK(broker()->IsSerializedForCompilation(*shared_info, feedback_vector));
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.

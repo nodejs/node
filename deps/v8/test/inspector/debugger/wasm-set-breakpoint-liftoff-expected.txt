@@ -1,0 +1,12 @@
+Tests stepping through wasm scripts.
+Instantiating.
+Waiting for wasm script (ignoring first non-wasm script).
+Setting breakpoint at offset 54 on script wasm://wasm/18214bfe
+Setting breakpoint at offset 53 on script wasm://wasm/18214bfe
+Setting breakpoint at offset 51 on script wasm://wasm/18214bfe
+Setting breakpoint at offset 49 on script wasm://wasm/18214bfe
+Setting breakpoint at offset 45 on script wasm://wasm/18214bfe
+Setting breakpoint at offset 47 on script wasm://wasm/18214bfe
+Calling main(4)
+exports.main returned!
+Finished!

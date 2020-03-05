@@ -9,7 +9,7 @@ namespace internal {
 namespace torque {
 
 TypeArgumentInference::TypeArgumentInference(
-    const NameVector& type_parameters,
+    const GenericParameters& type_parameters,
     const TypeVector& explicit_type_arguments,
     const std::vector<TypeExpression*>& term_parameters,
     const TypeVector& term_argument_types)
@@ -26,7 +26,7 @@ TypeArgumentInference::TypeArgumentInference(
   }
 
   for (size_t i = 0; i < type_parameters.size(); i++) {
-    type_parameter_from_name_[type_parameters[i]->value] = i;
+    type_parameter_from_name_[type_parameters[i].name->value] = i;
   }
   for (size_t i = 0; i < num_explicit_; i++) {
     inferred_[i] = {explicit_type_arguments[i]};
@@ -78,10 +78,7 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
     }
     // Try to recurse in case of generic types
     if (!basic->generic_arguments.empty()) {
-      auto* argument_struct_type = StructType::DynamicCast(argument_type);
-      if (argument_struct_type) {
-        MatchGeneric(basic, argument_struct_type);
-      }
+      MatchGeneric(basic, argument_type);
     }
     // NOTE: We could also check whether ground parameter types match the
     // argument types, but we are only interested in inferring type arguments
@@ -92,13 +89,13 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
 }
 
 void TypeArgumentInference::MatchGeneric(BasicTypeExpression* parameter,
-                                         const StructType* argument_type) {
+                                         const Type* argument_type) {
   QualifiedName qualified_name{parameter->namespace_qualification,
                                parameter->name};
-  GenericStructType* generic_struct =
-      Declarations::LookupUniqueGenericStructType(qualified_name);
+  GenericType* generic_type =
+      Declarations::LookupUniqueGenericType(qualified_name);
   auto& specialized_from = argument_type->GetSpecializedFrom();
-  if (!specialized_from || specialized_from->generic != generic_struct) {
+  if (!specialized_from || specialized_from->generic != generic_type) {
     return Fail("found conflicting generic type constructors");
   }
   auto& parameters = parameter->generic_arguments;

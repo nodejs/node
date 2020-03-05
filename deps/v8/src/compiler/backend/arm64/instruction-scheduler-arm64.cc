@@ -223,7 +223,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I32x4GtU:
     case kArm64I32x4GeU:
     case kArm64I16x8Splat:
-    case kArm64I16x8ExtractLane:
+    case kArm64I16x8ExtractLaneU:
+    case kArm64I16x8ExtractLaneS:
     case kArm64I16x8ReplaceLane:
     case kArm64I16x8SConvertI8x16Low:
     case kArm64I16x8SConvertI8x16High:
@@ -253,8 +254,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I16x8MaxU:
     case kArm64I16x8GtU:
     case kArm64I16x8GeU:
+    case kArm64I16x8RoundingAverageU:
     case kArm64I8x16Splat:
-    case kArm64I8x16ExtractLane:
+    case kArm64I8x16ExtractLaneU:
+    case kArm64I8x16ExtractLaneS:
     case kArm64I8x16ReplaceLane:
     case kArm64I8x16Neg:
     case kArm64I8x16Shl:
@@ -279,6 +282,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I8x16MaxU:
     case kArm64I8x16GtU:
     case kArm64I8x16GeU:
+    case kArm64I8x16RoundingAverageU:
     case kArm64S128Zero:
     case kArm64S128Dup:
     case kArm64S128And:
@@ -286,6 +290,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128Xor:
     case kArm64S128Not:
     case kArm64S128Select:
+    case kArm64S128AndNot:
     case kArm64S32x4ZipLeft:
     case kArm64S32x4ZipRight:
     case kArm64S32x4UnzipLeft:
@@ -326,9 +331,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64TestAndBranch:
     case kArm64CompareAndBranch32:
     case kArm64CompareAndBranch:
-    case kArm64DecompressSigned:
-    case kArm64DecompressPointer:
-    case kArm64DecompressAny:
       return kNoOpcodeFlags;
 
     case kArm64LdrS:
@@ -345,6 +347,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64LdrDecompressTaggedPointer:
     case kArm64LdrDecompressAnyTagged:
     case kArm64Peek:
+    case kArm64S8x16LoadSplat:
+    case kArm64S16x8LoadSplat:
+    case kArm64S32x4LoadSplat:
+    case kArm64S64x2LoadSplat:
+    case kArm64I16x8Load8x8S:
+    case kArm64I16x8Load8x8U:
+    case kArm64I32x4Load16x4S:
+    case kArm64I32x4Load16x4U:
+    case kArm64I64x2Load32x2S:
+    case kArm64I64x2Load32x2U:
       return kIsLoadOperation;
 
     case kArm64Claim:

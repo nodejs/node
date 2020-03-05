@@ -9,16 +9,13 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/visitors.h"
-#include "src/snapshot/natives.h"
 
 namespace v8 {
 namespace internal {
 
-// A SourceCodeCache uses a FixedArray to store pairs of
-// (OneByteString, SharedFunctionInfo), mapping names of native code files
-// (array.js, etc.) to precompiled functions. Instead of mapping
-// names to functions it might make sense to let the JS2C tool
-// generate an index for each native JS file.
+// A SourceCodeCache uses a FixedArray to store pairs of (OneByteString,
+// SharedFunctionInfo), mapping names of native extensions code files to
+// precompiled functions.
 class SourceCodeCache final {
  public:
   explicit SourceCodeCache(Script::Type type) : type_(type) {}
@@ -68,9 +65,6 @@ class Bootstrapper final {
   // Traverses the pointers for memory management.
   void Iterate(RootVisitor* v);
 
-  // Accessor for the native scripts source code.
-  Handle<String> GetNativeSource(NativeType type, int index);
-
   // Tells whether bootstrapping is active.
   bool IsActive() const { return nesting_ != 0; }
 
@@ -85,12 +79,6 @@ class Bootstrapper final {
                          v8::ExtensionConfiguration* extensions);
 
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }
-
-  static bool CompileNative(Isolate* isolate, Vector<const char> name,
-                            Handle<String> source, int argc,
-                            Handle<Object> argv[], NativesFlag natives_flag);
-  static bool CompileExtraBuiltin(Isolate* isolate, int index);
-  static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
 
  private:
   // Log newly created Map objects if no snapshot was used.

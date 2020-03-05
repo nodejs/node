@@ -43,17 +43,12 @@ namespace v8_inspector {
 
 class V8DebuggerAgentImpl;
 class V8InspectorClient;
-class WasmTranslation;
 
 class V8DebuggerScript {
  public:
   static std::unique_ptr<V8DebuggerScript> Create(
       v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
       bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client);
-  static std::unique_ptr<V8DebuggerScript> CreateWasm(
-      v8::Isolate* isolate, WasmTranslation* wasmTranslation,
-      v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
-      String16 url, int functionIndex);
 
   virtual ~V8DebuggerScript();
 
@@ -92,6 +87,7 @@ class V8DebuggerScript {
 
   virtual bool setBreakpoint(const String16& condition,
                              v8::debug::Location* location, int* id) const = 0;
+  void removeWasmBreakpoint(int id);
   virtual void MakeWeak() = 0;
   virtual bool setBreakpointOnRun(int* id) const = 0;
 

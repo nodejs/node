@@ -658,8 +658,9 @@ class ParserBase {
     return ast_value_factory->GetOneByteString(name.c_str());
   }
 
-  DeclarationScope* NewScriptScope() const {
-    return new (zone()) DeclarationScope(zone(), ast_value_factory());
+  DeclarationScope* NewScriptScope(REPLMode repl_mode) const {
+    return new (zone())
+        DeclarationScope(zone(), ast_value_factory(), repl_mode);
   }
 
   DeclarationScope* NewVarblockScope() const {
@@ -1051,8 +1052,8 @@ class ParserBase {
   ExpressionT ParseArrayLiteral();
 
   inline static bool IsAccessor(ParsePropertyKind kind) {
-    return IsInRange(kind, ParsePropertyKind::kAccessorGetter,
-                     ParsePropertyKind::kAccessorSetter);
+    return base::IsInRange(kind, ParsePropertyKind::kAccessorGetter,
+                           ParsePropertyKind::kAccessorSetter);
   }
 
   ExpressionT ParseProperty(ParsePropertyInfo* prop_info);
@@ -1503,7 +1504,7 @@ template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   DCHECK_EQ(scanner()->current_token(), next);
-  if (V8_LIKELY(IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
+  if (V8_LIKELY(base::IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
     IdentifierT name = impl()->GetIdentifier();
     if (V8_UNLIKELY(impl()->IsArguments(name) &&
                     scope()->ShouldBanArguments())) {
@@ -2013,7 +2014,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
   }
 
   if (prop_info->kind == ParsePropertyKind::kNotSet &&
-      IsInRange(peek(), Token::GET, Token::SET)) {
+      base::IsInRange(peek(), Token::GET, Token::SET)) {
     Token::Value token = Next();
     if (prop_info->ParsePropertyKindFromToken(peek())) {
       prop_info->name = impl()->GetIdentifier();
@@ -2088,6 +2089,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
     }
+
+    case Token::BIGINT: {
+      Consume(Token::BIGINT);
+      prop_info->name = impl()->GetNumberAsSymbol();
+      is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
+      break;
+    }
+
     case Token::LBRACK: {
       prop_info->name = impl()->NullIdentifier();
       prop_info->is_computed_name = true;
@@ -2299,6 +2308,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     ClassInfo* class_info, int beg_pos, bool is_static) {
+  FunctionBodyParsingScope body_parsing_scope(impl());
   DeclarationScope* initializer_scope =
       is_static ? class_info->static_fields_scope
                 : class_info->instance_members_scope;
@@ -3260,7 +3270,13 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         if (is_optional) {
           DCHECK_EQ(scanner()->current_token(), Token::QUESTION_PERIOD);
           int pos = position();
-          ExpressionT key = ParsePropertyOrPrivatePropertyName();
+          Token::Value next = Next();
+          if (V8_UNLIKELY(!Token::IsPropertyName(next))) {
+            ReportUnexpectedToken(next);
+            return impl()->FailureExpression();
+          }
+          IdentifierT name = impl()->GetSymbol();
+          ExpressionT key = factory()->NewStringLiteral(name, position());
           result = factory()->NewProperty(result, key, pos, is_optional);
           break;
         }
@@ -4194,14 +4210,12 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
     const FormalParametersT& formal_parameters) {
-  const RuntimeCallCounterId counters[2][2] = {
-      {RuntimeCallCounterId::kParseBackgroundArrowFunctionLiteral,
-       RuntimeCallCounterId::kParseArrowFunctionLiteral},
-      {RuntimeCallCounterId::kPreParseBackgroundArrowFunctionLiteral,
-       RuntimeCallCounterId::kPreParseArrowFunctionLiteral}};
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      counters[Impl::IsPreParser()][parsing_on_main_thread_]);
+  const RuntimeCallCounterId counters[2] = {
+      RuntimeCallCounterId::kParseArrowFunctionLiteral,
+      RuntimeCallCounterId::kPreParseArrowFunctionLiteral};
+  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
+                                      counters[Impl::IsPreParser()],
+                                      RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 

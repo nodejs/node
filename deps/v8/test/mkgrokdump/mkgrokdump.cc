@@ -27,8 +27,7 @@ static const char* kHeader =
     "# List of known V8 instance types.\n";
 
 // Debug builds emit debug code, affecting code object sizes.
-// Embedded builtins cause objects to be allocated in different locations.
-#if defined(V8_EMBEDDED_BUILTINS) && !defined(DEBUG)
+#ifndef DEBUG
 static const char* kBuild = "shipping";
 #else
 static const char* kBuild = "non-shipping";
@@ -136,7 +135,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         if (!object.IsMap()) continue;
         DumpKnownMap(out, heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
-      i::PagedSpaceObjectIterator iterator(heap->map_space());
+      i::PagedSpaceObjectIterator iterator(heap, heap->map_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
@@ -159,7 +158,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
 
       i::PagedSpaceIterator spit(heap);
       for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
-        i::PagedSpaceObjectIterator it(s);
+        i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
           continue;

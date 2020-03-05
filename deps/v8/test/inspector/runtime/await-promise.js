@@ -117,28 +117,6 @@ function testSuite()
         .then(result => Protocol.Runtime.awaitPromise({ promiseObjectId: result.result.result.objectId, returnByValue: true, generatePreview: false }))
         .then(result => InspectorTest.logMessage(result))
         .then(() => next());
-    },
-
-    function testGarbageCollectedPromise(next)
-    {
-      Protocol.Runtime.evaluate({ expression: "new Promise(() => undefined)" })
-        .then(result => scheduleGCAndawaitPromise(result))
-        .then(result => InspectorTest.logMessage(result))
-        .then(() => next());
-
-      function scheduleGCAndawaitPromise(result)
-      {
-        var objectId = result.result.result.objectId;
-        var promise = Protocol.Runtime.awaitPromise({ promiseObjectId: objectId });
-        gcPromise(objectId);
-        return promise;
-      }
-
-      function gcPromise(objectId)
-      {
-        Protocol.Runtime.releaseObject({ objectId: objectId})
-          .then(() => Protocol.Runtime.evaluate({ expression: "gc()" }));
-      }
     }
   ]);
 }

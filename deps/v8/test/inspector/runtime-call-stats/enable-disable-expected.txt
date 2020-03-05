@@ -1,0 +1,6 @@
+Test RunTimeCallStats collection enabling and disabling.
+Expected error: "RuntimeCallStats collection is not enabled."
+Expected error: "RuntimeCallStats collection already enabled."
+Some counters reported
+Expected error: "RuntimeCallStats collection is not enabled."
+Less counters reported

@@ -16,7 +16,6 @@
 #include "src/base/compiler-specific.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/arm64/decoder-arm64.h"
-#include "src/codegen/arm64/instrument-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/simulator-base.h"
@@ -1304,13 +1303,16 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   }
 
   // Armv8.3 Pointer authentication helpers.
-  static uint64_t CalculatePACMask(uint64_t ptr, PointerType type, int ext_bit);
-  static uint64_t ComputePAC(uint64_t data, uint64_t context, PACKey key);
-  static uint64_t AuthPAC(uint64_t ptr, uint64_t context, PACKey key,
-                          PointerType type);
-  static uint64_t AddPAC(uint64_t ptr, uint64_t context, PACKey key,
-                         PointerType type);
-  static uint64_t StripPAC(uint64_t ptr, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t CalculatePACMask(uint64_t ptr,
+                                                     PointerType type,
+                                                     int ext_bit);
+  V8_EXPORT_PRIVATE static uint64_t ComputePAC(uint64_t data, uint64_t context,
+                                               PACKey key);
+  V8_EXPORT_PRIVATE static uint64_t AuthPAC(uint64_t ptr, uint64_t context,
+                                            PACKey key, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t AddPAC(uint64_t ptr, uint64_t context,
+                                           PACKey key, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t StripPAC(uint64_t ptr, PointerType type);
 
  protected:
   // Simulation helpers ------------------------------------
@@ -2137,9 +2139,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   FILE* stream_;
   PrintDisassembler* print_disasm_;
   void PRINTF_FORMAT(2, 3) TraceSim(const char* format, ...);
-
-  // Instrumentation.
-  Instrument* instrument_;
 
   // General purpose registers. Register 31 is the stack pointer.
   SimRegister registers_[kNumberOfRegisters];

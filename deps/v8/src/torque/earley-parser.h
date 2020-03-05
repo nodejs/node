@@ -43,6 +43,7 @@ class ParseResultHolderBase {
 enum class ParseResultHolderBase::TypeId {
   kStdString,
   kBool,
+  kInt32,
   kStdVectorOfString,
   kExpressionPtr,
   kIdentifierPtr,
@@ -59,12 +60,16 @@ enum class ParseResultHolderBase::TypeId {
   kNameAndExpression,
   kAnnotation,
   kVectorOfAnnotation,
+  kAnnotationParameter,
+  kOptionalAnnotationParameter,
   kClassFieldExpression,
   kStructFieldExpression,
+  kBitFieldDeclaration,
   kStdVectorOfNameAndTypeExpression,
   kStdVectorOfNameAndExpression,
   kStdVectorOfClassFieldExpression,
   kStdVectorOfStructFieldExpression,
+  kStdVectorOfBitFieldDeclaration,
   kIncrementDecrementOperator,
   kOptionalStdString,
   kStdVectorOfStatementPtr,
@@ -84,6 +89,8 @@ enum class ParseResultHolderBase::TypeId {
   kStdVectorOfTypeswitchCase,
   kStdVectorOfIdentifierPtr,
   kOptionalClassBody,
+  kGenericParameter,
+  kGenericParameters,
 
   kJsonValue,
   kJsonMember,
@@ -426,8 +433,9 @@ class Grammar {
   // NewSymbol() allocates a fresh symbol and stores it in the current grammar.
   // This is necessary to define helpers that create new symbols.
   Symbol* NewSymbol(std::initializer_list<Rule> rules = {}) {
-    Symbol* result = new Symbol(rules);
-    generated_symbols_.push_back(std::unique_ptr<Symbol>(result));
+    auto symbol = std::make_unique<Symbol>(rules);
+    Symbol* result = symbol.get();
+    generated_symbols_.push_back(std::move(symbol));
     return result;
   }
 

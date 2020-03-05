@@ -265,7 +265,6 @@ uint32_t Isolate::CurrentEmbeddedBlobSize() {
 
 size_t Isolate::HashIsolateForEmbeddedBlob() {
   DCHECK(builtins_.is_initialized());
-  DCHECK(FLAG_embedded_builtins);
   DCHECK(Builtins::AllBuiltinsAreIsolateIndependent());
 
   DisallowHeapAllocation no_gc;
@@ -530,46 +529,6 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   }
 }
 
-namespace {
-
-class StackFrameCacheHelper : public AllStatic {
- public:
-  static MaybeHandle<StackTraceFrame> LookupCachedFrame(
-      Isolate* isolate, Handle<AbstractCode> code, int code_offset) {
-    if (FLAG_optimize_for_size) return MaybeHandle<StackTraceFrame>();
-
-    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
-    if (!maybe_cache->IsSimpleNumberDictionary())
-      return MaybeHandle<StackTraceFrame>();
-
-    const auto cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
-    const int entry = cache->FindEntry(isolate, code_offset);
-    if (entry != NumberDictionary::kNotFound) {
-      return handle(StackTraceFrame::cast(cache->ValueAt(entry)), isolate);
-    }
-    return MaybeHandle<StackTraceFrame>();
-  }
-
-  static void CacheFrameAndUpdateCache(Isolate* isolate,
-                                       Handle<AbstractCode> code,
-                                       int code_offset,
-                                       Handle<StackTraceFrame> frame) {
-    if (FLAG_optimize_for_size) return;
-
-    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
-    const auto cache = maybe_cache->IsSimpleNumberDictionary()
-                           ? Handle<SimpleNumberDictionary>::cast(maybe_cache)
-                           : SimpleNumberDictionary::New(isolate, 1);
-    Handle<SimpleNumberDictionary> new_cache =
-        SimpleNumberDictionary::Set(isolate, cache, code_offset, frame);
-    if (*new_cache != *cache || !maybe_cache->IsSimpleNumberDictionary()) {
-      AbstractCode::SetStackFrameCache(code, new_cache);
-    }
-  }
-};
-
-}  // anonymous namespace
-
 class FrameArrayBuilder {
  public:
   enum FrameFilterMode { ALL, CURRENT_SECURITY_CONTEXT };
@@ -678,7 +637,7 @@ class FrameArrayBuilder {
         flags |= FrameArray::kAsmJsAtNumberConversion;
       }
     } else {
-      flags |= FrameArray::kIsWasmFrame;
+      flags |= FrameArray::kIsWasmCompiledFrame;
     }
 
     elements_ = FrameArray::AppendWasmFrame(
@@ -740,39 +699,16 @@ class FrameArrayBuilder {
   }
 
   // Creates a StackTraceFrame object for each frame in the FrameArray.
-  Handle<FixedArray> GetElementsAsStackTraceFrameArray(
-      bool enable_frame_caching) {
+  Handle<FixedArray> GetElementsAsStackTraceFrameArray() {
     elements_->ShrinkToFit(isolate_);
     const int frame_count = elements_->FrameCount();
     Handle<FixedArray> stack_trace =
         isolate_->factory()->NewFixedArray(frame_count);
 
     for (int i = 0; i < frame_count; ++i) {
-      // Caching stack frames only happens for user JS frames.
-      const bool cache_frame =
-          enable_frame_caching && !elements_->IsAnyWasmFrame(i) &&
-          elements_->Function(i).shared().IsUserJavaScript();
-      if (cache_frame) {
-        MaybeHandle<StackTraceFrame> maybe_frame =
-            StackFrameCacheHelper::LookupCachedFrame(
-                isolate_, handle(elements_->Code(i), isolate_),
-                Smi::ToInt(elements_->Offset(i)));
-        if (!maybe_frame.is_null()) {
-          Handle<StackTraceFrame> frame = maybe_frame.ToHandleChecked();
-          stack_trace->set(i, *frame);
-          continue;
-        }
-      }
-
       Handle<StackTraceFrame> frame =
           isolate_->factory()->NewStackTraceFrame(elements_, i);
       stack_trace->set(i, *frame);
-
-      if (cache_frame) {
-        StackFrameCacheHelper::CacheFrameAndUpdateCache(
-            isolate_, handle(elements_->Code(i), isolate_),
-            Smi::ToInt(elements_->Offset(i)), frame);
-      }
     }
     return stack_trace;
   }
@@ -989,7 +925,6 @@ struct CaptureStackTraceOptions {
   bool capture_builtin_exit_frames;
   bool capture_only_frames_subject_to_debugging;
   bool async_stack_trace;
-  bool enable_frame_caching;
 };
 
 Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
@@ -1076,7 +1011,11 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                             Builtins::kAsyncGeneratorAwaitResolveClosure) ||
           IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
-                            Builtins::kAsyncGeneratorYieldResolveClosure)) {
+                            Builtins::kAsyncGeneratorYieldResolveClosure) ||
+          IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncFunctionAwaitRejectClosure) ||
+          IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
+                            Builtins::kAsyncGeneratorAwaitRejectClosure)) {
         // Now peak into the handlers' AwaitContext to get to
         // the JSGeneratorObject for the async function.
         Handle<Context> context(
@@ -1121,8 +1060,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
   }
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  return builder.GetElementsAsStackTraceFrameArray(
-      options.enable_frame_caching);
+  return builder.GetElementsAsStackTraceFrameArray();
 }
 
 }  // namespace
@@ -1140,7 +1078,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
-  options.enable_frame_caching = false;
 
   return CaptureStackTrace(this, caller, options);
 }
@@ -1236,7 +1173,6 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
           ? FrameArrayBuilder::ALL
           : FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = true;
-  options.enable_frame_caching = true;
 
   return Handle<FixedArray>::cast(
       CaptureStackTrace(this, factory()->undefined_value(), options));
@@ -1404,6 +1340,30 @@ Object Isolate::StackOverflow() {
 #endif  // VERIFY_HEAP
 
   return ReadOnlyRoots(heap()).exception();
+}
+
+void Isolate::ThrowAt(Handle<JSObject> exception, MessageLocation* location) {
+  Handle<Name> key_start_pos = factory()->error_start_pos_symbol();
+  Object::SetProperty(this, exception, key_start_pos,
+                      handle(Smi::FromInt(location->start_pos()), this),
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
+      .Check();
+
+  Handle<Name> key_end_pos = factory()->error_end_pos_symbol();
+  Object::SetProperty(this, exception, key_end_pos,
+                      handle(Smi::FromInt(location->end_pos()), this),
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
+      .Check();
+
+  Handle<Name> key_script = factory()->error_script_symbol();
+  Object::SetProperty(this, exception, key_script, location->script(),
+                      StoreOrigin::kMaybeKeyed,
+                      Just(ShouldThrow::kThrowOnError))
+      .Check();
+
+  Throw(*exception, location);
 }
 
 Object Isolate::TerminateExecution() {
@@ -1914,6 +1874,7 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
       return Isolate::CAUGHT_BY_PROMISE;
     case HandlerTable::DESUGARING:
       return Isolate::CAUGHT_BY_DESUGARING;
+    case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
     case HandlerTable::ASYNC_AWAIT:
       return Isolate::CAUGHT_BY_ASYNC_AWAIT;
     default:
@@ -2046,7 +2007,6 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
-  options.enable_frame_caching = false;
 
   Handle<FixedArray> frames = Handle<FixedArray>::cast(
       CaptureStackTrace(this, this->factory()->undefined_value(), options));
@@ -2134,24 +2094,24 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
-      Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
-      uint32_t func_index =
-          static_cast<uint32_t>(elements->WasmFunctionIndex(i).value());
-      int code_offset = elements->Offset(i).value();
+      int func_index = elements->WasmFunctionIndex(i).value();
+      int offset = elements->Offset(i).value();
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i).value() & FrameArray::kAsmJsAtNumberConversion;
-      // WasmCode* held alive by the {GlobalWasmCodeRef}.
-      wasm::WasmCode* code =
-          Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
-              .get()
-              ->code();
-      int byte_offset =
-          FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-              code, code_offset);
-      int pos = WasmModuleObject::GetSourcePosition(
-          handle(instance->module_object(), this), func_index, byte_offset,
-          is_at_number_conversion);
+      if (elements->IsWasmCompiledFrame(i)) {
+        // WasmCode* held alive by the {GlobalWasmCodeRef}.
+        wasm::WasmCode* code =
+            Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
+                .get()
+                ->code();
+        offset = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+            code, offset);
+      }
+      Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
+      const wasm::WasmModule* module = elements->WasmInstance(i).module();
+      int pos = GetSourcePosition(module, func_index, offset,
+                                  is_at_number_conversion);
       Handle<Script> script(instance->module_object().script(), this);
 
       *target = MessageLocation(script, pos, pos + 1);
@@ -2302,6 +2262,14 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
     MessageLocation location(script, start_pos, end_pos);
     MessageHandler::ReportMessage(this, &location, message);
   }
+}
+
+std::vector<MemoryRange>* Isolate::GetCodePages() const {
+  return code_pages_.load(std::memory_order_acquire);
+}
+
+void Isolate::SetCodePages(std::vector<MemoryRange>* new_code_pages) {
+  code_pages_.store(new_code_pages, std::memory_order_release);
 }
 
 void Isolate::ReportPendingMessages() {
@@ -2572,6 +2540,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         return promise_on_stack
                    ? Handle<Object>::cast(promise_on_stack->promise())
                    : undefined;
+      case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
       case HandlerTable::ASYNC_AWAIT: {
         // If in the initial portion of async/await, continue the loop to pop up
         // successive async/await stack frames until an asynchronous one with
@@ -3047,6 +3016,8 @@ void Isolate::Deinit() {
   compiler_zone_ = nullptr;
   compiler_cache_ = nullptr;
 
+  SetCodePages(nullptr);
+
   ClearSerializerData();
 
   {
@@ -3222,7 +3193,6 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
 #ifdef DEBUG
 bool IsolateIsCompatibleWithEmbeddedBlob(Isolate* isolate) {
-  if (!FLAG_embedded_builtins) return true;
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
   return (d.IsolateHash() == isolate->HashIsolateForEmbeddedBlob());
 }
@@ -3337,6 +3307,14 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                           AddressToString(code_space_firstpage_address));
 }
 
+void Isolate::InitializeCodeRanges() {
+  DCHECK_NULL(GetCodePages());
+  MemoryRange embedded_range{reinterpret_cast<const void*>(embedded_blob()),
+                             embedded_blob_size()};
+  code_pages_buffer1_.push_back(embedded_range);
+  SetCodePages(&code_pages_buffer1_);
+}
+
 bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
                    StartupDeserializer* startup_deserializer) {
   TRACE_ISOLATE(init);
@@ -3362,6 +3340,10 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
       reinterpret_cast<Address>(hacker_name##_address());
   FOR_EACH_ISOLATE_ADDRESS_NAME(ASSIGN_ELEMENT)
 #undef ASSIGN_ELEMENT
+
+  // We need to initialize code_pages_ before any on-heap code is allocated to
+  // make sure we record all code allocations.
+  InitializeCodeRanges();
 
   compilation_cache_ = new CompilationCache(this);
   descriptor_lookup_cache_ = new DescriptorLookupCache();
@@ -3433,12 +3415,12 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
   bootstrapper_->Initialize(create_heap_objects);
 
-  if (FLAG_embedded_builtins && create_heap_objects) {
-    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
-  }
-  setup_delegate_->SetupBuiltins(this);
-#ifndef V8_TARGET_ARCH_ARM
   if (create_heap_objects) {
+    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
+
+    setup_delegate_->SetupBuiltins(this);
+
+#ifndef V8_TARGET_ARCH_ARM
     // Store the interpreter entry trampoline on the root list. It is used as a
     // template for further copies that may later be created to help profile
     // interpreted code.
@@ -3449,14 +3431,15 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     // See also: https://crbug.com/v8/8713.
     heap_.SetInterpreterEntryTrampolineForProfiling(
         heap_.builtin(Builtins::kInterpreterEntryTrampoline));
-  }
 #endif
-  if (FLAG_embedded_builtins && create_heap_objects) {
+
     builtins_constants_table_builder_->Finalize();
     delete builtins_constants_table_builder_;
     builtins_constants_table_builder_ = nullptr;
 
     CreateAndSetEmbeddedBlob();
+  } else {
+    setup_delegate_->SetupBuiltins(this);
   }
 
   // Initialize custom memcopy and memmove functions (must happen after
@@ -3503,7 +3486,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 
-  Builtins::UpdateBuiltinEntryTable(this);
+  Builtins::InitializeBuiltinEntryTable(this);
   Builtins::EmitCodeCreateEvents(this);
 
 #ifdef DEBUG
@@ -3518,7 +3501,6 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
         "snapshots, embedders must ensure they pass the same flags as during "
         "the V8 build process (e.g.: --turbo-instruction-scheduling).");
   }
-  DCHECK_IMPLIES(FLAG_jitless, FLAG_embedded_builtins);
 #endif  // DEBUG
 
 #ifndef V8_TARGET_ARCH_ARM
@@ -3867,12 +3849,12 @@ Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
   Handle<String> key = factory()->InternalizeString(name);
   Handle<NameDictionary> dictionary =
       Handle<NameDictionary>::cast(root_handle(dictionary_index));
-  int entry = dictionary->FindEntry(this, key);
+  InternalIndex entry = dictionary->FindEntry(this, key);
   Handle<Symbol> symbol;
-  if (entry == NameDictionary::kNotFound) {
+  if (entry.is_not_found()) {
     symbol =
         private_symbol ? factory()->NewPrivateSymbol() : factory()->NewSymbol();
-    symbol->set_name(*key);
+    symbol->set_description(*key);
     dictionary = NameDictionary::Add(this, dictionary, key, symbol,
                                      PropertyDetails::Empty(), &entry);
     switch (dictionary_index) {
@@ -4274,7 +4256,7 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
   Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
   detached_contexts = WeakArrayList::AddToEnd(
-      this, detached_contexts, MaybeObjectHandle(Smi::kZero, this),
+      this, detached_contexts, MaybeObjectHandle(Smi::zero(), this),
       MaybeObjectHandle::Weak(context));
   heap()->set_detached_contexts(*detached_contexts);
 }
@@ -4450,6 +4432,85 @@ SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
 AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
     : isolate_(isolate), context_(isolate->context(), isolate) {}
 #endif  // DEBUG
+
+void Isolate::AddCodeMemoryRange(MemoryRange range) {
+  std::vector<MemoryRange>* old_code_pages = GetCodePages();
+  DCHECK_NOT_NULL(old_code_pages);
+
+  std::vector<MemoryRange>* new_code_pages;
+  if (old_code_pages == &code_pages_buffer1_) {
+    new_code_pages = &code_pages_buffer2_;
+  } else {
+    new_code_pages = &code_pages_buffer1_;
+  }
+
+  // Copy all existing data from the old vector to the new vector and insert the
+  // new page.
+  new_code_pages->clear();
+  new_code_pages->reserve(old_code_pages->size() + 1);
+  std::merge(old_code_pages->begin(), old_code_pages->end(), &range, &range + 1,
+             std::back_inserter(*new_code_pages),
+             [](const MemoryRange& a, const MemoryRange& b) {
+               return a.start < b.start;
+             });
+
+  // Atomically switch out the pointer
+  SetCodePages(new_code_pages);
+}
+
+// |chunk| is either a Page or an executable LargePage.
+void Isolate::AddCodeMemoryChunk(MemoryChunk* chunk) {
+  // We only keep track of individual code pages/allocations if we are on arm32,
+  // because on x64 and arm64 we have a code range which makes this unnecessary.
+#if !defined(V8_TARGET_ARCH_ARM)
+  return;
+#else
+  void* new_page_start = reinterpret_cast<void*>(chunk->area_start());
+  size_t new_page_size = chunk->area_size();
+
+  MemoryRange new_range{new_page_start, new_page_size};
+
+  AddCodeMemoryRange(new_range);
+#endif  // !defined(V8_TARGET_ARCH_ARM)
+}
+
+void Isolate::AddCodeRange(Address begin, size_t length_in_bytes) {
+  AddCodeMemoryRange(
+      MemoryRange{reinterpret_cast<void*>(begin), length_in_bytes});
+}
+
+// |chunk| is either a Page or an executable LargePage.
+void Isolate::RemoveCodeMemoryChunk(MemoryChunk* chunk) {
+  // We only keep track of individual code pages/allocations if we are on arm32,
+  // because on x64 and arm64 we have a code range which makes this unnecessary.
+#if !defined(V8_TARGET_ARCH_ARM)
+  return;
+#else
+  void* removed_page_start = reinterpret_cast<void*>(chunk->area_start());
+  std::vector<MemoryRange>* old_code_pages = GetCodePages();
+  DCHECK_NOT_NULL(old_code_pages);
+
+  std::vector<MemoryRange>* new_code_pages;
+  if (old_code_pages == &code_pages_buffer1_) {
+    new_code_pages = &code_pages_buffer2_;
+  } else {
+    new_code_pages = &code_pages_buffer1_;
+  }
+
+  // Copy all existing data from the old vector to the new vector except the
+  // removed page.
+  new_code_pages->clear();
+  new_code_pages->reserve(old_code_pages->size() - 1);
+  std::remove_copy_if(old_code_pages->begin(), old_code_pages->end(),
+                      std::back_inserter(*new_code_pages),
+                      [removed_page_start](const MemoryRange& range) {
+                        return range.start == removed_page_start;
+                      });
+
+  // Atomically switch out the pointer
+  SetCodePages(new_code_pages);
+#endif  // !defined(V8_TARGET_ARCH_ARM)
+}
 
 #undef TRACE_ISOLATE
 

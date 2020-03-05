@@ -9,7 +9,7 @@ namespace regexp {
   // ES6 21.2.5.10.
   // ES #sec-get-regexp.prototype.source
   transitioning javascript builtin RegExpPrototypeSourceGetter(
-      js-implicit context: Context, receiver: JSAny)(): JSAny {
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
     typeswitch (receiver) {
       case (receiver: JSRegExp): {
         return receiver.source;
@@ -19,7 +19,7 @@ namespace regexp {
     }
     if (!IsReceiverInitialRegExpPrototype(receiver)) {
       const methodName: constexpr string = 'RegExp.prototype.source';
-      ThrowTypeError(kRegExpNonRegExp, methodName);
+      ThrowTypeError(MessageTemplate::kRegExpNonRegExp, methodName);
     }
     IncrementUseCounter(context, SmiConstant(kRegExpPrototypeSourceGetter));
     return '(?:)';

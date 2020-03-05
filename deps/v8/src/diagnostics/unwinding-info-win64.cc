@@ -16,37 +16,6 @@
 #error "Unsupported OS"
 #endif  // V8_OS_WIN_X64
 
-// Forward declaration to keep this independent of Win8
-NTSYSAPI
-DWORD
-NTAPI
-RtlAddGrowableFunctionTable(
-    _Out_ PVOID* DynamicTable,
-    _In_reads_(MaximumEntryCount) PRUNTIME_FUNCTION FunctionTable,
-    _In_ DWORD EntryCount,
-    _In_ DWORD MaximumEntryCount,
-    _In_ ULONG_PTR RangeBase,
-    _In_ ULONG_PTR RangeEnd
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlGrowFunctionTable(
-    _Inout_ PVOID DynamicTable,
-    _In_ DWORD NewEntryCount
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlDeleteGrowableFunctionTable(
-    _In_ PVOID DynamicTable
-    );
-
-
 namespace v8 {
 namespace internal {
 namespace win64_unwindinfo {
@@ -213,15 +182,17 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
 // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
 enum UnwindOp8Bit {
   OpNop = 0xE3,
+  OpAllocS = 0x00,
   OpSaveFpLr = 0x40,
   OpSaveFpLrX = 0x80,
   OpSetFp = 0xE1,
+  OpAddFp = 0xE2,
   OpEnd = 0xE4,
 };
 
 typedef uint32_t UNWIND_CODE;
 
-constexpr UNWIND_CODE Combine8BitUnwindCodes(uint8_t code0,
+constexpr UNWIND_CODE Combine8BitUnwindCodes(uint8_t code0 = OpNop,
                                              uint8_t code1 = OpNop,
                                              uint8_t code2 = OpNop,
                                              uint8_t code3 = OpNop) {
@@ -242,39 +213,97 @@ struct UNWIND_INFO {
   uint32_t CodeWords : 5;
 };
 
-static constexpr int kNumberOfUnwindCodes = 1;
+static constexpr int kDefaultNumberOfUnwindCodeWords = 1;
 static constexpr int kMaxExceptionThunkSize = 16;
 static constexpr int kFunctionLengthShiftSize = 2;
 static constexpr int kFunctionLengthMask = (1 << kFunctionLengthShiftSize) - 1;
-static constexpr int kFramePointerAdjustmentShiftSize = 3;
-static constexpr int kFramePointerAdjustmentShiftMask =
-    (1 << kFramePointerAdjustmentShiftSize) - 1;
+static constexpr int kAllocStackShiftSize = 4;
+static constexpr int kAllocStackShiftMask = (1 << kAllocStackShiftSize) - 1;
 
+// Generate an unwind code for "stp fp, lr, [sp, #pre_index_offset]!".
+uint8_t MakeOpSaveFpLrX(int pre_index_offset) {
+  // See unwind code save_fplr_x in
+  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
+  DCHECK_LE(pre_index_offset, -8);
+  DCHECK_GE(pre_index_offset, -512);
+  constexpr int kShiftSize = 3;
+  constexpr int kShiftMask = (1 << kShiftSize) - 1;
+  DCHECK_EQ(pre_index_offset & kShiftMask, 0);
+  USE(kShiftMask);
+  // Solve for Z where -(Z+1)*8 = pre_index_offset.
+  int encoded_value = (-pre_index_offset >> kShiftSize) - 1;
+  return OpSaveFpLrX | encoded_value;
+}
+
+// Generate an unwind code for "sub sp, sp, #stack_space".
+uint8_t MakeOpAllocS(int stack_space) {
+  // See unwind code alloc_s in
+  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
+  DCHECK_GE(stack_space, 0);
+  DCHECK_LT(stack_space, 512);
+  DCHECK_EQ(stack_space & kAllocStackShiftMask, 0);
+  return OpAllocS | (stack_space >> kAllocStackShiftSize);
+}
+
+// Generate the second byte of the unwind code for "add fp, sp, #offset".
+uint8_t MakeOpAddFpArgument(int offset) {
+  // See unwind code add_fp in
+  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
+  DCHECK_GE(offset, 0);
+  constexpr int kShiftSize = 3;
+  constexpr int kShiftMask = (1 << kShiftSize) - 1;
+  DCHECK_EQ(offset & kShiftMask, 0);
+  USE(kShiftMask);
+  int encoded_value = offset >> kShiftSize;
+  // Encoded value must fit in 8 bits.
+  DCHECK_LE(encoded_value, 0xff);
+  return encoded_value;
+}
+
+template <int kNumberOfUnwindCodeWords = kDefaultNumberOfUnwindCodeWords>
 struct V8UnwindData {
   UNWIND_INFO unwind_info;
-  UNWIND_CODE unwind_codes[kNumberOfUnwindCodes];
+  UNWIND_CODE unwind_codes[kNumberOfUnwindCodeWords];
 
   V8UnwindData() {
     memset(&unwind_info, 0, sizeof(UNWIND_INFO));
     unwind_info.X = 1;  // has exception handler after unwind-codes.
-    unwind_info.CodeWords = 1;
+    unwind_info.CodeWords = kNumberOfUnwindCodeWords;
 
-    // stp fp, lr, [sp, #offset]!
-    unwind_codes[0] = Combine8BitUnwindCodes(OpSetFp, OpSaveFpLrX, OpEnd);
+    // Generate unwind codes for the following prolog:
+    //
+    // stp fp, lr, [sp, #-kCallerSPOffset]!
+    // mov fp, sp
+    //
+    // This is a very rough approximation of the actual function prologs used in
+    // V8. In particular, we often push other data before the (fp, lr) pair,
+    // meaning the stack pointer computed for the caller frame is wrong. That
+    // error is acceptable when the unwinding info for the caller frame also
+    // depends on fp rather than sp, as is the case for V8 builtins and runtime-
+    // generated code.
+    STATIC_ASSERT(kNumberOfUnwindCodeWords >= 1);
+    unwind_codes[0] = Combine8BitUnwindCodes(
+        OpSetFp, MakeOpSaveFpLrX(-CommonFrameConstants::kCallerSPOffset),
+        OpEnd);
+
+    // Fill the rest with nops.
+    for (int i = 1; i < kNumberOfUnwindCodeWords; ++i) {
+      unwind_codes[i] = Combine8BitUnwindCodes();
+    }
   }
 };
 
 struct CodeRangeUnwindingRecord {
   void* dynamic_table;
   uint32_t runtime_function_count;
-  V8UnwindData unwind_info;
+  V8UnwindData<> unwind_info;
   uint32_t exception_handler;
 
   // For Windows ARM64 unwinding, register 2 unwind_info for each code range,
   // unwind_info for all full size ranges (1MB - 4 bytes) and unwind_info1 for
   // the remaining non full size range. There is at most 1 range which is less
   // than full size.
-  V8UnwindData unwind_info1;
+  V8UnwindData<> unwind_info1;
   uint32_t exception_handler1;
   uint8_t exception_thunk[kMaxExceptionThunkSize];
 
@@ -286,33 +315,66 @@ struct CodeRangeUnwindingRecord {
 
 #pragma pack(pop)
 
-std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(uint32_t func_len,
-                                                     int32_t fp_adjustment) {
+FrameOffsets::FrameOffsets()
+    : fp_to_saved_caller_fp(CommonFrameConstants::kCallerFPOffset),
+      fp_to_caller_sp(CommonFrameConstants::kCallerSPOffset) {}
+bool FrameOffsets::IsDefault() const {
+  FrameOffsets other;
+  return fp_to_saved_caller_fp == other.fp_to_saved_caller_fp &&
+         fp_to_caller_sp == other.fp_to_caller_sp;
+}
+
+std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(
+    uint32_t func_len, FrameOffsets fp_adjustment) {
   DCHECK_LE(func_len, kMaxFunctionLength);
   DCHECK_EQ((func_len & kFunctionLengthMask), 0);
   USE(kFunctionLengthMask);
 
-  // Unwind code save_fplr requires the offset to be within range [0, 504].
-  // This range is defined in below doc for unwind code save_fplr.
-  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
-  DCHECK_GE(fp_adjustment, 0);
-  DCHECK_LE(fp_adjustment, 504);
-  DCHECK_EQ((fp_adjustment & kFramePointerAdjustmentShiftMask), 0);
-  USE(kFramePointerAdjustmentShiftMask);
+  // The largest size of unwind data required for all options below.
+  constexpr int kMaxNumberOfUnwindCodeWords = 2;
 
-  V8UnwindData xdata;
+  V8UnwindData<kMaxNumberOfUnwindCodeWords> xdata;
   // FunctionLength is ensured to be aligned at instruction size and Windows
   // ARM64 doesn't encoding its 2 LSB.
   xdata.unwind_info.FunctionLength = func_len >> kFunctionLengthShiftSize;
-  xdata.unwind_info.CodeWords = 1;
-  xdata.unwind_codes[0] = Combine8BitUnwindCodes(
-      OpSetFp,
-      (OpSaveFpLr | (fp_adjustment >> kFramePointerAdjustmentShiftSize)),
-      OpEnd);
+
+  if (fp_adjustment.IsDefault()) {
+    // One code word is plenty.
+    STATIC_ASSERT(kDefaultNumberOfUnwindCodeWords <
+                  kMaxNumberOfUnwindCodeWords);
+    xdata.unwind_info.CodeWords = kDefaultNumberOfUnwindCodeWords;
+  } else {
+    // We want to convey the following facts:
+    // 1. The caller's fp is found at [fp + fp_to_saved_caller_fp].
+    // 2. The caller's pc is found at [fp + fp_to_saved_caller_fp + 8].
+    // 3. The caller's sp is equal to fp + fp_to_caller_sp.
+    //
+    // An imaginary prolog that would establish those relationships might look
+    // like the following, with appropriate values for the various constants:
+    //
+    // stp fp, lr, [sp, #pre_index_amount]!
+    // sub sp, sp, #stack_space
+    // add fp, sp, offset_from_stack_top
+    //
+    // Why do we need offset_from_stack_top? The unwinding encoding for
+    // allocating stack space has 16-byte granularity, and the frame pointer has
+    // only 8-byte alignment.
+    int pre_index_amount =
+        fp_adjustment.fp_to_saved_caller_fp - fp_adjustment.fp_to_caller_sp;
+    int stack_space = fp_adjustment.fp_to_saved_caller_fp;
+    int offset_from_stack_top = stack_space & kAllocStackShiftMask;
+    stack_space += offset_from_stack_top;
+
+    xdata.unwind_codes[0] = Combine8BitUnwindCodes(
+        OpAddFp, MakeOpAddFpArgument(offset_from_stack_top),
+        MakeOpAllocS(stack_space), MakeOpSaveFpLrX(pre_index_amount));
+    xdata.unwind_codes[1] = Combine8BitUnwindCodes(OpEnd);
+  }
 
   return std::vector<uint8_t>(
       reinterpret_cast<uint8_t*>(&xdata),
-      reinterpret_cast<uint8_t*>(&xdata) + sizeof(xdata));
+      reinterpret_cast<uint8_t*>(
+          &xdata.unwind_codes[xdata.unwind_info.CodeWords]));
 }
 
 template <typename Record>
@@ -542,17 +604,13 @@ void XdataEncoder::onSaveFpLr() {
   current_frame_code_offset_ = assembler_.pc_offset() - 4;
   fp_offsets_.push_back(current_frame_code_offset_);
   fp_adjustments_.push_back(current_frame_adjustment_);
-  if (current_frame_adjustment_ != 0) {
-    current_frame_adjustment_ = 0;
-  }
+  current_frame_adjustment_ = FrameOffsets();
 }
 
-void XdataEncoder::onFramePointerAdjustment(int bytes) {
-  // According to below doc, offset for save_fplr is aligned to pointer size.
-  // https://docs.microsoft.com/en-us/cpp/build/arm64-exception-handling#unwind-codes
-  DCHECK_EQ((bytes & kPointerAlignmentMask), 0);
-
-  current_frame_adjustment_ = bytes;
+void XdataEncoder::onFramePointerAdjustment(int fp_to_saved_caller_fp,
+                                            int fp_to_caller_sp) {
+  current_frame_adjustment_.fp_to_saved_caller_fp = fp_to_saved_caller_fp;
+  current_frame_adjustment_.fp_to_caller_sp = fp_to_caller_sp;
 }
 
 #endif  // V8_OS_WIN_X64

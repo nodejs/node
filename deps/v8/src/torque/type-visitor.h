@@ -14,6 +14,8 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+class Scope;
+
 class TypeVisitor {
  public:
   static TypeVector ComputeTypeVector(const std::vector<TypeExpression*>& v) {
@@ -37,13 +39,20 @@ class TypeVisitor {
  private:
   friend class TypeAlias;
   friend class TypeOracle;
-  static const Type* ComputeType(TypeDeclaration* decl);
-  static const AbstractType* ComputeType(AbstractTypeDeclaration* decl);
-  static const Type* ComputeType(TypeAliasDeclaration* decl);
-  static const StructType* ComputeType(
-      StructDeclaration* decl,
-      StructType::MaybeSpecializationKey specialized_from = base::nullopt);
-  static const ClassType* ComputeType(ClassDeclaration* decl);
+  static const Type* ComputeType(
+      TypeDeclaration* decl,
+      MaybeSpecializationKey specialized_from = base::nullopt,
+      Scope* specialization_requester = nullptr);
+  static const AbstractType* ComputeType(
+      AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from);
+  static const Type* ComputeType(TypeAliasDeclaration* decl,
+                                 MaybeSpecializationKey specialized_from);
+  static const BitFieldStructType* ComputeType(
+      BitFieldStructDeclaration* decl, MaybeSpecializationKey specialized_from);
+  static const StructType* ComputeType(StructDeclaration* decl,
+                                       MaybeSpecializationKey specialized_from);
+  static const ClassType* ComputeType(ClassDeclaration* decl,
+                                      MaybeSpecializationKey specialized_from);
 };
 
 }  // namespace torque

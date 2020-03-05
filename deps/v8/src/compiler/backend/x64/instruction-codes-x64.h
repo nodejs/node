@@ -137,9 +137,6 @@ namespace compiler {
   V(X64MovqDecompressTaggedPointer)       \
   V(X64MovqDecompressAnyTagged)           \
   V(X64MovqCompressTagged)                \
-  V(X64DecompressSigned)                  \
-  V(X64DecompressPointer)                 \
-  V(X64DecompressAny)                     \
   V(X64Movq)                              \
   V(X64Movsd)                             \
   V(X64Movss)                             \
@@ -244,7 +241,8 @@ namespace compiler {
   V(X64I32x4GtU)                          \
   V(X64I32x4GeU)                          \
   V(X64I16x8Splat)                        \
-  V(X64I16x8ExtractLane)                  \
+  V(X64I16x8ExtractLaneU)                 \
+  V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8ReplaceLane)                  \
   V(X64I16x8SConvertI8x16Low)             \
   V(X64I16x8SConvertI8x16High)            \
@@ -274,8 +272,10 @@ namespace compiler {
   V(X64I16x8MaxU)                         \
   V(X64I16x8GtU)                          \
   V(X64I16x8GeU)                          \
+  V(X64I16x8RoundingAverageU)             \
   V(X64I8x16Splat)                        \
-  V(X64I8x16ExtractLane)                  \
+  V(X64I8x16ExtractLaneU)                 \
+  V(X64I8x16ExtractLaneS)                 \
   V(X64I8x16ReplaceLane)                  \
   V(X64I8x16SConvertI16x8)                \
   V(X64I8x16Neg)                          \
@@ -300,14 +300,26 @@ namespace compiler {
   V(X64I8x16MaxU)                         \
   V(X64I8x16GtU)                          \
   V(X64I8x16GeU)                          \
+  V(X64I8x16RoundingAverageU)             \
   V(X64S128Zero)                          \
   V(X64S128Not)                           \
   V(X64S128And)                           \
   V(X64S128Or)                            \
   V(X64S128Xor)                           \
   V(X64S128Select)                        \
+  V(X64S128AndNot)                        \
   V(X64S8x16Swizzle)                      \
   V(X64S8x16Shuffle)                      \
+  V(X64S8x16LoadSplat)                    \
+  V(X64S16x8LoadSplat)                    \
+  V(X64S32x4LoadSplat)                    \
+  V(X64S64x2LoadSplat)                    \
+  V(X64I16x8Load8x8S)                     \
+  V(X64I16x8Load8x8U)                     \
+  V(X64I32x4Load16x4S)                    \
+  V(X64I32x4Load16x4U)                    \
+  V(X64I64x2Load32x2S)                    \
+  V(X64I64x2Load32x2U)                    \
   V(X64S32x4Swizzle)                      \
   V(X64S32x4Shuffle)                      \
   V(X64S16x8Blend)                        \

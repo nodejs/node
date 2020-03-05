@@ -303,6 +303,20 @@ uint32_t word32_ror_wrapper(Address data) {
   return (input >> shift) | (input << ((32 - shift) & 31));
 }
 
+void word64_rol_wrapper(Address data) {
+  uint64_t input = ReadUnalignedValue<uint64_t>(data);
+  uint64_t shift = ReadUnalignedValue<uint64_t>(data + sizeof(input)) & 63;
+  uint64_t result = (input << shift) | (input >> ((64 - shift) & 63));
+  WriteUnalignedValue<uint64_t>(data, result);
+}
+
+void word64_ror_wrapper(Address data) {
+  uint64_t input = ReadUnalignedValue<uint64_t>(data);
+  uint64_t shift = ReadUnalignedValue<uint64_t>(data + sizeof(input)) & 63;
+  uint64_t result = (input >> shift) | (input << ((64 - shift) & 63));
+  WriteUnalignedValue<uint64_t>(data, result);
+}
+
 void float64_pow_wrapper(Address data) {
   double x = ReadUnalignedValue<double>(data);
   double y = ReadUnalignedValue<double>(data + sizeof(x));

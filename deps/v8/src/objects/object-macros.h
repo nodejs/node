@@ -30,6 +30,11 @@
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
+// In these cases, we don't have our own instance type to check, so check the
+// supertype instead. This happens for types denoting a NativeContext-dependent
+// set of maps.
+#define OBJECT_CONSTRUCTORS_IMPL_CHECK_SUPER(Type, Super) \
+  inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Super()); }
 
 #define NEVER_READ_ONLY_SPACE   \
   inline Heap* GetHeap() const; \
@@ -77,14 +82,14 @@
 // parameter.
 #define DECL_GETTER(name, type) \
   inline type name() const;     \
-  inline type name(Isolate* isolate) const;
+  inline type name(const Isolate* isolate) const;
 
-#define DEF_GETTER(holder, name, type)               \
-  type holder::name() const {                        \
-    Isolate* isolate = GetIsolateForPtrCompr(*this); \
-    return holder::name(isolate);                    \
-  }                                                  \
-  type holder::name(Isolate* isolate) const
+#define DEF_GETTER(holder, name, type)                     \
+  type holder::name() const {                              \
+    const Isolate* isolate = GetIsolateForPtrCompr(*this); \
+    return holder::name(isolate);                          \
+  }                                                        \
+  type holder::name(const Isolate* isolate) const
 
 #define DECL_ACCESSORS(name, type)   \
   DECL_GETTER(name, type)            \

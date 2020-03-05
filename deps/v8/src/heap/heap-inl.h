@@ -12,12 +12,13 @@
 // write barrier here!
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
+#include "src/heap/third-party/heap-api.h"
 
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/objects/feedback-vector.h"
 
-// TODO(mstarzinger): There is one more include to remove in order to no longer
+// TODO(gc): There is one more include to remove in order to no longer
 // leak heap internals to users of this interface!
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate.h"
@@ -159,6 +160,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK_IMPLIES(type == AllocationType::kCode,
+                 alignment == AllocationAlignment::kCodeAligned);
   DCHECK_EQ(gc_state_, NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
@@ -180,47 +183,51 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
     type = AllocationType::kOld;
   }
 
-  if (AllocationType::kYoung == type) {
-    if (large_object) {
-      if (FLAG_young_generation_large_objects) {
-        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        // If young generation large objects are disalbed we have to tenure the
-        // allocation and violate the given allocation type. This could be
-        // dangerous. We may want to remove FLAG_young_generation_large_objects
-        // and avoid patching.
-        allocation = lo_space_->AllocateRaw(size_in_bytes);
-      }
-    } else {
-      allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
-    }
-  } else if (AllocationType::kOld == type) {
-    if (large_object) {
-      allocation = lo_space_->AllocateRaw(size_in_bytes);
-    } else {
-      allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
-    }
-  } else if (AllocationType::kCode == type) {
-    if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
-      allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
-    } else {
-      allocation = code_lo_space_->AllocateRaw(size_in_bytes);
-    }
-  } else if (AllocationType::kMap == type) {
-    allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
-  } else if (AllocationType::kReadOnly == type) {
-    DCHECK(isolate_->serializer_enabled());
-    DCHECK(!large_object);
-    DCHECK(CanAllocateInReadOnlySpace());
-    DCHECK_EQ(AllocationOrigin::kRuntime, origin);
-    allocation =
-        read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    allocation = tp_heap_->Allocate(size_in_bytes, type, alignment);
   } else {
-    UNREACHABLE();
+    if (AllocationType::kYoung == type) {
+      if (large_object) {
+        if (FLAG_young_generation_large_objects) {
+          allocation = new_lo_space_->AllocateRaw(size_in_bytes);
+        } else {
+          // If young generation large objects are disalbed we have to tenure
+          // the allocation and violate the given allocation type. This could be
+          // dangerous. We may want to remove
+          // FLAG_young_generation_large_objects and avoid patching.
+          allocation = lo_space_->AllocateRaw(size_in_bytes);
+        }
+      } else {
+        allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
+      }
+    } else if (AllocationType::kOld == type) {
+      if (large_object) {
+        allocation = lo_space_->AllocateRaw(size_in_bytes);
+      } else {
+        allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
+      }
+    } else if (AllocationType::kCode == type) {
+      if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
+        allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
+      } else {
+        allocation = code_lo_space_->AllocateRaw(size_in_bytes);
+      }
+    } else if (AllocationType::kMap == type) {
+      allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
+    } else if (AllocationType::kReadOnly == type) {
+      DCHECK(isolate_->serializer_enabled());
+      DCHECK(!large_object);
+      DCHECK(CanAllocateInReadOnlySpace());
+      DCHECK_EQ(AllocationOrigin::kRuntime, origin);
+      allocation =
+          read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
+    } else {
+      UNREACHABLE();
+    }
   }
 
   if (allocation.To(&object)) {
-    if (AllocationType::kCode == type) {
+    if (AllocationType::kCode == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
       // Unprotect the memory chunk of the object if it was not unprotected
       // already.
       UnprotectAndRegisterMemoryChunk(object);
@@ -241,6 +248,11 @@ template <Heap::AllocationRetryMode mode>
 HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                  AllocationOrigin origin,
                                  AllocationAlignment alignment) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
+    DCHECK(!result.IsRetry());
+    return result.ToObjectChecked();
+  }
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_EQ(gc_state_, NOT_IN_GC);
@@ -269,6 +281,16 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
                                                 alignment);
   }
   UNREACHABLE();
+}
+
+Address Heap::DeserializerAllocate(AllocationType type, int size_in_bytes) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    AllocationResult allocation = tp_heap_->Allocate(
+        size_in_bytes, type, AllocationAlignment::kWordAligned);
+    return allocation.ToObjectChecked().ptr();
+  } else {
+    UNIMPLEMENTED();  // unimplemented
+  }
 }
 
 void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
@@ -356,6 +378,7 @@ bool Heap::InYoungGeneration(MaybeObject object) {
 
 // static
 bool Heap::InYoungGeneration(HeapObject heap_object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
   bool result = MemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
 #ifdef DEBUG
   // If in the young generation, then check we're either not in the middle of
@@ -408,6 +431,9 @@ bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
 
 // static
 Heap* Heap::FromWritableHeapObject(HeapObject obj) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return Heap::GetIsolateFromWritableObject(obj)->heap();
+  }
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
@@ -639,6 +665,14 @@ CodePageCollectionMemoryModificationScope::
     heap_->DisableUnprotectedMemoryChunksRegistry();
   }
 }
+
+#ifdef V8_ENABLE_THIRD_PARTY_HEAP
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
+    : chunk_(nullptr), scope_active_(false) {}
+#else
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
+    : CodePageMemoryModificationScope(MemoryChunk::FromHeapObject(code)) {}
+#endif
 
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     MemoryChunk* chunk)

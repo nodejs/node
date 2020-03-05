@@ -26,7 +26,7 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   CodeAssemblerTester tester(isolate, call_descriptor, "callee");
   CodeStubAssembler assembler(tester.state());
   int param_count = static_cast<int>(call_descriptor->StackParameterCount());
-  Node* sum = __ IntPtrConstant(0);
+  TNode<IntPtrT> sum = __ IntPtrConstant(0);
   for (int i = 0; i < param_count; ++i) {
     TNode<WordT> product =
         __ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1));

@@ -162,23 +162,23 @@
   var x = 1;
 
   function* f1(y = eval("var x = 2")) { with ({}) { return x; } }
-  assertEquals(1, f1().next().value);
+  assertEquals(2, f1().next().value);
   function* f2(y = eval("var x = 2"), z = x) { return z; }
-  assertEquals(1, f2().next().value);
+  assertEquals(2, f2().next().value);
   assertEquals(1, f2(0).next().value);
   function* f3(y = eval("var x = 2"), z = eval("x")) { return z; }
-  assertEquals(1, f3().next().value);
+  assertEquals(2, f3().next().value);
   assertEquals(1, f3(0).next().value);
   function* f8(y = (eval("var x = 2"), x)) { return y; }
   assertEquals(2, f8().next().value);
   assertEquals(0, f8(0).next().value);
 
   function* f11(z = eval("var y = 2")) { return y; }
-  assertThrows(() => f11().next(), ReferenceError);
-  function* f12(z = eval("var y = 2"), b = y) {}
-  assertThrows(() => f12().next(), ReferenceError);
-  function* f13(z = eval("var y = 2"), b = eval("y")) {}
-  assertThrows(() => f13().next(), ReferenceError);
+  assertEquals(2, f11().next().value);
+  function* f12(z = eval("var y = 2"), b = y) { return b; }
+  assertEquals(2, f12().next().value);
+  function* f13(z = eval("var y = 2"), b = eval("y")) { return b; }
+  assertEquals(2, f13().next().value);
 
   function* f21(f = () => x) { eval("var x = 2"); return f() }
   assertEquals(1, f21().next().value);

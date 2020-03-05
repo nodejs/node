@@ -290,13 +290,13 @@ TEST(OldSpace) {
   delete s;
 }
 
-TEST(LargeObjectSpace) {
+TEST(OldLargeObjectSpace) {
   // This test does not initialize allocated objects, which confuses the
   // incremental marker.
   FLAG_incremental_marking = false;
   v8::V8::Initialize();
 
-  LargeObjectSpace* lo = CcTest::heap()->lo_space();
+  OldLargeObjectSpace* lo = CcTest::heap()->lo_space();
   CHECK_NOT_NULL(lo);
 
   int lo_size = Page::kPageSize;
@@ -406,7 +406,7 @@ static HeapObject AllocateUnaligned(PagedSpace* space, int size) {
   return filler;
 }
 
-static HeapObject AllocateUnaligned(LargeObjectSpace* space, int size) {
+static HeapObject AllocateUnaligned(OldLargeObjectSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size);
   CHECK(!allocation.IsRetry());
   HeapObject filler;
@@ -512,8 +512,8 @@ UNINITIALIZED_TEST(AllocationObserver) {
     // classes inheriting from PagedSpace.
     testAllocationObserver<PagedSpace>(i_isolate,
                                        i_isolate->heap()->old_space());
-    testAllocationObserver<LargeObjectSpace>(i_isolate,
-                                             i_isolate->heap()->lo_space());
+    testAllocationObserver<OldLargeObjectSpace>(i_isolate,
+                                                i_isolate->heap()->lo_space());
   }
   isolate->Dispose();
 }

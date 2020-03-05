@@ -224,11 +224,13 @@ domain Debugger
       # Id of the script to get source for.
       Runtime.ScriptId scriptId
     returns
-      # Script source.
+      # Script source (empty in case of Wasm bytecode).
       string scriptSource
+      # Wasm bytecode.
+      optional binary bytecode
 
-  # Returns bytecode for the WebAssembly script with given id.
-  command getWasmBytecode
+  # This command is deprecated. Use getScriptSource instead.
+  deprecated command getWasmBytecode
     parameters
       # Id of the Wasm script to get source for.
       Runtime.ScriptId scriptId
@@ -651,11 +653,14 @@ experimental domain HeapProfiler
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken
       # when the tracking is stopped.
       optional boolean reportProgress
+      optional boolean treatGlobalObjectsAsRoots
 
   command takeHeapSnapshot
     parameters
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken.
       optional boolean reportProgress
+      # If true, a raw snapshot without artifical roots will be generated
+      optional boolean treatGlobalObjectsAsRoots
 
   event addHeapSnapshotChunk
     parameters
@@ -783,6 +788,14 @@ domain Profiler
       # Type profile entries for parameters and return values of the functions in the script.
       array of TypeProfileEntry entries
 
+  # Collected counter information.
+  experimental type CounterInfo extends object
+    properties
+      # Counter name.
+      string name
+      # Counter value.
+      integer value
+
   command disable
 
   command enable
@@ -811,6 +824,9 @@ domain Profiler
       optional boolean callCount
       # Collect block-based coverage.
       optional boolean detailed
+    returns
+      # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
+      number timestamp
 
   # Enable type profile.
   experimental command startTypeProfile
@@ -833,12 +849,26 @@ domain Profiler
     returns
       # Coverage data for the current isolate.
       array of ScriptCoverage result
+      # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
+      number timestamp
 
   # Collect type profile.
   experimental command takeTypeProfile
     returns
       # Type profile for all scripts since startTypeProfile() was turned on.
       array of ScriptTypeProfile result
+
+  # Enable run time call stats collection.
+  experimental command enableRuntimeCallStats
+
+  # Disable run time call stats collection.
+  experimental command disableRuntimeCallStats
+
+  # Retrieve run time call stats.
+  experimental command getRuntimeCallStats
+    returns
+      # Collected counter information.
+      array of CounterInfo result
 
   event consoleProfileFinished
     parameters
@@ -857,6 +887,19 @@ domain Profiler
       Debugger.Location location
       # Profile title passed as an argument to console.profile().
       optional string title
+
+  # Reports coverage delta since the last poll (either from an event like this, or from
+  # `takePreciseCoverage` for the current isolate. May only be sent if precise code
+  # coverage has been started. This event can be trigged by the embedder to, for example,
+  # trigger collection of coverage data immediatelly at a certain point in time.
+  experimental event preciseCoverageDeltaUpdate
+    parameters
+      # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
+      number timestamp
+      # Identifier for distinguishing coverage events.
+      string occassion
+      # Coverage data for the current isolate.
+      array of ScriptCoverage result
 
 # Runtime domain exposes JavaScript runtime by means of remote evaluation and mirror objects.
 # Evaluation results are returned as mirror object that expose object type, string representation
@@ -1051,7 +1094,13 @@ domain Runtime
       # Private property name.
       string name
       # The value associated with the private property.
-      RemoteObject value
+      optional RemoteObject value
+      # A function which serves as a getter for the private property,
+      # or `undefined` if there is no getter (accessor descriptors only).
+      optional RemoteObject get
+      # A function which serves as a setter for the private property,
+      # or `undefined` if there is no setter (accessor descriptors only).
+      optional RemoteObject set
 
   # Represents function call argument. Either remote object id `objectId`, primitive `value`,
   # unserializable primitive value or neither of (for undefined) them should be specified.
@@ -1257,6 +1306,8 @@ domain Runtime
       experimental optional TimeDelta timeout
       # Disable breakpoints during execution.
       experimental optional boolean disableBreaks
+      # Reserved flag for future REPL mode support. Setting this flag has currently no effect.
+      experimental optional boolean replMode
     returns
       # Evaluation result.
       RemoteObject result

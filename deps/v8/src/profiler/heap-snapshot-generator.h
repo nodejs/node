@@ -83,8 +83,8 @@ class HeapGraphEdge {
   V8_INLINE HeapSnapshot* snapshot() const;
   int from_index() const { return FromIndexField::decode(bit_field_); }
 
-  using TypeField = BitField<Type, 0, 3>;
-  using FromIndexField = BitField<int, 3, 29>;
+  using TypeField = base::BitField<Type, 0, 3>;
+  using FromIndexField = base::BitField<int, 3, 29>;
   uint32_t bit_field_;
   HeapEntry* to_entry_;
   union {
@@ -176,7 +176,7 @@ class HeapEntry {
 // HeapSnapshotGenerator fills in a HeapSnapshot.
 class HeapSnapshot {
  public:
-  explicit HeapSnapshot(HeapProfiler* profiler);
+  explicit HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots);
   void Delete();
 
   HeapProfiler* profiler() const { return profiler_; }
@@ -194,6 +194,9 @@ class HeapSnapshot {
     return max_snapshot_js_object_id_;
   }
   bool is_complete() const { return !children_.empty(); }
+  bool treat_global_objects_as_roots() const {
+    return treat_global_objects_as_roots_;
+  }
 
   void AddLocation(HeapEntry* entry, int scriptId, int line, int col);
   HeapEntry* AddEntry(HeapEntry::Type type,
@@ -225,6 +228,7 @@ class HeapSnapshot {
   std::unordered_map<SnapshotObjectId, HeapEntry*> entries_by_id_cache_;
   std::vector<SourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
+  bool treat_global_objects_as_roots_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
 };

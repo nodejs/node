@@ -1,0 +1,21 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class PrototypeInfo extends Struct {
+  js_module_namespace: JSModuleNamespace|Undefined;
+  prototype_users: WeakArrayList|Zero;
+  prototype_chain_enum_cache: FixedArray|Object|Undefined;
+  registry_slot: Smi;
+  validity_cell: Object;
+  object_create_map: Weak<Map>|Undefined;
+  bit_field: Smi;
+}
+
+extern macro PrototypeInfoMapConstant(): Map;
+const kPrototypeInfoMap: Map = PrototypeInfoMapConstant();
+
+Cast<PrototypeInfo>(o: HeapObject): PrototypeInfo labels CastError {
+  if (o.map != kPrototypeInfoMap) goto CastError;
+  return %RawDownCast<PrototypeInfo>(o);
+}

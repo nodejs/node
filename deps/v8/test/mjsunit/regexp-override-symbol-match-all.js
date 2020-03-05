@@ -4,7 +4,7 @@
 
 var s = "baa";
 
-assertEquals([["b"]], [...s.matchAll(/./)]);
+assertEquals([["b"], ["a"], ["a"]], [...s.matchAll(/./g)]);
 
 RegExp.prototype[Symbol.matchAll] = () => 42;
-assertEquals(42, s.matchAll(/a./));
+assertEquals(42, s.matchAll(/a./g));

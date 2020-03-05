@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_API_CALLBACKS_H_
 #define V8_OBJECTS_API_CALLBACKS_H_
 
+#include "src/base/bit-field.h"
 #include "src/objects/struct.h"
 #include "torque-generated/class-definitions-tq.h"
 

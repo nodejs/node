@@ -29,10 +29,71 @@ size_t hash_value(StoreRepresentation rep) {
 
 
 std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
-  return os << "(" << rep.representation() << " : " << rep.write_barrier_kind()
-            << ")";
+  return os << rep.representation() << ", " << rep.write_barrier_kind();
 }
 
+size_t hash_value(LoadKind kind) { return static_cast<size_t>(kind); }
+
+std::ostream& operator<<(std::ostream& os, LoadKind kind) {
+  switch (kind) {
+    case LoadKind::kNormal:
+      return os << "kNormal";
+    case LoadKind::kUnaligned:
+      return os << "kUnaligned";
+    case LoadKind::kProtected:
+      return os << "kProtected";
+  }
+  UNREACHABLE();
+}
+
+size_t hash_value(LoadTransformation rep) { return static_cast<size_t>(rep); }
+
+std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
+  switch (rep) {
+    case LoadTransformation::kS8x16LoadSplat:
+      return os << "kS8x16LoadSplat";
+    case LoadTransformation::kS16x8LoadSplat:
+      return os << "kS16x8LoadSplat";
+    case LoadTransformation::kS32x4LoadSplat:
+      return os << "kS32x4LoadSplat";
+    case LoadTransformation::kS64x2LoadSplat:
+      return os << "kS64x2LoadSplat";
+    case LoadTransformation::kI16x8Load8x8S:
+      return os << "kI16x8Load8x8S";
+    case LoadTransformation::kI16x8Load8x8U:
+      return os << "kI16x8Load8x8U";
+    case LoadTransformation::kI32x4Load16x4S:
+      return os << "kI32x4Load16x4S";
+    case LoadTransformation::kI32x4Load16x4U:
+      return os << "kI32x4Load16x4U";
+    case LoadTransformation::kI64x2Load32x2S:
+      return os << "kI64x2Load32x2S";
+    case LoadTransformation::kI64x2Load32x2U:
+      return os << "kI64x2Load32x2U";
+  }
+  UNREACHABLE();
+}
+
+size_t hash_value(LoadTransformParameters params) {
+  return base::hash_combine(params.kind, params.transformation);
+}
+
+std::ostream& operator<<(std::ostream& os, LoadTransformParameters params) {
+  return os << "(" << params.kind << " " << params.transformation << ")";
+}
+
+LoadTransformParameters const& LoadTransformParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kLoadTransform, op->opcode());
+  return OpParameter<LoadTransformParameters>(op);
+}
+
+bool operator==(LoadTransformParameters lhs, LoadTransformParameters rhs) {
+  return lhs.transformation == rhs.transformation && lhs.kind == rhs.kind;
+}
+
+bool operator!=(LoadTransformParameters lhs, LoadTransformParameters rhs) {
+  return !(lhs == rhs);
+}
 
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
@@ -71,7 +132,7 @@ size_t hash_value(StackSlotRepresentation rep) {
 }
 
 std::ostream& operator<<(std::ostream& os, StackSlotRepresentation rep) {
-  return os << "(" << rep.size() << " : " << rep.alignment() << ")";
+  return os << rep.size() << ", " << rep.alignment();
 }
 
 StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op) {
@@ -139,271 +200,268 @@ MachineType AtomicOpType(Operator const* op) {
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
-#define MACHINE_PURE_OP_LIST(V)                                               \
-  PURE_BINARY_OP_LIST_32(V)                                                   \
-  PURE_BINARY_OP_LIST_64(V)                                                   \
-  V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                              \
-  V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
-  V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
-  V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
-  V(Simd128ReverseBytes, Operator::kNoProperties, 1, 0, 1)                    \
-  V(BitcastTaggedToWordForTagAndSmiBits, Operator::kNoProperties, 1, 0, 1)    \
-  V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
-  V(BitcastWord32ToCompressedSigned, Operator::kNoProperties, 1, 0, 1)        \
-  V(BitcastCompressedSignedToWord32, Operator::kNoProperties, 1, 0, 1)        \
-  V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)                \
-  V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
-  V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
-  V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)                  \
-  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
-  V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                \
-  V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
-  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)                \
-  V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)              \
-  V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)              \
-  V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)             \
-  V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)             \
-  V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ChangeInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
-  V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                      \
-  V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                    \
-  V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
-  V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
-  V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                    \
-  V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
-  V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
-  V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                     \
-  V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
-  V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                   \
-  V(ChangeTaggedToCompressed, Operator::kNoProperties, 1, 0, 1)               \
-  V(ChangeTaggedPointerToCompressedPointer, Operator::kNoProperties, 1, 0, 1) \
-  V(ChangeTaggedSignedToCompressedSigned, Operator::kNoProperties, 1, 0, 1)   \
-  V(ChangeCompressedToTagged, Operator::kNoProperties, 1, 0, 1)               \
-  V(ChangeCompressedPointerToTaggedPointer, Operator::kNoProperties, 1, 0, 1) \
-  V(ChangeCompressedSignedToTaggedSigned, Operator::kNoProperties, 1, 0, 1)   \
-  V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
-  V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
-  V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                  \
-  V(BitcastFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
-  V(BitcastInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                  \
-  V(BitcastInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
-  V(SignExtendWord8ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
-  V(SignExtendWord16ToInt32, Operator::kNoProperties, 1, 0, 1)                \
-  V(SignExtendWord8ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
-  V(SignExtendWord16ToInt64, Operator::kNoProperties, 1, 0, 1)                \
-  V(SignExtendWord32ToInt64, Operator::kNoProperties, 1, 0, 1)                \
-  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float32Add, Operator::kCommutative, 2, 0, 1)                              \
-  V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float32Mul, Operator::kCommutative, 2, 0, 1)                              \
-  V(Float32Div, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float32Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(Float32Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Acosh, Operator::kNoProperties, 1, 0, 1)                           \
-  V(Float64Asin, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Asinh, Operator::kNoProperties, 1, 0, 1)                           \
-  V(Float64Atan, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Atan2, Operator::kNoProperties, 2, 0, 1)                           \
-  V(Float64Atanh, Operator::kNoProperties, 1, 0, 1)                           \
-  V(Float64Cbrt, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Cos, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Cosh, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Exp, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Expm1, Operator::kNoProperties, 1, 0, 1)                           \
-  V(Float64Log, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                           \
-  V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                           \
-  V(Float64Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(Float64Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Add, Operator::kCommutative, 2, 0, 1)                              \
-  V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Mul, Operator::kCommutative, 2, 0, 1)                              \
-  V(Float64Div, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Pow, Operator::kNoProperties, 2, 0, 1)                             \
-  V(Float64Sin, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Sinh, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float64Tan, Operator::kNoProperties, 1, 0, 1)                             \
-  V(Float64Tanh, Operator::kNoProperties, 1, 0, 1)                            \
-  V(Float32Equal, Operator::kCommutative, 2, 0, 1)                            \
-  V(Float32LessThan, Operator::kNoProperties, 2, 0, 1)                        \
-  V(Float32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
-  V(Float64Equal, Operator::kCommutative, 2, 0, 1)                            \
-  V(Float64LessThan, Operator::kNoProperties, 2, 0, 1)                        \
-  V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
-  V(Float64ExtractLowWord32, Operator::kNoProperties, 1, 0, 1)                \
-  V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
-  V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
-  V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
-  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
-  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)                 \
-  V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                           \
-  V(Int32PairSub, Operator::kNoProperties, 4, 0, 2)                           \
-  V(Int32PairMul, Operator::kNoProperties, 4, 0, 2)                           \
-  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                          \
-  V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                          \
-  V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                          \
-  V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
-  V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
-  V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
-  V(F64x2Sqrt, Operator::kNoProperties, 1, 0, 1)                              \
-  V(F64x2Add, Operator::kCommutative, 2, 0, 1)                                \
-  V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
-  V(F64x2Div, Operator::kNoProperties, 2, 0, 1)                               \
-  V(F64x2Min, Operator::kCommutative, 2, 0, 1)                                \
-  V(F64x2Max, Operator::kCommutative, 2, 0, 1)                                \
-  V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
-  V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
-  V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                                \
-  V(F64x2Le, Operator::kNoProperties, 2, 0, 1)                                \
-  V(F64x2Qfma, Operator::kNoProperties, 3, 0, 1)                              \
-  V(F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                              \
-  V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
-  V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
-  V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
-  V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                               \
-  V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
-  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                              \
-  V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                       \
-  V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                   \
-  V(F32x4Add, Operator::kCommutative, 2, 0, 1)                                \
-  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
-  V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                                \
-  V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                               \
-  V(F32x4Min, Operator::kCommutative, 2, 0, 1)                                \
-  V(F32x4Max, Operator::kCommutative, 2, 0, 1)                                \
-  V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                                 \
-  V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
-  V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                                \
-  V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                                \
-  V(F32x4Qfma, Operator::kNoProperties, 3, 0, 1)                              \
-  V(F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                              \
-  V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
-  V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
-  V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I64x2Add, Operator::kCommutative, 2, 0, 1)                                \
-  V(I64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
-  V(I64x2MinS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I64x2MaxS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I64x2GeS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I64x2MinU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I64x2MaxU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I64x2GtU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I64x2GeU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
-  V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
-  V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
-  V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)                 \
-  V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
-  V(I32x4Shl, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I32x4Add, Operator::kCommutative, 2, 0, 1)                                \
-  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
-  V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                                \
-  V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I32x4MaxS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I32x4Eq, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I32x4GtS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I32x4GeS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
-  V(I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
-  V(I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)                 \
-  V(I32x4ShrU, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I32x4MinU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                             \
-  V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)                  \
-  V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)                 \
-  V(I16x8Neg, Operator::kNoProperties, 1, 0, 1)                               \
-  V(I16x8Shl, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                     \
-  V(I16x8Add, Operator::kCommutative, 2, 0, 1)                                \
-  V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                       \
-  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
-  V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                      \
-  V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                                \
-  V(I16x8MinS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I16x8MaxS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I16x8Eq, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I16x8Ne, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I16x8GtS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I16x8GeS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)                  \
-  V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)                 \
-  V(I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                     \
-  V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                       \
-  V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                      \
-  V(I16x8MinU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I16x8MaxU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                             \
-  V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                               \
-  V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                     \
-  V(I8x16Add, Operator::kCommutative, 2, 0, 1)                                \
-  V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                       \
-  V(I8x16Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I8x16SubSaturateS, Operator::kNoProperties, 2, 0, 1)                      \
-  V(I8x16Mul, Operator::kCommutative, 2, 0, 1)                                \
-  V(I8x16MinS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I8x16MaxS, Operator::kCommutative, 2, 0, 1)                               \
-  V(I8x16Eq, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I8x16Ne, Operator::kCommutative, 2, 0, 1)                                 \
-  V(I8x16GtS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I8x16GeS, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                              \
-  V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                     \
-  V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                       \
-  V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                      \
-  V(I8x16MinU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I8x16MaxU, Operator::kCommutative, 2, 0, 1)                               \
-  V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                               \
-  V(S128Load, Operator::kNoProperties, 2, 0, 1)                               \
-  V(S128Store, Operator::kNoProperties, 3, 0, 1)                              \
-  V(S128Zero, Operator::kNoProperties, 0, 0, 1)                               \
-  V(S128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)        \
-  V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)         \
-  V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)        \
-  V(S128Not, Operator::kNoProperties, 1, 0, 1)                                \
-  V(S128Select, Operator::kNoProperties, 3, 0, 1)                             \
-  V(S1x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S1x2AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
-  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
-  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)                           \
-  V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
+#define MACHINE_PURE_OP_LIST(V)                                            \
+  PURE_BINARY_OP_LIST_32(V)                                                \
+  PURE_BINARY_OP_LIST_64(V)                                                \
+  V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                  \
+  V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                  \
+  V(Simd128ReverseBytes, Operator::kNoProperties, 1, 0, 1)                 \
+  V(BitcastTaggedToWordForTagAndSmiBits, Operator::kNoProperties, 1, 0, 1) \
+  V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)           \
+  V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)             \
+  V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)              \
+  V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                \
+  V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                \
+  V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)               \
+  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)              \
+  V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)             \
+  V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)              \
+  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)             \
+  V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)           \
+  V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)           \
+  V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)          \
+  V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)          \
+  V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
+  V(ChangeInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
+  V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                   \
+  V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
+  V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
+  V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
+  V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
+  V(BitcastWord32ToWord64, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                \
+  V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)            \
+  V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                \
+  V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)               \
+  V(BitcastFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)               \
+  V(BitcastInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
+  V(BitcastInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
+  V(SignExtendWord8ToInt32, Operator::kNoProperties, 1, 0, 1)              \
+  V(SignExtendWord16ToInt32, Operator::kNoProperties, 1, 0, 1)             \
+  V(SignExtendWord8ToInt64, Operator::kNoProperties, 1, 0, 1)              \
+  V(SignExtendWord16ToInt64, Operator::kNoProperties, 1, 0, 1)             \
+  V(SignExtendWord32ToInt64, Operator::kNoProperties, 1, 0, 1)             \
+  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float32Add, Operator::kCommutative, 2, 0, 1)                           \
+  V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                          \
+  V(Float32Mul, Operator::kCommutative, 2, 0, 1)                           \
+  V(Float32Div, Operator::kNoProperties, 2, 0, 1)                          \
+  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float32Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
+  V(Float32Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
+  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Acosh, Operator::kNoProperties, 1, 0, 1)                        \
+  V(Float64Asin, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Asinh, Operator::kNoProperties, 1, 0, 1)                        \
+  V(Float64Atan, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Atan2, Operator::kNoProperties, 2, 0, 1)                        \
+  V(Float64Atanh, Operator::kNoProperties, 1, 0, 1)                        \
+  V(Float64Cbrt, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Cos, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Cosh, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Exp, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Expm1, Operator::kNoProperties, 1, 0, 1)                        \
+  V(Float64Log, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                        \
+  V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                        \
+  V(Float64Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
+  V(Float64Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
+  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Add, Operator::kCommutative, 2, 0, 1)                           \
+  V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                          \
+  V(Float64Mul, Operator::kCommutative, 2, 0, 1)                           \
+  V(Float64Div, Operator::kNoProperties, 2, 0, 1)                          \
+  V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                          \
+  V(Float64Pow, Operator::kNoProperties, 2, 0, 1)                          \
+  V(Float64Sin, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Sinh, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float64Tan, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Tanh, Operator::kNoProperties, 1, 0, 1)                         \
+  V(Float32Equal, Operator::kCommutative, 2, 0, 1)                         \
+  V(Float32LessThan, Operator::kNoProperties, 2, 0, 1)                     \
+  V(Float32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
+  V(Float64Equal, Operator::kCommutative, 2, 0, 1)                         \
+  V(Float64LessThan, Operator::kNoProperties, 2, 0, 1)                     \
+  V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
+  V(Float64ExtractLowWord32, Operator::kNoProperties, 1, 0, 1)             \
+  V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)            \
+  V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)              \
+  V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)             \
+  V(LoadStackCheckOffset, Operator::kNoProperties, 0, 0, 1)                \
+  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                    \
+  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)              \
+  V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                        \
+  V(Int32PairSub, Operator::kNoProperties, 4, 0, 2)                        \
+  V(Int32PairMul, Operator::kNoProperties, 4, 0, 2)                        \
+  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                       \
+  V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                       \
+  V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                       \
+  V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(F64x2Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
+  V(F64x2Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(F64x2Div, Operator::kNoProperties, 2, 0, 1)                            \
+  V(F64x2Min, Operator::kCommutative, 2, 0, 1)                             \
+  V(F64x2Max, Operator::kCommutative, 2, 0, 1)                             \
+  V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                             \
+  V(F64x2Le, Operator::kNoProperties, 2, 0, 1)                             \
+  V(F64x2Qfma, Operator::kNoProperties, 3, 0, 1)                           \
+  V(F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                           \
+  V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
+  V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                  \
+  V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
+  V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                    \
+  V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                \
+  V(F32x4Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
+  V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                            \
+  V(F32x4Min, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x4Max, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                             \
+  V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                             \
+  V(F32x4Qfma, Operator::kNoProperties, 3, 0, 1)                           \
+  V(F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                           \
+  V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I64x2Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(I64x2Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(I64x2MinS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I64x2MaxS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x2GeS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I64x2MinU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I64x2MaxU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I64x2GtU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x2GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)               \
+  V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)              \
+  V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I32x4Shl, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x4Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
+  V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4MaxS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(I32x4Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I32x4GtS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4GeS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)               \
+  V(I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)              \
+  V(I32x4ShrU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x4MinU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
+  V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
+  V(I16x8Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I16x8Shl, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                  \
+  V(I16x8Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                    \
+  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                       \
+  V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(I16x8MinS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I16x8MaxS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I16x8Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(I16x8Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I16x8GtS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8GeS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
+  V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
+  V(I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                  \
+  V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                    \
+  V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I16x8MinU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I16x8MaxU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
+  V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                  \
+  V(I8x16Add, Operator::kCommutative, 2, 0, 1)                             \
+  V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                    \
+  V(I8x16Sub, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16SubSaturateS, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I8x16Mul, Operator::kCommutative, 2, 0, 1)                             \
+  V(I8x16MinS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I8x16MaxS, Operator::kCommutative, 2, 0, 1)                            \
+  V(I8x16Eq, Operator::kCommutative, 2, 0, 1)                              \
+  V(I8x16Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I8x16GtS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16GeS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                  \
+  V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                    \
+  V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                   \
+  V(I8x16MinU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I8x16MaxU, Operator::kCommutative, 2, 0, 1)                            \
+  V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
+  V(S128Load, Operator::kNoProperties, 2, 0, 1)                            \
+  V(S128Store, Operator::kNoProperties, 3, 0, 1)                           \
+  V(S128Zero, Operator::kNoProperties, 0, 0, 1)                            \
+  V(S128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
+  V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(S128Not, Operator::kNoProperties, 1, 0, 1)                             \
+  V(S128Select, Operator::kNoProperties, 3, 0, 1)                          \
+  V(S128AndNot, Operator::kNoProperties, 2, 0, 1)                          \
+  V(S1x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
+  V(S1x2AllTrue, Operator::kNoProperties, 1, 0, 1)                         \
+  V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
+  V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                         \
+  V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                         \
+  V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                         \
+  V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
+  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -451,7 +509,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(TaggedSigned)            \
   V(TaggedPointer)           \
   V(AnyTagged)               \
-  V(CompressedSigned)        \
   V(CompressedPointer)       \
   V(AnyCompressed)
 
@@ -466,9 +523,20 @@ MachineType AtomicOpType(Operator const* op) {
   V(kTaggedSigned)                     \
   V(kTaggedPointer)                    \
   V(kTagged)                           \
-  V(kCompressedSigned)                 \
   V(kCompressedPointer)                \
   V(kCompressed)
+
+#define LOAD_TRANSFORM_LIST(V) \
+  V(S8x16LoadSplat)            \
+  V(S16x8LoadSplat)            \
+  V(S32x4LoadSplat)            \
+  V(S64x2LoadSplat)            \
+  V(I16x8Load8x8S)             \
+  V(I16x8Load8x8U)             \
+  V(I32x4Load16x4S)            \
+  V(I32x4Load16x4U)            \
+  V(I64x2Load32x2S)            \
+  V(I64x2Load32x2U)
 
 #define ATOMIC_U32_TYPE_LIST(V) \
   V(Uint8)                      \
@@ -584,6 +652,28 @@ struct MachineOperatorGlobalCache {
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
+
+#define LOAD_TRANSFORM_KIND(TYPE, KIND)                                     \
+  struct KIND##LoadTransform##TYPE##Operator final                          \
+      : public Operator1<LoadTransformParameters> {                         \
+    KIND##LoadTransform##TYPE##Operator()                                   \
+        : Operator1<LoadTransformParameters>(                               \
+              IrOpcode::kLoadTransform,                                     \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
+              #KIND "LoadTransform", 2, 1, 1, 1, 1, 0,                      \
+              LoadTransformParameters{LoadKind::k##KIND,                    \
+                                      LoadTransformation::k##TYPE}) {}      \
+  };                                                                        \
+  KIND##LoadTransform##TYPE##Operator k##KIND##LoadTransform##TYPE;
+
+#define LOAD_TRANSFORM(TYPE)           \
+  LOAD_TRANSFORM_KIND(TYPE, Normal)    \
+  LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
+  LOAD_TRANSFORM_KIND(TYPE, Protected)
+
+  LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
+#undef LOAD_TRANSFORM
+#undef LOAD_TRANSFORM_KIND
 
 #define STACKSLOT(Size, Alignment)                                     \
   struct StackSlotOfSize##Size##OfAlignment##Alignment##Operator final \
@@ -896,6 +986,26 @@ struct MachineOperatorGlobalCache {
                    "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
   };
   UnsafePointerAddOperator kUnsafePointerAdd;
+
+  struct StackPointerGreaterThanOperator : public Operator1<StackCheckKind> {
+    explicit StackPointerGreaterThanOperator(StackCheckKind kind)
+        : Operator1<StackCheckKind>(
+              IrOpcode::kStackPointerGreaterThan, Operator::kEliminatable,
+              "StackPointerGreaterThan", 1, 1, 0, 1, 1, 0, kind) {}
+  };
+#define STACK_POINTER_GREATER_THAN(Kind)                              \
+  struct StackPointerGreaterThan##Kind##Operator final                \
+      : public StackPointerGreaterThanOperator {                      \
+    StackPointerGreaterThan##Kind##Operator()                         \
+        : StackPointerGreaterThanOperator(StackCheckKind::k##Kind) {} \
+  };                                                                  \
+  StackPointerGreaterThan##Kind##Operator kStackPointerGreaterThan##Kind;
+
+  STACK_POINTER_GREATER_THAN(JSFunctionEntry)
+  STACK_POINTER_GREATER_THAN(JSIterationBody)
+  STACK_POINTER_GREATER_THAN(CodeStubAssembler)
+  STACK_POINTER_GREATER_THAN(Wasm)
+#undef STACK_POINTER_GREATER_THAN
 };
 
 struct CommentOperator : public Operator1<const char*> {
@@ -995,6 +1105,23 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
   UNREACHABLE();
 }
 
+const Operator* MachineOperatorBuilder::LoadTransform(
+    LoadKind kind, LoadTransformation transform) {
+#define LOAD_TRANSFORM_KIND(TYPE, KIND)                                        \
+  if (kind == LoadKind::k##KIND && transform == LoadTransformation::k##TYPE) { \
+    return &cache_.k##KIND##LoadTransform##TYPE;                               \
+  }
+#define LOAD_TRANSFORM(TYPE)           \
+  LOAD_TRANSFORM_KIND(TYPE, Normal)    \
+  LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
+  LOAD_TRANSFORM_KIND(TYPE, Protected)
+
+  LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
+#undef LOAD_TRANSFORM
+#undef LOAD_TRANSFORM_KIND
+  UNREACHABLE();
+}
+
 const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment) {
   DCHECK_LE(0, size);
   DCHECK(alignment == 0 || alignment == 4 || alignment == 8 || alignment == 16);
@@ -1060,6 +1187,21 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
 
 const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
   return &cache_.kUnsafePointerAdd;
+}
+
+const Operator* MachineOperatorBuilder::StackPointerGreaterThan(
+    StackCheckKind kind) {
+  switch (kind) {
+    case StackCheckKind::kJSFunctionEntry:
+      return &cache_.kStackPointerGreaterThanJSFunctionEntry;
+    case StackCheckKind::kJSIterationBody:
+      return &cache_.kStackPointerGreaterThanJSIterationBody;
+    case StackCheckKind::kCodeStubAssembler:
+      return &cache_.kStackPointerGreaterThanCodeStubAssembler;
+    case StackCheckKind::kWasm:
+      return &cache_.kStackPointerGreaterThanWasm;
+  }
+  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::BitcastWordToTagged() {
@@ -1324,14 +1466,25 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return &cache_.kWord64PoisonOnSpeculation;
 }
 
-#define SIMD_LANE_OPS(Type, lane_count)                                     \
-  const Operator* MachineOperatorBuilder::Type##ExtractLane(                \
-      int32_t lane_index) {                                                 \
-    DCHECK(0 <= lane_index && lane_index < lane_count);                     \
-    return new (zone_)                                                      \
-        Operator1<int32_t>(IrOpcode::k##Type##ExtractLane, Operator::kPure, \
-                           "Extract lane", 1, 0, 0, 1, 0, 0, lane_index);   \
-  }                                                                         \
+#define EXTRACT_LANE_OP(Type, Sign, lane_count)                                \
+  const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(             \
+      int32_t lane_index) {                                                    \
+    DCHECK(0 <= lane_index && lane_index < lane_count);                        \
+    return new (zone_) Operator1<int32_t>(                                     \
+        IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure, "Extract lane", \
+        1, 0, 0, 1, 0, 0, lane_index);                                         \
+  }
+EXTRACT_LANE_OP(F64x2, , 2)
+EXTRACT_LANE_OP(F32x4, , 4)
+EXTRACT_LANE_OP(I64x2, , 2)
+EXTRACT_LANE_OP(I32x4, , 4)
+EXTRACT_LANE_OP(I16x8, U, 8)
+EXTRACT_LANE_OP(I16x8, S, 8)
+EXTRACT_LANE_OP(I8x16, U, 16)
+EXTRACT_LANE_OP(I8x16, S, 16)
+#undef EXTRACT_LANE_OP
+
+#define REPLACE_LANE_OP(Type, lane_count)                                   \
   const Operator* MachineOperatorBuilder::Type##ReplaceLane(                \
       int32_t lane_index) {                                                 \
     DCHECK(0 <= lane_index && lane_index < lane_count);                     \
@@ -1339,21 +1492,54 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
         Operator1<int32_t>(IrOpcode::k##Type##ReplaceLane, Operator::kPure, \
                            "Replace lane", 2, 0, 0, 1, 0, 0, lane_index);   \
   }
-SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
-#undef SIMD_LANE_OPS
+SIMD_LANE_OP_LIST(REPLACE_LANE_OP)
+#undef REPLACE_LANE_OP
+
+const Operator* MachineOperatorBuilder::I64x2ReplaceLaneI32Pair(
+    int32_t lane_index) {
+  DCHECK(0 <= lane_index && lane_index < 2);
+  return new (zone_)
+      Operator1<int32_t>(IrOpcode::kI64x2ReplaceLaneI32Pair, Operator::kPure,
+                         "Replace lane", 3, 0, 0, 1, 0, 0, lane_index);
+}
+
+bool operator==(S8x16ShuffleParameter const& lhs,
+                S8x16ShuffleParameter const& rhs) {
+  return (lhs.shuffle() == rhs.shuffle());
+}
+
+bool operator!=(S8x16ShuffleParameter const& lhs,
+                S8x16ShuffleParameter const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(S8x16ShuffleParameter const& p) {
+  return base::hash_range(p.shuffle().begin(), p.shuffle().end());
+}
+
+std::ostream& operator<<(std::ostream& os, S8x16ShuffleParameter const& p) {
+  for (int i = 0; i < 16; i++) {
+    const char* separator = (i < 15) ? "," : "";
+    os << static_cast<uint32_t>(p[i]) << separator;
+  }
+  return os;
+}
+
+S8x16ShuffleParameter const& S8x16ShuffleParameterOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
+  return OpParameter<S8x16ShuffleParameter>(op);
+}
 
 const Operator* MachineOperatorBuilder::S8x16Shuffle(
     const uint8_t shuffle[16]) {
-  uint8_t* array = zone_->NewArray<uint8_t>(16);
-  memcpy(array, shuffle, 16);
-  return new (zone_)
-      Operator1<uint8_t*>(IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle",
-                          2, 0, 0, 1, 0, 0, array);
+  return new (zone_) Operator1<S8x16ShuffleParameter>(
+      IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle", 2, 0, 0, 1, 0, 0,
+      S8x16ShuffleParameter(shuffle));
 }
 
-const uint8_t* S8x16ShuffleOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
-  return OpParameter<uint8_t*>(op);
+StackCheckKind StackCheckKindOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kStackPointerGreaterThan, op->opcode());
+  return OpParameter<StackCheckKind>(op);
 }
 
 #undef PURE_BINARY_OP_LIST_32
@@ -1370,6 +1556,7 @@ const uint8_t* S8x16ShuffleOf(Operator const* op) {
 #undef ATOMIC64_REPRESENTATION_LIST
 #undef SIMD_LANE_OP_LIST
 #undef STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST
+#undef LOAD_TRANSFORM_LIST
 
 }  // namespace compiler
 }  // namespace internal

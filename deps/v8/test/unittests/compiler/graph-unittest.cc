@@ -18,7 +18,7 @@ GraphTest::GraphTest(int num_parameters)
     : canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
-      broker_(isolate(), zone(), FLAG_trace_heap_broker),
+      broker_(isolate(), zone(), FLAG_trace_heap_broker, false),
       source_positions_(&graph_),
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
@@ -90,9 +90,13 @@ Node* GraphTest::UndefinedConstant() {
 Node* GraphTest::EmptyFrameState() {
   Node* state_values =
       graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
+  FrameStateFunctionInfo const* function_info =
+      common()->CreateFrameStateFunctionInfo(
+          FrameStateType::kInterpretedFunction, 0, 0,
+          Handle<SharedFunctionInfo>());
   return graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                           nullptr),
+                           function_info),
       state_values, state_values, state_values, NumberConstant(0),
       UndefinedConstant(), graph()->start());
 }

@@ -395,6 +395,16 @@ Handle<String> String::Trim(Isolate* isolate, Handle<String> string,
   return isolate->factory()->NewSubString(string, left, right);
 }
 
+int32_t String::ToArrayIndex(Address addr) {
+  DisallowHeapAllocation no_gc;
+  String key(addr);
+
+  uint32_t index;
+  if (!key.AsArrayIndex(&index)) return -1;
+  if (index <= INT_MAX) return index;
+  return -1;
+}
+
 bool String::LooksValid() {
   // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
   // basically the same logic as the way we access the heap in the first place.
@@ -443,7 +453,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   // Fast case: short integer or some sorts of junk values.
   if (subject->IsSeqOneByteString()) {
     int len = subject->length();
-    if (len == 0) return handle(Smi::kZero, isolate);
+    if (len == 0) return handle(Smi::zero(), isolate);
 
     DisallowHeapAllocation no_gc;
     uint8_t const* data =
@@ -1367,7 +1377,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
   StringCharacterStream stream(*this);
-  return StringToArrayIndex(&stream, index);
+  return StringToIndex(&stream, index);
 }
 
 bool String::SlowAsIntegerIndex(size_t* index) {
@@ -1387,7 +1397,8 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;
   StringCharacterStream stream(*this);
-  return StringToArrayIndex(&stream, index);
+  return StringToIndex<StringCharacterStream, size_t, kToIntegerIndex>(&stream,
+                                                                       index);
 }
 
 void String::PrintOn(FILE* file) {

@@ -40,9 +40,9 @@ class SyntheticModule
                               Handle<String> export_name,
                               Handle<Object> export_value);
 
-  using BodyDescriptor = SubclassBodyDescriptor<
-      Module::BodyDescriptor,
-      FixedBodyDescriptor<kExportNamesOffset, kSize, kSize>>;
+  using BodyDescriptor =
+      SubclassBodyDescriptor<Module::BodyDescriptor,
+                             FixedBodyDescriptor<kNameOffset, kSize, kSize>>;
 
  private:
   friend class Module;

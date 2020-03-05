@@ -241,6 +241,19 @@ class OperandGenerator {
                               UnallocatedOperand::USED_AT_START, vreg);
   }
 
+  // The kind of register generated for memory operands. kRegister is alive
+  // until the start of the operation, kUniqueRegister until the end.
+  enum RegisterMode {
+    kRegister,
+    kUniqueRegister,
+  };
+
+  InstructionOperand UseRegisterWithMode(Node* node,
+                                         RegisterMode register_mode) {
+    return register_mode == kRegister ? UseRegister(node)
+                                      : UseUniqueRegister(node);
+  }
+
   InstructionOperand TempDoubleRegister() {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
@@ -333,7 +346,6 @@ class OperandGenerator {
           case MachineRepresentation::kTaggedSigned:
           case MachineRepresentation::kTaggedPointer:
           case MachineRepresentation::kCompressed:
-          case MachineRepresentation::kCompressedSigned:
           case MachineRepresentation::kCompressedPointer:
             return Constant(static_cast<int32_t>(0));
           case MachineRepresentation::kFloat64:

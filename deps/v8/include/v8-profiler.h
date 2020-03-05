@@ -144,10 +144,6 @@ class V8_EXPORT CpuProfileNode {
     */
   unsigned GetHitCount() const;
 
-  /** Returns function entry UID. */
-  V8_DEPRECATED("Use GetScriptId, GetLineNumber, and GetColumnNumber instead.")
-  unsigned GetCallUid() const;
-
   /** Returns id of the node. The id is unique within the tree */
   unsigned GetNodeId() const;
 
@@ -848,7 +844,8 @@ class V8_EXPORT HeapProfiler {
    */
   const HeapSnapshot* TakeHeapSnapshot(
       ActivityControl* control = nullptr,
-      ObjectNameResolver* global_object_name_resolver = nullptr);
+      ObjectNameResolver* global_object_name_resolver = nullptr,
+      bool treat_global_objects_as_roots = true);
 
   /**
    * Starts tracking of heap objects population statistics. After calling

@@ -30,32 +30,32 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
                    CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
 
-  void CallbackEvent(Name name, Address entry_point) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode code, const char* comment) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode code, Name name) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode code, SharedFunctionInfo shared,
-                       Name script_name) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode code, SharedFunctionInfo shared,
-                       Name script_name, int line, int column) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       const wasm::WasmCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       const char* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<Name> name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<SharedFunctionInfo> shared,
+                       Handle<Name> script_name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<SharedFunctionInfo> shared,
+                       Handle<Name> script_name, int line, int column) override;
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) override;
 
-  void CodeMovingGCEvent() override {}
+  void CallbackEvent(Handle<Name> name, Address entry_point) override;
+  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
+  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
+  void RegExpCodeCreateEvent(Handle<AbstractCode> code,
+                             Handle<String> source) override;
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
-  void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo shared) override;
-  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta) override;
-  void GetterCallbackEvent(Name name, Address entry_point) override;
-  void RegExpCodeCreateEvent(AbstractCode code, String source) override;
-  void SetterCallbackEvent(Name name, Address entry_point) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override;
+  void CodeMovingGCEvent() override {}
+  void CodeDisableOptEvent(Handle<AbstractCode> code,
+                           Handle<SharedFunctionInfo> shared) override;
+  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+                      int fp_to_sp_delta) override;
 
   const char* GetName(Name name) {
     return function_and_resource_names_.GetName(name);
@@ -66,6 +66,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
   const char* GetName(const char* name) {
     return function_and_resource_names_.GetCopy(name);
   }
+  const char* GetName(Vector<const char> name);
   const char* GetConsName(const char* prefix, Name name) {
     return function_and_resource_names_.GetConsName(prefix, name);
   }
@@ -75,7 +76,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
  private:
   const char* GetFunctionName(SharedFunctionInfo);
 
-  void AttachDeoptInlinedFrames(Code code, CodeDeoptEventRecord* rec);
+  void AttachDeoptInlinedFrames(Handle<Code> code, CodeDeoptEventRecord* rec);
   Name InferScriptName(Name name, SharedFunctionInfo info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
     observer_->CodeEventHandler(evt_rec);

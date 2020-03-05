@@ -17,10 +17,6 @@
 
 namespace v8 {
 
-namespace debug {
-struct WasmDisassembly;
-}
-
 namespace internal {
 
 class WasmModuleObject;
@@ -29,6 +25,7 @@ namespace wasm {
 
 using WasmName = Vector<const char>;
 
+struct AsmJsOffsets;
 class ErrorThrower;
 
 // Reference to a string in the wire bytes.
@@ -181,10 +178,50 @@ enum ModuleOrigin : uint8_t {
 
 struct ModuleWireBytes;
 
+class V8_EXPORT_PRIVATE DecodedFunctionNames {
+ public:
+  WireBytesRef Lookup(const ModuleWireBytes& wire_bytes,
+                      uint32_t function_index) const;
+  void AddForTesting(int function_index, WireBytesRef name);
+
+ private:
+  // {function_names_} is populated lazily after decoding, and therefore needs a
+  // mutex to protect concurrent modifications from multiple {WasmModuleObject}.
+  mutable base::Mutex mutex_;
+  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
+      function_names_;
+};
+
+class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
+ public:
+  explicit AsmJsOffsetInformation(Vector<const byte> encoded_offsets);
+
+  // Destructor defined in wasm-module.cc, where the definition of
+  // {AsmJsOffsets} is available.
+  ~AsmJsOffsetInformation();
+
+  int GetSourcePosition(int func_index, int byte_offset,
+                        bool is_at_number_conversion);
+
+  std::pair<int, int> GetFunctionOffsets(int func_index);
+
+ private:
+  void EnsureDecodedOffsets();
+
+  // The offset information table is decoded lazily, hence needs to be
+  // protected against concurrent accesses.
+  // Exactly one of the two fields below will be set at a time.
+  mutable base::Mutex mutex_;
+
+  // Holds the encoded offset table bytes.
+  OwnedVector<const uint8_t> encoded_offsets_;
+
+  // Holds the decoded offset table.
+  std::unique_ptr<AsmJsOffsets> decoded_offsets_;
+};
+
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmModule);
-
   std::unique_ptr<Zone> signature_zone;
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
@@ -219,15 +256,16 @@ struct V8_EXPORT_PRIVATE WasmModule {
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
-      function_names;
+  DecodedFunctionNames function_names;
   std::string source_map_url;
+
+  // Asm.js source position information. Only available for modules compiled
+  // from asm.js.
+  std::unique_ptr<AsmJsOffsetInformation> asm_js_offset_information;
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
 
-  WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
-                                  uint32_t function_index) const;
-  void AddFunctionNameForTesting(int function_index, WireBytesRef name);
+  DISALLOW_COPY_AND_ASSIGN(WasmModule);
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {
@@ -250,18 +288,14 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index);
 
 // Returns the function containing the given byte offset.
-// Returns -1 if the byte offset is not contained in any function of this
-// module.
+// Returns -1 if the byte offset is not contained in any
+// function of this module.
 int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset);
 
-// Compute the disassembly of a wasm function.
-// Returns the disassembly string and a list of <byte_offset, line, column>
-// entries, mapping wasm byte offsets to line and column in the disassembly.
-// The list is guaranteed to be ordered by the byte_offset.
-// Returns an empty string and empty vector if the function index is invalid.
-V8_EXPORT_PRIVATE debug::WasmDisassembly DisassembleWasmFunction(
-    const WasmModule* module, const ModuleWireBytes& wire_bytes,
-    int func_index);
+// Returns the function containing the given byte offset.
+// Will return preceding function if the byte offset is not
+// contained within a function.
+int GetNearestWasmFunction(const WasmModule* module, uint32_t byte_offset);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
@@ -282,10 +316,10 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   WasmName GetNameOrNull(const WasmFunction* function,
                          const WasmModule* module) const;
 
-  // Checks the given offset range is contained within the module bytes.
-  bool BoundsCheck(uint32_t offset, uint32_t length) const {
+  // Checks the given reference is contained within the module bytes.
+  bool BoundsCheck(WireBytesRef ref) const {
     uint32_t size = static_cast<uint32_t>(module_bytes_.length());
-    return offset <= size && length <= size - offset;
+    return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
   Vector<const byte> GetFunctionBytes(const WasmFunction* function) const {
@@ -330,10 +364,19 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<WasmModuleObject> module,
                                   Handle<String> name, ErrorThrower* thrower);
 
-// Decode local variable names from the names section. Return FixedArray of
-// FixedArray of <undefined|String>. The outer fixed array is indexed by the
-// function index, the inner one by the local index.
-Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmModuleObject>);
+// Get the source position from a given function index and byte offset,
+// for either asm.js or pure Wasm modules.
+int GetSourcePosition(const WasmModule*, uint32_t func_index,
+                      uint32_t byte_offset, bool is_at_number_conversion);
+
+// Translate function index to the index relative to the first declared (i.e.
+// non-imported) function.
+inline int declared_function_index(const WasmModule* module, int func_index) {
+  DCHECK_LE(module->num_imported_functions, func_index);
+  int declared_idx = func_index - module->num_imported_functions;
+  DCHECK_GT(module->num_declared_functions, declared_idx);
+  return declared_idx;
+}
 
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
@@ -370,6 +413,11 @@ class TruncatedUserString {
   const int length_;
   char buffer_[kMaxLen];
 };
+
+// Print the signature into the given {buffer}. If {buffer} is non-empty, it
+// will be null-terminated, even if the signature is cut off. Returns the number
+// of characters written, excluding the terminating null-byte.
+size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig*);
 
 }  // namespace wasm
 }  // namespace internal

@@ -70,6 +70,7 @@
 //           - JSWeakSet
 //         - JSCollator            // If V8_INTL_SUPPORT enabled.
 //         - JSDateTimeFormat      // If V8_INTL_SUPPORT enabled.
+//         - JSDisplayNames        // If V8_INTL_SUPPORT enabled.
 //         - JSListFormat          // If V8_INTL_SUPPORT enabled.
 //         - JSLocale              // If V8_INTL_SUPPORT enabled.
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
@@ -162,10 +163,11 @@
 //       - DebugInfo
 //       - BreakPoint
 //       - BreakPointInfo
+//       - CachedTemplateObject
 //       - StackFrameInfo
 //       - StackTraceFrame
-//       - SourcePositionTableWithFrameCache
 //       - CodeCache
+//       - PropertyDescriptorObject
 //       - PrototypeInfo
 //       - Microtask
 //         - CallbackTask
@@ -274,7 +276,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;
+  V8_INLINE bool Is##Type(const Isolate* isolate) const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
@@ -300,7 +302,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(Isolate* isolate) const;
+  V8_INLINE bool Is##Name(const Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
@@ -315,9 +317,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value) const;
 
-  inline Representation OptimalRepresentation(Isolate* isolate) const;
+  inline Representation OptimalRepresentation(const Isolate* isolate) const;
 
-  inline ElementsKind OptimalElementsKind(Isolate* isolate) const;
+  inline ElementsKind OptimalElementsKind(const Isolate* isolate) const;
 
   inline bool FitsRepresentation(Representation representation);
 
@@ -456,8 +458,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       Isolate* isolate, Handle<Object> object, Handle<Object> callable);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  GetProperty(LookupIterator* it,
-              OnNonExistent on_non_existent = OnNonExistent::kReturnUndefined);
+  GetProperty(LookupIterator* it, bool is_global_reference = false);
 
   // ES6 [[Set]] (when passed kDontThrow)
   // Invariants for this and related functions (unless stated otherwise):
@@ -568,6 +569,10 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
   // allow kMaxUInt32.
   V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
+
+  // Tries to convert an object to an index (in the range 0..size_t::max).
+  // Returns true and sets the output parameter if it succeeds.
+  inline bool ToIntegerIndex(size_t* index) const;
 
   // Returns true if the result of iterating over the object is the same
   // (including observable effects) as simply accessing the properties between 0

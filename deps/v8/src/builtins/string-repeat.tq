@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_repeat {
+namespace string {
   const kBuiltinName: constexpr string = 'String.prototype.repeat';
 
   builtin StringRepeat(implicit context: Context)(string: String, count: Smi):
@@ -28,14 +28,15 @@ namespace string_repeat {
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.repeat
   transitioning javascript builtin StringPrototypeRepeat(
-      js-implicit context: Context, receiver: JSAny)(count: JSAny): String {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(count: JSAny): String {
     // 1. Let O be ? RequireObjectCoercible(this value).
     // 2. Let S be ? ToString(O).
     const s: String = ToThisString(receiver, kBuiltinName);
 
     try {
       // 3. Let n be ? ToInteger(count).
-      typeswitch (ToInteger_Inline(context, count, kTruncateMinusZero)) {
+      typeswitch (ToInteger_Inline(count, kTruncateMinusZero)) {
         case (n: Smi): {
           // 4. If n < 0, throw a RangeError exception.
           if (n < 0) goto InvalidCount;
@@ -68,7 +69,7 @@ namespace string_repeat {
       return kEmptyString;
     }
     label InvalidCount deferred {
-      ThrowRangeError(kInvalidCountValue, count);
+      ThrowRangeError(MessageTemplate::kInvalidCountValue, count);
     }
     label InvalidStringLength deferred {
       ThrowInvalidStringLength(context);

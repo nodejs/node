@@ -129,7 +129,7 @@ void AddArgsToTraceProto(
         break;
       }
       case TRACE_VALUE_TYPE_BOOL:
-        arg->set_bool_value(arg_value.as_bool);
+        arg->set_bool_value(arg_value.as_uint);
         break;
       case TRACE_VALUE_TYPE_UINT:
         arg->set_uint_value(arg_value.as_uint);

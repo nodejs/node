@@ -30,7 +30,6 @@ var eagerDeoptInCalled = function(deopt) {
   };
   a.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(eagerDeoptInCalled);
 eagerDeoptInCalled();
 eagerDeoptInCalled();
@@ -51,7 +50,6 @@ var eagerDeoptInCalled = function(deopt) {
   };
   a.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(eagerDeoptInCalled);
 eagerDeoptInCalled();
 eagerDeoptInCalled();
@@ -75,7 +73,6 @@ var eagerDeoptInCalled = function(deopt) {
   };
   a_noescape.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(eagerDeoptInCalled);
 eagerDeoptInCalled();
 eagerDeoptInCalled();
@@ -104,7 +101,6 @@ var lazyDeopt = function(deopt) {
   %NeverOptimizeFunction(sum);
   b.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -126,7 +122,6 @@ var lazyDeopt = function(deopt) {
   };
   b.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -150,7 +145,6 @@ var lazyDeopt = function(deopt) {
   %NeverOptimizeFunction(sum);
   b.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -175,7 +169,6 @@ var lazyDeopt = function(deopt) {
   };
   c.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -204,7 +197,6 @@ var lazyDeopt = function(deopt) {
     caught = true;
   }
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -234,7 +226,6 @@ var lazyDeopt = function(deopt) {
     caught = true;
   }
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -287,14 +278,12 @@ var lazyDeopt = function foobar(deopt) {
     result += v;
     if (i == 1) {
       var e = new Error();
-      print(e.stack);
       assertTrue(re.exec(e.stack) !== null);
     }
   };
   var o = [1, 2, 3];
   b.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -318,7 +307,6 @@ var lazyDeopt = function(deopt) {
   var o = [1, 2, 3];
   b.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -343,7 +331,6 @@ var lazyDeopt = function(deopt) {
   var o = [1, 2, 3];
   b.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 lazyDeopt();
 lazyDeopt();
@@ -365,7 +352,6 @@ var lazyDeopt = function() {
   };
   a.forEach(sum);
 };
-;
 %PrepareFunctionForOptimization(lazyDeopt);
 assertThrows(() => lazyDeopt());
 assertThrows(() => lazyDeopt());

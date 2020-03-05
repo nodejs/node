@@ -90,6 +90,15 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
                                    MaybeObjectHandle::Weak(script));
     heap->SetRootScriptList(*list);
   }
+
+  for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
+    // Serializer writes backing store ref in |backing_store| field.
+    size_t store_index = reinterpret_cast<size_t>(buffer->backing_store());
+    auto bs = backing_store(store_index);
+    SharedFlag shared =
+        bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;
+    buffer->Setup(shared, bs);
+  }
 }
 
 void ObjectDeserializer::LinkAllocationSites() {
@@ -102,7 +111,7 @@ void ObjectDeserializer::LinkAllocationSites() {
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
-    if (heap->allocation_sites_list() == Smi::kZero) {
+    if (heap->allocation_sites_list() == Smi::zero()) {
       site.set_weak_next(ReadOnlyRoots(heap).undefined_value());
     } else {
       site.set_weak_next(heap->allocation_sites_list());

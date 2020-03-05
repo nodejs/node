@@ -80,16 +80,6 @@ class FrameScope {
     tasm_->set_has_frame(old_has_frame_);
   }
 
-  // Normally we generate the leave-frame code when this object goes
-  // out of scope.  Sometimes we may need to generate the code somewhere else
-  // in addition.  Calling this will achieve that, but the object stays in
-  // scope, the MacroAssembler is still marked as being in a frame scope, and
-  // the code will be generated again when it goes out of scope.
-  void GenerateLeaveFrame() {
-    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
-    tasm_->LeaveFrame(type_);
-  }
-
  private:
   TurboAssembler* tasm_;
   StackFrame::Type type_;
@@ -119,16 +109,6 @@ class FrameAndConstantPoolScope {
     if (FLAG_enable_embedded_constant_pool) {
       masm_->set_constant_pool_available(old_constant_pool_available_);
     }
-  }
-
-  // Normally we generate the leave-frame code when this object goes
-  // out of scope.  Sometimes we may need to generate the code somewhere else
-  // in addition.  Calling this will achieve that, but the object stays in
-  // scope, the MacroAssembler is still marked as being in a frame scope, and
-  // the code will be generated again when it goes out of scope.
-  void GenerateLeaveFrame() {
-    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
-    masm_->LeaveFrame(type_);
   }
 
  private:
@@ -184,34 +164,6 @@ class NoRootArrayScope {
  private:
   TurboAssembler* masm_;
   bool old_value_;
-};
-
-// Wrapper class for passing expected and actual parameter counts as
-// either registers or immediate values. Used to make sure that the
-// caller provides exactly the expected number of parameters to the
-// callee.
-class ParameterCount {
- public:
-  explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
-  explicit ParameterCount(uint16_t imm) : reg_(no_reg), immediate_(imm) {}
-
-  bool is_reg() const { return reg_.is_valid(); }
-  bool is_immediate() const { return !is_reg(); }
-
-  Register reg() const {
-    DCHECK(is_reg());
-    return reg_;
-  }
-  uint16_t immediate() const {
-    DCHECK(is_immediate());
-    return immediate_;
-  }
-
- private:
-  const Register reg_;
-  const uint16_t immediate_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
 };
 
 }  // namespace internal

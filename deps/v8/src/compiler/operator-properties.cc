@@ -76,6 +76,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSGeneratorStore:
     case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSHasContextExtension:
     case IrOpcode::kJSLoadContext:
     case IrOpcode::kJSLoadModule:
     case IrOpcode::kJSLoadNamed:

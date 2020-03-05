@@ -8,6 +8,48 @@ import time
 from . import base
 
 
+# Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
+# (probability, flag).
+EXTRA_FLAGS = [
+  (0.1, '--always-opt'),
+  (0.1, '--assert-types'),
+  (0.1, '--cache=code'),
+  (0.1, '--force-slow-path'),
+  (0.2, '--future'),
+  (0.1, '--liftoff'),
+  (0.2, '--no-analyze-environment-liveness'),
+  (0.1, '--no-enable-sse3'),
+  (0.1, '--no-enable-ssse3'),
+  (0.1, '--no-enable-sse4_1'),
+  (0.1, '--no-enable-sse4_2'),
+  (0.1, '--no-enable-sahf'),
+  (0.1, '--no-enable-avx'),
+  (0.1, '--no-enable-fma3'),
+  (0.1, '--no-enable-bmi1'),
+  (0.1, '--no-enable-bmi2'),
+  (0.1, '--no-enable-lzcnt'),
+  (0.1, '--no-enable-popcnt'),
+  (0.1, '--no-liftoff'),
+  (0.1, '--no-opt'),
+  (0.2, '--no-regexp-tier-up'),
+  (0.1, '--no-wasm-tier-up'),
+  (0.1, '--regexp-interpret-all'),
+  (0.1, '--regexp-tier-up-ticks=10'),
+  (0.1, '--regexp-tier-up-ticks=100'),
+  (0.1, '--stress-background-compile'),
+  (0.1, '--stress-lazy-source-positions'),
+  (0.1, '--stress-wasm-code-gc'),
+  (0.1, '--turbo-instruction-scheduling'),
+  (0.1, '--turbo-stress-instruction-scheduling'),
+]
+
+def random_extra_flags(rng):
+  """Returns a random list of flags chosen from the configurations in
+  EXTRA_FLAGS.
+  """
+  return [flag for prob, flag in EXTRA_FLAGS if rng.random() < prob]
+
+
 class FuzzerConfig(object):
   def __init__(self, probability, analyzer, fuzzer):
     """
@@ -92,7 +134,6 @@ class FuzzerProc(base.TestProcProducer):
       return self._create_subtest(test, 'analysis', flags=analysis_flags,
                                   keep_output=True)
 
-
   def _result_for(self, test, subtest, result):
     if not self._disable_analysis:
       if result is not None:
@@ -110,7 +151,7 @@ class FuzzerProc(base.TestProcProducer):
     # analysis phase at all, so no fuzzer has it's own analyzer.
     gens = []
     indexes = []
-    for i, fuzzer_config in enumerate(self._fuzzer_configs):
+    for fuzzer_config in self._fuzzer_configs:
       analysis_value = None
       if analysis_result and fuzzer_config.analyzer:
         analysis_value = fuzzer_config.analyzer.do_analysis(analysis_result)
@@ -132,7 +173,7 @@ class FuzzerProc(base.TestProcProducer):
       main_index = self._rng.choice(indexes)
       _, main_gen = gens[main_index]
 
-      flags = next(main_gen)
+      flags = random_extra_flags(self._rng) + next(main_gen)
       for index, (p, gen) in enumerate(gens):
         if index == main_index:
           continue
@@ -205,7 +246,7 @@ class GcIntervalAnalyzer(Analyzer):
 class GcIntervalFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     if analysis_value:
-      value = analysis_value / 10
+      value = analysis_value // 10
     else:
       value = 10000
     while True:
@@ -260,7 +301,7 @@ class DeoptFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       if analysis_value:
-        value = analysis_value / 2
+        value = analysis_value // 2
       else:
         value = 10000
       interval = rng.randint(self._min, max(value, self._min))

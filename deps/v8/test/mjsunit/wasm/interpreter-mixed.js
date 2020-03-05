@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -144,28 +144,32 @@ function redirectToInterpreter(
   // Three runs: Break in instance 1, break in instance 2, or both.
   for (let run = 0; run < 3; ++run) {
     print(" - run " + run);
-    let [instance1, instance2] = createTwoInstancesCallingEachOther();
-
-    let interpreted_before_1 = %WasmNumInterpretedCalls(instance1);
-    let interpreted_before_2 = %WasmNumInterpretedCalls(instance2);
-    // Call plus_two, which calls plus_one.
-    assertEquals(9, instance2.exports.plus_two(7));
-
-    // Nothing interpreted:
-    assertEquals(interpreted_before_1, %WasmNumInterpretedCalls(instance1));
-    assertEquals(interpreted_before_2, %WasmNumInterpretedCalls(instance2));
-
-    // Now redirect functions to the interpreter.
-    redirectToInterpreter(instance1, instance2, run != 1, run != 0);
-
-    // Call plus_two, which calls plus_one.
-    assertEquals(9, instance2.exports.plus_two(7));
-
-    // TODO(6668): Fix patching of instances which imported others' code.
-    //assertEquals(interpreted_before_1 + (run == 1 ? 0 : 1),
-    //             %WasmNumInterpretedCalls(instance1));
-    assertEquals(interpreted_before_2 + (run == 0 ? 0 : 1),
-                 %WasmNumInterpretedCalls(instance2));
+    (() => {
+      // Trigger a GC to ensure that the underlying native module is not a cached
+      // one from a previous run, with functions already redirected to the
+      // interpreter. This is not observable from pure JavaScript, but this is
+      // observable with the internal runtime functions used in this test.
+      // Run in a local scope to ensure previous native modules are
+      // unreachable.
+      gc();
+      let [instance1, instance2] = createTwoInstancesCallingEachOther();
+      let interpreted_before_1 = %WasmNumInterpretedCalls(instance1);
+      let interpreted_before_2 = %WasmNumInterpretedCalls(instance2);
+      // Call plus_two, which calls plus_one.
+      assertEquals(9, instance2.exports.plus_two(7));
+      // Nothing interpreted:
+      assertEquals(interpreted_before_1, %WasmNumInterpretedCalls(instance1));
+      assertEquals(interpreted_before_2, %WasmNumInterpretedCalls(instance2));
+      // Now redirect functions to the interpreter.
+      redirectToInterpreter(instance1, instance2, run != 1, run != 0);
+      // Call plus_two, which calls plus_one.
+      assertEquals(9, instance2.exports.plus_two(7));
+      // TODO(6668): Fix patching of instances which imported others' code.
+      //assertEquals(interpreted_before_1 + (run == 1 ? 0 : 1),
+      //             %WasmNumInterpretedCalls(instance1));
+      assertEquals(interpreted_before_2 + (run == 0 ? 0 : 1),
+                   %WasmNumInterpretedCalls(instance2))
+    })();
   }
 })();
 

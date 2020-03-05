@@ -46,10 +46,6 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
   tree_->EnqueueNode(this);
 }
 
-inline unsigned ProfileNode::function_id() const {
-  return tree_->GetFunctionId(this);
-}
-
 inline CpuProfileNode::SourceType ProfileNode::source_type() const {
   // Handle metadata and VM state code entry types.
   if (entry_ == CodeEntry::program_entry() ||

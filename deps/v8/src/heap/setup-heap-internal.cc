@@ -34,6 +34,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/promise.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
@@ -154,9 +155,10 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map.SetInObjectUnusedPropertyFields(0);
   map.set_bit_field(0);
   map.set_bit_field2(0);
-  int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
-                   Map::OwnsDescriptorsBit::encode(true) |
-                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
+  int bit_field3 =
+      Map::Bits3::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
+      Map::Bits3::OwnsDescriptorsBit::encode(true) |
+      Map::Bits3::ConstructionCounterBits::encode(Map::kNoSlackTracking);
   map.set_bit_field3(bit_field3);
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
@@ -385,16 +387,6 @@ bool Heap::CreateInitialMaps() {
       roots_table()[entry.index] = map.ptr();
     }
 
-    {  // Create a separate external one byte string map for native sources.
-      Map map;
-      AllocationResult allocation =
-          AllocateMap(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,
-                      ExternalOneByteString::kUncachedSize);
-      if (!allocation.To(&map)) return false;
-      map.SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
-      set_native_source_string_map(map);
-    }
-
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map().set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
     ALLOCATE_VARSIZE_MAP(FEEDBACK_METADATA_TYPE, feedback_metadata)
@@ -455,16 +447,6 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, array_list)
 
-    ALLOCATE_VARSIZE_MAP(FUNCTION_CONTEXT_TYPE, function_context)
-    ALLOCATE_VARSIZE_MAP(CATCH_CONTEXT_TYPE, catch_context)
-    ALLOCATE_VARSIZE_MAP(WITH_CONTEXT_TYPE, with_context)
-    ALLOCATE_VARSIZE_MAP(DEBUG_EVALUATE_CONTEXT_TYPE, debug_evaluate_context)
-    ALLOCATE_VARSIZE_MAP(AWAIT_CONTEXT_TYPE, await_context)
-    ALLOCATE_VARSIZE_MAP(BLOCK_CONTEXT_TYPE, block_context)
-    ALLOCATE_VARSIZE_MAP(MODULE_CONTEXT_TYPE, module_context)
-    ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
-    ALLOCATE_VARSIZE_MAP(EVAL_CONTEXT_TYPE, eval_context)
-    ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TYPE, script_context)
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TABLE_TYPE, script_context_table)
 
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
@@ -495,7 +477,8 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
 
-    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kSize, message_object)
+    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
+                 message_object)
     ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kEmbedderDataSlotSize,
                  external)
     external_map().set_is_extensible(false);
@@ -523,7 +506,7 @@ bool Heap::CreateInitialMaps() {
 
     FixedArray::cast(obj).set_length(1);
     FixedArray::cast(obj).set(ObjectBoilerplateDescription::kLiteralTypeOffset,
-                              Smi::kZero);
+                              Smi::zero());
   }
   set_empty_object_boilerplate_description(
       ObjectBoilerplateDescription::cast(obj));
@@ -659,7 +642,7 @@ void Heap::CreateInitialObjects() {
 
   // Initialize the null_value.
   Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      handle(Smi::kZero, isolate()), "object", Oddball::kNull);
+                      handle(Smi::zero(), isolate()), "object", Oddball::kNull);
 
   // Initialize the_hole_value.
   Oddball::Initialize(isolate(), factory->the_hole_value(), "hole",
@@ -673,7 +656,7 @@ void Heap::CreateInitialObjects() {
 
   // Initialize the false_value.
   Oddball::Initialize(isolate(), factory->false_value(), "false",
-                      handle(Smi::kZero, isolate()), "boolean",
+                      handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
 
   set_uninitialized_value(
@@ -726,7 +709,7 @@ void Heap::CreateInitialObjects() {
 #define SYMBOL_INIT(_, name, description)                                \
   Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \
-  name->set_name(*name##d);                                              \
+  name->set_description(*name##d);                                       \
   roots_table()[RootIndex::k##name] = name->ptr();
     PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
@@ -735,7 +718,7 @@ void Heap::CreateInitialObjects() {
   Handle<Symbol> name = factory->NewSymbol(AllocationType::kReadOnly);   \
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \
   name->set_is_well_known_symbol(true);                                  \
-  name->set_name(*name##d);                                              \
+  name->set_description(*name##d);                                       \
   roots_table()[RootIndex::k##name] = name->ptr();
     WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
@@ -803,7 +786,7 @@ void Heap::CreateInitialObjects() {
   empty_ordered_hash_map->set_map_no_write_barrier(
       *factory->ordered_hash_map_map());
   for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
-    empty_ordered_hash_map->set(i, Smi::kZero);
+    empty_ordered_hash_map->set(i, Smi::zero());
   }
   set_empty_ordered_hash_map(*empty_ordered_hash_map);
 
@@ -813,7 +796,7 @@ void Heap::CreateInitialObjects() {
   empty_ordered_hash_set->set_map_no_write_barrier(
       *factory->ordered_hash_set_map());
   for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
-    empty_ordered_hash_set->set(i, Smi::kZero);
+    empty_ordered_hash_set->set(i, Smi::zero());
   }
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
 
@@ -830,6 +813,10 @@ void Heap::CreateInitialObjects() {
   Handle<ScopeInfo> empty_function =
       ScopeInfo::CreateForEmptyFunction(isolate());
   set_empty_function_scope_info(*empty_function);
+
+  Handle<ScopeInfo> native_scope_info =
+      ScopeInfo::CreateForNativeContext(isolate());
+  set_native_scope_info(*native_scope_info);
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());

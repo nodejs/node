@@ -1,0 +1,145 @@
+Test retrieving scope information from compiled Liftoff frames
+Installing instantiate code.
+Waiting for wasm script to be parsed.
+Calling instantiate function.
+Got wasm script!
+Setting breakpoint on line 2 (first instruction) of third function
+{
+    columnNumber : 85
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+Paused:
+Script wasm://wasm/89d60696 byte offset 85: Wasm opcode 0x20
+Scope:
+at C (interpreted) (0:85):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: 
+at B (liftoff) (0:76):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "arg#0": 42 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/89d60696 byte offset 87: Wasm opcode 0x24
+Scope:
+at C (interpreted) (0:87):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: "0": 42 (number)
+at B (liftoff) (0:76):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "arg#0": 42 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/89d60696 byte offset 89: Wasm opcode 0x41
+Scope:
+at C (interpreted) (0:89):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: 
+at B (liftoff) (0:76):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "arg#0": 42 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/89d60696 byte offset 91: Wasm opcode 0x21
+Scope:
+at C (interpreted) (0:91):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 0 (number)
+   stack: "0": 47 (number)
+at B (liftoff) (0:76):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "arg#0": 42 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/89d60696 byte offset 93: Wasm opcode 0xb
+Scope:
+at C (interpreted) (0:93):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "i32_arg": 42 (number), "i32_local": 47 (number)
+   stack: 
+at B (liftoff) (0:76):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global#0": 42 (number)
+ - scope (local):
+   locals: "arg#0": 42 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+instance.exports.main(42)#
+
+Scope:
+at (anonymous) (0:25):
+ - scope (global):
+   -- skipped globals
+
+exports.main returned. Test finished.

@@ -115,8 +115,7 @@ class WasmGraphBuildingInterface {
     ssa_env->control = start;
     // Initialize effect and control before initializing the locals default
     // values (which might require instance loads) or loading the context.
-    builder_->set_effect_ptr(&ssa_env->effect);
-    builder_->set_control_ptr(&ssa_env->control);
+    builder_->SetEffectControl(start);
     // Initialize the instance parameter (index 0).
     builder_->set_instance_node(builder_->Param(kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -133,8 +132,8 @@ class WasmGraphBuildingInterface {
         ssa_env->locals[index++] = node;
       }
     }
-    LoadContextIntoSsa(ssa_env);
     SetEnv(ssa_env);
+    LoadContextIntoSsa(ssa_env);
   }
 
   // Reload the instance cache entries into the Ssa Environment.
@@ -159,8 +158,9 @@ class WasmGraphBuildingInterface {
   void Loop(FullDecoder* decoder, Control* block) {
     SsaEnv* finish_try_env = Steal(decoder->zone(), ssa_env_);
     block->end_env = finish_try_env;
+    SetEnv(finish_try_env);
     // The continue environment is the inner environment.
-    SetEnv(PrepareForLoop(decoder, finish_try_env));
+    PrepareForLoop(decoder);
     ssa_env_->SetNotMerged();
     if (!decoder->ok()) return;
     // Wrap input merge into phis.
@@ -318,7 +318,7 @@ class WasmGraphBuildingInterface {
     TFNode* inputs[] = {tval.node, fval.node, merge};
     TFNode* phi = BUILD(Phi, tval.type, 2, inputs);
     result->node = phi;
-    ssa_env_->control = merge;
+    builder_->SetControl(merge);
   }
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
@@ -343,6 +343,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* tenv = Split(decoder, fenv);
     fenv->SetNotMerged();
     BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
+    builder_->SetControl(fenv->control);
     SetEnv(tenv);
     BrOrRet(decoder, depth);
     SetEnv(fenv);
@@ -368,8 +369,8 @@ class WasmGraphBuildingInterface {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
       SetEnv(Split(decoder, copy));
-      ssa_env_->control =
-          (i == imm.table_count) ? BUILD(IfDefault, sw) : BUILD(IfValue, i, sw);
+      builder_->SetControl(i == imm.table_count ? BUILD(IfDefault, sw)
+                                                : BUILD(IfValue, i, sw));
       BrOrRet(decoder, target);
     }
     DCHECK(decoder->ok());
@@ -390,6 +391,14 @@ class WasmGraphBuildingInterface {
     result->node =
         BUILD(LoadMem, type.value_type(), type.mem_type(), index.node,
               imm.offset, imm.alignment, decoder->position());
+  }
+
+  void LoadTransform(FullDecoder* decoder, LoadType type,
+                     LoadTransformationKind transform,
+                     const MemoryAccessImmediate<validate>& imm,
+                     const Value& index, Value* result) {
+    result->node = BUILD(LoadTransform, type.mem_type(), transform, index.node,
+                         imm.offset, imm.alignment, decoder->position());
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
@@ -467,12 +476,12 @@ class WasmGraphBuildingInterface {
       args[i] = value_args[i].node;
     }
     BUILD(Throw, imm.index, imm.exception, VectorOf(args), decoder->position());
-    builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
+    builder_->TerminateThrow(effect(), control());
   }
 
   void Rethrow(FullDecoder* decoder, const Value& exception) {
     BUILD(Rethrow, exception.node);
-    builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
+    builder_->TerminateThrow(effect(), control());
   }
 
   void BrOnException(FullDecoder* decoder, const Value& exception,
@@ -590,9 +599,13 @@ class WasmGraphBuildingInterface {
   }
 
  private:
-  SsaEnv* ssa_env_;
+  SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;
   uint32_t current_catch_ = kNullCatch;
+
+  TFNode* effect() { return builder_->effect(); }
+
+  TFNode* control() { return builder_->control(); }
 
   TryInfo* current_try_info(FullDecoder* decoder) {
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
@@ -610,7 +623,6 @@ class WasmGraphBuildingInterface {
   }
 
   void SetEnv(SsaEnv* env) {
-#if DEBUG
     if (FLAG_trace_wasm_decoder) {
       char state = 'X';
       if (env) {
@@ -636,11 +648,12 @@ class WasmGraphBuildingInterface {
       }
       PrintF("}\n");
     }
-#endif
+    if (ssa_env_) {
+      ssa_env_->control = control();
+      ssa_env_->effect = effect();
+    }
     ssa_env_ = env;
-    // TODO(wasm): combine the control and effect pointers with instance cache.
-    builder_->set_control_ptr(&env->control);
-    builder_->set_effect_ptr(&env->effect);
+    builder_->SetEffectControl(env->effect, env->control);
     builder_->set_instance_cache(&env->instance_cache);
   }
 
@@ -663,8 +676,9 @@ class WasmGraphBuildingInterface {
     SsaEnv* exception_env = Split(decoder, success_env);
     exception_env->control = if_exception;
     exception_env->effect = if_exception;
+    SetEnv(exception_env);
     TryInfo* try_info = current_try_info(decoder);
-    Goto(decoder, exception_env, try_info->catch_env);
+    Goto(decoder, try_info->catch_env);
     if (try_info->exception == nullptr) {
       DCHECK_EQ(SsaEnv::kReached, try_info->catch_env->state);
       try_info->exception = if_exception;
@@ -693,6 +707,7 @@ class WasmGraphBuildingInterface {
         return builder_->S128Zero();
       case kWasmAnyRef:
       case kWasmFuncRef:
+      case kWasmNullRef:
       case kWasmExnRef:
         return builder_->RefNull();
       default:
@@ -706,7 +721,7 @@ class WasmGraphBuildingInterface {
 
     SsaEnv* target = c->end_env;
     const bool first = target->state == SsaEnv::kUnreachable;
-    Goto(decoder, ssa_env_, target);
+    Goto(decoder, target);
 
     if (merge->arity == 0) return;
 
@@ -735,32 +750,33 @@ class WasmGraphBuildingInterface {
     MergeValuesInto(decoder, c, merge, stack_values);
   }
 
-  void Goto(FullDecoder* decoder, SsaEnv* from, SsaEnv* to) {
+  void Goto(FullDecoder* decoder, SsaEnv* to) {
     DCHECK_NOT_NULL(to);
     switch (to->state) {
       case SsaEnv::kUnreachable: {  // Overwrite destination.
         to->state = SsaEnv::kReached;
-        to->locals = from->locals;
-        to->control = from->control;
-        to->effect = from->effect;
-        to->instance_cache = from->instance_cache;
+        to->locals = ssa_env_->locals;
+        to->control = control();
+        to->effect = effect();
+        to->instance_cache = ssa_env_->instance_cache;
         break;
       }
       case SsaEnv::kReached: {  // Create a new merge.
         to->state = SsaEnv::kMerged;
         // Merge control.
-        TFNode* controls[] = {to->control, from->control};
+        TFNode* controls[] = {to->control, control()};
         TFNode* merge = builder_->Merge(2, controls);
         to->control = merge;
         // Merge effects.
-        if (from->effect != to->effect) {
-          TFNode* inputs[] = {to->effect, from->effect, merge};
+        TFNode* old_effect = effect();
+        if (old_effect != to->effect) {
+          TFNode* inputs[] = {to->effect, old_effect, merge};
           to->effect = builder_->EffectPhi(2, inputs);
         }
         // Merge SSA values.
         for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           TFNode* a = to->locals[i];
-          TFNode* b = from->locals[i];
+          TFNode* b = ssa_env_->locals[i];
           if (a != b) {
             TFNode* inputs[] = {a, b, merge};
             to->locals[i] = builder_->Phi(decoder->GetLocalType(i), 2, inputs);
@@ -768,82 +784,84 @@ class WasmGraphBuildingInterface {
         }
         // Start a new merge from the instance cache.
         builder_->NewInstanceCacheMerge(&to->instance_cache,
-                                        &from->instance_cache, merge);
+                                        &ssa_env_->instance_cache, merge);
         break;
       }
       case SsaEnv::kMerged: {
         TFNode* merge = to->control;
         // Extend the existing merge control node.
-        builder_->AppendToMerge(merge, from->control);
+        builder_->AppendToMerge(merge, control());
         // Merge effects.
-        to->effect = builder_->CreateOrMergeIntoEffectPhi(merge, to->effect,
-                                                          from->effect);
+        to->effect =
+            builder_->CreateOrMergeIntoEffectPhi(merge, to->effect, effect());
         // Merge locals.
         for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
               ValueTypes::MachineRepresentationFor(decoder->GetLocalType(i)),
-              merge, to->locals[i], from->locals[i]);
+              merge, to->locals[i], ssa_env_->locals[i]);
         }
         // Merge the instance caches.
         builder_->MergeInstanceCacheInto(&to->instance_cache,
-                                         &from->instance_cache, merge);
+                                         &ssa_env_->instance_cache, merge);
         break;
       }
       default:
         UNREACHABLE();
     }
-    return from->Kill();
+    return ssa_env_->Kill();
   }
 
-  SsaEnv* PrepareForLoop(FullDecoder* decoder, SsaEnv* env) {
-    env->state = SsaEnv::kMerged;
+  void PrepareForLoop(FullDecoder* decoder) {
+    ssa_env_->state = SsaEnv::kMerged;
 
-    env->control = builder_->Loop(env->control);
-    TFNode* effect_inputs[] = {env->effect, env->control};
-    env->effect = builder_->EffectPhi(1, effect_inputs);
-    builder_->TerminateLoop(env->effect, env->control);
+    builder_->SetControl(builder_->Loop(control()));
+    TFNode* effect_inputs[] = {effect(), control()};
+    builder_->SetEffect(builder_->EffectPhi(1, effect_inputs));
+    builder_->TerminateLoop(effect(), control());
     // The '+ 1' here is to be able to set the instance cache as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->total_locals() + 1, decoder->zone());
-    if (decoder->failed()) return env;
+    if (decoder->failed()) return;
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
       int instance_cache_index = decoder->total_locals();
       for (int i = decoder->num_locals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
-        TFNode* inputs[] = {env->locals[i], env->control};
-        env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1, inputs);
+        TFNode* inputs[] = {ssa_env_->locals[i], control()};
+        ssa_env_->locals[i] =
+            builder_->Phi(decoder->GetLocalType(i), 1, inputs);
       }
       // Introduce phis for instance cache pointers if necessary.
       if (assigned->Contains(instance_cache_index)) {
-        builder_->PrepareInstanceCacheForLoop(&env->instance_cache,
-                                              env->control);
+        builder_->PrepareInstanceCacheForLoop(&ssa_env_->instance_cache,
+                                              control());
       }
 
-      SsaEnv* loop_body_env = Split(decoder, env);
-      builder_->StackCheck(decoder->position(), &(loop_body_env->effect),
-                           &(loop_body_env->control));
-      return loop_body_env;
+      SetEnv(Split(decoder, ssa_env_));
+      builder_->StackCheck(decoder->position());
+      return;
     }
 
     // Conservatively introduce phis for all local variables.
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
-      TFNode* inputs[] = {env->locals[i], env->control};
-      env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1, inputs);
+      TFNode* inputs[] = {ssa_env_->locals[i], control()};
+      ssa_env_->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1, inputs);
     }
 
     // Conservatively introduce phis for instance cache.
-    builder_->PrepareInstanceCacheForLoop(&env->instance_cache, env->control);
+    builder_->PrepareInstanceCacheForLoop(&ssa_env_->instance_cache, control());
 
-    SsaEnv* loop_body_env = Split(decoder, env);
-    builder_->StackCheck(decoder->position(), &loop_body_env->effect,
-                         &loop_body_env->control);
-    return loop_body_env;
+    SetEnv(Split(decoder, ssa_env_));
+    builder_->StackCheck(decoder->position());
   }
 
   // Create a complete copy of {from}.
   SsaEnv* Split(FullDecoder* decoder, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
+    if (from == ssa_env_) {
+      ssa_env_->control = control();
+      ssa_env_->effect = effect();
+    }
     SsaEnv* result =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
     size_t size = sizeof(TFNode*) * decoder->num_locals();
@@ -866,6 +884,10 @@ class WasmGraphBuildingInterface {
   // unreachable.
   SsaEnv* Steal(Zone* zone, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
+    if (from == ssa_env_) {
+      ssa_env_->control = control();
+      ssa_env_->effect = effect();
+    }
     SsaEnv* result = reinterpret_cast<SsaEnv*>(zone->New(sizeof(SsaEnv)));
     result->state = SsaEnv::kReached;
     result->locals = from->locals;

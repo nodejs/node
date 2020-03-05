@@ -169,10 +169,8 @@ class String : public TorqueGeneratedString<String, Name> {
   // be one-byte encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
   // two-byte external representations even for one-byte data.
-  inline bool IsOneByteRepresentation() const;
-  inline bool IsOneByteRepresentation(Isolate* isolate) const;
-  inline bool IsTwoByteRepresentation() const;
-  inline bool IsTwoByteRepresentation(Isolate* isolate) const;
+  DECL_GETTER(IsOneByteRepresentation, bool)
+  DECL_GETTER(IsTwoByteRepresentation, bool)
 
   // Cons and slices have an encoding flag that may not represent the actual
   // encoding of the underlying string.  This is taken into account here.
@@ -318,6 +316,19 @@ class String : public TorqueGeneratedString<String, Name> {
   // Conversion.
   // "array index": an index allowed by the ES spec for JSArrays.
   inline bool AsArrayIndex(uint32_t* index);
+
+  // This is used for calculating array indices but differs from an
+  // Array Index in the regard that this does not support the full
+  // array index range. This only supports positive numbers less than
+  // or equal to INT_MAX.
+  //
+  // String::AsArrayIndex might be a better fit if you're looking to
+  // calculate the array index.
+  //
+  // if val < 0 or val > INT_MAX, returns -1
+  // if 0 <= val <= INT_MAX, returns val
+  static int32_t ToArrayIndex(Address addr);
+
   uint32_t inline ToValidIndex(Object number);
   // "integer index": the string is the decimal representation of an
   // integer in the range of a size_t. Useful for TypedArray accesses.
@@ -352,16 +363,28 @@ class String : public TorqueGeneratedString<String, Name> {
   static const uc32 kMaxCodePoint = 0x10ffff;
 
   // Maximal string length.
-  // The max length is different on 32 and 64 bit platforms. Max length for a
-  // 32-bit platform is ~268.4M chars. On 64-bit platforms, max length is
-  // ~1.073B chars. The limit on 64-bit is so that SeqTwoByteString::kMaxSize
-  // can fit in a 32bit int: 2^31 - 1 is the max positive int, minus one bit as
-  // each char needs two bytes, subtract 24 bytes for the string header size.
-
+  // The max length is different on 32 and 64 bit platforms. Max length for
+  // 32-bit platforms is ~268.4M chars. On 64-bit platforms, max length is
+  // ~536.8M chars.
   // See include/v8.h for the definition.
   static const int kMaxLength = v8::String::kMaxLength;
-  static_assert(kMaxLength <= (Smi::kMaxValue / 2 - kHeaderSize),
-                "Unexpected max String length");
+  // There are several defining limits imposed by our current implementation:
+  // - any string's length must fit into a Smi.
+  static_assert(kMaxLength <= kSmiMaxValue,
+                "String length must fit into a Smi");
+  // - adding two string lengths must still fit into a 32-bit int without
+  //   overflow
+  static_assert(kMaxLength * 2 <= kMaxInt,
+                "String::kMaxLength * 2 must fit into an int32");
+  // - any heap object's size in bytes must be able to fit into a Smi, because
+  //   its space on the heap might be filled with a Filler; for strings this
+  //   means SeqTwoByteString::kMaxSize must be able to fit into a Smi.
+  static_assert(kMaxLength * 2 + kHeaderSize <= kSmiMaxValue,
+                "String object size in bytes must fit into a Smi");
+  // - any heap object's size in bytes must be able to fit into an int, because
+  //   that's what our object handling code uses almost everywhere.
+  static_assert(kMaxLength * 2 + kHeaderSize <= kMaxInt,
+                "String object size in bytes must fit into an int");
 
   // Max length for computing hash. For strings longer than this limit the
   // string length is used as the hash value.
@@ -623,8 +646,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
 // ThinStrings can be thought of as "one-part cons strings".
 class ThinString : public TorqueGeneratedThinString<ThinString, String> {
  public:
-  inline HeapObject unchecked_actual() const;
-  inline HeapObject unchecked_actual(Isolate* isolate) const;
+  DECL_GETTER(unchecked_actual, HeapObject)
 
   V8_EXPORT_PRIVATE uint16_t Get(int index);
 

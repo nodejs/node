@@ -2,36 +2,78 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-static_library("encoding") {
-  sources = [
-    "encoding/encoding.cc",
-    "encoding/encoding.h",
-  ]
-}
-
-static_library("bindings") {
-  sources = [
-    "bindings/bindings.cc",
-    "bindings/bindings.h",
-  ]
-}
-
-# encoding_test is part of the unittests, defined in
-# test/unittests/BUILD.gn.
-
 import("../../gni/v8.gni")
 
-v8_source_set("encoding_test") {
+config("crdtp_config") {
+  visibility = [ "../../src/inspector:*" ]
+  configs = [ "../../:internal_config" ]
+  include_dirs = [ "../../include" ]
+}
+
+v8_source_set("crdtp") {
   sources = [
-    "encoding/encoding_test.cc",
-    "encoding/encoding_test_helper.h",
+    "crdtp/cbor.cc",
+    "crdtp/cbor.h",
+    "crdtp/export.h",
+    "crdtp/glue.h",
+    "crdtp/json.cc",
+    "crdtp/json.h",
+    "crdtp/parser_handler.h",
+    "crdtp/serializable.cc",
+    "crdtp/serializable.h",
+    "crdtp/serializer_traits.h",
+    "crdtp/span.h",
+    "crdtp/status.cc",
+    "crdtp/status.h",
   ]
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
+  configs = [ ":crdtp_config" ]
   deps = [
-    ":encoding",
+    ":crdtp_platform",
+  ]
+}
+
+# A small adapter library which only :crdtp may depend on.
+v8_source_set("crdtp_platform") {
+  visibility = [ ":crdtp" ]
+  sources = [
+    "crdtp/json_platform.h",
+    "crdtp/json_platform_v8.cc",
+  ]
+  public_deps = [
+    "../..:v8_libbase",
+  ]
+  configs = [ ":crdtp_config" ]
+}
+
+# These tests are linked into test/unittests.
+v8_source_set("crdtp_test") {
+  sources = [
+    "crdtp/cbor_test.cc",
+    "crdtp/glue_test.cc",
+    "crdtp/json_test.cc",
+    "crdtp/serializable_test.cc",
+    "crdtp/serializer_traits_test.cc",
+    "crdtp/span_test.cc",
+    "crdtp/status_test.cc",
+    "crdtp/status_test_support.cc",
+    "crdtp/status_test_support.h",
+  ]
+  configs = [ ":crdtp_config" ]
+  deps = [
+    ":crdtp_test_platform",
+  ]
+  testonly = true
+}
+
+# A small adapter library which only :crdtp_test may depend on.
+v8_source_set("crdtp_test_platform") {
+  sources = [
+    "crdtp/test_platform.h",
+    "crdtp/test_platform_v8.cc",
+  ]
+  configs = [ ":crdtp_config" ]
+  public_deps = [
+    ":crdtp",
     "../..:v8_libbase",
     "../../src/inspector:inspector_string_conversions",
     "//testing/gmock",
@@ -39,23 +81,3 @@ v8_source_set("encoding_test") {
   ]
   testonly = true
 }
-
-v8_source_set("bindings_test") {
-  sources = [
-    "bindings/bindings_test.cc",
-    "bindings/bindings_test_helper.h",
-  ]
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
-  deps = [
-    ":bindings",
-    "../..:v8_libbase",
-    "../../src/inspector:inspector_string_conversions",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-  testonly = true
-}
-

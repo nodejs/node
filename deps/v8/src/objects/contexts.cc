@@ -91,7 +91,7 @@ JSObject Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject object = extension();
-  if (object.IsTheHole()) return JSObject();
+  if (object.IsUndefined()) return JSObject();
   DCHECK(object.IsJSContextExtensionObject() ||
          (IsNativeContext() && object.IsJSGlobalObject()));
   return JSObject::cast(object);
@@ -135,11 +135,11 @@ JSGlobalProxy Context::global_proxy() {
  * Lookups a property in an object environment, taking the unscopables into
  * account. This is used For HasBinding spec algorithms for ObjectEnvironment.
  */
-static Maybe<bool> UnscopableLookup(LookupIterator* it) {
+static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
   Isolate* isolate = it->isolate();
 
   Maybe<bool> found = JSReceiver::HasProperty(it);
-  if (found.IsNothing() || !found.FromJust()) return found;
+  if (!is_with_context || found.IsNothing() || !found.FromJust()) return found;
 
   Handle<Object> unscopables;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -197,11 +197,11 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
-    DCHECK_IMPLIES(context->IsEvalContext(),
+    DCHECK_IMPLIES(context->IsEvalContext() && context->has_extension(),
                    context->extension().IsTheHole(isolate));
     if ((context->IsNativeContext() || context->IsWithContext() ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
-        !context->extension_receiver().is_null()) {
+        context->has_extension() && !context->extension_receiver().is_null()) {
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
@@ -234,7 +234,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
-      } else if (context->IsWithContext()) {
+      } else {
         // A with context will never bind "this", but debug-eval may look into
         // a with context when resolving "this". Other synthetic variables such
         // as new.target may be resolved as VariableMode::kDynamicLocal due to
@@ -243,10 +243,11 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // TODO(v8:5405): Replace this check with a DCHECK when resolution of
         // of synthetic variables does not go through this code path.
         if (ScopeInfo::VariableIsSynthetic(*name)) {
+          DCHECK(context->IsWithContext());
           maybe = Just(ABSENT);
         } else {
-          LookupIterator it(object, name, object);
-          Maybe<bool> found = UnscopableLookup(&it);
+          LookupIterator it(isolate, object, name, object);
+          Maybe<bool> found = UnscopableLookup(&it, context->IsWithContext());
           if (found.IsNothing()) {
             maybe = Nothing<PropertyAttributes>();
           } else {
@@ -256,8 +257,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
             maybe = Just(found.FromJust() ? NONE : ABSENT);
           }
         }
-      } else {
-        maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
 
       if (maybe.IsNothing()) return Handle<Object>();
@@ -290,6 +289,17 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                                       &maybe_assigned_flag, &is_static_flag);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
+        // Re-direct lookup to the ScriptContextTable in case we find a hole in
+        // a REPL script context. REPL scripts allow re-declaration of
+        // script-level let bindings. The value itself is stored in the script
+        // context of the first script that declared a variable, all other
+        // script contexts will contain 'the hole' for that particular name.
+        if (scope_info.IsReplModeScope() &&
+            context->get(slot_index).IsTheHole(isolate)) {
+          context = Handle<Context>(context->previous(), isolate);
+          continue;
+        }
+
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %hhu)\n",
                  slot_index, static_cast<uint8_t>(mode));
@@ -349,7 +359,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Object ext = context->get(EXTENSION_INDEX);
       if (ext.IsJSReceiver()) {
         Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
-        LookupIterator it(extension, name, extension);
+        LookupIterator it(isolate, extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
         if (found.FromMaybe(false)) {
           *attributes = NONE;
@@ -431,8 +441,12 @@ int Context::IntrinsicIndexForName(Handle<String> string) {
 
 #undef COMPARE_NAME
 
-#define COMPARE_NAME(index, type, name) \
-  if (strncmp(string, #name, length) == 0) return index;
+#define COMPARE_NAME(index, type, name)                                      \
+  {                                                                          \
+    const int name_length = static_cast<int>(arraysize(#name)) - 1;          \
+    if ((length == name_length) && strncmp(string, #name, name_length) == 0) \
+      return index;                                                          \
+  }
 
 int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
                                    int length) {
@@ -444,13 +458,6 @@ int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
 #undef COMPARE_NAME
 
 #ifdef DEBUG
-
-bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object object) {
-  // During bootstrapping we allow all objects to pass as global
-  // objects. This is necessary to fix circular dependencies.
-  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-         isolate->bootstrapper()->IsActive() || object.IsNativeContext();
-}
 
 bool Context::IsBootstrappingOrValidParentContext(Object object,
                                                   Context child) {
@@ -474,15 +481,14 @@ void NativeContext::IncrementErrorsThrown() {
 
 int NativeContext::GetErrorsThrown() { return errors_thrown().value(); }
 
-STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);
+STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);
+STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS == 3);
 STATIC_ASSERT(NativeContext::kScopeInfoOffset ==
               Context::OffsetOfElementAt(NativeContext::SCOPE_INFO_INDEX));
 STATIC_ASSERT(NativeContext::kPreviousOffset ==
               Context::OffsetOfElementAt(NativeContext::PREVIOUS_INDEX));
 STATIC_ASSERT(NativeContext::kExtensionOffset ==
               Context::OffsetOfElementAt(NativeContext::EXTENSION_INDEX));
-STATIC_ASSERT(NativeContext::kNativeContextOffset ==
-              Context::OffsetOfElementAt(NativeContext::NATIVE_CONTEXT_INDEX));
 
 STATIC_ASSERT(NativeContext::kStartOfStrongFieldsOffset ==
               Context::OffsetOfElementAt(-1));

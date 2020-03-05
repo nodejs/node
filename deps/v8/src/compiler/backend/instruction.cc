@@ -11,9 +11,10 @@
 #include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/state-values-utils.h"
 #include "src/execution/frames.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -227,9 +228,6 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           break;
         case MachineRepresentation::kTagged:
           os << "|t";
-          break;
-        case MachineRepresentation::kCompressedSigned:
-          os << "|cs";
           break;
         case MachineRepresentation::kCompressedPointer:
           os << "|cp";
@@ -892,7 +890,6 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
-    case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       return rep;

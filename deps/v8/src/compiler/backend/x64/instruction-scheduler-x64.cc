@@ -213,7 +213,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4GtU:
     case kX64I32x4GeU:
     case kX64I16x8Splat:
-    case kX64I16x8ExtractLane:
+    case kX64I16x8ExtractLaneU:
+    case kX64I16x8ExtractLaneS:
     case kX64I16x8ReplaceLane:
     case kX64I16x8SConvertI8x16Low:
     case kX64I16x8SConvertI8x16High:
@@ -243,8 +244,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I16x8MaxU:
     case kX64I16x8GtU:
     case kX64I16x8GeU:
+    case kX64I16x8RoundingAverageU:
     case kX64I8x16Splat:
-    case kX64I8x16ExtractLane:
+    case kX64I8x16ExtractLaneU:
+    case kX64I8x16ExtractLaneS:
     case kX64I8x16ReplaceLane:
     case kX64I8x16SConvertI16x8:
     case kX64I8x16Neg:
@@ -269,12 +272,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I8x16MaxU:
     case kX64I8x16GtU:
     case kX64I8x16GeU:
+    case kX64I8x16RoundingAverageU:
     case kX64S128And:
     case kX64S128Or:
     case kX64S128Xor:
     case kX64S128Not:
     case kX64S128Select:
     case kX64S128Zero:
+    case kX64S128AndNot:
     case kX64S1x2AnyTrue:
     case kX64S1x2AllTrue:
     case kX64S1x4AnyTrue:
@@ -310,9 +315,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S8x2Reverse:
     case kX64S1x16AnyTrue:
     case kX64S1x16AllTrue:
-    case kX64DecompressSigned:
-    case kX64DecompressPointer:
-    case kX64DecompressAny:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;
@@ -359,6 +361,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movsd:
     case kX64Movss:
     case kX64Movdqu:
+    case kX64S8x16LoadSplat:
+    case kX64S16x8LoadSplat:
+    case kX64S32x4LoadSplat:
+    case kX64S64x2LoadSplat:
+    case kX64I16x8Load8x8S:
+    case kX64I16x8Load8x8U:
+    case kX64I32x4Load16x4S:
+    case kX64I32x4Load16x4U:
+    case kX64I64x2Load32x2S:
+    case kX64I64x2Load32x2U:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
     case kX64Peek:

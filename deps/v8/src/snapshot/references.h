@@ -5,9 +5,9 @@
 #ifndef V8_SNAPSHOT_REFERENCES_H_
 #define V8_SNAPSHOT_REFERENCES_H_
 
+#include "src/base/bit-field.h"
 #include "src/base/hashmap.h"
 #include "src/common/assert-scope.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -154,7 +154,7 @@ class SerializerReference {
   }
 
  private:
-  using SpaceBits = BitField<SnapshotSpace, 0, kSpaceTagSize>;
+  using SpaceBits = base::BitField<SnapshotSpace, 0, kSpaceTagSize>;
   using ChunkIndexBits = SpaceBits::Next<uint32_t, 32 - kSpaceTagSize>;
   using SpecialValueTypeBits =
       SpaceBits::Next<SpecialValueType, 32 - kSpaceTagSize>;

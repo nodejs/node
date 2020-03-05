@@ -1047,13 +1047,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
   RecordSimpleVirtualObjectStats(code, code.relocation_info(),
                                  ObjectStats::RELOC_INFO_TYPE);
   Object source_position_table = code.source_position_table();
-  if (source_position_table.IsSourcePositionTableWithFrameCache()) {
-    RecordSimpleVirtualObjectStats(
-        code,
-        SourcePositionTableWithFrameCache::cast(source_position_table)
-            .source_position_table(),
-        ObjectStats::SOURCE_POSITION_TABLE_TYPE);
-  } else if (source_position_table.IsHeapObject()) {
+  if (source_position_table.IsHeapObject()) {
     RecordSimpleVirtualObjectStats(code,
                                    HeapObject::cast(source_position_table),
                                    ObjectStats::SOURCE_POSITION_TABLE_TYPE);

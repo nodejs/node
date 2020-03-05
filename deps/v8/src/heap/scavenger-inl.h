@@ -476,13 +476,20 @@ void ScavengeVisitor::VisitPointersImpl(HeapObject host, TSlot start,
   }
 }
 
+int ScavengeVisitor::VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
+  object.YoungMarkExtension();
+  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
+  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+  return size;
+}
+
 int ScavengeVisitor::VisitEphemeronHashTable(Map map,
                                              EphemeronHashTable table) {
   // Register table with the scavenger, so it can take care of the weak keys
   // later. This allows to only iterate the tables' values, which are treated
   // as strong independetly of whether the key is live.
   scavenger_->AddEphemeronHashTable(table);
-  for (int i = 0; i < table.Capacity(); i++) {
+  for (InternalIndex i : table.IterateEntries()) {
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
     VisitPointer(table, value_slot);

@@ -42,33 +42,6 @@ class V8_EXPORT_PRIVATE Location {
   bool is_empty_;
 };
 
-/**
- * The result of disassembling a wasm function.
- * Consists of the disassembly string and an offset table mapping wasm byte
- * offsets to line and column in the disassembly.
- * The offset table entries are ordered by the byte_offset.
- * All numbers are 0-based.
- */
-struct WasmDisassemblyOffsetTableEntry {
-  WasmDisassemblyOffsetTableEntry(uint32_t byte_offset, int line, int column)
-      : byte_offset(byte_offset), line(line), column(column) {}
-
-  uint32_t byte_offset;
-  int line;
-  int column;
-};
-
-struct WasmDisassembly {
-  using OffsetTable = std::vector<WasmDisassemblyOffsetTableEntry>;
-  WasmDisassembly() = default;
-  WasmDisassembly(std::string disassembly, OffsetTable offset_table)
-      : disassembly(std::move(disassembly)),
-        offset_table(std::move(offset_table)) {}
-
-  std::string disassembly;
-  OffsetTable offset_table;
-};
-
 enum DebugAsyncActionType {
   kDebugPromiseThen,
   kDebugPromiseCatch,

@@ -29,9 +29,9 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler() override;
 
-  HeapSnapshot* TakeSnapshot(
-      v8::ActivityControl* control,
-      v8::HeapProfiler::ObjectNameResolver* resolver);
+  HeapSnapshot* TakeSnapshot(v8::ActivityControl* control,
+                             v8::HeapProfiler::ObjectNameResolver* resolver,
+                             bool treat_global_objects_as_roots);
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
                                  v8::HeapProfiler::SamplingFlags);

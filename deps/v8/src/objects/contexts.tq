@@ -1,0 +1,78 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+extern class Context extends HeapObject {
+  length: Smi;
+  scope_info: ScopeInfo;
+  previous: Object;
+}
+extern class AwaitContext extends Context generates 'TNode<Context>';
+extern class BlockContext extends Context generates 'TNode<Context>';
+extern class CatchContext extends Context generates 'TNode<Context>';
+extern class DebugEvaluateContext extends Context
+    generates 'TNode<Context>';
+extern class EvalContext extends Context generates 'TNode<Context>';
+extern class FunctionContext extends Context generates 'TNode<Context>';
+extern class ModuleContext extends Context generates 'TNode<Context>';
+extern class NativeContext extends Context;
+extern class ScriptContext extends Context generates 'TNode<Context>';
+extern class WithContext extends Context generates 'TNode<Context>';
+
+const MIN_CONTEXT_SLOTS: constexpr int31
+    generates 'Context::MIN_CONTEXT_SLOTS';
+
+extern enum NativeContextSlot extends intptr constexpr 'Context::Field' {
+  ARRAY_BUFFER_FUN_INDEX,
+  ARRAY_BUFFER_NOINIT_FUN_INDEX,
+  ARRAY_BUFFER_MAP_INDEX,
+  ARRAY_FUNCTION_INDEX,
+  ARRAY_JOIN_STACK_INDEX,
+  OBJECT_FUNCTION_INDEX,
+  ITERATOR_RESULT_MAP_INDEX,
+  JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX,
+  JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
+  MATH_RANDOM_CACHE_INDEX,
+  MATH_RANDOM_INDEX_INDEX,
+  PROXY_REVOCABLE_RESULT_MAP_INDEX,
+  REFLECT_APPLY_INDEX,
+  REGEXP_FUNCTION_INDEX,
+  REGEXP_LAST_MATCH_INFO_INDEX,
+  INITIAL_STRING_ITERATOR_MAP_INDEX,
+  SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP,
+  STRICT_ARGUMENTS_MAP_INDEX,
+  SLOPPY_ARGUMENTS_MAP_INDEX,
+  FAST_ALIASED_ARGUMENTS_MAP_INDEX,
+
+  PROMISE_FUNCTION_INDEX,
+  PROMISE_THEN_INDEX,
+  PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN,
+  PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN,
+  PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN,
+  PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX,
+  PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX,
+  PROMISE_CATCH_FINALLY_SHARED_FUN,
+  PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN,
+  PROMISE_PROTOTYPE_INDEX,
+  PROMISE_THROWER_FINALLY_SHARED_FUN,
+  PROMISE_THEN_FINALLY_SHARED_FUN,
+  PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN,
+  STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+  ...
+}
+
+extern operator '[]' macro LoadContextElement(
+    NativeContext, NativeContextSlot): Object;
+extern operator '[]=' macro StoreContextElement(
+    NativeContext, NativeContextSlot, Object): void;
+
+type ContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
+const PROXY_SLOT: constexpr ContextSlot
+    generates 'Context::MIN_CONTEXT_SLOTS';
+extern operator '[]' macro LoadContextElement(Context, ContextSlot): Object;
+extern operator '[]=' macro StoreContextElement(
+    Context, ContextSlot, Object): void;
+
+extern operator '[]' macro LoadContextElement(Context, intptr): Object;
+extern operator '[]' macro LoadContextElement(Context, Smi): Object;

@@ -327,9 +327,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     start_position_ = statement_pos;
   }
   int end_position() const { return end_position_; }
-  void set_end_position(int statement_pos) {
-    end_position_ = statement_pos;
-  }
+  void set_end_position(int statement_pos) { end_position_ = statement_pos; }
 
   // Scopes created for desugaring are hidden. I.e. not visible to the debugger.
   bool is_hidden() const { return is_hidden_; }
@@ -419,6 +417,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     kDescend
   };
 
+  // Check is this scope is an outer scope of the given scope.
+  bool IsOuterScopeOf(Scope* other) const;
+
   // ---------------------------------------------------------------------------
   // Accessors.
 
@@ -454,6 +455,26 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
 
+  bool HasContextExtensionSlot() const {
+    switch (scope_type_) {
+      case MODULE_SCOPE:
+      case WITH_SCOPE:  // DebugEvaluateContext as well
+        return true;
+      default:
+        DCHECK_IMPLIES(sloppy_eval_can_extend_vars_,
+                       scope_type_ == FUNCTION_SCOPE ||
+                           scope_type_ == EVAL_SCOPE ||
+                           scope_type_ == BLOCK_SCOPE);
+        DCHECK_IMPLIES(sloppy_eval_can_extend_vars_, is_declaration_scope());
+        return sloppy_eval_can_extend_vars_;
+    }
+    UNREACHABLE();
+  }
+  int ContextHeaderLength() const {
+    return HasContextExtensionSlot() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                                     : Context::MIN_CONTEXT_SLOTS;
+  }
+
   int ContextLocalCount() const;
 
   // Determine if we can parse a function literal in this scope lazily without
@@ -471,6 +492,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // the scope where var declarations will be hoisted to in the implementation.
   DeclarationScope* GetDeclarationScope();
 
+  // Find the first function, script, or (declaration) block scope.
+  // This is the scope where var declarations will be hoisted to in the
+  // implementation, including vars in direct sloppy eval calls.
+  //
+  // TODO(leszeks): Check how often we skip eval scopes in GetDeclarationScope,
+  // and possibly merge this with GetDeclarationScope.
+  DeclarationScope* GetNonEvalDeclarationScope();
+
   // Find the first non-block declaration scope. This should be either a script,
   // function, or eval scope. Same as DeclarationScope(), but skips declaration
   // "block" scopes. Used for differentiating associated function objects (i.e.,
@@ -482,6 +511,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
+
+  DeclarationScope* GetScriptScope();
 
   // Find the innermost outer scope that needs a context.
   Scope* GetOuterScopeWithContext();
@@ -514,6 +545,17 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
   bool IsSkippableFunctionScope();
+  void set_is_repl_mode_scope() { is_repl_mode_scope_ = true; }
+  bool is_repl_mode_scope() const {
+    DCHECK_IMPLIES(is_repl_mode_scope_, is_script_scope());
+    return is_repl_mode_scope_;
+  }
+  void set_deserialized_scope_uses_external_cache() {
+    deserialized_scope_uses_external_cache_ = true;
+  }
+  bool deserialized_scope_uses_external_cache() const {
+    return deserialized_scope_uses_external_cache_;
+  }
 
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
@@ -531,15 +573,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
-  Variable* LookupInScopeOrScopeInfo(const AstRawString* name) {
+  Variable* LookupInScopeOrScopeInfo(const AstRawString* name, Scope* cache) {
     Variable* var = variables_.Lookup(name);
     if (var != nullptr || scope_info_.is_null()) return var;
-    return LookupInScopeInfo(name, this);
+    return LookupInScopeInfo(name, cache);
   }
 
   Variable* LookupForTesting(const AstRawString* name) {
     for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
-      Variable* var = scope->LookupInScopeOrScopeInfo(name);
+      Variable* var = scope->LookupInScopeOrScopeInfo(name, scope);
       if (var != nullptr) return var;
     }
     return nullptr;
@@ -593,13 +635,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // calling context of 'eval'.
   template <ScopeLookupMode mode>
   static Variable* Lookup(VariableProxy* proxy, Scope* scope,
-                          Scope* outer_scope_end, Scope* entry_point = nullptr,
+                          Scope* outer_scope_end, Scope* cache_scope = nullptr,
                           bool force_context_allocation = false);
   static Variable* LookupWith(VariableProxy* proxy, Scope* scope,
-                              Scope* outer_scope_end, Scope* entry_point,
+                              Scope* outer_scope_end, Scope* cache_scope,
                               bool force_context_allocation);
   static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
-                                    Scope* outer_scope_end, Scope* entry_point,
+                                    Scope* outer_scope_end, Scope* cache_scope,
                                     bool force_context_allocation);
   static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
@@ -730,6 +772,29 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool private_name_lookup_skips_outer_class_ : 1;
 
   bool must_use_preparsed_scope_data_ : 1;
+
+  // True if this is a script scope that originated from
+  // DebugEvaluate::GlobalREPL().
+  bool is_repl_mode_scope_ : 1;
+
+  // True if this is a deserialized scope which caches its lookups on another
+  // Scope's variable map. This will be true for every scope above the first
+  // non-eval declaration scope above the compilation entry point, e.g. for
+  //
+  //     function f() {
+  //       let g; // prevent sloppy block function hoisting.
+  //       with({}) {
+  //         function g() {
+  //           try { throw 0; }
+  //           catch { eval("f"); }
+  //         }
+  //         g();
+  //       }
+  //     }
+  //
+  // the compilation of the eval will have the "with" scope as the first scope
+  // with this flag enabled.
+  bool deserialized_scope_uses_external_cache_ : 1;
 };
 
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
@@ -739,7 +804,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   DeclarationScope(Zone* zone, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
-  DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory);
+  DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory,
+                   REPLMode repl_mode = REPLMode::kNo);
 
   FunctionKind function_kind() const { return function_kind_; }
 
@@ -803,6 +869,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     }
 
     sloppy_eval_can_extend_vars_ = true;
+    num_heap_slots_ = Context::MIN_CONTEXT_EXTENDED_SLOTS;
   }
 
   bool sloppy_eval_can_extend_vars() const {
@@ -924,9 +991,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // The variable holding the JSGeneratorObject for generator, async
   // and async generator functions, and modules. Only valid for
-  // function and module scopes.
+  // function, module and REPL mode script scopes.
   Variable* generator_object_var() const {
-    DCHECK(is_function_scope() || is_module_scope());
+    DCHECK(is_function_scope() || is_module_scope() || is_repl_mode_scope());
     return GetRareVariable(RareVariable::kGeneratorObject);
   }
 
@@ -1097,6 +1164,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return needs_private_name_context_chain_recalc_;
   }
   void RecordNeedsPrivateNameContextChainRecalc();
+
+  // Re-writes the {VariableLocation} of top-level 'let' bindings from CONTEXT
+  // to REPL_GLOBAL. Should only be called on REPL scripts.
+  void RewriteReplGlobalVariables();
 
  private:
   V8_INLINE void AllocateParameter(Variable* var, int index);

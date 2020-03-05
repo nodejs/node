@@ -50,7 +50,7 @@ class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
   bool AdvanceTracing(double deadline_in_ms) final { return true; }
   bool IsTracingDone() final { return true; }
   void TracePrologue(TraceFlags) final {}
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) final {

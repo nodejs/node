@@ -20,7 +20,8 @@ namespace regexp {
     // Call exec.
     try {
       const matchIndices: RegExpMatchInfo =
-          RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
+          RegExpPrototypeExecBodyWithoutResultFast(
+              UnsafeCast<JSRegExp>(regexp), string)
           otherwise DidNotMatch;
 
       // Successful match.
@@ -38,13 +39,13 @@ namespace regexp {
     }
   }
 
-  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpResult(
+  extern macro RegExpBuiltinsAssembler::BranchIfRegExpResult(
       implicit context: Context)(Object): never labels IsUnmodified,
       IsModified;
 
   macro
-  IsFastRegExpResult(implicit context: Context)(execResult: HeapObject): bool {
-    BranchIfFastRegExpResult(execResult) otherwise return true, return false;
+  IsRegExpResult(implicit context: Context)(execResult: HeapObject): bool {
+    BranchIfRegExpResult(execResult) otherwise return true, return false;
   }
 
   transitioning macro RegExpPrototypeSearchBodySlow(implicit context: Context)(
@@ -73,7 +74,7 @@ namespace regexp {
     }
 
     // Return the index of the match.
-    const fastExecResult = Cast<FastJSRegExpResult>(execResult)
+    const fastExecResult = Cast<JSRegExpResult>(execResult)
         otherwise return GetProperty(execResult, 'index');
     return fastExecResult.index;
   }
@@ -89,11 +90,13 @@ namespace regexp {
   // ES#sec-regexp.prototype-@@search
   // RegExp.prototype [ @@search ] ( string )
   transitioning javascript builtin RegExpPrototypeSearch(
-      js-implicit context: Context, receiver: JSAny)(string: JSAny): JSAny {
+      js-implicit context: NativeContext,
+      receiver: JSAny)(string: JSAny): JSAny {
     ThrowIfNotJSReceiver(
-        receiver, kIncompatibleMethodReceiver, 'RegExp.prototype.@@search');
+        receiver, MessageTemplate::kIncompatibleMethodReceiver,
+        'RegExp.prototype.@@search');
     const receiver = UnsafeCast<JSReceiver>(receiver);
-    const string: String = ToString_Inline(context, string);
+    const string: String = ToString_Inline(string);
 
     if (IsFastRegExpPermissive(receiver)) {
       // TODO(pwong): Could be optimized to remove the overhead of calling the

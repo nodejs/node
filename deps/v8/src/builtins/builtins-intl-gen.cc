@@ -40,12 +40,12 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  TNode<String> const string = CAST(Parameter(Descriptor::kString));
+  const TNode<String> string = CAST(Parameter(Descriptor::kString));
 
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Early exit on empty strings.
-  TNode<Uint32T> const length = LoadStringLengthAsWord32(string);
+  const TNode<Uint32T> length = LoadStringLengthAsWord32(string);
   GotoIf(Word32Equal(length, Uint32Constant(0)), &return_string);
 
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
@@ -54,14 +54,14 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
       state(), string, ToDirectStringAssembler::kDontUnpackSlicedStrings);
   to_direct.TryToDirect(&runtime);
 
-  TNode<Int32T> const instance_type = to_direct.instance_type();
+  const TNode<Int32T> instance_type = to_direct.instance_type();
   CSA_ASSERT(this,
              Word32BinaryNot(IsIndirectStringInstanceType(instance_type)));
   GotoIfNot(IsOneByteStringInstanceType(instance_type), &runtime);
 
   // For short strings, do the conversion in CSA through the lookup table.
 
-  TNode<String> const dst = AllocateSeqOneByteString(length);
+  const TNode<String> dst = AllocateSeqOneByteString(length);
 
   const int kMaxShortStringLength = 24;  // Determined empirically.
   GotoIf(Uint32GreaterThan(length, Uint32Constant(kMaxShortStringLength)),
@@ -71,12 +71,12 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     const TNode<IntPtrT> dst_ptr = PointerToSeqStringData(dst);
     TVARIABLE(IntPtrT, var_cursor, IntPtrConstant(0));
 
-    TNode<IntPtrT> const start_address =
+    const TNode<IntPtrT> start_address =
         ReinterpretCast<IntPtrT>(to_direct.PointerToData(&call_c));
-    TNode<IntPtrT> const end_address =
+    const TNode<IntPtrT> end_address =
         Signed(IntPtrAdd(start_address, ChangeUint32ToWord(length)));
 
-    TNode<ExternalReference> const to_lower_table_addr =
+    const TNode<ExternalReference> to_lower_table_addr =
         ExternalConstant(ExternalReference::intl_to_latin1_lower_table());
 
     TVARIABLE(Word32T, var_did_change, Int32Constant(0));
@@ -110,9 +110,9 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   // String ConvertOneByteToLower(String src, String dst);
   BIND(&call_c);
   {
-    TNode<String> const src = to_direct.string();
+    const TNode<String> src = to_direct.string();
 
-    TNode<ExternalReference> const function_addr =
+    const TNode<ExternalReference> function_addr =
         ExternalConstant(ExternalReference::intl_convert_one_byte_to_lower());
 
     MachineType type_tagged = MachineType::AnyTagged();
@@ -129,7 +129,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   BIND(&runtime);
   {
-    TNode<Object> const result = CallRuntime(Runtime::kStringToLowerCaseIntl,
+    const TNode<Object> result = CallRuntime(Runtime::kStringToLowerCaseIntl,
                                              NoContextConstant(), string);
     Return(result);
   }
@@ -178,7 +178,7 @@ TNode<JSArray> IntlBuiltinsAssembler::AllocateEmptyJSArray(
   return CodeStubAssembler::AllocateJSArray(
       PACKED_ELEMENTS,
       LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context)),
-      SmiConstant(0), SmiConstant(0));
+      IntPtrConstant(0), SmiConstant(0));
 }
 
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {

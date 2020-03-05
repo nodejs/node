@@ -74,7 +74,7 @@ validNumberingSystem.forEach(function(numberingSystem) {
   locales.forEach(function(base) {
     let l = base + "-u-nu-" + numberingSystem;
     let dtf = new Intl.DateTimeFormat([base], {numberingSystem});
-    assertEquals(l, dtf.resolvedOptions().locale);
+    assertEquals(base, dtf.resolvedOptions().locale);
     assertEquals(numberingSystem, dtf.resolvedOptions().numberingSystem);
 
     // Test the formatting result is the same as passing in via u-nu-

@@ -126,7 +126,7 @@ static_assert(sizeof(Register) == sizeof(int),
 
 // r7: context register
 #define DECLARE_REGISTER(R) \
-  constexpr Register R = Register::from_code<kRegCode_##R>();
+  constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
@@ -223,7 +223,7 @@ using DoubleRegister = DwVfpRegister;
 class LowDwVfpRegister
     : public RegisterBase<LowDwVfpRegister, kDoubleCode_d16> {
  public:
-  constexpr operator DwVfpRegister() const { return DwVfpRegister(reg_code_); }
+  constexpr operator DwVfpRegister() const { return DwVfpRegister(code()); }
 
   SwVfpRegister low() const { return SwVfpRegister::from_code(code() * 2); }
   SwVfpRegister high() const {
@@ -292,24 +292,24 @@ class CRegister : public RegisterBase<CRegister, kCAfterLast> {
 // Support for the VFP registers s0 to s31 (d0 to d15).
 // Note that "s(N):s(N+1)" is the same as "d(N/2)".
 #define DECLARE_FLOAT_REGISTER(R) \
-  constexpr SwVfpRegister R = SwVfpRegister::from_code<kSwVfpCode_##R>();
+  constexpr SwVfpRegister R = SwVfpRegister::from_code(kSwVfpCode_##R);
 FLOAT_REGISTERS(DECLARE_FLOAT_REGISTER)
 #undef DECLARE_FLOAT_REGISTER
 
 #define DECLARE_LOW_DOUBLE_REGISTER(R) \
-  constexpr LowDwVfpRegister R = LowDwVfpRegister::from_code<kDoubleCode_##R>();
+  constexpr LowDwVfpRegister R = LowDwVfpRegister::from_code(kDoubleCode_##R);
 LOW_DOUBLE_REGISTERS(DECLARE_LOW_DOUBLE_REGISTER)
 #undef DECLARE_LOW_DOUBLE_REGISTER
 
 #define DECLARE_DOUBLE_REGISTER(R) \
-  constexpr DwVfpRegister R = DwVfpRegister::from_code<kDoubleCode_##R>();
+  constexpr DwVfpRegister R = DwVfpRegister::from_code(kDoubleCode_##R);
 NON_LOW_DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 #undef DECLARE_DOUBLE_REGISTER
 
 constexpr DwVfpRegister no_dreg = DwVfpRegister::no_reg();
 
 #define DECLARE_SIMD128_REGISTER(R) \
-  constexpr Simd128Register R = Simd128Register::from_code<kSimd128Code_##R>();
+  constexpr Simd128Register R = Simd128Register::from_code(kSimd128Code_##R);
 SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
 #undef DECLARE_SIMD128_REGISTER
 
@@ -321,7 +321,7 @@ constexpr LowDwVfpRegister kDoubleRegZero = d13;
 constexpr CRegister no_creg = CRegister::no_reg();
 
 #define DECLARE_C_REGISTER(R) \
-  constexpr CRegister R = CRegister::from_code<kCCode_##R>();
+  constexpr CRegister R = CRegister::from_code(kCCode_##R);
 C_REGISTERS(DECLARE_C_REGISTER)
 #undef DECLARE_C_REGISTER
 
