@@ -188,74 +188,60 @@ defined in `"exports"`. If package entry points are defined in both `"main"` and
 `"exports"`. [Conditional Exports][] can also be used within `"exports"` to
 define different package entry points per environment.
 
-#### `package.json` `"main"`
+#### Package Exports Main
 
-The `package.json` `"main"` field defines the entry point for a package,
-whether the package is included into CommonJS via `require` or into an ES
-module via `import`.
+To set the main entry point for a package, it is advisable to use both
+`"exports"` and the `"main"`:
 
 <!-- eslint-skip -->
 ```js
-// ./node_modules/es-module-package/package.json
 {
-  "type": "module",
-  "main": "./src/index.js"
+  "main": "./main.js",
+  "exports": "./main.js"
 }
 ```
 
-```js
-// ./my-app.mjs
+The benefit of doing this is that when using the `"exports"` field all
+subpaths of the package will no longer be available to importers under
+`require('pkg/subpath.js')`, and instead they will get a new error,
+`ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
-import { something } from 'es-module-package';
-// Loads from ./node_modules/es-module-package/src/index.js
-```
+This new encapsulation of exports provides new more reliable guarantees
+about package interfaces for tools and when handling semver upgrades for a
+package. It is not a strong encapsulation since
+`require('/path/to/pkg/subpath.js')` will still work correctly.
 
-An attempt to `require` the above `es-module-package` would attempt to load
-`./node_modules/es-module-package/src/index.js` as CommonJS, which would throw
-an error as Node.js would not be able to parse the `export` statement in
-CommonJS.
+#### Package Exports Subpaths
 
-As with `import` statements, for ES module usage the value of `"main"` must be
-a full path including extension: `"./index.mjs"`, not `"./index"`.
-
-If the `package.json` `"type"` field is omitted, a `.js` file in `"main"` will
-be interpreted as CommonJS.
-
-The `"main"` field can point to exactly one file, regardless of whether the
-package is referenced via `require` (in a CommonJS context) or `import` (in an
-ES module context).
-
-#### Package Exports
-
-By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
-Custom subpath aliasing and encapsulation can be provided through the
-`"exports"` field.
+When using the `"exports"` field, custom subpaths can be defined along
+with the main entry point by treating the main entry point as the
+`"."` subpath:
 
 <!-- eslint-skip -->
 ```js
-// ./node_modules/es-module-package/package.json
 {
+  "main": "./main.js",
   "exports": {
+    ".": "./main.js",
     "./submodule": "./src/submodule.js"
   }
 }
 ```
+
+Now only the defined subpath in `"exports"` can be imported by a
+consumer:
 
 ```js
 import submodule from 'es-module-package/submodule';
 // Loads ./node_modules/es-module-package/src/submodule.js
 ```
 
-In addition to defining an alias, subpaths not defined by `"exports"` will
-throw when an attempt is made to import them:
+While other subpaths will still error:
 
 ```js
 import submodule from 'es-module-package/private-module.js';
-// Throws ERR_MODULE_NOT_FOUND
+// Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
-
-> Note: this is not a strong encapsulation as any private modules can still be
-> loaded by absolute paths.
 
 Folders can also be mapped with package exports:
 
@@ -274,10 +260,6 @@ import feature from 'es-module-package/features/x.js';
 // Loads ./node_modules/es-module-package/src/features/x.js
 ```
 
-If a package has no exports, setting `"exports": false` can be used instead of
-`"exports": {}` to indicate the package does not intend for submodules to be
-exposed.
-
 Any invalid exports entries will be ignored. This includes exports not
 starting with `"./"` or a missing trailing `"/"` for directory exports.
 
@@ -295,22 +277,6 @@ in order to be forwards-compatible with possible fallback workflows in future:
 
 Since `"not:valid"` is not a supported target, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
-
-Defining a `"."` export will define the main entry point for the package,
-and will always take precedence over the `"main"` field in the `package.json`.
-
-This allows defining a different entry point for Node.js versions that support
-ECMAScript modules and versions that don't, for example:
-
-<!-- eslint-skip -->
-```js
-{
-  "main": "./main-legacy.cjs",
-  "exports": {
-    ".": "./main-modern.cjs"
-  }
-}
-```
 
 #### Exports Sugar
 
@@ -361,15 +327,16 @@ For example, a package that wants to provide different ES module exports for
 
 Node.js supports the following conditions:
 
-* `"default"` - the generic fallback that will always match. Can be a CommonJS
-   or ES module file. _This condition should always come last._
 * `"import"` - matched when the package is loaded via `import` or
    `import()`. Can reference either an ES module or CommonJS file, as both
    `import` and `import()` can load either ES module or CommonJS sources.
-* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
-   module file.
 * `"require"` - matched when the package is loaded via `require()`.
    As `require()` only supports CommonJS, the referenced file must be CommonJS.
+* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+   module file. _This condition should always come after `"import"` or
+   `"require"`._
+* `"default"` - the generic fallback that will always match. Can be a CommonJS
+   or ES module file. _This condition should always come last._
 
 Condition matching is applied in object order from first to last within the
 `"exports"` object. _The general rule is that conditions should be used
@@ -403,6 +370,33 @@ Conditional exports can also be extended to exports subpaths, for example:
 Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
 could provide different implementations between the browser and Node.js,
 given third-part tool support for a `"browser"` condition.
+
+#### Nested conditions
+
+In addition to direct mappings, conditional exports also supports nested
+conditions with nested condition objects.
+
+For example, to define a package that only has dual mode entry points for
+use in Node.js but not the browser:
+
+<!-- eslint-skip -->
+```js
+{
+  "main": "./main.js",
+  "exports": {
+    "browser": "./feature-browser.mjs",
+    "node": {
+      "import": "./feature-node.mjs",
+      "require": "./feature-node.cjs"
+    }
+  }
+}
+```
+
+Conditions continue to be matched in order as with flat conditions. If
+a nested conditional does not have any mapping it will continue checking
+the remaining conditions of the parent condition. In this way nested
+conditions behave fully analogously to nested `if` statements in JS.
 
 ### Dual CommonJS/ES Module Packages
 
