@@ -83,10 +83,10 @@ class SigintWatchdog : public SigintWatchdogBase {
 
 class TraceSigintWatchdog : public HandleWrap, public SigintWatchdogBase {
  public:
-  static void Init(Environment* env, Local<v8::Object> target);
+  static void Init(Environment* env, v8::Local<v8::Object> target);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Start(const v8::FunctionCallbackInfo<Value>& args);
-  static void Stop(const v8::FunctionCallbackInfo<Value>& args);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SignalPropagation HandleSigint() override;
 
@@ -99,7 +99,7 @@ class TraceSigintWatchdog : public HandleWrap, public SigintWatchdogBase {
  private:
   enum class SignalFlags { None, FromIdle, FromInterrupt };
 
-  TraceSigintWatchdog(Environment* env, Local<v8::Object> object);
+  TraceSigintWatchdog(Environment* env, v8::Local<v8::Object> object);
   void HandleInterrupt();
 
   bool interrupting = false;
