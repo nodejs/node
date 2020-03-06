@@ -1,4 +1,4 @@
-# Buffer
+	# Buffer
 
 <!--introduced_in=v0.1.90-->
 
@@ -1994,8 +1994,11 @@ added: v0.1.90
 * `string` {string} String to write to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write `string`.
   **Default:** `0`.
-* `length` {integer} Maximum number of bytes to write. **Default:**
-  `buf.length - offset`.
+* `length` {integer} Maximum number of bytes to write (written bytes will not
+  exceed `buf.length - offset`). **Default:** `buf.length - offset`.
+  If the buffer has sufficient space from the offset, the string is written upto
+  `length`. If the buffer is short in space, only `buf.length - offset`
+  bytes are written.
 * `encoding` {string} The character encoding of `string`. **Default:** `'utf8'`.
 * Returns: {integer} Number of bytes written.
 
