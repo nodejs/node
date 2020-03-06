@@ -1640,7 +1640,7 @@ success!
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
-[the dual mode packages section]: #esm_dual_commonjs_es_module_packages
+[the dual CommonJS/ES module packages section]: #esm_dual_commonjs_es_module_packages
 [transpiler loader example]: #esm_transpiler_loader
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Top-Level Await]: https://github.com/tc39/proposal-top-level-await
