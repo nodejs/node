@@ -189,13 +189,16 @@ in versions of Node.js that support `"exports"`. [Conditional Exports][] can
 also be used within `"exports"` to define different package entry points per
 environment.
 
-When using both `import` and `require` the `"exports"` field will be resolved
-if it is set, otherwise the `"main"` field will be resolved.
+If both `"exports"` and `"main"` are defined, the `"exports"` field takes
+precedence over `"main"`.
 
-When setting any package entry points to ES modules, `require()` will not work
-in both modern and legacy Node.js versions, so it is important to carefully
-follow [the dual CommonJS/ES module packages section][] to properly handle
-these types of backwards-compatible ES module support.
+All package entry points apply to both `import` and `require`; `"exports"` and
+`"main"` are **not** specific to ES modules or CommonJS.
+
+This is important with regard to `require`, since `require` of ES module files
+throws an error in all versions of Node.js. To create a package that works both
+in modern Node.js via `import` and `require` and also legacy Node.js versions,
+see [the dual CommonJS/ES module packages section][].
 
 #### Package Exports Main
 
