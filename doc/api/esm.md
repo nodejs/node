@@ -375,8 +375,9 @@ Condition matching is applied in object order from first to last within the
 from most specific to least specific in object order._
 
 Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. could be defined in other runtimes or tools. Further restrictions,
-definitions or guidance on condition names may be provided in future.
+etc. are ignored by Node.js but may be used by other runtimes or tools.
+Further restrictions, definitions or guidance on condition names may be
+provided in the future.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are explained further in
