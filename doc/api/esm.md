@@ -175,7 +175,7 @@ unspecified.
 
 ## Packages
 
-### Package Exports
+### Package Entry Points
 
 There are two fields that can define entry points for a package: `"main"` and
 `"exports"`. The `"main"` field is supported in all versions of Node.js, but its
@@ -188,6 +188,14 @@ points are defined in both `"main"` and `"exports"`, the latter takes precedence
 in versions of Node.js that support `"exports"`. [Conditional Exports][] can
 also be used within `"exports"` to define different package entry points per
 environment.
+
+When using both `import` and `require` the `"exports"` field will be resolved
+if it is set, otherwise the `"main"` field will be resolved.
+
+When setting any package entry points to ES modules, `require()` will not work in
+both modern and legacy Node.js versions, so it is important to carefully follow
+[the dual CommonJS/ES module packages section][] to properly handle these types
+of backwards-compatible ES module support.
 
 #### Package Exports Main
 
