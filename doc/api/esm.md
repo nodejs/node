@@ -369,6 +369,7 @@ Node.js supports the following conditions:
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file.
 * `"require"` - matched when the package is loaded via `require()`.
+   As `require()` only supports CommonJS, the referenced file must be CommonJS.
 
 Condition matching is applied in object order from first to last within the
 `"exports"` object. _The general rule is that conditions should be used
