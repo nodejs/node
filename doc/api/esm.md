@@ -359,7 +359,7 @@ For example, a package that wants to provide different ES module exports for
 }
 ```
 
-The conditions supported in Node.js condition matching:
+Node.js supports the following conditions:
 
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
    or ES module file. _This condition should always come last._
