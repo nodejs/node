@@ -364,8 +364,8 @@ Node.js supports the following conditions:
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
    or ES module file. _This condition should always come last._
 * `"import"` - matched when the package is loaded via `import` or
-   `import()`. Can be any module format, this field does not set the type
-   interpretation.
+   `import()`. Can reference either an ES module or CommonJS file, as both
+   `import` and `import()` can load either ES module or CommonJS sources.
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file.
 * `"require"` - matched when the package is loaded via `require()`.
