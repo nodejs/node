@@ -432,6 +432,9 @@ Disable [runtime allocation of executable memory][jitless]. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
 
+This flag is inherited from v8 and is subject to change upstream. It may
+disappear in a non-semver-major release.
+
 ### `--max-http-header-size=size`
 <!-- YAML
 added: v11.6.0
