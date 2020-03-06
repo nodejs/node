@@ -494,7 +494,7 @@ class NgHeader : public MemoryRetainer {
   inline std::string value() const;
   inline size_t length() const;
 
-  void MemoryInfo(MemoryTracker* tracker) const {
+  void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("name", name_);
     tracker->TrackField("value", value_);
   }
