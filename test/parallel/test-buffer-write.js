@@ -90,6 +90,9 @@ for (let i = 1; i < 4; i++) {
 const z = Buffer.alloc(4, 0);
 assert.strictEqual(z.write('\u0001', 3, 'ucs2'), 0);
 assert.strictEqual(Buffer.compare(z, Buffer.alloc(4, 0)), 0);
+// Make sure longer strings are written up to the buffer end.
+assert.strictEqual(z.write('abcd', 2), 2);
+assert.deepStrictEqual([...z], [0, 0, 0x61, 0x62]);
 
 // Large overrun could corrupt the process
 assert.strictEqual(Buffer.alloc(4)
